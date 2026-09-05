@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { messages } from '@vakhta/i18n';
 import { describeError } from '../errors.ts';
 
@@ -9,7 +9,7 @@ export function useAction() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  async function run(action: () => Promise<void>, done?: string): Promise<boolean> {
+  const run = useCallback(async (action: () => Promise<void>, done?: string): Promise<boolean> => {
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -23,7 +23,7 @@ export function useAction() {
     } finally {
       setBusy(false);
     }
-  }
+  }, []);
   return { busy, error, notice, run, setNotice };
 }
 

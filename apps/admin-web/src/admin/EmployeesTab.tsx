@@ -27,8 +27,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
 
   useEffect(() => {
     void run(async () => setList(await employeesApi.list()));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [run]);
 
   function replace(updated: EmployeeView) {
     setList((l) => l.map((x) => (x.id === updated.id ? updated : x)));
@@ -220,8 +219,7 @@ function PositionPanel({
 
   useEffect(() => {
     void run(async () => setHistory(await adminEmployeesApi.positions(employee.id)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employee.id]);
+  }, [employee.id, run]);
 
   const current = history?.find((h) => h.validTo === null) ?? null;
   const unitName = (id: string) => org.orgUnits.find((u) => u.id === id)?.name ?? id;

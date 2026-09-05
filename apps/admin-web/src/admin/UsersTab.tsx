@@ -41,8 +41,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
 
   useEffect(() => {
     void run(async () => setList(await usersApi.list()));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [run]);
 
   function replace(updated: WebUserView) {
     setList((l) => l.map((x) => (x.id === updated.id ? updated : x)));
