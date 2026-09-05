@@ -1,5 +1,6 @@
 import type {
   ScheduleStatus,
+  ScopeType,
   ActivationFailure,
   CheckInFailure,
   EmployeeAccess,
@@ -167,6 +168,93 @@ export interface Messages {
       readonly unsaved: string;
       readonly forbidden: string;
       readonly noTemplates: string;
+    };
+    readonly administration: {
+      readonly tabs: Readonly<Record<'employees' | 'users' | 'directories' | 'terminals', string>>;
+      readonly common: {
+        readonly add: string;
+        readonly added: string;
+        readonly code: string;
+        readonly name: string;
+        readonly site: string;
+        readonly orgUnit: string;
+        readonly team: string;
+        readonly none: string;
+        readonly copy: string;
+        readonly copied: string;
+        readonly reason: string;
+        readonly cancel: string;
+        readonly empty: string;
+      };
+      readonly employees: {
+        readonly personnelNumber: string;
+        readonly fullName: string;
+        readonly status: string;
+        readonly telegram: string;
+        readonly linked: string;
+        readonly notLinked: string;
+        readonly create: string;
+        readonly issueCode: string;
+        /** Плейсхолдери: {code}, {expires} */
+        readonly codeIssued: string;
+        readonly deepLink: string;
+        readonly position: string;
+        readonly currentPosition: string;
+        readonly noPosition: string;
+        readonly assignPosition: string;
+        readonly positionAssigned: string;
+        readonly block: string;
+        readonly unblock: string;
+        readonly terminate: string;
+        readonly statusChanged: string;
+        readonly relink: string;
+        readonly relinkUserId: string;
+        readonly relinked: string;
+        readonly statuses: Readonly<Record<'ACTIVE' | 'BLOCKED' | 'TERMINATED', string>>;
+      };
+      readonly users: {
+        readonly email: string;
+        readonly name: string;
+        readonly password: string;
+        readonly passwordHint: string;
+        readonly twoFactor: string;
+        readonly roles: string;
+        readonly create: string;
+        readonly grantRole: string;
+        readonly role: string;
+        readonly scopeType: string;
+        readonly scope: string;
+        readonly grant: string;
+        readonly revoke: string;
+        readonly granted: string;
+        readonly revoked: string;
+        readonly scopeTypes: Readonly<Record<ScopeType, string>>;
+      };
+      readonly directories: {
+        readonly sites: string;
+        readonly orgUnits: string;
+        readonly teams: string;
+        readonly positions: string;
+        readonly zones: string;
+        readonly timezone: string;
+        readonly parent: string;
+        readonly type: string;
+        readonly shared: string;
+        readonly zoneTypes: Readonly<
+          Record<'AREA' | 'POST' | 'PACKAGING' | 'FILLING' | 'CLEANING' | 'OTHER', string>
+        >;
+      };
+      readonly terminals: {
+        readonly checkpoint: string;
+        readonly status: string;
+        readonly lastSeen: string;
+        readonly never: string;
+        readonly register: string;
+        readonly registered: string;
+        readonly tokenHint: string;
+        readonly checkpoints: Readonly<Record<'ENTRY' | 'EXIT' | 'BOTH', string>>;
+        readonly statuses: Readonly<Record<'ACTIVE' | 'DISABLED', string>>;
+      };
     };
   };
   readonly kiosk: {

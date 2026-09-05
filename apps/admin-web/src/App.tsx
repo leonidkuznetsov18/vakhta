@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { messages } from '@vakhta/i18n';
 import { LoginScreen } from './auth/LoginScreen.tsx';
 import { ProfilePanel } from './auth/ProfilePanel.tsx';
+import { AdminPage } from './admin/AdminPage.tsx';
 import { SchedulePage } from './schedule/SchedulePage.tsx';
 import { useSession } from './auth/useSession.ts';
 
@@ -64,6 +65,8 @@ export function App() {
           <ProfilePanel me={me} onChanged={() => void refresh()} />
         ) : active === 'schedule' ? (
           <SchedulePage />
+        ) : active === 'administration' ? (
+          <AdminPage />
         ) : (
           <p className="muted">{t.admin.placeholder}</p>
         )}

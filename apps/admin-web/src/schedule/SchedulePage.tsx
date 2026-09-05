@@ -8,7 +8,8 @@ import type {
   ShiftTemplateView,
 } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
-import { ApiError, employeesApi, orgApi, schedulesApi } from '../api.ts';
+import { employeesApi, orgApi, schedulesApi } from '../api.ts';
+import { describeError as describe } from '../errors.ts';
 import { AckTable } from './AckTable.tsx';
 import { IssuesPanel } from './IssuesPanel.tsx';
 import { ScheduleGrid } from './ScheduleGrid.tsx';
@@ -29,15 +30,6 @@ const EMPTY_GRID: GridState = { rows: [] };
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7);
-}
-
-function describe(e: unknown): string {
-  if (e instanceof ApiError) {
-    if (e.status === 403) return s.forbidden;
-    const known = (t.errors as Record<string, string>)[e.code ?? ''];
-    return known ?? e.message;
-  }
-  return e instanceof Error ? e.message : String(e);
 }
 
 /**

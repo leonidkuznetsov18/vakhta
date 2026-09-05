@@ -111,3 +111,64 @@ export const schedulesApi = {
   acknowledgements: (id: string) =>
     apiFetch<AcknowledgementStatusView[]>(`/admin/schedules/${id}/acknowledgements`),
 };
+
+// ---- адміністрування: працівники, користувачі, довідники, термінали (ТЗ 9.1) ----
+
+import type {
+  ActivationCodeIssued,
+  AssignPositionCommand,
+  ChangeEmployeeStatusCommand,
+  CreateEmployeeCommand,
+  CreateOrgUnitCommand,
+  CreatePositionCommand,
+  CreateSiteCommand,
+  CreateTeamCommand,
+  CreateWebUserCommand,
+  CreateZoneCommand,
+  EmployeePositionView,
+  GrantRoleCommand,
+  OrgUnitView,
+  PositionView,
+  RegisterTerminalCommand,
+  RelinkTelegramCommand,
+  RoleGrantView,
+  SiteView,
+  TeamView,
+  TerminalRegistered,
+  WebUserView,
+  ZoneView,
+} from '@vakhta/contracts';
+
+export const adminEmployeesApi = {
+  create: (cmd: CreateEmployeeCommand) => post<EmployeeView>('/admin/employees', cmd),
+  changeStatus: (id: string, cmd: ChangeEmployeeStatusCommand) =>
+    post<EmployeeView>(`/admin/employees/${id}/status`, cmd),
+  issueCode: (id: string) => post<ActivationCodeIssued>(`/admin/employees/${id}/activation-codes`),
+  relink: (id: string, cmd: RelinkTelegramCommand) =>
+    post<{ employeeId: string; telegramUserId: number; linkedAt: string }>(
+      `/admin/employees/${id}/telegram/relink`,
+      cmd,
+    ),
+  positions: (id: string) => apiFetch<EmployeePositionView[]>(`/admin/employees/${id}/positions`),
+  assignPosition: (id: string, cmd: AssignPositionCommand) =>
+    post<EmployeePositionView>(`/admin/employees/${id}/positions`, cmd),
+};
+
+export const usersApi = {
+  list: () => apiFetch<WebUserView[]>('/admin/users'),
+  create: (cmd: CreateWebUserCommand) => post<WebUserView>('/admin/users', cmd),
+  grant: (userId: string, cmd: GrantRoleCommand) =>
+    post<RoleGrantView>(`/admin/users/${userId}/roles`, cmd),
+  revoke: (userId: string, grantId: string) =>
+    apiFetch<null>(`/admin/users/${userId}/roles/${grantId}`, { method: 'DELETE' }),
+};
+
+export const adminOrgApi = {
+  createSite: (cmd: CreateSiteCommand) => post<SiteView>('/admin/org/sites', cmd),
+  createOrgUnit: (cmd: CreateOrgUnitCommand) => post<OrgUnitView>('/admin/org/units', cmd),
+  createTeam: (cmd: CreateTeamCommand) => post<TeamView>('/admin/org/teams', cmd),
+  createPosition: (cmd: CreatePositionCommand) => post<PositionView>('/admin/org/positions', cmd),
+  createZone: (cmd: CreateZoneCommand) => post<ZoneView>('/admin/org/zones', cmd),
+  registerTerminal: (cmd: RegisterTerminalCommand) =>
+    post<TerminalRegistered>('/admin/org/terminals', cmd),
+};
