@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { AttendanceModule } from './attendance/attendance.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { loadEnv } from './config/env.js';
 import { EventsModule } from './events/events.module.js';
@@ -31,6 +32,7 @@ import { TelegramModule } from './telegram/telegram.module.js';
     OrgModule,
     IdentityModule,
     SchedulingModule,
+    AttendanceModule,
     KioskModule,
     TelegramModule,
   ],

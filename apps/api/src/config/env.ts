@@ -24,6 +24,8 @@ export const EnvSchema = z.object({
   REDIS_URL: z.string().min(1),
   TELEGRAM_BOT_TOKEN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   TELEGRAM_BOT_USERNAME: z.string().default('VakhtaBot'),
+  /** webhook для продакшену (потрібна публічна адреса), polling для розробки. За замовчуванням залежить від NODE_ENV. */
+  TELEGRAM_MODE: z.preprocess(emptyToUndefined, z.enum(['webhook', 'polling']).optional()),
   TELEGRAM_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
   PUBLIC_BASE_URL: z.string().default('http://localhost:3000'),
   DEFAULT_SITE_TIMEZONE: z.string().default('Europe/Kyiv'),
@@ -43,9 +45,16 @@ export const EnvSchema = z.object({
   SHIFT_REMINDER_MINUTES: z.coerce.number().int().positive().default(120),
   /** Повторне нагадування про ознайомлення (ТЗ 10). */
   ACK_REMINDER_HOURS: z.coerce.number().int().positive().default(24),
+  /** Вікна приходу і відходу відносно планової зміни (ТЗ 18 п. 4). */
+  PRESENCE_ARRIVE_BEFORE_MINUTES: z.coerce.number().int().positive().default(180),
+  PRESENCE_DEPART_AFTER_MINUTES: z.coerce.number().int().positive().default(180),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
+
+export function telegramMode(env: Pick<Env, 'TELEGRAM_MODE' | 'NODE_ENV'>): 'webhook' | 'polling' {
+  return env.TELEGRAM_MODE ?? (env.NODE_ENV === 'production' ? 'webhook' : 'polling');
+}
 
 /** Валідує env один раз при старті; неповна конфігурація зупиняє процес із зрозумілим списком. */
 export function loadEnv(source: Record<string, unknown>): Env {
@@ -54,9 +63,13 @@ export function loadEnv(source: Record<string, unknown>): Env {
     const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     throw new Error(`Некоректна конфігурація середовища: ${issues}`);
   }
-  if (parsed.data.TELEGRAM_BOT_TOKEN && !parsed.data.TELEGRAM_WEBHOOK_SECRET) {
+  if (
+    parsed.data.TELEGRAM_BOT_TOKEN &&
+    telegramMode(parsed.data) === 'webhook' &&
+    !parsed.data.TELEGRAM_WEBHOOK_SECRET
+  ) {
     throw new Error(
-      "TELEGRAM_WEBHOOK_SECRET обов'язковий, коли задано TELEGRAM_BOT_TOKEN (ТЗ 12.2)",
+      "TELEGRAM_WEBHOOK_SECRET обов'язковий у режимі webhook, коли задано TELEGRAM_BOT_TOKEN (ТЗ 12.2)",
     );
   }
   return parsed.data;

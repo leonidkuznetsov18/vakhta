@@ -10,6 +10,7 @@ import {
   normalizeActivationCode,
 } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
+import type { AttendanceService } from '../attendance/attendance.service.js';
 import type { ActivationService } from '../identity/activation.service.js';
 import type { EmployeesService } from '../identity/employees.service.js';
 import type { ScheduleService } from '../scheduling/schedule.service.js';
@@ -20,16 +21,21 @@ import {
   activationFailureText,
   activationOutcomeScreen,
   activationPreviewScreen,
+  checkInPromptScreen,
+  checkInResultScreen,
   homeScreen,
   planScreen,
   welcomeScreen,
   type Screen,
 } from './screens.js';
+import type { UpdateDedup } from './update-dedup.js';
 
 export interface BotDeps {
   readonly employees: EmployeesService;
   readonly activation: ActivationService;
   readonly schedule: ScheduleService;
+  readonly attendance: AttendanceService;
+  readonly dedup: UpdateDedup;
   readonly defaultTimezone: string;
   readonly logger: Logger;
 }
@@ -41,6 +47,15 @@ export interface BotDeps {
 export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   const bot = new Bot<BotContext>(token);
   const t = messages('ru');
+
+  // ADR-3, рівень 1: повторна доставка update_id (webhook або polling) не доходить до обробників.
+  bot.use(async (ctx, next) => {
+    if (!(await deps.dedup.claim(ctx.update.update_id))) {
+      deps.logger.debug({ updateId: ctx.update.update_id }, 'повторне оновлення, пропущено');
+      return;
+    }
+    await next();
+  });
 
   // FR-AUTH-01: хто пише і чи має доступ. Лише активна привʼязка дає employee.
   bot.use(async (ctx, next) => {
@@ -73,11 +88,18 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         ? welcomeScreen()
         : accessDeniedScreen(ctx.access);
     }
-    const [next, unacknowledged] = await Promise.all([
+    const [next, unacknowledged, presence] = await Promise.all([
       deps.schedule.nextShift(ctx.employee.id),
       deps.schedule.unacknowledgedVersions(ctx.employee.id),
+      deps.attendance.openPresence(ctx.employee.id),
     ]);
-    return homeScreen({ employee: ctx.employee, next, unacknowledged: unacknowledged.length });
+    return homeScreen({
+      employee: ctx.employee,
+      next,
+      unacknowledged: unacknowledged.length,
+      presenceSince: presence?.arrivedAt ?? null,
+      timezone: next?.timezone ?? deps.defaultTimezone,
+    });
   }
 
   async function buildPlan(ctx: BotContext, month: string): Promise<Screen | null> {
@@ -98,13 +120,28 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await show(ctx, activationPreviewScreen(preview));
   }
 
+  /** Deep link з терміналу (FR-QR-02): показати одну доречну дію (FR-UI-01). */
+  async function startCheckIn(ctx: BotContext, qrToken: string): Promise<void> {
+    if (ctx.access === 'BLOCKED' || ctx.access === 'TERMINATED') {
+      return show(ctx, accessDeniedScreen(ctx.access));
+    }
+    if (ctx.access === 'NOT_REGISTERED' || !ctx.employee) {
+      return show(ctx, { text: `${t.attendance.activateFirst}\n\n${t.bot.askCode}` });
+    }
+
+    const preview = await deps.attendance.previewChallenge(qrToken);
+    if (!preview.ok) return show(ctx, { text: t.attendance.failures[preview.reason] });
+    const action = await deps.attendance.intent(ctx.employee.id);
+    await show(
+      ctx,
+      checkInPromptScreen({ action, terminalName: preview.terminal.name, token: qrToken }),
+    );
+  }
+
   bot.command('start', async (ctx) => {
     const param = ctx.match.trim();
     if (isActivationDeepLink(param)) return startActivation(ctx, codeFromDeepLink(param) ?? '');
-    if (param && isValidStartParam(param)) {
-      // Deep link з терміналу (FR-QR-02). Обробка challenge зʼявиться у фазі 2.
-      return show(ctx, { text: t.bot.qrReceivedNotReady });
-    }
+    if (param && isValidStartParam(param)) return startCheckIn(ctx, param);
     await show(ctx, await buildHome(ctx));
   });
 
@@ -123,6 +160,19 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await deps.activation.cancel(ctx.from.id);
     await ctx.answerCallbackQuery();
     await ctx.editMessageText(t.activation.cancelled);
+  });
+
+  // «Я на роботі» / «Я пішов» (FR-TIME-01, FR-TIME-05): результат із серверним часом (FR-UI-02).
+  bot.callbackQuery(/^(arr|dep):([A-Za-z0-9_-]{22})$/, async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee) {
+      await ctx.answerCallbackQuery({ text: t.bot.access.NOT_REGISTERED, show_alert: true });
+      return;
+    }
+    const action = ctx.match[1] === 'arr' ? 'ARRIVE' : 'DEPART';
+    const result = await deps.attendance.checkInByQr(ctx.employee.id, ctx.match[2] ?? '', action);
+    await ctx.answerCallbackQuery();
+    await edit(ctx, checkInResultScreen(result, deps.defaultTimezone));
+    if (result.ok) await show(ctx, await buildHome(ctx));
   });
 
   bot.callbackQuery(/^plan:(cur|\d{4}-\d{2})$/, async (ctx) => {

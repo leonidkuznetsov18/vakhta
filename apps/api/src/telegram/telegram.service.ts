@@ -1,9 +1,15 @@
 import { timingSafeEqual } from 'node:crypto';
-import { Injectable, ServiceUnavailableException, type OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  ServiceUnavailableException,
+  type OnApplicationShutdown,
+  type OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Bot } from 'grammy';
 import type { Update } from 'grammy/types';
-import type { Env } from '../config/env.js';
+import { AttendanceService } from '../attendance/attendance.service.js';
+import { telegramMode, type Env } from '../config/env.js';
 import { ActivationService } from '../identity/activation.service.js';
 import { EmployeesService } from '../identity/employees.service.js';
 import { createLogger } from '../logger.js';
@@ -13,12 +19,14 @@ import { createBot } from './bot.factory.js';
 import { UpdateDedup } from './update-dedup.js';
 
 /**
- * Тримає єдиний екземпляр grammY-бота, перевіряє секрет webhook (ТЗ 12.2) і
- * дедуплікує update_id. Без токена API стартує з вимкненим ботом.
+ * Тримає єдиний екземпляр grammY-бота. У режимі webhook перевіряє секрет (ТЗ 12.2),
+ * у режимі polling сам забирає оновлення: для розробки без публічної адреси.
+ * Дедуплікація update_id є першим middleware бота, тому діє в обох режимах.
  */
 @Injectable()
-export class TelegramService implements OnModuleInit {
+export class TelegramService implements OnModuleInit, OnApplicationShutdown {
   private bot: Bot<BotContext> | null = null;
+  private polling = false;
   private readonly logger;
 
   constructor(
@@ -26,6 +34,7 @@ export class TelegramService implements OnModuleInit {
     private readonly employees: EmployeesService,
     private readonly activation: ActivationService,
     private readonly schedule: ScheduleService,
+    private readonly attendance: AttendanceService,
     private readonly dedup: UpdateDedup,
   ) {
     this.logger = createLogger({
@@ -44,12 +53,48 @@ export class TelegramService implements OnModuleInit {
       employees: this.employees,
       activation: this.activation,
       schedule: this.schedule,
+      attendance: this.attendance,
+      dedup: this.dedup,
       defaultTimezone: this.config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
       logger: this.logger,
     });
     await bot.init();
     this.bot = bot;
-    this.logger.info({ username: bot.botInfo.username }, 'telegram-бот ініціалізовано');
+
+    const expectedUsername = this.config.get('TELEGRAM_BOT_USERNAME', { infer: true });
+    if (bot.botInfo.username !== expectedUsername) {
+      this.logger.warn(
+        { actual: bot.botInfo.username, configured: expectedUsername },
+        'TELEGRAM_BOT_USERNAME не збігається з ботом: deep links з терміналу відкриють іншого бота',
+      );
+    }
+
+    const mode = telegramMode({
+      TELEGRAM_MODE: this.config.get('TELEGRAM_MODE', { infer: true }),
+      NODE_ENV: this.config.get('NODE_ENV', { infer: true }),
+    });
+    if (mode === 'polling') {
+      this.polling = true;
+      // bot.start() сам знімає webhook і тримає long polling, доки не викликано stop().
+      void bot
+        .start({
+          onStart: (info) =>
+            this.logger.info({ username: info.username }, 'telegram-бот: long polling запущено'),
+        })
+        .catch((error: unknown) => {
+          this.polling = false;
+          this.logger.error({ err: error }, 'telegram-бот: polling зупинився з помилкою');
+        });
+    } else {
+      this.logger.info({ username: bot.botInfo.username }, 'telegram-бот: режим webhook');
+    }
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    if (this.bot && this.polling) {
+      await this.bot.stop();
+      this.polling = false;
+    }
   }
 
   get enabled(): boolean {
@@ -64,12 +109,9 @@ export class TelegramService implements OnModuleInit {
     return a.length === b.length && timingSafeEqual(a, b);
   }
 
+  /** Вхід із webhook; у режимі polling оновлення сюди не приходять. */
   async handleUpdate(update: Update): Promise<void> {
     if (!this.bot) throw new ServiceUnavailableException('Бот вимкнений');
-    if (!(await this.dedup.claim(update.update_id))) {
-      this.logger.debug({ updateId: update.update_id }, 'повторна доставка оновлення, пропущено');
-      return;
-    }
     try {
       await this.bot.handleUpdate(update);
     } catch (error) {

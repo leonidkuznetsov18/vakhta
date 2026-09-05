@@ -5,9 +5,10 @@ import {
   formatLocal,
   maskFullName,
   maskPersonnelNumber,
+  type CheckAction,
   type EmployeeAccess,
 } from '@vakhta/domain';
-import type { MyPlanView } from '@vakhta/contracts';
+import type { CheckInResult, MyPlanView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import type { ActivationOutcome, ActivationPreview } from '../identity/activation.service.js';
 import type { EmployeeRecord } from '../identity/employees.service.js';
@@ -24,6 +25,8 @@ export const CALLBACK = {
   planPrefix: 'plan:',
   ackPrefix: 'ack:',
   ackAll: 'ack:all',
+  arrivePrefix: 'arr:',
+  departPrefix: 'dep:',
 } as const;
 
 const t = messages('ru');
@@ -47,9 +50,12 @@ export interface HomeInput {
   readonly employee: EmployeeRecord;
   readonly next: NextShift | null;
   readonly unacknowledged: number;
+  /** Відкрита присутність: коли працівник відмітив прихід. */
+  readonly presenceSince: Date | null;
+  readonly timezone: string;
 }
 
-/** Головний екран (ТЗ 5.1, контекст «до зміни»): найближча зміна, план, ознайомлення. */
+/** Головний екран (ТЗ 5.1): присутність, найближча зміна, план, ознайомлення. */
 export function homeScreen(input: HomeInput): Screen {
   const lines = [
     format(t.bot.home, {
@@ -58,6 +64,11 @@ export function homeScreen(input: HomeInput): Screen {
     }),
     '',
   ];
+  if (input.presenceSince) {
+    lines.push(
+      format(t.attendance.presenceLine, { time: localTime(input.presenceSince, input.timezone) }),
+    );
+  }
   if (input.next) {
     const tz = input.next.timezone;
     lines.push(
@@ -78,6 +89,44 @@ export function homeScreen(input: HomeInput): Screen {
   const keyboard = new InlineKeyboard().text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`);
   if (input.unacknowledged > 0) keyboard.row().text(t.schedule.ackButton, CALLBACK.ackAll);
   return { text: lines.join('\n'), keyboard };
+}
+
+/** Після сканування QR: одна дія, що відповідає стану присутності (FR-UI-01). */
+export function checkInPromptScreen(input: {
+  readonly action: CheckAction;
+  readonly terminalName: string;
+  readonly token: string;
+}): Screen {
+  const arrive = input.action === 'ARRIVE';
+  return {
+    text: format(arrive ? t.attendance.promptArrive : t.attendance.promptDepart, {
+      terminal: input.terminalName,
+    }),
+    keyboard: new InlineKeyboard().text(
+      arrive ? t.attendance.arriveButton : t.attendance.departButton,
+      `${arrive ? CALLBACK.arrivePrefix : CALLBACK.departPrefix}${input.token}`,
+    ),
+  };
+}
+
+/** Підтвердження з серверним часом і новим статусом (FR-UI-02). */
+export function checkInResultScreen(result: CheckInResult, timezone: string): Screen {
+  if (!result.ok) return { text: t.attendance.failures[result.reason] };
+  const terminal = result.terminalName ?? '';
+  if (result.action === 'ARRIVE') {
+    const time = localTime(new Date(result.presence.arrivedAt), timezone);
+    return {
+      text: result.alreadyRecorded
+        ? format(t.attendance.arrivedAlready, { time, terminal })
+        : format(t.attendance.arrived, { time, terminal }),
+    };
+  }
+  const time = localTime(new Date(result.presence.departedAt ?? result.serverTime), timezone);
+  return {
+    text: result.alreadyRecorded
+      ? format(t.attendance.departedAlready, { time, terminal })
+      : format(t.attendance.departed, { time, terminal }),
+  };
 }
 
 /** «Мій план» за місяць (FR-SCH-01): компактний календар з підсумками й навігацією. */

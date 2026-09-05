@@ -1,5 +1,6 @@
 import type {
   ActivationFailure,
+  CheckInFailure,
   EmployeeAccess,
   ShiftAction,
   ShiftState,
@@ -14,7 +15,6 @@ export interface Messages {
     readonly welcome: string;
     readonly askCode: string;
     readonly alreadyRegistered: string;
-    readonly qrReceivedNotReady: string;
     readonly notReady: string;
     readonly useButtons: string;
     readonly serverTimeLabel: string;
@@ -35,6 +35,22 @@ export interface Messages {
     readonly alreadyLinked: string;
     readonly cancelled: string;
     readonly failures: Readonly<Record<ActivationFailure, string>>;
+  };
+  readonly attendance: {
+    readonly activateFirst: string;
+    /** Плейсхолдер: {terminal} */
+    readonly promptArrive: string;
+    readonly promptDepart: string;
+    readonly arriveButton: string;
+    readonly departButton: string;
+    /** Плейсхолдери: {time}, {terminal} */
+    readonly arrived: string;
+    readonly arrivedAlready: string;
+    readonly departed: string;
+    readonly departedAlready: string;
+    /** Плейсхолдер: {time} */
+    readonly presenceLine: string;
+    readonly failures: Readonly<Record<CheckInFailure, string>>;
   };
   readonly actions: Readonly<Record<ShiftAction, string>>;
   readonly states: Readonly<Record<ShiftState, string>>;
