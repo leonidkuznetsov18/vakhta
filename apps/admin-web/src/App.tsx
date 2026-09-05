@@ -6,6 +6,7 @@ import { AdminPage } from './admin/AdminPage.tsx';
 import { HandoverPage } from './handover/HandoverPage.tsx';
 import { IncidentsPage } from './incidents/IncidentsPage.tsx';
 import { OperationsPage } from './operations/OperationsPage.tsx';
+import { RequestsPage } from './requests/RequestsPage.tsx';
 import { SchedulePage } from './schedule/SchedulePage.tsx';
 import { useSession } from './auth/useSession.ts';
 
@@ -72,6 +73,8 @@ export function App() {
           <IncidentsPage />
         ) : active === 'handover' ? (
           <HandoverPage />
+        ) : active === 'requests' ? (
+          <RequestsPage />
         ) : active === 'schedule' ? (
           <SchedulePage />
         ) : active === 'administration' ? (

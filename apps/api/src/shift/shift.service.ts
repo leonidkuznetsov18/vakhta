@@ -769,8 +769,24 @@ export class ShiftService {
     return summary;
   }
 
+  /** Перерахунок підсумку після корекції (FR-COR-05): фактичні інтервали, той самий код. */
+  async recomputeSummary(tx: DbOrTx, sessionId: string, now: Date): Promise<ShiftSummaryView> {
+    const [session] = await tx
+      .select()
+      .from(shiftSessions)
+      .where(eq(shiftSessions.id, sessionId))
+      .limit(1);
+    if (!session) throw new DomainError('SHIFT_NOT_FOUND', 404, 'Зміну не знайдено');
+    return this.finalize(tx, session, session.endedAt ?? now, { silent: true });
+  }
+
   /** Підсумок зміни (ТЗ 6.2) і повідомлення працівнику в аутбокс тією самою транзакцією. */
-  private async finalize(tx: DbOrTx, session: SessionRow, now: Date): Promise<ShiftSummaryView> {
+  private async finalize(
+    tx: DbOrTx,
+    session: SessionRow,
+    now: Date,
+    opts: { silent?: boolean } = {},
+  ): Promise<ShiftSummaryView> {
     const intervals = await this.intervals(tx, session.id);
     const plan = session.assignmentId ? await this.assignmentById(tx, session.assignmentId) : null;
     const computed = computeShiftSummary(
@@ -831,13 +847,15 @@ export class ShiftService {
       shiftSessionId: session.id,
       payload: { ...view },
     });
-    await this.notifications.enqueue(tx, {
-      recipientType: 'EMPLOYEE',
-      recipientId: session.employeeId,
-      template: 'SHIFT_SUMMARY',
-      payload: { text: summaryText(view) },
-      dedupeKey: `shift-summary:${session.id}`,
-    });
+    if (!opts.silent) {
+      await this.notifications.enqueue(tx, {
+        recipientType: 'EMPLOYEE',
+        recipientId: session.employeeId,
+        template: 'SHIFT_SUMMARY',
+        payload: { text: summaryText(view) },
+        dedupeKey: `shift-summary:${session.id}`,
+      });
+    }
     return view;
   }
 

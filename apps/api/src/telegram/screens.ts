@@ -10,6 +10,7 @@ import {
   type CheckAction,
   type EmployeeAccess,
   type HandoverAngle,
+  type RequestType,
   type ShiftAction,
 } from '@vakhta/domain';
 import type {
@@ -19,6 +20,7 @@ import type {
   PendingHandoverView,
   ReasonOption,
   ReportProblemResult,
+  RequestView,
   ShiftScreenView,
   ShiftSummaryView,
 } from '@vakhta/contracts';
@@ -66,6 +68,8 @@ export interface HomeInput {
   /** Відкрита присутність: коли працівник відмітив прихід. */
   readonly presenceSince: Date | null;
   readonly timezone: string;
+  /** Обміни змінами, що чекають згоди цього працівника. */
+  readonly pendingSwaps: number;
 }
 
 /** Головний екран (ТЗ 5.1): присутність, найближча зміна, план, ознайомлення. */
@@ -99,8 +103,12 @@ export function homeScreen(input: HomeInput): Screen {
   }
   if (input.unacknowledged > 0) lines.push('', t.schedule.ackRequired);
 
-  const keyboard = new InlineKeyboard().text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`);
+  const keyboard = new InlineKeyboard()
+    .text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`)
+    .text(t.requests.menuButton, 'rq:menu');
   if (input.unacknowledged > 0) keyboard.row().text(t.schedule.ackButton, CALLBACK.ackAll);
+  if (input.pendingSwaps > 0)
+    keyboard.row().text(`${t.requests.counterpartYes}? (${input.pendingSwaps})`, 'rq:pending');
   return { text: lines.join('\n'), keyboard };
 }
 
@@ -348,10 +356,17 @@ export function shiftKeyboard(view: ShiftScreenView): InlineKeyboard | undefined
     keyboard.text(t.incidents.reportButton, `${INCIDENT_CALLBACK.newPrefix}${version}`);
     inRow = 1;
     newRow();
-    keyboard.text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`);
+    keyboard
+      .text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`)
+      .text(t.requests.menuButton, 'rq:menu');
   } else if (view.session) {
     newRow();
-    keyboard.text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`);
+    keyboard
+      .text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`)
+      .text(t.requests.menuButton, 'rq:menu');
+    if (view.session.state === 'SHIFT_CLOSED' || view.session.state === 'EMERGENCY_EXIT') {
+      keyboard.row().text(t.requests.types.CORRECTION, `rq:corr:${view.session.id}`);
+    }
   }
   return keyboard.inline_keyboard.some((row) => row.length > 0) ? keyboard : undefined;
 }
@@ -633,4 +648,128 @@ export function reviewCategoryScreen(reasons: readonly ReasonOption[]): Screen {
     keyboard.text(r.label, `${HANDOVER_CALLBACK.reviewCategory}${r.code}`).row();
   keyboard.text(t.handover.cancel, HANDOVER_CALLBACK.cancel);
   return { text: t.handover.reviewCategory, keyboard };
+}
+
+/* -------------------------------------------------------------------- */
+/* Звернення (ТЗ 8)                                                       */
+/* -------------------------------------------------------------------- */
+
+export const REQUEST_CALLBACK = {
+  menu: 'rq:menu',
+  typePrefix: 'rq:t:',
+  list: 'rq:list',
+  assignmentPrefix: 'rq:a:',
+  counterpartPrefix: 'rq:c:',
+  counterpartAssignmentPrefix: 'rq:ca:',
+  templatePrefix: 'rq:tpl:',
+  reasonPrefix: 'rq:r:',
+  skip: 'rq:skip',
+  cancel: 'rq:cancel',
+  correctionPrefix: 'rq:corr:',
+} as const;
+
+/** Типи, доступні з бота (FR-SCH-05). Апеляція відкривається з екрана балів. */
+export const BOT_REQUEST_TYPES: readonly RequestType[] = [
+  'VACATION',
+  'DAY_OFF',
+  'SICK',
+  'CANNOT_ATTEND',
+  'LATE',
+  'EARLY_LEAVE',
+  'SWAP',
+  'EXTRA_SHIFT',
+  'TECH_ISSUE',
+];
+
+export function requestMenuScreen(): Screen {
+  const keyboard = new InlineKeyboard();
+  BOT_REQUEST_TYPES.forEach((type, i) => {
+    keyboard.text(t.requests.types[type], `${REQUEST_CALLBACK.typePrefix}${type}`);
+    if (i % 2 === 1) keyboard.row();
+  });
+  if (BOT_REQUEST_TYPES.length % 2 === 1) keyboard.row();
+  keyboard
+    .text(t.requests.myRequests, REQUEST_CALLBACK.list)
+    .row()
+    .text(t.shift.backToShift, SHIFT_CALLBACK.back);
+  return { text: t.requests.chooseType, keyboard };
+}
+
+export function requestListScreen(items: readonly RequestView[]): Screen {
+  const lines =
+    items.length === 0
+      ? [t.requests.noRequests]
+      : items.map((r) => {
+          const when = r.periodFrom
+            ? `${r.periodFrom.slice(8, 10)}.${r.periodFrom.slice(5, 7)}${r.periodTo && r.periodTo !== r.periodFrom ? `–${r.periodTo.slice(8, 10)}.${r.periodTo.slice(5, 7)}` : ''}`
+            : r.assignmentDate
+              ? `${r.assignmentDate.slice(8, 10)}.${r.assignmentDate.slice(5, 7)}`
+              : '';
+          const step = r.currentStepKey
+            ? ` · ${format(t.requests.stepOf, { step: r.currentStep + 1, total: r.totalSteps })}`
+            : '';
+          return `• ${format(t.requests.line, { type: t.requests.types[r.type], status: t.requests.statuses[r.status] })}${when ? ` · ${when}` : ''}${step}`;
+        });
+  return {
+    text: lines.join('\n'),
+    keyboard: new InlineKeyboard().text(t.shift.backToShift, REQUEST_CALLBACK.menu),
+  };
+}
+
+export function requestPromptScreen(text: string, withSkip = false): Screen {
+  const keyboard = new InlineKeyboard();
+  if (withSkip) keyboard.text(t.requests.skip, REQUEST_CALLBACK.skip).row();
+  keyboard.text(t.requests.cancel, REQUEST_CALLBACK.cancel);
+  return { text, keyboard };
+}
+
+export function requestAssignmentScreen(
+  items: readonly { id: string; businessDate: string; templateCode: string }[],
+  prefix: string,
+  title: string,
+): Screen {
+  if (items.length === 0)
+    return {
+      text: t.requests.noShifts,
+      keyboard: new InlineKeyboard().text(t.requests.cancel, REQUEST_CALLBACK.cancel),
+    };
+  const keyboard = new InlineKeyboard();
+  for (const a of items) {
+    const kind = a.templateCode === 'NIGHT' ? t.schedule.kindNames.NIGHT : t.schedule.kindNames.DAY;
+    keyboard
+      .text(
+        `${a.businessDate.slice(8, 10)}.${a.businessDate.slice(5, 7)} · ${kind}`,
+        `${prefix}${a.id}`,
+      )
+      .row();
+  }
+  keyboard.text(t.requests.cancel, REQUEST_CALLBACK.cancel);
+  return { text: title, keyboard };
+}
+
+export function requestChoiceScreen(
+  items: readonly { id: string; label: string }[],
+  prefix: string,
+  title: string,
+): Screen {
+  const keyboard = new InlineKeyboard();
+  for (const i of items) keyboard.text(i.label, `${prefix}${i.id}`).row();
+  keyboard.text(t.requests.cancel, REQUEST_CALLBACK.cancel);
+  return { text: items.length === 0 ? t.requests.noShifts : title, keyboard };
+}
+
+export function counterpartScreen(pending: readonly RequestView[]): Screen {
+  const keyboard = new InlineKeyboard();
+  const lines: string[] = [];
+  for (const r of pending) {
+    lines.push(
+      `${r.employeeName}: ${t.requests.types.SWAP}${r.assignmentDate ? ` · ${r.assignmentDate.slice(8, 10)}.${r.assignmentDate.slice(5, 7)}` : ''}${r.comment ? ` · ${r.comment}` : ''}`,
+    );
+    keyboard
+      .text(t.requests.counterpartYes, `rq:ok:${r.id}`)
+      .text(t.requests.counterpartNo, `rq:no:${r.id}`)
+      .row();
+  }
+  keyboard.text(t.shift.backToShift, SHIFT_CALLBACK.back);
+  return { text: [t.requests.counterpartAsk, '', ...lines].join('\n'), keyboard };
 }

@@ -14,6 +14,7 @@ import { QueueModule } from './infra/timers.queue.js';
 import { KioskModule } from './kiosk/kiosk.module.js';
 import { NotificationsModule } from './notifications/notifications.service.js';
 import { OrgModule } from './org/org.module.js';
+import { RequestsModule } from './requests/requests.module.js';
 import { SchedulingModule } from './scheduling/scheduling.module.js';
 import { ShiftModule } from './shift/shift.module.js';
 import { TelegramModule } from './telegram/telegram.module.js';
@@ -39,6 +40,7 @@ import { TelegramModule } from './telegram/telegram.module.js';
     ShiftModule,
     IncidentsModule,
     HandoverModule,
+    RequestsModule,
     KioskModule,
     TelegramModule,
   ],

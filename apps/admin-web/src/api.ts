@@ -249,3 +249,34 @@ export const handoversApi = {
   mediaLink: (mediaId: string) => apiFetch<MediaLinkView>(`/admin/handovers/media/${mediaId}/link`),
   streamUrl: () => `${API_URL}/admin/handovers/stream`,
 };
+
+// ---- звернення, переробка, корекції (ТЗ 8, FR-COR) ----
+
+import type {
+  ApplyCorrectionCommand,
+  CorrectionResultView,
+  DecideOvertimeCommand,
+  DecideRequestCommand,
+  OvertimeView,
+  RequestDetailView,
+  RequestView,
+  RequestsQuery,
+} from '@vakhta/contracts';
+
+export const requestsApi = {
+  list: (q: RequestsQuery) =>
+    apiFetch<RequestView[]>(
+      `/admin/requests${query({ scope: q.scope, status: q.status, type: q.type, employeeId: q.employeeId })}`,
+    ),
+  detail: (id: string) => apiFetch<RequestDetailView>(`/admin/requests/${id}`),
+  decide: (id: string, cmd: DecideRequestCommand) =>
+    post<RequestView>(`/admin/requests/${id}/decide`, cmd),
+  medicalLink: (id: string) => apiFetch<MediaLinkView>(`/admin/requests/${id}/medical/link`),
+  overtime: (scope: 'pending' | 'all') =>
+    apiFetch<OvertimeView[]>(`/admin/requests/overtime${query({ scope })}`),
+  decideOvertime: (sessionId: string, cmd: DecideOvertimeCommand) =>
+    post<OvertimeView>(`/admin/requests/overtime/${sessionId}/decide`, cmd),
+  correct: (sessionId: string, cmd: ApplyCorrectionCommand) =>
+    post<CorrectionResultView>(`/admin/requests/corrections/${sessionId}`, cmd),
+  streamUrl: () => `${API_URL}/admin/requests/stream`,
+};

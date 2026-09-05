@@ -8,6 +8,8 @@ import type {
   IncidentStatus,
   MediaQualityStatus,
   RemarkNeed,
+  RequestStatus,
+  RequestType,
   ScheduleStatus,
   ScopeType,
   ActivationFailure,
@@ -180,6 +182,40 @@ export interface Messages {
     readonly reviewedNotification: string;
     readonly resolvedNotification: string;
     readonly timeoutNotification: string;
+  };
+  readonly requests: {
+    readonly types: Readonly<Record<RequestType, string>>;
+    readonly statuses: Readonly<Record<RequestStatus, string>>;
+    readonly menuButton: string;
+    readonly chooseType: string;
+    readonly myRequests: string;
+    readonly noRequests: string;
+    readonly askPeriod: string;
+    readonly badPeriod: string;
+    readonly chooseShift: string;
+    readonly noShifts: string;
+    readonly askMinutes: string;
+    readonly badMinutes: string;
+    readonly askComment: string;
+    readonly askMedical: string;
+    readonly skip: string;
+    readonly cancel: string;
+    readonly cancelled: string;
+    readonly submitted: string;
+    /** Плейсхолдери: {type}, {status} */
+    readonly line: string;
+    readonly counterpartAsk: string;
+    readonly counterpartYes: string;
+    readonly counterpartNo: string;
+    /** Плейсхолдери: {type}, {decision}, {comment} */
+    readonly decidedNotification: string;
+    readonly scheduleChangedNotification: string;
+    readonly chooseCounterpart: string;
+    readonly chooseCounterpartShift: string;
+    readonly chooseTemplate: string;
+    readonly stepOf: string;
+    readonly rejectedShort: string;
+    readonly approvedShort: string;
   };
   readonly schedule: {
     /** Назви місяців у називному відмінку, індекс 0 = січень. */
@@ -395,6 +431,41 @@ export interface Messages {
       readonly safe: string;
       readonly unsafe: string;
       readonly note: string;
+    };
+    readonly requests: {
+      readonly scopeInbox: string;
+      readonly scopeAll: string;
+      readonly type: string;
+      readonly status: string;
+      readonly employee: string;
+      readonly submitted: string;
+      readonly period: string;
+      readonly step: string;
+      readonly deadline: string;
+      readonly overdue: string;
+      readonly comment: string;
+      readonly decision: string;
+      readonly approve: string;
+      readonly reject: string;
+      readonly decided: string;
+      readonly approvedMinutes: string;
+      readonly detail: string;
+      readonly history: string;
+      readonly medical: string;
+      readonly openMedical: string;
+      readonly empty: string;
+      readonly overtimeTitle: string;
+      readonly overtimeMinutes: string;
+      readonly overtimeEmpty: string;
+      readonly correctionTitle: string;
+      readonly proposalKind: string;
+      readonly proposalInterval: string;
+      readonly proposalTime: string;
+      readonly proposalState: string;
+      readonly applyCorrection: string;
+      readonly corrected: string;
+      readonly reasonCode: string;
+      readonly live: string;
     };
     readonly administration: {
       readonly tabs: Readonly<Record<'employees' | 'users' | 'directories' | 'terminals', string>>;

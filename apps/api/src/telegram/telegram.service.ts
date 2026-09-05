@@ -17,6 +17,7 @@ import { createLogger } from '../logger.js';
 import { ScheduleService } from '../scheduling/schedule.service.js';
 import { HandoverService } from '../handover/handover.service.js';
 import { IncidentsService } from '../incidents/incidents.service.js';
+import { RequestsService } from '../requests/requests.service.js';
 import { SHORT_TERM_STORE, type ShortTermStore } from '../infra/short-term-store.js';
 import { ShiftService } from '../shift/shift.service.js';
 import type { BotContext } from './bot-context.js';
@@ -43,6 +44,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     private readonly shift: ShiftService,
     private readonly incidents: IncidentsService,
     private readonly handover: HandoverService,
+    private readonly requests: RequestsService,
     @Inject(SHORT_TERM_STORE) private readonly store: ShortTermStore,
     private readonly dedup: UpdateDedup,
   ) {
@@ -66,6 +68,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       shift: this.shift,
       incidents: this.incidents,
       handover: this.handover,
+      requests: this.requests,
       store: this.store,
       dedup: this.dedup,
       defaultTimezone: this.config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),

@@ -92,7 +92,7 @@ export class IncidentsService {
 
   /** Активні причини виду для кнопок бота (простій, екстрений вихід, зауваження передачі). */
   async reasonOptions(
-    kind: 'DOWNTIME' | 'EMERGENCY' | 'HANDOVER',
+    kind: 'DOWNTIME' | 'EMERGENCY' | 'HANDOVER' | 'CORRECTION',
   ): Promise<{ code: string; label: string }[]> {
     return this.db
       .select({ code: reasonCodes.code, label: reasonCodes.label })
