@@ -6,6 +6,7 @@ import { AUTH } from './auth/auth.service.js';
 import { registerAuthRoutes } from './auth/auth.routes.js';
 import type { Auth } from './auth/auth.config.js';
 import { DomainErrorFilter } from './common/domain-error.js';
+import { corsOptions } from './config/cors.js';
 import { loadEnv } from './config/env.js';
 import { createLogger } from './logger.js';
 
@@ -23,11 +24,7 @@ async function bootstrap(): Promise<void> {
 
   // Панель і термінал живуть на інших origin; у продакшені список задається явно.
   // CORS має бути зареєстрований до маршрутів better-auth.
-  app.enableCors({
-    origin: env.CORS_ORIGINS,
-    credentials: true,
-    allowedHeaders: ['content-type', 'authorization', 'x-device-token'],
-  });
+  app.enableCors(corsOptions(env.CORS_ORIGINS));
 
   registerAuthRoutes(app.getHttpAdapter().getInstance(), app.get<Auth>(AUTH));
 
