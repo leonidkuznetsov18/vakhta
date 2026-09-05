@@ -9,11 +9,14 @@ import {
   isValidStartParam,
   normalizeActivationCode,
 } from '@vakhta/domain';
+import { SHIFT_ACTIONS, type ShiftAction } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
+import { employeeActor } from '../common/actor.js';
 import type { AttendanceService } from '../attendance/attendance.service.js';
 import type { ActivationService } from '../identity/activation.service.js';
 import type { EmployeesService } from '../identity/employees.service.js';
 import type { ScheduleService } from '../scheduling/schedule.service.js';
+import type { ShiftService } from '../shift/shift.service.js';
 import type { BotContext } from './bot-context.js';
 import {
   CALLBACK,
@@ -25,16 +28,23 @@ import {
   checkInResultScreen,
   homeScreen,
   planScreen,
+  reasonPickerScreen,
+  shiftScreen,
   welcomeScreen,
   type Screen,
 } from './screens.js';
 import type { UpdateDedup } from './update-dedup.js';
+
+function isShiftAction(value: string): value is ShiftAction {
+  return (SHIFT_ACTIONS as readonly string[]).includes(value);
+}
 
 export interface BotDeps {
   readonly employees: EmployeesService;
   readonly activation: ActivationService;
   readonly schedule: ScheduleService;
   readonly attendance: AttendanceService;
+  readonly shift: ShiftService;
   readonly dedup: UpdateDedup;
   readonly defaultTimezone: string;
   readonly logger: Logger;
@@ -88,18 +98,41 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         ? welcomeScreen()
         : accessDeniedScreen(ctx.access);
     }
-    const [next, unacknowledged, presence] = await Promise.all([
+    const [next, unacknowledged, presence, shift] = await Promise.all([
       deps.schedule.nextShift(ctx.employee.id),
       deps.schedule.unacknowledgedVersions(ctx.employee.id),
       deps.attendance.openPresence(ctx.employee.id),
+      deps.shift.screen(ctx.employee.id),
     ]);
-    return homeScreen({
+    const timezone = next?.timezone ?? deps.defaultTimezone;
+    const home = homeScreen({
       employee: ctx.employee,
       next,
       unacknowledged: unacknowledged.length,
       presenceSince: presence?.arrivedAt ?? null,
-      timezone: next?.timezone ?? deps.defaultTimezone,
+      timezone,
     });
+    // ТЗ 5.1: у зміні і одразу після неї головний екран є екраном зміни.
+    if (shift.session || shift.allowedActions.includes('START_SHIFT')) {
+      return shiftScreen({ ...shift, timezone }, home.text);
+    }
+    return home;
+  }
+
+  /** Спільний хвіст для всіх кнопок зміни: тост із результатом і перемальований екран. */
+  async function finishShiftCommand(
+    ctx: BotContext,
+    result: Awaited<ReturnType<ShiftService['transition']>>,
+  ): Promise<void> {
+    if (!result.ok) {
+      await ctx.answerCallbackQuery({
+        text: result.error === 'VERSION_CONFLICT' ? t.shift.staleButton : t.errors[result.error],
+        show_alert: result.error !== 'VERSION_CONFLICT',
+      });
+    } else {
+      await ctx.answerCallbackQuery();
+    }
+    await edit(ctx, await buildHome(ctx));
   }
 
   async function buildPlan(ctx: BotContext, month: string): Promise<Screen | null> {
@@ -173,6 +206,65 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await ctx.answerCallbackQuery();
     await edit(ctx, checkInResultScreen(result, deps.defaultTimezone));
     if (result.ok) await show(ctx, await buildHome(ctx));
+  });
+
+  // Кнопки зміни (ТЗ 4.4): версія в callback data захищає від застарілих кнопок (ТЗ 12.3).
+  bot.callbackQuery(/^sh:pick:(DOWNTIME|EMERGENCY):(\d+)$/, async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee) return ctx.answerCallbackQuery();
+    await ctx.answerCallbackQuery();
+    const view = await deps.shift.screen(ctx.employee.id);
+    if (!view.session || String(view.session.version) !== ctx.match[2]) {
+      return edit(ctx, await buildHome(ctx));
+    }
+    await edit(
+      ctx,
+      reasonPickerScreen(view, ctx.match[1] === 'DOWNTIME' ? 'DOWNTIME' : 'EMERGENCY'),
+    );
+  });
+
+  bot.callbackQuery(/^sh:back$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await edit(ctx, await buildHome(ctx));
+  });
+
+  bot.callbackQuery(/^sh:zone:(\d+)$/, async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee) return ctx.answerCallbackQuery();
+    try {
+      await deps.shift.acceptZone(ctx.employee.id, employeeActor(ctx.employee.id));
+      await ctx.answerCallbackQuery({ text: t.shift.zoneAccepted });
+    } catch (error) {
+      deps.logger.warn({ err: error }, 'зону не прийнято');
+      await ctx.answerCallbackQuery({ text: t.errors.NO_ACTIVE_SHIFT });
+    }
+    await edit(ctx, await buildHome(ctx));
+  });
+
+  bot.callbackQuery(/^sh:([A-Z_]+):(\d+)(?::([A-Z][A-Z0-9_]{1,63}))?$/, async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee) {
+      await ctx.answerCallbackQuery({ text: t.bot.access.NOT_REGISTERED, show_alert: true });
+      return;
+    }
+    const action = ctx.match[1] ?? '';
+    if (!isShiftAction(action)) return ctx.answerCallbackQuery({ text: t.bot.notReady });
+    const version = Number(ctx.match[2]);
+    const extra = ctx.match[3];
+    const meta = { actor: employeeActor(ctx.employee.id), source: 'TELEGRAM' as const };
+    const idempotencyKey = `tg:${ctx.update.update_id}`;
+    const result =
+      action === 'START_SHIFT'
+        ? await deps.shift.start(ctx.employee.id, { idempotencyKey }, meta)
+        : await deps.shift.transition(
+            ctx.employee.id,
+            {
+              action,
+              expectedVersion: version,
+              idempotencyKey,
+              ...(extra && extra !== 'DT' ? { reasonCode: extra } : {}),
+              ...(extra === 'DT' ? { resumeIntoDowntime: true } : {}),
+            },
+            meta,
+          );
+    await finishShiftCommand(ctx, result);
   });
 
   bot.callbackQuery(/^plan:(cur|\d{4}-\d{2})$/, async (ctx) => {

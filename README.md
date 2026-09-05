@@ -78,6 +78,14 @@ curl -b cookies.txt localhost:3000/admin/schedules/<id>/acknowledgements
 
 У боті працівник бачить «Мой план» (команда `/plan` або кнопка): календар місяця з денними і нічними змінами, зонами й підсумком годин, і підтверджує ознайомлення кнопкою. Воркер опитує `notification_outbox` кожні `OUTBOX_POLL_MS` і шле повідомлення через Bot API з повторами; без `TELEGRAM_BOT_TOKEN` релей вимкнений і рядки чекають у `PENDING`.
 
+## Зміна: стани, інтервали, підсумок
+
+Модуль `apps/api/src/shift` реалізує ТЗ 4.3–4.5 і документ 3.7. «Почати зміну» в боті (кнопка зʼявляється після «Я на роботі») створює `shift_sessions` і одразу переводить її у `PREPARATION`; далі кожна кнопка є командою переходу з `expectedVersion` і ключем ідемпотентності `tg:<update_id>`. Перехід виконується в одній транзакції: `SELECT … FOR UPDATE`, перевірка версії, чистий `transition()` з `@vakhta/domain`, закриття відкритого інтервалу й відкриття нового в `activity_intervals` (EXCLUDE-обмеження на перетин, один відкритий на сесію), подія в `domain_events`, збережена відповідь в `idempotency_keys`. Застаріла кнопка повертає `VERSION_CONFLICT` і актуальний екран (ТЗ 12.3). Guard-и: присутність для старту, приймання зони («Принять зону») перед роботою, звіт передачі перед `SUBMIT_HANDOVER` (до фази 4 повний лише без зони), причина з довідника для простою й екстреного виходу.
+
+Таймери (`BREAK_MINUTES`, `MEAL_MINUTES`, `SERVICE_TIME_MINUTES`, `DOWNTIME_ESCALATION_MINUTES`) плануються після коміту як відкладені job-и BullMQ з jobId за інтервалом; воркер перечитує стан і мовчить, якщо працівник уже повернувся. Нагадування «Вернуться» приходить із кнопкою з актуальною версією; ескалація простою пише подію `DOWNTIME_ESCALATED`. Закриття або екстрений вихід рахує `shift_summaries` (робота, перерви, обід, простій, запізнення, ранній відхід, `overtime_pending` понад `OVERTIME_THRESHOLD_MINUTES`) і шле підсумок у бот; екран «Після зміни» показує його ще `4` години.
+
+Панель «Оперативная смена» (`apps/admin-web/src/operations`) слухає `GET /admin/shifts/stream` (SSE з cookie) і перечитує список при кожній зміні стану. Майстер може виконати будь-який перехід із обовʼязковим коментарем (`POST /admin/shifts/:id/transition`, guard-и пропускаються, запис в аудит), відкрити зміну працівнику без телефона (`POST /admin/shifts/start`) і позначити «Нужна проверка» (`POST /admin/shifts/:id/clarify`).
+
 ## Telegram-бот: режими і прихід за QR
 
 `TELEGRAM_MODE=polling` (типово поза `NODE_ENV=production`): API сам забирає оновлення, публічна адреса не потрібна. `TELEGRAM_MODE=webhook`: Telegram шле оновлення на `PUBLIC_BASE_URL/telegram/webhook`, потрібні `TELEGRAM_WEBHOOK_SECRET` і публічна адреса (локально тунель `cloudflared tunnel --url http://localhost:3000`, потім `pnpm --filter api telegram:set-webhook`). Дедуплікація `update_id` є першим middleware бота і діє в обох режимах.

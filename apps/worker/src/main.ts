@@ -1,12 +1,19 @@
 import { Worker, type Job } from 'bullmq';
 import { Redis } from 'ioredis';
 import { pino } from 'pino';
-import { AckReminderJob, QUEUES, ShiftReminderJob } from '@vakhta/contracts';
+import {
+  AckReminderJob,
+  DowntimeEscalationJob,
+  QUEUES,
+  ReturnReminderJob,
+  ShiftReminderJob,
+} from '@vakhta/contracts';
 import { createDatabase } from '@vakhta/db';
 import { TIMER_JOBS } from '@vakhta/domain';
 import { loadWorkerEnv } from './env.js';
 import { TelegramSender, relayOnce } from './outbox/relay.js';
 import { handleAckReminder, handleShiftReminder } from './timers/reminders.js';
+import { handleDowntimeEscalation, handleReturnReminder } from './timers/shift-timers.js';
 
 const env = loadWorkerEnv(process.env);
 
@@ -59,6 +66,16 @@ async function processTimer(job: Job): Promise<void> {
     }
     case TIMER_JOBS.ackReminder: {
       const outcome = await handleAckReminder(db, AckReminderJob.parse(job.data));
+      logger.info({ job: job.name, jobId: job.id, outcome }, 'timer');
+      return;
+    }
+    case TIMER_JOBS.returnReminder: {
+      const outcome = await handleReturnReminder(db, ReturnReminderJob.parse(job.data));
+      logger.info({ job: job.name, jobId: job.id, outcome }, 'timer');
+      return;
+    }
+    case TIMER_JOBS.downtimeEscalation: {
+      const outcome = await handleDowntimeEscalation(db, DowntimeEscalationJob.parse(job.data));
       logger.info({ job: job.name, jobId: job.id, outcome }, 'timer');
       return;
     }

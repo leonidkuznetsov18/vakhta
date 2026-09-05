@@ -7,8 +7,14 @@ import {
   maskPersonnelNumber,
   type CheckAction,
   type EmployeeAccess,
+  type ShiftAction,
 } from '@vakhta/domain';
-import type { CheckInResult, MyPlanView } from '@vakhta/contracts';
+import type {
+  CheckInResult,
+  MyPlanView,
+  ShiftScreenView,
+  ShiftSummaryView,
+} from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import type { ActivationOutcome, ActivationPreview } from '../identity/activation.service.js';
 import type { EmployeeRecord } from '../identity/employees.service.js';
@@ -209,4 +215,146 @@ export function activationFailureText(
   reason: Extract<ActivationPreview, { ok: false }>['reason'],
 ): string {
   return t.activation.failures[reason];
+}
+
+/* -------------------------------------------------------------------- */
+/* Зміна (ТЗ 4.4, 5.1): екран рендериться зі стану сервера, ADR-11        */
+/* -------------------------------------------------------------------- */
+
+export const SHIFT_CALLBACK = {
+  prefix: 'sh:',
+  pick: 'sh:pick:',
+  zone: 'sh:zone:',
+  back: 'sh:back',
+} as const;
+
+/** Дії, які відкривають вибір причини замість негайного переходу. */
+const REASON_ACTIONS: readonly ShiftAction[] = ['START_DOWNTIME', 'EMERGENCY_EXIT'];
+
+function shiftLines(view: ShiftScreenView): string[] {
+  const s = view.session;
+  if (!s) return [];
+  const tz = view.timezone;
+  const lines: string[] = [];
+  if (s.state === 'SHIFT_CLOSED' || s.state === 'EMERGENCY_EXIT') {
+    lines.push(s.state === 'SHIFT_CLOSED' ? t.shift.closedHeader : t.shift.emergencyHeader);
+  } else {
+    lines.push(
+      format(t.shift.stateLine, {
+        state: t.states[s.state],
+        since: s.stateSince ? localTime(new Date(s.stateSince), tz) : '—',
+      }),
+    );
+    if (s.resumeState) lines.push(format(t.shift.resumeLine, { resume: t.states[s.resumeState] }));
+  }
+  if (s.planStartAt && s.planEndAt) {
+    lines.push(
+      format(t.shift.planLine, {
+        start: localTime(new Date(s.planStartAt), tz),
+        end: localTime(new Date(s.planEndAt), tz),
+      }),
+    );
+  }
+  if (s.zoneName) {
+    lines.push(format(t.shift.zoneLine, { zone: s.zoneName }));
+    if (!s.zoneAccepted && s.state === 'PREPARATION') lines.push(t.shift.zoneNotAccepted);
+  }
+  if (s.needsClarification && (s.state === 'SHIFT_CLOSED' || s.state === 'EMERGENCY_EXIT')) {
+    lines.push(t.shift.flagged);
+  }
+  if (view.summary) lines.push('', summaryLines(view.summary));
+  return lines;
+}
+
+function summaryLines(s: ShiftSummaryView): string {
+  const lines = [
+    format(t.shift.summaryTotals, {
+      total: s.totalMinutes,
+      work: s.workMinutes + s.preparationMinutes + s.serviceMinutes,
+      breaks: s.breakMinutes,
+      meal: s.mealMinutes,
+      downtime: s.downtimeMinutes,
+    }),
+  ];
+  if (s.lateMinutes > 0) lines.push(format(t.shift.summaryLate, { minutes: s.lateMinutes }));
+  if (s.earlyLeaveMinutes > 0)
+    lines.push(format(t.shift.summaryEarly, { minutes: s.earlyLeaveMinutes }));
+  if (s.overtimeMinutes > 0)
+    lines.push(format(t.shift.summaryOvertime, { minutes: s.overtimeMinutes }));
+  if (s.overtimePending) lines.push(t.shift.summaryOvertimePending);
+  return lines.join('\n');
+}
+
+/** Клавіатура зміни: лише дозволені дії, по дві в рядку; взаємовиключні не показуються (FR-UI-01). */
+export function shiftKeyboard(view: ShiftScreenView): InlineKeyboard | undefined {
+  const version = view.session?.version ?? 0;
+  const keyboard = new InlineKeyboard();
+  let inRow = 0;
+  const add = (label: string, data: string) => {
+    if (inRow === 2) {
+      keyboard.row();
+      inRow = 0;
+    }
+    keyboard.text(label, data);
+    inRow += 1;
+  };
+  if (view.canAcceptZone) {
+    add(t.shift.acceptZone, `${SHIFT_CALLBACK.zone}${version}`);
+    keyboard.row();
+    inRow = 0;
+  }
+  for (const action of view.allowedActions) {
+    if (action === 'RESUME' && view.offerResumeIntoDowntime) {
+      keyboard.row();
+      keyboard.text(t.shift.resumeIntoDowntimeYes, `${SHIFT_CALLBACK.prefix}RESUME:${version}`);
+      keyboard.row();
+      keyboard.text(t.shift.resumeIntoDowntimeNo, `${SHIFT_CALLBACK.prefix}RESUME:${version}:DT`);
+      keyboard.row();
+      inRow = 0;
+      continue;
+    }
+    const data = REASON_ACTIONS.includes(action)
+      ? `${SHIFT_CALLBACK.pick}${action === 'START_DOWNTIME' ? 'DOWNTIME' : 'EMERGENCY'}:${version}`
+      : `${SHIFT_CALLBACK.prefix}${action}:${version}`;
+    add(t.actions[action], data);
+  }
+  if (
+    view.session &&
+    view.session.state !== 'SHIFT_CLOSED' &&
+    view.session.state !== 'EMERGENCY_EXIT'
+  ) {
+    keyboard.row().text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`);
+  }
+  return keyboard.inline_keyboard.some((row) => row.length > 0) ? keyboard : undefined;
+}
+
+/** Екран активної або щойно закритої зміни. */
+export function shiftScreen(view: ShiftScreenView, header: string): Screen {
+  const lines = [header, '', ...shiftLines(view)];
+  if (view.offerResumeIntoDowntime && view.allowedActions.includes('RESUME')) {
+    lines.push('', t.shift.resumeIntoDowntimeQuestion);
+  }
+  const keyboard = shiftKeyboard(view);
+  return keyboard ? { text: lines.join('\n'), keyboard } : { text: lines.join('\n') };
+}
+
+/** Вибір причини простою або екстреного виходу з довідника (FR-DWN-01). */
+export function reasonPickerScreen(view: ShiftScreenView, kind: 'DOWNTIME' | 'EMERGENCY'): Screen {
+  const reasons = kind === 'DOWNTIME' ? view.downtimeReasons : view.emergencyReasons;
+  const version = view.session?.version ?? 0;
+  const action = kind === 'DOWNTIME' ? 'START_DOWNTIME' : 'EMERGENCY_EXIT';
+  const keyboard = new InlineKeyboard();
+  for (const r of reasons) {
+    keyboard.text(r.label, `${SHIFT_CALLBACK.prefix}${action}:${version}:${r.code}`).row();
+  }
+  keyboard.text(t.shift.backToShift, SHIFT_CALLBACK.back);
+  return {
+    text:
+      reasons.length === 0
+        ? t.shift.noReasons
+        : kind === 'DOWNTIME'
+          ? t.shift.chooseDowntimeReason
+          : t.shift.chooseEmergencyReason,
+    keyboard,
+  };
 }

@@ -172,3 +172,34 @@ export const adminOrgApi = {
   registerTerminal: (cmd: RegisterTerminalCommand) =>
     post<TerminalRegistered>('/admin/org/terminals', cmd),
 };
+
+// ---- оперативна зміна (ТЗ 9.2) ----
+
+import type {
+  ActiveShiftView,
+  ActiveShiftsQuery,
+  MasterStartShiftCommand,
+  MasterTransitionCommand,
+  ShiftDetailView,
+  ShiftSessionView,
+  TransitionResponse,
+} from '@vakhta/contracts';
+
+export const shiftsApi = {
+  list: (q: ActiveShiftsQuery) =>
+    apiFetch<ActiveShiftView[]>(
+      `/admin/shifts${query({
+        siteId: q.siteId,
+        orgUnitId: q.orgUnitId,
+        includeClosed: q.includeClosed ? 'true' : undefined,
+      })}`,
+    ),
+  detail: (id: string) => apiFetch<ShiftDetailView>(`/admin/shifts/${id}`),
+  transition: (id: string, cmd: MasterTransitionCommand) =>
+    post<TransitionResponse>(`/admin/shifts/${id}/transition`, cmd),
+  clarify: (id: string, reason: string) =>
+    post<ShiftSessionView>(`/admin/shifts/${id}/clarify`, { reason }),
+  start: (cmd: MasterStartShiftCommand) => post<TransitionResponse>('/admin/shifts/start', cmd),
+  /** SSE: cookie сесії передається з withCredentials. */
+  streamUrl: () => `${API_URL}/admin/shifts/stream`,
+};

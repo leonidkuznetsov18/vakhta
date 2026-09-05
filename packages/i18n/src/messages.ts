@@ -6,7 +6,7 @@ import type {
   EmployeeAccess,
   ShiftAction,
   ShiftState,
-  TransitionErrorCode,
+  CommandErrorCode,
   ValidationIssueCode,
   WebRole,
 } from '@vakhta/domain';
@@ -56,8 +56,43 @@ export interface Messages {
   };
   readonly actions: Readonly<Record<ShiftAction, string>>;
   readonly states: Readonly<Record<ShiftState, string>>;
-  readonly errors: Readonly<Record<TransitionErrorCode, string>>;
+  readonly errors: Readonly<Record<CommandErrorCode, string>>;
   readonly roles: Readonly<Record<WebRole, string>>;
+  readonly shift: {
+    /** Плейсхолдери: {state}, {since} */
+    readonly stateLine: string;
+    /** Плейсхолдер: {resume} */
+    readonly resumeLine: string;
+    /** Плейсхолдери: {start}, {end} */
+    readonly planLine: string;
+    /** Плейсхолдер: {zone} */
+    readonly zoneLine: string;
+    readonly zoneNotAccepted: string;
+    readonly acceptZone: string;
+    readonly zoneAccepted: string;
+    readonly chooseDowntimeReason: string;
+    readonly chooseEmergencyReason: string;
+    readonly backToShift: string;
+    readonly noReasons: string;
+    readonly staleButton: string;
+    readonly closedHeader: string;
+    readonly emergencyHeader: string;
+    /** Плейсхолдери: {total}, {work}, {breaks}, {meal}, {downtime} */
+    readonly summaryTotals: string;
+    /** Плейсхолдер: {minutes} */
+    readonly summaryLate: string;
+    readonly summaryEarly: string;
+    readonly summaryOvertime: string;
+    readonly summaryOvertimePending: string;
+    readonly flagged: string;
+    /** Плейсхолдери: {state}, {limit} */
+    readonly returnReminder: string;
+    /** Плейсхолдери: {name}, {minutes}, {reason} */
+    readonly downtimeEscalation: string;
+    readonly resumeIntoDowntimeQuestion: string;
+    readonly resumeIntoDowntimeYes: string;
+    readonly resumeIntoDowntimeNo: string;
+  };
   readonly schedule: {
     /** Назви місяців у називному відмінку, індекс 0 = січень. */
     readonly months: readonly string[];
@@ -168,6 +203,38 @@ export interface Messages {
       readonly unsaved: string;
       readonly forbidden: string;
       readonly noTemplates: string;
+    };
+    readonly operations: {
+      readonly site: string;
+      readonly orgUnit: string;
+      readonly includeClosed: string;
+      readonly live: string;
+      readonly offline: string;
+      readonly employee: string;
+      readonly state: string;
+      readonly since: string;
+      readonly minutes: string;
+      readonly plan: string;
+      readonly zone: string;
+      readonly presence: string;
+      readonly flags: string;
+      readonly needsClarification: string;
+      readonly zoneNotAccepted: string;
+      readonly masterAction: string;
+      readonly comment: string;
+      readonly apply: string;
+      readonly applied: string;
+      readonly clarify: string;
+      readonly clarified: string;
+      readonly startFor: string;
+      readonly start: string;
+      readonly started: string;
+      readonly detail: string;
+      readonly intervals: string;
+      readonly events: string;
+      readonly summary: string;
+      readonly empty: string;
+      readonly stale: string;
     };
     readonly administration: {
       readonly tabs: Readonly<Record<'employees' | 'users' | 'directories' | 'terminals', string>>;

@@ -16,6 +16,10 @@ export const NOTIFICATION_TEMPLATES = [
   'SCHEDULE_CHANGED',
   'SHIFT_REMINDER',
   'ACK_REMINDER',
+  'RETURN_REMINDER',
+  'DOWNTIME_ESCALATION',
+  'SHIFT_SUMMARY',
+  'SHIFT_FLAGGED',
 ] as const;
 export type NotificationTemplate = (typeof NOTIFICATION_TEMPLATES)[number];
 
@@ -26,6 +30,8 @@ export type NotificationTemplate = (typeof NOTIFICATION_TEMPLATES)[number];
 export const TIMER_JOBS = {
   shiftReminder: 'shift-reminder',
   ackReminder: 'ack-reminder',
+  returnReminder: 'return-reminder',
+  downtimeEscalation: 'downtime-escalation',
 } as const;
 
 export function shiftReminderJobId(assignmentId: string): string {
@@ -34,4 +40,14 @@ export function shiftReminderJobId(assignmentId: string): string {
 
 export function ackReminderJobId(versionId: string, employeeId: string): string {
   return `${TIMER_JOBS.ackReminder}.${versionId}.${employeeId}`;
+}
+
+/** Нагадування повернутись із перерви, обіду чи службового часу; привʼязане до інтервалу. */
+export function returnReminderJobId(sessionId: string, intervalId: string): string {
+  return `${TIMER_JOBS.returnReminder}.${sessionId}.${intervalId}`;
+}
+
+/** Ескалація простою майстру після порогу (ТЗ 18, п. 9). */
+export function downtimeEscalationJobId(sessionId: string, intervalId: string): string {
+  return `${TIMER_JOBS.downtimeEscalation}.${sessionId}.${intervalId}`;
 }

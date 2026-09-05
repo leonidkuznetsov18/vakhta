@@ -22,6 +22,24 @@ export type ShiftReminderJob = z.infer<typeof ShiftReminderJob>;
 export const AckReminderJob = z.object({ versionId: Uuid, employeeId: Uuid, fireAt: IsoDateTime });
 export type AckReminderJob = z.infer<typeof AckReminderJob>;
 
+/** Нагадування повернутись: воркер перевіряє, що інтервал ще відкритий (ADR-8). */
+export const ReturnReminderJob = z.object({
+  sessionId: Uuid,
+  intervalId: Uuid,
+  state: z.enum(['BREAK', 'MEAL', 'SERVICE_TIME']),
+  limitMinutes: z.number().int().positive(),
+  fireAt: IsoDateTime,
+});
+export type ReturnReminderJob = z.infer<typeof ReturnReminderJob>;
+
+export const DowntimeEscalationJob = z.object({
+  sessionId: Uuid,
+  intervalId: Uuid,
+  thresholdMinutes: z.number().int().positive(),
+  fireAt: IsoDateTime,
+});
+export type DowntimeEscalationJob = z.infer<typeof DowntimeEscalationJob>;
+
 export const ListScheduleVersionsQuery = z.object({
   siteId: Uuid.optional(),
   orgUnitId: Uuid.optional(),

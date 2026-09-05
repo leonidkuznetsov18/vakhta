@@ -1,0 +1,37 @@
+import type { TransitionErrorCode } from './machine.js';
+
+/** Відмови машини плюс відмови застосунку довкола неї (документ 3.7). */
+export const COMMAND_ERROR_CODES = [
+  'SHIFT_NOT_STARTED',
+  'ALREADY_STARTED',
+  'SHIFT_NOT_ACTIVE',
+  'ACTION_NOT_ALLOWED',
+  'TEMPORARY_STATE_OPEN',
+  'PRESENCE_REQUIRED',
+  'ZONE_NOT_ACCEPTED',
+  'HANDOVER_INCOMPLETE',
+  'REASON_REQUIRED',
+  'RESUME_STATE_MISSING',
+  'VERSION_CONFLICT',
+  'NO_ACTIVE_SHIFT',
+  'NO_ASSIGNMENT',
+] as const satisfies readonly (TransitionErrorCode | string)[];
+export type CommandErrorCode = (typeof COMMAND_ERROR_CODES)[number];
+
+/** Дія → тип події в domain_events (ТЗ 11.1). */
+export const ACTION_EVENT_TYPE = {
+  START_SHIFT: 'SHIFT_STARTED',
+  START_WORK: 'WORK_STARTED',
+  START_BREAK: 'BREAK_STARTED',
+  START_MEAL: 'MEAL_STARTED',
+  START_SERVICE_TIME: 'SERVICE_TIME_STARTED',
+  START_DOWNTIME: 'DOWNTIME_STARTED',
+  RESUME: 'RESUMED',
+  START_CLEANING: 'CLEANING_STARTED',
+  CLEANING_DONE: 'CLEANING_DONE',
+  BACK_TO_CLEANING: 'BACK_TO_CLEANING',
+  SUBMIT_HANDOVER: 'HANDOVER_SUBMITTED',
+  CONTINUE_WORK: 'WORK_CONTINUED',
+  CLOSE_SHIFT: 'SHIFT_CLOSED',
+  EMERGENCY_EXIT: 'EMERGENCY_EXIT',
+} as const;

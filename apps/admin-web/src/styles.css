@@ -635,3 +635,83 @@ h2 {
 .chip button {
   margin-left: 4px;
 }
+
+/* ---- оперативна зміна ---- */
+.live {
+  font-size: 12px;
+  color: var(--muted);
+  padding-bottom: 8px;
+}
+
+.live.on::before {
+  content: '●';
+  color: var(--ok);
+  margin-right: 6px;
+}
+
+.state-pill {
+  display: inline-block;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.state-pill.WORKING,
+.state-pill.CLEANING,
+.state-pill.HANDOVER {
+  background: color-mix(in srgb, var(--ok) 25%, var(--surface-2));
+}
+
+.state-pill.BREAK,
+.state-pill.MEAL,
+.state-pill.SERVICE_TIME {
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-2));
+}
+
+.state-pill.DOWNTIME,
+.state-pill.EMERGENCY_EXIT {
+  background: color-mix(in srgb, var(--crit) 30%, var(--surface-2));
+}
+
+.table.ops tr.flagged td:first-child {
+  box-shadow: inset 3px 0 0 var(--crit);
+}
+
+.flag {
+  display: inline-block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--crit);
+  color: #fff;
+  margin-right: 4px;
+}
+
+.flag.warn {
+  background: var(--accent);
+  color: #16202a;
+}
+
+.field.wide {
+  min-width: 320px;
+  flex: 1;
+}
+
+.detail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.detail h3 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin: 0 0 6px;
+}

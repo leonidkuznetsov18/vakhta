@@ -48,6 +48,15 @@ export const EnvSchema = z.object({
   /** Вікна приходу і відходу відносно планової зміни (ТЗ 18 п. 4). */
   PRESENCE_ARRIVE_BEFORE_MINUTES: z.coerce.number().int().positive().default(180),
   PRESENCE_DEPART_AFTER_MINUTES: z.coerce.number().int().positive().default(180),
+  /** Ліміти тимчасових станів і поріг ескалації простою (ТЗ 18 п. 5, 9). */
+  BREAK_MINUTES: z.coerce.number().int().positive().default(15),
+  MEAL_MINUTES: z.coerce.number().int().positive().default(30),
+  SERVICE_TIME_MINUTES: z.coerce.number().int().positive().default(30),
+  DOWNTIME_ESCALATION_MINUTES: z.coerce.number().int().positive().default(15),
+  /** Пільгове вікно запізнення й раннього відходу; вікно раннього старту без переробки (ТЗ 6.1). */
+  SHIFT_GRACE_MINUTES: z.coerce.number().int().nonnegative().default(10),
+  EARLY_START_WINDOW_MINUTES: z.coerce.number().int().nonnegative().default(30),
+  OVERTIME_THRESHOLD_MINUTES: z.coerce.number().int().nonnegative().default(15),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

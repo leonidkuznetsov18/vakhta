@@ -352,7 +352,7 @@ export class AttendanceService {
   }
 
   /** Заплановані зміни працівника довкола моменту; вибір робить домен (FR-QR-04). */
-  private async findArrivalAssignment(tx: DbOrTx, employeeId: string, now: Date) {
+  async findArrivalAssignment(tx: DbOrTx, employeeId: string, now: Date) {
     const from = new Date(now.getTime() - 36 * 3_600_000);
     const to = new Date(now.getTime() + this.options.window.arriveBeforeMinutes * 60_000);
     const rows = await tx

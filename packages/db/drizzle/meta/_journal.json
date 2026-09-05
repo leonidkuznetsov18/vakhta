@@ -43,6 +43,13 @@
       "when": 1788646767248,
       "tag": "0005_presence",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788648482374,
+      "tag": "0006_shift_sessions",
+      "breakpoints": true
     }
   ]
 }

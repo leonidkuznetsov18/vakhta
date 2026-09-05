@@ -13,6 +13,7 @@ import { KioskModule } from './kiosk/kiosk.module.js';
 import { NotificationsModule } from './notifications/notifications.service.js';
 import { OrgModule } from './org/org.module.js';
 import { SchedulingModule } from './scheduling/scheduling.module.js';
+import { ShiftModule } from './shift/shift.module.js';
 import { TelegramModule } from './telegram/telegram.module.js';
 
 @Module({
@@ -33,6 +34,7 @@ import { TelegramModule } from './telegram/telegram.module.js';
     IdentityModule,
     SchedulingModule,
     AttendanceModule,
+    ShiftModule,
     KioskModule,
     TelegramModule,
   ],

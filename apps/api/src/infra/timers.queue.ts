@@ -2,14 +2,31 @@ import { Global, Inject, Injectable, Module, type OnApplicationShutdown } from '
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
-import { QUEUES, type AckReminderJob, type ShiftReminderJob } from '@vakhta/contracts';
-import { TIMER_JOBS, ackReminderJobId, shiftReminderJobId } from '@vakhta/domain';
+import {
+  QUEUES,
+  type AckReminderJob,
+  type DowntimeEscalationJob,
+  type ReturnReminderJob,
+  type ShiftReminderJob,
+} from '@vakhta/contracts';
+import {
+  TIMER_JOBS,
+  ackReminderJobId,
+  downtimeEscalationJobId,
+  returnReminderJobId,
+  shiftReminderJobId,
+} from '@vakhta/domain';
 import type { Env } from '../config/env.js';
 
 /** Порт для сервісів: у тестах підмінюється памʼяттю. */
 export interface TimerScheduler {
   scheduleShiftReminder(assignmentId: string, fireAt: Date): Promise<void>;
   scheduleAckReminder(versionId: string, employeeId: string, fireAt: Date): Promise<void>;
+  scheduleReturnReminder(job: Omit<ReturnReminderJob, 'fireAt'>, fireAt: Date): Promise<void>;
+  scheduleDowntimeEscalation(
+    job: Omit<DowntimeEscalationJob, 'fireAt'>,
+    fireAt: Date,
+  ): Promise<void>;
   cancel(jobId: string): Promise<void>;
 }
 
@@ -55,6 +72,34 @@ export class TimersQueue implements TimerScheduler, OnApplicationShutdown {
     });
   }
 
+  async scheduleReturnReminder(
+    job: Omit<ReturnReminderJob, 'fireAt'>,
+    fireAt: Date,
+  ): Promise<void> {
+    const delay = fireAt.getTime() - Date.now();
+    const data: ReturnReminderJob = { ...job, fireAt: fireAt.toISOString() };
+    await this.queue.add(TIMER_JOBS.returnReminder, data, {
+      jobId: returnReminderJobId(job.sessionId, job.intervalId),
+      delay: Math.max(0, delay),
+      removeOnComplete: true,
+      removeOnFail: 200,
+    });
+  }
+
+  async scheduleDowntimeEscalation(
+    job: Omit<DowntimeEscalationJob, 'fireAt'>,
+    fireAt: Date,
+  ): Promise<void> {
+    const delay = fireAt.getTime() - Date.now();
+    const data: DowntimeEscalationJob = { ...job, fireAt: fireAt.toISOString() };
+    await this.queue.add(TIMER_JOBS.downtimeEscalation, data, {
+      jobId: downtimeEscalationJobId(job.sessionId, job.intervalId),
+      delay: Math.max(0, delay),
+      removeOnComplete: true,
+      removeOnFail: 200,
+    });
+  }
+
   async cancel(jobId: string): Promise<void> {
     const job = await this.queue.getJob(jobId);
     if (job) await job.remove().catch(() => undefined);
@@ -76,6 +121,20 @@ export class InMemoryTimerScheduler implements TimerScheduler {
 
   async scheduleAckReminder(versionId: string, employeeId: string, fireAt: Date): Promise<void> {
     this.scheduled.push({ jobId: ackReminderJobId(versionId, employeeId), fireAt });
+  }
+
+  async scheduleReturnReminder(
+    job: Omit<ReturnReminderJob, 'fireAt'>,
+    fireAt: Date,
+  ): Promise<void> {
+    this.scheduled.push({ jobId: returnReminderJobId(job.sessionId, job.intervalId), fireAt });
+  }
+
+  async scheduleDowntimeEscalation(
+    job: Omit<DowntimeEscalationJob, 'fireAt'>,
+    fireAt: Date,
+  ): Promise<void> {
+    this.scheduled.push({ jobId: downtimeEscalationJobId(job.sessionId, job.intervalId), fireAt });
   }
 
   async cancel(jobId: string): Promise<void> {

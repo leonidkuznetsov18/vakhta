@@ -14,6 +14,7 @@ import { ActivationService } from '../identity/activation.service.js';
 import { EmployeesService } from '../identity/employees.service.js';
 import { createLogger } from '../logger.js';
 import { ScheduleService } from '../scheduling/schedule.service.js';
+import { ShiftService } from '../shift/shift.service.js';
 import type { BotContext } from './bot-context.js';
 import { createBot } from './bot.factory.js';
 import { UpdateDedup } from './update-dedup.js';
@@ -35,6 +36,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     private readonly activation: ActivationService,
     private readonly schedule: ScheduleService,
     private readonly attendance: AttendanceService,
+    private readonly shift: ShiftService,
     private readonly dedup: UpdateDedup,
   ) {
     this.logger = createLogger({
@@ -54,6 +56,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       activation: this.activation,
       schedule: this.schedule,
       attendance: this.attendance,
+      shift: this.shift,
       dedup: this.dedup,
       defaultTimezone: this.config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
       logger: this.logger,

@@ -11,7 +11,14 @@ const session = {
   version: 3,
   startedAt: '2026-09-05T05:01:12.000Z',
   endedAt: null,
+  stateSince: '2026-09-05T05:01:12.000Z',
+  planStartAt: '2026-09-05T05:00:00.000Z',
+  planEndAt: '2026-09-05T17:00:00.000Z',
+  zoneId: null,
+  zoneName: null,
+  zoneAccepted: true,
   needsClarification: false,
+  clarificationReason: null,
 };
 
 describe('контракти', () => {
@@ -46,8 +53,13 @@ describe('контракти', () => {
 
   it('відповідь на команду завжди несе актуальний стан', () => {
     expect(
-      TransitionResponse.safeParse({ ok: true, session, serverTime: '2026-09-05T05:02:00.000Z' })
-        .success,
+      TransitionResponse.safeParse({
+        ok: true,
+        session,
+        summary: null,
+        replayed: false,
+        serverTime: '2026-09-05T05:02:00.000Z',
+      }).success,
     ).toBe(true);
     expect(
       TransitionResponse.safeParse({

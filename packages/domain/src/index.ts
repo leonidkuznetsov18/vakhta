@@ -2,6 +2,8 @@ export * from './shift-fsm/states.js';
 export * from './shift-fsm/actions.js';
 export * from './shift-fsm/machine.js';
 export * from './shift-fsm/intervals.js';
+export * from './shift-fsm/summary.js';
+export * from './shift-fsm/command-errors.js';
 export * from './time/plan.js';
 export * from './time/deviations.js';
 export * from './qr/challenge.js';

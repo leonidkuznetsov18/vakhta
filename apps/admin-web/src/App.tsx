@@ -3,6 +3,7 @@ import { messages } from '@vakhta/i18n';
 import { LoginScreen } from './auth/LoginScreen.tsx';
 import { ProfilePanel } from './auth/ProfilePanel.tsx';
 import { AdminPage } from './admin/AdminPage.tsx';
+import { OperationsPage } from './operations/OperationsPage.tsx';
 import { SchedulePage } from './schedule/SchedulePage.tsx';
 import { useSession } from './auth/useSession.ts';
 
@@ -63,6 +64,8 @@ export function App() {
         <h1>{title}</h1>
         {active === 'profile' ? (
           <ProfilePanel me={me} onChanged={() => void refresh()} />
+        ) : active === 'operations' ? (
+          <OperationsPage />
         ) : active === 'schedule' ? (
           <SchedulePage />
         ) : active === 'administration' ? (
