@@ -12,9 +12,15 @@ export function createDatabase(url: string, options: DatabaseOptions = {}) {
     max: options.max ?? 10,
     // Усі моменти в UTC; локальний час рахується в застосунку за tz майданчика (ADR-5).
     connection: { timezone: 'UTC' },
+    // NOTICE від Postgres (наприклад, про каскадний TRUNCATE) не є подіями застосунку.
+    onnotice: () => {},
   });
   const db = drizzle(client, { schema });
   return { db, client };
 }
 
 export type Database = ReturnType<typeof createDatabase>['db'];
+
+/** Транзакція Drizzle; сервіси приймають DbOrTx, щоб працювати і всередині, і поза транзакцією. */
+export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+export type DbOrTx = Database | Transaction;

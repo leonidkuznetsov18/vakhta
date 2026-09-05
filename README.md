@@ -22,29 +22,62 @@ docs/
 infra/compose/  Локальний стек: PostgreSQL, Redis, MinIO
 ```
 
-## Швидкий старт
+## Локальний запуск
 
 ```bash
 corepack enable
 pnpm install
-cp .env.example .env
-pnpm infra:up
-pnpm build
-pnpm test
+cp .env.example .env        # далі заповніть AUTH_SECRET, ACTIVATION_PEPPER, KIOSK_DEVICE_TOKEN
+pnpm infra:up               # PostgreSQL :5432, Redis :6380, MinIO :9000/:9001
+pnpm db:migrate             # застосувати міграції
+pnpm db:seed                # майданчик, підрозділи, посади, зони, причини, термінал «Проходная»
+pnpm --filter api auth:bootstrap -- --email admin@example.com --password 'довгий-надійний-пароль'
+pnpm dev                    # усе разом: api :3000, worker, панель :5173, термінал :5174
 ```
 
-Запуск API після збірки:
+`pnpm dev` через Turborepo спочатку збирає пакети, потім тримає у watch-режимі API і воркер (`tsc --watch` + `node --watch`) і запускає Vite для панелі й терміналу. Панель показує «API online», коли API відповідає на `/health`; термінал показує QR, коли `VITE_KIOSK_DEVICE_TOKEN` у `.env` збігається з `KIOSK_DEVICE_TOKEN`, з яким запускався seed.
+
+Типові причини «API недоступен» і «Нет связи с сервером»: не запущений API, `.env` без обовʼязкового `ACTIVATION_PEPPER`, не піднятий Docker-стек, або `REDIS_URL` вказує на 6379 замість 6380. Vite читає `VITE_*` з кореневого `.env`, не з теки застосунку.
+
+Окремо, без Turborepo:
 
 ```bash
-node apps/api/dist/main.js
-```
-
-Панель і термінал у режимі розробки:
-
-```bash
+pnpm --filter api dev
+pnpm --filter worker dev
 pnpm --filter admin-web dev
 pnpm --filter qr-kiosk dev
 ```
+
+## Вхід у панель
+
+Автентифікація на better-auth: email + пароль, за бажанням TOTP (Google Authenticator, 1Password). Самореєстрації немає. Першого адміністратора створює скрипт:
+
+```bash
+pnpm --filter api auth:bootstrap -- --email admin@example.com --password 'довгий-надійний-пароль' --name 'Адмін'
+```
+
+Далі користувачів і ролі створює адміністратор у панелі або через `POST /admin/users`. Ролі за ТЗ 2: `ADMIN`, `PRODUCTION_HEAD`, `HR`, `PLANNER`, `SHIFT_MASTER`, `CLEANLINESS_CONTROLLER`, `ACCOUNTANT`, `AUDITOR`; кожна з областю `ENTERPRISE`, `SITE`, `ORG_UNIT`, `TEAM` або `ZONE`. `AUTH_SECRET` у `.env` підписує cookie і шифрує TOTP-секрети, його зміна розлогінює всіх.
+
+## Активація працівника в боті
+
+Потік ТЗ 2.2 реалізовано у `apps/api/src/identity`. Ендпоінти доступні ролям `ADMIN` і `HR` після входу в панель (cookie сесії).
+
+```bash
+# 1. Вхід (cookie зберігається у файл)
+curl -c cookies.txt -X POST localhost:3000/auth/sign-in/email -H 'content-type: application/json' \
+  -d '{"email":"admin@example.com","password":"довгий-надійний-пароль"}'
+
+# 2. Картка працівника
+curl -b cookies.txt -X POST localhost:3000/admin/employees -H 'content-type: application/json' \
+  -d '{"personnelNumber":"000123","fullName":"Иванов Иван Иванович"}'
+
+# 3. Код активації (показується один раз; у базі лише HMAC-хеш)
+curl -b cookies.txt -X POST localhost:3000/admin/employees/<id>/activation-codes
+```
+
+Працівник відкриває `deepLink` з відповіді або надсилає код боту повідомленням, бачить замасковану картку і підтверджує привʼязку. Перепривʼязка іншого Telegram-акаунта робиться лише через `POST /admin/employees/<id>/telegram/relink` із причиною (FR-AUTH-02).
+
+Інтеграційні тести API піднімають PostgreSQL через testcontainers. На macOS із Colima або OrbStack helper `apps/api/test/db.ts` сам бере адресу Docker-сокета з активного `docker context`.
 
 ## Команди
 

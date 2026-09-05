@@ -4,19 +4,28 @@ import { ConfigService } from '@nestjs/config';
 import type { Bot } from 'grammy';
 import type { Update } from 'grammy/types';
 import type { Env } from '../config/env.js';
+import { ActivationService } from '../identity/activation.service.js';
+import { EmployeesService } from '../identity/employees.service.js';
 import { createLogger } from '../logger.js';
+import type { BotContext } from './bot-context.js';
 import { createBot } from './bot.factory.js';
+import { UpdateDedup } from './update-dedup.js';
 
 /**
- * Тримає єдиний екземпляр grammY-бота і перевіряє секрет webhook (ТЗ 12.2).
- * Без токена API стартує з вимкненим ботом, щоб панель і health працювали.
+ * Тримає єдиний екземпляр grammY-бота, перевіряє секрет webhook (ТЗ 12.2) і
+ * дедуплікує update_id. Без токена API стартує з вимкненим ботом.
  */
 @Injectable()
 export class TelegramService implements OnModuleInit {
-  private bot: Bot | null = null;
+  private bot: Bot<BotContext> | null = null;
   private readonly logger;
 
-  constructor(private readonly config: ConfigService<Env, true>) {
+  constructor(
+    private readonly config: ConfigService<Env, true>,
+    private readonly employees: EmployeesService,
+    private readonly activation: ActivationService,
+    private readonly dedup: UpdateDedup,
+  ) {
     this.logger = createLogger({
       LOG_LEVEL: this.config.get('LOG_LEVEL', { infer: true }),
       NODE_ENV: this.config.get('NODE_ENV', { infer: true }),
@@ -29,7 +38,11 @@ export class TelegramService implements OnModuleInit {
       this.logger.warn('TELEGRAM_BOT_TOKEN не задано: бот вимкнений');
       return;
     }
-    const bot = createBot(token, this.logger);
+    const bot = createBot(token, {
+      employees: this.employees,
+      activation: this.activation,
+      logger: this.logger,
+    });
     await bot.init();
     this.bot = bot;
     this.logger.info({ username: bot.botInfo.username }, 'telegram-бот ініціалізовано');
@@ -49,6 +62,10 @@ export class TelegramService implements OnModuleInit {
 
   async handleUpdate(update: Update): Promise<void> {
     if (!this.bot) throw new ServiceUnavailableException('Бот вимкнений');
+    if (!(await this.dedup.claim(update.update_id))) {
+      this.logger.debug({ updateId: update.update_id }, 'повторна доставка оновлення, пропущено');
+      return;
+    }
     try {
       await this.bot.handleUpdate(update);
     } catch (error) {

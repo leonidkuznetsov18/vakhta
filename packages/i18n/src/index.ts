@@ -24,3 +24,14 @@ export function stateLabel(state: ShiftState, locale: Locale = 'ru'): string {
 export function errorMessage(code: TransitionErrorCode, locale: Locale = 'ru'): string {
   return catalogs[locale].errors[code];
 }
+
+/** Підставляє {key} у шаблон. Невідомий ключ лишається як є, щоб помилку було видно в тексті. */
+export function format(
+  template: string,
+  params: Readonly<Record<string, string | number>>,
+): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) => {
+    const value = params[key];
+    return value === undefined ? match : String(value);
+  });
+}

@@ -1,36 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { messages } from '@vakhta/i18n';
+import { LoginScreen } from './auth/LoginScreen.tsx';
+import { ProfilePanel } from './auth/ProfilePanel.tsx';
+import { useSession } from './auth/useSession.ts';
 
 const t = messages('ru');
 
-type SectionKey = keyof typeof t.admin.sections;
-const SECTION_KEYS = Object.keys(t.admin.sections) as SectionKey[];
-
-interface Health {
-  status: string;
-  serverTime: string;
-}
-
-const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
+type SectionKey = keyof typeof t.admin.sections | 'profile';
+const SECTION_KEYS = Object.keys(t.admin.sections) as (keyof typeof t.admin.sections)[];
 
 /**
- * Скелет панелі: дев'ять розділів ТЗ 9.1 і перевірка зв'язку з API.
- * Маршрутизація, авторизація і дані з'являються у фазі 1 (документ 4.2).
+ * Панель: дев'ять розділів ТЗ 9.1 за сесією better-auth. Розділи наповнюються
+ * по фазах плану; профіль дозволяє ввімкнути TOTP.
  */
 export function App() {
+  const { state, refresh, signOut } = useSession();
   const [active, setActive] = useState<SectionKey>('operations');
-  const [health, setHealth] = useState<Health | 'offline' | 'loading'>('loading');
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(`${API_URL}/health`, { signal: controller.signal })
-      .then((r) =>
-        r.ok ? (r.json() as Promise<Health>) : Promise.reject(new Error(String(r.status))),
-      )
-      .then(setHealth)
-      .catch(() => setHealth('offline'));
-    return () => controller.abort();
-  }, []);
+  if (state.status === 'loading') {
+    return <main className="login" aria-busy="true" />;
+  }
+  if (state.status === 'anonymous') {
+    return <LoginScreen offline={state.offline} onSignedIn={() => void refresh()} />;
+  }
+
+  const { me } = state;
+  const title = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];
 
   return (
     <div className="shell">
@@ -49,19 +44,26 @@ export function App() {
             </button>
           ))}
         </nav>
-        <div className="status" role="status">
-          {health === 'loading' && 'API: проверка…'}
-          {health === 'offline' && <span className="bad">API недоступен</span>}
-          {typeof health === 'object' && (
-            <span className="ok">
-              API online · {new Date(health.serverTime).toLocaleTimeString('ru-RU')}
-            </span>
-          )}
+        <div className="status">
+          <button
+            type="button"
+            className={active === 'profile' ? 'nav-item active' : 'nav-item'}
+            onClick={() => setActive('profile')}
+          >
+            {me.email}
+          </button>
+          <button type="button" className="nav-item" onClick={() => void signOut()}>
+            {t.admin.auth.signOut}
+          </button>
         </div>
       </aside>
       <main className="content">
-        <h1>{t.admin.sections[active]}</h1>
-        <p className="muted">{t.admin.placeholder}</p>
+        <h1>{title}</h1>
+        {active === 'profile' ? (
+          <ProfilePanel me={me} onChanged={() => void refresh()} />
+        ) : (
+          <p className="muted">{t.admin.placeholder}</p>
+        )}
       </main>
     </div>
   );

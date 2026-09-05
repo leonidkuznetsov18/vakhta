@@ -21,9 +21,11 @@
     "generate": "drizzle-kit generate",
     "generate:custom": "drizzle-kit generate --custom",
     "migrate": "drizzle-kit migrate",
+    "seed": "node --env-file=../../.env dist/seed.js",
     "studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@vakhta/domain": "workspace:*",
     "drizzle-orm": "^0.44.0",
     "postgres": "^3.4.5"
   },

@@ -21,17 +21,30 @@ const el = {
 
 el.title.textContent = t.kiosk.title;
 el.hint.textContent = t.kiosk.hint;
-el.offline.textContent = t.kiosk.offline;
 
 let countdown = 0;
-let rotation = 45;
+
+function showProblem(text: string): void {
+  el.qr.hidden = true;
+  el.offline.textContent = text;
+  el.offline.hidden = false;
+  countdown = 10;
+}
 
 async function fetchChallenge(): Promise<void> {
+  if (!DEVICE_TOKEN) {
+    showProblem(t.kiosk.notConfigured);
+    return;
+  }
   try {
     const res = await fetch(`${API_URL}/kiosk/challenge`, {
       headers: { 'x-device-token': DEVICE_TOKEN },
       cache: 'no-store',
     });
+    if (res.status === 401 || res.status === 403) {
+      showProblem(t.kiosk.unauthorized);
+      return;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = KioskChallengeResponse.parse(await res.json());
 
@@ -45,14 +58,11 @@ async function fetchChallenge(): Promise<void> {
     el.qr.append(canvas);
 
     el.terminal.textContent = data.terminalName;
-    rotation = data.rotationSeconds;
-    countdown = rotation;
+    countdown = data.rotationSeconds;
     el.offline.hidden = true;
     el.qr.hidden = false;
   } catch {
-    el.qr.hidden = true;
-    el.offline.hidden = false;
-    countdown = 10;
+    showProblem(t.kiosk.offline);
   }
 }
 

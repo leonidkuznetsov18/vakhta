@@ -2,11 +2,24 @@ import { z } from 'zod';
 
 const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
 
+const commaList = z.preprocess(
+  (v) =>
+    typeof v === 'string'
+      ? v
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : v,
+  z.array(z.string().min(1)),
+);
+
 export const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('info'),
   API_PORT: z.coerce.number().int().positive().default(3000),
   API_HOST: z.string().default('0.0.0.0'),
+  /** Origin панелі й терміналу через кому; також trustedOrigins для better-auth. */
+  CORS_ORIGINS: commaList.default(['http://localhost:5173', 'http://localhost:5174']),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
   TELEGRAM_BOT_TOKEN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
@@ -16,6 +29,12 @@ export const EnvSchema = z.object({
   DEFAULT_SITE_TIMEZONE: z.string().default('Europe/Kyiv'),
   QR_ROTATION_SECONDS: z.coerce.number().int().positive().default(45),
   QR_TTL_SECONDS: z.coerce.number().int().positive().default(90),
+  /** Секрет better-auth: підпис cookie і шифрування TOTP-секретів. Зміна розлогінює всіх. */
+  AUTH_SECRET: z.string().min(32),
+  /** HMAC-pepper кодів активації (ТЗ 2.2). Зміна pepper робить недійсними всі невикористані коди. */
+  ACTIVATION_PEPPER: z.string().min(16),
+  ACTIVATION_TTL_HOURS: z.coerce.number().int().positive().default(72),
+  ACTIVATION_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

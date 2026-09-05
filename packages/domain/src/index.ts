@@ -5,5 +5,7 @@ export * from './shift-fsm/intervals.js';
 export * from './time/plan.js';
 export * from './time/deviations.js';
 export * from './qr/challenge.js';
+export * from './identity/activation.js';
+export * from './access/roles.js';
 export * from './bonus/rules.js';
 export * from './bonus/score.js';
