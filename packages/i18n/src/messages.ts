@@ -1,4 +1,6 @@
 import type {
+  IncidentSeverity,
+  IncidentStatus,
   ScheduleStatus,
   ScopeType,
   ActivationFailure,
@@ -92,6 +94,31 @@ export interface Messages {
     readonly resumeIntoDowntimeQuestion: string;
     readonly resumeIntoDowntimeYes: string;
     readonly resumeIntoDowntimeNo: string;
+  };
+  readonly incidents: {
+    readonly reportButton: string;
+    readonly chooseReason: string;
+    readonly askComment: string;
+    readonly askPhoto: string;
+    readonly skipPhoto: string;
+    readonly askStopped: string;
+    readonly stoppedYes: string;
+    readonly stoppedNo: string;
+    readonly cancel: string;
+    readonly cancelled: string;
+    readonly expired: string;
+    readonly noShift: string;
+    /** Плейсхолдер: {reason} */
+    readonly reported: string;
+    readonly linked: string;
+    readonly masterNotified: string;
+    readonly safetyEscalated: string;
+    readonly downtimeOpened: string;
+    /** Плейсхолдер: {error} */
+    readonly downtimeNotOpened: string;
+    readonly resolvedNotice: string;
+    readonly statuses: Readonly<Record<IncidentStatus, string>>;
+    readonly severities: Readonly<Record<IncidentSeverity, string>>;
   };
   readonly schedule: {
     /** Назви місяців у називному відмінку, індекс 0 = січень. */
@@ -235,6 +262,46 @@ export interface Messages {
       readonly summary: string;
       readonly empty: string;
       readonly stale: string;
+    };
+    readonly incidents: {
+      readonly site: string;
+      readonly scopeOpen: string;
+      readonly scopeAll: string;
+      readonly opened: string;
+      readonly severity: string;
+      readonly reason: string;
+      readonly zone: string;
+      readonly reports: string;
+      readonly stoppedNow: string;
+      readonly status: string;
+      readonly sla: string;
+      readonly slaBreached: string;
+      readonly assignee: string;
+      readonly comment: string;
+      readonly commentRequired: string;
+      readonly transitions: Readonly<Record<IncidentStatus, string>>;
+      readonly duplicateOf: string;
+      readonly apply: string;
+      readonly applied: string;
+      readonly detail: string;
+      readonly history: string;
+      readonly reportsTitle: string;
+      readonly stoppedWork: string;
+      readonly notStopped: string;
+      readonly photo: string;
+      readonly empty: string;
+      readonly stats: string;
+      readonly byReason: string;
+      readonly byZone: string;
+      readonly from: string;
+      readonly to: string;
+      readonly colIncidents: string;
+      readonly colReports: string;
+      readonly colDowntime: string;
+      readonly colResolution: string;
+      readonly colBreached: string;
+      readonly totals: string;
+      readonly live: string;
     };
     readonly administration: {
       readonly tabs: Readonly<Record<'employees' | 'users' | 'directories' | 'terminals', string>>;

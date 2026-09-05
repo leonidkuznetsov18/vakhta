@@ -101,7 +101,7 @@ export interface CommandMeta {
 }
 
 /** Робота з таймерами йде після коміту: BullMQ не бере участі в транзакції БД. */
-type DeferredTimer = () => Promise<void>;
+export type DeferredTimer = () => Promise<void>;
 
 const t = messages('ru');
 const TERMINAL = [...TERMINAL_STATES];
@@ -370,23 +370,42 @@ export class ShiftService {
     cmd: CommandInput,
     meta: CommandMeta,
   ): Promise<TransitionResponse> {
-    const now = meta.now ?? new Date();
     const deferred: DeferredTimer[] = [];
-    const response = await this.db.transaction(async (tx) => {
-      const replay = await this.replay(tx, employeeId, cmd.idempotencyKey);
-      if (replay) return replay;
-      const [session] = await tx
-        .select()
-        .from(shiftSessions)
-        .where(
-          and(eq(shiftSessions.employeeId, employeeId), notInArray(shiftSessions.state, TERMINAL)),
-        )
-        .for('update');
-      if (!session) return this.fail('NO_ACTIVE_SHIFT', null, now);
-      return this.apply(tx, session, cmd, { ...meta, now }, deferred);
-    });
-    await this.afterCommit(response, deferred);
+    const response = await this.db.transaction((tx) =>
+      this.transitionWithin(tx, employeeId, cmd, meta, deferred),
+    );
+    await this.settle(response, deferred);
     return response;
+  }
+
+  /**
+   * Той самий перехід усередині чужої транзакції (інцидент + простій атомарно, ТЗ 5.5).
+   * Викликач після коміту зобовʼязаний викликати settle() з тим самим deferred.
+   */
+  async transitionWithin(
+    tx: DbOrTx,
+    employeeId: string,
+    cmd: CommandInput,
+    meta: CommandMeta,
+    deferred: DeferredTimer[],
+  ): Promise<TransitionResponse> {
+    const now = meta.now ?? new Date();
+    const replay = await this.replay(tx, employeeId, cmd.idempotencyKey);
+    if (replay) return replay;
+    const [session] = await tx
+      .select()
+      .from(shiftSessions)
+      .where(
+        and(eq(shiftSessions.employeeId, employeeId), notInArray(shiftSessions.state, TERMINAL)),
+      )
+      .for('update');
+    if (!session) return this.fail('NO_ACTIVE_SHIFT', null, now);
+    return this.apply(tx, session, cmd, { ...meta, now }, deferred);
+  }
+
+  /** Таймери й SSE після коміту; для replay нічого не робить. */
+  async settle(response: TransitionResponse, deferred: DeferredTimer[]): Promise<void> {
+    return this.afterCommit(response, deferred);
   }
 
   /** Дія майстра з панелі по конкретній сесії; guard-и пропускаються, аудит обовʼязковий. */

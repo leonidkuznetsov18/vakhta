@@ -9,3 +9,4 @@ export * from './positions.js';
 export * from './org.js';
 export * from './auth.js';
 export * from './scheduling.js';
+export * from './incidents.js';

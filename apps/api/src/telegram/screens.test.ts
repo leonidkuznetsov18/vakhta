@@ -101,7 +101,7 @@ describe('екран зміни в боті (ТЗ 4.4, FR-UI-01)', () => {
     expect(screen.text).toContain('Зона ещё не принята');
   });
 
-  it('після закриття показує підсумок без кнопок дій', () => {
+  it('після закриття показує підсумок, без кнопок дій зі зміною', () => {
     const screen = shiftScreen(
       view({
         session: { ...view().session!, state: 'SHIFT_CLOSED', endedAt: '2026-09-07T17:05:00.000Z' },
@@ -126,7 +126,8 @@ describe('екран зміни в боті (ТЗ 4.4, FR-UI-01)', () => {
     expect(screen.text).toContain('Смена закрыта.');
     expect(screen.text).toContain('Итого 725 мин: работа 650, перерывы 30, обед 30, простой 15.');
     expect(screen.text).toContain('Сверх плана: 5 мин.');
-    expect(screen.keyboard).toBeUndefined();
+    // після закриття лишається тільки «Мой план»: дій зі зміною більше немає
+    expect(buttons(screen)).toEqual([['plan:cur']]);
   });
 
   it('вибір причини: кнопка на кожен код і повернення назад', () => {
@@ -139,5 +140,65 @@ describe('екран зміни в боті (ТЗ 4.4, FR-UI-01)', () => {
     expect(reasonPickerScreen(view({ emergencyReasons: [] }), 'EMERGENCY').text).toContain(
       'Справочник причин пуст',
     );
+  });
+});
+
+describe('повідомлення про проблему в боті (ТЗ 5.5)', () => {
+  it('на екрані зміни є «Сообщить о проблеме» з версією; після закриття її немає', async () => {
+    const { shiftScreen: build } = await import('./screens.js');
+    const active = build(view(), 'x');
+    expect(buttons(active).flat()).toContain('inc:new:3');
+    const closed = build(
+      view({ session: { ...view().session!, state: 'SHIFT_CLOSED' }, allowedActions: [] }),
+      'x',
+    );
+    expect(buttons(closed).flat()).not.toContain('inc:new:3');
+  });
+
+  it('екрани кроків: причини, коментар, фото, «Работа остановлена?», результат', async () => {
+    const s = await import('./screens.js');
+    const reasons = s.incidentReasonScreen([{ code: 'BREAKDOWN', label: 'Поломка' }]);
+    expect(buttons(reasons as ReturnType<typeof shiftScreen>)).toEqual([
+      ['inc:r:BREAKDOWN'],
+      ['inc:cancel'],
+    ]);
+    expect(buttons(s.incidentPhotoScreen() as ReturnType<typeof shiftScreen>).flat()).toEqual([
+      'inc:skip',
+      'inc:cancel',
+    ]);
+    const stopped = s.incidentStoppedScreen('Поломка');
+    expect(buttons(stopped as ReturnType<typeof shiftScreen>).flat()).toEqual([
+      'inc:stop:1',
+      'inc:stop:0',
+      'inc:cancel',
+    ]);
+    expect(stopped.text).toContain('Работа остановлена?');
+    const result = s.incidentResultScreen(
+      {
+        incidentId: 'a0000000-0000-4000-8000-000000000001',
+        linkedToExisting: false,
+        severity: 'SAFETY',
+        downtimeStarted: true,
+        downtimeError: null,
+        serverTime: 'x',
+      },
+      'Безопасность',
+    );
+    expect(result.text).toContain('Проблема «Безопасность» зарегистрирована.');
+    expect(result.text).toContain('эскалация отправлена немедленно');
+    expect(result.text).toContain('Открыт личный простой');
+    const linked = s.incidentResultScreen(
+      {
+        incidentId: 'a0000000-0000-4000-8000-000000000001',
+        linkedToExisting: true,
+        severity: 'NORMAL',
+        downtimeStarted: false,
+        downtimeError: 'TEMPORARY_STATE_OPEN',
+        serverTime: 'x',
+      },
+      'Поломка',
+    );
+    expect(linked.text).toContain('уже зарегистрирована');
+    expect(linked.text).toContain('Сначала нажмите «Вернуться».');
   });
 });

@@ -715,3 +715,31 @@ h2 {
   color: var(--muted);
   margin: 0 0 6px;
 }
+
+/* ---- інциденти ---- */
+.state-pill.sev-CRITICAL {
+  background: color-mix(in srgb, var(--accent) 45%, var(--surface-2));
+}
+
+.state-pill.sev-SAFETY {
+  background: var(--crit);
+  color: #fff;
+}
+
+.status-badge.RESOLVED,
+.status-badge.CLOSED {
+  background: color-mix(in srgb, var(--ok) 30%, var(--surface-2));
+}
+
+.status-badge.REPORTED {
+  background: color-mix(in srgb, var(--crit) 30%, var(--surface-2));
+}
+
+.table tr.flagged td:first-child {
+  box-shadow: inset 3px 0 0 var(--crit);
+}
+
+.table tr.totals td {
+  font-weight: 600;
+  border-top: 2px solid var(--line);
+}

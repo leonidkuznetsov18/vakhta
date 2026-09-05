@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import {
+  Inject,
   Injectable,
   ServiceUnavailableException,
   type OnApplicationShutdown,
@@ -14,6 +15,8 @@ import { ActivationService } from '../identity/activation.service.js';
 import { EmployeesService } from '../identity/employees.service.js';
 import { createLogger } from '../logger.js';
 import { ScheduleService } from '../scheduling/schedule.service.js';
+import { IncidentsService } from '../incidents/incidents.service.js';
+import { SHORT_TERM_STORE, type ShortTermStore } from '../infra/short-term-store.js';
 import { ShiftService } from '../shift/shift.service.js';
 import type { BotContext } from './bot-context.js';
 import { createBot } from './bot.factory.js';
@@ -37,6 +40,8 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     private readonly schedule: ScheduleService,
     private readonly attendance: AttendanceService,
     private readonly shift: ShiftService,
+    private readonly incidents: IncidentsService,
+    @Inject(SHORT_TERM_STORE) private readonly store: ShortTermStore,
     private readonly dedup: UpdateDedup,
   ) {
     this.logger = createLogger({
@@ -57,6 +62,8 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       schedule: this.schedule,
       attendance: this.attendance,
       shift: this.shift,
+      incidents: this.incidents,
+      store: this.store,
       dedup: this.dedup,
       defaultTimezone: this.config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
       logger: this.logger,

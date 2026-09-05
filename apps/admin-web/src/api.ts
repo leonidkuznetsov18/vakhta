@@ -203,3 +203,26 @@ export const shiftsApi = {
   /** SSE: cookie сесії передається з withCredentials. */
   streamUrl: () => `${API_URL}/admin/shifts/stream`,
 };
+
+// ---- простої та інциденти (ТЗ 9.1) ----
+
+import type {
+  IncidentDetailView,
+  IncidentStatsView,
+  IncidentTransitionCommand,
+  IncidentView,
+  IncidentsQuery,
+} from '@vakhta/contracts';
+
+export const incidentsApi = {
+  list: (q: IncidentsQuery) =>
+    apiFetch<IncidentView[]>(
+      `/admin/incidents${query({ siteId: q.siteId, zoneId: q.zoneId, scope: q.scope })}`,
+    ),
+  detail: (id: string) => apiFetch<IncidentDetailView>(`/admin/incidents/${id}`),
+  transition: (id: string, cmd: IncidentTransitionCommand) =>
+    post<IncidentView>(`/admin/incidents/${id}/transition`, cmd),
+  stats: (from: string, to: string, siteId?: string) =>
+    apiFetch<IncidentStatsView>(`/admin/incidents/stats${query({ from, to, siteId })}`),
+  streamUrl: () => `${API_URL}/admin/incidents/stream`,
+};

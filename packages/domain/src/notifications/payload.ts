@@ -20,6 +20,7 @@ export const NOTIFICATION_TEMPLATES = [
   'DOWNTIME_ESCALATION',
   'SHIFT_SUMMARY',
   'SHIFT_FLAGGED',
+  'INCIDENT_RESOLVED',
 ] as const;
 export type NotificationTemplate = (typeof NOTIFICATION_TEMPLATES)[number];
 
@@ -32,6 +33,7 @@ export const TIMER_JOBS = {
   ackReminder: 'ack-reminder',
   returnReminder: 'return-reminder',
   downtimeEscalation: 'downtime-escalation',
+  incidentSla: 'incident-sla',
 } as const;
 
 export function shiftReminderJobId(assignmentId: string): string {
@@ -50,4 +52,9 @@ export function returnReminderJobId(sessionId: string, intervalId: string): stri
 /** Ескалація простою майстру після порогу (ТЗ 18, п. 9). */
 export function downtimeEscalationJobId(sessionId: string, intervalId: string): string {
   return `${TIMER_JOBS.downtimeEscalation}.${sessionId}.${intervalId}`;
+}
+
+/** Перевірка SLA спільного інциденту (FR-DWN-03). */
+export function incidentSlaJobId(incidentId: string): string {
+  return `${TIMER_JOBS.incidentSla}.${incidentId}`;
 }

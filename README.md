@@ -86,6 +86,12 @@ curl -b cookies.txt localhost:3000/admin/schedules/<id>/acknowledgements
 
 Панель «Оперативная смена» (`apps/admin-web/src/operations`) слухає `GET /admin/shifts/stream` (SSE з cookie) і перечитує список при кожній зміні стану. Майстер може виконати будь-який перехід із обовʼязковим коментарем (`POST /admin/shifts/:id/transition`, guard-и пропускаються, запис в аудит), відкрити зміну працівнику без телефона (`POST /admin/shifts/start`) і позначити «Нужна проверка» (`POST /admin/shifts/:id/clarify`).
 
+## Простої та інциденти
+
+Модуль `apps/api/src/incidents` реалізує ТЗ 5.5 і FR-DWN-01…07. У боті кнопка «Сообщить о проблеме» на екрані зміни веде через вибір причини з довідника `reason_codes` (kind `DOWNTIME`), коментар для причин з `requires_comment`, необовʼязкове фото для `requires_photo` (зберігається Telegram `file_id`, у S3 переносить воркер фази 4) і питання «Работа остановлена?». Незавершене повідомлення живе в Redis з TTL 10 хвилин, а не в памʼяті процесу. Відповідь «Нет» створює лише інцидент (AC-08); «Да» додатково відкриває особистий `DOWNTIME` тією самою транзакцією через `ShiftService.transitionWithin`.
+
+Повідомлення тієї ж зони й причини у вікні `INCIDENT_DUPLICATE_WINDOW_MINUTES` лінкуються до відкритого інциденту (FR-DWN-04); вихідні записи `downtime_reports` лишаються. SLA рахується за критичністю причини (`INCIDENT_SLA_*_MINUTES`), безпека ескалюється негайно, а воркер по job `incident-sla.<id>` ставить `escalated_at` і пише `INCIDENT_SLA_BREACHED`, якщо майстер не відреагував. Майстер у панелі «Простои и инциденты» підтверджує, бере в роботу, вирішує, закриває, відхиляє або позначає дублем за таблицею переходів з `@vakhta/domain`; кожен крок пише `incident_status_history`, подію й аудит. Рішення інциденту не закриває особистий простій: працівник отримує повідомлення і сам натискає «Вернуться» (FR-DWN-06). Статистика по причинах і зонах за період: інциденти, повідомлення, хвилини простою з `activity_intervals`, середній час рішення, порушення SLA.
+
 ## Telegram-бот: режими і прихід за QR
 
 `TELEGRAM_MODE=polling` (типово поза `NODE_ENV=production`): API сам забирає оновлення, публічна адреса не потрібна. `TELEGRAM_MODE=webhook`: Telegram шле оновлення на `PUBLIC_BASE_URL/telegram/webhook`, потрібні `TELEGRAM_WEBHOOK_SECRET` і публічна адреса (локально тунель `cloudflared tunnel --url http://localhost:3000`, потім `pnpm --filter api telegram:set-webhook`). Дедуплікація `update_id` є першим middleware бота і діє в обох режимах.

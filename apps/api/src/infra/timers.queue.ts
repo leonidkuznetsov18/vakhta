@@ -6,6 +6,7 @@ import {
   QUEUES,
   type AckReminderJob,
   type DowntimeEscalationJob,
+  type IncidentSlaJob,
   type ReturnReminderJob,
   type ShiftReminderJob,
 } from '@vakhta/contracts';
@@ -13,6 +14,7 @@ import {
   TIMER_JOBS,
   ackReminderJobId,
   downtimeEscalationJobId,
+  incidentSlaJobId,
   returnReminderJobId,
   shiftReminderJobId,
 } from '@vakhta/domain';
@@ -27,6 +29,7 @@ export interface TimerScheduler {
     job: Omit<DowntimeEscalationJob, 'fireAt'>,
     fireAt: Date,
   ): Promise<void>;
+  scheduleIncidentSla(incidentId: string, fireAt: Date): Promise<void>;
   cancel(jobId: string): Promise<void>;
 }
 
@@ -100,6 +103,16 @@ export class TimersQueue implements TimerScheduler, OnApplicationShutdown {
     });
   }
 
+  async scheduleIncidentSla(incidentId: string, fireAt: Date): Promise<void> {
+    const data: IncidentSlaJob = { incidentId, fireAt: fireAt.toISOString() };
+    await this.queue.add(TIMER_JOBS.incidentSla, data, {
+      jobId: incidentSlaJobId(incidentId),
+      delay: Math.max(0, fireAt.getTime() - Date.now()),
+      removeOnComplete: true,
+      removeOnFail: 200,
+    });
+  }
+
   async cancel(jobId: string): Promise<void> {
     const job = await this.queue.getJob(jobId);
     if (job) await job.remove().catch(() => undefined);
@@ -135,6 +148,10 @@ export class InMemoryTimerScheduler implements TimerScheduler {
     fireAt: Date,
   ): Promise<void> {
     this.scheduled.push({ jobId: downtimeEscalationJobId(job.sessionId, job.intervalId), fireAt });
+  }
+
+  async scheduleIncidentSla(incidentId: string, fireAt: Date): Promise<void> {
+    this.scheduled.push({ jobId: incidentSlaJobId(incidentId), fireAt });
   }
 
   async cancel(jobId: string): Promise<void> {

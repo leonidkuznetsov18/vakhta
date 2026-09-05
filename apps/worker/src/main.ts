@@ -4,6 +4,7 @@ import { pino } from 'pino';
 import {
   AckReminderJob,
   DowntimeEscalationJob,
+  IncidentSlaJob,
   QUEUES,
   ReturnReminderJob,
   ShiftReminderJob,
@@ -13,6 +14,7 @@ import { TIMER_JOBS } from '@vakhta/domain';
 import { loadWorkerEnv } from './env.js';
 import { TelegramSender, relayOnce } from './outbox/relay.js';
 import { handleAckReminder, handleShiftReminder } from './timers/reminders.js';
+import { handleIncidentSla } from './timers/incident-sla.js';
 import { handleDowntimeEscalation, handleReturnReminder } from './timers/shift-timers.js';
 
 const env = loadWorkerEnv(process.env);
@@ -76,6 +78,11 @@ async function processTimer(job: Job): Promise<void> {
     }
     case TIMER_JOBS.downtimeEscalation: {
       const outcome = await handleDowntimeEscalation(db, DowntimeEscalationJob.parse(job.data));
+      logger.info({ job: job.name, jobId: job.id, outcome }, 'timer');
+      return;
+    }
+    case TIMER_JOBS.incidentSla: {
+      const outcome = await handleIncidentSla(db, IncidentSlaJob.parse(job.data));
       logger.info({ job: job.name, jobId: job.id, outcome }, 'timer');
       return;
     }

@@ -49,3 +49,6 @@ export const ListScheduleVersionsQuery = z.object({
     .optional(),
 });
 export type ListScheduleVersionsQuery = z.infer<typeof ListScheduleVersionsQuery>;
+
+export const IncidentSlaJob = z.object({ incidentId: Uuid, fireAt: IsoDateTime });
+export type IncidentSlaJob = z.infer<typeof IncidentSlaJob>;

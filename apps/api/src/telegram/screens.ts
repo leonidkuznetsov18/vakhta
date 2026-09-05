@@ -12,6 +12,8 @@ import {
 import type {
   CheckInResult,
   MyPlanView,
+  ReasonOption,
+  ReportProblemResult,
   ShiftScreenView,
   ShiftSummaryView,
 } from '@vakhta/contracts';
@@ -290,27 +292,29 @@ export function shiftKeyboard(view: ShiftScreenView): InlineKeyboard | undefined
   const version = view.session?.version ?? 0;
   const keyboard = new InlineKeyboard();
   let inRow = 0;
+  /** Новий рядок лише коли поточний не порожній: Telegram не приймає порожніх рядків. */
+  const newRow = () => {
+    if (inRow > 0) keyboard.row();
+    inRow = 0;
+  };
   const add = (label: string, data: string) => {
-    if (inRow === 2) {
-      keyboard.row();
-      inRow = 0;
-    }
+    if (inRow === 2) newRow();
     keyboard.text(label, data);
     inRow += 1;
   };
   if (view.canAcceptZone) {
     add(t.shift.acceptZone, `${SHIFT_CALLBACK.zone}${version}`);
-    keyboard.row();
-    inRow = 0;
+    newRow();
   }
   for (const action of view.allowedActions) {
     if (action === 'RESUME' && view.offerResumeIntoDowntime) {
-      keyboard.row();
+      newRow();
       keyboard.text(t.shift.resumeIntoDowntimeYes, `${SHIFT_CALLBACK.prefix}RESUME:${version}`);
-      keyboard.row();
+      inRow = 1;
+      newRow();
       keyboard.text(t.shift.resumeIntoDowntimeNo, `${SHIFT_CALLBACK.prefix}RESUME:${version}:DT`);
-      keyboard.row();
-      inRow = 0;
+      inRow = 1;
+      newRow();
       continue;
     }
     const data = REASON_ACTIONS.includes(action)
@@ -321,9 +325,17 @@ export function shiftKeyboard(view: ShiftScreenView): InlineKeyboard | undefined
   if (
     view.session &&
     view.session.state !== 'SHIFT_CLOSED' &&
-    view.session.state !== 'EMERGENCY_EXIT'
+    view.session.state !== 'EMERGENCY_EXIT' &&
+    view.session.state !== 'NOT_STARTED'
   ) {
-    keyboard.row().text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`);
+    newRow();
+    keyboard.text(t.incidents.reportButton, `${INCIDENT_CALLBACK.newPrefix}${version}`);
+    inRow = 1;
+    newRow();
+    keyboard.text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`);
+  } else if (view.session) {
+    newRow();
+    keyboard.text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`);
   }
   return keyboard.inline_keyboard.some((row) => row.length > 0) ? keyboard : undefined;
 }
@@ -357,4 +369,69 @@ export function reasonPickerScreen(view: ShiftScreenView, kind: 'DOWNTIME' | 'EM
           : t.shift.chooseEmergencyReason,
     keyboard,
   };
+}
+
+/* -------------------------------------------------------------------- */
+/* Проблеми та інциденти (ТЗ 5.5)                                         */
+/* -------------------------------------------------------------------- */
+
+export const INCIDENT_CALLBACK = {
+  newPrefix: 'inc:new:',
+  reasonPrefix: 'inc:r:',
+  stopPrefix: 'inc:stop:',
+  skipPhoto: 'inc:skip',
+  cancel: 'inc:cancel',
+} as const;
+
+export function incidentReasonScreen(reasons: readonly ReasonOption[]): Screen {
+  const keyboard = new InlineKeyboard();
+  for (const r of reasons)
+    keyboard.text(r.label, `${INCIDENT_CALLBACK.reasonPrefix}${r.code}`).row();
+  keyboard.text(t.incidents.cancel, INCIDENT_CALLBACK.cancel);
+  return { text: reasons.length === 0 ? t.shift.noReasons : t.incidents.chooseReason, keyboard };
+}
+
+export function incidentCommentScreen(): Screen {
+  return {
+    text: t.incidents.askComment,
+    keyboard: new InlineKeyboard().text(t.incidents.cancel, INCIDENT_CALLBACK.cancel),
+  };
+}
+
+export function incidentPhotoScreen(): Screen {
+  return {
+    text: t.incidents.askPhoto,
+    keyboard: new InlineKeyboard()
+      .text(t.incidents.skipPhoto, INCIDENT_CALLBACK.skipPhoto)
+      .row()
+      .text(t.incidents.cancel, INCIDENT_CALLBACK.cancel),
+  };
+}
+
+/** «Работа остановлена?»: «Так» додатково відкриває особистий DOWNTIME (ТЗ 5.5). */
+export function incidentStoppedScreen(reasonLabel: string): Screen {
+  return {
+    text: `${reasonLabel}\n\n${t.incidents.askStopped}`,
+    keyboard: new InlineKeyboard()
+      .text(t.incidents.stoppedYes, `${INCIDENT_CALLBACK.stopPrefix}1`)
+      .row()
+      .text(t.incidents.stoppedNo, `${INCIDENT_CALLBACK.stopPrefix}0`)
+      .row()
+      .text(t.incidents.cancel, INCIDENT_CALLBACK.cancel),
+  };
+}
+
+export function incidentResultScreen(result: ReportProblemResult, reasonLabel: string): Screen {
+  const lines = [
+    result.linkedToExisting
+      ? t.incidents.linked
+      : format(t.incidents.reported, { reason: reasonLabel }),
+    result.severity === 'SAFETY' ? t.incidents.safetyEscalated : t.incidents.masterNotified,
+  ];
+  if (result.downtimeStarted) lines.push(t.incidents.downtimeOpened);
+  else if (result.downtimeError) {
+    const known = (t.errors as Record<string, string>)[result.downtimeError];
+    lines.push(format(t.incidents.downtimeNotOpened, { error: known ?? result.downtimeError }));
+  }
+  return { text: lines.join('\n') };
 }

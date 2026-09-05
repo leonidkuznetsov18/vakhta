@@ -17,6 +17,8 @@ import type { ActivationService } from '../identity/activation.service.js';
 import type { EmployeesService } from '../identity/employees.service.js';
 import type { ScheduleService } from '../scheduling/schedule.service.js';
 import type { ShiftService } from '../shift/shift.service.js';
+import type { IncidentsService } from '../incidents/incidents.service.js';
+import type { ShortTermStore } from '../infra/short-term-store.js';
 import type { BotContext } from './bot-context.js';
 import {
   CALLBACK,
@@ -27,6 +29,11 @@ import {
   checkInPromptScreen,
   checkInResultScreen,
   homeScreen,
+  incidentCommentScreen,
+  incidentPhotoScreen,
+  incidentReasonScreen,
+  incidentResultScreen,
+  incidentStoppedScreen,
   planScreen,
   reasonPickerScreen,
   shiftScreen,
@@ -34,6 +41,17 @@ import {
   type Screen,
 } from './screens.js';
 import type { UpdateDedup } from './update-dedup.js';
+
+/** Незавершене повідомлення про проблему живе в Redis, не в памʼяті процесу (ADR-11). */
+interface PendingReport {
+  readonly reasonCode: string;
+  readonly reasonLabel: string;
+  readonly step: 'comment' | 'photo' | 'stop';
+  readonly comment?: string;
+  readonly photoFileId?: string;
+  readonly requiresPhoto: boolean;
+}
+const PENDING_TTL_SECONDS = 600;
 
 function isShiftAction(value: string): value is ShiftAction {
   return (SHIFT_ACTIONS as readonly string[]).includes(value);
@@ -45,6 +63,8 @@ export interface BotDeps {
   readonly schedule: ScheduleService;
   readonly attendance: AttendanceService;
   readonly shift: ShiftService;
+  readonly incidents: IncidentsService;
+  readonly store: ShortTermStore;
   readonly dedup: UpdateDedup;
   readonly defaultTimezone: string;
   readonly logger: Logger;
@@ -239,6 +259,94 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await edit(ctx, await buildHome(ctx));
   });
 
+  // «Сообщить о проблеме» (ТЗ 5.5): причина → коментар/фото за потреби → «Работа остановлена?»
+  const pendingKey = (telegramUserId: number) => `incident:pending:${telegramUserId}`;
+  async function readPending(ctx: BotContext): Promise<PendingReport | null> {
+    if (!ctx.from) return null;
+    const raw = await deps.store.get(pendingKey(ctx.from.id));
+    return raw ? (JSON.parse(raw) as PendingReport) : null;
+  }
+  async function writePending(ctx: BotContext, pending: PendingReport): Promise<void> {
+    if (!ctx.from) return;
+    await deps.store.set(pendingKey(ctx.from.id), JSON.stringify(pending), PENDING_TTL_SECONDS);
+  }
+  async function clearPending(ctx: BotContext): Promise<void> {
+    if (ctx.from) await deps.store.del(pendingKey(ctx.from.id));
+  }
+  async function nextStep(ctx: BotContext, pending: PendingReport): Promise<void> {
+    await writePending(ctx, pending);
+    if (pending.step === 'comment') return show(ctx, incidentCommentScreen());
+    if (pending.step === 'photo') return show(ctx, incidentPhotoScreen());
+    return show(ctx, incidentStoppedScreen(pending.reasonLabel));
+  }
+
+  bot.callbackQuery(/^inc:new:(\d+)$/, async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee) return ctx.answerCallbackQuery();
+    await ctx.answerCallbackQuery();
+    const view = await deps.shift.screen(ctx.employee.id);
+    if (!view.session || view.session.endedAt) return edit(ctx, { text: t.incidents.noShift });
+    await edit(ctx, incidentReasonScreen(view.downtimeReasons));
+  });
+
+  bot.callbackQuery(/^inc:r:([A-Z][A-Z0-9_]{1,63})$/, async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee) return ctx.answerCallbackQuery();
+    const reason = await deps.incidents.reason(ctx.match[1] ?? '');
+    await ctx.answerCallbackQuery();
+    if (!reason) return edit(ctx, { text: t.shift.noReasons });
+    await ctx.editMessageReplyMarkup().catch(() => undefined);
+    await nextStep(ctx, {
+      reasonCode: reason.code,
+      reasonLabel: reason.label,
+      requiresPhoto: reason.requiresPhoto,
+      step: reason.requiresComment ? 'comment' : reason.requiresPhoto ? 'photo' : 'stop',
+    });
+  });
+
+  bot.callbackQuery(/^inc:skip$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const pending = await readPending(ctx);
+    if (!pending) return edit(ctx, { text: t.incidents.expired });
+    await ctx.editMessageReplyMarkup().catch(() => undefined);
+    await nextStep(ctx, { ...pending, step: 'stop' });
+  });
+
+  bot.callbackQuery(/^inc:cancel$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await clearPending(ctx);
+    await edit(ctx, { text: t.incidents.cancelled });
+    await show(ctx, await buildHome(ctx));
+  });
+
+  bot.callbackQuery(/^inc:stop:(1|0)$/, async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee) return ctx.answerCallbackQuery();
+    const pending = await readPending(ctx);
+    if (!pending) {
+      await ctx.answerCallbackQuery();
+      return edit(ctx, { text: t.incidents.expired });
+    }
+    try {
+      const result = await deps.incidents.report(
+        ctx.employee.id,
+        {
+          reasonCode: pending.reasonCode,
+          stoppedWork: ctx.match[1] === '1',
+          idempotencyKey: `tg:${ctx.update.update_id}`,
+          ...(pending.comment ? { comment: pending.comment } : {}),
+          ...(pending.photoFileId ? { photoFileId: pending.photoFileId } : {}),
+        },
+        employeeActor(ctx.employee.id),
+      );
+      await clearPending(ctx);
+      await ctx.answerCallbackQuery();
+      await edit(ctx, incidentResultScreen(result, pending.reasonLabel));
+    } catch (error) {
+      deps.logger.warn({ err: error }, 'повідомлення про проблему відхилено');
+      await clearPending(ctx);
+      await ctx.answerCallbackQuery({ text: t.incidents.noShift, show_alert: true });
+    }
+    await show(ctx, await buildHome(ctx));
+  });
+
   bot.callbackQuery(/^sh:([A-Z_]+):(\d+)(?::([A-Z][A-Z0-9_]{1,63}))?$/, async (ctx) => {
     if (ctx.access !== 'ALLOWED' || !ctx.employee) {
       await ctx.answerCallbackQuery({ text: t.bot.access.NOT_REGISTERED, show_alert: true });
@@ -306,7 +414,25 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       if (code) return startActivation(ctx, code);
       return show(ctx, { text: t.bot.askCode });
     }
+    const pending = await readPending(ctx);
+    if (pending?.step === 'comment') {
+      const comment = ctx.message.text.trim().slice(0, 2000);
+      return nextStep(ctx, { ...pending, comment, step: pending.requiresPhoto ? 'photo' : 'stop' });
+    }
     await show(ctx, await buildHome(ctx));
+  });
+
+  bot.on('message:photo', async (ctx) => {
+    const pending = await readPending(ctx);
+    if (pending?.step === 'photo') {
+      const largest = ctx.message.photo[ctx.message.photo.length - 1];
+      return nextStep(ctx, {
+        ...pending,
+        ...(largest ? { photoFileId: largest.file_id } : {}),
+        step: 'stop',
+      });
+    }
+    await show(ctx, { text: t.bot.useButtons });
   });
 
   bot.on('callback_query:data', async (ctx) => {

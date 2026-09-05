@@ -6,6 +6,7 @@ import { loadEnv } from './config/env.js';
 import { EventsModule } from './events/events.module.js';
 import { HealthModule } from './health/health.module.js';
 import { IdentityModule } from './identity/identity.module.js';
+import { IncidentsModule } from './incidents/incidents.module.js';
 import { DatabaseModule } from './infra/database.module.js';
 import { RedisModule } from './infra/redis.module.js';
 import { QueueModule } from './infra/timers.queue.js';
@@ -35,6 +36,7 @@ import { TelegramModule } from './telegram/telegram.module.js';
     SchedulingModule,
     AttendanceModule,
     ShiftModule,
+    IncidentsModule,
     KioskModule,
     TelegramModule,
   ],

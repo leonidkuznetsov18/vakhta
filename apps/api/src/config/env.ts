@@ -57,6 +57,12 @@ export const EnvSchema = z.object({
   SHIFT_GRACE_MINUTES: z.coerce.number().int().nonnegative().default(10),
   EARLY_START_WINDOW_MINUTES: z.coerce.number().int().nonnegative().default(30),
   OVERTIME_THRESHOLD_MINUTES: z.coerce.number().int().nonnegative().default(15),
+  /** SLA реакції майстра на інцидент за критичністю; безпека негайно (FR-DWN-03). */
+  INCIDENT_SLA_NORMAL_MINUTES: z.coerce.number().int().nonnegative().default(60),
+  INCIDENT_SLA_CRITICAL_MINUTES: z.coerce.number().int().nonnegative().default(30),
+  INCIDENT_SLA_SAFETY_MINUTES: z.coerce.number().int().nonnegative().default(0),
+  /** Вікно, в якому повідомлення тієї ж зони й причини лінкуються до одного інциденту (FR-DWN-04). */
+  INCIDENT_DUPLICATE_WINDOW_MINUTES: z.coerce.number().int().positive().default(60),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

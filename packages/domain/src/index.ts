@@ -18,3 +18,4 @@ export * from './attendance/window.js';
 export * from './notifications/payload.js';
 export * from './bonus/rules.js';
 export * from './bonus/score.js';
+export * from './incidents/lifecycle.js';
