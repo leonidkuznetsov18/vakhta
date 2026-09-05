@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { messages } from '@vakhta/i18n';
 import { LoginScreen } from './auth/LoginScreen.tsx';
 import { ProfilePanel } from './auth/ProfilePanel.tsx';
+import { SchedulePage } from './schedule/SchedulePage.tsx';
 import { useSession } from './auth/useSession.ts';
 
 const t = messages('ru');
@@ -61,6 +62,8 @@ export function App() {
         <h1>{title}</h1>
         {active === 'profile' ? (
           <ProfilePanel me={me} onChanged={() => void refresh()} />
+        ) : active === 'schedule' ? (
+          <SchedulePage />
         ) : (
           <p className="muted">{t.admin.placeholder}</p>
         )}

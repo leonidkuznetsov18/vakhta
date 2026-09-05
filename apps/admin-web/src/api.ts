@@ -53,3 +53,61 @@ export const authApi = {
       body: JSON.stringify({ password, method: 'totp' }),
     }),
 };
+
+// ---- довідники та графік (ТЗ 9.1 «График») ----
+
+import type {
+  AcknowledgementStatusView,
+  AssignmentInput,
+  CreateScheduleVersionCommand,
+  EmployeeView,
+  ListScheduleVersionsQuery,
+  OrgSnapshot,
+  ScheduleVersionDetail,
+  ScheduleVersionView,
+  ShiftTemplateView,
+} from '@vakhta/contracts';
+
+function post<T>(path: string, body: unknown = {}): Promise<T> {
+  return apiFetch<T>(path, { method: 'POST', body: JSON.stringify(body) });
+}
+
+function query(params: Record<string, string | undefined>): string {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v) q.set(k, v);
+  const s = q.toString();
+  return s ? `?${s}` : '';
+}
+
+export const orgApi = {
+  snapshot: () => apiFetch<OrgSnapshot>('/admin/org'),
+};
+
+export const employeesApi = {
+  list: () => apiFetch<EmployeeView[]>('/admin/employees'),
+};
+
+export const schedulesApi = {
+  templates: (siteId: string) =>
+    apiFetch<ShiftTemplateView[]>(`/admin/schedules/templates${query({ siteId })}`),
+  list: (q: ListScheduleVersionsQuery) =>
+    apiFetch<ScheduleVersionView[]>(`/admin/schedules${query(q)}`),
+  create: (cmd: CreateScheduleVersionCommand) => post<ScheduleVersionView>('/admin/schedules', cmd),
+  detail: (id: string) => apiFetch<ScheduleVersionDetail>(`/admin/schedules/${id}`),
+  putAssignments: (id: string, items: AssignmentInput[]) =>
+    apiFetch<ScheduleVersionDetail>(`/admin/schedules/${id}/assignments`, {
+      method: 'PUT',
+      body: JSON.stringify({ items }),
+    }),
+  validate: (id: string) => post<ScheduleVersionDetail>(`/admin/schedules/${id}/validate`),
+  submit: (id: string) => post<ScheduleVersionView>(`/admin/schedules/${id}/submit`),
+  returnToDraft: (id: string, comment: string) =>
+    post<ScheduleVersionView>(`/admin/schedules/${id}/return`, { comment }),
+  publish: (id: string, changeReason?: string) =>
+    post<ScheduleVersionView>(
+      `/admin/schedules/${id}/publish`,
+      changeReason ? { changeReason } : {},
+    ),
+  acknowledgements: (id: string) =>
+    apiFetch<AcknowledgementStatusView[]>(`/admin/schedules/${id}/acknowledgements`),
+};

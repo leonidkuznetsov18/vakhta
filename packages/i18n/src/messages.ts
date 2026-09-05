@@ -1,4 +1,5 @@
 import type {
+  ScheduleStatus,
   ActivationFailure,
   CheckInFailure,
   EmployeeAccess,
@@ -128,6 +129,44 @@ export interface Messages {
       readonly scanQr: string;
       readonly backupCodes: string;
       readonly twoFactorEnabled: string;
+    };
+    readonly schedule: {
+      readonly site: string;
+      readonly orgUnit: string;
+      readonly month: string;
+      readonly versions: string;
+      readonly noVersions: string;
+      readonly newVersion: string;
+      readonly version: string;
+      readonly statuses: Readonly<Record<ScheduleStatus, string>>;
+      readonly employee: string;
+      readonly zone: string;
+      readonly noZone: string;
+      readonly shifts: string;
+      readonly addEmployee: string;
+      readonly remove: string;
+      readonly emptyGrid: string;
+      readonly save: string;
+      readonly saved: string;
+      readonly submit: string;
+      readonly returnToDraft: string;
+      readonly returnComment: string;
+      readonly publish: string;
+      readonly publishReason: string;
+      readonly publishConfirm: string;
+      readonly published: string;
+      readonly submitted: string;
+      readonly returned: string;
+      readonly issuesTitle: string;
+      readonly noIssues: string;
+      readonly error: string;
+      readonly warning: string;
+      readonly ackTitle: string;
+      readonly acknowledged: string;
+      readonly readOnlyHint: string;
+      readonly unsaved: string;
+      readonly forbidden: string;
+      readonly noTemplates: string;
     };
   };
   readonly kiosk: {
