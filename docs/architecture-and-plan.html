@@ -1,0 +1,1080 @@
+<title>Облік змін 24/7</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #F3F5F7;
+    --surface: #FFFFFF;
+    --surface-2: #E9EDF1;
+    --ink: #16202A;
+    --ink-2: #3A4855;
+    --muted: #5F6E7C;
+    --line: #D3DAE2;
+    --line-strong: #A9B5C1;
+    --accent: #D4891A;
+    --accent-ink: #8A5507;
+    --accent-soft: #FBEFD9;
+    --night: #257A89;
+    --night-soft: #DCEFF2;
+    --ok: #2E7D4F;
+    --crit: #B8382C;
+    --shadow: 0 1px 2px rgba(22,32,42,.06), 0 8px 24px rgba(22,32,42,.06);
+    --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+    --body: "Barlow", "Helvetica Neue", Arial, sans-serif;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10161C;
+      --surface: #171F27;
+      --surface-2: #1F2932;
+      --ink: #E7ECF1;
+      --ink-2: #C3CDD6;
+      --muted: #94A3B2;
+      --line: #2A3540;
+      --line-strong: #40505E;
+      --accent: #F0A93B;
+      --accent-ink: #F6C46F;
+      --accent-soft: #33281A;
+      --night: #4FB6C7;
+      --night-soft: #17323A;
+      --ok: #5DBB84;
+      --crit: #E4695C;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10161C;
+    --surface: #171F27;
+    --surface-2: #1F2932;
+    --ink: #E7ECF1;
+    --ink-2: #C3CDD6;
+    --muted: #94A3B2;
+    --line: #2A3540;
+    --line-strong: #40505E;
+    --accent: #F0A93B;
+    --accent-ink: #F6C46F;
+    --accent-soft: #33281A;
+    --night: #4FB6C7;
+    --night-soft: #17323A;
+    --ok: #5DBB84;
+    --crit: #E4695C;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  code, .mono { font-family: var(--mono); font-size: .86em; }
+  code {
+    background: var(--surface-2);
+    padding: .05em .35em;
+    border-radius: 3px;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  pre {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.5;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 0;
+  }
+  pre code { background: none; padding: 0; white-space: pre; }
+
+  /* ---------- layout ---------- */
+  .shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 20px 80px;
+  }
+  @media (min-width: 1100px) {
+    .shell { grid-template-columns: 230px minmax(0, 1fr); column-gap: 48px; }
+    .toc { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; }
+  }
+  .toc { padding-top: 40px; }
+  .toc .eyebrow { margin-bottom: 8px; }
+  .toc ol { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--line); }
+  .toc li a {
+    display: block;
+    padding: 5px 0 5px 14px;
+    margin-left: -1px;
+    border-left: 2px solid transparent;
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .toc li a:hover { color: var(--ink); border-left-color: var(--line-strong); }
+  .toc li.sub a { padding-left: 26px; font-size: 13px; }
+  @media (max-width: 1099px) { .toc { display: none; } }
+
+  main { min-width: 0; }
+
+  /* ---------- masthead ---------- */
+  .mast { padding: 48px 0 28px; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-family: var(--display);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    font-size: 13px;
+    color: var(--accent-ink);
+  }
+  .mast h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(40px, 6vw, 64px);
+    line-height: .98;
+    letter-spacing: -.01em;
+    margin: 8px 0 12px;
+    text-wrap: balance;
+  }
+  .mast .lede { max-width: 66ch; font-size: 18px; color: var(--ink-2); margin: 0 0 22px; }
+  .mast .meta { font-size: 13px; color: var(--muted); }
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    margin-top: 24px;
+  }
+  .facts > div { padding: 14px 16px; border-right: 1px solid var(--line); }
+  .facts > div:last-child { border-right: none; }
+  .facts .n {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 30px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .facts .l { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+
+  /* ---------- sections ---------- */
+  section.sec { padding: 40px 0 8px; }
+  .sec-head { display: grid; grid-template-columns: 56px 1fr; column-gap: 12px; align-items: baseline; margin-bottom: 18px; }
+  .sec-head .num {
+    font-family: var(--display); font-weight: 600; font-size: 34px; line-height: 1;
+    color: var(--accent); font-variant-numeric: tabular-nums;
+  }
+  .sec-head h2 {
+    font-family: var(--display); font-weight: 600; font-size: 34px; line-height: 1.05; margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--display); font-weight: 600; font-size: 23px; line-height: 1.15;
+    margin: 34px 0 10px; text-wrap: balance;
+  }
+  h3 .k { color: var(--muted); font-weight: 500; margin-right: 8px; font-variant-numeric: tabular-nums; }
+  p { max-width: 70ch; margin: 0 0 14px; }
+  ul, ol { max-width: 70ch; padding-left: 22px; margin: 0 0 14px; }
+  li { margin-bottom: 5px; }
+  li::marker { color: var(--muted); }
+  strong { font-weight: 600; }
+
+  .note {
+    max-width: 70ch;
+    padding: 12px 16px;
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    margin: 14px 0 18px;
+    font-size: 15px;
+  }
+
+  /* ---------- tables ---------- */
+  .tw { overflow-x: auto; margin: 10px 0 22px; border: 1px solid var(--line); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  th {
+    font-family: var(--display); font-weight: 600; text-transform: uppercase; letter-spacing: .07em;
+    font-size: 12.5px; color: var(--muted); background: var(--surface-2);
+  }
+  tr:last-child td { border-bottom: none; }
+  td.c { text-align: center; font-variant-numeric: tabular-nums; }
+  td .pri { font-family: var(--mono); font-weight: 500; }
+  .tw.compact th, .tw.compact td { padding: 7px 10px; font-size: 13.5px; }
+
+  /* ---------- ADR list ---------- */
+  .adr { display: grid; grid-template-columns: 74px minmax(0, 1fr); row-gap: 18px; column-gap: 14px; margin: 14px 0 10px; }
+  .adr .id { font-family: var(--mono); font-size: 13px; color: var(--accent-ink); padding-top: 4px; }
+  .adr h4 { font-family: var(--display); font-weight: 600; font-size: 19px; margin: 0 0 4px; line-height: 1.2; }
+  .adr p { margin: 0; font-size: 15px; color: var(--ink-2); max-width: 74ch; }
+
+  /* ---------- steps ---------- */
+  ol.steps { counter-reset: s; list-style: none; padding: 0; max-width: 74ch; }
+  ol.steps li {
+    counter-increment: s; display: grid; grid-template-columns: 34px 1fr; column-gap: 10px;
+    padding: 9px 0; border-bottom: 1px solid var(--line); margin: 0;
+  }
+  ol.steps li::before {
+    content: counter(s, decimal-leading-zero);
+    font-family: var(--mono); font-size: 13px; color: var(--muted); padding-top: 3px;
+  }
+
+  /* ---------- data model ---------- */
+  .dm { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin: 12px 0 22px; }
+  .dm > div { background: var(--surface); border: 1px solid var(--line); padding: 12px 14px; }
+  .dm h4 { font-family: var(--display); font-weight: 600; font-size: 16px; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 8px; color: var(--muted); }
+  .dm ul { list-style: none; padding: 0; margin: 0; font-family: var(--mono); font-size: 12.3px; line-height: 1.5; }
+  .dm li { margin: 0 0 6px; overflow-wrap: anywhere; }
+  .dm li b { font-weight: 500; color: var(--accent-ink); }
+  .dm li i { font-style: normal; color: var(--muted); }
+
+  /* ---------- figures ---------- */
+  figure { margin: 18px 0 26px; }
+  figure svg { max-width: 100%; height: auto; display: block; background: var(--surface); border: 1px solid var(--line); }
+  figcaption { font-size: 13.5px; color: var(--muted); margin-top: 8px; max-width: 76ch; }
+  .fig-scroll { overflow-x: auto; }
+  .fig-scroll svg { min-width: 720px; }
+
+  /* ---------- phases ---------- */
+  .phase { background: var(--surface); border: 1px solid var(--line); margin: 14px 0; }
+  .phase-h { display: grid; grid-template-columns: 58px 1fr auto; column-gap: 14px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+  .phase-h .pn { font-family: var(--display); font-weight: 700; font-size: 28px; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
+  .phase-h h4 { font-family: var(--display); font-weight: 600; font-size: 21px; margin: 0; line-height: 1.15; }
+  .phase-h .dur { font-family: var(--mono); font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .phase-b { padding: 12px 16px 4px; }
+  .phase-b p.goal { color: var(--ink-2); font-size: 15px; }
+  .phase-b ul { font-size: 15px; max-width: 78ch; }
+  .phase-f { display: grid; grid-template-columns: 96px 1fr; row-gap: 4px; column-gap: 12px; padding: 10px 16px 14px; border-top: 1px solid var(--line); font-size: 14px; }
+  .phase-f dt { font-family: var(--display); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; font-size: 12px; color: var(--muted); padding-top: 2px; }
+  .phase-f dd { margin: 0; }
+  .phase.pilot .phase-h .pn { color: var(--night); }
+
+  /* ---------- roadmap ---------- */
+  .gantt-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); margin: 12px 0 8px; }
+  .gantt { display: grid; grid-template-columns: 210px repeat(29, 26px); min-width: 964px; font-size: 13px; }
+  .gantt .hd { padding: 6px 4px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: center; background: var(--surface-2); }
+  .gantt .hd.lbl { text-align: left; padding-left: 12px; font-family: var(--display); text-transform: uppercase; letter-spacing: .07em; font-size: 12px; font-weight: 600; }
+  .gantt .rl { padding: 7px 12px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); white-space: nowrap; }
+  .gantt .rl small { color: var(--muted); font-family: var(--mono); font-size: 11px; margin-left: 6px; }
+  .gantt .cell { border-bottom: 1px solid var(--line); border-right: 1px dashed var(--line); }
+  .gantt .cell.q { border-right-style: solid; }
+  .gantt .bar { position: relative; border-bottom: 1px solid var(--line); border-right: 1px dashed var(--line); min-height: 32px; }
+  .gantt .bar::after { content: ""; position: absolute; left: 2px; right: 2px; top: 50%; height: 16px; transform: translateY(-50%); background: var(--accent); border-radius: 2px; }
+  .gantt .bar.pilot::after { background: var(--night); }
+  .gantt .bar.launch::after { background: var(--ink-2); }
+  .legend { display: flex; gap: 18px; font-size: 13px; color: var(--muted); margin: 6px 0 18px; }
+  .legend span::before { content: ""; display: inline-block; width: 12px; height: 10px; margin-right: 6px; vertical-align: -1px; background: var(--accent); border-radius: 2px; }
+  .legend span.pilot::before { background: var(--night); }
+  .legend span.launch::before { background: var(--ink-2); }
+
+  .pill { display: inline-block; font-family: var(--mono); font-size: 11.5px; padding: 1px 7px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--ink-2); white-space: nowrap; }
+
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0 28px; }
+
+  footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .toc li a { transition: color .15s, border-color .15s; }
+  }
+</style>
+
+<div class="shell">
+  <nav class="toc" aria-label="Зміст">
+    <div class="eyebrow">Зміст</div>
+    <ol>
+      <li><a href="#s1">1 · Що будуємо</a></li>
+      <li><a href="#s2">2 · Аналіз вимог</a></li>
+      <li class="sub"><a href="#s2-1">Вимоги, що визначають архітектуру</a></li>
+      <li class="sub"><a href="#s2-2">П'ять контурів</a></li>
+      <li class="sub"><a href="#s2-3">Рішення до старту</a></li>
+      <li class="sub"><a href="#s2-4">Ризики</a></li>
+      <li><a href="#s3">3 · Архітектура</a></li>
+      <li class="sub"><a href="#s3-2">Компоненти</a></li>
+      <li class="sub"><a href="#s3-3">Стек</a></li>
+      <li class="sub"><a href="#s3-5">Доменні модулі</a></li>
+      <li class="sub"><a href="#s3-6">Ключові рішення (ADR)</a></li>
+      <li class="sub"><a href="#s3-7">FSM і транзакція переходу</a></li>
+      <li class="sub"><a href="#s3-8">Модель даних</a></li>
+      <li class="sub"><a href="#s3-9">API</a></li>
+      <li class="sub"><a href="#s3-10">Безпека й експлуатація</a></li>
+      <li class="sub"><a href="#s3-12">Тести</a></li>
+      <li><a href="#s4">4 · План дій</a></li>
+      <li class="sub"><a href="#s4-2">Фази</a></li>
+      <li class="sub"><a href="#s4-3">Дорожня карта</a></li>
+      <li class="sub"><a href="#s4-4">Перші два тижні</a></li>
+      <li><a href="#s5">5 · Що потрібно від замовника</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="mast">
+      <div class="eyebrow">Аналіз вимог · Архітектура · План дій · за ТЗ MVP v1.0</div>
+      <h1>Облік змін 24/7</h1>
+      <p class="lede">Telegram-бот для працівників і веб-панель з аналітикою для керівництва на безперервному виробництві з двома 12-годинними змінами. Документ для інженерної команди: що визначає форму системи, як вона влаштована, у якому порядку її будувати.</p>
+      <div class="meta">Версія 0.1 · 5 вересня 2026 · джерело: «Telegram-бот учета рабочих смен, MVP v1.0», 19 розділів, AC-01…AC-18, T-01…T-40</div>
+      <div class="facts" aria-label="Ключові факти">
+        <div><div class="n">2 × 12 год</div><div class="l">день 08–20, ніч 20–08, нічна зміна один shift_id</div></div>
+        <div><div class="n">5</div><div class="l">незалежних контурів: план, присутність, зміна, інцидент, передача</div></div>
+        <div><div class="n">13</div><div class="l">доменних модулів у модульному моноліті</div></div>
+        <div><div class="n">0–100</div><div class="l">балів цифрового бонусу, детермінований перерахунок</div></div>
+        <div><div class="n">≈19 тиж</div><div class="l">розробки до тіньового пілоту</div></div>
+      </div>
+    </header>
+
+    <!-- ============ 1 ============ -->
+    <section class="sec" id="s1">
+      <div class="sec-head"><div class="num">1</div><h2>Що будуємо</h2></div>
+      <p>Система обліку робочих змін для безперервного виробництва. Один бекенд, два клієнти, плюс третій, якого ТЗ не виділяє як компонент, але без нього не працює FR-QR-01: екран-термінал на контрольній точці, що показує QR з ротацією 30–60 с.</p>
+      <div class="tw"><table>
+        <thead><tr><th>Клієнт</th><th>Хто користується</th><th>Що робить</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Telegram-бот</strong></td><td>Працівники; майстер для оперативних підтверджень</td><td>Графік, прихід і відхід по QR, зміна та її стани, перерви, простої, прибирання, фото, передача зони, бали, звернення</td></tr>
+          <tr><td><strong>Веб-панель</strong></td><td>Майстер, планувальник, HR, начальник виробництва, контролер, бухгалтерія, адміністратор, аудитор</td><td>Оперативний екран, планування, інциденти, спори передачі, звернення, бонус, звіти й аналітика, довідники, аудит</td></tr>
+          <tr><td><strong>Термінал QR</strong></td><td>Пристрій на контрольній точці</td><td>Показує динамічний QR з deep link, працює через device token, має офлайн-екран</td></tr>
+        </tbody>
+      </table></div>
+      <p><strong>Поза MVP</strong> (ТЗ 1.4): замовлення, випуск, OEE, прив'язка до обладнання, розрахунок зарплати, інтеграції з ERP/MES/СКУД (лише інтерфейси), біометрія, автоматичні рішення ШІ.</p>
+    </section>
+
+    <!-- ============ 2 ============ -->
+    <section class="sec" id="s2">
+      <div class="sec-head"><div class="num">2</div><h2>Аналіз вимог</h2></div>
+
+      <h3 id="s2-1"><span class="k">2.1</span>Вимоги, які визначають архітектуру</h3>
+      <p>Від цих вимог не можна відступити, і саме вони диктують форму системи. Усе інше в ТЗ є функціоналом поверх цього каркаса.</p>
+      <div class="tw"><table>
+        <thead><tr><th>#</th><th>Вимога</th><th>Джерело</th><th>Наслідок для архітектури</th></tr></thead>
+        <tbody>
+          <tr><td class="c">1</td><td>Серверний журнал подій є джерелом істини; події незмінні; виправлення створює компенсуючий запис</td><td class="mono">4, 4.5, FR-COR-03, NFR-07</td><td>Append-only таблиця подій; стани й агрегати як проєкції, які можна перерахувати</td></tr>
+          <tr><td class="c">2</td><td>Рівно один активний інтервал у відкритій зміні; інтервали не перетинаються; перехід атомарний</td><td class="mono">4.3–4.5</td><td>FSM у коді + інваріанти в БД (partial unique, exclusion constraint); перехід у одній транзакції з блокуванням рядка</td></tr>
+          <tr><td class="c">3</td><td>Ідемпотентність: <code>update_id</code>, <code>idempotency_key</code>, <code>expected_version</code>; повтор повертає перший результат</td><td class="mono">FR-UI-02, 12.3, NFR-04</td><td>Таблиці оброблених оновлень і ключів; оптимістична версія на сесії зміни</td></tr>
+          <tr><td class="c">4</td><td>Серверний час, UTC у базі, IANA tz майданчика; нічна зміна один <code>shift_id</code> з діловою датою початку</td><td class="mono">6.1, NFR-11</td><td><code>timestamptz</code> скрізь; планові моменти зберігаються як інстанти; локальний час лише на виводі</td></tr>
+          <tr><td class="c">5</td><td>Динамічний QR без персональних даних, ≤ 64 base64url, TTL 60–120 с, один раз на пару працівник + зміна</td><td class="mono">5.2, 13.1</td><td>Challenge-таблиця з хешем токена; таблиця використань з унікальністю (employee, assignment, action)</td></tr>
+          <tr><td class="c">6</td><td>Фото в приватному сховищі, SHA-256 + pHash, підписані короткоживучі URL</td><td class="mono">5.7, 13</td><td>Асинхронний фото-пайплайн у воркері; S3-сумісне сховище; жодного Telegram-URL назовні</td></tr>
+          <tr><td class="c">7</td><td>Версіонування графіка, чек-листів, бонусних правил; розрахунок за версією на момент початку зміни</td><td class="mono">FR-SCH-03/04, 7.1, FR-COR-05</td><td>Версії як окремі сутності; сесія зміни фіксує посилання на версії при старті</td></tr>
+          <tr><td class="c">8</td><td>RBAC з областю даних; медичні дані ізольовані від майстра</td><td class="mono">FR-AUTH-03, FR-REQ-02, FR-WEB-04</td><td>Ролі + scope (site / org_unit / team / zone); окрема таблиця медичних документів з аудитом переглядів</td></tr>
+          <tr><td class="c">9</td><td>Ніщо не закривається таймером мовчки; забута дія переводить у <code>NEEDS_CLARIFICATION</code></td><td class="mono">4.5, FR-COR-01/02</td><td>Таймери лише нагадують і ставлять прапорець; ніколи не мутують інтервали</td></tr>
+          <tr><td class="c">10</td><td>Бонус 0–100, детермінований, N/A нормалізує знаменник, апеляції, друге підтвердження</td><td class="mono">7</td><td>Bonus engine як чиста функція над журналом; результат зберігається з хешем входів</td></tr>
+          <tr><td class="c">11</td><td>Панель відображає подію ≤ 5 с; 2+ stateless-інстанси; 99,5 %; p95 ≤ 2 с</td><td class="mono">FR-WEB-01, NFR-01…06</td><td>SSE + Redis pub/sub; жодного стану в пам'яті процесу; фонова робота в окремому воркері</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3 id="s2-2"><span class="k">2.2</span>П'ять контурів і їхні зв'язки</h3>
+      <p>ТЗ (4.1) свідомо розділяє п'ять життєвих циклів. Вони не зливаються в одну «зміну», і це найважливіше рішення доменної моделі: присутність може бути довшою за зміну, інцидент може пережити зміну і стосуватись багатьох, передача не блокує відхід.</p>
+      <div class="tw"><table>
+        <thead><tr><th>Контур</th><th>Сутність</th><th>Початок → кінець</th><th>Зв'язок</th></tr></thead>
+        <tbody>
+          <tr><td>Планова зміна</td><td><code>shift_assignment</code> у <code>schedule_version</code></td><td>публікація → закриття версії</td><td><code>assignment_id</code></td></tr>
+          <tr><td>Присутність</td><td><code>presence_session</code></td><td>«Я на роботі» → «Я пішов»</td><td><code>employee_id</code>, <code>assignment_id</code></td></tr>
+          <tr><td>Зміна працівника</td><td><code>shift_session</code> + <code>activity_intervals</code></td><td>«Почати зміну» → «Закінчити зміну»</td><td><code>assignment_id</code>, <code>schedule_version_id</code></td></tr>
+          <tr><td>Інцидент</td><td><code>downtime_incident</code> ← <code>downtime_reports</code></td><td>повідомлення → закриття майстром</td><td><code>zone_id</code>; особистий простій живе як інтервал зміни</td></tr>
+          <tr><td>Передача зони</td><td><code>handover_record</code> → <code>review</code> → рішення</td><td>чернетка → приймання або рішення</td><td><code>shift_session_id</code>, <code>zone_id</code></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3 id="s2-3"><span class="k">2.3</span>Що потребує рішення до старту</h3>
+      <p>Ці пункти не блокують проєктування, але блокують окремі фази. Пріоритет A потрібен до фази 1, B до фази відповідного модуля, C до пілоту.</p>
+      <div class="tw"><table>
+        <thead><tr><th>Пріор.</th><th>Питання</th><th>Чому важливо</th></tr></thead>
+        <tbody>
+          <tr><td class="c"><span class="pri">A</span></td><td>20 параметрів розділу 18 ТЗ: tz, вікна, зони, QR TTL, пороги, строки</td><td>Задають конфігурацію і тестові дані; більшість стає налаштуваннями, але дефолти потрібні</td></tr>
+          <tr><td class="c"><span class="pri">A</span></td><td>Хостинг: хмара чи on-prem</td><td>Визначає S3, керований Postgres чи власний, бекапи для RPO ≤ 15 хв</td></tr>
+          <tr><td class="c"><span class="pri">A</span></td><td>IdP для панелі: корпоративний SSO чи власний логін + TOTP</td><td>Впливає на модуль Auth з першої фази</td></tr>
+          <tr><td class="c"><span class="pri">A</span></td><td>Навантажувальні числа</td><td>Без них не оцінити інфраструктуру і не побудувати load-тест</td></tr>
+          <tr><td class="c"><span class="pri">B</span></td><td>Хто здає і приймає спільну зону; як рахувати «командні» 10 балів</td><td>Впливає на модель передачі і bonus engine</td></tr>
+          <tr><td class="c"><span class="pri">B</span></td><td>«Захищена веб-форма» як резервна відмітка: в MVP чи лише термінал + майстер</td><td>Окремий екран з авторизацією працівника без Telegram</td></tr>
+          <tr><td class="c"><span class="pri">B</span></td><td>Термінал QR: планшет-кіоск чи монітор, кількість точок, чи є точка на виході</td><td>Окремий клієнт, реєстрація пристроїв</td></tr>
+          <tr><td class="c"><span class="pri">B</span></td><td>Дозвіл завантаження з галереї (FR-PHO-04)</td><td>Налаштування; впливає на пояснення користувачам</td></tr>
+          <tr><td class="c"><span class="pri">C</span></td><td>Юридична перевірка, обробка ПД, локальні акти</td><td>Блокує грошовий запуск, не розробку; тіньовий режим 1–2 місяці закладено в ТЗ</td></tr>
+          <tr><td class="c"><span class="pri">C</span></td><td>Мова інтерфейсу: російська (NFR-08); чи потрібна українська</td><td>i18n закладаємо одразу, тексти в окремому пакеті</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3 id="s2-4"><span class="k">2.4</span>Ризики</h3>
+      <div class="tw"><table>
+        <thead><tr><th>Ризик</th><th>Вплив</th><th>Мітигація</th></tr></thead>
+        <tbody>
+          <tr><td>Пересилання фото QR. ТЗ чесно каже, що динамічний QR не замінює СКУД</td><td>Фіктивна присутність</td><td>Ротація 30–60 с, TTL, прив'язка до терміналу, аномалії (один challenge з двох чатів за секунди), шлях до СКУД або Mini App на наступному етапі</td></tr>
+          <tr><td>Недоступність Telegram або зв'язку на майданчику</td><td>Втрата подій, невдоволення</td><td>Резервний термінал + майстер, <code>system_incident</code>, нейтралізація критеріїв бонусу, документований регламент (NFR-10)</td></tr>
+          <tr><td>Слабка цифрова грамотність, нічні зміни, втома</td><td>Забуті кнопки, спотворені дані</td><td>Один контекстний екран, ≤ 3 натискання, нагадування, <code>NEEDS_CLARIFICATION</code> замість автозакриття, польове тестування</td></tr>
+          <tr><td>Бонус починає пригнічувати повідомлення про проблеми</td><td>Приховування простоїв і небезпек</td><td>Правила ТЗ 7.1 зашиті в engine: простої й безпека не знижують бали; метрика «повідомлення не знижуються» у звітах</td></tr>
+          <tr><td>Розмивання скоупу: обладнання, замовлення, зарплата</td><td>Зрив строків</td><td>Явний список «не в MVP» у беклозі; інтеграційні інтерфейси як заглушки</td></tr>
+          <tr><td>DST і перехід часу під час нічної зміни</td><td>Неправильна тривалість</td><td>Планові інстанти обчислюються з IANA tz при публікації; тести дат і часу (NFR-11)</td></tr>
+          <tr><td>Гонки на кнопках і повторна доставка webhook</td><td>Дублі інтервалів</td><td>Три рівні ідемпотентності + блокування рядка + інваріанти в БД; chaos-тести</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- ============ 3 ============ -->
+    <section class="sec" id="s3">
+      <div class="sec-head"><div class="num">3</div><h2>Архітектура</h2></div>
+
+      <h3 id="s3-1"><span class="k">3.1</span>Стиль: модульний моноліт + воркер</h3>
+      <p>ТЗ (12) рекомендує модульний моноліт, і це правильно для команди з 3–5 інженерів і одного майданчика. Мікросервіси дали б лише мережеві межі між модулями, які і так мають спілкуватись у одній транзакції: перехід стану записує інтервал, подію, аутбокс і версію разом.</p>
+      <p>Два процеси на одному коді. <strong>api</strong>: HTTP API для панелі, Telegram webhook, SSE-стрім подій; stateless, масштабується горизонтально. <strong>worker</strong>: черги і таймери, доставка нотифікацій з аутбоксу, нагадування й ескалації, фото-пайплайн, перерахунок бонусу, експорти. Межі між доменними модулями всередині моноліту жорсткі: модуль експортує сервіси й події, а не таблиці.</p>
+
+      <h3 id="s3-2"><span class="k">3.2</span>Компоненти</h3>
+      <figure>
+        <div class="fig-scroll">
+        <svg viewBox="0 0 920 560" role="img" aria-label="Три клієнти (Telegram, панель, термінал) звертаються до stateless API; API пише в PostgreSQL, використовує Redis для черг і pub/sub, видає presigned URL на S3; воркер забирає аутбокс і job-и, шле нотифікації в Telegram і обробляє фото в S3." xmlns="http://www.w3.org/2000/svg" font-family="Barlow, Helvetica, Arial, sans-serif" font-size="12.5" fill="currentColor" style="color: var(--ink)">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+          </defs>
+          <!-- clients -->
+          <g>
+            <rect x="60" y="20" width="200" height="54" rx="3" fill="var(--surface-2)" stroke="currentColor" stroke-width="1"/>
+            <text x="160" y="42" text-anchor="middle" font-weight="600">Telegram</text>
+            <text x="160" y="60" text-anchor="middle" fill="var(--muted)" font-size="11.5">бот працівника і майстра</text>
+            <rect x="360" y="20" width="200" height="54" rx="3" fill="var(--surface-2)" stroke="currentColor" stroke-width="1"/>
+            <text x="460" y="42" text-anchor="middle" font-weight="600">Веб-панель</text>
+            <text x="460" y="60" text-anchor="middle" fill="var(--muted)" font-size="11.5">React SPA, 9 розділів</text>
+            <rect x="660" y="20" width="200" height="54" rx="3" fill="var(--surface-2)" stroke="currentColor" stroke-width="1"/>
+            <text x="760" y="42" text-anchor="middle" font-weight="600">Термінал QR</text>
+            <text x="760" y="60" text-anchor="middle" fill="var(--muted)" font-size="11.5">кіоск на контрольній точці</text>
+          </g>
+          <!-- arrows clients -> api -->
+          <line x1="160" y1="74" x2="160" y2="134" stroke="currentColor" marker-end="url(#ar)"/>
+          <text x="168" y="106" font-size="11" fill="var(--muted)">webhook + secret header</text>
+          <line x1="460" y1="74" x2="460" y2="134" stroke="currentColor" marker-end="url(#ar)"/>
+          <text x="468" y="106" font-size="11" fill="var(--muted)">REST + SSE</text>
+          <line x1="760" y1="74" x2="760" y2="134" stroke="currentColor" marker-end="url(#ar)"/>
+          <text x="768" y="106" font-size="11" fill="var(--muted)">challenge кожні 30–60 с</text>
+          <!-- api box -->
+          <rect x="30" y="136" width="860" height="170" rx="4" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="44" y="156" font-weight="600" font-size="13">apps/api · NestJS · N stateless-інстансів за Traefik</text>
+          <g font-size="11.5">
+            <rect x="44" y="168" width="150" height="30" rx="2" fill="var(--surface-2)" stroke="currentColor" stroke-width=".8"/><text x="119" y="187" text-anchor="middle">bot adapter (grammY)</text>
+            <rect x="206" y="168" width="150" height="30" rx="2" fill="var(--surface-2)" stroke="currentColor" stroke-width=".8"/><text x="281" y="187" text-anchor="middle">REST / OpenAPI</text>
+            <rect x="368" y="168" width="150" height="30" rx="2" fill="var(--surface-2)" stroke="currentColor" stroke-width=".8"/><text x="443" y="187" text-anchor="middle">SSE hub</text>
+            <rect x="530" y="168" width="150" height="30" rx="2" fill="var(--surface-2)" stroke="currentColor" stroke-width=".8"/><text x="605" y="187" text-anchor="middle">auth + RBAC scope</text>
+            <rect x="692" y="168" width="150" height="30" rx="2" fill="var(--surface-2)" stroke="currentColor" stroke-width=".8"/><text x="767" y="187" text-anchor="middle">kiosk endpoint</text>
+          </g>
+          <rect x="44" y="212" width="832" height="80" rx="2" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1"/>
+          <text x="460" y="232" text-anchor="middle" font-weight="600" font-size="12.5">application services: один шар для бота і панелі (AC-18)</text>
+          <text x="460" y="254" text-anchor="middle" font-family="IBM Plex Mono, Menlo, monospace" font-size="11.5">identity · org · scheduling · attendance · shift-fsm · incidents · handover</text>
+          <text x="460" y="274" text-anchor="middle" font-family="IBM Plex Mono, Menlo, monospace" font-size="11.5">requests · bonus · notifications · reporting · audit · system</text>
+          <!-- arrows api -> stores -->
+          <line x1="190" y1="306" x2="190" y2="356" stroke="currentColor" marker-end="url(#ar)"/>
+          <text x="198" y="336" font-size="11" fill="var(--muted)">транзакції, події</text>
+          <line x1="460" y1="306" x2="460" y2="356" stroke="currentColor" marker-end="url(#ar)" marker-start="url(#ar)"/>
+          <text x="468" y="336" font-size="11" fill="var(--muted)">pub/sub, локи</text>
+          <line x1="730" y1="306" x2="730" y2="356" stroke="currentColor" marker-end="url(#ar)"/>
+          <text x="738" y="336" font-size="11" fill="var(--muted)">presigned GET 5 хв</text>
+          <!-- stores -->
+          <g>
+            <rect x="60" y="358" width="260" height="56" rx="3" fill="var(--surface-2)" stroke="currentColor" stroke-width="1"/>
+            <text x="190" y="380" text-anchor="middle" font-weight="600">PostgreSQL 16</text>
+            <text x="190" y="398" text-anchor="middle" fill="var(--muted)" font-size="11.5">події, стани, проєкції, аутбокс</text>
+            <rect x="350" y="358" width="220" height="56" rx="3" fill="var(--surface-2)" stroke="currentColor" stroke-width="1"/>
+            <text x="460" y="380" text-anchor="middle" font-weight="600">Redis 7</text>
+            <text x="460" y="398" text-anchor="middle" fill="var(--muted)" font-size="11.5">BullMQ, pub/sub, conversations</text>
+            <rect x="600" y="358" width="260" height="56" rx="3" fill="var(--surface-2)" stroke="currentColor" stroke-width="1"/>
+            <text x="730" y="380" text-anchor="middle" font-weight="600">S3-сумісне сховище</text>
+            <text x="730" y="398" text-anchor="middle" fill="var(--muted)" font-size="11.5">приватні фото, експорти, WAL-бекапи</text>
+          </g>
+          <!-- arrows stores <-> worker -->
+          <line x1="190" y1="470" x2="190" y2="416" stroke="currentColor" marker-end="url(#ar)" marker-start="url(#ar)"/>
+          <text x="198" y="447" font-size="11" fill="var(--muted)">outbox FOR UPDATE SKIP LOCKED</text>
+          <line x1="460" y1="470" x2="460" y2="416" stroke="currentColor" marker-end="url(#ar)" marker-start="url(#ar)"/>
+          <text x="468" y="447" font-size="11" fill="var(--muted)">jobs, delayed timers</text>
+          <line x1="730" y1="470" x2="730" y2="416" stroke="currentColor" marker-end="url(#ar)"/>
+          <text x="738" y="447" font-size="11" fill="var(--muted)">put фото, sha256, pHash</text>
+          <!-- worker -->
+          <rect x="30" y="472" width="860" height="66" rx="4" fill="none" stroke="currentColor" stroke-width="1.4"/>
+          <text x="44" y="492" font-weight="600" font-size="13">apps/worker · BullMQ</text>
+          <text x="44" y="512" font-size="11.5" fill="var(--muted)">outbox relay → Telegram · нагадування й ескалації · фото-пайплайн (getFile → S3 → якість) · перерахунок бонусу · експорти CSV/XLSX</text>
+          <!-- worker -> telegram -->
+          <path d="M30,505 L14,505 L14,47 L60,47" fill="none" stroke="currentColor" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+          <text x="27" y="330" font-size="11" fill="var(--muted)" transform="rotate(-90 27 330)">sendMessage, editMessage</text>
+        </svg>
+        </div>
+        <figcaption>Рис. 1. Клієнти не спілкуються зі сховищами напряму. Бот і панель проходять через один шар application services, тому їхні дані збігаються за побудовою. Воркер єдиний, хто пише в Telegram поза відповіддю на webhook.</figcaption>
+      </figure>
+
+      <h3 id="s3-3"><span class="k">3.3</span>Стек і обґрунтування</h3>
+      <div class="tw"><table>
+        <thead><tr><th>Шар</th><th>Вибір</th><th>Чому саме це</th><th>Альтернатива</th></tr></thead>
+        <tbody>
+          <tr><td>Мова, репозиторій</td><td>TypeScript, pnpm workspaces + Turborepo</td><td>Бот, API, панель і термінал ділять типи, zod-контракти й доменну логіку; одна команда, одна мова</td><td>Python (FastAPI + aiogram), якщо команда Python-first; тоді контракти через OpenAPI</td></tr>
+          <tr><td>Бекенд</td><td>NestJS 11 на Fastify</td><td>Модулі = bounded contexts, DI, guards для RBAC, готові інтеграції BullMQ, Schedule, OpenAPI</td><td>Hono або Fastify з власною модульністю</td></tr>
+          <tr><td>Telegram</td><td>grammY + menu, conversations, files, auto-retry, ratelimiter</td><td>TS-first, webhook з перевіркою secret token, inline-меню; conversations у Redis для багатокрокових вводів</td><td>Telegraf</td></tr>
+          <tr><td>База даних</td><td>PostgreSQL 16 + Drizzle ORM</td><td>Потрібні <code>tstzrange</code> + exclusion constraint, partial unique, <code>FOR UPDATE</code>, <code>SKIP LOCKED</code>; Drizzle тримає SQL близько</td><td>Prisma: зручніше для CRUD, гірше для обмежень і блокувань</td></tr>
+          <tr><td>Черги, таймери, pub/sub</td><td>Redis 7 + BullMQ</td><td>Відкладені job-и з детермінованим <code>jobId</code> для нагадувань; pub/sub для SSE між інстансами</td><td>pg-boss на Postgres, якщо хочеться менше інфраструктури</td></tr>
+          <tr><td>Файли</td><td>MinIO on-prem або S3/R2 у хмарі</td><td>Приватні бакети, presigned URL з TTL 5 хв, versioning, lifecycle для retention</td><td>Локальний диск не масштабується на 2 інстанси</td></tr>
+          <tr><td>Панель</td><td>React 19 + Vite, TanStack Router/Query/Table, shadcn/ui + Tailwind, ECharts, react-hook-form + zod</td><td>SPA за авторизацією без SSR; ECharts для таймлайнів зміни, теплокарт простоїв, стекових графіків часу</td><td>Next.js: зайвий SSR для внутрішньої панелі</td></tr>
+          <tr><td>Автентифікація панелі</td><td>better-auth: email + пароль + TOTP, плагін OIDC для SSO</td><td>ТЗ вимагає MFA або SSO; обидва без окремого сервера</td><td>Keycloak, якщо у замовника вже є</td></tr>
+          <tr><td>Термінал QR</td><td>Статична сторінка з device token, polling 30–60 с, офлайн-екран</td><td>Мінімальний клієнт для планшета або монітора</td><td>Нативний застосунок не потрібен для MVP</td></tr>
+          <tr><td>Час</td><td>Temporal (поліфіл) або Luxon</td><td>Коректні переходи DST при обчисленні планових інстантів</td><td>date-fns-tz</td></tr>
+          <tr><td>Фото</td><td>sharp, blockhash/sharp-phash, crypto</td><td>Технічна перевірка FR-PHO-03 у воркері</td><td></td></tr>
+          <tr><td>Спостережуваність</td><td>pino, OpenTelemetry, Grafana + Loki + Tempo + Prometheus, Sentry</td><td>NFR-09: метрики, трейси, алерти черг, webhook, БД</td><td></td></tr>
+          <tr><td>Тести</td><td>Vitest, fast-check, testcontainers, k6, Playwright</td><td>T-01…T-40 як інтеграційні сценарії; property-тести FSM</td><td></td></tr>
+          <tr><td>Інфраструктура</td><td>Docker, Traefik, Compose для dev; Kubernetes або 2 VM для prod; pgBackRest з WAL у S3</td><td>RPO ≤ 15 хв через WAL; 2+ інстанси</td><td>Керований Postgres знімає бекапи з команди</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3 id="s3-4"><span class="k">3.4</span>Структура монорепо</h3>
+<pre><code>apps/
+  api/            NestJS: HTTP, webhook, SSE
+  worker/         BullMQ processors і scheduler; той самий код модулів
+  admin-web/      React SPA
+  qr-kiosk/       Сторінка терміналу
+packages/
+  domain/         Чиста логіка без фреймворків: shift-fsm, time-calc, bonus-engine, qr-challenge
+  modules/        Доменні модулі NestJS (identity, org, scheduling, attendance, shift, incidents,
+                  handover, requests, bonus, notifications, reporting, audit, system)
+  db/             Drizzle-схема, міграції, seed, SQL-обмеження
+  contracts/      zod-схеми запитів, відповідей і подій; генерація OpenAPI
+  i18n/           Тексти бота і панелі (ru базова, uk/en заготовки)
+  config/         Типізовані налаштування, tsconfig, eslint
+docs/adr/         Записи архітектурних рішень
+docs/runbooks/    Резервний канал, відновлення, інциденти
+infra/            compose для dev і staging; k8s або ansible для prod</code></pre>
+      <p><code>packages/domain</code> не залежить від NestJS, бази чи Telegram. Саме там живуть FSM, розрахунок часу й bonus engine, і саме там найщільніші тести.</p>
+
+      <h3 id="s3-5"><span class="k">3.5</span>Доменні модулі</h3>
+      <div class="tw"><table class="compact">
+        <thead><tr><th>Модуль</th><th>Відповідальність</th><th>Ключові таблиці</th></tr></thead>
+        <tbody>
+          <tr><td><strong>identity</strong></td><td>Картки працівників, активація, прив'язка Telegram, веб-користувачі, ролі й області</td><td class="mono">employees, employee_positions, telegram_accounts, activation_codes, web_users, web_user_roles</td></tr>
+          <tr><td><strong>org</strong></td><td>Майданчики, підрозділи, бригади, посади, контрольні зони, QR-термінали, довідники причин</td><td class="mono">sites, org_units, teams, positions, responsibility_zones, zone_permissions, qr_terminals, reason_codes</td></tr>
+          <tr><td><strong>scheduling</strong></td><td>Шаблони змін, версії графіка, призначення, потреба, перевірки конфліктів, ознайомлення, термінова заміна</td><td class="mono">shift_templates, schedule_versions, shift_assignments, staffing_requirements, assignment_acknowledgements</td></tr>
+          <tr><td><strong>attendance</strong></td><td>QR challenge, прихід і відхід, резервні відмітки</td><td class="mono">qr_challenges, qr_challenge_uses, presence_sessions</td></tr>
+          <tr><td><strong>shift</strong></td><td>Сесія зміни, FSM, інтервали, підсумок, потенційна переробка, екстрений вихід, потреба уточнення</td><td class="mono">shift_sessions, activity_intervals, shift_summaries</td></tr>
+          <tr><td><strong>incidents</strong></td><td>Повідомлення про проблему, спільні інциденти, SLA, злиття дублів</td><td class="mono">downtime_reports, downtime_incidents, incident_status_history</td></tr>
+          <tr><td><strong>handover</strong></td><td>Чек-листи, фото, звіт передачі, приймання, спори, рішення майстра</td><td class="mono">checklist_definitions, checklist_answers, handover_records, handover_media, handover_reviews, handover_resolutions, media_objects</td></tr>
+          <tr><td><strong>requests</strong></td><td>Відсутності, обмін, додаткова зміна, корекції, переробки, апеляції; маршрути погодження</td><td class="mono">requests, request_decisions, medical_documents, correction_requests, overtime_approvals</td></tr>
+          <tr><td><strong>bonus</strong></td><td>Версії правил, розрахунок за зміну, критерії, коригування, закриття періоду</td><td class="mono">bonus_rule_versions, bonus_shift_scores, bonus_criteria_results, bonus_adjustments, bonus_periods, bonus_period_results</td></tr>
+          <tr><td><strong>notifications</strong></td><td>Аутбокс, шаблони, статус доставки, таймери ескалацій</td><td class="mono">notification_outbox, escalation_timers</td></tr>
+          <tr><td><strong>reporting</strong></td><td>Проєкції для панелі та звітів, експорти</td><td class="mono">матеріалізовані в'юхи, exports</td></tr>
+          <tr><td><strong>audit, system</strong></td><td>Журнал подій, аудит, ідемпотентність, системні інциденти, налаштування</td><td class="mono">domain_events, audit_log, processed_telegram_updates, idempotency_keys, system_incidents, settings</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3 id="s3-6"><span class="k">3.6</span>Ключові архітектурні рішення</h3>
+      <p>Кандидати в ADR. Кожне з них варто затвердити на фазі 0, бо від них залежить схема бази і форма коду.</p>
+      <div class="adr">
+        <div class="id">ADR-1</div>
+        <div><h4>Журнал подій + транзакційні проєкції, а не «повний» event sourcing</h4><p>Кожна зміна стану записує рядок у <code>domain_events</code> (append-only, ролі БД без UPDATE/DELETE) і в тій самій транзакції оновлює таблиці стану. Стан завжди узгоджений з журналом, перерахунок з журналу можливий (NFR-07). Повний ES з асинхронними проєкціями дав би eventual consistency, яка суперечить вимозі «панель = бот» і ускладнила б інваріанти.</p></div>
+
+        <div class="id">ADR-2</div>
+        <div><h4>FSM як таблиця переходів у коді, інваріанти продубльовано в базі</h4><p>Переходи з ТЗ 4.4 описані даними: <code>(from, action) → { to, requires, effects }</code>. Чиста функція тестується property-based: жодна послідовність дій не дає двох відкритих інтервалів, сума інтервалів дорівнює тривалості. У базі partial unique на відкриту зміну і відкритий інтервал плюс exclusion constraint на перетин діапазонів. Якщо код помилиться, база відмовить.</p></div>
+
+        <div class="id">ADR-3</div>
+        <div><h4>Ідемпотентність на трьох рівнях</h4><p>Telegram: <code>processed_telegram_updates(update_id)</code>, для кнопок <code>callback_query_id</code>. Команда: <code>idempotency_keys(key, scope)</code> зі збереженою відповіддю. Стан: <code>expected_version</code> на сесії зміни, у callback data кнопки кодується версія. Застаріла кнопка повертає актуальний екран без зміни (T-09, T-10).</p></div>
+
+        <div class="id">ADR-4</div>
+        <div><h4>QR challenge</h4><p>Термінал з device token запитує новий challenge кожні 30–60 с. Challenge: 16 випадкових байтів у base64url (22 символи) як start-параметр deep link. У базі хеш токена, термінал, час видачі, TTL 90–120 с, тобто два вікна ротації перекриваються. Використання фіксується з унікальністю (employee, assignment, action): двоє можуть використати один challenge (T-02), повтор одного працівника повертає перший результат (T-03), підмінений токен не знаходить хешу і створює подію безпеки (T-05).</p></div>
+
+        <div class="id">ADR-5</div>
+        <div><h4>Час</h4><p>Усі моменти <code>timestamptz</code>; у майданчика IANA tz. При публікації версії графіка планові початок і кінець обчислюються з локального часу шаблону і tz майданчика, тому DST враховано один раз. Ділова дата дорівнює локальній даті планового початку. Час телефона ніколи не читається.</p></div>
+
+        <div class="id">ADR-6</div>
+        <div><h4>Фото-пайплайн у воркері</h4><p>Webhook зберігає лише <code>file_id</code> і ставить job. Воркер завантажує файл у приватний бакет, рахує розміри, яскравість, SHA-256, pHash, шукає точні й близькі дублі, ставить статус якості. Підозра переводить фото на ручну перевірку, не знімає бали (FR-PHO-03). Видача лише через presigned GET з TTL 5 хв, кожен перегляд в аудиті.</p></div>
+
+        <div class="id">ADR-7</div>
+        <div><h4>Bonus engine як чиста функція</h4><p><code>computeShiftScore(inputs, ruleVersion)</code> повертає критерії, бали, застосовний максимум і статус. Результат зберігається з хешем входів, повторний виклик дає той самий результат. Перерахунок запускають події: закриття зміни, затверджена корекція, рішення по передачі, закриття інциденту, апеляція, підтверджена переробка, системний інцидент. Правила лежать у версіях як JSON з датою дії.</p></div>
+
+        <div class="id">ADR-8</div>
+        <div><h4>Аутбокс + BullMQ для нотифікацій і таймерів</h4><p>Нотифікація створюється в тій самій транзакції, що і подія. Воркер забирає її через <code>SKIP LOCKED</code>, шле в Telegram, зберігає статус доставки. Нагадування й ескалації: відкладені job-и з детермінованим id; при спрацюванні воркер перечитує стан і виходить, якщо дія вже виконана (FR-NTF-02). Таймер ніколи не змінює інтервал; після пільгового вікна він лише ставить прапорець уточнення і ескалює.</p></div>
+
+        <div class="id">ADR-9</div>
+        <div><h4>RBAC з областю даних</h4><p>Роль плюс scope (майданчик, підрозділ, бригада, зона) на кожного веб-користувача; кожен запит проходить через фільтр, що додає предикати. Медичні документи в окремій таблиці з доступом лише для HR і записом кожного перегляду в аудит (T-39).</p></div>
+
+        <div class="id">ADR-10</div>
+        <div><h4>Реальний час через SSE + Redis pub/sub</h4><p>Після коміту API публікує подію в канал майданчика. SSE-хаб у кожному інстансі підписаний на Redis і роздає клієнтам панелі; клієнт інвалідовує запити. Резерв: polling 5 с (FR-WEB-01). WebSocket не потрібен, трафік односторонній.</p></div>
+
+        <div class="id">ADR-11</div>
+        <div><h4>Бот без стану в сесії</h4><p>Головний екран рендериться з серверного стану: текст плюс inline-клавіатура лише з допустимими діями (FR-UI-01), повідомлення редагується на місці. Conversations використовуються тільки для багатокрокових вводів: причина, коментар, три фото; кожен крок одразу пишеться в чернетку в Postgres, тому два фото і чернетка переживають обрив (T-26).</p></div>
+      </div>
+
+      <h3 id="s3-7"><span class="k">3.7</span>FSM зміни і транзакція переходу</h3>
+      <figure>
+        <div class="fig-scroll">
+        <svg viewBox="0 0 960 400" role="img" aria-label="Основний ланцюг станів зміни зліва направо: ARRIVED, PREPARATION, WORKING, CLEANING, HANDOVER, READY_TO_CLOSE, CLOSED. Під ним чотири тимчасові стани BREAK, MEAL, SERVICE_TIME, DOWNTIME, у які можна зайти з будь-якого робочого стану і повернутись у збережений resume_state. Окремо EMERGENCY_EXIT з будь-якого стану." xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono, Menlo, monospace" font-size="11.5" fill="currentColor" style="color: var(--ink)">
+          <defs>
+            <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+          </defs>
+          <!-- main chain y=100..140 -->
+          <g>
+            <rect x="12" y="100" width="118" height="40" rx="3" fill="var(--night-soft)" stroke="var(--night)" stroke-width="1.2"/>
+            <text x="71" y="118" text-anchor="middle" font-weight="500">ARRIVED</text>
+            <text x="71" y="132" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">присутність</text>
+
+            <rect x="150" y="100" width="118" height="40" rx="3" fill="var(--surface-2)" stroke="currentColor"/>
+            <text x="209" y="118" text-anchor="middle" font-weight="500">PREPARATION</text>
+            <text x="209" y="132" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">приймання зони</text>
+
+            <rect x="288" y="100" width="118" height="40" rx="3" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"/>
+            <text x="347" y="118" text-anchor="middle" font-weight="500">WORKING</text>
+            <text x="347" y="132" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">основна робота</text>
+
+            <rect x="426" y="100" width="118" height="40" rx="3" fill="var(--surface-2)" stroke="currentColor"/>
+            <text x="485" y="118" text-anchor="middle" font-weight="500">CLEANING</text>
+            <text x="485" y="132" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">прибирання</text>
+
+            <rect x="564" y="100" width="118" height="40" rx="3" fill="var(--surface-2)" stroke="currentColor"/>
+            <text x="623" y="118" text-anchor="middle" font-weight="500">HANDOVER</text>
+            <text x="623" y="132" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">чек-лист + 3 фото</text>
+
+            <rect x="702" y="100" width="118" height="40" rx="3" fill="var(--surface-2)" stroke="currentColor"/>
+            <text x="761" y="118" text-anchor="middle" font-weight="500">READY_TO_CLOSE</text>
+            <text x="761" y="132" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">звіт SUBMITTED</text>
+
+            <rect x="840" y="100" width="108" height="40" rx="3" fill="var(--night-soft)" stroke="var(--night)" stroke-width="1.2"/>
+            <text x="894" y="118" text-anchor="middle" font-weight="500">CLOSED</text>
+            <text x="894" y="132" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">потім «Я пішов»</text>
+          </g>
+          <!-- chain arrows -->
+          <g stroke="currentColor" fill="none">
+            <line x1="130" y1="120" x2="148" y2="120" marker-end="url(#ar2)"/>
+            <line x1="268" y1="120" x2="286" y2="120" marker-end="url(#ar2)"/>
+            <line x1="406" y1="120" x2="424" y2="120" marker-end="url(#ar2)"/>
+            <line x1="544" y1="120" x2="562" y2="120" marker-end="url(#ar2)"/>
+            <line x1="682" y1="120" x2="700" y2="120" marker-end="url(#ar2)"/>
+            <line x1="820" y1="120" x2="838" y2="120" marker-end="url(#ar2)"/>
+          </g>
+          <g font-family="Barlow, Arial, sans-serif" font-size="10" fill="var(--muted)">
+            <text x="139" y="92" text-anchor="middle">почати</text>
+            <text x="277" y="92" text-anchor="middle">почати роботу</text>
+            <text x="415" y="92" text-anchor="middle">атомарно</text>
+            <text x="553" y="92" text-anchor="middle">прибрано</text>
+            <text x="691" y="92" text-anchor="middle">передати</text>
+            <text x="829" y="92" text-anchor="middle">закінчити</text>
+          </g>
+          <!-- back arrows: HANDOVER -> CLEANING, READY_TO_CLOSE -> WORKING -->
+          <path d="M600,100 C600,62 510,62 500,98" fill="none" stroke="currentColor" stroke-dasharray="3 3" marker-end="url(#ar2)"/>
+          <text x="550" y="58" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10" fill="var(--muted)">повернутись до прибирання</text>
+          <path d="M740,100 C740,26 400,26 360,98" fill="none" stroke="currentColor" stroke-dasharray="3 3" marker-end="url(#ar2)"/>
+          <text x="550" y="22" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10" fill="var(--muted)">продовжити роботу → звіт SUPERSEDED</text>
+
+          <!-- bracket for work states -->
+          <path d="M150,150 L150,160 L682,160 L682,150" fill="none" stroke="currentColor" stroke-width=".9"/>
+          <text x="416" y="176" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">будь-який робочий стан</text>
+          <!-- two-way arrow to temp states -->
+          <line x1="416" y1="186" x2="416" y2="232" stroke="var(--accent)" stroke-width="1.4" marker-end="url(#ar2)" marker-start="url(#ar2)"/>
+          <text x="424" y="204" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--accent-ink)">↓ зберегти resume_state</text>
+          <text x="424" y="220" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--accent-ink)">↑ «Повернутись» відновлює його</text>
+
+          <!-- temp states row y=236..276 -->
+          <g>
+            <rect x="150" y="236" width="118" height="40" rx="3" fill="var(--surface)" stroke="currentColor" stroke-dasharray="4 2"/>
+            <text x="209" y="254" text-anchor="middle" font-weight="500">BREAK</text>
+            <text x="209" y="268" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">таймер, нагадування</text>
+            <rect x="288" y="236" width="118" height="40" rx="3" fill="var(--surface)" stroke="currentColor" stroke-dasharray="4 2"/>
+            <text x="347" y="254" text-anchor="middle" font-weight="500">MEAL</text>
+            <text x="347" y="268" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">таймер, нагадування</text>
+            <rect x="426" y="236" width="118" height="40" rx="3" fill="var(--surface)" stroke="currentColor" stroke-dasharray="4 2"/>
+            <text x="485" y="254" text-anchor="middle" font-weight="500">SERVICE_TIME</text>
+            <text x="485" y="268" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">інструктаж, медпункт</text>
+            <rect x="564" y="236" width="118" height="40" rx="3" fill="var(--surface)" stroke="var(--crit)" stroke-width="1.2" stroke-dasharray="4 2"/>
+            <text x="623" y="254" text-anchor="middle" font-weight="500">DOWNTIME</text>
+            <text x="623" y="268" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">причина обов'язкова</text>
+          </g>
+          <text x="416" y="300" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">одночасно відкритий лише один тимчасовий стан (T-08); таймер ніколи не закриває його сам (T-11)</text>
+
+          <!-- incident link -->
+          <rect x="720" y="236" width="228" height="40" rx="3" fill="var(--surface-2)" stroke="currentColor" stroke-width=".9"/>
+          <text x="834" y="254" text-anchor="middle" font-weight="500">downtime_incident</text>
+          <text x="834" y="268" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">окремий контур, живе довше за зміну</text>
+          <line x1="682" y1="256" x2="718" y2="256" stroke="currentColor" stroke-width=".9" marker-end="url(#ar2)"/>
+
+          <!-- emergency exit -->
+          <rect x="12" y="340" width="200" height="40" rx="3" fill="var(--surface)" stroke="var(--crit)" stroke-width="1.2"/>
+          <text x="112" y="358" text-anchor="middle" font-weight="500" fill="var(--crit)">EMERGENCY_EXIT</text>
+          <text x="112" y="372" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10.5" fill="var(--muted)">з будь-якого стану, причина, перевірка</text>
+          <path d="M230,360 L420,360 L416,282" fill="none" stroke="var(--crit)" stroke-dasharray="3 3" marker-start="url(#ar2)"/>
+          <text x="330" y="352" text-anchor="middle" font-family="Barlow, Arial, sans-serif" font-size="10" fill="var(--muted)">будь-який активний стан</text>
+        </svg>
+        </div>
+        <figcaption>Рис. 2. FSM зміни за ТЗ 4.3–4.4. Помаранчевий WORKING є центром: у нього ведуть повернення з тимчасових станів і з READY_TO_CLOSE. Прихід (ARRIVED) і відхід належать контуру присутності, а не зміни.</figcaption>
+      </figure>
+
+      <p>Кожна кнопка бота і кожна дія панелі проходять через одну транзакцію переходу.</p>
+      <ol class="steps">
+        <li>Вхід: <code>action</code>, <code>shift_session_id</code>, <code>expected_version</code>, <code>idempotency_key</code> (для Telegram це <code>callback_query_id</code>), актор, за потреби код причини і коментар.</li>
+        <li><code>BEGIN</code>. Перевірити оброблені оновлення і ключі ідемпотентності: якщо вже є, повернути збережену відповідь.</li>
+        <li><code>SELECT … FOR UPDATE</code> на сесію зміни. Якщо версія не збігається з очікуваною, повернути актуальний стан без змін.</li>
+        <li>Викликати <code>shiftFsm.transition(current, action, ctx)</code>. Помилка переходу повертає пояснення користувачу: «спочатку поверніться з перерви».</li>
+        <li>Закрити відкритий інтервал (<code>ended_at = now()</code>), відкрити новий з <code>resume_state</code> за правилом.</li>
+        <li>Вставити подію в <code>domain_events</code> з усіма полями ТЗ 11.1.</li>
+        <li>Вставити рядки аутбоксу; поставити або скасувати таймери ескалацій.</li>
+        <li>Оновити сесію: поточний стан, resume_state, <code>version + 1</code>.</li>
+        <li>Записати результат у таблицю ідемпотентності.</li>
+        <li><code>COMMIT</code>. Опублікувати подію в Redis для SSE, відповісти в Telegram редагуванням екрана.</li>
+      </ol>
+      <p>Той самий шлях для присутності і передачі, лише з іншими таблицями стану.</p>
+
+      <h3 id="s3-8"><span class="k">3.8</span>Модель даних: ядро</h3>
+      <p>Лише ключові поля й обмеження; повна схема живе в <code>packages/db</code>. Жирним виділено обмеження, що тримають інваріанти ТЗ 4.5.</p>
+      <div class="dm">
+        <div><h4>identity · org</h4><ul>
+          <li>employees(id, personnel_number <b>UNIQUE</b>, full_name, status: active|blocked|terminated)</li>
+          <li>employee_positions(employee_id, org_unit_id, team_id, position_id, manager_id, valid_from, valid_to) <i>кадровий перевід = нова версія</i></li>
+          <li>telegram_accounts(employee_id, telegram_user_id, status, linked_at, revoked_by, reason) <b>UNIQUE(telegram_user_id) WHERE active; UNIQUE(employee_id) WHERE active</b></li>
+          <li>activation_codes(employee_id, code_hash, expires_at, attempts, used_at)</li>
+          <li>web_users(email, password_hash, totp_secret); web_user_roles(user_id, role, scope_type, scope_id)</li>
+          <li>sites(name, timezone IANA); org_units(site_id, parent_id); teams; positions</li>
+          <li>responsibility_zones(site_id, org_unit_id, type, is_shared, checklist_definition_id); zone_permissions(employee_id, zone_id)</li>
+          <li>qr_terminals(site_id, checkpoint: entry|exit|both, device_token_hash, status)</li>
+          <li>reason_codes(kind, code, label, requires_comment, requires_photo, notify_master, severity)</li>
+        </ul></div>
+        <div><h4>scheduling</h4><ul>
+          <li>shift_templates(site_id, code: day|night, local_start, local_end)</li>
+          <li>schedule_versions(site_id, org_unit_id, period_month, version_no, status: draft|in_review|published|superseded|closed, created_by, approved_by, published_at, supersedes_id, change_reason)</li>
+          <li>shift_assignments(schedule_version_id, employee_id, template_id, business_date, plan_start_at, plan_end_at, position_id, org_unit_id, team_id, zone_id, kind: regular|extra|replacement|swap, status, replaces_assignment_id)</li>
+          <li>assignment_acknowledgements(assignment_id, employee_id, schedule_version_id, acknowledged_at)</li>
+          <li>staffing_requirements(schedule_version_id, business_date, template_id, org_unit_id, position_id, zone_id, required_count)</li>
+        </ul></div>
+        <div><h4>attendance · shift</h4><ul>
+          <li>qr_challenges(terminal_id, token_hash, issued_at, expires_at)</li>
+          <li>qr_challenge_uses(challenge_id, employee_id, assignment_id, action: arrive|depart, used_at) <b>UNIQUE(employee_id, assignment_id, action)</b></li>
+          <li>presence_sessions(employee_id, assignment_id, arrived_at, departed_at, arrival_method: qr|terminal|master|web, confirmed_by, status)</li>
+          <li>shift_sessions(employee_id, assignment_id, schedule_version_id, checklist_definition_id, bonus_rule_version_id, business_date, started_at, ended_at, current_state, resume_state, status, needs_clarification, version) <b>UNIQUE(employee_id) WHERE status IN (open, ready_to_close)</b></li>
+          <li>activity_intervals(shift_session_id, state, started_at, ended_at, resume_state, open_event_id, close_event_id, downtime_report_id) <b>UNIQUE(shift_session_id) WHERE ended_at IS NULL; EXCLUDE gist (shift_session_id =, tstzrange &amp;&amp;)</b></li>
+          <li>shift_summaries(shift_session_id, planned_min, actual_min, working_min, …, late_min, early_leave_min, overtime_pending_min, overtime_approved_min, unresolved_count) <i>проєкція</i></li>
+        </ul></div>
+        <div><h4>incidents · handover</h4><ul>
+          <li>downtime_reports(shift_session_id, employee_id, zone_id, reason_code, comment, stopped_work, reported_at, incident_id, media_object_id)</li>
+          <li>downtime_incidents(site_id, zone_id, reason_code, severity: normal|critical|safety, status: reported|acknowledged|in_progress|resolved|closed|duplicate|rejected, duplicate_of_id, assignee_id, sla_due_at)</li>
+          <li>incident_status_history(incident_id, from, to, actor_id, at, comment)</li>
+          <li>checklist_definitions(version, zone_type, position_id, items jsonb, valid_from)</li>
+          <li>handover_records(shift_session_id, zone_id, submitted_by, checklist_definition_id, status: draft|submitted|accepted|disputed|resolved_*|superseded, submitted_at, accept_deadline_at, superseded_by_id, version)</li>
+          <li>checklist_answers(handover_id, item_key, ok, remark_category, remark_text, safe_to_work, needs)</li>
+          <li>handover_media(handover_id, angle: overview|surfaces|floor, media_object_id)</li>
+          <li>handover_reviews(handover_id, reviewer_employee_id, reviewer_shift_session_id, decision, category, comment, media_object_id) <b>CHECK reviewer ≠ submitted_by</b></li>
+          <li>handover_resolutions(handover_id, resolved_by, decision, reason_code, comment, at)</li>
+          <li>media_objects(telegram_file_id, telegram_file_unique_id, storage_key, size, width, height, sha256, phash, brightness, quality_status, received_at, retention_until)</li>
+        </ul></div>
+        <div><h4>requests · bonus</h4><ul>
+          <li>requests(type: vacation|sick|day_off|swap|extra_shift|cannot_attend|late|early_leave|tech_issue|appeal|replacement_offer, employee_id, status: draft|submitted|in_review|approved|rejected|cancelled|expired, period_from, period_to, payload, route, current_step)</li>
+          <li>request_decisions(request_id, step, actor_id, acting_role, decision, comment, at)</li>
+          <li>medical_documents(request_id, media_object_id) <i>лише HR, перегляди в аудиті</i></li>
+          <li>correction_requests(shift_session_id, target_event_id, proposed_at, proposed_state, reason_code, comment, evidence_media_id, status, decided_by, compensating_event_id)</li>
+          <li>overtime_approvals(shift_session_id, interval_start, interval_end, minutes, reason, status, approved_by)</li>
+          <li>bonus_rule_versions(site_id, valid_from, rules jsonb, created_by, approved_by)</li>
+          <li>bonus_shift_scores(shift_session_id, rule_version_id, status: preliminary|pending|manual_review|appealed|confirmed|not_evaluated, score, applicable_max, earned, inputs_hash, computed_at)</li>
+          <li>bonus_criteria_results(score_id, criterion_code, section, max_points, earned_points, status: earned|missed|not_applicable|pending|appealed|confirmed, basis jsonb)</li>
+          <li>bonus_adjustments(score_id, criterion_code, delta, reason_code, comment, author_id, second_approver_id)</li>
+          <li>bonus_periods(site_id, month, status: open|closing|closed, rule_version_id, closed_by); bonus_period_results(period_id, employee_id, s_month, weight_sum, base_amount, bonus_amount)</li>
+        </ul></div>
+        <div><h4>notifications · audit · system</h4><ul>
+          <li>notification_outbox(recipient_type, recipient_id, channel, template, payload, dedupe_key <b>UNIQUE</b>, status: pending|sent|delivered|read|failed, attempts, next_attempt_at, telegram_message_id)</li>
+          <li>escalation_timers(kind, subject_type, subject_id, fire_at, status, job_id)</li>
+          <li>domain_events(id uuid, type, occurred_at, received_at, employee_id, shift_session_id, zone_id, incident_id, source: telegram|web|terminal|system|integration, actor_id, acting_role, reason_code, comment, approval_id, telegram_update_id, idempotency_key, corrects_event_id, schedule_version_id, checklist_version_id, bonus_rule_version_id, payload, trace_id) <b>append-only</b></li>
+          <li>processed_telegram_updates(update_id PK, processed_at, result); idempotency_keys(key, scope, request_hash, response)</li>
+          <li>audit_log(actor_id, actor_type, action, object_type, object_id, before, after, reason, at, ip, trace_id) <b>append-only</b></li>
+          <li>system_incidents(site_id, scope, started_at, ended_at, cause, confirmed_by, neutralizes_criteria)</li>
+          <li>settings(site_id, key, value jsonb, version)</li>
+        </ul></div>
+      </div>
+
+      <h3 id="s3-9"><span class="k">3.9</span>API</h3>
+      <p>REST з OpenAPI, згенерованим із zod-контрактів; групи за ТЗ 12.3. Бот викликає ті самі application services напряму, без HTTP. Кожна команда зміни приймає <code>idempotency_key</code> і <code>expected_version</code>; конфлікт версії повертає 409 з актуальним станом.</p>
+      <div class="tw"><table class="compact">
+        <thead><tr><th>Група</th><th>Операції</th><th>Особливості</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">/me</td><td>профіль, план на місяць, поточна зміна, підсумок, бали</td><td>лише власні дані працівника</td></tr>
+          <tr><td class="mono">/attendance</td><td>arrive, depart, reserve-confirm</td><td>QR challenge + ідемпотентність</td></tr>
+          <tr><td class="mono">/shifts</td><td>start, transition, close, summary</td><td>одна точка входу для всіх переходів</td></tr>
+          <tr><td class="mono">/incidents</td><td>report, acknowledge, merge, resolve, close</td><td>окремо від особистого інтервалу</td></tr>
+          <tr><td class="mono">/handovers</td><td>draft, media, submit, accept, dispute, resolve</td><td>версія звіту й зони</td></tr>
+          <tr><td class="mono">/requests</td><td>absence, swap, extra, correction, appeal, decide</td><td>маршрути погодження</td></tr>
+          <tr><td class="mono">/admin/schedules</td><td>draft, validate, submit, approve, publish, replace</td><td>версії, конфлікти</td></tr>
+          <tr><td class="mono">/admin/bonuses</td><td>preview, adjust, confirm, close-period, export</td><td>лише формалізовані коригування</td></tr>
+          <tr><td class="mono">/admin/*</td><td>довідники, ролі, термінали, чек-листи, причини, налаштування</td><td></td></tr>
+          <tr><td class="mono">/events</td><td>SSE-стрім подій майданчика</td><td>фільтр по scope</td></tr>
+          <tr><td class="mono">/kiosk</td><td>challenge</td><td>device token терміналу</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3 id="s3-10"><span class="k">3.10</span>Безпека</h3>
+      <div class="two">
+        <ul>
+          <li>TLS скрізь; секрети у vault або зашифрованих env; bot token, QR-секрети й presigned URL не потрапляють у логи.</li>
+          <li>Webhook: перевірка secret token, rate limit, дедуплікація, ліміт розміру файлів.</li>
+          <li>Панель: TOTP або OIDC SSO, короткі сесії, CSRF, CSP і HSTS.</li>
+          <li>RBAC + scope на кожному запиті; заборонений доступ логується (T-39).</li>
+        </ul>
+        <ul>
+          <li>Фото: приватний бакет, presigned GET 5 хв, аудит переглядів і експортів.</li>
+          <li>Медичні документи: окрема таблиця, окремі права, ніколи в оперативних екранах.</li>
+          <li>Ролі бази: application-роль без UPDATE/DELETE на події й аудит.</li>
+          <li>Аномалії QR: один challenge з двох чатів за &lt; 3 с або з різних терміналів → подія безпеки для майстра.</li>
+        </ul>
+      </div>
+
+      <h3 id="s3-11"><span class="k">3.11</span>Експлуатація і спостережуваність</h3>
+      <ul>
+        <li><strong>Метрики:</strong> латентність webhook і команд (p95 ≤ 2 с), глибина черг, вік найстарішого рядка аутбоксу, помилки Telegram API і фото-пайплайну, відставання SSE.</li>
+        <li><strong>Трейси:</strong> <code>trace_id</code> наскрізь від webhook через транзакцію до воркера; записується в події.</li>
+        <li><strong>Алерти:</strong> черга росте, аутбокс старіше 60 с, webhook 5xx, реплікація відстає, диск сховища, невдалі бекапи.</li>
+        <li><strong>Бекапи:</strong> WAL-архів кожні ≤ 5 хв плюс повний щоденний; тест відновлення раз на місяць (NFR-05).</li>
+        <li><strong>Runbook резервного каналу:</strong> що робить майстер, коли бот недоступний; як адміністратор відкриває системний інцидент; як синхронізуються відмітки після відновлення (NFR-10).</li>
+      </ul>
+
+      <h3 id="s3-12"><span class="k">3.12</span>Тестова стратегія</h3>
+      <div class="tw"><table class="compact">
+        <thead><tr><th>Рівень</th><th>Що перевіряє</th><th>Інструменти</th></tr></thead>
+        <tbody>
+          <tr><td>Unit, property-based</td><td>FSM: жодна послідовність дій не порушує інваріанти; розрахунок часу; bonus engine детермінований</td><td>Vitest, fast-check</td></tr>
+          <tr><td>Інтеграційні</td><td>T-01…T-40 проти реальних Postgres, Redis, MinIO; ідемпотентність, гонки, DST</td><td>testcontainers</td></tr>
+          <tr><td>Контрактні</td><td>OpenAPI відповідає zod; панель зібрана проти контрактів</td><td>openapi-typescript, CI</td></tr>
+          <tr><td>Бот e2e</td><td>Сценарії через фейковий Telegram API</td><td>Vitest, grammY transformer</td></tr>
+          <tr><td>Панель e2e</td><td>Публікація графіка, рішення по спору, закриття періоду</td><td>Playwright</td></tr>
+          <tr><td>Навантаження</td><td>Пік ±15 хв від межі зміни: одночасні приходи, старти, фото</td><td>k6</td></tr>
+          <tr><td>Chaos</td><td>Втрата відповіді клієнту, повторна доставка webhook, падіння інстансу, недоступний Redis</td><td>скрипти + testcontainers</td></tr>
+          <tr><td>Безпека</td><td>Залежності, сканування панелі, перевірка scope на кожному ендпоінті</td><td>npm audit, OWASP ZAP</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <!-- ============ 4 ============ -->
+    <section class="sec" id="s4">
+      <div class="sec-head"><div class="num">4</div><h2>План дій</h2></div>
+
+      <h3 id="s4-1"><span class="k">4.1</span>Припущення</h3>
+      <ul>
+        <li>Команда: 2 бекенд-інженери, 1 фронтенд-інженер, 1 QA/DevOps частково, 1 аналітик/PM частково. Дизайнер для UX бота і панелі на фазах 0–1.</li>
+        <li>Оцінки орієнтовні і уточнюються після фази 0. Порядок фаз повторює ТЗ 17, але звернення перенесено до фази бонусу, бо вони ділять механізм маршрутів погодження.</li>
+        <li>Кожна фаза закінчується демо на staging і проходженням своїх сценаріїв T-xx.</li>
+      </ul>
+
+      <h3 id="s4-2"><span class="k">4.2</span>Фази</h3>
+
+      <div class="phase">
+        <div class="phase-h"><div class="pn">0</div><h4>Discovery і фундамент</h4><div class="dur">2 тижні</div></div>
+        <div class="phase-b">
+          <p class="goal">Узгодити параметри, підняти інфраструктуру, закласти скелет.</p>
+          <ul>
+            <li>Воркшоп із замовником: 20 параметрів розділу 18, матриця прав, зони, довідник причин, чек-лист, резервний канал.</li>
+            <li>Глосарій домену і ADR-1…ADR-11.</li>
+            <li>Монорепо, лінтери, Vitest, husky; Compose з Postgres, Redis, MinIO, OTel, Grafana.</li>
+            <li>CI: lint, typecheck, unit, integration з testcontainers, збірка образів.</li>
+            <li>База: Drizzle, міграції, події, аудит, налаштування, причини, ролі БД.</li>
+            <li>Telegram: реєстрація бота, webhook із secret token, дедуплікація, health, <code>/start</code>.</li>
+            <li>Спостережуваність: pino, OTel, метрики, Sentry.</li>
+            <li>UX-прототип п'яти контекстів головного екрана бота (ТЗ 5.1), клікабельно в самому боті.</li>
+          </ul>
+        </div>
+        <dl class="phase-f"><dt>Вихід</dt><dd>Staging з «порожнім» ботом і логіном панелі; підписані параметри; рішення про хостинг.</dd></dl>
+      </div>
+
+      <div class="phase">
+        <div class="phase-h"><div class="pn">1</div><h4>Основа: люди, структура, графік</h4><div class="dur">3 тижні</div></div>
+        <div class="phase-b">
+          <ul>
+            <li>identity: картки, активація за кодом (хеш, TTL, ліміт спроб), прив'язка Telegram, перепривʼязка з аудитом (FR-AUTH-01/02).</li>
+            <li>org: майданчики, підрозділи, бригади, посади, зони, права на зони.</li>
+            <li>Auth панелі: better-auth, TOTP, ролі й scope, фільтр області даних (FR-AUTH-03).</li>
+            <li>scheduling: шаблони, версії, призначення, потреба, валідації (перетини, відпочинок між змінами, ліміти годин, рівномірність день/ніч), маршрут draft → in_review → published, ознайомлення.</li>
+            <li>Бот: «Мій план» на місяць, ознайомлення, нагадування «зміна скоро».</li>
+            <li>Панель: «Графік» з редактором місяця, перевірками, публікацією, версіями; «Адміністрування».</li>
+            <li>Аутбокс і воркер доставки: потрібні вже для нагадувань.</li>
+          </ul>
+        </div>
+        <dl class="phase-f"><dt>Сценарії</dt><dd>AC-01, AC-02, T-33 частково</dd><dt>Вихід</dt><dd>Працівник бачить опублікований план і підтверджує ознайомлення.</dd></dl>
+      </div>
+
+      <div class="phase">
+        <div class="phase-h"><div class="pn">2</div><h4>Час: QR, присутність, зміна, стани</h4><div class="dur">4 тижні</div></div>
+        <div class="phase-b">
+          <ul>
+            <li>QR: термінали, challenge, ротація, kiosk-сторінка, deep link, використання, аномалії.</li>
+            <li>attendance: «Я на роботі», «Я пішов», резервні відмітки через термінал і майстра.</li>
+            <li>shift: FSM з усіма переходами ТЗ 4.4, resume_state, інваріанти в базі, транзакція переходу, expected_version.</li>
+            <li>Перерви, обід, службовий час: таймери, нагадування, ескалація майстру, пропущена перерва з причиною.</li>
+            <li>NEEDS_CLARIFICATION, корекції як компенсуючі події, екстрений вихід, overtime_pending.</li>
+            <li>Підсумок зміни і екран «Після зміни» в боті.</li>
+            <li>Панель: «Оперативна зміна» з SSE, фільтрами, картками з первинними подіями; черга корекцій для майстра.</li>
+            <li>Load-тест піку зміни на k6.</li>
+          </ul>
+        </div>
+        <dl class="phase-f"><dt>Сценарії</dt><dd>AC-03…AC-07, AC-09, T-01…T-12, T-15…T-23</dd><dt>Вихід</dt><dd>Безперервний облік 12-годинної зміни без розривів. Найризикованіша фаза: на FSM і ідемпотентність лягає все подальше.</dd></dl>
+      </div>
+
+      <div class="phase">
+        <div class="phase-h"><div class="pn">3</div><h4>Простої та інциденти</h4><div class="dur">2 тижні</div></div>
+        <div class="phase-b">
+          <ul>
+            <li>«Повідомити про проблему» → «Роботу зупинено?» → інцидент і/або DOWNTIME.</li>
+            <li>Довідник причин, обов'язковий коментар для «Інше», фото за причиною.</li>
+            <li>Життєвий цикл інциденту, злиття дублів, SLA, ескалація за порогом і негайно для безпеки.</li>
+            <li>Обід під час інциденту: повернення в DOWNTIME або WORKING (FR-DWN-06).</li>
+            <li>Панель: «Простої та інциденти», екран майстра, звіт по причинах і зонах.</li>
+          </ul>
+        </div>
+        <dl class="phase-f"><dt>Сценарії</dt><dd>AC-08, T-13, T-14</dd><dt>Вихід</dt><dd>Статистика простоїв і SLA.</dd></dl>
+      </div>
+
+      <div class="phase">
+        <div class="phase-h"><div class="pn">4</div><h4>Прибирання, фото, передача</h4><div class="dur">3 тижні</div></div>
+        <div class="phase-b">
+          <ul>
+            <li>Нагадування за 30 хв, атомарний перехід у CLEANING, чек-лист за зоною і роллю, зауваження.</li>
+            <li>Фото-пайплайн: три ракурси, S3, SHA-256, pHash, якість, чернетка, що переживає обрив.</li>
+            <li>Передача: SUBMITTED без очікування, приймання наступною зміною, зауваження з фото, спір, рішення майстра, SUPERSEDED, тайм-аут на майстра, заборона прийняти власну передачу.</li>
+            <li>Панель: «Чистота і передача» з фото до і після, спорами, простроченими прийманнями; підписані URL і аудит переглядів.</li>
+          </ul>
+        </div>
+        <dl class="phase-f"><dt>Сценарії</dt><dd>AC-10…AC-13, T-24…T-32, T-39</dd><dt>Вихід</dt><dd>Асинхронна передача 24/7.</dd></dl>
+      </div>
+
+      <div class="phase">
+        <div class="phase-h"><div class="pn">5</div><h4>Звернення, бонус, звіти</h4><div class="dur">3 тижні</div></div>
+        <div class="phase-b">
+          <ul>
+            <li>requests: усі типи звернень, маршрути за матрицею ТЗ 2.1, медичні документи лише для HR, обмін і додаткова зміна як нові версії графіка, термінова заміна.</li>
+            <li>bonus: версії правил, engine з чотирма розділами і шкалами, N/A-нормалізація, поріг 60, попередні й підтверджені бали, коригування з другим підтвердженням, апеляції, закриття періоду, експорт для бухгалтерії.</li>
+            <li>Бот: екран балів з підставою кожного зниження, апеляція.</li>
+            <li>Панель: «Звернення», «Бонус», «Звіти» (шість звітів ТЗ 9.3, CSV/XLSX з аудитом), «Аудит».</li>
+          </ul>
+        </div>
+        <dl class="phase-f"><dt>Сценарії</dt><dd>AC-14…AC-18, T-33…T-38, T-40</dd><dt>Вихід</dt><dd>Прозорі 0–100 і вивантаження.</dd></dl>
+      </div>
+
+      <div class="phase">
+        <div class="phase-h"><div class="pn">6</div><h4>Зміцнення і підготовка пілоту</h4><div class="dur">2 тижні</div></div>
+        <div class="phase-b">
+          <ul>
+            <li>Навантажувальні, chaos, security, recovery-тести; учення відновлення з бекапу.</li>
+            <li>Алерти, дашборди, runbook резервного каналу, SLA підтримки.</li>
+            <li>Інструкції для працівника, майстра, планувальника, HR, адміністратора.</li>
+            <li>Польове usability-тестування з денною і нічною зміною при слабкому зв'язку.</li>
+            <li>Definition of Done з ТЗ 17.1: закриття Severity 1–2, погоджений список Severity 3.</li>
+          </ul>
+        </div>
+        <dl class="phase-f"><dt>Вихід</dt><dd>Готовність до пілоту.</dd></dl>
+      </div>
+
+      <div class="phase pilot">
+        <div class="phase-h"><div class="pn">7</div><h4>Пілот у тіньовому режимі</h4><div class="dur">4–8 тижнів</div></div>
+        <div class="phase-b">
+          <ul>
+            <li>Дві зміни, бали без впливу на виплати, щотижневий розбір різниці день/ніч, технічних винятків, спірних фото.</li>
+            <li>Калібрування вікон, порогів і шкал; нова версія правил.</li>
+          </ul>
+        </div>
+        <dl class="phase-f"><dt>Вихід</dt><dd>Калібровані правила і затверджена бонусна база.</dd></dl>
+      </div>
+
+      <div class="phase pilot">
+        <div class="phase-h"><div class="pn">8</div><h4>Промисловий запуск</h4><div class="dur">1–2 тижні</div></div>
+        <div class="phase-b">
+          <ul>
+            <li>Затверджена бонусна база, версія шкал, локальний документ; моніторинг, бекапи, підтримка 24/7.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 id="s4-3"><span class="k">4.3</span>Дорожня карта</h3>
+      <div class="gantt-wrap">
+        <div class="gantt" role="table" aria-label="Дорожня карта по тижнях">
+          <div class="hd lbl">Фаза</div>
+          <div class="hd">1</div><div class="hd"></div><div class="hd"></div><div class="hd"></div>
+          <div class="hd">5</div><div class="hd"></div><div class="hd"></div><div class="hd"></div>
+          <div class="hd">9</div><div class="hd"></div><div class="hd"></div><div class="hd"></div>
+          <div class="hd">13</div><div class="hd"></div><div class="hd"></div><div class="hd"></div>
+          <div class="hd">17</div><div class="hd"></div><div class="hd"></div><div class="hd"></div>
+          <div class="hd">21</div><div class="hd"></div><div class="hd"></div><div class="hd"></div>
+          <div class="hd">25</div><div class="hd"></div><div class="hd"></div><div class="hd"></div>
+          <div class="hd">29</div>
+
+          <div class="rl">0 · Discovery і фундамент <small>1–2</small></div>
+          <div class="bar" style="grid-column: 2 / span 2"></div>
+          <div class="cell" style="grid-column: 4 / span 27"></div>
+
+          <div class="rl">1 · Основа <small>3–5</small></div>
+          <div class="cell" style="grid-column: 2 / span 2"></div>
+          <div class="bar" style="grid-column: 4 / span 3"></div>
+          <div class="cell" style="grid-column: 7 / span 24"></div>
+
+          <div class="rl">2 · Час <small>6–9</small></div>
+          <div class="cell" style="grid-column: 2 / span 5"></div>
+          <div class="bar" style="grid-column: 7 / span 4"></div>
+          <div class="cell" style="grid-column: 11 / span 20"></div>
+
+          <div class="rl">3 · Простої <small>10–11</small></div>
+          <div class="cell" style="grid-column: 2 / span 9"></div>
+          <div class="bar" style="grid-column: 11 / span 2"></div>
+          <div class="cell" style="grid-column: 13 / span 18"></div>
+
+          <div class="rl">4 · Передача <small>12–14</small></div>
+          <div class="cell" style="grid-column: 2 / span 11"></div>
+          <div class="bar" style="grid-column: 13 / span 3"></div>
+          <div class="cell" style="grid-column: 16 / span 15"></div>
+
+          <div class="rl">5 · Звернення, бонус, звіти <small>15–17</small></div>
+          <div class="cell" style="grid-column: 2 / span 14"></div>
+          <div class="bar" style="grid-column: 16 / span 3"></div>
+          <div class="cell" style="grid-column: 19 / span 12"></div>
+
+          <div class="rl">6 · Зміцнення <small>18–19</small></div>
+          <div class="cell" style="grid-column: 2 / span 17"></div>
+          <div class="bar" style="grid-column: 19 / span 2"></div>
+          <div class="cell" style="grid-column: 21 / span 10"></div>
+
+          <div class="rl">7 · Пілот, тіньовий режим <small>20–27</small></div>
+          <div class="cell" style="grid-column: 2 / span 19"></div>
+          <div class="bar pilot" style="grid-column: 21 / span 8"></div>
+          <div class="cell" style="grid-column: 29 / span 2"></div>
+
+          <div class="rl">8 · Запуск <small>28–29</small></div>
+          <div class="cell" style="grid-column: 2 / span 27"></div>
+          <div class="bar launch" style="grid-column: 29 / span 2"></div>
+        </div>
+      </div>
+      <div class="legend"><span>розробка</span><span class="pilot">пілот без впливу на виплати</span><span class="launch">промисловий запуск</span></div>
+      <p>Близько 19 тижнів розробки до пілоту за наведеного складу команди. Найбільша невизначеність у фазі 2: FSM і ідемпотентність мають бути бездоганними до того, як на них ляжуть простої, передача і бонус.</p>
+
+      <h3 id="s4-4"><span class="k">4.4</span>Беклог перших двох тижнів</h3>
+      <ol class="steps">
+        <li>Провести воркшоп по 20 параметрах і зафіксувати відповіді в <code>docs/parameters.md</code>.</li>
+        <li>Затвердити ADR-1…ADR-11 у <code>docs/adr/</code>.</li>
+        <li>Підняти монорепо: чотири застосунки і шість пакетів зі структури 3.4.</li>
+        <li>Compose dev-стек, <code>.env.example</code>, CI з testcontainers.</li>
+        <li>Міграції: майданчики, працівники, події, аудит, налаштування, причини, оброблені оновлення.</li>
+        <li>Webhook із secret token, дедуплікація, <code>/start</code>, health, метрики, трейси.</li>
+        <li><code>packages/domain/shift-fsm</code>: таблиця переходів з ТЗ 4.4 і property-тести інваріантів. Можна починати до бази: це чиста логіка.</li>
+        <li><code>packages/domain/time</code>: планові інстанти, ділова дата, запізнення, ранній відхід; тести DST.</li>
+        <li>Прототип п'яти екранів бота з текстами російською в <code>packages/i18n</code>.</li>
+        <li>Скелет панелі: логін з TOTP, layout з дев'ятьма розділами, SSE-хук, тема.</li>
+        <li>Чернетка runbook резервного каналу для обговорення з майстрами.</li>
+      </ol>
+
+      <h3 id="s4-5"><span class="k">4.5</span>Definition of Done для MVP</h3>
+      <ul>
+        <li>Усі вимоги Must і AC-01…AC-18 реалізовані й трасуються до тестів.</li>
+        <li>T-01…T-40, інтеграційні, навантажувальні, security і recovery-тести пройдені.</li>
+        <li>Немає дефектів Severity 1–2; список Severity 3 погоджений.</li>
+        <li>Моніторинг, алерти, бекапи, відновлення й резервний канал 24/7 налаштовані.</li>
+        <li>Інструкції для всіх ролей; польове тестування з денною і нічною зміною.</li>
+        <li>Замовник підписав правила графіка, зони, чек-листи, причини, шкали і матрицю прав.</li>
+        <li>Експорт, строки зберігання, обробка ПД і трудові правила погоджені.</li>
+      </ul>
+    </section>
+
+    <!-- ============ 5 ============ -->
+    <section class="sec" id="s5">
+      <div class="sec-head"><div class="num">5</div><h2>Що потрібно від замовника зараз</h2></div>
+      <ol>
+        <li>Відповіді на 20 параметрів розділу 18 ТЗ, хоча б дефолти.</li>
+        <li>Рішення про хостинг і IdP для панелі.</li>
+        <li>Навантажувальні числа: працівників на зміну, майданчиків, фото на хвилину.</li>
+        <li>Хто відповідальний за спільні зони і як рахувати командні бали.</li>
+        <li>Чи входить веб-форма резервної відмітки в MVP.</li>
+        <li>Контакт юриста для перевірки ПД і трудового права в країні застосування.</li>
+      </ol>
+    </section>
+
+    <footer>Документ підготовлено як вхід для фази 0. Джерело вимог: ТЗ «Telegram-бот учета рабочих смен, MVP v1.0» від 5 вересня 2026. Оцінки строків орієнтовні.</footer>
+  </main>
+</div>

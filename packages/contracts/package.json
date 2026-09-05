@@ -1,0 +1,31 @@
+{
+  "name": "@vakhta/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "zod-схеми команд, відповідей і подій, спільні для бота, API, воркера і панелі",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vakhta/domain": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@vakhta/config": "workspace:*",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.0"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "qr-kiosk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Екран терміналу на контрольній точці: динамічний QR приходу і відходу (FR-QR-01)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5174",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview --port 5174",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@vakhta/contracts": "workspace:*",
+    "@vakhta/i18n": "workspace:*",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5",
+    "@vakhta/config": "workspace:*",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0"
+  }
+}

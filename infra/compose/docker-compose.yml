@@ -1,0 +1,63 @@
+name: vakhta
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vakhta
+      POSTGRES_PASSWORD: vakhta
+      POSTGRES_DB: vakhta
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - '${VAKHTA_POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - ./.data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vakhta -d vakhta']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    # Host-порт 6380 за замовчуванням: 6379 часто зайнятий іншим локальним Redis.
+    ports:
+      - '${VAKHTA_REDIS_PORT:-6380}:6379'
+    volumes:
+      - ./.data/redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: vakhta
+      MINIO_ROOT_PASSWORD: vakhta-secret
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - ./.data/minio:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 vakhta vakhta-secret &&
+      mc mb --ignore-existing local/vakhta-media &&
+      mc anonymous set none local/vakhta-media
+      "

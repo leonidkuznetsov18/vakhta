@@ -1,0 +1,12 @@
+{
+  "extends": "@vakhta/config/tsconfig.node.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src", "scripts"]
+}

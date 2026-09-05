@@ -1,0 +1,8 @@
+{
+  "extends": "@vakhta/config/tsconfig.react.json",
+  "compilerOptions": {
+    "jsx": "react",
+    "types": ["vite/client"]
+  },
+  "include": ["src"]
+}

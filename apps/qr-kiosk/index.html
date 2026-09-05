@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Вахта · Точка</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #10161c;
+        --ink: #e7ecf1;
+        --muted: #94a3b2;
+        --accent: #f0a93b;
+        --crit: #e4695c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        text-align: center;
+      }
+      main {
+        display: grid;
+        gap: 20px;
+        justify-items: center;
+        padding: 24px;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(24px, 4vw, 40px);
+        font-weight: 600;
+      }
+      #qr {
+        width: min(70vw, 70vh, 560px);
+        height: min(70vw, 70vh, 560px);
+        background: #fff;
+        border-radius: 8px;
+        padding: 16px;
+        display: grid;
+        place-items: center;
+      }
+      #qr canvas {
+        width: 100% !important;
+        height: 100% !important;
+      }
+      .hint {
+        font-size: clamp(16px, 2.2vw, 22px);
+        color: var(--muted);
+        max-width: 40ch;
+      }
+      .meta {
+        font-variant-numeric: tabular-nums;
+        font-size: clamp(14px, 2vw, 20px);
+        color: var(--muted);
+      }
+      .terminal {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .offline {
+        color: var(--crit);
+        font-size: clamp(18px, 2.6vw, 28px);
+        max-width: 30ch;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="title"></h1>
+      <div id="terminal" class="terminal"></div>
+      <div id="qr"></div>
+      <p id="hint" class="hint"></p>
+      <p id="meta" class="meta"></p>
+      <p id="offline" class="offline" hidden></p>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

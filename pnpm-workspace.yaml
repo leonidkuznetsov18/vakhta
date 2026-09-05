@@ -1,0 +1,9 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# pnpm 10 не запускає postinstall-скрипти залежностей без явного дозволу.
+# esbuild потрібен Vite і tsx; msgpackr-extract є необов'язковим прискорювачем для BullMQ.
+onlyBuiltDependencies:
+  - esbuild
+  - msgpackr-extract

@@ -1,0 +1,11 @@
+{
+  "name": "@vakhta/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Спільні tsconfig-пресети для пакетів і застосунків Вахти",
+  "files": [
+    "tsconfig.base.json",
+    "tsconfig.node.json",
+    "tsconfig.react.json"
+  ]
+}

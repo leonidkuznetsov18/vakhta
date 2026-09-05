@@ -1,0 +1,26 @@
+{
+  "name": "worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Фонові процеси Вахти: аутбокс, таймери, фото-пайплайн, перерахунок бонусу",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "start": "node --env-file=../../.env dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@vakhta/contracts": "workspace:*",
+    "bullmq": "^5.50.0",
+    "ioredis": "^5.6.1",
+    "pino": "^9.7.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@vakhta/config": "workspace:*",
+    "pino-pretty": "^13.0.0",
+    "typescript": "^5.8.3"
+  }
+}
