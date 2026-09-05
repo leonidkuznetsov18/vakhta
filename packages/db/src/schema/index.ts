@@ -3,6 +3,7 @@ export * from './identity.js';
 export * from './attendance.js';
 export * from './shift.js';
 export * from './incidents.js';
+export * from './handover.js';
 export * from './auth.js';
 export * from './scheduling.js';
 export * from './notifications.js';

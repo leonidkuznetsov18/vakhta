@@ -4,6 +4,7 @@ import { AttendanceModule } from './attendance/attendance.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { loadEnv } from './config/env.js';
 import { EventsModule } from './events/events.module.js';
+import { HandoverModule } from './handover/handover.module.js';
 import { HealthModule } from './health/health.module.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { IncidentsModule } from './incidents/incidents.module.js';
@@ -37,6 +38,7 @@ import { TelegramModule } from './telegram/telegram.module.js';
     AttendanceModule,
     ShiftModule,
     IncidentsModule,
+    HandoverModule,
     KioskModule,
     TelegramModule,
   ],

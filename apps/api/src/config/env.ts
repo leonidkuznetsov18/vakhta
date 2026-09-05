@@ -63,6 +63,19 @@ export const EnvSchema = z.object({
   INCIDENT_SLA_SAFETY_MINUTES: z.coerce.number().int().nonnegative().default(0),
   /** Вікно, в якому повідомлення тієї ж зони й причини лінкуються до одного інциденту (FR-DWN-04). */
   INCIDENT_DUPLICATE_WINDOW_MINUTES: z.coerce.number().int().positive().default(60),
+  /** Нагадування про прибирання до планового кінця (FR-CLN-01); вікно приймання (ТЗ 18 п. 11). */
+  CLEANING_REMINDER_MINUTES: z.coerce.number().int().positive().default(30),
+  HANDOVER_REVIEW_WINDOW_MINUTES: z.coerce.number().int().positive().default(30),
+  /** Приватне сховище фото (ADR-0006). Без S3_BUCKET посилання на фото недоступні. */
+  S3_ENDPOINT: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  S3_REGION: z.string().default('us-east-1'),
+  S3_BUCKET: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  S3_ACCESS_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  S3_SECRET_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  S3_FORCE_PATH_STYLE: z
+    .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
+    .default(true),
+  MEDIA_LINK_TTL_SECONDS: z.coerce.number().int().positive().default(300),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

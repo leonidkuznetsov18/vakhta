@@ -3,6 +3,7 @@ import { messages } from '@vakhta/i18n';
 import { LoginScreen } from './auth/LoginScreen.tsx';
 import { ProfilePanel } from './auth/ProfilePanel.tsx';
 import { AdminPage } from './admin/AdminPage.tsx';
+import { HandoverPage } from './handover/HandoverPage.tsx';
 import { IncidentsPage } from './incidents/IncidentsPage.tsx';
 import { OperationsPage } from './operations/OperationsPage.tsx';
 import { SchedulePage } from './schedule/SchedulePage.tsx';
@@ -69,6 +70,8 @@ export function App() {
           <OperationsPage />
         ) : active === 'incidents' ? (
           <IncidentsPage />
+        ) : active === 'handover' ? (
+          <HandoverPage />
         ) : active === 'schedule' ? (
           <SchedulePage />
         ) : active === 'administration' ? (

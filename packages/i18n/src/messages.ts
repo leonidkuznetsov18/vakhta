@@ -1,6 +1,13 @@
 import type {
+  ChecklistKey,
+  HandoverAngle,
+  HandoverIssueCode,
+  HandoverResolution,
+  HandoverStatus,
   IncidentSeverity,
   IncidentStatus,
+  MediaQualityStatus,
+  RemarkNeed,
   ScheduleStatus,
   ScopeType,
   ActivationFailure,
@@ -119,6 +126,60 @@ export interface Messages {
     readonly resolvedNotice: string;
     readonly statuses: Readonly<Record<IncidentStatus, string>>;
     readonly severities: Readonly<Record<IncidentSeverity, string>>;
+  };
+  readonly handover: {
+    readonly items: Readonly<Record<ChecklistKey, string>>;
+    readonly angles: Readonly<Record<HandoverAngle, string>>;
+    readonly needs: Readonly<Record<RemarkNeed, string>>;
+    readonly statuses: Readonly<Record<HandoverStatus, string>>;
+    readonly resolutions: Readonly<Record<HandoverResolution, string>>;
+    readonly quality: Readonly<Record<MediaQualityStatus, string>>;
+    readonly issues: Readonly<Record<HandoverIssueCode, string>>;
+    readonly header: string;
+    readonly progress: string;
+    readonly okButton: string;
+    readonly remarkButton: string;
+    readonly noteButton: string;
+    readonly photoButton: string;
+    readonly photoDone: string;
+    readonly askPhoto: string;
+    readonly photoSaved: string;
+    readonly photoQualityHint: string;
+    readonly askNote: string;
+    readonly chooseRemarkCategory: string;
+    readonly askRemarkText: string;
+    readonly askSafe: string;
+    readonly safeYes: string;
+    readonly safeNo: string;
+    readonly askNeeds: string;
+    readonly needsNone: string;
+    readonly remarkSaved: string;
+    readonly cannotComplete: string;
+    readonly cannotCompleteReason: string;
+    readonly cannotCompleteSaved: string;
+    readonly submit: string;
+    readonly submitted: string;
+    readonly notReady: string;
+    readonly superseded: string;
+    readonly cancel: string;
+    readonly cancelled: string;
+    readonly pendingHeader: string;
+    readonly pendingLine: string;
+    readonly pendingRemarks: string;
+    readonly pendingNotes: string;
+    readonly acceptButton: string;
+    readonly issueButton: string;
+    readonly reviewAccepted: string;
+    readonly reviewIssueSaved: string;
+    readonly reviewOwn: string;
+    readonly reviewCategory: string;
+    readonly reviewComment: string;
+    readonly reviewPhoto: string;
+    readonly cleaningReminder: string;
+    readonly pendingNotification: string;
+    readonly reviewedNotification: string;
+    readonly resolvedNotification: string;
+    readonly timeoutNotification: string;
   };
   readonly schedule: {
     /** Назви місяців у називному відмінку, індекс 0 = січень. */
@@ -302,6 +363,38 @@ export interface Messages {
       readonly colBreached: string;
       readonly totals: string;
       readonly live: string;
+    };
+    readonly handover: {
+      readonly site: string;
+      readonly scopePending: string;
+      readonly scopeOverdue: string;
+      readonly scopeAll: string;
+      readonly submitted: string;
+      readonly zone: string;
+      readonly submitter: string;
+      readonly status: string;
+      readonly remarks: string;
+      readonly photos: string;
+      readonly deadline: string;
+      readonly overdue: string;
+      readonly review: string;
+      readonly detail: string;
+      readonly checklist: string;
+      readonly reviews: string;
+      readonly resolutions: string;
+      readonly resolve: string;
+      readonly decision: string;
+      readonly comment: string;
+      readonly reasonCode: string;
+      readonly apply: string;
+      readonly applied: string;
+      readonly openPhoto: string;
+      readonly empty: string;
+      readonly live: string;
+      readonly cannotComplete: string;
+      readonly safe: string;
+      readonly unsafe: string;
+      readonly note: string;
     };
     readonly administration: {
       readonly tabs: Readonly<Record<'employees' | 'users' | 'directories' | 'terminals', string>>;

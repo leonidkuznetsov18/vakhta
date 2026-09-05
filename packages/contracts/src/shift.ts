@@ -127,6 +127,8 @@ export const ShiftScreenView = z.object({
   canAcceptZone: z.boolean(),
   /** FR-DWN-06: обід або перерва відкриті з простою, при поверненні спитати, чи перешкода триває. */
   offerResumeIntoDowntime: z.boolean(),
+  /** Передачі, що чекають перевірки зони цією зміною (FR-HND-03); заповнює шар бота. */
+  pendingHandovers: z.number().int().nonnegative(),
   downtimeReasons: z.array(ReasonOption),
   emergencyReasons: z.array(ReasonOption),
   summary: ShiftSummaryView.nullable(),

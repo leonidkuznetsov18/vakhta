@@ -226,3 +226,26 @@ export const incidentsApi = {
     apiFetch<IncidentStatsView>(`/admin/incidents/stats${query({ from, to, siteId })}`),
   streamUrl: () => `${API_URL}/admin/incidents/stream`,
 };
+
+// ---- чистота і передача (ТЗ 9.1) ----
+
+import type {
+  HandoverDetailView,
+  HandoverListItemView,
+  HandoverListQuery,
+  HandoverView,
+  MediaLinkView,
+  ResolveHandoverCommand,
+} from '@vakhta/contracts';
+
+export const handoversApi = {
+  list: (q: HandoverListQuery) =>
+    apiFetch<HandoverListItemView[]>(
+      `/admin/handovers${query({ siteId: q.siteId, zoneId: q.zoneId, scope: q.scope })}`,
+    ),
+  detail: (id: string) => apiFetch<HandoverDetailView>(`/admin/handovers/${id}`),
+  resolve: (id: string, cmd: ResolveHandoverCommand) =>
+    post<HandoverView>(`/admin/handovers/${id}/resolve`, cmd),
+  mediaLink: (mediaId: string) => apiFetch<MediaLinkView>(`/admin/handovers/media/${mediaId}/link`),
+  streamUrl: () => `${API_URL}/admin/handovers/stream`,
+};

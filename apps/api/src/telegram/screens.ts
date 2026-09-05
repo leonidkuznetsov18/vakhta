@@ -1,5 +1,7 @@
 import { InlineKeyboard } from 'grammy';
 import {
+  HANDOVER_ANGLES,
+  REMARK_NEEDS,
   addMonths,
   businessDateOf,
   formatLocal,
@@ -7,11 +9,14 @@ import {
   maskPersonnelNumber,
   type CheckAction,
   type EmployeeAccess,
+  type HandoverAngle,
   type ShiftAction,
 } from '@vakhta/domain';
 import type {
   CheckInResult,
+  HandoverView,
   MyPlanView,
+  PendingHandoverView,
   ReasonOption,
   ReportProblemResult,
   ShiftScreenView,
@@ -322,6 +327,17 @@ export function shiftKeyboard(view: ShiftScreenView): InlineKeyboard | undefined
       : `${SHIFT_CALLBACK.prefix}${action}:${version}`;
     add(t.actions[action], data);
   }
+  if (view.session?.state === 'HANDOVER') {
+    newRow();
+    keyboard.text(
+      t.handover.header.split(' ')[0] === 'Уборка' ? '📋 Чек-лист и фото' : '📋',
+      'hv:open',
+    );
+  }
+  if (view.pendingHandovers > 0) {
+    newRow();
+    keyboard.text(`📥 ${t.admin.handover.review} (${view.pendingHandovers})`, 'hr:open');
+  }
   if (
     view.session &&
     view.session.state !== 'SHIFT_CLOSED' &&
@@ -434,4 +450,187 @@ export function incidentResultScreen(result: ReportProblemResult, reasonLabel: s
     lines.push(format(t.incidents.downtimeNotOpened, { error: known ?? result.downtimeError }));
   }
   return { text: lines.join('\n') };
+}
+
+/* -------------------------------------------------------------------- */
+/* Прибирання, чек-лист, фото, передача (ТЗ 5.6–5.8)                     */
+/* -------------------------------------------------------------------- */
+
+export const HANDOVER_CALLBACK = {
+  ok: 'hv:ok:',
+  remark: 'hv:rem:',
+  note: 'hv:note',
+  photo: 'hv:ph:',
+  cannot: 'hv:cannot',
+  cannotReason: 'hv:cr:',
+  submit: 'hv:submit',
+  cancel: 'hv:cancel',
+  remarkCategory: 'hv:rc:',
+  safeYes: 'hv:safe:1',
+  safeNo: 'hv:safe:0',
+  need: 'hv:need:',
+  reviewAccept: 'hr:ok:',
+  reviewIssue: 'hr:issue:',
+  reviewCategory: 'hr:rc:',
+} as const;
+
+/** Екран чек-листа в стані HANDOVER: рядок на пункт (✅ / ⚠️), три ракурси, подання. */
+export function handoverScreen(view: HandoverView, header: string): Screen {
+  const done = view.items.filter((i) => i.answered).length;
+  const lines = [
+    header,
+    '',
+    format(t.handover.header, { zone: view.zoneName }),
+    format(t.handover.progress, { done, total: view.items.length, photos: view.photos.length }),
+  ];
+  for (const item of view.items) {
+    const mark = !item.answered ? '▫️' : item.ok ? '✅' : '⚠️';
+    const extra =
+      item.kind === 'NOTE' && item.answered
+        ? ''
+        : item.answered && !item.ok
+          ? ` · ${item.remarkText ?? ''}`
+          : '';
+    lines.push(`${mark} ${item.label}${extra}`);
+  }
+  for (const photo of view.photos) {
+    lines.push(`🖼 ${t.handover.angles[photo.angle]}: ${t.handover.quality[photo.media.quality]}`);
+  }
+  if (view.cannotCompleteReason) lines.push('', t.handover.cannotCompleteSaved);
+  if (view.status !== 'DRAFT') lines.push('', t.handover.submitted);
+  else if (view.issues.length > 0) {
+    lines.push('', t.handover.notReady);
+    const seen = new Set<string>();
+    for (const issue of view.issues) {
+      const label =
+        issue.code === 'PHOTO_MISSING'
+          ? `${t.handover.issues.PHOTO_MISSING}: ${t.handover.angles[issue.angle!]}`
+          : `${t.handover.issues[issue.code]}: ${view.items.find((i) => i.key === issue.itemKey)?.label ?? issue.itemKey}`;
+      if (!seen.has(label)) lines.push(`• ${label}`);
+      seen.add(label);
+    }
+  }
+
+  if (view.status !== 'DRAFT') return { text: lines.join('\n') };
+  const keyboard = new InlineKeyboard();
+  for (const item of view.items) {
+    if (item.kind === 'NOTE') {
+      keyboard
+        .text(item.answered ? `✍️ ${item.label} ✓` : t.handover.noteButton, HANDOVER_CALLBACK.note)
+        .row();
+      continue;
+    }
+    keyboard
+      .text(
+        `${item.answered && item.ok ? '✅' : t.handover.okButton} ${item.label}`,
+        `${HANDOVER_CALLBACK.ok}${item.key}`,
+      )
+      .text(
+        item.answered && !item.ok ? '⚠️ ✓' : t.handover.remarkButton,
+        `${HANDOVER_CALLBACK.remark}${item.key}`,
+      )
+      .row();
+  }
+  const present = new Set(view.photos.map((p) => p.angle));
+  for (const angle of HANDOVER_ANGLES) {
+    keyboard.text(
+      format(present.has(angle) ? t.handover.photoDone : t.handover.photoButton, {
+        angle: t.handover.angles[angle],
+      }),
+      `${HANDOVER_CALLBACK.photo}${angle}`,
+    );
+  }
+  keyboard.row();
+  if (view.issues.length === 0) keyboard.text(t.handover.submit, HANDOVER_CALLBACK.submit).row();
+  if (!view.cannotCompleteReason)
+    keyboard.text(t.handover.cannotComplete, HANDOVER_CALLBACK.cannot).row();
+  keyboard.text(t.shift.backToShift, SHIFT_CALLBACK.back);
+  return { text: lines.join('\n'), keyboard };
+}
+
+export function handoverPhotoPromptScreen(angle: HandoverAngle): Screen {
+  return {
+    text: format(t.handover.askPhoto, { angle: t.handover.angles[angle] }),
+    keyboard: new InlineKeyboard().text(t.handover.cancel, HANDOVER_CALLBACK.cancel),
+  };
+}
+
+export function handoverRemarkCategoryScreen(
+  itemLabel: string,
+  reasons: readonly ReasonOption[],
+): Screen {
+  const keyboard = new InlineKeyboard();
+  for (const r of reasons)
+    keyboard.text(r.label, `${HANDOVER_CALLBACK.remarkCategory}${r.code}`).row();
+  keyboard.text(t.handover.cancel, HANDOVER_CALLBACK.cancel);
+  return { text: format(t.handover.chooseRemarkCategory, { item: itemLabel }), keyboard };
+}
+
+export function handoverTextPromptScreen(text: string): Screen {
+  return { text, keyboard: new InlineKeyboard().text(t.handover.cancel, HANDOVER_CALLBACK.cancel) };
+}
+
+export function handoverSafeScreen(): Screen {
+  return {
+    text: t.handover.askSafe,
+    keyboard: new InlineKeyboard()
+      .text(t.handover.safeYes, HANDOVER_CALLBACK.safeYes)
+      .row()
+      .text(t.handover.safeNo, HANDOVER_CALLBACK.safeNo)
+      .row()
+      .text(t.handover.cancel, HANDOVER_CALLBACK.cancel),
+  };
+}
+
+export function handoverNeedsScreen(): Screen {
+  const keyboard = new InlineKeyboard();
+  for (const need of REMARK_NEEDS)
+    keyboard.text(t.handover.needs[need], `${HANDOVER_CALLBACK.need}${need}`).row();
+  keyboard.text(t.handover.needsNone, `${HANDOVER_CALLBACK.need}NONE`);
+  return { text: t.handover.askNeeds, keyboard };
+}
+
+export function cannotCompleteReasonScreen(reasons: readonly ReasonOption[]): Screen {
+  const keyboard = new InlineKeyboard();
+  for (const r of reasons)
+    keyboard.text(r.label, `${HANDOVER_CALLBACK.cannotReason}${r.code}`).row();
+  keyboard.text(t.handover.cancel, HANDOVER_CALLBACK.cancel);
+  return { text: t.handover.cannotCompleteReason, keyboard };
+}
+
+/** Приймаюча зміна: передачі, що чекають перевірки зони (FR-HND-03). */
+export function pendingHandoverScreen(
+  pending: readonly PendingHandoverView[],
+  timezone: string,
+): Screen {
+  const lines = [t.handover.pendingHeader, ''];
+  const keyboard = new InlineKeyboard();
+  for (const p of pending) {
+    lines.push(
+      format(t.handover.pendingLine, {
+        zone: p.zoneName,
+        name: p.submittedByName,
+        time: localTime(new Date(p.submittedAt), timezone),
+      }),
+    );
+    if (p.remarks > 0) lines.push(format(t.handover.pendingRemarks, { count: p.remarks }));
+    if (p.cannotComplete) lines.push(t.admin.handover.cannotComplete);
+    for (const note of p.notes) lines.push(format(t.handover.pendingNotes, { note }));
+    lines.push('');
+    keyboard
+      .text(t.handover.acceptButton, `${HANDOVER_CALLBACK.reviewAccept}${p.id}`)
+      .row()
+      .text(t.handover.issueButton, `${HANDOVER_CALLBACK.reviewIssue}${p.id}`)
+      .row();
+  }
+  keyboard.text(t.shift.backToShift, SHIFT_CALLBACK.back);
+  return { text: lines.join('\n').trim(), keyboard };
+}
+
+export function reviewCategoryScreen(reasons: readonly ReasonOption[]): Screen {
+  const keyboard = new InlineKeyboard();
+  for (const r of reasons)
+    keyboard.text(r.label, `${HANDOVER_CALLBACK.reviewCategory}${r.code}`).row();
+  keyboard.text(t.handover.cancel, HANDOVER_CALLBACK.cancel);
+  return { text: t.handover.reviewCategory, keyboard };
 }

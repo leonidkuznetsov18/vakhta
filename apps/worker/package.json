@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1127.0",
     "@vakhta/contracts": "workspace:*",
     "@vakhta/db": "workspace:*",
     "@vakhta/domain": "workspace:*",
@@ -20,6 +21,7 @@
     "grammy": "^1.46.0",
     "ioredis": "^5.6.1",
     "pino": "^9.7.0",
+    "sharp": "^0.34.5",
     "zod": "^4.0.0"
   },
   "devDependencies": {

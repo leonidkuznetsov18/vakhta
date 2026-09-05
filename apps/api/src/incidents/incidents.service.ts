@@ -21,6 +21,7 @@ import {
   shiftSessions,
   sql,
   type Database,
+  type DbOrTx,
 } from '@vakhta/db';
 import {
   OPEN_INCIDENT_STATUSES,
@@ -88,6 +89,17 @@ export class IncidentsService {
     @Inject(TIMER_SCHEDULER) private readonly timers: TimerScheduler,
     @Inject(INCIDENT_OPTIONS) private readonly options: IncidentOptions,
   ) {}
+
+  /** Активні причини виду для кнопок бота (простій, екстрений вихід, зауваження передачі). */
+  async reasonOptions(
+    kind: 'DOWNTIME' | 'EMERGENCY' | 'HANDOVER',
+  ): Promise<{ code: string; label: string }[]> {
+    return this.db
+      .select({ code: reasonCodes.code, label: reasonCodes.label })
+      .from(reasonCodes)
+      .where(and(eq(reasonCodes.kind, kind), eq(reasonCodes.isActive, true)))
+      .orderBy(asc(reasonCodes.sortOrder), asc(reasonCodes.code));
+  }
 
   /** Причина простою з довідника; null, якщо коду немає або він вимкнений. */
   async reason(
@@ -429,6 +441,80 @@ export class IncidentsService {
       at: now.toISOString(),
     });
     return (await this.view(id, now)) as IncidentView;
+  }
+
+  /**
+   * Критичне зауваження приймаючої зміни створює інцидент і сповіщає майстра (FR-HND-04).
+   * Викликається всередині транзакції передачі; SSE публікується викликачем після коміту.
+   */
+  async openFromReview(
+    tx: DbOrTx,
+    input: {
+      employeeId: string;
+      shiftSessionId: string;
+      zoneId: string;
+      reasonCode: string;
+      severity: IncidentSeverity;
+      comment: string;
+      siteId: string | null;
+      orgUnitId: string | null;
+      actor: Actor;
+      now: Date;
+    },
+  ): Promise<string> {
+    const dueAt = slaDueAt(input.now, input.severity, this.options.sla);
+    const [incident] = await tx
+      .insert(downtimeIncidents)
+      .values({
+        siteId: input.siteId,
+        orgUnitId: input.orgUnitId,
+        zoneId: input.zoneId,
+        reasonCode: input.reasonCode,
+        severity: input.severity,
+        status: 'REPORTED',
+        openedAt: input.now,
+        slaDueAt: dueAt,
+        escalatedAt: escalatesImmediately(input.severity) ? input.now : null,
+        reportsCount: 1,
+        lastComment: input.comment,
+        createdAt: input.now,
+        updatedAt: input.now,
+      })
+      .returning();
+    if (!incident) throw new Error('downtime_incidents: insert не повернув рядок');
+    await tx.insert(incidentStatusHistory).values({
+      incidentId: incident.id,
+      fromStatus: null,
+      toStatus: 'REPORTED',
+      actorType: input.actor.type,
+      actorId: input.actor.id,
+      at: input.now,
+      comment: input.comment,
+    });
+    await tx.insert(downtimeReports).values({
+      incidentId: incident.id,
+      shiftSessionId: input.shiftSessionId,
+      employeeId: input.employeeId,
+      zoneId: input.zoneId,
+      reasonCode: input.reasonCode,
+      comment: input.comment,
+      stoppedWork: false,
+      reportedAt: input.now,
+    });
+    await this.events.append(tx, {
+      type: 'INCIDENT_REPORTED',
+      source: 'TELEGRAM',
+      actor: input.actor,
+      occurredAt: input.now,
+      employeeId: input.employeeId,
+      shiftSessionId: input.shiftSessionId,
+      zoneId: input.zoneId,
+      incidentId: incident.id,
+      reasonCode: input.reasonCode,
+      comment: input.comment,
+      payload: { origin: 'HANDOVER_REVIEW', severity: input.severity },
+    });
+    return incident.id;
   }
 
   /** Уточнення причини або призначення відповідального (FR-DWN-05). */

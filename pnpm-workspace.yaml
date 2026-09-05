@@ -6,4 +6,5 @@ packages:
 # esbuild потрібен Vite і tsx; msgpackr-extract є необов'язковим прискорювачем для BullMQ.
 onlyBuiltDependencies:
   - esbuild
+  - sharp
   - msgpackr-extract

@@ -52,3 +52,13 @@ export type ListScheduleVersionsQuery = z.infer<typeof ListScheduleVersionsQuery
 
 export const IncidentSlaJob = z.object({ incidentId: Uuid, fireAt: IsoDateTime });
 export type IncidentSlaJob = z.infer<typeof IncidentSlaJob>;
+
+/** Перенесення фото з Telegram у сховище і технічна перевірка (ADR-0006). */
+export const MediaJob = z.object({ mediaObjectId: Uuid });
+export type MediaJob = z.infer<typeof MediaJob>;
+
+export const HandoverTimeoutJob = z.object({ handoverId: Uuid, fireAt: IsoDateTime });
+export type HandoverTimeoutJob = z.infer<typeof HandoverTimeoutJob>;
+
+export const CleaningReminderJob = z.object({ sessionId: Uuid, fireAt: IsoDateTime });
+export type CleaningReminderJob = z.infer<typeof CleaningReminderJob>;

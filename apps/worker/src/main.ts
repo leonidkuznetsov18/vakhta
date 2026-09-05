@@ -3,8 +3,11 @@ import { Redis } from 'ioredis';
 import { pino } from 'pino';
 import {
   AckReminderJob,
+  CleaningReminderJob,
   DowntimeEscalationJob,
+  HandoverTimeoutJob,
   IncidentSlaJob,
+  MediaJob,
   QUEUES,
   ReturnReminderJob,
   ShiftReminderJob,
@@ -14,6 +17,9 @@ import { TIMER_JOBS } from '@vakhta/domain';
 import { loadWorkerEnv } from './env.js';
 import { TelegramSender, relayOnce } from './outbox/relay.js';
 import { handleAckReminder, handleShiftReminder } from './timers/reminders.js';
+import { S3MediaStore, TelegramFileFetcher } from './media/adapters.js';
+import { processMedia } from './media/process.js';
+import { handleCleaningReminder, handleHandoverTimeout } from './timers/handover-timers.js';
 import { handleIncidentSla } from './timers/incident-sla.js';
 import { handleDowntimeEscalation, handleReturnReminder } from './timers/shift-timers.js';
 
@@ -56,6 +62,29 @@ if (sender) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Фото-пайплайн (ADR-0006)                                            */
+/* ------------------------------------------------------------------ */
+
+const mediaStore = S3MediaStore.fromEnv(env);
+const mediaDeps =
+  mediaStore && env.TELEGRAM_BOT_TOKEN
+    ? {
+        fetcher: new TelegramFileFetcher(env.TELEGRAM_BOT_TOKEN),
+        store: mediaStore,
+        options: {
+          thresholds: {
+            minWidth: env.MEDIA_MIN_WIDTH,
+            minHeight: env.MEDIA_MIN_HEIGHT,
+            minBrightness: env.MEDIA_MIN_BRIGHTNESS,
+            nearDuplicateDistance: env.MEDIA_NEAR_DUPLICATE_DISTANCE,
+          },
+          retentionDays: env.MEDIA_RETENTION_DAYS,
+        },
+      }
+    : null;
+if (!mediaDeps) logger.warn('фото-пайплайн вимкнений: потрібні S3_* і TELEGRAM_BOT_TOKEN');
+
+/* ------------------------------------------------------------------ */
 /* Черги                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -86,6 +115,16 @@ async function processTimer(job: Job): Promise<void> {
       logger.info({ job: job.name, jobId: job.id, outcome }, 'timer');
       return;
     }
+    case TIMER_JOBS.handoverTimeout: {
+      const outcome = await handleHandoverTimeout(db, HandoverTimeoutJob.parse(job.data));
+      logger.info({ job: job.name, jobId: job.id, outcome }, 'timer');
+      return;
+    }
+    case TIMER_JOBS.cleaningReminder: {
+      const outcome = await handleCleaningReminder(db, CleaningReminderJob.parse(job.data));
+      logger.info({ job: job.name, jobId: job.id, outcome }, 'timer');
+      return;
+    }
     default:
       logger.warn({ job: job.name, jobId: job.id }, 'невідомий таймер');
   }
@@ -96,7 +135,15 @@ const workers = [
   new Worker(
     QUEUES.media,
     async (job) => {
-      logger.info({ queue: QUEUES.media, jobId: job.id }, 'media: обробник зʼявиться у фазі 4');
+      if (!mediaDeps) {
+        logger.warn(
+          { jobId: job.id },
+          'media: S3 або токен бота не налаштовано, фото лишається PENDING',
+        );
+        return;
+      }
+      const outcome = await processMedia(db, mediaDeps, MediaJob.parse(job.data));
+      logger.info({ queue: QUEUES.media, jobId: job.id, outcome }, 'media');
     },
     { connection, concurrency: 2 },
   ),

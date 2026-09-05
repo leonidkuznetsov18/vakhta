@@ -34,6 +34,7 @@ function view(over: Partial<ShiftScreenView> = {}): ShiftScreenView {
     ],
     canAcceptZone: false,
     offerResumeIntoDowntime: false,
+    pendingHandovers: 0,
     downtimeReasons: [{ code: 'BREAKDOWN', label: 'Поломка' }],
     emergencyReasons: [{ code: 'HEALTH', label: 'Самочувствие' }],
     summary: null,

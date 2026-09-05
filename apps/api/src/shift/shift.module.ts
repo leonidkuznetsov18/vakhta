@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AttendanceModule } from '../attendance/attendance.module.js';
+import { HandoverRepository } from '../handover/handover.repository.js';
 import type { Env } from '../config/env.js';
 import { AdminShiftsController } from './admin-shifts.controller.js';
 import { ShiftChanges } from './shift-changes.js';
@@ -12,6 +13,7 @@ import { SHIFT_OPTIONS, ShiftService, type ShiftOptions } from './shift.service.
   providers: [
     ShiftService,
     ShiftChanges,
+    HandoverRepository,
     {
       provide: SHIFT_OPTIONS,
       useFactory: (config: ConfigService<Env, true>): ShiftOptions => ({
@@ -23,10 +25,11 @@ import { SHIFT_OPTIONS, ShiftService, type ShiftOptions } from './shift.service.
         earlyStartWindowMinutes: config.get('EARLY_START_WINDOW_MINUTES', { infer: true }),
         overtimeThresholdMinutes: config.get('OVERTIME_THRESHOLD_MINUTES', { infer: true }),
         defaultTimezone: config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
+        cleaningReminderMinutes: config.get('CLEANING_REMINDER_MINUTES', { infer: true }),
       }),
       inject: [ConfigService],
     },
   ],
-  exports: [ShiftService],
+  exports: [ShiftService, HandoverRepository],
 })
 export class ShiftModule {}

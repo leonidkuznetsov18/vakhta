@@ -21,6 +21,10 @@ export const NOTIFICATION_TEMPLATES = [
   'SHIFT_SUMMARY',
   'SHIFT_FLAGGED',
   'INCIDENT_RESOLVED',
+  'CLEANING_REMINDER',
+  'HANDOVER_PENDING',
+  'HANDOVER_REVIEWED',
+  'HANDOVER_RESOLVED',
 ] as const;
 export type NotificationTemplate = (typeof NOTIFICATION_TEMPLATES)[number];
 
@@ -34,6 +38,8 @@ export const TIMER_JOBS = {
   returnReminder: 'return-reminder',
   downtimeEscalation: 'downtime-escalation',
   incidentSla: 'incident-sla',
+  handoverTimeout: 'handover-timeout',
+  cleaningReminder: 'cleaning-reminder',
 } as const;
 
 export function shiftReminderJobId(assignmentId: string): string {
@@ -57,4 +63,14 @@ export function downtimeEscalationJobId(sessionId: string, intervalId: string): 
 /** Перевірка SLA спільного інциденту (FR-DWN-03). */
 export function incidentSlaJobId(incidentId: string): string {
   return `${TIMER_JOBS.incidentSla}.${incidentId}`;
+}
+
+/** Тайм-аут приймання: зона переходить майстру (FR-HND-06). */
+export function handoverTimeoutJobId(handoverId: string): string {
+  return `${TIMER_JOBS.handoverTimeout}.${handoverId}`;
+}
+
+/** Нагадування про прибирання перед кінцем зміни (FR-CLN-01). */
+export function cleaningReminderJobId(sessionId: string): string {
+  return `${TIMER_JOBS.cleaningReminder}.${sessionId}`;
 }

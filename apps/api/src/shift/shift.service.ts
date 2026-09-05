@@ -61,6 +61,7 @@ import { AuditLog } from '../events/audit-log.js';
 import { EventStore, type EventSource } from '../events/event-store.js';
 import { DATABASE } from '../infra/database.module.js';
 import { TIMER_SCHEDULER, type TimerScheduler } from '../infra/timers.queue.js';
+import { HandoverRepository } from '../handover/handover.repository.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ShiftChanges } from './shift-changes.js';
 
@@ -75,6 +76,8 @@ export interface ShiftOptions {
   readonly defaultTimezone: string;
   /** Скільки годин після закриття показувати екран «Після зміни» (ТЗ 5.1). */
   readonly afterShiftHours?: number;
+  /** Нагадування про прибирання до планового кінця зміни (FR-CLN-01). */
+  readonly cleaningReminderMinutes?: number;
 }
 
 export const SHIFT_OPTIONS = Symbol('SHIFT_OPTIONS');
@@ -122,6 +125,7 @@ export class ShiftService {
     private readonly changes: ShiftChanges,
     @Inject(TIMER_SCHEDULER) private readonly timers: TimerScheduler,
     @Inject(SHIFT_OPTIONS) private readonly options: ShiftOptions,
+    private readonly handovers: HandoverRepository = new HandoverRepository(),
   ) {}
 
   /* ------------------------------------------------------------------ */
@@ -182,6 +186,7 @@ export class ShiftService {
         active.zoneId !== null &&
         active.zoneAcceptedAt === null,
       offerResumeIntoDowntime,
+      pendingHandovers: 0,
       downtimeReasons,
       emergencyReasons,
       summary: recent && !active ? await this.summaryView(this.db, recent.id) : null,
@@ -347,7 +352,7 @@ export class ShiftService {
         throw error;
       }
 
-      return this.apply(
+      const applied = await this.apply(
         tx,
         session,
         {
@@ -359,6 +364,14 @@ export class ShiftService {
         { ...meta, now },
         deferred,
       );
+      // FR-CLN-01: нагадування про прибирання за N хвилин до планового кінця.
+      if (applied.ok && assignment && this.options.cleaningReminderMinutes) {
+        const fireAt = new Date(
+          assignment.planEndAt.getTime() - this.options.cleaningReminderMinutes * 60_000,
+        );
+        deferred.push(() => this.timers.scheduleCleaningReminder(session.id, fireAt));
+      }
+      return applied;
     });
     await this.afterCommit(response, deferred);
     return response;
@@ -734,16 +747,21 @@ export class ShiftService {
           summary = await this.finalize(tx, session, now);
           break;
         }
+        case 'OPEN_HANDOVER_DRAFT':
+          await this.handovers.ensureDraft(tx, session, now);
+          break;
+        case 'SUPERSEDE_HANDOVER':
+          // FR-HND-07: після повернення до роботи звіт застаріває, потрібен новий.
+          await this.handovers.supersede(tx, session.id, now);
+          break;
         case 'NOTIFY_MASTER':
         case 'FLAG_FOR_REVIEW':
           // Стан needs_clarification уже виставлено; майстер бачить це на оперативному екрані (SSE).
           break;
         case 'CANCEL_RETURN_REMINDER':
         case 'REQUIRE_DOWNTIME_REPORT':
-        case 'OPEN_HANDOVER_DRAFT':
         case 'MARK_HANDOVER_SUBMITTED':
-        case 'SUPERSEDE_HANDOVER':
-          // Скасування зроблено вище за закритим інтервалом; звіт про простій і передача — фази 3–4.
+          // Скасування зроблено вище за закритим інтервалом; звіт про простій — інциденти; подання — HandoverService.
           break;
       }
     }
@@ -823,7 +841,7 @@ export class ShiftService {
     return view;
   }
 
-  /** Факти для guard-ів машини (ТЗ 4.4). Передача до фази 4 вважається повною лише без зони. */
+  /** Факти для guard-ів машини (ТЗ 4.4): присутність, зона, поданий звіт передачі (FR-TIME-04). */
   private async context(
     tx: DbOrTx,
     session: SessionRow,
@@ -835,7 +853,8 @@ export class ShiftService {
       presenceConfirmed: presence !== null,
       masterOverride: meta.masterOverride === true,
       zoneAccepted: session.zoneId === null || session.zoneAcceptedAt !== null,
-      handoverComplete: session.zoneId === null,
+      handoverComplete:
+        session.zoneId === null || (await this.handovers.hasSubmitted(tx, session.id)),
       ...(cmd?.reasonCode !== undefined ? { reasonCode: cmd.reasonCode } : {}),
       ...(cmd?.resumeIntoDowntime !== undefined
         ? { resumeIntoDowntime: cmd.resumeIntoDowntime }

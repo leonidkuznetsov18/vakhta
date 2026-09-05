@@ -9,14 +9,20 @@ import {
   isValidStartParam,
   normalizeActivationCode,
 } from '@vakhta/domain';
-import { SHIFT_ACTIONS, type ShiftAction } from '@vakhta/domain';
-import { messages } from '@vakhta/i18n';
+import {
+  SHIFT_ACTIONS,
+  HANDOVER_ANGLES,
+  type HandoverAngle,
+  type ShiftAction,
+} from '@vakhta/domain';
+import { format, messages } from '@vakhta/i18n';
 import { employeeActor } from '../common/actor.js';
 import type { AttendanceService } from '../attendance/attendance.service.js';
 import type { ActivationService } from '../identity/activation.service.js';
 import type { EmployeesService } from '../identity/employees.service.js';
 import type { ScheduleService } from '../scheduling/schedule.service.js';
 import type { ShiftService } from '../shift/shift.service.js';
+import type { HandoverService } from '../handover/handover.service.js';
 import type { IncidentsService } from '../incidents/incidents.service.js';
 import type { ShortTermStore } from '../infra/short-term-store.js';
 import type { BotContext } from './bot-context.js';
@@ -29,18 +35,47 @@ import {
   checkInPromptScreen,
   checkInResultScreen,
   homeScreen,
+  cannotCompleteReasonScreen,
+  handoverNeedsScreen,
+  handoverPhotoPromptScreen,
+  handoverRemarkCategoryScreen,
+  handoverSafeScreen,
+  handoverScreen,
+  handoverTextPromptScreen,
   incidentCommentScreen,
   incidentPhotoScreen,
   incidentReasonScreen,
   incidentResultScreen,
   incidentStoppedScreen,
+  pendingHandoverScreen,
   planScreen,
   reasonPickerScreen,
+  reviewCategoryScreen,
   shiftScreen,
   welcomeScreen,
   type Screen,
 } from './screens.js';
 import type { UpdateDedup } from './update-dedup.js';
+
+/** Незавершені кроки передачі й приймання; живуть у Redis поруч із повідомленням про проблему. */
+type PendingHandover =
+  | { readonly kind: 'photo'; readonly angle: HandoverAngle }
+  | { readonly kind: 'note' }
+  | {
+      readonly kind: 'remark';
+      readonly itemKey: string;
+      readonly step: 'category' | 'text' | 'safe' | 'needs';
+      readonly category?: string;
+      readonly text?: string;
+      readonly safeToWork?: boolean;
+    }
+  | {
+      readonly kind: 'review';
+      readonly handoverId: string;
+      readonly step: 'category' | 'comment' | 'photo';
+      readonly category?: string;
+      readonly comment?: string;
+    };
 
 /** Незавершене повідомлення про проблему живе в Redis, не в памʼяті процесу (ADR-11). */
 interface PendingReport {
@@ -64,6 +99,7 @@ export interface BotDeps {
   readonly attendance: AttendanceService;
   readonly shift: ShiftService;
   readonly incidents: IncidentsService;
+  readonly handover: HandoverService;
   readonly store: ShortTermStore;
   readonly dedup: UpdateDedup;
   readonly defaultTimezone: string;
@@ -118,12 +154,14 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         ? welcomeScreen()
         : accessDeniedScreen(ctx.access);
     }
-    const [next, unacknowledged, presence, shift] = await Promise.all([
+    const [next, unacknowledged, presence, shiftRaw, pendingHandovers] = await Promise.all([
       deps.schedule.nextShift(ctx.employee.id),
       deps.schedule.unacknowledgedVersions(ctx.employee.id),
       deps.attendance.openPresence(ctx.employee.id),
       deps.shift.screen(ctx.employee.id),
+      deps.handover.pendingForReceiver(ctx.employee.id),
     ]);
+    const shift = { ...shiftRaw, pendingHandovers: pendingHandovers.length };
     const timezone = next?.timezone ?? deps.defaultTimezone;
     const home = homeScreen({
       employee: ctx.employee,
@@ -347,6 +385,232 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await show(ctx, await buildHome(ctx));
   });
 
+  // Прибирання і передача (ТЗ 5.6–5.8): чек-лист, фото, подання; приймання наступною зміною.
+  const hvKey = (telegramUserId: number) => `handover:pending:${telegramUserId}`;
+  async function readHv(ctx: BotContext): Promise<PendingHandover | null> {
+    if (!ctx.from) return null;
+    const raw = await deps.store.get(hvKey(ctx.from.id));
+    return raw ? (JSON.parse(raw) as PendingHandover) : null;
+  }
+  async function writeHv(ctx: BotContext, pending: PendingHandover): Promise<void> {
+    if (ctx.from)
+      await deps.store.set(hvKey(ctx.from.id), JSON.stringify(pending), PENDING_TTL_SECONDS);
+  }
+  async function clearHv(ctx: BotContext): Promise<void> {
+    if (ctx.from) await deps.store.del(hvKey(ctx.from.id));
+  }
+  async function showHandover(ctx: BotContext): Promise<void> {
+    if (!ctx.employee) return;
+    const view = await deps.handover.current(ctx.employee.id);
+    if (!view) return edit(ctx, await buildHome(ctx));
+    await edit(ctx, handoverScreen(view, ''));
+  }
+  async function handoverReasons(): Promise<{ code: string; label: string }[]> {
+    return deps.incidents.reasonOptions('HANDOVER');
+  }
+  function guardEmployee(
+    ctx: BotContext,
+  ): ctx is BotContext & { employee: NonNullable<BotContext['employee']> } {
+    return ctx.access === 'ALLOWED' && ctx.employee !== null;
+  }
+
+  bot.callbackQuery(/^hv:open$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
+    await showHandover(ctx);
+  });
+
+  bot.callbackQuery(/^hv:ok:([A-Z_]{2,64})$/, async (ctx) => {
+    if (!guardEmployee(ctx)) return ctx.answerCallbackQuery();
+    try {
+      await deps.handover.answer(
+        ctx.employee.id,
+        { itemKey: ctx.match[1] ?? '', ok: true },
+        employeeActor(ctx.employee.id),
+      );
+      await ctx.answerCallbackQuery();
+    } catch (error) {
+      deps.logger.warn({ err: error }, 'відповідь чек-листа відхилено');
+      await ctx.answerCallbackQuery({ text: t.errors.ACTION_NOT_ALLOWED, show_alert: true });
+    }
+    await showHandover(ctx);
+  });
+
+  bot.callbackQuery(/^hv:rem:([A-Z_]{2,64})$/, async (ctx) => {
+    if (!guardEmployee(ctx)) return ctx.answerCallbackQuery();
+    await ctx.answerCallbackQuery();
+    const view = await deps.handover.current(ctx.employee.id);
+    const item = view?.items.find((i) => i.key === ctx.match[1]);
+    if (!view || !item) return showHandover(ctx);
+    await writeHv(ctx, { kind: 'remark', itemKey: item.key, step: 'category' });
+    await edit(ctx, handoverRemarkCategoryScreen(item.label, await handoverReasons()));
+  });
+
+  bot.callbackQuery(/^hv:rc:([A-Z][A-Z0-9_]{1,63})$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const pending = await readHv(ctx);
+    if (pending?.kind !== 'remark') return showHandover(ctx);
+    await writeHv(ctx, { ...pending, category: ctx.match[1] ?? '', step: 'text' });
+    await edit(ctx, handoverTextPromptScreen(t.handover.askRemarkText));
+  });
+
+  bot.callbackQuery(/^hv:safe:(1|0)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const pending = await readHv(ctx);
+    if (pending?.kind !== 'remark') return showHandover(ctx);
+    await writeHv(ctx, { ...pending, safeToWork: ctx.match[1] === '1', step: 'needs' });
+    await edit(ctx, handoverNeedsScreen());
+  });
+
+  bot.callbackQuery(/^hv:need:(MASTER|CLEANING|REPAIR|NONE)$/, async (ctx) => {
+    if (!guardEmployee(ctx)) return ctx.answerCallbackQuery();
+    const pending = await readHv(ctx);
+    if (pending?.kind !== 'remark') {
+      await ctx.answerCallbackQuery();
+      return showHandover(ctx);
+    }
+    const need = ctx.match[1];
+    try {
+      await deps.handover.answer(
+        ctx.employee.id,
+        {
+          itemKey: pending.itemKey,
+          ok: false,
+          ...(pending.category ? { remarkCategory: pending.category } : {}),
+          ...(pending.text ? { remarkText: pending.text } : {}),
+          ...(pending.safeToWork !== undefined ? { safeToWork: pending.safeToWork } : {}),
+          needs: need && need !== 'NONE' ? [need as 'MASTER' | 'CLEANING' | 'REPAIR'] : [],
+        },
+        employeeActor(ctx.employee.id),
+      );
+      await ctx.answerCallbackQuery({ text: t.handover.remarkSaved });
+    } catch (error) {
+      deps.logger.warn({ err: error }, 'зауваження відхилено');
+      await ctx.answerCallbackQuery({ text: t.errors.ACTION_NOT_ALLOWED, show_alert: true });
+    }
+    await clearHv(ctx);
+    await showHandover(ctx);
+  });
+
+  bot.callbackQuery(/^hv:note$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
+    await writeHv(ctx, { kind: 'note' });
+    await edit(ctx, handoverTextPromptScreen(t.handover.askNote));
+  });
+
+  bot.callbackQuery(/^hv:ph:(OVERVIEW|SURFACES|FLOOR)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
+    const angle = ctx.match[1] as HandoverAngle;
+    if (!HANDOVER_ANGLES.includes(angle)) return;
+    await writeHv(ctx, { kind: 'photo', angle });
+    await edit(ctx, handoverPhotoPromptScreen(angle));
+  });
+
+  bot.callbackQuery(/^hv:cannot$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
+    await edit(ctx, cannotCompleteReasonScreen(await handoverReasons()));
+  });
+
+  bot.callbackQuery(/^hv:cr:([A-Z][A-Z0-9_]{1,63})$/, async (ctx) => {
+    if (!guardEmployee(ctx)) return ctx.answerCallbackQuery();
+    try {
+      await deps.handover.cannotComplete(
+        ctx.employee.id,
+        { reasonCode: ctx.match[1] ?? '' },
+        employeeActor(ctx.employee.id),
+      );
+      await ctx.answerCallbackQuery({ text: t.handover.cannotCompleteSaved, show_alert: true });
+    } catch (error) {
+      // «Другое» вимагає коментар: просимо текст, збережемо через pending
+      deps.logger.debug({ err: error }, 'причина потребує коментаря');
+      await ctx.answerCallbackQuery();
+      await writeHv(ctx, {
+        kind: 'remark',
+        itemKey: `CANNOT:${ctx.match[1]}`,
+        step: 'text',
+        category: ctx.match[1] ?? '',
+      });
+      return edit(ctx, handoverTextPromptScreen(t.incidents.askComment));
+    }
+    await showHandover(ctx);
+  });
+
+  bot.callbackQuery(/^hv:submit$/, async (ctx) => {
+    if (!guardEmployee(ctx)) return ctx.answerCallbackQuery();
+    try {
+      const result = await deps.handover.submit(
+        ctx.employee.id,
+        { idempotencyKey: `tg:${ctx.update.update_id}` },
+        employeeActor(ctx.employee.id),
+      );
+      await ctx.answerCallbackQuery({
+        text: result.ok ? t.handover.submitted : t.handover.notReady,
+        show_alert: !result.ok,
+      });
+      if (!result.ok) return edit(ctx, handoverScreen(result.handover, ''));
+    } catch (error) {
+      deps.logger.warn({ err: error }, 'подання звіту відхилено');
+      await ctx.answerCallbackQuery({ text: t.errors.ACTION_NOT_ALLOWED, show_alert: true });
+    }
+    await edit(ctx, await buildHome(ctx));
+  });
+
+  bot.callbackQuery(/^hv:cancel$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await clearHv(ctx);
+    if (!guardEmployee(ctx)) return;
+    const view = await deps.handover.current(ctx.employee.id);
+    await edit(ctx, view ? handoverScreen(view, '') : await buildHome(ctx));
+  });
+
+  // Приймання наступною зміною (FR-HND-03/04).
+  bot.callbackQuery(/^hr:open$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
+    const pending = await deps.handover.pendingForReceiver(ctx.employee.id);
+    if (pending.length === 0) return edit(ctx, await buildHome(ctx));
+    await edit(ctx, pendingHandoverScreen(pending, deps.defaultTimezone));
+  });
+
+  bot.callbackQuery(/^hr:ok:([0-9a-f-]{36})$/, async (ctx) => {
+    if (!guardEmployee(ctx)) return ctx.answerCallbackQuery();
+    try {
+      await deps.handover.review(
+        ctx.employee.id,
+        ctx.match[1] ?? '',
+        { decision: 'ACCEPTED', idempotencyKey: `tg:${ctx.update.update_id}` },
+        employeeActor(ctx.employee.id),
+      );
+      await ctx.answerCallbackQuery({ text: t.handover.reviewAccepted });
+    } catch (error) {
+      deps.logger.warn({ err: error }, 'приймання відхилено');
+      const code = (error as { code?: string }).code;
+      await ctx.answerCallbackQuery({
+        text: code === 'REVIEW_OWN_HANDOVER' ? t.handover.reviewOwn : t.errors.ACTION_NOT_ALLOWED,
+        show_alert: true,
+      });
+    }
+    await edit(ctx, await buildHome(ctx));
+  });
+
+  bot.callbackQuery(/^hr:issue:([0-9a-f-]{36})$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
+    await writeHv(ctx, { kind: 'review', handoverId: ctx.match[1] ?? '', step: 'category' });
+    await edit(ctx, reviewCategoryScreen(await handoverReasons()));
+  });
+
+  bot.callbackQuery(/^hr:rc:([A-Z][A-Z0-9_]{1,63})$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const pending = await readHv(ctx);
+    if (pending?.kind !== 'review') return edit(ctx, await buildHome(ctx));
+    await writeHv(ctx, { ...pending, category: ctx.match[1] ?? '', step: 'comment' });
+    await edit(ctx, handoverTextPromptScreen(t.handover.reviewComment));
+  });
+
   bot.callbackQuery(/^sh:([A-Z_]+):(\d+)(?::([A-Z][A-Z0-9_]{1,63}))?$/, async (ctx) => {
     if (ctx.access !== 'ALLOWED' || !ctx.employee) {
       await ctx.answerCallbackQuery({ text: t.bot.access.NOT_REGISTERED, show_alert: true });
@@ -419,18 +683,102 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       const comment = ctx.message.text.trim().slice(0, 2000);
       return nextStep(ctx, { ...pending, comment, step: pending.requiresPhoto ? 'photo' : 'stop' });
     }
+    const hv = await readHv(ctx);
+    if (hv && ctx.employee) {
+      const text = ctx.message.text.trim().slice(0, 2000);
+      if (hv.kind === 'note') {
+        await deps.handover.answer(
+          ctx.employee.id,
+          { itemKey: 'MESSAGE_NEXT', ok: true, note: text },
+          employeeActor(ctx.employee.id),
+        );
+        await clearHv(ctx);
+        const view = await deps.handover.current(ctx.employee.id);
+        return show(ctx, view ? handoverScreen(view, '') : await buildHome(ctx));
+      }
+      if (hv.kind === 'remark' && hv.step === 'text') {
+        if (hv.itemKey.startsWith('CANNOT:')) {
+          await deps.handover.cannotComplete(
+            ctx.employee.id,
+            { reasonCode: hv.itemKey.slice('CANNOT:'.length), comment: text },
+            employeeActor(ctx.employee.id),
+          );
+          await clearHv(ctx);
+          const view = await deps.handover.current(ctx.employee.id);
+          return show(ctx, view ? handoverScreen(view, '') : await buildHome(ctx));
+        }
+        await writeHv(ctx, { ...hv, text, step: 'safe' });
+        return show(ctx, handoverSafeScreen());
+      }
+      if (hv.kind === 'review' && hv.step === 'comment') {
+        await writeHv(ctx, { ...hv, comment: text, step: 'photo' });
+        return show(ctx, handoverTextPromptScreen(t.handover.reviewPhoto));
+      }
+    }
     await show(ctx, await buildHome(ctx));
   });
 
   bot.on('message:photo', async (ctx) => {
+    const largest = ctx.message.photo[ctx.message.photo.length - 1];
     const pending = await readPending(ctx);
     if (pending?.step === 'photo') {
-      const largest = ctx.message.photo[ctx.message.photo.length - 1];
       return nextStep(ctx, {
         ...pending,
         ...(largest ? { photoFileId: largest.file_id } : {}),
         step: 'stop',
       });
+    }
+    const hv = await readHv(ctx);
+    if (hv && ctx.employee && largest) {
+      if (hv.kind === 'photo') {
+        try {
+          const view = await deps.handover.attachPhoto(
+            ctx.employee.id,
+            {
+              angle: hv.angle,
+              telegramFileId: largest.file_id,
+              telegramFileUniqueId: largest.file_unique_id,
+              ...(largest.file_size !== undefined ? { sizeBytes: largest.file_size } : {}),
+              width: largest.width,
+              height: largest.height,
+            },
+            employeeActor(ctx.employee.id),
+          );
+          await clearHv(ctx);
+          await show(ctx, {
+            text: format(t.handover.photoSaved, { angle: t.handover.angles[hv.angle] }),
+          });
+          return show(ctx, handoverScreen(view, ''));
+        } catch (error) {
+          deps.logger.warn({ err: error }, 'фото передачі відхилено');
+          await clearHv(ctx);
+          return show(ctx, await buildHome(ctx));
+        }
+      }
+      if (hv.kind === 'review' && hv.step === 'photo') {
+        try {
+          await deps.handover.review(
+            ctx.employee.id,
+            hv.handoverId,
+            {
+              decision: 'ISSUE',
+              ...(hv.category ? { category: hv.category } : {}),
+              ...(hv.comment ? { comment: hv.comment } : {}),
+              telegramFileId: largest.file_id,
+              telegramFileUniqueId: largest.file_unique_id,
+              idempotencyKey: `tg:${ctx.update.update_id}`,
+            },
+            employeeActor(ctx.employee.id),
+          );
+          await clearHv(ctx);
+          await show(ctx, { text: t.handover.reviewIssueSaved });
+        } catch (error) {
+          deps.logger.warn({ err: error }, 'зауваження приймаючого відхилено');
+          await clearHv(ctx);
+          await show(ctx, { text: t.errors.ACTION_NOT_ALLOWED });
+        }
+        return show(ctx, await buildHome(ctx));
+      }
     }
     await show(ctx, { text: t.bot.useButtons });
   });
