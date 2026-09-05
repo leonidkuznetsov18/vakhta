@@ -29,6 +29,13 @@
       "when": 1788643846186,
       "tag": "0003_web_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788645355218,
+      "tag": "0004_scheduling_outbox",
+      "breakpoints": true
     }
   ]
 }

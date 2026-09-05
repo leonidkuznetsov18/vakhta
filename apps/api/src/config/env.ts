@@ -35,6 +35,14 @@ export const EnvSchema = z.object({
   ACTIVATION_PEPPER: z.string().min(16),
   ACTIVATION_TTL_HOURS: z.coerce.number().int().positive().default(72),
   ACTIVATION_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+  /** Правила графіка (ТЗ 3.2, 18 п. 4): значення для пілоту, уточнюються замовником. */
+  SCHEDULE_MIN_REST_MINUTES: z.coerce.number().int().positive().default(660),
+  SCHEDULE_MAX_HOURS_PER_MONTH: z.coerce.number().int().positive().default(200),
+  SCHEDULE_MAX_CONSECUTIVE_DAYS: z.coerce.number().int().positive().default(4),
+  /** Нагадування «зміна скоро» (ТЗ 10): за 2 години. */
+  SHIFT_REMINDER_MINUTES: z.coerce.number().int().positive().default(120),
+  /** Повторне нагадування про ознайомлення (ТЗ 10). */
+  ACK_REMINDER_HOURS: z.coerce.number().int().positive().default(24),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

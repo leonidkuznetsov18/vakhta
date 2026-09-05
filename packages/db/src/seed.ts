@@ -11,6 +11,7 @@ import {
   qrTerminals,
   reasonCodes,
   responsibilityZones,
+  shiftTemplates,
   sites,
   teams,
 } from './schema/index.js';
@@ -161,8 +162,32 @@ async function ensureTerminal(siteId: string, name: string, deviceToken: string)
   return row!;
 }
 
+async function ensureTemplate(
+  siteId: string,
+  code: string,
+  name: string,
+  localStart: string,
+  localEnd: string,
+  isNight: boolean,
+) {
+  const [existing] = await db
+    .select()
+    .from(shiftTemplates)
+    .where(and(eq(shiftTemplates.siteId, siteId), eq(shiftTemplates.code, code)))
+    .limit(1);
+  if (existing) return existing;
+  const [row] = await db
+    .insert(shiftTemplates)
+    .values({ siteId, code, name, localStart, localEnd, isNight })
+    .returning();
+  return row!;
+}
+
 async function main(): Promise<void> {
   const site = await ensureSite();
+  // ТЗ 18 п. 3: денна 08:00–20:00, нічна 20:00–08:00.
+  await ensureTemplate(site.id, 'DAY', 'Дневная смена', '08:00', '20:00', false);
+  await ensureTemplate(site.id, 'NIGHT', 'Ночная смена', '20:00', '08:00', true);
   const filling = await ensureOrgUnit(site.id, 'Цех фасовки');
   const packaging = await ensureOrgUnit(site.id, 'Цех упаковки');
   await ensureTeam(filling.id, 'Бригада А');

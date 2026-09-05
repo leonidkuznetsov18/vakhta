@@ -1,8 +1,17 @@
 import { InlineKeyboard } from 'grammy';
-import { maskFullName, maskPersonnelNumber, type EmployeeAccess } from '@vakhta/domain';
+import {
+  addMonths,
+  businessDateOf,
+  formatLocal,
+  maskFullName,
+  maskPersonnelNumber,
+  type EmployeeAccess,
+} from '@vakhta/domain';
+import type { MyPlanView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import type { ActivationOutcome, ActivationPreview } from '../identity/activation.service.js';
 import type { EmployeeRecord } from '../identity/employees.service.js';
+import type { NextShift } from '../scheduling/schedule.service.js';
 
 export interface Screen {
   readonly text: string;
@@ -12,22 +21,106 @@ export interface Screen {
 export const CALLBACK = {
   activationConfirm: 'act:ok',
   activationCancel: 'act:no',
+  planPrefix: 'plan:',
+  ackPrefix: 'ack:',
+  ackAll: 'ack:all',
 } as const;
 
 const t = messages('ru');
 
-/** Головний екран для зареєстрованого працівника. Дії зʼявляться разом із графіком і зміною. */
-export function homeScreen(employee: EmployeeRecord): Screen {
-  return {
-    text: [
-      format(t.bot.home, {
-        name: maskFullName(employee.fullName),
-        personnelNumber: maskPersonnelNumber(employee.personnelNumber),
+function localTime(instant: Date, timezone: string): string {
+  return formatLocal(instant, timezone).local.slice(11, 16);
+}
+
+function localDate(instant: Date, timezone: string): string {
+  const d = formatLocal(instant, timezone).local.slice(0, 10);
+  const [, m, day] = d.split('-');
+  return `${day}.${m}`;
+}
+
+function weekdayShort(date: string): string {
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return t.schedule.weekdaysShort[day === 0 ? 6 : day - 1] ?? '';
+}
+
+export interface HomeInput {
+  readonly employee: EmployeeRecord;
+  readonly next: NextShift | null;
+  readonly unacknowledged: number;
+}
+
+/** Головний екран (ТЗ 5.1, контекст «до зміни»): найближча зміна, план, ознайомлення. */
+export function homeScreen(input: HomeInput): Screen {
+  const lines = [
+    format(t.bot.home, {
+      name: maskFullName(input.employee.fullName),
+      personnelNumber: maskPersonnelNumber(input.employee.personnelNumber),
+    }),
+    '',
+  ];
+  if (input.next) {
+    const tz = input.next.timezone;
+    lines.push(
+      format(t.schedule.nextShift, {
+        date: localDate(input.next.planStartAt, tz),
+        weekday: weekdayShort(businessDateOf(input.next.planStartAt, tz)),
+        kind: t.schedule.kindNames[input.next.isNight ? 'NIGHT' : 'DAY'],
+        start: localTime(input.next.planStartAt, tz),
+        end: localTime(input.next.planEndAt, tz),
+        zone: input.next.zoneName ? ` · ${input.next.zoneName}` : '',
       }),
+    );
+  } else {
+    lines.push(t.schedule.noNextShift);
+  }
+  if (input.unacknowledged > 0) lines.push('', t.schedule.ackRequired);
+
+  const keyboard = new InlineKeyboard().text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`);
+  if (input.unacknowledged > 0) keyboard.row().text(t.schedule.ackButton, CALLBACK.ackAll);
+  return { text: lines.join('\n'), keyboard };
+}
+
+/** «Мій план» за місяць (FR-SCH-01): компактний календар з підсумками й навігацією. */
+export function planScreen(plan: MyPlanView): Screen {
+  const [year, m] = plan.month.split('-');
+  const monthName = t.schedule.months[Number(m) - 1] ?? plan.month;
+  const lines = [format(t.schedule.planHeader, { month: monthName, year: year ?? '' }), ''];
+
+  if (plan.totals.shifts === 0) {
+    lines.push(format(t.schedule.planEmpty, { month: monthName, year: year ?? '' }));
+  } else {
+    for (const day of plan.days) {
+      const dd = day.date.slice(8, 10);
+      const wd = t.schedule.weekdaysShort[day.weekday - 1] ?? '';
+      if (!day.assignment) {
+        lines.push(`${dd} ${wd}  ${t.schedule.dayKinds.OFF}`);
+        continue;
+      }
+      const a = day.assignment;
+      const start = localTime(new Date(a.planStartAt), plan.timezone);
+      const end = localTime(new Date(a.planEndAt), plan.timezone);
+      const zone = a.zoneName ? ` · ${a.zoneName}` : '';
+      const mark = a.acknowledged ? '' : ' •';
+      lines.push(`${dd} ${wd}  ${t.schedule.dayKinds[day.kind]} ${start}–${end}${zone}${mark}`);
+    }
+    lines.push(
       '',
-      t.bot.homeNoSchedule,
-    ].join('\n'),
-  };
+      format(t.schedule.planTotals, {
+        shifts: plan.totals.shifts,
+        hours: Math.round(plan.totals.plannedMinutes / 60),
+        day: plan.totals.dayShifts,
+        night: plan.totals.nightShifts,
+      }),
+    );
+    if (plan.unacknowledgedVersionIds.length > 0) lines.push(t.schedule.ackRequired);
+  }
+
+  const keyboard = new InlineKeyboard()
+    .text(t.schedule.prevMonth, `${CALLBACK.planPrefix}${addMonths(plan.month, -1)}`)
+    .text(t.schedule.nextMonth, `${CALLBACK.planPrefix}${addMonths(plan.month, 1)}`);
+  if (plan.unacknowledgedVersionIds.length > 0)
+    keyboard.row().text(t.schedule.ackButton, CALLBACK.ackAll);
+  return { text: lines.join('\n'), keyboard };
 }
 
 export function welcomeScreen(): Screen {

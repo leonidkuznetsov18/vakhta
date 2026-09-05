@@ -58,6 +58,24 @@ pnpm --filter api auth:bootstrap -- --email admin@example.com --password 'дов
 
 Далі користувачів і ролі створює адміністратор у панелі або через `POST /admin/users`. Ролі за ТЗ 2: `ADMIN`, `PRODUCTION_HEAD`, `HR`, `PLANNER`, `SHIFT_MASTER`, `CLEANLINESS_CONTROLLER`, `ACCOUNTANT`, `AUDITOR`; кожна з областю `ENTERPRISE`, `SITE`, `ORG_UNIT`, `TEAM` або `ZONE`. `AUTH_SECRET` у `.env` підписує cookie і шифрує TOTP-секрети, його зміна розлогінює всіх.
 
+## Графік змін
+
+Модуль `apps/api/src/scheduling` реалізує ТЗ 3: версії графіка на місяць для підрозділу з життєвим циклом `DRAFT → IN_REVIEW → PUBLISHED → SUPERSEDED`. Планувальник (`PLANNER`) створює чернетку і надсилає весь місяць одним `PUT /admin/schedules/:id/assignments`; сервер обчислює планові моменти за IANA-поясом майданчика і валідує перетини, відпочинок між змінами (`SCHEDULE_MIN_REST_MINUTES`), дублі, ліміти годин і баланс день/ніч, враховуючи вже опубліковані зміни тих самих працівників у інших підрозділах. Помилки блокують `submit` і `publish`; попередження лише показуються. Публікує начальник виробництва (`PRODUCTION_HEAD`) або `ADMIN`: попередня версія стає `SUPERSEDED`, працівники з привʼязаним Telegram отримують повідомлення з кнопкою «Ознакомлен», а в чергу `timers` ставляться нагадування «зміна скоро» і повторне нагадування про ознайомлення.
+
+```bash
+# чернетка на місяць
+curl -b cookies.txt -X POST localhost:3000/admin/schedules -H 'content-type: application/json' \
+  -d '{"siteId":"<site>","orgUnitId":"<unit>","periodMonth":"2026-10"}'
+# призначення (шаблони: GET /admin/schedules/templates?siteId=<site>)
+curl -b cookies.txt -X PUT localhost:3000/admin/schedules/<id>/assignments -H 'content-type: application/json' \
+  -d '{"items":[{"employeeId":"<emp>","templateId":"<DAY>","businessDate":"2026-10-01","zoneId":"<zone>"}]}'
+curl -b cookies.txt -X POST localhost:3000/admin/schedules/<id>/submit
+curl -b cookies.txt -X POST localhost:3000/admin/schedules/<id>/publish -H 'content-type: application/json' -d '{}'
+curl -b cookies.txt localhost:3000/admin/schedules/<id>/acknowledgements
+```
+
+У боті працівник бачить «Мой план» (команда `/plan` або кнопка): календар місяця з денними і нічними змінами, зонами й підсумком годин, і підтверджує ознайомлення кнопкою. Воркер опитує `notification_outbox` кожні `OUTBOX_POLL_MS` і шле повідомлення через Bot API з повторами; без `TELEGRAM_BOT_TOKEN` релей вимкнений і рядки чекають у `PENDING`.
+
 ## Активація працівника в боті
 
 Потік ТЗ 2.2 реалізовано у `apps/api/src/identity`. Ендпоінти доступні ролям `ADMIN` і `HR` після входу в панель (cookie сесії).

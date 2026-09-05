@@ -7,8 +7,11 @@ import { HealthModule } from './health/health.module.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { DatabaseModule } from './infra/database.module.js';
 import { RedisModule } from './infra/redis.module.js';
+import { QueueModule } from './infra/timers.queue.js';
 import { KioskModule } from './kiosk/kiosk.module.js';
+import { NotificationsModule } from './notifications/notifications.service.js';
 import { OrgModule } from './org/org.module.js';
+import { SchedulingModule } from './scheduling/scheduling.module.js';
 import { TelegramModule } from './telegram/telegram.module.js';
 
 @Module({
@@ -20,11 +23,14 @@ import { TelegramModule } from './telegram/telegram.module.js';
     }),
     DatabaseModule,
     RedisModule,
+    QueueModule,
     EventsModule,
+    NotificationsModule,
     AuthModule,
     HealthModule,
     OrgModule,
     IdentityModule,
+    SchedulingModule,
     KioskModule,
     TelegramModule,
   ],

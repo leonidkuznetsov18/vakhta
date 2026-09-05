@@ -7,6 +7,7 @@ import type { Env } from '../config/env.js';
 import { ActivationService } from '../identity/activation.service.js';
 import { EmployeesService } from '../identity/employees.service.js';
 import { createLogger } from '../logger.js';
+import { ScheduleService } from '../scheduling/schedule.service.js';
 import type { BotContext } from './bot-context.js';
 import { createBot } from './bot.factory.js';
 import { UpdateDedup } from './update-dedup.js';
@@ -24,6 +25,7 @@ export class TelegramService implements OnModuleInit {
     private readonly config: ConfigService<Env, true>,
     private readonly employees: EmployeesService,
     private readonly activation: ActivationService,
+    private readonly schedule: ScheduleService,
     private readonly dedup: UpdateDedup,
   ) {
     this.logger = createLogger({
@@ -41,6 +43,8 @@ export class TelegramService implements OnModuleInit {
     const bot = createBot(token, {
       employees: this.employees,
       activation: this.activation,
+      schedule: this.schedule,
+      defaultTimezone: this.config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
       logger: this.logger,
     });
     await bot.init();

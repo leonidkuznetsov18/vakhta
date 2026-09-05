@@ -4,6 +4,7 @@ import type {
   ShiftAction,
   ShiftState,
   TransitionErrorCode,
+  ValidationIssueCode,
   WebRole,
 } from '@vakhta/domain';
 
@@ -39,6 +40,38 @@ export interface Messages {
   readonly states: Readonly<Record<ShiftState, string>>;
   readonly errors: Readonly<Record<TransitionErrorCode, string>>;
   readonly roles: Readonly<Record<WebRole, string>>;
+  readonly schedule: {
+    /** Назви місяців у називному відмінку, індекс 0 = січень. */
+    readonly months: readonly string[];
+    /** Короткі дні тижня, індекс 0 = понеділок. */
+    readonly weekdaysShort: readonly string[];
+    readonly dayKinds: Readonly<Record<'DAY' | 'NIGHT' | 'OFF', string>>;
+    readonly kindNames: Readonly<Record<'DAY' | 'NIGHT', string>>;
+    /** Плейсхолдери: {month}, {year} */
+    readonly planHeader: string;
+    /** Плейсхолдери: {shifts}, {hours}, {day}, {night} */
+    readonly planTotals: string;
+    readonly planEmpty: string;
+    readonly myPlanButton: string;
+    readonly prevMonth: string;
+    readonly nextMonth: string;
+    readonly ackButton: string;
+    readonly ackDone: string;
+    readonly ackNothing: string;
+    readonly ackRequired: string;
+    /** Плейсхолдери: {date}, {weekday}, {kind}, {start}, {end}, {zone} */
+    readonly nextShift: string;
+    readonly noNextShift: string;
+    /** Плейсхолдери: {month}, {year}, {shifts} */
+    readonly published: string;
+    /** Плейсхолдери: {month}, {year}, {added}, {removed}, {changed} */
+    readonly changed: string;
+    /** Плейсхолдери: {kind}, {date}, {start}, {zone} */
+    readonly shiftReminder: string;
+    /** Плейсхолдери: {month}, {year} */
+    readonly ackReminder: string;
+    readonly issues: Readonly<Record<ValidationIssueCode, string>>;
+  };
   readonly admin: {
     readonly productName: string;
     readonly sections: Readonly<
