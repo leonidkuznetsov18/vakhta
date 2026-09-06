@@ -1,3 +1,9 @@
+## [0.7.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.7.0...v0.7.1) (2026-09-06)
+
+### Bug fixes
+
+* **handover:** the checklist opens for every shift, with or without a zone ([8b6cf06](https://github.com/leonidkuznetsov18/vakhta/commit/8b6cf06fac47e9393fa5f7823c7c69f087b2422f))
+
 ## [0.7.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.6.0...v0.7.0) (2026-09-06)
 
 ### Features
