@@ -41,8 +41,10 @@ import {
   DEFAULT_BONUS_RULES,
   evaluateShift,
   handoverDecisionFrom,
+  reviewSuggestion,
   scoreMonth,
   scoreShift,
+  withScoreAdjustments,
   type BonusCriterion,
   type BonusRules,
   type CriterionResult,
@@ -50,6 +52,9 @@ import {
 } from '@vakhta/domain';
 import type {
   AdjustScoreCommand,
+  CancelAdjustmentCommand,
+  ReviewScoreCommand,
+  UpdateAdjustmentCommand,
   AdjustmentView,
   BonusPeriodView,
   BonusRuleVersionView,
@@ -284,6 +289,7 @@ export class BonusService implements OnModuleInit {
             )
         : [];
       let results: CriterionResult[] = excludedReason ? [] : evaluateShift(rule.rules, inputs);
+      const scoreLevel = adjustments.filter((a) => a.criterion === null).map((a) => a.delta);
       if (!excludedReason) {
         results = results.map((r) => {
           const delta = adjustments
@@ -321,28 +327,44 @@ export class BonusService implements OnModuleInit {
         )
         .digest('hex');
       const score = excludedReason ? null : scoreShift(rule.rules, results);
-      const status = excludedReason
-        ? 'NOT_EVALUATED'
-        : appealed
-          ? 'APPEALED'
-          : score?.status === 'manual_review'
-            ? 'MANUAL_REVIEW'
-            : score?.status === 'preliminary'
-              ? 'PENDING'
-              : 'PRELIMINARY';
+      // A manual review (spec 7.6) settles a shift the rules cannot score: the master's number
+      // stands in for the computed one, or the shift leaves the month.
+      const reviewed = score?.status === 'manual_review' ? existing : null;
+      const excludedByReview = reviewed?.reviewDecision === 'EXCLUDE';
+      const manualScore =
+        reviewed?.reviewDecision === 'SCORE' && reviewed.manualScore !== null
+          ? reviewed.manualScore
+          : null;
+      const computedScore = manualScore ?? score?.score ?? null;
+      const finalScore =
+        computedScore === null || scoreLevel.length === 0
+          ? computedScore
+          : withScoreAdjustments(computedScore, scoreLevel);
+      const status =
+        excludedReason || excludedByReview
+          ? 'NOT_EVALUATED'
+          : appealed
+            ? 'APPEALED'
+            : score?.status === 'manual_review' && manualScore === null
+              ? 'MANUAL_REVIEW'
+              : score?.status === 'preliminary'
+                ? 'PENDING'
+                : 'PRELIMINARY';
       const values = {
         shiftSessionId: sessionId,
         employeeId: session.employeeId,
         businessDate: session.businessDate,
         ruleVersionId: rule.id,
         status,
-        score: score?.score ?? null,
+        score: status === 'NOT_EVALUATED' ? null : finalScore,
         applicableMax: score?.applicableMaxPoints ?? 0,
         earned: score?.earnedPoints ?? 0,
         plannedMinutes,
         inputsHash,
         computedAt: now,
-        excludedReason,
+        excludedReason:
+          excludedReason ??
+          (excludedByReview ? `MANUAL_REVIEW:${reviewed?.reviewComment ?? ''}` : null),
       } as const;
       const [row] = await tx
         .insert(bonusShiftScores)
@@ -692,12 +714,16 @@ export class BonusService implements OnModuleInit {
     const threshold =
       rule?.rules.secondApprovalThreshold ?? DEFAULT_BONUS_RULES.secondApprovalThreshold;
     const needsSecond = cmd.delta < 0 && Math.abs(cmd.delta) > threshold;
+    if (score.status === 'CONFIRMED') {
+      throw new DomainError('PERIOD_CLOSED', 409, 'The period is closed; the score is confirmed');
+    }
+    const criterion = cmd.criterion ?? null;
     await this.db.transaction(async (tx) => {
       const [row] = await tx
         .insert(bonusAdjustments)
         .values({
           scoreId,
-          criterion: cmd.criterion,
+          criterion,
           delta: cmd.delta,
           reasonCode: cmd.reasonCode,
           comment: cmd.comment,
@@ -716,24 +742,230 @@ export class BonusService implements OnModuleInit {
         shiftSessionId: score.shiftSessionId,
         reasonCode: cmd.reasonCode,
         comment: cmd.comment,
-        payload: { adjustmentId: row?.id, criterion: cmd.criterion, delta: cmd.delta, needsSecond },
+        payload: { adjustmentId: row?.id, criterion, delta: cmd.delta, needsSecond },
       });
       await this.audit.record(tx, {
         actor,
         action: 'bonus.adjust',
         objectType: 'bonus_shift_score',
         objectId: scoreId,
-        after: { criterion: cmd.criterion, delta: cmd.delta, needsSecond },
+        after: { adjustmentId: row?.id, criterion, delta: cmd.delta, needsSecond },
         reason: `${cmd.reasonCode}: ${cmd.comment}`,
       });
+      // The employee learns about the points at once; a penalty over the threshold waits for
+      // the second approval and is announced when it applies.
+      if (!needsSecond) {
+        await this.notifications.enqueue(tx, {
+          recipientType: 'EMPLOYEE',
+          recipientId: score.employeeId,
+          template: 'BONUS_ADJUSTED',
+          payload: (t) => ({
+            text: format(
+              cmd.delta > 0 ? t.bonus.bonusAddedNotification : t.bonus.bonusRemovedNotification,
+              {
+                points: Math.abs(cmd.delta),
+                date: score.businessDate,
+                comment: cmd.comment,
+              },
+            ),
+          }),
+          dedupeKey: `bonus-adjusted:${row?.id}`,
+        });
+      }
     });
-    if (score.status === 'CONFIRMED') {
-      // Після закриття періоду коригування лишається окремою проводкою (FR-COR-05); підсумок не переписується.
-      return (await this.scoreView(this.db, scoreId))!;
-    }
     return (
       (await this.evaluate(score.shiftSessionId, now)) ?? (await this.scoreView(this.db, scoreId))!
     );
+  }
+
+  /** Changes the points, reason or comment of an adjustment while the period is open. */
+  async updateAdjustment(
+    adjustmentId: string,
+    cmd: UpdateAdjustmentCommand,
+    actor: Actor,
+    now: Date = new Date(),
+  ): Promise<ShiftScoreView> {
+    const { adjustment, score } = await this.requireOpenAdjustment(adjustmentId);
+    const patch = {
+      ...(cmd.delta !== undefined ? { delta: cmd.delta } : {}),
+      ...(cmd.reasonCode !== undefined ? { reasonCode: cmd.reasonCode } : {}),
+      ...(cmd.comment !== undefined ? { comment: cmd.comment } : {}),
+    };
+    if (Object.keys(patch).length === 0) return (await this.scoreView(this.db, score.id))!;
+    const [rule] = await this.db
+      .select()
+      .from(bonusRuleVersions)
+      .where(eq(bonusRuleVersions.id, score.ruleVersionId))
+      .limit(1);
+    const threshold =
+      rule?.rules.secondApprovalThreshold ?? DEFAULT_BONUS_RULES.secondApprovalThreshold;
+    const delta = cmd.delta ?? adjustment.delta;
+    const needsSecond = delta < 0 && Math.abs(delta) > threshold;
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(bonusAdjustments)
+        .set({
+          ...patch,
+          status: needsSecond ? 'PENDING_SECOND' : 'APPLIED',
+          secondApproverId: null,
+          decidedAt: needsSecond ? null : now,
+        })
+        .where(eq(bonusAdjustments.id, adjustment.id));
+      await this.events.append(tx, {
+        type: 'BONUS_ADJUSTMENT_UPDATED',
+        source: 'WEB',
+        actor,
+        occurredAt: now,
+        employeeId: score.employeeId,
+        shiftSessionId: score.shiftSessionId,
+        payload: { adjustmentId: adjustment.id, ...patch, needsSecond },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'bonus.adjustment.update',
+        objectType: 'bonus_adjustment',
+        objectId: adjustment.id,
+        before: {
+          delta: adjustment.delta,
+          reasonCode: adjustment.reasonCode,
+          comment: adjustment.comment,
+        },
+        after: patch,
+      });
+    });
+    return (
+      (await this.evaluate(score.shiftSessionId, now)) ?? (await this.scoreView(this.db, score.id))!
+    );
+  }
+
+  /** Withdraws an adjustment; the row stays as history with the reason, the score is recomputed. */
+  async cancelAdjustment(
+    adjustmentId: string,
+    cmd: CancelAdjustmentCommand,
+    actor: Actor,
+    now: Date = new Date(),
+  ): Promise<ShiftScoreView> {
+    const { adjustment, score } = await this.requireOpenAdjustment(adjustmentId);
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(bonusAdjustments)
+        .set({ status: 'CANCELLED', decidedAt: now })
+        .where(eq(bonusAdjustments.id, adjustment.id));
+      await this.events.append(tx, {
+        type: 'BONUS_ADJUSTMENT_CANCELLED',
+        source: 'WEB',
+        actor,
+        occurredAt: now,
+        employeeId: score.employeeId,
+        shiftSessionId: score.shiftSessionId,
+        comment: cmd.reason,
+        payload: { adjustmentId: adjustment.id, delta: adjustment.delta },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'bonus.adjustment.cancel',
+        objectType: 'bonus_adjustment',
+        objectId: adjustment.id,
+        before: { delta: adjustment.delta, status: adjustment.status },
+        reason: cmd.reason,
+      });
+    });
+    return (
+      (await this.evaluate(score.shiftSessionId, now)) ?? (await this.scoreView(this.db, score.id))!
+    );
+  }
+
+  /**
+   * Finishes the manual review of a shift the rules could not score (spec 7.6): the master
+   * either sets the score or excludes the shift from the month. Both are audited and the
+   * employee is told.
+   */
+  async review(
+    scoreId: string,
+    cmd: ReviewScoreCommand,
+    actor: Actor,
+    now: Date = new Date(),
+  ): Promise<ShiftScoreView> {
+    const [score] = await this.db
+      .select()
+      .from(bonusShiftScores)
+      .where(eq(bonusShiftScores.id, scoreId))
+      .limit(1);
+    if (!score) throw new DomainError('SCORE_NOT_FOUND', 404, 'Score not found');
+    if (score.status === 'CONFIRMED') {
+      throw new DomainError('PERIOD_CLOSED', 409, 'The period is closed; the score is confirmed');
+    }
+    if (score.status !== 'MANUAL_REVIEW' && score.reviewDecision === null) {
+      throw new DomainError('REVIEW_NOT_NEEDED', 409, 'The shift is scored by the rules');
+    }
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(bonusShiftScores)
+        .set({
+          reviewDecision: cmd.decision,
+          manualScore: cmd.decision === 'SCORE' ? (cmd.score ?? null) : null,
+          reviewedBy: actor.id,
+          reviewedAt: now,
+          reviewComment: cmd.comment,
+        })
+        .where(eq(bonusShiftScores.id, scoreId));
+      await this.events.append(tx, {
+        type: 'BONUS_SCORE_REVIEWED',
+        source: 'WEB',
+        actor,
+        occurredAt: now,
+        employeeId: score.employeeId,
+        shiftSessionId: score.shiftSessionId,
+        comment: cmd.comment,
+        payload: { scoreId, decision: cmd.decision, score: cmd.score ?? null },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'bonus.review',
+        objectType: 'bonus_shift_score',
+        objectId: scoreId,
+        before: { status: score.status, score: score.score },
+        after: { decision: cmd.decision, score: cmd.score ?? null },
+        reason: cmd.comment,
+      });
+      await this.notifications.enqueue(tx, {
+        recipientType: 'EMPLOYEE',
+        recipientId: score.employeeId,
+        template: 'BONUS_REVIEWED',
+        payload: (t) => ({
+          text: format(
+            cmd.decision === 'SCORE' ? t.bonus.reviewedNotification : t.bonus.excludedNotification,
+            { date: score.businessDate, score: cmd.score ?? 0, comment: cmd.comment },
+          ),
+        }),
+        dedupeKey: `bonus-reviewed:${scoreId}:${now.getTime()}`,
+      });
+    });
+    return (
+      (await this.evaluate(score.shiftSessionId, now)) ?? (await this.scoreView(this.db, scoreId))!
+    );
+  }
+
+  private async requireOpenAdjustment(adjustmentId: string) {
+    const [adjustment] = await this.db
+      .select()
+      .from(bonusAdjustments)
+      .where(eq(bonusAdjustments.id, adjustmentId))
+      .limit(1);
+    if (!adjustment) throw new DomainError('ADJUSTMENT_NOT_FOUND', 404, 'Adjustment not found');
+    if (adjustment.status === 'CANCELLED' || adjustment.status === 'REJECTED') {
+      throw new DomainError('ADJUSTMENT_DECIDED', 409, 'The adjustment is already withdrawn');
+    }
+    const [score] = await this.db
+      .select()
+      .from(bonusShiftScores)
+      .where(eq(bonusShiftScores.id, adjustment.scoreId))
+      .limit(1);
+    if (!score) throw new DomainError('SCORE_NOT_FOUND', 404, 'Score not found');
+    if (score.status === 'CONFIRMED') {
+      throw new DomainError('PERIOD_CLOSED', 409, 'The period is closed; the score is confirmed');
+    }
+    return { adjustment, score };
   }
 
   async secondApprove(
@@ -1167,6 +1399,14 @@ export class BonusService implements OnModuleInit {
       ruleLabel: row.label,
       computedAt: row.s.computedAt.toISOString(),
       excludedReason: row.s.excludedReason,
+      reviewDecision: row.s.reviewDecision as ShiftScoreView['reviewDecision'],
+      manualScore: row.s.manualScore,
+      reviewComment: row.s.reviewComment,
+      reviewedAt: row.s.reviewedAt?.toISOString() ?? null,
+      reviewSuggestedScore:
+        row.s.status === 'MANUAL_REVIEW'
+          ? reviewSuggestion(row.s.earned, row.s.applicableMax)
+          : null,
       criteria: criteria
         .map((c): CriterionResultView => ({
           criterion: c.criterion as BonusCriterion,
@@ -1226,7 +1466,7 @@ function aggregate(scores: readonly ScoreRow[]) {
 function toAdjustmentView(a: typeof bonusAdjustments.$inferSelect): AdjustmentView {
   return {
     id: a.id,
-    criterion: a.criterion as BonusCriterion,
+    criterion: (a.criterion as BonusCriterion | null) ?? null,
     delta: a.delta,
     reasonCode: a.reasonCode,
     comment: a.comment,

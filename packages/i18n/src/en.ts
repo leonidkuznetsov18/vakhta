@@ -396,6 +396,10 @@ export const en: Messages = {
     manualReview: 'manual review',
     appealButton: 'Appeal',
     appealHint: 'You have {days} working days to appeal. Describe what you disagree with.',
+    bonusAddedNotification: 'You received +{points} points for the shift {date}: {comment}',
+    bonusRemovedNotification: '{points} points were taken from your shift {date}: {comment}',
+    reviewedNotification: 'The shift {date} was scored by the master: {score} of 100. {comment}',
+    excludedNotification: 'The shift {date} is excluded from the bonus: {comment}',
     appealSubmitted: 'The appeal was sent to the unit manager.',
     detailsButton: 'Details',
     periodClosed: 'Period {month} is closed. Your coefficient: {score} of 100.',
@@ -799,6 +803,64 @@ export const en: Messages = {
       recompute: 'Recompute',
       recomputed: 'Recomputed.',
       empty: 'No evaluated shifts for the period.',
+      summary: 'Month summary',
+      employeesCount: 'Employees',
+      onReview: 'Waiting for manual review',
+      secondPending: 'Waiting for the second approval',
+      periodStatuses: { OPEN: 'Open', CLOSING: 'Closing', CLOSED: 'Closed' },
+      periodHelp: {
+        OPEN: 'Shift points are computed automatically and follow the decisions. Add or take points, finish manual reviews, then close the period.',
+        CLOSING: 'The period is closing: wait for it to finish.',
+        CLOSED:
+          'Points are confirmed and do not change. HR sets the bonus base, accounting exports the CSV.',
+      },
+      leaderboard: 'Best of the month',
+      rank: '#',
+      noLeaderboard: 'No scored shifts yet: the rating appears after the first closed shifts.',
+      detailTitle: 'Shifts and points',
+      addPoints: 'Add or take points',
+      pointsDialog: 'Points for a shift',
+      pointsKind: 'What to do',
+      pointsKinds: { BONUS: 'Add (reward)', PENALTY: 'Take (violation)' },
+      pointsAmount: 'How many points',
+      shift: 'Shift',
+      advanced: 'Advanced',
+      criterionOptional: 'Criterion (optional)',
+      wholeScore: 'The shift score as a whole',
+      editAdjustment: 'Edit',
+      deleteAdjustment: 'Delete',
+      deleteConfirm: 'Delete the adjustment {delta}? The shift points are recomputed.',
+      deleted: 'Adjustment deleted.',
+      adjustmentStatuses: {
+        PENDING_SECOND: 'Waiting for the second approval',
+        APPLIED: 'Applied',
+        REJECTED: 'Rejected',
+        CANCELLED: 'Deleted',
+      },
+      finishReview: 'Finish the review',
+      reviewTitle: 'Manual review of a shift',
+      reviewExplain:
+        'The rules cannot score this shift automatically: only {applicable} of 100 points apply. Not applicable: {missing}. Set the score yourself or exclude the shift from the month.',
+      reviewDecision: 'Decision',
+      reviewDecisions: { SCORE: 'Set a score', EXCLUDE: 'Exclude the shift from the calculation' },
+      reviewScore: 'Shift score (0–100)',
+      reviewSuggested: 'The points earned come to {score}.',
+      reviewed: 'Review finished.',
+      reviewedBadge: 'Scored by hand: {score}',
+      statusHelp: {
+        PRELIMINARY: 'Points are computed and may still change until the period closes.',
+        PENDING:
+          'Some criteria wait for a decision: photo check, zone acceptance or an open request.',
+        MANUAL_REVIEW:
+          'The rules cannot score the shift: too few criteria apply. A manual review is needed.',
+        APPEALED: 'The employee appealed; the points wait for the decision.',
+        CONFIRMED: 'Points confirmed by the period close.',
+        NOT_EVALUATED: 'The shift is excluded from the calculation.',
+      },
+      adjustmentsTitle: 'Adjustments',
+      noAdjustments: 'No adjustments.',
+      secondThresholdHint:
+        'Taking more than the threshold of the rules (10 points by default) applies after a second manager confirms it.',
     },
     reports: {
       kinds: {
@@ -1302,6 +1364,13 @@ export const en: Messages = {
       bonusSecond: 'Adjustments waiting for a second manager approval.',
       bonusRecompute:
         'Recompute the shift from current data, for example after a dispute decision.',
+      bonusPoints:
+        'Adding puts points on the shift score (up to 100), taking removes them. The employee gets a bot message with the reason.',
+      bonusReview:
+        'A manual review is needed when a shift ran without a schedule or a checklist and the rules do not collect enough applicable criteria. The master score replaces the calculation; an excluded shift does not affect the month.',
+      bonusLeaderboard:
+        'Rating by the month S: the weighted average of shift scores, over scored shifts.',
+      bonusStatus: 'What the shift status means and what to do with it.',
       reportsKind: 'The six MVP reports. There are no "who rested least" rankings by design.',
       reportsExport: 'The export carries the data version and generation time and is audited.',
       reportsDataVersion:

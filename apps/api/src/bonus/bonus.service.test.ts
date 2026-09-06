@@ -18,6 +18,7 @@ import {
   sql,
 } from '@vakhta/db';
 import { DEFAULT_ATTENDANCE_WINDOW } from '@vakhta/domain';
+import { DEFAULT_BONUS_RULES } from '@vakhta/domain';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor } from '../common/actor.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -304,6 +305,120 @@ describe('bonus: оцінка зміни, коригування, закритт
     expect(applied.criteria.find((c) => c.criterion === 'DOWNTIME_PROCESS')?.earnedPoints).toBe(5);
     const period = await bonus.period(siteId, month);
     expect(period.pendingAdjustments).toHaveLength(0);
+  });
+
+  it('plain bonus and penalty on the score: added, edited, withdrawn; the employee is told', async () => {
+    const sessionId = await fullShift();
+    const view = (await bonus.evaluate(sessionId))!;
+    expect(view.score).toBe(100);
+    // a penalty on the score itself (no criterion), below the second-approval threshold
+    const penalised = await bonus.adjust(
+      view.id,
+      {
+        delta: -8,
+        reasonCode: 'MASTER_REVIEW',
+        comment: 'Оставил рабочее место без предупреждения',
+      },
+      MASTER,
+    );
+    expect(penalised.score).toBe(92);
+    expect(penalised.adjustments).toHaveLength(1);
+    expect(penalised.adjustments[0]).toMatchObject({
+      criterion: null,
+      delta: -8,
+      status: 'APPLIED',
+    });
+    // editing the penalty recomputes the score at once while it stays below the threshold
+    const penalty = penalised.adjustments[0]!;
+    const edited = await bonus.updateAdjustment(
+      penalty.id,
+      { delta: -5, comment: 'Уточнено после разбора' },
+      MASTER,
+    );
+    expect(edited.score).toBe(95);
+    expect(edited.adjustments.find((a) => a.id === penalty.id)).toMatchObject({
+      delta: -5,
+      comment: 'Уточнено после разбора',
+      status: 'APPLIED',
+    });
+    // a bonus for good use of the app
+    const rewarded = await bonus.adjust(
+      view.id,
+      { delta: 2, reasonCode: 'MASTER_REVIEW', comment: 'Все отметки через бот, отчёт с фото' },
+      MASTER,
+    );
+    expect(rewarded.score).toBe(97);
+    const notes = await testDb.db.select().from(notificationOutbox);
+    const texts = notes.filter((n) => n.template === 'BONUS_ADJUSTED').map((n) => n.payload.text);
+    expect(texts.some((t) => t.includes('снято 8 баллов'))).toBe(true);
+    expect(texts.some((t) => t.includes('+2 баллов'))).toBe(true);
+    // withdrawing the bonus leaves the row as history
+    const reward = rewarded.adjustments.find((a) => a.delta === 2)!;
+    const withdrawn = await bonus.cancelAdjustment(reward.id, { reason: 'Ошибочно' }, MASTER);
+    expect(withdrawn.adjustments.find((a) => a.id === reward.id)?.status).toBe('CANCELLED');
+    expect(withdrawn.score).toBe(95);
+    await expect(bonus.updateAdjustment(reward.id, { delta: 1 }, MASTER)).rejects.toMatchObject({
+      code: 'ADJUSTMENT_DECIDED',
+    });
+    // a penalty edited beyond the threshold goes back to the second-approval queue
+    const escalated = await bonus.updateAdjustment(penalty.id, { delta: -20 }, MASTER);
+    expect(escalated.adjustments.find((a) => a.id === penalty.id)?.status).toBe('PENDING_SECOND');
+    expect(escalated.score).toBe(100);
+  });
+
+  it('manual review (7.6): the master sets the score of a shift the rules cannot score, or excludes it', async () => {
+    const sessionId = await fullShift();
+    const view = (await bonus.evaluate(sessionId))!;
+    // the rules scored this shift, so there is nothing to review
+    await expect(
+      bonus.review(view.id, { decision: 'SCORE', score: 50, comment: 'x' }, MASTER),
+    ).rejects.toMatchObject({ code: 'REVIEW_NOT_NEEDED' });
+    // a rule version that demands more applicable points than a zone-less shift can offer
+    await bonus.createRuleVersion(
+      {
+        label: 'strict',
+        validFrom: new Date(Date.now() - 24 * 3_600_000).toISOString(),
+        rules: { ...DEFAULT_BONUS_RULES, minApplicablePoints: 80 },
+      },
+      HEAD,
+    );
+    const strict = (await bonus.evaluate(sessionId))!;
+    expect(strict).toMatchObject({
+      status: 'MANUAL_REVIEW',
+      score: null,
+      reviewSuggestedScore: 100,
+    });
+    const scored = await bonus.review(
+      strict.id,
+      { decision: 'SCORE', score: 90, comment: 'Смена без графика, работа выполнена' },
+      MASTER,
+    );
+    expect(scored).toMatchObject({
+      status: 'PRELIMINARY',
+      score: 90,
+      reviewDecision: 'SCORE',
+      manualScore: 90,
+    });
+    // a plain bonus applies on top of the manual score
+    const rewarded = await bonus.adjust(
+      scored.id,
+      { delta: 5, reasonCode: 'MASTER_REVIEW', comment: 'Помог сменщику' },
+      MASTER,
+    );
+    expect(rewarded.score).toBe(95);
+    const excluded = await bonus.review(
+      scored.id,
+      { decision: 'EXCLUDE', comment: 'Тестовая смена' },
+      MASTER,
+    );
+    expect(excluded).toMatchObject({
+      status: 'NOT_EVALUATED',
+      score: null,
+      reviewDecision: 'EXCLUDE',
+    });
+    expect(excluded.excludedReason).toContain('Тестовая смена');
+    const notes = await testDb.db.select().from(notificationOutbox);
+    expect(notes.filter((n) => n.template === 'BONUS_REVIEWED')).toHaveLength(2);
   });
 
   it('відкрита апеляція робить оцінку APPEALED; затверджена відпустка виключає зміну (T-35)', async () => {

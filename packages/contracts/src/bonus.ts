@@ -22,14 +22,22 @@ export const CriterionResultView = z.object({
 });
 export type CriterionResultView = z.infer<typeof CriterionResultView>;
 
+export const AdjustmentStatusSchema = z.enum([
+  'PENDING_SECOND',
+  'APPLIED',
+  'REJECTED',
+  'CANCELLED',
+]);
+
 export const AdjustmentView = z.object({
   id: Uuid,
-  criterion: CriterionSchema,
+  /** null: a plain bonus or penalty on the shift score, not tied to a criterion. */
+  criterion: CriterionSchema.nullable(),
   delta: z.number().int(),
   reasonCode: z.string(),
   comment: z.string(),
   authorId: z.string().nullable(),
-  status: z.enum(['PENDING_SECOND', 'APPLIED', 'REJECTED']),
+  status: AdjustmentStatusSchema,
   secondApproverId: z.string().nullable(),
   createdAt: IsoDateTime,
 });
@@ -51,18 +59,60 @@ export const ShiftScoreView = z.object({
   ruleLabel: z.string(),
   computedAt: IsoDateTime,
   excludedReason: z.string().nullable(),
+  /** Manual review (spec 7.6): the decision of the master when the rules could not score the shift. */
+  reviewDecision: z.enum(['SCORE', 'EXCLUDE']).nullable(),
+  manualScore: z.number().int().nullable(),
+  reviewComment: z.string().nullable(),
+  reviewedAt: IsoDateTime.nullable(),
+  /** Default for the review dialog: the share of points earned among the criteria that applied. */
+  reviewSuggestedScore: z.number().int().nullable(),
   criteria: z.array(CriterionResultView),
   adjustments: z.array(AdjustmentView),
 });
 export type ShiftScoreView = z.infer<typeof ShiftScoreView>;
 
+/** Points added to or taken from a shift: on the score itself, or on one criterion (advanced). */
 export const AdjustScoreCommand = z.object({
-  criterion: CriterionSchema,
-  delta: z.number().int().min(-100).max(100),
+  criterion: CriterionSchema.nullable().optional(),
+  delta: z
+    .number()
+    .int()
+    .min(-100)
+    .max(100)
+    .refine((d) => d !== 0, { message: 'delta must not be zero' }),
   reasonCode: ReasonCode,
   comment: z.string().trim().min(3).max(2000),
 });
 export type AdjustScoreCommand = z.infer<typeof AdjustScoreCommand>;
+
+export const UpdateAdjustmentCommand = z.object({
+  delta: z
+    .number()
+    .int()
+    .min(-100)
+    .max(100)
+    .refine((d) => d !== 0, { message: 'delta must not be zero' })
+    .optional(),
+  reasonCode: ReasonCode.optional(),
+  comment: z.string().trim().min(3).max(2000).optional(),
+});
+export type UpdateAdjustmentCommand = z.infer<typeof UpdateAdjustmentCommand>;
+
+export const CancelAdjustmentCommand = z.object({ reason: z.string().trim().min(3).max(2000) });
+export type CancelAdjustmentCommand = z.infer<typeof CancelAdjustmentCommand>;
+
+/** Finishes a manual review: a score for the shift, or its exclusion from the month. */
+export const ReviewScoreCommand = z
+  .object({
+    decision: z.enum(['SCORE', 'EXCLUDE']),
+    score: z.number().int().min(0).max(100).optional(),
+    comment: z.string().trim().min(3).max(2000),
+  })
+  .refine((c) => c.decision !== 'SCORE' || c.score !== undefined, {
+    message: 'score is required for SCORE',
+    path: ['score'],
+  });
+export type ReviewScoreCommand = z.infer<typeof ReviewScoreCommand>;
 
 export const SecondApprovalCommand = z.object({
   decision: z.enum(['APPROVED', 'REJECTED']),

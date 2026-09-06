@@ -386,7 +386,9 @@ import type {
   AdjustScoreCommand,
   BonusPeriodView,
   BonusRuleVersionView,
+  ReviewScoreCommand,
   SecondApprovalCommand,
+  UpdateAdjustmentCommand,
   SetBaseAmountsCommand,
   ShiftScoreView,
 } from '@vakhta/contracts';
@@ -401,6 +403,18 @@ export const bonusApi = {
     post<ShiftScoreView>(`/admin/bonus/scores/${scoreId}/adjust`, cmd),
   second: (adjustmentId: string, cmd: SecondApprovalCommand) =>
     post<ShiftScoreView>(`/admin/bonus/adjustments/${adjustmentId}/second`, cmd),
+  review: (scoreId: string, cmd: ReviewScoreCommand) =>
+    post<ShiftScoreView>(`/admin/bonus/scores/${scoreId}/review`, cmd),
+  updateAdjustment: (adjustmentId: string, cmd: UpdateAdjustmentCommand) =>
+    apiFetch<ShiftScoreView>(`/admin/bonus/adjustments/${adjustmentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(cmd),
+    }),
+  cancelAdjustment: (adjustmentId: string, reason: string) =>
+    apiFetch<ShiftScoreView>(`/admin/bonus/adjustments/${adjustmentId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ reason }),
+    }),
   close: (siteId: string, month: string, comment: string) =>
     post<BonusPeriodView>(`/admin/bonus/period/${siteId}/${month}/close`, { comment }),
   setBase: (periodId: string, cmd: SetBaseAmountsCommand) =>

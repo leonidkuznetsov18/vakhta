@@ -1,5 +1,7 @@
 import {
   Body,
+  Delete,
+  Patch,
   Controller,
   Get,
   Header,
@@ -12,6 +14,9 @@ import {
 } from '@nestjs/common';
 import {
   AdjustScoreCommand,
+  CancelAdjustmentCommand,
+  ReviewScoreCommand,
+  UpdateAdjustmentCommand,
   BonusMonthQuery,
   ClosePeriodCommand,
   CreateRuleVersionCommand,
@@ -85,6 +90,38 @@ export class AdminBonusController {
     @CurrentUser() user: WebUser,
   ): Promise<ShiftScoreView> {
     return this.bonus.adjust(scoreId, body, webUserActor(user));
+  }
+
+  @Post('scores/:scoreId/review')
+  @HttpCode(200)
+  @Roles('ADMIN', 'PRODUCTION_HEAD', 'SHIFT_MASTER')
+  review(
+    @Param('scoreId', ParseUUIDPipe) scoreId: string,
+    @Body(new ZodValidationPipe(ReviewScoreCommand)) body: ReviewScoreCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ShiftScoreView> {
+    return this.bonus.review(scoreId, body, webUserActor(user));
+  }
+
+  @Patch('adjustments/:id')
+  @Roles('ADMIN', 'PRODUCTION_HEAD', 'SHIFT_MASTER')
+  updateAdjustment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateAdjustmentCommand)) body: UpdateAdjustmentCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ShiftScoreView> {
+    return this.bonus.updateAdjustment(id, body, webUserActor(user));
+  }
+
+  @Delete('adjustments/:id')
+  @HttpCode(200)
+  @Roles('ADMIN', 'PRODUCTION_HEAD', 'SHIFT_MASTER')
+  cancelAdjustment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(CancelAdjustmentCommand)) body: CancelAdjustmentCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ShiftScoreView> {
+    return this.bonus.cancelAdjustment(id, body, webUserActor(user));
   }
 
   @Post('adjustments/:id/second')

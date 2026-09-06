@@ -273,6 +273,12 @@ export interface Messages {
     readonly appealButton: string;
     /** Placeholder: {days} */
     readonly appealHint: string;
+    /** Placeholders: {points}, {date}, {comment} */
+    readonly bonusAddedNotification: string;
+    readonly bonusRemovedNotification: string;
+    /** Placeholders: {date}, {score}, {comment} */
+    readonly reviewedNotification: string;
+    readonly excludedNotification: string;
     readonly appealSubmitted: string;
     readonly detailsButton: string;
     /** Placeholders: {month}, {score} */
@@ -644,6 +650,54 @@ export interface Messages {
       readonly recompute: string;
       readonly recomputed: string;
       readonly empty: string;
+      readonly summary: string;
+      readonly employeesCount: string;
+      readonly onReview: string;
+      readonly secondPending: string;
+      readonly periodStatuses: Readonly<Record<'OPEN' | 'CLOSING' | 'CLOSED', string>>;
+      readonly periodHelp: Readonly<Record<'OPEN' | 'CLOSING' | 'CLOSED', string>>;
+      readonly leaderboard: string;
+      readonly rank: string;
+      readonly noLeaderboard: string;
+      readonly detailTitle: string;
+      readonly addPoints: string;
+      readonly pointsDialog: string;
+      readonly pointsKind: string;
+      readonly pointsKinds: Readonly<Record<'BONUS' | 'PENALTY', string>>;
+      readonly pointsAmount: string;
+      readonly shift: string;
+      readonly advanced: string;
+      readonly criterionOptional: string;
+      readonly wholeScore: string;
+      readonly editAdjustment: string;
+      readonly deleteAdjustment: string;
+      /** Placeholder: {delta} */
+      readonly deleteConfirm: string;
+      readonly deleted: string;
+      readonly adjustmentStatuses: Readonly<
+        Record<'PENDING_SECOND' | 'APPLIED' | 'REJECTED' | 'CANCELLED', string>
+      >;
+      readonly finishReview: string;
+      readonly reviewTitle: string;
+      /** Placeholders: {applicable}, {missing} */
+      readonly reviewExplain: string;
+      readonly reviewDecision: string;
+      readonly reviewDecisions: Readonly<Record<'SCORE' | 'EXCLUDE', string>>;
+      readonly reviewScore: string;
+      /** Placeholder: {score} */
+      readonly reviewSuggested: string;
+      readonly reviewed: string;
+      /** Placeholder: {score} */
+      readonly reviewedBadge: string;
+      readonly statusHelp: Readonly<
+        Record<
+          'PRELIMINARY' | 'PENDING' | 'MANUAL_REVIEW' | 'APPEALED' | 'CONFIRMED' | 'NOT_EVALUATED',
+          string
+        >
+      >;
+      readonly adjustmentsTitle: string;
+      readonly noAdjustments: string;
+      readonly secondThresholdHint: string;
     };
     readonly reports: {
       readonly kinds: Readonly<
@@ -1004,6 +1058,10 @@ export interface Messages {
       readonly bonusAdjust: string;
       readonly bonusSecond: string;
       readonly bonusRecompute: string;
+      readonly bonusPoints: string;
+      readonly bonusReview: string;
+      readonly bonusLeaderboard: string;
+      readonly bonusStatus: string;
       readonly reportsKind: string;
       readonly reportsExport: string;
       readonly reportsDataVersion: string;

@@ -19,3 +19,15 @@ The same log under the same rules version always gives the same result. Changing
 ## Rejected alternatives
 
 Calculation in SQL views: hard to version and test. Storing only the total without criteria: the employee cannot see the basis of a reduction, an appeal is impossible.
+
+## Amendment 2026-09-06: manual review and score-level adjustments
+
+Pilot feedback: masters could not tell how to finish a manual review or how to add and take points.
+A shift the rules cannot score (`applicableMax` below `minApplicablePoints`, typically a shift without
+a schedule and without a checklist) is settled by an explicit review: the master sets the score
+(default: the share of points earned among the applicable criteria) or excludes the shift; the
+decision is stored on the score row and re-applied on every recompute until the period closes. An
+adjustment without a criterion applies to the shift score as a whole (clamped to 0–100) and is the
+default way to reward or penalise; per-criterion adjustments remain for corrections of a specific
+criterion. Adjustments can be edited and withdrawn (`CANCELLED`, kept as history) while the period is
+open; the second-approval rule is re-evaluated on edit. Employees are notified of both.

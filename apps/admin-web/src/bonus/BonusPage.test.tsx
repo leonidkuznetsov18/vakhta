@@ -36,9 +36,9 @@ function score(status = 'PRELIMINARY') {
     employeeName: 'Кузнецов Леонид',
     businessDate: '2026-10-05',
     status,
-    score: 93,
-    earned: 65,
-    applicableMax: 70,
+    score: status === 'MANUAL_REVIEW' ? null : 93,
+    earned: status === 'MANUAL_REVIEW' ? 40 : 65,
+    applicableMax: status === 'MANUAL_REVIEW' ? 45 : 70,
     plannedMinutes: 720,
     ruleVersionId: 'r',
     ruleLabel: 'default',
@@ -62,11 +62,16 @@ function score(status = 'PRELIMINARY') {
         basis: ['NO_ZONE'],
       },
     ],
+    reviewDecision: null,
+    manualScore: null,
+    reviewComment: null,
+    reviewedAt: null,
+    reviewSuggestedScore: status === 'MANUAL_REVIEW' ? 89 : null,
     adjustments: [],
   };
 }
 
-function period(status = 'OPEN') {
+function period(status = 'OPEN', scoreStatus = 'PRELIMINARY') {
   return {
     id: status === 'CLOSED' ? 'p1' : null,
     siteId: SITE,
@@ -88,7 +93,7 @@ function period(status = 'OPEN') {
         weightSum: 1,
         baseAmount: null,
         bonusAmount: null,
-        scores: [score(status === 'CLOSED' ? 'CONFIRMED' : 'PRELIMINARY')],
+        scores: [score(scoreStatus)],
       },
     ],
     pendingAdjustments: [],
@@ -96,7 +101,7 @@ function period(status = 'OPEN') {
   };
 }
 
-function mockApi(state: { status: string }) {
+function mockApi(state: { status: string; scoreStatus?: string }) {
   const calls: { method: string; path: string; body: unknown }[] = [];
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
@@ -108,7 +113,8 @@ function mockApi(state: { status: string }) {
       const body = init?.body ? JSON.parse(String(init.body)) : null;
       calls.push({ method, path: url.pathname, body });
       if (url.pathname === '/admin/org') return json(org);
-      if (url.pathname === '/admin/bonus/period') return json(period(state.status));
+      if (url.pathname === '/admin/bonus/period')
+        return json(period(state.status, state.scoreStatus ?? 'PRELIMINARY'));
       if (url.pathname === `/admin/bonus/scores/${SCORE}/adjust`)
         return json({
           ...score(),
@@ -126,6 +132,17 @@ function mockApi(state: { status: string }) {
             },
           ],
         });
+      if (url.pathname === `/admin/bonus/scores/${SCORE}/review`) {
+        return json({
+          ...score('PRELIMINARY'),
+          score: body.score,
+          reviewDecision: body.decision,
+          manualScore: body.score,
+        });
+      }
+      if (url.pathname === '/admin/bonus/adjustments/a1' && method === 'DELETE') {
+        return json(score());
+      }
       if (
         url.pathname.startsWith(`/admin/bonus/period/${SITE}/`) &&
         url.pathname.endsWith('/close')
@@ -145,27 +162,63 @@ describe('BonusPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('shows the month S, the breakdown with its basis and submits an adjustment', async () => {
+  it('shows the month S and the rating; the employee card explains the status and takes points', async () => {
     const state = { status: 'OPEN' };
     const calls = mockApi(state);
     render(<BonusPage />);
-    expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
-    expect(screen.getAllByText('93').length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Кузнецов Леонид')).length).toBeGreaterThan(0);
+    expect(screen.getByText('Лучшие за месяц')).toBeTruthy();
     await clickRowAction('Расшифровка');
-    expect((await screen.findAllByText('Начало смены вовремя')).length).toBeGreaterThan(0);
-    expect(screen.getByText('LATE_MINUTES:20')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Изменение баллов'), { target: { value: '-15' } });
-    fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'MASTER_REVIEW' } });
-    fireEvent.change(screen.getByLabelText('Комментарий (обязательно)'), {
-      target: { value: 'Незарегистрированный простой' },
+    const sheet = await screen.findByRole('dialog');
+    expect(within(sheet).getByText(/Баллы посчитаны/)).toBeTruthy();
+    fireEvent.click(within(sheet).getAllByRole('button', { name: 'Расшифровка' })[0]!);
+    expect(await within(sheet).findByText('LATE_MINUTES:20')).toBeTruthy();
+    fireEvent.click(
+      within(sheet).getAllByRole('button', { name: 'Начислить или снять баллы' })[0]!,
+    );
+    const dialogs = await screen.findAllByRole('dialog');
+    const dialog = dialogs[dialogs.length - 1]!;
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Снять (нарушение)' }));
+    fireEvent.change(within(dialog).getByLabelText('Сколько баллов'), { target: { value: '15' } });
+    fireEvent.change(within(dialog).getByLabelText('Причина'), {
+      target: { value: 'MASTER_REVIEW' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Корректировка' }));
+    fireEvent.change(within(dialog).getByLabelText('Комментарий (обязательно)'), {
+      target: { value: 'Ушёл раньше без предупреждения' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Сохранить' }));
     expect(await screen.findByText(/Требует второго подтверждения/)).toBeTruthy();
-    expect(calls.find((c) => c.path.endsWith('/adjust'))?.body).toEqual({
-      criterion: 'DISCIPLINE_SEQUENCE',
+    expect(calls.find((c) => c.path === `/admin/bonus/scores/${SCORE}/adjust`)?.body).toEqual({
       delta: -15,
       reasonCode: 'MASTER_REVIEW',
-      comment: 'Незарегистрированный простой',
+      comment: 'Ушёл раньше без предупреждения',
+    });
+  });
+
+  it('a shift under manual review offers to finish it with a score', async () => {
+    const state = { status: 'OPEN', scoreStatus: 'MANUAL_REVIEW' };
+    const calls = mockApi(state);
+    render(<BonusPage />);
+    expect((await screen.findAllByText('Кузнецов Леонид')).length).toBeGreaterThan(0);
+    await clickRowAction('Расшифровка');
+    const sheet = await screen.findByRole('dialog');
+    expect(within(sheet).getByText(/применимо только 45 из 100/)).toBeTruthy();
+    fireEvent.click(within(sheet).getAllByRole('button', { name: 'Завершить проверку' })[0]!);
+    const dialogs = await screen.findAllByRole('dialog');
+    const dialog = dialogs[dialogs.length - 1]!;
+    expect((within(dialog).getByLabelText(/Балл смены/) as HTMLInputElement).value).toBe('89');
+    fireEvent.change(within(dialog).getByLabelText(/Балл смены/), {
+      target: { value: '80' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('Комментарий (обязательно)'), {
+      target: { value: 'Смена без графика, работа сделана' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Завершить проверку' }));
+    expect(await screen.findByText('Проверка завершена.')).toBeTruthy();
+    expect(calls.find((c) => c.path === `/admin/bonus/scores/${SCORE}/review`)?.body).toEqual({
+      decision: 'SCORE',
+      score: 80,
+      comment: 'Смена без графика, работа сделана',
     });
   });
 

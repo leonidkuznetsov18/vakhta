@@ -29,6 +29,7 @@ export const adjustmentStatus = pgEnum('adjustment_status', [
   'PENDING_SECOND',
   'APPLIED',
   'REJECTED',
+  'CANCELLED',
 ]);
 
 /** Версії правил бонусу (ТЗ 7.1, ADR-0007): JSON з датою дії, не застосовуються заднім числом. */
@@ -74,6 +75,12 @@ export const bonusShiftScores = pgTable(
     confirmedBy: text('confirmed_by'),
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     excludedReason: text('excluded_reason'),
+    /** Manual review of a shift the rules cannot score (spec 7.6): SCORE with a value or EXCLUDE. */
+    reviewDecision: text('review_decision'),
+    manualScore: integer('manual_score'),
+    reviewedBy: text('reviewed_by'),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    reviewComment: text('review_comment'),
   },
   (t) => [
     uniqueIndex('bonus_shift_scores_session_uq').on(t.shiftSessionId),
@@ -106,7 +113,8 @@ export const bonusAdjustments = pgTable(
     scoreId: uuid('score_id')
       .notNull()
       .references(() => bonusShiftScores.id, { onDelete: 'cascade' }),
-    criterion: text('criterion').notNull(),
+    /** null: the points go to the shift score itself (a plain bonus or penalty). */
+    criterion: text('criterion'),
     delta: integer('delta').notNull(),
     reasonCode: text('reason_code').notNull(),
     comment: text('comment').notNull(),

@@ -1,24 +1,49 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { BonusPeriodView, OrgSnapshot, ShiftScoreView } from '@vakhta/contracts';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import type {
+  AdjustmentView,
+  BonusPeriodView,
+  OrgSnapshot,
+  ShiftScoreView,
+} from '@vakhta/contracts';
 import { BONUS_CRITERIA, type BonusCriterion } from '@vakhta/domain';
-import { messages } from '@vakhta/i18n';
-import { DownloadIcon } from 'lucide-react';
+import { format, messages } from '@vakhta/i18n';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import {
+  CoinsIcon,
+  DownloadIcon,
+  EyeIcon,
+  PencilIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+  ClipboardCheckIcon,
+} from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
+import { DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { AddDialog } from '@/components/app/add-dialog';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { DataTable, type Column } from '@/components/app/data-table';
-import { Feedback } from '@/components/app/feedback';
+import { DetailSheet } from '@/components/app/detail-sheet';
+import { Feedback, useAction } from '@/components/app/feedback';
 import { MonthField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
+import { isBlank } from '@/lib/forms';
+import { usePersistentState } from '@/lib/persistent-state';
+import { notifySuccess } from '@/lib/toast';
 import { bonusApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
-import { usePersistentState } from '@/lib/persistent-state';
-import { notifySuccess } from '@/lib/toast';
-import { EyeIcon, RefreshCwIcon } from 'lucide-react';
-import { Textarea } from '@/components/ui/textarea';
 
 const all = messages(currentLocale());
 const b = all.admin.bonus;
@@ -32,6 +57,12 @@ const SCORE_TONE: Record<ScoreStatus, Tone> = {
   CONFIRMED: 'success',
   NOT_EVALUATED: 'neutral',
 };
+const ADJUSTMENT_TONE: Record<AdjustmentView['status'], Tone> = {
+  PENDING_SECOND: 'warning',
+  APPLIED: 'success',
+  REJECTED: 'danger',
+  CANCELLED: 'neutral',
+};
 type PeriodEmployee = BonusPeriodView['employees'][number];
 type PendingAdjustment = BonusPeriodView['pendingAdjustments'][number];
 
@@ -39,7 +70,15 @@ function currentMonth(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
-/** "Bonus" (spec 9.1): preliminary and final calculation, breakdown, adjustments, period close. */
+function signed(n: number): string {
+  return n > 0 ? `+${n}` : String(n);
+}
+
+/**
+ * "Bonus" (spec 7, 9.1): the month at a glance, a rating of the best employees, and one card per
+ * employee where the master adds or takes points, finishes manual reviews and edits or deletes
+ * adjustments. The period close confirms the points; HR then sets the base amounts.
+ */
 export function BonusPage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
   const [siteId, setSiteId] = usePersistentState('bonus.siteId', '');
@@ -47,11 +86,18 @@ export function BonusPage() {
   const [period, setPeriod] = useState<BonusPeriodView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [openScore, setOpenScore] = usePersistentState<string | null>('bonus.openScore', null);
-  const [criterion, setCriterion] = useState<BonusCriterion>('DISCIPLINE_SEQUENCE');
-  const [delta, setDelta] = useState('');
-  const [reasonCode, setReasonCode] = useState('');
-  const [comment, setComment] = useState('');
+  const [openEmployee, setOpenEmployee] = usePersistentState<string | null>(
+    'bonus.openEmployee',
+    null,
+  );
+  const [points, setPoints] = useState<{ employee: PeriodEmployee; score?: ShiftScoreView } | null>(
+    null,
+  );
+  const [editing, setEditing] = useState<{
+    score: ShiftScoreView;
+    adjustment: AdjustmentView;
+  } | null>(null);
+  const [review, setReview] = useState<ShiftScoreView | null>(null);
   const [base, setBase] = useState<Record<string, string>>({});
   const { confirm, dialog } = useConfirm();
 
@@ -89,28 +135,6 @@ export function BonusPage() {
     }
   }
 
-  function adjust(ev: FormEvent, score: ShiftScoreView) {
-    ev.preventDefault();
-    const d = Number(delta);
-    if (!Number.isInteger(d) || d === 0 || !reasonCode || comment.trim().length < 3) return;
-    void run(async () => {
-      const updated = await bonusApi.adjust(score.id, {
-        criterion,
-        delta: d,
-        reasonCode,
-        comment: comment.trim(),
-      });
-      notifySuccess(
-        updated.adjustments.some((a) => a.status === 'PENDING_SECOND')
-          ? `${b.adjusted} ${b.needsSecond}`
-          : b.adjusted,
-      );
-      setDelta('');
-      setComment('');
-      await reload();
-    });
-  }
-
   async function closePeriod() {
     const text = await confirm({
       title: b.closePeriod,
@@ -142,11 +166,53 @@ export function BonusPage() {
     }, b.adjusted);
   }
 
+  async function deleteAdjustment(a: AdjustmentView) {
+    const reason = await confirm({
+      title: b.deleteAdjustment,
+      description: format(b.deleteConfirm, { delta: signed(a.delta) }),
+      confirmLabel: b.deleteAdjustment,
+      commentLabel: b.comment,
+      commentRequired: true,
+      destructive: true,
+    });
+    if (!reason) return;
+    void run(async () => {
+      await bonusApi.cancelAdjustment(a.id, reason);
+      await reload();
+    }, b.deleted);
+  }
+
   const adjustmentReasons =
     org?.reasonCodes.filter((r) => r.kind === 'ADJUSTMENT' && r.isActive) ?? [];
   const closed = period?.status === 'CLOSED';
+  const employees = period?.employees ?? [];
+  const rating = useMemo(
+    () =>
+      [...employees]
+        .filter((e) => e.sMonth !== null)
+        .sort((x, y) => (y.sMonth ?? 0) - (x.sMonth ?? 0)),
+    [employees],
+  );
+  const rankOf = (id: string) => {
+    const i = rating.findIndex((e) => e.employeeId === id);
+    return i >= 0 ? i + 1 : null;
+  };
+  const onReview = employees.reduce(
+    (n, e) => n + e.scores.filter((s) => s.status === 'MANUAL_REVIEW').length,
+    0,
+  );
+  const shiftsTotal = employees.reduce((n, e) => n + e.shifts, 0);
+  const evaluatedTotal = employees.reduce((n, e) => n + e.evaluatedShifts, 0);
+  const open = employees.find((e) => e.employeeId === openEmployee) ?? null;
 
   const employeeColumns: Column<PeriodEmployee>[] = [
+    {
+      key: 'rank',
+      header: b.rank,
+      align: 'right',
+      cell: (e) => <span className="tabular-nums">{rankOf(e.employeeId) ?? '—'}</span>,
+      sortValue: (e) => rankOf(e.employeeId) ?? 999,
+    },
     {
       key: 'employee',
       header: b.employee,
@@ -155,6 +221,7 @@ export function BonusPage() {
           {e.employeeName} <Muted>{e.personnelNumber}</Muted>
         </span>
       ),
+      sortValue: (e) => e.employeeName,
     },
     { key: 'shifts', header: b.shifts, align: 'right', cell: (e) => e.shifts },
     { key: 'evaluated', header: b.evaluated, align: 'right', cell: (e) => e.evaluatedShifts },
@@ -175,6 +242,7 @@ export function BonusPage() {
       ),
       align: 'right',
       cell: (e) => <span className="font-medium tabular-nums">{e.sMonth ?? '—'}</span>,
+      sortValue: (e) => e.sMonth ?? -1,
     },
     {
       key: 'base',
@@ -209,13 +277,17 @@ export function BonusPage() {
 
   const pendingColumns: Column<PendingAdjustment>[] = [
     { key: 'employee', header: b.employee, cell: (a) => a.employeeName },
-    { key: 'date', header: b.period, cell: (a) => a.businessDate },
-    { key: 'criterion', header: b.criterion, cell: (a) => all.bonus.criteria[a.criterion] },
+    { key: 'date', header: b.shift, cell: (a) => a.businessDate },
+    {
+      key: 'criterion',
+      header: b.criterion,
+      cell: (a) => (a.criterion ? all.bonus.criteria[a.criterion] : b.wholeScore),
+    },
     {
       key: 'delta',
       header: b.delta,
       align: 'right',
-      cell: (a) => <span className="tabular-nums">{a.delta > 0 ? `+${a.delta}` : a.delta}</span>,
+      cell: (a) => <span className="tabular-nums">{signed(a.delta)}</span>,
     },
     { key: 'reason', header: b.reasonCode, cell: (a) => `${a.reasonCode} · ${a.comment}` },
     {
@@ -246,6 +318,11 @@ export function BonusPage() {
     },
   ];
 
+  const chartConfig: ChartConfig = { sMonth: { label: b.sMonth, color: 'var(--chart-1)' } };
+  const chartData = rating
+    .slice(0, 10)
+    .map((e) => ({ name: e.employeeName, sMonth: e.sMonth ?? 0 }));
+
   return (
     <div className="flex flex-col gap-4">
       <Toolbar>
@@ -257,12 +334,6 @@ export function BonusPage() {
           className="w-56"
         />
         <MonthField label={b.month} value={month} onChange={setMonth} className="w-48" />
-        {period && (
-          <Muted className="pb-2">
-            {b.period}: {period.status}
-            {period.ruleLabel ? ` · ${b.ruleVersion}: ${period.ruleLabel}` : ''}
-          </Muted>
-        )}
         <div className="ml-auto flex items-center gap-2">
           {period && period.status !== 'CLOSED' && (
             <>
@@ -288,6 +359,100 @@ export function BonusPage() {
       </Toolbar>
       <Feedback error={error} />
 
+      {period && (
+        <Section
+          title={b.summary}
+          description={b.periodHelp[period.status]}
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusPill tone={closed ? 'success' : 'info'}>
+                {b.period}: {b.periodStatuses[period.status]}
+              </StatusPill>
+              {period.ruleLabel && (
+                <Muted>
+                  {b.ruleVersion}: {period.ruleLabel}
+                </Muted>
+              )}
+            </div>
+          }
+        >
+          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <SummaryTile label={b.employeesCount} value={employees.length} />
+            <SummaryTile label={b.shifts} value={shiftsTotal} />
+            <SummaryTile label={b.evaluated} value={evaluatedTotal} />
+            <SummaryTile
+              label={b.onReview}
+              value={onReview}
+              tone={onReview > 0 ? 'warning' : undefined}
+              hint={hints.bonusReview}
+            />
+            <SummaryTile
+              label={b.secondPending}
+              value={period.pendingAdjustments.length}
+              tone={period.pendingAdjustments.length > 0 ? 'warning' : undefined}
+              hint={hints.bonusSecond}
+            />
+          </dl>
+        </Section>
+      )}
+
+      {period && (
+        <Section
+          title={b.leaderboard}
+          hint={hints.bonusLeaderboard}
+          className="print:break-inside-avoid"
+        >
+          {rating.length === 0 ? (
+            <Muted>{b.noLeaderboard}</Muted>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+              <ChartContainer config={chartConfig} className="h-64 w-full">
+                <BarChart data={chartData} margin={{ left: 8, right: 8 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    tickLine={false}
+                    axisLine={false}
+                    interval={0}
+                    height={48}
+                    angle={-20}
+                    textAnchor="end"
+                    fontSize={11}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    width={36}
+                    fontSize={11}
+                    domain={[0, 100]}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="sMonth" fill="var(--color-sMonth)" radius={4} />
+                </BarChart>
+              </ChartContainer>
+              <ol className="flex flex-col gap-1 text-sm">
+                {rating.slice(0, 10).map((e, i) => (
+                  <li
+                    key={e.employeeId}
+                    className="flex items-center gap-2 rounded-md border px-3 py-1.5"
+                  >
+                    <span className="w-6 text-right font-semibold tabular-nums">{i + 1}</span>
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 truncate text-left hover:underline"
+                      onClick={() => setOpenEmployee(e.employeeId)}
+                    >
+                      {e.employeeName}
+                    </button>
+                    <span className="font-medium tabular-nums">{e.sMonth}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </Section>
+      )}
+
       {period && period.pendingAdjustments.length > 0 && (
         <Section title={b.secondQueue} hint={hints.bonusSecond}>
           <DataTable
@@ -301,83 +466,28 @@ export function BonusPage() {
 
       <DataTable
         columns={employeeColumns}
-        rows={period?.employees ?? []}
+        rows={employees}
         rowKey={(e) => e.employeeId}
         empty={b.empty}
-        expanded={(e) => (
-          <ScoresTable
-            scores={e.scores}
-            openScore={openScore}
-            onToggle={(id) => setOpenScore(openScore === id ? null : id)}
-            busy={busy}
-            onRecompute={(s) =>
-              void run(() => bonusApi.recompute(s.shiftSessionId).then(reload), b.recomputed)
-            }
-            adjustForm={(s) =>
-              s.status !== 'CONFIRMED' ? (
-                <form className="flex flex-wrap items-end gap-3" onSubmit={(ev) => adjust(ev, s)}>
-                  <SelectField
-                    label={b.criterion}
-                    value={criterion}
-                    onChange={(v) => setCriterion(v as BonusCriterion)}
-                    options={BONUS_CRITERIA.map((c) => ({
-                      value: c,
-                      label: all.bonus.criteria[c],
-                    }))}
-                    className="w-64"
-                  />
-                  <FormField label={b.delta} hint={hints.bonusAdjust} className="w-36">
-                    {(id) => (
-                      <Input
-                        id={id}
-                        type="number"
-                        min={-100}
-                        max={100}
-                        value={delta}
-                        onChange={(ev) => setDelta(ev.target.value)}
-                        required
-                      />
-                    )}
-                  </FormField>
-                  <SelectField
-                    label={b.reasonCode}
-                    value={reasonCode}
-                    onChange={setReasonCode}
-                    placeholder="…"
-                    required
-                    options={adjustmentReasons.map((r) => ({ value: r.code, label: r.label }))}
-                    className="w-56"
-                  />
-                  <FormField label={b.comment} className="min-w-64 flex-1">
-                    {(id) => (
-                      <Textarea
-                        rows={2}
-                        id={id}
-                        value={comment}
-                        onChange={(ev) => setComment(ev.target.value)}
-                        minLength={3}
-                        required
-                      />
-                    )}
-                  </FormField>
-                  <Button
-                    type="submit"
-                    variant="secondary"
-                    disabled={
-                      busy ||
-                      !Number.isInteger(Number(delta)) ||
-                      Number(delta) === 0 ||
-                      !reasonCode ||
-                      comment.trim().length < 3
-                    }
-                  >
-                    {b.adjust}
-                  </Button>
-                </form>
-              ) : null
-            }
-          />
-        )}
+        storageKey="bonus.employees"
+        searchText={(e) => `${e.employeeName} ${e.personnelNumber}`}
+        activeKey={openEmployee}
+        onRowClick={(e) => setOpenEmployee(e.employeeId)}
+        rowActions={(e) => [
+          {
+            key: 'detail',
+            label: b.detail,
+            icon: EyeIcon,
+            onSelect: () => setOpenEmployee(e.employeeId),
+          },
+          {
+            key: 'points',
+            label: b.addPoints,
+            icon: CoinsIcon,
+            disabled: busy || closed || e.scores.length === 0,
+            onSelect: () => setPoints({ employee: e }),
+          },
+        ]}
       />
 
       {period?.id && closed && (
@@ -401,48 +511,149 @@ export function BonusPage() {
           </Button>
         </div>
       )}
+
+      {open && (
+        <DetailSheet
+          open
+          wide
+          onOpenChange={(next) => !next && setOpenEmployee(null)}
+          title={
+            <>
+              {open.employeeName} <Muted>{open.personnelNumber}</Muted>
+            </>
+          }
+          description={`${b.sMonth}: ${open.sMonth ?? '—'} · ${b.shifts}: ${open.shifts} · ${b.evaluated}: ${open.evaluatedShifts}`}
+          footer={
+            !closed && open.scores.length > 0 ? (
+              <Button type="button" onClick={() => setPoints({ employee: open })} disabled={busy}>
+                <CoinsIcon aria-hidden="true" />
+                {b.addPoints}
+              </Button>
+            ) : undefined
+          }
+        >
+          <h3 className="flex items-center gap-1 text-sm font-semibold">
+            {b.detailTitle}
+            <InfoTip text={hints.bonusStatus} />
+          </h3>
+          {open.scores.map((s) => (
+            <ShiftCard
+              key={s.id}
+              score={s}
+              closed={closed}
+              busy={busy}
+              onPoints={() => setPoints({ employee: open, score: s })}
+              onReview={() => setReview(s)}
+              onEdit={(a) => setEditing({ score: s, adjustment: a })}
+              onDelete={(a) => void deleteAdjustment(a)}
+              onRecompute={() =>
+                void run(() => bonusApi.recompute(s.shiftSessionId).then(reload), b.recomputed)
+              }
+            />
+          ))}
+        </DetailSheet>
+      )}
+
+      {points && (
+        <PointsDialog
+          key={`${points.employee.employeeId}:${points.score?.id ?? 'any'}`}
+          employee={points.employee}
+          score={points.score ?? null}
+          reasons={adjustmentReasons}
+          onClose={() => setPoints(null)}
+          onSaved={async (view) => {
+            setPoints(null);
+            notifySuccess(
+              view.adjustments.some((a) => a.status === 'PENDING_SECOND')
+                ? `${b.adjusted} ${b.needsSecond}`
+                : b.adjusted,
+            );
+            await reload();
+          }}
+        />
+      )}
+      {editing && (
+        <EditAdjustmentDialog
+          key={editing.adjustment.id}
+          adjustment={editing.adjustment}
+          reasons={adjustmentReasons}
+          onClose={() => setEditing(null)}
+          onSaved={async () => {
+            setEditing(null);
+            notifySuccess(b.adjusted);
+            await reload();
+          }}
+        />
+      )}
+      {review && (
+        <ReviewDialog
+          key={review.id}
+          score={review}
+          onClose={() => setReview(null)}
+          onSaved={async () => {
+            setReview(null);
+            notifySuccess(b.reviewed);
+            await reload();
+          }}
+        />
+      )}
       {dialog}
     </div>
   );
 }
 
-function ScoresTable({
-  scores,
-  openScore,
-  onToggle,
-  busy,
-  onRecompute,
-  adjustForm,
+function SummaryTile({
+  label,
+  value,
+  tone,
+  hint,
 }: {
-  readonly scores: readonly ShiftScoreView[];
-  readonly openScore: string | null;
-  readonly onToggle: (id: string) => void;
-  readonly busy: boolean;
-  readonly onRecompute: (score: ShiftScoreView) => void;
-  readonly adjustForm: (score: ShiftScoreView) => React.ReactNode;
+  readonly label: string;
+  readonly value: number;
+  readonly tone?: Tone;
+  readonly hint?: string;
 }) {
-  const columns: Column<ShiftScoreView>[] = [
-    {
-      key: 'date',
-      header: b.period,
-      cell: (s) => (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="tabular-nums">{s.businessDate}</span>
-          <StatusPill tone={SCORE_TONE[s.status]}>{all.bonus.statuses[s.status]}</StatusPill>
-        </div>
-      ),
-    },
-    {
-      key: 'score',
-      header: b.points,
-      cell: (s) => (
-        <span className="tabular-nums">
-          {s.score ?? '—'} <Muted>({`${s.earned}/${s.applicableMax}`})</Muted>
-          {s.excludedReason ? <Muted> · {s.excludedReason}</Muted> : null}
-        </span>
-      ),
-    },
-  ];
+  return (
+    <div className="rounded-lg border p-3">
+      <dt className="flex items-center gap-1 text-xs text-muted-foreground">
+        {label}
+        {hint && <InfoTip text={hint} />}
+      </dt>
+      <dd className="text-lg font-semibold tabular-nums">
+        {tone ? <StatusPill tone={tone}>{value}</StatusPill> : value}
+      </dd>
+    </div>
+  );
+}
+
+/** One shift of the employee: status with its meaning, the breakdown, adjustments and actions. */
+function ShiftCard({
+  score,
+  closed,
+  busy,
+  onPoints,
+  onReview,
+  onEdit,
+  onDelete,
+  onRecompute,
+}: {
+  readonly score: ShiftScoreView;
+  readonly closed: boolean;
+  readonly busy: boolean;
+  readonly onPoints: () => void;
+  readonly onReview: () => void;
+  readonly onEdit: (a: AdjustmentView) => void;
+  readonly onDelete: (a: AdjustmentView) => void;
+  readonly onRecompute: () => void;
+}) {
+  const [showCriteria, setShowCriteria] = useState(false);
+  const missing = score.criteria
+    .filter((c) => c.status === 'not_applicable')
+    .map((c) => all.bonus.criteria[c.criterion]);
+  const live = score.adjustments.filter((a) => a.status !== 'CANCELLED' && a.status !== 'REJECTED');
+  const history = score.adjustments.filter(
+    (a) => a.status === 'CANCELLED' || a.status === 'REJECTED',
+  );
   const criteriaColumns: Column<ShiftScoreView['criteria'][number]>[] = [
     { key: 'criterion', header: b.criterion, cell: (c) => all.bonus.criteria[c.criterion] },
     {
@@ -460,51 +671,489 @@ function ScoresTable({
     { key: 'basis', header: b.basis, cell: (c) => <Muted>{c.basis.join(', ')}</Muted> },
   ];
   return (
-    <DataTable
-      columns={columns}
-      rows={scores}
-      rowKey={(s) => s.id}
-      empty={b.empty}
-      pageSize={10}
-      storageKey="bonus.scores"
-      onRowClick={(s) => onToggle(s.id)}
-      rowActions={(s) => [
-        { key: 'detail', label: b.detail, icon: EyeIcon, onSelect: () => onToggle(s.id) },
-        {
-          key: 'recompute',
-          label: b.recompute,
-          icon: RefreshCwIcon,
-          disabled: busy,
-          onSelect: () => onRecompute(s),
-        },
-      ]}
-      expanded={(s) =>
-        openScore === s.id ? (
-          <div className="flex flex-col gap-4">
-            <DataTable
-              columns={criteriaColumns}
-              rows={s.criteria}
-              rowKey={(c) => c.criterion}
-              empty={b.empty}
-              pageSize={20}
-              rowClassName={(c) =>
-                c.status === 'missed' ? 'bg-red-50/60 dark:bg-red-950/30' : undefined
-              }
-            />
-            {adjustForm(s)}
-            {s.adjustments.length > 0 && (
-              <ul className="flex flex-col gap-1 text-sm">
-                {s.adjustments.map((a) => (
-                  <li key={a.id}>
-                    {all.bonus.criteria[a.criterion]} {a.delta > 0 ? '+' : ''}
-                    {a.delta} · {a.status} <Muted>{` · ${a.reasonCode} · ${a.comment}`}</Muted>
-                  </li>
-                ))}
-              </ul>
+    <div className="flex flex-col gap-3 rounded-lg border p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-medium tabular-nums">{score.businessDate}</span>
+        <StatusPill tone={SCORE_TONE[score.status]}>{all.bonus.statuses[score.status]}</StatusPill>
+        {score.reviewDecision === 'SCORE' && score.manualScore !== null && (
+          <StatusPill tone="info">
+            {format(b.reviewedBadge, { score: score.manualScore })}
+          </StatusPill>
+        )}
+        <span className="ml-auto text-lg font-semibold tabular-nums">
+          {score.score ?? '—'}
+          <Muted className="text-sm font-normal"> / 100</Muted>
+        </span>
+      </div>
+      <p className="text-sm text-muted-foreground">{b.statusHelp[score.status]}</p>
+      {score.status === 'MANUAL_REVIEW' && (
+        <Alert>
+          <AlertTitle>{b.reviewTitle}</AlertTitle>
+          <AlertDescription>
+            <p>
+              {format(b.reviewExplain, {
+                applicable: score.applicableMax,
+                missing: missing.join(', ') || '—',
+              })}
+            </p>
+            {!closed && (
+              <Button type="button" size="sm" onClick={onReview} disabled={busy}>
+                <ClipboardCheckIcon aria-hidden="true" />
+                {b.finishReview}
+              </Button>
             )}
-          </div>
-        ) : null
-      }
-    />
+          </AlertDescription>
+        </Alert>
+      )}
+      {score.excludedReason && score.status === 'NOT_EVALUATED' && (
+        <Muted>{score.excludedReason}</Muted>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {!closed && score.status !== 'NOT_EVALUATED' && (
+          <Button type="button" size="sm" variant="secondary" onClick={onPoints} disabled={busy}>
+            <CoinsIcon aria-hidden="true" />
+            {b.addPoints}
+          </Button>
+        )}
+        {score.reviewDecision !== null && !closed && (
+          <Button type="button" size="sm" variant="outline" onClick={onReview} disabled={busy}>
+            <ClipboardCheckIcon aria-hidden="true" />
+            {b.finishReview}
+          </Button>
+        )}
+        <Button type="button" size="sm" variant="ghost" onClick={() => setShowCriteria((v) => !v)}>
+          <EyeIcon aria-hidden="true" />
+          {b.detail}
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={onRecompute} disabled={busy}>
+          <RefreshCwIcon aria-hidden="true" />
+          {b.recompute}
+        </Button>
+      </div>
+      {showCriteria && (
+        <DataTable
+          columns={criteriaColumns}
+          rows={score.criteria}
+          rowKey={(c) => c.criterion}
+          empty={b.empty}
+          pageSize={20}
+          rowClassName={(c) =>
+            c.status === 'missed' ? 'bg-red-50/60 dark:bg-red-950/30' : undefined
+          }
+        />
+      )}
+      <div className="flex flex-col gap-1">
+        <p className="text-sm font-medium">{b.adjustmentsTitle}</p>
+        {live.length === 0 && history.length === 0 ? (
+          <Muted>{b.noAdjustments}</Muted>
+        ) : (
+          <ul className="flex flex-col gap-1 text-sm">
+            {[...live, ...history].map((a) => (
+              <li
+                key={a.id}
+                className="flex flex-wrap items-center gap-2 rounded-md border px-2 py-1"
+              >
+                <span
+                  className={`font-semibold tabular-nums ${a.delta > 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}
+                >
+                  {signed(a.delta)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  {a.criterion ? all.bonus.criteria[a.criterion] : b.wholeScore} · {a.reasonCode} ·{' '}
+                  <Muted>{a.comment}</Muted>
+                </span>
+                <StatusPill tone={ADJUSTMENT_TONE[a.status]}>
+                  {b.adjustmentStatuses[a.status]}
+                </StatusPill>
+                {!closed && (a.status === 'APPLIED' || a.status === 'PENDING_SECOND') && (
+                  <>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`${b.editAdjustment} ${signed(a.delta)}`}
+                      onClick={() => onEdit(a)}
+                      disabled={busy}
+                    >
+                      <PencilIcon aria-hidden="true" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`${b.deleteAdjustment} ${signed(a.delta)}`}
+                      onClick={() => onDelete(a)}
+                      disabled={busy}
+                    >
+                      <Trash2Icon aria-hidden="true" />
+                    </Button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type Reason = OrgSnapshot['reasonCodes'][number];
+
+/** Add or take points: the whole score by default, one criterion under "Advanced". */
+function PointsDialog({
+  employee,
+  score,
+  reasons,
+  onClose,
+  onSaved,
+}: {
+  readonly employee: PeriodEmployee;
+  readonly score: ShiftScoreView | null;
+  readonly reasons: readonly Reason[];
+  readonly onClose: () => void;
+  readonly onSaved: (view: ShiftScoreView) => Promise<void>;
+}) {
+  const candidates = employee.scores.filter(
+    (s) => s.status !== 'NOT_EVALUATED' && s.status !== 'CONFIRMED',
+  );
+  const [scoreId, setScoreId] = useState(score?.id ?? candidates[candidates.length - 1]?.id ?? '');
+  const [kind, setKind] = useState<'BONUS' | 'PENALTY'>('BONUS');
+  const [amount, setAmount] = useState('');
+  const [reasonCode, setReasonCode] = useState(reasons[0]?.code ?? '');
+  const [comment, setComment] = useState('');
+  const [advanced, setAdvanced] = useState(false);
+  const [criterion, setCriterion] = useState<BonusCriterion | ''>('');
+  const { busy, error, run } = useAction();
+  const n = Number(amount);
+  const valid =
+    scoreId !== '' &&
+    Number.isInteger(n) &&
+    n > 0 &&
+    n <= 100 &&
+    reasonCode !== '' &&
+    comment.trim().length >= 3;
+
+  function submit(ev: FormEvent) {
+    ev.preventDefault();
+    if (!valid) return;
+    void run(async () => {
+      const view = await bonusApi.adjust(scoreId, {
+        delta: kind === 'BONUS' ? n : -n,
+        reasonCode,
+        comment: comment.trim(),
+        ...(advanced && criterion ? { criterion } : {}),
+      });
+      await onSaved(view);
+    });
+  }
+
+  return (
+    <AddDialog
+      title={`${b.pointsDialog}: ${employee.employeeName}`}
+      hint={hints.bonusPoints}
+      hideTrigger
+      open
+      onOpenChange={(next) => !next && onClose()}
+    >
+      <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+        <SelectField
+          label={b.shift}
+          value={scoreId}
+          onChange={setScoreId}
+          options={candidates.map((s) => ({
+            value: s.id,
+            label: `${s.businessDate} · ${s.score ?? '—'} / 100 · ${all.bonus.statuses[s.status]}`,
+          }))}
+        />
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">{b.pointsKind}</span>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={kind}
+            onValueChange={(v) => v && setKind(v as 'BONUS' | 'PENALTY')}
+            aria-label={b.pointsKind}
+          >
+            <ToggleGroupItem value="BONUS">{b.pointsKinds.BONUS}</ToggleGroupItem>
+            <ToggleGroupItem value="PENALTY">{b.pointsKinds.PENALTY}</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+        <FormField label={b.pointsAmount} className="w-40">
+          {(id) => (
+            <Input
+              id={id}
+              type="number"
+              min={1}
+              max={100}
+              value={amount}
+              onChange={(ev) => setAmount(ev.target.value)}
+              required
+            />
+          )}
+        </FormField>
+        <SelectField
+          label={b.reasonCode}
+          value={reasonCode}
+          onChange={setReasonCode}
+          placeholder="…"
+          required
+          options={reasons.map((r) => ({ value: r.code, label: r.label }))}
+        />
+        <FormField label={b.comment}>
+          {(id) => (
+            <Textarea
+              id={id}
+              rows={2}
+              value={comment}
+              onChange={(ev) => setComment(ev.target.value)}
+              minLength={3}
+              required
+            />
+          )}
+        </FormField>
+        {kind === 'PENALTY' && <Muted>{b.secondThresholdHint}</Muted>}
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            className="self-start text-sm text-muted-foreground underline-offset-4 hover:underline"
+            onClick={() => setAdvanced((v) => !v)}
+          >
+            {b.advanced}
+          </button>
+          {advanced && (
+            <SelectField
+              label={b.criterionOptional}
+              hint={hints.bonusAdjust}
+              value={criterion}
+              onChange={(v) => setCriterion(v as BonusCriterion | '')}
+              placeholder={b.wholeScore}
+              options={BONUS_CRITERIA.map((c) => ({ value: c, label: all.bonus.criteria[c] }))}
+            />
+          )}
+        </div>
+        <Feedback error={error} />
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {all.ui.common.cancel}
+          </Button>
+          <Button type="submit" disabled={busy || !valid}>
+            {all.ui.common.save}
+          </Button>
+        </DialogFooter>
+      </form>
+    </AddDialog>
+  );
+}
+
+function EditAdjustmentDialog({
+  adjustment,
+  reasons,
+  onClose,
+  onSaved,
+}: {
+  readonly adjustment: AdjustmentView;
+  readonly reasons: readonly Reason[];
+  readonly onClose: () => void;
+  readonly onSaved: () => Promise<void>;
+}) {
+  const [kind, setKind] = useState<'BONUS' | 'PENALTY'>(adjustment.delta > 0 ? 'BONUS' : 'PENALTY');
+  const [amount, setAmount] = useState(String(Math.abs(adjustment.delta)));
+  const [reasonCode, setReasonCode] = useState(adjustment.reasonCode);
+  const [comment, setComment] = useState(adjustment.comment);
+  const { busy, error, run } = useAction();
+  const n = Number(amount);
+  const delta = kind === 'BONUS' ? n : -n;
+  const valid =
+    Number.isInteger(n) && n > 0 && n <= 100 && reasonCode !== '' && comment.trim().length >= 3;
+  const unchanged =
+    delta === adjustment.delta &&
+    reasonCode === adjustment.reasonCode &&
+    comment.trim() === adjustment.comment;
+
+  function submit(ev: FormEvent) {
+    ev.preventDefault();
+    if (!valid || unchanged) return;
+    void run(async () => {
+      await bonusApi.updateAdjustment(adjustment.id, {
+        ...(delta !== adjustment.delta ? { delta } : {}),
+        ...(reasonCode !== adjustment.reasonCode ? { reasonCode } : {}),
+        ...(comment.trim() !== adjustment.comment ? { comment: comment.trim() } : {}),
+      });
+      await onSaved();
+    });
+  }
+
+  return (
+    <AddDialog
+      title={`${b.editAdjustment}: ${signed(adjustment.delta)}`}
+      hint={hints.bonusPoints}
+      hideTrigger
+      open
+      onOpenChange={(next) => !next && onClose()}
+    >
+      <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">{b.pointsKind}</span>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={kind}
+            onValueChange={(v) => v && setKind(v as 'BONUS' | 'PENALTY')}
+            aria-label={b.pointsKind}
+          >
+            <ToggleGroupItem value="BONUS">{b.pointsKinds.BONUS}</ToggleGroupItem>
+            <ToggleGroupItem value="PENALTY">{b.pointsKinds.PENALTY}</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+        <FormField label={b.pointsAmount} className="w-40">
+          {(id) => (
+            <Input
+              id={id}
+              type="number"
+              min={1}
+              max={100}
+              value={amount}
+              onChange={(ev) => setAmount(ev.target.value)}
+              required
+            />
+          )}
+        </FormField>
+        <SelectField
+          label={b.reasonCode}
+          value={reasonCode}
+          onChange={setReasonCode}
+          options={reasons.map((r) => ({ value: r.code, label: r.label }))}
+        />
+        <FormField label={b.comment}>
+          {(id) => (
+            <Textarea
+              id={id}
+              rows={2}
+              value={comment}
+              onChange={(ev) => setComment(ev.target.value)}
+              minLength={3}
+              required
+            />
+          )}
+        </FormField>
+        <Feedback error={error} />
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {all.ui.common.cancel}
+          </Button>
+          <Button type="submit" disabled={busy || !valid || unchanged}>
+            {all.ui.common.save}
+          </Button>
+        </DialogFooter>
+      </form>
+    </AddDialog>
+  );
+}
+
+/** Finishes a manual review: a score for the shift or its exclusion from the month. */
+function ReviewDialog({
+  score,
+  onClose,
+  onSaved,
+}: {
+  readonly score: ShiftScoreView;
+  readonly onClose: () => void;
+  readonly onSaved: () => Promise<void>;
+}) {
+  const suggested = score.manualScore ?? score.reviewSuggestedScore;
+  const [decision, setDecision] = useState<'SCORE' | 'EXCLUDE'>(score.reviewDecision ?? 'SCORE');
+  const [value, setValue] = useState(suggested === null ? '' : String(suggested));
+  const [comment, setComment] = useState(score.reviewComment ?? '');
+  const { busy, error, run } = useAction();
+  const n = Number(value);
+  const valid =
+    comment.trim().length >= 3 &&
+    (decision === 'EXCLUDE' || (Number.isInteger(n) && n >= 0 && n <= 100));
+  const missing = score.criteria
+    .filter((c) => c.status === 'not_applicable')
+    .map((c) => all.bonus.criteria[c.criterion]);
+
+  function submit(ev: FormEvent) {
+    ev.preventDefault();
+    if (!valid) return;
+    void run(async () => {
+      await bonusApi.review(score.id, {
+        decision,
+        ...(decision === 'SCORE' ? { score: n } : {}),
+        comment: comment.trim(),
+      });
+      await onSaved();
+    });
+  }
+
+  return (
+    <AddDialog
+      title={`${b.reviewTitle}: ${score.businessDate}`}
+      hint={hints.bonusReview}
+      description={format(b.reviewExplain, {
+        applicable: score.applicableMax,
+        missing: missing.join(', ') || '—',
+      })}
+      hideTrigger
+      open
+      onOpenChange={(next) => !next && onClose()}
+    >
+      <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">{b.reviewDecision}</span>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={decision}
+            onValueChange={(v) => v && setDecision(v as 'SCORE' | 'EXCLUDE')}
+            aria-label={b.reviewDecision}
+          >
+            <ToggleGroupItem value="SCORE">{b.reviewDecisions.SCORE}</ToggleGroupItem>
+            <ToggleGroupItem value="EXCLUDE">{b.reviewDecisions.EXCLUDE}</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+        {decision === 'SCORE' && (
+          <FormField
+            label={b.reviewScore}
+            hint={suggested !== null ? format(b.reviewSuggested, { score: suggested }) : undefined}
+            className="w-40"
+          >
+            {(id) => (
+              <Input
+                id={id}
+                type="number"
+                min={0}
+                max={100}
+                value={value}
+                onChange={(ev) => setValue(ev.target.value)}
+                required
+              />
+            )}
+          </FormField>
+        )}
+        <FormField label={b.comment}>
+          {(id) => (
+            <Textarea
+              id={id}
+              rows={2}
+              value={comment}
+              onChange={(ev) => setComment(ev.target.value)}
+              minLength={3}
+              required
+            />
+          )}
+        </FormField>
+        <Feedback error={error} />
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {all.ui.common.cancel}
+          </Button>
+          <Button type="submit" disabled={busy || !valid || isBlank(comment)}>
+            {b.finishReview}
+          </Button>
+        </DialogFooter>
+      </form>
+    </AddDialog>
   );
 }

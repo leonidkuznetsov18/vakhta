@@ -81,3 +81,18 @@ export function scoreMonth(shifts: readonly MonthlyShiftScore[]): number | null 
   if (weights === 0) return null;
   return Math.round((weighted / weights) * 100) / 100;
 }
+
+/** Score-level adjustments (a plain bonus or penalty) on top of the computed shift score. */
+export function withScoreAdjustments(base: number, deltas: readonly number[]): number {
+  const total = deltas.reduce((sum, d) => sum + d, 0);
+  return Math.min(100, Math.max(0, base + total));
+}
+
+/**
+ * What the master sees as the default when finishing a manual review: the share of the points
+ * earned among the criteria that applied, or null when nothing applied at all.
+ */
+export function reviewSuggestion(earned: number, applicableMax: number): number | null {
+  if (applicableMax <= 0) return null;
+  return Math.round((100 * earned) / applicableMax);
+}
