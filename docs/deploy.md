@@ -25,7 +25,7 @@ Checklist of what exists and how it is operated. Cloudflare Pages hosts the stat
 | PostgreSQL 18          | Railway `Postgres` (`postgres-ssl:18`)                         | private endpoint `postgres`; a TCP proxy exists only for the nightly dump            |
 | Redis 8                | Railway `Redis`                                                | private endpoint `redis`, `--save 60 1` on a volume                                  |
 | Panel `apps/admin-web` | Cloudflare Pages project `vakhta-panel`                        | `https://panel.vakhta.xyz`; the `pages.dev` host redirects there                     |
-| Kiosk `apps/qr-kiosk`  | Cloudflare Pages project `vakhta-kiosk`                        | `https://kiosk.vakhta.xyz`; the tablet pairs with a code from the panel               |
+| Kiosk `apps/qr-kiosk`  | Cloudflare Pages project `vakhta-kiosk`                        | `https://kiosk.vakhta.xyz`; the tablet pairs with a code from the panel              |
 | Photos, medical files  | Cloudflare R2 bucket `vakhta-media` (private, WEUR)            | S3 API keys with Object Read & Write on both buckets                                 |
 | Database backups       | Cloudflare R2 bucket `vakhta-backups`                          | lifecycle rule `expire-30d` on `postgres/`                                           |
 | Images                 | GHCR `ghcr.io/leonidkuznetsov18/vakhta-api`, `…-worker`        | published by CI from `master`, used for rollback and for other hosts                 |

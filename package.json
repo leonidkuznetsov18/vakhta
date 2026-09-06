@@ -16,7 +16,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm format:check",
     "infra:up": "docker compose -f infra/compose/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/compose/docker-compose.yml down",
     "db:generate": "pnpm --filter @vakhta/db generate",
