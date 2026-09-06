@@ -1,3 +1,9 @@
+## [0.26.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.25.1...v0.26.0) (2026-09-06)
+
+### Features
+
+* **panel:** larger avatar in the sidebar profile button ([2b4beb9](https://github.com/leonidkuznetsov18/vakhta/commit/2b4beb948fb5771693483b7e8195f2c2237e1140))
+
 ## [0.25.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.25.0...v0.25.1) (2026-09-06)
 
 ### Bug fixes
