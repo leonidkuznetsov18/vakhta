@@ -1003,6 +1003,12 @@ export interface Messages {
         readonly detailsHint: string;
         readonly detailsSaved: string;
         readonly editDetails: string;
+        /** Optional first assignment in the creation form. */
+        readonly newOrgUnit: string;
+        readonly newPosition: string;
+        readonly newTeam: string;
+        readonly notChosen: string;
+        readonly newAssignmentHint: string;
       };
       readonly users: {
         readonly email: string;
@@ -1302,6 +1308,7 @@ export interface Messages {
       readonly employeesEmail: string;
       readonly employeesPhone: string;
       readonly employeesTelegram: string;
+      readonly employeesNewAssignment: string;
       readonly employeesChecklistColumn: string;
       readonly employeesChecklists: string;
       readonly employeesImport: string;

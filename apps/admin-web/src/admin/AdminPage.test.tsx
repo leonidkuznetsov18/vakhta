@@ -128,7 +128,7 @@ describe('AdminPage', () => {
 
     // The row action opens the card, where the activation block shows the code, the link and the steps.
     await clickRowAction('Код активации');
-    const sheet = await screen.findByRole('dialog');
+    const sheet = await screen.findByTestId('employee-card');
     expect(await within(sheet).findByText('ABCD2345')).toBeTruthy();
     expect(
       within(sheet).getByText('https://t.me/vakhta_worker_bot?start=act-ABCD2345'),

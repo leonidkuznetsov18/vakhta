@@ -10,9 +10,11 @@ Administration tabs:
 - "Сотрудники": cards, CSV import, activation codes and QR, position assignment (unit, position,
   team; a transfer keeps the history), checklists of the position, block / unblock / terminate,
   relink Telegram. The creation form takes the personnel number and the full name plus optional
-  contacts: e-mail, phone and Telegram username; every field has a placeholder, an ⓘ hint and
-  inline validation (the phone is normalized to +380…, the username is stored without "@"). The
-  card shows the contacts as mail / call / t.me links; "Изменить данные" turns them into a form
+  contacts (e-mail, phone, Telegram username) and an optional first assignment (unit and position
+  together, a team of that unit); every field has a placeholder, an ⓘ hint and inline validation
+  (the phone is normalized to +380…, the username is stored without "@"). A row click expands the
+  employee card under the row in two columns: details and activation on the left, position and
+  checklist on the right. The card shows the contacts as mail / call / t.me links; "Изменить данные" turns them into a form
   (personnel number, full name, e-mail, phone, Telegram, same hints and validation, save only
   when something changed; every edit lands in the audit with before / after). The collapsible
   "Активация в боте" block holds the steps for the administrator, "Выдать код активации", the

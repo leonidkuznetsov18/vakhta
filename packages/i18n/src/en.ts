@@ -1267,6 +1267,12 @@ export const en: Messages = {
           'The personnel number, the full name and the contacts are edited here; the position changes below, and the audit keeps every edit.',
         detailsSaved: 'Employee details saved.',
         editDetails: 'Edit details',
+        newOrgUnit: 'Unit',
+        newPosition: 'Position',
+        newTeam: 'Team',
+        notChosen: 'Not chosen',
+        newAssignmentHint:
+          'Optional: the unit and the position go together, the team comes from the chosen unit. All of it can be changed in the card later.',
       },
       users: {
         email: 'Email',
@@ -1996,6 +2002,8 @@ export const en: Messages = {
         'Optional. Phone number in international format; the panel strips spaces and adds +38 to a Ukrainian number.',
       employeesTelegram:
         'Optional. Telegram username (@username) to find the employee before linking. The account is still linked with an activation code.',
+      employeesNewAssignment:
+        'The first personnel assignment. The position defines the handover checklist, the unit the schedule and the acceptance.',
       employeesChecklistColumn:
         'The handover checklist bound to the employee position. Without one the bot asks for no checklist and no photos at the end of the shift.',
       employeesChecklists:

@@ -32,6 +32,7 @@ import {
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { ActivationService } from './activation.service.js';
 import { EmployeesService } from './employees.service.js';
+import { PositionsService } from './positions.service.js';
 import { IdentityExceptionFilter } from './identity-exception.filter.js';
 
 /** Кадрові картки і привʼязка Telegram для HR і адміністратора (ТЗ 2.2). */
@@ -43,6 +44,7 @@ export class AdminEmployeesController {
   constructor(
     private readonly employees: EmployeesService,
     private readonly activation: ActivationService,
+    private readonly positions: PositionsService,
   ) {}
 
   @Get()
@@ -57,8 +59,20 @@ export class AdminEmployeesController {
     @Body(new ZodValidationPipe(CreateEmployeeCommand)) body: CreateEmployeeCommand,
     @CurrentUser() user: WebUser,
   ): Promise<EmployeeView> {
-    const row = await this.employees.create(body, webUserActor(user));
-    return this.employees.toView(row, false);
+    const actor = webUserActor(user);
+    const row = await this.employees.create(body, actor);
+    if (body.orgUnitId && body.positionId) {
+      await this.positions.assign(
+        row.id,
+        {
+          orgUnitId: body.orgUnitId,
+          positionId: body.positionId,
+          ...(body.teamId ? { teamId: body.teamId } : {}),
+        },
+        actor,
+      );
+    }
+    return this.employees.viewOf(row.id);
   }
 
   @Post('activation-codes')

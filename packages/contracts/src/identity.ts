@@ -43,10 +43,18 @@ export const EmployeeContacts = z.object({
 });
 
 /** HR або адміністратор створює картку до активації (ТЗ 2.2). */
+const optionalId = z.preprocess(blankToUndefined, Uuid.optional());
 export const CreateEmployeeCommand = EmployeeContacts.extend({
   personnelNumber: PersonnelNumber,
   fullName: z.string().trim().min(3).max(200),
   status: EmployeeStatusSchema.default('ACTIVE'),
+  /** The first personnel assignment, optional: a unit with a position, and a team of that unit. */
+  orgUnitId: optionalId,
+  positionId: optionalId,
+  teamId: optionalId,
+}).refine((v) => (v.orgUnitId === undefined) === (v.positionId === undefined), {
+  message: 'orgUnitId and positionId go together',
+  path: ['positionId'],
 });
 export type CreateEmployeeCommand = z.infer<typeof CreateEmployeeCommand>;
 
@@ -64,7 +72,12 @@ export type UpdateEmployeeCommand = z.infer<typeof UpdateEmployeeCommand>;
 /** Bulk creation from a CSV: every row is validated, duplicates are reported, not created. */
 export const ImportEmployeesCommand = z.object({
   items: z
-    .array(CreateEmployeeCommand.omit({ status: true }))
+    .array(
+      EmployeeContacts.extend({
+        personnelNumber: PersonnelNumber,
+        fullName: z.string().trim().min(3).max(200),
+      }),
+    )
     .min(1)
     .max(1000),
 });

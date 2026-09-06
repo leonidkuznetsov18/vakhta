@@ -41,11 +41,11 @@ import {
   KeyRoundIcon,
   MailIcon,
   PencilIcon,
+  XIcon,
   SendIcon,
   Link2Icon,
   UserXIcon,
 } from 'lucide-react';
-import { DetailSheet } from '@/components/app/detail-sheet';
 import { ImportDialog } from './ImportDialog.tsx';
 import { QrCode } from '@/components/app/qr-code';
 import { UploadIcon } from 'lucide-react';
@@ -72,6 +72,9 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const [email, setEmail] = usePersistentState('employees.email', '');
   const [phone, setPhone] = usePersistentState('employees.phone', '');
   const [telegramUsername, setTelegramUsername] = usePersistentState('employees.telegram', '');
+  const [newOrgUnitId, setNewOrgUnitId] = usePersistentState('employees.newOrgUnit', '');
+  const [newPositionId, setNewPositionId] = usePersistentState('employees.newPosition', '');
+  const [newTeamId, setNewTeamId] = usePersistentState('employees.newTeam', '');
   const [issued, setIssued] = useState<ActivationCodeIssued | null>(null);
   const [creating, setCreating] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -115,6 +118,9 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       email,
       phone,
       telegramUsername,
+      orgUnitId: newOrgUnitId,
+      positionId: newPositionId,
+      teamId: newTeamId,
     });
     // The contract reports a format failure as a generic message; name the format here.
     const errors: FieldErrors = { ...checked.errors };
@@ -130,6 +136,9 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       setEmail('');
       setPhone('');
       setTelegramUsername('');
+      setNewOrgUnitId('');
+      setNewPositionId('');
+      setNewTeamId('');
       setCreating(false);
     }, t.common.added);
   }
@@ -181,7 +190,6 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     );
   }
 
-  const openEmployee = list.find((x) => x.id === openId) ?? null;
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sheet, setSheet] = useState<ActivationCodeIssued[] | null>(null);
   const selectable = list.filter((x) => selected.has(x.id) && x.status === 'ACTIVE');
@@ -335,6 +343,73 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       : []),
   ];
 
+  /** The card under its row: details and activation on the left, position and checklist on the right. */
+  function renderCard(emp: EmployeeView) {
+    return (
+      <div className="flex flex-col gap-3 py-1" data-testid="employee-card">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{emp.fullName}</span>
+          <Muted>
+            {emp.personnelNumber} · {e.statuses[emp.status]}
+          </Muted>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="ml-auto"
+            onClick={() => setOpenId(null)}
+          >
+            <XIcon aria-hidden="true" />
+            {all.ui.common.close}
+          </Button>
+        </div>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-4">
+            <EmployeeDetailsForm employee={emp} onSaved={replace} />
+            <ActivationPanel
+              employee={emp}
+              issued={issued?.employeeId === emp.id ? issued : null}
+              issue={deliveryIssue?.employeeId === emp.id ? deliveryIssue.code : null}
+              busy={busy}
+              onIssue={() => issueCode(emp)}
+              onSend={(channel) => sendActivation(emp, channel)}
+            />
+          </div>
+          <div className="flex min-w-0 flex-col gap-4">
+            <PositionPanel
+              employee={emp}
+              org={org}
+              onAssigned={(view) =>
+                replace({
+                  ...emp,
+                  currentPosition: {
+                    positionId: view.positionId,
+                    orgUnitId: view.orgUnitId,
+                    teamId: view.teamId,
+                  },
+                })
+              }
+            />
+            {emp.currentPosition && (
+              <ChecklistPanel
+                positionId={emp.currentPosition.positionId}
+                positionName={positionName(emp.currentPosition.positionId)}
+                checklists={checklists ?? []}
+                onChanged={(view) =>
+                  setChecklists((list) =>
+                    (list ?? []).some((c) => c.id === view.id)
+                      ? (list ?? []).map((c) => (c.id === view.id ? view : c))
+                      : [...(list ?? []), view],
+                  )
+                }
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <Section
@@ -435,6 +510,38 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
                     />
                   )}
                 </FormField>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <SelectField
+                    label={e.newOrgUnit}
+                    hint={hints.employeesNewAssignment}
+                    value={newOrgUnitId}
+                    onChange={(v) => {
+                      setNewOrgUnitId(v);
+                      setNewTeamId('');
+                    }}
+                    placeholder={e.notChosen}
+                    options={org.orgUnits.map((u) => ({ value: u.id, label: u.name }))}
+                  />
+                  <SelectField
+                    label={e.newPosition}
+                    value={newPositionId}
+                    onChange={setNewPositionId}
+                    placeholder={e.notChosen}
+                    error={fieldErrors.positionId}
+                    options={org.positions.map((p) => ({ value: p.id, label: p.name }))}
+                  />
+                  <SelectField
+                    label={e.newTeam}
+                    value={newTeamId}
+                    onChange={setNewTeamId}
+                    placeholder={e.notChosen}
+                    disabled={!newOrgUnitId}
+                    options={org.teams
+                      .filter((tm) => tm.orgUnitId === newOrgUnitId)
+                      .map((tm) => ({ value: tm.id, label: tm.name }))}
+                  />
+                </div>
+                <Muted className="text-xs">{e.newAssignmentHint}</Muted>
                 <Feedback error={error} />
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setCreating(false)}>
@@ -500,55 +607,10 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           </Button>
         }
         onRowClick={(emp) => setOpenId(openId === emp.id ? null : emp.id)}
+        expanded={(emp) => (emp.id === openId ? renderCard(emp) : null)}
         rowActions={rowActions}
         rowClassName={(emp) => (emp.status !== 'ACTIVE' ? 'text-muted-foreground' : undefined)}
       />
-      {openEmployee && (
-        <DetailSheet
-          open
-          onOpenChange={(open) => !open && setOpenId(null)}
-          title={openEmployee.fullName}
-          description={`${openEmployee.personnelNumber} · ${e.statuses[openEmployee.status]}`}
-        >
-          <EmployeeDetailsForm employee={openEmployee} onSaved={replace} />
-          <ActivationPanel
-            employee={openEmployee}
-            issued={issued?.employeeId === openEmployee.id ? issued : null}
-            issue={deliveryIssue?.employeeId === openEmployee.id ? deliveryIssue.code : null}
-            busy={busy}
-            onIssue={() => issueCode(openEmployee)}
-            onSend={(channel) => sendActivation(openEmployee, channel)}
-          />
-          <PositionPanel
-            employee={openEmployee}
-            org={org}
-            onAssigned={(view) =>
-              replace({
-                ...openEmployee,
-                currentPosition: {
-                  positionId: view.positionId,
-                  orgUnitId: view.orgUnitId,
-                  teamId: view.teamId,
-                },
-              })
-            }
-          />
-          {openEmployee.currentPosition && (
-            <ChecklistPanel
-              positionId={openEmployee.currentPosition.positionId}
-              positionName={positionName(openEmployee.currentPosition.positionId)}
-              checklists={checklists ?? []}
-              onChanged={(view) =>
-                setChecklists((list) =>
-                  (list ?? []).some((c) => c.id === view.id)
-                    ? (list ?? []).map((c) => (c.id === view.id ? view : c))
-                    : [...(list ?? []), view],
-                )
-              }
-            />
-          )}
-        </DetailSheet>
-      )}
       <CodeSheet codes={sheet} employees={list} onClose={() => setSheet(null)} />
       <ImportDialog
         open={importing}
