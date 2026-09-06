@@ -1,3 +1,9 @@
+## [0.10.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.9.3...v0.10.0) (2026-09-06)
+
+### Features
+
+* **admin-web:** checklists serve several positions, forms disable submit while unchanged, report view options, touch tooltips ([b5d8d3a](https://github.com/leonidkuznetsov18/vakhta/commit/b5d8d3a40e1ff325be8090daa6922f72d0414d3f))
+
 ## [0.9.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.9.2...v0.9.3) (2026-09-06)
 
 ### Bug fixes
