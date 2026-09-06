@@ -6,6 +6,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Feedback } from '@/components/app/feedback';
 import { orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
+import { ChecklistsTab } from './ChecklistsTab.tsx';
 import { DirectoriesTab } from './DirectoriesTab.tsx';
 import { EmployeesTab } from './EmployeesTab.tsx';
 import { TerminalsTab } from './TerminalsTab.tsx';
@@ -55,6 +56,9 @@ export function AdminPage() {
           </TabsContent>
           <TabsContent value="terminals">
             <TerminalsTab org={org} onChanged={reload} />
+          </TabsContent>
+          <TabsContent value="checklists">
+            <ChecklistsTab org={org} />
           </TabsContent>
         </>
       ) : null}

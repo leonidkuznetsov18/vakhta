@@ -3,12 +3,14 @@ import {
   checklistDefinitions,
   domainEvents,
   downtimeIncidents,
+  employeePositions,
   employees,
   eq,
   handoverRecords,
   mediaObjects,
   notificationOutbox,
   orgUnits,
+  positions,
   reasonCodes,
   responsibilityZones,
   scheduleVersions,
@@ -63,7 +65,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
 
   beforeEach(async () => {
     await testDb.db.execute(
-      sql`TRUNCATE handover_resolutions, handover_reviews, handover_media, checklist_answers, handover_records, media_objects, checklist_definitions, incident_status_history, downtime_reports, downtime_incidents, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, responsibility_zones, employees, org_units, sites, reason_codes CASCADE`,
+      sql`TRUNCATE handover_resolutions, handover_reviews, handover_media, checklist_answers, handover_records, media_objects, checklist_definitions, incident_status_history, downtime_reports, downtime_incidents, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, responsibility_zones, employee_positions, positions, employees, org_units, sites, reason_codes CASCADE`,
     );
     timers = new InMemoryTimerScheduler();
     const events = new EventStore();
@@ -256,7 +258,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
       await handover.attachPhoto(
         employeeId,
         {
-          angle,
+          itemKey: `PHOTO_${angle}`,
           telegramFileId: `file-${angle}-${n}`,
           telegramFileUniqueId: `uniq-${angle}-${n}`,
           width: 1280,
@@ -275,10 +277,85 @@ describe('handover: прибирання, чек-лист, фото, перед�
 
     const draft = await handover.current(dayEmployee);
     expect(draft).toMatchObject({ status: 'DRAFT', zoneName: 'Линия A', checklistVersion: 1 });
-    expect(draft?.items.map((i) => i.key)).toEqual([...DEFAULT_CHECKLIST_KEYS]);
+    expect(draft?.items.map((i) => i.key)).toEqual([
+      ...DEFAULT_CHECKLIST_KEYS,
+      'PHOTO_OVERVIEW',
+      'PHOTO_SURFACES',
+      'PHOTO_FLOOR',
+    ]);
     expect(draft?.items.find((i) => i.key === 'MESSAGE_NEXT')?.kind).toBe('NOTE');
     expect(draft?.issues.filter((i) => i.code === 'ITEM_MISSING')).toHaveLength(8);
+    expect(draft?.issues.filter((i) => i.code === 'PHOTO_MISSING')).toHaveLength(3);
     expect(await testDb.db.select().from(checklistDefinitions)).toHaveLength(1);
+  });
+
+  it('FR-CLN-03: чек-лист добирається за посадою працівника і типом зони, фото-пункти з нього обовʼязкові', async () => {
+    const [operator] = await testDb.db
+      .insert(positions)
+      .values({ code: 'OPERATOR', name: 'Оператор' })
+      .returning();
+    const [unit] = await testDb.db.select().from(orgUnits).limit(1);
+    await testDb.db.insert(employeePositions).values({
+      employeeId: dayEmployee,
+      orgUnitId: unit!.id,
+      positionId: operator!.id,
+      validFrom: new Date('2026-01-01T00:00:00Z'),
+    });
+    const photo = { key: 'ITEM_03', label: 'Фото линии', kind: 'PHOTO' as const };
+    await testDb.db.insert(checklistDefinitions).values([
+      {
+        name: 'Общий',
+        version: 1,
+        items: [{ key: 'ITEM_01', label: 'Общий пункт', kind: 'CHECK' }, photo],
+      },
+      {
+        name: 'Оператор',
+        version: 1,
+        positionId: operator!.id,
+        items: [
+          { key: 'ITEM_01', label: 'Линия остановлена', kind: 'CHECK' },
+          { key: 'ITEM_02', label: 'Сообщение', kind: 'NOTE' },
+          photo,
+        ],
+      },
+      {
+        name: 'Оператор, старая версия',
+        version: 1,
+        positionId: operator!.id,
+        isActive: false,
+        items: [{ key: 'ITEM_01', label: 'Устарело', kind: 'CHECK' }, photo],
+      },
+    ]);
+    await toHandover(dayEmployee);
+    const draft = await handover.current(dayEmployee);
+    expect(draft?.items.map((i) => i.label)).toEqual([
+      'Линия остановлена',
+      'Сообщение',
+      'Фото линии',
+    ]);
+    expect(draft?.issues).toEqual([
+      { code: 'ITEM_MISSING', itemKey: 'ITEM_01' },
+      { code: 'ITEM_MISSING', itemKey: 'ITEM_02' },
+      { code: 'PHOTO_MISSING', itemKey: 'ITEM_03' },
+    ]);
+    // a photo lands only on a PHOTO item
+    await expect(
+      handover.attachPhoto(
+        dayEmployee,
+        { itemKey: 'ITEM_01', telegramFileId: 'f', telegramFileUniqueId: 'u' },
+        employeeActor(dayEmployee),
+      ),
+    ).rejects.toMatchObject({ code: 'CHECKLIST_ITEM_UNKNOWN' });
+    await handover.attachPhoto(
+      dayEmployee,
+      { itemKey: 'ITEM_03', telegramFileId: 'f', telegramFileUniqueId: 'u' },
+      employeeActor(dayEmployee),
+    );
+    const withPhoto = await handover.current(dayEmployee);
+    expect(withPhoto?.photos).toEqual([
+      expect.objectContaining({ itemKey: 'ITEM_03', label: 'Фото линии' }),
+    ]);
+    expect(withPhoto?.issues.some((i) => i.code === 'PHOTO_MISSING')).toBe(false);
   });
 
   it('AC-10: без повного чек-листа і трьох фото звіт не подається; SUBMIT_HANDOVER без звіту заборонено', async () => {
@@ -308,7 +385,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
     ]);
   });
 
-  it('FR-CLN-04: зауваження вимагає категорію, текст і безпеку; повторне фото ракурсу замінює попереднє', async () => {
+  it('FR-CLN-04: зауваження вимагає категорію, текст і безпеку; повторне фото пункту замінює попереднє', async () => {
     await toHandover(dayEmployee);
     await handover.answer(dayEmployee, { itemKey: 'FLOOR', ok: false }, employeeActor(dayEmployee));
     let view = await handover.current(dayEmployee);
@@ -339,12 +416,12 @@ describe('handover: прибирання, чек-лист, фото, перед�
 
     await handover.attachPhoto(
       dayEmployee,
-      { angle: 'OVERVIEW', telegramFileId: 'f1', telegramFileUniqueId: 'u1' },
+      { itemKey: 'PHOTO_OVERVIEW', telegramFileId: 'f1', telegramFileUniqueId: 'u1' },
       employeeActor(dayEmployee),
     );
     await handover.attachPhoto(
       dayEmployee,
-      { angle: 'OVERVIEW', telegramFileId: 'f2', telegramFileUniqueId: 'u2' },
+      { itemKey: 'PHOTO_OVERVIEW', telegramFileId: 'f2', telegramFileUniqueId: 'u2' },
       employeeActor(dayEmployee),
     );
     view = await handover.current(dayEmployee);
@@ -354,7 +431,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
     // повторна відправка того самого файлу не створює нового обʼєкта (FR-PHO-05)
     await handover.attachPhoto(
       dayEmployee,
-      { angle: 'OVERVIEW', telegramFileId: 'f2', telegramFileUniqueId: 'u2' },
+      { itemKey: 'PHOTO_OVERVIEW', telegramFileId: 'f2', telegramFileUniqueId: 'u2' },
       employeeActor(dayEmployee),
     );
     expect(await testDb.db.select().from(mediaObjects)).toHaveLength(2);

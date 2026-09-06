@@ -1,6 +1,5 @@
 import { InlineKeyboard } from 'grammy';
 import {
-  HANDOVER_ANGLES,
   LOCALES,
   REMARK_NEEDS,
   addMonths,
@@ -9,9 +8,9 @@ import {
   maskFullName,
   maskPersonnelNumber,
   type CheckAction,
+  PHOTO_KEY_PREFIX,
   type ChecklistKey,
   type EmployeeAccess,
-  type HandoverAngle,
   type Locale,
   type RequestType,
   type ShiftAction,
@@ -71,11 +70,22 @@ function weekdayShort(t: Messages, date: string): string {
 }
 
 /** Checklist item labels are stored in the definition; known keys are rendered in the employee's language. */
-function itemLabel(t: Messages, item: { readonly key: string; readonly label: string }): string {
-  return (
-    (t.handover.items as Readonly<Record<string, string>>)[item.key as ChecklistKey] ?? item.label
-  );
+/**
+ * Label of a checklist item in the employee's language: items of the default checklist are
+ * localized from the catalog, admin-written items are shown as typed.
+ */
+export function checklistItemLabel(
+  t: Messages,
+  item: { readonly key: string; readonly label: string },
+): string {
+  const items = t.handover.items as Readonly<Record<string, string>>;
+  const angles = t.handover.angles as Readonly<Record<string, string>>;
+  const angle = item.key.startsWith(PHOTO_KEY_PREFIX)
+    ? item.key.slice(PHOTO_KEY_PREFIX.length)
+    : '';
+  return items[item.key as ChecklistKey] ?? angles[angle] ?? item.label;
 }
+const itemLabel = checklistItemLabel;
 
 export interface HomeInput {
   readonly employee: EmployeeRecord;
@@ -533,7 +543,7 @@ export function incidentResultScreen(
 export const HANDOVER_CALLBACK = {
   ok: 'hv:ok:',
   remark: 'hv:rem:',
-  note: 'hv:note',
+  note: 'hv:note:',
   photo: 'hv:ph:',
   cannot: 'hv:cannot',
   cannotReason: 'hv:cr:',
@@ -548,16 +558,36 @@ export const HANDOVER_CALLBACK = {
   reviewCategory: 'hr:rc:',
 } as const;
 
-/** Checklist screen in HANDOVER: a line per item (✅ / ⚠️), three angles, submission. */
+/**
+ * Checklist screen in HANDOVER: a line per item (✅ / ⚠️ / 🖼), a button per item, submission.
+ * Photo items are part of the checklist the admin built, so they appear where the admin put them.
+ */
 export function handoverScreen(t: Messages, view: HandoverView, header: string): Screen {
-  const done = view.items.filter((i) => i.answered).length;
+  const checks = view.items.filter((i) => i.kind !== 'PHOTO');
+  const photoItems = view.items.filter((i) => i.kind === 'PHOTO');
+  const photoByKey = new Map(view.photos.map((p) => [p.itemKey, p]));
+  const done = checks.filter((i) => i.answered).length;
   const lines = [
     header,
     '',
     format(t.handover.header, { zone: view.zoneName }),
-    format(t.handover.progress, { done, total: view.items.length, photos: view.photos.length }),
+    format(t.handover.progress, {
+      done,
+      total: checks.length,
+      photos: photoItems.filter((i) => photoByKey.has(i.key)).length,
+      photosTotal: photoItems.length,
+    }),
   ];
   for (const item of view.items) {
+    if (item.kind === 'PHOTO') {
+      const photo = photoByKey.get(item.key);
+      lines.push(
+        photo
+          ? `🖼 ${itemLabel(t, item)}: ${t.handover.quality[photo.media.quality]}`
+          : `▫️ 📷 ${itemLabel(t, item)}`,
+      );
+      continue;
+    }
     const mark = !item.answered ? '▫️' : item.ok ? '✅' : '⚠️';
     const extra =
       item.kind === 'NOTE' && item.answered
@@ -567,9 +597,6 @@ export function handoverScreen(t: Messages, view: HandoverView, header: string):
           : '';
     lines.push(`${mark} ${itemLabel(t, item)}${extra}`);
   }
-  for (const photo of view.photos) {
-    lines.push(`🖼 ${t.handover.angles[photo.angle]}: ${t.handover.quality[photo.media.quality]}`);
-  }
   if (view.cannotCompleteReason) lines.push('', t.handover.cannotCompleteSaved);
   if (view.status !== 'DRAFT') lines.push('', t.handover.submitted);
   else if (view.issues.length > 0) {
@@ -577,10 +604,7 @@ export function handoverScreen(t: Messages, view: HandoverView, header: string):
     const seen = new Set<string>();
     for (const issue of view.issues) {
       const item = view.items.find((i) => i.key === issue.itemKey);
-      const label =
-        issue.code === 'PHOTO_MISSING'
-          ? `${t.handover.issues.PHOTO_MISSING}: ${t.handover.angles[issue.angle!]}`
-          : `${t.handover.issues[issue.code]}: ${item ? itemLabel(t, item) : issue.itemKey}`;
+      const label = `${t.handover.issues[issue.code]}: ${item ? itemLabel(t, item) : issue.itemKey}`;
       if (!seen.has(label)) lines.push(`• ${label}`);
       seen.add(label);
     }
@@ -589,11 +613,22 @@ export function handoverScreen(t: Messages, view: HandoverView, header: string):
   if (view.status !== 'DRAFT') return { text: lines.join('\n') };
   const keyboard = new InlineKeyboard();
   for (const item of view.items) {
+    if (item.kind === 'PHOTO') {
+      keyboard
+        .text(
+          format(photoByKey.has(item.key) ? t.handover.photoDone : t.handover.photoButton, {
+            item: itemLabel(t, item),
+          }),
+          `${HANDOVER_CALLBACK.photo}${item.key}`,
+        )
+        .row();
+      continue;
+    }
     if (item.kind === 'NOTE') {
       keyboard
         .text(
           item.answered ? `✍️ ${itemLabel(t, item)} ✓` : t.handover.noteButton,
-          HANDOVER_CALLBACK.note,
+          `${HANDOVER_CALLBACK.note}${item.key}`,
         )
         .row();
       continue;
@@ -609,16 +644,6 @@ export function handoverScreen(t: Messages, view: HandoverView, header: string):
       )
       .row();
   }
-  const present = new Set(view.photos.map((p) => p.angle));
-  for (const angle of HANDOVER_ANGLES) {
-    keyboard.text(
-      format(present.has(angle) ? t.handover.photoDone : t.handover.photoButton, {
-        angle: t.handover.angles[angle],
-      }),
-      `${HANDOVER_CALLBACK.photo}${angle}`,
-    );
-  }
-  keyboard.row();
   if (view.issues.length === 0) keyboard.text(t.handover.submit, HANDOVER_CALLBACK.submit).row();
   if (!view.cannotCompleteReason)
     keyboard.text(t.handover.cannotComplete, HANDOVER_CALLBACK.cannot).row();
@@ -626,9 +651,9 @@ export function handoverScreen(t: Messages, view: HandoverView, header: string):
   return { text: lines.join('\n'), keyboard };
 }
 
-export function handoverPhotoPromptScreen(t: Messages, angle: HandoverAngle): Screen {
+export function handoverPhotoPromptScreen(t: Messages, item: string): Screen {
   return {
-    text: format(t.handover.askPhoto, { angle: t.handover.angles[angle] }),
+    text: format(t.handover.askPhoto, { item }),
     keyboard: new InlineKeyboard().text(t.handover.cancel, HANDOVER_CALLBACK.cancel),
   };
 }

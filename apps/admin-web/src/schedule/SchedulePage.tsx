@@ -93,6 +93,7 @@ export function SchedulePage() {
     () => org?.orgUnits.filter((u) => u.siteId === siteId) ?? [],
     [org, siteId],
   );
+  const rowsWithoutZone = grid.rows.filter((r) => !r.zoneId).length;
   const zones = useMemo(
     () => org?.zones.filter((z) => z.orgUnitId === orgUnitId && z.isActive) ?? [],
     [org, orgUnitId],
@@ -343,6 +344,15 @@ export function SchedulePage() {
               {s.goToEmployees}
             </Button>
           </AlertDescription>
+        </Alert>
+      )}
+
+      {editable && zones.length > 0 && rowsWithoutZone > 0 && (
+        <Alert>
+          <AlertTitle className="flex items-center gap-1">
+            {format(s.zoneMissing, { n: rowsWithoutZone })}
+            <InfoTip text={hints.scheduleZone} />
+          </AlertTitle>
         </Alert>
       )}
 

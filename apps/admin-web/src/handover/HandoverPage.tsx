@@ -316,17 +316,12 @@ export function HandoverPage() {
                         <div className="grid grid-cols-3 gap-2">
                           {detail.handover.photos.map((p) => (
                             <PhotoThumb
-                              key={p.angle}
+                              key={p.itemKey}
                               media={p.media}
                               loadLink={loadLink}
-                              label={`${all.handover.angles[p.angle]} · ${all.handover.quality[p.media.quality]}`}
+                              label={`${p.label} · ${all.handover.quality[p.media.quality]}`}
                               onOpen={(url) =>
-                                setLightbox([
-                                  {
-                                    url,
-                                    label: `${h.photoBefore}: ${all.handover.angles[p.angle]}`,
-                                  },
-                                ])
+                                setLightbox([{ url, label: `${h.photoBefore}: ${p.label}` }])
                               }
                             />
                           ))}

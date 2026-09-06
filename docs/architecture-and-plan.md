@@ -287,10 +287,10 @@ Webhook зберігає лише `file_id`/`file_unique_id` та ставить
 
 **handover**
 
-- `checklist_definitions(id, version, zone_type, position_id, items jsonb, valid_from)`
+- `checklist_definitions(id, family_id, name, version, zone_type, position_id, items jsonb: [{key, label, kind: CHECK|NOTE|PHOTO}], is_active, valid_from)` — версії однієї родини; редагування в панелі додає версію (ADR-0012)
 - `handover_records(id, shift_session_id, zone_id, submitted_by, checklist_definition_id, status: draft|submitted|accepted|disputed|resolved_accepted|resolved_issue_confirmed|resolved_no_fault|superseded, submitted_at, accept_deadline_at, superseded_by_id, version)`
 - `checklist_answers(handover_id, item_key, ok bool, remark_category, remark_text, safe_to_work, needs: master|cleaning|repair)`
-- `handover_media(handover_id, angle: overview|surfaces|floor, media_object_id)`
+- `handover_media(handover_id, item_key, media_object_id)` — фото на PHOTO-пункт чек-листа; повторне фото пункту замінює попереднє
 - `handover_reviews(id, handover_id, reviewer_employee_id, reviewer_shift_session_id, decision: accepted|issue, category, comment, media_object_id, reviewed_at)` — CHECK reviewer ≠ submitted_by (T-32)
 - `handover_resolutions(id, handover_id, resolved_by, decision, reason_code, comment, at)`
 - `media_objects(id, telegram_file_id, telegram_file_unique_id, storage_key, size, width, height, sha256, phash, brightness, quality_status: pending|ok|low_res|dark|corrupt|duplicate_suspect|manual_review, received_at, retention_until)`
@@ -443,7 +443,7 @@ REST з OpenAPI, згенерованим з zod-контрактів; груп�
 **Фаза 4. Прибирання, фото, передача (3 тижні)**
 
 - Нагадування за 30 хв, атомарний перехід у `CLEANING`, чек-лист за зоною і роллю, зауваження.
-- Фото-пайплайн: три ракурси, S3, SHA-256, pHash, якість, чернетка, що переживає обрив.
+- Фото-пайплайн: фото-пункти чек-листа (типово три ракурси), S3, SHA-256, pHash, якість, чернетка, що переживає обрив.
 - Передача: `SUBMITTED` без очікування, приймання наступною зміною, зауваження з фото, спір, рішення майстра, `SUPERSEDED`, тайм-аут на майстра, заборона прийняти власну передачу.
 - Панель: «Чистота і передача» з фото до/після, спорами, простроченими прийманнями; підписані URL і аудит переглядів.
 

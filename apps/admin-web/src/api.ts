@@ -237,6 +237,35 @@ export const adminOrgApi = {
     }),
 };
 
+// ---- checklists of the zone handover (spec 5.6) ----
+
+import type {
+  ChecklistDefinitionView,
+  SaveChecklistCommand,
+  SetChecklistStatusCommand,
+} from '@vakhta/contracts';
+
+export const checklistsApi = {
+  list: () => apiFetch<ChecklistDefinitionView[]>('/admin/org/checklists'),
+  create: (cmd: SaveChecklistCommand) =>
+    post<ChecklistDefinitionView>('/admin/org/checklists', cmd),
+  update: (id: string, cmd: SaveChecklistCommand) =>
+    apiFetch<ChecklistDefinitionView>(`/admin/org/checklists/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(cmd),
+    }),
+  setStatus: (id: string, cmd: SetChecklistStatusCommand) =>
+    apiFetch<ChecklistDefinitionView>(`/admin/org/checklists/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(cmd),
+    }),
+  delete: (id: string, reason: string) =>
+    apiFetch<null>(`/admin/org/checklists/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ reason }),
+    }),
+};
+
 // ---- оперативна зміна (ТЗ 9.2) ----
 
 import type {

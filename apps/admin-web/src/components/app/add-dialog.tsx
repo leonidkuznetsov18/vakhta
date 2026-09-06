@@ -20,6 +20,10 @@ interface Props {
   /** Trigger label; defaults to "Add". */
   readonly trigger?: string;
   readonly triggerVariant?: 'default' | 'secondary' | 'outline';
+  /** No trigger: the dialog is opened by a row action or another control. */
+  readonly hideTrigger?: boolean;
+  /** Wider dialog for forms with a preview column. */
+  readonly wide?: boolean;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly children: ReactNode;
@@ -35,6 +39,8 @@ export function AddDialog({
   description,
   trigger,
   triggerVariant = 'default',
+  hideTrigger = false,
+  wide = false,
   open,
   onOpenChange,
   children,
@@ -42,13 +48,15 @@ export function AddDialog({
   const t = messages(currentLocale()).ui.common;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <Button type="button" variant={triggerVariant}>
-          <PlusIcon aria-hidden="true" />
-          {trigger ?? t.add}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button type="button" variant={triggerVariant}>
+            <PlusIcon aria-hidden="true" />
+            {trigger ?? t.add}
+          </Button>
+        </DialogTrigger>
+      )}
+      <DialogContent className={wide ? 'sm:max-w-4xl' : 'sm:max-w-lg'}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-1">
             {title}

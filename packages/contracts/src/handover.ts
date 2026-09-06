@@ -1,23 +1,24 @@
 import { z } from 'zod';
 import {
-  HANDOVER_ANGLES,
+  CHECKLIST_ITEM_KEY_PATTERN,
   HANDOVER_RESOLUTIONS,
   HANDOVER_STATUSES,
   MEDIA_QUALITY_STATUSES,
   REMARK_NEEDS,
 } from '@vakhta/domain';
+import { ChecklistItemKindSchema } from './checklists.js';
 import { Comment, IdempotencyKey, IsoDateTime, ReasonCode, Uuid } from './common.js';
 
 export const HandoverStatusSchema = z.enum(HANDOVER_STATUSES);
 export const HandoverResolutionSchema = z.enum(HANDOVER_RESOLUTIONS);
-export const HandoverAngleSchema = z.enum(HANDOVER_ANGLES);
 export const RemarkNeedSchema = z.enum(REMARK_NEEDS);
 export const MediaQualitySchema = z.enum(MEDIA_QUALITY_STATUSES);
+export const ChecklistItemKey = z.string().regex(CHECKLIST_ITEM_KEY_PATTERN);
 
 export const ChecklistItemView = z.object({
   key: z.string(),
   label: z.string(),
-  kind: z.enum(['CHECK', 'NOTE']),
+  kind: ChecklistItemKindSchema,
   answered: z.boolean(),
   ok: z.boolean().nullable(),
   remarkCategory: z.string().nullable(),
@@ -38,8 +39,10 @@ export const MediaObjectView = z.object({
 });
 export type MediaObjectView = z.infer<typeof MediaObjectView>;
 
+/** A photo attached to one PHOTO item of the checklist. */
 export const HandoverPhotoView = z.object({
-  angle: HandoverAngleSchema,
+  itemKey: z.string(),
+  label: z.string(),
   media: MediaObjectView,
 });
 export type HandoverPhotoView = z.infer<typeof HandoverPhotoView>;
@@ -53,7 +56,6 @@ export const HandoverIssueView = z.object({
     'PHOTO_MISSING',
   ]),
   itemKey: z.string().optional(),
-  angle: HandoverAngleSchema.optional(),
 });
 export type HandoverIssueView = z.infer<typeof HandoverIssueView>;
 
@@ -83,7 +85,7 @@ export const HandoverView = z.object({
 export type HandoverView = z.infer<typeof HandoverView>;
 
 export const AnswerChecklistCommand = z.object({
-  itemKey: z.string().min(1).max(64),
+  itemKey: ChecklistItemKey,
   ok: z.boolean(),
   remarkCategory: ReasonCode.optional(),
   remarkText: Comment.optional(),
@@ -94,9 +96,9 @@ export const AnswerChecklistCommand = z.object({
 });
 export type AnswerChecklistCommand = z.infer<typeof AnswerChecklistCommand>;
 
-/** Telegram-фото ракурсу: у сховище переносить воркер (ADR-0006, FR-PHO-02). */
+/** Telegram photo for one PHOTO item; the worker moves it to storage (ADR-0006, FR-PHO-02). */
 export const AttachHandoverPhotoCommand = z.object({
-  angle: HandoverAngleSchema,
+  itemKey: ChecklistItemKey,
   telegramFileId: z.string().min(1).max(200),
   telegramFileUniqueId: z.string().min(1).max(200),
   sizeBytes: z.number().int().nonnegative().optional(),

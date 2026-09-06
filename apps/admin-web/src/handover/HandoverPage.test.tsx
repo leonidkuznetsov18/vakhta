@@ -74,7 +74,7 @@ function handover(status: string) {
         needs: [],
       },
     ],
-    photos: [{ angle: 'OVERVIEW', media }],
+    photos: [{ itemKey: 'PHOTO_OVERVIEW', label: 'Общий вид зоны', media }],
     issues: [],
     cannotCompleteReason: null,
     cannotCompleteComment: null,

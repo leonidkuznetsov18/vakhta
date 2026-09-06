@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  CreateChecklistCommand,
   CreateOrgUnitCommand,
   CreatePositionCommand,
   CreateSiteCommand,
@@ -18,13 +19,16 @@ import {
   CreateZoneCommand,
   DeleteWithReasonCommand,
   RegisterTerminalCommand,
+  SetChecklistStatusCommand,
   SetTerminalStatusCommand,
+  UpdateChecklistCommand,
   UpdateOrgUnitCommand,
   UpdatePositionCommand,
   UpdateSiteCommand,
   UpdateTeamCommand,
   UpdateTerminalCommand,
   UpdateZoneCommand,
+  type ChecklistDefinitionView,
   type OrgSnapshot,
   type TerminalPairingIssued,
   type TerminalRegistered,
@@ -38,6 +42,7 @@ import {
   type WebUser,
 } from '../auth/web-auth.guard.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
+import { ChecklistsService } from './checklists.service.js';
 import { OrgService } from './org.service.js';
 
 /** Довідники для розділу «Администрирование» (ТЗ 9.1). Читати можуть усі ролі панелі. */
@@ -45,7 +50,10 @@ import { OrgService } from './org.service.js';
 @UseGuards(WebAuthGuard)
 @Roles('ADMIN')
 export class AdminOrgController {
-  constructor(private readonly org: OrgService) {}
+  constructor(
+    private readonly org: OrgService,
+    private readonly checklists: ChecklistsService,
+  ) {}
 
   @Get()
   @Roles(
@@ -214,6 +222,51 @@ export class AdminOrgController {
     @CurrentUser() user: WebUser,
   ): Promise<TerminalView> {
     return terminalView(await this.org.setTerminalStatus(id, body, webUserActor(user)));
+  }
+
+  /* Checklists for the zone handover (spec 5.6): built here, answered in the bot. */
+
+  @Get('checklists')
+  @Roles('ADMIN', 'PRODUCTION_HEAD', 'SHIFT_MASTER', 'CLEANLINESS_CONTROLLER', 'AUDITOR')
+  listChecklists(): Promise<ChecklistDefinitionView[]> {
+    return this.checklists.list();
+  }
+
+  @Post('checklists')
+  @HttpCode(201)
+  createChecklist(
+    @Body(new ZodValidationPipe(CreateChecklistCommand)) body: CreateChecklistCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ChecklistDefinitionView> {
+    return this.checklists.create(body, webUserActor(user));
+  }
+
+  @Patch('checklists/:id')
+  updateChecklist(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateChecklistCommand)) body: UpdateChecklistCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ChecklistDefinitionView> {
+    return this.checklists.update(id, body, webUserActor(user));
+  }
+
+  @Patch('checklists/:id/status')
+  setChecklistStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(SetChecklistStatusCommand)) body: SetChecklistStatusCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ChecklistDefinitionView> {
+    return this.checklists.setStatus(id, body, webUserActor(user));
+  }
+
+  @Delete('checklists/:id')
+  @HttpCode(204)
+  async deleteChecklist(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(DeleteWithReasonCommand)) body: DeleteWithReasonCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<void> {
+    await this.checklists.delete(id, body.reason, webUserActor(user));
   }
 }
 

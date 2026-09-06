@@ -15,7 +15,6 @@ import {
 } from 'drizzle-orm/pg-core';
 import type {
   ChecklistItemDefinition,
-  HandoverAngle,
   HandoverResolution,
   HandoverStatus,
   MediaQualityStatus,
@@ -40,7 +39,6 @@ const RESOLUTION_VALUES = [
   'RESOLVED_ISSUE_CONFIRMED',
   'RESOLVED_NO_FAULT',
 ] as const satisfies readonly HandoverResolution[];
-const ANGLE_VALUES = ['OVERVIEW', 'SURFACES', 'FLOOR'] as const satisfies readonly HandoverAngle[];
 const QUALITY_VALUES = [
   'PENDING',
   'OK',
@@ -53,15 +51,21 @@ const QUALITY_VALUES = [
 
 export const handoverStatus = pgEnum('handover_status', HANDOVER_STATUS_VALUES);
 export const handoverResolution = pgEnum('handover_resolution', RESOLUTION_VALUES);
-export const handoverAngle = pgEnum('handover_angle', ANGLE_VALUES);
 export const mediaQuality = pgEnum('media_quality', QUALITY_VALUES);
 export const reviewDecision = pgEnum('review_decision', ['ACCEPTED', 'ISSUE']);
 
-/** Версійовані шаблони чек-листа за типом зони і посадою (FR-CLN-03, FR-HND-01). */
+/**
+ * Versioned checklist templates (FR-CLN-03, FR-HND-01). Admins build them in the panel per
+ * position and zone type; editing creates a new version in the same family so submitted
+ * handovers keep pointing at the exact items they were answered against.
+ */
 export const checklistDefinitions = pgTable(
   'checklist_definitions',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    /** Groups the versions of one checklist; a fresh checklist starts its own family. */
+    familyId: uuid('family_id').notNull().defaultRandom(),
+    name: text('name').notNull().default(''),
     version: integer('version').notNull(),
     zoneType: zoneType('zone_type'),
     positionId: uuid('position_id').references(() => positions.id),
@@ -70,7 +74,10 @@ export const checklistDefinitions = pgTable(
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('checklist_definitions_active_idx').on(t.isActive, t.zoneType, t.positionId)],
+  (t) => [
+    index('checklist_definitions_active_idx').on(t.isActive, t.zoneType, t.positionId),
+    index('checklist_definitions_family_idx').on(t.familyId, t.version),
+  ],
 );
 
 /**
@@ -166,7 +173,7 @@ export const checklistAnswers = pgTable(
   (t) => [uniqueIndex('checklist_answers_item_uq').on(t.handoverId, t.itemKey)],
 );
 
-/** Три ракурси; повторне фото ракурсу замінює попереднє без дублів (FR-PHO-05). */
+/** One photo per PHOTO item of the checklist; a repeated photo replaces the previous one (FR-PHO-05). */
 export const handoverMedia = pgTable(
   'handover_media',
   {
@@ -174,13 +181,13 @@ export const handoverMedia = pgTable(
     handoverId: uuid('handover_id')
       .notNull()
       .references(() => handoverRecords.id, { onDelete: 'cascade' }),
-    angle: handoverAngle('angle').notNull(),
+    itemKey: text('item_key').notNull(),
     mediaObjectId: uuid('media_object_id')
       .notNull()
       .references(() => mediaObjects.id),
     attachedAt: timestamp('attached_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('handover_media_angle_uq').on(t.handoverId, t.angle)],
+  (t) => [uniqueIndex('handover_media_item_uq').on(t.handoverId, t.itemKey)],
 );
 
 /** Приймання наступною зміною; сервіс забороняє приймати власну передачу (T-32). */

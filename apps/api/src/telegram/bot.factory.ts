@@ -11,14 +11,7 @@ import {
   normalizeActivationCode,
   resolveLocale,
 } from '@vakhta/domain';
-import {
-  HANDOVER_ANGLES,
-  REQUEST_TYPES,
-  SHIFT_ACTIONS,
-  type HandoverAngle,
-  type RequestType,
-  type ShiftAction,
-} from '@vakhta/domain';
+import { REQUEST_TYPES, SHIFT_ACTIONS, type RequestType, type ShiftAction } from '@vakhta/domain';
 import { format, messages } from '@vakhta/i18n';
 import { employeeActor } from '../common/actor.js';
 import type { AttendanceService } from '../attendance/attendance.service.js';
@@ -43,6 +36,7 @@ import {
   homeScreen,
   cannotCompleteReasonScreen,
   handoverNeedsScreen,
+  checklistItemLabel,
   handoverPhotoPromptScreen,
   handoverRemarkCategoryScreen,
   handoverSafeScreen,
@@ -74,8 +68,8 @@ import type { UpdateDedup } from './update-dedup.js';
 
 /** Unfinished handover and acceptance steps; live in Redis next to the problem report. */
 type PendingHandover =
-  | { readonly kind: 'photo'; readonly angle: HandoverAngle }
-  | { readonly kind: 'note' }
+  | { readonly kind: 'photo'; readonly itemKey: string }
+  | { readonly kind: 'note'; readonly itemKey: string }
   | {
       readonly kind: 'remark';
       readonly itemKey: string;
@@ -538,7 +532,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await showHandover(ctx);
   });
 
-  bot.callbackQuery(/^hv:ok:([A-Z_]{2,64})$/, async (ctx) => {
+  bot.callbackQuery(/^hv:ok:([A-Z][A-Z0-9_]{1,31})$/, async (ctx) => {
     if (!guardEmployee(ctx)) return ctx.answerCallbackQuery();
     try {
       await deps.handover.answer(
@@ -554,15 +548,14 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await showHandover(ctx);
   });
 
-  bot.callbackQuery(/^hv:rem:([A-Z_]{2,64})$/, async (ctx) => {
+  bot.callbackQuery(/^hv:rem:([A-Z][A-Z0-9_]{1,31})$/, async (ctx) => {
     if (!guardEmployee(ctx)) return ctx.answerCallbackQuery();
     await ctx.answerCallbackQuery();
     const view = await deps.handover.current(ctx.employee.id);
     const item = view?.items.find((i) => i.key === ctx.match[1]);
     if (!view || !item) return showHandover(ctx);
     await writeHv(ctx, { kind: 'remark', itemKey: item.key, step: 'category' });
-    const label =
-      (ctx.t.handover.items as Readonly<Record<string, string>>)[item.key] ?? item.label;
+    const label = checklistItemLabel(ctx.t, item);
     await edit(ctx, handoverRemarkCategoryScreen(ctx.t, label, await handoverReasons()));
   });
 
@@ -612,20 +605,25 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await showHandover(ctx);
   });
 
-  bot.callbackQuery(/^hv:note$/, async (ctx) => {
+  bot.callbackQuery(/^hv:note:([A-Z][A-Z0-9_]{1,31})$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     if (!guardEmployee(ctx)) return;
-    await writeHv(ctx, { kind: 'note' });
+    const view = await deps.handover.current(ctx.employee.id);
+    const item = view?.items.find((i) => i.key === ctx.match[1] && i.kind === 'NOTE');
+    if (!view || !item) return showHandover(ctx);
+    await writeHv(ctx, { kind: 'note', itemKey: item.key });
     await edit(ctx, handoverTextPromptScreen(ctx.t, ctx.t.handover.askNote));
   });
 
-  bot.callbackQuery(/^hv:ph:(OVERVIEW|SURFACES|FLOOR)$/, async (ctx) => {
+  // A photo item of the checklist: the next photo message lands on it (FR-PHO-01, FR-PHO-05).
+  bot.callbackQuery(/^hv:ph:([A-Z][A-Z0-9_]{1,31})$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     if (!guardEmployee(ctx)) return;
-    const angle = ctx.match[1] as HandoverAngle;
-    if (!HANDOVER_ANGLES.includes(angle)) return;
-    await writeHv(ctx, { kind: 'photo', angle });
-    await edit(ctx, handoverPhotoPromptScreen(ctx.t, angle));
+    const view = await deps.handover.current(ctx.employee.id);
+    const item = view?.items.find((i) => i.key === ctx.match[1] && i.kind === 'PHOTO');
+    if (!view || !item) return showHandover(ctx);
+    await writeHv(ctx, { kind: 'photo', itemKey: item.key });
+    await edit(ctx, handoverPhotoPromptScreen(ctx.t, checklistItemLabel(ctx.t, item)));
   });
 
   bot.callbackQuery(/^hv:cannot$/, async (ctx) => {
@@ -1178,7 +1176,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       if (hv.kind === 'note') {
         await deps.handover.answer(
           ctx.employee.id,
-          { itemKey: 'MESSAGE_NEXT', ok: true, note: text },
+          { itemKey: hv.itemKey, ok: true, note: text },
           employeeActor(ctx.employee.id),
         );
         await clearHv(ctx);
@@ -1228,7 +1226,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
           const view = await deps.handover.attachPhoto(
             ctx.employee.id,
             {
-              angle: hv.angle,
+              itemKey: hv.itemKey,
               telegramFileId: largest.file_id,
               telegramFileUniqueId: largest.file_unique_id,
               ...(largest.file_size !== undefined ? { sizeBytes: largest.file_size } : {}),
@@ -1238,8 +1236,11 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
             employeeActor(ctx.employee.id),
           );
           await clearHv(ctx);
+          const item = view.items.find((i) => i.key === hv.itemKey);
           await show(ctx, {
-            text: format(ctx.t.handover.photoSaved, { angle: ctx.t.handover.angles[hv.angle] }),
+            text: format(ctx.t.handover.photoSaved, {
+              item: item ? checklistItemLabel(ctx.t, item) : hv.itemKey,
+            }),
           });
           return show(ctx, handoverScreen(ctx.t, view, ''));
         } catch (error) {

@@ -92,6 +92,13 @@
       "when": 1788685149502,
       "tag": "0012_terminal_pairing",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788696435588,
+      "tag": "0013_checklists",
+      "breakpoints": true
     }
   ]
 }

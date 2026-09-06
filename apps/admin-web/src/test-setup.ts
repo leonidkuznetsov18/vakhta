@@ -142,22 +142,26 @@ vi.mock('@/components/app/add-dialog', async () => {
       onOpenChange,
       title,
       trigger,
+      hideTrigger,
       children,
     }: {
       open: boolean;
       onOpenChange: (open: boolean) => void;
       title: string;
       trigger?: string;
+      hideTrigger?: boolean;
       children?: React.ReactNode;
     }) =>
       React.createElement(
         React.Fragment,
         null,
-        React.createElement(
-          'button',
-          { type: 'button', onClick: () => onOpenChange(true) },
-          trigger ?? messages(currentLocale()).ui.common.add,
-        ),
+        hideTrigger
+          ? null
+          : React.createElement(
+              'button',
+              { type: 'button', onClick: () => onOpenChange(true) },
+              trigger ?? messages(currentLocale()).ui.common.add,
+            ),
         open
           ? React.createElement(
               'div',

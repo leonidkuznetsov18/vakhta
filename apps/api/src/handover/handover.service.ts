@@ -32,9 +32,9 @@ import {
   canReview,
   canTransitionHandover,
   handoverTimeoutJobId,
+  itemKind,
   validateHandoverDraft,
   type ChecklistItemDefinition,
-  type HandoverAngle,
   type HandoverStatus,
 } from '@vakhta/domain';
 import type {
@@ -171,7 +171,7 @@ export class HandoverService {
     });
   }
 
-  /** Фото ракурсу: повторне фото того ж ракурсу замінює попереднє (FR-PHO-05). */
+  /** A photo for one PHOTO item; a repeated photo of the same item replaces the previous (FR-PHO-05). */
   async attachPhoto(
     employeeId: string,
     cmd: AttachHandoverPhotoCommand,
@@ -180,6 +180,11 @@ export class HandoverService {
   ): Promise<HandoverView> {
     const { view, mediaId } = await this.db.transaction(async (tx) => {
       const draft = await this.requireDraft(tx, employeeId, now);
+      const definition = await this.definition(tx, draft.checklistDefinitionId);
+      const item = definition.items.find((i) => i.key === cmd.itemKey);
+      if (!item || itemKind(item) !== 'PHOTO') {
+        throw new DomainError('CHECKLIST_ITEM_UNKNOWN', 422, 'Unknown photo item of the checklist');
+      }
       const media = await this.media.register(tx, {
         telegramFileId: cmd.telegramFileId,
         telegramFileUniqueId: cmd.telegramFileUniqueId,
@@ -194,12 +199,12 @@ export class HandoverService {
         .insert(handoverMedia)
         .values({
           handoverId: draft.id,
-          angle: cmd.angle,
+          itemKey: cmd.itemKey,
           mediaObjectId: media.id,
           attachedAt: now,
         })
         .onConflictDoUpdate({
-          target: [handoverMedia.handoverId, handoverMedia.angle],
+          target: [handoverMedia.handoverId, handoverMedia.itemKey],
           set: { mediaObjectId: media.id, attachedAt: now },
         });
       await this.events.append(tx, {
@@ -210,7 +215,8 @@ export class HandoverService {
         employeeId,
         shiftSessionId: draft.shiftSessionId,
         zoneId: draft.zoneId,
-        payload: { handoverId: draft.id, angle: cmd.angle, mediaObjectId: media.id },
+        checklistVersionId: draft.checklistDefinitionId,
+        payload: { handoverId: draft.id, itemKey: cmd.itemKey, mediaObjectId: media.id },
       });
       await this.touch(tx, draft.id, now);
       return { view: await this.view(tx, draft.id), mediaId: media.id };
@@ -794,7 +800,7 @@ export class HandoverService {
     const [answers, photos] = await Promise.all([
       tx.select().from(checklistAnswers).where(eq(checklistAnswers.handoverId, handoverId)),
       tx
-        .select({ angle: handoverMedia.angle, media: mediaObjects })
+        .select({ itemKey: handoverMedia.itemKey, media: mediaObjects })
         .from(handoverMedia)
         .innerJoin(mediaObjects, eq(handoverMedia.mediaObjectId, mediaObjects.id))
         .where(eq(handoverMedia.handoverId, handoverId)),
@@ -813,7 +819,7 @@ export class HandoverService {
         safeToWork: a.safeToWork,
         needs: a.needs,
       })),
-      photos.map((p) => ({ angle: p.angle, mediaObjectId: p.media.id })),
+      photos.map((p) => ({ itemKey: p.itemKey, mediaObjectId: p.media.id })),
       { cannotComplete: row.r.cannotCompleteReason !== null },
     );
     const r = row.r;
@@ -830,13 +836,13 @@ export class HandoverService {
       version: r.version,
       items,
       photos: photos.map((p): HandoverPhotoView => ({
-        angle: p.angle as HandoverAngle,
+        itemKey: p.itemKey,
+        label: row.definition.items.find((i) => i.key === p.itemKey)?.label ?? p.itemKey,
         media: this.media.toView(p.media),
       })),
       issues: issues.map((i) => ({
         code: i.code,
         ...(i.itemKey ? { itemKey: i.itemKey } : {}),
-        ...(i.angle ? { angle: i.angle } : {}),
       })),
       cannotCompleteReason: r.cannotCompleteReason,
       cannotCompleteComment: r.cannotCompleteComment,
@@ -968,7 +974,7 @@ function toItemView(
   return {
     key: item.key,
     label: item.label,
-    kind: item.kind ?? 'CHECK',
+    kind: itemKind(item),
     answered: answer !== undefined,
     ok: answer ? answer.ok : null,
     remarkCategory: answer?.remarkCategory ?? null,

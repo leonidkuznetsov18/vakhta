@@ -1,6 +1,7 @@
 import type {
   BonusCriterion,
   BonusSection,
+  ChecklistItemKind,
   ChecklistKey,
   HandoverAngle,
   HandoverIssueCode,
@@ -157,13 +158,17 @@ export interface Messages {
     readonly resolutions: Readonly<Record<HandoverResolution, string>>;
     readonly quality: Readonly<Record<MediaQualityStatus, string>>;
     readonly issues: Readonly<Record<HandoverIssueCode, string>>;
+    /** Name of the checklist the system creates when admins have not defined one (spec 5.6). */
+    readonly defaultName: string;
     /** Button on the shift screen that opens the checklist while in HANDOVER. */
     readonly openButton: string;
     readonly header: string;
+    /** Placeholders: {done}, {total}, {photos}, {photosTotal} */
     readonly progress: string;
     readonly okButton: string;
     readonly remarkButton: string;
     readonly noteButton: string;
+    /** Placeholder: {item} (label of the photo item) */
     readonly photoButton: string;
     readonly photoDone: string;
     readonly askPhoto: string;
@@ -405,6 +410,8 @@ export interface Messages {
       readonly deleted: string;
       readonly noEmployees: string;
       readonly goToEmployees: string;
+      /** Placeholder: {n} rows without a zone. */
+      readonly zoneMissing: string;
       /** Footer row of the grid: {day} day shifts, {night} night shifts on that date. */
       readonly dayTotals: string;
       readonly createdOn: string;
@@ -663,7 +670,9 @@ export interface Messages {
       readonly actions: Readonly<Record<string, string>>;
     };
     readonly administration: {
-      readonly tabs: Readonly<Record<'employees' | 'users' | 'directories' | 'terminals', string>>;
+      readonly tabs: Readonly<
+        Record<'employees' | 'users' | 'directories' | 'terminals' | 'checklists', string>
+      >;
       readonly common: {
         readonly add: string;
         readonly added: string;
@@ -796,6 +805,51 @@ export interface Messages {
         readonly checkpoints: Readonly<Record<'ENTRY' | 'EXIT' | 'BOTH', string>>;
         readonly statuses: Readonly<Record<'ACTIVE' | 'DISABLED', string>>;
       };
+      readonly checklists: {
+        readonly intro: string;
+        readonly position: string;
+        readonly anyPosition: string;
+        readonly zoneType: string;
+        readonly anyZoneType: string;
+        readonly items: string;
+        /** Placeholders: {items}, {photos} */
+        readonly itemsSummary: string;
+        readonly version: string;
+        /** Placeholder: {n} */
+        readonly versionLabel: string;
+        readonly status: string;
+        readonly active: string;
+        readonly inactive: string;
+        /** Placeholder: {n} */
+        readonly usedIn: string;
+        readonly create: string;
+        readonly created: string;
+        readonly edit: string;
+        readonly updated: string;
+        readonly delete: string;
+        /** Placeholder: {name} */
+        readonly deleteConfirm: string;
+        readonly deleted: string;
+        readonly inUse: string;
+        readonly disable: string;
+        readonly enable: string;
+        readonly statusChanged: string;
+        readonly itemLabel: string;
+        readonly kind: string;
+        readonly kinds: Readonly<Record<ChecklistItemKind, string>>;
+        readonly kindHints: Readonly<Record<ChecklistItemKind, string>>;
+        readonly addItem: string;
+        readonly addPhoto: string;
+        readonly removeItem: string;
+        readonly moveUp: string;
+        readonly moveDown: string;
+        readonly fillDefault: string;
+        readonly preview: string;
+        readonly noPhoto: string;
+        readonly noItems: string;
+        readonly emptyLabel: string;
+        readonly search: string;
+      };
     };
   };
   /** Shared panel chrome: pagination, dialogs, generic labels and information tooltips. */
@@ -924,6 +978,13 @@ export interface Messages {
       readonly terminalsStatus: string;
       readonly terminalsDelete: string;
       readonly terminalsCheckpoint: string;
+      readonly checklists: string;
+      readonly checklistsPosition: string;
+      readonly checklistsZoneType: string;
+      readonly checklistsItems: string;
+      readonly checklistsPhoto: string;
+      readonly checklistsVersion: string;
+      readonly checklistsDelete: string;
       readonly scheduleDelete: string;
       readonly employeesPositionColumn: string;
       readonly employeesImport: string;
