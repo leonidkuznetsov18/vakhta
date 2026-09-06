@@ -9,9 +9,11 @@ of versions next to it, so a month with dozens of versions stays readable.
 - The grid "employees × days": a shift template per cell (day / night), a zone per row, rotation
   patterns ("Шаблон ротации") to fill a month, keyboard navigation, per-day totals and monthly hour
   limits with warnings. Rows without a zone show a warning: without a zone there is no handover.
-- Employees of a version: the header above the grid counts them; in a draft "Добавить сотрудника"
-  adds a row and ✕ at the end of a row ("Убрать из версии") removes the employee with all their
-  shifts. Read-only versions say that the composition changes only in a draft.
+- Employees of a version: the bar above the grid counts them and, in a draft, holds the
+  "Добавить сотрудника" select next to the count (with a hint); picking an employee adds a row, ✕
+  at the end of a row ("Убрать из версии") removes the employee with all their shifts. Read-only
+  versions say that the composition changes only in a draft; "Изменить график" in the notice
+  creates that draft.
 - "Отправить на согласование" (no validation errors, no unsaved changes) → the production head
   publishes ("Опубликовать", optional reason shown to employees) or returns to draft.
 - Publishing supersedes the previous version, computes plan times from the site time zone and

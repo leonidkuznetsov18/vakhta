@@ -12,9 +12,10 @@ evaluated (excluded).
 
 Panel "Бонус": the month summary with the period status explained, a "Как это работает" guide
 (four numbered steps for the administrator), "Лучшие за месяц" (chart and rating by S month), the
-second-approval queue, and the employees table. A row opens the employee card with the same guide
-on top and one card per shift. Every card shows the status with a plain explanation, the score
-"N / 100" and an explicit action row:
+second-approval queue, and the employees table. A row click expands the employee's month right
+under the row (no side panel): a header with S month, shifts, evaluated shifts and the two point
+actions, then one card per shift in a grid that uses the page width. Every card shows the status
+with a plain explanation, the score "N / 100" and an explicit action row:
 
 - "Ручная проверка" shows a "Что делать" box: why the rules could not score the shift (how many
   points apply, which criteria do not) and three steps. The primary button is "Завершить проверку":

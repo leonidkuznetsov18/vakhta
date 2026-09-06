@@ -136,25 +136,28 @@ export function ScheduleGrid({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <span className="text-sm font-medium">
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/30 p-3">
+        <span className="pb-1.5 text-sm font-medium">
           {format(s.employeesInVersion, { count: grid.rows.length })}
         </span>
         {readOnly ? (
-          <Muted className="text-xs">{s.employeesReadOnly}</Muted>
+          <Muted className="pb-1.5 text-xs">{s.employeesReadOnly}</Muted>
         ) : available.length > 0 ? (
           <SelectField
             label={s.addEmployee}
+            hint={t.ui.hints.scheduleAddEmployee}
             value=""
             onChange={(v) => v && onAdd(v)}
-            placeholder="…"
+            placeholder={s.addEmployeePlaceholder}
             options={available.map((e) => ({
               value: e.id,
               label: `${e.fullName} · ${e.personnelNumber}`,
             }))}
-            className="w-full sm:w-80"
+            className="w-full sm:w-96"
           />
-        ) : null}
+        ) : (
+          <Muted className="pb-1.5 text-xs">{s.allEmployeesAdded}</Muted>
+        )}
       </div>
       <div className="overflow-x-auto rounded-lg border">
         <Table className="min-w-max">

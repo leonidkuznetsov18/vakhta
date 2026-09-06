@@ -26,7 +26,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     ...init,
     credentials: 'include',
     headers: {
-      'content-type': 'application/json',
+      // Fastify refuses an empty body under a JSON content type, so DELETE without a body sends none.
+      ...(init.body !== undefined && init.body !== null
+        ? { 'content-type': 'application/json' }
+        : {}),
       'x-locale': currentLocale(),
       ...(init.headers ?? {}),
     },

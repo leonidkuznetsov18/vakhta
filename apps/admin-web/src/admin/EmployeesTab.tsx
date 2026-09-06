@@ -737,7 +737,8 @@ function ChecklistPanel({
             type="button"
             variant="outline"
             size="sm"
-            disabled={busy || available.length === 0}
+            disabled={busy}
+            aria-expanded={replacing}
             onClick={() => setReplacing((v) => !v)}
           >
             {e.replaceChecklist}
@@ -757,6 +758,9 @@ function ChecklistPanel({
           <AlertTitle>{e.noChecklist}</AlertTitle>
           <AlertDescription>{e.noChecklistHint}</AlertDescription>
         </Alert>
+      )}
+      {(!current || replacing) && available.length === 0 && (
+        <Muted className="text-xs">{e.noOtherChecklists}</Muted>
       )}
       {(!current || replacing) && available.length > 0 && (
         <form className="flex flex-wrap items-end gap-3" onSubmit={attach}>

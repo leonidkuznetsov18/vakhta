@@ -456,6 +456,8 @@ export interface Messages {
       readonly employeesInVersion: string;
       readonly employeesReadOnly: string;
       readonly removeFromVersion: string;
+      readonly addEmployeePlaceholder: string;
+      readonly allEmployeesAdded: string;
       /** Labels of the validation detail keys (nightShifts, restMinutes, …). */
       readonly issueDetails: Readonly<Record<string, string>>;
       readonly deleted: string;
@@ -874,6 +876,8 @@ export interface Messages {
         /** Placeholder: {name} */
         readonly removeConfirm: string;
         readonly onePerPosition: string;
+        /** Shown instead of the replace select when no other active checklist exists. */
+        readonly noOtherChecklists: string;
         readonly noChecklistHint: string;
         readonly assignPosition: string;
         readonly positionAssigned: string;
@@ -1115,6 +1119,7 @@ export interface Messages {
       readonly operationsLive: string;
       readonly scheduleVersions: string;
       readonly scheduleEditPublished: string;
+      readonly scheduleAddEmployee: string;
       readonly scheduleSubmit: string;
       readonly schedulePublish: string;
       readonly scheduleReturn: string;

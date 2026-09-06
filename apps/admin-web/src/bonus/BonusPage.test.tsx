@@ -173,12 +173,13 @@ describe('BonusPage', () => {
     expect((await screen.findAllByText('Кузнецов Леонид')).length).toBeGreaterThan(0);
     expect(screen.getByText('Лучшие за месяц')).toBeTruthy();
     await clickRowAction('Расшифровка');
-    const sheet = await screen.findByRole('dialog');
+    const sheet = await screen.findByTestId('employee-detail');
     expect(within(sheet).getByText(/Баллы посчитаны/)).toBeTruthy();
     fireEvent.click(within(sheet).getAllByRole('button', { name: 'Расшифровка' })[0]!);
     expect(await within(sheet).findByText('LATE_MINUTES:20')).toBeTruthy();
-    // The card offers the two actions by name; "Take points" opens the dialog preset to a penalty.
-    expect(within(sheet).getByText(/Как это работает/)).toBeTruthy();
+    // The guide sits on the page; the card offers the two actions by name and "Take points"
+    // opens the dialog preset to a penalty.
+    expect(screen.getByText(/Как это работает/)).toBeTruthy();
     fireEvent.click(within(sheet).getAllByRole('button', { name: 'Снять баллы' })[0]!);
     const dialogs = await screen.findAllByRole('dialog');
     const dialog = dialogs[dialogs.length - 1]!;
@@ -207,7 +208,7 @@ describe('BonusPage', () => {
     render(<BonusPage />);
     expect((await screen.findAllByText('Кузнецов Леонид')).length).toBeGreaterThan(0);
     await clickRowAction('Расшифровка');
-    const sheet = await screen.findByRole('dialog');
+    const sheet = await screen.findByTestId('employee-detail');
     expect(within(sheet).getByText(/Применимо только 45 из 100/)).toBeTruthy();
     expect(within(sheet).getByText('Что делать')).toBeTruthy();
     fireEvent.click(within(sheet).getAllByRole('button', { name: 'Завершить проверку' })[0]!);

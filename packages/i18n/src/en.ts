@@ -598,6 +598,8 @@ export const en: Messages = {
       employeesReadOnly:
         'Employees and shifts change only in a draft: press "Edit schedule" or open the draft.',
       removeFromVersion: 'Remove from the version',
+      addEmployeePlaceholder: 'Pick an employee…',
+      allEmployeesAdded: 'Every active employee is already in the version.',
       issueDetails: {
         overlapMinutes: 'overlap, min',
         restMinutes: 'rest, min',
@@ -1164,6 +1166,8 @@ export const en: Messages = {
         removeConfirm:
           'Remove the checklist "{name}" from the position? The bot stops asking employees of this position for it.',
         onePerPosition: 'A position has one checklist: replace it with another or remove it.',
+        noOtherChecklists:
+          'There is no other active checklist yet: create one on the "Checklists" tab with this position and it will replace the current one.',
         noChecklistHint:
           'This position has no checklist: the bot will ask for no checklist and no photos. Add an existing one or create a new one in the "Checklists" tab.',
         assignPosition: 'Assign position',
@@ -1420,6 +1424,8 @@ export const en: Messages = {
         'Every change to a published schedule creates a new version. The old one is marked as superseded.',
       scheduleEditPublished:
         'Changes within the current month work the same way: a new version based on the published one, edits, review and publication. Better leave the past days alone: worked shifts are already accounted for.',
+      scheduleAddEmployee:
+        'Pick an employee from the list: a row appears in the grid, then set the shifts per day. The cross at the end of a row removes the employee from the version.',
       scheduleSubmit:
         'Send the version to the head of production. Disabled while there are errors or unsaved changes.',
       schedulePublish:

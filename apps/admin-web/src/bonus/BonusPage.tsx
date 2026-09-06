@@ -21,6 +21,7 @@ import {
   ThumbsUpIcon,
   Trash2Icon,
   Undo2Icon,
+  XIcon,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -37,7 +38,6 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { AddDialog } from '@/components/app/add-dialog';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { DataTable, type Column } from '@/components/app/data-table';
-import { DetailSheet } from '@/components/app/detail-sheet';
 import { Feedback, useAction } from '@/components/app/feedback';
 import { MonthField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
@@ -227,7 +227,6 @@ export function BonusPage() {
   );
   const shiftsTotal = employees.reduce((n, e) => n + e.shifts, 0);
   const evaluatedTotal = employees.reduce((n, e) => n + e.evaluatedShifts, 0);
-  const open = employees.find((e) => e.employeeId === openEmployee) ?? null;
 
   const employeeColumns: Column<PeriodEmployee>[] = [
     {
@@ -529,7 +528,24 @@ export function BonusPage() {
         storageKey="bonus.employees"
         searchText={(e) => `${e.employeeName} ${e.personnelNumber}`}
         activeKey={openEmployee}
-        onRowClick={(e) => setOpenEmployee(e.employeeId)}
+        onRowClick={(e) => setOpenEmployee(openEmployee === e.employeeId ? null : e.employeeId)}
+        expanded={(e) =>
+          e.employeeId === openEmployee ? (
+            <EmployeeDetail
+              employee={e}
+              closed={closed}
+              busy={busy}
+              onClose={() => setOpenEmployee(null)}
+              onPoints={(score, kind) => setPoints({ employee: e, score, kind })}
+              onReview={setReview}
+              onEdit={(score, adjustment) => setEditing({ score, adjustment })}
+              onDelete={(a) => void deleteAdjustment(a)}
+              onRecompute={(score) =>
+                void run(() => bonusApi.recompute(score.shiftSessionId).then(reload), b.recomputed)
+              }
+            />
+          ) : null
+        }
         rowActions={(e) => [
           {
             key: 'detail',
@@ -567,71 +583,6 @@ export function BonusPage() {
             {b.setBase}
           </Button>
         </div>
-      )}
-
-      {open && (
-        <DetailSheet
-          open
-          wide
-          onOpenChange={(next) => !next && setOpenEmployee(null)}
-          title={
-            <>
-              {open.employeeName} <Muted>{open.personnelNumber}</Muted>
-            </>
-          }
-          description={`${b.sMonth}: ${open.sMonth ?? '—'} · ${b.shifts}: ${open.shifts} · ${b.evaluated}: ${open.evaluatedShifts}`}
-          footer={
-            open.scores.length > 0 ? (
-              closed ? (
-                <Muted className="flex items-center gap-1">
-                  <LockIcon className="size-4" aria-hidden="true" />
-                  {b.closedActions}
-                </Muted>
-              ) : (
-                <>
-                  <Button
-                    type="button"
-                    onClick={() => setPoints({ employee: open, kind: 'BONUS' })}
-                    disabled={busy}
-                  >
-                    <ThumbsUpIcon aria-hidden="true" />
-                    {b.addBonus}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setPoints({ employee: open, kind: 'PENALTY' })}
-                    disabled={busy}
-                  >
-                    <ThumbsDownIcon aria-hidden="true" />
-                    {b.takePoints}
-                  </Button>
-                </>
-              )
-            ) : undefined
-          }
-        >
-          <HowItWorks compact />
-          <h3 className="flex items-center gap-1 text-sm font-semibold">
-            {b.detailTitle}
-            <InfoTip text={hints.bonusStatus} />
-          </h3>
-          {open.scores.map((s) => (
-            <ShiftCard
-              key={s.id}
-              score={s}
-              closed={closed}
-              busy={busy}
-              onPoints={(kind) => setPoints({ employee: open, score: s, kind })}
-              onReview={() => setReview(s)}
-              onEdit={(a) => setEditing({ score: s, adjustment: a })}
-              onDelete={(a) => void deleteAdjustment(a)}
-              onRecompute={() =>
-                void run(() => bonusApi.recompute(s.shiftSessionId).then(reload), b.recomputed)
-              }
-            />
-          ))}
-        </DetailSheet>
       )}
 
       {points && (
@@ -703,6 +654,106 @@ function SummaryTile({
       <dd className="text-lg font-semibold tabular-nums">
         {tone ? <StatusPill tone={tone}>{value}</StatusPill> : value}
       </dd>
+    </div>
+  );
+}
+
+/**
+ * The employee's month inside the table: a header with the totals and the two point actions, then
+ * one card per shift in a responsive grid, so the page width is used instead of a side panel.
+ */
+function EmployeeDetail({
+  employee,
+  closed,
+  busy,
+  onClose,
+  onPoints,
+  onReview,
+  onEdit,
+  onDelete,
+  onRecompute,
+}: {
+  readonly employee: PeriodEmployee;
+  readonly closed: boolean;
+  readonly busy: boolean;
+  readonly onClose: () => void;
+  readonly onPoints: (score: ShiftScoreView | undefined, kind: 'BONUS' | 'PENALTY') => void;
+  readonly onReview: (score: ShiftScoreView) => void;
+  readonly onEdit: (score: ShiftScoreView, adjustment: AdjustmentView) => void;
+  readonly onDelete: (adjustment: AdjustmentView) => void;
+  readonly onRecompute: (score: ShiftScoreView) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 py-1" data-testid="employee-detail">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex min-w-0 flex-col">
+          <span className="font-semibold">
+            {employee.employeeName} <Muted>{employee.personnelNumber}</Muted>
+          </span>
+          <Muted className="text-xs">
+            {b.sMonth}: {employee.sMonth ?? '—'} · {b.shifts}: {employee.shifts} · {b.evaluated}:{' '}
+            {employee.evaluatedShifts}
+          </Muted>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {employee.scores.length > 0 &&
+            (closed ? (
+              <Muted className="flex items-center gap-1">
+                <LockIcon className="size-4" aria-hidden="true" />
+                {b.closedActions}
+              </Muted>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => onPoints(undefined, 'BONUS')}
+                  disabled={busy}
+                >
+                  <ThumbsUpIcon aria-hidden="true" />
+                  {b.addBonus}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onPoints(undefined, 'PENALTY')}
+                  disabled={busy}
+                >
+                  <ThumbsDownIcon aria-hidden="true" />
+                  {b.takePoints}
+                </Button>
+              </>
+            ))}
+          <Button type="button" size="sm" variant="ghost" onClick={onClose}>
+            <XIcon aria-hidden="true" />
+            {all.ui.common.close}
+          </Button>
+        </div>
+      </div>
+      <h3 className="flex items-center gap-1 text-sm font-semibold">
+        {b.detailTitle}
+        <InfoTip text={hints.bonusStatus} />
+      </h3>
+      {employee.scores.length === 0 ? (
+        <Muted>{b.empty}</Muted>
+      ) : (
+        <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+          {employee.scores.map((s) => (
+            <ShiftCard
+              key={s.id}
+              score={s}
+              closed={closed}
+              busy={busy}
+              onPoints={(kind) => onPoints(s, kind)}
+              onReview={() => onReview(s)}
+              onEdit={(a) => onEdit(s, a)}
+              onDelete={onDelete}
+              onRecompute={() => onRecompute(s)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
