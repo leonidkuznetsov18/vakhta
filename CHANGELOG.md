@@ -1,3 +1,9 @@
+## [0.4.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.3.0...v0.4.0) (2026-09-06)
+
+### Features
+
+* row menus, remembered panel state, terminal CRUD, bot back button ([799edca](https://github.com/leonidkuznetsov18/vakhta/commit/799edca99057fa0c0c3e21c5abfe327f96fff2f3))
+
 ## [0.3.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.2.2...v0.3.0) (2026-09-06)
 
 ### Features
