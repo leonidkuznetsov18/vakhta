@@ -7,7 +7,7 @@ import {
   type TerminalView,
 } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { DetailSheet } from '@/components/app/detail-sheet';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -64,6 +64,11 @@ export function TerminalsTab({ org, onChanged }: Props) {
     'BOTH',
   );
   const [pairing, setPairing] = useState<(TerminalPairingIssued & { name: string }) | null>(null);
+  const [openId, setOpenId] = usePersistentState<string | null>('terminals.openId', null);
+  // A terminal registered a moment ago is shown from the response until the snapshot reloads.
+  const [created, setCreated] = useState<TerminalView | null>(null);
+  const openTerminal =
+    org.terminals.find((x) => x.id === openId) ?? (created?.id === openId ? created : null);
   const [editing, setEditing] = useState<TerminalView | null>(null);
   const [creating, setCreating] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -82,10 +87,13 @@ export function TerminalsTab({ org, onChanged }: Props) {
       await onChanged();
       const issued = await adminOrgApi.issuePairing(created.id);
       setPairing({ ...issued, name: created.name });
+      setCreated({ ...created, status: 'ACTIVE', paired: false, lastSeenAt: null });
+      setOpenId(created.id);
     }, tr.registered);
   }
 
   function issue(term: TerminalView) {
+    setOpenId(term.id);
     void run(async () => {
       const issued = await adminOrgApi.issuePairing(term.id);
       setPairing({ ...issued, name: term.name });
@@ -198,35 +206,6 @@ export function TerminalsTab({ org, onChanged }: Props) {
         }
       >
         <Feedback error={error} />
-        {pairing && (
-          <Alert>
-            <AlertTitle className="flex items-center gap-1">
-              {pairing.name}
-              <InfoTip text={hints.terminalsPair} />
-            </AlertTitle>
-            <AlertDescription>
-              <p>
-                {format(tr.pairIssued, {
-                  code: pairing.code,
-                  expires: formatDateTime(pairing.expiresAt),
-                })}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <code className="rounded bg-muted px-2 py-1 text-lg font-semibold tracking-widest">
-                  {pairing.code}
-                </code>
-                <CopyButton value={pairing.code} />
-              </div>
-              {link && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Muted>{tr.pairLink}:</Muted>
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{link}</code>
-                  <CopyButton value={link} />
-                </div>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
       </Section>
       <DataTable
         columns={columns}
@@ -239,7 +218,8 @@ export function TerminalsTab({ org, onChanged }: Props) {
             {tr.register}
           </Button>
         }
-        onRowClick={(term) => issue(term)}
+        onRowClick={(term) => setOpenId(openId === term.id ? null : term.id)}
+        activeKey={openId}
         rowActions={(term) => [
           {
             key: 'pair',
@@ -274,6 +254,108 @@ export function TerminalsTab({ org, onChanged }: Props) {
           },
         ]}
       />
+      {openTerminal && (
+        <DetailSheet
+          open
+          onOpenChange={(open) => !open && setOpenId(null)}
+          title={
+            <>
+              {openTerminal.name}
+              <StatusPill tone={openTerminal.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                {tr.statuses[openTerminal.status]}
+              </StatusPill>
+              <StatusPill tone={openTerminal.paired ? 'info' : 'warning'}>
+                {openTerminal.paired ? tr.paired : tr.notPaired}
+              </StatusPill>
+            </>
+          }
+          description={`${siteName(openTerminal.siteId)} · ${tr.checkpoints[openTerminal.checkpoint]} · ${tr.lastSeen}: ${openTerminal.lastSeenAt ? formatDateTime(openTerminal.lastSeenAt) : tr.never}`}
+          footer={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => setEditing(openTerminal)}
+              >
+                <PencilIcon aria-hidden="true" />
+                {tr.edit}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => void toggle(openTerminal)}
+              >
+                <PowerIcon aria-hidden="true" />
+                {openTerminal.status === 'ACTIVE' ? tr.disable : tr.enable}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={busy}
+                onClick={() => void remove(openTerminal)}
+              >
+                <Trash2Icon aria-hidden="true" />
+                {tr.delete}
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-3 rounded-lg border p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1 text-sm font-medium">
+                <KeyRoundIcon className="size-4" aria-hidden="true" />
+                {tr.connection}
+                <InfoTip text={hints.terminalsPair} />
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                className="ml-auto"
+                disabled={busy}
+                onClick={() => issue(openTerminal)}
+              >
+                <KeyRoundIcon aria-hidden="true" />
+                {tr.pair}
+              </Button>
+            </div>
+            <ol className="flex list-decimal flex-col gap-0.5 pl-5 text-sm text-muted-foreground">
+              {tr.pairSteps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+            {pairing && pairing.name === openTerminal.name && (
+              <div className="flex flex-col gap-2 rounded-md border bg-muted/40 p-3">
+                <p className="text-sm">
+                  {format(tr.pairIssued, {
+                    code: pairing.code,
+                    expires: formatDateTime(pairing.expiresAt),
+                  })}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <code className="rounded bg-background px-2 py-1 font-mono text-xl font-semibold tracking-widest">
+                    {pairing.code}
+                  </code>
+                  <CopyButton value={pairing.code} />
+                </div>
+                {link && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Muted>{tr.pairLink}:</Muted>
+                    <code className="rounded bg-background px-1.5 py-0.5 text-xs break-all">
+                      {link}
+                    </code>
+                    <CopyButton value={link} />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </DetailSheet>
+      )}
       <EditTerminalDialog
         terminal={editing}
         org={org}

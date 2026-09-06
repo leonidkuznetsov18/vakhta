@@ -1357,6 +1357,12 @@ export const en: Messages = {
         deleteConfirm: 'Delete terminal "{name}"? The tablet will stop receiving QR codes.',
         deleted: 'Terminal deleted.',
         hasHistory: 'The terminal has check-in history and cannot be deleted. Disable it instead.',
+        connection: 'Tablet pairing',
+        pairSteps: [
+          'Press "Pairing code": the code is valid 15 minutes and is entered once.',
+          'On the tablet open the kiosk (kiosk.vakhta.xyz) and type the code or open the tablet link.',
+          'The terminal becomes "Paired" and "Last sync" starts updating: the tablet requests a QR every 45 seconds.',
+        ],
         checkpoints: { ENTRY: 'Entry', EXIT: 'Exit', BOTH: 'Entry and exit' },
         statuses: { ACTIVE: 'Active', DISABLED: 'Disabled' },
       },

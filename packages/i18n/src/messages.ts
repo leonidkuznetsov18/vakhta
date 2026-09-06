@@ -1083,6 +1083,9 @@ export interface Messages {
         readonly deleteConfirm: string;
         readonly deleted: string;
         readonly hasHistory: string;
+        /** Pairing block of the terminal card. */
+        readonly connection: string;
+        readonly pairSteps: readonly string[];
         readonly checkpoints: Readonly<Record<'ENTRY' | 'EXIT' | 'BOTH', string>>;
         readonly statuses: Readonly<Record<'ACTIVE' | 'DISABLED', string>>;
       };

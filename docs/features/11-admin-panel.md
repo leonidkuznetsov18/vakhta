@@ -25,8 +25,10 @@ Administration tabs:
   themselves and the last administrator stays.
 - "Справочники": sites (time zone), units, teams, positions, zones (type, shared, active), reason
   codes; every table has add, edit and delete with a reason.
-- "Терминалы": register, pairing code, enable / disable, edit, delete (a terminal with history
-  is hidden and disabled, its records stay).
+- "Терминалы": register, then everything else in the terminal card (row click): the
+  "Подключение планшета" block with the three pairing steps, "Код подключения" and the issued
+  code with the tablet link and copy buttons; edit, enable / disable and delete in the card
+  footer (a terminal with history is hidden and disabled, its records stay).
 - "Чек-листы": see the checklists doc.
 
 Every section (and every administration tab) opens with a collapsible "Как это работает" block:
