@@ -74,6 +74,40 @@ jobs:
             echo "published=false" >> "$GITHUB_OUTPUT"; echo "version=$v" >> "$GITHUB_OUTPUT"
           fi
 
+  announce:
+    name: Release notes to Telegram
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.release.outputs.published == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Read the release notes
+        id: notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v${{ needs.release.outputs.version }}
+        run: |
+          gh release view "$TAG" --json body --jq '.body' > release-notes.md
+          echo "url=$(gh release view "$TAG" --json url --jq '.url')" >> "$GITHUB_OUTPUT"
+          echo "date=$(gh release view "$TAG" --json publishedAt --jq '.publishedAt')" >> "$GITHUB_OUTPUT"
+      - name: Post to the Telegram group
+        # A missing token or chat id only skips the announcement; the release itself is done.
+        continue-on-error: true
+        env:
+          TELEGRAM_RELEASE_BOT_TOKEN: ${{ secrets.TELEGRAM_RELEASE_BOT_TOKEN }}
+          TELEGRAM_RELEASE_CHAT_ID: ${{ secrets.TELEGRAM_RELEASE_CHAT_ID }}
+          RELEASE_TAG: v${{ needs.release.outputs.version }}
+          RELEASE_URL: ${{ steps.notes.outputs.url }}
+          RELEASE_DATE: ${{ steps.notes.outputs.date }}
+          RELEASE_NOTES_FILE: release-notes.md
+        run: node scripts/release/announce-telegram.mjs
+
   images:
     name: Images (${{ matrix.app }})
     runs-on: ubuntu-latest

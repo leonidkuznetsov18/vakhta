@@ -94,3 +94,24 @@ Done for `vakhta.xyz` (Cloudflare DNS, all three records proxied, Railway custom
 - Review `docs/parameters.md` after the first weeks.
 - Legal review of personal data and labour rules (spec 13, 18 item 20), consent text at activation.
 - Load run of `infra/load/k6-shift-boundary.js` against the production API outside working hours with the numbers from `docs/parameters.md`.
+
+## Release notes in Telegram
+
+Every published release is announced in the "Вахта Dev" Telegram group by the `announce` job of
+`.github/workflows/ci.yml`: version, date, a link to the GitHub release and the changelog sections
+(new, fixed, and so on) with commit links. The message is built by
+`scripts/release/announce-telegram.mjs` from the release body that semantic-release wrote;
+`node scripts/release/announce-telegram.mjs --dry-run` with `RELEASE_TAG`, `RELEASE_URL` and
+`RELEASE_NOTES_FILE` prints it locally.
+
+Setup, once:
+
+1. Create a bot for notifications with @BotFather (a separate bot, not the worker bot) and copy its token.
+2. Add the bot to the group. Send any message in the group, then open
+   `https://api.telegram.org/bot<TOKEN>/getUpdates` and read `chat.id` of the group (a negative number,
+   `-100...` for supergroups). Alternatively, add @getidsbot to the group for a moment.
+3. Repository secrets: `TELEGRAM_RELEASE_BOT_TOKEN` and `TELEGRAM_RELEASE_CHAT_ID`
+   (`gh secret set TELEGRAM_RELEASE_BOT_TOKEN`, `gh secret set TELEGRAM_RELEASE_CHAT_ID`).
+
+Without the secrets the job logs that the announcement was skipped; a Telegram error never fails the
+release. The bot needs no admin rights in the group.
