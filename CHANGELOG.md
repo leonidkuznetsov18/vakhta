@@ -1,3 +1,10 @@
+## [0.18.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.17.0...v0.18.0) (2026-09-06)
+
+### Features
+
+* **activation:** send the card by e-mail or Telegram; edit employees and panel users ([eec86c0](https://github.com/leonidkuznetsov18/vakhta/commit/eec86c0a4e189f693c91193b05602c096c7e20ae))
+* **panel:** terminal card with the pairing block and actions ([52ad358](https://github.com/leonidkuznetsov18/vakhta/commit/52ad3589e0d6b38a6c24a3900c73bd71c990dcd7))
+
 ## [0.17.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.16.0...v0.17.0) (2026-09-06)
 
 ### Features

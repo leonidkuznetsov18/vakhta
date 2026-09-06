@@ -1,6 +1,6 @@
 {
   "name": "vakhta",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "private": true,
   "type": "module",
   "description": "Вахта: Telegram-бот обліку робочих змін і веб-панель для безперервного виробництва 24/7",
