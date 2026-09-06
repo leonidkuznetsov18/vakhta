@@ -181,7 +181,7 @@ export function App() {
         <Sidebar collapsible="icon">
           <SidebarHeader>
             <div className="flex items-center gap-2 px-1 py-1 text-base font-semibold group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-              <LogoMark letter={t.admin.productName.charAt(0)} />
+              <LogoMark className="size-9" />
               <span className="truncate group-data-[collapsible=icon]:hidden">
                 {t.admin.productName}
               </span>
