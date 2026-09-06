@@ -215,13 +215,21 @@ export function App() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
+                  size="lg"
+                  className="h-16 gap-3"
                   isActive={active === 'profile'}
                   tooltip={t.admin.auth.profile}
                   onClick={() => setActive('profile')}
                 >
-                  <UserAvatar name={me.name} email={me.email} image={me.image} className="size-6" />
+                  {/* The menu button forces 16px on every svg; the avatar opts out and shrinks with the rail. */}
+                  <UserAvatar
+                    name={me.name}
+                    email={me.email}
+                    image={me.image}
+                    className="size-12! shrink-0 group-data-[collapsible=icon]:size-4!"
+                  />
                   <span className="flex min-w-0 flex-col leading-tight">
-                    <span className="truncate">{me.name || me.email}</span>
+                    <span className="truncate text-base font-medium">{me.name || me.email}</span>
                     {primaryRole ? (
                       <span className="truncate text-xs text-muted-foreground">
                         {t.roles[primaryRole]}
