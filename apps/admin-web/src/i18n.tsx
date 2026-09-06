@@ -27,8 +27,11 @@ export function switchLocale(locale: Locale): void {
   location.reload();
 }
 
-/** Flag of each interface language; the language name stays the accessible label and tooltip. */
-const LOCALE_FLAGS: Readonly<Record<Locale, string>> = { uk: '🇺🇦', en: '🇬🇧', ru: '🇷🇺' };
+/**
+ * Symbol of each interface language; the language name stays the accessible label and tooltip.
+ * Russian is shown as a plain "РУ" badge, not a flag, by the customer's choice.
+ */
+const LOCALE_FLAGS: Readonly<Record<Locale, string>> = { uk: '🇺🇦', en: '🇬🇧', ru: 'РУ' };
 
 /** Three small flag buttons, the active one filled; usable on the login screen and in the sidebar. */
 export function LanguageSwitcher({ className }: { readonly className?: string }) {
@@ -46,7 +49,7 @@ export function LanguageSwitcher({ className }: { readonly className?: string })
           aria-label={t.language.names[locale]}
           title={t.language.names[locale]}
           lang={locale}
-          className="flex-1 text-base leading-none"
+          className="flex-1 text-base leading-none font-semibold"
           onClick={() => switchLocale(locale)}
         >
           <span aria-hidden="true">{LOCALE_FLAGS[locale]}</span>
