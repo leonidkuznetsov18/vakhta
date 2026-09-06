@@ -32,6 +32,14 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 - Never log the bot token, QR tokens, presigned URLs or the content of medical documents.
 - TypeScript, React and NestJS best practices.
 
+## Admin panel UI
+
+- Every component, color, size and spacing comes from shadcn/ui (https://ui.shadcn.com); components are copied into
+  `apps/admin-web/src/components/ui`. No bespoke CSS where a shadcn primitive exists.
+- Long lists and tables are paginated. Forms validate input with the zod contracts and show inline errors.
+- Every non-obvious control has an information tooltip; tooltip texts live in `@vakhta/i18n` in all three languages.
+- Every interactive element has visible hover, active and focus states. The interface must be usable without a manual.
+
 ## Commands
 
 `pnpm build`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm check`. Local infrastructure: `pnpm infra:up`.
