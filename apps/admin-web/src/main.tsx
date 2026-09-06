@@ -1,4 +1,4 @@
-import React, { StrictMode } from 'react';
+import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import { currentLocale } from './i18n.tsx';

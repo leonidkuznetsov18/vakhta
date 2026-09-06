@@ -1,4 +1,3 @@
-import React from 'react';
 import type { EmployeeView, ScheduleVersionDetail } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '../i18n.tsx';

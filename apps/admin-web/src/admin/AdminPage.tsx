@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { OrgSnapshot } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { orgApi } from '../api.ts';

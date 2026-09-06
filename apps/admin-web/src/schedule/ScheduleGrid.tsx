@@ -1,4 +1,3 @@
-import React from 'react';
 import type { EmployeeView, ShiftTemplateView, ZoneView } from '@vakhta/contracts';
 import { monthDates } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';

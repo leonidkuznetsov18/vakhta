@@ -1,4 +1,3 @@
-import React from 'react';
 import { LOCALES, isLocale, messages, resolveLocale, type Locale } from '@vakhta/i18n';
 
 const STORAGE_KEY = 'vakhta.locale';

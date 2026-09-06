@@ -1,4 +1,4 @@
-import React, { useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { messages } from '@vakhta/i18n';
 import { ApiError, authApi } from '../api.ts';
 import { LanguageSwitcher, currentLocale } from '../i18n.tsx';

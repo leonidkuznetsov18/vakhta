@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { messages } from '@vakhta/i18n';
 import { LoginScreen } from './auth/LoginScreen.tsx';
 import { ProfilePanel } from './auth/ProfilePanel.tsx';

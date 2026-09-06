@@ -1,4 +1,4 @@
-import React, { useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import QRCode from 'qrcode';
 import type { MeView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
