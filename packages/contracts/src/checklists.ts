@@ -24,7 +24,7 @@ export const ChecklistDefinitionView = z.object({
   familyId: Uuid,
   name: z.string(),
   version: z.number().int().positive(),
-  /** null: applies to every position. */
+  /** null only on rows saved before the position became mandatory; such a checklist is never picked. */
   positionId: Uuid.nullable(),
   positionName: z.string().nullable(),
   /** null: applies to every zone type. */
@@ -60,7 +60,8 @@ export const ChecklistItemsInput = z
 
 export const SaveChecklistCommand = z.object({
   name: z.string().trim().min(1).max(CHECKLIST_LIMITS.maxNameLength),
-  positionId: Uuid.nullable().optional(),
+  /** The position is the key: employees get the checklist of their position. */
+  positionId: Uuid,
   zoneType: ZoneTypeSchema.nullable().optional(),
   items: ChecklistItemsInput,
 });

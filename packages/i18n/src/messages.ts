@@ -710,6 +710,8 @@ export interface Messages {
         readonly position: string;
         readonly currentPosition: string;
         readonly noPosition: string;
+        readonly checklist: string;
+        readonly noChecklist: string;
         readonly assignPosition: string;
         readonly positionAssigned: string;
         readonly block: string;
@@ -995,6 +997,7 @@ export interface Messages {
       readonly checklistsDelete: string;
       readonly scheduleDelete: string;
       readonly employeesPositionColumn: string;
+      readonly employeesChecklistColumn: string;
       readonly employeesImport: string;
       readonly employeesQr: string;
       readonly directoriesDelete: string;

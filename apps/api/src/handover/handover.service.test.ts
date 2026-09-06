@@ -20,7 +20,13 @@ import {
   sites,
   sql,
 } from '@vakhta/db';
-import { DEFAULT_ATTENDANCE_WINDOW, DEFAULT_CHECKLIST_KEYS, HANDOVER_ANGLES } from '@vakhta/domain';
+import {
+  DEFAULT_ATTENDANCE_WINDOW,
+  DEFAULT_CHECKLIST_KEYS,
+  HANDOVER_ANGLES,
+  defaultChecklistItems,
+} from '@vakhta/domain';
+import { messages } from '@vakhta/i18n';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
@@ -53,6 +59,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
   let dayEmployee: string;
   let nightEmployee: string;
   let zoneId: string;
+  let operatorId: string;
   let planEnd: Date;
 
   beforeAll(async () => {
@@ -183,6 +190,27 @@ describe('handover: прибирання, чек-лист, фото, перед�
       .returning();
     dayEmployee = people[0]!.id;
     nightEmployee = people[1]!.id;
+    // Both employees are line operators; the position carries the default checklist of spec 5.6.
+    const [operator] = await testDb.db
+      .insert(positions)
+      .values({ code: 'OPERATOR', name: 'Оператор' })
+      .returning();
+    operatorId = operator!.id;
+    await testDb.db.insert(employeePositions).values(
+      [dayEmployee, nightEmployee].map((employeeId) => ({
+        employeeId,
+        orgUnitId: unit!.id,
+        positionId: operatorId,
+        validFrom: new Date('2026-01-01T00:00:00Z'),
+      })),
+    );
+    const t = messages().handover;
+    await testDb.db.insert(checklistDefinitions).values({
+      name: t.defaultName,
+      version: 1,
+      positionId: operatorId,
+      items: defaultChecklistItems({ items: t.items, angles: t.angles }),
+    });
     const start = new Date(Date.now() - 11 * 3_600_000);
     planEnd = new Date(start.getTime() + 12 * 3_600_000);
     await testDb.db.insert(shiftAssignments).values([
@@ -269,7 +297,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
     }
   }
 
-  it('FR-CLN-01/02: старт планує нагадування про прибирання; CLEANING_DONE відкриває чернетку з дефолтним чек-листом', async () => {
+  it('FR-CLN-01/02: старт планує нагадування про прибирання; CLEANING_DONE відкриває чернетку з чек-листом посади', async () => {
     await toHandover(dayEmployee);
     expect(timers.scheduled.map((s) => s.jobId.split('.')[0])).toContain('cleaning-reminder');
     const cleaning = timers.scheduled.find((s) => s.jobId.startsWith('cleaning-reminder'))!;
@@ -353,29 +381,46 @@ describe('handover: прибирання, чек-лист, фото, перед�
     expect(text).toContain('Решение мастера по вашему отчёту передачи');
   });
 
+  it('посада без чек-листа: кнопки в боті немає, чернетка не створюється, звіт не вимагається', async () => {
+    await testDb.db.delete(checklistDefinitions);
+    await toHandover(dayEmployee);
+    expect(await handover.current(dayEmployee)).toBeNull();
+    expect((await shift.screen(dayEmployee)).checklistAvailable).toBe(false);
+    await expect(
+      handover.answer(dayEmployee, { itemKey: 'SURFACES', ok: true }, employeeActor(dayEmployee)),
+    ).rejects.toMatchObject({ code: 'CHECKLIST_NOT_ASSIGNED' });
+    const session = await shift.activeSession(dayEmployee);
+    expect(
+      await shift.transition(
+        dayEmployee,
+        { action: 'SUBMIT_HANDOVER', expectedVersion: session!.version, idempotencyKey: key() },
+        { actor: employeeActor(dayEmployee), source: 'TELEGRAM' },
+      ),
+    ).toMatchObject({ ok: true, session: { state: 'READY_TO_CLOSE' } });
+    expect(await testDb.db.select().from(handoverRecords)).toHaveLength(0);
+  });
+
+  it('зміна з чек-листом посади: без звіту передати зміну не можна', async () => {
+    await toHandover(dayEmployee);
+    expect((await shift.screen(dayEmployee)).checklistAvailable).toBe(true);
+    const session = await shift.activeSession(dayEmployee);
+    expect(
+      await shift.transition(
+        dayEmployee,
+        { action: 'SUBMIT_HANDOVER', expectedVersion: session!.version, idempotencyKey: key() },
+        { actor: employeeActor(dayEmployee), source: 'TELEGRAM' },
+      ),
+    ).toMatchObject({ ok: false, error: 'HANDOVER_INCOMPLETE' });
+  });
+
   it('FR-CLN-03: чек-лист добирається за посадою працівника і типом зони, фото-пункти з нього обовʼязкові', async () => {
-    const [operator] = await testDb.db
-      .insert(positions)
-      .values({ code: 'OPERATOR', name: 'Оператор' })
-      .returning();
-    const [unit] = await testDb.db.select().from(orgUnits).limit(1);
-    await testDb.db.insert(employeePositions).values({
-      employeeId: dayEmployee,
-      orgUnitId: unit!.id,
-      positionId: operator!.id,
-      validFrom: new Date('2026-01-01T00:00:00Z'),
-    });
     const photo = { key: 'ITEM_03', label: 'Фото линии', kind: 'PHOTO' as const };
     await testDb.db.insert(checklistDefinitions).values([
       {
-        name: 'Общий',
+        name: 'Оператор, участок',
         version: 1,
-        items: [{ key: 'ITEM_01', label: 'Общий пункт', kind: 'CHECK' }, photo],
-      },
-      {
-        name: 'Оператор',
-        version: 1,
-        positionId: operator!.id,
+        positionId: operatorId,
+        zoneType: 'AREA',
         items: [
           { key: 'ITEM_01', label: 'Линия остановлена', kind: 'CHECK' },
           { key: 'ITEM_02', label: 'Сообщение', kind: 'NOTE' },
@@ -385,7 +430,8 @@ describe('handover: прибирання, чек-лист, фото, перед�
       {
         name: 'Оператор, старая версия',
         version: 1,
-        positionId: operator!.id,
+        positionId: operatorId,
+        zoneType: 'AREA',
         isActive: false,
         items: [{ key: 'ITEM_01', label: 'Устарело', kind: 'CHECK' }, photo],
       },

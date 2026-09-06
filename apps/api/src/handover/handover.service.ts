@@ -890,7 +890,13 @@ export class HandoverService {
       throw new DomainError('HANDOVER_NOT_OPEN', 409, 'The shift is not in the handover state');
     }
     const record = await this.repository.ensureDraft(tx, session, now);
-    if (!record) throw new DomainError('HANDOVER_NOT_OPEN', 409, 'The handover draft is not open');
+    if (!record) {
+      throw new DomainError(
+        'CHECKLIST_NOT_ASSIGNED',
+        409,
+        'The employee position has no checklist',
+      );
+    }
     if (record.status !== 'DRAFT' && !allowSubmitted) {
       throw new DomainError(
         'HANDOVER_ALREADY_SUBMITTED',

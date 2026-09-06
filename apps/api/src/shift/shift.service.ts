@@ -186,6 +186,7 @@ export class ShiftService {
         active.zoneAcceptedAt === null,
       offerResumeIntoDowntime,
       pendingHandovers: 0,
+      checklistAvailable: active !== null && (await this.handovers.reportRequired(this.db, active)),
       downtimeReasons,
       emergencyReasons,
       summary: recent && !active ? await this.summaryView(this.db, recent.id) : null,
@@ -878,7 +879,9 @@ export class ShiftService {
       presenceConfirmed: presence !== null,
       masterOverride: meta.masterOverride === true,
       zoneAccepted: session.zoneId === null || session.zoneAcceptedAt !== null,
-      handoverComplete: await this.handovers.hasSubmitted(tx, session.id),
+      handoverComplete:
+        !(await this.handovers.reportRequired(tx, session)) ||
+        (await this.handovers.hasSubmitted(tx, session.id)),
       ...(cmd?.reasonCode !== undefined ? { reasonCode: cmd.reasonCode } : {}),
       ...(cmd?.resumeIntoDowntime !== undefined
         ? { resumeIntoDowntime: cmd.resumeIntoDowntime }

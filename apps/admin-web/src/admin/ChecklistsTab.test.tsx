@@ -65,8 +65,6 @@ function mockApi(initial: ChecklistDefinitionView[]) {
           id: C2,
           familyId: 'f2',
           name: String(body?.['name']),
-          positionId: null,
-          positionName: null,
           items: (body?.['items'] as { label: string; kind: 'CHECK' | 'NOTE' | 'PHOTO' }[]).map(
             (i, n) => ({ key: `ITEM_0${n + 1}`, ...i }),
           ),
@@ -110,6 +108,7 @@ describe('ChecklistsTab', () => {
     fireEvent.change(within(dialog).getByLabelText('Название'), {
       target: { value: 'Фасовка' },
     });
+    fireEvent.change(within(dialog).getByLabelText('Должность'), { target: { value: POS } });
     fireEvent.change(within(dialog).getByLabelText('Текст пункта 1'), {
       target: { value: 'Весы обнулены' },
     });
@@ -130,7 +129,7 @@ describe('ChecklistsTab', () => {
     );
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
       name: 'Фасовка',
-      positionId: null,
+      positionId: POS,
       zoneType: null,
       items: [
         { label: 'Весы обнулены', kind: 'CHECK' },
@@ -148,6 +147,7 @@ describe('ChecklistsTab', () => {
     fireEvent.click((await screen.findAllByRole('button', { name: 'Создать чек-лист' }))[0]!);
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText('Название'), { target: { value: 'Без фото' } });
+    fireEvent.change(within(dialog).getByLabelText('Должность'), { target: { value: POS } });
     fireEvent.change(within(dialog).getByLabelText('Текст пункта 1'), {
       target: { value: 'Пункт' },
     });

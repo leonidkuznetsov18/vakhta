@@ -14,8 +14,6 @@ import {
   shiftAssignments,
   type DbOrTx,
 } from '@vakhta/db';
-import { defaultChecklistItems } from '@vakhta/domain';
-import { messages } from '@vakhta/i18n';
 
 type SessionLike = {
   readonly id: string;
@@ -53,15 +51,16 @@ export class HandoverRepository {
   }
 
   /**
-   * CLEANING_DONE → HANDOVER opens a draft on the checklist that fits the employee and the zone.
-   * A shift without a zone (started without a schedule) still gets its checklist: the report then
-   * has no receiver and goes straight to the master.
+   * CLEANING_DONE → HANDOVER opens a draft on the checklist bound to the employee position. No
+   * checklist for the position (or no position): no draft, the shift is handed over without a
+   * report. A shift without a zone still gets its checklist; the report then has no receiver and
+   * goes straight to the master.
    */
   async ensureDraft(tx: DbOrTx, session: SessionLike, now: Date): Promise<RecordRow | null> {
     const existing = await this.current(tx, session.id);
     if (existing) return existing;
-    const positionId = await this.positionOf(tx, session, now);
-    const definition = await this.definitionFor(tx, session.zoneId, positionId);
+    const definition = await this.checklistFor(tx, session, now);
+    if (!definition) return null;
     const [row] = await tx
       .insert(handoverRecords)
       .values({
@@ -76,6 +75,23 @@ export class HandoverRepository {
       .onConflictDoNothing()
       .returning();
     return row ?? (await this.current(tx, session.id));
+  }
+
+  /** Whether the shift must hand in a report: a draft already exists or the position has a checklist. */
+  async reportRequired(tx: DbOrTx, session: SessionLike, now: Date = new Date()): Promise<boolean> {
+    if (await this.current(tx, session.id)) return true;
+    return (await this.checklistFor(tx, session, now)) !== null;
+  }
+
+  /** The checklist of the employee position, refined by the zone type when one matches. */
+  async checklistFor(
+    tx: DbOrTx,
+    session: SessionLike,
+    now: Date = new Date(),
+  ): Promise<DefinitionRow | null> {
+    const positionId = await this.positionOf(tx, session, now);
+    if (!positionId) return null;
+    return this.definitionFor(tx, session.zoneId, positionId);
   }
 
   /** CONTINUE_WORK after the report: it becomes SUPERSEDED (FR-HND-07); CLEANING_DONE opens a new one. */
@@ -118,15 +134,14 @@ export class HandoverRepository {
   }
 
   /**
-   * The active checklist that fits best: position and zone type, then position only, then zone
-   * type only, then the general one. Nothing defined yet: the default of spec 5.6 is created so
-   * the handover never opens without a checklist.
+   * The active checklist of a position (spec 5.6, ADR-0012): the one for its zone type when the
+   * shift has such a zone, otherwise the one for any zone type. Null when the position has none.
    */
   async definitionFor(
     tx: DbOrTx,
     zoneId: string | null,
-    positionId: string | null,
-  ): Promise<DefinitionRow> {
+    positionId: string,
+  ): Promise<DefinitionRow | null> {
     const [zone] = zoneId
       ? await tx
           .select({ type: responsibilityZones.type })
@@ -138,28 +153,17 @@ export class HandoverRepository {
     const candidates = await tx
       .select()
       .from(checklistDefinitions)
-      .where(eq(checklistDefinitions.isActive, true))
+      .where(
+        and(
+          eq(checklistDefinitions.isActive, true),
+          eq(checklistDefinitions.positionId, positionId),
+        ),
+      )
       .orderBy(desc(checklistDefinitions.version), desc(checklistDefinitions.createdAt));
-    const pick = (position: string | null, type: typeof zoneType) =>
-      candidates.find((d) => d.positionId === position && d.zoneType === type);
-    const chosen =
-      (positionId ? pick(positionId, zoneType) : undefined) ??
-      (positionId ? pick(positionId, null) : undefined) ??
-      pick(null, zoneType) ??
-      pick(null, null);
-    if (chosen) return chosen;
-    const t = messages().handover;
-    const [created] = await tx
-      .insert(checklistDefinitions)
-      .values({
-        name: t.defaultName,
-        version: 1,
-        zoneType: null,
-        positionId: null,
-        items: defaultChecklistItems({ items: t.items, angles: t.angles }),
-      })
-      .returning();
-    if (!created) throw new Error('checklist_definitions: insert returned no row');
-    return created;
+    return (
+      (zoneType ? candidates.find((d) => d.zoneType === zoneType) : undefined) ??
+      candidates.find((d) => d.zoneType === null) ??
+      null
+    );
   }
 }

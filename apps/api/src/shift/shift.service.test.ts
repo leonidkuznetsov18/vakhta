@@ -6,6 +6,9 @@ import {
   eq,
   notificationOutbox,
   orgUnits,
+  positions,
+  employeePositions,
+  checklistDefinitions,
   presenceSessions,
   reasonCodes,
   responsibilityZones,
@@ -67,7 +70,7 @@ describe('shift: машина станів зміни в транзакції (�
 
   beforeEach(async () => {
     await testDb.db.execute(
-      sql`TRUNCATE shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, responsibility_zones, employees, org_units, sites, reason_codes CASCADE`,
+      sql`TRUNCATE handover_records, checklist_definitions, employee_positions, positions, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, responsibility_zones, employees, org_units, sites, reason_codes CASCADE`,
     );
     timers = new InMemoryTimerScheduler();
     changes = new ShiftChanges();
@@ -277,24 +280,8 @@ describe('shift: машина станів зміни в транзакції (�
       ok: true,
       session: { state: 'HANDOVER' },
     });
-    // Without a zone the checklist report is still required (spec 5.6); only the master may skip it.
+    // Petrova's position has no checklist, so the handover needs no report (spec 5.6, ADR-0012).
     expect(await act(petrova, 'SUBMIT_HANDOVER')).toMatchObject({
-      ok: false,
-      error: 'HANDOVER_INCOMPLETE',
-    });
-    const beforeSubmit = await service.activeSession(petrova);
-    expect(
-      await service.transition(
-        petrova,
-        {
-          action: 'SUBMIT_HANDOVER',
-          expectedVersion: beforeSubmit!.version,
-          idempotencyKey: key(),
-          comment: 'Report skipped by the master during the pilot',
-        },
-        { ...meta(petrova), masterOverride: true },
-      ),
-    ).toMatchObject({
       ok: true,
       session: { state: 'READY_TO_CLOSE' },
     });
@@ -349,6 +336,24 @@ describe('shift: машина станів зміни в транзакції (�
   });
 
   it('ТЗ 4.4: робота із зоною потребує приймання зони, передача без звіту не подається', async () => {
+    // The report is demanded only when the employee position has a checklist (ADR-0012).
+    const [unit] = await testDb.db.select().from(orgUnits).limit(1);
+    const [operator] = await testDb.db
+      .insert(positions)
+      .values({ code: 'OPERATOR', name: 'Оператор' })
+      .returning();
+    await testDb.db.insert(employeePositions).values({
+      employeeId: ivanov,
+      orgUnitId: unit!.id,
+      positionId: operator!.id,
+      validFrom: new Date('2026-01-01T00:00:00Z'),
+    });
+    await testDb.db.insert(checklistDefinitions).values({
+      name: 'Оператор',
+      version: 1,
+      positionId: operator!.id,
+      items: [{ key: 'ITEM_01', label: 'Фото линии', kind: 'PHOTO' }],
+    });
     await arrive(ivanov);
     await service.start(ivanov, { idempotencyKey: key() }, meta(ivanov));
     expect(await act(ivanov, 'START_WORK')).toMatchObject({

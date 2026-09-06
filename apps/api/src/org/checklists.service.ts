@@ -55,7 +55,7 @@ export class ChecklistsService {
   }
 
   async create(cmd: SaveChecklistCommand, actor: Actor): Promise<ChecklistDefinitionView> {
-    if (cmd.positionId) await this.org.requirePosition(cmd.positionId);
+    await this.org.requirePosition(cmd.positionId);
     const items = toItems(cmd);
     return this.db.transaction(async (tx) => {
       const [row] = await tx
@@ -63,7 +63,7 @@ export class ChecklistsService {
         .values({
           name: cmd.name,
           version: 1,
-          positionId: cmd.positionId ?? null,
+          positionId: cmd.positionId,
           zoneType: cmd.zoneType ?? null,
           items,
           isActive: true,
@@ -95,7 +95,7 @@ export class ChecklistsService {
     actor: Actor,
   ): Promise<ChecklistDefinitionView> {
     const current = await this.requireLatest(id);
-    if (cmd.positionId) await this.org.requirePosition(cmd.positionId);
+    await this.org.requirePosition(cmd.positionId);
     const items = toItems(cmd);
     return this.db.transaction(async (tx) => {
       await tx
@@ -108,7 +108,7 @@ export class ChecklistsService {
           familyId: current.familyId,
           name: cmd.name,
           version: current.version + 1,
-          positionId: cmd.positionId ?? null,
+          positionId: cmd.positionId,
           zoneType: cmd.zoneType ?? null,
           items,
           isActive: current.isActive,

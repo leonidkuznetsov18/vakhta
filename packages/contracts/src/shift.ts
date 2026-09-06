@@ -131,6 +131,8 @@ export const ShiftScreenView = z.object({
   offerResumeIntoDowntime: z.boolean(),
   /** Передачі, що чекають перевірки зони цією зміною (FR-HND-03); заповнює шар бота. */
   pendingHandovers: z.number().int().nonnegative(),
+  /** The employee position has a checklist: the bot offers the checklist screen in HANDOVER. */
+  checklistAvailable: z.boolean(),
   downtimeReasons: z.array(ReasonOption),
   emergencyReasons: z.array(ReasonOption),
   summary: ShiftSummaryView.nullable(),

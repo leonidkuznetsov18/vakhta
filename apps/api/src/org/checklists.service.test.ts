@@ -61,6 +61,15 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
     { label: 'Фото линии', kind: 'PHOTO' as const },
   ];
 
+  it('refuses a checklist without a position: the position is the key', async () => {
+    await expect(
+      service.create(
+        { name: 'x', positionId: '00000000-0000-4000-8000-000000000009', items },
+        admin,
+      ),
+    ).rejects.toMatchObject({ code: 'POSITION_NOT_FOUND' });
+  });
+
   it('creates a checklist with generated keys and lists the latest version per family', async () => {
     const created = await service.create(
       { name: 'Оператор линии', positionId, zoneType: 'AREA', items },
@@ -75,12 +84,12 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
       handovers: 0,
     });
     expect(created.items.map((i) => i.key)).toEqual(['ITEM_01', 'ITEM_02', 'ITEM_03']);
-    await service.create({ name: 'Общий', items: [items[2]!] }, admin);
+    await service.create({ name: 'Общий', positionId, items: [items[2]!] }, admin);
     const list = await service.list();
     expect(list.map((c) => c.name)).toEqual(['Общий', 'Оператор линии']);
     expect(list.find((c) => c.name === 'Общий')).toMatchObject({
-      positionId: null,
-      positionName: null,
+      positionId,
+      positionName: 'Оператор',
       zoneType: null,
     });
   });
@@ -101,32 +110,38 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
     ]);
     expect((await service.list()).map((c) => c.version)).toEqual([2]);
     // the retired version is read-only
-    await expect(service.update(v1.id, { name: 'x', items }, admin)).rejects.toMatchObject({
+    await expect(
+      service.update(v1.id, { name: 'x', positionId, items }, admin),
+    ).rejects.toMatchObject({
       code: 'CHECKLIST_VERSION_STALE',
     });
   });
 
   it('status toggles on the current version; a disabled checklist stays disabled after an edit', async () => {
-    const created = await service.create({ name: 'Оператор', items }, admin);
+    const created = await service.create({ name: 'Оператор', positionId, items }, admin);
     const disabled = await service.setStatus(
       created.id,
       { isActive: false, reason: 'Пилот завершён' },
       admin,
     );
     expect(disabled.isActive).toBe(false);
-    const edited = await service.update(created.id, { name: 'Оператор 2', items }, admin);
+    const edited = await service.update(
+      created.id,
+      { name: 'Оператор 2', positionId, items },
+      admin,
+    );
     expect(edited.isActive).toBe(false);
     expect((await service.setStatus(edited.id, { isActive: true }, admin)).isActive).toBe(true);
   });
 
   it('deletes every version while unused and refuses once a handover refers to it', async () => {
-    const free = await service.create({ name: 'Свободный', items }, admin);
-    await service.update(free.id, { name: 'Свободный 2', items }, admin);
+    const free = await service.create({ name: 'Свободный', positionId, items }, admin);
+    await service.update(free.id, { name: 'Свободный 2', positionId, items }, admin);
     const current = (await service.list()).find((c) => c.familyId === free.familyId)!;
     await service.delete(current.id, 'Ошибочно создан', admin);
     expect(await testDb.db.select().from(checklistDefinitions)).toHaveLength(0);
 
-    const used = await service.create({ name: 'Используемый', items }, admin);
+    const used = await service.create({ name: 'Используемый', positionId, items }, admin);
     const [site] = await testDb.db
       .insert(sites)
       .values({ code: 'main', name: 'Основная', timezone: 'Europe/Kyiv' })

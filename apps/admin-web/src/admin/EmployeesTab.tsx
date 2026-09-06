@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type {
+  ChecklistDefinitionView,
   ActivationCodeIssued,
   EmployeePositionView,
   EmployeeView,
@@ -25,7 +26,7 @@ import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill, type Tone } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
-import { adminEmployeesApi, employeesApi } from '../api.ts';
+import { adminEmployeesApi, checklistsApi, employeesApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { AddDialog } from '@/components/app/add-dialog';
@@ -64,6 +65,16 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const [issued, setIssued] = useState<ActivationCodeIssued | null>(null);
   const [creating, setCreating] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [checklists, setChecklists] = useState<ChecklistDefinitionView[] | null>(null);
+  useEffect(() => {
+    checklistsApi
+      .list()
+      .then(setChecklists)
+      .catch(() => setChecklists([]));
+  }, []);
+  /** Active checklists of a position: what the bot will ask this employee for (ADR-0012). */
+  const checklistsOf = (positionId: string) =>
+    checklists?.filter((c) => c.isActive && c.positionId === positionId) ?? [];
   const [importing, setImporting] = useState(false);
   const [statusFilter, setStatusFilter] = usePersistentState<'' | EmployeeView['status']>(
     'employees.status',
@@ -172,6 +183,25 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         ) : (
           <Muted>{e.noPosition}</Muted>
         ),
+    },
+    {
+      key: 'checklist',
+      header: (
+        <span className="inline-flex items-center gap-1">
+          {e.checklist}
+          <InfoTip text={hints.employeesChecklistColumn} />
+        </span>
+      ),
+      cell: (emp) => {
+        if (!emp.currentPosition) return <Muted>{e.noPosition}</Muted>;
+        if (checklists === null) return <Muted>…</Muted>;
+        const own = checklistsOf(emp.currentPosition.positionId);
+        return own.length > 0 ? (
+          <span>{own.map((c) => c.name).join(', ')}</span>
+        ) : (
+          <StatusPill tone="warning">{e.noChecklist}</StatusPill>
+        );
+      },
     },
     {
       key: 'status',

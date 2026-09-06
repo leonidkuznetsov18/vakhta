@@ -396,7 +396,7 @@ export function shiftKeyboard(t: Messages, view: ShiftScreenView): InlineKeyboar
       : `${SHIFT_CALLBACK.prefix}${action}:${version}`;
     add(t.actions[action], data);
   }
-  if (view.session?.state === 'HANDOVER') {
+  if (view.session?.state === 'HANDOVER' && view.checklistAvailable) {
     newRow();
     keyboard.text(t.handover.openButton, 'hv:open');
   }

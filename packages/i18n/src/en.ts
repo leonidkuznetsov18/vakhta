@@ -973,6 +973,8 @@ export const en: Messages = {
         position: 'Position',
         currentPosition: 'Current position',
         noPosition: 'No position assigned.',
+        checklist: 'Checklist',
+        noChecklist: 'No checklist',
         assignPosition: 'Assign position',
         positionAssigned: 'Position assigned.',
         block: 'Block',
@@ -1086,9 +1088,9 @@ export const en: Messages = {
       },
       checklists: {
         intro:
-          'What the employee checks and photographs before handing the zone over. The checklist is picked by the employee position and the zone type; a photo is mandatory in every checklist.',
+          'What the employee checks and photographs before handing the zone over. A checklist is bound to a position: the employee gets the checklist of their position, and a position without one gets neither a checklist nor photo requests in the bot. A photo is mandatory in every checklist.',
         position: 'Position',
-        anyPosition: 'Any position',
+        anyPosition: 'No position (not applied)',
         zoneType: 'Zone type',
         anyZoneType: 'Any zone type',
         items: 'Items',
@@ -1291,6 +1293,8 @@ export const en: Messages = {
       scheduleDelete:
         'Only a draft can be deleted. Published and superseded versions are kept for history.',
       employeesPositionColumn: 'Current position and unit from the personnel assignment.',
+      employeesChecklistColumn:
+        'The handover checklist bound to the employee position. Without one the bot asks for no checklist and no photos at the end of the shift.',
       employeesImport:
         'Every row becomes an employee card; repeated personnel numbers are skipped and listed in the report.',
       employeesQr: 'The QR carries the same activation link; show it on screen or print it.',
@@ -1314,7 +1318,7 @@ export const en: Messages = {
       reportsChart: 'The chart is built from the report rows; hover to see the values.',
       terminalsCheckpoint: 'What the terminal records: entry, exit or both.',
       checklists:
-        'The checklist is picked when the zone is handed over: first by position and zone type, then by position only, then by zone type only, then the general one. If none exists, the system creates the standard one from the spec.',
+        'The checklist is picked by the employee position (from the schedule assignment, otherwise the current position). When a position has several checklists, the one whose zone type matches the zone of the shift wins, otherwise the "any zone type" one. No checklist for the position means no checklist in the bot.',
       checklistsPosition:
         'The employee position comes from the schedule assignment or from the current position.',
       checklistsZoneType: 'Zone type from the zones directory. "Any" fits every zone.',

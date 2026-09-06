@@ -539,8 +539,9 @@ export class BonusService implements OnModuleInit {
       )
       .orderBy(desc(handoverRecords.createdAt))
       .limit(1);
+    // No report at all: the position has no checklist, the criteria do not apply (spec 7.6).
     let handoverInputs: ShiftBonusInputs['handover'] = {
-      required: session.zoneId !== null,
+      required: false,
       status: null,
       checklistComplete: false,
       cannotComplete: false,

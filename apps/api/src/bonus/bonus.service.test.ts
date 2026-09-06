@@ -179,14 +179,10 @@ describe('bonus: оцінка зміни, коригування, закритт
       'CLOSE_SHIFT',
     ] as const) {
       const current = await shift.activeSession(ivanov);
-      // The checklist report is mandatory for every shift (spec 5.6); these tests score the
-      // shift, not the report, so the handover step goes through the master override.
       const r = await shift.transition(
         ivanov,
         { action, expectedVersion: current!.version, idempotencyKey: key() },
-        action === 'SUBMIT_HANDOVER'
-          ? { actor: MASTER, source: 'WEB', masterOverride: true }
-          : { actor: employeeActor(ivanov), source: 'TELEGRAM' },
+        { actor: employeeActor(ivanov), source: 'TELEGRAM' },
       );
       if (!r.ok)
         throw new Error(`${action} відхилено: ${r.error} (стан ${r.session?.state ?? 'немає'})`);

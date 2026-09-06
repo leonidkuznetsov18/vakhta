@@ -159,7 +159,7 @@ export function ChecklistsTab({ org }: Props) {
     {
       key: 'position',
       header: c.position,
-      cell: (r) => r.positionName ?? <Muted>{c.anyPosition}</Muted>,
+      cell: (r) => r.positionName ?? <StatusPill tone="warning">{c.anyPosition}</StatusPill>,
       sortValue: (r) => r.positionName ?? '',
     },
     {
@@ -445,7 +445,7 @@ function ChecklistDialog({
     ev.preventDefault();
     const checked = validateWith(SaveChecklistCommand, {
       name: draft.name,
-      positionId: draft.positionId || null,
+      positionId: draft.positionId || undefined,
       zoneType: draft.zoneType || null,
       items: draft.items.map((i) => ({ label: i.label, kind: i.kind })),
     });
