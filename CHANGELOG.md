@@ -1,3 +1,9 @@
+## [0.19.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.18.0...v0.19.0) (2026-09-06)
+
+### Features
+
+* **employees:** card under the row and an optional first assignment on creation ([3c41372](https://github.com/leonidkuznetsov18/vakhta/commit/3c413726594d37ad1de8ee09037f493a11a7b5a9))
+
 ## [0.18.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.17.0...v0.18.0) (2026-09-06)
 
 ### Features
