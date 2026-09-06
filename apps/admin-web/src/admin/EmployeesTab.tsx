@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import type {
   ActivationCodeIssued,
   EmployeePositionView,
@@ -6,25 +6,48 @@ import type {
   OrgSnapshot,
 } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { CopyButton } from '@/components/app/copy-button';
+import { useConfirm } from '@/components/app/confirm-dialog';
+import { DataTable, type Column } from '@/components/app/data-table';
+import { Feedback, useAction } from '@/components/app/feedback';
+import { FormField, SelectField } from '@/components/app/fields';
+import { InfoTip } from '@/components/app/info-tip';
+import { Muted, Section, StatusPill, type Tone } from '@/components/app/page';
+import { formatDateTime } from '@/lib/format';
 import { adminEmployeesApi, employeesApi } from '../api.ts';
-import { CopyButton, Feedback, Field, useAction } from './ui.tsx';
 import { currentLocale } from '../i18n.tsx';
 
-const t = messages(currentLocale()).admin.administration;
+const all = messages(currentLocale());
+const t = all.admin.administration;
 const e = t.employees;
+const hints = all.ui.hints;
+const STATUS_TONE: Record<EmployeeView['status'], Tone> = {
+  ACTIVE: 'success',
+  BLOCKED: 'warning',
+  TERMINATED: 'neutral',
+};
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
-}
-
-/** Картки працівників: створення, код активації, посада, статус, зміна Telegram (ТЗ 2, FR-ID-*). */
+/** Employee cards: creation, activation code, position, status, Telegram relink (spec 2, FR-ID-*). */
 export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const [list, setList] = useState<EmployeeView[]>([]);
   const [personnelNumber, setPersonnelNumber] = useState('');
   const [fullName, setFullName] = useState('');
   const [issued, setIssued] = useState<ActivationCodeIssued | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [relinkFor, setRelinkFor] = useState<EmployeeView | null>(null);
   const { busy, error, notice, run } = useAction();
+  const { confirm, dialog } = useConfirm();
 
   useEffect(() => {
     void run(async () => setList(await employeesApi.list()));
@@ -34,7 +57,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     setList((l) => l.map((x) => (x.id === updated.id ? updated : x)));
   }
 
-  function create(ev: React.FormEvent) {
+  function create(ev: FormEvent) {
     ev.preventDefault();
     void run(async () => {
       const created = await adminEmployeesApi.create({
@@ -52,8 +75,16 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     void run(async () => setIssued(await adminEmployeesApi.issueCode(emp.id)));
   }
 
-  function changeStatus(emp: EmployeeView, status: EmployeeView['status']) {
-    const reason = window.prompt(t.common.reason)?.trim();
+  async function changeStatus(emp: EmployeeView, status: EmployeeView['status']) {
+    const label = status === 'BLOCKED' ? e.block : status === 'ACTIVE' ? e.unblock : e.terminate;
+    const reason = await confirm({
+      title: `${label}: ${emp.fullName}`,
+      description: hints.employeesStatus,
+      confirmLabel: label,
+      commentLabel: t.common.reason,
+      commentRequired: true,
+      destructive: status === 'TERMINATED',
+    });
     if (!reason) return;
     void run(
       async () => replace(await adminEmployeesApi.changeStatus(emp.id, { status, reason })),
@@ -61,147 +92,247 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     );
   }
 
-  function relink(emp: EmployeeView) {
-    const idText = window.prompt(e.relinkUserId)?.trim();
-    const telegramUserId = Number(idText);
-    if (!idText || !Number.isInteger(telegramUserId) || telegramUserId <= 0) return;
-    const reason = window.prompt(t.common.reason)?.trim();
-    if (!reason) return;
+  const columns: Column<EmployeeView>[] = [
+    {
+      key: 'number',
+      header: e.personnelNumber,
+      cell: (emp) => <span className="tabular-nums">{emp.personnelNumber}</span>,
+    },
+    { key: 'name', header: e.fullName, cell: (emp) => emp.fullName },
+    {
+      key: 'status',
+      header: e.status,
+      cell: (emp) => (
+        <StatusPill tone={STATUS_TONE[emp.status]}>{e.statuses[emp.status]}</StatusPill>
+      ),
+    },
+    {
+      key: 'telegram',
+      header: e.telegram,
+      cell: (emp) =>
+        emp.telegramLinked ? (
+          <StatusPill tone="info">{e.linked}</StatusPill>
+        ) : (
+          <Muted>{e.notLinked}</Muted>
+        ),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{all.ui.common.actions}</span>,
+      align: 'right',
+      cell: (emp) => (
+        <div className="flex flex-wrap justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setOpenId(openId === emp.id ? null : emp.id)}
+          >
+            {e.position}
+          </Button>
+          {emp.status === 'ACTIVE' && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              onClick={() => issueCode(emp)}
+            >
+              {e.issueCode}
+            </Button>
+          )}
+          {emp.telegramLinked && emp.status === 'ACTIVE' && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => setRelinkFor(emp)}
+            >
+              {e.relink}
+            </Button>
+          )}
+          {emp.status === 'ACTIVE' && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => void changeStatus(emp, 'BLOCKED')}
+            >
+              {e.block}
+            </Button>
+          )}
+          {emp.status === 'BLOCKED' && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => void changeStatus(emp, 'ACTIVE')}
+            >
+              {e.unblock}
+            </Button>
+          )}
+          {emp.status !== 'TERMINATED' && (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={busy}
+              onClick={() => void changeStatus(emp, 'TERMINATED')}
+            >
+              {e.terminate}
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Section title={e.create} hint={hints.employeesActivation}>
+        <form className="flex flex-wrap items-end gap-3" onSubmit={create}>
+          <FormField label={e.personnelNumber} className="w-40">
+            {(id) => (
+              <Input
+                id={id}
+                value={personnelNumber}
+                onChange={(ev) => setPersonnelNumber(ev.target.value)}
+                required
+                maxLength={32}
+              />
+            )}
+          </FormField>
+          <FormField label={e.fullName} className="min-w-64 flex-1">
+            {(id) => (
+              <Input
+                id={id}
+                value={fullName}
+                onChange={(ev) => setFullName(ev.target.value)}
+                required
+                minLength={3}
+                maxLength={200}
+              />
+            )}
+          </FormField>
+          <Button type="submit" disabled={busy}>
+            {e.create}
+          </Button>
+        </form>
+        <Feedback error={error} notice={notice} />
+        {issued && (
+          <Alert>
+            <AlertTitle>
+              {format(e.codeIssued, {
+                code: issued.code,
+                expires: formatDateTime(issued.expiresAt),
+              })}
+            </AlertTitle>
+            <AlertDescription>
+              <div className="flex flex-wrap items-center gap-2">
+                <span>{e.deepLink}:</span>
+                <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{issued.deepLink}</code>
+                <CopyButton value={issued.deepLink} />
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+      </Section>
+
+      <DataTable
+        columns={columns}
+        rows={list}
+        rowKey={(emp) => emp.id}
+        empty={t.common.empty}
+        rowClassName={(emp) => (emp.status !== 'ACTIVE' ? 'text-muted-foreground' : undefined)}
+        expanded={(emp) => (openId === emp.id ? <PositionPanel employee={emp} org={org} /> : null)}
+      />
+      {dialog}
+      <RelinkDialog
+        employee={relinkFor}
+        onClose={() => setRelinkFor(null)}
+        onRelinked={(emp) => {
+          replace({ ...emp, telegramLinked: true });
+          setRelinkFor(null);
+        }}
+      />
+    </div>
+  );
+}
+
+/** Relinking needs two inputs (Telegram user id and a reason), so it gets its own dialog. */
+function RelinkDialog({
+  employee,
+  onClose,
+  onRelinked,
+}: {
+  readonly employee: EmployeeView | null;
+  readonly onClose: () => void;
+  readonly onRelinked: (employee: EmployeeView) => void;
+}) {
+  const [userId, setUserId] = useState('');
+  const [reason, setReason] = useState('');
+  const { busy, error, run } = useAction();
+  const telegramUserId = Number(userId);
+  const valid = Number.isInteger(telegramUserId) && telegramUserId > 0 && reason.trim().length >= 3;
+
+  function submit(ev: FormEvent) {
+    ev.preventDefault();
+    if (!employee || !valid) return;
     void run(async () => {
-      await adminEmployeesApi.relink(emp.id, { telegramUserId, reason });
-      replace({ ...emp, telegramLinked: true });
-    }, e.relinked);
+      await adminEmployeesApi.relink(employee.id, { telegramUserId, reason: reason.trim() });
+      onRelinked(employee);
+      setUserId('');
+      setReason('');
+    });
   }
 
   return (
-    <div>
-      <form className="inline-form" onSubmit={create}>
-        <Field label={e.personnelNumber}>
-          <input
-            value={personnelNumber}
-            onChange={(ev) => setPersonnelNumber(ev.target.value)}
-            required
-            maxLength={32}
-          />
-        </Field>
-        <Field label={e.fullName}>
-          <input
-            value={fullName}
-            onChange={(ev) => setFullName(ev.target.value)}
-            required
-            minLength={3}
-            maxLength={200}
-          />
-        </Field>
-        <button type="submit" className="btn primary" disabled={busy}>
-          {e.create}
-        </button>
-      </form>
-      <Feedback error={error} notice={notice} />
-      {issued && (
-        <div className="notice code-issued">
-          <div>
-            {format(e.codeIssued, { code: issued.code, expires: fmtDate(issued.expiresAt) })}
-          </div>
-          <div>
-            {e.deepLink}: <code>{issued.deepLink}</code> <CopyButton value={issued.deepLink} />
-          </div>
-        </div>
-      )}
-      {list.length === 0 ? (
-        <p className="muted">{t.common.empty}</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{e.personnelNumber}</th>
-              <th>{e.fullName}</th>
-              <th>{e.status}</th>
-              <th>{e.telegram}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((emp) => (
-              <React.Fragment key={emp.id}>
-                <tr className={emp.status !== 'ACTIVE' ? 'muted' : undefined}>
-                  <td>{emp.personnelNumber}</td>
-                  <td>{emp.fullName}</td>
-                  <td>{e.statuses[emp.status]}</td>
-                  <td>{emp.telegramLinked ? e.linked : e.notLinked}</td>
-                  <td className="row-actions">
-                    <button
-                      type="button"
-                      className="link"
-                      onClick={() => setOpenId(openId === emp.id ? null : emp.id)}
-                    >
-                      {e.position}
-                    </button>
-                    {emp.status === 'ACTIVE' && (
-                      <button
-                        type="button"
-                        className="link"
-                        disabled={busy}
-                        onClick={() => issueCode(emp)}
-                      >
-                        {e.issueCode}
-                      </button>
-                    )}
-                    {emp.telegramLinked && emp.status === 'ACTIVE' && (
-                      <button
-                        type="button"
-                        className="link"
-                        disabled={busy}
-                        onClick={() => relink(emp)}
-                      >
-                        {e.relink}
-                      </button>
-                    )}
-                    {emp.status === 'ACTIVE' && (
-                      <button
-                        type="button"
-                        className="link"
-                        disabled={busy}
-                        onClick={() => changeStatus(emp, 'BLOCKED')}
-                      >
-                        {e.block}
-                      </button>
-                    )}
-                    {emp.status === 'BLOCKED' && (
-                      <button
-                        type="button"
-                        className="link"
-                        disabled={busy}
-                        onClick={() => changeStatus(emp, 'ACTIVE')}
-                      >
-                        {e.unblock}
-                      </button>
-                    )}
-                    {emp.status !== 'TERMINATED' && (
-                      <button
-                        type="button"
-                        className="link danger"
-                        disabled={busy}
-                        onClick={() => changeStatus(emp, 'TERMINATED')}
-                      >
-                        {e.terminate}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-                {openId === emp.id && (
-                  <tr>
-                    <td colSpan={5}>
-                      <PositionPanel employee={emp} org={org} />
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
+    <Dialog open={employee !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-1">
+            {e.relink}
+            <InfoTip text={hints.employeesRelink} />
+          </DialogTitle>
+        </DialogHeader>
+        <form className="flex flex-col gap-4" onSubmit={submit}>
+          <FormField label={e.relinkUserId}>
+            {(id) => (
+              <Input
+                id={id}
+                inputMode="numeric"
+                value={userId}
+                onChange={(ev) => setUserId(ev.target.value)}
+                required
+              />
+            )}
+          </FormField>
+          <FormField label={t.common.reason}>
+            {(id) => (
+              <Textarea
+                id={id}
+                value={reason}
+                onChange={(ev) => setReason(ev.target.value)}
+                required
+                minLength={3}
+              />
+            )}
+          </FormField>
+          <Feedback error={error} notice={null} />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              {t.common.cancel}
+            </Button>
+            <Button type="submit" disabled={busy || !valid}>
+              {e.relink}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -227,7 +358,7 @@ function PositionPanel({
   const positionName = (id: string) => org.positions.find((p) => p.id === id)?.name ?? id;
   const teams = org.teams.filter((tm) => tm.orgUnitId === orgUnitId);
 
-  function assign(ev: React.FormEvent) {
+  function assign(ev: FormEvent) {
     ev.preventDefault();
     void run(async () => {
       const view = await adminEmployeesApi.assignPosition(employee.id, {
@@ -243,51 +374,43 @@ function PositionPanel({
   }
 
   return (
-    <div className="subpanel">
-      <p>
+    <div className="flex flex-col gap-3">
+      <p className="flex items-center gap-1 text-sm">
         <strong>{e.currentPosition}:</strong>{' '}
         {current
           ? `${positionName(current.positionId)}, ${unitName(current.orgUnitId)}`
           : e.noPosition}
+        <InfoTip text={hints.employeesPosition} />
       </p>
-      <form className="inline-form" onSubmit={assign}>
-        <Field label={t.common.orgUnit}>
-          <select
-            value={orgUnitId}
-            onChange={(ev) => {
-              setOrgUnitId(ev.target.value);
-              setTeamId('');
-            }}
-          >
-            {org.orgUnits.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={e.position}>
-          <select value={positionId} onChange={(ev) => setPositionId(ev.target.value)}>
-            {org.positions.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={t.common.team}>
-          <select value={teamId} onChange={(ev) => setTeamId(ev.target.value)}>
-            <option value="">{t.common.none}</option>
-            {teams.map((tm) => (
-              <option key={tm.id} value={tm.id}>
-                {tm.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <button type="submit" className="btn" disabled={busy || !orgUnitId || !positionId}>
+      <form className="flex flex-wrap items-end gap-3" onSubmit={assign}>
+        <SelectField
+          label={t.common.orgUnit}
+          value={orgUnitId}
+          onChange={(v) => {
+            setOrgUnitId(v);
+            setTeamId('');
+          }}
+          options={org.orgUnits.map((u) => ({ value: u.id, label: u.name }))}
+          className="w-56"
+        />
+        <SelectField
+          label={e.position}
+          value={positionId}
+          onChange={setPositionId}
+          options={org.positions.map((p) => ({ value: p.id, label: p.name }))}
+          className="w-56"
+        />
+        <SelectField
+          label={t.common.team}
+          value={teamId}
+          onChange={setTeamId}
+          placeholder={t.common.none}
+          options={teams.map((tm) => ({ value: tm.id, label: tm.name }))}
+          className="w-48"
+        />
+        <Button type="submit" variant="secondary" disabled={busy || !orgUnitId || !positionId}>
           {e.assignPosition}
-        </button>
+        </Button>
       </form>
       <Feedback error={error} notice={notice} />
     </div>

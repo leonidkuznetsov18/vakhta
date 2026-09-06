@@ -2,6 +2,12 @@ import { useState, type FormEvent } from 'react';
 import QRCode from 'qrcode';
 import type { MeView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Feedback } from '@/components/app/feedback';
+import { FormField } from '@/components/app/fields';
+import { Muted, Section } from '@/components/app/page';
 import { ApiError, authApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
 
@@ -13,7 +19,7 @@ interface Props {
   onChanged: () => void;
 }
 
-/** Профіль: ролі з областями і ввімкнення TOTP (пароль → QR → код). */
+/** Profile: roles with scopes and enabling TOTP (password → QR → code). */
 export function ProfilePanel({ me, onChanged }: Props) {
   const [step, setStep] = useState<'idle' | 'password' | 'verify' | 'done'>('idle');
   const [password, setPassword] = useState('');
@@ -55,87 +61,100 @@ export function ProfilePanel({ me, onChanged }: Props) {
     }
   }
 
-  return (
-    <div className="profile">
-      <dl className="kv">
-        <dt>{t.email}</dt>
-        <dd>{me.email}</dd>
-        <dt>{t.roles}</dt>
-        <dd>
-          {me.roles.length === 0 ? (
-            <span className="muted">{t.noRoles}</span>
-          ) : (
-            <ul className="chips">
-              {me.roles.map((r) => (
-                <li key={r.id} className="chip">
-                  {m.roles[r.role]}
-                  <small>{r.scopeType}</small>
-                </li>
-              ))}
-            </ul>
-          )}
-        </dd>
-      </dl>
+  const enabled = me.twoFactorEnabled || step === 'done';
 
-      <section className="card">
-        <h2>{me.twoFactorEnabled || step === 'done' ? t.twoFactorOn : t.twoFactorOff}</h2>
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Section title={t.profile}>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+          <dt className="text-muted-foreground">{t.email}</dt>
+          <dd>{me.email}</dd>
+          <dt className="text-muted-foreground">{t.roles}</dt>
+          <dd>
+            {me.roles.length === 0 ? (
+              <Muted>{t.noRoles}</Muted>
+            ) : (
+              <ul className="flex flex-wrap gap-1">
+                {me.roles.map((r) => (
+                  <li key={r.id}>
+                    <Badge variant="secondary">
+                      {m.roles[r.role]}
+                      <span className="ml-1 text-muted-foreground">{r.scopeType}</span>
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </dd>
+        </dl>
+      </Section>
+
+      <Section title={enabled ? t.twoFactorOn : t.twoFactorOff} hint={m.ui.hints.profileTwoFactor}>
         {!me.twoFactorEnabled && step === 'idle' && (
-          <button type="button" onClick={() => setStep('password')}>
-            {t.enableTwoFactor}
-          </button>
+          <div>
+            <Button type="button" onClick={() => setStep('password')}>
+              {t.enableTwoFactor}
+            </Button>
+          </div>
         )}
         {step === 'password' && (
-          <form onSubmit={startEnable}>
-            <label>
-              <span>{t.confirmPassword}</span>
-              <input
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
-            <button type="submit" disabled={busy}>
-              {t.enableTwoFactor}
-            </button>
+          <form className="flex flex-col gap-4" onSubmit={startEnable}>
+            <FormField label={t.confirmPassword}>
+              {(id) => (
+                <Input
+                  id={id}
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              )}
+            </FormField>
+            <div>
+              <Button type="submit" disabled={busy}>
+                {t.enableTwoFactor}
+              </Button>
+            </div>
           </form>
         )}
         {step === 'verify' && (
-          <form onSubmit={confirm}>
-            <p className="muted">{t.scanQr}</p>
-            {qr && <img src={qr} alt="TOTP QR" width={220} height={220} />}
-            <label>
-              <span>{t.code}</span>
-              <input
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                pattern="[0-9]{6}"
-                required
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-              />
-            </label>
-            <button type="submit" disabled={busy}>
-              {t.verify}
-            </button>
-            <p className="muted">{t.backupCodes}</p>
-            <ul className="codes">
+          <form className="flex flex-col gap-4" onSubmit={confirm}>
+            <p className="text-sm text-muted-foreground">{t.scanQr}</p>
+            {qr && (
+              <img src={qr} alt="TOTP QR" width={220} height={220} className="rounded-lg border" />
+            )}
+            <FormField label={t.code}>
+              {(id) => (
+                <Input
+                  id={id}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]{6}"
+                  required
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                />
+              )}
+            </FormField>
+            <div>
+              <Button type="submit" disabled={busy}>
+                {t.verify}
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">{t.backupCodes}</p>
+            <ul className="grid grid-cols-2 gap-1 font-mono text-sm">
               {backupCodes.map((c) => (
-                <li key={c}>
-                  <code>{c}</code>
+                <li key={c} className="rounded-md bg-muted px-2 py-1">
+                  {c}
                 </li>
               ))}
             </ul>
           </form>
         )}
-        {step === 'done' && <p>{t.twoFactorEnabled}</p>}
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
-      </section>
+        {step === 'done' && <p className="text-sm">{t.twoFactorEnabled}</p>}
+        <Feedback error={error} notice={null} />
+      </Section>
     </div>
   );
 }

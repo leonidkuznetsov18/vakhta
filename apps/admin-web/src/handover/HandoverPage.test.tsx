@@ -163,7 +163,7 @@ describe('HandoverPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('показує спір з чек-листом, зауваженням приймаючого і підписаним посиланням на фото; рішення йде з коментарем', async () => {
+  it('shows a dispute with the checklist, the receiver remark and a signed photo link; the decision carries a comment', async () => {
     const state = { status: 'DISPUTED' };
     const calls = mockApi(state);
     render(<HandoverPage />);
@@ -197,7 +197,7 @@ describe('HandoverPage', () => {
     });
   });
 
-  it('прострочена приймання позначається і допускає лише рішення майстра без підтвердження порушення', async () => {
+  it('an overdue acceptance is flagged and allows only master decisions without confirming a violation', async () => {
     mockApi({ status: 'SUBMITTED' });
     render(<HandoverPage />);
     expect(await screen.findByText('Просрочено')).toBeTruthy();

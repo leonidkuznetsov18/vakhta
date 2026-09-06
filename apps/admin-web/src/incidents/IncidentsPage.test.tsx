@@ -144,7 +144,7 @@ describe('IncidentsPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('показує чергу, деталі з повідомленнями і статистику; підтвердження йде з коментарем', async () => {
+  it('shows the queue, details with reports and statistics; acknowledgement carries a comment', async () => {
     const state = {
       rows: [incident(INC, 'REPORTED'), incident(INC2, 'REPORTED', { zoneName: 'Линия B' })],
     };
@@ -169,7 +169,7 @@ describe('IncidentsPage', () => {
     expect(await screen.findByText('Подтверждён')).toBeTruthy();
   });
 
-  it('дубликат вимагає вибрати первинний інцидент; SSE-подія перечитує список', async () => {
+  it('a duplicate requires choosing the primary incident; an SSE event re-reads the list', async () => {
     const state = {
       rows: [incident(INC, 'REPORTED'), incident(INC2, 'REPORTED', { zoneName: 'Линия B' })],
     };

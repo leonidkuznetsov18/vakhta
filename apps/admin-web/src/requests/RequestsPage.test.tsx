@@ -120,7 +120,7 @@ describe('RequestsPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('вхідні: запізнення схвалюється з коментарем і затвердженими хвилинами; переробка вирішується окремо', async () => {
+  it('inbox: lateness is approved with a comment and approved minutes; overtime is decided separately', async () => {
     const state = { row: request('LATE') };
     const calls = mockApi(state);
     render(<RequestsPage />);
@@ -155,7 +155,7 @@ describe('RequestsPage', () => {
     ).toEqual({ decision: 'APPROVED', comment: 'Замена заболевшего' });
   });
 
-  it('корекція: майстер задає пропозицію закриття зміни і схвалює', async () => {
+  it('correction: the master sets a close-shift proposal and approves', async () => {
     const state = { row: request('CORRECTION', 'SUBMITTED', { assignmentDate: null }) };
     const calls = mockApi(state);
     render(<RequestsPage />);

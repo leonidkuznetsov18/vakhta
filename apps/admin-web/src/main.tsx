@@ -1,8 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { App } from './App.tsx';
 import { currentLocale } from './i18n.tsx';
-import './styles.css';
+import './index.css';
 
 document.documentElement.lang = currentLocale();
 
@@ -11,6 +12,8 @@ if (!root) throw new Error('#root element not found');
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <TooltipProvider delayDuration={200}>
+      <App />
+    </TooltipProvider>
   </StrictMode>,
 );

@@ -4,7 +4,7 @@ import { currentLocale } from './i18n.tsx';
 
 const t = messages(currentLocale());
 
-/** Текст для користувача: 403 → «недостатньо прав», відомі коди домену → каталог, інакше повідомлення сервера. */
+/** User-facing text: 403 → "insufficient permissions", known domain codes → catalog, otherwise the server message. */
 export function describeError(e: unknown): string {
   if (e instanceof ApiError) {
     if (e.status === 403) return t.admin.schedule.forbidden;

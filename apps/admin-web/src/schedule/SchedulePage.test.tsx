@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SchedulePage } from './SchedulePage.tsx';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
@@ -182,7 +182,7 @@ describe('SchedulePage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('показує фільтри, версію, сітку з призначенням і зберігає зміни командою PUT', async () => {
+  it('shows filters, the version, the grid with an assignment and saves changes with PUT', async () => {
     const calls = mockApi({ status: 'DRAFT' });
     render(<SchedulePage />);
 
@@ -223,7 +223,7 @@ describe('SchedulePage', () => {
     expect(screen.getByText('Замечаний нет.')).toBeTruthy();
   });
 
-  it('помилки валідації блокують подання, попередження ні', async () => {
+  it('validation errors block submission, warnings do not', async () => {
     mockApi({
       status: 'DRAFT',
       issues: [
@@ -253,7 +253,7 @@ describe('SchedulePage', () => {
     expect(submit.disabled).toBe(true);
   });
 
-  it('після подання показує кнопки согласования, після публікації таблицю ознайомлення', async () => {
+  it('after submission shows the review buttons, after publishing the acknowledgement table', async () => {
     const state = { status: 'DRAFT' };
     const calls = mockApi(state);
     render(<SchedulePage />);
@@ -271,9 +271,13 @@ describe('SchedulePage', () => {
       (screen.getByLabelText('Кузнецов Леонид 2026-09-05') as HTMLSelectElement).disabled,
     ).toBe(true);
 
-    vi.stubGlobal('confirm', () => true);
-    vi.stubGlobal('prompt', () => 'Перестановка после отпуска');
     fireEvent.click(publish);
+    // Publishing asks for confirmation and an optional reason in a dialog.
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.change(within(dialog).getByLabelText(/Причина изменения графика/), {
+      target: { value: 'Перестановка после отпуска' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Опубликовать' }));
     await screen.findByText('График опубликован. Уведомления отправлены.');
     expect(calls.find((c) => c.path.endsWith('/publish'))?.body).toEqual({
       changeReason: 'Перестановка после отпуска',

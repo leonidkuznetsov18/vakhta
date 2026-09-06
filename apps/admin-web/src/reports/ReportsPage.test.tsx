@@ -87,13 +87,13 @@ function mockApi() {
   return calls;
 }
 
-describe('ReportsPage і AuditPage', () => {
+describe('ReportsPage and AuditPage', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
   });
 
-  it('формує звіт за період і показує версію даних, підсумки та посилання на вивантаження', async () => {
+  it('builds a report for a period and shows the data version, totals and export links', async () => {
     const calls = mockApi();
     render(<ReportsPage />);
     fireEvent.change(await screen.findByLabelText('С'), { target: { value: '2026-10-01' } });
@@ -117,13 +117,13 @@ describe('ReportsPage і AuditPage', () => {
     );
   });
 
-  it('аудит показує дії з до/після і журнал подій із посиланням на виправлену подію', async () => {
+  it('audit shows actions with before/after and the event log with a link to the corrected event', async () => {
     mockApi();
     render(<AuditPage />);
     expect(await screen.findByText('report.export')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'До/После' }));
     expect(await screen.findByText(/"format": "csv"/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('tab', { name: 'Журнал событий' }));
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Журнал событий' }));
     expect(await screen.findByText('SHIFT_CORRECTED')).toBeTruthy();
     expect(screen.getByText(/исправляет c0000000/)).toBeTruthy();
   });

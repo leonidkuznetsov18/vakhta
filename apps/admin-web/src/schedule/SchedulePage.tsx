@@ -8,6 +8,14 @@ import type {
   ShiftTemplateView,
 } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useConfirm } from '@/components/app/confirm-dialog';
+import { Feedback } from '@/components/app/feedback';
+import { FormField, SelectField } from '@/components/app/fields';
+import { InfoTip } from '@/components/app/info-tip';
+import { EmptyState, Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
 import { employeesApi, orgApi, schedulesApi } from '../api.ts';
 import { describeError as describe } from '../errors.ts';
 import { AckTable } from './AckTable.tsx';
@@ -27,15 +35,23 @@ import { currentLocale } from '../i18n.tsx';
 
 const t = messages(currentLocale());
 const s = t.admin.schedule;
+const hints = t.ui.hints;
 const EMPTY_GRID: GridState = { rows: [] };
+const STATUS_TONE: Record<ScheduleVersionView['status'], Tone> = {
+  DRAFT: 'neutral',
+  IN_REVIEW: 'info',
+  PUBLISHED: 'success',
+  SUPERSEDED: 'warning',
+  CLOSED: 'neutral',
+};
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
 /**
- * Розділ «График»: фільтри площадка/підрозділ/місяць, версії з життєвим циклом
- * DRAFT → IN_REVIEW → PUBLISHED, сітка призначень і результат перевірок (ТЗ 3.2, 9.1).
+ * "Schedule" section: site/unit/month filters, versions with the lifecycle
+ * DRAFT → IN_REVIEW → PUBLISHED, the assignment grid and validation results (spec 3.2, 9.1).
  */
 export function SchedulePage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
@@ -53,6 +69,7 @@ export function SchedulePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirm();
 
   const units = useMemo(
     () => org?.orgUnits.filter((u) => u.siteId === siteId) ?? [],
@@ -194,9 +211,15 @@ export function SchedulePage() {
     }, s.submitted);
   }
 
-  function returnToDraft() {
+  async function returnToDraft() {
     if (!version) return;
-    const comment = window.prompt(s.returnComment)?.trim();
+    const comment = await confirm({
+      title: s.returnToDraft,
+      description: hints.scheduleReturn,
+      confirmLabel: s.returnToDraft,
+      commentLabel: s.returnComment,
+      commentRequired: true,
+    });
     if (!comment) return;
     void run(async () => {
       await schedulesApi.returnToDraft(version.id, comment);
@@ -205,10 +228,15 @@ export function SchedulePage() {
     }, s.returned);
   }
 
-  function publish() {
+  async function publish() {
     if (!version) return;
-    if (!window.confirm(s.publishConfirm)) return;
-    const reason = window.prompt(s.publishReason)?.trim();
+    const reason = await confirm({
+      title: s.publish,
+      description: s.publishConfirm,
+      confirmLabel: s.publish,
+      commentLabel: s.publishReason,
+    });
+    if (reason === false) return;
     void run(async () => {
       await schedulesApi.publish(version.id, reason || undefined);
       await loadVersions(version.id);
@@ -217,72 +245,68 @@ export function SchedulePage() {
   }
 
   return (
-    <section>
-      <div className="toolbar">
-        <label>
-          <span>{s.site}</span>
-          <select value={siteId} onChange={(e) => changeSite(e.target.value)} disabled={!org}>
-            {org?.sites.map((site) => (
-              <option key={site.id} value={site.id}>
-                {site.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>{s.orgUnit}</span>
-          <select value={orgUnitId} onChange={(e) => setOrgUnitId(e.target.value)} disabled={!org}>
-            {units.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>{s.month}</span>
-          <input
-            type="month"
-            value={month}
-            onChange={(e) => e.target.value && setMonth(e.target.value)}
-          />
-        </label>
-        <button type="button" className="btn" disabled={busy || !orgUnitId} onClick={createVersion}>
-          {s.newVersion}
-        </button>
-      </div>
+    <div className="flex flex-col gap-4">
+      <Toolbar>
+        <SelectField
+          label={s.site}
+          value={siteId}
+          onChange={changeSite}
+          disabled={!org}
+          options={org?.sites.map((site) => ({ value: site.id, label: site.name })) ?? []}
+          className="w-56"
+        />
+        <SelectField
+          label={s.orgUnit}
+          value={orgUnitId}
+          onChange={setOrgUnitId}
+          disabled={!org}
+          options={units.map((u) => ({ value: u.id, label: u.name }))}
+          className="w-56"
+        />
+        <FormField label={s.month} className="w-44">
+          {(id) => (
+            <Input
+              id={id}
+              type="month"
+              value={month}
+              onChange={(e) => e.target.value && setMonth(e.target.value)}
+            />
+          )}
+        </FormField>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy || !orgUnitId}
+            onClick={createVersion}
+          >
+            {s.newVersion}
+          </Button>
+          <InfoTip text={hints.scheduleVersions} />
+        </div>
+      </Toolbar>
 
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && <p className="notice">{notice}</p>}
+      <Feedback error={error} notice={notice} />
 
       {versions.length === 0 ? (
-        <p className="muted">{s.noVersions}</p>
+        <EmptyState text={s.noVersions} />
       ) : (
-        <div className="versions" role="tablist">
-          {versions.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              role="tab"
-              aria-selected={v.id === selectedId}
-              className={v.id === selectedId ? 'active' : undefined}
-              onClick={() => setSelectedId(v.id)}
-            >
-              {s.version} {v.versionNo}
-              <span className={`status-badge ${v.status}`}>{s.statuses[v.status]}</span>
-            </button>
-          ))}
-        </div>
+        <Tabs value={selectedId ?? ''} onValueChange={(v) => setSelectedId(v)}>
+          <TabsList>
+            {versions.map((v) => (
+              <TabsTrigger key={v.id} value={v.id} className="gap-2">
+                {s.version} {v.versionNo}
+                <StatusPill tone={STATUS_TONE[v.status]}>{s.statuses[v.status]}</StatusPill>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       )}
 
       {version && detail && (
         <>
-          {!editable && <p className="muted">{s.readOnlyHint}</p>}
-          {templates.length === 0 && <p className="error">{s.noTemplates}</p>}
+          {!editable && <Muted>{s.readOnlyHint}</Muted>}
+          {templates.length === 0 && <Feedback error={s.noTemplates} notice={null} />}
 
           <ScheduleGrid
             month={month}
@@ -309,56 +333,54 @@ export function SchedulePage() {
             }}
           />
 
-          <div className="actions">
+          <div className="flex flex-wrap items-center gap-2">
             {editable && (
               <>
-                <button
-                  type="button"
-                  className="btn primary"
-                  disabled={busy || !dirty}
-                  onClick={save}
-                >
+                <Button type="button" disabled={busy || !dirty} onClick={save}>
                   {s.save} ({countShifts(grid)})
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="btn"
+                  variant="secondary"
                   disabled={busy || dirty || hasErrors}
                   onClick={submit}
                 >
                   {s.submit}
-                </button>
+                </Button>
+                <InfoTip text={hints.scheduleSubmit} />
               </>
             )}
             {version.status === 'IN_REVIEW' && (
               <>
-                <button
-                  type="button"
-                  className="btn primary"
-                  disabled={busy || hasErrors}
-                  onClick={publish}
-                >
+                <Button type="button" disabled={busy || hasErrors} onClick={() => void publish()}>
                   {s.publish}
-                </button>
-                <button type="button" className="btn" disabled={busy} onClick={returnToDraft}>
+                </Button>
+                <InfoTip text={hints.schedulePublish} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => void returnToDraft()}
+                >
                   {s.returnToDraft}
-                </button>
+                </Button>
               </>
             )}
-            {dirty && <span className="muted">{s.unsaved}</span>}
+            {dirty && <Muted>{s.unsaved}</Muted>}
           </div>
 
-          <h2>{s.issuesTitle}</h2>
-          <IssuesPanel detail={detail} employees={employees} />
+          <Section title={s.issuesTitle} hint={hints.scheduleIssues}>
+            <IssuesPanel detail={detail} employees={employees} />
+          </Section>
 
           {acks && (
-            <>
-              <h2>{s.ackTitle}</h2>
+            <Section title={s.ackTitle} hint={hints.scheduleAck}>
               <AckTable rows={acks} />
-            </>
+            </Section>
           )}
         </>
       )}
-    </section>
+      {dialog}
+    </div>
   );
 }

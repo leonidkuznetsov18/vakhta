@@ -672,6 +672,99 @@ export interface Messages {
       };
     };
   };
+  /** Shared panel chrome: pagination, dialogs, generic labels and information tooltips. */
+  readonly ui: {
+    readonly pagination: {
+      /** Placeholders: {from}, {to}, {total} */
+      readonly showing: string;
+      readonly pageSize: string;
+      readonly previous: string;
+      readonly next: string;
+      /** Placeholders: {page}, {pages} */
+      readonly page: string;
+    };
+    readonly common: {
+      readonly actions: string;
+      readonly search: string;
+      readonly filters: string;
+      readonly apply: string;
+      readonly reset: string;
+      readonly cancel: string;
+      readonly confirm: string;
+      readonly close: string;
+      readonly save: string;
+      readonly loading: string;
+      readonly noResults: string;
+      readonly details: string;
+      readonly hide: string;
+      readonly yes: string;
+      readonly no: string;
+      readonly optional: string;
+      readonly required: string;
+      /** Placeholder: {min} */
+      readonly minLength: string;
+      readonly invalidNumber: string;
+      readonly moreInfo: string;
+      readonly copy: string;
+      readonly copied: string;
+      readonly openInNewTab: string;
+      readonly menu: string;
+      readonly version: string;
+    };
+    readonly hints: {
+      readonly language: string;
+      readonly operationsIncludeClosed: string;
+      readonly operationsMasterAction: string;
+      readonly operationsClarify: string;
+      readonly operationsStartFor: string;
+      readonly operationsLive: string;
+      readonly scheduleVersions: string;
+      readonly scheduleSubmit: string;
+      readonly schedulePublish: string;
+      readonly scheduleReturn: string;
+      readonly scheduleZone: string;
+      readonly scheduleAck: string;
+      readonly scheduleIssues: string;
+      readonly incidentsScope: string;
+      readonly incidentsSla: string;
+      readonly incidentsDuplicate: string;
+      readonly incidentsStats: string;
+      readonly handoverScope: string;
+      readonly handoverDeadline: string;
+      readonly handoverDecision: string;
+      readonly handoverPhoto: string;
+      readonly requestsScope: string;
+      readonly requestsStep: string;
+      readonly requestsApprovedMinutes: string;
+      readonly requestsProposal: string;
+      readonly requestsOvertime: string;
+      readonly requestsMedical: string;
+      readonly bonusSMonth: string;
+      readonly bonusBase: string;
+      readonly bonusClose: string;
+      readonly bonusAdjust: string;
+      readonly bonusSecond: string;
+      readonly bonusRecompute: string;
+      readonly reportsKind: string;
+      readonly reportsExport: string;
+      readonly reportsDataVersion: string;
+      readonly auditTabs: string;
+      readonly employeesActivation: string;
+      readonly employeesRelink: string;
+      readonly employeesStatus: string;
+      readonly employeesPosition: string;
+      readonly usersPassword: string;
+      readonly usersScope: string;
+      readonly usersTwoFactor: string;
+      readonly directoriesShared: string;
+      readonly directoriesZoneType: string;
+      readonly directoriesTimezone: string;
+      readonly directoriesCode: string;
+      readonly terminalsToken: string;
+      readonly terminalsCheckpoint: string;
+      readonly profileTwoFactor: string;
+    };
+  };
   readonly kiosk: {
     readonly title: string;
     readonly hint: string;

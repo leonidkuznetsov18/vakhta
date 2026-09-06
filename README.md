@@ -8,7 +8,7 @@ Telegram bot for shift accounting and a web panel for continuous 24/7 production
 apps/
   api/          NestJS: HTTP API, Telegram webhook, SSE
   worker/       BullMQ: outbox, timers, photo pipeline, bonus recompute
-  admin-web/    React + Vite: web panel
+  admin-web/    React + Vite: web panel on shadcn/ui (Tailwind v4, components in src/components/ui)
   qr-kiosk/     Terminal page with a rotating QR
 packages/
   domain/       Pure domain logic: shift FSM, time, QR challenge, bonus rules, locales

@@ -1,24 +1,40 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   OvertimeView,
   RequestDetailView,
   RequestView,
   ShiftDetailView,
 } from '@vakhta/contracts';
-import { SHIFT_STATES, type ShiftState } from '@vakhta/domain';
+import { SHIFT_STATES, type RequestStatus, type ShiftState } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
+import { ExternalLinkIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DataTable, type Column } from '@/components/app/data-table';
+import { Feedback } from '@/components/app/feedback';
+import { FormField, SelectField } from '@/components/app/fields';
+import { InfoTip } from '@/components/app/info-tip';
+import { LiveBadge, Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
+import { formatDateTime } from '@/lib/format';
 import { requestsApi, shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 
 const all = messages(currentLocale());
 const r = all.admin.requests;
-
-function localTime(iso: string | null): string {
-  return iso
-    ? new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })
-    : '—';
-}
+const hints = all.ui.hints;
+const STATUS_TONE: Record<RequestStatus, Tone> = {
+  DRAFT: 'neutral',
+  SUBMITTED: 'info',
+  IN_REVIEW: 'info',
+  APPROVED: 'success',
+  REJECTED: 'danger',
+  CANCELLED: 'neutral',
+  EXPIRED: 'warning',
+};
+const PROPOSAL_KINDS = ['CLOSE_SHIFT_AT', 'MOVE_BOUNDARY', 'RECLASSIFY'] as const;
+type ProposalKind = (typeof PROPOSAL_KINDS)[number];
 
 function when(req: RequestView): string {
   if (req.periodFrom)
@@ -29,7 +45,7 @@ function when(req: RequestView): string {
   return '—';
 }
 
-/** «Обращения» (ТЗ 9.1): вхідні за роллю, рішення з коментарем, переробка, корекції інтервалів. */
+/** "Requests" (spec 9.1): the inbox by role, decisions with a comment, overtime, interval corrections. */
 export function RequestsPage() {
   const [scope, setScope] = useState<'inbox' | 'all'>('inbox');
   const [rows, setRows] = useState<RequestView[]>([]);
@@ -43,9 +59,7 @@ export function RequestsPage() {
   const [shift, setShift] = useState<ShiftDetailView | null>(null);
   const [comment, setComment] = useState('');
   const [approvedMinutes, setApprovedMinutes] = useState('');
-  const [proposalKind, setProposalKind] = useState<
-    'MOVE_BOUNDARY' | 'RECLASSIFY' | 'CLOSE_SHIFT_AT'
-  >('CLOSE_SHIFT_AT');
+  const [proposalKind, setProposalKind] = useState<ProposalKind>('CLOSE_SHIFT_AT');
   const [proposalInterval, setProposalInterval] = useState('');
   const [proposalTime, setProposalTime] = useState('');
   const [proposalState, setProposalState] = useState<ShiftState>('WORKING');
@@ -160,310 +174,309 @@ export function RequestsPage() {
       .finally(() => setBusy(false));
   }
 
-  return (
-    <section>
-      <div className="toolbar">
-        <div className="versions" role="tablist">
-          {(['inbox', 'all'] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              role="tab"
-              aria-selected={scope === s}
-              className={scope === s ? 'active' : undefined}
-              onClick={() => setScope(s)}
-            >
-              {s === 'inbox' ? r.scopeInbox : r.scopeAll}
-            </button>
-          ))}
-        </div>
-        <span className={live ? 'live on' : 'live'}>
-          {live ? r.live : all.admin.operations.offline}
+  const columns: Column<RequestView>[] = [
+    {
+      key: 'submitted',
+      header: r.submitted,
+      cell: (req) => <span className="tabular-nums">{formatDateTime(req.submittedAt)}</span>,
+    },
+    { key: 'type', header: r.type, cell: (req) => all.requests.types[req.type] },
+    {
+      key: 'employee',
+      header: r.employee,
+      cell: (req) => (
+        <span>
+          {req.employeeName}
+          {req.counterpartName ? <Muted> ↔ {req.counterpartName}</Muted> : null}
         </span>
-      </div>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && <p className="notice">{notice}</p>}
+      ),
+    },
+    {
+      key: 'period',
+      header: r.period,
+      cell: (req) => (
+        <span>
+          {when(req)}
+          {req.minutes !== null ? (
+            <Muted>{` · ${req.minutes} ${all.admin.operations.minutes}`}</Muted>
+          ) : null}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: r.status,
+      cell: (req) => (
+        <StatusPill tone={STATUS_TONE[req.status]}>{all.requests.statuses[req.status]}</StatusPill>
+      ),
+    },
+    {
+      key: 'step',
+      header: (
+        <span className="inline-flex items-center gap-1">
+          {r.step}
+          <InfoTip text={hints.requestsStep} />
+        </span>
+      ),
+      cell: (req) =>
+        req.currentStepKey
+          ? `${req.currentStep + 1}/${req.totalSteps} · ${req.currentStepKey}`
+          : '—',
+    },
+    {
+      key: 'deadline',
+      header: r.deadline,
+      cell: (req) => (
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="tabular-nums">{formatDateTime(req.stepDeadlineAt)}</span>
+          {req.overdue && <StatusPill tone="danger">{r.overdue}</StatusPill>}
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{all.ui.common.actions}</span>,
+      align: 'right',
+      cell: (req) => (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setOpenId(openId === req.id ? null : req.id)}
+        >
+          {r.detail}
+        </Button>
+      ),
+    },
+  ];
 
-      {rows.length === 0 ? (
-        <p className="muted">{r.empty}</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{r.submitted}</th>
-              <th>{r.type}</th>
-              <th>{r.employee}</th>
-              <th>{r.period}</th>
-              <th>{r.status}</th>
-              <th>{r.step}</th>
-              <th>{r.deadline}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((req) => (
-              <React.Fragment key={req.id}>
-                <tr className={req.overdue ? 'flagged' : undefined}>
-                  <td>{localTime(req.submittedAt)}</td>
-                  <td>{all.requests.types[req.type]}</td>
-                  <td>
-                    {req.employeeName}
-                    {req.counterpartName ? (
-                      <small className="muted"> ↔ {req.counterpartName}</small>
-                    ) : null}
-                  </td>
-                  <td>
-                    {when(req)}
-                    {req.minutes !== null ? (
-                      <small className="muted"> · {req.minutes} мин</small>
-                    ) : null}
-                  </td>
-                  <td>
-                    <span className={`status-badge ${req.status}`}>
-                      {all.requests.statuses[req.status]}
-                    </span>
-                  </td>
-                  <td>
-                    {req.currentStepKey
-                      ? `${req.currentStep + 1}/${req.totalSteps} · ${req.currentStepKey}`
-                      : '—'}
-                  </td>
-                  <td>
-                    {localTime(req.stepDeadlineAt)}
-                    {req.overdue && <span className="flag">{r.overdue}</span>}
-                  </td>
-                  <td className="row-actions">
-                    <button
-                      type="button"
-                      className="link"
-                      onClick={() => setOpenId(openId === req.id ? null : req.id)}
+  const overtimeColumns: Column<OvertimeView>[] = [
+    { key: 'employee', header: r.employee, cell: (row) => row.employeeName },
+    { key: 'date', header: all.admin.operations.plan, cell: (row) => row.businessDate },
+    { key: 'minutes', header: r.overtimeMinutes, align: 'right', cell: (row) => row.minutes },
+    {
+      key: 'decision',
+      header: r.decision,
+      cell: (row) => (
+        <form
+          className="flex flex-wrap items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            decideOvertime(row, 'APPROVED');
+          }}
+        >
+          <FormField label={r.comment} className="min-w-64">
+            {(id) => (
+              <Input
+                id={id}
+                value={overtimeComment[row.shiftSessionId] ?? ''}
+                onChange={(e) =>
+                  setOvertimeComment((c) => ({ ...c, [row.shiftSessionId]: e.target.value }))
+                }
+                minLength={3}
+                required
+              />
+            )}
+          </FormField>
+          <Button type="submit" size="sm" disabled={busy}>
+            {r.approve}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => decideOvertime(row, 'REJECTED')}
+          >
+            {r.reject}
+          </Button>
+        </form>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Toolbar>
+        <div className="flex items-center gap-1">
+          <Tabs value={scope} onValueChange={(v) => setScope(v as 'inbox' | 'all')}>
+            <TabsList>
+              <TabsTrigger value="inbox">{r.scopeInbox}</TabsTrigger>
+              <TabsTrigger value="all">{r.scopeAll}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <InfoTip text={hints.requestsScope} />
+        </div>
+        <div className="ml-auto">
+          <LiveBadge live={live} />
+        </div>
+      </Toolbar>
+      <Feedback error={error} notice={notice} />
+
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(req) => req.id}
+        empty={r.empty}
+        rowClassName={(req) => (req.overdue ? 'bg-red-50/60 dark:bg-red-950/30' : undefined)}
+        expanded={(req) =>
+          openId === req.id && detail && detail.request.id === req.id ? (
+            <div className="flex flex-col gap-4">
+              {req.comment && <p className="text-sm">{req.comment}</p>}
+              {req.hasMedicalDocument && <MedicalLink request={detail.request} />}
+              {req.currentStepKey && (
+                <form
+                  className="flex flex-wrap items-end gap-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    decide(req, 'APPROVED');
+                  }}
+                >
+                  {(req.type === 'LATE' || req.type === 'EARLY_LEAVE') && (
+                    <FormField
+                      label={r.approvedMinutes}
+                      hint={hints.requestsApprovedMinutes}
+                      className="w-56"
                     >
-                      {r.detail}
-                    </button>
-                  </td>
-                </tr>
-                {openId === req.id && detail && detail.request.id === req.id && (
-                  <tr>
-                    <td colSpan={8}>
-                      <div className="subpanel">
-                        {req.comment && <p>{req.comment}</p>}
-                        {req.hasMedicalDocument && <MedicalLink request={detail.request} />}
-                        {req.currentStepKey && (
-                          <form
-                            className="inline-form"
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              decide(req, 'APPROVED');
-                            }}
-                          >
-                            {(req.type === 'LATE' || req.type === 'EARLY_LEAVE') && (
-                              <label className="field">
-                                <span>{r.approvedMinutes}</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  max={720}
-                                  value={approvedMinutes}
-                                  onChange={(e) => setApprovedMinutes(e.target.value)}
-                                />
-                              </label>
-                            )}
-                            {req.type === 'CORRECTION' && shift && (
-                              <>
-                                <label className="field">
-                                  <span>{r.proposalKind}</span>
-                                  <select
-                                    value={proposalKind}
-                                    onChange={(e) =>
-                                      setProposalKind(e.target.value as typeof proposalKind)
-                                    }
-                                  >
-                                    <option value="CLOSE_SHIFT_AT">CLOSE_SHIFT_AT</option>
-                                    <option value="MOVE_BOUNDARY">MOVE_BOUNDARY</option>
-                                    <option value="RECLASSIFY">RECLASSIFY</option>
-                                  </select>
-                                </label>
-                                {proposalKind !== 'CLOSE_SHIFT_AT' && (
-                                  <label className="field">
-                                    <span>{r.proposalInterval}</span>
-                                    <select
-                                      value={proposalInterval}
-                                      onChange={(e) => setProposalInterval(e.target.value)}
-                                      required
-                                    >
-                                      <option value="">…</option>
-                                      {shift.intervals.map((i) => (
-                                        <option key={i.id} value={i.id}>
-                                          {all.states[i.state]} {localTime(i.startedAt)} –{' '}
-                                          {i.endedAt ? localTime(i.endedAt) : '…'}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </label>
-                                )}
-                                {proposalKind !== 'RECLASSIFY' && (
-                                  <label className="field">
-                                    <span>{r.proposalTime}</span>
-                                    <input
-                                      type="datetime-local"
-                                      value={proposalTime}
-                                      onChange={(e) => setProposalTime(e.target.value)}
-                                      required
-                                    />
-                                  </label>
-                                )}
-                                {proposalKind === 'RECLASSIFY' && (
-                                  <label className="field">
-                                    <span>{r.proposalState}</span>
-                                    <select
-                                      value={proposalState}
-                                      onChange={(e) =>
-                                        setProposalState(e.target.value as ShiftState)
-                                      }
-                                    >
-                                      {SHIFT_STATES.map((s) => (
-                                        <option key={s} value={s}>
-                                          {all.states[s]}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </label>
-                                )}
-                              </>
-                            )}
-                            <label className="field wide">
-                              <span>{r.comment}</span>
-                              <input
-                                value={comment}
-                                onChange={(e) => setComment(e.target.value)}
-                                minLength={3}
-                                required
-                              />
-                            </label>
-                            <button type="submit" className="btn primary" disabled={busy}>
-                              {r.approve}
-                            </button>
-                            <button
-                              type="button"
-                              className="btn"
-                              disabled={busy}
-                              onClick={() => decide(req, 'REJECTED')}
-                            >
-                              {r.reject}
-                            </button>
-                          </form>
-                        )}
-                        <h3>{r.history}</h3>
-                        <ul className="list">
-                          {detail.decisions.map((d) => (
-                            <li key={d.id}>
-                              {localTime(d.at)} {d.stepKey}:{' '}
-                              {d.decision === 'APPROVED'
-                                ? all.requests.approvedShort
-                                : all.requests.rejectedShort}
-                              <small className="muted">
-                                {' '}
-                                · {d.actingRole ?? d.actorType} · {d.comment}
-                              </small>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <h2>{r.overtimeTitle}</h2>
-      {overtime.length === 0 ? (
-        <p className="muted">{r.overtimeEmpty}</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{r.employee}</th>
-              <th>{all.admin.operations.plan}</th>
-              <th>{r.overtimeMinutes}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {overtime.map((row) => (
-              <tr key={row.shiftSessionId}>
-                <td>{row.employeeName}</td>
-                <td>{row.businessDate}</td>
-                <td>{row.minutes}</td>
-                <td>
-                  <form
-                    className="inline-form"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      decideOvertime(row, 'APPROVED');
-                    }}
-                  >
-                    <label className="field wide">
-                      <span>{r.comment}</span>
-                      <input
-                        value={overtimeComment[row.shiftSessionId] ?? ''}
-                        onChange={(e) =>
-                          setOvertimeComment((c) => ({
-                            ...c,
-                            [row.shiftSessionId]: e.target.value,
-                          }))
-                        }
+                      {(id) => (
+                        <Input
+                          id={id}
+                          type="number"
+                          min={0}
+                          max={720}
+                          value={approvedMinutes}
+                          onChange={(e) => setApprovedMinutes(e.target.value)}
+                        />
+                      )}
+                    </FormField>
+                  )}
+                  {req.type === 'CORRECTION' && shift && (
+                    <>
+                      <SelectField
+                        label={r.proposalKind}
+                        hint={hints.requestsProposal}
+                        value={proposalKind}
+                        onChange={(v) => setProposalKind(v as ProposalKind)}
+                        options={PROPOSAL_KINDS.map((k) => ({ value: k, label: k }))}
+                        className="w-52"
+                      />
+                      {proposalKind !== 'CLOSE_SHIFT_AT' && (
+                        <SelectField
+                          label={r.proposalInterval}
+                          value={proposalInterval}
+                          onChange={setProposalInterval}
+                          placeholder="…"
+                          required
+                          options={shift.intervals.map((i) => ({
+                            value: i.id,
+                            label: `${all.states[i.state]} ${formatDateTime(i.startedAt)} – ${i.endedAt ? formatDateTime(i.endedAt) : '…'}`,
+                          }))}
+                          className="w-80"
+                        />
+                      )}
+                      {proposalKind !== 'RECLASSIFY' && (
+                        <FormField label={r.proposalTime} className="w-56">
+                          {(id) => (
+                            <Input
+                              id={id}
+                              type="datetime-local"
+                              value={proposalTime}
+                              onChange={(e) => setProposalTime(e.target.value)}
+                              required
+                            />
+                          )}
+                        </FormField>
+                      )}
+                      {proposalKind === 'RECLASSIFY' && (
+                        <SelectField
+                          label={r.proposalState}
+                          value={proposalState}
+                          onChange={(v) => setProposalState(v as ShiftState)}
+                          options={SHIFT_STATES.map((s) => ({ value: s, label: all.states[s] }))}
+                          className="w-56"
+                        />
+                      )}
+                    </>
+                  )}
+                  <FormField label={r.comment} className="min-w-72 flex-1">
+                    {(id) => (
+                      <Input
+                        id={id}
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
                         minLength={3}
                         required
                       />
-                    </label>
-                    <button type="submit" className="btn primary" disabled={busy}>
-                      {r.approve}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={busy}
-                      onClick={() => decideOvertime(row, 'REJECTED')}
-                    >
-                      {r.reject}
-                    </button>
-                  </form>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
+                    )}
+                  </FormField>
+                  <Button type="submit" disabled={busy}>
+                    {r.approve}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => decide(req, 'REJECTED')}
+                  >
+                    {r.reject}
+                  </Button>
+                </form>
+              )}
+              <div>
+                <h3 className="mb-2 text-sm font-semibold">{r.history}</h3>
+                <ul className="flex flex-col gap-1 text-sm">
+                  {detail.decisions.map((d) => (
+                    <li key={d.id}>
+                      <span className="tabular-nums">{formatDateTime(d.at)}</span> {d.stepKey}:{' '}
+                      {d.decision === 'APPROVED'
+                        ? all.requests.approvedShort
+                        : all.requests.rejectedShort}
+                      <Muted>{` · ${d.actingRole ?? d.actorType} · ${d.comment}`}</Muted>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : null
+        }
+      />
+
+      <Section title={r.overtimeTitle} hint={hints.requestsOvertime}>
+        <DataTable
+          columns={overtimeColumns}
+          rows={overtime}
+          rowKey={(row) => row.shiftSessionId}
+          empty={r.overtimeEmpty}
+        />
+      </Section>
+    </div>
   );
 }
 
-/** Документ відкривається лише HR; для решти сервер відповідає 403 і пише аудит (FR-REQ-02). */
+/** The document opens for HR only; for others the server answers 403 and writes an audit row (FR-REQ-02). */
 function MedicalLink({ request }: { readonly request: RequestView }) {
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
-  if (!request.medicalMediaId) return <p className="muted">{r.medical}: ✓</p>;
+  if (!request.medicalMediaId)
+    return <p className="text-sm text-muted-foreground">{r.medical}: ✓</p>;
   if (url) {
     return (
       <p>
-        <a href={url} target="_blank" rel="noreferrer">
-          {r.openMedical}
-        </a>
+        <Button asChild variant="link" size="sm">
+          <a href={url} target="_blank" rel="noreferrer">
+            {r.openMedical}
+            <ExternalLinkIcon aria-hidden="true" />
+          </a>
+        </Button>
       </p>
     );
   }
   return (
-    <p>
-      <button
+    <p className="flex items-center gap-1">
+      <Button
         type="button"
-        className="link"
+        variant="link"
+        size="sm"
         onClick={() => {
           requestsApi
             .medicalLink(request.id)
@@ -472,7 +485,8 @@ function MedicalLink({ request }: { readonly request: RequestView }) {
         }}
       >
         {failed ?? r.openMedical}
-      </button>
+      </Button>
+      <InfoTip text={hints.requestsMedical} />
     </p>
   );
 }

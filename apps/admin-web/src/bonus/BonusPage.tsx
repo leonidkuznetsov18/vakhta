@@ -1,19 +1,40 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { BonusPeriodView, OrgSnapshot, ShiftScoreView } from '@vakhta/contracts';
 import { BONUS_CRITERIA, type BonusCriterion } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
+import { DownloadIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useConfirm } from '@/components/app/confirm-dialog';
+import { DataTable, type Column } from '@/components/app/data-table';
+import { Feedback } from '@/components/app/feedback';
+import { FormField, SelectField } from '@/components/app/fields';
+import { InfoTip } from '@/components/app/info-tip';
+import { Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
 import { bonusApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 
 const all = messages(currentLocale());
 const b = all.admin.bonus;
+const hints = all.ui.hints;
+type ScoreStatus = ShiftScoreView['status'];
+const SCORE_TONE: Record<ScoreStatus, Tone> = {
+  PRELIMINARY: 'neutral',
+  PENDING: 'warning',
+  MANUAL_REVIEW: 'warning',
+  APPEALED: 'info',
+  CONFIRMED: 'success',
+  NOT_EVALUATED: 'neutral',
+};
+type PeriodEmployee = BonusPeriodView['employees'][number];
+type PendingAdjustment = BonusPeriodView['pendingAdjustments'][number];
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
-/** «Бонус» (ТЗ 9.1): попередній і підсумковий розрахунок, розшифровка, коригування, закриття періоду. */
+/** "Bonus" (spec 9.1): preliminary and final calculation, breakdown, adjustments, period close. */
 export function BonusPage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
   const [siteId, setSiteId] = useState('');
@@ -28,6 +49,7 @@ export function BonusPage() {
   const [reasonCode, setReasonCode] = useState('');
   const [comment, setComment] = useState('');
   const [base, setBase] = useState<Record<string, string>>({});
+  const { confirm, dialog } = useConfirm();
 
   useEffect(() => {
     orgApi
@@ -62,7 +84,8 @@ export function BonusPage() {
     }
   }
 
-  function adjust(score: ShiftScoreView) {
+  function adjust(ev: FormEvent, score: ShiftScoreView) {
+    ev.preventDefault();
     const d = Number(delta);
     if (!Number.isInteger(d) || d === 0 || !reasonCode || comment.trim().length < 3) return;
     void run(async () => {
@@ -83,329 +106,278 @@ export function BonusPage() {
     });
   }
 
+  async function closePeriod() {
+    const text = await confirm({
+      title: b.closePeriod,
+      description: b.closeConfirm,
+      confirmLabel: b.closePeriod,
+      commentLabel: b.comment,
+      commentRequired: true,
+      destructive: true,
+    });
+    if (!text) return;
+    void run(async () => {
+      await bonusApi.close(siteId, month, text);
+      await reload();
+    }, b.closed);
+  }
+
+  async function second(a: PendingAdjustment, decision: 'APPROVED' | 'REJECTED') {
+    const text = await confirm({
+      title: `${decision === 'APPROVED' ? b.approve : b.reject}: ${a.employeeName}`,
+      confirmLabel: decision === 'APPROVED' ? b.approve : b.reject,
+      commentLabel: b.comment,
+      commentRequired: true,
+      destructive: decision === 'REJECTED',
+    });
+    if (!text) return;
+    void run(async () => {
+      await bonusApi.second(a.id, { decision, comment: text });
+      await reload();
+    }, b.adjusted);
+  }
+
   const adjustmentReasons =
     org?.reasonCodes.filter((r) => r.kind === 'ADJUSTMENT' && r.isActive) ?? [];
+  const closed = period?.status === 'CLOSED';
+
+  const employeeColumns: Column<PeriodEmployee>[] = [
+    {
+      key: 'employee',
+      header: b.employee,
+      cell: (e) => (
+        <span>
+          {e.employeeName} <Muted>{e.personnelNumber}</Muted>
+        </span>
+      ),
+    },
+    { key: 'shifts', header: b.shifts, align: 'right', cell: (e) => e.shifts },
+    { key: 'evaluated', header: b.evaluated, align: 'right', cell: (e) => e.evaluatedShifts },
+    {
+      key: 'pending',
+      header: b.pending,
+      align: 'right',
+      cell: (e) =>
+        e.pendingShifts > 0 ? <StatusPill tone="warning">{e.pendingShifts}</StatusPill> : 0,
+    },
+    {
+      key: 'sMonth',
+      header: (
+        <span className="inline-flex items-center gap-1">
+          {b.sMonth}
+          <InfoTip text={hints.bonusSMonth} />
+        </span>
+      ),
+      align: 'right',
+      cell: (e) => <span className="font-medium tabular-nums">{e.sMonth ?? '—'}</span>,
+    },
+    {
+      key: 'base',
+      header: (
+        <span className="inline-flex items-center gap-1">
+          {b.base}
+          <InfoTip text={hints.bonusBase} />
+        </span>
+      ),
+      align: 'right',
+      cell: (e) =>
+        closed ? (
+          <Input
+            type="number"
+            min={0}
+            className="ml-auto w-32 text-right"
+            value={base[e.employeeId] ?? e.baseAmount ?? ''}
+            onChange={(ev) => setBase((s) => ({ ...s, [e.employeeId]: ev.target.value }))}
+            aria-label={`${b.base} ${e.employeeName}`}
+          />
+        ) : (
+          <span className="tabular-nums">{e.baseAmount ?? '—'}</span>
+        ),
+    },
+    {
+      key: 'amount',
+      header: b.amount,
+      align: 'right',
+      cell: (e) => <span className="tabular-nums">{e.bonusAmount ?? '—'}</span>,
+    },
+  ];
+
+  const pendingColumns: Column<PendingAdjustment>[] = [
+    { key: 'employee', header: b.employee, cell: (a) => a.employeeName },
+    { key: 'date', header: b.period, cell: (a) => a.businessDate },
+    { key: 'criterion', header: b.criterion, cell: (a) => all.bonus.criteria[a.criterion] },
+    {
+      key: 'delta',
+      header: b.delta,
+      align: 'right',
+      cell: (a) => <span className="tabular-nums">{a.delta > 0 ? `+${a.delta}` : a.delta}</span>,
+    },
+    { key: 'reason', header: b.reasonCode, cell: (a) => `${a.reasonCode} · ${a.comment}` },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{all.ui.common.actions}</span>,
+      align: 'right',
+      cell: (a) => (
+        <div className="flex justify-end gap-1">
+          <Button
+            type="button"
+            size="sm"
+            disabled={busy}
+            onClick={() => void second(a, 'APPROVED')}
+          >
+            {b.approve}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            disabled={busy}
+            onClick={() => void second(a, 'REJECTED')}
+          >
+            {b.reject}
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <section>
-      <div className="toolbar">
-        <label>
-          <span>{b.site}</span>
-          <select value={siteId} onChange={(e) => setSiteId(e.target.value)}>
-            {org?.sites.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>{b.month}</span>
-          <input
-            type="month"
-            value={month}
-            onChange={(e) => e.target.value && setMonth(e.target.value)}
-          />
-        </label>
+    <div className="flex flex-col gap-4">
+      <Toolbar>
+        <SelectField
+          label={b.site}
+          value={siteId}
+          onChange={setSiteId}
+          options={org?.sites.map((s) => ({ value: s.id, label: s.name })) ?? []}
+          className="w-56"
+        />
+        <FormField label={b.month} className="w-44">
+          {(id) => (
+            <Input
+              id={id}
+              type="month"
+              value={month}
+              onChange={(e) => e.target.value && setMonth(e.target.value)}
+            />
+          )}
+        </FormField>
         {period && (
-          <span className="muted">
+          <Muted className="pb-2">
             {b.period}: {period.status}
             {period.ruleLabel ? ` · ${b.ruleVersion}: ${period.ruleLabel}` : ''}
-          </span>
+          </Muted>
         )}
-        {period && period.status !== 'CLOSED' && (
-          <button
-            type="button"
-            className="btn primary"
-            disabled={busy || period.employees.length === 0}
-            onClick={() => {
-              if (!window.confirm(b.closeConfirm)) return;
-              const text = window.prompt(b.comment)?.trim();
-              if (!text) return;
-              void run(async () => {
-                await bonusApi.close(siteId, month, text);
-                await reload();
-              }, b.closed);
-            }}
-          >
-            {b.closePeriod}
-          </button>
-        )}
-        {period?.id && period.status === 'CLOSED' && (
-          <a className="btn" href={bonusApi.exportUrl(period.id)} target="_blank" rel="noreferrer">
-            {b.exportCsv}
-          </a>
-        )}
-      </div>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && <p className="notice">{notice}</p>}
+        <div className="ml-auto flex items-center gap-2">
+          {period && period.status !== 'CLOSED' && (
+            <>
+              <Button
+                type="button"
+                disabled={busy || period.employees.length === 0}
+                onClick={() => void closePeriod()}
+              >
+                {b.closePeriod}
+              </Button>
+              <InfoTip text={hints.bonusClose} />
+            </>
+          )}
+          {period?.id && closed && (
+            <Button asChild variant="outline">
+              <a href={bonusApi.exportUrl(period.id)} target="_blank" rel="noreferrer">
+                <DownloadIcon aria-hidden="true" />
+                {b.exportCsv}
+              </a>
+            </Button>
+          )}
+        </div>
+      </Toolbar>
+      <Feedback error={error} notice={notice} />
 
       {period && period.pendingAdjustments.length > 0 && (
-        <>
-          <h2>{b.secondQueue}</h2>
-          <ul className="list">
-            {period.pendingAdjustments.map((a) => (
-              <li key={a.id}>
-                {a.employeeName} · {a.businessDate} · {all.bonus.criteria[a.criterion]}{' '}
-                {a.delta > 0 ? '+' : ''}
-                {a.delta}{' '}
-                <small className="muted">
-                  · {a.reasonCode} · {a.comment}
-                </small>{' '}
-                <button
-                  type="button"
-                  className="link"
-                  disabled={busy}
-                  onClick={() => {
-                    const text = window.prompt(b.comment)?.trim();
-                    if (!text) return;
-                    void run(async () => {
-                      await bonusApi.second(a.id, { decision: 'APPROVED', comment: text });
-                      await reload();
-                    }, b.adjusted);
-                  }}
-                >
-                  {b.approve}
-                </button>{' '}
-                <button
-                  type="button"
-                  className="link danger"
-                  disabled={busy}
-                  onClick={() => {
-                    const text = window.prompt(b.comment)?.trim();
-                    if (!text) return;
-                    void run(async () => {
-                      await bonusApi.second(a.id, { decision: 'REJECTED', comment: text });
-                      await reload();
-                    }, b.adjusted);
-                  }}
-                >
-                  {b.reject}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
+        <Section title={b.secondQueue} hint={hints.bonusSecond}>
+          <DataTable
+            columns={pendingColumns}
+            rows={period.pendingAdjustments}
+            rowKey={(a) => a.id}
+            empty={b.empty}
+          />
+        </Section>
       )}
 
-      {!period || period.employees.length === 0 ? (
-        <p className="muted">{b.empty}</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{b.employee}</th>
-              <th>{b.shifts}</th>
-              <th>{b.evaluated}</th>
-              <th>{b.pending}</th>
-              <th>{b.sMonth}</th>
-              <th>{b.base}</th>
-              <th>{b.amount}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {period.employees.map((e) => (
-              <React.Fragment key={e.employeeId}>
-                <tr>
-                  <td>
-                    {e.employeeName} <small className="muted">{e.personnelNumber}</small>
-                  </td>
-                  <td>{e.shifts}</td>
-                  <td>{e.evaluatedShifts}</td>
-                  <td>
-                    {e.pendingShifts > 0 ? <span className="flag warn">{e.pendingShifts}</span> : 0}
-                  </td>
-                  <td>{e.sMonth ?? '—'}</td>
-                  <td>
-                    {period.status === 'CLOSED' ? (
-                      <input
+      <DataTable
+        columns={employeeColumns}
+        rows={period?.employees ?? []}
+        rowKey={(e) => e.employeeId}
+        empty={b.empty}
+        expanded={(e) => (
+          <ScoresTable
+            scores={e.scores}
+            openScore={openScore}
+            onToggle={(id) => setOpenScore(openScore === id ? null : id)}
+            busy={busy}
+            onRecompute={(s) =>
+              void run(() => bonusApi.recompute(s.shiftSessionId).then(reload), b.recomputed)
+            }
+            adjustForm={(s) =>
+              s.status !== 'CONFIRMED' ? (
+                <form className="flex flex-wrap items-end gap-3" onSubmit={(ev) => adjust(ev, s)}>
+                  <SelectField
+                    label={b.criterion}
+                    value={criterion}
+                    onChange={(v) => setCriterion(v as BonusCriterion)}
+                    options={BONUS_CRITERIA.map((c) => ({
+                      value: c,
+                      label: all.bonus.criteria[c],
+                    }))}
+                    className="w-64"
+                  />
+                  <FormField label={b.delta} hint={hints.bonusAdjust} className="w-36">
+                    {(id) => (
+                      <Input
+                        id={id}
                         type="number"
-                        min={0}
-                        value={base[e.employeeId] ?? e.baseAmount ?? ''}
-                        onChange={(ev) =>
-                          setBase((s) => ({ ...s, [e.employeeId]: ev.target.value }))
-                        }
-                        aria-label={`${b.base} ${e.employeeName}`}
+                        min={-100}
+                        max={100}
+                        value={delta}
+                        onChange={(ev) => setDelta(ev.target.value)}
+                        required
                       />
-                    ) : (
-                      (e.baseAmount ?? '—')
                     )}
-                  </td>
-                  <td>{e.bonusAmount ?? '—'}</td>
-                </tr>
-                {e.scores.map((s) => (
-                  <React.Fragment key={s.id}>
-                    <tr className="score-row">
-                      <td className="indent">
-                        {s.businessDate}{' '}
-                        <span className={`status-badge ${s.status}`}>
-                          {all.bonus.statuses[s.status]}
-                        </span>
-                      </td>
-                      <td colSpan={3}>
-                        {s.score ?? '—'}{' '}
-                        <small className="muted">
-                          ({s.earned}/{s.applicableMax})
-                        </small>
-                        {s.excludedReason ? (
-                          <small className="muted"> · {s.excludedReason}</small>
-                        ) : null}
-                      </td>
-                      <td colSpan={3} className="row-actions">
-                        <button
-                          type="button"
-                          className="link"
-                          onClick={() => setOpenScore(openScore === s.id ? null : s.id)}
-                        >
-                          {b.detail}
-                        </button>
-                        <button
-                          type="button"
-                          className="link"
-                          disabled={busy}
-                          onClick={() =>
-                            void run(
-                              () => bonusApi.recompute(s.shiftSessionId).then(reload),
-                              b.recomputed,
-                            )
-                          }
-                        >
-                          {b.recompute}
-                        </button>
-                      </td>
-                    </tr>
-                    {openScore === s.id && (
-                      <tr>
-                        <td colSpan={7}>
-                          <div className="subpanel detail">
-                            <div>
-                              <table className="table">
-                                <thead>
-                                  <tr>
-                                    <th>{b.criterion}</th>
-                                    <th>{b.points}</th>
-                                    <th>{b.basis}</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {s.criteria.map((c) => (
-                                    <tr
-                                      key={c.criterion}
-                                      className={c.status === 'missed' ? 'flagged' : undefined}
-                                    >
-                                      <td>{all.bonus.criteria[c.criterion]}</td>
-                                      <td>
-                                        {c.status === 'not_applicable'
-                                          ? all.bonus.criterionStatuses.not_applicable
-                                          : `${c.earnedPoints}/${c.maxPoints}`}{' '}
-                                        <small className="muted">
-                                          {all.bonus.criterionStatuses[c.status]}
-                                        </small>
-                                      </td>
-                                      <td>
-                                        <small className="muted">{c.basis.join(', ')}</small>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                            {s.status !== 'CONFIRMED' && (
-                              <form
-                                className="inline-form"
-                                onSubmit={(ev) => {
-                                  ev.preventDefault();
-                                  adjust(s);
-                                }}
-                              >
-                                <label className="field">
-                                  <span>{b.criterion}</span>
-                                  <select
-                                    value={criterion}
-                                    onChange={(ev) =>
-                                      setCriterion(ev.target.value as BonusCriterion)
-                                    }
-                                  >
-                                    {BONUS_CRITERIA.map((c) => (
-                                      <option key={c} value={c}>
-                                        {all.bonus.criteria[c]}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                                <label className="field">
-                                  <span>{b.delta}</span>
-                                  <input
-                                    type="number"
-                                    min={-100}
-                                    max={100}
-                                    value={delta}
-                                    onChange={(ev) => setDelta(ev.target.value)}
-                                    required
-                                  />
-                                </label>
-                                <label className="field">
-                                  <span>{b.reasonCode}</span>
-                                  <select
-                                    value={reasonCode}
-                                    onChange={(ev) => setReasonCode(ev.target.value)}
-                                    required
-                                  >
-                                    <option value="">…</option>
-                                    {adjustmentReasons.map((r) => (
-                                      <option key={r.code} value={r.code}>
-                                        {r.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                                <label className="field wide">
-                                  <span>{b.comment}</span>
-                                  <input
-                                    value={comment}
-                                    onChange={(ev) => setComment(ev.target.value)}
-                                    minLength={3}
-                                    required
-                                  />
-                                </label>
-                                <button type="submit" className="btn" disabled={busy}>
-                                  {b.adjust}
-                                </button>
-                              </form>
-                            )}
-                            {s.adjustments.length > 0 && (
-                              <ul className="list">
-                                {s.adjustments.map((a) => (
-                                  <li key={a.id}>
-                                    {all.bonus.criteria[a.criterion]} {a.delta > 0 ? '+' : ''}
-                                    {a.delta} · {a.status}{' '}
-                                    <small className="muted">
-                                      · {a.reasonCode} · {a.comment}
-                                    </small>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
+                  </FormField>
+                  <SelectField
+                    label={b.reasonCode}
+                    value={reasonCode}
+                    onChange={setReasonCode}
+                    placeholder="…"
+                    required
+                    options={adjustmentReasons.map((r) => ({ value: r.code, label: r.label }))}
+                    className="w-56"
+                  />
+                  <FormField label={b.comment} className="min-w-64 flex-1">
+                    {(id) => (
+                      <Input
+                        id={id}
+                        value={comment}
+                        onChange={(ev) => setComment(ev.target.value)}
+                        minLength={3}
+                        required
+                      />
                     )}
-                  </React.Fragment>
-                ))}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {period?.id && period.status === 'CLOSED' && (
-        <div className="actions">
-          <button
+                  </FormField>
+                  <Button type="submit" variant="secondary" disabled={busy}>
+                    {b.adjust}
+                  </Button>
+                </form>
+              ) : null
+            }
+          />
+        )}
+      />
+
+      {period?.id && closed && (
+        <div>
+          <Button
             type="button"
-            className="btn"
+            variant="secondary"
             disabled={busy}
             onClick={() =>
               void run(async () => {
@@ -419,9 +391,125 @@ export function BonusPage() {
             }
           >
             {b.setBase}
-          </button>
+          </Button>
         </div>
       )}
-    </section>
+      {dialog}
+    </div>
+  );
+}
+
+function ScoresTable({
+  scores,
+  openScore,
+  onToggle,
+  busy,
+  onRecompute,
+  adjustForm,
+}: {
+  readonly scores: readonly ShiftScoreView[];
+  readonly openScore: string | null;
+  readonly onToggle: (id: string) => void;
+  readonly busy: boolean;
+  readonly onRecompute: (score: ShiftScoreView) => void;
+  readonly adjustForm: (score: ShiftScoreView) => React.ReactNode;
+}) {
+  const columns: Column<ShiftScoreView>[] = [
+    {
+      key: 'date',
+      header: b.period,
+      cell: (s) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="tabular-nums">{s.businessDate}</span>
+          <StatusPill tone={SCORE_TONE[s.status]}>{all.bonus.statuses[s.status]}</StatusPill>
+        </div>
+      ),
+    },
+    {
+      key: 'score',
+      header: b.points,
+      cell: (s) => (
+        <span className="tabular-nums">
+          {s.score ?? '—'} <Muted>({`${s.earned}/${s.applicableMax}`})</Muted>
+          {s.excludedReason ? <Muted> · {s.excludedReason}</Muted> : null}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{all.ui.common.actions}</span>,
+      align: 'right',
+      cell: (s) => (
+        <div className="flex justify-end gap-1">
+          <Button type="button" variant="outline" size="sm" onClick={() => onToggle(s.id)}>
+            {b.detail}
+          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => onRecompute(s)}
+            >
+              {b.recompute}
+            </Button>
+            <InfoTip text={hints.bonusRecompute} />
+          </div>
+        </div>
+      ),
+    },
+  ];
+  const criteriaColumns: Column<ShiftScoreView['criteria'][number]>[] = [
+    { key: 'criterion', header: b.criterion, cell: (c) => all.bonus.criteria[c.criterion] },
+    {
+      key: 'points',
+      header: b.points,
+      cell: (c) => (
+        <span className="tabular-nums">
+          {c.status === 'not_applicable'
+            ? all.bonus.criterionStatuses.not_applicable
+            : `${c.earnedPoints}/${c.maxPoints}`}{' '}
+          <Muted>{all.bonus.criterionStatuses[c.status]}</Muted>
+        </span>
+      ),
+    },
+    { key: 'basis', header: b.basis, cell: (c) => <Muted>{c.basis.join(', ')}</Muted> },
+  ];
+  return (
+    <DataTable
+      columns={columns}
+      rows={scores}
+      rowKey={(s) => s.id}
+      empty={b.empty}
+      pageSize={10}
+      expanded={(s) =>
+        openScore === s.id ? (
+          <div className="flex flex-col gap-4">
+            <DataTable
+              columns={criteriaColumns}
+              rows={s.criteria}
+              rowKey={(c) => c.criterion}
+              empty={b.empty}
+              pageSize={25}
+              rowClassName={(c) =>
+                c.status === 'missed' ? 'bg-red-50/60 dark:bg-red-950/30' : undefined
+              }
+            />
+            {adjustForm(s)}
+            {s.adjustments.length > 0 && (
+              <ul className="flex flex-col gap-1 text-sm">
+                {s.adjustments.map((a) => (
+                  <li key={a.id}>
+                    {all.bonus.criteria[a.criterion]} {a.delta > 0 ? '+' : ''}
+                    {a.delta} · {a.status} <Muted>{` · ${a.reasonCode} · ${a.comment}`}</Muted>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : null
+      }
+    />
   );
 }

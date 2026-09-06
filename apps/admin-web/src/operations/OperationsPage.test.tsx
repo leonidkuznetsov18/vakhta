@@ -157,7 +157,7 @@ describe('OperationsPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('показує зміни зі станом і тривалістю, оновлюється за SSE-подією', async () => {
+  it('shows shifts with state and duration and refreshes on an SSE event', async () => {
     const state = { rows: [row('BREAK')] };
     const calls = mockApi(state);
     render(<OperationsPage />);
@@ -180,7 +180,7 @@ describe('OperationsPage', () => {
     expect(await screen.findByText('Основная работа')).toBeTruthy();
   });
 
-  it('дія майстра йде з коментарем і поточною версією; конфлікт версії пояснюється', async () => {
+  it('a master action carries a comment and the current version; a version conflict is explained', async () => {
     const state = { rows: [row('BREAK')] };
     const calls = mockApi(state);
     render(<OperationsPage />);

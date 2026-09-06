@@ -909,6 +909,127 @@ export const en: Messages = {
       },
     },
   },
+  ui: {
+    pagination: {
+      showing: 'Showing {from}–{to} of {total}',
+      pageSize: 'Rows per page',
+      previous: 'Previous',
+      next: 'Next',
+      page: 'Page {page} of {pages}',
+    },
+    common: {
+      actions: 'Actions',
+      search: 'Search',
+      filters: 'Filters',
+      apply: 'Apply',
+      reset: 'Reset',
+      cancel: 'Cancel',
+      confirm: 'Confirm',
+      close: 'Close',
+      save: 'Save',
+      loading: 'Loading…',
+      noResults: 'Nothing found.',
+      details: 'Details',
+      hide: 'Hide',
+      yes: 'Yes',
+      no: 'No',
+      optional: 'optional',
+      required: 'This field is required.',
+      minLength: 'At least {min} characters.',
+      invalidNumber: 'Enter a whole number.',
+      moreInfo: 'More information',
+      copy: 'Copy',
+      copied: 'Copied',
+      openInNewTab: 'Open in a new tab',
+      menu: 'Sections',
+      version: 'Version',
+    },
+    hints: {
+      language:
+        'Panel language. The choice is kept in this browser; reports and exports come in the same language.',
+      operationsIncludeClosed:
+        'Show shifts closed within the last day together with the active ones.',
+      operationsMasterAction:
+        'The transition runs on behalf of the shift master, bypassing bot guards. The comment is mandatory and audited.',
+      operationsClarify:
+        'Flag the shift as "needs review": it goes to a review and its bonus criteria wait for a decision.',
+      operationsStartFor:
+        'Open a shift for an employee without a phone or with a connectivity problem. The action is audited.',
+      operationsLive:
+        'The list refreshes on server events. If the connection is lost, reload the page.',
+      scheduleVersions:
+        'Every change to a published schedule creates a new version. The old one is marked as superseded.',
+      scheduleSubmit:
+        'Send the version to the head of production. Disabled while there are errors or unsaved changes.',
+      schedulePublish:
+        'Employees get a notification and an "Acknowledged" button. They see the reason in the message.',
+      scheduleReturn: 'Return the version to the planner for rework with a comment.',
+      scheduleZone:
+        'The control zone the employee accepts and hands over in every shift of this version.',
+      scheduleAck:
+        'How many shifts of the version the employee confirmed with "Acknowledged" in the bot.',
+      scheduleIssues: 'Errors block submission and publishing; warnings are only shown.',
+      incidentsScope:
+        '"Open" is everything not yet resolved or closed; "All" includes closed ones and duplicates.',
+      incidentsSla:
+        'Shift master reaction deadline by reason severity. A breach escalates automatically.',
+      incidentsDuplicate:
+        'The report will be linked to the selected primary incident; the original reports are kept.',
+      incidentsStats:
+        'Incidents, reports and downtime minutes by reason and zone for the selected period.',
+      handoverScope:
+        '"Pending" are reports without a receiver decision; "Overdue" were not accepted by the deadline.',
+      handoverDeadline:
+        'The receiving shift must check the zone by this time. Afterwards the handover goes to the master.',
+      handoverDecision:
+        'A formal decision on the dispute. It affects the handing employee score and is audited.',
+      handoverPhoto: 'The photo link is signed and lives a few minutes; every view is audited.',
+      requestsScope:
+        '"Awaiting my decision" are requests on your route step; "All" is the whole history.',
+      requestsStep: 'The current approval route step and its decision deadline.',
+      requestsApprovedMinutes:
+        'How many minutes of lateness or early leave are excused. Affects the score.',
+      requestsProposal:
+        'An interval correction creates a compensating event; the original event is never edited.',
+      requestsOvertime:
+        'Minutes over plan wait for the manager decision and do not raise the bonus until approved.',
+      requestsMedical:
+        'The document is available to HR only. An attempt by another role is audited.',
+      bonusSMonth: 'Month coefficient 0–100 per spec formula 7.6 from evaluated shifts.',
+      bonusBase: 'The employee monetary base for the month. Bonus = base × month S / 100.',
+      bonusClose:
+        'Closing confirms scores, pins the rules version and notifies employees. It cannot be undone.',
+      bonusAdjust:
+        'Manual adjustment with a reason. A reduction above the threshold needs a second approval.',
+      bonusSecond: 'Adjustments waiting for a second manager approval.',
+      bonusRecompute:
+        'Recompute the shift from current data, for example after a dispute decision.',
+      reportsKind: 'The six MVP reports. There are no "who rested least" rankings by design.',
+      reportsExport: 'The export carries the data version and generation time and is audited.',
+      reportsDataVersion:
+        'Hash of the report data: two exports with the same version contain the same numbers.',
+      auditTabs: '"Action audit" lists manual panel actions; "Event log" lists domain events.',
+      employeesActivation:
+        'The code is valid for a limited time and shown once. Give the employee the code or the link.',
+      employeesRelink:
+        'Link another Telegram account. The old link is revoked; the reason is audited.',
+      employeesStatus: 'Blocking closes the bot; termination is permanent. Both require a reason.',
+      employeesPosition: 'A transfer creates a new record; the position history is kept.',
+      usersPassword:
+        '12+ characters. Tell the user in person; they enable two-factor protection in the profile.',
+      usersScope: 'The role applies only within the scope: site, unit, team or zone.',
+      usersTwoFactor: 'Whether the user has two-factor protection enabled.',
+      directoriesShared:
+        'A shared zone is handed over by whoever is assigned to it in the schedule for the shift.',
+      directoriesZoneType: 'The zone type selects the handover checklist template.',
+      directoriesTimezone:
+        'IANA time zone, for example Europe/Kyiv. Planned shift times are computed in it.',
+      directoriesCode: 'Short Latin code used in integrations and exports.',
+      terminalsToken: 'The device token is shown once. Put it into the kiosk settings.',
+      terminalsCheckpoint: 'What the terminal records: entry, exit or both.',
+      profileTwoFactor: 'After enabling, signing in requires a code from the authenticator app.',
+    },
+  },
   kiosk: {
     title: 'Arrival and departure check-in',
     hint: 'Scan the QR with your phone camera and press the button in the bot',

@@ -1,5 +1,35 @@
 import { useState } from 'react';
+import {
+  ActivityIcon,
+  AlertTriangleIcon,
+  BarChart3Icon,
+  CalendarDaysIcon,
+  ClipboardCheckIcon,
+  CoinsIcon,
+  InboxIcon,
+  LogOutIcon,
+  ScrollTextIcon,
+  SettingsIcon,
+  UserIcon,
+} from 'lucide-react';
 import { messages } from '@vakhta/i18n';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarSeparator,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
+import { Spinner } from '@/components/ui/spinner';
+import { InfoTip } from '@/components/app/info-tip';
 import { LoginScreen } from './auth/LoginScreen.tsx';
 import { ProfilePanel } from './auth/ProfilePanel.tsx';
 import { AdminPage } from './admin/AdminPage.tsx';
@@ -16,19 +46,47 @@ import { LanguageSwitcher, currentLocale } from './i18n.tsx';
 
 const t = messages(currentLocale());
 
-type SectionKey = keyof typeof t.admin.sections | 'profile';
-const SECTION_KEYS = Object.keys(t.admin.sections) as (keyof typeof t.admin.sections)[];
+type SectionKey = keyof typeof t.admin.sections;
+type ActiveKey = SectionKey | 'profile';
+
+const SECTIONS: readonly { key: SectionKey; icon: typeof ActivityIcon }[] = [
+  { key: 'operations', icon: ActivityIcon },
+  { key: 'schedule', icon: CalendarDaysIcon },
+  { key: 'incidents', icon: AlertTriangleIcon },
+  { key: 'handover', icon: ClipboardCheckIcon },
+  { key: 'requests', icon: InboxIcon },
+  { key: 'bonus', icon: CoinsIcon },
+  { key: 'reports', icon: BarChart3Icon },
+  { key: 'administration', icon: SettingsIcon },
+  { key: 'audit', icon: ScrollTextIcon },
+];
+
+const PAGES: Record<SectionKey, () => React.ReactElement> = {
+  operations: OperationsPage,
+  schedule: SchedulePage,
+  incidents: IncidentsPage,
+  handover: HandoverPage,
+  requests: RequestsPage,
+  bonus: BonusPage,
+  reports: ReportsPage,
+  administration: AdminPage,
+  audit: AuditPage,
+};
 
 /**
- * Панель: дев'ять розділів ТЗ 9.1 за сесією better-auth. Розділи наповнюються
- * по фазах плану; профіль дозволяє ввімкнути TOTP.
+ * Panel shell: the nine sections of spec 9.1 behind a better-auth session in a shadcn sidebar;
+ * the profile lets the user enable TOTP. Section state lives in memory, there is no router.
  */
 export function App() {
   const { state, refresh, signOut } = useSession();
-  const [active, setActive] = useState<SectionKey>('operations');
+  const [active, setActive] = useState<ActiveKey>('operations');
 
   if (state.status === 'loading') {
-    return <main className="login" aria-busy="true" />;
+    return (
+      <main className="flex min-h-svh items-center justify-center" aria-busy="true">
+        <Spinner />
+      </main>
+    );
   }
   if (state.status === 'anonymous') {
     return <LoginScreen offline={state.offline} onSignedIn={() => void refresh()} />;
@@ -36,67 +94,82 @@ export function App() {
 
   const { me } = state;
   const title = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];
+  const version = import.meta.env['VITE_APP_VERSION'];
+  const Page = active === 'profile' ? null : PAGES[active];
 
   return (
-    <div className="shell">
-      <aside className="nav" aria-label="Разделы">
-        <div className="brand">{t.admin.productName}</div>
-        <nav>
-          {SECTION_KEYS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={key === active ? 'nav-item active' : 'nav-item'}
-              aria-current={key === active ? 'page' : undefined}
-              onClick={() => setActive(key)}
-            >
-              {t.admin.sections[key]}
-            </button>
-          ))}
-        </nav>
-        <div className="status">
-          <button
-            type="button"
-            className={active === 'profile' ? 'nav-item active' : 'nav-item'}
-            onClick={() => setActive('profile')}
-          >
-            {me.email}
-          </button>
-          <button type="button" className="nav-item" onClick={() => void signOut()}>
-            {t.admin.auth.signOut}
-          </button>
-          <LanguageSwitcher />
-          {import.meta.env['VITE_APP_VERSION'] ? (
-            <div className="version">v{import.meta.env['VITE_APP_VERSION']}</div>
+    <SidebarProvider>
+      <Sidebar collapsible="icon">
+        <SidebarHeader>
+          <div className="flex items-center gap-2 px-2 py-1 text-base font-semibold">
+            {t.admin.productName}
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu aria-label={t.ui.common.menu}>
+                {SECTIONS.map(({ key, icon: Icon }) => (
+                  <SidebarMenuItem key={key}>
+                    <SidebarMenuButton
+                      isActive={key === active}
+                      tooltip={t.admin.sections[key]}
+                      aria-current={key === active ? 'page' : undefined}
+                      onClick={() => setActive(key)}
+                    >
+                      <Icon aria-hidden="true" />
+                      <span>{t.admin.sections[key]}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={active === 'profile'}
+                tooltip={t.admin.auth.profile}
+                onClick={() => setActive('profile')}
+              >
+                <UserIcon aria-hidden="true" />
+                <span className="truncate">{me.email}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton tooltip={t.admin.auth.signOut} onClick={() => void signOut()}>
+                <LogOutIcon aria-hidden="true" />
+                <span>{t.admin.auth.signOut}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          <SidebarSeparator />
+          <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden">
+            <LanguageSwitcher className="flex-1" />
+            <InfoTip text={t.ui.hints.language} />
+          </div>
+          {version ? (
+            <div className="px-2 text-xs text-muted-foreground tabular-nums group-data-[collapsible=icon]:hidden">
+              {t.ui.common.version} {version}
+            </div>
           ) : null}
-        </div>
-      </aside>
-      <main className="content">
-        <h1>{title}</h1>
-        {active === 'profile' ? (
-          <ProfilePanel me={me} onChanged={() => void refresh()} />
-        ) : active === 'operations' ? (
-          <OperationsPage />
-        ) : active === 'incidents' ? (
-          <IncidentsPage />
-        ) : active === 'handover' ? (
-          <HandoverPage />
-        ) : active === 'requests' ? (
-          <RequestsPage />
-        ) : active === 'bonus' ? (
-          <BonusPage />
-        ) : active === 'reports' ? (
-          <ReportsPage />
-        ) : active === 'audit' ? (
-          <AuditPage />
-        ) : active === 'schedule' ? (
-          <SchedulePage />
-        ) : active === 'administration' ? (
-          <AdminPage />
-        ) : (
-          <p className="muted">{t.admin.placeholder}</p>
-        )}
-      </main>
-    </div>
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset>
+        <header className="flex h-14 items-center gap-2 border-b px-4">
+          <SidebarTrigger aria-label={t.ui.common.menu} />
+          <h1 className="text-lg font-semibold">{title}</h1>
+        </header>
+        <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+          {active === 'profile' ? (
+            <ProfilePanel me={me} onChanged={() => void refresh()} />
+          ) : Page ? (
+            <Page />
+          ) : null}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

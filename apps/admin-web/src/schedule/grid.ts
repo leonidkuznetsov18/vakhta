@@ -1,6 +1,6 @@
 import type { AssignmentInput, ScheduleVersionDetail } from '@vakhta/contracts';
 
-/** Стан редактора: рядок на працівника, комірка на день, зона на рядок. */
+/** Editor state: a row per employee, a cell per day, a zone per row. */
 export interface GridRow {
   readonly employeeId: string;
   readonly zoneId: string;

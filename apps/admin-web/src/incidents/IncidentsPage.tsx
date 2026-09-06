@@ -1,24 +1,48 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   IncidentDetailView,
   IncidentStatsView,
   IncidentView,
   OrgSnapshot,
 } from '@vakhta/contracts';
-import { allowedIncidentTransitions, type IncidentStatus } from '@vakhta/domain';
+import {
+  allowedIncidentTransitions,
+  type IncidentSeverity,
+  type IncidentStatus,
+} from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { TableCell, TableRow } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DataTable, type Column } from '@/components/app/data-table';
+import { Feedback } from '@/components/app/feedback';
+import { FormField, SelectField } from '@/components/app/fields';
+import { InfoTip } from '@/components/app/info-tip';
+import { LiveBadge, Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
+import { formatTime } from '@/lib/format';
 import { incidentsApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 
 const all = messages(currentLocale());
 const i = all.admin.incidents;
+const hints = all.ui.hints;
 
-function localTime(iso: string | null): string {
-  return iso
-    ? new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-    : '—';
-}
+const SEVERITY_TONE: Record<IncidentSeverity, Tone> = {
+  NORMAL: 'neutral',
+  CRITICAL: 'warning',
+  SAFETY: 'danger',
+};
+const STATUS_TONE: Record<IncidentStatus, Tone> = {
+  REPORTED: 'danger',
+  ACKNOWLEDGED: 'warning',
+  IN_PROGRESS: 'info',
+  RESOLVED: 'success',
+  CLOSED: 'neutral',
+  DUPLICATE: 'neutral',
+  REJECTED: 'neutral',
+};
 
 function dayStart(d: Date): string {
   const x = new Date(d);
@@ -26,7 +50,7 @@ function dayStart(d: Date): string {
   return x.toISOString();
 }
 
-/** «Простои и инциденты» (ТЗ 9.1): черга майстра з SSE, дії за таблицею переходів, статистика. */
+/** "Downtime and incidents" (spec 9.1): the master queue with SSE, actions per the transition table, statistics. */
 export function IncidentsPage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
   const [siteId, setSiteId] = useState('');
@@ -134,244 +158,236 @@ export function IncidentsPage() {
   const others = (row: IncidentView) =>
     rows.filter((r) => r.id !== row.id && r.status !== 'DUPLICATE');
 
-  return (
-    <section>
-      <div className="toolbar">
-        <label>
-          <span>{i.site}</span>
-          <select value={siteId} onChange={(e) => setSiteId(e.target.value)}>
-            <option value="">—</option>
-            {org?.sites.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="versions" role="tablist">
-          {(['open', 'all'] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              role="tab"
-              aria-selected={scope === s}
-              className={scope === s ? 'active' : undefined}
-              onClick={() => setScope(s)}
-            >
-              {s === 'open' ? i.scopeOpen : i.scopeAll}
-            </button>
-          ))}
+  const columns: Column<IncidentView>[] = [
+    {
+      key: 'opened',
+      header: i.opened,
+      cell: (row) => <span className="tabular-nums">{formatTime(row.openedAt)}</span>,
+    },
+    {
+      key: 'severity',
+      header: i.severity,
+      cell: (row) => (
+        <StatusPill tone={SEVERITY_TONE[row.severity]}>
+          {all.incidents.severities[row.severity]}
+        </StatusPill>
+      ),
+    },
+    {
+      key: 'reason',
+      header: i.reason,
+      cell: (row) => (
+        <div>
+          <div>{row.reasonLabel}</div>
+          {row.lastComment && <Muted>{row.lastComment}</Muted>}
         </div>
-        <span className={live ? 'live on' : 'live'}>
-          {live ? i.live : all.admin.operations.offline}
+      ),
+    },
+    { key: 'zone', header: i.zone, cell: (row) => row.zoneName ?? '—' },
+    { key: 'reports', header: i.reports, align: 'right', cell: (row) => row.reportsCount },
+    { key: 'stopped', header: i.stoppedNow, align: 'right', cell: (row) => row.stoppedNow },
+    {
+      key: 'status',
+      header: i.status,
+      cell: (row) => (
+        <StatusPill tone={STATUS_TONE[row.status]}>{all.incidents.statuses[row.status]}</StatusPill>
+      ),
+    },
+    {
+      key: 'sla',
+      header: (
+        <span className="inline-flex items-center gap-1">
+          {i.sla}
+          <InfoTip text={hints.incidentsSla} />
         </span>
-      </div>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && <p className="notice">{notice}</p>}
-
-      {rows.length === 0 ? (
-        <p className="muted">{i.empty}</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{i.opened}</th>
-              <th>{i.severity}</th>
-              <th>{i.reason}</th>
-              <th>{i.zone}</th>
-              <th>{i.reports}</th>
-              <th>{i.stoppedNow}</th>
-              <th>{i.status}</th>
-              <th>{i.sla}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <React.Fragment key={row.id}>
-                <tr className={row.slaBreached ? 'flagged' : undefined}>
-                  <td>{localTime(row.openedAt)}</td>
-                  <td>
-                    <span className={`state-pill sev-${row.severity}`}>
-                      {all.incidents.severities[row.severity]}
-                    </span>
-                  </td>
-                  <td>
-                    {row.reasonLabel}
-                    {row.lastComment && <small className="muted"> · {row.lastComment}</small>}
-                  </td>
-                  <td>{row.zoneName ?? '—'}</td>
-                  <td>{row.reportsCount}</td>
-                  <td>{row.stoppedNow}</td>
-                  <td>
-                    <span className={`status-badge ${row.status}`}>
-                      {all.incidents.statuses[row.status]}
-                    </span>
-                  </td>
-                  <td>
-                    {localTime(row.slaDueAt)}
-                    {row.slaBreached && <span className="flag">{i.slaBreached}</span>}
-                  </td>
-                  <td className="row-actions">
-                    <button
-                      type="button"
-                      className="link"
-                      onClick={() => setOpenId(openId === row.id ? null : row.id)}
-                    >
-                      {i.detail}
-                    </button>
-                  </td>
-                </tr>
-                {openId === row.id && (
-                  <tr>
-                    <td colSpan={9}>
-                      <div className="subpanel">
-                        {allowedIncidentTransitions(row.status).length > 0 && (
-                          <form
-                            className="inline-form"
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              apply(row);
-                            }}
-                          >
-                            <label className="field">
-                              <span>{i.status}</span>
-                              <select
-                                value={target[row.id] ?? ''}
-                                onChange={(e) =>
-                                  setTarget((t) => ({
-                                    ...t,
-                                    [row.id]: e.target.value as IncidentStatus,
-                                  }))
-                                }
-                                required
-                              >
-                                <option value="">…</option>
-                                {allowedIncidentTransitions(row.status).map((s) => (
-                                  <option key={s} value={s}>
-                                    {i.transitions[s]}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            {target[row.id] === 'DUPLICATE' && (
-                              <label className="field">
-                                <span>{i.duplicateOf}</span>
-                                <select
-                                  value={duplicateOf[row.id] ?? ''}
-                                  onChange={(e) =>
-                                    setDuplicateOf((d) => ({ ...d, [row.id]: e.target.value }))
-                                  }
-                                  required
-                                >
-                                  <option value="">…</option>
-                                  {others(row).map((o) => (
-                                    <option key={o.id} value={o.id}>
-                                      {localTime(o.openedAt)} · {o.reasonLabel} ·{' '}
-                                      {o.zoneName ?? '—'}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            )}
-                            <label className="field wide">
-                              <span>
-                                {target[row.id] === 'RESOLVED' || target[row.id] === 'REJECTED'
-                                  ? i.commentRequired
-                                  : i.comment}
-                              </span>
-                              <input
-                                value={comment[row.id] ?? ''}
-                                onChange={(e) =>
-                                  setComment((c) => ({ ...c, [row.id]: e.target.value }))
-                                }
-                                required={
-                                  target[row.id] === 'RESOLVED' || target[row.id] === 'REJECTED'
-                                }
-                                minLength={3}
-                              />
-                            </label>
-                            <button
-                              type="submit"
-                              className="btn"
-                              disabled={busy || !target[row.id]}
-                            >
-                              {i.apply}
-                            </button>
-                          </form>
-                        )}
-                        {detail && detail.incident.id === row.id && (
-                          <div className="detail">
-                            <div>
-                              <h3>{i.reportsTitle}</h3>
-                              <ul className="list">
-                                {detail.reports.map((r) => (
-                                  <li key={r.id}>
-                                    {localTime(r.reportedAt)} <strong>{r.fullName}</strong>{' '}
-                                    <small className="muted">
-                                      {r.stoppedWork ? i.stoppedWork : i.notStopped}
-                                      {r.hasPhoto ? ` · ${i.photo}` : ''}
-                                      {r.comment ? ` · ${r.comment}` : ''}
-                                    </small>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                            <div>
-                              <h3>{i.history}</h3>
-                              <ul className="list">
-                                {detail.history.map((h) => (
-                                  <li key={h.id}>
-                                    {localTime(h.at)} {all.incidents.statuses[h.toStatus]}
-                                    <small className="muted">
-                                      {' '}
-                                      · {h.actorType}
-                                      {h.comment ? ` · ${h.comment}` : ''}
-                                    </small>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <h2>{i.stats}</h2>
-      <div className="toolbar">
-        <label>
-          <span>{i.from}</span>
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => e.target.value && setFrom(e.target.value)}
-          />
-        </label>
-        <label>
-          <span>{i.to}</span>
-          <input type="date" value={to} onChange={(e) => e.target.value && setTo(e.target.value)} />
-        </label>
-      </div>
-      {stats && (
-        <div className="detail">
-          <StatsTable title={i.byReason} rows={stats.byReason} totals={stats.totals} />
-          <StatsTable title={i.byZone} rows={stats.byZone} totals={stats.totals} />
+      ),
+      cell: (row) => (
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="tabular-nums">{formatTime(row.slaDueAt)}</span>
+          {row.slaBreached && <StatusPill tone="danger">{i.slaBreached}</StatusPill>}
         </div>
-      )}
-    </section>
+      ),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{all.ui.common.actions}</span>,
+      align: 'right',
+      cell: (row) => (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setOpenId(openId === row.id ? null : row.id)}
+        >
+          {i.detail}
+        </Button>
+      ),
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Toolbar>
+        <SelectField
+          label={i.site}
+          value={siteId}
+          onChange={setSiteId}
+          placeholder="—"
+          options={org?.sites.map((s) => ({ value: s.id, label: s.name })) ?? []}
+          className="w-56"
+        />
+        <div className="flex items-center gap-1">
+          <Tabs value={scope} onValueChange={(v) => setScope(v as 'open' | 'all')}>
+            <TabsList>
+              <TabsTrigger value="open">{i.scopeOpen}</TabsTrigger>
+              <TabsTrigger value="all">{i.scopeAll}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <InfoTip text={hints.incidentsScope} />
+        </div>
+        <div className="ml-auto">
+          <LiveBadge live={live} />
+        </div>
+      </Toolbar>
+      <Feedback error={error} notice={notice} />
+
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        empty={i.empty}
+        rowClassName={(row) => (row.slaBreached ? 'bg-red-50/60 dark:bg-red-950/30' : undefined)}
+        expanded={(row) =>
+          openId === row.id ? (
+            <div className="flex flex-col gap-4">
+              {allowedIncidentTransitions(row.status).length > 0 && (
+                <form
+                  className="flex flex-wrap items-end gap-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    apply(row);
+                  }}
+                >
+                  <SelectField
+                    label={i.status}
+                    value={target[row.id] ?? ''}
+                    onChange={(v) => setTarget((t) => ({ ...t, [row.id]: v as IncidentStatus }))}
+                    placeholder="…"
+                    required
+                    options={allowedIncidentTransitions(row.status).map((s) => ({
+                      value: s,
+                      label: i.transitions[s],
+                    }))}
+                    className="w-56"
+                  />
+                  {target[row.id] === 'DUPLICATE' && (
+                    <SelectField
+                      label={i.duplicateOf}
+                      hint={hints.incidentsDuplicate}
+                      value={duplicateOf[row.id] ?? ''}
+                      onChange={(v) => setDuplicateOf((d) => ({ ...d, [row.id]: v }))}
+                      placeholder="…"
+                      required
+                      options={others(row).map((o) => ({
+                        value: o.id,
+                        label: `${formatTime(o.openedAt)} · ${o.reasonLabel} · ${o.zoneName ?? '—'}`,
+                      }))}
+                      className="w-72"
+                    />
+                  )}
+                  <FormField
+                    label={
+                      target[row.id] === 'RESOLVED' || target[row.id] === 'REJECTED'
+                        ? i.commentRequired
+                        : i.comment
+                    }
+                    className="min-w-72 flex-1"
+                  >
+                    {(id) => (
+                      <Input
+                        id={id}
+                        value={comment[row.id] ?? ''}
+                        onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}
+                        required={target[row.id] === 'RESOLVED' || target[row.id] === 'REJECTED'}
+                        minLength={3}
+                      />
+                    )}
+                  </FormField>
+                  <Button type="submit" variant="secondary" disabled={busy || !target[row.id]}>
+                    {i.apply}
+                  </Button>
+                </form>
+              )}
+              {detail && detail.incident.id === row.id && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold">{i.reportsTitle}</h3>
+                    <ul className="flex flex-col gap-1 text-sm">
+                      {detail.reports.map((r) => (
+                        <li key={r.id}>
+                          <span className="tabular-nums">{formatTime(r.reportedAt)}</span>{' '}
+                          <strong>{r.fullName}</strong>{' '}
+                          <Muted>
+                            {`${r.stoppedWork ? i.stoppedWork : i.notStopped}${r.hasPhoto ? ` · ${i.photo}` : ''}${r.comment ? ` · ${r.comment}` : ''}`}
+                          </Muted>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold">{i.history}</h3>
+                    <ul className="flex flex-col gap-1 text-sm">
+                      {detail.history.map((h) => (
+                        <li key={h.id}>
+                          <span className="tabular-nums">{formatTime(h.at)}</span>{' '}
+                          {all.incidents.statuses[h.toStatus]}
+                          <Muted>{` · ${h.actorType}${h.comment ? ` · ${h.comment}` : ''}`}</Muted>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null
+        }
+      />
+
+      <Section title={i.stats} hint={hints.incidentsStats}>
+        <Toolbar>
+          <FormField label={i.from} className="w-44">
+            {(id) => (
+              <Input
+                id={id}
+                type="date"
+                value={from}
+                onChange={(e) => e.target.value && setFrom(e.target.value)}
+              />
+            )}
+          </FormField>
+          <FormField label={i.to} className="w-44">
+            {(id) => (
+              <Input
+                id={id}
+                type="date"
+                value={to}
+                onChange={(e) => e.target.value && setTo(e.target.value)}
+              />
+            )}
+          </FormField>
+        </Toolbar>
+        {stats && (
+          <div className="grid gap-4 xl:grid-cols-2">
+            <StatsTable title={i.byReason} rows={stats.byReason} totals={stats.totals} />
+            <StatsTable title={i.byZone} rows={stats.byZone} totals={stats.totals} />
+          </div>
+        )}
+      </Section>
+    </div>
   );
 }
+
+type StatsRow = IncidentStatsView['byReason'][number];
 
 function StatsTable({
   title,
@@ -379,44 +395,38 @@ function StatsTable({
   totals,
 }: {
   readonly title: string;
-  readonly rows: IncidentStatsView['byReason'];
+  readonly rows: readonly StatsRow[];
   readonly totals: IncidentStatsView['totals'];
 }) {
+  const columns: Column<StatsRow>[] = [
+    { key: 'label', header: title, cell: (r) => r.label },
+    { key: 'incidents', header: i.colIncidents, align: 'right', cell: (r) => r.incidents },
+    { key: 'reports', header: i.colReports, align: 'right', cell: (r) => r.reports },
+    { key: 'downtime', header: i.colDowntime, align: 'right', cell: (r) => r.downtimeMinutes },
+    {
+      key: 'resolution',
+      header: i.colResolution,
+      align: 'right',
+      cell: (r) => r.avgResolutionMinutes ?? '—',
+    },
+    { key: 'breached', header: i.colBreached, align: 'right', cell: (r) => r.slaBreached },
+  ];
   return (
-    <div>
-      <h3>{title}</h3>
-      <table className="table">
-        <thead>
-          <tr>
-            <th />
-            <th>{i.colIncidents}</th>
-            <th>{i.colReports}</th>
-            <th>{i.colDowntime}</th>
-            <th>{i.colResolution}</th>
-            <th>{i.colBreached}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.key}>
-              <td>{r.label}</td>
-              <td>{r.incidents}</td>
-              <td>{r.reports}</td>
-              <td>{r.downtimeMinutes}</td>
-              <td>{r.avgResolutionMinutes ?? '—'}</td>
-              <td>{r.slaBreached}</td>
-            </tr>
-          ))}
-          <tr className="totals">
-            <td>{totals.label}</td>
-            <td>{totals.incidents}</td>
-            <td>{totals.reports}</td>
-            <td>{totals.downtimeMinutes}</td>
-            <td>{totals.avgResolutionMinutes ?? '—'}</td>
-            <td>{totals.slaBreached}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      columns={columns}
+      rows={rows}
+      rowKey={(r) => r.key}
+      empty={all.ui.common.noResults}
+      footer={
+        <TableRow className="bg-muted/40 font-medium hover:bg-muted/40">
+          <TableCell>{totals.label}</TableCell>
+          <TableCell className="text-right">{totals.incidents}</TableCell>
+          <TableCell className="text-right">{totals.reports}</TableCell>
+          <TableCell className="text-right">{totals.downtimeMinutes}</TableCell>
+          <TableCell className="text-right">{totals.avgResolutionMinutes ?? '—'}</TableCell>
+          <TableCell className="text-right">{totals.slaBreached}</TableCell>
+        </TableRow>
+      }
+    />
   );
 }

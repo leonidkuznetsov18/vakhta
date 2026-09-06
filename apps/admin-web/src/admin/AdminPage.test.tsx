@@ -109,7 +109,7 @@ describe('AdminPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('створює працівника і видає код активації з посиланням', async () => {
+  it('creates an employee and issues an activation code with a link', async () => {
     const calls = mockApi();
     render(<AdminPage />);
     fireEvent.change(await screen.findByLabelText('Табельный номер'), {
@@ -130,10 +130,10 @@ describe('AdminPage', () => {
     expect(screen.getByText('https://t.me/vakhta_worker_bot?start=act-ABCD2345')).toBeTruthy();
   });
 
-  it('видає роль з областю підрозділу', async () => {
+  it('grants a role scoped to a unit', async () => {
     const calls = mockApi();
     render(<AdminPage />);
-    fireEvent.click(await screen.findByRole('tab', { name: 'Пользователи и роли' }));
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Пользователи и роли' }));
     expect(await screen.findByText('master@vakhta.com')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Выдать роль' }));
     fireEvent.change(screen.getByLabelText('Роль'), { target: { value: 'PLANNER' } });
@@ -150,10 +150,10 @@ describe('AdminPage', () => {
     expect(screen.getByText('Планировщик')).toBeTruthy();
   });
 
-  it('реєструє термінал і показує токен один раз', async () => {
+  it('registers a terminal and shows the token once', async () => {
     mockApi();
     render(<AdminPage />);
-    fireEvent.click(await screen.findByRole('tab', { name: 'Терминалы' }));
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Терминалы' }));
     fireEvent.change(await screen.findByLabelText('Название'), { target: { value: 'Проходная' } });
     fireEvent.click(screen.getByRole('button', { name: 'Зарегистрировать терминал' }));
     await waitFor(() => expect(screen.getByText('dev-token-0123456789abcdef')).toBeTruthy());

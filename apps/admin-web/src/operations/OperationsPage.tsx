@@ -1,23 +1,45 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import type {
   ActiveShiftView,
   EmployeeView,
   OrgSnapshot,
   ShiftDetailView,
 } from '@vakhta/contracts';
-import { SHIFT_ACTIONS, type ShiftAction } from '@vakhta/domain';
+import { SHIFT_ACTIONS, type ShiftAction, type ShiftState } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useConfirm } from '@/components/app/confirm-dialog';
+import { DataTable, type Column } from '@/components/app/data-table';
+import { Feedback } from '@/components/app/feedback';
+import { FormField, SelectField } from '@/components/app/fields';
+import { InfoTip } from '@/components/app/info-tip';
+import { LiveBadge, Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
+import { formatTime } from '@/lib/format';
 import { employeesApi, orgApi, shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 
 const all = messages(currentLocale());
 const o = all.admin.operations;
+const hints = all.ui.hints;
 
-function localTime(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-}
+export const STATE_TONE: Record<ShiftState, Tone> = {
+  NOT_STARTED: 'neutral',
+  PREPARATION: 'neutral',
+  WORKING: 'success',
+  SERVICE_TIME: 'info',
+  BREAK: 'info',
+  MEAL: 'info',
+  DOWNTIME: 'danger',
+  CLEANING: 'neutral',
+  HANDOVER: 'neutral',
+  READY_TO_CLOSE: 'warning',
+  SHIFT_CLOSED: 'neutral',
+  EMERGENCY_EXIT: 'danger',
+};
 
 function newKey(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -26,8 +48,8 @@ function newKey(): string {
 }
 
 /**
- * «Оперативная смена» (ТЗ 9.2): хто у зміні і в якому стані, живе оновлення через SSE,
- * дії майстра з обовʼязковим коментарем і позначка «потрібна перевірка» (FR-COR-01/04).
+ * "Live shift" (spec 9.2): who is on shift and in which state, live updates over SSE,
+ * shift master actions with a mandatory comment and the "needs review" flag (FR-COR-01/04).
  */
 export function OperationsPage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
@@ -44,9 +66,10 @@ export function OperationsPage() {
   const [detail, setDetail] = useState<ShiftDetailView | null>(null);
   const [startFor, setStartFor] = useState('');
   const [startComment, setStartComment] = useState('');
-  const [action, setAction] = useState<Record<string, ShiftAction>>({});
+  const [action, setAction] = useState<Record<string, ShiftAction | ''>>({});
   const [comment, setComment] = useState<Record<string, string>>({});
   const reloadRef = useRef<() => void>(() => undefined);
+  const { confirm, dialog } = useConfirm();
 
   const units = useMemo(
     () => org?.orgUnits.filter((u) => u.siteId === siteId) ?? [],
@@ -83,7 +106,7 @@ export function OperationsPage() {
     reloadRef.current();
   }, [reload]);
 
-  // SSE: будь-яка зміна стану перечитує список; heartbeat тримає зʼєднання (ТЗ 9.2).
+  // SSE: any state change re-reads the list; the heartbeat keeps the connection alive (spec 9.2).
   useEffect(() => {
     if (typeof EventSource === 'undefined') return;
     const source = new EventSource(shiftsApi.streamUrl(), { withCredentials: true });
@@ -143,8 +166,14 @@ export function OperationsPage() {
     });
   }
 
-  function clarify(row: ActiveShiftView) {
-    const reason = window.prompt(o.comment)?.trim();
+  async function clarify(row: ActiveShiftView) {
+    const reason = await confirm({
+      title: `${o.clarify}: ${row.fullName}`,
+      description: hints.operationsClarify,
+      confirmLabel: o.clarify,
+      commentLabel: o.comment,
+      commentRequired: true,
+    });
     if (!reason) return;
     void run(async () => {
       await shiftsApi.clarify(row.id, reason);
@@ -152,7 +181,7 @@ export function OperationsPage() {
     }, o.clarified);
   }
 
-  function startShift(ev: React.FormEvent) {
+  function startShift(ev: FormEvent) {
     ev.preventDefault();
     if (!startFor || startComment.trim().length < 3) return;
     void run(async () => {
@@ -172,253 +201,258 @@ export function OperationsPage() {
 
   const activeEmployees = employees.filter((e) => e.status === 'ACTIVE');
 
-  return (
-    <section>
-      <div className="toolbar">
-        <label>
-          <span>{o.site}</span>
-          <select
-            value={siteId}
-            onChange={(e) => {
-              setSiteId(e.target.value);
-              setOrgUnitId('');
-            }}
-          >
-            <option value="">—</option>
-            {org?.sites.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>{o.orgUnit}</span>
-          <select
-            value={orgUnitId}
-            onChange={(e) => setOrgUnitId(e.target.value)}
-            disabled={!siteId}
-          >
-            <option value="">—</option>
-            {units.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={includeClosed}
-            onChange={(e) => setIncludeClosed(e.target.checked)}
-          />
-          <span>{o.includeClosed}</span>
-        </label>
-        <span className={live ? 'live on' : 'live'} aria-live="polite">
-          {live ? o.live : o.offline}
+  const columns: Column<ActiveShiftView>[] = [
+    {
+      key: 'employee',
+      header: o.employee,
+      cell: (row) => (
+        <div>
+          <div className="font-medium">{row.fullName}</div>
+          <Muted>
+            {row.personnelNumber}
+            {row.orgUnitName ? ` · ${row.orgUnitName}` : ''}
+          </Muted>
+        </div>
+      ),
+    },
+    {
+      key: 'state',
+      header: o.state,
+      cell: (row) => (
+        <div className="flex flex-wrap items-center gap-1">
+          <StatusPill tone={STATE_TONE[row.state]}>{all.states[row.state]}</StatusPill>
+          {row.resumeState && <Muted>→ {all.states[row.resumeState]}</Muted>}
+        </div>
+      ),
+    },
+    {
+      key: 'since',
+      header: o.since,
+      cell: (row) => (
+        <span className="tabular-nums">
+          {formatTime(row.stateSince)} <Muted>({`${row.stateMinutes} ${o.minutes}`})</Muted>
         </span>
-      </div>
+      ),
+    },
+    {
+      key: 'plan',
+      header: o.plan,
+      cell: (row) => (
+        <span className="tabular-nums">
+          {row.planStartAt ? `${formatTime(row.planStartAt)}–${formatTime(row.planEndAt)}` : '—'}
+        </span>
+      ),
+    },
+    { key: 'zone', header: o.zone, cell: (row) => row.zoneName ?? '—' },
+    {
+      key: 'presence',
+      header: o.presence,
+      cell: (row) => <span className="tabular-nums">{formatTime(row.presenceSince)}</span>,
+    },
+    {
+      key: 'flags',
+      header: o.flags,
+      cell: (row) => (
+        <div className="flex flex-wrap gap-1">
+          {row.needsClarification && <StatusPill tone="danger">{o.needsClarification}</StatusPill>}
+          {!row.zoneAccepted && row.state === 'PREPARATION' && (
+            <StatusPill tone="warning">{o.zoneNotAccepted}</StatusPill>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{all.ui.common.actions}</span>,
+      align: 'right',
+      cell: (row) => (
+        <div className="flex flex-wrap justify-end gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setOpenId(openId === row.id ? null : row.id)}
+          >
+            {o.detail}
+          </Button>
+          {!row.needsClarification && row.endedAt === null && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => void clarify(row)}
+            >
+              {o.clarify}
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ];
 
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && <p className="notice">{notice}</p>}
-
-      {rows.length === 0 ? (
-        <p className="muted">{o.empty}</p>
-      ) : (
-        <table className="table ops">
-          <thead>
-            <tr>
-              <th>{o.employee}</th>
-              <th>{o.state}</th>
-              <th>{o.since}</th>
-              <th>{o.plan}</th>
-              <th>{o.zone}</th>
-              <th>{o.presence}</th>
-              <th>{o.flags}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <React.Fragment key={row.id}>
-                <tr className={`state-${row.state}${row.needsClarification ? ' flagged' : ''}`}>
-                  <td>
-                    <div className="emp">{row.fullName}</div>
-                    <small className="muted">
-                      {row.personnelNumber}
-                      {row.orgUnitName ? ` · ${row.orgUnitName}` : ''}
-                    </small>
-                  </td>
-                  <td>
-                    <span className={`state-pill ${row.state}`}>{all.states[row.state]}</span>
-                    {row.resumeState && (
-                      <small className="muted"> → {all.states[row.resumeState]}</small>
-                    )}
-                  </td>
-                  <td>
-                    {localTime(row.stateSince)}{' '}
-                    <small className="muted">
-                      ({row.stateMinutes} {o.minutes})
-                    </small>
-                  </td>
-                  <td>
-                    {row.planStartAt
-                      ? `${localTime(row.planStartAt)}–${localTime(row.planEndAt)}`
-                      : '—'}
-                  </td>
-                  <td>{row.zoneName ?? '—'}</td>
-                  <td>{localTime(row.presenceSince)}</td>
-                  <td>
-                    {row.needsClarification && <span className="flag">{o.needsClarification}</span>}
-                    {!row.zoneAccepted && row.state === 'PREPARATION' && (
-                      <span className="flag warn">{o.zoneNotAccepted}</span>
-                    )}
-                  </td>
-                  <td className="row-actions">
-                    <button
-                      type="button"
-                      className="link"
-                      onClick={() => setOpenId(openId === row.id ? null : row.id)}
-                    >
-                      {o.detail}
-                    </button>
-                    {!row.needsClarification && row.endedAt === null && (
-                      <button
-                        type="button"
-                        className="link"
-                        disabled={busy}
-                        onClick={() => clarify(row)}
-                      >
-                        {o.clarify}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-                {openId === row.id && (
-                  <tr>
-                    <td colSpan={8}>
-                      <div className="subpanel">
-                        {row.endedAt === null && (
-                          <form
-                            className="inline-form"
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              applyAction(row);
-                            }}
-                          >
-                            <label className="field">
-                              <span>{o.masterAction}</span>
-                              <select
-                                value={action[row.id] ?? ''}
-                                onChange={(e) =>
-                                  setAction((a) => ({
-                                    ...a,
-                                    [row.id]: e.target.value as ShiftAction,
-                                  }))
-                                }
-                                required
-                              >
-                                <option value="">…</option>
-                                {SHIFT_ACTIONS.filter((a) => a !== 'START_SHIFT').map((a) => (
-                                  <option key={a} value={a}>
-                                    {all.actions[a]}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <label className="field wide">
-                              <span>{o.comment}</span>
-                              <input
-                                value={comment[row.id] ?? ''}
-                                onChange={(e) =>
-                                  setComment((c) => ({ ...c, [row.id]: e.target.value }))
-                                }
-                                minLength={3}
-                                required
-                              />
-                            </label>
-                            <button type="submit" className="btn" disabled={busy}>
-                              {o.apply}
-                            </button>
-                          </form>
-                        )}
-                        {detail && detail.session.id === row.id && <DetailPanel detail={detail} />}
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <h2>{o.startFor}</h2>
-      <form className="inline-form" onSubmit={startShift}>
-        <label className="field">
-          <span>{o.employee}</span>
-          <select value={startFor} onChange={(e) => setStartFor(e.target.value)} required>
-            <option value="">…</option>
-            {activeEmployees.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.fullName} · {e.personnelNumber}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field wide">
-          <span>{o.comment}</span>
-          <input
-            value={startComment}
-            onChange={(e) => setStartComment(e.target.value)}
-            minLength={3}
-            required
+  return (
+    <div className="flex flex-col gap-4">
+      <Toolbar>
+        <SelectField
+          label={o.site}
+          value={siteId}
+          onChange={(v) => {
+            setSiteId(v);
+            setOrgUnitId('');
+          }}
+          placeholder="—"
+          options={org?.sites.map((s) => ({ value: s.id, label: s.name })) ?? []}
+          className="w-56"
+        />
+        <SelectField
+          label={o.orgUnit}
+          value={orgUnitId}
+          onChange={setOrgUnitId}
+          placeholder="—"
+          disabled={!siteId}
+          options={units.map((u) => ({ value: u.id, label: u.name }))}
+          className="w-56"
+        />
+        <div className="flex h-8 items-center gap-2">
+          <Checkbox
+            id="ops-closed"
+            checked={includeClosed}
+            onCheckedChange={(v) => setIncludeClosed(v === true)}
           />
-        </label>
-        <button type="submit" className="btn" disabled={busy || !startFor}>
-          {o.start}
-        </button>
-      </form>
-    </section>
+          <Label htmlFor="ops-closed">{o.includeClosed}</Label>
+          <InfoTip text={hints.operationsIncludeClosed} />
+        </div>
+        <div className="ml-auto">
+          <LiveBadge live={live} hint={hints.operationsLive} />
+        </div>
+      </Toolbar>
+
+      <Feedback error={error} notice={notice} />
+
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        empty={o.empty}
+        rowClassName={(row) =>
+          row.needsClarification ? 'bg-red-50/60 dark:bg-red-950/30' : undefined
+        }
+        expanded={(row) =>
+          openId === row.id ? (
+            <div className="flex flex-col gap-4">
+              {row.endedAt === null && (
+                <form
+                  className="flex flex-wrap items-end gap-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    applyAction(row);
+                  }}
+                >
+                  <SelectField
+                    label={o.masterAction}
+                    hint={hints.operationsMasterAction}
+                    value={action[row.id] ?? ''}
+                    onChange={(v) => setAction((a) => ({ ...a, [row.id]: v as ShiftAction }))}
+                    placeholder="…"
+                    required
+                    options={SHIFT_ACTIONS.filter((a) => a !== 'START_SHIFT').map((a) => ({
+                      value: a,
+                      label: all.actions[a],
+                    }))}
+                    className="w-64"
+                  />
+                  <FormField label={o.comment} className="min-w-72 flex-1">
+                    {(id) => (
+                      <Input
+                        id={id}
+                        value={comment[row.id] ?? ''}
+                        onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}
+                        minLength={3}
+                        required
+                      />
+                    )}
+                  </FormField>
+                  <Button type="submit" variant="secondary" disabled={busy}>
+                    {o.apply}
+                  </Button>
+                </form>
+              )}
+              {detail && detail.session.id === row.id && <DetailPanel detail={detail} />}
+            </div>
+          ) : null
+        }
+      />
+
+      <Section title={o.startFor} hint={hints.operationsStartFor}>
+        <form className="flex flex-wrap items-end gap-3" onSubmit={startShift}>
+          <SelectField
+            label={o.employee}
+            value={startFor}
+            onChange={setStartFor}
+            placeholder="…"
+            required
+            options={activeEmployees.map((e) => ({
+              value: e.id,
+              label: `${e.fullName} · ${e.personnelNumber}`,
+            }))}
+            className="w-72"
+          />
+          <FormField label={o.comment} className="min-w-72 flex-1">
+            {(id) => (
+              <Input
+                id={id}
+                value={startComment}
+                onChange={(e) => setStartComment(e.target.value)}
+                minLength={3}
+                required
+              />
+            )}
+          </FormField>
+          <Button type="submit" variant="secondary" disabled={busy || !startFor}>
+            {o.start}
+          </Button>
+        </form>
+      </Section>
+      {dialog}
+    </div>
   );
 }
 
 function DetailPanel({ detail }: { readonly detail: ShiftDetailView }) {
   return (
-    <div className="detail">
+    <div className="grid gap-4 md:grid-cols-2">
       <div>
-        <h3>{o.intervals}</h3>
-        <ul className="list">
+        <h3 className="mb-2 text-sm font-semibold">{o.intervals}</h3>
+        <ul className="flex flex-col gap-1 text-sm">
           {detail.intervals.map((i) => (
-            <li key={i.id}>
-              <span className={`state-pill ${i.state}`}>{all.states[i.state]}</span>{' '}
-              {localTime(i.startedAt)}–{i.endedAt ? localTime(i.endedAt) : '…'}
-              {i.reasonCode && <small className="muted"> · {i.reasonCode}</small>}
+            <li key={i.id} className="flex flex-wrap items-center gap-2">
+              <StatusPill tone={STATE_TONE[i.state]}>{all.states[i.state]}</StatusPill>
+              <span className="tabular-nums">
+                {formatTime(i.startedAt)}–{i.endedAt ? formatTime(i.endedAt) : '…'}
+              </span>
+              {i.reasonCode && <Muted>· {i.reasonCode}</Muted>}
             </li>
           ))}
         </ul>
       </div>
       <div>
-        <h3>{o.events}</h3>
-        <ul className="list">
+        <h3 className="mb-2 text-sm font-semibold">{o.events}</h3>
+        <ul className="flex flex-col gap-1 text-sm">
           {detail.events.map((e) => (
-            <li key={e.id}>
-              <code>{e.type}</code> {localTime(e.occurredAt)}
-              {e.actorType && <small className="muted"> · {e.actorType}</small>}
-              {e.comment && <small className="muted"> · {e.comment}</small>}
+            <li key={e.id} className="flex flex-wrap items-center gap-2">
+              <code className="rounded bg-muted px-1 text-xs">{e.type}</code>
+              <span className="tabular-nums">{formatTime(e.occurredAt)}</span>
+              {e.actorType && <Muted>· {e.actorType}</Muted>}
+              {e.comment && <Muted>· {e.comment}</Muted>}
             </li>
           ))}
         </ul>
       </div>
       {detail.summary && (
-        <div>
-          <h3>{o.summary}</h3>
-          <p>
+        <div className="md:col-span-2">
+          <h3 className="mb-2 text-sm font-semibold">{o.summary}</h3>
+          <p className="text-sm">
             {detail.summary.totalMinutes} {o.minutes} · {all.states.WORKING.toLowerCase()}{' '}
             {detail.summary.workMinutes +
               detail.summary.preparationMinutes +

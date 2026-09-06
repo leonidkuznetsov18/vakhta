@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type {
   HandoverDetailView,
   HandoverListItemView,
@@ -9,22 +9,38 @@ import {
   HANDOVER_RESOLUTIONS,
   canTransitionHandover,
   type HandoverResolution,
+  type HandoverStatus,
 } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
+import { ExternalLinkIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DataTable, type Column } from '@/components/app/data-table';
+import { Feedback } from '@/components/app/feedback';
+import { FormField, SelectField } from '@/components/app/fields';
+import { InfoTip } from '@/components/app/info-tip';
+import { LiveBadge, Muted, StatusPill, Toolbar, type Tone } from '@/components/app/page';
+import { formatDateTime } from '@/lib/format';
 import { handoversApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 
 const all = messages(currentLocale());
 const h = all.admin.handover;
+const hints = all.ui.hints;
+const STATUS_TONE: Record<HandoverStatus, Tone> = {
+  DRAFT: 'neutral',
+  SUBMITTED: 'info',
+  ACCEPTED: 'success',
+  DISPUTED: 'warning',
+  RESOLVED_ACCEPTED: 'success',
+  RESOLVED_ISSUE_CONFIRMED: 'danger',
+  RESOLVED_NO_FAULT: 'success',
+  SUPERSEDED: 'neutral',
+};
 
-function localTime(iso: string | null): string {
-  return iso
-    ? new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })
-    : '—';
-}
-
-/** «Чистота и передача» (ТЗ 9.1): черга приймань, спори, прострочення, фото за підписаними посиланнями, рішення. */
+/** "Cleanliness and handover" (spec 9.1): acceptance queue, disputes, overdue, photos via signed links, decisions. */
 export function HandoverPage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
   const [siteId, setSiteId] = useState('');
@@ -83,7 +99,7 @@ export function HandoverPage() {
     };
   }, [openId, rows]);
 
-  function resolve(ev: React.FormEvent, row: HandoverListItemView) {
+  function resolve(ev: FormEvent, row: HandoverListItemView) {
     ev.preventDefault();
     if (!decision || comment.trim().length < 3) return;
     setBusy(true);
@@ -104,241 +120,233 @@ export function HandoverPage() {
 
   const handoverReasons = org?.reasonCodes.filter((r) => r.kind === 'HANDOVER' && r.isActive) ?? [];
 
-  return (
-    <section>
-      <div className="toolbar">
-        <label>
-          <span>{h.site}</span>
-          <select value={siteId} onChange={(e) => setSiteId(e.target.value)}>
-            <option value="">—</option>
-            {org?.sites.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="versions" role="tablist">
-          {(['pending', 'overdue', 'all'] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              role="tab"
-              aria-selected={scope === s}
-              className={scope === s ? 'active' : undefined}
-              onClick={() => setScope(s)}
-            >
-              {s === 'pending' ? h.scopePending : s === 'overdue' ? h.scopeOverdue : h.scopeAll}
-            </button>
-          ))}
+  const columns: Column<HandoverListItemView>[] = [
+    {
+      key: 'submitted',
+      header: h.submitted,
+      cell: (row) => <span className="tabular-nums">{formatDateTime(row.submittedAt)}</span>,
+    },
+    { key: 'zone', header: h.zone, cell: (row) => row.zoneName },
+    { key: 'submitter', header: h.submitter, cell: (row) => row.submittedByName },
+    {
+      key: 'status',
+      header: h.status,
+      cell: (row) => (
+        <div className="flex flex-wrap gap-1">
+          <StatusPill tone={STATUS_TONE[row.status]}>
+            {all.handover.statuses[row.status]}
+          </StatusPill>
+          {row.cannotCompleteReason && <StatusPill tone="warning">{h.cannotComplete}</StatusPill>}
         </div>
-        <span className={live ? 'live on' : 'live'}>
-          {live ? h.live : all.admin.operations.offline}
+      ),
+    },
+    { key: 'remarks', header: h.remarks, align: 'right', cell: (row) => row.remarks },
+    { key: 'photos', header: h.photos, align: 'right', cell: (row) => row.photos.length },
+    {
+      key: 'deadline',
+      header: (
+        <span className="inline-flex items-center gap-1">
+          {h.deadline}
+          <InfoTip text={hints.handoverDeadline} />
         </span>
-      </div>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      {notice && <p className="notice">{notice}</p>}
+      ),
+      cell: (row) => (
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="tabular-nums">{formatDateTime(row.acceptDeadlineAt)}</span>
+          {row.overdue && <StatusPill tone="danger">{h.overdue}</StatusPill>}
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{all.ui.common.actions}</span>,
+      align: 'right',
+      cell: (row) => (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setOpenId(openId === row.id ? null : row.id)}
+        >
+          {h.detail}
+        </Button>
+      ),
+    },
+  ];
 
-      {rows.length === 0 ? (
-        <p className="muted">{h.empty}</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{h.submitted}</th>
-              <th>{h.zone}</th>
-              <th>{h.submitter}</th>
-              <th>{h.status}</th>
-              <th>{h.remarks}</th>
-              <th>{h.photos}</th>
-              <th>{h.deadline}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <React.Fragment key={row.id}>
-                <tr className={row.overdue ? 'flagged' : undefined}>
-                  <td>{localTime(row.submittedAt)}</td>
-                  <td>{row.zoneName}</td>
-                  <td>{row.submittedByName}</td>
-                  <td>
-                    <span className={`status-badge ${row.status}`}>
-                      {all.handover.statuses[row.status]}
-                    </span>
-                    {row.cannotCompleteReason && (
-                      <span className="flag warn">{h.cannotComplete}</span>
+  return (
+    <div className="flex flex-col gap-4">
+      <Toolbar>
+        <SelectField
+          label={h.site}
+          value={siteId}
+          onChange={setSiteId}
+          placeholder="—"
+          options={org?.sites.map((s) => ({ value: s.id, label: s.name })) ?? []}
+          className="w-56"
+        />
+        <div className="flex items-center gap-1">
+          <Tabs value={scope} onValueChange={(v) => setScope(v as typeof scope)}>
+            <TabsList>
+              <TabsTrigger value="pending">{h.scopePending}</TabsTrigger>
+              <TabsTrigger value="overdue">{h.scopeOverdue}</TabsTrigger>
+              <TabsTrigger value="all">{h.scopeAll}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <InfoTip text={hints.handoverScope} />
+        </div>
+        <div className="ml-auto">
+          <LiveBadge live={live} />
+        </div>
+      </Toolbar>
+      <Feedback error={error} notice={notice} />
+
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        empty={h.empty}
+        rowClassName={(row) => (row.overdue ? 'bg-red-50/60 dark:bg-red-950/30' : undefined)}
+        expanded={(row) =>
+          openId === row.id && detail && detail.handover.id === row.id ? (
+            <div className="flex flex-col gap-4">
+              {HANDOVER_RESOLUTIONS.some((d) => canTransitionHandover(row.status, d)) && (
+                <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => resolve(e, row)}>
+                  <SelectField
+                    label={h.decision}
+                    hint={hints.handoverDecision}
+                    value={decision}
+                    onChange={(v) => setDecision(v as HandoverResolution)}
+                    placeholder="…"
+                    required
+                    options={HANDOVER_RESOLUTIONS.filter((d) =>
+                      canTransitionHandover(row.status, d),
+                    ).map((d) => ({ value: d, label: all.handover.resolutions[d] }))}
+                    className="w-72"
+                  />
+                  <SelectField
+                    label={h.reasonCode}
+                    value={reasonCode}
+                    onChange={setReasonCode}
+                    placeholder="—"
+                    options={handoverReasons.map((r) => ({ value: r.code, label: r.label }))}
+                    className="w-56"
+                  />
+                  <FormField label={h.comment} className="min-w-72 flex-1">
+                    {(id) => (
+                      <Input
+                        id={id}
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        minLength={3}
+                        required
+                      />
                     )}
-                  </td>
-                  <td>{row.remarks}</td>
-                  <td>{row.photos.length}</td>
-                  <td>
-                    {localTime(row.acceptDeadlineAt)}
-                    {row.overdue && <span className="flag">{h.overdue}</span>}
-                  </td>
-                  <td className="row-actions">
-                    <button
-                      type="button"
-                      className="link"
-                      onClick={() => setOpenId(openId === row.id ? null : row.id)}
-                    >
-                      {h.detail}
-                    </button>
-                  </td>
-                </tr>
-                {openId === row.id && detail && detail.handover.id === row.id && (
-                  <tr>
-                    <td colSpan={8}>
-                      <div className="subpanel">
-                        {HANDOVER_RESOLUTIONS.some((d) => canTransitionHandover(row.status, d)) && (
-                          <form className="inline-form" onSubmit={(e) => resolve(e, row)}>
-                            <label className="field">
-                              <span>{h.decision}</span>
-                              <select
-                                value={decision}
-                                onChange={(e) => setDecision(e.target.value as HandoverResolution)}
-                                required
-                              >
-                                <option value="">…</option>
-                                {HANDOVER_RESOLUTIONS.filter((d) =>
-                                  canTransitionHandover(row.status, d),
-                                ).map((d) => (
-                                  <option key={d} value={d}>
-                                    {all.handover.resolutions[d]}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <label className="field">
-                              <span>{h.reasonCode}</span>
-                              <select
-                                value={reasonCode}
-                                onChange={(e) => setReasonCode(e.target.value)}
-                              >
-                                <option value="">—</option>
-                                {handoverReasons.map((r) => (
-                                  <option key={r.code} value={r.code}>
-                                    {r.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <label className="field wide">
-                              <span>{h.comment}</span>
-                              <input
-                                value={comment}
-                                onChange={(e) => setComment(e.target.value)}
-                                minLength={3}
-                                required
-                              />
-                            </label>
-                            <button
-                              type="submit"
-                              className="btn primary"
-                              disabled={busy || !decision}
-                            >
-                              {h.apply}
-                            </button>
-                          </form>
+                  </FormField>
+                  <Button type="submit" disabled={busy || !decision}>
+                    {h.apply}
+                  </Button>
+                </form>
+              )}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold">{h.checklist}</h3>
+                  <ul className="flex flex-col gap-1 text-sm">
+                    {detail.handover.items.map((item) => (
+                      <li key={item.key}>
+                        <span aria-hidden="true">
+                          {!item.answered ? '▫️' : item.ok ? '✅' : '⚠️'}
+                        </span>{' '}
+                        {item.label}
+                        {item.answered && !item.ok && (
+                          <Muted>
+                            {` · ${item.remarkCategory} · ${item.remarkText} · ${item.safeToWork ? h.safe : h.unsafe}${item.needs.length > 0 ? ` · ${item.needs.map((n) => all.handover.needs[n]).join(', ')}` : ''}`}
+                          </Muted>
                         )}
-                        <div className="detail">
-                          <div>
-                            <h3>{h.checklist}</h3>
-                            <ul className="list">
-                              {detail.handover.items.map((item) => (
-                                <li key={item.key}>
-                                  {!item.answered ? '▫️' : item.ok ? '✅' : '⚠️'} {item.label}
-                                  {item.answered && !item.ok && (
-                                    <small className="muted">
-                                      {' '}
-                                      · {item.remarkCategory} · {item.remarkText} ·{' '}
-                                      {item.safeToWork ? h.safe : h.unsafe}
-                                      {item.needs.length > 0
-                                        ? ` · ${item.needs.map((n) => all.handover.needs[n]).join(', ')}`
-                                        : ''}
-                                    </small>
-                                  )}
-                                  {item.kind === 'NOTE' && item.answered && (
-                                    <small className="muted"> · {h.note}</small>
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-                            {detail.handover.cannotCompleteReason && (
-                              <p className="muted">
-                                {h.cannotComplete}: {detail.handover.cannotCompleteReason}
-                                {detail.handover.cannotCompleteComment
-                                  ? ` · ${detail.handover.cannotCompleteComment}`
-                                  : ''}
-                              </p>
-                            )}
-                          </div>
-                          <div>
-                            <h3>{h.photos}</h3>
-                            <ul className="list">
-                              {detail.handover.photos.map((p) => (
-                                <li key={p.angle}>
-                                  {all.handover.angles[p.angle]} ·{' '}
-                                  {all.handover.quality[p.media.quality]}{' '}
-                                  <PhotoLink media={p.media} />
-                                </li>
-                              ))}
-                            </ul>
-                            <h3>{h.reviews}</h3>
-                            <ul className="list">
-                              {detail.reviews.map((r) => (
-                                <li key={r.id}>
-                                  {localTime(r.reviewedAt)} <strong>{r.reviewerName}</strong>{' '}
-                                  {r.decision === 'ACCEPTED' ? '✅' : '⚠️'}
-                                  {r.category ? ` · ${r.category}` : ''}
-                                  {r.comment ? ` · ${r.comment}` : ''}{' '}
-                                  {r.media && <PhotoLink media={r.media} />}
-                                </li>
-                              ))}
-                            </ul>
-                            <h3>{h.resolutions}</h3>
-                            <ul className="list">
-                              {detail.resolutions.map((r) => (
-                                <li key={r.id}>
-                                  {localTime(r.at)} {all.handover.resolutions[r.decision]}
-                                  <small className="muted"> · {r.comment}</small>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
+                        {item.kind === 'NOTE' && item.answered && <Muted> · {h.note}</Muted>}
+                      </li>
+                    ))}
+                  </ul>
+                  {detail.handover.cannotCompleteReason && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {h.cannotComplete}: {detail.handover.cannotCompleteReason}
+                      {detail.handover.cannotCompleteComment
+                        ? ` · ${detail.handover.cannotCompleteComment}`
+                        : ''}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <h3 className="mb-2 flex items-center gap-1 text-sm font-semibold">
+                      {h.photos}
+                      <InfoTip text={hints.handoverPhoto} />
+                    </h3>
+                    <ul className="flex flex-col gap-1 text-sm">
+                      {detail.handover.photos.map((p) => (
+                        <li key={p.angle} className="flex flex-wrap items-center gap-2">
+                          {all.handover.angles[p.angle]} · {all.handover.quality[p.media.quality]}{' '}
+                          <PhotoLink media={p.media} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold">{h.reviews}</h3>
+                    <ul className="flex flex-col gap-1 text-sm">
+                      {detail.reviews.map((r) => (
+                        <li key={r.id} className="flex flex-wrap items-center gap-2">
+                          <span className="tabular-nums">{formatDateTime(r.reviewedAt)}</span>{' '}
+                          <strong>{r.reviewerName}</strong>{' '}
+                          <span aria-hidden="true">{r.decision === 'ACCEPTED' ? '✅' : '⚠️'}</span>
+                          {r.category ? ` · ${r.category}` : ''}
+                          {r.comment ? ` · ${r.comment}` : ''}{' '}
+                          {r.media && <PhotoLink media={r.media} />}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold">{h.resolutions}</h3>
+                    <ul className="flex flex-col gap-1 text-sm">
+                      {detail.resolutions.map((r) => (
+                        <li key={r.id}>
+                          <span className="tabular-nums">{formatDateTime(r.at)}</span>{' '}
+                          {all.handover.resolutions[r.decision]}
+                          <Muted> · {r.comment}</Muted>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null
+        }
+      />
+    </div>
   );
 }
 
-/** Підписане посилання запитується по кліку і живе кілька хвилин (FR-PHO-06). */
+/** The signed link is requested on click and lives a few minutes (FR-PHO-06). */
 function PhotoLink({ media }: { readonly media: MediaObjectView }) {
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   if (url) {
     return (
-      <a href={url} target="_blank" rel="noreferrer">
-        {h.openPhoto}
-      </a>
+      <Button asChild variant="link" size="sm">
+        <a href={url} target="_blank" rel="noreferrer">
+          {h.openPhoto}
+          <ExternalLinkIcon aria-hidden="true" />
+        </a>
+      </Button>
     );
   }
   return (
-    <button
+    <Button
       type="button"
-      className="link"
+      variant="link"
+      size="sm"
       onClick={() => {
         handoversApi
           .mediaLink(media.id)
@@ -347,6 +355,6 @@ function PhotoLink({ media }: { readonly media: MediaObjectView }) {
       }}
     >
       {failed ?? h.openPhoto}
-    </button>
+    </Button>
   );
 }

@@ -1,17 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import type { AuditEntryView, DomainEventView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DataTable, type Column } from '@/components/app/data-table';
+import { Feedback } from '@/components/app/feedback';
+import { FormField } from '@/components/app/fields';
+import { InfoTip } from '@/components/app/info-tip';
+import { Muted, Toolbar } from '@/components/app/page';
+import { formatDateTimeSeconds } from '@/lib/format';
 import { reportsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 
-const a = messages(currentLocale()).admin.audit;
+const all = messages(currentLocale());
+const a = all.admin.audit;
 
-function localTime(iso: string): string {
-  return new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'medium' });
+function Json({ value }: { readonly value: unknown }) {
+  return (
+    <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">
+      {JSON.stringify(value, null, 2)}
+    </pre>
+  );
 }
 
-/** «Аудит» (ТЗ 9.1, 13): незмінна історія ручних дій і журнал подій із фільтрами. */
+/** "Audit" (spec 9.1, 13): immutable history of manual actions and the event log with filters. */
 export function AuditPage() {
   const [tab, setTab] = useState<'audit' | 'events'>('audit');
   const [action, setAction] = useState('');
@@ -22,7 +36,7 @@ export function AuditPage() {
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
 
-  function load(ev?: React.FormEvent) {
+  function load(ev?: FormEvent) {
     ev?.preventDefault();
     setError(null);
     const p =
@@ -38,7 +52,7 @@ export function AuditPage() {
     p.catch((e: unknown) => setError(describeError(e)));
   }
 
-  // Перезавантаження при зміні вкладки; фільтри застосовуються кнопкою «Показать».
+  // Reload on tab change; filters apply with the button.
   useEffect(() => {
     setError(null);
     const p =
@@ -48,159 +62,166 @@ export function AuditPage() {
     p.catch((e: unknown) => setError(describeError(e)));
   }, [tab]);
 
+  const auditColumns: Column<AuditEntryView>[] = [
+    {
+      key: 'at',
+      header: a.at,
+      cell: (e) => <span className="tabular-nums">{formatDateTimeSeconds(e.at)}</span>,
+    },
+    {
+      key: 'actor',
+      header: a.actor,
+      cell: (e) => (
+        <span>
+          {e.actorType} <Muted>{e.actorId ?? ''}</Muted>
+        </span>
+      ),
+    },
+    {
+      key: 'action',
+      header: a.action,
+      cell: (e) => <code className="rounded bg-muted px-1 text-xs">{e.action}</code>,
+    },
+    {
+      key: 'object',
+      header: a.object,
+      cell: (e) => (
+        <span>
+          {e.objectType} <Muted>{e.objectId ?? ''}</Muted>
+        </span>
+      ),
+    },
+    {
+      key: 'reason',
+      header: a.reason,
+      cell: (e) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <span>{e.reason ?? '—'}</span>
+          {(e.before || e.after) && (
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              onClick={() => setOpen(open === e.id ? null : e.id)}
+            >
+              {a.before}/{a.after}
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const eventColumns: Column<DomainEventView>[] = [
+    {
+      key: 'at',
+      header: a.at,
+      cell: (e) => <span className="tabular-nums">{formatDateTimeSeconds(e.occurredAt)}</span>,
+    },
+    {
+      key: 'type',
+      header: a.type,
+      cell: (e) => (
+        <span>
+          <code className="rounded bg-muted px-1 text-xs">{e.type}</code>
+          {e.correctsEventId && (
+            <Muted>{` · ${a.corrects} ${e.correctsEventId.slice(0, 8)}`}</Muted>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: 'source',
+      header: a.source,
+      cell: (e) => (
+        <span>
+          {e.source} <Muted>{e.actingRole ?? ''}</Muted>
+        </span>
+      ),
+    },
+    { key: 'employee', header: a.employee, cell: (e) => e.employeeName ?? '—' },
+    {
+      key: 'reason',
+      header: a.reason,
+      cell: (e) => [e.reasonCode, e.comment].filter(Boolean).join(' · ') || '—',
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">{all.ui.common.actions}</span>,
+      align: 'right',
+      cell: (e) => (
+        <Button
+          type="button"
+          variant="link"
+          size="sm"
+          onClick={() => setOpen(open === e.id ? null : e.id)}
+        >
+          {a.payload}
+        </Button>
+      ),
+    },
+  ];
+
   return (
-    <section>
-      <div className="tabs" role="tablist">
-        {(['audit', 'events'] as const).map((key) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={tab === key}
-            className={tab === key ? 'active' : undefined}
-            onClick={() => setTab(key)}
-          >
-            {a.tabs[key]}
-          </button>
-        ))}
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-1">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as 'audit' | 'events')}>
+          <TabsList>
+            <TabsTrigger value="audit">{a.tabs.audit}</TabsTrigger>
+            <TabsTrigger value="events">{a.tabs.events}</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <InfoTip text={all.ui.hints.auditTabs} />
       </div>
-      <form className="toolbar" onSubmit={load}>
-        {tab === 'audit' ? (
-          <>
-            <label>
-              <span>{a.filterAction}</span>
-              <input value={action} onChange={(e) => setAction(e.target.value)} />
-            </label>
-            <label>
-              <span>{a.filterObject}</span>
-              <input value={objectType} onChange={(e) => setObjectType(e.target.value)} />
-            </label>
-          </>
-        ) : (
-          <label>
-            <span>{a.filterType}</span>
-            <input value={type} onChange={(e) => setType(e.target.value)} />
-          </label>
-        )}
-        <button type="submit" className="btn">
-          {a.apply}
-        </button>
-      </form>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      {tab === 'audit' ? (
-        audit.length === 0 ? (
-          <p className="muted">{a.empty}</p>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>{a.at}</th>
-                <th>{a.actor}</th>
-                <th>{a.action}</th>
-                <th>{a.object}</th>
-                <th>{a.reason}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {audit.map((e) => (
-                <React.Fragment key={e.id}>
-                  <tr>
-                    <td>{localTime(e.at)}</td>
-                    <td>
-                      {e.actorType} <small className="muted">{e.actorId ?? ''}</small>
-                    </td>
-                    <td>
-                      <code>{e.action}</code>
-                    </td>
-                    <td>
-                      {e.objectType} <small className="muted">{e.objectId ?? ''}</small>
-                    </td>
-                    <td>
-                      {e.reason ?? '—'}{' '}
-                      {(e.before || e.after) && (
-                        <button
-                          type="button"
-                          className="link"
-                          onClick={() => setOpen(open === e.id ? null : e.id)}
-                        >
-                          {a.before}/{a.after}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                  {open === e.id && (
-                    <tr>
-                      <td colSpan={5}>
-                        <pre className="json">
-                          {JSON.stringify({ before: e.before, after: e.after }, null, 2)}
-                        </pre>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-        )
-      ) : events.length === 0 ? (
-        <p className="muted">{a.empty}</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{a.at}</th>
-              <th>{a.type}</th>
-              <th>{a.source}</th>
-              <th>{a.employee}</th>
-              <th>{a.reason}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {events.map((e) => (
-              <React.Fragment key={e.id}>
-                <tr>
-                  <td>{localTime(e.occurredAt)}</td>
-                  <td>
-                    <code>{e.type}</code>
-                    {e.correctsEventId && (
-                      <small className="muted">
-                        {' '}
-                        · {a.corrects} {e.correctsEventId.slice(0, 8)}
-                      </small>
-                    )}
-                  </td>
-                  <td>
-                    {e.source} <small className="muted">{e.actingRole ?? ''}</small>
-                  </td>
-                  <td>{e.employeeName ?? '—'}</td>
-                  <td>{[e.reasonCode, e.comment].filter(Boolean).join(' · ') || '—'}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="link"
-                      onClick={() => setOpen(open === e.id ? null : e.id)}
-                    >
-                      {a.payload}
-                    </button>
-                  </td>
-                </tr>
-                {open === e.id && (
-                  <tr>
-                    <td colSpan={6}>
-                      <pre className="json">{JSON.stringify(e.payload, null, 2)}</pre>
-                    </td>
-                  </tr>
+      <form onSubmit={load}>
+        <Toolbar>
+          {tab === 'audit' ? (
+            <>
+              <FormField label={a.filterAction} className="w-56">
+                {(id) => (
+                  <Input id={id} value={action} onChange={(e) => setAction(e.target.value)} />
                 )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
+              </FormField>
+              <FormField label={a.filterObject} className="w-56">
+                {(id) => (
+                  <Input
+                    id={id}
+                    value={objectType}
+                    onChange={(e) => setObjectType(e.target.value)}
+                  />
+                )}
+              </FormField>
+            </>
+          ) : (
+            <FormField label={a.filterType} className="w-56">
+              {(id) => <Input id={id} value={type} onChange={(e) => setType(e.target.value)} />}
+            </FormField>
+          )}
+          <Button type="submit" variant="secondary">
+            {a.apply}
+          </Button>
+        </Toolbar>
+      </form>
+      <Feedback error={error} notice={null} />
+      {tab === 'audit' ? (
+        <DataTable
+          columns={auditColumns}
+          rows={audit}
+          rowKey={(e) => e.id}
+          empty={a.empty}
+          expanded={(e) =>
+            open === e.id ? <Json value={{ before: e.before, after: e.after }} /> : null
+          }
+        />
+      ) : (
+        <DataTable
+          columns={eventColumns}
+          rows={events}
+          rowKey={(e) => e.id}
+          empty={a.empty}
+          expanded={(e) => (open === e.id ? <Json value={e.payload} /> : null)}
+        />
       )}
-    </section>
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { BonusPage } from './BonusPage.tsx';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
@@ -144,7 +144,7 @@ describe('BonusPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('показує S місяця, розшифровку з підставою і відправляє коригування', async () => {
+  it('shows the month S, the breakdown with its basis and submits an adjustment', async () => {
     const state = { status: 'OPEN' };
     const calls = mockApi(state);
     render(<BonusPage />);
@@ -168,13 +168,17 @@ describe('BonusPage', () => {
     });
   });
 
-  it('закриття періоду з підтвердженням і коментарем; після закриття є експорт і поле бази', async () => {
+  it('closing the period with confirmation and a comment; afterwards export and the base field exist', async () => {
     const state = { status: 'OPEN' };
     const calls = mockApi(state);
-    vi.stubGlobal('confirm', () => true);
-    vi.stubGlobal('prompt', () => 'Октябрь закрыт');
     render(<BonusPage />);
     fireEvent.click(await screen.findByRole('button', { name: 'Закрыть период' }));
+    // Closing asks for confirmation and a mandatory comment in a dialog.
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.change(within(dialog).getByLabelText('Комментарий (обязательно)'), {
+      target: { value: 'Октябрь закрыт' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Закрыть период' }));
     await screen.findByText('Период закрыт.');
     expect(calls.find((c) => c.path.endsWith('/close'))?.body).toEqual({
       comment: 'Октябрь закрыт',

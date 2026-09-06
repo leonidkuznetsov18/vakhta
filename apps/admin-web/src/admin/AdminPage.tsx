@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { OrgSnapshot } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Spinner } from '@/components/ui/spinner';
+import { Feedback } from '@/components/app/feedback';
 import { orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { DirectoriesTab } from './DirectoriesTab.tsx';
@@ -13,7 +16,7 @@ const t = messages(currentLocale()).admin.administration;
 type Tab = keyof typeof t.tabs;
 const TABS = Object.keys(t.tabs) as Tab[];
 
-/** Розділ «Администрирование»: вкладки за ТЗ 9.1, спільний знімок довідників. */
+/** "Administration" section: tabs per spec 9.1 over one shared snapshot of the directories. */
 export function AdminPage() {
   const [tab, setTab] = useState<Tab>('employees');
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
@@ -28,30 +31,32 @@ export function AdminPage() {
   }, [reload]);
 
   return (
-    <section>
-      <div className="tabs" role="tablist">
+    <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
+      <TabsList>
         {TABS.map((key) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={key === tab}
-            className={key === tab ? 'active' : undefined}
-            onClick={() => setTab(key)}
-          >
+          <TabsTrigger key={key} value={key}>
             {t.tabs[key]}
-          </button>
+          </TabsTrigger>
         ))}
-      </div>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      {org && tab === 'employees' && <EmployeesTab org={org} />}
-      {org && tab === 'users' && <UsersTab org={org} />}
-      {org && tab === 'directories' && <DirectoriesTab org={org} onChanged={reload} />}
-      {org && tab === 'terminals' && <TerminalsTab org={org} onChanged={reload} />}
-    </section>
+      </TabsList>
+      <Feedback error={error} notice={null} />
+      {!org && !error ? <Spinner /> : null}
+      {org ? (
+        <>
+          <TabsContent value="employees">
+            <EmployeesTab org={org} />
+          </TabsContent>
+          <TabsContent value="users">
+            <UsersTab org={org} />
+          </TabsContent>
+          <TabsContent value="directories">
+            <DirectoriesTab org={org} onChanged={reload} />
+          </TabsContent>
+          <TabsContent value="terminals">
+            <TerminalsTab org={org} onChanged={reload} />
+          </TabsContent>
+        </>
+      ) : null}
+    </Tabs>
   );
 }

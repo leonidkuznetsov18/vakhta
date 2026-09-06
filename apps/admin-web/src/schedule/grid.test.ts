@@ -37,7 +37,7 @@ function assignment(over: Partial<ScheduleVersionDetail['assignments'][number]>)
 }
 
 describe('grid', () => {
-  it('будує рядки з призначень і повертає їх назад у команду PUT без втрат', () => {
+  it('builds rows from assignments and returns them into the PUT command without loss', () => {
     const detail = {
       version: {} as ScheduleVersionDetail['version'],
       assignments: [
@@ -69,7 +69,7 @@ describe('grid', () => {
     ]);
   });
 
-  it('редагує комірки і зони імутабельно, порожня комірка прибирає призначення', () => {
+  it('edits cells and zones immutably; an empty cell removes the assignment', () => {
     const g0 = addRow({ rows: [] }, EMP);
     const g1 = setCell(g0, EMP, '2026-09-01', TPL_DAY);
     const g2 = setZone(g1, EMP, ZONE);

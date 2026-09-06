@@ -1,4 +1,6 @@
 import { LOCALES, isLocale, messages, resolveLocale, type Locale } from '@vakhta/i18n';
+import { Button } from '@/components/ui/button';
+import { cn } from 'cn';
 
 const STORAGE_KEY = 'vakhta.locale';
 
@@ -25,23 +27,25 @@ export function switchLocale(locale: Locale): void {
   location.reload();
 }
 
-/** Three buttons, the active one highlighted; usable on the login screen and in the navigation. */
-export function LanguageSwitcher() {
+/** Three small buttons, the active one filled; usable on the login screen and in the sidebar. */
+export function LanguageSwitcher({ className }: { readonly className?: string }) {
   const active = currentLocale();
   const t = messages(active);
   return (
-    <div className="lang-switch" role="group" aria-label={t.admin.language}>
+    <div className={cn('flex gap-1', className)} role="group" aria-label={t.admin.language}>
       {LOCALES.map((locale) => (
-        <button
+        <Button
           key={locale}
           type="button"
-          className={locale === active ? 'lang-item active' : 'lang-item'}
+          size="sm"
+          variant={locale === active ? 'default' : 'outline'}
           aria-pressed={locale === active}
           lang={locale}
+          className="flex-1"
           onClick={() => switchLocale(locale)}
         >
           {t.language.names[locale]}
-        </button>
+        </Button>
       ))}
     </div>
   );

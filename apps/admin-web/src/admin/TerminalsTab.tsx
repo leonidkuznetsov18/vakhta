@@ -1,12 +1,22 @@
-import React, { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import type { OrgSnapshot, TerminalRegistered } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { CopyButton } from '@/components/app/copy-button';
+import { DataTable, type Column } from '@/components/app/data-table';
+import { Feedback, useAction } from '@/components/app/feedback';
+import { FormField, SelectField } from '@/components/app/fields';
+import { Section, StatusPill } from '@/components/app/page';
+import { formatDateTime } from '@/lib/format';
 import { adminOrgApi } from '../api.ts';
-import { CopyButton, Feedback, Field, useAction } from './ui.tsx';
 import { currentLocale } from '../i18n.tsx';
 
-const t = messages(currentLocale()).admin.administration;
+const all = messages(currentLocale());
+const t = all.admin.administration;
 const tr = t.terminals;
+const hints = all.ui.hints;
 const CHECKPOINTS = ['BOTH', 'ENTRY', 'EXIT'] as const;
 
 interface Props {
@@ -14,7 +24,7 @@ interface Props {
   readonly onChanged: () => Promise<void>;
 }
 
-/** QR-термінали: реєстрація видає токен пристрою один раз (ТЗ 4.2, ADR-0006). */
+/** QR terminals: registration issues the device token once (spec 4.2, ADR-0006). */
 export function TerminalsTab({ org, onChanged }: Props) {
   const { busy, error, notice, run } = useAction();
   const [siteId, setSiteId] = useState(org.sites[0]?.id ?? '');
@@ -24,7 +34,7 @@ export function TerminalsTab({ org, onChanged }: Props) {
 
   const siteName = (id: string) => org.sites.find((s) => s.id === id)?.name ?? id;
 
-  function register(ev: React.FormEvent) {
+  function register(ev: FormEvent) {
     ev.preventDefault();
     void run(async () => {
       const created = await adminOrgApi.registerTerminal({ siteId, name, checkpoint });
@@ -34,77 +44,79 @@ export function TerminalsTab({ org, onChanged }: Props) {
     }, tr.registered);
   }
 
+  const columns: Column<OrgSnapshot['terminals'][number]>[] = [
+    { key: 'name', header: t.common.name, cell: (term) => term.name },
+    { key: 'site', header: t.common.site, cell: (term) => siteName(term.siteId) },
+    { key: 'checkpoint', header: tr.checkpoint, cell: (term) => tr.checkpoints[term.checkpoint] },
+    {
+      key: 'status',
+      header: tr.status,
+      cell: (term) => (
+        <StatusPill tone={term.status === 'ACTIVE' ? 'success' : 'neutral'}>
+          {tr.statuses[term.status]}
+        </StatusPill>
+      ),
+    },
+    {
+      key: 'seen',
+      header: tr.lastSeen,
+      cell: (term) => (term.lastSeenAt ? formatDateTime(term.lastSeenAt) : tr.never),
+    },
+  ];
+
   return (
-    <div>
-      <form className="inline-form" onSubmit={register}>
-        <Field label={t.common.site}>
-          <select value={siteId} onChange={(ev) => setSiteId(ev.target.value)} required>
-            {org.sites.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={t.common.name}>
-          <input value={name} onChange={(ev) => setName(ev.target.value)} required />
-        </Field>
-        <Field label={tr.checkpoint}>
-          <select
+    <div className="flex flex-col gap-4">
+      <Section title={tr.register} hint={hints.terminalsToken}>
+        <form className="flex flex-wrap items-end gap-3" onSubmit={register}>
+          <SelectField
+            label={t.common.site}
+            value={siteId}
+            onChange={setSiteId}
+            required
+            options={org.sites.map((s) => ({ value: s.id, label: s.name }))}
+            className="w-56"
+          />
+          <FormField label={t.common.name} className="min-w-56 flex-1">
+            {(id) => (
+              <Input id={id} value={name} onChange={(ev) => setName(ev.target.value)} required />
+            )}
+          </FormField>
+          <SelectField
+            label={tr.checkpoint}
             value={checkpoint}
-            onChange={(ev) => setCheckpoint(ev.target.value as (typeof CHECKPOINTS)[number])}
-          >
-            {CHECKPOINTS.map((c) => (
-              <option key={c} value={c}>
-                {tr.checkpoints[c]}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <button type="submit" className="btn primary" disabled={busy || !siteId}>
-          {tr.register}
-        </button>
-      </form>
-      <Feedback error={error} notice={notice} />
-      {registered && (
-        <div className="notice code-issued">
-          <div>
-            <strong>{registered.name}</strong> · {siteName(registered.siteId)}
-          </div>
-          <div>
-            <code>{registered.deviceToken}</code> <CopyButton value={registered.deviceToken} />
-          </div>
-          <small className="muted">{tr.tokenHint}</small>
-        </div>
-      )}
-      {org.terminals.length === 0 ? (
-        <p className="muted">{t.common.empty}</p>
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{t.common.name}</th>
-              <th>{t.common.site}</th>
-              <th>{tr.checkpoint}</th>
-              <th>{tr.status}</th>
-              <th>{tr.lastSeen}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {org.terminals.map((term) => (
-              <tr key={term.id}>
-                <td>{term.name}</td>
-                <td>{siteName(term.siteId)}</td>
-                <td>{tr.checkpoints[term.checkpoint]}</td>
-                <td>{tr.statuses[term.status]}</td>
-                <td>
-                  {term.lastSeenAt ? new Date(term.lastSeenAt).toLocaleString('ru-RU') : tr.never}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            onChange={(v) => setCheckpoint(v as (typeof CHECKPOINTS)[number])}
+            options={CHECKPOINTS.map((c) => ({ value: c, label: tr.checkpoints[c] }))}
+            hint={hints.terminalsCheckpoint}
+            className="w-48"
+          />
+          <Button type="submit" disabled={busy || !siteId}>
+            {tr.register}
+          </Button>
+        </form>
+        <Feedback error={error} notice={notice} />
+        {registered && (
+          <Alert>
+            <AlertTitle>
+              {registered.name} · {siteName(registered.siteId)}
+            </AlertTitle>
+            <AlertDescription>
+              <div className="flex flex-wrap items-center gap-2">
+                <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
+                  {registered.deviceToken}
+                </code>
+                <CopyButton value={registered.deviceToken} />
+              </div>
+              <p className="text-xs">{tr.tokenHint}</p>
+            </AlertDescription>
+          </Alert>
+        )}
+      </Section>
+      <DataTable
+        columns={columns}
+        rows={org.terminals}
+        rowKey={(term) => term.id}
+        empty={t.common.empty}
+      />
     </div>
   );
 }
