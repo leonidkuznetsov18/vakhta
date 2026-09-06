@@ -948,6 +948,18 @@ export interface Messages {
         readonly codeSheetTitle: string;
         readonly codeSheetHint: string;
         readonly statuses: Readonly<Record<'ACTIVE' | 'BLOCKED' | 'TERMINATED', string>>;
+        readonly email: string;
+        readonly phone: string;
+        readonly telegramUsername: string;
+        readonly personnelNumberPlaceholder: string;
+        readonly fullNamePlaceholder: string;
+        readonly emailPlaceholder: string;
+        readonly phonePlaceholder: string;
+        readonly telegramPlaceholder: string;
+        readonly invalidPhone: string;
+        readonly invalidTelegram: string;
+        readonly contacts: string;
+        readonly noContacts: string;
       };
       readonly users: {
         readonly email: string;
@@ -1225,6 +1237,11 @@ export interface Messages {
       readonly checklistsDelete: string;
       readonly scheduleDelete: string;
       readonly employeesPositionColumn: string;
+      readonly employeesPersonnelNumber: string;
+      readonly employeesFullName: string;
+      readonly employeesEmail: string;
+      readonly employeesPhone: string;
+      readonly employeesTelegram: string;
       readonly employeesChecklistColumn: string;
       readonly employeesChecklists: string;
       readonly employeesImport: string;

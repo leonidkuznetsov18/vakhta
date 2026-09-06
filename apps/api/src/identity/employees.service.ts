@@ -58,6 +58,9 @@ export class EmployeesService {
             personnelNumber: cmd.personnelNumber,
             fullName: cmd.fullName,
             status: cmd.status,
+            email: cmd.email ?? null,
+            phone: cmd.phone ?? null,
+            telegramUsername: cmd.telegramUsername ?? null,
           })
           .returning();
         if (!row) throw new Error('employees: insert не повернув рядок');
@@ -381,6 +384,9 @@ export class EmployeesService {
       fullName: row.fullName,
       status: row.status,
       telegramLinked,
+      email: row.email,
+      phone: row.phone,
+      telegramUsername: row.telegramUsername,
       currentPosition,
       createdAt: row.createdAt.toISOString(),
     };

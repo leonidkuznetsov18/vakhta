@@ -1205,6 +1205,18 @@ export const en: Messages = {
         codeSheetHint:
           'Scan the QR with the phone camera or type the code in the bot @{bot}. The code is valid until {expires}.',
         statuses: { ACTIVE: 'Active', BLOCKED: 'Blocked', TERMINATED: 'Terminated' },
+        email: 'E-mail',
+        phone: 'Phone',
+        telegramUsername: 'Telegram',
+        personnelNumberPlaceholder: 'For example, 0042',
+        fullNamePlaceholder: 'Surname Name Patronymic',
+        emailPlaceholder: 'name@example.com',
+        phonePlaceholder: '+380 67 123 45 67',
+        telegramPlaceholder: '@username',
+        invalidPhone: 'Enter the number in international format, for example +380671234567.',
+        invalidTelegram: 'Telegram username: 5–32 Latin letters, digits or _, with or without @.',
+        contacts: 'Contacts',
+        noContacts: 'No contacts given.',
       },
       users: {
         email: 'Email',
@@ -1906,6 +1918,15 @@ export const en: Messages = {
       scheduleDelete:
         'Only a draft can be deleted. Published and superseded versions are kept for history.',
       employeesPositionColumn: 'Current position and unit from the personnel assignment.',
+      employeesPersonnelNumber:
+        'The personnel number from the HR system: unique, shown to the employee in the bot and in reports. It cannot be changed later.',
+      employeesFullName:
+        'Surname, name and patronymic as in the documents: this is how the master and the reports see the employee.',
+      employeesEmail: 'Optional. Work or personal e-mail for HR contact; not passed to the bot.',
+      employeesPhone:
+        'Optional. Phone number in international format; the panel strips spaces and adds +38 to a Ukrainian number.',
+      employeesTelegram:
+        'Optional. Telegram username (@username) to find the employee before linking. The account is still linked with an activation code.',
       employeesChecklistColumn:
         'The handover checklist bound to the employee position. Without one the bot asks for no checklist and no photos at the end of the shift.',
       employeesChecklists:

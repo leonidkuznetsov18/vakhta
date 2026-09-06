@@ -63,6 +63,9 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const [list, setList] = useState<EmployeeView[]>([]);
   const [personnelNumber, setPersonnelNumber] = usePersistentState('employees.personnelNumber', '');
   const [fullName, setFullName] = usePersistentState('employees.fullName', '');
+  const [email, setEmail] = usePersistentState('employees.email', '');
+  const [phone, setPhone] = usePersistentState('employees.phone', '');
+  const [telegramUsername, setTelegramUsername] = usePersistentState('employees.telegram', '');
   const [issued, setIssued] = useState<ActivationCodeIssued | null>(null);
   const [creating, setCreating] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -103,14 +106,24 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       personnelNumber,
       fullName,
       status: 'ACTIVE',
+      email,
+      phone,
+      telegramUsername,
     });
-    setFieldErrors(checked.errors);
+    // The contract reports a format failure as a generic message; name the format here.
+    const errors: FieldErrors = { ...checked.errors };
+    if (errors.phone) errors.phone = e.invalidPhone;
+    if (errors.telegramUsername) errors.telegramUsername = e.invalidTelegram;
+    setFieldErrors(errors);
     if (!checked.ok) return;
     void run(async () => {
       const created = await adminEmployeesApi.create(checked.data);
       setList((l) => [created, ...l]);
       setPersonnelNumber('');
       setFullName('');
+      setEmail('');
+      setPhone('');
+      setTelegramUsername('');
       setCreating(false);
     }, t.common.added);
   }
@@ -308,21 +321,85 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
               onOpenChange={setCreating}
             >
               <form className="flex flex-col gap-4" onSubmit={create} noValidate>
-                <FormField label={e.personnelNumber} error={fieldErrors.personnelNumber}>
+                <FormField
+                  label={e.personnelNumber}
+                  hint={hints.employeesPersonnelNumber}
+                  error={fieldErrors.personnelNumber}
+                >
                   {(id) => (
                     <Input
                       id={id}
                       value={personnelNumber}
+                      placeholder={e.personnelNumberPlaceholder}
+                      autoComplete="off"
                       onChange={(ev) => setPersonnelNumber(ev.target.value)}
                     />
                   )}
                 </FormField>
-                <FormField label={e.fullName} error={fieldErrors.fullName}>
+                <FormField
+                  label={e.fullName}
+                  hint={hints.employeesFullName}
+                  error={fieldErrors.fullName}
+                >
                   {(id) => (
                     <Input
                       id={id}
                       value={fullName}
+                      placeholder={e.fullNamePlaceholder}
+                      autoComplete="off"
                       onChange={(ev) => setFullName(ev.target.value)}
+                    />
+                  )}
+                </FormField>
+                <FormField
+                  label={e.email}
+                  hint={hints.employeesEmail}
+                  error={fieldErrors.email}
+                  optional
+                >
+                  {(id) => (
+                    <Input
+                      id={id}
+                      type="email"
+                      inputMode="email"
+                      value={email}
+                      placeholder={e.emailPlaceholder}
+                      autoComplete="off"
+                      onChange={(ev) => setEmail(ev.target.value)}
+                    />
+                  )}
+                </FormField>
+                <FormField
+                  label={e.phone}
+                  hint={hints.employeesPhone}
+                  error={fieldErrors.phone}
+                  optional
+                >
+                  {(id) => (
+                    <Input
+                      id={id}
+                      type="tel"
+                      inputMode="tel"
+                      value={phone}
+                      placeholder={e.phonePlaceholder}
+                      autoComplete="off"
+                      onChange={(ev) => setPhone(ev.target.value)}
+                    />
+                  )}
+                </FormField>
+                <FormField
+                  label={e.telegramUsername}
+                  hint={hints.employeesTelegram}
+                  error={fieldErrors.telegramUsername}
+                  optional
+                >
+                  {(id) => (
+                    <Input
+                      id={id}
+                      value={telegramUsername}
+                      placeholder={e.telegramPlaceholder}
+                      autoComplete="off"
+                      onChange={(ev) => setTelegramUsername(ev.target.value)}
                     />
                   )}
                 </FormField>
@@ -389,7 +466,9 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         columns={columns}
         rows={visibleList}
         rowKey={(emp) => emp.id}
-        searchText={(emp) => `${emp.fullName} ${emp.personnelNumber}`}
+        searchText={(emp) =>
+          `${emp.fullName} ${emp.personnelNumber} ${emp.email ?? ''} ${emp.phone ?? ''} ${emp.telegramUsername ?? ''}`
+        }
         searchPlaceholder={e.search}
         activeKey={openId}
         empty={t.common.empty}
@@ -427,6 +506,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           title={openEmployee.fullName}
           description={`${openEmployee.personnelNumber} · ${e.statuses[openEmployee.status]}`}
         >
+          <ContactsRow employee={openEmployee} />
           <PositionPanel
             employee={openEmployee}
             org={org}
@@ -664,6 +744,56 @@ function PositionPanel({
  * The checklist of the employee's position (ADR-0012): one per position. It can be replaced by
  * another existing checklist or removed; nothing is copied.
  */
+/** Optional contacts of the card as links: mail, call, open the Telegram profile. */
+function ContactsRow({ employee }: { readonly employee: EmployeeView }) {
+  const items: { key: string; label: string; href: string; text: string }[] = [];
+  if (employee.email)
+    items.push({
+      key: 'email',
+      label: e.email,
+      href: `mailto:${employee.email}`,
+      text: employee.email,
+    });
+  if (employee.phone)
+    items.push({
+      key: 'phone',
+      label: e.phone,
+      href: `tel:${employee.phone}`,
+      text: employee.phone,
+    });
+  if (employee.telegramUsername)
+    items.push({
+      key: 'telegram',
+      label: e.telegramUsername,
+      href: `https://t.me/${employee.telegramUsername}`,
+      text: `@${employee.telegramUsername}`,
+    });
+  return (
+    <div className="flex flex-col gap-1 text-sm">
+      <span className="font-medium">{e.contacts}</span>
+      {items.length === 0 ? (
+        <Muted>{e.noContacts}</Muted>
+      ) : (
+        <ul className="flex flex-wrap gap-x-4 gap-y-1">
+          {items.map((item) => (
+            <li key={item.key} className="flex items-center gap-1">
+              <Muted>{item.label}:</Muted>
+              <a
+                href={item.href}
+                target={item.key === 'telegram' ? '_blank' : undefined}
+                rel="noreferrer"
+                className="underline-offset-4 hover:underline"
+              >
+                {item.text}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function ChecklistPanel({
   positionId,
   positionName,

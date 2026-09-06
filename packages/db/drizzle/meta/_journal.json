@@ -134,6 +134,13 @@
       "when": 1788710279958,
       "tag": "0018_terminal_soft_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788717583707,
+      "tag": "0019_employee_contacts",
+      "breakpoints": true
     }
   ]
 }

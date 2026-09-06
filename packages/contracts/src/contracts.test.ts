@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ArriveCommand, TransitionCommand, TransitionResponse } from './index.js';
+import {
+  ArriveCommand,
+  CreateEmployeeCommand,
+  TransitionCommand,
+  TransitionResponse,
+} from './index.js';
 
 const session = {
   id: '3f8c1a5e-6b7d-4c2e-9a1b-0d2e3f4a5b6c',
@@ -20,6 +25,45 @@ const session = {
   needsClarification: false,
   clarificationReason: null,
 };
+
+describe('employee contacts', () => {
+  it('normalizes the phone and the Telegram username, treats blanks as absent', () => {
+    const ok = CreateEmployeeCommand.parse({
+      personnelNumber: '0042',
+      fullName: 'Іваненко Іван',
+      email: ' Ivan@Example.com ',
+      phone: '067 123-45-67',
+      telegramUsername: '@Ivan_Ivanenko',
+    });
+    expect(ok).toMatchObject({
+      email: 'ivan@example.com',
+      phone: '+380671234567',
+      telegramUsername: 'Ivan_Ivanenko',
+      status: 'ACTIVE',
+    });
+    const blank = CreateEmployeeCommand.parse({
+      personnelNumber: '0043',
+      fullName: 'Петренко Петро',
+      email: '',
+      phone: '  ',
+      telegramUsername: '',
+    });
+    expect(blank.email).toBeUndefined();
+    expect(blank.phone).toBeUndefined();
+    expect(blank.telegramUsername).toBeUndefined();
+    expect(
+      CreateEmployeeCommand.safeParse({ personnelNumber: '1', fullName: 'Abc Def', phone: '12345' })
+        .success,
+    ).toBe(false);
+    expect(
+      CreateEmployeeCommand.safeParse({
+        personnelNumber: '1',
+        fullName: 'Abc Def',
+        telegramUsername: 'ab',
+      }).success,
+    ).toBe(false);
+  });
+});
 
 describe('контракти', () => {
   it('команда переходу приймає лише відомі дії й коди причин', () => {

@@ -1203,6 +1203,18 @@ export const ru: Messages = {
         codeSheetHint:
           'Отсканируйте QR камерой телефона или введите код в боте @{bot}. Код действует до {expires}.',
         statuses: { ACTIVE: 'Активен', BLOCKED: 'Заблокирован', TERMINATED: 'Уволен' },
+        email: 'Электронная почта',
+        phone: 'Телефон',
+        telegramUsername: 'Telegram',
+        personnelNumberPlaceholder: 'Например, 0042',
+        fullNamePlaceholder: 'Фамилия Имя Отчество',
+        emailPlaceholder: 'name@example.com',
+        phonePlaceholder: '+380 67 123 45 67',
+        telegramPlaceholder: '@username',
+        invalidPhone: 'Введите номер в международном формате, например +380671234567.',
+        invalidTelegram: 'Имя пользователя Telegram: 5–32 латинских буквы, цифры или _, можно с @.',
+        contacts: 'Контакты',
+        noContacts: 'Контакты не указаны.',
       },
       users: {
         email: 'Электронная почта',
@@ -1907,6 +1919,15 @@ export const ru: Messages = {
       scheduleDelete:
         'Удалить можно только черновик. Опубликованные и заменённые версии хранятся для истории.',
       employeesPositionColumn: 'Текущая должность и подразделение из кадрового назначения.',
+      employeesPersonnelNumber:
+        'Табельный номер из кадровой системы: уникален, показывается сотруднику в боте и в отчётах. Изменить потом нельзя.',
+      employeesFullName:
+        'Фамилия, имя и отчество, как в документах: так сотрудника увидят мастер и отчёты.',
+      employeesEmail: 'Необязательно. Рабочая или личная почта для связи HR; в бот не передаётся.',
+      employeesPhone:
+        'Необязательно. Номер телефона в международном формате; панель сама уберёт пробелы и добавит +38 к украинскому номеру.',
+      employeesTelegram:
+        'Необязательно. Имя пользователя Telegram (@username), чтобы найти сотрудника до привязки. Привязка аккаунта всё равно делается кодом активации.',
       employeesChecklistColumn:
         'Чек-лист передачи, привязанный к должности сотрудника. Без него бот не запрашивает чек-лист и фото в конце смены.',
       employeesChecklists:

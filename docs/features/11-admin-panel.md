@@ -9,7 +9,10 @@ Administration tabs:
 
 - "Сотрудники": cards, CSV import, activation codes and QR, position assignment (unit, position,
   team; a transfer keeps the history), checklists of the position, block / unblock / terminate,
-  relink Telegram.
+  relink Telegram. The creation form takes the personnel number and the full name plus optional
+  contacts: e-mail, phone and Telegram username; every field has a placeholder, an ⓘ hint and
+  inline validation (the phone is normalized to +380…, the username is stored without "@"). The
+  card shows the contacts as mail / call / t.me links.
 - "Пользователи и роли": create panel users (a generated password is shown once), grant and
   revoke roles with a scope.
 - "Справочники": sites (time zone), units, teams, positions, zones (type, shared, active), reason

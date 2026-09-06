@@ -6,8 +6,44 @@ export const EmployeeStatusSchema = z.enum(['ACTIVE', 'BLOCKED', 'TERMINATED']);
 /** Табельний номер: як у кадровій системі, без пробілів по краях. */
 export const PersonnelNumber = z.string().trim().min(1).max(32);
 
+/** Empty strings from forms count as "not given". */
+const blankToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
+
+/**
+ * Phone in E.164 after normalization: separators are dropped, a Ukrainian local number
+ * (0XXXXXXXXX) gets +38, "00" becomes "+".
+ */
+export function normalizePhone(raw: string): string {
+  const compact = raw.replace(/[\s().-]/g, '');
+  if (/^00\d+$/.test(compact)) return `+${compact.slice(2)}`;
+  if (/^0\d{9}$/.test(compact)) return `+38${compact}`;
+  if (/^380\d{9}$/.test(compact)) return `+${compact}`;
+  return compact;
+}
+export const EmployeeEmail = z.string().trim().toLowerCase().email().max(200);
+export const EmployeePhone = z.preprocess(
+  (v) => (typeof v === 'string' ? normalizePhone(v) : v),
+  z.string().regex(/^\+[1-9]\d{9,14}$/),
+);
+/** Telegram username: 5–32 letters, digits and underscores, stored without the "@". */
+export const TelegramUsername = z.preprocess(
+  (v) =>
+    typeof v === 'string'
+      ? v
+          .trim()
+          .replace(/^@/, '')
+          .replace(/^https?:\/\/t\.me\//i, '')
+      : v,
+  z.string().regex(/^[A-Za-z][A-Za-z0-9_]{4,31}$/),
+);
+export const EmployeeContacts = z.object({
+  email: z.preprocess(blankToUndefined, EmployeeEmail.optional()),
+  phone: z.preprocess(blankToUndefined, EmployeePhone.optional()),
+  telegramUsername: z.preprocess(blankToUndefined, TelegramUsername.optional()),
+});
+
 /** HR або адміністратор створює картку до активації (ТЗ 2.2). */
-export const CreateEmployeeCommand = z.object({
+export const CreateEmployeeCommand = EmployeeContacts.extend({
   personnelNumber: PersonnelNumber,
   fullName: z.string().trim().min(3).max(200),
   status: EmployeeStatusSchema.default('ACTIVE'),
@@ -40,6 +76,9 @@ export const EmployeeView = z.object({
   fullName: z.string(),
   status: EmployeeStatusSchema,
   telegramLinked: z.boolean(),
+  email: z.string().nullable(),
+  phone: z.string().nullable(),
+  telegramUsername: z.string().nullable(),
   /** The personnel assignment in force now; null until HR assigns a position. */
   currentPosition: z
     .object({ positionId: Uuid, orgUnitId: Uuid, teamId: Uuid.nullable() })

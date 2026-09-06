@@ -24,6 +24,10 @@ export const employees = pgTable('employees', {
   status: employeeStatus('status').notNull().default('ACTIVE'),
   /** Bot and notification language; null until the employee links Telegram or picks one. */
   locale: localeEnum('locale'),
+  /** Optional contacts kept for HR: normalized e-mail, E.164 phone, Telegram username without "@". */
+  email: text('email'),
+  phone: text('phone'),
+  telegramUsername: text('telegram_username'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
