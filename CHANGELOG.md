@@ -1,3 +1,9 @@
+## [0.7.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.6.0...v0.7.0) (2026-09-06)
+
+### Features
+
+* **bot:** push a fresh home screen after shift changes made outside the bot ([53332ec](https://github.com/leonidkuznetsov18/vakhta/commit/53332ec2495afc6056f007d7ad5aaacfacf02421))
+
 ## [0.6.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.5.0...v0.6.0) (2026-09-06)
 
 ### Features
