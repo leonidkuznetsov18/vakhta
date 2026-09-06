@@ -147,6 +147,13 @@ export function App() {
     window.addEventListener('hashchange', onChange);
     return () => window.removeEventListener('hashchange', onChange);
   }, [active, state.status]);
+  // Hooks stay above the early returns (React keeps their order between renders). The tab title
+  // names the section once signed in; the login screen sets its own.
+  useEffect(() => {
+    if (state.status !== 'authenticated') return;
+    const sectionTitle = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];
+    document.title = `${sectionTitle} · ${t.admin.productName}`;
+  }, [active, state.status]);
 
   if (state.status === 'loading') {
     return (
@@ -162,10 +169,6 @@ export function App() {
   const { me } = state;
   const primaryRole = ROLE_ORDER.find((r) => me.roles.some((g) => g.role === r)) ?? null;
   const title = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];
-  useEffect(() => {
-    // The browser tab names the section, so several open tabs of the panel are told apart.
-    document.title = `${title} · ${t.admin.productName}`;
-  }, [title, t.admin.productName]);
   const version = import.meta.env['VITE_APP_VERSION'];
   const Page = active === 'profile' || active === 'overview' ? null : PAGES[active];
 
