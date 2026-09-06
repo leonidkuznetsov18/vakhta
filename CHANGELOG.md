@@ -1,3 +1,9 @@
+## [0.13.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.13.0...v0.13.1) (2026-09-06)
+
+### Bug fixes
+
+* **panel:** no JSON content type without a body; bonus month expands in the table ([9043788](https://github.com/leonidkuznetsov18/vakhta/commit/90437883d6b6018390368263ab353eae5259c5ee))
+
 ## [0.13.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.12.0...v0.13.0) (2026-09-06)
 
 ### Features
