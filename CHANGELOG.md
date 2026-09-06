@@ -1,3 +1,13 @@
+## [0.2.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.2.0...v0.2.1) (2026-09-06)
+
+### Bug fixes
+
+* **web:** redirect the pages.dev hosts to the canonical domains ([74c4733](https://github.com/leonidkuznetsov18/vakhta/commit/74c4733ec0b32baef8a15254026430584d8dd8a8))
+
+### CI/CD
+
+* exclude the generated changelog from the format check ([64a48b3](https://github.com/leonidkuznetsov18/vakhta/commit/64a48b3470ace3a73631f7dc1fa429c03e72d281))
+
 ## [0.2.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.1.0...v0.2.0) (2026-09-06)
 
 ### Features
