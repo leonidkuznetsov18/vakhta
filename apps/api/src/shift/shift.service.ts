@@ -326,20 +326,23 @@ export class ShiftService {
 
       let session: SessionRow;
       try {
-        const [row] = await tx
-          .insert(shiftSessions)
-          .values({
-            employeeId,
-            assignmentId: assignment?.id ?? null,
-            presenceId: presence?.id ?? null,
-            businessDate:
-              assignment?.businessDate ?? businessDateOf(now, this.options.defaultTimezone),
-            zoneId: assignment?.zoneId ?? null,
-            startMethod: meta.masterOverride ? 'MASTER' : 'EMPLOYEE',
-          })
-          .returning();
-        if (!row) throw new Error('shift_sessions: insert не повернув рядок');
-        session = row;
+        // Savepoint: після порушення унікальності зовнішня транзакція має лишитись робочою (AC-05).
+        session = await tx.transaction(async (sp) => {
+          const [row] = await sp
+            .insert(shiftSessions)
+            .values({
+              employeeId,
+              assignmentId: assignment?.id ?? null,
+              presenceId: presence?.id ?? null,
+              businessDate:
+                assignment?.businessDate ?? businessDateOf(now, this.options.defaultTimezone),
+              zoneId: assignment?.zoneId ?? null,
+              startMethod: meta.masterOverride ? 'MASTER' : 'EMPLOYEE',
+            })
+            .returning();
+          if (!row) throw new Error('shift_sessions: insert не повернув рядок');
+          return row;
+        });
       } catch (error) {
         if (isUniqueViolation(error)) {
           const other = await this.activeSession(employeeId, tx);

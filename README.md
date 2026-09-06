@@ -143,6 +143,13 @@ curl -b cookies.txt -X POST localhost:3000/admin/employees/<id>/activation-codes
 
 Інтеграційні тести API піднімають PostgreSQL через testcontainers. На macOS із Colima або OrbStack helper `apps/api/test/db.ts` сам бере адресу Docker-сокета з активного `docker context`.
 
+## Зміцнення і експлуатація
+
+- `GET /metrics` віддає метрики Prometheus (`http_request_duration_seconds` за маршрутом, `vakhta_outbox_pending`, `vakhta_shifts_active`, `vakhta_incidents_open`, стандартні метрики процесу); у продакшені ендпоінт закривається мережею. Пороги алертів у `docs/runbooks/observability.md`.
+- `apps/api/src/app.e2e.test.ts` піднімає весь застосунок на Fastify з Postgres і Redis у контейнерах і перевіряє межі доступу між ролями, аудит відмов до медичних документів, вивантаження звітів з аудитом, валідацію тіла і CORS.
+- `apps/api/src/load/shift-boundary.load.test.ts` моделює пік межі зміни: `VAKHTA_LOAD_EMPLOYEES` працівників одночасно відмічають прихід, двічі тиснуть «Почати зміну» і роблять перший перехід; перевіряються відсутність дублів (AC-05) і p95 на рівні сервісів. `infra/load/k6-shift-boundary.js` навантажує HTTP-поверхні (кіоск, панель) на staging.
+- Runbook-и: `docs/runbooks/deploy.md` (викладення й відкат), `recovery.md` (бекапи, відновлення, юридична блокада), `observability.md` (сигнали й алерти), `reserve-channel.md` (робота без бота). Чек-лист продакшену з Vercel і супутніми сервісами: `docs/deploy.md`.
+
 ## Команди
 
 | Команда                        | Що робить                                                         |

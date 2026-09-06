@@ -13,6 +13,7 @@ import { DatabaseModule } from './infra/database.module.js';
 import { RedisModule } from './infra/redis.module.js';
 import { QueueModule } from './infra/timers.queue.js';
 import { KioskModule } from './kiosk/kiosk.module.js';
+import { MetricsModule } from './metrics/metrics.module.js';
 import { NotificationsModule } from './notifications/notifications.service.js';
 import { OrgModule } from './org/org.module.js';
 import { ReportsModule } from './reports/reports.module.js';
@@ -35,6 +36,7 @@ import { TelegramModule } from './telegram/telegram.module.js';
     NotificationsModule,
     AuthModule,
     HealthModule,
+    MetricsModule,
     OrgModule,
     IdentityModule,
     SchedulingModule,
