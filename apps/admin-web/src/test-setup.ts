@@ -1,3 +1,4 @@
+import { configure } from '@testing-library/react';
 import { beforeEach, vi } from 'vitest';
 import { clearPersistentState } from './lib/persistent-state.ts';
 import { installZodLocale } from './lib/validation.ts';
@@ -93,4 +94,78 @@ vi.mock('sonner', () => {
     dismiss: () => undefined,
   });
   return { toast, Toaster: () => null };
+});
+
+// Role queries check accessibility with getComputedStyle for every element, which takes seconds
+// in jsdom once a Radix dialog marks the rest of the page aria-hidden. The tests scope queries
+// themselves (`within(dialog)`), so the hidden check is skipped.
+configure({ defaultHidden: true });
+
+// Opening a Radix dialog or sheet costs seconds in jsdom on pages with several dialog roots
+// (20 s+ on the CI runner). The panel's own wrappers are replaced with plain containers that keep
+// the open/close contract and the `dialog` role the tests scope their queries to.
+vi.mock('@/components/app/detail-sheet', async () => {
+  const React = await import('react');
+  return {
+    DetailSheet: ({
+      open,
+      title,
+      description,
+      children,
+      footer,
+    }: {
+      open: boolean;
+      title?: React.ReactNode;
+      description?: React.ReactNode;
+      children?: React.ReactNode;
+      footer?: React.ReactNode;
+    }) =>
+      open
+        ? React.createElement(
+            'div',
+            { role: 'dialog' },
+            React.createElement('h2', null, title),
+            description ? React.createElement('p', null, description) : null,
+            children,
+            footer,
+          )
+        : null,
+  };
+});
+vi.mock('@/components/app/add-dialog', async () => {
+  const React = await import('react');
+  const { messages } = await import('@vakhta/i18n');
+  const { currentLocale } = await import('./i18n.tsx');
+  return {
+    AddDialog: ({
+      open,
+      onOpenChange,
+      title,
+      trigger,
+      children,
+    }: {
+      open: boolean;
+      onOpenChange: (open: boolean) => void;
+      title: string;
+      trigger?: string;
+      children?: React.ReactNode;
+    }) =>
+      React.createElement(
+        React.Fragment,
+        null,
+        React.createElement(
+          'button',
+          { type: 'button', onClick: () => onOpenChange(true) },
+          trigger ?? messages(currentLocale()).ui.common.add,
+        ),
+        open
+          ? React.createElement(
+              'div',
+              { role: 'dialog' },
+              React.createElement('h2', null, title),
+              children,
+            )
+          : null,
+      ),
+  };
 });
