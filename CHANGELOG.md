@@ -1,3 +1,13 @@
+## [0.21.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.20.0...v0.21.0) (2026-09-06)
+
+### Features
+
+* **panel:** create a checklist for the position straight from the employee card ([06b4d81](https://github.com/leonidkuznetsov18/vakhta/commit/06b4d8158f8840fda355ca57e8632a1aa8643689))
+
+### Documentation
+
+* **guide:** checklist creation from the employee card and employee deletion ([8b3c643](https://github.com/leonidkuznetsov18/vakhta/commit/8b3c643cff1ccdb8f0175319a30c54c65b7f66b9))
+
 ## [0.20.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.19.0...v0.20.0) (2026-09-06)
 
 ### Features
