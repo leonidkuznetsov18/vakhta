@@ -1,3 +1,9 @@
+## [0.24.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.23.0...v0.24.0) (2026-09-06)
+
+### Features
+
+* **panel,kiosk:** product icon and section titles in the browser tab ([ee4a95e](https://github.com/leonidkuznetsov18/vakhta/commit/ee4a95e03dbcc30d5ee7264e6857bac252827e4e))
+
 ## [0.23.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.22.0...v0.23.0) (2026-09-06)
 
 ### Features
