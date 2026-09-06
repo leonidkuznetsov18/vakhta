@@ -11,7 +11,6 @@ import {
   LogOutIcon,
   ScrollTextIcon,
   SettingsIcon,
-  UserIcon,
   SunIcon,
   MoonIcon,
   MonitorIcon,
@@ -37,6 +36,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Spinner } from '@/components/ui/spinner';
 import { InfoTip } from '@/components/app/info-tip';
+import { UserAvatar } from '@/components/app/avatar';
 import { LogoMark } from '@/components/app/logo';
 import { LoginScreen } from './auth/LoginScreen.tsx';
 import { ProfilePanel } from './auth/ProfilePanel.tsx';
@@ -121,6 +121,7 @@ const EMPTY_ME: MeView = {
   email: '',
   name: '',
   twoFactorEnabled: false,
+  image: null,
   roles: [],
   createdAt: '',
 };
@@ -215,9 +216,9 @@ export function App() {
                   tooltip={t.admin.auth.profile}
                   onClick={() => setActive('profile')}
                 >
-                  <UserIcon aria-hidden="true" />
+                  <UserAvatar name={me.name} email={me.email} image={me.image} className="size-6" />
                   <span className="flex min-w-0 flex-col leading-tight">
-                    <span className="truncate">{me.email}</span>
+                    <span className="truncate">{me.name || me.email}</span>
                     {primaryRole ? (
                       <span className="truncate text-xs text-muted-foreground">
                         {t.roles[primaryRole]}

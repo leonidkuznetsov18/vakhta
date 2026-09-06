@@ -45,11 +45,27 @@ export type CreateWebUserCommand = z.infer<typeof CreateWebUserCommand>;
 export const UpdateWebUserCommand = z.object({ name: z.string().trim().min(2).max(200) });
 export type UpdateWebUserCommand = z.infer<typeof UpdateWebUserCommand>;
 
+/**
+ * Own profile: the display name and the avatar as a small data URL (the panel resizes the photo
+ * to 256×256 before sending, so the whole picture fits into the user row). `null` removes it.
+ */
+export const AvatarDataUrl = z
+  .string()
+  .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/)
+  .max(300_000);
+export const UpdateMeCommand = z.object({
+  name: z.string().trim().min(2).max(200).optional(),
+  image: AvatarDataUrl.nullable().optional(),
+});
+export type UpdateMeCommand = z.infer<typeof UpdateMeCommand>;
+
 export const WebUserView = z.object({
   id: z.string(),
   email: z.email(),
   name: z.string(),
   twoFactorEnabled: z.boolean(),
+  /** Avatar as a data URL, or null for the generated placeholder. */
+  image: z.string().nullable(),
   roles: z.array(RoleGrantView),
   createdAt: IsoDateTime,
 });

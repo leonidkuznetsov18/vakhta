@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { isBlank } from '@/lib/forms';
 import QRCode from 'qrcode';
 import type { MeView } from '@vakhta/contracts';
@@ -10,7 +10,10 @@ import { Feedback } from '@/components/app/feedback';
 import { FormField } from '@/components/app/fields';
 import { Muted, Section } from '@/components/app/page';
 import { SelectField } from '@/components/app/fields';
-import { useAppearance, type Density, type Theme } from '@/lib/theme';
+import { useAppearance, type Theme } from '@/lib/theme';
+import { UserAvatar, photoToDataUrl } from '@/components/app/avatar';
+import { InfoTip } from '@/components/app/info-tip';
+import { notifySuccess } from '@/lib/toast';
 import { ApiError, authApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
 
@@ -67,57 +70,143 @@ export function ProfilePanel({ me, onChanged }: Props) {
   const enabled = me.twoFactorEnabled || step === 'done';
   const appearance = useAppearance();
   const c = m.ui.common;
+  const [name, setName] = useState(me.name);
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  async function saveProfile(cmd: { name?: string; image?: string | null }) {
+    setProfileBusy(true);
+    setProfileError(null);
+    try {
+      await authApi.updateMe(cmd);
+      notifySuccess(t.profileSaved);
+      onChanged();
+    } catch (err) {
+      setProfileError(err instanceof ApiError ? err.message : t.networkError);
+    } finally {
+      setProfileBusy(false);
+    }
+  }
+
+  async function choosePhoto(file: File | undefined) {
+    if (!file) return;
+    try {
+      const image = await photoToDataUrl(file);
+      await saveProfile({ image });
+    } catch {
+      setProfileError(t.photoTooLarge);
+    } finally {
+      if (fileInput.current) fileInput.current.value = '';
+    }
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <Section title={t.profile}>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-          <dt className="text-muted-foreground">{t.email}</dt>
-          <dd>{me.email}</dd>
-          <dt className="text-muted-foreground">{t.roles}</dt>
-          <dd>
-            {me.roles.length === 0 ? (
-              <Muted>{t.noRoles}</Muted>
-            ) : (
-              <ul className="flex flex-wrap gap-1">
-                {me.roles.map((r) => (
-                  <li key={r.id}>
-                    <Badge variant="secondary">
-                      {m.roles[r.role]}
-                      <span className="ml-1 text-muted-foreground">{r.scopeType}</span>
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </dd>
-        </dl>
+        <div className="flex flex-wrap items-start gap-6">
+          <div className="flex flex-col items-center gap-2">
+            <UserAvatar name={me.name} email={me.email} image={me.image} className="size-24" />
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="sr-only"
+              aria-label={t.uploadPhoto}
+              onChange={(e) => void choosePhoto(e.target.files?.[0])}
+            />
+            <div className="flex flex-wrap items-center justify-center gap-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={profileBusy}
+                onClick={() => fileInput.current?.click()}
+              >
+                {t.uploadPhoto}
+              </Button>
+              {me.image && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={profileBusy}
+                  onClick={() => void saveProfile({ image: null })}
+                >
+                  {t.removePhoto}
+                </Button>
+              )}
+              <InfoTip text={t.photoHint} />
+            </div>
+          </div>
+          <form
+            className="flex min-w-0 flex-1 flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (name.trim().length >= 2 && name.trim() !== me.name) {
+                void saveProfile({ name: name.trim() });
+              }
+            }}
+            noValidate
+          >
+            <FormField label={t.name}>
+              {(id) => (
+                <Input
+                  id={id}
+                  value={name}
+                  maxLength={200}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              )}
+            </FormField>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+              <dt className="text-muted-foreground">{t.email}</dt>
+              <dd>{me.email}</dd>
+              <dt className="text-muted-foreground">{t.roles}</dt>
+              <dd>
+                {me.roles.length === 0 ? (
+                  <Muted>{t.noRoles}</Muted>
+                ) : (
+                  <ul className="flex flex-wrap gap-1">
+                    {me.roles.map((r) => (
+                      <li key={r.id}>
+                        <Badge variant="secondary">
+                          {m.roles[r.role]}
+                          <span className="ml-1 text-muted-foreground">{r.scopeType}</span>
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </dd>
+            </dl>
+            <Feedback error={profileError} />
+            <div>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={
+                  profileBusy || isBlank(name) || name.trim().length < 2 || name.trim() === me.name
+                }
+              >
+                {c.save}
+              </Button>
+            </div>
+          </form>
+        </div>
       </Section>
 
       <Section title={c.theme} hint={m.ui.hints.profileTheme}>
-        <div className="flex flex-wrap gap-4">
-          <SelectField
-            label={c.theme}
-            value={appearance.theme}
-            onChange={(v) => appearance.set({ theme: v as Theme })}
-            options={(['system', 'light', 'dark'] as const).map((k) => ({
-              value: k,
-              label: c.themes[k],
-            }))}
-            className="w-56"
-          />
-          <SelectField
-            label={c.density}
-            hint={m.ui.hints.profileDensity}
-            value={appearance.density}
-            onChange={(v) => appearance.set({ density: v as Density })}
-            options={(['comfortable', 'compact'] as const).map((k) => ({
-              value: k,
-              label: c.densities[k],
-            }))}
-            className="w-56"
-          />
-        </div>
+        <SelectField
+          label={c.theme}
+          value={appearance.theme}
+          onChange={(v) => appearance.set({ theme: v as Theme })}
+          options={(['system', 'light', 'dark'] as const).map((k) => ({
+            value: k,
+            label: c.themes[k],
+          }))}
+          className="w-56"
+        />
       </Section>
 
       <Section title={enabled ? t.twoFactorOn : t.twoFactorOff} hint={m.ui.hints.profileTwoFactor}>

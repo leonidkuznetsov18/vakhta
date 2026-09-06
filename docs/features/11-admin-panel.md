@@ -1,6 +1,9 @@
 # Administration and roles (spec 2, 9.1, 11)
 
-Sign-in with e-mail and password; two-factor (TOTP) can be enabled in the profile. Roles: ADMIN,
+Sign-in with e-mail and password; two-factor (TOTP) can be enabled in the profile. The profile
+also holds the display name and a photo (shrunk to 256×256 in the browser and stored with the
+user; without one the panel draws a circle with the initials on a colour derived from the
+e-mail), shown in the sidebar and in the user list. Roles: ADMIN,
 PRODUCTION_HEAD, HR, PLANNER, SHIFT_MASTER, CLEANLINESS_CONTROLLER, ACCOUNTANT, AUDITOR, each with
 a scope (enterprise, site, unit, team, zone). The sidebar shows only the sections the role allows;
 "Обзор" is the landing page with what needs attention.

@@ -13,6 +13,7 @@ import {
 import {
   CreateWebUserCommand,
   GrantRoleCommand,
+  UpdateMeCommand,
   UpdateWebUserCommand,
   type MeView,
   type RoleGrantView,
@@ -32,6 +33,14 @@ export class MeController {
   @Get()
   me(@CurrentUser() user: WebUser): Promise<MeView> {
     return this.auth.requireView(user.id);
+  }
+
+  @Patch()
+  update(
+    @Body(new ZodValidationPipe(UpdateMeCommand)) body: UpdateMeCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<MeView> {
+    return this.auth.updateMe(user.id, body, webUserActor(user));
   }
 }
 

@@ -414,8 +414,15 @@ export interface Messages {
       readonly invalidCode: string;
       readonly networkError: string;
       readonly profile: string;
+      readonly name: string;
       readonly roles: string;
       readonly noRoles: string;
+      readonly avatar: string;
+      readonly uploadPhoto: string;
+      readonly removePhoto: string;
+      readonly photoHint: string;
+      readonly photoTooLarge: string;
+      readonly profileSaved: string;
       readonly twoFactorOn: string;
       readonly twoFactorOff: string;
       readonly enableTwoFactor: string;
@@ -1197,8 +1204,6 @@ export interface Messages {
       readonly purpose: string;
       readonly theme: string;
       readonly themes: Readonly<Record<'system' | 'light' | 'dark', string>>;
-      readonly density: string;
-      readonly densities: Readonly<Record<'comfortable' | 'compact', string>>;
       readonly commandPalette: string;
       readonly commandPlaceholder: string;
       readonly commandSections: string;
@@ -1300,7 +1305,6 @@ export interface Messages {
       readonly overview: string;
       readonly tableSearch: string;
       readonly profileTheme: string;
-      readonly profileDensity: string;
       readonly commandPalette: string;
       readonly scheduleKeyboard: string;
       readonly schedulePattern: string;

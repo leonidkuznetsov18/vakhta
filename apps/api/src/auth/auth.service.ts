@@ -1,7 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { asc, eq } from '@vakhta/db';
 import { authUser, type Database } from '@vakhta/db';
-import type { CreateWebUserCommand, UpdateWebUserCommand, WebUserView } from '@vakhta/contracts';
+import type {
+  CreateWebUserCommand,
+  UpdateMeCommand,
+  UpdateWebUserCommand,
+  WebUserView,
+} from '@vakhta/contracts';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -83,6 +88,29 @@ export class AuthService {
     return this.requireView(userId);
   }
 
+  /** Own profile: name and avatar. The avatar change is audited as a fact, not by content. */
+  async updateMe(userId: string, cmd: UpdateMeCommand, actor: Actor): Promise<WebUserView> {
+    const [before] = await this.db.select().from(authUser).where(eq(authUser.id, userId)).limit(1);
+    if (!before) throw new DomainError('WEB_USER_NOT_FOUND', 404, `User ${userId} not found`);
+    const set: Partial<typeof authUser.$inferInsert> = { updatedAt: new Date() };
+    if (cmd.name !== undefined && cmd.name !== before.name) set.name = cmd.name;
+    if (cmd.image !== undefined && cmd.image !== (before.image ?? null)) set.image = cmd.image;
+    if (Object.keys(set).length > 1) {
+      await this.db.transaction(async (tx) => {
+        await tx.update(authUser).set(set).where(eq(authUser.id, userId));
+        await this.audit.record(tx, {
+          actor,
+          action: 'web_user.update',
+          objectType: 'web_user',
+          objectId: userId,
+          before: { name: before.name, avatar: Boolean(before.image) },
+          after: { name: set.name ?? before.name, avatar: Boolean(set.image ?? before.image) },
+        });
+      });
+    }
+    return this.requireView(userId);
+  }
+
   /** The display name; the e-mail is the login and stays. */
   async updateUser(userId: string, cmd: UpdateWebUserCommand, actor: Actor): Promise<WebUserView> {
     const [before] = await this.db.select().from(authUser).where(eq(authUser.id, userId)).limit(1);
@@ -151,6 +179,7 @@ export class AuthService {
       email: u.email,
       name: u.name,
       twoFactorEnabled: u.twoFactorEnabled,
+      image: u.image ?? null,
       roles: grants.filter((g) => g.userId === u.id).map(({ userId: _u, ...g }) => g),
       createdAt: u.createdAt.toISOString(),
     }));
@@ -165,6 +194,7 @@ export class AuthService {
       email: u.email,
       name: u.name,
       twoFactorEnabled: u.twoFactorEnabled,
+      image: u.image ?? null,
       roles,
       createdAt: u.createdAt.toISOString(),
     };

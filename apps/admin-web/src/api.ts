@@ -61,6 +61,8 @@ export const authApi = {
     }),
   signOut: () => apiFetch<unknown>('/auth/sign-out', { method: 'POST', body: '{}' }),
   me: () => apiFetch<MeView>('/me'),
+  updateMe: (cmd: UpdateMeCommand) =>
+    apiFetch<MeView>('/me', { method: 'PATCH', body: JSON.stringify(cmd) }),
   enableTwoFactor: (password: string) =>
     apiFetch<{ totpURI: string; backupCodes: string[] }>('/auth/two-factor/enable', {
       method: 'POST',
@@ -148,6 +150,7 @@ import type {
   CreateTeamCommand,
   CreateWebUserCommand,
   UpdateWebUserCommand,
+  UpdateMeCommand,
   CreateZoneCommand,
   DirectoryKind,
   EmployeePositionView,

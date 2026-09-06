@@ -193,6 +193,17 @@ describe('веб-автентифікація: пароль + TOTP + ролі (F
     const renamed = await service.updateUser(master.id, { name: 'Master Two' }, SYSTEM);
     expect(renamed.name).toBe('Master Two');
     expect(renamed.roles).toHaveLength(1);
+    // own profile: the name and a small avatar; null removes the avatar again
+    const png =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    const withPhoto = await service.updateMe(
+      master.id,
+      { name: 'Master Three', image: png },
+      SYSTEM,
+    );
+    expect(withPhoto).toMatchObject({ name: 'Master Three', image: png });
+    const noPhoto = await service.updateMe(master.id, { image: null }, SYSTEM);
+    expect(noPhoto.image).toBeNull();
 
     await expect(service.deleteUser(admin.id, SYSTEM, admin.id)).rejects.toMatchObject({
       code: 'SELF_DELETE',
