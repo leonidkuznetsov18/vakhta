@@ -42,6 +42,9 @@ export const CreateWebUserCommand = z.object({
 });
 export type CreateWebUserCommand = z.infer<typeof CreateWebUserCommand>;
 
+export const UpdateWebUserCommand = z.object({ name: z.string().trim().min(2).max(200) });
+export type UpdateWebUserCommand = z.infer<typeof UpdateWebUserCommand>;
+
 export const WebUserView = z.object({
   id: z.string(),
   email: z.email(),

@@ -54,6 +54,26 @@ export const employeePositions = pgTable(
   (t) => [index('employee_positions_employee_idx').on(t.employeeId, t.validFrom)],
 );
 
+/**
+ * Telegram users who wrote to the worker bot, linked or not. Lets HR send the activation card to
+ * an employee by username once the employee has opened the bot (a bot cannot write first).
+ */
+export const telegramContacts = pgTable(
+  'telegram_contacts',
+  {
+    telegramUserId: bigint('telegram_user_id', { mode: 'number' }).primaryKey(),
+    chatId: bigint('chat_id', { mode: 'number' }).notNull(),
+    /** Lower-case, without "@"; null when the user has no username. */
+    username: text('username'),
+    firstName: text('first_name'),
+    lastName: text('last_name'),
+    languageCode: text('language_code'),
+    firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('telegram_contacts_username_idx').on(t.username)],
+);
+
 export const telegramAccountStatus = pgEnum('telegram_account_status', ['ACTIVE', 'REVOKED']);
 
 /**

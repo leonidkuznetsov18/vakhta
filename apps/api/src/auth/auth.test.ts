@@ -171,6 +171,43 @@ describe('веб-автентифікація: пароль + TOTP + ролі (F
     expect((await service.sessionUser(new Headers({ cookie })))?.email).toBe('master@example.com');
   });
 
+  it('a panel user can be renamed and deleted; not oneself, and never the last administrator', async () => {
+    const admin = await service.createUser(
+      {
+        email: 'admin@example.com',
+        name: 'Admin',
+        password: PASSWORD,
+        roles: [{ role: 'ADMIN', scopeType: 'ENTERPRISE' }],
+      },
+      SYSTEM,
+    );
+    const master = await service.createUser(
+      {
+        email: 'master@example.com',
+        name: 'Master',
+        password: PASSWORD,
+        roles: [{ role: 'SHIFT_MASTER', scopeType: 'ENTERPRISE' }],
+      },
+      SYSTEM,
+    );
+    const renamed = await service.updateUser(master.id, { name: 'Master Two' }, SYSTEM);
+    expect(renamed.name).toBe('Master Two');
+    expect(renamed.roles).toHaveLength(1);
+
+    await expect(service.deleteUser(admin.id, SYSTEM, admin.id)).rejects.toMatchObject({
+      code: 'SELF_DELETE',
+    });
+    await expect(service.deleteUser(admin.id, SYSTEM, master.id)).rejects.toMatchObject({
+      code: 'LAST_ADMIN',
+    });
+    await service.deleteUser(master.id, SYSTEM, admin.id);
+    expect((await service.listUsers()).map((u) => u.email)).toEqual(['admin@example.com']);
+    expect(await roles.listByUser(master.id)).toEqual([]);
+    await expect(service.deleteUser(master.id, SYSTEM, admin.id)).rejects.toMatchObject({
+      code: 'WEB_USER_NOT_FOUND',
+    });
+  });
+
   it('ролі з областями: дубль відхиляється, відкликання пише аудит', async () => {
     const user = await service.createUser(
       { email: 'planner@example.com', name: 'Планувальник', password: PASSWORD, roles: [] },

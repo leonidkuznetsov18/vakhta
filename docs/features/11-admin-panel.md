@@ -12,12 +12,17 @@ Administration tabs:
   relink Telegram. The creation form takes the personnel number and the full name plus optional
   contacts: e-mail, phone and Telegram username; every field has a placeholder, an ⓘ hint and
   inline validation (the phone is normalized to +380…, the username is stored without "@"). The
-  card shows the contacts as mail / call / t.me links and holds the "Активация в боте" block:
-  the steps for the administrator, "Выдать код активации", then the code with copy, the bot link
-  and the QR of the last issued code; the row action "Код активации" opens the card with a fresh
-  code.
-- "Пользователи и роли": create panel users (a generated password is shown once), grant and
-  revoke roles with a scope.
+  card shows the contacts as mail / call / t.me links; "Изменить данные" turns them into a form
+  (personnel number, full name, e-mail, phone, Telegram, same hints and validation, save only
+  when something changed; every edit lands in the audit with before / after). The collapsible
+  "Активация в боте" block holds the steps for the administrator, "Выдать код активации", the
+  send buttons (e-mail, Telegram) and the last issued code with copy, the bot link and the QR;
+  the row action "Код активации" opens the card with a fresh code.
+- "Пользователи и роли": create panel users (a generated password is shown once); the user card
+  edits the name, lists the roles with "Заменить" (grant the new one, revoke the old) and
+  "Отозвать", grants a new role with a scope, and deletes the user ("Удалить пользователя":
+  sessions, second factor and roles go with it, the audit keeps the history). Nobody deletes
+  themselves and the last administrator stays.
 - "Справочники": sites (time zone), units, teams, positions, zones (type, shared, active), reason
   codes; every table has add, edit and delete with a reason.
 - "Терминалы": register, pairing code, enable / disable, edit, delete (a terminal with history

@@ -6,12 +6,14 @@ import {
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
 import {
   CreateWebUserCommand,
   GrantRoleCommand,
+  UpdateWebUserCommand,
   type MeView,
   type RoleGrantView,
   type WebUserView,
@@ -55,6 +57,21 @@ export class AdminUsersController {
     @CurrentUser() user: WebUser,
   ): Promise<WebUserView> {
     return this.auth.createUser(body, webUserActor(user));
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(UpdateWebUserCommand)) body: UpdateWebUserCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<WebUserView> {
+    return this.auth.updateUser(id, body, webUserActor(user));
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  async remove(@Param('id') id: string, @CurrentUser() user: WebUser): Promise<void> {
+    await this.auth.deleteUser(id, webUserActor(user), user.id);
   }
 
   @Post(':id/roles')

@@ -1,4 +1,5 @@
 import { Bot, InlineKeyboard } from 'grammy';
+import type { TelegramContactsService } from '../identity/telegram-contacts.service.js';
 import type { Logger } from 'pino';
 import {
   businessDateOf,
@@ -155,6 +156,8 @@ export interface BotDeps {
   readonly supportUrl?: string | null;
   readonly employees: EmployeesService;
   readonly activation: ActivationService;
+  /** Records who wrote to the bot, so HR can send activation cards by username. */
+  readonly contacts?: TelegramContactsService | undefined;
   readonly schedule: ScheduleService;
   readonly attendance: AttendanceService;
   readonly shift: ShiftService;
@@ -241,6 +244,11 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   // The language follows the employee's saved choice, then the Telegram client language.
   bot.use(async (ctx, next) => {
     const from = ctx.from;
+    if (from && ctx.chat?.type === 'private' && deps.contacts) {
+      deps.contacts.remember(from, ctx.chat.id).catch((e: unknown) => {
+        deps.logger.warn({ err: e }, 'telegram contact not recorded');
+      });
+    }
     const linked = from ? await deps.employees.findByTelegramUserId(from.id) : null;
     ctx.employee = linked?.employee ?? null;
     ctx.access = employeeAccess(linked?.employee.status ?? null);

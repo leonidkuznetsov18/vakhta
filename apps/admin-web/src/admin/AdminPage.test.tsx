@@ -153,7 +153,7 @@ describe('AdminPage', () => {
       scopeType: 'ORG_UNIT',
       scopeId: UNIT,
     });
-    expect(screen.getByText('Планировщик')).toBeTruthy();
+    expect(screen.getAllByText('Планировщик').length).toBeGreaterThan(0);
   });
 
   it('registers a terminal and shows a pairing code instead of a device token', async () => {

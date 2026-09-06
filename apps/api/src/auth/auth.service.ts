@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { asc, eq } from '@vakhta/db';
 import { authUser, type Database } from '@vakhta/db';
-import type { CreateWebUserCommand, WebUserView } from '@vakhta/contracts';
+import type { CreateWebUserCommand, UpdateWebUserCommand, WebUserView } from '@vakhta/contracts';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -81,6 +81,66 @@ export class AuthService {
     });
     for (const grant of cmd.roles) await this.roles.grant(userId, grant, actor);
     return this.requireView(userId);
+  }
+
+  /** The display name; the e-mail is the login and stays. */
+  async updateUser(userId: string, cmd: UpdateWebUserCommand, actor: Actor): Promise<WebUserView> {
+    const [before] = await this.db.select().from(authUser).where(eq(authUser.id, userId)).limit(1);
+    if (!before) throw new DomainError('WEB_USER_NOT_FOUND', 404, `User ${userId} not found`);
+    if (before.name !== cmd.name) {
+      await this.db.transaction(async (tx) => {
+        await tx
+          .update(authUser)
+          .set({ name: cmd.name, updatedAt: new Date() })
+          .where(eq(authUser.id, userId));
+        await this.audit.record(tx, {
+          actor,
+          action: 'web_user.update',
+          objectType: 'web_user',
+          objectId: userId,
+          before: { name: before.name },
+          after: { name: cmd.name },
+        });
+      });
+    }
+    return this.requireView(userId);
+  }
+
+  /**
+   * Removes the panel account with its sessions, second factor and roles (the database cascades).
+   * Nobody deletes themselves, and the last administrator stays, so the panel cannot lock itself out.
+   */
+  async deleteUser(userId: string, actor: Actor, currentUserId: string): Promise<void> {
+    if (userId === currentUserId) {
+      throw new DomainError('SELF_DELETE', 409, 'You cannot delete your own account');
+    }
+    const [user] = await this.db.select().from(authUser).where(eq(authUser.id, userId)).limit(1);
+    if (!user) throw new DomainError('WEB_USER_NOT_FOUND', 404, `User ${userId} not found`);
+    const grants = await this.roles.listAll();
+    const admins = new Set(grants.filter((g) => g.role === 'ADMIN').map((g) => g.userId));
+    if (admins.has(userId) && admins.size <= 1) {
+      throw new DomainError('LAST_ADMIN', 409, 'The last administrator cannot be deleted');
+    }
+    await this.db.transaction(async (tx) => {
+      await tx.delete(authUser).where(eq(authUser.id, userId));
+      await this.events.append(tx, {
+        type: 'WEB_USER_DELETED',
+        source: 'WEB',
+        actor,
+        payload: { userId, email: user.email },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'web_user.delete',
+        objectType: 'web_user',
+        objectId: userId,
+        before: {
+          email: user.email,
+          name: user.name,
+          roles: grants.filter((g) => g.userId === userId).map((g) => g.role),
+        },
+      });
+    });
   }
 
   async listUsers(): Promise<WebUserView[]> {

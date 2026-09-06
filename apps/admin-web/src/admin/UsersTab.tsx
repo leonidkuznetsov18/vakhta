@@ -2,8 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { isBlank } from '@/lib/forms';
 import type { OrgSnapshot, WebUserView } from '@vakhta/contracts';
 import { SCOPE_TYPES, WEB_ROLES, type ScopeType, type WebRole } from '@vakhta/domain';
-import { messages } from '@vakhta/i18n';
-import { XIcon } from 'lucide-react';
+import { format, messages } from '@vakhta/i18n';
+import { PencilIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,11 +11,13 @@ import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback, useAction } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
-import { Section, StatusPill } from '@/components/app/page';
-import { usersApi } from '../api.ts';
+import { Muted, Section, StatusPill } from '@/components/app/page';
+import { ApiError, usersApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { AddDialog } from '@/components/app/add-dialog';
+import { useConfirm } from '@/components/app/confirm-dialog';
+import { useNavigation } from '../navigation.tsx';
 import { DialogFooter } from '@/components/ui/dialog';
 import { ShieldPlusIcon } from 'lucide-react';
 import { DetailSheet } from '@/components/app/detail-sheet';
@@ -24,7 +26,7 @@ import { CopyButton } from '@/components/app/copy-button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { WandSparklesIcon } from 'lucide-react';
 import { validateWith, type FieldErrors } from '@/lib/validation';
-import { CreateWebUserCommand } from '@vakhta/contracts';
+import { CreateWebUserCommand, UpdateWebUserCommand } from '@vakhta/contracts';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -91,15 +93,24 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
 
   function grant(ev: FormEvent, user: WebUserView) {
     ev.preventDefault();
-    void run(async () => {
-      const g = await usersApi.grant(user.id, {
-        role,
-        scopeType,
-        ...(scopeType === 'ENTERPRISE' ? {} : { scopeId }),
-      });
-      replace({ ...user, roles: [...user.roles, g] });
-      setGrantFor(null);
-    }, u.granted);
+    const old = replacing;
+    void run(
+      async () => {
+        const g = await usersApi.grant(user.id, {
+          role,
+          scopeType,
+          ...(scopeType === 'ENTERPRISE' ? {} : { scopeId }),
+        });
+        let roles = [...user.roles, g];
+        if (old) {
+          await usersApi.revoke(user.id, old);
+          roles = roles.filter((x) => x.id !== old);
+        }
+        replace({ ...user, roles });
+        setReplacing(null);
+      },
+      old ? u.roleReplaced : u.granted,
+    );
   }
 
   function revoke(user: WebUserView, grantId: string) {
@@ -107,6 +118,51 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
       await usersApi.revoke(user.id, grantId);
       replace({ ...user, roles: user.roles.filter((g) => g.id !== grantId) });
     }, u.revoked);
+  }
+
+  /** "Replace" on a role: the grant form is prefilled; submitting grants the new one and revokes the old. */
+  const [replacing, setReplacing] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState('');
+  const { roles: myRoles } = useNavigation();
+  const { confirm, dialog } = useConfirm();
+
+  function startReplace(user: WebUserView, grantId: string) {
+    const g = user.roles.find((x) => x.id === grantId);
+    if (!g) return;
+    setRole(g.role);
+    setScopeType(g.scopeType);
+    setScopeId(g.scopeId ?? '');
+    setReplacing(grantId);
+    setGrantFor(user.id);
+  }
+
+  function saveName(ev: FormEvent, user: WebUserView) {
+    ev.preventDefault();
+    const checked = validateWith(UpdateWebUserCommand, { name: draftName });
+    setFieldErrors(checked.errors);
+    if (!checked.ok) return;
+    void run(async () => replace(await usersApi.update(user.id, checked.data)), u.nameSaved);
+  }
+
+  async function removeUser(user: WebUserView) {
+    const ok = await confirm({
+      title: u.deleteUser,
+      description: format(u.deleteConfirm, { email: user.email }),
+      confirmLabel: u.deleteUser,
+      destructive: true,
+    });
+    if (ok === false) return;
+    void run(async () => {
+      try {
+        await usersApi.remove(user.id);
+      } catch (err) {
+        if (err instanceof ApiError && err.code === 'SELF_DELETE') throw new Error(u.selfDelete);
+        if (err instanceof ApiError && err.code === 'LAST_ADMIN') throw new Error(u.lastAdmin);
+        throw err;
+      }
+      setList((l) => l.filter((x) => x.id !== user.id));
+      setGrantFor(null);
+    }, u.deleted);
   }
 
   const scopeName = (type: ScopeType, id: string | null) =>
@@ -265,6 +321,24 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
             icon: ShieldPlusIcon,
             onSelect: () => setGrantFor(grantFor === user.id ? null : user.id),
           },
+          {
+            key: 'edit',
+            label: u.details,
+            icon: PencilIcon,
+            onSelect: () => {
+              setDraftName(user.name);
+              setGrantFor(user.id);
+            },
+          },
+          {
+            key: 'delete',
+            label: u.deleteUser,
+            icon: Trash2Icon,
+            destructive: true,
+            separator: true,
+            disabled: busy,
+            onSelect: () => void removeUser(user),
+          },
         ]}
         rowKey={(user) => user.id}
         empty={t.common.empty}
@@ -278,6 +352,78 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
         >
           {((user) => (
             <>
+              <form
+                className="flex flex-col gap-3 rounded-lg border p-3"
+                onSubmit={(ev) => saveName(ev, user)}
+                noValidate
+              >
+                <span className="text-sm font-medium">{u.details}</span>
+                <div className="flex flex-wrap items-end gap-3">
+                  <FormField label={u.name} error={fieldErrors.name} className="min-w-64 flex-1">
+                    {(id) => (
+                      <Input
+                        id={id}
+                        value={draftName || user.name}
+                        onChange={(ev) => setDraftName(ev.target.value)}
+                      />
+                    )}
+                  </FormField>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={busy || !draftName.trim() || draftName.trim() === user.name}
+                  >
+                    {all.ui.common.save}
+                  </Button>
+                </div>
+              </form>
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium">{u.currentRoles}</span>
+                {user.roles.length === 0 ? (
+                  <Muted>{u.noRoles}</Muted>
+                ) : (
+                  <ul className="flex flex-col gap-1 text-sm">
+                    {user.roles.map((g) => (
+                      <li
+                        key={g.id}
+                        className="flex flex-wrap items-center gap-2 rounded-md border px-2 py-1"
+                      >
+                        <span className="font-medium">{all.roles[g.role]}</span>
+                        <Muted>
+                          {u.scopeTypes[g.scopeType]}
+                          {scopeName(g.scopeType, g.scopeId)
+                            ? ` · ${scopeName(g.scopeType, g.scopeId)}`
+                            : ''}
+                        </Muted>
+                        <span className="ml-auto flex gap-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() => startReplace(user, g.id)}
+                          >
+                            <PencilIcon aria-hidden="true" />
+                            {u.replaceRole}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            disabled={busy}
+                            onClick={() => revoke(user, g.id)}
+                          >
+                            <XIcon aria-hidden="true" />
+                            {u.revoke}
+                          </Button>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <span className="text-sm font-medium">{replacing ? u.replaceRole : u.grantRole}</span>
               <form className="flex flex-wrap items-end gap-3" onSubmit={(ev) => grant(ev, user)}>
                 <SelectField
                   label={u.role}
@@ -313,13 +459,31 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
                   variant="secondary"
                   disabled={busy || (scopeType !== 'ENTERPRISE' && !scopeId)}
                 >
-                  {u.grant}
+                  {replacing ? u.replaceRole : u.grant}
                 </Button>
+                {replacing && (
+                  <Button type="button" variant="ghost" onClick={() => setReplacing(null)}>
+                    {all.ui.common.cancel}
+                  </Button>
+                )}
               </form>
+              <div className="flex justify-end border-t pt-3">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={busy || !myRoles.includes('ADMIN')}
+                  onClick={() => void removeUser(user)}
+                >
+                  <Trash2Icon aria-hidden="true" />
+                  {u.deleteUser}
+                </Button>
+              </div>
             </>
           ))(openUser)}
         </DetailSheet>
       )}
+      {dialog}
     </div>
   );
 }

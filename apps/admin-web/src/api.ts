@@ -138,6 +138,9 @@ export const schedulesApi = {
 
 import type {
   ActivationCodeIssued,
+  ActivationDelivered,
+  SendActivationCommand,
+  UpdateEmployeeCommand,
   AssignPositionCommand,
   ChangeEmployeeStatusCommand,
   CreateEmployeeCommand,
@@ -146,6 +149,7 @@ import type {
   CreateSiteCommand,
   CreateTeamCommand,
   CreateWebUserCommand,
+  UpdateWebUserCommand,
   CreateZoneCommand,
   DirectoryKind,
   EmployeePositionView,
@@ -174,6 +178,13 @@ export const adminEmployeesApi = {
   changeStatus: (id: string, cmd: ChangeEmployeeStatusCommand) =>
     post<EmployeeView>(`/admin/employees/${id}/status`, cmd),
   issueCode: (id: string) => post<ActivationCodeIssued>(`/admin/employees/${id}/activation-codes`),
+  update: (id: string, cmd: UpdateEmployeeCommand) =>
+    apiFetch<EmployeeView>(`/admin/employees/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(cmd),
+    }),
+  sendActivation: (id: string, cmd: SendActivationCommand) =>
+    post<ActivationDelivered>(`/admin/employees/${id}/activation/send`, cmd),
   relink: (id: string, cmd: RelinkTelegramCommand) =>
     post<{ employeeId: string; telegramUserId: number; linkedAt: string }>(
       `/admin/employees/${id}/telegram/relink`,
@@ -195,6 +206,9 @@ export const usersApi = {
     post<RoleGrantView>(`/admin/users/${userId}/roles`, cmd),
   revoke: (userId: string, grantId: string) =>
     apiFetch<null>(`/admin/users/${userId}/roles/${grantId}`, { method: 'DELETE' }),
+  update: (userId: string, cmd: UpdateWebUserCommand) =>
+    apiFetch<WebUserView>(`/admin/users/${userId}`, { method: 'PATCH', body: JSON.stringify(cmd) }),
+  remove: (userId: string) => apiFetch<null>(`/admin/users/${userId}`, { method: 'DELETE' }),
 };
 
 export const adminOrgApi = {

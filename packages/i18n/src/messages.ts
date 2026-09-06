@@ -99,6 +99,23 @@ export interface Messages {
     readonly alreadyLinked: string;
     readonly cancelled: string;
     readonly failures: Readonly<Record<ActivationFailure, string>>;
+    /** The activation card sent by e-mail or Telegram (employee-facing). */
+    readonly emailSubject: string;
+    /** Placeholder: {name} */
+    readonly greeting: string;
+    readonly emailIntro: string;
+    readonly emailStepLink: string;
+    readonly emailStepQr: string;
+    /** Placeholders: {bot}, {code} */
+    readonly emailStepCode: string;
+    readonly openBot: string;
+    readonly codeLabel: string;
+    /** Placeholder: {expires} */
+    readonly validUntil: string;
+    readonly emailFooter: string;
+    /** Placeholders: {name}, {code}, {expires} */
+    readonly telegramCaption: string;
+    readonly telegramButton: string;
   };
   readonly attendance: {
     readonly activateFirst: string;
@@ -970,6 +987,22 @@ export interface Messages {
         readonly codeValidUntil: string;
         readonly activationLinked: string;
         readonly activationUnavailable: string;
+        readonly sendEmail: string;
+        readonly sendTelegram: string;
+        /** Placeholder: {to} */
+        readonly sentTo: string;
+        readonly deliveryHint: string;
+        /** Placeholder: {bot} */
+        readonly telegramNotStarted: string;
+        readonly shareViaTelegram: string;
+        readonly mailNotConfigured: string;
+        readonly needEmail: string;
+        readonly needTelegram: string;
+        /** Editable card fields. */
+        readonly details: string;
+        readonly detailsHint: string;
+        readonly detailsSaved: string;
+        readonly editDetails: string;
       };
       readonly users: {
         readonly email: string;
@@ -991,6 +1024,18 @@ export interface Messages {
         readonly granted: string;
         readonly revoked: string;
         readonly scopeTypes: Readonly<Record<ScopeType, string>>;
+        readonly details: string;
+        readonly nameSaved: string;
+        readonly deleteUser: string;
+        /** Placeholder: {email} */
+        readonly deleteConfirm: string;
+        readonly deleted: string;
+        readonly selfDelete: string;
+        readonly lastAdmin: string;
+        readonly replaceRole: string;
+        readonly roleReplaced: string;
+        readonly currentRoles: string;
+        readonly noRoles: string;
       };
       readonly directories: {
         readonly sites: string;

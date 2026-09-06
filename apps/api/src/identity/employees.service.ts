@@ -13,6 +13,7 @@ import {
 import type {
   ChangeEmployeeStatusCommand,
   CreateEmployeeCommand,
+  UpdateEmployeeCommand,
   EmployeeView,
   ImportEmployeesCommand,
   ImportEmployeesResult,
@@ -93,6 +94,68 @@ export class EmployeesService {
       }
       throw error;
     }
+  }
+
+  /** HR edits the card: number, name and contacts; every change lands in the audit with before/after. */
+  async update(id: string, cmd: UpdateEmployeeCommand, actor: Actor): Promise<EmployeeRecord> {
+    try {
+      return await this.db.transaction(async (tx) => {
+        const before = await this.requireById(id, tx);
+        const set: Partial<typeof employees.$inferInsert> = { updatedAt: new Date() };
+        if (cmd.personnelNumber !== undefined) set.personnelNumber = cmd.personnelNumber;
+        if (cmd.fullName !== undefined) set.fullName = cmd.fullName;
+        if (cmd.email !== undefined) set.email = cmd.email;
+        if (cmd.phone !== undefined) set.phone = cmd.phone;
+        if (cmd.telegramUsername !== undefined) set.telegramUsername = cmd.telegramUsername;
+        const [after] = await tx.update(employees).set(set).where(eq(employees.id, id)).returning();
+        if (!after) throw new IdentityError('EMPLOYEE_NOT_FOUND', `Працівника ${id} не знайдено`);
+        const fields = [
+          'personnelNumber',
+          'fullName',
+          'email',
+          'phone',
+          'telegramUsername',
+        ] as const;
+        const changed = fields.filter((f) => before[f] !== after[f]);
+        if (changed.length === 0) return after;
+        const pick = (row: EmployeeRecord) =>
+          Object.fromEntries(changed.map((f) => [f, row[f]])) as Record<string, unknown>;
+        await this.events.append(tx, {
+          type: 'EMPLOYEE_UPDATED',
+          source: 'WEB',
+          actor,
+          employeeId: id,
+          payload: { fields: changed },
+        });
+        await this.audit.record(tx, {
+          actor,
+          action: 'employee.update',
+          objectType: 'employee',
+          objectId: id,
+          before: pick(before),
+          after: pick(after),
+        });
+        return after;
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new IdentityError(
+          'PERSONNEL_NUMBER_TAKEN',
+          `Табельний номер ${cmd.personnelNumber ?? ''} уже існує`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  /** The full view of one employee: link state and the current assignment included. */
+  async viewOf(id: string): Promise<EmployeeView> {
+    const row = await this.requireById(id);
+    const [link, current] = await Promise.all([
+      this.activeLinkByEmployee(id),
+      this.currentPositions([id]),
+    ]);
+    return this.toView(row, link !== null, current.get(id) ?? null);
   }
 
   /** Interface language chosen in the bot; a preference, not a business event, so no audit row. */

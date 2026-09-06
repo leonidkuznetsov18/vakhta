@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   UseFilters,
   UseGuards,
@@ -19,6 +20,7 @@ import {
   ImportEmployeesCommand,
   type ImportEmployeesResult,
   IssueActivationCodesCommand,
+  UpdateEmployeeCommand,
 } from '@vakhta/contracts';
 import {
   CurrentUser,
@@ -84,6 +86,16 @@ export class AdminEmployeesController {
     if (!row) throw new NotFoundException();
     const link = await this.employees.activeLinkByEmployee(id);
     return this.employees.toView(row, link !== null);
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateEmployeeCommand)) body: UpdateEmployeeCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<EmployeeView> {
+    await this.employees.update(id, body, webUserActor(user));
+    return this.employees.viewOf(id);
   }
 
   @Post(':id/status')

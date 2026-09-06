@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq, sql } from '@vakhta/db';
 import { activationCodes, auditLog, domainEvents, employees, telegramAccounts } from '@vakhta/db';
+import { UpdateEmployeeCommand } from '@vakhta/contracts';
 import { codeFromDeepLink } from '@vakhta/domain';
 import { isUniqueViolation } from '../common/pg-errors.js';
 import { InMemoryShortTermStore } from '../infra/short-term-store.js';
@@ -53,6 +54,49 @@ describe('identity: активація і привʼязка Telegram (ТЗ 2.2,
       HR,
     );
   }
+
+  it('HR edits the card: number, name and contacts; an empty contact clears it; numbers stay unique', async () => {
+    const ivanov = await createIvanov();
+    await employeesService.create(
+      { personnelNumber: '000124', fullName: 'Петров Пётр Петрович', status: 'ACTIVE' },
+      HR,
+    );
+    // The controller parses the command first: the contract normalizes the contacts.
+    const updated = await employeesService.update(
+      ivanov.id,
+      UpdateEmployeeCommand.parse({
+        fullName: 'Иванов Иван',
+        email: 'Ivan@Example.com',
+        phone: '067 123 45 67',
+      }),
+      HR,
+    );
+    expect(updated).toMatchObject({
+      personnelNumber: '000123',
+      fullName: 'Иванов Иван',
+      email: 'ivan@example.com',
+      phone: '+380671234567',
+      telegramUsername: null,
+    });
+    const cleared = await employeesService.update(
+      ivanov.id,
+      UpdateEmployeeCommand.parse({ email: '' }),
+      HR,
+    );
+    expect(cleared.email).toBeNull();
+    expect(cleared.phone).toBe('+380671234567');
+    await expect(
+      employeesService.update(ivanov.id, { personnelNumber: '000124' }, HR),
+    ).rejects.toMatchObject({ code: 'PERSONNEL_NUMBER_TAKEN' });
+    const view = await employeesService.viewOf(ivanov.id);
+    expect(view).toMatchObject({ fullName: 'Иванов Иван', telegramLinked: false });
+    const [audit] = await testDb.db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, 'employee.update'))
+      .limit(1);
+    expect(audit?.before).toMatchObject({ fullName: 'Иванов Иван Иванович' });
+  });
 
   it('повний цикл: картка → код → превʼю → підтвердження → активна привʼязка', async () => {
     const ivanov = await createIvanov();

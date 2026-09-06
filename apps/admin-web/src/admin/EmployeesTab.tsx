@@ -27,15 +27,21 @@ import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill, type Tone } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
-import { adminEmployeesApi, checklistsApi, employeesApi } from '../api.ts';
+import { ApiError, adminEmployeesApi, checklistsApi, employeesApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
+import { cn } from 'cn';
+import { notifySuccess } from '@/lib/toast';
 import { AddDialog } from '@/components/app/add-dialog';
 import {
   BanIcon,
   CircleCheckIcon,
   IdCardIcon,
+  ChevronRightIcon,
   KeyRoundIcon,
+  MailIcon,
+  PencilIcon,
+  SendIcon,
   Link2Icon,
   UserXIcon,
 } from 'lucide-react';
@@ -44,7 +50,7 @@ import { ImportDialog } from './ImportDialog.tsx';
 import { QrCode } from '@/components/app/qr-code';
 import { UploadIcon } from 'lucide-react';
 import { validateWith, type FieldErrors } from '@/lib/validation';
-import { CreateEmployeeCommand } from '@vakhta/contracts';
+import { CreateEmployeeCommand, UpdateEmployeeCommand } from '@vakhta/contracts';
 import { CodeSheet } from './CodeSheet.tsx';
 import { PrinterIcon } from 'lucide-react';
 
@@ -131,7 +137,31 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   /** The card holds the activation block; the row action opens it with a fresh code. */
   function issueCode(emp: EmployeeView) {
     setOpenId(emp.id);
+    setDeliveryIssue(null);
     void run(async () => setIssued(await adminEmployeesApi.issueCode(emp.id)));
+  }
+
+  const [deliveryIssue, setDeliveryIssue] = useState<{
+    employeeId: string;
+    code: string;
+  } | null>(null);
+
+  /** Sends the card where HR chose; a Telegram refusal turns into guidance, not a red error. */
+  function sendActivation(emp: EmployeeView, channel: 'EMAIL' | 'TELEGRAM') {
+    setDeliveryIssue(null);
+    void run(async () => {
+      try {
+        const sent = await adminEmployeesApi.sendActivation(emp.id, { channel });
+        setIssued(sent.issued);
+        notifySuccess(format(e.sentTo, { to: sent.sentTo }));
+      } catch (err) {
+        if (err instanceof ApiError && err.code) {
+          setDeliveryIssue({ employeeId: emp.id, code: err.code });
+          if (['TELEGRAM_NOT_STARTED', 'MAIL_NOT_CONFIGURED'].includes(err.code)) return;
+        }
+        throw err;
+      }
+    });
   }
 
   async function changeStatus(emp: EmployeeView, status: EmployeeView['status']) {
@@ -480,12 +510,14 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           title={openEmployee.fullName}
           description={`${openEmployee.personnelNumber} · ${e.statuses[openEmployee.status]}`}
         >
-          <ContactsRow employee={openEmployee} />
+          <EmployeeDetailsForm employee={openEmployee} onSaved={replace} />
           <ActivationPanel
             employee={openEmployee}
             issued={issued?.employeeId === openEmployee.id ? issued : null}
+            issue={deliveryIssue?.employeeId === openEmployee.id ? deliveryIssue.code : null}
             busy={busy}
             onIssue={() => issueCode(openEmployee)}
+            onSend={(channel) => sendActivation(openEmployee, channel)}
           />
           <PositionPanel
             employee={openEmployee}
@@ -731,27 +763,58 @@ function PositionPanel({
 function ActivationPanel({
   employee,
   issued,
+  issue,
   busy,
   onIssue,
+  onSend,
 }: {
   readonly employee: EmployeeView;
   readonly issued: ActivationCodeIssued | null;
+  /** Error code of the last send, when the panel can explain it. */
+  readonly issue: string | null;
   readonly busy: boolean;
   readonly onIssue: () => void;
+  readonly onSend: (channel: 'EMAIL' | 'TELEGRAM') => void;
 }) {
   const canIssue = employee.status === 'ACTIVE';
+  // Collapsed by default: the block is long, and most cards are opened for something else.
+  const [open, setOpen] = usePersistentState('employees.activationOpen', false);
+  const [seenIssue, setSeenIssue] = useState<string | null>(null);
+  useEffect(() => {
+    // A fresh code or a delivery result must be visible: expand once per issued code.
+    const key = issued ? `${issued.employeeId}:${issued.expiresAt}` : issue;
+    if (key && key !== seenIssue) {
+      setSeenIssue(key);
+      setOpen(true);
+    }
+  }, [issued, issue, seenIssue, setOpen]);
+  const botUsername = issued ? new URL(issued.deepLink).pathname.replace(/^\//, '') : '';
+  const shareUrl = issued
+    ? `https://t.me/share/url?url=${encodeURIComponent(issued.deepLink)}&text=${encodeURIComponent(
+        `${e.issueCode}: ${issued.code}`,
+      )}`
+    : null;
   return (
     <div className="flex flex-col gap-3 rounded-lg border p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="flex items-center gap-1 text-sm font-medium">
+        <button
+          type="button"
+          className="flex min-w-0 items-center gap-1 text-left text-sm font-medium"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <ChevronRightIcon
+            className={cn('size-4 transition-transform', open && 'rotate-90')}
+            aria-hidden="true"
+          />
           <KeyRoundIcon className="size-4" aria-hidden="true" />
           {e.activation}
-          <InfoTip text={hints.employeesActivation} />
-        </span>
+        </button>
+        <InfoTip text={hints.employeesActivation} />
         <StatusPill tone={employee.telegramLinked ? 'success' : 'warning'}>
           {employee.telegramLinked ? e.linked : e.notLinked}
         </StatusPill>
-        {canIssue && (
+        {canIssue && !employee.telegramLinked && (
           <Button
             type="button"
             size="sm"
@@ -765,7 +828,7 @@ function ActivationPanel({
           </Button>
         )}
       </div>
-      {employee.telegramLinked ? (
+      {!open ? null : employee.telegramLinked ? (
         <Muted>{e.activationLinked}</Muted>
       ) : !canIssue ? (
         <Muted>{e.activationUnavailable}</Muted>
@@ -777,9 +840,60 @@ function ActivationPanel({
               <li key={step}>{step}</li>
             ))}
           </ol>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={busy || !employee.email}
+              title={employee.email ? undefined : e.needEmail}
+              onClick={() => onSend('EMAIL')}
+            >
+              <MailIcon aria-hidden="true" />
+              {e.sendEmail}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={busy || !employee.telegramUsername}
+              title={employee.telegramUsername ? undefined : e.needTelegram}
+              onClick={() => onSend('TELEGRAM')}
+            >
+              <SendIcon aria-hidden="true" />
+              {e.sendTelegram}
+            </Button>
+            <InfoTip text={e.deliveryHint} />
+          </div>
+          {!employee.email && !employee.telegramUsername && (
+            <Muted className="text-xs">
+              {e.needEmail} {e.needTelegram}
+            </Muted>
+          )}
+          {issue === 'MAIL_NOT_CONFIGURED' && (
+            <Alert>
+              <AlertDescription>{e.mailNotConfigured}</AlertDescription>
+            </Alert>
+          )}
+          {issue === 'TELEGRAM_NOT_STARTED' && (
+            <Alert>
+              <AlertTitle>{e.sendTelegram}</AlertTitle>
+              <AlertDescription>
+                <p>{format(e.telegramNotStarted, { bot: botUsername || '…' })}</p>
+                {shareUrl && (
+                  <Button asChild size="sm" variant="outline">
+                    <a href={shareUrl} target="_blank" rel="noreferrer">
+                      <SendIcon aria-hidden="true" />
+                      {e.shareViaTelegram}
+                    </a>
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
         </>
       )}
-      {issued && (
+      {open && issued && (
         <div className="flex flex-col gap-3 rounded-md border bg-muted/40 p-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-muted-foreground">{e.issueCode}:</span>
@@ -810,6 +924,176 @@ function ActivationPanel({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Editable card: number, name and contacts with the same hints, placeholders and validation as
+ * the creation form; the save button wakes up only when something changed. The contacts also
+ * render as links, so the card stays usable without editing.
+ */
+function EmployeeDetailsForm({
+  employee,
+  onSaved,
+}: {
+  readonly employee: EmployeeView;
+  readonly onSaved: (view: EmployeeView) => void;
+}) {
+  const initial = {
+    personnelNumber: employee.personnelNumber,
+    fullName: employee.fullName,
+    email: employee.email ?? '',
+    phone: employee.phone ?? '',
+    telegramUsername: employee.telegramUsername ?? '',
+  };
+  const [draft, setDraft] = useState(initial);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [editing, setEditing] = useState(false);
+  const { busy, error, run } = useAction();
+  useEffect(() => {
+    setDraft(initial);
+    setErrors({});
+    setEditing(false);
+  }, [
+    employee.id,
+    employee.personnelNumber,
+    employee.fullName,
+    employee.email,
+    employee.phone,
+    employee.telegramUsername,
+  ]);
+  const unchanged = isUnchanged(draft, initial);
+
+  function submit(ev: FormEvent) {
+    ev.preventDefault();
+    const checked = validateWith(UpdateEmployeeCommand, draft);
+    const next: FieldErrors = { ...checked.errors };
+    if (next.phone) next.phone = e.invalidPhone;
+    if (next.telegramUsername) next.telegramUsername = e.invalidTelegram;
+    setErrors(next);
+    if (!checked.ok) return;
+    void run(async () => {
+      onSaved(await adminEmployeesApi.update(employee.id, checked.data));
+      setEditing(false);
+    }, e.detailsSaved);
+  }
+
+  const field = (key: keyof typeof draft) => (value: string) =>
+    setDraft((d) => ({ ...d, [key]: value }));
+
+  if (!editing) {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1 text-sm font-medium">
+            {e.details}
+            <InfoTip text={e.detailsHint} />
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="ml-auto"
+            onClick={() => setEditing(true)}
+          >
+            <PencilIcon aria-hidden="true" />
+            {e.editDetails}
+          </Button>
+        </div>
+        <ContactsRow employee={employee} />
+      </div>
+    );
+  }
+  return (
+    <form className="flex flex-col gap-3 rounded-lg border p-3" onSubmit={submit} noValidate>
+      <span className="flex items-center gap-1 text-sm font-medium">
+        {e.details}
+        <InfoTip text={e.detailsHint} />
+      </span>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <FormField
+          label={e.personnelNumber}
+          hint={hints.employeesPersonnelNumber}
+          error={errors.personnelNumber}
+        >
+          {(id) => (
+            <Input
+              id={id}
+              value={draft.personnelNumber}
+              placeholder={e.personnelNumberPlaceholder}
+              onChange={(ev) => field('personnelNumber')(ev.target.value)}
+            />
+          )}
+        </FormField>
+        <FormField label={e.fullName} hint={hints.employeesFullName} error={errors.fullName}>
+          {(id) => (
+            <Input
+              id={id}
+              value={draft.fullName}
+              placeholder={e.fullNamePlaceholder}
+              onChange={(ev) => field('fullName')(ev.target.value)}
+            />
+          )}
+        </FormField>
+        <FormField label={e.email} hint={hints.employeesEmail} error={errors.email} optional>
+          {(id) => (
+            <Input
+              id={id}
+              type="email"
+              inputMode="email"
+              value={draft.email}
+              placeholder={e.emailPlaceholder}
+              onChange={(ev) => field('email')(ev.target.value)}
+            />
+          )}
+        </FormField>
+        <FormField label={e.phone} hint={hints.employeesPhone} error={errors.phone} optional>
+          {(id) => (
+            <Input
+              id={id}
+              type="tel"
+              inputMode="tel"
+              value={draft.phone}
+              placeholder={e.phonePlaceholder}
+              onChange={(ev) => field('phone')(ev.target.value)}
+            />
+          )}
+        </FormField>
+        <FormField
+          label={e.telegramUsername}
+          hint={hints.employeesTelegram}
+          error={errors.telegramUsername}
+          optional
+        >
+          {(id) => (
+            <Input
+              id={id}
+              value={draft.telegramUsername}
+              placeholder={e.telegramPlaceholder}
+              onChange={(ev) => field('telegramUsername')(ev.target.value)}
+            />
+          )}
+        </FormField>
+      </div>
+      <Feedback error={error} />
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setDraft(initial);
+            setErrors({});
+            setEditing(false);
+          }}
+        >
+          {t.common.cancel}
+        </Button>
+        <Button type="submit" size="sm" disabled={busy || unchanged}>
+          {all.ui.common.save}
+        </Button>
+      </div>
+    </form>
   );
 }
 
