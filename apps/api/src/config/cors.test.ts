@@ -23,7 +23,7 @@ class ProbeModule {}
 
 const PANEL = 'http://localhost:5173';
 
-describe('CORS для панелі', () => {
+describe('CORS for the panel', () => {
   let app: NestFastifyApplication;
 
   beforeAll(async () => {
@@ -39,14 +39,14 @@ describe('CORS для панелі', () => {
     await app.close();
   });
 
-  it('preflight дозволяє PUT і DELETE з cookie для дозволеного origin', async () => {
+  it('preflight allows PUT and DELETE with the cookie and the panel headers for an allowed origin', async () => {
     const res = await app.inject({
       method: 'OPTIONS',
       url: '/probe',
       headers: {
         origin: PANEL,
         'access-control-request-method': 'PUT',
-        'access-control-request-headers': 'content-type',
+        'access-control-request-headers': 'content-type,x-locale',
       },
     });
     expect(res.statusCode).toBeLessThan(300);
@@ -55,12 +55,12 @@ describe('CORS для панелі', () => {
     const methods = String(res.headers['access-control-allow-methods']);
     expect(methods).toContain('PUT');
     expect(methods).toContain('DELETE');
-    expect(String(res.headers['access-control-allow-headers']).toLowerCase()).toContain(
-      'content-type',
-    );
+    const allowed = String(res.headers['access-control-allow-headers']).toLowerCase();
+    expect(allowed).toContain('content-type');
+    expect(allowed).toContain('x-locale');
   });
 
-  it('фактичний PUT віддає allow-origin, чужий origin його не отримує', async () => {
+  it('the actual PUT returns allow-origin; a foreign origin does not get it', async () => {
     const ok = await app.inject({ method: 'PUT', url: '/probe', headers: { origin: PANEL } });
     expect(ok.statusCode).toBe(200);
     expect(ok.headers['access-control-allow-origin']).toBe(PANEL);
