@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AttendanceModule } from '../attendance/attendance.module.js';
+import { BonusModule } from '../bonus/bonus.module.js';
 import { IdentityModule } from '../identity/identity.module.js';
 import { SchedulingModule } from '../scheduling/scheduling.module.js';
 import { HandoverModule } from '../handover/handover.module.js';
@@ -19,6 +20,7 @@ import { UpdateDedup } from './update-dedup.js';
     IncidentsModule,
     HandoverModule,
     RequestsModule,
+    BonusModule,
   ],
   controllers: [TelegramController],
   providers: [TelegramService, UpdateDedup],

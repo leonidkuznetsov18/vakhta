@@ -71,6 +71,13 @@
       "when": 1788651827123,
       "tag": "0009_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788652736355,
+      "tag": "0010_bonus",
+      "breakpoints": true
     }
   ]
 }

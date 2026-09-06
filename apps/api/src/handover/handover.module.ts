@@ -31,6 +31,6 @@ import { MEDIA_OPTIONS, MediaService, type MediaOptions } from './media.service.
       inject: [ConfigService],
     },
   ],
-  exports: [HandoverService, MediaService],
+  exports: [HandoverService, MediaService, HandoverChanges],
 })
 export class HandoverModule {}

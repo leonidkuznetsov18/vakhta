@@ -76,6 +76,8 @@ export const EnvSchema = z.object({
     .preprocess((v) => (typeof v === 'string' ? v === 'true' : v), z.boolean())
     .default(true),
   MEDIA_LINK_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+  /** Строк апеляції по балах у робочих днях (ТЗ 7.7, 18 п. 14). */
+  APPEAL_WINDOW_DAYS: z.coerce.number().int().positive().default(3),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

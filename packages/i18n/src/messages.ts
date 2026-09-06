@@ -1,4 +1,6 @@
 import type {
+  BonusCriterion,
+  BonusSection,
   ChecklistKey,
   HandoverAngle,
   HandoverIssueCode,
@@ -216,6 +218,36 @@ export interface Messages {
     readonly stepOf: string;
     readonly rejectedShort: string;
     readonly approvedShort: string;
+  };
+  readonly bonus: {
+    readonly criteria: Readonly<Record<BonusCriterion, string>>;
+    readonly sections: Readonly<Record<BonusSection, string>>;
+    readonly statuses: Readonly<
+      Record<
+        'PRELIMINARY' | 'PENDING' | 'MANUAL_REVIEW' | 'APPEALED' | 'CONFIRMED' | 'NOT_EVALUATED',
+        string
+      >
+    >;
+    readonly criterionStatuses: Readonly<
+      Record<'earned' | 'missed' | 'not_applicable' | 'pending' | 'appealed' | 'confirmed', string>
+    >;
+    readonly myScoresButton: string;
+    /** Плейсхолдери: {month}, {year} */
+    readonly header: string;
+    /** Плейсхолдер: {score} */
+    readonly monthLine: string;
+    readonly monthPending: string;
+    readonly noScores: string;
+    /** Плейсхолдери: {date}, {score}, {status} */
+    readonly shiftLine: string;
+    readonly manualReview: string;
+    readonly appealButton: string;
+    /** Плейсхолдер: {days} */
+    readonly appealHint: string;
+    readonly appealSubmitted: string;
+    readonly detailsButton: string;
+    /** Плейсхолдери: {month}, {score} */
+    readonly periodClosed: string;
   };
   readonly schedule: {
     /** Назви місяців у називному відмінку, індекс 0 = січень. */
@@ -466,6 +498,78 @@ export interface Messages {
       readonly corrected: string;
       readonly reasonCode: string;
       readonly live: string;
+    };
+    readonly bonus: {
+      readonly site: string;
+      readonly month: string;
+      readonly employee: string;
+      readonly shifts: string;
+      readonly evaluated: string;
+      readonly pending: string;
+      readonly sMonth: string;
+      readonly base: string;
+      readonly amount: string;
+      readonly period: string;
+      readonly ruleVersion: string;
+      readonly closePeriod: string;
+      readonly closed: string;
+      readonly closeConfirm: string;
+      readonly setBase: string;
+      readonly baseSaved: string;
+      readonly exportCsv: string;
+      readonly detail: string;
+      readonly criterion: string;
+      readonly points: string;
+      readonly basis: string;
+      readonly adjust: string;
+      readonly delta: string;
+      readonly reasonCode: string;
+      readonly comment: string;
+      readonly adjusted: string;
+      readonly needsSecond: string;
+      readonly secondQueue: string;
+      readonly approve: string;
+      readonly reject: string;
+      readonly recompute: string;
+      readonly recomputed: string;
+      readonly empty: string;
+    };
+    readonly reports: {
+      readonly kinds: Readonly<
+        Record<'hours' | 'time-structure' | 'downtime' | 'handover' | 'bot-usage' | 'bonus', string>
+      >;
+      readonly site: string;
+      readonly orgUnit: string;
+      readonly from: string;
+      readonly to: string;
+      readonly build: string;
+      readonly exportCsv: string;
+      readonly exportXlsx: string;
+      readonly empty: string;
+      readonly totals: string;
+      readonly generatedAt: string;
+      readonly dataVersion: string;
+      readonly columns: Readonly<Record<string, string>>;
+    };
+    readonly audit: {
+      readonly tabs: Readonly<Record<'audit' | 'events', string>>;
+      readonly at: string;
+      readonly actor: string;
+      readonly action: string;
+      readonly object: string;
+      readonly reason: string;
+      readonly before: string;
+      readonly after: string;
+      readonly type: string;
+      readonly source: string;
+      readonly employee: string;
+      readonly payload: string;
+      readonly filterAction: string;
+      readonly filterType: string;
+      readonly filterObject: string;
+      readonly apply: string;
+      readonly empty: string;
+      readonly corrects: string;
     };
     readonly administration: {
       readonly tabs: Readonly<Record<'employees' | 'users' | 'directories' | 'terminals', string>>;

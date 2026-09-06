@@ -17,6 +17,7 @@ import { createLogger } from '../logger.js';
 import { ScheduleService } from '../scheduling/schedule.service.js';
 import { HandoverService } from '../handover/handover.service.js';
 import { IncidentsService } from '../incidents/incidents.service.js';
+import { BonusService } from '../bonus/bonus.service.js';
 import { RequestsService } from '../requests/requests.service.js';
 import { SHORT_TERM_STORE, type ShortTermStore } from '../infra/short-term-store.js';
 import { ShiftService } from '../shift/shift.service.js';
@@ -45,6 +46,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     private readonly incidents: IncidentsService,
     private readonly handover: HandoverService,
     private readonly requests: RequestsService,
+    private readonly bonus: BonusService,
     @Inject(SHORT_TERM_STORE) private readonly store: ShortTermStore,
     private readonly dedup: UpdateDedup,
   ) {
@@ -69,6 +71,8 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       incidents: this.incidents,
       handover: this.handover,
       requests: this.requests,
+      bonus: this.bonus,
+      appealWindowDays: this.config.get('APPEAL_WINDOW_DAYS', { infer: true }),
       store: this.store,
       dedup: this.dedup,
       defaultTimezone: this.config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),

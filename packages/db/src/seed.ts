@@ -83,6 +83,10 @@ const REASONS: ReasonSeed[] = [
     severity: 'CRITICAL',
   },
   { kind: 'HANDOVER', code: 'OTHER', label: 'Другое', requiresComment: true },
+  { kind: 'ADJUSTMENT', code: 'MASTER_REVIEW', label: 'Проверка мастера' },
+  { kind: 'ADJUSTMENT', code: 'SYSTEM_INCIDENT', label: 'Технический сбой' },
+  { kind: 'ADJUSTMENT', code: 'APPEAL_DECISION', label: 'Решение по апелляции' },
+  { kind: 'ADJUSTMENT', code: 'OTHER', label: 'Другое', requiresComment: true },
 ];
 
 async function ensureSite() {

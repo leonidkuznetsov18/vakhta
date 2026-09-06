@@ -280,3 +280,60 @@ export const requestsApi = {
     post<CorrectionResultView>(`/admin/requests/corrections/${sessionId}`, cmd),
   streamUrl: () => `${API_URL}/admin/requests/stream`,
 };
+
+// ---- бонус (ТЗ 7) ----
+
+import type {
+  AdjustScoreCommand,
+  BonusPeriodView,
+  BonusRuleVersionView,
+  SecondApprovalCommand,
+  SetBaseAmountsCommand,
+  ShiftScoreView,
+} from '@vakhta/contracts';
+
+export const bonusApi = {
+  period: (siteId: string, month: string, employeeId?: string) =>
+    apiFetch<BonusPeriodView>(`/admin/bonus/period${query({ siteId, month, employeeId })}`),
+  rules: () => apiFetch<BonusRuleVersionView[]>('/admin/bonus/rules'),
+  recompute: (sessionId: string) =>
+    post<ShiftScoreView | null>(`/admin/bonus/scores/${sessionId}/recompute`),
+  adjust: (scoreId: string, cmd: AdjustScoreCommand) =>
+    post<ShiftScoreView>(`/admin/bonus/scores/${scoreId}/adjust`, cmd),
+  second: (adjustmentId: string, cmd: SecondApprovalCommand) =>
+    post<ShiftScoreView>(`/admin/bonus/adjustments/${adjustmentId}/second`, cmd),
+  close: (siteId: string, month: string, comment: string) =>
+    post<BonusPeriodView>(`/admin/bonus/period/${siteId}/${month}/close`, { comment }),
+  setBase: (periodId: string, cmd: SetBaseAmountsCommand) =>
+    post<BonusPeriodView>(`/admin/bonus/period/${periodId}/base`, cmd),
+  exportUrl: (periodId: string) => `${API_URL}/admin/bonus/period/${periodId}/export.csv`,
+};
+
+// ---- звіти й аудит (ТЗ 9.3, 13) ----
+
+import type {
+  AuditEntryView,
+  AuditQuery,
+  DomainEventView,
+  EventsQuery,
+  ReportKind,
+  ReportQuery,
+  ReportTableView,
+} from '@vakhta/contracts';
+
+export const reportsApi = {
+  build: (kind: ReportKind, q: ReportQuery) =>
+    apiFetch<ReportTableView>(
+      `/admin/reports/${kind}${query({ siteId: q.siteId, orgUnitId: q.orgUnitId, from: q.from, to: q.to })}`,
+    ),
+  exportUrl: (kind: ReportKind, q: ReportQuery, format: 'csv' | 'xlsx') =>
+    `${API_URL}/admin/reports/${kind}/export/${format}${query({ siteId: q.siteId, orgUnitId: q.orgUnitId, from: q.from, to: q.to })}`,
+  audit: (q: AuditQuery) =>
+    apiFetch<AuditEntryView[]>(
+      `/admin/audit${query({ from: q.from, to: q.to, actorId: q.actorId, action: q.action, objectType: q.objectType, objectId: q.objectId, limit: q.limit ? String(q.limit) : undefined })}`,
+    ),
+  events: (q: EventsQuery) =>
+    apiFetch<DomainEventView[]>(
+      `/admin/audit/events${query({ from: q.from, to: q.to, employeeId: q.employeeId, shiftSessionId: q.shiftSessionId, type: q.type, limit: q.limit ? String(q.limit) : undefined })}`,
+    ),
+};

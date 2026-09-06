@@ -26,6 +26,7 @@ import type { ScheduleService } from '../scheduling/schedule.service.js';
 import type { ShiftService } from '../shift/shift.service.js';
 import type { HandoverService } from '../handover/handover.service.js';
 import type { IncidentsService } from '../incidents/incidents.service.js';
+import type { BonusService } from '../bonus/bonus.service.js';
 import type { RequestsService } from '../requests/requests.service.js';
 import type { ShortTermStore } from '../infra/short-term-store.js';
 import type { BotContext } from './bot-context.js';
@@ -51,7 +52,9 @@ import {
   incidentResultScreen,
   incidentStoppedScreen,
   counterpartScreen,
+  myScoresScreen,
   pendingHandoverScreen,
+  scoreDetailScreen,
   planScreen,
   requestAssignmentScreen,
   requestChoiceScreen,
@@ -156,6 +159,8 @@ export interface BotDeps {
   readonly incidents: IncidentsService;
   readonly handover: HandoverService;
   readonly requests: RequestsService;
+  readonly bonus: BonusService;
+  readonly appealWindowDays: number;
   readonly store: ShortTermStore;
   readonly dedup: UpdateDedup;
   readonly defaultTimezone: string;
@@ -878,6 +883,35 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     if (!next) return submitRq(ctx, pending);
     await askRq(ctx, { ...pending, step: next }, (s) => show(ctx, s));
   }
+
+  // Бали (ТЗ 7.7): місяць, розшифровка, апеляція у строк.
+  bot.callbackQuery(/^bn:(me|m:(\d{4}-\d{2}))$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
+    const month = ctx.match[2] ?? businessDateOf(new Date(), deps.defaultTimezone).slice(0, 7);
+    await edit(ctx, myScoresScreen(await deps.bonus.myScores(ctx.employee.id, month)));
+  });
+
+  bot.callbackQuery(/^bn:d:([0-9a-f-]{36})$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
+    const score = await deps.bonus.score(ctx.match[1] ?? '').catch(() => null);
+    if (!score || score.employeeId !== ctx.employee.id) return edit(ctx, await buildHome(ctx));
+    const ageDays = (Date.now() - new Date(score.computedAt).getTime()) / 86_400_000;
+    const canAppeal =
+      score.status !== 'APPEALED' &&
+      score.status !== 'NOT_EVALUATED' &&
+      ageDays <= deps.appealWindowDays + 2;
+    await edit(ctx, scoreDetailScreen(score, deps.appealWindowDays, canAppeal));
+  });
+
+  bot.callbackQuery(/^bn:ap:([0-9a-f-]{36})$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
+    await askRq(ctx, { type: 'APPEAL', step: 'comment', shiftSessionId: ctx.match[1] ?? '' }, (s) =>
+      edit(ctx, s),
+    );
+  });
 
   bot.callbackQuery(/^rq:menu$/, async (ctx) => {
     await ctx.answerCallbackQuery();

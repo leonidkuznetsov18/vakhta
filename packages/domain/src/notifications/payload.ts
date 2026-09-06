@@ -28,6 +28,7 @@ export const NOTIFICATION_TEMPLATES = [
   'REQUEST_COUNTERPART',
   'REQUEST_DECIDED',
   'SCHEDULE_CHANGED_BY_REQUEST',
+  'BONUS_PERIOD_CLOSED',
 ] as const;
 export type NotificationTemplate = (typeof NOTIFICATION_TEMPLATES)[number];
 

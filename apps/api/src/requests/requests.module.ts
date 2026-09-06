@@ -11,6 +11,6 @@ import { RequestsService } from './requests.service.js';
   imports: [SchedulingModule, ShiftModule, HandoverModule],
   controllers: [AdminRequestsController],
   providers: [RequestsService, CorrectionsService, RequestChanges],
-  exports: [RequestsService, CorrectionsService],
+  exports: [RequestsService, CorrectionsService, RequestChanges],
 })
 export class RequestsModule {}

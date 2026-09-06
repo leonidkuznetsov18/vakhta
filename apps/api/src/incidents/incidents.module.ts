@@ -25,6 +25,6 @@ import { INCIDENT_OPTIONS, IncidentsService, type IncidentOptions } from './inci
       inject: [ConfigService],
     },
   ],
-  exports: [IncidentsService],
+  exports: [IncidentsService, IncidentChanges],
 })
 export class IncidentsModule {}

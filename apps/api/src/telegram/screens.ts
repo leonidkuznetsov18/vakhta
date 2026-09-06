@@ -17,10 +17,12 @@ import type {
   CheckInResult,
   HandoverView,
   MyPlanView,
+  MyScoresView,
   PendingHandoverView,
   ReasonOption,
   ReportProblemResult,
   RequestView,
+  ShiftScoreView,
   ShiftScreenView,
   ShiftSummaryView,
 } from '@vakhta/contracts';
@@ -105,7 +107,9 @@ export function homeScreen(input: HomeInput): Screen {
 
   const keyboard = new InlineKeyboard()
     .text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`)
-    .text(t.requests.menuButton, 'rq:menu');
+    .text(t.requests.menuButton, 'rq:menu')
+    .row()
+    .text(t.bonus.myScoresButton, BONUS_CALLBACK.me);
   if (input.unacknowledged > 0) keyboard.row().text(t.schedule.ackButton, CALLBACK.ackAll);
   if (input.pendingSwaps > 0)
     keyboard.row().text(`${t.requests.counterpartYes}? (${input.pendingSwaps})`, 'rq:pending');
@@ -365,7 +369,10 @@ export function shiftKeyboard(view: ShiftScreenView): InlineKeyboard | undefined
       .text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`)
       .text(t.requests.menuButton, 'rq:menu');
     if (view.session.state === 'SHIFT_CLOSED' || view.session.state === 'EMERGENCY_EXIT') {
-      keyboard.row().text(t.requests.types.CORRECTION, `rq:corr:${view.session.id}`);
+      keyboard
+        .row()
+        .text(t.requests.types.CORRECTION, `rq:corr:${view.session.id}`)
+        .text(t.bonus.myScoresButton, BONUS_CALLBACK.me);
     }
   }
   return keyboard.inline_keyboard.some((row) => row.length > 0) ? keyboard : undefined;
@@ -772,4 +779,103 @@ export function counterpartScreen(pending: readonly RequestView[]): Screen {
   }
   keyboard.text(t.shift.backToShift, SHIFT_CALLBACK.back);
   return { text: [t.requests.counterpartAsk, '', ...lines].join('\n'), keyboard };
+}
+
+/* -------------------------------------------------------------------- */
+/* Бали (ТЗ 7.7)                                                          */
+/* -------------------------------------------------------------------- */
+
+export const BONUS_CALLBACK = {
+  me: 'bn:me',
+  detailPrefix: 'bn:d:',
+  appealPrefix: 'bn:ap:',
+  monthPrefix: 'bn:m:',
+} as const;
+
+/** «Мої бали»: коефіцієнт місяця і зміни зі статусами; підстава кожного зниження за кнопкою. */
+export function myScoresScreen(view: MyScoresView): Screen {
+  const [year, m] = view.month.split('-');
+  const monthName = t.schedule.months[Number(m) - 1] ?? view.month;
+  const lines = [format(t.bonus.header, { month: monthName, year: year ?? '' }), ''];
+  if (view.scores.length === 0) lines.push(t.bonus.noScores);
+  else {
+    if (view.sMonth !== null) lines.push(format(t.bonus.monthLine, { score: view.sMonth }));
+    if (
+      view.scores.some(
+        (s) => s.status === 'PENDING' || s.status === 'MANUAL_REVIEW' || s.status === 'APPEALED',
+      )
+    )
+      lines.push(t.bonus.monthPending);
+    lines.push('');
+    for (const s of view.scores) {
+      lines.push(
+        format(t.bonus.shiftLine, {
+          date: `${s.businessDate.slice(8, 10)}.${s.businessDate.slice(5, 7)}`,
+          score:
+            s.score === null
+              ? s.status === 'NOT_EVALUATED'
+                ? '—'
+                : t.bonus.manualReview
+              : String(s.score),
+          status: t.bonus.statuses[s.status],
+        }),
+      );
+    }
+  }
+  const keyboard = new InlineKeyboard();
+  for (const s of view.scores.slice(0, 6)) {
+    keyboard
+      .text(
+        `${t.bonus.detailsButton} ${s.businessDate.slice(8, 10)}.${s.businessDate.slice(5, 7)}`,
+        `${BONUS_CALLBACK.detailPrefix}${s.id}`,
+      )
+      .row();
+  }
+  keyboard
+    .text(t.schedule.prevMonth, `${BONUS_CALLBACK.monthPrefix}${addMonths(view.month, -1)}`)
+    .text(t.schedule.nextMonth, `${BONUS_CALLBACK.monthPrefix}${addMonths(view.month, 1)}`)
+    .row()
+    .text(t.shift.backToShift, SHIFT_CALLBACK.back);
+  return { text: lines.join('\n'), keyboard };
+}
+
+/** Розшифровка зміни: критерій, бали, статус і підстава (ТЗ 7.1: працівник бачить причину). */
+export function scoreDetailScreen(
+  score: ShiftScoreView,
+  appealDays: number,
+  canAppeal: boolean,
+): Screen {
+  const lines = [
+    `${score.businessDate.slice(8, 10)}.${score.businessDate.slice(5, 7)} · ${score.score === null ? t.bonus.statuses[score.status] : `${score.score} / 100`} · ${t.bonus.statuses[score.status]}`,
+    '',
+  ];
+  let section: string | null = null;
+  for (const c of score.criteria) {
+    if (c.section !== section) {
+      section = c.section;
+      lines.push(`— ${t.bonus.sections[c.section as keyof typeof t.bonus.sections] ?? c.section}`);
+    }
+    const mark =
+      c.status === 'earned' || c.status === 'confirmed'
+        ? '✅'
+        : c.status === 'not_applicable'
+          ? '➖'
+          : c.status === 'pending' || c.status === 'appealed'
+            ? '⏳'
+            : '⚠️';
+    const basis = c.basis.length > 0 ? ` (${c.basis.slice(0, 3).join(', ')})` : '';
+    lines.push(
+      `${mark} ${t.bonus.criteria[c.criterion]}: ${c.status === 'not_applicable' ? t.bonus.criterionStatuses.not_applicable : `${c.earnedPoints}/${c.maxPoints}`}${basis}`,
+    );
+  }
+  if (score.excludedReason)
+    lines.push('', `${t.bonus.statuses.NOT_EVALUATED}: ${score.excludedReason}`);
+  if (canAppeal) lines.push('', format(t.bonus.appealHint, { days: appealDays }));
+  const keyboard = new InlineKeyboard();
+  if (canAppeal)
+    keyboard
+      .text(t.bonus.appealButton, `${BONUS_CALLBACK.appealPrefix}${score.shiftSessionId}`)
+      .row();
+  keyboard.text(t.shift.backToShift, BONUS_CALLBACK.me);
+  return { text: lines.join('\n'), keyboard };
 }

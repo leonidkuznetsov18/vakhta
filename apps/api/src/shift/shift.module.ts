@@ -30,6 +30,6 @@ import { SHIFT_OPTIONS, ShiftService, type ShiftOptions } from './shift.service.
       inject: [ConfigService],
     },
   ],
-  exports: [ShiftService, HandoverRepository],
+  exports: [ShiftService, HandoverRepository, ShiftChanges, SHIFT_OPTIONS],
 })
 export class ShiftModule {}

@@ -743,3 +743,23 @@ h2 {
   font-weight: 600;
   border-top: 2px solid var(--line);
 }
+
+/* ---- бонус ---- */
+.score-row td {
+  font-size: 13px;
+  background: var(--surface-2);
+}
+
+.score-row .indent {
+  padding-left: 24px;
+}
+
+/* ---- аудит ---- */
+.json {
+  font-size: 12px;
+  white-space: pre-wrap;
+  background: var(--surface-2);
+  padding: 8px;
+  border-radius: 4px;
+  margin: 0;
+}
