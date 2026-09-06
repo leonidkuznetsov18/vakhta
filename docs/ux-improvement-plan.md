@@ -1,6 +1,7 @@
 # UI/UX improvement plan (panel, kiosk, bot)
 
-Review date: 2026-09-06, version 0.4.0. Sources: page code in `apps/admin-web`, the kiosk, the bot
+Review date: 2026-09-06, version 0.4.0. Status on 2026-09-06 evening: phases 1 and 2 are
+shipped in full; phase 3 is shipped except the three items listed under "Deferred". Sources: page code in `apps/admin-web`, the kiosk, the bot
 screens, and pilot screenshots. Findings are grouped by phase; each item names the screen, the
 problem and the change. Every change follows `CLAUDE.md`: shadcn primitives only, texts in
 `@vakhta/i18n` in three languages, tooltips on non-obvious controls, hover/active/focus states.
@@ -48,6 +49,13 @@ problem and the change. Every change follows `CLAUDE.md`: shadcn primitives only
 - Dark mode toggle in the profile (tokens already exist); density switch for tables.
 - Kiosk: clock and date on screen, terminal name in the header, "last sync" indicator; optional fullscreen and wake-lock request on load.
 - Bot: `setMyCommands` with /plan, /scores, /requests, /language, /help; a "Help" button linking to the guide sections; a persistent reply keyboard for the three most used actions during a shift.
+
+## Deferred from phase 3
+
+- Reports: period-over-period comparison (the chart and the print view are in).
+- Schedule: copying a row to the next month (rotation patterns cover the common case).
+- Bot: a persistent reply keyboard; the command menu and the Help button were added instead, so
+  the stateless screen model stays intact.
 
 ## Out of scope for the pilot
 
