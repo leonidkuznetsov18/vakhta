@@ -1,110 +1,84 @@
-# Продакшен: середовища, сервіси, порядок запуску
+# Production: environments, services, first run
 
-Чек-лист «що створити і що налаштувати» для пілоту. Vercel хостить статичні збірки панелі й кіоска; API і воркер живуть у контейнерах на платформі з довгоживучими процесами (вебхук бота, SSE панелі, BullMQ). Нижче варіант із мінімумом операційної роботи: Railway для контейнерів, Neon для Postgres, Upstash для Redis, Cloudflare R2 для фото.
+Checklist of what exists and how it is operated. Cloudflare Pages hosts the static panel and kiosk; the API and the worker run as containers on Railway together with Postgres and Redis, because the bot webhook, the SSE stream of the panel and BullMQ need long-lived processes. Everything Railway-side is declared in `.railway/railway.ts` (infrastructure as code); Cloudflare-side resources are created with `wrangler`.
 
-## 1. Два середовища
+## 1. Two environments
 
-| Що               | dev (локально)                                       | prod                                                                                             |
-| ---------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Конфігурація     | `.env` з `.env.example`; `node --env-file-if-exists` | змінні в панелі хостингу за шаблоном `.env.production.example`; файлів `.env*` у контейнері нема |
-| Перевірка старту | заглушки `change-me` дозволені                       | `NODE_ENV=production` вимагає https, webhook, секрети без заглушок, S3, `METRICS_TOKEN`          |
-| Інфраструктура   | `pnpm infra:up`: Postgres, Redis, MinIO у Docker     | Neon, Upstash, R2 (керовані)                                                                     |
-| Telegram         | `TELEGRAM_MODE=polling`, публічна адреса не потрібна | `TELEGRAM_MODE=webhook`, `TELEGRAM_WEBHOOK_SECRET`, `telegram:set-webhook`                       |
-| Cookie панелі    | http, `SameSite=Lax`                                 | https, `Secure`, `SameSite` з `AUTH_COOKIE_SAME_SITE` (lax під одним доменом)                    |
-| Міграції         | `pnpm db:migrate` (drizzle-kit)                      | `node packages/db/dist/migrate.js` в образі (pre-deploy на Railway), той самий журнал            |
-| `/metrics`       | відкритий                                            | лише з `Authorization: Bearer <METRICS_TOKEN>`                                                   |
-| Помилки          | pino-pretty в консолі                                | pino JSON у логи платформи, Sentry за `SENTRY_DSN`                                               |
-| Збірка           | `pnpm dev` (tsc --watch, Vite)                       | образи з `apps/api/Dockerfile`, `apps/worker/Dockerfile`; Vercel збирає Vite сам                 |
+| What           | dev (local)                                             | prod                                                                                                     |
+| -------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Configuration  | `.env` from `.env.example`; `node --env-file-if-exists` | Railway service variables (template: `.env.production.example`); no `.env*` files in the container       |
+| Startup check  | `change-me` placeholders allowed                        | `NODE_ENV=production` requires https, webhook, real secrets, `S3_*`, `METRICS_TOKEN`                     |
+| Infrastructure | `pnpm infra:up`: Postgres, Redis, MinIO in Docker       | Railway Postgres 18 and Redis on the private network, Cloudflare R2                                      |
+| Telegram       | `TELEGRAM_MODE=polling`, no public address              | `TELEGRAM_MODE=webhook`, `TELEGRAM_WEBHOOK_SECRET`, webhook set from inside the container                |
+| Panel cookie   | http, `SameSite=Lax`                                    | https, `Secure`; `AUTH_COOKIE_SAME_SITE=lax` under one domain, `none` while on `pages.dev`/`railway.app` |
+| Migrations     | `pnpm db:migrate` (drizzle-kit)                         | `node packages/db/dist/migrate.js` as the Railway pre-deploy command, same journal                       |
+| `/metrics`     | open                                                    | only with `Authorization: Bearer <METRICS_TOKEN>`                                                        |
+| Errors         | pino-pretty in the console                              | pino JSON in Railway logs, Sentry when `SENTRY_DSN` is set                                               |
+| Build          | `pnpm dev` (tsc --watch, Vite)                          | `apps/api/Dockerfile`, `apps/worker/Dockerfile` built by Railway; Vite `dist` uploaded to Pages          |
 
-## 2. Що створити
+## 2. What exists
 
-| Компонент               | Сервіс                                                                      | Навіщо                                                                                                         |
-| ----------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Домен                   | реєстратор + Cloudflare DNS                                                 | `panel.<домен>`, `kiosk.<домен>`, `api.<домен>` **під одним доменом**: інакше Safari не пропускає cookie сесії |
-| Панель `apps/admin-web` | **Vercel**, проєкт 1                                                        | статична збірка, HTTPS; конфіг у `apps/admin-web/vercel.json`                                                  |
-| Кіоск `apps/qr-kiosk`   | **Vercel**, проєкт 2                                                        | сторінка терміналу з QR; конфіг у `apps/qr-kiosk/vercel.json`                                                  |
-| API `apps/api`          | **Railway**, сервіс з `apps/api/railway.json`                               | NestJS + Fastify, вебхук, SSE, `/metrics`; публічний домен `api.<домен>`                                       |
-| Worker `apps/worker`    | **Railway**, сервіс з `apps/worker/railway.json`                            | аутбокс, таймери, фото-пайплайн; без публічного порту                                                          |
-| PostgreSQL 16           | **Neon** (або Postgres Railway)                                             | єдине джерело істини; розширення `pgcrypto`, `btree_gist`; PITR                                                |
-| Redis 7                 | **Upstash** (або Redis Railway)                                             | BullMQ і стан бота; `rediss://`                                                                                |
-| S3-сумісне сховище      | **Cloudflare R2**, приватний бакет `vakhta-media`                           | фото передач і медичні документи; лише presigned GET                                                           |
-| Бакет для бекапів       | **Cloudflare R2**, приватний бакет `vakhta-backups`                         | нічні `pg_dump`; lifecycle 30 днів                                                                             |
-| Telegram-бот            | BotFather                                                                   | продакшен-бот окремо від dev-бота: токен, username                                                             |
-| Реєстр образів          | **GHCR** (автоматично з CI)                                                 | `ghcr.io/leonidkuznetsov18/vakhta-api`, `…-worker` з тегами `sha-…` і `latest`                                 |
-| Помилки                 | **Sentry** (необовʼязково)                                                  | два проєкти або один з тегом `service`; `SENTRY_DSN`                                                           |
-| Моніторинг              | Railway metrics + зовнішній uptime-чек `/health`; Grafana Cloud за бажанням | алерти з `infra/monitoring/prometheus-alerts.yml`                                                              |
+| Component              | Service                                                        | Notes                                                                                |
+| ---------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| API `apps/api`         | Railway project `vakhta`, service `api`, region `europe-west4` | Dockerfile build, pre-deploy migrations, `/health` check, public domain, `PORT=3000` |
+| Worker `apps/worker`   | Railway service `worker`                                       | Dockerfile build, no public port, restart `ALWAYS`                                   |
+| PostgreSQL 18          | Railway `Postgres` (`postgres-ssl:18`)                         | private endpoint `postgres`; a TCP proxy exists only for the nightly dump            |
+| Redis 8                | Railway `Redis`                                                | private endpoint `redis`, `--save 60 1` on a volume                                  |
+| Panel `apps/admin-web` | Cloudflare Pages project `vakhta-panel`                        | `https://vakhta-panel.pages.dev` until a custom domain is attached                   |
+| Kiosk `apps/qr-kiosk`  | Cloudflare Pages project `vakhta-kiosk`                        | `https://vakhta-kiosk.pages.dev`; rebuilt with the terminal token                    |
+| Photos, medical files  | Cloudflare R2 bucket `vakhta-media` (private, WEUR)            | S3 API keys with Object Read & Write on both buckets                                 |
+| Database backups       | Cloudflare R2 bucket `vakhta-backups`                          | lifecycle rule `expire-30d` on `postgres/`                                           |
+| Images                 | GHCR `ghcr.io/leonidkuznetsov18/vakhta-api`, `…-worker`        | published by CI from `master`, used for rollback and for other hosts                 |
+| Telegram bot           | BotFather                                                      | webhook `https://<api domain>/telegram/webhook` with a secret header                 |
+| Errors                 | Sentry (optional)                                              | set `SENTRY_DSN` on api and worker                                                   |
 
-## 3. Змінні середовища
+## 3. Variables
 
-Повний шаблон з коментарями: `.env.production.example`. Секрети генеруються `openssl rand -base64 48` і живуть лише в панелях хостингу.
+Template with comments: `.env.production.example`. Secrets are generated with `openssl rand -base64 48` and live only in Railway variables (`railway variables --service api --set KEY=VALUE`). `DATABASE_URL` and `REDIS_URL` are references `${{Postgres.DATABASE_URL}}` / `${{Redis.REDIS_URL}}` to the private network. GitHub repository secrets for the backup workflow: `PROD_DATABASE_URL` (through the TCP proxy, `sslmode=require`), `BACKUP_S3_ENDPOINT`, `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`; repository variable `DB_BACKUP_ENABLED=true`.
 
-- **API (Railway):** усе з розділу «API» шаблону. Обовʼязкові в продакшені: `PUBLIC_BASE_URL` (https), `CORS_ORIGINS` (https), `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `ACTIVATION_PEPPER`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_MODE=webhook`, `TELEGRAM_WEBHOOK_SECRET`, `S3_*`, `METRICS_TOKEN`. Без будь-якого з них API не відкриє порт і напише, чого бракує.
-- **Worker (Railway):** `NODE_ENV=production`, `DATABASE_URL`, `REDIS_URL`, `TELEGRAM_BOT_TOKEN`, `S3_*`, за бажанням `SENTRY_DSN`, `MEDIA_*`.
-- **Vercel, панель:** `VITE_API_URL=https://api.<домен>`.
-- **Vercel, кіоск:** `VITE_API_URL`, `VITE_KIOSK_DEVICE_TOKEN` (токен терміналу з панелі «Администрирование → Терминалы»). Один проєкт на термінал.
-- **GitHub (бекапи):** секрети `PROD_DATABASE_URL`, `BACKUP_S3_ENDPOINT`, `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`; змінна репозиторію `DB_BACKUP_ENABLED=true`.
+## 4. How it was brought up (repeatable)
 
-## 4. Порядок першого запуску
-
-1. **Домен і DNS.** Створити записи `panel`, `kiosk`, `api` (CNAME на Vercel і Railway після створення проєктів). TLS видають Vercel і Railway.
-2. **База.** Створити Postgres, виконати `CREATE EXTENSION IF NOT EXISTS pgcrypto; CREATE EXTENSION IF NOT EXISTS btree_gist;` (Neon дозволяє власнику). Увімкнути PITR або залишити нічні бекапи з п. 6.
-3. **Redis і R2.** Створити Upstash Redis (TLS) і два приватні бакети R2 з API-токеном «Object Read & Write»; на бакеті бекапів lifecycle-правило «видаляти через 30 днів».
-4. **Telegram.** У BotFather створити продакшен-бота; зберегти токен і username у змінні Railway.
-5. **Railway, сервіс API.** Новий сервіс із GitHub-репозиторію, root directory `/`, Config File Path `apps/api/railway.json` (Dockerfile збирається з кореня монорепо, pre-deploy запускає міграції, healthcheck `/health`). Додати змінні з п. 3, згенерувати домен і прив'язати `api.<домен>`. Після деплою `GET https://api.<домен>/health` має віддати `200`.
-6. **Railway, сервіс worker.** Той самий репозиторій, Config File Path `apps/worker/railway.json`, ті самі `DATABASE_URL`/`REDIS_URL`/`TELEGRAM_BOT_TOKEN`/`S3_*`. У логах має бути `worker запущено` з `outboxRelay: true`.
-7. **Довідники і адміністратор.** Одноразові команди виконуються з ноутбука в образі з GHCR зі змінними продакшену (без `NODE_ENV=production`, щоб не вмикати перевірку webhook для CLI):
+1. `railway login`, `wrangler login` in a terminal (OAuth in the browser).
+2. `railway init --name vakhta`, `railway add --database postgres`, `railway add --database redis`, `railway add --service api`, `railway add --service worker`, `railway domain --service api`.
+3. Variables for api and worker with `railway variables --set …` (see section 3), then `railway service source connect --repo leonidkuznetsov18/vakhta --branch master --service api` (and worker).
+4. `railway config plan` and `railway config apply --yes` from `.railway/railway.ts`: Dockerfile builds, pre-deploy migrations, health check, restart policies, region, Postgres TCP proxy. Re-run after every change to the file; `railway config pull --force` re-imports drift (secrets stay `preserve()`).
+5. The public domain must route to port 3000: `railway domain update <domain> --service api --port 3000` and `PORT=3000` in the variables.
+6. One-off commands run inside the api container (register a key once with `railway ssh keys add` and trust `ssh.railway.com`):
 
    ```bash
-   IMG=ghcr.io/leonidkuznetsov18/vakhta-api:latest
-   docker run --rm -e DATABASE_URL -e DEFAULT_SITE_TIMEZONE $IMG node packages/db/dist/seed.js
-   docker run --rm -e DATABASE_URL -e REDIS_URL -e AUTH_SECRET -e ACTIVATION_PEPPER $IMG \
-     node apps/api/dist/cli/bootstrap-admin.js --email admin@<домен> --password '<довгий пароль>' --name 'Адмін'
+   railway ssh --service api -- node packages/db/dist/seed.js
+   railway ssh --service api -- node apps/api/dist/cli/bootstrap-admin.js --email admin@example.com --password '<long password>' --name 'Admin'
+   railway ssh --service api -- node apps/api/dist/cli/set-webhook.js
    ```
 
-   Змінні беруться з оточення shell (`export DATABASE_URL=...`), щоб не потрапити в історію команд. Увійти в панель і ввімкнути TOTP.
+7. Cloudflare: enable R2, `wrangler r2 bucket create vakhta-media --location weur`, the same for `vakhta-backups`, `wrangler r2 bucket lifecycle add vakhta-backups --name expire-30d --prefix postgres/ --expire-days 30`; create an R2 API token (Object Read & Write, both buckets) in the dashboard and put its keys into `S3_ACCESS_KEY` / `S3_SECRET_KEY` of api and worker.
+8. Pages: `wrangler pages project create vakhta-panel --production-branch master`, build with `VITE_API_URL=https://<api domain> pnpm --filter admin-web run build`, then `wrangler pages deploy apps/admin-web/dist --project-name vakhta-panel --branch master`. The kiosk is the same with `VITE_KIOSK_DEVICE_TOKEN` from the panel ("Administration → Terminals"). `public/_headers` adds the security headers.
+9. Backups: secrets from section 3, then run the "DB backup" workflow once by hand and check the object in `vakhta-backups`.
 
-8. **Вебхук.** `docker run --rm -e DATABASE_URL -e REDIS_URL -e AUTH_SECRET -e ACTIVATION_PEPPER -e TELEGRAM_BOT_TOKEN -e TELEGRAM_MODE=webhook -e TELEGRAM_WEBHOOK_SECRET -e PUBLIC_BASE_URL $IMG node apps/api/dist/cli/set-webhook.js`. Перевірити `/start` у боті.
-9. **Vercel.** Два проєкти з root directory `apps/admin-web` і `apps/qr-kiosk`; `vercel.json` уже задає framework, команди збірки з кореня монорепо, SPA-rewrite і заголовки. Додати змінні з п. 3 і домени `panel.<домен>`, `kiosk.<домен>`. `CORS_ORIGINS` в API має містити обидва.
-10. **Термінал.** У панелі зареєструвати термінал, покласти токен у `VITE_KIOSK_DEVICE_TOKEN` кіоска, передеплоїти, відкрити `kiosk.<домен>` на планшеті в кіоск-режимі.
-11. **Дані пілоту.** Працівники, посади, зони, графік, коди активації (панель «Администрирование»).
-12. **Бекапи й алерти.** Увімкнути `DB_BACKUP_ENABLED`, запустити workflow «DB backup» вручну й переконатись, що дамп зʼявився в бакеті. Налаштувати uptime-чек `/health` і алерти з п. 7.
+## 5. Custom domain
 
-## 5. Образи
+Until a domain is attached the panel (`pages.dev`) and the API (`railway.app`) are different sites, so the session cookie needs `AUTH_COOKIE_SAME_SITE=none`, which Safari and iOS block. With a domain: `panel.<domain>` and `kiosk.<domain>` as Pages custom domains, `api.<domain>` through `railway domain api.<domain> --service api`, then `PUBLIC_BASE_URL`, `CORS_ORIGINS`, `AUTH_COOKIE_SAME_SITE=lax`, a rebuild of the panel and kiosk with the new `VITE_API_URL`, and `set-webhook` again.
 
-`apps/api/Dockerfile` і `apps/worker/Dockerfile` збираються з кореня монорепо: етап `build` ставить усі залежності й компілює лише потрібний застосунок з його workspace-пакетами, етап `runtime` містить production-залежності, `dist` і міграції, працює від користувача `node`. CI збирає обидва образи на кожному PR і публікує з `master` у GHCR з тегами `sha-<commit>` і `latest`.
+## 6. Backups and recovery
 
-Локально те саме:
+- Railway keeps the Postgres volume; independently, `.github/workflows/db-backup.yml` runs `scripts/db/backup.sh` every night at 02:30 UTC with the PostgreSQL 18 client and uploads `postgres/vakhta-<UTC>.dump` to `vakhta-backups`.
+- Restore: `scripts/db/restore.sh <dump or s3://…> <DATABASE_URL of an empty database>`; order and drills in `docs/runbooks/recovery.md`.
 
-```bash
-docker build -f apps/api/Dockerfile -t vakhta-api:local .
-docker build -f apps/worker/Dockerfile -t vakhta-worker:local .
-```
+## 7. Monitoring and errors
 
-Прод-стенд з готових образів (VPS або перевірка збірки): `docker compose -f infra/compose/docker-compose.prod.yml --env-file .env.production up -d` спочатку виконує міграції, потім піднімає API і воркер.
+- `GET /health` for uptime checks; `GET /metrics` with `Authorization: Bearer <METRICS_TOKEN>` for Prometheus or Grafana Cloud, rules in `infra/monitoring/prometheus-alerts.yml`.
+- Sentry receives only unexpected errors; authorization headers, cookies and the webhook secret are scrubbed.
+- Logs: `railway logs --service api` (add `--build` or `--deployment`).
 
-## 6. Бекапи й відновлення
+## 8. Known limits
 
-- Керована БД: PITR (Neon 7 днів на безкоштовному плані).
-- Незалежно від провайдера: workflow `.github/workflows/db-backup.yml` щоночі о 02:30 UTC робить `pg_dump -Fc` і кладе у `s3://vakhta-backups/postgres/`. Скрипт `scripts/db/backup.sh` працює і з ноутбука.
-- Відновлення: `scripts/db/restore.sh <дамп або s3://…> <DATABASE_URL порожньої бази>`; порядок і навчання в `docs/runbooks/recovery.md`.
+- One API replica: the SSE change buses are in-process. For several replicas move them to Redis pub/sub.
+- `/metrics` is protected by a token, not by the network.
+- The kiosk device token is baked into the Pages build: a new terminal token means a rebuild and redeploy of `vakhta-kiosk`.
 
-## 7. Моніторинг і помилки
+## 9. Before announcing the pilot
 
-- `GET /health` для uptime-чеку платформи і зовнішнього сервісу (кожні 30 с).
-- `GET /metrics` з `Authorization: Bearer <METRICS_TOKEN>`: підключити Grafana Cloud або будь-який Prometheus, правила в `infra/monitoring/prometheus-alerts.yml`.
-- Sentry: задати `SENTRY_DSN` в API і воркері. В Sentry потрапляють лише несподівані помилки (5xx, невідомі винятки, впалі job-и); заголовки авторизації, cookie і секрет вебхука вирізаються до відправки.
-- Логи pino у JSON читає Railway; фільтр `service` розділяє API і воркер.
-
-## 8. Обмеження, про які треба знати
-
-- **API не на Vercel.** Serverless-функції Vercel не тримають SSE і не запускають воркер; long polling бота неможливий.
-- **Один API-інстанс для SSE.** Шини змін внутрішньопроцесні; при масштабуванні до кількох інстансів панель бачить події лише свого інстансу (перечитування списку все одно працює). Для масштабу винести шину в Redis pub/sub.
-- **Cookie між піддоменами.** Панель і API мають бути під одним доменом (`panel.<домен>` і `api.<домен>`): тоді достатньо `SameSite=Lax`. Домени `*.vercel.app` + `*.railway.app` є різними сайтами, Safari і iOS блокують такі cookie навіть із `SameSite=None`; це лише для швидкого тесту.
-- **`/metrics` за токеном, не мережею.** Railway не дає приватної адреси для зовнішнього Prometheus, тому доступ обмежено `METRICS_TOKEN`.
-
-## 9. Перед оголошенням пілоту
-
-- Пройти `docs/runbooks/deploy.md`, `recovery.md` (з одним навчальним відновленням), `observability.md`, `reserve-channel.md`.
-- `docs/parameters.md` заповнено дефолтами пілоту; переглянути після перших тижнів.
-- Юридична перевірка ПД і трудових правил країни (ТЗ 13, 18 п. 20), текст згоди при активації.
-- Навантажувальний прогін `infra/load/k6-shift-boundary.js` проти staging із числами з `docs/parameters.md`.
+- Walk through `docs/runbooks/deploy.md`, `recovery.md` (one restore drill), `observability.md`, `reserve-channel.md`.
+- Review `docs/parameters.md` after the first weeks.
+- Legal review of personal data and labour rules (spec 13, 18 item 20), consent text at activation.
+- Load run of `infra/load/k6-shift-boundary.js` against the production API outside working hours with the numbers from `docs/parameters.md`.
