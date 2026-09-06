@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { IncidentsPage } from './IncidentsPage.tsx';
+import { clickRowAction } from '../test-utils.ts';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const INC = 'c0000000-0000-4000-8000-000000000001';
@@ -154,7 +155,7 @@ describe('IncidentsPage', () => {
     expect(screen.getAllByText('Сообщено')).toHaveLength(2);
     expect(await screen.findAllByText('Итого')).toHaveLength(2);
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Подробности' })[0]!);
+    await clickRowAction('Подробности');
     expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
     expect(screen.getByText(/работа остановлена · фото · Заклинило/)).toBeTruthy();
 
@@ -176,7 +177,7 @@ describe('IncidentsPage', () => {
     const calls = mockApi(state);
     render(<IncidentsPage />);
     await screen.findAllByText('Поломка');
-    fireEvent.click(screen.getAllByRole('button', { name: 'Подробности' })[0]!);
+    await clickRowAction('Подробности');
     fireEvent.change(await screen.findByLabelText('Статус'), { target: { value: 'DUPLICATE' } });
     const dup = (await screen.findByLabelText('Дубликат инцидента')) as HTMLSelectElement;
     expect(dup.options).toHaveLength(2);

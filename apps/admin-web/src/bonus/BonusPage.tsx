@@ -15,6 +15,7 @@ import { Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app
 import { bonusApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { usePersistentState } from '@/lib/persistent-state';
 
 const all = messages(currentLocale());
 const b = all.admin.bonus;
@@ -38,13 +39,13 @@ function currentMonth(): string {
 /** "Bonus" (spec 9.1): preliminary and final calculation, breakdown, adjustments, period close. */
 export function BonusPage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
-  const [siteId, setSiteId] = useState('');
-  const [month, setMonth] = useState(currentMonth);
+  const [siteId, setSiteId] = usePersistentState('bonus.siteId', '');
+  const [month, setMonth] = usePersistentState('bonus.month', currentMonth);
   const [period, setPeriod] = useState<BonusPeriodView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [openScore, setOpenScore] = useState<string | null>(null);
+  const [openScore, setOpenScore] = usePersistentState<string | null>('bonus.openScore', null);
   const [criterion, setCriterion] = useState<BonusCriterion>('DISCIPLINE_SEQUENCE');
   const [delta, setDelta] = useState('');
   const [reasonCode, setReasonCode] = useState('');
@@ -57,7 +58,9 @@ export function BonusPage() {
       .snapshot()
       .then((snapshot) => {
         setOrg(snapshot);
-        if (snapshot.sites[0]) setSiteId(snapshot.sites[0].id);
+        setSiteId((cur) =>
+          snapshot.sites.some((site) => site.id === cur) ? cur : (snapshot.sites[0]?.id ?? ''),
+        );
       })
       .catch((e: unknown) => setError(describeError(e)));
   }, []);
@@ -427,30 +430,6 @@ function ScoresTable({
         </span>
       ),
     },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{all.ui.common.actions}</span>,
-      align: 'right',
-      cell: (s) => (
-        <div className="flex justify-end gap-1">
-          <Button type="button" variant="outline" size="sm" onClick={() => onToggle(s.id)}>
-            {b.detail}
-          </Button>
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => onRecompute(s)}
-            >
-              {b.recompute}
-            </Button>
-            <InfoTip text={hints.bonusRecompute} />
-          </div>
-        </div>
-      ),
-    },
   ];
   const criteriaColumns: Column<ShiftScoreView['criteria'][number]>[] = [
     { key: 'criterion', header: b.criterion, cell: (c) => all.bonus.criteria[c.criterion] },
@@ -475,6 +454,12 @@ function ScoresTable({
       rowKey={(s) => s.id}
       empty={b.empty}
       pageSize={10}
+      storageKey="bonus.scores"
+      onRowClick={(s) => onToggle(s.id)}
+      rowActions={(s) => [
+        { key: 'detail', label: b.detail, onSelect: () => onToggle(s.id) },
+        { key: 'recompute', label: b.recompute, disabled: busy, onSelect: () => onRecompute(s) },
+      ]}
       expanded={(s) =>
         openScore === s.id ? (
           <div className="flex flex-col gap-4">
@@ -483,7 +468,7 @@ function ScoresTable({
               rows={s.criteria}
               rowKey={(c) => c.criterion}
               empty={b.empty}
-              pageSize={25}
+              pageSize={20}
               rowClassName={(c) =>
                 c.status === 'missed' ? 'bg-red-50/60 dark:bg-red-950/30' : undefined
               }

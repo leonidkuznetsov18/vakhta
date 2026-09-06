@@ -101,6 +101,8 @@ export function homeScreen(t: Messages, input: HomeInput): Screen {
     lines.push(
       format(t.attendance.presenceLine, { time: localTime(input.presenceSince, input.timezone) }),
     );
+  } else {
+    lines.push(t.bot.checkInHint);
   }
   if (input.next) {
     const tz = input.next.timezone;
@@ -227,6 +229,7 @@ export function planScreen(t: Messages, plan: MyPlanView): Screen {
     .text(t.schedule.nextMonth, `${CALLBACK.planPrefix}${addMonths(plan.month, 1)}`);
   if (plan.unacknowledgedVersionIds.length > 0)
     keyboard.row().text(t.schedule.ackButton, CALLBACK.ackAll);
+  keyboard.row().text(t.shift.backToShift, SHIFT_CALLBACK.back);
   return { text: lines.join('\n'), keyboard };
 }
 

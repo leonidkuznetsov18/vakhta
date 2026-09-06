@@ -19,3 +19,8 @@ export function isUniqueViolation(error: unknown): boolean {
 export function isExclusionViolation(error: unknown): boolean {
   return pgCode(error) === EXCLUSION_VIOLATION;
 }
+
+/** 23503: a row is still referenced (a terminal with check-ins, a site with units). */
+export function isForeignKeyViolation(e: unknown): boolean {
+  return pgCode(e) === '23503';
+}

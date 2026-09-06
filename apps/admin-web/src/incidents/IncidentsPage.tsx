@@ -25,6 +25,7 @@ import { formatTime } from '@/lib/format';
 import { incidentsApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { usePersistentState } from '@/lib/persistent-state';
 
 const all = messages(currentLocale());
 const i = all.admin.incidents;
@@ -54,23 +55,25 @@ function dayStart(d: Date): string {
 /** "Downtime and incidents" (spec 9.1): the master queue with SSE, actions per the transition table, statistics. */
 export function IncidentsPage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
-  const [siteId, setSiteId] = useState('');
-  const [scope, setScope] = useState<'open' | 'all'>('open');
+  const [siteId, setSiteId] = usePersistentState('incidents.siteId', '');
+  const [scope, setScope] = usePersistentState<'open' | 'all'>('incidents.scope', 'open');
   const [rows, setRows] = useState<IncidentView[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = usePersistentState<string | null>('incidents.openId', null);
   const [detail, setDetail] = useState<IncidentDetailView | null>(null);
   const [target, setTarget] = useState<Record<string, IncidentStatus | ''>>({});
   const [comment, setComment] = useState<Record<string, string>>({});
   const [duplicateOf, setDuplicateOf] = useState<Record<string, string>>({});
   const [stats, setStats] = useState<IncidentStatsView | null>(null);
-  const [from, setFrom] = useState(() =>
+  const [from, setFrom] = usePersistentState('incidents.from', () =>
     dayStart(new Date(Date.now() - 6 * 86_400_000)).slice(0, 10),
   );
-  const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [to, setTo] = usePersistentState('incidents.to', () =>
+    new Date().toISOString().slice(0, 10),
+  );
   const reloadRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
@@ -209,21 +212,6 @@ export function IncidentsPage() {
         </div>
       ),
     },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{all.ui.common.actions}</span>,
-      align: 'right',
-      cell: (row) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setOpenId(openId === row.id ? null : row.id)}
-        >
-          {i.detail}
-        </Button>
-      ),
-    },
   ];
 
   return (
@@ -255,6 +243,15 @@ export function IncidentsPage() {
       <DataTable
         columns={columns}
         rows={rows}
+        storageKey="incidents"
+        onRowClick={(row) => setOpenId(openId === row.id ? null : row.id)}
+        rowActions={(row) => [
+          {
+            key: 'detail',
+            label: i.detail,
+            onSelect: () => setOpenId(openId === row.id ? null : row.id),
+          },
+        ]}
         rowKey={(row) => row.id}
         empty={i.empty}
         rowClassName={(row) => (row.slaBreached ? 'bg-red-50/60 dark:bg-red-950/30' : undefined)}

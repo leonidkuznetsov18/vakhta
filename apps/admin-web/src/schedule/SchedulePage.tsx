@@ -34,6 +34,7 @@ import {
 } from './grid.ts';
 import { currentLocale } from '../i18n.tsx';
 import { useNavigation } from '../navigation.tsx';
+import { usePersistentState } from '@/lib/persistent-state';
 
 const t = messages(currentLocale());
 const s = t.admin.schedule;
@@ -58,9 +59,9 @@ function currentMonth(): string {
 export function SchedulePage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
   const [employees, setEmployees] = useState<EmployeeView[]>([]);
-  const [siteId, setSiteId] = useState('');
-  const [orgUnitId, setOrgUnitId] = useState('');
-  const [month, setMonth] = useState(currentMonth);
+  const [siteId, setSiteId] = usePersistentState('schedule.siteId', '');
+  const [orgUnitId, setOrgUnitId] = usePersistentState('schedule.orgUnitId', '');
+  const [month, setMonth] = usePersistentState('schedule.month', currentMonth);
   const [templates, setTemplates] = useState<ShiftTemplateView[]>([]);
   const [versions, setVersions] = useState<ScheduleVersionView[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -94,12 +95,17 @@ export function SchedulePage() {
         if (!alive) return;
         setOrg(snapshot);
         setEmployees(list);
-        const site = snapshot.sites[0];
-        if (site) {
-          setSiteId(site.id);
-          const unit = snapshot.orgUnits.find((u) => u.siteId === site.id);
-          if (unit) setOrgUnitId(unit.id);
-        }
+        // Keep the remembered filters when they still exist, otherwise fall back to the first ones.
+        setSiteId((cur) => {
+          const site = snapshot.sites.find((x) => x.id === cur) ?? snapshot.sites[0];
+          if (!site) return '';
+          setOrgUnitId((unit) =>
+            snapshot.orgUnits.some((u) => u.id === unit && u.siteId === site.id)
+              ? unit
+              : (snapshot.orgUnits.find((u) => u.siteId === site.id)?.id ?? ''),
+          );
+          return site.id;
+        });
       })
       .catch((e: unknown) => alive && setError(describe(e)));
     return () => {

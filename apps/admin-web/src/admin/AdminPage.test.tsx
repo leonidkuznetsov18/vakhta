@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { AdminPage } from './AdminPage.tsx';
+import { clickRowAction } from '../test-utils.ts';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const UNIT = 'a0000000-0000-4000-8000-000000000002';
@@ -123,7 +124,7 @@ describe('AdminPage', () => {
       status: 'ACTIVE',
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Код активации' }));
+    await clickRowAction('Код активации');
     expect(await screen.findByText(/Код активации: ABCD2345/)).toBeTruthy();
     expect(screen.getByText('https://t.me/vakhta_worker_bot?start=act-ABCD2345')).toBeTruthy();
   });
@@ -133,7 +134,7 @@ describe('AdminPage', () => {
     render(<AdminPage />);
     fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Пользователи и роли' }));
     expect(await screen.findByText('master@vakhta.com')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Выдать роль' }));
+    await clickRowAction('Выдать роль');
     fireEvent.change(screen.getByLabelText('Роль'), { target: { value: 'PLANNER' } });
     fireEvent.change(screen.getByLabelText('Область'), { target: { value: 'ORG_UNIT' } });
     fireEvent.change(await screen.findByLabelText('Объект области'), { target: { value: UNIT } });

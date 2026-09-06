@@ -28,12 +28,13 @@ import type {
   OrgSnapshot,
   RegisterTerminalCommand,
   SetTerminalStatusCommand,
+  UpdateTerminalCommand,
   TerminalPairingIssued,
   TerminalRegistered,
 } from '@vakhta/contracts';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
-import { isUniqueViolation } from '../common/pg-errors.js';
+import { isForeignKeyViolation, isUniqueViolation } from '../common/pg-errors.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
 import { DATABASE } from '../infra/database.module.js';
@@ -199,6 +200,76 @@ export class OrgService {
       });
       return updated!;
     });
+  }
+
+  async updateTerminal(terminalId: string, cmd: UpdateTerminalCommand, actor: Actor) {
+    const terminal = await this.requireTerminal(terminalId);
+    if (cmd.siteId) await this.requireSite(cmd.siteId);
+    const patch = {
+      ...(cmd.siteId ? { siteId: cmd.siteId } : {}),
+      ...(cmd.name ? { name: cmd.name } : {}),
+      ...(cmd.checkpoint ? { checkpoint: cmd.checkpoint } : {}),
+    };
+    if (Object.keys(patch).length === 0) return terminal;
+    return this.db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(qrTerminals)
+        .set(patch)
+        .where(eq(qrTerminals.id, terminal.id))
+        .returning();
+      await this.events.append(tx, {
+        type: 'QR_TERMINAL_UPDATED',
+        source: 'WEB',
+        actor,
+        payload: { terminalId: terminal.id, ...patch },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'qr_terminal.update',
+        objectType: 'qr_terminal',
+        objectId: terminal.id,
+        before: { siteId: terminal.siteId, name: terminal.name, checkpoint: terminal.checkpoint },
+        after: patch,
+      });
+      return updated!;
+    });
+  }
+
+  /**
+   * Hard delete is allowed only while nothing refers to the terminal; once check-ins exist the
+   * row is history and the caller is told to disable it instead.
+   */
+  async deleteTerminal(terminalId: string, reason: string, actor: Actor): Promise<void> {
+    const terminal = await this.requireTerminal(terminalId);
+    try {
+      await this.db.transaction(async (tx) => {
+        await this.events.append(tx, {
+          type: 'QR_TERMINAL_DELETED',
+          source: 'WEB',
+          actor,
+          comment: reason,
+          payload: { terminalId: terminal.id, name: terminal.name },
+        });
+        await this.audit.record(tx, {
+          actor,
+          action: 'qr_terminal.delete',
+          objectType: 'qr_terminal',
+          objectId: terminal.id,
+          before: { siteId: terminal.siteId, name: terminal.name, checkpoint: terminal.checkpoint },
+          reason,
+        });
+        await tx.delete(qrTerminals).where(eq(qrTerminals.id, terminal.id));
+      });
+    } catch (e) {
+      if (isForeignKeyViolation(e)) {
+        throw new DomainError(
+          'TERMINAL_HAS_HISTORY',
+          409,
+          `Terminal ${terminalId} has check-in history; disable it instead of deleting`,
+        );
+      }
+      throw e;
+    }
   }
 
   private async requireTerminal(id: string) {

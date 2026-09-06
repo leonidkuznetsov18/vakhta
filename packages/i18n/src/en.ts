@@ -18,6 +18,8 @@ export const en: Messages = {
     serverTimeLabel: 'Server time',
     home: 'Hello, {name}.\nPersonnel number: {personnelNumber}.',
     homeNoSchedule: 'The schedule for the month is not published yet. You will be notified.',
+    checkInHint:
+      'Arrival and departure are recorded by scanning the QR on the terminal. If the terminal is unavailable, the master opens the shift from the panel.',
     access: {
       NOT_REGISTERED:
         'You are not registered in the system. Get an activation code from HR or the administrator.',
@@ -918,6 +920,12 @@ export const en: Messages = {
         disable: 'Disable',
         enable: 'Enable',
         statusChanged: 'Terminal status changed.',
+        edit: 'Edit',
+        updated: 'Terminal updated.',
+        delete: 'Delete',
+        deleteConfirm: 'Delete terminal "{name}"? The tablet will stop receiving QR codes.',
+        deleted: 'Terminal deleted.',
+        hasHistory: 'The terminal has check-in history and cannot be deleted. Disable it instead.',
         checkpoints: { ENTRY: 'Entry', EXIT: 'Exit', BOTH: 'Entry and exit' },
         statuses: { ACTIVE: 'Active', DISABLED: 'Disabled' },
       },
@@ -1042,6 +1050,8 @@ export const en: Messages = {
       terminalsPair:
         'The code is valid for 15 minutes and is typed once on the terminal screen. A new code replaces the old pairing.',
       terminalsStatus: 'A disabled terminal stops issuing QR codes; its pairing is kept.',
+      terminalsDelete:
+        'Only a terminal without check-in history can be deleted; otherwise disable it and the history stays in the reports.',
       scheduleDelete:
         'Only a draft can be deleted. Published and superseded versions are kept for history.',
       employeesPositionColumn: 'Current position and unit from the personnel assignment.',

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { RequestsPage } from './RequestsPage.tsx';
+import { clickRowAction } from '../test-utils.ts';
 
 const REQ = 'c0000000-0000-4000-8000-000000000001';
 const SESSION = 'd0000000-0000-4000-8000-000000000001';
@@ -126,7 +127,7 @@ describe('RequestsPage', () => {
     render(<RequestsPage />);
     expect(await screen.findByText('Опоздаю')).toBeTruthy();
     expect(screen.getByText('Просрочено')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Подробности' }));
+    await clickRowAction('Подробности');
     expect(await screen.findByText('Пробки на мосту')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Утверждённое отклонение, мин'), {
       target: { value: '15' },
@@ -159,7 +160,7 @@ describe('RequestsPage', () => {
     const state = { row: request('CORRECTION', 'SUBMITTED', { assignmentDate: null }) };
     const calls = mockApi(state);
     render(<RequestsPage />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Подробности' }));
+    await clickRowAction('Подробности');
     const kind = (await screen.findByLabelText('Тип коррекции')) as HTMLSelectElement;
     expect(kind.value).toBe('CLOSE_SHIFT_AT');
     fireEvent.change(screen.getByLabelText('Новое время'), {

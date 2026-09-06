@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useConfirm } from '@/components/app/confirm-dialog';
-import { DataTable, type Column } from '@/components/app/data-table';
+import { DataTable, type Column, type RowAction } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
@@ -21,6 +21,7 @@ import { formatTime } from '@/lib/format';
 import { employeesApi, orgApi, shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { usePersistentState } from '@/lib/persistent-state';
 
 const all = messages(currentLocale());
 const o = all.admin.operations;
@@ -54,15 +55,15 @@ function newKey(): string {
 export function OperationsPage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
   const [employees, setEmployees] = useState<EmployeeView[]>([]);
-  const [siteId, setSiteId] = useState('');
-  const [orgUnitId, setOrgUnitId] = useState('');
-  const [includeClosed, setIncludeClosed] = useState(false);
+  const [siteId, setSiteId] = usePersistentState('operations.siteId', '');
+  const [orgUnitId, setOrgUnitId] = usePersistentState('operations.orgUnitId', '');
+  const [includeClosed, setIncludeClosed] = usePersistentState('operations.includeClosed', false);
   const [rows, setRows] = useState<ActiveShiftView[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = usePersistentState<string | null>('operations.openId', null);
   const [detail, setDetail] = useState<ShiftDetailView | null>(null);
   const [startFor, setStartFor] = useState('');
   const [startComment, setStartComment] = useState('');
@@ -261,34 +262,17 @@ export function OperationsPage() {
         </div>
       ),
     },
+  ];
+
+  const rowActions = (row: ActiveShiftView): RowAction[] => [
     {
-      key: 'actions',
-      header: <span className="sr-only">{all.ui.common.actions}</span>,
-      align: 'right',
-      cell: (row) => (
-        <div className="flex flex-wrap justify-end gap-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setOpenId(openId === row.id ? null : row.id)}
-          >
-            {o.detail}
-          </Button>
-          {!row.needsClarification && row.endedAt === null && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => void clarify(row)}
-            >
-              {o.clarify}
-            </Button>
-          )}
-        </div>
-      ),
+      key: 'detail',
+      label: o.detail,
+      onSelect: () => setOpenId(openId === row.id ? null : row.id),
     },
+    ...(!row.needsClarification && row.endedAt === null
+      ? [{ key: 'clarify', label: o.clarify, disabled: busy, onSelect: () => void clarify(row) }]
+      : []),
   ];
 
   return (
@@ -333,6 +317,9 @@ export function OperationsPage() {
       <DataTable
         columns={columns}
         rows={rows}
+        storageKey="operations"
+        onRowClick={(row) => setOpenId(openId === row.id ? null : row.id)}
+        rowActions={rowActions}
         rowKey={(row) => row.id}
         empty={o.empty}
         rowClassName={(row) =>

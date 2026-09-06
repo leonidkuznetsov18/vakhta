@@ -75,6 +75,19 @@ export const TerminalPairingIssued = z.object({
 });
 export type TerminalPairingIssued = z.infer<typeof TerminalPairingIssued>;
 
+export const UpdateTerminalCommand = z.object({
+  siteId: Uuid.optional(),
+  name: Name.optional(),
+  checkpoint: CheckpointSchema.optional(),
+});
+export type UpdateTerminalCommand = z.infer<typeof UpdateTerminalCommand>;
+
+/** Deleting needs a reason for the audit trail; terminals with check-in history are refused. */
+export const DeleteWithReasonCommand = z.object({
+  reason: z.string().trim().min(3).max(500),
+});
+export type DeleteWithReasonCommand = z.infer<typeof DeleteWithReasonCommand>;
+
 export const SetTerminalStatusCommand = z.object({
   status: z.enum(['ACTIVE', 'DISABLED']),
   reason: z.string().trim().min(3).max(500),

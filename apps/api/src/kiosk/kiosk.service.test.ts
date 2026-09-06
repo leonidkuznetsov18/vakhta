@@ -160,6 +160,26 @@ describe('kiosk: terminal registration, pairing and challenge issuance (FR-QR-01
     expect(terminal?.lastSeenAt).not.toBeNull();
   });
 
+  it('updates name, site and checkpoint; deletes an unused terminal but refuses one with check-ins', async () => {
+    const registered = await registeredTerminal('Старое имя', 'ENTRY');
+    const updated = await org.updateTerminal(
+      registered.id,
+      { name: 'Проходная 2', checkpoint: 'BOTH' },
+      ADMIN,
+    );
+    expect(updated.name).toBe('Проходная 2');
+    expect(updated.checkpoint).toBe('BOTH');
+    await expect(
+      org.updateTerminal(registered.id, { siteId: '00000000-0000-0000-0000-000000000000' }, ADMIN),
+    ).rejects.toMatchObject({ code: 'SITE_NOT_FOUND' });
+
+    await org.deleteTerminal(registered.id, 'Registered by mistake', ADMIN);
+    expect((await org.snapshot()).terminals).toHaveLength(0);
+    await expect(org.deleteTerminal(registered.id, 'again', ADMIN)).rejects.toMatchObject({
+      code: 'TERMINAL_NOT_FOUND',
+    });
+  });
+
   it('two requests give two different challenges; a disabled terminal gets nothing and keeps its pairing', async () => {
     const registered = await registeredTerminal('Выход', 'EXIT');
     const issued = await org.issuePairingCode(registered.id, ADMIN);

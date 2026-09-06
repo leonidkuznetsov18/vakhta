@@ -45,6 +45,8 @@ export interface Messages {
     /** Placeholders: {name}, {personnelNumber} */
     readonly home: string;
     readonly homeNoSchedule: string;
+    /** Shown on the home screen while no arrival is recorded: how presence is marked. */
+    readonly checkInHint: string;
     readonly access: Readonly<Record<Exclude<EmployeeAccess, 'ALLOWED'>, string>>;
   };
   readonly activation: {
@@ -682,6 +684,13 @@ export interface Messages {
         readonly disable: string;
         readonly enable: string;
         readonly statusChanged: string;
+        readonly edit: string;
+        readonly updated: string;
+        readonly delete: string;
+        /** Placeholder: {name} */
+        readonly deleteConfirm: string;
+        readonly deleted: string;
+        readonly hasHistory: string;
         readonly checkpoints: Readonly<Record<'ENTRY' | 'EXIT' | 'BOTH', string>>;
         readonly statuses: Readonly<Record<'ACTIVE' | 'DISABLED', string>>;
       };
@@ -777,6 +786,7 @@ export interface Messages {
       readonly directoriesCode: string;
       readonly terminalsPair: string;
       readonly terminalsStatus: string;
+      readonly terminalsDelete: string;
       readonly terminalsCheckpoint: string;
       readonly scheduleDelete: string;
       readonly employeesPositionColumn: string;

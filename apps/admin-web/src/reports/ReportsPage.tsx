@@ -15,6 +15,7 @@ import { formatDateTime } from '@/lib/format';
 import { orgApi, reportsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { usePersistentState } from '@/lib/persistent-state';
 
 const all = messages(currentLocale());
 const r = all.admin.reports;
@@ -29,11 +30,11 @@ function monthStart(): string {
 /** "Reports" (spec 9.3): six reports as tables, CSV/XLSX with a data version. */
 export function ReportsPage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
-  const [kind, setKind] = useState<ReportKind>('hours');
-  const [siteId, setSiteId] = useState('');
-  const [orgUnitId, setOrgUnitId] = useState('');
-  const [from, setFrom] = useState(monthStart);
-  const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [kind, setKind] = usePersistentState<ReportKind>('reports.kind', 'hours');
+  const [siteId, setSiteId] = usePersistentState('reports.siteId', '');
+  const [orgUnitId, setOrgUnitId] = usePersistentState('reports.orgUnitId', '');
+  const [from, setFrom] = usePersistentState('reports.from', monthStart);
+  const [to, setTo] = usePersistentState('reports.to', () => new Date().toISOString().slice(0, 10));
   const [report, setReport] = useState<ReportTableView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { BonusPage } from './BonusPage.tsx';
+import { clickRowAction } from '../test-utils.ts';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const SCORE = 'c0000000-0000-4000-8000-000000000001';
@@ -150,7 +151,7 @@ describe('BonusPage', () => {
     render(<BonusPage />);
     expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
     expect(screen.getAllByText('93').length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Расшифровка' }));
+    await clickRowAction('Расшифровка');
     expect((await screen.findAllByText('Начало смены вовремя')).length).toBeGreaterThan(0);
     expect(screen.getByText('LATE_MINUTES:20')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Изменение баллов'), { target: { value: '-15' } });

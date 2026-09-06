@@ -13,6 +13,8 @@ import { formatDateTimeSeconds } from '@/lib/format';
 import { reportsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { useRouteSub } from '@/lib/route';
+import { usePersistentState } from '@/lib/persistent-state';
 
 const all = messages(currentLocale());
 const a = all.admin.audit;
@@ -27,14 +29,14 @@ function Json({ value }: { readonly value: unknown }) {
 
 /** "Audit" (spec 9.1, 13): immutable history of manual actions and the event log with filters. */
 export function AuditPage() {
-  const [tab, setTab] = useState<'audit' | 'events'>('audit');
-  const [action, setAction] = useState('');
-  const [objectType, setObjectType] = useState('');
-  const [type, setType] = useState('');
+  const [tab, setTab] = useRouteSub<'audit' | 'events'>('audit', ['audit', 'events'], 'audit');
+  const [action, setAction] = usePersistentState('audit.action', '');
+  const [objectType, setObjectType] = usePersistentState('audit.objectType', '');
+  const [type, setType] = usePersistentState('audit.type', '');
   const [audit, setAudit] = useState<AuditEntryView[]>([]);
   const [events, setEvents] = useState<DomainEventView[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = usePersistentState<string | null>('audit.open', null);
 
   function load(ev?: FormEvent) {
     ev?.preventDefault();
@@ -209,6 +211,8 @@ export function AuditPage() {
           rows={audit}
           rowKey={(e) => e.id}
           empty={a.empty}
+          storageKey="audit"
+          onRowClick={(e) => setOpen(open === e.id ? null : e.id)}
           expanded={(e) =>
             open === e.id ? <Json value={{ before: e.before, after: e.after }} /> : null
           }
@@ -219,6 +223,8 @@ export function AuditPage() {
           rows={events}
           rowKey={(e) => e.id}
           empty={a.empty}
+          storageKey="events"
+          onRowClick={(e) => setOpen(open === e.id ? null : e.id)}
           expanded={(e) => (open === e.id ? <Json value={e.payload} /> : null)}
         />
       )}

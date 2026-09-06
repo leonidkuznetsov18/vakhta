@@ -13,6 +13,7 @@ import { InfoTip } from '@/components/app/info-tip';
 import { Section, StatusPill } from '@/components/app/page';
 import { usersApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
+import { usePersistentState } from '@/lib/persistent-state';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -40,10 +41,10 @@ function scopeOptions(
 /** Panel accounts and scoped roles (spec 2: the administrator manages permissions). */
 export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
   const [list, setList] = useState<WebUserView[]>([]);
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
+  const [email, setEmail] = usePersistentState('users.email', '');
+  const [name, setName] = usePersistentState('users.name', '');
   const [password, setPassword] = useState('');
-  const [grantFor, setGrantFor] = useState<string | null>(null);
+  const [grantFor, setGrantFor] = usePersistentState<string | null>('users.grantFor', null);
   const [role, setRole] = useState<WebRole>('SHIFT_MASTER');
   const [scopeType, setScopeType] = useState<ScopeType>('ENTERPRISE');
   const [scopeId, setScopeId] = useState('');
@@ -141,21 +142,6 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
         </div>
       ),
     },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{all.ui.common.actions}</span>,
-      align: 'right',
-      cell: (user) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setGrantFor(grantFor === user.id ? null : user.id)}
-        >
-          {u.grantRole}
-        </Button>
-      ),
-    },
   ];
 
   return (
@@ -209,6 +195,15 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
       <DataTable
         columns={columns}
         rows={list}
+        storageKey="users"
+        onRowClick={(user) => setGrantFor(grantFor === user.id ? null : user.id)}
+        rowActions={(user) => [
+          {
+            key: 'grant',
+            label: u.grantRole,
+            onSelect: () => setGrantFor(grantFor === user.id ? null : user.id),
+          },
+        ]}
         rowKey={(user) => user.id}
         empty={t.common.empty}
         expanded={(user) =>

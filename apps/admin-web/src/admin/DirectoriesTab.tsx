@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { type FormEvent } from 'react';
 import type { OrgSnapshot } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
 import { adminOrgApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
+import { usePersistentState } from '@/lib/persistent-state';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -28,11 +29,25 @@ interface Props {
 /** Enterprise directories: sites, units, teams, positions, zones (spec 9.1). */
 export function DirectoriesTab({ org, onChanged }: Props) {
   const { busy, error, notice, run } = useAction();
-  const [site, setSite] = useState({ code: '', name: '', timezone: 'Europe/Kyiv' });
-  const [unit, setUnit] = useState({ siteId: org.sites[0]?.id ?? '', parentId: '', name: '' });
-  const [team, setTeam] = useState({ orgUnitId: org.orgUnits[0]?.id ?? '', name: '' });
-  const [position, setPosition] = useState({ code: '', name: '' });
-  const [zone, setZone] = useState({
+  const [site, setSite] = usePersistentState('directories.site', {
+    code: '',
+    name: '',
+    timezone: 'Europe/Kyiv',
+  });
+  const [unit, setUnit] = usePersistentState('directories.unit', {
+    siteId: org.sites[0]?.id ?? '',
+    parentId: '',
+    name: '',
+  });
+  const [team, setTeam] = usePersistentState('directories.team', {
+    orgUnitId: org.orgUnits[0]?.id ?? '',
+    name: '',
+  });
+  const [position, setPosition] = usePersistentState('directories.position', {
+    code: '',
+    name: '',
+  });
+  const [zone, setZone] = usePersistentState('directories.zone', {
     orgUnitId: org.orgUnits[0]?.id ?? '',
     code: '',
     name: '',

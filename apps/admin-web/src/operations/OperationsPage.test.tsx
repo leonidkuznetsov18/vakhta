@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { OperationsPage } from './OperationsPage.tsx';
+import { clickRowAction } from '../test-utils.ts';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const UNIT = 'a0000000-0000-4000-8000-000000000002';
@@ -185,7 +186,7 @@ describe('OperationsPage', () => {
     const state = { rows: [row('BREAK')] };
     const calls = mockApi(state);
     render(<OperationsPage />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Подробности' }));
+    await clickRowAction('Подробности');
     expect(await screen.findByText('SHIFT_STARTED')).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Действие мастера'), { target: { value: 'RESUME' } });

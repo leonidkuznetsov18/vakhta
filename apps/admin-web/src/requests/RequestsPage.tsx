@@ -20,6 +20,7 @@ import { formatDateTime } from '@/lib/format';
 import { requestsApi, shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { usePersistentState } from '@/lib/persistent-state';
 
 const all = messages(currentLocale());
 const r = all.admin.requests;
@@ -47,14 +48,14 @@ function when(req: RequestView): string {
 
 /** "Requests" (spec 9.1): the inbox by role, decisions with a comment, overtime, interval corrections. */
 export function RequestsPage() {
-  const [scope, setScope] = useState<'inbox' | 'all'>('inbox');
+  const [scope, setScope] = usePersistentState<'inbox' | 'all'>('requests.scope', 'inbox');
   const [rows, setRows] = useState<RequestView[]>([]);
   const [overtime, setOvertime] = useState<OvertimeView[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = usePersistentState<string | null>('requests.openId', null);
   const [detail, setDetail] = useState<RequestDetailView | null>(null);
   const [shift, setShift] = useState<ShiftDetailView | null>(null);
   const [comment, setComment] = useState('');
@@ -233,21 +234,6 @@ export function RequestsPage() {
         </div>
       ),
     },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{all.ui.common.actions}</span>,
-      align: 'right',
-      cell: (req) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setOpenId(openId === req.id ? null : req.id)}
-        >
-          {r.detail}
-        </Button>
-      ),
-    },
   ];
 
   const overtimeColumns: Column<OvertimeView>[] = [
@@ -316,6 +302,15 @@ export function RequestsPage() {
       <DataTable
         columns={columns}
         rows={rows}
+        storageKey="requests"
+        onRowClick={(row) => setOpenId(openId === row.id ? null : row.id)}
+        rowActions={(row) => [
+          {
+            key: 'detail',
+            label: r.detail,
+            onSelect: () => setOpenId(openId === row.id ? null : row.id),
+          },
+        ]}
         rowKey={(req) => req.id}
         empty={r.empty}
         rowClassName={(req) => (req.overdue ? 'bg-red-50/60 dark:bg-red-950/30' : undefined)}

@@ -1,8 +1,15 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import type { OrgSnapshot, TerminalPairingIssued, TerminalView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { CopyButton } from '@/components/app/copy-button';
@@ -12,8 +19,9 @@ import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
-import { adminOrgApi } from '../api.ts';
+import { ApiError, adminOrgApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
+import { usePersistentState } from '@/lib/persistent-state';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -40,10 +48,14 @@ function pairingLink(code: string): string | null {
 export function TerminalsTab({ org, onChanged }: Props) {
   const { busy, error, notice, run } = useAction();
   const { confirm, dialog } = useConfirm();
-  const [siteId, setSiteId] = useState(org.sites[0]?.id ?? '');
-  const [name, setName] = useState('');
-  const [checkpoint, setCheckpoint] = useState<(typeof CHECKPOINTS)[number]>('BOTH');
+  const [siteId, setSiteId] = usePersistentState('terminals.siteId', org.sites[0]?.id ?? '');
+  const [name, setName] = usePersistentState('terminals.name', '');
+  const [checkpoint, setCheckpoint] = usePersistentState<(typeof CHECKPOINTS)[number]>(
+    'terminals.checkpoint',
+    'BOTH',
+  );
   const [pairing, setPairing] = useState<(TerminalPairingIssued & { name: string }) | null>(null);
+  const [editing, setEditing] = useState<TerminalView | null>(null);
 
   const siteName = (id: string) => org.sites.find((s) => s.id === id)?.name ?? id;
 
@@ -83,6 +95,28 @@ export function TerminalsTab({ org, onChanged }: Props) {
     }, tr.statusChanged);
   }
 
+  async function remove(term: TerminalView) {
+    const reason = await confirm({
+      title: format(tr.deleteConfirm, { name: term.name }),
+      description: hints.terminalsDelete,
+      confirmLabel: tr.delete,
+      commentLabel: t.common.reason,
+      commentRequired: true,
+      destructive: true,
+    });
+    if (!reason) return;
+    void run(async () => {
+      try {
+        await adminOrgApi.deleteTerminal(term.id, reason);
+      } catch (e) {
+        if (e instanceof ApiError && e.code === 'TERMINAL_HAS_HISTORY')
+          throw new Error(tr.hasHistory);
+        throw e;
+      }
+      await onChanged();
+    }, tr.deleted);
+  }
+
   const columns: Column<TerminalView>[] = [
     { key: 'name', header: t.common.name, cell: (term) => term.name },
     { key: 'site', header: t.common.site, cell: (term) => siteName(term.siteId) },
@@ -105,33 +139,6 @@ export function TerminalsTab({ org, onChanged }: Props) {
       key: 'seen',
       header: tr.lastSeen,
       cell: (term) => (term.lastSeenAt ? formatDateTime(term.lastSeenAt) : tr.never),
-    },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{all.ui.common.actions}</span>,
-      align: 'right',
-      cell: (term) => (
-        <div className="flex flex-wrap justify-end gap-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={busy}
-            onClick={() => issue(term)}
-          >
-            {tr.pair}
-          </Button>
-          <Button
-            type="button"
-            variant={term.status === 'ACTIVE' ? 'ghost' : 'secondary'}
-            size="sm"
-            disabled={busy}
-            onClick={() => void toggle(term)}
-          >
-            {term.status === 'ACTIVE' ? tr.disable : tr.enable}
-          </Button>
-        </div>
-      ),
     },
   ];
 
@@ -202,8 +209,119 @@ export function TerminalsTab({ org, onChanged }: Props) {
         rows={org.terminals}
         rowKey={(term) => term.id}
         empty={t.common.empty}
+        storageKey="terminals"
+        onRowClick={(term) => issue(term)}
+        rowActions={(term) => [
+          { key: 'pair', label: tr.pair, disabled: busy, onSelect: () => issue(term) },
+          { key: 'edit', label: tr.edit, disabled: busy, onSelect: () => setEditing(term) },
+          {
+            key: 'status',
+            label: term.status === 'ACTIVE' ? tr.disable : tr.enable,
+            disabled: busy,
+            destructive: term.status === 'ACTIVE',
+            separator: true,
+            onSelect: () => void toggle(term),
+          },
+          {
+            key: 'delete',
+            label: tr.delete,
+            disabled: busy,
+            destructive: true,
+            onSelect: () => void remove(term),
+          },
+        ]}
+      />
+      <EditTerminalDialog
+        terminal={editing}
+        org={org}
+        onClose={() => setEditing(null)}
+        onSaved={async () => {
+          setEditing(null);
+          await onChanged();
+        }}
       />
       {dialog}
     </div>
+  );
+}
+
+/** Name, site and checkpoint of an existing terminal; pairing and status have their own actions. */
+function EditTerminalDialog({
+  terminal,
+  org,
+  onClose,
+  onSaved,
+}: {
+  readonly terminal: TerminalView | null;
+  readonly org: OrgSnapshot;
+  readonly onClose: () => void;
+  readonly onSaved: () => Promise<void>;
+}) {
+  const [name, setName] = useState('');
+  const [siteId, setSiteId] = useState('');
+  const [checkpoint, setCheckpoint] = useState<(typeof CHECKPOINTS)[number]>('BOTH');
+  const { busy, error, notice, run } = useAction();
+
+  useEffect(() => {
+    if (!terminal) return;
+    setName(terminal.name);
+    setSiteId(terminal.siteId);
+    setCheckpoint(terminal.checkpoint);
+  }, [terminal]);
+
+  function submit(ev: FormEvent) {
+    ev.preventDefault();
+    if (!terminal || name.trim().length === 0) return;
+    void run(async () => {
+      await adminOrgApi.updateTerminal(terminal.id, { name: name.trim(), siteId, checkpoint });
+      await onSaved();
+    }, tr.updated);
+  }
+
+  return (
+    <Dialog open={terminal !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {tr.edit}: {terminal?.name}
+          </DialogTitle>
+        </DialogHeader>
+        <form className="flex flex-col gap-4" onSubmit={submit}>
+          <FormField label={t.common.name}>
+            {(id) => (
+              <Input
+                id={id}
+                value={name}
+                onChange={(ev) => setName(ev.target.value)}
+                required
+                maxLength={200}
+              />
+            )}
+          </FormField>
+          <SelectField
+            label={t.common.site}
+            value={siteId}
+            onChange={setSiteId}
+            options={org.sites.map((s) => ({ value: s.id, label: s.name }))}
+          />
+          <SelectField
+            label={tr.checkpoint}
+            value={checkpoint}
+            onChange={(v) => setCheckpoint(v as (typeof CHECKPOINTS)[number])}
+            options={CHECKPOINTS.map((c) => ({ value: c, label: tr.checkpoints[c] }))}
+            hint={hints.terminalsCheckpoint}
+          />
+          <Feedback error={error} notice={notice} />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              {t.common.cancel}
+            </Button>
+            <Button type="submit" disabled={busy}>
+              {all.ui.common.save}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

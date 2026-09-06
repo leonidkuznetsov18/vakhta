@@ -1,5 +1,14 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { format, messages } from '@vakhta/i18n';
+import { MoreHorizontalIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Pagination,
   PaginationContent,
@@ -17,6 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/app/page';
+import { usePersistentState } from '@/lib/persistent-state';
 import { currentLocale } from '@/i18n';
 import { cn } from 'cn';
 
@@ -28,28 +38,44 @@ export interface Column<T> {
   readonly align?: 'left' | 'right';
 }
 
+/** One entry of the per-row "⋯" menu. `separator` draws a line before the entry. */
+export interface RowAction {
+  readonly key: string;
+  readonly label: ReactNode;
+  readonly onSelect: () => void;
+  readonly disabled?: boolean;
+  readonly destructive?: boolean;
+  readonly separator?: boolean;
+}
+
 interface DataTableProps<T> {
   readonly columns: readonly Column<T>[];
   readonly rows: readonly T[];
   readonly rowKey: (row: T) => string;
   readonly empty: string;
   readonly pageSize?: number;
+  /** Remembers the chosen page size across reloads under this key. */
+  readonly storageKey?: string;
   readonly rowClassName?: (row: T) => string | undefined;
   /** Extra full-width row rendered under a data row (details, inline forms). */
   readonly expanded?: (row: T) => ReactNode | null;
+  /** Main action of a row: clicking anywhere on it (outside controls) triggers this. */
+  readonly onRowClick?: (row: T) => void;
+  /** Secondary actions in a "⋯" menu at the end of the row. */
+  readonly rowActions?: (row: T) => readonly RowAction[];
   readonly footer?: ReactNode;
   readonly caption?: string;
 }
 
-const PAGE_SIZES = [10, 25, 50, 100] as const;
+export const PAGE_SIZES = [10, 20, 50, 100] as const;
+const DEFAULT_PAGE_SIZE = 20;
 
-/**
- * Client-side paginated table. Every list in the panel goes through it so long lists never
- * render at once and the controls look and behave the same everywhere.
- */
 /** Page state shared by DataTable and other paginated views (the schedule grid). */
-export function usePages(total: number, initialSize: number) {
-  const [size, setSize] = useState(initialSize);
+export function usePages(total: number, initialSize: number, storageKey?: string) {
+  const [size, setSize] = usePersistentState(
+    storageKey ? `pageSize.${storageKey}` : `pageSize.__local.${initialSize}`,
+    initialSize,
+  );
   const [page, setPage] = useState(1);
   const pages = Math.max(1, Math.ceil(total / size));
   useEffect(() => {
@@ -72,20 +98,19 @@ export function Paginator({ pages: p, total }: { readonly pages: Pages; readonly
       <div className="flex items-center gap-3">
         <label className="flex items-center gap-2">
           <span>{t.pageSize}</span>
-          <NativeSelect>
-            <select
-              value={p.size}
-              onChange={(e) => {
-                p.setSize(Number(e.target.value));
-                p.setPage(1);
-              }}
-            >
-              {PAGE_SIZES.map((n) => (
-                <NativeSelectOption key={n} value={n}>
-                  {n}
-                </NativeSelectOption>
-              ))}
-            </select>
+          <NativeSelect
+            size="sm"
+            value={p.size}
+            onChange={(e) => {
+              p.setSize(Number(e.target.value));
+              p.setPage(1);
+            }}
+          >
+            {PAGE_SIZES.map((n) => (
+              <NativeSelectOption key={n} value={n}>
+                {n}
+              </NativeSelectOption>
+            ))}
           </NativeSelect>
         </label>
         <Pagination className="mx-0 w-auto">
@@ -126,28 +151,83 @@ export function Paginator({ pages: p, total }: { readonly pages: Pages; readonly
   );
 }
 
+/** A click on a control inside the row must not also fire the row's main action. */
+function isInteractive(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest(
+      'button, a, input, select, textarea, label, [role="menuitem"], [role="menu"]',
+    ) !== null
+  );
+}
+
+/** "⋯" menu with the secondary actions of a row. */
+export function RowMenu({
+  actions,
+  label,
+}: {
+  readonly actions: readonly RowAction[];
+  readonly label: string;
+}) {
+  if (actions.length === 0) return null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="ghost" size="icon-sm" aria-label={label}>
+          <MoreHorizontalIcon aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {actions.map((a) => (
+          <div key={a.key}>
+            {a.separator ? <DropdownMenuSeparator /> : null}
+            <DropdownMenuItem
+              disabled={a.disabled}
+              variant={a.destructive ? 'destructive' : 'default'}
+              onSelect={() => a.onSelect()}
+            >
+              {a.label}
+            </DropdownMenuItem>
+          </div>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 /**
  * Client-side paginated table. Every list in the panel goes through it so long lists never
- * render at once and the controls look and behave the same everywhere.
+ * render at once and the controls look and behave the same everywhere: a click on the row
+ * runs its main action, the "⋯" menu holds the rest.
  */
 export function DataTable<T>({
   columns,
   rows,
   rowKey,
   empty,
-  pageSize = 25,
+  pageSize = DEFAULT_PAGE_SIZE,
+  storageKey,
   rowClassName,
   expanded,
+  onRowClick,
+  rowActions,
   footer,
   caption,
 }: DataTableProps<T>) {
-  const pages = usePages(rows.length, pageSize);
+  const t = messages(currentLocale()).ui.common;
+  const pages = usePages(rows.length, pageSize, storageKey);
   const visible = useMemo(
     () => rows.slice((pages.page - 1) * pages.size, pages.page * pages.size),
     [rows, pages.page, pages.size],
   );
+  const span = columns.length + (rowActions ? 1 : 0);
 
   if (rows.length === 0) return <EmptyState text={empty} />;
+
+  const handleRowClick = (row: T) => (ev: MouseEvent<HTMLTableRowElement>) => {
+    if (!onRowClick || isInteractive(ev.target)) return;
+    onRowClick(row);
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -164,14 +244,29 @@ export function DataTable<T>({
                   {c.header}
                 </TableHead>
               ))}
+              {rowActions ? (
+                <TableHead className="w-10 text-right">
+                  <span className="sr-only">{t.actions}</span>
+                </TableHead>
+              ) : null}
             </TableRow>
           </TableHeader>
           <TableBody>
             {visible.map((row) => {
               const extra = expanded?.(row);
+              const actions = rowActions?.(row) ?? [];
               return (
                 <RowGroup key={rowKey(row)}>
-                  <TableRow className={rowClassName?.(row)}>
+                  <TableRow
+                    className={cn(onRowClick && 'cursor-pointer', rowClassName?.(row))}
+                    onClick={handleRowClick(row)}
+                    onKeyDown={(ev) => {
+                      if (onRowClick && ev.target === ev.currentTarget && ev.key === 'Enter') {
+                        onRowClick(row);
+                      }
+                    }}
+                    tabIndex={onRowClick ? 0 : undefined}
+                  >
                     {columns.map((c) => (
                       <TableCell
                         key={c.key}
@@ -180,10 +275,15 @@ export function DataTable<T>({
                         {c.cell(row)}
                       </TableCell>
                     ))}
+                    {rowActions ? (
+                      <TableCell className="text-right">
+                        <RowMenu actions={actions} label={t.actions} />
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                   {extra ? (
                     <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={columns.length} className="bg-muted/40 p-4">
+                      <TableCell colSpan={span} className="bg-muted/40 p-4">
                         {extra}
                       </TableCell>
                     </TableRow>

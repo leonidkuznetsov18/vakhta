@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -15,8 +16,10 @@ import {
   CreateSiteCommand,
   CreateTeamCommand,
   CreateZoneCommand,
+  DeleteWithReasonCommand,
   RegisterTerminalCommand,
   SetTerminalStatusCommand,
+  UpdateTerminalCommand,
   type OrgSnapshot,
   type TerminalPairingIssued,
   type TerminalRegistered,
@@ -117,21 +120,51 @@ export class AdminOrgController {
     return this.org.issuePairingCode(id, webUserActor(user));
   }
 
+  @Patch('terminals/:id')
+  async updateTerminal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateTerminalCommand)) body: UpdateTerminalCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<TerminalView> {
+    return terminalView(await this.org.updateTerminal(id, body, webUserActor(user)));
+  }
+
+  @Delete('terminals/:id')
+  @HttpCode(204)
+  async deleteTerminal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(DeleteWithReasonCommand)) body: DeleteWithReasonCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<void> {
+    await this.org.deleteTerminal(id, body.reason, webUserActor(user));
+  }
+
   @Patch('terminals/:id/status')
   async setTerminalStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(SetTerminalStatusCommand)) body: SetTerminalStatusCommand,
     @CurrentUser() user: WebUser,
   ): Promise<TerminalView> {
-    const row = await this.org.setTerminalStatus(id, body, webUserActor(user));
-    return {
-      id: row.id,
-      siteId: row.siteId,
-      name: row.name,
-      checkpoint: row.checkpoint,
-      status: row.status,
-      paired: row.deviceTokenHash !== null,
-      lastSeenAt: row.lastSeenAt?.toISOString() ?? null,
-    };
+    return terminalView(await this.org.setTerminalStatus(id, body, webUserActor(user)));
   }
+}
+
+function terminalView(row: {
+  id: string;
+  siteId: string;
+  name: string;
+  checkpoint: TerminalView['checkpoint'];
+  status: TerminalView['status'];
+  deviceTokenHash: string | null;
+  lastSeenAt: Date | null;
+}): TerminalView {
+  return {
+    id: row.id,
+    siteId: row.siteId,
+    name: row.name,
+    checkpoint: row.checkpoint,
+    status: row.status,
+    paired: row.deviceTokenHash !== null,
+    lastSeenAt: row.lastSeenAt?.toISOString() ?? null,
+  };
 }

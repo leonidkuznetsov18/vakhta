@@ -25,6 +25,7 @@ import { formatDateTime } from '@/lib/format';
 import { handoversApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { usePersistentState } from '@/lib/persistent-state';
 
 const all = messages(currentLocale());
 const h = all.admin.handover;
@@ -43,14 +44,17 @@ const STATUS_TONE: Record<HandoverStatus, Tone> = {
 /** "Cleanliness and handover" (spec 9.1): acceptance queue, disputes, overdue, photos via signed links, decisions. */
 export function HandoverPage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
-  const [siteId, setSiteId] = useState('');
-  const [scope, setScope] = useState<'pending' | 'overdue' | 'all'>('pending');
+  const [siteId, setSiteId] = usePersistentState('handover.siteId', '');
+  const [scope, setScope] = usePersistentState<'pending' | 'overdue' | 'all'>(
+    'handover.scope',
+    'pending',
+  );
   const [rows, setRows] = useState<HandoverListItemView[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = usePersistentState<string | null>('handover.openId', null);
   const [detail, setDetail] = useState<HandoverDetailView | null>(null);
   const [decision, setDecision] = useState<HandoverResolution | ''>('');
   const [comment, setComment] = useState('');
@@ -157,21 +161,6 @@ export function HandoverPage() {
         </div>
       ),
     },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{all.ui.common.actions}</span>,
-      align: 'right',
-      cell: (row) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setOpenId(openId === row.id ? null : row.id)}
-        >
-          {h.detail}
-        </Button>
-      ),
-    },
   ];
 
   return (
@@ -204,6 +193,15 @@ export function HandoverPage() {
       <DataTable
         columns={columns}
         rows={rows}
+        storageKey="handover"
+        onRowClick={(row) => setOpenId(openId === row.id ? null : row.id)}
+        rowActions={(row) => [
+          {
+            key: 'detail',
+            label: h.detail,
+            onSelect: () => setOpenId(openId === row.id ? null : row.id),
+          },
+        ]}
         rowKey={(row) => row.id}
         empty={h.empty}
         rowClassName={(row) => (row.overdue ? 'bg-red-50/60 dark:bg-red-950/30' : undefined)}

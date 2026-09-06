@@ -11,6 +11,7 @@ import { EmployeesTab } from './EmployeesTab.tsx';
 import { TerminalsTab } from './TerminalsTab.tsx';
 import { UsersTab } from './UsersTab.tsx';
 import { currentLocale } from '../i18n.tsx';
+import { useRouteSub } from '@/lib/route';
 
 const t = messages(currentLocale()).admin.administration;
 type Tab = keyof typeof t.tabs;
@@ -18,7 +19,7 @@ const TABS = Object.keys(t.tabs) as Tab[];
 
 /** "Administration" section: tabs per spec 9.1 over one shared snapshot of the directories. */
 export function AdminPage() {
-  const [tab, setTab] = useState<Tab>('employees');
+  const [tab, setTab] = useRouteSub<Tab>('administration', TABS, 'employees');
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
 

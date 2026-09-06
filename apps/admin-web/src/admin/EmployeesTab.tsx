@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CopyButton } from '@/components/app/copy-button';
 import { useConfirm } from '@/components/app/confirm-dialog';
-import { DataTable, type Column } from '@/components/app/data-table';
+import { DataTable, type Column, type RowAction } from '@/components/app/data-table';
 import { Feedback, useAction } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
@@ -27,6 +27,7 @@ import { Muted, Section, StatusPill, type Tone } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
 import { adminEmployeesApi, employeesApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
+import { usePersistentState } from '@/lib/persistent-state';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -41,10 +42,10 @@ const STATUS_TONE: Record<EmployeeView['status'], Tone> = {
 /** Employee cards: creation, activation code, position, status, Telegram relink (spec 2, FR-ID-*). */
 export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const [list, setList] = useState<EmployeeView[]>([]);
-  const [personnelNumber, setPersonnelNumber] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [personnelNumber, setPersonnelNumber] = usePersistentState('employees.personnelNumber', '');
+  const [fullName, setFullName] = usePersistentState('employees.fullName', '');
   const [issued, setIssued] = useState<ActivationCodeIssued | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = usePersistentState<string | null>('employees.openId', null);
   const [relinkFor, setRelinkFor] = useState<EmployeeView | null>(null);
   const { busy, error, notice, run } = useAction();
   const { confirm, dialog } = useConfirm();
@@ -137,78 +138,53 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           <Muted>{e.notLinked}</Muted>
         ),
     },
+  ];
+
+  const rowActions = (emp: EmployeeView): RowAction[] => [
     {
-      key: 'actions',
-      header: <span className="sr-only">{all.ui.common.actions}</span>,
-      align: 'right',
-      cell: (emp) => (
-        <div className="flex flex-wrap justify-end gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setOpenId(openId === emp.id ? null : emp.id)}
-          >
-            {e.position}
-          </Button>
-          {emp.status === 'ACTIVE' && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={busy}
-              onClick={() => issueCode(emp)}
-            >
-              {e.issueCode}
-            </Button>
-          )}
-          {emp.telegramLinked && emp.status === 'ACTIVE' && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => setRelinkFor(emp)}
-            >
-              {e.relink}
-            </Button>
-          )}
-          {emp.status === 'ACTIVE' && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => void changeStatus(emp, 'BLOCKED')}
-            >
-              {e.block}
-            </Button>
-          )}
-          {emp.status === 'BLOCKED' && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => void changeStatus(emp, 'ACTIVE')}
-            >
-              {e.unblock}
-            </Button>
-          )}
-          {emp.status !== 'TERMINATED' && (
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              disabled={busy}
-              onClick={() => void changeStatus(emp, 'TERMINATED')}
-            >
-              {e.terminate}
-            </Button>
-          )}
-        </div>
-      ),
+      key: 'position',
+      label: e.position,
+      onSelect: () => setOpenId(openId === emp.id ? null : emp.id),
     },
+    ...(emp.status === 'ACTIVE'
+      ? [{ key: 'code', label: e.issueCode, disabled: busy, onSelect: () => issueCode(emp) }]
+      : []),
+    ...(emp.telegramLinked && emp.status === 'ACTIVE'
+      ? [{ key: 'relink', label: e.relink, disabled: busy, onSelect: () => setRelinkFor(emp) }]
+      : []),
+    ...(emp.status === 'ACTIVE'
+      ? [
+          {
+            key: 'block',
+            label: e.block,
+            disabled: busy,
+            separator: true,
+            onSelect: () => void changeStatus(emp, 'BLOCKED'),
+          },
+        ]
+      : []),
+    ...(emp.status === 'BLOCKED'
+      ? [
+          {
+            key: 'unblock',
+            label: e.unblock,
+            disabled: busy,
+            separator: true,
+            onSelect: () => void changeStatus(emp, 'ACTIVE'),
+          },
+        ]
+      : []),
+    ...(emp.status !== 'TERMINATED'
+      ? [
+          {
+            key: 'terminate',
+            label: e.terminate,
+            disabled: busy,
+            destructive: true,
+            onSelect: () => void changeStatus(emp, 'TERMINATED'),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -267,6 +243,9 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         rows={list}
         rowKey={(emp) => emp.id}
         empty={t.common.empty}
+        storageKey="employees"
+        onRowClick={(emp) => setOpenId(openId === emp.id ? null : emp.id)}
+        rowActions={rowActions}
         rowClassName={(emp) => (emp.status !== 'ACTIVE' ? 'text-muted-foreground' : undefined)}
         expanded={(emp) =>
           openId === emp.id ? (
@@ -394,6 +373,13 @@ function PositionPanel({
   }, [employee.id, run]);
 
   const current = history?.find((h) => h.validTo === null) ?? null;
+  // Open the form on the assignment in force, so "save" without changes is not a silent transfer.
+  useEffect(() => {
+    if (!current) return;
+    setOrgUnitId(current.orgUnitId);
+    setPositionId(current.positionId);
+    setTeamId(current.teamId ?? '');
+  }, [current]);
   const unitName = (id: string) => org.orgUnits.find((u) => u.id === id)?.name ?? id;
   const positionName = (id: string) => org.positions.find((p) => p.id === id)?.name ?? id;
   const teams = org.teams.filter((tm) => tm.orgUnitId === orgUnitId);

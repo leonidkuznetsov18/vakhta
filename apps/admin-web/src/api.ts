@@ -3,6 +3,7 @@ import type {
   SetTerminalStatusCommand,
   TerminalPairingIssued,
   TerminalView,
+  UpdateTerminalCommand,
 } from '@vakhta/contracts';
 import { currentLocale } from './i18n.tsx';
 
@@ -186,6 +187,16 @@ export const adminOrgApi = {
     apiFetch<TerminalPairingIssued>(`/admin/org/terminals/${terminalId}/pairing`, {
       method: 'POST',
       body: '{}',
+    }),
+  updateTerminal: (terminalId: string, cmd: UpdateTerminalCommand) =>
+    apiFetch<TerminalView>(`/admin/org/terminals/${terminalId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(cmd),
+    }),
+  deleteTerminal: (terminalId: string, reason: string) =>
+    apiFetch<null>(`/admin/org/terminals/${terminalId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ reason }),
     }),
   setTerminalStatus: (terminalId: string, cmd: SetTerminalStatusCommand) =>
     apiFetch<TerminalView>(`/admin/org/terminals/${terminalId}/status`, {

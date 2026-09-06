@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { HandoverPage } from './HandoverPage.tsx';
+import { clickRowAction } from '../test-utils.ts';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const HV = 'c0000000-0000-4000-8000-000000000001';
@@ -169,7 +170,7 @@ describe('HandoverPage', () => {
     render(<HandoverPage />);
     expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
     expect(screen.getByText('Есть замечание принимающего')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Подробности' }));
+    await clickRowAction('Подробности');
     expect(await screen.findByText('Петрова Ольга')).toBeTruthy();
     expect(screen.getByText(/Пятно/)).toBeTruthy();
 
@@ -201,7 +202,7 @@ describe('HandoverPage', () => {
     mockApi({ status: 'SUBMITTED' });
     render(<HandoverPage />);
     expect(await screen.findByText('Просрочено')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Подробности' }));
+    await clickRowAction('Подробности');
     const decision = (await screen.findByLabelText('Решение')) as HTMLSelectElement;
     expect([...decision.options].map((o) => o.value)).toEqual([
       '',

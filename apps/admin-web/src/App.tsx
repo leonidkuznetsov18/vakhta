@@ -45,6 +45,8 @@ import { SchedulePage } from './schedule/SchedulePage.tsx';
 import { useSession } from './auth/useSession.ts';
 import { LanguageSwitcher, currentLocale } from './i18n.tsx';
 import { NavigationProvider, type SectionKey } from './navigation.tsx';
+import { readRoute, writeRoute } from '@/lib/route';
+import { useEffect } from 'react';
 
 const t = messages(currentLocale());
 
@@ -80,7 +82,22 @@ const PAGES: Record<SectionKey, () => React.ReactElement> = {
  */
 export function App() {
   const { state, refresh, signOut } = useSession();
-  const [active, setActive] = useState<ActiveKey>('operations');
+  const [active, setActive] = useState<ActiveKey>(() => {
+    const { section } = readRoute();
+    return section in PAGES || section === 'profile' ? (section as ActiveKey) : 'operations';
+  });
+  useEffect(() => {
+    if (state.status !== 'authenticated') return;
+    // Only the section is written here; pages with tabs append their own sub-path.
+    const { section, sub } = readRoute();
+    writeRoute(active, section === active ? sub : undefined);
+    const onChange = () => {
+      const next = readRoute().section;
+      if (next in PAGES || next === 'profile') setActive(next as ActiveKey);
+    };
+    window.addEventListener('hashchange', onChange);
+    return () => window.removeEventListener('hashchange', onChange);
+  }, [active, state.status]);
 
   if (state.status === 'loading') {
     return (
