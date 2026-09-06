@@ -19,7 +19,12 @@ import {
   DeleteWithReasonCommand,
   RegisterTerminalCommand,
   SetTerminalStatusCommand,
+  UpdateOrgUnitCommand,
+  UpdatePositionCommand,
+  UpdateSiteCommand,
+  UpdateTeamCommand,
   UpdateTerminalCommand,
+  UpdateZoneCommand,
   type OrgSnapshot,
   type TerminalPairingIssued,
   type TerminalRegistered,
@@ -100,6 +105,69 @@ export class AdminOrgController {
     @CurrentUser() user: WebUser,
   ) {
     return this.org.createZone(body, webUserActor(user));
+  }
+
+  @Patch('sites/:id')
+  updateSite(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateSiteCommand)) body: UpdateSiteCommand,
+    @CurrentUser() user: WebUser,
+  ) {
+    return this.org.updateSite(id, body, webUserActor(user));
+  }
+
+  @Patch('units/:id')
+  updateOrgUnit(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateOrgUnitCommand)) body: UpdateOrgUnitCommand,
+    @CurrentUser() user: WebUser,
+  ) {
+    return this.org.updateOrgUnit(id, body, webUserActor(user));
+  }
+
+  @Patch('teams/:id')
+  updateTeam(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateTeamCommand)) body: UpdateTeamCommand,
+    @CurrentUser() user: WebUser,
+  ) {
+    return this.org.updateTeam(id, body, webUserActor(user));
+  }
+
+  @Patch('positions/:id')
+  updatePosition(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdatePositionCommand)) body: UpdatePositionCommand,
+    @CurrentUser() user: WebUser,
+  ) {
+    return this.org.updatePosition(id, body, webUserActor(user));
+  }
+
+  @Patch('zones/:id')
+  updateZone(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateZoneCommand)) body: UpdateZoneCommand,
+    @CurrentUser() user: WebUser,
+  ) {
+    return this.org.updateZone(id, body, webUserActor(user));
+  }
+
+  @Delete(':kind(sites|units|teams|positions|zones)/:id')
+  @HttpCode(204)
+  async deleteDirectoryRow(
+    @Param('kind') kind: 'sites' | 'units' | 'teams' | 'positions' | 'zones',
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(DeleteWithReasonCommand)) body: DeleteWithReasonCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<void> {
+    const map = {
+      sites: 'site',
+      units: 'org_unit',
+      teams: 'team',
+      positions: 'position',
+      zones: 'zone',
+    } as const;
+    await this.org.deleteDirectoryRow(map[kind], id, body.reason, webUserActor(user));
   }
 
   @Post('terminals')

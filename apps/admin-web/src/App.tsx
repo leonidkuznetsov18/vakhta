@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   ActivityIcon,
+  LayoutDashboardIcon,
   AlertTriangleIcon,
   BarChart3Icon,
   CalendarDaysIcon,
@@ -12,6 +13,7 @@ import {
   SettingsIcon,
   UserIcon,
 } from 'lucide-react';
+import type { MeView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import {
   Sidebar,
@@ -22,6 +24,7 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
@@ -40,6 +43,8 @@ import { BonusPage } from './bonus/BonusPage.tsx';
 import { HandoverPage } from './handover/HandoverPage.tsx';
 import { IncidentsPage } from './incidents/IncidentsPage.tsx';
 import { OperationsPage } from './operations/OperationsPage.tsx';
+import { OverviewPage } from './overview/OverviewPage.tsx';
+import { useAttention } from './overview/attention.ts';
 import { RequestsPage } from './requests/RequestsPage.tsx';
 import { SchedulePage } from './schedule/SchedulePage.tsx';
 import { useSession } from './auth/useSession.ts';
@@ -53,6 +58,7 @@ const t = messages(currentLocale());
 type ActiveKey = SectionKey | 'profile';
 
 const SECTIONS: readonly { key: SectionKey; icon: typeof ActivityIcon }[] = [
+  { key: 'overview', icon: LayoutDashboardIcon },
   { key: 'operations', icon: ActivityIcon },
   { key: 'schedule', icon: CalendarDaysIcon },
   { key: 'incidents', icon: AlertTriangleIcon },
@@ -76,7 +82,7 @@ const ROLE_ORDER = [
   'AUDITOR',
 ] as const;
 
-const PAGES: Record<SectionKey, () => React.ReactElement> = {
+const PAGES: Partial<Record<SectionKey, () => React.ReactElement>> = {
   operations: OperationsPage,
   schedule: SchedulePage,
   incidents: IncidentsPage,
@@ -92,11 +98,33 @@ const PAGES: Record<SectionKey, () => React.ReactElement> = {
  * Panel shell: the nine sections of spec 9.1 behind a better-auth session in a shadcn sidebar;
  * the profile lets the user enable TOTP. Section state lives in memory, there is no router.
  */
+/** Counts on the sidebar entries: open incidents, pending handovers, requests on my step. */
+function useBadges(me: MeView | null): Partial<Record<SectionKey, number>> {
+  const { data } = useAttention(me ?? EMPTY_ME, me ? 60_000 : 3_600_000);
+  if (!me) return {};
+  return {
+    incidents: data.openIncidents ?? 0,
+    handover: (data.disputes ?? 0) + (data.overdueAcceptances ?? 0),
+    requests: data.requestsForMe ?? 0,
+  };
+}
+const EMPTY_ME: MeView = {
+  id: '',
+  email: '',
+  name: '',
+  twoFactorEnabled: false,
+  roles: [],
+  createdAt: '',
+};
+
 export function App() {
   const { state, refresh, signOut } = useSession();
+  const badges = useBadges(state.status === 'authenticated' ? state.me : null);
   const [active, setActive] = useState<ActiveKey>(() => {
     const { section } = readRoute();
-    return section in PAGES || section === 'profile' ? (section as ActiveKey) : 'operations';
+    return section in PAGES || section === 'profile' || section === 'overview'
+      ? (section as ActiveKey)
+      : 'overview';
   });
   useEffect(() => {
     if (state.status !== 'authenticated') return;
@@ -105,7 +133,7 @@ export function App() {
     writeRoute(active, section === active ? sub : undefined);
     const onChange = () => {
       const next = readRoute().section;
-      if (next in PAGES || next === 'profile') setActive(next as ActiveKey);
+      if (next in PAGES || next === 'profile' || next === 'overview') setActive(next as ActiveKey);
     };
     window.addEventListener('hashchange', onChange);
     return () => window.removeEventListener('hashchange', onChange);
@@ -126,7 +154,7 @@ export function App() {
   const primaryRole = ROLE_ORDER.find((r) => me.roles.some((g) => g.role === r)) ?? null;
   const title = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];
   const version = import.meta.env['VITE_APP_VERSION'];
-  const Page = active === 'profile' ? null : PAGES[active];
+  const Page = active === 'profile' || active === 'overview' ? null : PAGES[active];
 
   return (
     <NavigationProvider go={(section: SectionKey) => setActive(section)}>
@@ -155,6 +183,9 @@ export function App() {
                         <Icon aria-hidden="true" />
                         <span>{t.admin.sections[key]}</span>
                       </SidebarMenuButton>
+                      {badges[key] ? (
+                        <SidebarMenuBadge className="tabular-nums">{badges[key]}</SidebarMenuBadge>
+                      ) : null}
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>
@@ -207,6 +238,8 @@ export function App() {
           <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
             {active === 'profile' ? (
               <ProfilePanel me={me} onChanged={() => void refresh()} />
+            ) : active === 'overview' ? (
+              <OverviewPage me={me} />
             ) : Page ? (
               <Page />
             ) : null}

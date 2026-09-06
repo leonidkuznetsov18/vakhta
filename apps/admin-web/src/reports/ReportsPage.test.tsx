@@ -128,7 +128,9 @@ describe('ReportsPage and AuditPage', () => {
     expect(screen.getByText('report.export')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'До/После' }));
     expect(await screen.findByText(/"format": "csv"/)).toBeTruthy();
-    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Журнал событий' }));
+    // The details sheet hides the page from assistive tech until it is closed.
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Журнал событий' }));
     // The type appears in the row and as an option of the type filter.
     expect((await screen.findAllByText('SHIFT_CORRECTED')).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/исправляет c0000000/)).toBeTruthy();

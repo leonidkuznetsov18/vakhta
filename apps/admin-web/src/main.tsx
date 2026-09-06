@@ -5,7 +5,10 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { App } from './App.tsx';
 import { redirectToCanonicalOrigin } from './canonical.ts';
 import { currentLocale } from './i18n.tsx';
+import { installZodLocale } from '@/lib/validation';
 import './index.css';
+
+installZodLocale();
 
 if (redirectToCanonicalOrigin()) throw new Error('Redirecting to the canonical origin');
 

@@ -298,6 +298,7 @@ export interface Messages {
     readonly productName: string;
     readonly sections: Readonly<
       Record<
+        | 'overview'
         | 'operations'
         | 'schedule'
         | 'incidents'
@@ -313,6 +314,25 @@ export interface Messages {
     readonly placeholder: string;
     /** Label of the language switcher in the panel header. */
     readonly language: string;
+    readonly overview: {
+      readonly title: string;
+      readonly attention: string;
+      readonly allClear: string;
+      readonly openIncidents: string;
+      readonly slaBreached: string;
+      readonly disputes: string;
+      readonly overdueAcceptances: string;
+      readonly requestsForMe: string;
+      readonly overdueRequests: string;
+      readonly overtimePending: string;
+      readonly unlinkedEmployees: string;
+      readonly unpairedTerminals: string;
+      readonly onShift: string;
+      readonly inDowntime: string;
+      readonly open: string;
+      /** Placeholder: {time} */
+      readonly refreshedAt: string;
+    };
     readonly auth: {
       readonly signInTitle: string;
       readonly email: string;
@@ -495,6 +515,10 @@ export interface Messages {
       readonly apply: string;
       readonly applied: string;
       readonly openPhoto: string;
+      readonly photoBefore: string;
+      readonly photoAfter: string;
+      readonly photoLoading: string;
+      readonly compare: string;
       readonly empty: string;
       readonly live: string;
       readonly cannotComplete: string;
@@ -655,6 +679,21 @@ export interface Messages {
         readonly relink: string;
         readonly relinkUserId: string;
         readonly relinked: string;
+        readonly import: string;
+        readonly importHint: string;
+        readonly importFile: string;
+        readonly importPreview: string;
+        /** Placeholders: {rows}, {invalid} */
+        readonly importSummary: string;
+        readonly importRun: string;
+        /** Placeholders: {created}, {skipped} */
+        readonly importDone: string;
+        readonly importSkippedTitle: string;
+        readonly importReasons: Readonly<Record<'DUPLICATE' | 'INVALID', string>>;
+        readonly importTemplate: string;
+        readonly qrHint: string;
+        readonly search: string;
+        readonly statusFilter: string;
         readonly statuses: Readonly<Record<'ACTIVE' | 'BLOCKED' | 'TERMINATED', string>>;
       };
       readonly users: {
@@ -671,6 +710,9 @@ export interface Messages {
         readonly scope: string;
         readonly grant: string;
         readonly revoke: string;
+        readonly generate: string;
+        readonly createdOnce: string;
+        readonly copyPassword: string;
         readonly granted: string;
         readonly revoked: string;
         readonly scopeTypes: Readonly<Record<ScopeType, string>>;
@@ -685,6 +727,14 @@ export interface Messages {
         readonly parent: string;
         readonly type: string;
         readonly shared: string;
+        readonly active: string;
+        readonly edit: string;
+        readonly updated: string;
+        readonly delete: string;
+        /** Placeholder: {name} */
+        readonly deleteConfirm: string;
+        readonly deleted: string;
+        readonly inUse: string;
         readonly zoneTypes: Readonly<
           Record<'AREA' | 'POST' | 'PACKAGING' | 'FILLING' | 'CLEANING' | 'OTHER', string>
         >;
@@ -757,6 +807,10 @@ export interface Messages {
       readonly required: string;
       /** Placeholder: {min} */
       readonly minLength: string;
+      /** Placeholder: {max} */
+      readonly maxLength: string;
+      readonly invalidValue: string;
+      readonly invalidEmail: string;
       readonly invalidNumber: string;
       readonly moreInfo: string;
       readonly copy: string;
@@ -767,6 +821,11 @@ export interface Messages {
       readonly add: string;
       readonly loading_rows: string;
       readonly nothingHere: string;
+      readonly searchPlaceholder: string;
+      readonly sortAsc: string;
+      readonly sortDesc: string;
+      readonly noMatches: string;
+      readonly closePanel: string;
     };
     readonly hints: {
       readonly language: string;
@@ -823,6 +882,12 @@ export interface Messages {
       readonly terminalsCheckpoint: string;
       readonly scheduleDelete: string;
       readonly employeesPositionColumn: string;
+      readonly employeesImport: string;
+      readonly employeesQr: string;
+      readonly directoriesDelete: string;
+      readonly usersGenerate: string;
+      readonly overview: string;
+      readonly tableSearch: string;
       readonly profileTwoFactor: string;
     };
   };

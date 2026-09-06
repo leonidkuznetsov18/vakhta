@@ -29,10 +29,32 @@ import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
 import { EyeIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { DetailSheet } from '@/components/app/detail-sheet';
+import { useConfirm } from '@/components/app/confirm-dialog';
+import {
+  BanIcon,
+  CheckIcon,
+  CircleCheckIcon,
+  LockIcon,
+  PlayIcon,
+  RotateCcwIcon,
+  CopyIcon,
+  type LucideIcon,
+} from 'lucide-react';
 
 const all = messages(currentLocale());
 const i = all.admin.incidents;
 const hints = all.ui.hints;
+
+const TRANSITION_ICON: Record<IncidentStatus, LucideIcon> = {
+  REPORTED: RotateCcwIcon,
+  ACKNOWLEDGED: CheckIcon,
+  IN_PROGRESS: PlayIcon,
+  RESOLVED: CircleCheckIcon,
+  CLOSED: LockIcon,
+  DUPLICATE: CopyIcon,
+  REJECTED: BanIcon,
+};
 
 const SEVERITY_TONE: Record<IncidentSeverity, Tone> = {
   NORMAL: 'neutral',
@@ -64,6 +86,7 @@ export function IncidentsPage() {
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { confirm, dialog } = useConfirm();
   const [openId, setOpenId] = usePersistentState<string | null>('incidents.openId', null);
   const [detail, setDetail] = useState<IncidentDetailView | null>(null);
   const [target, setTarget] = useState<Record<string, IncidentStatus | ''>>({});
@@ -160,8 +183,32 @@ export function IncidentsPage() {
       .finally(() => setBusy(false));
   }
 
+  async function quickTransition(row: IncidentView, to: IncidentStatus) {
+    const required = to === 'RESOLVED' || to === 'REJECTED';
+    const text = await confirm({
+      title: `${i.transitions[to]}: ${row.reasonLabel}`,
+      confirmLabel: i.transitions[to],
+      commentLabel: required ? i.commentRequired : i.comment,
+      commentRequired: required,
+      destructive: to === 'REJECTED',
+    });
+    if (text === false) return;
+    setBusy(true);
+    setError(null);
+    incidentsApi
+      .transition(row.id, { to, ...(text ? { comment: text } : {}) })
+      .then(async () => {
+        notifySuccess(i.applied);
+        await reload();
+      })
+      .catch((e: unknown) => setError(describeError(e)))
+      .finally(() => setBusy(false));
+  }
+
   const others = (row: IncidentView) =>
     rows.filter((r) => r.id !== row.id && r.status !== 'DUPLICATE');
+
+  const openRow = rows.find((r) => r.id === openId) ?? null;
 
   const columns: Column<IncidentView>[] = [
     {
@@ -248,106 +295,136 @@ export function IncidentsPage() {
             icon: EyeIcon,
             onSelect: () => setOpenId(openId === row.id ? null : row.id),
           },
+          ...allowedIncidentTransitions(row.status)
+            .filter((to) => to !== 'DUPLICATE')
+            .map((to, idx) => ({
+              key: `to-${to}`,
+              label: i.transitions[to],
+              icon: TRANSITION_ICON[to],
+              disabled: busy,
+              destructive: to === 'REJECTED',
+              separator: idx === 0,
+              onSelect: () => void quickTransition(row, to),
+            })),
         ]}
         rowKey={(row) => row.id}
         empty={i.empty}
         rowClassName={(row) => (row.slaBreached ? 'bg-red-50/60 dark:bg-red-950/30' : undefined)}
-        expanded={(row) =>
-          openId === row.id ? (
-            <div className="flex flex-col gap-4">
-              {allowedIncidentTransitions(row.status).length > 0 && (
-                <form
-                  className="flex flex-wrap items-end gap-3"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    apply(row);
-                  }}
-                >
-                  <SelectField
-                    label={i.status}
-                    value={target[row.id] ?? ''}
-                    onChange={(v) => setTarget((t) => ({ ...t, [row.id]: v as IncidentStatus }))}
-                    placeholder="…"
-                    required
-                    options={allowedIncidentTransitions(row.status).map((s) => ({
-                      value: s,
-                      label: i.transitions[s],
-                    }))}
-                    className="w-56"
-                  />
-                  {target[row.id] === 'DUPLICATE' && (
+        activeKey={openId}
+      />
+      {dialog}
+      {openRow && (
+        <DetailSheet
+          open={openRow !== null}
+          onOpenChange={(open) => !open && setOpenId(null)}
+          title={
+            <>
+              {openRow.reasonLabel}
+              <StatusPill tone={STATUS_TONE[openRow.status]}>
+                {all.incidents.statuses[openRow.status]}
+              </StatusPill>
+            </>
+          }
+          description={`${openRow.zoneName ?? '—'} · ${all.incidents.severities[openRow.severity]}`}
+          wide
+        >
+          {((row) => (
+            <>
+              <div className="flex flex-col gap-4">
+                {allowedIncidentTransitions(row.status).length > 0 && (
+                  <form
+                    className="flex flex-wrap items-end gap-3"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      apply(row);
+                    }}
+                  >
                     <SelectField
-                      label={i.duplicateOf}
-                      hint={hints.incidentsDuplicate}
-                      value={duplicateOf[row.id] ?? ''}
-                      onChange={(v) => setDuplicateOf((d) => ({ ...d, [row.id]: v }))}
+                      label={i.status}
+                      value={target[row.id] ?? ''}
+                      onChange={(v) => setTarget((t) => ({ ...t, [row.id]: v as IncidentStatus }))}
                       placeholder="…"
                       required
-                      options={others(row).map((o) => ({
-                        value: o.id,
-                        label: `${formatTime(o.openedAt)} · ${o.reasonLabel} · ${o.zoneName ?? '—'}`,
+                      options={allowedIncidentTransitions(row.status).map((s) => ({
+                        value: s,
+                        label: i.transitions[s],
                       }))}
-                      className="w-72"
+                      className="w-56"
                     />
-                  )}
-                  <FormField
-                    label={
-                      target[row.id] === 'RESOLVED' || target[row.id] === 'REJECTED'
-                        ? i.commentRequired
-                        : i.comment
-                    }
-                    className="min-w-72 flex-1"
-                  >
-                    {(id) => (
-                      <Textarea
-                        rows={2}
-                        id={id}
-                        value={comment[row.id] ?? ''}
-                        onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}
-                        required={target[row.id] === 'RESOLVED' || target[row.id] === 'REJECTED'}
-                        minLength={3}
+                    {target[row.id] === 'DUPLICATE' && (
+                      <SelectField
+                        label={i.duplicateOf}
+                        hint={hints.incidentsDuplicate}
+                        value={duplicateOf[row.id] ?? ''}
+                        onChange={(v) => setDuplicateOf((d) => ({ ...d, [row.id]: v }))}
+                        placeholder="…"
+                        required
+                        options={others(row).map((o) => ({
+                          value: o.id,
+                          label: `${formatTime(o.openedAt)} · ${o.reasonLabel} · ${o.zoneName ?? '—'}`,
+                        }))}
+                        className="w-72"
                       />
                     )}
-                  </FormField>
-                  <Button type="submit" variant="secondary" disabled={busy || !target[row.id]}>
-                    {i.apply}
-                  </Button>
-                </form>
-              )}
-              {detail && detail.incident.id === row.id && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <h3 className="mb-2 text-sm font-semibold">{i.reportsTitle}</h3>
-                    <ul className="flex flex-col gap-1 text-sm">
-                      {detail.reports.map((r) => (
-                        <li key={r.id}>
-                          <span className="tabular-nums">{formatTime(r.reportedAt)}</span>{' '}
-                          <strong>{r.fullName}</strong>{' '}
-                          <Muted>
-                            {`${r.stoppedWork ? i.stoppedWork : i.notStopped}${r.hasPhoto ? ` · ${i.photo}` : ''}${r.comment ? ` · ${r.comment}` : ''}`}
-                          </Muted>
-                        </li>
-                      ))}
-                    </ul>
+                    <FormField
+                      label={
+                        target[row.id] === 'RESOLVED' || target[row.id] === 'REJECTED'
+                          ? i.commentRequired
+                          : i.comment
+                      }
+                      className="min-w-72 flex-1"
+                    >
+                      {(id) => (
+                        <Textarea
+                          rows={2}
+                          id={id}
+                          value={comment[row.id] ?? ''}
+                          onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}
+                          required={target[row.id] === 'RESOLVED' || target[row.id] === 'REJECTED'}
+                          minLength={3}
+                        />
+                      )}
+                    </FormField>
+                    <Button type="submit" variant="secondary" disabled={busy || !target[row.id]}>
+                      {i.apply}
+                    </Button>
+                  </form>
+                )}
+                {detail && detail.incident.id === row.id && (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold">{i.reportsTitle}</h3>
+                      <ul className="flex flex-col gap-1 text-sm">
+                        {detail.reports.map((r) => (
+                          <li key={r.id}>
+                            <span className="tabular-nums">{formatTime(r.reportedAt)}</span>{' '}
+                            <strong>{r.fullName}</strong>{' '}
+                            <Muted>
+                              {`${r.stoppedWork ? i.stoppedWork : i.notStopped}${r.hasPhoto ? ` · ${i.photo}` : ''}${r.comment ? ` · ${r.comment}` : ''}`}
+                            </Muted>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold">{i.history}</h3>
+                      <ul className="flex flex-col gap-1 text-sm">
+                        {detail.history.map((h) => (
+                          <li key={h.id}>
+                            <span className="tabular-nums">{formatTime(h.at)}</span>{' '}
+                            {all.incidents.statuses[h.toStatus]}
+                            <Muted>{` · ${h.actorType}${h.comment ? ` · ${h.comment}` : ''}`}</Muted>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="mb-2 text-sm font-semibold">{i.history}</h3>
-                    <ul className="flex flex-col gap-1 text-sm">
-                      {detail.history.map((h) => (
-                        <li key={h.id}>
-                          <span className="tabular-nums">{formatTime(h.at)}</span>{' '}
-                          {all.incidents.statuses[h.toStatus]}
-                          <Muted>{` · ${h.actorType}${h.comment ? ` · ${h.comment}` : ''}`}</Muted>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : null
-        }
-      />
+                )}
+              </div>
+            </>
+          ))(openRow)}
+        </DetailSheet>
+      )}
 
       <Section title={i.stats} hint={hints.incidentsStats}>
         <Toolbar>

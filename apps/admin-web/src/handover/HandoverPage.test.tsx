@@ -174,9 +174,9 @@ describe('HandoverPage', () => {
     expect(await screen.findByText('Петрова Ольга')).toBeTruthy();
     expect(screen.getByText(/Пятно/)).toBeTruthy();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Открыть фото' })[0]!);
-    const link = await screen.findByRole('link', { name: 'Открыть фото' });
-    expect(link.getAttribute('href')).toBe('https://storage.example/signed?x=1');
+    // Photos load as thumbnails through the signed link; each fetch is audited server-side.
+    const thumb = await screen.findByAltText(/Общий вид зоны/);
+    expect(thumb.getAttribute('src')).toBe('https://storage.example/signed?x=1');
     expect(calls.some((c) => c.path === `/admin/handovers/media/${MEDIA}/link`)).toBe(true);
 
     const decision = screen.getByLabelText('Решение') as HTMLSelectElement;

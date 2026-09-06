@@ -1,5 +1,8 @@
 import { beforeEach, vi } from 'vitest';
 import { clearPersistentState } from './lib/persistent-state.ts';
+import { installZodLocale } from './lib/validation.ts';
+
+installZodLocale();
 // Tests assert the Russian catalog regardless of the jsdom navigator language.
 try {
   localStorage.setItem('vakhta.locale', 'ru');

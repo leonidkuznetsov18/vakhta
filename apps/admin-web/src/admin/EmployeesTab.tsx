@@ -37,6 +37,12 @@ import {
   Link2Icon,
   UserXIcon,
 } from 'lucide-react';
+import { DetailSheet } from '@/components/app/detail-sheet';
+import { ImportDialog } from './ImportDialog.tsx';
+import { QrCode } from '@/components/app/qr-code';
+import { UploadIcon } from 'lucide-react';
+import { validateWith, type FieldErrors } from '@/lib/validation';
+import { CreateEmployeeCommand } from '@vakhta/contracts';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -55,6 +61,12 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const [fullName, setFullName] = usePersistentState('employees.fullName', '');
   const [issued, setIssued] = useState<ActivationCodeIssued | null>(null);
   const [creating, setCreating] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [importing, setImporting] = useState(false);
+  const [statusFilter, setStatusFilter] = usePersistentState<'' | EmployeeView['status']>(
+    'employees.status',
+    '',
+  );
   const [openId, setOpenId] = usePersistentState<string | null>('employees.openId', null);
   const [relinkFor, setRelinkFor] = useState<EmployeeView | null>(null);
   const { busy, error, run } = useAction();
@@ -73,12 +85,15 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
 
   function create(ev: FormEvent) {
     ev.preventDefault();
+    const checked = validateWith(CreateEmployeeCommand, {
+      personnelNumber,
+      fullName,
+      status: 'ACTIVE',
+    });
+    setFieldErrors(checked.errors);
+    if (!checked.ok) return;
     void run(async () => {
-      const created = await adminEmployeesApi.create({
-        personnelNumber,
-        fullName,
-        status: 'ACTIVE',
-      });
+      const created = await adminEmployeesApi.create(checked.data);
       setList((l) => [created, ...l]);
       setPersonnelNumber('');
       setFullName('');
@@ -107,13 +122,22 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     );
   }
 
+  const openEmployee = list.find((x) => x.id === openId) ?? null;
+  const visibleList = statusFilter ? list.filter((x) => x.status === statusFilter) : list;
+
   const columns: Column<EmployeeView>[] = [
     {
       key: 'number',
       header: e.personnelNumber,
+      sortValue: (emp) => emp.personnelNumber,
       cell: (emp) => <span className="tabular-nums">{emp.personnelNumber}</span>,
     },
-    { key: 'name', header: e.fullName, cell: (emp) => emp.fullName },
+    {
+      key: 'name',
+      header: e.fullName,
+      cell: (emp) => emp.fullName,
+      sortValue: (emp) => emp.fullName,
+    },
     {
       key: 'position',
       header: (
@@ -224,44 +248,61 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         title={t.tabs.employees}
         hint={hints.employeesActivation}
         actions={
-          <AddDialog title={e.create} trigger={e.create} open={creating} onOpenChange={setCreating}>
-            <form className="flex flex-col gap-4" onSubmit={create}>
-              <FormField label={e.personnelNumber}>
-                {(id) => (
-                  <Input
-                    id={id}
-                    value={personnelNumber}
-                    onChange={(ev) => setPersonnelNumber(ev.target.value)}
-                    required
-                    maxLength={32}
-                  />
-                )}
-              </FormField>
-              <FormField label={e.fullName}>
-                {(id) => (
-                  <Input
-                    id={id}
-                    value={fullName}
-                    onChange={(ev) => setFullName(ev.target.value)}
-                    required
-                    minLength={3}
-                    maxLength={200}
-                  />
-                )}
-              </FormField>
-              <Feedback error={error} />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setCreating(false)}>
-                  {t.common.cancel}
-                </Button>
-                <Button type="submit" disabled={busy}>
-                  {t.common.add}
-                </Button>
-              </DialogFooter>
-            </form>
-          </AddDialog>
+          <>
+            <Button type="button" variant="outline" onClick={() => setImporting(true)}>
+              <UploadIcon aria-hidden="true" />
+              {e.import}
+            </Button>
+            <AddDialog
+              title={e.create}
+              trigger={e.create}
+              open={creating}
+              onOpenChange={setCreating}
+            >
+              <form className="flex flex-col gap-4" onSubmit={create} noValidate>
+                <FormField label={e.personnelNumber} error={fieldErrors.personnelNumber}>
+                  {(id) => (
+                    <Input
+                      id={id}
+                      value={personnelNumber}
+                      onChange={(ev) => setPersonnelNumber(ev.target.value)}
+                    />
+                  )}
+                </FormField>
+                <FormField label={e.fullName} error={fieldErrors.fullName}>
+                  {(id) => (
+                    <Input
+                      id={id}
+                      value={fullName}
+                      onChange={(ev) => setFullName(ev.target.value)}
+                    />
+                  )}
+                </FormField>
+                <Feedback error={error} />
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setCreating(false)}>
+                    {t.common.cancel}
+                  </Button>
+                  <Button type="submit" disabled={busy}>
+                    {t.common.add}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </AddDialog>
+          </>
         }
       >
+        <SelectField
+          label={e.statusFilter}
+          value={statusFilter}
+          onChange={(v) => setStatusFilter(v as '' | EmployeeView['status'])}
+          placeholder={all.ui.common.reset}
+          options={(['ACTIVE', 'BLOCKED', 'TERMINATED'] as const).map((st) => ({
+            value: st,
+            label: e.statuses[st],
+          }))}
+          className="w-56"
+        />
         <Feedback error={error} />
         {issued && (
           <Alert>
@@ -272,10 +313,21 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
               })}
             </AlertTitle>
             <AlertDescription>
-              <div className="flex flex-wrap items-center gap-2">
-                <span>{e.deepLink}:</span>
-                <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{issued.deepLink}</code>
-                <CopyButton value={issued.deepLink} />
+              <div className="flex flex-wrap items-start gap-4">
+                <QrCode value={issued.deepLink} size={160} label={e.deepLink} />
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>{e.deepLink}:</span>
+                    <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
+                      {issued.deepLink}
+                    </code>
+                    <CopyButton value={issued.deepLink} />
+                  </div>
+                  <Muted className="flex items-center gap-1">
+                    {e.qrHint}
+                    <InfoTip text={hints.employeesQr} />
+                  </Muted>
+                </div>
               </div>
             </AlertDescription>
           </Alert>
@@ -284,8 +336,11 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
 
       <DataTable
         columns={columns}
-        rows={list}
+        rows={visibleList}
         rowKey={(emp) => emp.id}
+        searchText={(emp) => `${emp.fullName} ${emp.personnelNumber}`}
+        searchPlaceholder={e.search}
+        activeKey={openId}
         empty={t.common.empty}
         storageKey="employees"
         loading={busy && list.length === 0}
@@ -297,24 +352,36 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         onRowClick={(emp) => setOpenId(openId === emp.id ? null : emp.id)}
         rowActions={rowActions}
         rowClassName={(emp) => (emp.status !== 'ACTIVE' ? 'text-muted-foreground' : undefined)}
-        expanded={(emp) =>
-          openId === emp.id ? (
-            <PositionPanel
-              employee={emp}
-              org={org}
-              onAssigned={(view) =>
-                replace({
-                  ...emp,
-                  currentPosition: {
-                    positionId: view.positionId,
-                    orgUnitId: view.orgUnitId,
-                    teamId: view.teamId,
-                  },
-                })
-              }
-            />
-          ) : null
-        }
+      />
+      {openEmployee && (
+        <DetailSheet
+          open
+          onOpenChange={(open) => !open && setOpenId(null)}
+          title={openEmployee.fullName}
+          description={`${openEmployee.personnelNumber} · ${e.statuses[openEmployee.status]}`}
+        >
+          <PositionPanel
+            employee={openEmployee}
+            org={org}
+            onAssigned={(view) =>
+              replace({
+                ...openEmployee,
+                currentPosition: {
+                  positionId: view.positionId,
+                  orgUnitId: view.orgUnitId,
+                  teamId: view.teamId,
+                },
+              })
+            }
+          />
+        </DetailSheet>
+      )}
+      <ImportDialog
+        open={importing}
+        onOpenChange={setImporting}
+        onImported={async () => {
+          setList(await employeesApi.list());
+        }}
       />
       {dialog}
       <RelinkDialog

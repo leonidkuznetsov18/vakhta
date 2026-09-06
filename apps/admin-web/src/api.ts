@@ -137,8 +137,11 @@ import type {
   CreateTeamCommand,
   CreateWebUserCommand,
   CreateZoneCommand,
+  DirectoryKind,
   EmployeePositionView,
   GrantRoleCommand,
+  ImportEmployeesCommand,
+  ImportEmployeesResult,
   OrgUnitView,
   PositionView,
   RegisterTerminalCommand,
@@ -147,6 +150,11 @@ import type {
   SiteView,
   TeamView,
   TerminalRegistered,
+  UpdateOrgUnitCommand,
+  UpdatePositionCommand,
+  UpdateSiteCommand,
+  UpdateTeamCommand,
+  UpdateZoneCommand,
   WebUserView,
   ZoneView,
 } from '@vakhta/contracts';
@@ -162,6 +170,8 @@ export const adminEmployeesApi = {
       cmd,
     ),
   positions: (id: string) => apiFetch<EmployeePositionView[]>(`/admin/employees/${id}/positions`),
+  importMany: (cmd: ImportEmployeesCommand) =>
+    post<ImportEmployeesResult>('/admin/employees/import', cmd),
   assignPosition: (id: string, cmd: AssignPositionCommand) =>
     post<EmployeePositionView>(`/admin/employees/${id}/positions`, cmd),
 };
@@ -181,6 +191,24 @@ export const adminOrgApi = {
   createTeam: (cmd: CreateTeamCommand) => post<TeamView>('/admin/org/teams', cmd),
   createPosition: (cmd: CreatePositionCommand) => post<PositionView>('/admin/org/positions', cmd),
   createZone: (cmd: CreateZoneCommand) => post<ZoneView>('/admin/org/zones', cmd),
+  updateSite: (id: string, cmd: UpdateSiteCommand) =>
+    apiFetch<SiteView>(`/admin/org/sites/${id}`, { method: 'PATCH', body: JSON.stringify(cmd) }),
+  updateOrgUnit: (id: string, cmd: UpdateOrgUnitCommand) =>
+    apiFetch<OrgUnitView>(`/admin/org/units/${id}`, { method: 'PATCH', body: JSON.stringify(cmd) }),
+  updateTeam: (id: string, cmd: UpdateTeamCommand) =>
+    apiFetch<TeamView>(`/admin/org/teams/${id}`, { method: 'PATCH', body: JSON.stringify(cmd) }),
+  updatePosition: (id: string, cmd: UpdatePositionCommand) =>
+    apiFetch<PositionView>(`/admin/org/positions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(cmd),
+    }),
+  updateZone: (id: string, cmd: UpdateZoneCommand) =>
+    apiFetch<ZoneView>(`/admin/org/zones/${id}`, { method: 'PATCH', body: JSON.stringify(cmd) }),
+  deleteDirectoryRow: (kind: DirectoryKind, id: string, reason: string) =>
+    apiFetch<null>(`/admin/org/${kind}/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ reason }),
+    }),
   registerTerminal: (cmd: RegisterTerminalCommand) =>
     post<TerminalRegistered>('/admin/org/terminals', cmd),
   issuePairing: (terminalId: string) =>

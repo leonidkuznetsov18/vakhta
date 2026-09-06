@@ -1,5 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { OrgSnapshot, TerminalPairingIssued, TerminalView } from '@vakhta/contracts';
+import {
+  RegisterTerminalCommand,
+  type OrgSnapshot,
+  type TerminalPairingIssued,
+  type TerminalView,
+} from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -24,6 +29,7 @@ import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { AddDialog } from '@/components/app/add-dialog';
 import { KeyRoundIcon, PencilIcon, PowerIcon, Trash2Icon } from 'lucide-react';
+import { validateWith, type FieldErrors } from '@/lib/validation';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -59,13 +65,17 @@ export function TerminalsTab({ org, onChanged }: Props) {
   const [pairing, setPairing] = useState<(TerminalPairingIssued & { name: string }) | null>(null);
   const [editing, setEditing] = useState<TerminalView | null>(null);
   const [creating, setCreating] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const siteName = (id: string) => org.sites.find((s) => s.id === id)?.name ?? id;
 
   function register(ev: FormEvent) {
     ev.preventDefault();
+    const checked = validateWith(RegisterTerminalCommand, { siteId, name, checkpoint });
+    setFieldErrors(checked.errors);
+    if (!checked.ok) return;
     void run(async () => {
-      const created = await adminOrgApi.registerTerminal({ siteId, name, checkpoint });
+      const created = await adminOrgApi.registerTerminal(checked.data);
       setName('');
       setCreating(false);
       await onChanged();
@@ -161,23 +171,16 @@ export function TerminalsTab({ org, onChanged }: Props) {
             open={creating}
             onOpenChange={setCreating}
           >
-            <form className="flex flex-col gap-4" onSubmit={register}>
+            <form className="flex flex-col gap-4" onSubmit={register} noValidate>
               <SelectField
                 label={t.common.site}
+                error={fieldErrors.siteId}
                 value={siteId}
                 onChange={setSiteId}
-                required
                 options={org.sites.map((s) => ({ value: s.id, label: s.name }))}
               />
-              <FormField label={t.common.name}>
-                {(id) => (
-                  <Input
-                    id={id}
-                    value={name}
-                    onChange={(ev) => setName(ev.target.value)}
-                    required
-                  />
-                )}
+              <FormField label={t.common.name} error={fieldErrors.name}>
+                {(id) => <Input id={id} value={name} onChange={(ev) => setName(ev.target.value)} />}
               </FormField>
               <SelectField
                 label={tr.checkpoint}
@@ -191,7 +194,7 @@ export function TerminalsTab({ org, onChanged }: Props) {
                 <Button type="button" variant="outline" onClick={() => setCreating(false)}>
                   {t.common.cancel}
                 </Button>
-                <Button type="submit" disabled={busy || !siteId}>
+                <Button type="submit" disabled={busy}>
                   {t.common.add}
                 </Button>
               </DialogFooter>

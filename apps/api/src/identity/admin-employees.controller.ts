@@ -16,6 +16,8 @@ import {
   RelinkTelegramCommand,
   type ActivationCodeIssued,
   type EmployeeView,
+  ImportEmployeesCommand,
+  type ImportEmployeesResult,
 } from '@vakhta/contracts';
 import {
   CurrentUser,
@@ -54,6 +56,15 @@ export class AdminEmployeesController {
   ): Promise<EmployeeView> {
     const row = await this.employees.create(body, webUserActor(user));
     return this.employees.toView(row, false);
+  }
+
+  @Post('import')
+  @HttpCode(201)
+  importMany(
+    @Body(new ZodValidationPipe(ImportEmployeesCommand)) body: ImportEmployeesCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ImportEmployeesResult> {
+    return this.employees.importMany(body, webUserActor(user));
   }
 
   @Get(':id')

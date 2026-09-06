@@ -1,6 +1,20 @@
-import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import { format, messages } from '@vakhta/i18n';
-import { MoreHorizontalIcon, type LucideIcon } from 'lucide-react';
+import {
+  ArrowDownIcon,
+  ArrowUpDownIcon,
+  ArrowUpIcon,
+  MoreHorizontalIcon,
+  SearchIcon,
+  type LucideIcon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import {
   Pagination,
   PaginationContent,
@@ -17,6 +32,7 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -25,8 +41,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/app/page';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { usePersistentState } from '@/lib/persistent-state';
 import { currentLocale } from '@/i18n';
 import { cn } from 'cn';
@@ -37,6 +53,12 @@ export interface Column<T> {
   readonly cell: (row: T) => ReactNode;
   readonly className?: string;
   readonly align?: 'left' | 'right';
+  /** Value used for sorting; when absent the column is not sortable. */
+  readonly sortValue?: (row: T) => string | number | null | undefined;
+  /** Plain-text label for the card layout on narrow screens; defaults to `header` when it is a string. */
+  readonly label?: string;
+  /** Drop the column from the card layout on narrow screens. */
+  readonly hideOnCards?: boolean;
 }
 
 /** One entry of the per-row "⋯" menu. `separator` draws a line before the entry. */
@@ -61,8 +83,11 @@ interface DataTableProps<T> {
   /** While true and there are no rows, skeleton rows are drawn instead of the empty state. */
   readonly loading?: boolean;
   readonly pageSize?: number;
-  /** Remembers the chosen page size across reloads under this key. */
+  /** Remembers page size, search and sort across reloads under this key. */
   readonly storageKey?: string;
+  /** Text to match the search box against; enables the box when given. */
+  readonly searchText?: (row: T) => string;
+  readonly searchPlaceholder?: string;
   readonly rowClassName?: (row: T) => string | undefined;
   /** Extra full-width row rendered under a data row (details, inline forms). */
   readonly expanded?: (row: T) => ReactNode | null;
@@ -72,10 +97,17 @@ interface DataTableProps<T> {
   readonly rowActions?: (row: T) => readonly RowAction[];
   readonly footer?: ReactNode;
   readonly caption?: string;
+  /** Row currently highlighted (the one open in a side panel). */
+  readonly activeKey?: string | null;
 }
 
 export const PAGE_SIZES = [10, 20, 50, 100] as const;
 const DEFAULT_PAGE_SIZE = 20;
+
+interface Sort {
+  readonly key: string;
+  readonly dir: 'asc' | 'desc';
+}
 
 /** Page state shared by DataTable and other paginated views (the schedule grid). */
 export function usePages(total: number, initialSize: number, storageKey?: string) {
@@ -203,10 +235,19 @@ export function RowMenu({
   );
 }
 
+function compare(a: unknown, b: unknown): number {
+  if (a === b) return 0;
+  if (a === null || a === undefined) return 1;
+  if (b === null || b === undefined) return -1;
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+}
+
 /**
  * Client-side paginated table. Every list in the panel goes through it so long lists never
  * render at once and the controls look and behave the same everywhere: a click on the row
- * runs its main action, the "⋯" menu holds the rest.
+ * runs its main action, the "⋯" menu holds the rest, headers sort, the search box filters,
+ * and on narrow screens the rows become cards.
  */
 export function DataTable<T>({
   columns,
@@ -218,18 +259,46 @@ export function DataTable<T>({
   loading = false,
   pageSize = DEFAULT_PAGE_SIZE,
   storageKey,
+  searchText,
+  searchPlaceholder,
   rowClassName,
   expanded,
   onRowClick,
   rowActions,
   footer,
   caption,
+  activeKey,
 }: DataTableProps<T>) {
   const t = messages(currentLocale()).ui.common;
-  const pages = usePages(rows.length, pageSize, storageKey);
+  const isMobile = useIsMobile();
+  const [search, setSearch] = usePersistentState(
+    storageKey ? `search.${storageKey}` : '__local.search',
+    '',
+  );
+  const [sort, setSort] = usePersistentState<Sort | null>(
+    storageKey ? `sort.${storageKey}` : '__local.sort',
+    null,
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q || !searchText) return rows;
+    return rows.filter((row) => searchText(row).toLowerCase().includes(q));
+  }, [rows, search, searchText]);
+
+  const sorted = useMemo(() => {
+    if (!sort) return filtered;
+    const col = columns.find((c) => c.key === sort.key);
+    const value = col?.sortValue;
+    if (!value) return filtered;
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => dir * compare(value(a), value(b)));
+  }, [filtered, sort, columns]);
+
+  const pages = usePages(sorted.length, pageSize, storageKey);
   const visible = useMemo(
-    () => rows.slice((pages.page - 1) * pages.size, pages.page * pages.size),
-    [rows, pages.page, pages.size],
+    () => sorted.slice((pages.page - 1) * pages.size, pages.page * pages.size),
+    [sorted, pages.page, pages.size],
   );
   const span = columns.length + (rowActions ? 1 : 0);
 
@@ -237,78 +306,197 @@ export function DataTable<T>({
   if (rows.length === 0)
     return <EmptyState text={empty} description={emptyDescription} action={emptyAction} />;
 
-  const handleRowClick = (row: T) => (ev: MouseEvent<HTMLTableRowElement>) => {
+  const handleRowClick = (row: T) => (ev: MouseEvent<HTMLElement>) => {
     if (!onRowClick || isInteractive(ev.target)) return;
     onRowClick(row);
   };
+  const handleRowKey = (row: T) => (ev: KeyboardEvent<HTMLElement>) => {
+    if (onRowClick && ev.target === ev.currentTarget && ev.key === 'Enter') onRowClick(row);
+  };
+  const toggleSort = (key: string) => {
+    setSort((cur) =>
+      cur?.key === key ? (cur.dir === 'asc' ? { key, dir: 'desc' } : null) : { key, dir: 'asc' },
+    );
+    pages.setPage(1);
+  };
 
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          {caption ? <caption className="sr-only">{caption}</caption> : null}
-          <TableHeader>
-            <TableRow>
-              {columns.map((c) => (
-                <TableHead
-                  key={c.key}
-                  className={cn(c.align === 'right' && 'text-right', c.className)}
-                >
-                  {c.header}
-                </TableHead>
-              ))}
-              {rowActions ? (
-                <TableHead className="w-10 text-right">
-                  <span className="sr-only">{t.actions}</span>
-                </TableHead>
-              ) : null}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+  const searchBox = searchText ? (
+    <div className="relative w-full max-w-sm">
+      <SearchIcon
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+      />
+      <Input
+        type="search"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          pages.setPage(1);
+        }}
+        placeholder={searchPlaceholder ?? t.searchPlaceholder}
+        aria-label={searchPlaceholder ?? t.searchPlaceholder}
+        className="pl-8"
+      />
+    </div>
+  ) : null;
+
+  const body =
+    sorted.length === 0 ? (
+      <EmptyState text={t.noMatches} />
+    ) : (
+      <>
+        {!isMobile && (
+          <div className="overflow-x-auto rounded-lg border">
+            <Table>
+              {caption ? <caption className="sr-only">{caption}</caption> : null}
+              <TableHeader>
+                <TableRow>
+                  {columns.map((c) => (
+                    <TableHead
+                      key={c.key}
+                      className={cn(c.align === 'right' && 'text-right', c.className)}
+                      aria-sort={
+                        sort?.key === c.key
+                          ? sort.dir === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : undefined
+                      }
+                    >
+                      {c.sortValue ? (
+                        <button
+                          type="button"
+                          className={cn(
+                            'inline-flex items-center gap-1 rounded-sm transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                            c.align === 'right' && 'flex-row-reverse',
+                          )}
+                          onClick={() => toggleSort(c.key)}
+                          aria-label={
+                            sort?.key === c.key && sort.dir === 'asc' ? t.sortDesc : t.sortAsc
+                          }
+                        >
+                          {c.header}
+                          {sort?.key === c.key ? (
+                            sort.dir === 'asc' ? (
+                              <ArrowUpIcon className="size-3.5" aria-hidden="true" />
+                            ) : (
+                              <ArrowDownIcon className="size-3.5" aria-hidden="true" />
+                            )
+                          ) : (
+                            <ArrowUpDownIcon className="size-3.5 opacity-40" aria-hidden="true" />
+                          )}
+                        </button>
+                      ) : (
+                        c.header
+                      )}
+                    </TableHead>
+                  ))}
+                  {rowActions ? (
+                    <TableHead className="w-10 text-right">
+                      <span className="sr-only">{t.actions}</span>
+                    </TableHead>
+                  ) : null}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visible.map((row) => {
+                  const key = rowKey(row);
+                  const extra = expanded?.(row);
+                  const actions = rowActions?.(row) ?? [];
+                  return (
+                    <RowGroup key={key}>
+                      <TableRow
+                        className={cn(
+                          onRowClick && 'cursor-pointer',
+                          activeKey === key && 'bg-accent/60',
+                          rowClassName?.(row),
+                        )}
+                        data-state={activeKey === key ? 'selected' : undefined}
+                        onClick={handleRowClick(row)}
+                        onKeyDown={handleRowKey(row)}
+                        tabIndex={onRowClick ? 0 : undefined}
+                      >
+                        {columns.map((c) => (
+                          <TableCell
+                            key={c.key}
+                            className={cn(c.align === 'right' && 'text-right', c.className)}
+                          >
+                            {c.cell(row)}
+                          </TableCell>
+                        ))}
+                        {rowActions ? (
+                          <TableCell className="text-right">
+                            <RowMenu actions={actions} label={t.actions} />
+                          </TableCell>
+                        ) : null}
+                      </TableRow>
+                      {extra ? (
+                        <TableRow className="hover:bg-transparent">
+                          <TableCell colSpan={span} className="bg-muted/40 p-4">
+                            {extra}
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </RowGroup>
+                  );
+                })}
+                {footer}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+        {isMobile && (
+          <ul className="flex flex-col gap-2" aria-label={caption}>
             {visible.map((row) => {
+              const key = rowKey(row);
+              const [first, ...rest] = columns;
               const extra = expanded?.(row);
               const actions = rowActions?.(row) ?? [];
               return (
-                <RowGroup key={rowKey(row)}>
-                  <TableRow
-                    className={cn(onRowClick && 'cursor-pointer', rowClassName?.(row))}
-                    onClick={handleRowClick(row)}
-                    onKeyDown={(ev) => {
-                      if (onRowClick && ev.target === ev.currentTarget && ev.key === 'Enter') {
-                        onRowClick(row);
-                      }
-                    }}
-                    tabIndex={onRowClick ? 0 : undefined}
-                  >
-                    {columns.map((c) => (
-                      <TableCell
-                        key={c.key}
-                        className={cn(c.align === 'right' && 'text-right', c.className)}
-                      >
-                        {c.cell(row)}
-                      </TableCell>
-                    ))}
-                    {rowActions ? (
-                      <TableCell className="text-right">
-                        <RowMenu actions={actions} label={t.actions} />
-                      </TableCell>
-                    ) : null}
-                  </TableRow>
-                  {extra ? (
-                    <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={span} className="bg-muted/40 p-4">
-                        {extra}
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
-                </RowGroup>
+                <li
+                  key={key}
+                  className={cn(
+                    'rounded-lg border bg-card p-3 text-sm',
+                    onRowClick && 'cursor-pointer',
+                    activeKey === key && 'ring-2 ring-ring',
+                    rowClassName?.(row),
+                  )}
+                  onClick={handleRowClick(row)}
+                  onKeyDown={handleRowKey(row)}
+                  tabIndex={onRowClick ? 0 : undefined}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1 font-medium">
+                      {first ? first.cell(row) : null}
+                    </div>
+                    {rowActions ? <RowMenu actions={actions} label={t.actions} /> : null}
+                  </div>
+                  <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                    {rest
+                      .filter((c) => !c.hideOnCards)
+                      .map((c) => (
+                        <RowGroup key={c.key}>
+                          <dt className="text-xs text-muted-foreground">
+                            {c.label ?? (typeof c.header === 'string' ? c.header : '')}
+                          </dt>
+                          <dd className="min-w-0">{c.cell(row)}</dd>
+                        </RowGroup>
+                      ))}
+                  </dl>
+                  {extra ? <div className="mt-3 border-t pt-3">{extra}</div> : null}
+                </li>
               );
             })}
-            {footer}
-          </TableBody>
-        </Table>
-      </div>
-      <Paginator pages={pages} total={rows.length} />
+          </ul>
+        )}
+      </>
+    );
+
+  return (
+    <div className="flex flex-col gap-3">
+      {searchBox}
+      {body}
+      <Paginator pages={pages} total={sorted.length} />
     </div>
   );
 }

@@ -17,6 +17,13 @@ import { usePersistentState } from '@/lib/persistent-state';
 import { AddDialog } from '@/components/app/add-dialog';
 import { DialogFooter } from '@/components/ui/dialog';
 import { ShieldPlusIcon } from 'lucide-react';
+import { DetailSheet } from '@/components/app/detail-sheet';
+import { generatePassword } from '@/lib/password';
+import { CopyButton } from '@/components/app/copy-button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { WandSparklesIcon } from 'lucide-react';
+import { validateWith, type FieldErrors } from '@/lib/validation';
+import { CreateWebUserCommand } from '@vakhta/contracts';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -49,6 +56,9 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
   const [password, setPassword] = useState('');
   const [grantFor, setGrantFor] = usePersistentState<string | null>('users.grantFor', null);
   const [creating, setCreating] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [issued, setIssued] = useState<{ email: string; password: string } | null>(null);
+  const openUser = list.find((x) => x.id === grantFor) ?? null;
   const [role, setRole] = useState<WebRole>('SHIFT_MASTER');
   const [scopeType, setScopeType] = useState<ScopeType>('ENTERPRISE');
   const [scopeId, setScopeId] = useState('');
@@ -64,9 +74,13 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
 
   function create(ev: FormEvent) {
     ev.preventDefault();
+    const checked = validateWith(CreateWebUserCommand, { email, name, password, roles: [] });
+    setFieldErrors(checked.errors);
+    if (!checked.ok) return;
     void run(async () => {
-      const created = await usersApi.create({ email, name, password, roles: [] });
+      const created = await usersApi.create(checked.data);
       setList((l) => [created, ...l]);
+      setIssued({ email: created.email, password });
       setEmail('');
       setName('');
       setPassword('');
@@ -99,8 +113,8 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
   const options = scopeOptions(org, scopeType);
 
   const columns: Column<WebUserView>[] = [
-    { key: 'email', header: u.email, cell: (user) => user.email },
-    { key: 'name', header: u.name, cell: (user) => user.name },
+    { key: 'email', header: u.email, cell: (user) => user.email, sortValue: (user) => user.email },
+    { key: 'name', header: u.name, cell: (user) => user.name, sortValue: (user) => user.name },
     {
       key: '2fa',
       header: (
@@ -162,41 +176,41 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
             open={creating}
             onOpenChange={setCreating}
           >
-            <form className="flex flex-col gap-4" onSubmit={create} autoComplete="off">
-              <FormField label={u.email}>
+            <form className="flex flex-col gap-4" onSubmit={create} autoComplete="off" noValidate>
+              <FormField label={u.email} error={fieldErrors.email}>
                 {(id) => (
                   <Input
                     id={id}
                     type="email"
                     value={email}
                     onChange={(ev) => setEmail(ev.target.value)}
-                    required
                     autoComplete="off"
                   />
                 )}
               </FormField>
-              <FormField label={u.name}>
-                {(id) => (
-                  <Input
-                    id={id}
-                    value={name}
-                    onChange={(ev) => setName(ev.target.value)}
-                    required
-                    minLength={2}
-                  />
-                )}
+              <FormField label={u.name} error={fieldErrors.name}>
+                {(id) => <Input id={id} value={name} onChange={(ev) => setName(ev.target.value)} />}
               </FormField>
-              <FormField label={u.password}>
+              <FormField label={u.password} error={fieldErrors.password} hint={hints.usersGenerate}>
                 {(id) => (
-                  <Input
-                    id={id}
-                    type="password"
-                    value={password}
-                    onChange={(ev) => setPassword(ev.target.value)}
-                    required
-                    minLength={12}
-                    autoComplete="new-password"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id={id}
+                      type="text"
+                      value={password}
+                      onChange={(ev) => setPassword(ev.target.value)}
+                      autoComplete="new-password"
+                      className="font-mono"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setPassword(generatePassword())}
+                    >
+                      <WandSparklesIcon aria-hidden="true" />
+                      {u.generate}
+                    </Button>
+                  </div>
                 )}
               </FormField>
               <p className="text-sm text-muted-foreground">{u.passwordHint}</p>
@@ -214,12 +228,26 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
         }
       >
         <Feedback error={error} />
+        {issued && (
+          <Alert>
+            <AlertTitle>{issued.email}</AlertTitle>
+            <AlertDescription>
+              <div className="flex flex-wrap items-center gap-2">
+                <code className="rounded bg-muted px-2 py-1 font-mono">{issued.password}</code>
+                <CopyButton value={issued.password} />
+              </div>
+              <p className="text-sm">{u.createdOnce}</p>
+            </AlertDescription>
+          </Alert>
+        )}
       </Section>
 
       <DataTable
         columns={columns}
         rows={list}
         storageKey="users"
+        searchText={(user) => `${user.email} ${user.name}`}
+        activeKey={grantFor}
         emptyAction={
           <Button type="button" variant="outline" onClick={() => setCreating(true)}>
             {u.create}
@@ -236,49 +264,58 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
         ]}
         rowKey={(user) => user.id}
         empty={t.common.empty}
-        expanded={(user) =>
-          grantFor === user.id ? (
-            <form className="flex flex-wrap items-end gap-3" onSubmit={(ev) => grant(ev, user)}>
-              <SelectField
-                label={u.role}
-                value={role}
-                onChange={(v) => setRole(v as WebRole)}
-                options={WEB_ROLES.map((r) => ({ value: r, label: all.roles[r] }))}
-                className="w-56"
-              />
-              <SelectField
-                label={u.scopeType}
-                value={scopeType}
-                onChange={(v) => {
-                  setScopeType(v as ScopeType);
-                  setScopeId('');
-                }}
-                options={SCOPE_TYPES.map((s) => ({ value: s, label: u.scopeTypes[s] }))}
-                hint={hints.usersScope}
-                className="w-48"
-              />
-              {scopeType !== 'ENTERPRISE' && (
+      />
+      {openUser && (
+        <DetailSheet
+          open
+          onOpenChange={(open) => !open && setGrantFor(null)}
+          title={openUser.name}
+          description={openUser.email}
+        >
+          {((user) => (
+            <>
+              <form className="flex flex-wrap items-end gap-3" onSubmit={(ev) => grant(ev, user)}>
                 <SelectField
-                  label={u.scope}
-                  value={scopeId}
-                  onChange={setScopeId}
-                  placeholder="…"
-                  required
-                  options={options.map((o) => ({ value: o.id, label: o.name }))}
+                  label={u.role}
+                  value={role}
+                  onChange={(v) => setRole(v as WebRole)}
+                  options={WEB_ROLES.map((r) => ({ value: r, label: all.roles[r] }))}
                   className="w-56"
                 />
-              )}
-              <Button
-                type="submit"
-                variant="secondary"
-                disabled={busy || (scopeType !== 'ENTERPRISE' && !scopeId)}
-              >
-                {u.grant}
-              </Button>
-            </form>
-          ) : null
-        }
-      />
+                <SelectField
+                  label={u.scopeType}
+                  value={scopeType}
+                  onChange={(v) => {
+                    setScopeType(v as ScopeType);
+                    setScopeId('');
+                  }}
+                  options={SCOPE_TYPES.map((s) => ({ value: s, label: u.scopeTypes[s] }))}
+                  hint={hints.usersScope}
+                  className="w-48"
+                />
+                {scopeType !== 'ENTERPRISE' && (
+                  <SelectField
+                    label={u.scope}
+                    value={scopeId}
+                    onChange={setScopeId}
+                    placeholder="…"
+                    required
+                    options={options.map((o) => ({ value: o.id, label: o.name }))}
+                    className="w-56"
+                  />
+                )}
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  disabled={busy || (scopeType !== 'ENTERPRISE' && !scopeId)}
+                >
+                  {u.grant}
+                </Button>
+              </form>
+            </>
+          ))(openUser)}
+        </DetailSheet>
+      )}
     </div>
   );
 }

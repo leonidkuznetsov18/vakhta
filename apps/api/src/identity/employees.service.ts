@@ -14,6 +14,8 @@ import type {
   ChangeEmployeeStatusCommand,
   CreateEmployeeCommand,
   EmployeeView,
+  ImportEmployeesCommand,
+  ImportEmployeesResult,
   RelinkTelegramCommand,
 } from '@vakhta/contracts';
 import type { Locale } from '@vakhta/domain';
@@ -96,6 +98,34 @@ export class EmployeesService {
       .update(employees)
       .set({ locale, updatedAt: new Date() })
       .where(eq(employees.id, employeeId));
+  }
+
+  /**
+   * CSV import: rows are created one by one so a duplicate personnel number skips only that
+   * row. Each created card gets the usual event and audit entry.
+   */
+  async importMany(cmd: ImportEmployeesCommand, actor: Actor): Promise<ImportEmployeesResult> {
+    const seen = new Set<string>();
+    const skipped: ImportEmployeesResult['skipped'] = [];
+    let created = 0;
+    for (const item of cmd.items) {
+      if (seen.has(item.personnelNumber)) {
+        skipped.push({ personnelNumber: item.personnelNumber, reason: 'DUPLICATE' });
+        continue;
+      }
+      seen.add(item.personnelNumber);
+      try {
+        await this.create({ ...item, status: 'ACTIVE' }, actor);
+        created += 1;
+      } catch (e) {
+        if (e instanceof IdentityError && e.code === 'PERSONNEL_NUMBER_TAKEN') {
+          skipped.push({ personnelNumber: item.personnelNumber, reason: 'DUPLICATE' });
+        } else if (e instanceof IdentityError) {
+          skipped.push({ personnelNumber: item.personnelNumber, reason: 'INVALID' });
+        } else throw e;
+      }
+    }
+    return { created, skipped };
   }
 
   async getById(id: string, tx: DbOrTx = this.db): Promise<EmployeeRecord | null> {

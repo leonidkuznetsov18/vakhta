@@ -245,6 +245,28 @@ describe('identity: активація і привʼязка Telegram (ТЗ 2.2,
     ).rejects.toMatchObject({ code: 'SAME_TELEGRAM_USER' });
   });
 
+  it('CSV import creates new cards and reports duplicates without failing the batch', async () => {
+    await createIvanov();
+    const result = await employeesService.importMany(
+      {
+        items: [
+          { personnelNumber: '000123', fullName: 'Иванов Иван' },
+          { personnelNumber: '0002', fullName: 'Петрова Анна' },
+          { personnelNumber: '0002', fullName: 'Петрова Анна (дубль)' },
+          { personnelNumber: '0003', fullName: 'Сидоров Пётр' },
+        ],
+      },
+      HR,
+    );
+    expect(result.created).toBe(2);
+    expect(result.skipped).toEqual([
+      { personnelNumber: '000123', reason: 'DUPLICATE' },
+      { personnelNumber: '0002', reason: 'DUPLICATE' },
+    ]);
+    const rows = await testDb.db.select({ id: employees.id }).from(employees);
+    expect(rows).toHaveLength(3);
+  });
+
   it('повторний табельний номер дає PERSONNEL_NUMBER_TAKEN, а не 500', async () => {
     await createIvanov();
     await expect(createIvanov()).rejects.toMatchObject({ code: 'PERSONNEL_NUMBER_TAKEN' });

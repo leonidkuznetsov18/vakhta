@@ -36,6 +36,24 @@ export type CreateTeamCommand = z.infer<typeof CreateTeamCommand>;
 export const CreatePositionCommand = z.object({ code: UpperCode, name: Name });
 export type CreatePositionCommand = z.infer<typeof CreatePositionCommand>;
 
+export const UpdateSiteCommand = z.object({
+  name: Name.optional(),
+  timezone: z.string().min(1).optional(),
+});
+export type UpdateSiteCommand = z.infer<typeof UpdateSiteCommand>;
+
+export const UpdateOrgUnitCommand = z.object({
+  name: Name.optional(),
+  parentId: Uuid.nullable().optional(),
+});
+export type UpdateOrgUnitCommand = z.infer<typeof UpdateOrgUnitCommand>;
+
+export const UpdateTeamCommand = z.object({ name: Name.optional(), orgUnitId: Uuid.optional() });
+export type UpdateTeamCommand = z.infer<typeof UpdateTeamCommand>;
+
+export const UpdatePositionCommand = z.object({ name: Name.optional() });
+export type UpdatePositionCommand = z.infer<typeof UpdatePositionCommand>;
+
 export const ZoneTypeSchema = z.enum(['AREA', 'POST', 'PACKAGING', 'FILLING', 'CLEANING', 'OTHER']);
 
 export const CreateZoneCommand = z.object({
@@ -48,6 +66,18 @@ export const CreateZoneCommand = z.object({
   isShared: z.boolean().default(false),
 });
 export type CreateZoneCommand = z.infer<typeof CreateZoneCommand>;
+
+export const UpdateZoneCommand = z.object({
+  name: Name.optional(),
+  type: ZoneTypeSchema.optional(),
+  isShared: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+});
+export type UpdateZoneCommand = z.infer<typeof UpdateZoneCommand>;
+
+/** Which directory a generic CRUD route addresses. */
+export const DirectoryKindSchema = z.enum(['sites', 'units', 'teams', 'positions', 'zones']);
+export type DirectoryKind = z.infer<typeof DirectoryKindSchema>;
 
 export const CheckpointSchema = z.enum(['ENTRY', 'EXIT', 'BOTH']);
 

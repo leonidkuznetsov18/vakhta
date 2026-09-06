@@ -180,6 +180,34 @@ describe('kiosk: terminal registration, pairing and challenge issuance (FR-QR-01
     });
   });
 
+  it('directories: update writes audit, delete refuses rows that are referenced', async () => {
+    const site = await org.createSite(
+      { code: 'main', name: 'Основная', timezone: 'Europe/Kyiv' },
+      ADMIN,
+    );
+    const unit = await org.createOrgUnit({ siteId: site.id, name: 'Цех' }, ADMIN);
+    const renamed = await org.updateOrgUnit(unit.id, { name: 'Цех фасовки' }, ADMIN);
+    expect(renamed.name).toBe('Цех фасовки');
+    await expect(org.updateOrgUnit(unit.id, { parentId: unit.id }, ADMIN)).rejects.toMatchObject({
+      code: 'ORG_UNIT_CYCLE',
+    });
+    await expect(org.updateSite(site.id, {}, ADMIN)).rejects.toMatchObject({
+      code: 'EMPTY_UPDATE',
+    });
+    await expect(
+      org.updateSite(site.id, { timezone: 'Mars/Olympus' }, ADMIN),
+    ).rejects.toMatchObject({ code: 'INVALID_TIMEZONE' });
+
+    // The site is referenced by the unit: refused; the unit itself can go.
+    await expect(org.deleteDirectoryRow('site', site.id, 'cleanup', ADMIN)).rejects.toMatchObject({
+      code: 'DIRECTORY_ROW_IN_USE',
+    });
+    await org.deleteDirectoryRow('org_unit', unit.id, 'cleanup', ADMIN);
+    expect((await org.snapshot()).orgUnits).toHaveLength(0);
+    await org.deleteDirectoryRow('site', site.id, 'cleanup', ADMIN);
+    expect((await org.snapshot()).sites).toHaveLength(0);
+  });
+
   it('two requests give two different challenges; a disabled terminal gets nothing and keeps its pairing', async () => {
     const registered = await registeredTerminal('Выход', 'EXIT');
     const issued = await org.issuePairingCode(registered.id, ADMIN);

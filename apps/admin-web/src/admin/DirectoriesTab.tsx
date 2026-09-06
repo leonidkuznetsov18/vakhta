@@ -16,11 +16,23 @@ import { usePersistentState } from '@/lib/persistent-state';
 import { useState } from 'react';
 import { AddDialog } from '@/components/app/add-dialog';
 import { DialogFooter } from '@/components/ui/dialog';
+import { useConfirm } from '@/components/app/confirm-dialog';
+import { PencilIcon, Trash2Icon } from 'lucide-react';
+import { EditDirectoryDialog, type DirectoryEdit } from './EditDirectoryDialog.tsx';
+import { format } from '@vakhta/i18n';
+import { ApiError } from '../api.ts';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
 const d = t.directories;
 const hints = all.ui.hints;
+const KIND_PATH = {
+  sites: 'sites',
+  orgUnits: 'units',
+  teams: 'teams',
+  positions: 'positions',
+  zones: 'zones',
+} as const;
 const ZONE_TYPES = ['AREA', 'POST', 'PACKAGING', 'FILLING', 'CLEANING', 'OTHER'] as const;
 type ZoneType = (typeof ZONE_TYPES)[number];
 
@@ -35,6 +47,52 @@ export function DirectoriesTab({ org, onChanged }: Props) {
   const [dlg, setDlg] = useState<'sites' | 'orgUnits' | 'teams' | 'positions' | 'zones' | null>(
     null,
   );
+  const [editing, setEditing] = useState<DirectoryEdit | null>(null);
+  const { confirm, dialog } = useConfirm();
+
+  async function remove(kind: DirectoryEdit['kind'], id: string, name: string) {
+    const reason = await confirm({
+      title: format(d.deleteConfirm, { name }),
+      description: hints.directoriesDelete,
+      confirmLabel: d.delete,
+      commentLabel: t.common.reason,
+      commentRequired: true,
+      destructive: true,
+    });
+    if (!reason) return;
+    void run(async () => {
+      try {
+        await adminOrgApi.deleteDirectoryRow(KIND_PATH[kind], id, reason);
+      } catch (e) {
+        if (e instanceof ApiError && e.code === 'DIRECTORY_ROW_IN_USE') throw new Error(d.inUse);
+        throw e;
+      }
+      await onChanged();
+    }, d.deleted);
+  }
+
+  const rowMenu = (
+    kind: DirectoryEdit['kind'],
+    row: { id: string; name: string },
+    edit: DirectoryEdit,
+  ) => [
+    {
+      key: 'edit',
+      label: d.edit,
+      icon: PencilIcon,
+      disabled: busy,
+      onSelect: () => setEditing(edit),
+    },
+    {
+      key: 'delete',
+      label: d.delete,
+      icon: Trash2Icon,
+      disabled: busy,
+      destructive: true,
+      separator: true,
+      onSelect: () => void remove(kind, row.id, row.name),
+    },
+  ];
   const [site, setSite] = usePersistentState('directories.site', {
     code: '',
     name: '',
@@ -98,6 +156,16 @@ export function DirectoriesTab({ org, onChanged }: Props) {
     { key: 'code', header: t.common.code, cell: (z) => <code className="text-xs">{z.code}</code> },
     { key: 'type', header: d.type, cell: (z) => d.zoneTypes[z.type] },
     { key: 'unit', header: t.common.orgUnit, cell: (z) => unitName(z.orgUnitId) },
+    {
+      key: 'active',
+      header: d.active,
+      cell: (z) =>
+        z.isActive ? (
+          <StatusPill tone="success">{all.ui.common.yes}</StatusPill>
+        ) : (
+          <Muted>{all.ui.common.no}</Muted>
+        ),
+    },
     {
       key: 'shared',
       header: d.shared,
@@ -179,6 +247,9 @@ export function DirectoriesTab({ org, onChanged }: Props) {
       >
         <DataTable
           columns={siteColumns}
+          onRowClick={(s) => setEditing({ kind: 'sites', row: s })}
+          rowActions={(s) => rowMenu('sites', s, { kind: 'sites', row: s })}
+          searchText={(s) => s.name}
           rows={org.sites}
           rowKey={(s) => s.id}
           empty={t.common.empty}
@@ -257,6 +328,9 @@ export function DirectoriesTab({ org, onChanged }: Props) {
       >
         <DataTable
           columns={unitColumns}
+          onRowClick={(u) => setEditing({ kind: 'orgUnits', row: u })}
+          rowActions={(u) => rowMenu('orgUnits', u, { kind: 'orgUnits', row: u })}
+          searchText={(u) => u.name}
           rows={org.orgUnits}
           rowKey={(u) => u.id}
           empty={t.common.empty}
@@ -321,6 +395,9 @@ export function DirectoriesTab({ org, onChanged }: Props) {
       >
         <DataTable
           columns={teamColumns}
+          onRowClick={(tm) => setEditing({ kind: 'teams', row: tm })}
+          rowActions={(tm) => rowMenu('teams', tm, { kind: 'teams', row: tm })}
+          searchText={(tm) => tm.name}
           rows={org.teams}
           rowKey={(tm) => tm.id}
           empty={t.common.empty}
@@ -391,6 +468,9 @@ export function DirectoriesTab({ org, onChanged }: Props) {
       >
         <DataTable
           columns={positionColumns}
+          onRowClick={(p) => setEditing({ kind: 'positions', row: p })}
+          rowActions={(p) => rowMenu('positions', p, { kind: 'positions', row: p })}
+          searchText={(p) => p.name}
           rows={org.positions}
           rowKey={(p) => p.id}
           empty={t.common.empty}
@@ -492,6 +572,9 @@ export function DirectoriesTab({ org, onChanged }: Props) {
       >
         <DataTable
           columns={zoneColumns}
+          onRowClick={(z) => setEditing({ kind: 'zones', row: z })}
+          rowActions={(z) => rowMenu('zones', z, { kind: 'zones', row: z })}
+          searchText={(z) => z.name}
           rows={org.zones}
           rowKey={(z) => z.id}
           empty={t.common.empty}
@@ -505,6 +588,16 @@ export function DirectoriesTab({ org, onChanged }: Props) {
           rowClassName={(z) => (z.isActive ? undefined : 'text-muted-foreground')}
         />
       </Section>
+      <EditDirectoryDialog
+        edit={editing}
+        org={org}
+        onClose={() => setEditing(null)}
+        onSaved={async () => {
+          setEditing(null);
+          await onChanged();
+        }}
+      />
+      {dialog}
     </div>
   );
 }

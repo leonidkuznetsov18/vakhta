@@ -14,6 +14,7 @@ import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { useRouteSub } from '@/lib/route';
 import { usePersistentState } from '@/lib/persistent-state';
+import { DetailSheet } from '@/components/app/detail-sheet';
 
 const all = messages(currentLocale());
 const a = all.admin.audit;
@@ -97,6 +98,9 @@ export function AuditPage() {
       ),
     [audit, action, objectType],
   );
+  const openAudit = auditRows.find((e) => e.id === open) ?? null;
+  const openEvent = tab === 'events' ? (events.find((e) => e.id === open) ?? null) : null;
+
   const eventRows = useMemo(() => events.filter((e) => !type || e.type === type), [events, type]);
 
   const auditColumns: Column<AuditEntryView>[] = [
@@ -259,9 +263,8 @@ export function AuditPage() {
           empty={a.empty}
           storageKey="audit"
           onRowClick={(e) => setOpen(open === e.id ? null : e.id)}
-          expanded={(e) =>
-            open === e.id ? <BeforeAfter before={e.before} after={e.after} /> : null
-          }
+          activeKey={open}
+          searchText={(e) => `${e.action} ${e.objectType} ${e.actorId ?? ''} ${e.reason ?? ''}`}
         />
       ) : (
         <DataTable
@@ -272,8 +275,33 @@ export function AuditPage() {
           empty={a.empty}
           storageKey="events"
           onRowClick={(e) => setOpen(open === e.id ? null : e.id)}
-          expanded={(e) => (open === e.id ? <Json value={e.payload} /> : null)}
+          activeKey={open}
+          searchText={(e) =>
+            `${e.type} ${e.employeeName ?? ''} ${e.reasonCode ?? ''} ${e.comment ?? ''}`
+          }
         />
+      )}
+      {tab === 'audit' && openAudit && (
+        <DetailSheet
+          open
+          onOpenChange={(o) => !o && setOpen(null)}
+          title={actionLabel(openAudit.action)}
+          description={`${formatDateTimeSeconds(openAudit.at)} · ${openAudit.actorType} ${openAudit.actorId ?? ''}`}
+          wide
+        >
+          {openAudit.reason ? <p className="text-sm">{openAudit.reason}</p> : null}
+          <BeforeAfter before={openAudit.before} after={openAudit.after} />
+        </DetailSheet>
+      )}
+      {openEvent && (
+        <DetailSheet
+          open
+          onOpenChange={(o) => !o && setOpen(null)}
+          title={openEvent.type}
+          description={`${formatDateTimeSeconds(openEvent.occurredAt)} · ${openEvent.source}`}
+        >
+          <Json value={openEvent.payload} />
+        </DetailSheet>
       )}
     </div>
   );

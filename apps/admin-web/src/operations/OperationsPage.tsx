@@ -33,6 +33,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { DetailSheet } from '@/components/app/detail-sheet';
 
 const all = messages(currentLocale());
 const o = all.admin.operations;
@@ -329,6 +330,8 @@ export function OperationsPage() {
     },
   ];
 
+  const openRow = rows.find((r) => r.id === openId) ?? null;
+
   const rowActions = (row: ActiveShiftView): RowAction[] => [
     {
       key: 'detail',
@@ -466,52 +469,68 @@ export function OperationsPage() {
         rowClassName={(row) =>
           row.needsClarification ? 'bg-red-50/60 dark:bg-red-950/30' : undefined
         }
-        expanded={(row) =>
-          openId === row.id ? (
-            <div className="flex flex-col gap-4">
-              {row.endedAt === null && (
-                <form
-                  className="flex flex-wrap items-end gap-3"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    applyAction(row);
-                  }}
-                >
-                  <SelectField
-                    label={o.masterAction}
-                    hint={hints.operationsMasterAction}
-                    value={action[row.id] ?? ''}
-                    onChange={(v) => setAction((a) => ({ ...a, [row.id]: v as ShiftAction }))}
-                    placeholder="…"
-                    required
-                    options={SHIFT_ACTIONS.filter((a) => a !== 'START_SHIFT').map((a) => ({
-                      value: a,
-                      label: all.actions[a],
-                    }))}
-                    className="w-64"
-                  />
-                  <FormField label={o.comment} className="min-w-72 flex-1">
-                    {(id) => (
-                      <Textarea
-                        id={id}
-                        rows={2}
-                        value={comment[row.id] ?? ''}
-                        onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}
-                        minLength={3}
-                        required
-                      />
-                    )}
-                  </FormField>
-                  <Button type="submit" variant="secondary" disabled={busy}>
-                    {o.apply}
-                  </Button>
-                </form>
-              )}
-              {detail && detail.session.id === row.id && <DetailPanel detail={detail} />}
-            </div>
-          ) : null
-        }
+        activeKey={openId}
       />
+      {openRow && (
+        <DetailSheet
+          open={openRow !== null}
+          onOpenChange={(open) => !open && setOpenId(null)}
+          title={
+            <>
+              {openRow.fullName}
+              <StatusPill tone={STATE_TONE[openRow.state]}>{all.states[openRow.state]}</StatusPill>
+            </>
+          }
+          description={`${openRow.personnelNumber}${openRow.orgUnitName ? ` · ${openRow.orgUnitName}` : ''}`}
+          wide
+        >
+          {((row) => (
+            <>
+              <div className="flex flex-col gap-4">
+                {row.endedAt === null && (
+                  <form
+                    className="flex flex-wrap items-end gap-3"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      applyAction(row);
+                    }}
+                  >
+                    <SelectField
+                      label={o.masterAction}
+                      hint={hints.operationsMasterAction}
+                      value={action[row.id] ?? ''}
+                      onChange={(v) => setAction((a) => ({ ...a, [row.id]: v as ShiftAction }))}
+                      placeholder="…"
+                      required
+                      options={SHIFT_ACTIONS.filter((a) => a !== 'START_SHIFT').map((a) => ({
+                        value: a,
+                        label: all.actions[a],
+                      }))}
+                      className="w-64"
+                    />
+                    <FormField label={o.comment} className="min-w-72 flex-1">
+                      {(id) => (
+                        <Textarea
+                          id={id}
+                          rows={2}
+                          value={comment[row.id] ?? ''}
+                          onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}
+                          minLength={3}
+                          required
+                        />
+                      )}
+                    </FormField>
+                    <Button type="submit" variant="secondary" disabled={busy}>
+                      {o.apply}
+                    </Button>
+                  </form>
+                )}
+                {detail && detail.session.id === row.id && <DetailPanel detail={detail} />}
+              </div>
+            </>
+          ))(openRow)}
+        </DetailSheet>
+      )}
 
       {dialog}
     </div>

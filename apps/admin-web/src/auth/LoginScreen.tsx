@@ -7,9 +7,13 @@ import { Feedback } from '@/components/app/feedback';
 import { FormField } from '@/components/app/fields';
 import { ApiError, authApi } from '../api.ts';
 import { LanguageSwitcher, currentLocale } from '../i18n.tsx';
+import { validateWith, type FieldErrors } from '@/lib/validation';
+import { z } from 'zod';
 
 const all = messages(currentLocale());
 const t = all.admin.auth;
+/** Only presence and shape are checked here; the password policy is the server's business. */
+const SignInForm = z.object({ email: z.email(), password: z.string().min(1) });
 
 interface Props {
   onSignedIn: () => void;
@@ -24,9 +28,13 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(offline ? t.networkError : null);
   const [busy, setBusy] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   async function submitPassword(e: FormEvent) {
     e.preventDefault();
+    const checked = validateWith(SignInForm, { email: email.trim(), password });
+    setFieldErrors(checked.errors);
+    if (!checked.ok) return;
     setBusy(true);
     setError(null);
     try {
@@ -69,29 +77,27 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
           <form
             className="flex flex-col gap-4"
             onSubmit={step === 'password' ? submitPassword : submitCode}
+            noValidate={step === 'password'}
           >
             {step === 'password' ? (
               <>
-                <FormField label={t.email}>
+                <FormField label={t.email} error={fieldErrors.email}>
                   {(id) => (
                     <Input
                       id={id}
                       type="email"
                       autoComplete="username"
-                      required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
                   )}
                 </FormField>
-                <FormField label={t.password}>
+                <FormField label={t.password} error={fieldErrors.password}>
                   {(id) => (
                     <Input
                       id={id}
                       type="password"
                       autoComplete="current-password"
-                      required
-                      minLength={12}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />

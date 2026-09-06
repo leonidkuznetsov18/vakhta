@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { RequestsPage } from './RequestsPage.tsx';
 import { clickRowAction } from '../test-utils.ts';
 
@@ -128,14 +128,16 @@ describe('RequestsPage', () => {
     expect(await screen.findByText('Опоздаю')).toBeTruthy();
     expect(screen.getByText(/^просрочено на/)).toBeTruthy();
     await clickRowAction('Подробности');
-    expect(await screen.findByText('Пробки на мосту')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Утверждённое отклонение, мин'), {
+    // The decision form lives in the side sheet; the overtime table has its own buttons.
+    const sheet = await screen.findByRole('dialog');
+    expect(await within(sheet).findByText('Пробки на мосту')).toBeTruthy();
+    fireEvent.change(within(sheet).getByLabelText('Утверждённое отклонение, мин'), {
       target: { value: '15' },
     });
-    fireEvent.change(screen.getAllByLabelText('Комментарий (обязательно)')[0]!, {
+    fireEvent.change(within(sheet).getByLabelText('Комментарий (обязательно)'), {
       target: { value: 'Подтверждаю 15 минут' },
     });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Одобрить' })[0]!);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Одобрить' }));
     await screen.findByText('Решение сохранено.');
     expect(calls.find((c) => c.path.endsWith('/decide') && c.path.includes(REQ))?.body).toEqual({
       decision: 'APPROVED',
@@ -144,6 +146,8 @@ describe('RequestsPage', () => {
     });
 
     expect(screen.getByText('45')).toBeTruthy();
+    // Close the sheet: while it is open the rest of the page is hidden from assistive tech.
+    fireEvent.keyDown(document.body, { key: 'Escape' });
     fireEvent.change(screen.getAllByLabelText('Комментарий (обязательно)').at(-1)!, {
       target: { value: 'Замена заболевшего' },
     });
@@ -161,15 +165,16 @@ describe('RequestsPage', () => {
     const calls = mockApi(state);
     render(<RequestsPage />);
     await clickRowAction('Подробности');
-    const kind = (await screen.findByLabelText('Тип коррекции')) as HTMLSelectElement;
+    const sheet = await screen.findByRole('dialog');
+    const kind = (await within(sheet).findByLabelText('Тип коррекции')) as HTMLSelectElement;
     expect(kind.value).toBe('CLOSE_SHIFT_AT');
-    fireEvent.change(screen.getByLabelText('Новое время'), {
+    fireEvent.change(within(sheet).getByLabelText('Новое время'), {
       target: { value: '2026-10-03T20:05' },
     });
-    fireEvent.change(screen.getAllByLabelText('Комментарий (обязательно)')[0]!, {
+    fireEvent.change(within(sheet).getByLabelText('Комментарий (обязательно)'), {
       target: { value: 'По камерам ушёл в 20:05' },
     });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Одобрить' })[0]!);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Одобрить' }));
     await screen.findByText('Решение сохранено.');
     const body = calls.find((c) => c.path.endsWith('/decide') && c.path.includes(REQ))?.body as {
       proposal: { kind: string; endedAt: string };

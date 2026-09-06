@@ -28,7 +28,12 @@ import type {
   OrgSnapshot,
   RegisterTerminalCommand,
   SetTerminalStatusCommand,
+  UpdateOrgUnitCommand,
+  UpdatePositionCommand,
+  UpdateSiteCommand,
+  UpdateTeamCommand,
   UpdateTerminalCommand,
+  UpdateZoneCommand,
   TerminalPairingIssued,
   TerminalRegistered,
 } from '@vakhta/contracts';
@@ -108,6 +113,143 @@ export class OrgService {
       const [row] = await tx.insert(responsibilityZones).values(cmd).returning();
       return row!;
     });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Directory edits: same audit shape as creation, delete refused when referenced */
+  /* ------------------------------------------------------------------ */
+
+  async updateSite(id: string, cmd: UpdateSiteCommand, actor: Actor) {
+    if (cmd.timezone && !IANAZone.isValidZone(cmd.timezone)) {
+      throw new DomainError('INVALID_TIMEZONE', 422, `Unknown IANA time zone: ${cmd.timezone}`);
+    }
+    return this.updateWithAudit('site', 'ORG_SITE_UPDATED', actor, id, cmd, async (tx) => {
+      const [row] = await tx.update(sites).set(cmd).where(eq(sites.id, id)).returning();
+      return row ?? null;
+    });
+  }
+
+  async updateOrgUnit(id: string, cmd: UpdateOrgUnitCommand, actor: Actor) {
+    const unit = await this.requireOrgUnit(id);
+    if (cmd.parentId) {
+      if (cmd.parentId === id)
+        throw new DomainError('ORG_UNIT_CYCLE', 422, 'A unit cannot be its own parent');
+      await this.requireOrgUnit(cmd.parentId, unit.siteId);
+    }
+    return this.updateWithAudit('org_unit', 'ORG_UNIT_UPDATED', actor, id, cmd, async (tx) => {
+      const [row] = await tx.update(orgUnits).set(cmd).where(eq(orgUnits.id, id)).returning();
+      return row ?? null;
+    });
+  }
+
+  async updateTeam(id: string, cmd: UpdateTeamCommand, actor: Actor) {
+    if (cmd.orgUnitId) await this.requireOrgUnit(cmd.orgUnitId);
+    return this.updateWithAudit('team', 'ORG_TEAM_UPDATED', actor, id, cmd, async (tx) => {
+      const [row] = await tx.update(teams).set(cmd).where(eq(teams.id, id)).returning();
+      return row ?? null;
+    });
+  }
+
+  async updatePosition(id: string, cmd: UpdatePositionCommand, actor: Actor) {
+    return this.updateWithAudit('position', 'ORG_POSITION_UPDATED', actor, id, cmd, async (tx) => {
+      const [row] = await tx.update(positions).set(cmd).where(eq(positions.id, id)).returning();
+      return row ?? null;
+    });
+  }
+
+  async updateZone(id: string, cmd: UpdateZoneCommand, actor: Actor) {
+    return this.updateWithAudit('zone', 'ORG_ZONE_UPDATED', actor, id, cmd, async (tx) => {
+      const [row] = await tx
+        .update(responsibilityZones)
+        .set(cmd)
+        .where(eq(responsibilityZones.id, id))
+        .returning();
+      return row ?? null;
+    });
+  }
+
+  async deleteDirectoryRow(
+    kind: 'site' | 'org_unit' | 'team' | 'position' | 'zone',
+    id: string,
+    reason: string,
+    actor: Actor,
+  ): Promise<void> {
+    const table = {
+      site: sites,
+      org_unit: orgUnits,
+      team: teams,
+      position: positions,
+      zone: responsibilityZones,
+    }[kind];
+    try {
+      await this.db.transaction(async (tx) => {
+        const [deleted] = await tx.delete(table).where(eq(table.id, id)).returning();
+        if (!deleted) throw new DomainError('NOT_FOUND', 404, `${kind} ${id} not found`);
+        await this.events.append(tx, {
+          type: `ORG_${kind.toUpperCase()}_DELETED`,
+          source: 'WEB',
+          actor,
+          comment: reason,
+          payload: { id },
+        });
+        await this.audit.record(tx, {
+          actor,
+          action: `${kind}.delete`,
+          objectType: kind,
+          objectId: id,
+          before: deleted as unknown as Record<string, unknown>,
+          reason,
+        });
+      });
+    } catch (e) {
+      if (isForeignKeyViolation(e)) {
+        throw new DomainError(
+          'DIRECTORY_ROW_IN_USE',
+          409,
+          `${kind} ${id} is referenced by other records; deactivate or reassign first`,
+        );
+      }
+      throw e;
+    }
+  }
+
+  private async updateWithAudit<T extends { id: string }>(
+    objectType: string,
+    eventType: string,
+    actor: Actor,
+    id: string,
+    patch: Record<string, unknown>,
+    update: (tx: DbOrTx) => Promise<T | null>,
+  ): Promise<T> {
+    const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+    if (Object.keys(clean).length === 0) {
+      throw new DomainError('EMPTY_UPDATE', 422, 'Nothing to update');
+    }
+    try {
+      return await this.db.transaction(async (tx) => {
+        const row = await update(tx);
+        if (!row) throw new DomainError('NOT_FOUND', 404, `${objectType} ${id} not found`);
+        await this.events.append(tx, {
+          type: eventType,
+          source: 'WEB',
+          actor,
+          payload: { id, ...clean },
+        });
+        await this.audit.record(tx, {
+          actor,
+          action: `${objectType}.update`,
+          objectType,
+          objectId: id,
+          after: clean,
+        });
+        return row;
+      });
+    } catch (e) {
+      if (isUniqueViolation(e)) {
+        throw new DomainError('DUPLICATE_CODE', 409, `${objectType}: a row with this code exists`);
+      }
+      throw e;
+    }
   }
 
   /** FR-QR-01: a terminal belongs to a site; it gets its device token later, through pairing. */

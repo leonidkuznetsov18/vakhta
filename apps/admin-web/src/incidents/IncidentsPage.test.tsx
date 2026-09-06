@@ -167,7 +167,7 @@ describe('IncidentsPage', () => {
       to: 'ACKNOWLEDGED',
       comment: 'Иду смотреть',
     });
-    expect(await screen.findByText('Подтверждён')).toBeTruthy();
+    expect((await screen.findAllByText('Подтверждён')).length).toBeGreaterThanOrEqual(1);
   });
 
   it('a duplicate requires choosing the primary incident; an SSE event re-reads the list', async () => {

@@ -14,6 +14,26 @@ export const CreateEmployeeCommand = z.object({
 });
 export type CreateEmployeeCommand = z.infer<typeof CreateEmployeeCommand>;
 
+/** Bulk creation from a CSV: every row is validated, duplicates are reported, not created. */
+export const ImportEmployeesCommand = z.object({
+  items: z
+    .array(CreateEmployeeCommand.omit({ status: true }))
+    .min(1)
+    .max(1000),
+});
+export type ImportEmployeesCommand = z.infer<typeof ImportEmployeesCommand>;
+
+export const ImportEmployeesResult = z.object({
+  created: z.number().int().nonnegative(),
+  skipped: z.array(
+    z.object({
+      personnelNumber: z.string(),
+      reason: z.enum(['DUPLICATE', 'INVALID']),
+    }),
+  ),
+});
+export type ImportEmployeesResult = z.infer<typeof ImportEmployeesResult>;
+
 export const EmployeeView = z.object({
   id: Uuid,
   personnelNumber: PersonnelNumber,
