@@ -27,11 +27,12 @@ export default defineRailway(() => {
   };
   Redis.networking = { privateNetworkEndpoint: 'redis' };
   const Postgres = postgres('Postgres', { region });
-  Postgres.networking = { privateNetworkEndpoint: 'postgres' };
+  // Public TCP proxy only for the nightly pg_dump from GitHub Actions (docs/runbooks/recovery.md).
+  Postgres.networking = { privateNetworkEndpoint: 'postgres', tcpProxies: { '5432': {} } };
   const redisVolume = volume('redis-volume', {
     alerts: { usage: { '100': {}, '80': {}, '95': {} } },
     allowOnlineResize: true,
-    region: 'iad',
+    region: 'europe-west4-drams3a',
     sizeMB: 5000,
   });
   const postgresVolume = volume('postgres-volume', {
@@ -56,6 +57,7 @@ export default defineRailway(() => {
       ACTIVATION_PEPPER: preserve(),
       API_HOST: preserve(),
       API_PORT: preserve(),
+      PORT: preserve(),
       AUTH_COOKIE_SAME_SITE: preserve(),
       AUTH_SECRET: preserve(),
       CORS_ORIGINS: preserve(),
