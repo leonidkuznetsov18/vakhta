@@ -365,7 +365,7 @@ export function DataTable<T>({
     ) : (
       <>
         {!isMobile && (
-          <div className="overflow-x-auto rounded-lg border">
+          <div className="w-full min-w-0 max-w-full overflow-x-auto rounded-lg border">
             <Table>
               {caption ? <caption className="sr-only">{caption}</caption> : null}
               <TableHeader>

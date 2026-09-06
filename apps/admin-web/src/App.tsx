@@ -255,7 +255,7 @@ export function App() {
               />
             </div>
           </header>
-          <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+          <main className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
             {active === 'profile' ? (
               <ProfilePanel me={me} onChanged={() => void refresh()} />
             ) : active === 'overview' ? (

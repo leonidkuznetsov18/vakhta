@@ -27,7 +27,10 @@ export function switchLocale(locale: Locale): void {
   location.reload();
 }
 
-/** Three small buttons, the active one filled; usable on the login screen and in the sidebar. */
+/** Flag of each interface language; the language name stays the accessible label and tooltip. */
+const LOCALE_FLAGS: Readonly<Record<Locale, string>> = { uk: '🇺🇦', en: '🇬🇧', ru: '🇷🇺' };
+
+/** Three small flag buttons, the active one filled; usable on the login screen and in the sidebar. */
 export function LanguageSwitcher({ className }: { readonly className?: string }) {
   const active = currentLocale();
   const t = messages(active);
@@ -40,11 +43,13 @@ export function LanguageSwitcher({ className }: { readonly className?: string })
           size="sm"
           variant={locale === active ? 'default' : 'outline'}
           aria-pressed={locale === active}
+          aria-label={t.language.names[locale]}
+          title={t.language.names[locale]}
           lang={locale}
-          className="flex-1"
+          className="flex-1 text-base leading-none"
           onClick={() => switchLocale(locale)}
         >
-          {t.language.names[locale]}
+          <span aria-hidden="true">{LOCALE_FLAGS[locale]}</span>
         </Button>
       ))}
     </div>
