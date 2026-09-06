@@ -29,7 +29,7 @@
     "@semantic-release/changelog": "^7.0.0",
     "@semantic-release/git": "^11.0.1",
     "@types/node": "^22.15.0",
-    "conventional-changelog-conventionalcommits": "^10.4.0",
+    "conventional-changelog-conventionalcommits": "^8.0.0",
     "eslint": "^9.28.0",
     "eslint-config-prettier": "^10.1.0",
     "globals": "^16.2.0",
