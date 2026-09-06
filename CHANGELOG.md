@@ -1,3 +1,9 @@
+## [0.9.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.9.2...v0.9.3) (2026-09-06)
+
+### Bug fixes
+
+* **admin-web:** toasts appear in the bottom-right corner ([9d18724](https://github.com/leonidkuznetsov18/vakhta/commit/9d187243d8fc08ba4fe4423b5697b5c0b5fc35ec))
+
 ## [0.9.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.9.1...v0.9.2) (2026-09-06)
 
 ### Bug fixes
