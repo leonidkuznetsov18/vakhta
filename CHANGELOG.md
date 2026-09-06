@@ -1,3 +1,17 @@
+## [0.3.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.2.2...v0.3.0) (2026-09-06)
+
+### Features
+
+* pair terminals from the panel, delete draft schedules, calendar fields ([f4024ef](https://github.com/leonidkuznetsov18/vakhta/commit/f4024ef39ba15f72e172f54cf1e0c72b6f4f2a2d))
+
+### Documentation
+
+* user guide for the pilot (bot, terminal, panel) ([14b2551](https://github.com/leonidkuznetsov18/vakhta/commit/14b255193da13b4057c86970fa227004ffc6eb3e))
+
+### CI/CD
+
+* include the Prettier check in pnpm check and format the deploy doc ([fdbb298](https://github.com/leonidkuznetsov18/vakhta/commit/fdbb29895ddf43c54c047b6c6a30ddeb97b543c0))
+
 ## [0.2.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.2.1...v0.2.2) (2026-09-06)
 
 ### Bug fixes
