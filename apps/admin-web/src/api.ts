@@ -183,6 +183,11 @@ export const adminEmployeesApi = {
       method: 'PATCH',
       body: JSON.stringify(cmd),
     }),
+  remove: (id: string, reason: string) =>
+    apiFetch<null>(`/admin/employees/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ reason }),
+    }),
   sendActivation: (id: string, cmd: SendActivationCommand) =>
     post<ActivationDelivered>(`/admin/employees/${id}/activation/send`, cmd),
   relink: (id: string, cmd: RelinkTelegramCommand) =>

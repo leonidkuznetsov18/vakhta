@@ -3,7 +3,8 @@ export type IdentityErrorCode =
   | 'PERSONNEL_NUMBER_TAKEN'
   | 'EMPLOYEE_NOT_ACTIVE'
   | 'TELEGRAM_USER_TAKEN'
-  | 'SAME_TELEGRAM_USER';
+  | 'SAME_TELEGRAM_USER'
+  | 'EMPLOYEE_HAS_HISTORY';
 
 /** Доменна помилка identity; у HTTP її перетворює IdentityExceptionFilter. */
 export class IdentityError extends Error {

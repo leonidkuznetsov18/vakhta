@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   NotFoundException,
@@ -14,6 +15,7 @@ import {
 import {
   ChangeEmployeeStatusCommand,
   CreateEmployeeCommand,
+  DeleteEmployeeCommand,
   RelinkTelegramCommand,
   type ActivationCodeIssued,
   type EmployeeView,
@@ -110,6 +112,16 @@ export class AdminEmployeesController {
   ): Promise<EmployeeView> {
     await this.employees.update(id, body, webUserActor(user));
     return this.employees.viewOf(id);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(DeleteEmployeeCommand)) body: DeleteEmployeeCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<void> {
+    await this.employees.deleteEmployee(id, body, webUserActor(user));
   }
 
   @Post(':id/status')

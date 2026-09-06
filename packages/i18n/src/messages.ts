@@ -1009,6 +1009,11 @@ export interface Messages {
         readonly newTeam: string;
         readonly notChosen: string;
         readonly newAssignmentHint: string;
+        readonly deleteEmployee: string;
+        /** Placeholder: {name} */
+        readonly deleteEmployeeConfirm: string;
+        readonly employeeDeleted: string;
+        readonly hasHistory: string;
       };
       readonly users: {
         readonly email: string;

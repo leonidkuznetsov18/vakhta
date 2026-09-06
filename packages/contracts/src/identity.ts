@@ -69,6 +69,10 @@ export const UpdateEmployeeCommand = z.object({
 });
 export type UpdateEmployeeCommand = z.infer<typeof UpdateEmployeeCommand>;
 
+/** Hard delete of a card that has no worked history; a reason goes to the audit. */
+export const DeleteEmployeeCommand = z.object({ reason: z.string().trim().min(3).max(1000) });
+export type DeleteEmployeeCommand = z.infer<typeof DeleteEmployeeCommand>;
+
 /** Bulk creation from a CSV: every row is validated, duplicates are reported, not created. */
 export const ImportEmployeesCommand = z.object({
   items: z

@@ -1097,6 +1097,7 @@ export const en: Messages = {
         'employee.telegram.link': 'Telegram linked',
         'employee.telegram.relink': 'Telegram relinked',
         'employee.update': 'Employee details changed',
+        'employee.delete': 'Employee deleted',
         'employee.activation.send': 'Activation card sent',
         'employee.import': 'Employee import',
         'incident.update': 'Incident changed',
@@ -1273,6 +1274,12 @@ export const en: Messages = {
         notChosen: 'Not chosen',
         newAssignmentHint:
           'Optional: the unit and the position go together, the team comes from the chosen unit. All of it can be changed in the card later.',
+        deleteEmployee: 'Delete employee',
+        deleteEmployeeConfirm:
+          'Delete the card of {name} entirely? Planned shifts, activation codes and the Telegram link go with it. This cannot be undone; for an employee with worked shifts use "Terminate".',
+        employeeDeleted: 'Employee deleted.',
+        hasHistory:
+          'The employee has worked shifts, check-ins, points or requests: such a card is terminated ("Terminate"), not deleted, so the history and the reports stay.',
       },
       users: {
         email: 'Email',

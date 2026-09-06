@@ -1,10 +1,25 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, isNull, or, gt, inArray } from '@vakhta/db';
 import {
+  activationCodes,
+  assignmentAcknowledgements,
+  bonusPeriodResults,
+  bonusShiftScores,
+  downtimeReports,
   employeePositions,
   employees,
+  handoverRecords,
+  handoverReviews,
+  mediaObjects,
+  notificationOutbox,
   orgUnits,
   positions,
+  presenceSessions,
+  qrChallengeUses,
+  requests,
+  shiftAssignments,
+  shiftSessions,
+  shiftSummaries,
   teams,
   telegramAccounts,
   type Database,
@@ -13,6 +28,7 @@ import {
 import type {
   ChangeEmployeeStatusCommand,
   CreateEmployeeCommand,
+  DeleteEmployeeCommand,
   UpdateEmployeeCommand,
   EmployeeView,
   ImportEmployeesCommand,
@@ -146,6 +162,159 @@ export class EmployeesService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Hard delete of a card without worked history (spec 13 keeps everything that was worked:
+   * shifts, presence, scores, reports, requests). Planned assignments, acknowledgements, codes,
+   * links and queued notifications go with the card; the audit keeps who deleted whom and why.
+   */
+  async deleteEmployee(id: string, cmd: DeleteEmployeeCommand, actor: Actor): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const before = await this.requireById(id, tx);
+      const history: [string, Promise<{ id: string }[]>][] = [
+        [
+          'shift_sessions',
+          tx
+            .select({ id: shiftSessions.id })
+            .from(shiftSessions)
+            .where(eq(shiftSessions.employeeId, id))
+            .limit(1),
+        ],
+        [
+          'presence_sessions',
+          tx
+            .select({ id: presenceSessions.id })
+            .from(presenceSessions)
+            .where(eq(presenceSessions.employeeId, id))
+            .limit(1),
+        ],
+        [
+          'bonus_shift_scores',
+          tx
+            .select({ id: bonusShiftScores.id })
+            .from(bonusShiftScores)
+            .where(eq(bonusShiftScores.employeeId, id))
+            .limit(1),
+        ],
+        [
+          'bonus_period_results',
+          tx
+            .select({ id: bonusPeriodResults.id })
+            .from(bonusPeriodResults)
+            .where(eq(bonusPeriodResults.employeeId, id))
+            .limit(1),
+        ],
+        [
+          'handover_records',
+          tx
+            .select({ id: handoverRecords.id })
+            .from(handoverRecords)
+            .where(eq(handoverRecords.submittedBy, id))
+            .limit(1),
+        ],
+        [
+          'handover_reviews',
+          tx
+            .select({ id: handoverReviews.id })
+            .from(handoverReviews)
+            .where(eq(handoverReviews.reviewerEmployeeId, id))
+            .limit(1),
+        ],
+        [
+          'requests',
+          tx
+            .select({ id: requests.id })
+            .from(requests)
+            .where(or(eq(requests.employeeId, id), eq(requests.counterpartEmployeeId, id)))
+            .limit(1),
+        ],
+        [
+          'downtime_reports',
+          tx
+            .select({ id: downtimeReports.id })
+            .from(downtimeReports)
+            .where(eq(downtimeReports.employeeId, id))
+            .limit(1),
+        ],
+        [
+          'media_objects',
+          tx
+            .select({ id: mediaObjects.id })
+            .from(mediaObjects)
+            .where(eq(mediaObjects.uploadedBy, id))
+            .limit(1),
+        ],
+        [
+          'qr_challenge_uses',
+          tx
+            .select({ id: qrChallengeUses.id })
+            .from(qrChallengeUses)
+            .where(eq(qrChallengeUses.employeeId, id))
+            .limit(1),
+        ],
+        [
+          'shift_summaries',
+          tx
+            .select({ id: shiftSummaries.shiftSessionId })
+            .from(shiftSummaries)
+            .where(eq(shiftSummaries.employeeId, id))
+            .limit(1),
+        ],
+        [
+          'employee_positions.manager',
+          tx
+            .select({ id: employeePositions.id })
+            .from(employeePositions)
+            .where(eq(employeePositions.managerEmployeeId, id))
+            .limit(1),
+        ],
+      ];
+      for (const [table, query] of history) {
+        if ((await query).length > 0) {
+          throw new IdentityError(
+            'EMPLOYEE_HAS_HISTORY',
+            `Employee ${id} has worked history (${table}); terminate the card instead`,
+          );
+        }
+      }
+      await tx
+        .delete(assignmentAcknowledgements)
+        .where(eq(assignmentAcknowledgements.employeeId, id));
+      await tx.delete(shiftAssignments).where(eq(shiftAssignments.employeeId, id));
+      await tx.delete(activationCodes).where(eq(activationCodes.employeeId, id));
+      await tx.delete(telegramAccounts).where(eq(telegramAccounts.employeeId, id));
+      await tx.delete(employeePositions).where(eq(employeePositions.employeeId, id));
+      await tx
+        .delete(notificationOutbox)
+        .where(
+          and(
+            eq(notificationOutbox.recipientType, 'EMPLOYEE'),
+            eq(notificationOutbox.recipientId, id),
+          ),
+        );
+      await tx.delete(employees).where(eq(employees.id, id));
+      await this.events.append(tx, {
+        type: 'EMPLOYEE_DELETED',
+        source: 'WEB',
+        actor,
+        employeeId: id,
+        comment: cmd.reason,
+        payload: { personnelNumber: before.personnelNumber },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'employee.delete',
+        objectType: 'employee',
+        objectId: id,
+        before: {
+          personnelNumber: before.personnelNumber,
+          fullName: before.fullName,
+          status: before.status,
+        },
+        reason: cmd.reason,
+      });
+    });
   }
 
   /** The full view of one employee: link state and the current assignment included. */

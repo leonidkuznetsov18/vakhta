@@ -98,6 +98,23 @@ describe('identity: активація і привʼязка Telegram (ТЗ 2.2,
     expect(audit?.before).toMatchObject({ fullName: 'Иванов Иван Иванович' });
   });
 
+  it('a card without worked history is deleted with its codes and links', async () => {
+    const ivanov = await createIvanov();
+    await activation.issue(ivanov.id, HR);
+    await employeesService.deleteEmployee(ivanov.id, { reason: 'created by mistake' }, HR);
+    expect(await employeesService.getById(ivanov.id)).toBeNull();
+    expect(await testDb.db.select().from(activationCodes)).toHaveLength(0);
+    const [audit] = await testDb.db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, 'employee.delete'))
+      .limit(1);
+    expect(audit?.reason).toBe('created by mistake');
+    await expect(
+      employeesService.deleteEmployee(ivanov.id, { reason: 'again' }, HR),
+    ).rejects.toMatchObject({ code: 'EMPLOYEE_NOT_FOUND' });
+  });
+
   it('повний цикл: картка → код → превʼю → підтвердження → активна привʼязка', async () => {
     const ivanov = await createIvanov();
     const issued = await activation.issue(ivanov.id, HR);

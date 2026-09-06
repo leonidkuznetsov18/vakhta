@@ -41,6 +41,7 @@ import {
   KeyRoundIcon,
   MailIcon,
   PencilIcon,
+  Trash2Icon,
   XIcon,
   SendIcon,
   Link2Icon,
@@ -141,6 +142,31 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       setNewTeamId('');
       setCreating(false);
     }, t.common.added);
+  }
+
+  /** Hard delete with a reason; a card with worked history is refused and the panel points to "Terminate". */
+  async function deleteEmployee(emp: EmployeeView) {
+    const reason = await confirm({
+      title: e.deleteEmployee,
+      description: format(e.deleteEmployeeConfirm, { name: emp.fullName }),
+      confirmLabel: e.deleteEmployee,
+      commentLabel: t.common.reason,
+      commentRequired: true,
+      destructive: true,
+    });
+    if (!reason) return;
+    void run(async () => {
+      try {
+        await adminEmployeesApi.remove(emp.id, reason);
+      } catch (err) {
+        if (err instanceof ApiError && err.code === 'EMPLOYEE_HAS_HISTORY') {
+          throw new Error(e.hasHistory);
+        }
+        throw err;
+      }
+      setList((l) => l.filter((x) => x.id !== emp.id));
+      if (openId === emp.id) setOpenId(null);
+    }, e.employeeDeleted);
   }
 
   /** The card holds the activation block; the row action opens it with a fresh code. */
@@ -341,6 +367,15 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           },
         ]
       : []),
+    {
+      key: 'delete',
+      label: e.deleteEmployee,
+      icon: Trash2Icon,
+      disabled: busy,
+      destructive: true,
+      separator: true,
+      onSelect: () => void deleteEmployee(emp),
+    },
   ];
 
   /** The card under its row: details and activation on the left, position and checklist on the right. */
@@ -352,16 +387,23 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           <Muted>
             {emp.personnelNumber} · {e.statuses[emp.status]}
           </Muted>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="ml-auto"
-            onClick={() => setOpenId(null)}
-          >
-            <XIcon aria-hidden="true" />
-            {all.ui.common.close}
-          </Button>
+          <span className="ml-auto flex flex-wrap gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              disabled={busy}
+              onClick={() => void deleteEmployee(emp)}
+            >
+              <Trash2Icon aria-hidden="true" />
+              {e.deleteEmployee}
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setOpenId(null)}>
+              <XIcon aria-hidden="true" />
+              {all.ui.common.close}
+            </Button>
+          </span>
         </div>
         <div className="grid gap-4 xl:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-4">

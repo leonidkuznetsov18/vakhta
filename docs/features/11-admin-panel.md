@@ -19,7 +19,10 @@ Administration tabs:
   when something changed; every edit lands in the audit with before / after). The collapsible
   "Активация в боте" block holds the steps for the administrator, "Выдать код активации", the
   send buttons (e-mail, Telegram) and the last issued code with copy, the bot link and the QR;
-  the row action "Код активации" opens the card with a fresh code.
+  the row action "Код активации" opens the card with a fresh code. "Удалить сотрудника" (row menu
+  and card, reason required) removes a card that has no worked history together with its planned
+  shifts, codes and Telegram link; a card with shifts, check-ins, points or requests is refused
+  with `EMPLOYEE_HAS_HISTORY` and is terminated instead, so history and reports stay.
 - "Пользователи и роли": create panel users (a generated password is shown once); the user card
   edits the name, lists the roles with "Заменить" (grant the new one, revoke the old) and
   "Отозвать", grants a new role with a scope, and deletes the user ("Удалить пользователя":
