@@ -1,3 +1,9 @@
+## [0.8.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.7.1...v0.8.0) (2026-09-06)
+
+### Features
+
+* **handover:** bind checklists to positions; no checklist for a position means no checklist step ([271345d](https://github.com/leonidkuznetsov18/vakhta/commit/271345dfb6d0c7925ab43f9e7a03c30efbe15088))
+
 ## [0.7.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.7.0...v0.7.1) (2026-09-06)
 
 ### Bug fixes
