@@ -1,3 +1,22 @@
+## [0.5.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.4.0...v0.5.0) (2026-09-06)
+
+### Features
+
+* **admin-web:** phase 1 of the UX plan ([6ede9d6](https://github.com/leonidkuznetsov18/vakhta/commit/6ede9d6c67b42cee690843577f954a0128259d18))
+* phase 2 of the UX plan ([19803c4](https://github.com/leonidkuznetsov18/vakhta/commit/19803c46960ee7e7f340868f670617891f21fd8d))
+* phase 3 of the UX plan ([e4bb432](https://github.com/leonidkuznetsov18/vakhta/commit/e4bb43286882db262e511845e24621906bb05e81))
+
+### Documentation
+
+* mark the UX plan phases as shipped and list the deferred items ([61eaa53](https://github.com/leonidkuznetsov18/vakhta/commit/61eaa53d261d1d04b5d583d12fc383c89407299e))
+* UI/UX improvement plan after the pilot review ([11af84c](https://github.com/leonidkuznetsov18/vakhta/commit/11af84c95a66abc23063b16c4370f3e33d3a7255))
+
+### Tests
+
+* **admin-web:** allow 20 s per test for dialog-heavy pages on slow CI runners ([505b7a6](https://github.com/leonidkuznetsov18/vakhta/commit/505b7a6d763bc95f3cb04450224f4758c947543a))
+* **admin-web:** drop the raised test timeout now that dialogs are mocked ([259f1cc](https://github.com/leonidkuznetsov18/vakhta/commit/259f1cc65db99518140dedc176a8e17e1d6aaa76))
+* **admin-web:** mock the sheet and add-dialog wrappers, skip hidden checks in role queries ([6fbffba](https://github.com/leonidkuznetsov18/vakhta/commit/6fbffbaded1c5ebaa0752f48beb62738409a269b))
+
 ## [0.4.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.3.0...v0.4.0) (2026-09-06)
 
 ### Features
