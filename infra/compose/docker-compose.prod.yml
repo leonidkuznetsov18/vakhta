@@ -1,0 +1,29 @@
+# Продакшен-стенд з готових образів: VPS або локальна перевірка збірки.
+#   docker compose -f infra/compose/docker-compose.prod.yml --env-file .env.production up -d
+# База, Redis і S3 тут зовнішні (керовані), як у docs/deploy.md.
+name: vakhta-prod
+
+services:
+  migrate:
+    image: ${VAKHTA_API_IMAGE:-ghcr.io/leonidkuznetsov18/vakhta-api:latest}
+    command: ['node', 'packages/db/dist/migrate.js']
+    env_file: ${VAKHTA_ENV_FILE:-../../.env.production}
+    restart: 'no'
+
+  api:
+    image: ${VAKHTA_API_IMAGE:-ghcr.io/leonidkuznetsov18/vakhta-api:latest}
+    env_file: ${VAKHTA_ENV_FILE:-../../.env.production}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - '${VAKHTA_API_PORT:-3000}:3000'
+    restart: unless-stopped
+
+  worker:
+    image: ${VAKHTA_WORKER_IMAGE:-ghcr.io/leonidkuznetsov18/vakhta-worker:latest}
+    env_file: ${VAKHTA_ENV_FILE:-../../.env.production}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped

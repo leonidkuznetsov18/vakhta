@@ -1,0 +1,51 @@
+# Правила алертів для Prometheus/Grafana Cloud/Alertmanager (docs/runbooks/observability.md).
+# Скрейп: GET https://api.<домен>/metrics з заголовком Authorization: Bearer <METRICS_TOKEN>.
+groups:
+  - name: vakhta-api
+    rules:
+      - alert: VakhtaApiDown
+        expr: up{job="vakhta-api"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: 'API недоступний для скрейпу'
+          runbook: 'docs/runbooks/observability.md'
+
+      - alert: VakhtaApiSlow
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job="vakhta-api"}[5m]))) > 2
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: 'p95 запитів понад 2 с протягом 5 хв'
+          runbook: 'docs/runbooks/observability.md'
+
+      - alert: VakhtaApi5xx
+        expr: sum(rate(http_request_duration_seconds_count{job="vakhta-api", status=~"5.."}[5m])) > 0.05
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: 'понад 3 помилки 5xx за хвилину'
+
+      - alert: VakhtaOutboxStuck
+        expr: vakhta_outbox_pending{job="vakhta-api"} > 50
+        for: 10m
+        labels: { severity: critical }
+        annotations:
+          summary: 'аутбокс не розсилається: воркер стоїть або Telegram недоступний'
+          runbook: 'docs/runbooks/reserve-channel.md'
+
+      - alert: VakhtaIncidentsOpenHigh
+        expr: vakhta_incidents_open{job="vakhta-api"} > 10
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: 'понад 10 відкритих інцидентів пів години: майстри не реагують'
+
+      - alert: VakhtaNoActiveShiftsInWorkHours
+        # Цілодобове виробництво: нуль активних змін довше 30 хв означає, що облік зупинився.
+        expr: vakhta_shifts_active{job="vakhta-api"} == 0
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: 'жодної відкритої зміни 30 хв'
+          runbook: 'docs/runbooks/reserve-channel.md'
