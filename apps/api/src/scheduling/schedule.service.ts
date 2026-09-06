@@ -129,13 +129,16 @@ export class ScheduleService {
     const rows = await this.db
       .select({
         v: scheduleVersions,
-        count: sql<number>`(select count(*)::int from ${shiftAssignments} where ${shiftAssignments.scheduleVersionId} = ${scheduleVersions.id} and ${shiftAssignments.status} = 'PLANNED')`,
+        // Written as plain SQL: drizzle drops the table qualifier of columns in a single-table
+        // select, which makes `schedule_versions.id` ambiguous inside the subqueries.
+        count: sql<number>`(select count(*)::int from shift_assignments sa where sa.schedule_version_id = schedule_versions.id and sa.status = 'PLANNED')`,
+        worked: sql<boolean>`exists (select 1 from shift_sessions ss join shift_assignments sa on ss.assignment_id = sa.id where sa.schedule_version_id = schedule_versions.id)`,
       })
       .from(scheduleVersions)
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(scheduleVersions.periodMonth), desc(scheduleVersions.versionNo))
       .limit(200);
-    return rows.map((r) => this.toVersionView(r.v, r.count));
+    return rows.map((r) => this.toVersionView(r.v, r.count, r.worked));
   }
 
   async createVersion(
@@ -254,13 +257,7 @@ export class ScheduleService {
           `Only a draft or a superseded version can be deleted; version ${id} is ${version.status}`,
         );
       }
-      const [worked] = await tx
-        .select({ id: shiftSessions.id })
-        .from(shiftSessions)
-        .innerJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
-        .where(eq(shiftAssignments.scheduleVersionId, version.id))
-        .limit(1);
-      if (worked) {
+      if (await this.hasWorkedShifts(version.id, tx)) {
         throw new DomainError(
           'SCHEDULE_VERSION_IN_USE',
           409,
@@ -305,6 +302,7 @@ export class ScheduleService {
       version: this.toVersionView(
         version,
         assignments.filter((x) => x.a.status === 'PLANNED').length,
+        await this.hasWorkedShifts(id),
       ),
       assignments: assignments.map((x) => this.toAssignmentView(x)),
       issues,
@@ -1085,7 +1083,23 @@ export class ScheduleService {
     }));
   }
 
-  private toVersionView(row: VersionRow, assignmentsCount: number): ScheduleVersionView {
+  /** A shift session opened against an assignment of the version: the version is history. */
+  private async hasWorkedShifts(versionId: string, tx: DbOrTx = this.db): Promise<boolean> {
+    const [worked] = await tx
+      .select({ id: shiftSessions.id })
+      .from(shiftSessions)
+      .innerJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
+      .where(eq(shiftAssignments.scheduleVersionId, versionId))
+      .limit(1);
+    return worked !== undefined;
+  }
+
+  /** `worked` matters only for superseded versions; drafts never had sessions. */
+  private toVersionView(
+    row: VersionRow,
+    assignmentsCount: number,
+    worked = false,
+  ): ScheduleVersionView {
     return {
       id: row.id,
       siteId: row.siteId,
@@ -1101,6 +1115,7 @@ export class ScheduleService {
       changeReason: row.changeReason,
       createdAt: row.createdAt.toISOString(),
       assignmentsCount,
+      deletable: row.status === 'DRAFT' || (row.status === 'SUPERSEDED' && !worked),
     };
   }
 

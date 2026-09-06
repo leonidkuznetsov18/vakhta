@@ -23,7 +23,8 @@ of versions next to it, so a month with dozens of versions stays readable.
   draft copy is created, edited, reviewed and published again.
 - Drafts and superseded versions can be deleted ("Удалить версию"; for a superseded version the
   button sits in the read-only notice above the grid). A version that shifts were opened against
-  cannot be deleted ("версия используется"). Published versions are never deleted.
+  is history: `ScheduleVersionView.deletable` is false and the button is not shown. Published
+  versions are never deleted.
 - "Проверка" lists validation issues with their details labelled in the interface language (for
   example "отдых, мин: 300").
 

@@ -92,6 +92,8 @@ export const ScheduleVersionView = z.object({
   changeReason: z.string().nullable(),
   createdAt: IsoDateTime,
   assignmentsCount: z.number().int().nonnegative(),
+  /** True for a draft, and for a superseded version no shift was worked against. */
+  deletable: z.boolean(),
 });
 export type ScheduleVersionView = z.infer<typeof ScheduleVersionView>;
 

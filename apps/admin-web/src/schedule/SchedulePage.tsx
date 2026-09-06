@@ -440,7 +440,7 @@ export function SchedulePage() {
               </AlertTitle>
               <AlertDescription>
                 <p>{s.editPublishedHint}</p>
-                {version.status === 'SUPERSEDED' && (
+                {version.status === 'SUPERSEDED' && version.deletable && (
                   <Button
                     type="button"
                     variant="destructive"

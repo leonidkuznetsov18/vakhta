@@ -936,6 +936,10 @@ export const en: Messages = {
       ],
       reviewReason: 'Only {applicable} of 100 points apply; not applicable: {missing}.',
       closedActions: 'The period is closed: the points of this shift are confirmed and frozen.',
+      maxReached: 'The shift is at the maximum: 100 points.',
+      pointsLimit: 'Enter a whole number from 1 to {max}.',
+      pointsRoom: 'Now {current} of 100: at most {max} can be added.',
+      pointsAvailable: 'Now {current} of 100: at most {max} can be taken.',
     },
     reports: {
       kinds: {

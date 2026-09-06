@@ -658,6 +658,13 @@ function SummaryTile({
   );
 }
 
+/** Shifts whose score can still be changed by hand: evaluated, not under review, not confirmed. */
+function adjustable(employee: PeriodEmployee): ShiftScoreView[] {
+  return employee.scores.filter(
+    (s) => s.status !== 'NOT_EVALUATED' && s.status !== 'CONFIRMED' && s.status !== 'MANUAL_REVIEW',
+  );
+}
+
 /**
  * The employee's month inside the table: a header with the totals and the two point actions, then
  * one card per shift in a responsive grid, so the page width is used instead of a side panel.
@@ -704,25 +711,29 @@ function EmployeeDetail({
               </Muted>
             ) : (
               <>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => onPoints(undefined, 'BONUS')}
-                  disabled={busy}
-                >
-                  <ThumbsUpIcon aria-hidden="true" />
-                  {b.addBonus}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onPoints(undefined, 'PENALTY')}
-                  disabled={busy}
-                >
-                  <ThumbsDownIcon aria-hidden="true" />
-                  {b.takePoints}
-                </Button>
+                {adjustable(employee).some((s) => (s.score ?? 0) < 100) && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => onPoints(undefined, 'BONUS')}
+                    disabled={busy}
+                  >
+                    <ThumbsUpIcon aria-hidden="true" />
+                    {b.addBonus}
+                  </Button>
+                )}
+                {adjustable(employee).some((s) => (s.score ?? 0) > 0) && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onPoints(undefined, 'PENALTY')}
+                    disabled={busy}
+                  >
+                    <ThumbsDownIcon aria-hidden="true" />
+                    {b.takePoints}
+                  </Button>
+                )}
               </>
             ))}
           <Button type="button" size="sm" variant="ghost" onClick={onClose}>
@@ -816,6 +827,8 @@ function ShiftCard({
   );
   const excluded = score.status === 'NOT_EVALUATED';
   const canTakePoints = !closed && !excluded && score.status !== 'MANUAL_REVIEW';
+  const canAdd = canTakePoints && (score.score ?? 0) < 100;
+  const canTake = canTakePoints && (score.score ?? 0) > 0;
   const criteriaColumns: Column<ShiftScoreView['criteria'][number]>[] = [
     { key: 'criterion', header: b.criterion, cell: (c) => all.bonus.criteria[c.criterion] },
     {
@@ -883,29 +896,32 @@ function ShiftCard({
               {b.finishReview}
             </Button>
           )}
-          {canTakePoints && (
-            <>
-              <Button
-                type="button"
-                size="sm"
-                variant={score.reviewDecision === null ? 'default' : 'secondary'}
-                onClick={() => onPoints('BONUS')}
-                disabled={busy}
-              >
-                <ThumbsUpIcon aria-hidden="true" />
-                {b.addBonus}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => onPoints('PENALTY')}
-                disabled={busy}
-              >
-                <ThumbsDownIcon aria-hidden="true" />
-                {b.takePoints}
-              </Button>
-            </>
+          {canAdd && (
+            <Button
+              type="button"
+              size="sm"
+              variant={score.reviewDecision === null ? 'default' : 'secondary'}
+              onClick={() => onPoints('BONUS')}
+              disabled={busy}
+            >
+              <ThumbsUpIcon aria-hidden="true" />
+              {b.addBonus}
+            </Button>
+          )}
+          {canTake && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onPoints('PENALTY')}
+              disabled={busy}
+            >
+              <ThumbsDownIcon aria-hidden="true" />
+              {b.takePoints}
+            </Button>
+          )}
+          {canTakePoints && !canAdd && (
+            <Muted className="self-center text-xs">{b.maxReached}</Muted>
           )}
           {score.reviewDecision !== null && (
             <Button type="button" size="sm" variant="outline" onClick={onReview} disabled={busy}>
@@ -1014,9 +1030,7 @@ function PointsDialog({
   readonly onClose: () => void;
   readonly onSaved: (view: ShiftScoreView) => Promise<void>;
 }) {
-  const candidates = employee.scores.filter(
-    (s) => s.status !== 'NOT_EVALUATED' && s.status !== 'CONFIRMED',
-  );
+  const candidates = adjustable(employee);
   const [scoreId, setScoreId] = useState(score?.id ?? candidates[candidates.length - 1]?.id ?? '');
   const [kind, setKind] = useState<'BONUS' | 'PENALTY'>(initialKind);
   const [amount, setAmount] = useState('');
@@ -1025,12 +1039,20 @@ function PointsDialog({
   const [advanced, setAdvanced] = useState(false);
   const [criterion, setCriterion] = useState<BonusCriterion | ''>('');
   const { busy, error, run } = useAction();
+  const chosen = candidates.find((s) => s.id === scoreId) ?? null;
+  const current = chosen?.score ?? 0;
+  // Whole-score points are clamped to 0–100 on the server; the form shows the same limit up front.
+  const limit = advanced && criterion ? 100 : kind === 'BONUS' ? 100 - current : current;
   const n = Number(amount);
+  const amountError =
+    amount !== '' && (!Number.isInteger(n) || n < 1 || n > limit)
+      ? format(b.pointsLimit, { max: limit })
+      : null;
   const valid =
     scoreId !== '' &&
     Number.isInteger(n) &&
     n > 0 &&
-    n <= 100 &&
+    n <= limit &&
     reasonCode !== '' &&
     comment.trim().length >= 3;
 
@@ -1079,15 +1101,24 @@ function PointsDialog({
             <ToggleGroupItem value="PENALTY">{b.pointsKinds.PENALTY}</ToggleGroupItem>
           </ToggleGroup>
         </div>
-        <FormField label={b.pointsAmount} className="w-40">
+        <FormField
+          label={b.pointsAmount}
+          hint={format(kind === 'BONUS' ? b.pointsRoom : b.pointsAvailable, {
+            current,
+            max: limit,
+          })}
+          error={amountError}
+          className="w-64"
+        >
           {(id) => (
             <Input
               id={id}
               type="number"
               min={1}
-              max={100}
+              max={limit}
               value={amount}
               onChange={(ev) => setAmount(ev.target.value)}
+              aria-invalid={amountError !== null}
               required
             />
           )}

@@ -24,9 +24,11 @@ with a plain explanation, the score "N / 100" and an explicit action row:
   "Вернуть смену в расчёт".
 - Any other evaluated shift has "Начислить баллы" and "Снять баллы" (also in the footer of the
   employee card and as "Начислить или снять баллы" in the ⋯ row menu). The dialog is preset to a
-  reward or a violation: amount (1–100), a reason from the directory and a comment. Points apply
-  to the shift score as a whole (capped at 100); "Дополнительно" binds them to one criterion. A
-  penalty above the threshold (10 points) waits for a second manager's approval.
+  reward or a violation: the amount is limited by the room left (a shift at 80 accepts at most 20
+  more; a penalty at most the current score) and the form says so under the field; a reason from
+  the directory and a comment. "Начислить баллы" is not offered for a shift at 100 and "Снять
+  баллы" not for one at 0. "Дополнительно" binds the points to one criterion. A penalty above
+  the threshold (10 points) waits for a second manager's approval.
 - Adjustments are listed in the card with "Изменить" and "Удалить" buttons while the period is
   open; a deleted one stays in the history as "Удалена" and the score is recomputed.
 - "Расшифровка" shows the criteria with their basis; "Пересчитать" recomputes.

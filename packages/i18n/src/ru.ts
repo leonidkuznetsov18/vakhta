@@ -934,6 +934,10 @@ export const ru: Messages = {
       ],
       reviewReason: 'Применимо только {applicable} из 100 баллов; не применимы: {missing}.',
       closedActions: 'Период закрыт: баллы этой смены подтверждены и не меняются.',
+      maxReached: 'У смены максимум: 100 баллов.',
+      pointsLimit: 'Введите целое число от 1 до {max}.',
+      pointsRoom: 'Сейчас {current} из 100: можно начислить не больше {max}.',
+      pointsAvailable: 'Сейчас {current} из 100: можно снять не больше {max}.',
     },
     reports: {
       kinds: {

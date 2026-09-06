@@ -93,6 +93,7 @@ function version(status: string, assignmentsCount = 1) {
     changeReason: null,
     createdAt: '2026-09-01T00:00:00.000Z',
     assignmentsCount,
+    deletable: status === 'DRAFT' || status === 'SUPERSEDED',
   };
 }
 

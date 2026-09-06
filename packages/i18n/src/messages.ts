@@ -757,6 +757,13 @@ export interface Messages {
       /** Placeholders: {applicable}, {missing} */
       readonly reviewReason: string;
       readonly closedActions: string;
+      readonly maxReached: string;
+      /** Placeholder: {max} */
+      readonly pointsLimit: string;
+      /** Placeholders: {current}, {max} — room left up to 100 for a reward. */
+      readonly pointsRoom: string;
+      /** Placeholders: {current}, {max} — points that can be taken from the shift. */
+      readonly pointsAvailable: string;
     };
     readonly reports: {
       readonly kinds: Readonly<

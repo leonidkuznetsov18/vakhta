@@ -936,6 +936,10 @@ export const uk: Messages = {
       ],
       reviewReason: 'Застосовно лише {applicable} зі 100 балів; не застосовні: {missing}.',
       closedActions: 'Період закрито: бали цієї зміни підтверджені й не змінюються.',
+      maxReached: 'У зміни максимум: 100 балів.',
+      pointsLimit: 'Введіть ціле число від 1 до {max}.',
+      pointsRoom: 'Зараз {current} зі 100: можна нарахувати не більше {max}.',
+      pointsAvailable: 'Зараз {current} зі 100: можна зняти не більше {max}.',
     },
     reports: {
       kinds: {
