@@ -49,6 +49,10 @@ save button stays disabled until something changed; ⓘ icons carry hints (tap o
 clickable element shows a pointer cursor and a hover state; filters, tabs and drafts survive a page
 reload; the URL keeps the section.
 
+The browser tab is named after the section ("График · Вахта", "Вход · Вахта"), and the panel and
+the kiosk share one icon: a 24-hour dial with the day shift in amber and the night shift dotted
+(`public/favicon.svg` plus PNG sizes and a web manifest for home-screen installs).
+
 Keyboard: a dialog or side panel opens with the caret in its first field (an ⓘ tip never grabs
 the focus, so no tooltip pops up on open); Enter submits a form when its button is enabled,
 Ctrl+Enter (⌘+Enter) submits from inside a comment box, including the confirmation dialogs;

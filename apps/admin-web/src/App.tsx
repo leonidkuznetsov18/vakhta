@@ -161,6 +161,10 @@ export function App() {
   const { me } = state;
   const primaryRole = ROLE_ORDER.find((r) => me.roles.some((g) => g.role === r)) ?? null;
   const title = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];
+  useEffect(() => {
+    // The browser tab names the section, so several open tabs of the panel are told apart.
+    document.title = `${title} · ${t.admin.productName}`;
+  }, [title, t.admin.productName]);
   const version = import.meta.env['VITE_APP_VERSION'];
   const Page = active === 'profile' || active === 'overview' ? null : PAGES[active];
 

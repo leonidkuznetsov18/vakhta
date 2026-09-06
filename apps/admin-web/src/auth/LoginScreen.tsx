@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { isBlank } from '@/lib/forms';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,11 @@ interface Props {
 
 /** Two-step sign-in: password, then TOTP when the user has the second factor enabled. */
 export function LoginScreen({ onSignedIn, offline }: Props) {
+  const productName = messages(currentLocale()).admin.productName;
+  const signInTitle = messages(currentLocale()).admin.auth.signInTitle;
+  useEffect(() => {
+    document.title = `${signInTitle} · ${productName}`;
+  }, [signInTitle, productName]);
   const [step, setStep] = useState<'password' | 'totp'>('password');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

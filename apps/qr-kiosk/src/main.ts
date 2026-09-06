@@ -32,7 +32,7 @@ const locale = resolveLocale(
 );
 const t = messages(locale);
 document.documentElement.lang = locale;
-document.title = `${t.admin.productName} · ${t.kiosk.title}`;
+document.title = `${t.kiosk.title} · ${t.admin.productName}`;
 const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
 const TOKEN_KEY = 'vakhta.kiosk.deviceToken';
 
