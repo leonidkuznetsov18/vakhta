@@ -50,7 +50,7 @@ export const EnvSchema = z.object({
   PRESENCE_DEPART_AFTER_MINUTES: z.coerce.number().int().positive().default(180),
   /** Ліміти тимчасових станів і поріг ескалації простою (ТЗ 18 п. 5, 9). */
   BREAK_MINUTES: z.coerce.number().int().positive().default(15),
-  MEAL_MINUTES: z.coerce.number().int().positive().default(30),
+  MEAL_MINUTES: z.coerce.number().int().positive().default(60),
   SERVICE_TIME_MINUTES: z.coerce.number().int().positive().default(30),
   DOWNTIME_ESCALATION_MINUTES: z.coerce.number().int().positive().default(15),
   /** Пільгове вікно запізнення й раннього відходу; вікно раннього старту без переробки (ТЗ 6.1). */
