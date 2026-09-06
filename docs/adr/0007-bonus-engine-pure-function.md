@@ -1,21 +1,21 @@
-# ADR-0007: Bonus engine як чиста функція над журналом
+# ADR-0007: Bonus engine as a pure function over the log
 
-- Статус: запропоновано
-- Дата: 2026-09-05
-- Джерела в ТЗ: 7, NFR-07, AC-13…AC-15, T-14…T-22, T-34, T-35
+- Status: proposed
+- Date: 2026-09-05
+- Spec sources: 7, NFR-07, AC-13…AC-15, T-14…T-22, T-34, T-35
 
-## Контекст
+## Context
 
-Бонус має бути детермінованим, відтворюваним, прозорим для працівника і незалежним від тривалості простоїв та повідомлень про небезпеку. Правила версіонуються і не застосовуються заднім числом.
+The bonus must be deterministic, reproducible, transparent to the employee and independent of downtime duration and safety reports. Rules are versioned and never applied retroactively.
 
-## Рішення
+## Decision
 
-Правила лежать у `bonus_rule_versions` як JSON із датою дії; у коді є типізована форма `BonusRules` і рекомендовані значення ТЗ. Розрахунок `scoreShift(rules, criteriaResults)` у `packages/domain/bonus` є чистою функцією: критерії зі статусами earned, missed, not_applicable, pending, appealed, confirmed; N/A виключається зі знаменника; менше 60 застосовних балів забороняє автоматичний підсумок. Збирання входів із журналу і таблиць рішень робить модуль `bonus`, результат зберігається з хешем входів. Перерахунок запускають події: закриття зміни, корекція, рішення по передачі, закриття інциденту, апеляція, підтверджена переробка, системний інцидент.
+Rules live in `bonus_rule_versions` as JSON with an effective date; the code has the typed form `BonusRules` and the recommended spec values. The calculation `scoreShift(rules, criteriaResults)` in `packages/domain/bonus` is a pure function: criteria with statuses earned, missed, not_applicable, pending, appealed, confirmed; N/A is excluded from the denominator; fewer than 60 applicable points forbids an automatic total. Collecting inputs from the log and decision tables is done by the `bonus` module; the result is stored with an input hash. Recompute is triggered by events: shift close, correction, handover decision, incident close, appeal, approved overtime, system incident.
 
-## Наслідки
+## Consequences
 
-Один і той самий журнал за однією версією правил завжди дає той самий результат. Зміна ваг чи порогів є новою версією, а не правкою. Ручне коригування є окремим записом із причиною, автором і другим підтвердженням понад поріг.
+The same log under the same rules version always gives the same result. Changing weights or thresholds is a new version, not an edit. A manual adjustment is a separate record with a reason, an author and a second approval above the threshold.
 
-## Відхилені варіанти
+## Rejected alternatives
 
-Розрахунок SQL-в'юхами: важко версіонувати і тестувати. Зберігання лише підсумку без критеріїв: працівник не бачить підстави зниження, апеляція неможлива.
+Calculation in SQL views: hard to version and test. Storing only the total without criteria: the employee cannot see the basis of a reduction, an appeal is impossible.

@@ -1,21 +1,21 @@
-# ADR-0001: Журнал подій із транзакційними проєкціями
+# ADR-0001: Event log with transactional projections
 
-- Статус: запропоновано
-- Дата: 2026-09-05
-- Джерела в ТЗ: 4, 4.5, 11, FR-COR-03, NFR-07, AC-16, AC-18
+- Status: proposed
+- Date: 2026-09-05
+- Spec sources: 4, 4.5, 11, FR-COR-03, NFR-07, AC-16, AC-18
 
-## Контекст
+## Context
 
-ТЗ вимагає, щоб серверний журнал подій був джерелом істини, події не редагувались, виправлення створювало компенсуючий запис, а розрахунки часу й бонусу відтворювались з журналу. Водночас панель має показувати той самий стан, що й бот, не пізніше ніж за 5 секунд, а інваріанти зміни (рівно один активний інтервал) мають триматись жорстко.
+The spec requires the server event log to be the source of truth, events to never be edited, a fix to create a compensating record, and time and bonus calculations to be reproducible from the log. At the same time the panel must show the same state as the bot within 5 seconds, and shift invariants (exactly one active interval) must hold strictly.
 
-## Рішення
+## Decision
 
-Кожна зміна стану в одній транзакції PostgreSQL: додає рядок у `domain_events` (append-only, тригери забороняють UPDATE і DELETE) і оновлює таблиці поточного стану (`shift_sessions`, `activity_intervals`, `presence_sessions`, `handover_records`). Агрегати (`shift_summaries`, звіти) є проєкціями, які можна перерахувати з журналу. Повний event sourcing з асинхронними проєкціями не застосовується.
+Every state change happens in one PostgreSQL transaction: it appends a row to `domain_events` (append-only, triggers forbid UPDATE and DELETE) and updates the current-state tables (`shift_sessions`, `activity_intervals`, `presence_sessions`, `handover_records`). Aggregates (`shift_summaries`, reports) are projections that can be recomputed from the log. Full event sourcing with asynchronous projections is not used.
 
-## Наслідки
+## Consequences
 
-Стан завжди узгоджений із журналом на момент коміту, тому AC-18 виконується за побудовою. Інваріанти можна тримати обмеженнями бази. Перерахунок з журналу лишається можливим для NFR-07 і для аудиту. Ціна: кожен запис стану має проходити через єдиний шар application services, а не через прямі UPDATE.
+The state is always consistent with the log at commit time, so AC-18 holds by construction. Invariants can be kept as database constraints. Recomputing from the log remains possible for NFR-07 and for audit. The price: every state write must go through the single application-services layer, never through direct UPDATEs.
 
-## Відхилені варіанти
+## Rejected alternatives
 
-Повний event sourcing з окремими проєкціями: eventual consistency суперечить «панель = бот», ускладнює інваріанти. CRUD без журналу: втрачає незмінність і відтворюваність.
+Full event sourcing with separate projections: eventual consistency contradicts "panel = bot" and complicates invariants. CRUD without a log: loses immutability and reproducibility.

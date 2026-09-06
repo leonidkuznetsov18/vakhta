@@ -1,21 +1,21 @@
-# ADR-0002: FSM зміни як таблиця переходів, інваріанти продубльовано в базі
+# ADR-0002: Shift FSM as a transition table, invariants duplicated in the database
 
-- Статус: запропоновано
-- Дата: 2026-09-05
-- Джерела в ТЗ: 4.3, 4.4, 4.5, AC-05, AC-07, AC-09, T-07, T-08, T-12, T-13
+- Status: proposed
+- Date: 2026-09-05
+- Spec sources: 4.3, 4.4, 4.5, AC-05, AC-07, AC-09, T-07, T-08, T-12, T-13
 
-## Контекст
+## Context
 
-Переходи станів зміни описані в ТЗ таблицею з умовами та ефектами. Помилка в цій логіці ламає облік часу, простої, передачу і бонус одночасно. Логіка має бути перевірюваною без бази і Telegram.
+Shift state transitions are described in the spec as a table with conditions and effects. A mistake in this logic breaks time accounting, downtime, handover and the bonus at once. The logic must be testable without the database and Telegram.
 
-## Рішення
+## Decision
 
-Переходи живуть у `packages/domain/shift-fsm` як дані: пари `(action, from) → { to, guard, effects, resume }`. Чиста функція `transition(snapshot, action, ctx)` не читає час і не пише нікуди. Property-тести перевіряють, що жодна послідовність дій не дає двох відкритих інтервалів, розривів чи перетинів. У базі ті самі інваріанти: partial unique на відкриту зміну працівника, partial unique на відкритий інтервал, exclusion constraint на перетин `tstzrange`.
+Transitions live in `packages/domain/shift-fsm` as data: pairs `(action, from) → { to, guard, effects, resume }`. The pure function `transition(snapshot, action, ctx)` reads no clock and writes nowhere. Property tests verify that no sequence of actions yields two open intervals, gaps or overlaps. The database holds the same invariants: a partial unique index on the employee's open shift, a partial unique index on the open interval, an exclusion constraint on overlapping `tstzrange`.
 
-## Наслідки
+## Consequences
 
-Зміна правил переходу є зміною даних і тестів, а не розкиданого коду. Якщо застосунок помилиться, база відмовить. Застосунок зобов'язаний виконувати ефекти переходу (таймери, чернетка передачі, знецінення звіту) у тій самій транзакції.
+Changing the transition rules is a change of data and tests, not of scattered code. If the application makes a mistake, the database refuses. The application is obliged to execute transition effects (timers, handover draft, report invalidation) in the same transaction.
 
-## Відхилені варіанти
+## Rejected alternatives
 
-Бібліотека state machine з власною моделлю: додає залежність без користі, бо машина мала й специфічна. Логіка в обробниках бота: неможливо тестувати і повторно використати в панелі.
+A state-machine library with its own model: adds a dependency without benefit, because the machine is small and specific. Logic inside bot handlers: impossible to test and to reuse in the panel.

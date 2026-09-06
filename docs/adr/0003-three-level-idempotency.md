@@ -1,21 +1,21 @@
-# ADR-0003: Ідемпотентність на трьох рівнях
+# ADR-0003: Idempotency on three levels
 
-- Статус: запропоновано
-- Дата: 2026-09-05
-- Джерела в ТЗ: FR-UI-02, FR-QR-03, 12.2, 12.3, NFR-04, T-03, T-07, T-09, T-10
+- Status: proposed
+- Date: 2026-09-05
+- Spec sources: FR-UI-02, FR-QR-03, 12.2, 12.3, NFR-04, T-03, T-07, T-09, T-10
 
-## Контекст
+## Context
 
-Telegram може доставити оновлення повторно, користувач може натиснути кнопку двічі, клієнт може втратити відповідь. Жодне підтверджене дію не можна загубити чи продублювати.
+Telegram may deliver an update twice, a user may press a button twice, a client may lose the response. No confirmed action may be lost or duplicated.
 
-## Рішення
+## Decision
 
-Три рівні. Telegram: таблиця `processed_telegram_updates(update_id)`, для кнопок ключем є `callback_query_id`. Команда: `idempotency_keys(scope, key)` зі збереженою відповіддю; повтор повертає її без виконання. Стан: `expected_version` на `shift_sessions`, версія кодується в callback data кнопки; застаріла кнопка повертає актуальний екран без зміни. Усі три перевіряються всередині транзакції переходу після блокування рядка.
+Three levels. Telegram: the `processed_telegram_updates(update_id)` table; for buttons the key is `callback_query_id`. Command: `idempotency_keys(scope, key)` with the stored response; a repeat returns it without executing. State: `expected_version` on `shift_sessions`, the version is encoded in the button callback data; a stale button returns the current screen without a change. All three are checked inside the transition transaction after the row is locked.
 
-## Наслідки
+## Consequences
 
-Повторна доставка, подвійний клік і втрачена відповідь дають один і той самий результат. Callback data обмежена 64 байтами, тому кодуються лише код дії, короткий id і версія. Таблицю ключів ідемпотентності треба чистити за строком зберігання.
+Redelivery, a double click and a lost response produce the same result. Callback data is limited to 64 bytes, so only the action code, a short id and the version are encoded. The idempotency key table must be cleaned by retention.
 
-## Відхилені варіанти
+## Rejected alternatives
 
-Лише дедуплікація update_id: не покриває дії з панелі та повтори команд. Блокування без версії: не дає зрозумілої відповіді на застарілу кнопку.
+Only update_id deduplication: does not cover panel actions and command repeats. Locking without a version: gives no meaningful reply to a stale button.

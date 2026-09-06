@@ -1,21 +1,21 @@
-# ADR-0009: RBAC з областю даних і ізоляцією медичних документів
+# ADR-0009: RBAC with a data scope and isolation of medical documents
 
-- Статус: запропоновано
-- Дата: 2026-09-05
-- Джерела в ТЗ: 2, FR-AUTH-03, FR-REQ-02, FR-WEB-04, 13, T-39, AC-18
+- Status: proposed
+- Date: 2026-09-05
+- Spec sources: 2, FR-AUTH-03, FR-REQ-02, FR-WEB-04, 13, T-39, AC-18
 
-## Контекст
+## Context
 
-Дев'ять ролей з різним обсягом даних: майстер бачить лише свою область, HR окремо отримує кадрові й медичні дані, бухгалтерія лише підтверджені агрегати, аудитор лише читання.
+Nine roles with different data volumes: the shift master sees only their scope, HR separately receives personnel and medical data, accounting only confirmed aggregates, the auditor read only.
 
-## Рішення
+## Decision
 
-`web_user_roles(user_id, role, scope_type, scope_id)`, де scope є майданчиком, підрозділом, бригадою або зоною. Кожен запит панелі проходить через фільтр області, який додає предикати до запитів. Медичні документи лежать в окремій таблиці з доступом лише для HR; кожен перегляд пишеться в аудит. Заборонений доступ логується. Автентифікація панелі: пароль + TOTP або корпоративний OIDC.
+`web_user_roles(user_id, role, scope_type, scope_id)`, where the scope is a site, a unit, a team or a zone. Every panel request passes through a scope filter that adds predicates to queries. Medical documents live in a separate table with access only for HR; every view is audited. Denied access is logged. Panel authentication: password + TOTP or corporate OIDC.
 
-## Наслідки
+## Consequences
 
-Одна модель прав для всіх розділів панелі. Додавання ролі є даними, а не кодом. Потрібно тестувати кожен ендпоінт на витік за межі області.
+One permission model for all panel sections. Adding a role is data, not code. Every endpoint must be tested for leaks outside the scope.
 
-## Відхилені варіанти
+## Rejected alternatives
 
-Row-level security в PostgreSQL: сильна гарантія, але складніше налагоджувати і поєднувати з пулом з'єднань; можливо повернутись до неї після MVP.
+Row-level security in PostgreSQL: a strong guarantee, but harder to debug and to combine with a connection pool; may be revisited after the MVP.

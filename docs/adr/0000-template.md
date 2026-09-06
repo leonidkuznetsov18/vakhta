@@ -1,21 +1,21 @@
-# ADR-NNNN: Назва рішення
+# ADR-NNNN: Decision title
 
-- Статус: запропоновано | прийнято | замінено ADR-XXXX
-- Дата: YYYY-MM-DD
-- Джерела в ТЗ: розділи або вимоги, на які спирається рішення
+- Status: proposed | accepted | superseded by ADR-XXXX
+- Date: YYYY-MM-DD
+- Spec sources: sections or requirements the decision relies on
 
-## Контекст
+## Context
 
-Що змушує приймати рішення. Обмеження з ТЗ, команди, інфраструктури.
+What forces the decision. Constraints from the spec, the team, the infrastructure.
 
-## Рішення
+## Decision
 
-Що саме вирішено. Одним-двома абзацами, без варіантів.
+What exactly was decided. One or two paragraphs, no alternatives.
 
-## Наслідки
+## Consequences
 
-Що стає простішим, що складнішим, що потрібно пам'ятати при реалізації. Які вимоги або тести це закриває.
+What becomes simpler, what becomes harder, what to keep in mind during implementation. Which requirements or tests it closes.
 
-## Відхилені варіанти
+## Rejected alternatives
 
-Коротко: варіант і причина відмови.
+Briefly: the alternative and the reason it was rejected.

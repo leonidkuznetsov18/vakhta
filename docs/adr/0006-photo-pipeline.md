@@ -1,21 +1,21 @@
-# ADR-0006: Фото-пайплайн у воркері з приватним сховищем
+# ADR-0006: Photo pipeline in the worker with private storage
 
-- Статус: запропоновано
-- Дата: 2026-09-05
-- Джерела в ТЗ: 5.7, 12.2, 13, FR-PHO-02…06, T-24…T-26, T-39
+- Status: proposed
+- Date: 2026-09-05
+- Spec sources: 5.7, 12.2, 13, FR-PHO-02…06, T-24…T-26, T-39
 
-## Контекст
+## Context
 
-Фото є доказовою базою передачі зони, але Telegram не гарантує момент зйомки, а файли не можна віддавати публічними URL. Потрібні технічна перевірка якості і виявлення повторів, які не мають автоматично карати.
+Photos are the evidence base of a zone handover, but Telegram does not guarantee the capture moment, and files cannot be served through public URLs. A technical quality check and repeat detection are needed, and they must not punish automatically.
 
-## Рішення
+## Decision
 
-Webhook зберігає лише `file_id` і `file_unique_id` та ставить job у чергу `media`. Воркер завантажує файл через `getFile`, кладе у приватний бакет S3-сумісного сховища, рахує розміри, яскравість, SHA-256 і перцептивний хеш, шукає точні й близькі дублі і ставить `quality_status`. Підозра переводить фото на ручну перевірку і не знімає балів. Видача лише через presigned GET з TTL 5 хвилин; кожен перегляд і вивантаження пишуться в аудит.
+The webhook stores only `file_id` and `file_unique_id` and puts a job into the `media` queue. The worker downloads the file through `getFile`, puts it into a private bucket of an S3-compatible store, computes dimensions, brightness, SHA-256 and a perceptual hash, looks for exact and near duplicates and sets `quality_status`. A suspicion moves the photo to manual review and does not reduce the score. Delivery only through a presigned GET with a 5-minute TTL; every view and export is audited.
 
-## Наслідки
+## Consequences
 
-Webhook лишається швидким. Чернетка передачі з уже завантаженими фото переживає обрив на третьому фото. Потрібна ретенція медіа з юридичною блокадою видалення. Суворіший режим зйомки можливий через Mini App на наступному етапі.
+The webhook stays fast. A handover draft with already uploaded photos survives a disconnect on the third photo. Media retention with a legal hold on deletion is required. A stricter capture mode is possible through a Mini App at a later stage.
 
-## Відхилені варіанти
+## Rejected alternatives
 
-Синхронне завантаження у webhook: повільно, ламає p95 ≤ 2 с. Зберігання лише `file_id` у Telegram: файл може зникнути, доступ не контролюється.
+Synchronous download in the webhook: slow, breaks p95 ≤ 2 s. Storing only the Telegram `file_id`: the file may disappear, access is not controlled.

@@ -1,21 +1,21 @@
-# ADR-0005: Час у UTC, планові інстанти за IANA tz майданчика
+# ADR-0005: Time in UTC, planned instants in the site's IANA time zone
 
-- Статус: запропоновано
-- Дата: 2026-09-05
-- Джерела в ТЗ: 6.1, NFR-11, AC-06, T-01
+- Status: proposed
+- Date: 2026-09-05
+- Spec sources: 6.1, NFR-11, AC-06, T-01
 
-## Контекст
+## Context
 
-Нічна зміна проходить через північ і двічі на рік через перехід часу. Час телефона не можна використовувати. Ділова дата зміни є датою початку.
+The night shift crosses midnight and, twice a year, a DST switch. Phone time cannot be trusted. The business date of a shift is its start date.
 
-## Рішення
+## Decision
 
-Усі моменти в базі `timestamptz`. У майданчика зберігається IANA tz. При публікації версії графіка планові початок і кінець обчислюються з локального часу шаблону і tz майданчика функцією `planInstants` у `packages/domain/time`; ділова дата дорівнює локальній даті початку. Нічна зміна в ніч переходу триває 11 або 13 годин, як і насправді. `occurred_at` завжди серверний. Локальний час і зміщення показуються лише в інтерфейсі.
+Every instant in the database is `timestamptz`. A site stores its IANA time zone. When a schedule version is published, planned start and end are computed from the template's local time and the site time zone by `planInstants` in `packages/domain/time`; the business date equals the local start date. A night shift on the switch night lasts 11 or 13 hours, as in reality. `occurred_at` is always server time. Local time and the offset are shown only in the interface.
 
-## Наслідки
+## Consequences
 
-DST враховано в одному місці й покрито тестами. Порівняння і сортування в базі коректні незалежно від майданчиків. Планові часи не можна зберігати як «08:00» без дати.
+DST is handled in one place and covered by tests. Comparisons and sorting in the database are correct regardless of sites. Planned times cannot be stored as "08:00" without a date.
 
-## Відхилені варіанти
+## Rejected alternatives
 
-Локальний час без зміщення в базі: неоднозначний у ніч переходу. Обчислення планів «на льоту» при кожному запиті: різні результати за різних версій tz-бази.
+Local time without an offset in the database: ambiguous on the switch night. Computing plans on the fly per request: different results under different versions of the tz database.

@@ -1,21 +1,21 @@
-# ADR-0010: Реальний час через SSE і Redis pub/sub
+# ADR-0010: Real time through SSE and Redis pub/sub
 
-- Статус: запропоновано
-- Дата: 2026-09-05
-- Джерела в ТЗ: FR-WEB-01, NFR-03, NFR-06, T-40
+- Status: proposed
+- Date: 2026-09-05
+- Spec sources: FR-WEB-01, NFR-03, NFR-06, T-40
 
-## Контекст
+## Context
 
-Оперативний екран має відображати підтверджену подію не пізніше ніж за 5 секунд при кількох stateless-інстансах API.
+The live screen must reflect a confirmed event within 5 seconds with several stateless API instances.
 
-## Рішення
+## Decision
 
-Після коміту транзакції API публікує коротку подію в канал Redis `site:<id>`. SSE-хаб у кожному інстансі підписаний на канал і роздає події клієнтам панелі, фільтруючи за областю доступу. Клієнт інвалідовує кешовані запити. Резервний режим: polling кожні 5 секунд.
+After the transaction commits, the API publishes a short event to the Redis channel `site:<id>`. The SSE hub in every instance is subscribed to the channel and fans events out to panel clients, filtering by access scope. The client invalidates cached queries. Fallback mode: polling every 5 seconds.
 
-## Наслідки
+## Consequences
 
-Трафік односторонній, WebSocket не потрібен. Пропуск повідомлення pub/sub не втрачає даних, бо клієнт перечитує стан. Потрібен алерт на відставання SSE.
+Traffic is one-way, no WebSocket needed. A missed pub/sub message loses no data because the client re-reads the state. An alert on SSE lag is needed.
 
-## Відхилені варіанти
+## Rejected alternatives
 
-WebSocket: двонаправленість не потрібна, складніше за проксі. Лише polling: 5 секунд затримки для всіх і зайве навантаження.
+WebSocket: bidirectionality is not needed, harder behind proxies. Polling only: 5 seconds of delay for everyone and needless load.

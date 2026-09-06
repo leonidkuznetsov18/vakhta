@@ -1,21 +1,21 @@
-# ADR-0011: Бот без стану в сесії, екран рендериться сервером
+# ADR-0011: Stateless bot, the screen is rendered by the server
 
-- Статус: запропоновано
-- Дата: 2026-09-05
-- Джерела в ТЗ: 5.1, FR-UI-01…03, T-26, NFR-08
+- Status: proposed
+- Date: 2026-09-05
+- Spec sources: 5.1, FR-UI-01…03, T-26, NFR-08
 
-## Контекст
+## Context
 
-Бот має показувати одну контекстну кнопку і не показувати взаємовиключні дії, відповідати серверним часом і новим статусом, витримувати обрив на третьому фото без втрати чернетки.
+The bot must show a single contextual button and hide mutually exclusive actions, answer with server time and the new status, and survive a disconnect on the third photo without losing the draft.
 
-## Рішення
+## Decision
 
-Головний екран описується `ScreenModel`, який сервер обчислює зі стану працівника, призначення, присутності і сесії зміни; бот лише малює текст і inline-клавіатуру з допустимих дій. Повідомлення редагується на місці. Callback data кодує дію, короткий id і версію. Conversations grammY використовуються лише для багатокрокових вводів (причина, коментар, три фото) зі станом у Redis з TTL; кожен крок одразу пишеться в чернетку в Postgres.
+The home screen is described by a `ScreenModel` the server computes from the employee's state, assignment, presence and shift session; the bot only draws the text and an inline keyboard of allowed actions. The message is edited in place. Callback data encodes the action, a short id and the version. grammY conversations are used only for multi-step inputs (reason, comment, three photos) with state in Redis under a TTL; every step is written to the draft in Postgres immediately.
 
-## Наслідки
+## Consequences
 
-Бот і панель показують один стан. Інстанси API взаємозамінні. Обрив під час вводу не втрачає вже збережених кроків. Тексти зібрані в `@vakhta/i18n` з базовою мовою ru.
+The bot and the panel show one state. API instances are interchangeable. A disconnect during input does not lose already saved steps. Texts are collected in `@vakhta/i18n` with `ru` as the base language and `uk`/`en` catalogs of the same shape; the employee's language is stored on the employee record.
 
-## Відхилені варіанти
+## Rejected alternatives
 
-Стан діалогу в пам'яті процесу: ламається на двох інстансах і при рестарті. Mini App як основний інтерфейс: дорожче для MVP, лишається варіантом для суворого режиму камери.
+Dialog state in process memory: breaks with two instances and on restart. A Mini App as the primary interface: more expensive for the MVP, remains an option for the strict camera mode.

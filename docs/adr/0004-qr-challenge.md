@@ -1,21 +1,21 @@
-# ADR-0004: Динамічний QR як короткоживучий challenge
+# ADR-0004: Rotating QR as a short-lived challenge
 
-- Статус: запропоновано
-- Дата: 2026-09-05
-- Джерела в ТЗ: 5.2, 13.1, 18 п. 8, T-02…T-05
+- Status: proposed
+- Date: 2026-09-05
+- Spec sources: 5.2, 13.1, 18 item 8, T-02…T-05
 
-## Контекст
+## Context
 
-QR на контрольній точці має оновлюватись кожні 30–60 с, не містити персональних даних, вміщатись у 64 символи start-параметра і застосовуватись один раз на пару працівник + зміна. ТЗ чесно визнає, що QR не замінює СКУД.
+The QR at the checkpoint must rotate every 30-60 s, contain no personal data, fit into the 64-character start parameter and be usable once per employee + shift pair. The spec honestly admits that the QR does not replace an access-control system.
 
-## Рішення
+## Decision
 
-Термінал із device token запитує challenge кожні `QR_ROTATION_SECONDS`. Challenge: 16 випадкових байтів у base64url (22 символи). У базі лише SHA-256 токена, термінал, час видачі і `expires_at` з TTL 90–120 с, тому два вікна ротації перекриваються. Використання пишеться в `qr_challenge_uses` з унікальністю `(employee_id, assignment_id, action)`. Підмінений токен не знаходить хешу і створює подію безпеки. Аномалії (один challenge з двох чатів за секунди, різні термінали за короткий час) ескалюються майстру.
+The terminal with a device token requests a challenge every `QR_ROTATION_SECONDS`. The challenge: 16 random bytes in base64url (22 characters). The database keeps only the SHA-256 of the token, the terminal, the issue time and `expires_at` with a 90-120 s TTL, so two rotation windows overlap. Usage is written to `qr_challenge_uses` with uniqueness on `(employee_id, assignment_id, action)`. A tampered token finds no hash and creates a security event. Anomalies (one challenge from two chats within seconds, different terminals within a short time) are escalated to the shift master.
 
-## Наслідки
+## Consequences
 
-Персональних даних у QR немає. Кілька працівників можуть використати один QR. Повтор того самого працівника повертає перший результат. Термінал є окремим клієнтом `apps/qr-kiosk`, який треба реєструвати і адмініструвати.
+There is no personal data in the QR. Several employees may use one QR. A repeat by the same employee returns the first result. The terminal is a separate client `apps/qr-kiosk` that must be registered and administered.
 
-## Відхилені варіанти
+## Rejected alternatives
 
-Статичний QR: тривіально пересилається. Підписаний JWT у QR: довший за 64 символи і нічого не додає при серверній перевірці.
+A static QR: trivially forwarded. A signed JWT in the QR: longer than 64 characters and adds nothing when the server verifies anyway.
