@@ -1,3 +1,9 @@
+## [0.9.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.8.0...v0.9.0) (2026-09-06)
+
+### Features
+
+* **schedule:** "Change the schedule" on a published version creates a draft copy to edit ([a0223a1](https://github.com/leonidkuznetsov18/vakhta/commit/a0223a1891842304158a3ad26c68a518e6f4d83d))
+
 ## [0.8.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.7.1...v0.8.0) (2026-09-06)
 
 ### Features
