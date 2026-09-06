@@ -1,3 +1,13 @@
+## [0.12.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.11.0...v0.12.0) (2026-09-06)
+
+### Features
+
+* **ci:** announce every published release in the Telegram group ([40c8095](https://github.com/leonidkuznetsov18/vakhta/commit/40c80958942951ecd65f5601aaf003eaf519ad9c))
+
+### Bug fixes
+
+* **ci:** plain link placeholders in the Telegram release script ([df9408e](https://github.com/leonidkuznetsov18/vakhta/commit/df9408eb7bea3782abb5a958a7ec7e02bf5dec09))
+
 ## [0.11.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.10.0...v0.11.0) (2026-09-06)
 
 ### Features
