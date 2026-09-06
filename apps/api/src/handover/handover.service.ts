@@ -374,7 +374,7 @@ export class HandoverService {
       return { ok: true, handover: await this.view(tx, draft.id), transition };
     });
     if (result.ok) {
-      await this.shift.settle(result.transition, deferred);
+      await this.shift.settle(result.transition, deferred, source);
       if (scheduled) {
         const { id, deadline } = scheduled;
         await this.timers.scheduleHandoverTimeout(id, deadline);

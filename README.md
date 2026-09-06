@@ -53,6 +53,7 @@ pnpm --filter qr-kiosk dev
 The product speaks Ukrainian, English and Russian; the catalogs live in `packages/i18n` (`uk.ts`, `en.ts`, `ru.ts`) with one typed shape, and `catalogs.test.ts` fails if a key or a placeholder diverges. The base language per NFR-08 is `ru`.
 
 - **Bot.** The language is stored per employee (`employees.locale`). At the first Telegram link it is taken from the Telegram client language; `/language` or the 🌐 button on the home screen changes it. Every screen and every notification is rendered through the catalog of the recipient.
+- **Screen refresh.** When a shift changes outside the bot (a master action in the panel, a terminal, a timer), the API sends the employee a fresh home screen as a new message: `ShiftChanges` carries the `source` of every change, `HomeScreenPusher` in `apps/api/src/telegram` skips `TELEGRAM` and coalesces the changes of one employee within 1.5 s, and `renderHomeScreen` is the same function the bot uses for its own redraws.
 - **Panel.** The switcher on the login screen and in the navigation stores the choice in `localStorage` and reloads the page; every request carries `x-locale`, so report exports and incident statistics come back in the same language.
 - **Kiosk.** `?lang=uk|en|ru` in the URL, otherwise the browser language.
 - **API.** `DomainError` messages are English developer text; clients localize by the stable `code`.

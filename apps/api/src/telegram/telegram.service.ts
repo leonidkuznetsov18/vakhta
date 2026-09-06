@@ -11,6 +11,7 @@ import { DEFAULT_LOCALE, LOCALES } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import type { Bot } from 'grammy';
 import type { Update } from 'grammy/types';
+import type { Subscription } from 'rxjs';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { telegramMode, type Env } from '../config/env.js';
 import { ActivationService } from '../identity/activation.service.js';
@@ -22,9 +23,11 @@ import { IncidentsService } from '../incidents/incidents.service.js';
 import { BonusService } from '../bonus/bonus.service.js';
 import { RequestsService } from '../requests/requests.service.js';
 import { SHORT_TERM_STORE, type ShortTermStore } from '../infra/short-term-store.js';
+import { ShiftChanges } from '../shift/shift-changes.js';
 import { ShiftService } from '../shift/shift.service.js';
 import type { BotContext } from './bot-context.js';
-import { createBot } from './bot.factory.js';
+import { createBot, renderHomeScreen, type HomeScreenDeps } from './bot.factory.js';
+import { HomeScreenPusher } from './home-pusher.js';
 import { UpdateDedup } from './update-dedup.js';
 
 /**
@@ -36,6 +39,9 @@ import { UpdateDedup } from './update-dedup.js';
 export class TelegramService implements OnModuleInit, OnApplicationShutdown {
   private bot: Bot<BotContext> | null = null;
   private polling = false;
+  private homeDeps: HomeScreenDeps | null = null;
+  private pusher: HomeScreenPusher | null = null;
+  private changesSubscription: Subscription | null = null;
   private readonly logger;
 
   constructor(
@@ -51,6 +57,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     private readonly bonus: BonusService,
     @Inject(SHORT_TERM_STORE) private readonly store: ShortTermStore,
     private readonly dedup: UpdateDedup,
+    private readonly changes: ShiftChanges,
   ) {
     this.logger = createLogger({
       LOG_LEVEL: this.config.get('LOG_LEVEL', { infer: true }),
@@ -83,6 +90,23 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     });
     await bot.init();
     this.bot = bot;
+    this.homeDeps = {
+      schedule: this.schedule,
+      attendance: this.attendance,
+      shift: this.shift,
+      handover: this.handover,
+      requests: this.requests,
+      defaultTimezone: this.config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
+      helpUrl: this.config.get('USER_GUIDE_URL', { infer: true }) ?? null,
+    };
+    // A shift changed by a master, a terminal or a timer: the employee gets the new screen at once.
+    this.pusher = new HomeScreenPusher(
+      (employeeId) => this.pushHomeScreen(employeeId),
+      this.logger,
+    );
+    this.changesSubscription = this.changes.stream().subscribe((event) => {
+      this.pusher?.onChange(event);
+    });
     await this.registerCommands(bot);
 
     const expectedUsername = this.config.get('TELEGRAM_BOT_USERNAME', { infer: true });
@@ -130,10 +154,32 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
   }
 
   async onApplicationShutdown(): Promise<void> {
+    this.changesSubscription?.unsubscribe();
+    this.pusher?.stop();
     if (this.bot && this.polling) {
       await this.bot.stop();
       this.polling = false;
     }
+  }
+
+  /**
+   * Sends the current home screen to the employee's chat as a new message. Nothing is sent to
+   * employees without an active Telegram link or without access.
+   */
+  async pushHomeScreen(employeeId: string): Promise<void> {
+    if (!this.bot || !this.homeDeps) return;
+    const [employee, link] = await Promise.all([
+      this.employees.getById(employeeId),
+      this.employees.activeLinkByEmployee(employeeId),
+    ]);
+    if (!employee || !link || employee.status !== 'ACTIVE') return;
+    const t = messages(employee.locale ?? DEFAULT_LOCALE);
+    const screen = await renderHomeScreen(this.homeDeps, t, employee);
+    await this.bot.api.sendMessage(
+      link.telegramUserId,
+      screen.text,
+      screen.keyboard ? { reply_markup: screen.keyboard } : undefined,
+    );
   }
 
   get enabled(): boolean {

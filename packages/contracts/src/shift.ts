@@ -187,11 +187,16 @@ export const ActiveShiftsQuery = z.object({
 export type ActiveShiftsQuery = z.infer<typeof ActiveShiftsQuery>;
 
 /** Подія для SSE оперативного екрана: панель перечитує список. */
+export const ChangeSourceSchema = z.enum(['TELEGRAM', 'WEB', 'TERMINAL', 'SYSTEM', 'INTEGRATION']);
+export type ChangeSource = z.infer<typeof ChangeSourceSchema>;
+
 export const ShiftChangedEvent = z.object({
   sessionId: Uuid,
   employeeId: Uuid,
   state: ShiftStateSchema,
   version: ExpectedVersion,
   at: IsoDateTime,
+  /** Who caused the change; the bot redraws its own screen only for changes made elsewhere. */
+  source: ChangeSourceSchema.optional(),
 });
 export type ShiftChangedEvent = z.infer<typeof ShiftChangedEvent>;

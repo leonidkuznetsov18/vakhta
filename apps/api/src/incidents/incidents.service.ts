@@ -287,7 +287,7 @@ export class IncidentsService {
         );
         downtimeStarted = transition.ok;
         downtimeError = transition.ok ? null : transition.error;
-        if (transition.ok) deferred.push(() => this.shift.settle(transition, []));
+        if (transition.ok) deferred.push(() => this.shift.settle(transition, [], source));
       }
 
       const response: ReportProblemResult = {

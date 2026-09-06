@@ -375,7 +375,7 @@ export class ShiftService {
       }
       return applied;
     });
-    await this.afterCommit(response, deferred);
+    await this.afterCommit(response, deferred, meta.source);
     return response;
   }
 
@@ -389,7 +389,7 @@ export class ShiftService {
     const response = await this.db.transaction((tx) =>
       this.transitionWithin(tx, employeeId, cmd, meta, deferred),
     );
-    await this.settle(response, deferred);
+    await this.settle(response, deferred, meta.source);
     return response;
   }
 
@@ -418,9 +418,13 @@ export class ShiftService {
     return this.apply(tx, session, cmd, { ...meta, now }, deferred);
   }
 
-  /** Таймери й SSE після коміту; для replay нічого не робить. */
-  async settle(response: TransitionResponse, deferred: DeferredTimer[]): Promise<void> {
-    return this.afterCommit(response, deferred);
+  /** Timers and change events after the commit; a replay does nothing. */
+  async settle(
+    response: TransitionResponse,
+    deferred: DeferredTimer[],
+    source: EventSource,
+  ): Promise<void> {
+    return this.afterCommit(response, deferred, source);
   }
 
   /** Дія майстра з панелі по конкретній сесії; guard-и пропускаються, аудит обовʼязковий. */
@@ -460,7 +464,7 @@ export class ShiftService {
       }
       return result;
     });
-    await this.afterCommit(response, deferred);
+    await this.afterCommit(response, deferred, 'WEB');
     return response;
   }
 
@@ -569,6 +573,7 @@ export class ShiftService {
       state: view.state,
       version: view.version,
       at: now.toISOString(),
+      source: 'WEB',
     });
     return view;
   }
@@ -902,6 +907,7 @@ export class ShiftService {
   private async afterCommit(
     response: TransitionResponse,
     deferred: DeferredTimer[],
+    source: EventSource,
   ): Promise<void> {
     if (!response.ok || response.replayed) return;
     for (const run of deferred) await run();
@@ -911,6 +917,7 @@ export class ShiftService {
       state: response.session.state,
       version: response.session.version,
       at: response.serverTime,
+      source,
     });
   }
 

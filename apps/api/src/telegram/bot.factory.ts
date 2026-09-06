@@ -12,7 +12,7 @@ import {
   resolveLocale,
 } from '@vakhta/domain';
 import { REQUEST_TYPES, SHIFT_ACTIONS, type RequestType, type ShiftAction } from '@vakhta/domain';
-import { format, messages } from '@vakhta/i18n';
+import { format, messages, type Messages } from '@vakhta/i18n';
 import { employeeActor } from '../common/actor.js';
 import type { AttendanceService } from '../attendance/attendance.service.js';
 import type { ActivationService } from '../identity/activation.service.js';
@@ -24,6 +24,7 @@ import type { IncidentsService } from '../incidents/incidents.service.js';
 import type { BonusService } from '../bonus/bonus.service.js';
 import type { RequestsService } from '../requests/requests.service.js';
 import type { ShortTermStore } from '../infra/short-term-store.js';
+import type { EmployeeRecord } from '../identity/employees.service.js';
 import type { BotContext } from './bot-context.js';
 import {
   CALLBACK,
@@ -166,6 +167,50 @@ export interface BotDeps {
   readonly logger: Logger;
 }
 
+/** What the home screen needs; a subset of the bot dependencies so the server can render it too. */
+export type HomeScreenDeps = Pick<
+  BotDeps,
+  'schedule' | 'attendance' | 'shift' | 'handover' | 'requests' | 'defaultTimezone' | 'helpUrl'
+>;
+
+/**
+ * The home screen of an active employee (spec 5.1): the schedule and presence summary, or the
+ * shift screen while a shift is open or can be started. Used by the bot on every redraw and by
+ * the server when the state changed elsewhere (master action, terminal, timer), so the employee
+ * never has to write to the bot to see the new buttons.
+ */
+export async function renderHomeScreen(
+  deps: HomeScreenDeps,
+  t: Messages,
+  employee: EmployeeRecord,
+): Promise<Screen> {
+  const [next, unacknowledged, presence, shiftRaw, pendingHandovers, pendingSwaps] =
+    await Promise.all([
+      deps.schedule.nextShift(employee.id),
+      deps.schedule.unacknowledgedVersions(employee.id),
+      deps.attendance.openPresence(employee.id),
+      deps.shift.screen(employee.id),
+      deps.handover.pendingForReceiver(employee.id),
+      deps.requests.pendingCounterpart(employee.id),
+    ]);
+  const shift = { ...shiftRaw, pendingHandovers: pendingHandovers.length };
+  const timezone = next?.timezone ?? deps.defaultTimezone;
+  const home = homeScreen(t, {
+    employee,
+    next,
+    unacknowledged: unacknowledged.length,
+    presenceSince: presence?.arrivedAt ?? null,
+    timezone,
+    pendingSwaps: pendingSwaps.length,
+    helpUrl: deps.helpUrl ?? null,
+  });
+  // Spec 5.1: during the shift and right after it the home screen is the shift screen.
+  if (shift.session || shift.allowedActions.includes('START_SHIFT')) {
+    return shiftScreen(t, { ...shift, timezone }, home.text);
+  }
+  return home;
+}
+
 /**
  * Builds the grammY bot. No state is kept in process memory (ADR-11): every update resolves
  * the employee by Telegram user_id again, and pending confirmations live in Redis.
@@ -216,31 +261,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         ? welcomeScreen(ctx.t)
         : accessDeniedScreen(ctx.t, ctx.access);
     }
-    const [next, unacknowledged, presence, shiftRaw, pendingHandovers, pendingSwaps] =
-      await Promise.all([
-        deps.schedule.nextShift(ctx.employee.id),
-        deps.schedule.unacknowledgedVersions(ctx.employee.id),
-        deps.attendance.openPresence(ctx.employee.id),
-        deps.shift.screen(ctx.employee.id),
-        deps.handover.pendingForReceiver(ctx.employee.id),
-        deps.requests.pendingCounterpart(ctx.employee.id),
-      ]);
-    const shift = { ...shiftRaw, pendingHandovers: pendingHandovers.length };
-    const timezone = next?.timezone ?? deps.defaultTimezone;
-    const home = homeScreen(ctx.t, {
-      employee: ctx.employee,
-      next,
-      unacknowledged: unacknowledged.length,
-      presenceSince: presence?.arrivedAt ?? null,
-      timezone,
-      pendingSwaps: pendingSwaps.length,
-      helpUrl: deps.helpUrl ?? null,
-    });
-    // Spec 5.1: during the shift and right after it the home screen is the shift screen.
-    if (shift.session || shift.allowedActions.includes('START_SHIFT')) {
-      return shiftScreen(ctx.t, { ...shift, timezone }, home.text);
-    }
-    return home;
+    return renderHomeScreen(deps, ctx.t, ctx.employee);
   }
 
   /** Common tail for every shift button: a toast with the result and a redrawn screen. */
