@@ -1,3 +1,9 @@
+## [0.2.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.2.1...v0.2.2) (2026-09-06)
+
+### Bug fixes
+
+* **api:** allow the x-locale header in CORS preflight ([b8aa0e4](https://github.com/leonidkuznetsov18/vakhta/commit/b8aa0e4f8bb6f6685437c57494ec9ee4bb540875))
+
 ## [0.2.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.2.0...v0.2.1) (2026-09-06)
 
 ### Bug fixes
