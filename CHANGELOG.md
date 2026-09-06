@@ -1,3 +1,9 @@
+## [0.11.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.10.0...v0.11.0) (2026-09-06)
+
+### Features
+
+* **bonus:** manual review with a decision, plain bonus and penalty points, editable adjustments, month rating ([fb51e1a](https://github.com/leonidkuznetsov18/vakhta/commit/fb51e1aa249d01fd3dc8899f3b81dfa449151d51))
+
 ## [0.10.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.9.3...v0.10.0) (2026-09-06)
 
 ### Features
