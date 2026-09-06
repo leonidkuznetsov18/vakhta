@@ -1,3 +1,9 @@
+## [0.22.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.21.0...v0.22.0) (2026-09-06)
+
+### Features
+
+* **schedule:** explain a unit without zones above the grid ([1ca3be4](https://github.com/leonidkuznetsov18/vakhta/commit/1ca3be454aeb98fb4d4fde7e1e034392a310284a))
+
 ## [0.21.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.20.0...v0.21.0) (2026-09-06)
 
 ### Features
