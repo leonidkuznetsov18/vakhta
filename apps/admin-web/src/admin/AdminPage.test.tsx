@@ -111,11 +111,13 @@ describe('AdminPage', () => {
   it('creates an employee and issues an activation code with a link', async () => {
     const calls = mockApi();
     render(<AdminPage />);
+    // Creation lives in a dialog behind the "Add employee" button.
+    fireEvent.click(await screen.findByRole('button', { name: 'Добавить сотрудника' }));
     fireEvent.change(await screen.findByLabelText('Табельный номер'), {
       target: { value: '0007' },
     });
     fireEvent.change(screen.getByLabelText('ФИО'), { target: { value: 'Петров Пётр' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Добавить сотрудника' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
 
     expect(await screen.findByText('Петров Пётр')).toBeTruthy();
     expect(calls.find((c) => c.method === 'POST' && c.path === '/admin/employees')?.body).toEqual({
@@ -153,8 +155,12 @@ describe('AdminPage', () => {
     mockApi();
     render(<AdminPage />);
     fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Терминалы' }));
+    // The register button exists in the header and in the empty state; either opens the dialog.
+    fireEvent.click(
+      (await screen.findAllByRole('button', { name: 'Зарегистрировать терминал' }))[0]!,
+    );
     fireEvent.change(await screen.findByLabelText('Название'), { target: { value: 'Проходная' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Зарегистрировать терминал' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
     await waitFor(() => expect(screen.getByText('ABCD-2345')).toBeTruthy());
     expect(screen.getByText(/Введите его на экране терминала/)).toBeTruthy();
     expect(screen.queryByText(/dev-token/)).toBeNull();

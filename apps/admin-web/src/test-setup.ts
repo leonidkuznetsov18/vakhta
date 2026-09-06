@@ -68,4 +68,26 @@ vi.mock('@/components/ui/dropdown-menu', async () => {
 beforeEach(() => {
   clearPersistentState();
   location.hash = '';
+  document.querySelectorAll('[data-toast]').forEach((n) => n.remove());
+});
+
+// Toasts render into a portal only when the Toaster is mounted; tests render pages alone, so the
+// mock writes each message into the document as a status line that `findByText` can see.
+vi.mock('sonner', () => {
+  const show = (message: string) => {
+    const node = document.createElement('div');
+    node.setAttribute('role', 'status');
+    node.setAttribute('data-toast', '');
+    node.textContent = message;
+    document.body.append(node);
+  };
+  const toast = Object.assign((m: string) => show(m), {
+    success: show,
+    error: show,
+    info: show,
+    warning: show,
+    message: show,
+    dismiss: () => undefined,
+  });
+  return { toast, Toaster: () => null };
 });

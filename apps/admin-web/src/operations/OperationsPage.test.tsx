@@ -164,7 +164,8 @@ describe('OperationsPage', () => {
     const calls = mockApi(state);
     render(<OperationsPage />);
     expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
-    expect(screen.getByText('Перерыв')).toBeTruthy();
+    // The state appears as a KPI chip with its count and as the pill in the row.
+    expect(screen.getAllByText('Перерыв').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/12 мин/)).toBeTruthy();
 
     const source = FakeEventSource.instances[0]!;

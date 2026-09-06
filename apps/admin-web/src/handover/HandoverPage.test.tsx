@@ -201,7 +201,7 @@ describe('HandoverPage', () => {
   it('an overdue acceptance is flagged and allows only master decisions without confirming a violation', async () => {
     mockApi({ status: 'SUBMITTED' });
     render(<HandoverPage />);
-    expect(await screen.findByText('Просрочено')).toBeTruthy();
+    expect(await screen.findByText(/^просрочено на/)).toBeTruthy();
     await clickRowAction('Подробности');
     const decision = (await screen.findByLabelText('Решение')) as HTMLSelectElement;
     expect([...decision.options].map((o) => o.value)).toEqual([

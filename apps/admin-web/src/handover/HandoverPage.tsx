@@ -14,7 +14,6 @@ import {
 import { messages } from '@vakhta/i18n';
 import { ExternalLinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
@@ -26,6 +25,10 @@ import { handoversApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
+import { notifySuccess } from '@/lib/toast';
+import { Deadline } from '@/components/app/deadline';
+import { EyeIcon } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 
 const all = messages(currentLocale());
 const h = all.admin.handover;
@@ -52,7 +55,6 @@ export function HandoverPage() {
   const [rows, setRows] = useState<HandoverListItemView[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = usePersistentState<string | null>('handover.openId', null);
   const [detail, setDetail] = useState<HandoverDetailView | null>(null);
@@ -108,11 +110,10 @@ export function HandoverPage() {
     if (!decision || comment.trim().length < 3) return;
     setBusy(true);
     setError(null);
-    setNotice(null);
     handoversApi
       .resolve(row.id, { decision, comment: comment.trim(), ...(reasonCode ? { reasonCode } : {}) })
       .then(async () => {
-        setNotice(h.applied);
+        notifySuccess(h.applied);
         setDecision('');
         setComment('');
         setReasonCode('');
@@ -154,12 +155,7 @@ export function HandoverPage() {
           <InfoTip text={hints.handoverDeadline} />
         </span>
       ),
-      cell: (row) => (
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="tabular-nums">{formatDateTime(row.acceptDeadlineAt)}</span>
-          {row.overdue && <StatusPill tone="danger">{h.overdue}</StatusPill>}
-        </div>
-      ),
+      cell: (row) => <Deadline at={row.acceptDeadlineAt} breached={row.overdue} />,
     },
   ];
 
@@ -188,7 +184,7 @@ export function HandoverPage() {
           <LiveBadge live={live} />
         </div>
       </Toolbar>
-      <Feedback error={error} notice={notice} />
+      <Feedback error={error} />
 
       <DataTable
         columns={columns}
@@ -199,6 +195,7 @@ export function HandoverPage() {
           {
             key: 'detail',
             label: h.detail,
+            icon: EyeIcon,
             onSelect: () => setOpenId(openId === row.id ? null : row.id),
           },
         ]}
@@ -232,7 +229,8 @@ export function HandoverPage() {
                   />
                   <FormField label={h.comment} className="min-w-72 flex-1">
                     {(id) => (
-                      <Input
+                      <Textarea
+                        rows={2}
                         id={id}
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}

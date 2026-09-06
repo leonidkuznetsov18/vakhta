@@ -12,7 +12,6 @@ import {
 } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, type Column } from '@/components/app/data-table';
@@ -26,6 +25,10 @@ import { incidentsApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
+import { notifySuccess } from '@/lib/toast';
+import { Deadline } from '@/components/app/deadline';
+import { EyeIcon } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 
 const all = messages(currentLocale());
 const i = all.admin.incidents;
@@ -60,7 +63,6 @@ export function IncidentsPage() {
   const [rows, setRows] = useState<IncidentView[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = usePersistentState<string | null>('incidents.openId', null);
   const [detail, setDetail] = useState<IncidentDetailView | null>(null);
@@ -142,7 +144,6 @@ export function IncidentsPage() {
     const dup = duplicateOf[row.id];
     setBusy(true);
     setError(null);
-    setNotice(null);
     incidentsApi
       .transition(row.id, {
         to,
@@ -150,7 +151,7 @@ export function IncidentsPage() {
         ...(to === 'DUPLICATE' && dup ? { duplicateOfId: dup } : {}),
       })
       .then(async () => {
-        setNotice(i.applied);
+        notifySuccess(i.applied);
         setComment((c) => ({ ...c, [row.id]: '' }));
         setTarget((t) => ({ ...t, [row.id]: '' }));
         await reload();
@@ -205,12 +206,7 @@ export function IncidentsPage() {
           <InfoTip text={hints.incidentsSla} />
         </span>
       ),
-      cell: (row) => (
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="tabular-nums">{formatTime(row.slaDueAt)}</span>
-          {row.slaBreached && <StatusPill tone="danger">{i.slaBreached}</StatusPill>}
-        </div>
-      ),
+      cell: (row) => <Deadline at={row.slaDueAt} breached={row.slaBreached} />,
     },
   ];
 
@@ -238,7 +234,7 @@ export function IncidentsPage() {
           <LiveBadge live={live} />
         </div>
       </Toolbar>
-      <Feedback error={error} notice={notice} />
+      <Feedback error={error} />
 
       <DataTable
         columns={columns}
@@ -249,6 +245,7 @@ export function IncidentsPage() {
           {
             key: 'detail',
             label: i.detail,
+            icon: EyeIcon,
             onSelect: () => setOpenId(openId === row.id ? null : row.id),
           },
         ]}
@@ -302,7 +299,8 @@ export function IncidentsPage() {
                     className="min-w-72 flex-1"
                   >
                     {(id) => (
-                      <Input
+                      <Textarea
+                        rows={2}
                         id={id}
                         value={comment[row.id] ?? ''}
                         onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}

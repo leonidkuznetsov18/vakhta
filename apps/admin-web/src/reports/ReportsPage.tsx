@@ -121,7 +121,7 @@ export function ReportsPage() {
           )}
         </Toolbar>
       </form>
-      <Feedback error={error} notice={null} />
+      <Feedback error={error} />
       {report && (
         <>
           <Muted className="flex flex-wrap items-center gap-1">

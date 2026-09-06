@@ -64,6 +64,18 @@ const SECTIONS: readonly { key: SectionKey; icon: typeof ActivityIcon }[] = [
   { key: 'audit', icon: ScrollTextIcon },
 ];
 
+/** Which role to show under the name when a user has several: the widest wins. */
+const ROLE_ORDER = [
+  'ADMIN',
+  'PRODUCTION_HEAD',
+  'HR',
+  'PLANNER',
+  'SHIFT_MASTER',
+  'CLEANLINESS_CONTROLLER',
+  'ACCOUNTANT',
+  'AUDITOR',
+] as const;
+
 const PAGES: Record<SectionKey, () => React.ReactElement> = {
   operations: OperationsPage,
   schedule: SchedulePage,
@@ -111,6 +123,7 @@ export function App() {
   }
 
   const { me } = state;
+  const primaryRole = ROLE_ORDER.find((r) => me.roles.some((g) => g.role === r)) ?? null;
   const title = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];
   const version = import.meta.env['VITE_APP_VERSION'];
   const Page = active === 'profile' ? null : PAGES[active];
@@ -157,7 +170,14 @@ export function App() {
                   onClick={() => setActive('profile')}
                 >
                   <UserIcon aria-hidden="true" />
-                  <span className="truncate">{me.email}</span>
+                  <span className="flex min-w-0 flex-col leading-tight">
+                    <span className="truncate">{me.email}</span>
+                    {primaryRole ? (
+                      <span className="truncate text-xs text-muted-foreground">
+                        {t.roles[primaryRole]}
+                      </span>
+                    ) : null}
+                  </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>

@@ -378,6 +378,9 @@ export interface Messages {
       readonly deleted: string;
       readonly noEmployees: string;
       readonly goToEmployees: string;
+      /** Footer row of the grid: {day} day shifts, {night} night shifts on that date. */
+      readonly dayTotals: string;
+      readonly createdOn: string;
       readonly forbidden: string;
       readonly noTemplates: string;
     };
@@ -412,6 +415,20 @@ export interface Messages {
       readonly summary: string;
       readonly empty: string;
       readonly stale: string;
+      /** State groups for the KPI chips above the live table. */
+      readonly groups: Readonly<
+        Record<
+          | 'ALL'
+          | 'WORKING'
+          | 'BREAK'
+          | 'MEAL'
+          | 'SERVICE_TIME'
+          | 'DOWNTIME'
+          | 'NOT_STARTED'
+          | 'CLOSED',
+          string
+        >
+      >;
     };
     readonly incidents: {
       readonly site: string;
@@ -494,6 +511,8 @@ export interface Messages {
       readonly submitted: string;
       readonly period: string;
       readonly step: string;
+      /** Who decides the current step of the route. */
+      readonly steps: Readonly<Record<'ADMIN' | 'COUNTERPART' | 'HEAD' | 'HR' | 'MASTER', string>>;
       readonly deadline: string;
       readonly overdue: string;
       readonly comment: string;
@@ -591,6 +610,9 @@ export interface Messages {
       readonly apply: string;
       readonly empty: string;
       readonly corrects: string;
+      readonly all: string;
+      /** Human labels for the audit action codes written by the API. */
+      readonly actions: Readonly<Record<string, string>>;
     };
     readonly administration: {
       readonly tabs: Readonly<Record<'employees' | 'users' | 'directories' | 'terminals', string>>;
@@ -698,6 +720,14 @@ export interface Messages {
   };
   /** Shared panel chrome: pagination, dialogs, generic labels and information tooltips. */
   readonly ui: {
+    /** Relative time next to deadlines: {value} is "2 ч 15 мин" or "40 мин". */
+    readonly time: {
+      readonly in: string;
+      readonly overdueBy: string;
+      readonly hours: string;
+      readonly minutes: string;
+      readonly now: string;
+    };
     readonly pagination: {
       /** Placeholders: {from}, {to}, {total} */
       readonly showing: string;
@@ -734,6 +764,9 @@ export interface Messages {
       readonly openInNewTab: string;
       readonly menu: string;
       readonly version: string;
+      readonly add: string;
+      readonly loading_rows: string;
+      readonly nothingHere: string;
     };
     readonly hints: {
       readonly language: string;

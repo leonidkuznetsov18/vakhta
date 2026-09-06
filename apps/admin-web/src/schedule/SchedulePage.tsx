@@ -35,6 +35,8 @@ import {
 import { currentLocale } from '../i18n.tsx';
 import { useNavigation } from '../navigation.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
+import { notifySuccess } from '@/lib/toast';
+import { formatDate, formatMonth } from '@/lib/format';
 
 const t = messages(currentLocale());
 const s = t.admin.schedule;
@@ -71,7 +73,6 @@ export function SchedulePage() {
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
   const { go } = useNavigation();
   const activeEmployees = useMemo(
@@ -142,7 +143,6 @@ export function SchedulePage() {
     setAcks(null);
     setGrid(EMPTY_GRID);
     setDirty(false);
-    setNotice(null);
     loadVersions().catch((e: unknown) => setError(describe(e)));
   }, [loadVersions]);
 
@@ -170,10 +170,9 @@ export function SchedulePage() {
   async function run(action: () => Promise<void>, done?: string) {
     setBusy(true);
     setError(null);
-    setNotice(null);
     try {
       await action();
-      if (done) setNotice(done);
+      if (done) notifySuccess(done);
     } catch (e) {
       setError(describe(e));
     } finally {
@@ -306,7 +305,7 @@ export function SchedulePage() {
         </div>
       </Toolbar>
 
-      <Feedback error={error} notice={notice} />
+      <Feedback error={error} />
 
       {org && activeEmployees.length === 0 && (
         <Alert>
@@ -320,14 +319,31 @@ export function SchedulePage() {
       )}
 
       {versions.length === 0 ? (
-        <EmptyState text={s.noVersions} />
+        <EmptyState
+          text={s.noVersions}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy || !orgUnitId || activeEmployees.length === 0}
+              onClick={createVersion}
+            >
+              {s.newVersion}
+            </Button>
+          }
+        />
       ) : (
         <Tabs value={selectedId ?? ''} onValueChange={(v) => setSelectedId(v)}>
           <TabsList>
             {versions.map((v) => (
               <TabsTrigger key={v.id} value={v.id} className="gap-2">
-                {s.version} {v.versionNo}
+                <span className="font-medium">
+                  {s.version} {v.versionNo}
+                </span>
                 <StatusPill tone={STATUS_TONE[v.status]}>{s.statuses[v.status]}</StatusPill>
+                <Muted className="hidden text-xs sm:inline">
+                  {format(s.createdOn, { date: formatDate(v.publishedAt ?? v.createdAt) })}
+                </Muted>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -336,7 +352,10 @@ export function SchedulePage() {
 
       {version && detail && (
         <>
-          {!editable && <Muted>{s.readOnlyHint}</Muted>}
+          <div className="flex flex-wrap items-baseline gap-3">
+            <h2 className="text-base font-semibold">{formatMonth(month)}</h2>
+            {!editable && <Muted>{s.readOnlyHint}</Muted>}
+          </div>
           {templates.length === 0 && <Feedback error={s.noTemplates} notice={null} />}
 
           <ScheduleGrid

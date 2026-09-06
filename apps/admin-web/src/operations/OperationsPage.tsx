@@ -9,23 +9,67 @@ import { SHIFT_ACTIONS, type ShiftAction, type ShiftState } from '@vakhta/domain
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { DataTable, type Column, type RowAction } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
-import { LiveBadge, Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
+import { LiveBadge, Muted, StatusPill, Toolbar, type Tone } from '@/components/app/page';
 import { formatTime } from '@/lib/format';
 import { employeesApi, orgApi, shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
+import { notifySuccess } from '@/lib/toast';
+import { EyeIcon, FlagIcon } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 const all = messages(currentLocale());
 const o = all.admin.operations;
 const hints = all.ui.hints;
+
+type StateGroup = keyof typeof o.groups;
+const GROUPS: readonly StateGroup[] = [
+  'ALL',
+  'WORKING',
+  'BREAK',
+  'MEAL',
+  'SERVICE_TIME',
+  'DOWNTIME',
+  'NOT_STARTED',
+  'CLOSED',
+];
+function groupOf(state: ShiftState): Exclude<StateGroup, 'ALL'> {
+  switch (state) {
+    case 'BREAK':
+    case 'MEAL':
+    case 'SERVICE_TIME':
+    case 'DOWNTIME':
+    case 'NOT_STARTED':
+      return state;
+    case 'SHIFT_CLOSED':
+    case 'EMERGENCY_EXIT':
+      return 'CLOSED';
+    default:
+      return 'WORKING';
+  }
+}
+function rank(row: ActiveShiftView): number {
+  if (row.needsClarification) return 0;
+  if (row.state === 'DOWNTIME') return 1;
+  if (row.state === 'EMERGENCY_EXIT') return 2;
+  return 3;
+}
 
 export const STATE_TONE: Record<ShiftState, Tone> = {
   NOT_STARTED: 'neutral',
@@ -61,11 +105,12 @@ export function OperationsPage() {
   const [rows, setRows] = useState<ActiveShiftView[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = usePersistentState<string | null>('operations.openId', null);
   const [detail, setDetail] = useState<ShiftDetailView | null>(null);
   const [startFor, setStartFor] = useState('');
+  const [startOpen, setStartOpen] = useState(false);
+  const [group, setGroup] = usePersistentState<StateGroup>('operations.group', 'ALL');
   const [startComment, setStartComment] = useState('');
   const [action, setAction] = useState<Record<string, ShiftAction | ''>>({});
   const [comment, setComment] = useState<Record<string, string>>({});
@@ -135,10 +180,9 @@ export function OperationsPage() {
   async function run(fn: () => Promise<void>, done?: string) {
     setBusy(true);
     setError(null);
-    setNotice(null);
     try {
       await fn();
-      if (done) setNotice(done);
+      if (done) notifySuccess(done);
     } catch (e) {
       setError(describeError(e));
     } finally {
@@ -160,7 +204,7 @@ export function OperationsPage() {
       if (!result.ok) {
         setError(result.error === 'VERSION_CONFLICT' ? o.stale : all.errors[result.error]);
       } else {
-        setNotice(o.applied);
+        notifySuccess(o.applied);
         setComment((c) => ({ ...c, [row.id]: '' }));
       }
       await reload();
@@ -193,14 +237,35 @@ export function OperationsPage() {
       });
       if (!result.ok) setError(all.errors[result.error]);
       else {
-        setNotice(o.started);
+        notifySuccess(o.started);
         setStartComment('');
+        setStartFor('');
+        setStartOpen(false);
       }
       await reload();
     });
   }
 
   const activeEmployees = employees.filter((e) => e.status === 'ACTIVE');
+  const counts = useMemo(() => {
+    const c: Record<StateGroup, number> = {
+      ALL: rows.length,
+      WORKING: 0,
+      BREAK: 0,
+      MEAL: 0,
+      SERVICE_TIME: 0,
+      DOWNTIME: 0,
+      NOT_STARTED: 0,
+      CLOSED: 0,
+    };
+    for (const row of rows) c[groupOf(row.state)] += 1;
+    return c;
+  }, [rows]);
+  const visibleRows = useMemo(() => {
+    const filtered = group === 'ALL' ? rows : rows.filter((row) => groupOf(row.state) === group);
+    // Exceptions first: shifts flagged for review, then downtime, then the rest in list order.
+    return [...filtered].sort((a, b) => rank(a) - rank(b));
+  }, [rows, group]);
 
   const columns: Column<ActiveShiftView>[] = [
     {
@@ -268,10 +333,19 @@ export function OperationsPage() {
     {
       key: 'detail',
       label: o.detail,
+      icon: EyeIcon,
       onSelect: () => setOpenId(openId === row.id ? null : row.id),
     },
     ...(!row.needsClarification && row.endedAt === null
-      ? [{ key: 'clarify', label: o.clarify, disabled: busy, onSelect: () => void clarify(row) }]
+      ? [
+          {
+            key: 'clarify',
+            label: o.clarify,
+            icon: FlagIcon,
+            disabled: busy,
+            onSelect: () => void clarify(row),
+          },
+        ]
       : []),
   ];
 
@@ -307,16 +381,83 @@ export function OperationsPage() {
           <Label htmlFor="ops-closed">{o.includeClosed}</Label>
           <InfoTip text={hints.operationsIncludeClosed} />
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <Dialog open={startOpen} onOpenChange={setStartOpen}>
+            <DialogTrigger asChild>
+              <Button type="button" variant="secondary">
+                {o.startFor}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-1">
+                  {o.startFor}
+                  <InfoTip text={hints.operationsStartFor} />
+                </DialogTitle>
+              </DialogHeader>
+              <form className="flex flex-col gap-4" onSubmit={startShift}>
+                <SelectField
+                  label={o.employee}
+                  value={startFor}
+                  onChange={setStartFor}
+                  placeholder="…"
+                  required
+                  options={activeEmployees.map((e) => ({
+                    value: e.id,
+                    label: `${e.fullName} · ${e.personnelNumber}`,
+                  }))}
+                />
+                <FormField label={o.comment}>
+                  {(id) => (
+                    <Textarea
+                      id={id}
+                      rows={2}
+                      value={startComment}
+                      onChange={(e) => setStartComment(e.target.value)}
+                      minLength={3}
+                      required
+                    />
+                  )}
+                </FormField>
+                <Feedback error={error} />
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setStartOpen(false)}>
+                    {all.ui.common.cancel}
+                  </Button>
+                  <Button type="submit" disabled={busy || !startFor}>
+                    {o.start}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
           <LiveBadge live={live} hint={hints.operationsLive} />
         </div>
       </Toolbar>
 
-      <Feedback error={error} notice={notice} />
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        size="sm"
+        value={group}
+        onValueChange={(v) => setGroup((v || 'ALL') as StateGroup)}
+        className="flex-wrap justify-start"
+        aria-label={o.state}
+      >
+        {GROUPS.filter((g) => g !== 'CLOSED' || includeClosed).map((g) => (
+          <ToggleGroupItem key={g} value={g} className="gap-1">
+            {o.groups[g]}
+            <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">{counts[g]}</span>
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+
+      <Feedback error={error} />
 
       <DataTable
         columns={columns}
-        rows={rows}
+        rows={visibleRows}
+        loading={!org}
         storageKey="operations"
         onRowClick={(row) => setOpenId(openId === row.id ? null : row.id)}
         rowActions={rowActions}
@@ -351,8 +492,9 @@ export function OperationsPage() {
                   />
                   <FormField label={o.comment} className="min-w-72 flex-1">
                     {(id) => (
-                      <Input
+                      <Textarea
                         id={id}
+                        rows={2}
                         value={comment[row.id] ?? ''}
                         onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}
                         minLength={3}
@@ -371,36 +513,6 @@ export function OperationsPage() {
         }
       />
 
-      <Section title={o.startFor} hint={hints.operationsStartFor}>
-        <form className="flex flex-wrap items-end gap-3" onSubmit={startShift}>
-          <SelectField
-            label={o.employee}
-            value={startFor}
-            onChange={setStartFor}
-            placeholder="…"
-            required
-            options={activeEmployees.map((e) => ({
-              value: e.id,
-              label: `${e.fullName} · ${e.personnelNumber}`,
-            }))}
-            className="w-72"
-          />
-          <FormField label={o.comment} className="min-w-72 flex-1">
-            {(id) => (
-              <Input
-                id={id}
-                value={startComment}
-                onChange={(e) => setStartComment(e.target.value)}
-                minLength={3}
-                required
-              />
-            )}
-          </FormField>
-          <Button type="submit" variant="secondary" disabled={busy || !startFor}>
-            {o.start}
-          </Button>
-        </form>
-      </Section>
       {dialog}
     </div>
   );

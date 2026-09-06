@@ -22,6 +22,8 @@ import { formatDateTime } from '@/lib/format';
 import { ApiError, adminOrgApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
+import { AddDialog } from '@/components/app/add-dialog';
+import { KeyRoundIcon, PencilIcon, PowerIcon, Trash2Icon } from 'lucide-react';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -46,7 +48,7 @@ function pairingLink(code: string): string | null {
  * the tablet without anyone handling a device token.
  */
 export function TerminalsTab({ org, onChanged }: Props) {
-  const { busy, error, notice, run } = useAction();
+  const { busy, error, run } = useAction();
   const { confirm, dialog } = useConfirm();
   const [siteId, setSiteId] = usePersistentState('terminals.siteId', org.sites[0]?.id ?? '');
   const [name, setName] = usePersistentState('terminals.name', '');
@@ -56,6 +58,7 @@ export function TerminalsTab({ org, onChanged }: Props) {
   );
   const [pairing, setPairing] = useState<(TerminalPairingIssued & { name: string }) | null>(null);
   const [editing, setEditing] = useState<TerminalView | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const siteName = (id: string) => org.sites.find((s) => s.id === id)?.name ?? id;
 
@@ -64,6 +67,7 @@ export function TerminalsTab({ org, onChanged }: Props) {
     void run(async () => {
       const created = await adminOrgApi.registerTerminal({ siteId, name, checkpoint });
       setName('');
+      setCreating(false);
       await onChanged();
       const issued = await adminOrgApi.issuePairing(created.id);
       setPairing({ ...issued, name: created.name });
@@ -146,34 +150,56 @@ export function TerminalsTab({ org, onChanged }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Section title={tr.register} hint={tr.pairHint}>
-        <form className="flex flex-wrap items-end gap-3" onSubmit={register}>
-          <SelectField
-            label={t.common.site}
-            value={siteId}
-            onChange={setSiteId}
-            required
-            options={org.sites.map((s) => ({ value: s.id, label: s.name }))}
-            className="w-56"
-          />
-          <FormField label={t.common.name} className="min-w-56 flex-1">
-            {(id) => (
-              <Input id={id} value={name} onChange={(ev) => setName(ev.target.value)} required />
-            )}
-          </FormField>
-          <SelectField
-            label={tr.checkpoint}
-            value={checkpoint}
-            onChange={(v) => setCheckpoint(v as (typeof CHECKPOINTS)[number])}
-            options={CHECKPOINTS.map((c) => ({ value: c, label: tr.checkpoints[c] }))}
-            hint={hints.terminalsCheckpoint}
-            className="w-48"
-          />
-          <Button type="submit" disabled={busy || !siteId}>
-            {tr.register}
-          </Button>
-        </form>
-        <Feedback error={error} notice={notice} />
+      <Section
+        title={t.tabs.terminals}
+        hint={tr.pairHint}
+        actions={
+          <AddDialog
+            title={tr.register}
+            trigger={tr.register}
+            hint={hints.terminalsPair}
+            open={creating}
+            onOpenChange={setCreating}
+          >
+            <form className="flex flex-col gap-4" onSubmit={register}>
+              <SelectField
+                label={t.common.site}
+                value={siteId}
+                onChange={setSiteId}
+                required
+                options={org.sites.map((s) => ({ value: s.id, label: s.name }))}
+              />
+              <FormField label={t.common.name}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    value={name}
+                    onChange={(ev) => setName(ev.target.value)}
+                    required
+                  />
+                )}
+              </FormField>
+              <SelectField
+                label={tr.checkpoint}
+                value={checkpoint}
+                onChange={(v) => setCheckpoint(v as (typeof CHECKPOINTS)[number])}
+                options={CHECKPOINTS.map((c) => ({ value: c, label: tr.checkpoints[c] }))}
+                hint={hints.terminalsCheckpoint}
+              />
+              <Feedback error={error} />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setCreating(false)}>
+                  {t.common.cancel}
+                </Button>
+                <Button type="submit" disabled={busy || !siteId}>
+                  {t.common.add}
+                </Button>
+              </DialogFooter>
+            </form>
+          </AddDialog>
+        }
+      >
+        <Feedback error={error} />
         {pairing && (
           <Alert>
             <AlertTitle className="flex items-center gap-1">
@@ -210,13 +236,31 @@ export function TerminalsTab({ org, onChanged }: Props) {
         rowKey={(term) => term.id}
         empty={t.common.empty}
         storageKey="terminals"
+        emptyAction={
+          <Button type="button" variant="outline" onClick={() => setCreating(true)}>
+            {tr.register}
+          </Button>
+        }
         onRowClick={(term) => issue(term)}
         rowActions={(term) => [
-          { key: 'pair', label: tr.pair, disabled: busy, onSelect: () => issue(term) },
-          { key: 'edit', label: tr.edit, disabled: busy, onSelect: () => setEditing(term) },
+          {
+            key: 'pair',
+            label: tr.pair,
+            icon: KeyRoundIcon,
+            disabled: busy,
+            onSelect: () => issue(term),
+          },
+          {
+            key: 'edit',
+            label: tr.edit,
+            icon: PencilIcon,
+            disabled: busy,
+            onSelect: () => setEditing(term),
+          },
           {
             key: 'status',
             label: term.status === 'ACTIVE' ? tr.disable : tr.enable,
+            icon: PowerIcon,
             disabled: busy,
             destructive: term.status === 'ACTIVE',
             separator: true,
@@ -225,6 +269,7 @@ export function TerminalsTab({ org, onChanged }: Props) {
           {
             key: 'delete',
             label: tr.delete,
+            icon: Trash2Icon,
             disabled: busy,
             destructive: true,
             onSelect: () => void remove(term),
@@ -260,7 +305,7 @@ function EditTerminalDialog({
   const [name, setName] = useState('');
   const [siteId, setSiteId] = useState('');
   const [checkpoint, setCheckpoint] = useState<(typeof CHECKPOINTS)[number]>('BOTH');
-  const { busy, error, notice, run } = useAction();
+  const { busy, error, run } = useAction();
 
   useEffect(() => {
     if (!terminal) return;
@@ -311,7 +356,7 @@ function EditTerminalDialog({
             options={CHECKPOINTS.map((c) => ({ value: c, label: tr.checkpoints[c] }))}
             hint={hints.terminalsCheckpoint}
           />
-          <Feedback error={error} notice={notice} />
+          <Feedback error={error} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               {t.common.cancel}

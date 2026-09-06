@@ -126,7 +126,7 @@ describe('RequestsPage', () => {
     const calls = mockApi(state);
     render(<RequestsPage />);
     expect(await screen.findByText('Опоздаю')).toBeTruthy();
-    expect(screen.getByText('Просрочено')).toBeTruthy();
+    expect(screen.getByText(/^просрочено на/)).toBeTruthy();
     await clickRowAction('Подробности');
     expect(await screen.findByText('Пробки на мосту')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Утверждённое отклонение, мин'), {

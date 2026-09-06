@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { App } from './App.tsx';
 import { redirectToCanonicalOrigin } from './canonical.ts';
@@ -17,6 +18,7 @@ createRoot(root).render(
   <StrictMode>
     <TooltipProvider delayDuration={200}>
       <App />
+      <Toaster richColors position="top-right" closeButton />
     </TooltipProvider>
   </StrictMode>,
 );

@@ -16,6 +16,9 @@ import { bonusApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
+import { notifySuccess } from '@/lib/toast';
+import { EyeIcon, RefreshCwIcon } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 
 const all = messages(currentLocale());
 const b = all.admin.bonus;
@@ -43,7 +46,6 @@ export function BonusPage() {
   const [month, setMonth] = usePersistentState('bonus.month', currentMonth);
   const [period, setPeriod] = useState<BonusPeriodView | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openScore, setOpenScore] = usePersistentState<string | null>('bonus.openScore', null);
   const [criterion, setCriterion] = useState<BonusCriterion>('DISCIPLINE_SEQUENCE');
@@ -77,10 +79,9 @@ export function BonusPage() {
   async function run(fn: () => Promise<void>, done?: string) {
     setBusy(true);
     setError(null);
-    setNotice(null);
     try {
       await fn();
-      if (done) setNotice(done);
+      if (done) notifySuccess(done);
     } catch (e) {
       setError(describeError(e));
     } finally {
@@ -99,7 +100,7 @@ export function BonusPage() {
         reasonCode,
         comment: comment.trim(),
       });
-      setNotice(
+      notifySuccess(
         updated.adjustments.some((a) => a.status === 'PENDING_SECOND')
           ? `${b.adjusted} ${b.needsSecond}`
           : b.adjusted,
@@ -285,7 +286,7 @@ export function BonusPage() {
           )}
         </div>
       </Toolbar>
-      <Feedback error={error} notice={notice} />
+      <Feedback error={error} />
 
       {period && period.pendingAdjustments.length > 0 && (
         <Section title={b.secondQueue} hint={hints.bonusSecond}>
@@ -349,7 +350,8 @@ export function BonusPage() {
                   />
                   <FormField label={b.comment} className="min-w-64 flex-1">
                     {(id) => (
-                      <Input
+                      <Textarea
+                        rows={2}
                         id={id}
                         value={comment}
                         onChange={(ev) => setComment(ev.target.value)}
@@ -457,8 +459,14 @@ function ScoresTable({
       storageKey="bonus.scores"
       onRowClick={(s) => onToggle(s.id)}
       rowActions={(s) => [
-        { key: 'detail', label: b.detail, onSelect: () => onToggle(s.id) },
-        { key: 'recompute', label: b.recompute, disabled: busy, onSelect: () => onRecompute(s) },
+        { key: 'detail', label: b.detail, icon: EyeIcon, onSelect: () => onToggle(s.id) },
+        {
+          key: 'recompute',
+          label: b.recompute,
+          icon: RefreshCwIcon,
+          disabled: busy,
+          onSelect: () => onRecompute(s),
+        },
       ]}
       expanded={(s) =>
         openScore === s.id ? (

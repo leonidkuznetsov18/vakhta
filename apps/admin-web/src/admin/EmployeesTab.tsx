@@ -28,6 +28,15 @@ import { formatDateTime } from '@/lib/format';
 import { adminEmployeesApi, employeesApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
+import { AddDialog } from '@/components/app/add-dialog';
+import {
+  BanIcon,
+  CircleCheckIcon,
+  IdCardIcon,
+  KeyRoundIcon,
+  Link2Icon,
+  UserXIcon,
+} from 'lucide-react';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -45,9 +54,10 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const [personnelNumber, setPersonnelNumber] = usePersistentState('employees.personnelNumber', '');
   const [fullName, setFullName] = usePersistentState('employees.fullName', '');
   const [issued, setIssued] = useState<ActivationCodeIssued | null>(null);
+  const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = usePersistentState<string | null>('employees.openId', null);
   const [relinkFor, setRelinkFor] = useState<EmployeeView | null>(null);
-  const { busy, error, notice, run } = useAction();
+  const { busy, error, run } = useAction();
   const { confirm, dialog } = useConfirm();
 
   useEffect(() => {
@@ -72,6 +82,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       setList((l) => [created, ...l]);
       setPersonnelNumber('');
       setFullName('');
+      setCreating(false);
     }, t.common.added);
   }
 
@@ -144,19 +155,37 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     {
       key: 'position',
       label: e.position,
+      icon: IdCardIcon,
       onSelect: () => setOpenId(openId === emp.id ? null : emp.id),
     },
     ...(emp.status === 'ACTIVE'
-      ? [{ key: 'code', label: e.issueCode, disabled: busy, onSelect: () => issueCode(emp) }]
+      ? [
+          {
+            key: 'code',
+            label: e.issueCode,
+            icon: KeyRoundIcon,
+            disabled: busy,
+            onSelect: () => issueCode(emp),
+          },
+        ]
       : []),
     ...(emp.telegramLinked && emp.status === 'ACTIVE'
-      ? [{ key: 'relink', label: e.relink, disabled: busy, onSelect: () => setRelinkFor(emp) }]
+      ? [
+          {
+            key: 'relink',
+            label: e.relink,
+            icon: Link2Icon,
+            disabled: busy,
+            onSelect: () => setRelinkFor(emp),
+          },
+        ]
       : []),
     ...(emp.status === 'ACTIVE'
       ? [
           {
             key: 'block',
             label: e.block,
+            icon: BanIcon,
             disabled: busy,
             separator: true,
             onSelect: () => void changeStatus(emp, 'BLOCKED'),
@@ -168,6 +197,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           {
             key: 'unblock',
             label: e.unblock,
+            icon: CircleCheckIcon,
             disabled: busy,
             separator: true,
             onSelect: () => void changeStatus(emp, 'ACTIVE'),
@@ -179,6 +209,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           {
             key: 'terminate',
             label: e.terminate,
+            icon: UserXIcon,
             disabled: busy,
             destructive: true,
             onSelect: () => void changeStatus(emp, 'TERMINATED'),
@@ -189,36 +220,49 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Section title={e.create} hint={hints.employeesActivation}>
-        <form className="flex flex-wrap items-end gap-3" onSubmit={create}>
-          <FormField label={e.personnelNumber} className="w-40">
-            {(id) => (
-              <Input
-                id={id}
-                value={personnelNumber}
-                onChange={(ev) => setPersonnelNumber(ev.target.value)}
-                required
-                maxLength={32}
-              />
-            )}
-          </FormField>
-          <FormField label={e.fullName} className="min-w-64 flex-1">
-            {(id) => (
-              <Input
-                id={id}
-                value={fullName}
-                onChange={(ev) => setFullName(ev.target.value)}
-                required
-                minLength={3}
-                maxLength={200}
-              />
-            )}
-          </FormField>
-          <Button type="submit" disabled={busy}>
-            {e.create}
-          </Button>
-        </form>
-        <Feedback error={error} notice={notice} />
+      <Section
+        title={t.tabs.employees}
+        hint={hints.employeesActivation}
+        actions={
+          <AddDialog title={e.create} trigger={e.create} open={creating} onOpenChange={setCreating}>
+            <form className="flex flex-col gap-4" onSubmit={create}>
+              <FormField label={e.personnelNumber}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    value={personnelNumber}
+                    onChange={(ev) => setPersonnelNumber(ev.target.value)}
+                    required
+                    maxLength={32}
+                  />
+                )}
+              </FormField>
+              <FormField label={e.fullName}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    value={fullName}
+                    onChange={(ev) => setFullName(ev.target.value)}
+                    required
+                    minLength={3}
+                    maxLength={200}
+                  />
+                )}
+              </FormField>
+              <Feedback error={error} />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setCreating(false)}>
+                  {t.common.cancel}
+                </Button>
+                <Button type="submit" disabled={busy}>
+                  {t.common.add}
+                </Button>
+              </DialogFooter>
+            </form>
+          </AddDialog>
+        }
+      >
+        <Feedback error={error} />
         {issued && (
           <Alert>
             <AlertTitle>
@@ -244,6 +288,12 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         rowKey={(emp) => emp.id}
         empty={t.common.empty}
         storageKey="employees"
+        loading={busy && list.length === 0}
+        emptyAction={
+          <Button type="button" variant="outline" onClick={() => setCreating(true)}>
+            {e.create}
+          </Button>
+        }
         onRowClick={(emp) => setOpenId(openId === emp.id ? null : emp.id)}
         rowActions={rowActions}
         rowClassName={(emp) => (emp.status !== 'ACTIVE' ? 'text-muted-foreground' : undefined)}
@@ -366,7 +416,7 @@ function PositionPanel({
   const [orgUnitId, setOrgUnitId] = useState(org.orgUnits[0]?.id ?? '');
   const [positionId, setPositionId] = useState(org.positions[0]?.id ?? '');
   const [teamId, setTeamId] = useState('');
-  const { busy, error, notice, run } = useAction();
+  const { busy, error, run } = useAction();
 
   useEffect(() => {
     void run(async () => setHistory(await adminEmployeesApi.positions(employee.id)));
@@ -439,7 +489,7 @@ function PositionPanel({
           {e.assignPosition}
         </Button>
       </form>
-      <Feedback error={error} notice={notice} />
+      <Feedback error={error} />
     </div>
   );
 }

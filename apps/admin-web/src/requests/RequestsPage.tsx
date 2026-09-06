@@ -21,6 +21,10 @@ import { requestsApi, shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
+import { notifySuccess } from '@/lib/toast';
+import { Deadline } from '@/components/app/deadline';
+import { Textarea } from '@/components/ui/textarea';
+import { EyeIcon } from 'lucide-react';
 
 const all = messages(currentLocale());
 const r = all.admin.requests;
@@ -53,7 +57,6 @@ export function RequestsPage() {
   const [overtime, setOvertime] = useState<OvertimeView[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = usePersistentState<string | null>('requests.openId', null);
   const [detail, setDetail] = useState<RequestDetailView | null>(null);
@@ -138,7 +141,6 @@ export function RequestsPage() {
     if (text.length < 3) return;
     setBusy(true);
     setError(null);
-    setNotice(null);
     const proposal =
       decision === 'APPROVED' && req.type === 'CORRECTION' ? buildProposal() : undefined;
     requestsApi
@@ -151,7 +153,7 @@ export function RequestsPage() {
         ...(proposal ? { proposal } : {}),
       })
       .then(async () => {
-        setNotice(r.decided);
+        notifySuccess(r.decided);
         setComment('');
         setApprovedMinutes('');
         await reload();
@@ -168,7 +170,7 @@ export function RequestsPage() {
     requestsApi
       .decideOvertime(row.shiftSessionId, { decision, comment: text })
       .then(async () => {
-        setNotice(r.decided);
+        notifySuccess(r.decided);
         await reload();
       })
       .catch((e: unknown) => setError(describeError(e)))
@@ -221,18 +223,13 @@ export function RequestsPage() {
       ),
       cell: (req) =>
         req.currentStepKey
-          ? `${req.currentStep + 1}/${req.totalSteps} · ${req.currentStepKey}`
+          ? `${req.currentStep + 1}/${req.totalSteps} · ${r.steps[req.currentStepKey as keyof typeof r.steps] ?? req.currentStepKey}`
           : '—',
     },
     {
       key: 'deadline',
       header: r.deadline,
-      cell: (req) => (
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="tabular-nums">{formatDateTime(req.stepDeadlineAt)}</span>
-          {req.overdue && <StatusPill tone="danger">{r.overdue}</StatusPill>}
-        </div>
-      ),
+      cell: (req) => <Deadline at={req.stepDeadlineAt} breached={req.overdue} />,
     },
   ];
 
@@ -297,7 +294,7 @@ export function RequestsPage() {
           <LiveBadge live={live} />
         </div>
       </Toolbar>
-      <Feedback error={error} notice={notice} />
+      <Feedback error={error} />
 
       <DataTable
         columns={columns}
@@ -308,6 +305,7 @@ export function RequestsPage() {
           {
             key: 'detail',
             label: r.detail,
+            icon: EyeIcon,
             onSelect: () => setOpenId(openId === row.id ? null : row.id),
           },
         ]}
@@ -395,7 +393,8 @@ export function RequestsPage() {
                   )}
                   <FormField label={r.comment} className="min-w-72 flex-1">
                     {(id) => (
-                      <Input
+                      <Textarea
+                        rows={2}
                         id={id}
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}

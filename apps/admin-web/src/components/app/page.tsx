@@ -2,7 +2,13 @@ import type { ReactNode } from 'react';
 import { messages } from '@vakhta/i18n';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/components/ui/empty';
 import { InfoTip } from '@/components/app/info-tip';
 import { currentLocale } from '@/i18n';
 import { cn } from 'cn';
@@ -51,12 +57,22 @@ export function Section({
   );
 }
 
-export function EmptyState({ text }: { readonly text: string }) {
+export function EmptyState({
+  text,
+  description,
+  action,
+}: {
+  readonly text: string;
+  readonly description?: string;
+  readonly action?: ReactNode;
+}) {
   return (
     <Empty className="py-8">
       <EmptyHeader>
         <EmptyTitle className="text-sm font-normal text-muted-foreground">{text}</EmptyTitle>
+        {description ? <EmptyDescription>{description}</EmptyDescription> : null}
       </EmptyHeader>
+      {action ? <EmptyContent>{action}</EmptyContent> : null}
     </Empty>
   );
 }
@@ -68,7 +84,7 @@ export function Muted({
   readonly children: ReactNode;
   readonly className?: string;
 }) {
-  return <span className={cn('text-xs text-muted-foreground', className)}>{children}</span>;
+  return <span className={cn('text-sm text-muted-foreground', className)}>{children}</span>;
 }
 
 /** Live-updates indicator for pages fed by server-sent events. */

@@ -28,3 +28,14 @@ export function formatTime(iso: string | null | undefined): string {
 export function formatDate(iso: string | null | undefined): string {
   return iso ? new Date(iso).toLocaleDateString(tag(), { dateStyle: 'short' }) : '—';
 }
+
+/** "Сентябрь 2026" from 'YYYY-MM', capitalised for headings. */
+export function formatMonth(value: string): string {
+  const [y, m] = value.split('-').map(Number);
+  if (!y || !m) return value;
+  const text = new Date(y, m - 1, 1).toLocaleDateString(INTL[currentLocale()], {
+    month: 'long',
+    year: 'numeric',
+  });
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}

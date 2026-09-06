@@ -1,6 +1,6 @@
 import type { EmployeeView, ShiftTemplateView, ZoneView } from '@vakhta/contracts';
 import { monthDates } from '@vakhta/domain';
-import { messages } from '@vakhta/i18n';
+import { format, messages } from '@vakhta/i18n';
 import { XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -62,6 +62,18 @@ export function ScheduleGrid({
   const pages = usePages(grid.rows.length, 25);
   const visible = grid.rows.slice((pages.page - 1) * pages.size, pages.page * pages.size);
   const dayKind = t.schedule.dayKinds;
+  const nightIds = new Set(templates.filter((tpl) => tpl.isNight).map((tpl) => tpl.id));
+  const totals = days.map((d) => {
+    let day = 0;
+    let night = 0;
+    for (const row of grid.rows) {
+      const tpl = row.cells[d];
+      if (!tpl) continue;
+      if (nightIds.has(tpl)) night += 1;
+      else day += 1;
+    }
+    return { day, night };
+  });
 
   return (
     <div className="flex flex-col gap-3">
@@ -168,6 +180,29 @@ export function ScheduleGrid({
                 </TableRow>
               );
             })}
+            {grid.rows.length > 0 && (
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableCell className="sticky left-0 z-10 bg-muted/40 text-xs font-medium text-muted-foreground">
+                  {s.shifts}
+                </TableCell>
+                <TableCell />
+                {days.map((d, i) => (
+                  <TableCell key={d} className="px-1 text-center text-xs tabular-nums">
+                    <span
+                      title={format(s.dayTotals, { day: totals[i]!.day, night: totals[i]!.night })}
+                    >
+                      {totals[i]!.day}
+                      <span className="text-muted-foreground">/</span>
+                      {totals[i]!.night}
+                    </span>
+                  </TableCell>
+                ))}
+                <TableCell className="text-right text-xs tabular-nums">
+                  {grid.rows.reduce((n, r) => n + Object.values(r.cells).filter(Boolean).length, 0)}
+                </TableCell>
+                {!readOnly && <TableCell />}
+              </TableRow>
+            )}
             {grid.rows.length === 0 && (
               <TableRow>
                 <TableCell

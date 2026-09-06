@@ -14,6 +14,9 @@ import { Section, StatusPill } from '@/components/app/page';
 import { usersApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
+import { AddDialog } from '@/components/app/add-dialog';
+import { DialogFooter } from '@/components/ui/dialog';
+import { ShieldPlusIcon } from 'lucide-react';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -45,10 +48,11 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
   const [name, setName] = usePersistentState('users.name', '');
   const [password, setPassword] = useState('');
   const [grantFor, setGrantFor] = usePersistentState<string | null>('users.grantFor', null);
+  const [creating, setCreating] = useState(false);
   const [role, setRole] = useState<WebRole>('SHIFT_MASTER');
   const [scopeType, setScopeType] = useState<ScopeType>('ENTERPRISE');
   const [scopeId, setScopeId] = useState('');
-  const { busy, error, notice, run } = useAction();
+  const { busy, error, run } = useAction();
 
   useEffect(() => {
     void run(async () => setList(await usersApi.list()));
@@ -66,6 +70,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
       setEmail('');
       setName('');
       setPassword('');
+      setCreating(false);
     }, t.common.added);
   }
 
@@ -146,61 +151,86 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Section title={u.create} hint={hints.usersPassword}>
-        <form className="flex flex-wrap items-end gap-3" onSubmit={create} autoComplete="off">
-          <FormField label={u.email} className="min-w-56">
-            {(id) => (
-              <Input
-                id={id}
-                type="email"
-                value={email}
-                onChange={(ev) => setEmail(ev.target.value)}
-                required
-                autoComplete="off"
-              />
-            )}
-          </FormField>
-          <FormField label={u.name} className="min-w-48">
-            {(id) => (
-              <Input
-                id={id}
-                value={name}
-                onChange={(ev) => setName(ev.target.value)}
-                required
-                minLength={2}
-              />
-            )}
-          </FormField>
-          <FormField label={u.password} className="min-w-56">
-            {(id) => (
-              <Input
-                id={id}
-                type="password"
-                value={password}
-                onChange={(ev) => setPassword(ev.target.value)}
-                required
-                minLength={12}
-                autoComplete="new-password"
-              />
-            )}
-          </FormField>
-          <Button type="submit" disabled={busy}>
-            {u.create}
-          </Button>
-        </form>
-        <p className="text-xs text-muted-foreground">{u.passwordHint}</p>
-        <Feedback error={error} notice={notice} />
+      <Section
+        title={t.tabs.users}
+        hint={hints.usersScope}
+        actions={
+          <AddDialog
+            title={u.create}
+            trigger={u.create}
+            hint={hints.usersPassword}
+            open={creating}
+            onOpenChange={setCreating}
+          >
+            <form className="flex flex-col gap-4" onSubmit={create} autoComplete="off">
+              <FormField label={u.email}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    type="email"
+                    value={email}
+                    onChange={(ev) => setEmail(ev.target.value)}
+                    required
+                    autoComplete="off"
+                  />
+                )}
+              </FormField>
+              <FormField label={u.name}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    value={name}
+                    onChange={(ev) => setName(ev.target.value)}
+                    required
+                    minLength={2}
+                  />
+                )}
+              </FormField>
+              <FormField label={u.password}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    type="password"
+                    value={password}
+                    onChange={(ev) => setPassword(ev.target.value)}
+                    required
+                    minLength={12}
+                    autoComplete="new-password"
+                  />
+                )}
+              </FormField>
+              <p className="text-sm text-muted-foreground">{u.passwordHint}</p>
+              <Feedback error={error} />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setCreating(false)}>
+                  {t.common.cancel}
+                </Button>
+                <Button type="submit" disabled={busy}>
+                  {t.common.add}
+                </Button>
+              </DialogFooter>
+            </form>
+          </AddDialog>
+        }
+      >
+        <Feedback error={error} />
       </Section>
 
       <DataTable
         columns={columns}
         rows={list}
         storageKey="users"
+        emptyAction={
+          <Button type="button" variant="outline" onClick={() => setCreating(true)}>
+            {u.create}
+          </Button>
+        }
         onRowClick={(user) => setGrantFor(grantFor === user.id ? null : user.id)}
         rowActions={(user) => [
           {
             key: 'grant',
             label: u.grantRole,
+            icon: ShieldPlusIcon,
             onSelect: () => setGrantFor(grantFor === user.id ? null : user.id),
           },
         ]}

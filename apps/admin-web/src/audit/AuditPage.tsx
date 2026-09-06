@@ -1,12 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { AuditEntryView, DomainEventView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
-import { FormField } from '@/components/app/fields';
+import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Toolbar } from '@/components/app/page';
 import { formatDateTimeSeconds } from '@/lib/format';
@@ -22,9 +21,29 @@ const a = all.admin.audit;
 function Json({ value }: { readonly value: unknown }) {
   return (
     <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">
-      {JSON.stringify(value, null, 2)}
+      {value === null || value === undefined ? '—' : JSON.stringify(value, null, 2)}
     </pre>
   );
+}
+
+/** Before and after side by side, so a status change reads at a glance. */
+function BeforeAfter({ before, after }: { readonly before: unknown; readonly after: unknown }) {
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      <div>
+        <div className="mb-1 text-xs font-medium text-muted-foreground">{a.before}</div>
+        <Json value={before} />
+      </div>
+      <div>
+        <div className="mb-1 text-xs font-medium text-muted-foreground">{a.after}</div>
+        <Json value={after} />
+      </div>
+    </div>
+  );
+}
+
+function actionLabel(code: string): string {
+  return a.actions[code] ?? code;
 }
 
 /** "Audit" (spec 9.1, 13): immutable history of manual actions and the event log with filters. */
@@ -38,31 +57,47 @@ export function AuditPage() {
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = usePersistentState<string | null>('audit.open', null);
 
-  function load(ev?: FormEvent) {
-    ev?.preventDefault();
-    setError(null);
-    const p =
-      tab === 'audit'
-        ? reportsApi
-            .audit({
-              ...(action ? { action } : {}),
-              ...(objectType ? { objectType } : {}),
-              limit: 200,
-            })
-            .then(setAudit)
-        : reportsApi.events({ ...(type ? { type } : {}), limit: 200 }).then(setEvents);
-    p.catch((e: unknown) => setError(describeError(e)));
-  }
+  const [loading, setLoading] = useState(true);
 
-  // Reload on tab change; filters apply with the button.
-  useEffect(() => {
+  // The last 200 entries are loaded per tab; the filters narrow them on the client, so the
+  // selects can list exactly the values that occur.
+  function load() {
     setError(null);
+    setLoading(true);
     const p =
       tab === 'audit'
         ? reportsApi.audit({ limit: 200 }).then(setAudit)
         : reportsApi.events({ limit: 200 }).then(setEvents);
-    p.catch((e: unknown) => setError(describeError(e)));
+    p.catch((e: unknown) => setError(describeError(e))).finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    load();
   }, [tab]);
+
+  const actionOptions = useMemo(
+    () =>
+      [...new Set(audit.map((e) => e.action))]
+        .sort()
+        .map((v) => ({ value: v, label: actionLabel(v) })),
+    [audit],
+  );
+  const objectOptions = useMemo(
+    () => [...new Set(audit.map((e) => e.objectType))].sort().map((v) => ({ value: v, label: v })),
+    [audit],
+  );
+  const typeOptions = useMemo(
+    () => [...new Set(events.map((e) => e.type))].sort().map((v) => ({ value: v, label: v })),
+    [events],
+  );
+  const auditRows = useMemo(
+    () =>
+      audit.filter(
+        (e) => (!action || e.action === action) && (!objectType || e.objectType === objectType),
+      ),
+    [audit, action, objectType],
+  );
+  const eventRows = useMemo(() => events.filter((e) => !type || e.type === type), [events, type]);
 
   const auditColumns: Column<AuditEntryView>[] = [
     {
@@ -82,7 +117,12 @@ export function AuditPage() {
     {
       key: 'action',
       header: a.action,
-      cell: (e) => <code className="rounded bg-muted px-1 text-xs">{e.action}</code>,
+      cell: (e) => (
+        <span>
+          {actionLabel(e.action)}
+          {a.actions[e.action] ? <Muted className="ml-1 text-xs">{e.action}</Muted> : null}
+        </span>
+      ),
     },
     {
       key: 'object',
@@ -175,52 +215,59 @@ export function AuditPage() {
         </Tabs>
         <InfoTip text={all.ui.hints.auditTabs} />
       </div>
-      <form onSubmit={load}>
-        <Toolbar>
-          {tab === 'audit' ? (
-            <>
-              <FormField label={a.filterAction} className="w-56">
-                {(id) => (
-                  <Input id={id} value={action} onChange={(e) => setAction(e.target.value)} />
-                )}
-              </FormField>
-              <FormField label={a.filterObject} className="w-56">
-                {(id) => (
-                  <Input
-                    id={id}
-                    value={objectType}
-                    onChange={(e) => setObjectType(e.target.value)}
-                  />
-                )}
-              </FormField>
-            </>
-          ) : (
-            <FormField label={a.filterType} className="w-56">
-              {(id) => <Input id={id} value={type} onChange={(e) => setType(e.target.value)} />}
-            </FormField>
-          )}
-          <Button type="submit" variant="secondary">
-            {a.apply}
-          </Button>
-        </Toolbar>
-      </form>
-      <Feedback error={error} notice={null} />
+      <Toolbar>
+        {tab === 'audit' ? (
+          <>
+            <SelectField
+              label={a.filterAction}
+              value={action}
+              onChange={setAction}
+              placeholder={a.all}
+              options={actionOptions}
+              className="w-72"
+            />
+            <SelectField
+              label={a.filterObject}
+              value={objectType}
+              onChange={setObjectType}
+              placeholder={a.all}
+              options={objectOptions}
+              className="w-56"
+            />
+          </>
+        ) : (
+          <SelectField
+            label={a.filterType}
+            value={type}
+            onChange={setType}
+            placeholder={a.all}
+            options={typeOptions}
+            className="w-72"
+          />
+        )}
+        <Button type="button" variant="outline" onClick={load} disabled={loading}>
+          {a.apply}
+        </Button>
+      </Toolbar>
+      <Feedback error={error} />
       {tab === 'audit' ? (
         <DataTable
           columns={auditColumns}
-          rows={audit}
+          rows={auditRows}
+          loading={loading}
           rowKey={(e) => e.id}
           empty={a.empty}
           storageKey="audit"
           onRowClick={(e) => setOpen(open === e.id ? null : e.id)}
           expanded={(e) =>
-            open === e.id ? <Json value={{ before: e.before, after: e.after }} /> : null
+            open === e.id ? <BeforeAfter before={e.before} after={e.after} /> : null
           }
         />
       ) : (
         <DataTable
           columns={eventColumns}
-          rows={events}
+          rows={eventRows}
+          loading={loading}
           rowKey={(e) => e.id}
           empty={a.empty}
           storageKey="events"

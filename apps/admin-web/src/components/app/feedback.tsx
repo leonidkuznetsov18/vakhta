@@ -1,20 +1,19 @@
 import { useCallback, useState } from 'react';
-import { AlertCircleIcon, CheckCircle2Icon } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircleIcon } from 'lucide-react';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 import { describeError } from '@/errors';
+import { notifySuccess } from '@/lib/toast';
 
-/** One in-flight action with its error and success notice; shared by every page. */
+/** One in-flight action with its error; successes are announced with a toast. */
 export function useAction() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const run = useCallback(async (action: () => Promise<void>, done?: string): Promise<boolean> => {
     setBusy(true);
     setError(null);
-    setNotice(null);
     try {
       await action();
-      if (done) setNotice(done);
+      if (done) notifySuccess(done);
       return true;
     } catch (e) {
       setError(describeError(e));
@@ -23,32 +22,21 @@ export function useAction() {
       setBusy(false);
     }
   }, []);
-  return { busy, error, notice, run, setError, setNotice };
+  return { busy, error, run, setError };
 }
 
-/** Inline result of the last action: a destructive alert for errors, a quiet one for success. */
+/** Inline error of the last action, placed next to the form that caused it. */
 export function Feedback({
   error,
-  notice,
 }: {
   readonly error: string | null;
-  readonly notice: string | null;
+  readonly notice?: string | null;
 }) {
-  if (!error && !notice) return null;
+  if (!error) return null;
   return (
-    <div className="flex flex-col gap-2">
-      {error ? (
-        <Alert variant="destructive" role="alert">
-          <AlertCircleIcon />
-          <AlertTitle>{error}</AlertTitle>
-        </Alert>
-      ) : null}
-      {notice ? (
-        <Alert role="status">
-          <CheckCircle2Icon />
-          <AlertDescription>{notice}</AlertDescription>
-        </Alert>
-      ) : null}
-    </div>
+    <Alert variant="destructive" role="alert">
+      <AlertCircleIcon />
+      <AlertTitle>{error}</AlertTitle>
+    </Alert>
   );
 }

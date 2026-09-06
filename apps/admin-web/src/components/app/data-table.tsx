@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { format, messages } from '@vakhta/i18n';
-import { MoreHorizontalIcon } from 'lucide-react';
+import { MoreHorizontalIcon, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/app/page';
 import { usePersistentState } from '@/lib/persistent-state';
 import { currentLocale } from '@/i18n';
@@ -43,6 +44,7 @@ export interface RowAction {
   readonly key: string;
   readonly label: ReactNode;
   readonly onSelect: () => void;
+  readonly icon?: LucideIcon;
   readonly disabled?: boolean;
   readonly destructive?: boolean;
   readonly separator?: boolean;
@@ -53,6 +55,11 @@ interface DataTableProps<T> {
   readonly rows: readonly T[];
   readonly rowKey: (row: T) => string;
   readonly empty: string;
+  /** Extra text and a call to action under the empty message. */
+  readonly emptyDescription?: string;
+  readonly emptyAction?: ReactNode;
+  /** While true and there are no rows, skeleton rows are drawn instead of the empty state. */
+  readonly loading?: boolean;
   readonly pageSize?: number;
   /** Remembers the chosen page size across reloads under this key. */
   readonly storageKey?: string;
@@ -186,6 +193,7 @@ export function RowMenu({
               variant={a.destructive ? 'destructive' : 'default'}
               onSelect={() => a.onSelect()}
             >
+              {a.icon ? <a.icon aria-hidden="true" /> : null}
               {a.label}
             </DropdownMenuItem>
           </div>
@@ -205,6 +213,9 @@ export function DataTable<T>({
   rows,
   rowKey,
   empty,
+  emptyDescription,
+  emptyAction,
+  loading = false,
   pageSize = DEFAULT_PAGE_SIZE,
   storageKey,
   rowClassName,
@@ -222,7 +233,9 @@ export function DataTable<T>({
   );
   const span = columns.length + (rowActions ? 1 : 0);
 
-  if (rows.length === 0) return <EmptyState text={empty} />;
+  if (rows.length === 0 && loading) return <TableSkeleton columns={span} />;
+  if (rows.length === 0)
+    return <EmptyState text={empty} description={emptyDescription} action={emptyAction} />;
 
   const handleRowClick = (row: T) => (ev: MouseEvent<HTMLTableRowElement>) => {
     if (!onRowClick || isInteractive(ev.target)) return;
@@ -296,6 +309,23 @@ export function DataTable<T>({
         </Table>
       </div>
       <Paginator pages={pages} total={rows.length} />
+    </div>
+  );
+}
+
+/** Placeholder rows while the first page loads; the same height as real rows so nothing jumps. */
+function TableSkeleton({ columns }: { readonly columns: number }) {
+  const t = messages(currentLocale()).ui.common;
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border p-3" role="status" aria-busy="true">
+      <span className="sr-only">{t.loading_rows}</span>
+      {Array.from({ length: 5 }, (_, i) => (
+        <div key={i} className="flex gap-3">
+          {Array.from({ length: Math.min(columns, 6) }, (_, j) => (
+            <Skeleton key={j} className="h-5 flex-1" />
+          ))}
+        </div>
+      ))}
     </div>
   );
 }
