@@ -98,6 +98,7 @@ export interface HomeInput {
   readonly pendingSwaps: number;
   /** Address of the user guide; when set the home screen gets a Help link. */
   readonly helpUrl?: string | null;
+  readonly supportUrl?: string | null;
 }
 
 /** Home screen (spec 5.1): presence, next shift, plan, acknowledgement. */
@@ -142,7 +143,9 @@ export function homeScreen(t: Messages, input: HomeInput): Screen {
   if (input.unacknowledged > 0) keyboard.row().text(t.schedule.ackButton, CALLBACK.ackAll);
   if (input.pendingSwaps > 0)
     keyboard.row().text(`${t.requests.counterpartYes}? (${input.pendingSwaps})`, 'rq:pending');
-  if (input.helpUrl) keyboard.row().url(`ℹ️ ${t.bot.helpButton}`, input.helpUrl);
+  if (input.helpUrl || input.supportUrl) keyboard.row();
+  if (input.helpUrl) keyboard.url(`ℹ️ ${t.bot.helpButton}`, input.helpUrl);
+  if (input.supportUrl) keyboard.url(`🆘 ${t.bot.supportButton}`, input.supportUrl);
   return { text: lines.join('\n'), keyboard };
 }
 

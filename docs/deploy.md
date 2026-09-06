@@ -115,3 +115,27 @@ Setup, once:
 
 Without the secrets the job logs that the announcement was skipped; a Telegram error never fails the
 release. The bot needs no admin rights in the group.
+
+## Support assistant bot
+
+`docs/features/12-support-bot.md` describes what it does. It runs inside the API next to the worker
+bot (`apps/api/src/support`), reads its knowledge from `docs/features/*.md`, the user guide and
+`CHANGELOG.md` (copied into the API image, `SUPPORT_KNOWLEDGE_DIR`), asks Claude through the official
+SDK with the knowledge block cached, and uses OpenAI audio for voice questions and answers.
+
+Setup, once:
+
+1. Create the bot with @BotFather (e.g. `@vakhta_support_bot`), copy the token.
+2. Put the values into `.env.production` (never into chat or git): `TELEGRAM_SUPPORT_BOT_TOKEN`,
+   `TELEGRAM_SUPPORT_WEBHOOK_SECRET` (`openssl rand -base64 48`), `SUPPORT_BOT_USERNAME`,
+   `ANTHROPIC_API_KEY`, optionally `OPENAI_API_KEY` for voice and `SUPPORT_ALLOWED_TELEGRAM_IDS` for
+   administrators who are not linked employees.
+3. Set them on the Railway `api` service (`railway variables --service api --set KEY=VALUE`) and redeploy.
+4. Register the webhooks of both bots: `railway ssh --service api -- node apps/api/dist/cli/set-webhook.js`.
+
+The worker bot shows the "Поддержка" button on the home screen and under /help as soon as
+`SUPPORT_BOT_USERNAME` is set. Without `ANTHROPIC_API_KEY` the support bot answers that it is
+unavailable; without `OPENAI_API_KEY` it asks to write instead of speaking.
+
+Keeping the assistant current: every feature lands with its file in `docs/features`; the next deploy
+ships the new text. The changelog of the build is included automatically.

@@ -13,3 +13,9 @@
 infra/compose/.data
 docs
 *.md
+# The support bot ships its knowledge base in the API image (docs/features, the user guide, the changelog).
+!docs/features
+!docs/features/**
+!docs/user-guide
+!docs/user-guide/vakhta-user-guide.ru.html
+!CHANGELOG.md

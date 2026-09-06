@@ -86,6 +86,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       dedup: this.dedup,
       defaultTimezone: this.config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
       helpUrl: this.config.get('USER_GUIDE_URL', { infer: true }) ?? null,
+      supportUrl: this.supportUrl(),
       logger: this.logger,
     });
     await bot.init();
@@ -98,6 +99,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       requests: this.requests,
       defaultTimezone: this.config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
       helpUrl: this.config.get('USER_GUIDE_URL', { infer: true }) ?? null,
+      supportUrl: this.supportUrl(),
     };
     // A shift changed by a master, a terminal or a timer: the employee gets the new screen at once.
     this.pusher = new HomeScreenPusher(
@@ -136,6 +138,12 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     } else {
       this.logger.info({ username: bot.botInfo.username }, 'telegram-бот: режим webhook');
     }
+  }
+
+  /** Deep link to the support assistant, when a bot is configured for it. */
+  private supportUrl(): string | null {
+    const username = this.config.get('SUPPORT_BOT_USERNAME', { infer: true });
+    return username ? `https://t.me/${username.replace(/^@/, '')}?start=worker` : null;
   }
 
   /** The command menu of the bot in every interface language (base language as the default). */

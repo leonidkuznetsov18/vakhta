@@ -21,6 +21,7 @@ import { RequestsModule } from './requests/requests.module.js';
 import { SchedulingModule } from './scheduling/scheduling.module.js';
 import { ShiftModule } from './shift/shift.module.js';
 import { TelegramModule } from './telegram/telegram.module.js';
+import { SupportModule } from './support/support.module.js';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { TelegramModule } from './telegram/telegram.module.js';
     ReportsModule,
     KioskModule,
     TelegramModule,
+    SupportModule,
   ],
 })
 export class AppModule {}

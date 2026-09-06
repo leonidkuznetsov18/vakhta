@@ -21,6 +21,8 @@ export const en: Messages = {
     checkInHint:
       'Arrival and departure are recorded by scanning the QR on the terminal. If the terminal is unavailable, the master opens the shift from the panel.',
     helpButton: 'Help',
+    supportButton: 'Support',
+    supportHint: 'A question about the system? Ask the assistant: {url}',
     help: 'Vakhta shift bot. Arrival and departure are recorded by QR on the terminal; the shift is run with buttons: start, break, meal, downtime, cleaning, handover. Requests and scores are in the menu. User guide: {url}',
     commands: {
       start: 'Home screen',
@@ -193,6 +195,22 @@ export const en: Messages = {
       REJECTED: 'Rejected',
     },
     severities: { NORMAL: 'Normal', CRITICAL: 'Critical', SAFETY: 'Safety' },
+  },
+  support: {
+    greeting:
+      'I am the assistant of the Vakhta system. Ask how to check in, what to do in the panel or at the terminal, what changed in the new version. I answer in text; send a voice message and I answer with voice.',
+    noAccess:
+      'The assistant is available to employees linked in the Vakhta worker bot. Activate the account in the worker bot first.',
+    rateLimited: 'Too many questions in a row. Wait a little and try again.',
+    voiceOff: 'Voice answers are switched off for now, please write the question as text.',
+    unavailable:
+      'The assistant is temporarily unavailable. See the user guide or ask the shift master.',
+    error: 'Could not answer. Please try again a bit later.',
+    reset: 'Starting over: the conversation context is cleared.',
+    notHeard: 'Could not make out the voice message. Repeat it or write the question as text.',
+    transcribed: 'You asked: {text}',
+    textOnly: 'I understand text and voice messages.',
+    commands: { start: 'Start', reset: 'Clear the conversation context' },
   },
   handover: {
     items: {

@@ -29,6 +29,20 @@ export const EnvSchema = z.object({
   /** webhook для продакшену (потрібна публічна адреса), polling для розробки. За замовчуванням залежить від NODE_ENV. */
   TELEGRAM_MODE: z.preprocess(emptyToUndefined, z.enum(['webhook', 'polling']).optional()),
   TELEGRAM_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
+  /** Support assistant bot (docs/features/12-support-bot.md): a second bot with its own webhook secret. */
+  TELEGRAM_SUPPORT_BOT_TOKEN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  TELEGRAM_SUPPORT_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
+  /** Username of the support bot; the worker bot shows a "Support" button when set. */
+  SUPPORT_BOT_USERNAME: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  ANTHROPIC_API_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  SUPPORT_MODEL: z.string().default('claude-sonnet-5'),
+  /** Voice questions and answers of the support bot; without the key the bot answers in text only. */
+  OPENAI_API_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  /** Folder with features/*.md, the user guide and CHANGELOG.md; the Docker image sets it. */
+  SUPPORT_KNOWLEDGE_DIR: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  /** Telegram user ids allowed to use the assistant without an employee link. */
+  SUPPORT_ALLOWED_TELEGRAM_IDS: commaList.default([]),
+  SUPPORT_RATE_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(40),
   PUBLIC_BASE_URL: z.string().default('http://localhost:3000'),
   DEFAULT_SITE_TIMEZONE: z.string().default('Europe/Kyiv'),
   QR_ROTATION_SECONDS: z.coerce.number().int().positive().default(45),
@@ -109,6 +123,15 @@ export function loadEnv(source: Record<string, unknown>): Env {
   ) {
     throw new Error(
       "TELEGRAM_WEBHOOK_SECRET обов'язковий у режимі webhook, коли задано TELEGRAM_BOT_TOKEN (ТЗ 12.2)",
+    );
+  }
+  if (
+    parsed.data.TELEGRAM_SUPPORT_BOT_TOKEN &&
+    telegramMode(parsed.data) === 'webhook' &&
+    !parsed.data.TELEGRAM_SUPPORT_WEBHOOK_SECRET
+  ) {
+    throw new Error(
+      'TELEGRAM_SUPPORT_WEBHOOK_SECRET is required in webhook mode when TELEGRAM_SUPPORT_BOT_TOKEN is set',
     );
   }
   assertProductionReady(parsed.data);

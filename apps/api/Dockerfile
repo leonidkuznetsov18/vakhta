@@ -35,6 +35,11 @@ COPY --from=build --chown=node:node /repo/packages/db/drizzle packages/db/drizzl
 COPY --from=build --chown=node:node /repo/packages/domain/dist packages/domain/dist
 COPY --from=build --chown=node:node /repo/packages/i18n/dist packages/i18n/dist
 COPY --from=build --chown=node:node /repo/apps/api/dist apps/api/dist
+# Knowledge base of the support bot: feature docs, the user guide and the changelog of this build.
+COPY --chown=node:node docs/features knowledge/features
+COPY --chown=node:node docs/user-guide/vakhta-user-guide.ru.html knowledge/vakhta-user-guide.ru.html
+COPY --chown=node:node CHANGELOG.md knowledge/CHANGELOG.md
+ENV SUPPORT_KNOWLEDGE_DIR=/repo/knowledge
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

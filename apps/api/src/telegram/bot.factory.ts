@@ -151,6 +151,8 @@ function isShiftAction(value: string): value is ShiftAction {
 export interface BotDeps {
   /** Public address of the user guide, if published. */
   readonly helpUrl?: string | null;
+  /** Deep link to the support assistant bot, if configured. */
+  readonly supportUrl?: string | null;
   readonly employees: EmployeesService;
   readonly activation: ActivationService;
   readonly schedule: ScheduleService;
@@ -170,7 +172,14 @@ export interface BotDeps {
 /** What the home screen needs; a subset of the bot dependencies so the server can render it too. */
 export type HomeScreenDeps = Pick<
   BotDeps,
-  'schedule' | 'attendance' | 'shift' | 'handover' | 'requests' | 'defaultTimezone' | 'helpUrl'
+  | 'schedule'
+  | 'attendance'
+  | 'shift'
+  | 'handover'
+  | 'requests'
+  | 'defaultTimezone'
+  | 'helpUrl'
+  | 'supportUrl'
 >;
 
 /**
@@ -203,6 +212,7 @@ export async function renderHomeScreen(
     timezone,
     pendingSwaps: pendingSwaps.length,
     helpUrl: deps.helpUrl ?? null,
+    supportUrl: deps.supportUrl ?? null,
   });
   // Spec 5.1: during the shift and right after it the home screen is the shift screen.
   if (shift.session || shift.allowedActions.includes('START_SHIFT')) {
@@ -349,9 +359,14 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   // /help: a short description of what the bot does and where the guide lives.
   bot.command('help', async (ctx) => {
     const url = deps.helpUrl ?? '';
-    const keyboard = url ? new InlineKeyboard().url(`ℹ️ ${ctx.t.bot.helpButton}`, url) : undefined;
-    const text = format(ctx.t.bot.help, { url }).trim();
-    await show(ctx, keyboard ? { text, keyboard } : { text });
+    const support = deps.supportUrl ?? '';
+    const keyboard = new InlineKeyboard();
+    if (url) keyboard.url(`ℹ️ ${ctx.t.bot.helpButton}`, url);
+    if (support) keyboard.url(`🆘 ${ctx.t.bot.supportButton}`, support);
+    const lines = [format(ctx.t.bot.help, { url }).trim()];
+    if (support) lines.push('', format(ctx.t.bot.supportHint, { url: support }));
+    const text = lines.join('\n');
+    await show(ctx, url || support ? { text, keyboard } : { text });
   });
 
   // Interface language: /language or the home-screen button; the choice is stored per employee.

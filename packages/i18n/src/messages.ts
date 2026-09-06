@@ -49,6 +49,10 @@ export interface Messages {
     /** Shown on the home screen while no arrival is recorded: how presence is marked. */
     readonly checkInHint: string;
     readonly helpButton: string;
+    /** Button and /help line that open the support assistant bot. */
+    readonly supportButton: string;
+    /** Placeholder: {url} */
+    readonly supportHint: string;
     /** Help text of /help: what the bot does and where the guide is; {url} may be empty. */
     readonly help: string;
     /** Descriptions for the Telegram command menu. */
@@ -149,6 +153,21 @@ export interface Messages {
     readonly resolvedNotice: string;
     readonly statuses: Readonly<Record<IncidentStatus, string>>;
     readonly severities: Readonly<Record<IncidentSeverity, string>>;
+  };
+  /** The support assistant bot (docs/features/12-support-bot.md). */
+  readonly support: {
+    readonly greeting: string;
+    readonly noAccess: string;
+    readonly rateLimited: string;
+    readonly voiceOff: string;
+    readonly unavailable: string;
+    readonly error: string;
+    readonly reset: string;
+    readonly notHeard: string;
+    /** Placeholder: {text} */
+    readonly transcribed: string;
+    readonly textOnly: string;
+    readonly commands: Readonly<Record<'start' | 'reset', string>>;
   };
   readonly handover: {
     readonly items: Readonly<Record<ChecklistKey, string>>;
