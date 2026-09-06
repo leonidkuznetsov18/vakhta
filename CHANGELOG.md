@@ -1,3 +1,9 @@
+## [0.16.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.15.0...v0.16.0) (2026-09-06)
+
+### Features
+
+* **employees:** optional e-mail, phone and Telegram contacts with hints and validation ([e56a4d1](https://github.com/leonidkuznetsov18/vakhta/commit/e56a4d16d53fc7bc1a29d449cc2e17feddba9fb8))
+
 ## [0.15.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.14.0...v0.15.0) (2026-09-06)
 
 ### Features
