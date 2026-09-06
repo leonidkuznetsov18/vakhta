@@ -1,3 +1,9 @@
+## [0.25.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.24.0...v0.25.0) (2026-09-06)
+
+### Features
+
+* **profile:** name and photo of the panel user; density setting removed ([73c6243](https://github.com/leonidkuznetsov18/vakhta/commit/73c6243af390ba382fc5405e730e507d17ddd99c))
+
 ## [0.24.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.23.0...v0.24.0) (2026-09-06)
 
 ### Features
