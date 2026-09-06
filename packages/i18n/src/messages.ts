@@ -1330,5 +1330,7 @@ export interface Messages {
     readonly seconds: string;
     readonly lastSync: string;
     readonly fullscreen: string;
+    /** Label of the language buttons in the corner of the kiosk. */
+    readonly language: string;
   };
 }

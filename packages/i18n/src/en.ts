@@ -2050,5 +2050,6 @@ export const en: Messages = {
     seconds: 's',
     lastSync: 'Connection',
     fullscreen: 'Full screen',
+    language: 'Language',
   },
 };

@@ -2055,5 +2055,6 @@ export const uk: Messages = {
     seconds: 'с',
     lastSync: 'Звʼязок',
     fullscreen: 'На весь екран',
+    language: 'Мова',
   },
 };

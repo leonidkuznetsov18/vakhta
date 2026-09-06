@@ -1,6 +1,6 @@
 import QRCode from 'qrcode';
 import { KioskChallengeResponse, TerminalPaired } from '@vakhta/contracts';
-import { messages, resolveLocale } from '@vakhta/i18n';
+import { messages, resolveLocale, LOCALES, type Locale } from '@vakhta/i18n';
 
 // The `pages.dev` host is a deployment artifact: land on the custom domain the API trusts.
 const CANONICAL_ORIGIN = import.meta.env['VITE_CANONICAL_ORIGIN'];
@@ -16,10 +16,19 @@ if (CANONICAL_ORIGIN && location.origin !== CANONICAL_ORIGIN) {
  * (or opens the link that carries it). The token then stays in this browser's storage; nobody
  * copies secrets into environment variables. `VITE_KIOSK_DEVICE_TOKEN` remains a local-dev shortcut.
  *
- * Language: `?lang=uk|en|ru` in the kiosk URL, otherwise the browser language, otherwise the default.
+ * Language: `?lang=uk|en|ru` in the kiosk URL, otherwise the choice made with the buttons in the
+ * corner (kept in this browser), otherwise the browser language, otherwise the default.
  */
+const LOCALE_KEY = 'vakhta.kiosk.locale';
+function storedLocale(): string | null {
+  try {
+    return localStorage.getItem(LOCALE_KEY);
+  } catch {
+    return null;
+  }
+}
 const locale = resolveLocale(
-  new URLSearchParams(location.search).get('lang') ?? navigator.language,
+  new URLSearchParams(location.search).get('lang') ?? storedLocale() ?? navigator.language,
 );
 const t = messages(locale);
 document.documentElement.lang = locale;
@@ -47,7 +56,32 @@ const el = {
   sync: byId('sync'),
   syncDot: byId('sync-dot'),
   fullscreen: byId('fullscreen') as HTMLButtonElement,
+  lang: byId('lang'),
 };
+
+/** Language buttons: the choice is stored and the page reloads, so every text is redrawn at once. */
+const LANGUAGE_LABELS: Record<Locale, string> = { uk: 'UA', en: 'EN', ru: 'РУ' };
+el.lang.setAttribute('aria-label', t.kiosk.language);
+for (const code of LOCALES) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = LANGUAGE_LABELS[code];
+  button.lang = code;
+  button.className = code === locale ? 'lang-button active' : 'lang-button';
+  button.setAttribute('aria-pressed', String(code === locale));
+  button.addEventListener('click', () => {
+    if (code === locale) return;
+    try {
+      localStorage.setItem(LOCALE_KEY, code);
+    } catch {
+      // Storage unavailable: the URL parameter still carries the choice.
+    }
+    const url = new URL(location.href);
+    url.searchParams.set('lang', code);
+    location.replace(url.toString());
+  });
+  el.lang.appendChild(button);
+}
 
 el.title.textContent = t.kiosk.title;
 el.hint.textContent = t.kiosk.hint;

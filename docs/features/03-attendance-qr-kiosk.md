@@ -22,7 +22,9 @@ old tablet stops), "Отключить" pauses the terminal, "Удалить" (r
 terminal without attendance history is deleted outright, one with history disappears from the
 lists and stops issuing QR codes while its records stay in reports and audit.
 The kiosk shows the clock, the date, the terminal name and the last sync; a "Fullscreen" button
-keeps the screen on.
+keeps the screen on. The language buttons in the bottom-left corner (UA / EN / РУ) switch every
+text of the screen; the choice is kept in the tablet's browser, and `?lang=` in the URL still
+wins for a link prepared by the administrator.
 
 ## Reserve channel
 

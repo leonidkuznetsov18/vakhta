@@ -2053,5 +2053,6 @@ export const ru: Messages = {
     seconds: 'с',
     lastSync: 'Связь',
     fullscreen: 'На весь экран',
+    language: 'Язык',
   },
 };

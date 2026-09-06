@@ -189,6 +189,38 @@
       .fullscreen:focus-visible {
         opacity: 1;
       }
+      .lang {
+        position: fixed;
+        left: 16px;
+        bottom: 16px;
+        display: flex;
+        gap: 6px;
+        opacity: 0.7;
+      }
+      .lang:hover,
+      .lang:focus-within {
+        opacity: 1;
+      }
+      .lang-button {
+        font: inherit;
+        font-size: 14px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--muted);
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .lang-button.active {
+        border-color: var(--accent);
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .lang-button:hover,
+      .lang-button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
       [hidden] {
         display: none !important;
       }
@@ -210,6 +242,7 @@
       <p id="offline" class="offline" hidden></p>
       <button id="repair" type="button" class="repair" hidden></button>
       <button id="fullscreen" type="button" class="repair fullscreen"></button>
+      <nav id="lang" class="lang"></nav>
       <form id="pair" class="pair" hidden autocomplete="off">
         <h2 id="pair-title"></h2>
         <p id="pair-hint" class="hint"></p>
