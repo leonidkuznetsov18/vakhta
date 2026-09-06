@@ -4,7 +4,8 @@ States: PREPARATION → WORKING → temporary states (BREAK, MEAL, SERVICE_TIME,
 CLEANING → HANDOVER → READY_TO_CLOSE → SHIFT_CLOSED (or EMERGENCY_EXIT).
 
 - "Начать смену": needs an open presence (QR arrival) unless the master opens it. Opens
-  PREPARATION.
+  PREPARATION. After a QR arrival the bot does this by itself and shows the shift screen right
+  away; the button matters when the shift could not start at arrival time.
 - "Принять зону": when the schedule assignment has a zone, the employee accepts the zone before
   work; the previous shift's handover report (if any) is shown for review.
 - "Начать работу": WORKING. From here: "Перерыв" (15 min), "Обед" (60 min), "Служебное время",

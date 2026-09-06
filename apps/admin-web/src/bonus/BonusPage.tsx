@@ -9,13 +9,18 @@ import { BONUS_CRITERIA, type BonusCriterion } from '@vakhta/domain';
 import { format, messages } from '@vakhta/i18n';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import {
+  ClipboardCheckIcon,
   CoinsIcon,
   DownloadIcon,
   EyeIcon,
+  LockIcon,
+  LockOpenIcon,
   PencilIcon,
   RefreshCwIcon,
+  ThumbsDownIcon,
+  ThumbsUpIcon,
   Trash2Icon,
-  ClipboardCheckIcon,
+  Undo2Icon,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -90,9 +95,11 @@ export function BonusPage() {
     'bonus.openEmployee',
     null,
   );
-  const [points, setPoints] = useState<{ employee: PeriodEmployee; score?: ShiftScoreView } | null>(
-    null,
-  );
+  const [points, setPoints] = useState<{
+    employee: PeriodEmployee;
+    score?: ShiftScoreView;
+    kind?: 'BONUS' | 'PENALTY';
+  } | null>(null);
   const [editing, setEditing] = useState<{
     score: ShiftScoreView;
     adjustment: AdjustmentView;
@@ -149,6 +156,23 @@ export function BonusPage() {
       await bonusApi.close(siteId, month, text);
       await reload();
     }, b.closed);
+  }
+
+  async function reopenPeriod() {
+    if (!period?.id) return;
+    const text = await confirm({
+      title: b.reopenPeriod,
+      description: b.reopenConfirm,
+      confirmLabel: b.reopenPeriod,
+      commentLabel: b.comment,
+      commentRequired: true,
+    });
+    if (!text) return;
+    const periodId = period.id;
+    void run(async () => {
+      await bonusApi.reopen(periodId, text);
+      await reload();
+    }, b.reopened);
   }
 
   async function second(a: PendingAdjustment, decision: 'APPROVED' | 'REJECTED') {
@@ -348,16 +372,49 @@ export function BonusPage() {
             </>
           )}
           {period?.id && closed && (
-            <Button asChild variant="outline">
-              <a href={bonusApi.exportUrl(period.id)} target="_blank" rel="noreferrer">
-                <DownloadIcon aria-hidden="true" />
-                {b.exportCsv}
-              </a>
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => void reopenPeriod()}
+              >
+                <LockOpenIcon aria-hidden="true" />
+                {b.reopenPeriod}
+              </Button>
+              <Button asChild variant="outline">
+                <a href={bonusApi.exportUrl(period.id)} target="_blank" rel="noreferrer">
+                  <DownloadIcon aria-hidden="true" />
+                  {b.exportCsv}
+                </a>
+              </Button>
+            </>
           )}
         </div>
       </Toolbar>
       <Feedback error={error} />
+
+      {period && closed && (
+        <Alert>
+          <LockIcon aria-hidden="true" />
+          <AlertTitle>{b.periodClosedTitle}</AlertTitle>
+          <AlertDescription>
+            <p>{b.periodClosedHint}</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void reopenPeriod()}
+            >
+              <LockOpenIcon aria-hidden="true" />
+              {b.reopenPeriod}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {period && !closed && <HowItWorks />}
 
       {period && (
         <Section
@@ -524,14 +581,37 @@ export function BonusPage() {
           }
           description={`${b.sMonth}: ${open.sMonth ?? '—'} · ${b.shifts}: ${open.shifts} · ${b.evaluated}: ${open.evaluatedShifts}`}
           footer={
-            !closed && open.scores.length > 0 ? (
-              <Button type="button" onClick={() => setPoints({ employee: open })} disabled={busy}>
-                <CoinsIcon aria-hidden="true" />
-                {b.addPoints}
-              </Button>
+            open.scores.length > 0 ? (
+              closed ? (
+                <Muted className="flex items-center gap-1">
+                  <LockIcon className="size-4" aria-hidden="true" />
+                  {b.closedActions}
+                </Muted>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    onClick={() => setPoints({ employee: open, kind: 'BONUS' })}
+                    disabled={busy}
+                  >
+                    <ThumbsUpIcon aria-hidden="true" />
+                    {b.addBonus}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setPoints({ employee: open, kind: 'PENALTY' })}
+                    disabled={busy}
+                  >
+                    <ThumbsDownIcon aria-hidden="true" />
+                    {b.takePoints}
+                  </Button>
+                </>
+              )
             ) : undefined
           }
         >
+          <HowItWorks compact />
           <h3 className="flex items-center gap-1 text-sm font-semibold">
             {b.detailTitle}
             <InfoTip text={hints.bonusStatus} />
@@ -542,7 +622,7 @@ export function BonusPage() {
               score={s}
               closed={closed}
               busy={busy}
-              onPoints={() => setPoints({ employee: open, score: s })}
+              onPoints={(kind) => setPoints({ employee: open, score: s, kind })}
               onReview={() => setReview(s)}
               onEdit={(a) => setEditing({ score: s, adjustment: a })}
               onDelete={(a) => void deleteAdjustment(a)}
@@ -558,6 +638,7 @@ export function BonusPage() {
         <PointsDialog
           key={`${points.employee.employeeId}:${points.score?.id ?? 'any'}`}
           employee={points.employee}
+          initialKind={points.kind ?? 'BONUS'}
           score={points.score ?? null}
           reasons={adjustmentReasons}
           onClose={() => setPoints(null)}
@@ -626,7 +707,35 @@ function SummaryTile({
   );
 }
 
-/** One shift of the employee: status with its meaning, the breakdown, adjustments and actions. */
+/** Numbered guide for administrators: what the scores are and which button does what. */
+function HowItWorks({ compact = false }: { readonly compact?: boolean }) {
+  const [openGuide, setOpenGuide] = usePersistentState('bonus.guideOpen', !compact);
+  return (
+    <div className={compact ? 'rounded-lg border bg-muted/40 p-3' : 'rounded-lg border p-4'}>
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 text-left text-sm font-semibold"
+        aria-expanded={openGuide}
+        onClick={() => setOpenGuide((v) => !v)}
+      >
+        <ClipboardCheckIcon className="size-4" aria-hidden="true" />
+        {b.howItWorks}
+        <span className="ml-auto text-xs font-normal text-muted-foreground">
+          {openGuide ? all.ui.common.hide : all.ui.common.details}
+        </span>
+      </button>
+      {openGuide && (
+        <ol className="mt-2 flex list-decimal flex-col gap-1 pl-5 text-sm text-muted-foreground">
+          {b.howSteps.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+/** One shift of the employee: status with its meaning, an explicit action row, the adjustments. */
 function ShiftCard({
   score,
   closed,
@@ -640,7 +749,7 @@ function ShiftCard({
   readonly score: ShiftScoreView;
   readonly closed: boolean;
   readonly busy: boolean;
-  readonly onPoints: () => void;
+  readonly onPoints: (kind: 'BONUS' | 'PENALTY') => void;
   readonly onReview: () => void;
   readonly onEdit: (a: AdjustmentView) => void;
   readonly onDelete: (a: AdjustmentView) => void;
@@ -654,6 +763,8 @@ function ShiftCard({
   const history = score.adjustments.filter(
     (a) => a.status === 'CANCELLED' || a.status === 'REJECTED',
   );
+  const excluded = score.status === 'NOT_EVALUATED';
+  const canTakePoints = !closed && !excluded && score.status !== 'MANUAL_REVIEW';
   const criteriaColumns: Column<ShiftScoreView['criteria'][number]>[] = [
     { key: 'criterion', header: b.criterion, cell: (c) => all.bonus.criteria[c.criterion] },
     {
@@ -685,50 +796,85 @@ function ShiftCard({
           <Muted className="text-sm font-normal"> / 100</Muted>
         </span>
       </div>
-      <p className="text-sm text-muted-foreground">{b.statusHelp[score.status]}</p>
+      <p className="text-sm text-muted-foreground">
+        {b.statusHelp[score.status]}
+        {excluded && score.excludedReason ? ` ${score.excludedReason}` : ''}
+      </p>
       {score.status === 'MANUAL_REVIEW' && (
         <Alert>
-          <AlertTitle>{b.reviewTitle}</AlertTitle>
+          <ClipboardCheckIcon aria-hidden="true" />
+          <AlertTitle>{b.whatToDo}</AlertTitle>
           <AlertDescription>
             <p>
-              {format(b.reviewExplain, {
+              {format(b.reviewReason, {
                 applicable: score.applicableMax,
                 missing: missing.join(', ') || '—',
               })}
             </p>
-            {!closed && (
-              <Button type="button" size="sm" onClick={onReview} disabled={busy}>
-                <ClipboardCheckIcon aria-hidden="true" />
-                {b.finishReview}
-              </Button>
-            )}
+            <ol className="flex list-decimal flex-col gap-0.5 pl-5">
+              {b.reviewSteps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
           </AlertDescription>
         </Alert>
       )}
-      {score.excludedReason && score.status === 'NOT_EVALUATED' && (
-        <Muted>{score.excludedReason}</Muted>
+      {closed ? (
+        <Muted className="flex items-center gap-1">
+          <LockIcon className="size-4" aria-hidden="true" />
+          {b.closedActions}
+        </Muted>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {score.status === 'MANUAL_REVIEW' && (
+            <Button type="button" size="sm" onClick={onReview} disabled={busy}>
+              <ClipboardCheckIcon aria-hidden="true" />
+              {b.finishReview}
+            </Button>
+          )}
+          {canTakePoints && (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant={score.reviewDecision === null ? 'default' : 'secondary'}
+                onClick={() => onPoints('BONUS')}
+                disabled={busy}
+              >
+                <ThumbsUpIcon aria-hidden="true" />
+                {b.addBonus}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onPoints('PENALTY')}
+                disabled={busy}
+              >
+                <ThumbsDownIcon aria-hidden="true" />
+                {b.takePoints}
+              </Button>
+            </>
+          )}
+          {score.reviewDecision !== null && (
+            <Button type="button" size="sm" variant="outline" onClick={onReview} disabled={busy}>
+              <Undo2Icon aria-hidden="true" />
+              {excluded ? b.restoreShift : b.changeReview}
+            </Button>
+          )}
+        </div>
       )}
       <div className="flex flex-wrap gap-2">
-        {!closed && score.status !== 'NOT_EVALUATED' && (
-          <Button type="button" size="sm" variant="secondary" onClick={onPoints} disabled={busy}>
-            <CoinsIcon aria-hidden="true" />
-            {b.addPoints}
-          </Button>
-        )}
-        {score.reviewDecision !== null && !closed && (
-          <Button type="button" size="sm" variant="outline" onClick={onReview} disabled={busy}>
-            <ClipboardCheckIcon aria-hidden="true" />
-            {b.finishReview}
-          </Button>
-        )}
         <Button type="button" size="sm" variant="ghost" onClick={() => setShowCriteria((v) => !v)}>
           <EyeIcon aria-hidden="true" />
           {b.detail}
         </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onRecompute} disabled={busy}>
-          <RefreshCwIcon aria-hidden="true" />
-          {b.recompute}
-        </Button>
+        {!closed && (
+          <Button type="button" size="sm" variant="ghost" onClick={onRecompute} disabled={busy}>
+            <RefreshCwIcon aria-hidden="true" />
+            {b.recompute}
+          </Button>
+        )}
       </div>
       {showCriteria && (
         <DataTable
@@ -742,11 +888,9 @@ function ShiftCard({
           }
         />
       )}
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-medium">{b.adjustmentsTitle}</p>
-        {live.length === 0 && history.length === 0 ? (
-          <Muted>{b.noAdjustments}</Muted>
-        ) : (
+      {(live.length > 0 || history.length > 0) && (
+        <div className="flex flex-col gap-1">
+          <p className="text-sm font-medium">{b.adjustmentsTitle}</p>
           <ul className="flex flex-col gap-1 text-sm">
             {[...live, ...history].map((a) => (
               <li
@@ -766,34 +910,37 @@ function ShiftCard({
                   {b.adjustmentStatuses[a.status]}
                 </StatusPill>
                 {!closed && (a.status === 'APPLIED' || a.status === 'PENDING_SECOND') && (
-                  <>
+                  <span className="flex gap-1">
                     <Button
                       type="button"
-                      size="icon"
+                      size="sm"
                       variant="ghost"
                       aria-label={`${b.editAdjustment} ${signed(a.delta)}`}
                       onClick={() => onEdit(a)}
                       disabled={busy}
                     >
                       <PencilIcon aria-hidden="true" />
+                      {b.editAdjustment}
                     </Button>
                     <Button
                       type="button"
-                      size="icon"
+                      size="sm"
                       variant="ghost"
+                      className="text-destructive hover:text-destructive"
                       aria-label={`${b.deleteAdjustment} ${signed(a.delta)}`}
                       onClick={() => onDelete(a)}
                       disabled={busy}
                     >
                       <Trash2Icon aria-hidden="true" />
+                      {b.deleteAdjustment}
                     </Button>
-                  </>
+                  </span>
                 )}
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -804,12 +951,14 @@ type Reason = OrgSnapshot['reasonCodes'][number];
 function PointsDialog({
   employee,
   score,
+  initialKind,
   reasons,
   onClose,
   onSaved,
 }: {
   readonly employee: PeriodEmployee;
   readonly score: ShiftScoreView | null;
+  readonly initialKind: 'BONUS' | 'PENALTY';
   readonly reasons: readonly Reason[];
   readonly onClose: () => void;
   readonly onSaved: (view: ShiftScoreView) => Promise<void>;
@@ -818,7 +967,7 @@ function PointsDialog({
     (s) => s.status !== 'NOT_EVALUATED' && s.status !== 'CONFIRMED',
   );
   const [scoreId, setScoreId] = useState(score?.id ?? candidates[candidates.length - 1]?.id ?? '');
-  const [kind, setKind] = useState<'BONUS' | 'PENALTY'>('BONUS');
+  const [kind, setKind] = useState<'BONUS' | 'PENALTY'>(initialKind);
   const [amount, setAmount] = useState('');
   const [reasonCode, setReasonCode] = useState(reasons[0]?.code ?? '');
   const [comment, setComment] = useState('');

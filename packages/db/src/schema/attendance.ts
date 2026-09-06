@@ -25,6 +25,8 @@ export const qrTerminals = pgTable(
     status: terminalStatus('status').notNull().default('ACTIVE'),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    /** A terminal with check-in history is not removed from the log; it is hidden and disabled. */
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [index('qr_terminals_site_idx').on(t.siteId)],
 );

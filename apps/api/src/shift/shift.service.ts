@@ -12,6 +12,7 @@ import {
   inArray,
   isNull,
   notInArray,
+  or,
   orgUnits,
   presenceSessions,
   reasonCodes,
@@ -200,7 +201,10 @@ export class ShiftService {
     const since = new Date(now.getTime() - 24 * 3_600_000);
     const conditions = [
       q.includeClosed
-        ? sql`(${shiftSessions.state} NOT IN ('SHIFT_CLOSED', 'EMERGENCY_EXIT') OR ${shiftSessions.endedAt} >= ${since})`
+        ? or(
+            notInArray(shiftSessions.state, ['SHIFT_CLOSED', 'EMERGENCY_EXIT']),
+            gte(shiftSessions.endedAt, since),
+          )
         : notInArray(shiftSessions.state, TERMINAL),
     ];
     if (q.orgUnitId) conditions.push(eq(shiftAssignments.orgUnitId, q.orgUnitId));

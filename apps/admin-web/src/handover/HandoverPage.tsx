@@ -123,8 +123,21 @@ export function HandoverPage() {
 
   const handoverReasons = org?.reasonCodes.filter((r) => r.kind === 'HANDOVER' && r.isActive) ?? [];
   const openRow = rows.find((r) => r.id === openId) ?? null;
-  const [lightbox, setLightbox] = useState<LightboxImage[]>([]);
+  const [lightbox, setLightbox] = useState<{ images: LightboxImage[]; start: number }>({
+    images: [],
+    start: 0,
+  });
+  const photoUrls = useRef(new Map<string, string>());
   const loadLink = useCallback((mediaId: string) => handoversApi.mediaLink(mediaId), []);
+  // Remembers the signed links already fetched so the gallery can show every photo of the report.
+  const trackedLink = useCallback(
+    (mediaId: string) =>
+      handoversApi.mediaLink(mediaId).then((l) => {
+        photoUrls.current.set(mediaId, l.url);
+        return l;
+      }),
+    [],
+  );
 
   const columns: Column<HandoverListItemView>[] = [
     {
@@ -217,7 +230,12 @@ export function HandoverPage() {
         rowClassName={(row) => (row.overdue ? 'bg-red-50/60 dark:bg-red-950/30' : undefined)}
         activeKey={openId}
       />
-      <Lightbox images={lightbox} onClose={() => setLightbox([])} title={h.photos} />
+      <Lightbox
+        images={lightbox.images}
+        start={lightbox.start}
+        onClose={() => setLightbox({ images: [], start: 0 })}
+        title={h.photos}
+      />
       {openRow && (
         <DetailSheet
           open={openRow !== null}
@@ -279,91 +297,127 @@ export function HandoverPage() {
                       </Button>
                     </form>
                   )}
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <h3 className="mb-2 text-sm font-semibold">{h.checklist}</h3>
-                      <ul className="flex flex-col gap-1 text-sm">
-                        {detail.handover.items.map((item) => (
-                          <li key={item.key}>
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold">{h.checklist}</h3>
+                    <ul className="flex flex-col gap-1 text-sm">
+                      {detail.handover.items
+                        .filter((item) => item.kind === 'CHECK')
+                        .map((item) => (
+                          <li key={item.key} className="flex gap-2">
                             <span aria-hidden="true">
                               {!item.answered ? '▫️' : item.ok ? '✅' : '⚠️'}
-                            </span>{' '}
-                            {item.label}
-                            {item.answered && !item.ok && (
-                              <Muted>
-                                {` · ${item.remarkCategory} · ${item.remarkText} · ${item.safeToWork ? h.safe : h.unsafe}${item.needs.length > 0 ? ` · ${item.needs.map((n) => all.handover.needs[n]).join(', ')}` : ''}`}
-                              </Muted>
-                            )}
-                            {item.kind === 'NOTE' && item.answered && <Muted> · {h.note}</Muted>}
+                            </span>
+                            <span className="min-w-0">
+                              {item.label}
+                              {item.answered && !item.ok && (
+                                <Muted>
+                                  {` · ${item.remarkCategory} · ${item.remarkText} · ${item.safeToWork ? h.safe : h.unsafe}${item.needs.length > 0 ? ` · ${item.needs.map((n) => all.handover.needs[n]).join(', ')}` : ''}`}
+                                </Muted>
+                              )}
+                            </span>
                           </li>
                         ))}
-                      </ul>
-                      {detail.handover.cannotCompleteReason && (
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {h.cannotComplete}: {detail.handover.cannotCompleteReason}
-                          {detail.handover.cannotCompleteComment
-                            ? ` · ${detail.handover.cannotCompleteComment}`
-                            : ''}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      <div>
-                        <h3 className="mb-2 flex items-center gap-1 text-sm font-semibold">
-                          {h.photos}
-                          <InfoTip text={hints.handoverPhoto} />
-                        </h3>
-                        <div className="grid grid-cols-3 gap-2">
-                          {detail.handover.photos.map((p) => (
-                            <PhotoThumb
-                              key={p.itemKey}
-                              media={p.media}
-                              loadLink={loadLink}
-                              label={`${p.label} · ${all.handover.quality[p.media.quality]}`}
-                              onOpen={(url) =>
-                                setLightbox([{ url, label: `${h.photoBefore}: ${p.label}` }])
-                              }
-                            />
+                    </ul>
+                    {detail.handover.cannotCompleteReason && (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {h.cannotComplete}: {detail.handover.cannotCompleteReason}
+                        {detail.handover.cannotCompleteComment
+                          ? ` · ${detail.handover.cannotCompleteComment}`
+                          : ''}
+                      </p>
+                    )}
+                  </div>
+                  {detail.handover.items.some((item) => item.kind === 'NOTE' && item.answered) && (
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold">{h.notes}</h3>
+                      <ul className="flex flex-col gap-1 text-sm">
+                        {detail.handover.items
+                          .filter((item) => item.kind === 'NOTE' && item.answered)
+                          .map((item) => (
+                            <li key={item.key} className="rounded-md border bg-muted/40 px-3 py-2">
+                              <Muted className="text-xs">{item.label}</Muted>
+                              <p className="whitespace-pre-wrap">{item.note ?? '—'}</p>
+                            </li>
                           ))}
-                        </div>
+                      </ul>
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="mb-2 flex items-center gap-1 text-sm font-semibold">
+                      {h.photos}
+                      <Muted className="font-normal">({detail.handover.photos.length})</Muted>
+                      <InfoTip text={hints.handoverPhoto} />
+                    </h3>
+                    {detail.handover.photos.length === 0 ? (
+                      <Muted>{h.noPhotos}</Muted>
+                    ) : (
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3">
+                        {detail.handover.photos.map((p) => (
+                          <PhotoThumb
+                            key={p.itemKey}
+                            media={p.media}
+                            loadLink={trackedLink}
+                            label={p.label}
+                            badge={all.handover.quality[p.media.quality]}
+                            onOpen={() =>
+                              setLightbox({
+                                images: detail.handover.photos
+                                  .filter((x) => photoUrls.current.has(x.media.id))
+                                  .map((x) => ({
+                                    url: photoUrls.current.get(x.media.id)!,
+                                    label: `${h.photoBefore}: ${x.label}`,
+                                  })),
+                                start: detail.handover.photos
+                                  .filter((x) => photoUrls.current.has(x.media.id))
+                                  .findIndex((x) => x.itemKey === p.itemKey),
+                              })
+                            }
+                          />
+                        ))}
                       </div>
-                      <div>
-                        <h3 className="mb-2 text-sm font-semibold">{h.reviews}</h3>
-                        <ul className="flex flex-col gap-1 text-sm">
-                          {detail.reviews.map((r) => (
-                            <li key={r.id} className="flex flex-wrap items-center gap-2">
+                    )}
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold">{h.reviews}</h3>
+                      <ul className="flex flex-col gap-2 text-sm">
+                        {detail.reviews.map((r) => (
+                          <li key={r.id} className="flex flex-col gap-1">
+                            <span>
                               <span className="tabular-nums">{formatDateTime(r.reviewedAt)}</span>{' '}
                               <strong>{r.reviewerName}</strong>{' '}
                               <span aria-hidden="true">
                                 {r.decision === 'ACCEPTED' ? '✅' : '⚠️'}
                               </span>
                               {r.category ? ` · ${r.category}` : ''}
-                              {r.comment ? ` · ${r.comment}` : ''}{' '}
-                              {r.media && (
-                                <PhotoThumb
-                                  media={r.media}
-                                  loadLink={loadLink}
-                                  label={h.photoAfter}
-                                  className="w-40"
-                                  onOpen={(url) => setLightbox([{ url, label: h.photoAfter }])}
-                                />
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div>
-                        <h3 className="mb-2 text-sm font-semibold">{h.resolutions}</h3>
-                        <ul className="flex flex-col gap-1 text-sm">
-                          {detail.resolutions.map((r) => (
-                            <li key={r.id}>
-                              <span className="tabular-nums">{formatDateTime(r.at)}</span>{' '}
-                              {all.handover.resolutions[r.decision]}
-                              <Muted> · {r.comment}</Muted>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                              {r.comment ? ` · ${r.comment}` : ''}
+                            </span>
+                            {r.media && (
+                              <PhotoThumb
+                                media={r.media}
+                                loadLink={loadLink}
+                                label={h.photoAfter}
+                                className="w-40"
+                                onOpen={(url) =>
+                                  setLightbox({ images: [{ url, label: h.photoAfter }], start: 0 })
+                                }
+                              />
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <h3 className="mb-2 text-sm font-semibold">{h.resolutions}</h3>
+                      <ul className="flex flex-col gap-1 text-sm">
+                        {detail.resolutions.map((r) => (
+                          <li key={r.id}>
+                            <span className="tabular-nums">{formatDateTime(r.at)}</span>{' '}
+                            {all.handover.resolutions[r.decision]}
+                            <Muted> · {r.comment}</Muted>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   </div>
                 </div>

@@ -589,6 +589,30 @@ export const en: Messages = {
       unsaved: 'There are unsaved changes.',
       deleteVersion: 'Delete version',
       deleteConfirm: 'Delete draft version {no}? The shift layout of this version will be lost.',
+      deleteHistoryConfirm:
+        'Delete version {no} from the history? It was superseded and no shift of it was worked.',
+      versionInUse: 'Shifts of this version were worked; it stays in the history.',
+      versionOption: 'Version {no} · {status} · {date}',
+      versionsCount: 'Versions this month: {count}',
+      employeesInVersion: 'Employees in the version: {count}',
+      employeesReadOnly:
+        'Employees and shifts change only in a draft: press "Edit schedule" or open the draft.',
+      removeFromVersion: 'Remove from the version',
+      issueDetails: {
+        overlapMinutes: 'overlap, min',
+        restMinutes: 'rest, min',
+        minRestMinutes: 'minimum rest, min',
+        days: 'days in a row',
+        maxConsecutiveDays: 'maximum in a row',
+        plannedHours: 'planned hours',
+        maxHoursPerMonth: 'maximum per month',
+        nightShifts: 'night shifts',
+        totalShifts: 'shifts in total',
+        share: 'night share',
+        businessDate: 'date',
+        from: 'from',
+        to: 'to',
+      },
       deleted: 'Version deleted.',
       noEmployees:
         'There are no employees yet. Add them under Administration → Employees first, then build the schedule.',
@@ -744,6 +768,11 @@ export const en: Messages = {
       safe: 'safe',
       unsafe: 'unsafe',
       note: 'Message to the next shift',
+      notes: 'Messages to the next shift',
+      noPhotos: 'No photos.',
+      prevPhoto: 'Previous photo',
+      nextPhoto: 'Next photo',
+      photoCounter: '{index} of {total}',
     },
     requests: {
       scopeInbox: 'Awaiting my decision',
@@ -879,6 +908,32 @@ export const en: Messages = {
       noAdjustments: 'No adjustments.',
       secondThresholdHint:
         'Taking more than the threshold of the rules (10 points by default) applies after a second manager confirms it.',
+      howItWorks: 'How it works',
+      howSteps: [
+        'Points for every shift (0–100) are computed automatically from attendance, the checklist and the zone acceptance.',
+        'A shift marked "Manual review" waits for you: press "Finish review", set a score or exclude the shift.',
+        'To reward or penalise an employee, press "Add points" or "Take points" on the shift and give the reason.',
+        'Every adjustment is listed in the shift card: edit or delete it while the period is open. Close the period once everything is checked.',
+      ],
+      periodClosedTitle: 'Period closed',
+      periodClosedHint:
+        'Scores are confirmed and frozen: reviews, points and deletions are unavailable. To fix something, reopen the period, make the changes and close it again.',
+      reopenPeriod: 'Reopen period',
+      reopenConfirm:
+        'Reopen the period? Confirmed scores return to "Preliminary"; the bonus base is kept. Close the period again after the changes.',
+      reopened: 'Period reopened.',
+      addBonus: 'Add points',
+      takePoints: 'Take points',
+      changeReview: 'Change review decision',
+      restoreShift: 'Return the shift to the month',
+      whatToDo: 'What to do',
+      reviewSteps: [
+        'Press "Finish review".',
+        'Set a score 0–100 (the system suggests one from the earned criteria) or exclude the shift from the month.',
+        'Write a comment: the employee is notified of your decision.',
+      ],
+      reviewReason: 'Only {applicable} of 100 points apply; not applicable: {missing}.',
+      closedActions: 'The period is closed: the points of this shift are confirmed and frozen.',
     },
     reports: {
       kinds: {
@@ -992,6 +1047,21 @@ export const en: Messages = {
       empty: 'No records.',
       corrects: 'corrects',
       all: 'All',
+      actorTypes: {
+        EMPLOYEE: 'Employee',
+        WEB_USER: 'Panel user',
+        SYSTEM: 'System',
+        TERMINAL: 'Terminal',
+      },
+      details: 'Details',
+      objectId: 'Object id',
+      changes: 'What changed',
+      field: 'Field',
+      noChanges: 'The values before and after are equal or were not recorded.',
+      changedFields: 'Changed fields: {count}',
+      rawJson: 'Full data (JSON)',
+      copyJson: 'Copy JSON',
+      copyId: 'Copy id',
       actions: {
         'bonus.adjust': 'Score adjustment',
         'bonus.base.set': 'Bonus bases',
@@ -1087,6 +1157,13 @@ export const en: Messages = {
         checklistAdded: 'Checklist added for the position.',
         removeChecklist: 'Remove',
         checklistRemoved: 'Checklist removed from the position.',
+        replaceChecklist: 'Replace',
+        replaceConfirm:
+          'Replace the checklist "{name}" with the selected one? A position has one checklist.',
+        checklistReplaced: 'Checklist replaced.',
+        removeConfirm:
+          'Remove the checklist "{name}" from the position? The bot stops asking employees of this position for it.',
+        onePerPosition: 'A position has one checklist: replace it with another or remove it.',
         noChecklistHint:
           'This position has no checklist: the bot will ask for no checklist and no photos. Add an existing one or create a new one in the "Checklists" tab.',
         assignPosition: 'Assign position',
@@ -1207,6 +1284,9 @@ export const en: Messages = {
         anyPosition: 'No position (not applied)',
         positions: 'Positions',
         noPositions: 'Pick at least one position.',
+        positionTaken: 'now: {name}',
+        positionsReplaceHint:
+          'A position has one checklist. A checked position that already has one moves to this checklist; the previous checklist without positions is disabled.',
         zoneType: 'Zone type',
         anyZoneType: 'Any zone type',
         items: 'Items',
@@ -1312,6 +1392,9 @@ export const en: Messages = {
       commandPlaceholder: 'Section or employee…',
       commandSections: 'Sections',
       commandEmployees: 'Employees',
+      commandActions: 'Actions',
+      commandChecklists: 'Checklists',
+      commandTerminals: 'Terminals',
       selected: 'Selected: {n}',
       selectAll: 'Select all',
       clearSelection: 'Clear selection',
@@ -1388,7 +1471,8 @@ export const en: Messages = {
         'A manual review is needed when a shift ran without a schedule or a checklist and the rules do not collect enough applicable criteria. The master score replaces the calculation; an excluded shift does not affect the month.',
       bonusLeaderboard:
         'Rating by the month S: the weighted average of shift scores, over scored shifts.',
-      bonusStatus: 'What the shift status means and what to do with it.',
+      bonusStatus:
+        'Every closed shift gets a score from 0 to 100: the rules check arrival and departure by QR, start and end against the schedule, breaks, downtime paperwork, the checklist with photos and the zone acceptance; a criterion that does not apply to the shift is left out, and the score is the share of points earned among the applicable ones. The status says whether the score is final: preliminary (may change), pending (a photo check, an acceptance or a request), manual review (the rules cannot score the shift, the master sets the score), appealed, confirmed (the period is closed), not evaluated (the shift is excluded). The month S is the duration-weighted average of the month shifts; the bonus is computed from it.',
       reportsKind: 'The six MVP reports. There are no "who rested least" rankings by design.',
       reportsExport: 'The export carries the data version and generation time and is audited.',
       reportsDataVersion:

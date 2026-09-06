@@ -10,14 +10,13 @@ import type {
 import { format, messages } from '@vakhta/i18n';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { Feedback } from '@/components/app/feedback';
 import { MonthField } from '@/components/app/date-picker';
 import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { EmptyState, Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
-import { employeesApi, orgApi, schedulesApi } from '../api.ts';
+import { ApiError, employeesApi, orgApi, schedulesApi } from '../api.ts';
 import { describeError as describe } from '../errors.ts';
 import { AckTable } from './AckTable.tsx';
 import { IssuesPanel } from './IssuesPanel.tsx';
@@ -284,13 +283,22 @@ export function SchedulePage() {
     if (!version) return;
     const ok = await confirm({
       title: s.deleteVersion,
-      description: format(s.deleteConfirm, { no: version.versionNo }),
+      description: format(
+        version.status === 'SUPERSEDED' ? s.deleteHistoryConfirm : s.deleteConfirm,
+        { no: version.versionNo },
+      ),
       confirmLabel: s.deleteVersion,
       destructive: true,
     });
     if (ok === false) return;
     void run(async () => {
-      await schedulesApi.remove(version.id);
+      try {
+        await schedulesApi.remove(version.id);
+      } catch (e) {
+        if (e instanceof ApiError && e.code === 'SCHEDULE_VERSION_IN_USE')
+          throw new Error(s.versionInUse);
+        throw e;
+      }
       setSelectedId(null);
       await loadVersions();
     }, s.deleted);
@@ -382,21 +390,40 @@ export function SchedulePage() {
           }
         />
       ) : (
-        <Tabs value={selectedId ?? ''} onValueChange={(v) => setSelectedId(v)}>
-          <TabsList>
-            {versions.map((v) => (
-              <TabsTrigger key={v.id} value={v.id} className="gap-2">
-                <span className="font-medium">
-                  {s.version} {v.versionNo}
-                </span>
-                <StatusPill tone={STATUS_TONE[v.status]}>{s.statuses[v.status]}</StatusPill>
-                <Muted className="hidden text-xs sm:inline">
-                  {format(s.createdOn, { date: formatDate(v.publishedAt ?? v.createdAt) })}
-                </Muted>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/30 p-3">
+          <SelectField
+            label={s.version}
+            hint={hints.scheduleVersions}
+            value={selectedId ?? ''}
+            onChange={(v) => v && setSelectedId(v)}
+            options={[...versions]
+              .sort((x, y) => y.versionNo - x.versionNo)
+              .map((v) => ({
+                value: v.id,
+                label: format(s.versionOption, {
+                  no: v.versionNo,
+                  status: s.statuses[v.status],
+                  date: formatDate(v.publishedAt ?? v.createdAt),
+                }),
+              }))}
+            className="w-full sm:w-96"
+          />
+          {version && (
+            <div className="flex flex-wrap items-center gap-2 pb-1.5">
+              <StatusPill tone={STATUS_TONE[version.status]}>
+                {s.statuses[version.status]}
+              </StatusPill>
+              <Muted className="text-xs">
+                {format(s.createdOn, {
+                  date: formatDate(version.publishedAt ?? version.createdAt),
+                })}
+              </Muted>
+              <Muted className="text-xs">
+                {format(s.versionsCount, { count: versions.length })}
+              </Muted>
+            </div>
+          )}
+        </div>
       )}
 
       {version && detail && (
@@ -413,6 +440,17 @@ export function SchedulePage() {
               </AlertTitle>
               <AlertDescription>
                 <p>{s.editPublishedHint}</p>
+                {version.status === 'SUPERSEDED' && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => void deleteVersion()}
+                  >
+                    {s.deleteVersion}
+                  </Button>
+                )}
                 {existingDraft ? (
                   <Button
                     type="button"

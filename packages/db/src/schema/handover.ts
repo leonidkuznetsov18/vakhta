@@ -82,7 +82,8 @@ export const checklistDefinitions = pgTable(
 
 /**
  * Positions a checklist version applies to (ADR-0012): the position is the key by which the
- * employee gets a checklist, and one checklist may serve several positions.
+ * employee gets a checklist. One checklist may serve several positions, but a position has at
+ * most one checklist: binding it elsewhere replaces the previous binding.
  */
 export const checklistDefinitionPositions = pgTable(
   'checklist_definition_positions',
@@ -96,7 +97,7 @@ export const checklistDefinitionPositions = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.definitionId, t.positionId] }),
-    index('checklist_definition_positions_position_idx').on(t.positionId),
+    uniqueIndex('checklist_definition_positions_position_uq').on(t.positionId),
   ],
 );
 

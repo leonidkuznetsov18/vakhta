@@ -29,8 +29,9 @@ export function IssuesPanel({ detail, employees }: Props) {
           .sort()
           .map((d) => d!.slice(8, 10))
           .join(', ');
+        const labels = s.issueDetails as Readonly<Record<string, string>>;
         const details = Object.entries(issue.details)
-          .map(([k, v]) => `${k}: ${v}`)
+          .map(([k, v]) => `${labels[k] ?? k}: ${v}`)
           .join(' · ');
         return (
           <li

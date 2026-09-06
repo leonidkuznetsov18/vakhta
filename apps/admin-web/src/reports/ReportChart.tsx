@@ -32,6 +32,9 @@ const PALETTE = [
   'var(--chart-3)',
   'var(--chart-4)',
   'var(--chart-5)',
+  'var(--chart-6)',
+  'var(--chart-7)',
+  'var(--chart-8)',
 ];
 
 /** Rows of the report as chart points: minutes become hours, the category is the first text column. */

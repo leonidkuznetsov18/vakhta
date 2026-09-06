@@ -25,6 +25,8 @@ export const ChecklistItemView = z.object({
   remarkText: z.string().nullable(),
   safeToWork: z.boolean().nullable(),
   needs: z.array(RemarkNeedSchema),
+  /** For kind=NOTE: the message left for the next shift. */
+  note: z.string().nullable(),
 });
 export type ChecklistItemView = z.infer<typeof ChecklistItemView>;
 

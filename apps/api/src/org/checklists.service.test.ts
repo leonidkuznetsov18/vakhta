@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  checklistDefinitionPositions,
   checklistDefinitions,
   employees,
   handoverRecords,
@@ -38,7 +39,7 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
 
   beforeEach(async () => {
     await testDb.db.execute(
-      sql`TRUNCATE handover_records, shift_sessions, checklist_definitions, responsibility_zones, employees, positions, org_units, sites CASCADE`,
+      sql`TRUNCATE handover_records, shift_sessions, checklist_definition_positions, checklist_definitions, responsibility_zones, employees, positions, org_units, sites CASCADE`,
     );
     const events = new EventStore();
     const audit = new AuditLog();
@@ -182,28 +183,41 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
     expect((await service.list()).find((c) => c.id === used.id)?.handovers).toBe(1);
   });
 
-  it('an existing checklist can be attached to more positions and keeps at least one', async () => {
+  it('a position has one checklist: attaching another replaces it, detaching may leave none', async () => {
     const [fitter] = await testDb.db
       .insert(positions)
       .values({ code: 'FITTER', name: 'Наладчик' })
       .returning();
-    const created = await service.create(
+    const photos = await service.create(
       { name: 'Фото оборудования', positionIds: [positionId], items },
       admin,
     );
-    const both = await service.addPosition(created.id, fitter!.id, admin);
-    expect(both.positions.map((p) => p.name)).toEqual(['Наладчик', 'Оператор']);
-    // the new version keeps the bindings
+    const cleaning = await service.create(
+      { name: 'Уборка и передача зоны', positionIds: [fitter!.id], items },
+      admin,
+    );
+    // the operator position moves from "Фото" to "Уборка"
+    const moved = await service.addPosition(cleaning.id, positionId, admin);
+    expect(moved.positions.map((p) => p.name)).toEqual(['Наладчик', 'Оператор']);
+    const list = await service.list();
+    expect(list.find((c) => c.id === photos.id)?.positions).toEqual([]);
+    // a new version keeps the bindings and the retired version gives them up
     const v2 = await service.update(
-      created.id,
-      { name: 'Фото оборудования', positionIds: both.positions.map((p) => p.id), items },
+      cleaning.id,
+      { name: 'Уборка v2', positionIds: [positionId, fitter!.id], items },
       admin,
     );
     expect(v2.positions).toHaveLength(2);
-    const one = await service.removePosition(v2.id, positionId, admin);
-    expect(one.positions.map((p) => p.name)).toEqual(['Наладчик']);
-    await expect(service.removePosition(v2.id, fitter!.id, admin)).rejects.toMatchObject({
-      code: 'CHECKLIST_LAST_POSITION',
+    expect(await testDb.db.select().from(checklistDefinitionPositions)).toHaveLength(2);
+    // the checklist that lost its last position is disabled, and cannot be enabled without one
+    expect(list.find((c) => c.id === photos.id)?.isActive).toBe(false);
+    await expect(service.setStatus(photos.id, { isActive: true }, admin)).rejects.toMatchObject({
+      code: 'CHECKLIST_NO_POSITIONS',
     });
+    // detaching the last position disables the checklist as well
+    const bare = await service.removePosition(v2.id, positionId, admin);
+    const alone = await service.removePosition(bare.id, fitter!.id, admin);
+    expect(alone.positions).toEqual([]);
+    expect(alone.isActive).toBe(false);
   });
 });

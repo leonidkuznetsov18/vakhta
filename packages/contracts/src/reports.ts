@@ -57,6 +57,8 @@ export const AuditEntryView = z.object({
   at: IsoDateTime,
   actorType: z.string(),
   actorId: z.string().nullable(),
+  /** Email of the panel user or the full name of the employee behind actorId, when known. */
+  actorName: z.string().nullable(),
   action: z.string(),
   objectType: z.string(),
   objectId: z.string().nullable(),

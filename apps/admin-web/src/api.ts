@@ -415,6 +415,8 @@ export const bonusApi = {
       method: 'DELETE',
       body: JSON.stringify({ reason }),
     }),
+  reopen: (periodId: string, comment: string) =>
+    post<BonusPeriodView>(`/admin/bonus/period/${periodId}/reopen`, { comment }),
   close: (siteId: string, month: string, comment: string) =>
     post<BonusPeriodView>(`/admin/bonus/period/${siteId}/${month}/close`, { comment }),
   setBase: (periodId: string, cmd: SetBaseAmountsCommand) =>

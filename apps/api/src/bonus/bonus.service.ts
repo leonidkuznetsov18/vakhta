@@ -59,6 +59,7 @@ import type {
   BonusPeriodView,
   BonusRuleVersionView,
   ClosePeriodCommand,
+  ReopenPeriodCommand,
   CreateRuleVersionCommand,
   CriterionResultView,
   EmployeeMonthView,
@@ -1237,6 +1238,67 @@ export class BonusService implements OnModuleInit {
       });
     });
     return this.period(siteId, month, undefined, now);
+  }
+
+  /**
+   * Reopen a closed period: confirmed scores return to PRELIMINARY so reviews, points and
+   * adjustments can change again; stored results (base amounts) are kept for the next close.
+   */
+  async reopenPeriod(
+    periodId: string,
+    cmd: ReopenPeriodCommand,
+    actor: Actor,
+    now: Date = new Date(),
+  ): Promise<BonusPeriodView> {
+    const period = await this.db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(bonusPeriods)
+        .where(eq(bonusPeriods.id, periodId))
+        .for('update');
+      if (!existing) throw new DomainError('PERIOD_NOT_FOUND', 404, 'Period not found');
+      if (existing.status !== 'CLOSED')
+        throw new DomainError('PERIOD_NOT_CLOSED', 409, 'Only a closed period can be reopened');
+      await tx
+        .update(bonusPeriods)
+        .set({ status: 'OPEN', closedBy: null, closedAt: null })
+        .where(eq(bonusPeriods.id, existing.id));
+      const view = await this.period(existing.siteId, existing.month, undefined, now);
+      const confirmed = view.employees.flatMap((e) =>
+        e.scores.filter((s) => s.status === 'CONFIRMED').map((s) => s.id),
+      );
+      if (confirmed.length > 0) {
+        await tx
+          .update(bonusShiftScores)
+          .set({ status: 'PRELIMINARY', confirmedBy: null, confirmedAt: null })
+          .where(inArray(bonusShiftScores.id, confirmed));
+      }
+      await this.events.append(tx, {
+        type: 'BONUS_PERIOD_REOPENED',
+        source: 'WEB',
+        actor,
+        occurredAt: now,
+        bonusRuleVersionId: existing.ruleVersionId,
+        comment: cmd.comment,
+        payload: {
+          periodId: existing.id,
+          siteId: existing.siteId,
+          month: existing.month,
+          scores: confirmed.length,
+        },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'bonus.period.reopen',
+        objectType: 'bonus_period',
+        objectId: existing.id,
+        before: { status: 'CLOSED', closedBy: existing.closedBy, closedAt: existing.closedAt },
+        after: { status: 'OPEN' },
+        reason: cmd.comment,
+      });
+      return existing;
+    });
+    return this.period(period.siteId, period.month, undefined, now);
   }
 
   /** Бонусну базу передає HR; сума рахується лише для закритих оцінок (ТЗ 7.6). */

@@ -136,6 +136,26 @@ export function ScheduleGrid({
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <span className="text-sm font-medium">
+          {format(s.employeesInVersion, { count: grid.rows.length })}
+        </span>
+        {readOnly ? (
+          <Muted className="text-xs">{s.employeesReadOnly}</Muted>
+        ) : available.length > 0 ? (
+          <SelectField
+            label={s.addEmployee}
+            value=""
+            onChange={(v) => v && onAdd(v)}
+            placeholder="…"
+            options={available.map((e) => ({
+              value: e.id,
+              label: `${e.fullName} · ${e.personnelNumber}`,
+            }))}
+            className="w-full sm:w-80"
+          />
+        ) : null}
+      </div>
       <div className="overflow-x-auto rounded-lg border">
         <Table className="min-w-max">
           <TableHeader>
@@ -264,7 +284,8 @@ export function ScheduleGrid({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        aria-label={`${s.remove}: ${emp?.fullName ?? ''}`}
+                        aria-label={`${s.removeFromVersion}: ${emp?.fullName ?? ''}`}
+                        title={s.removeFromVersion}
                         onClick={() => onRemove(row.employeeId)}
                       >
                         <XIcon aria-hidden="true" />
@@ -312,19 +333,6 @@ export function ScheduleGrid({
         </Table>
       </div>
       <Paginator pages={pages} total={grid.rows.length} />
-      {!readOnly && available.length > 0 && (
-        <SelectField
-          label={s.addEmployee}
-          value=""
-          onChange={(v) => v && onAdd(v)}
-          placeholder="…"
-          options={available.map((e) => ({
-            value: e.id,
-            label: `${e.fullName} · ${e.personnelNumber}`,
-          }))}
-          className="w-80"
-        />
-      )}
     </div>
   );
 }

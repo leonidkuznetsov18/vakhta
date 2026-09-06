@@ -61,6 +61,7 @@ function handover(status: string) {
         remarkText: 'Пятно',
         safeToWork: true,
         needs: ['CLEANING'],
+        note: null,
       },
       {
         key: 'MESSAGE_NEXT',
@@ -72,6 +73,19 @@ function handover(status: string) {
         remarkText: null,
         safeToWork: null,
         needs: [],
+        note: 'Проверьте станок 3',
+      },
+      {
+        key: 'PHOTO_OVERVIEW',
+        label: 'Общий вид зоны',
+        kind: 'PHOTO',
+        answered: true,
+        ok: true,
+        remarkCategory: null,
+        remarkText: null,
+        safeToWork: null,
+        needs: [],
+        note: null,
       },
     ],
     photos: [{ itemKey: 'PHOTO_OVERVIEW', label: 'Общий вид зоны', media }],
@@ -174,8 +188,12 @@ describe('HandoverPage', () => {
     expect(await screen.findByText('Петрова Ольга')).toBeTruthy();
     expect(screen.getByText(/Пятно/)).toBeTruthy();
 
+    // The note is shown as text.
+    expect(screen.getByText('Проверьте станок 3')).toBeTruthy();
     // Photos load as thumbnails through the signed link; each fetch is audited server-side.
     const thumb = await screen.findByAltText(/Общий вид зоны/);
+    // A PHOTO item lives only in the photo block (its caption), not in the checklist.
+    expect(screen.getAllByText('Общий вид зоны')).toHaveLength(1);
     expect(thumb.getAttribute('src')).toBe('https://storage.example/signed?x=1');
     expect(calls.some((c) => c.path === `/admin/handovers/media/${MEDIA}/link`)).toBe(true);
 

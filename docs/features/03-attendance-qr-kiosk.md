@@ -7,8 +7,10 @@
 - The employee scans it with the phone camera; the bot opens and records ARRIVE or DEPART for the
   employee linked to that Telegram account. A challenge is used once; a stale one is refused with a
   clear message and the employee scans again.
-- The home screen then shows "Вы на работе с HH:MM" and, when a shift can start, the "Начать смену"
-  button. Departure closes presence; the shift must be closed first.
+- After "Я на работе" the bot opens the shift at once when one can start (a scheduled shift or
+  a master-opened one): the employee sees the shift screen with "Принять зону" / "Начать работу"
+  without any intermediate message. When no shift can start, the home screen shows "Вы на работе с
+  HH:MM" and the reason. Departure closes presence; the shift must be closed first.
 
 ## Kiosk pairing (no tokens)
 
@@ -16,7 +18,9 @@ Administration → Терминалы → "Зарегистрировать те
 both). The panel shows an 8-character pairing code (15 minutes, single use) and a link for the
 tablet. On the tablet open kiosk.vakhta.xyz, type the code (or open the link); the kiosk stores its
 device token in the browser and starts showing QR codes. "Код подключения" issues a new code (the
-old tablet stops), "Отключить" pauses the terminal, "Удалить" is allowed while it has no history.
+old tablet stops), "Отключить" pauses the terminal, "Удалить" (reason required) removes it: a
+terminal without attendance history is deleted outright, one with history disappears from the
+lists and stops issuing QR codes while its records stay in reports and audit.
 The kiosk shows the clock, the date, the terminal name and the last sync; a "Fullscreen" button
 keeps the screen on.
 

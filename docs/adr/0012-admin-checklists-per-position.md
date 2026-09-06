@@ -52,3 +52,15 @@ Photo required per `CHECK` item as a flag: mixes two answers on one button and d
 admin ask for a photo without a question. Keeping the three fixed angles next to the checklist: the
 customer wants different photos per position. Editing a definition in place: breaks the audit of
 already submitted reports.
+
+## Amendment (2026-09-06): one checklist per position, position required
+
+The customer asked for a single checklist per position: "the checklist can be deleted or replaced
+by another one; we cannot add more than one". Migration 0017 replaces the composite index of
+`checklist_definition_positions` with a unique index on `position_id` (duplicates are resolved by
+keeping the newest active binding). Binding a definition to a position moves the binding away from
+the previous definition; a definition left without positions is disabled (`retireOrphans`) and can
+be enabled again only with a position (`CHECKLIST_NO_POSITIONS`). `SaveChecklistCommand.positionIds`
+requires at least one position. The zone-type preference of the lookup stays for the case of a
+position whose only checklist has a zone type. The employee card shows the one checklist with
+"Заменить" and "Убрать".

@@ -468,6 +468,9 @@ describe('shift: машина станів зміни в транзакції (�
     expect(flagged.needsClarification).toBe(true);
 
     const list = await service.listActive({});
+    // "show closed within a day" used to pass a Date into raw SQL and answered 500
+    const withClosed = await service.listActive({ includeClosed: true });
+    expect(withClosed.length).toBeGreaterThanOrEqual(list.length);
     expect(list).toHaveLength(1);
     expect(list[0]).toMatchObject({
       fullName: 'Иванов Иван',

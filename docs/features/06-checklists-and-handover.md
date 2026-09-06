@@ -2,16 +2,20 @@
 
 ## Checklists are built in the panel
 
-Administration → "Чек-листы". A checklist has a name, one or more positions (the key), an
-optional zone type and an ordered list of items of three kinds: check (✅ / ⚠️ remark), message
-to the next shift (free text) and photo (the employee must send a photo). At least one photo item
-is required. "Заполнить по умолчанию" prefills the standard list of the spec. Editing creates a
-new version; old reports keep their version. A checklist can be disabled or deleted while unused.
+Administration → "Чек-листы". A checklist has a name, one or more positions (required: a
+checklist cannot be saved without a position), an optional zone type and an ordered list of items
+of three kinds: check (✅ / ⚠️ remark), message to the next shift (free text) and photo (the
+employee must send a photo). At least one photo item is required. "Заполнить по умолчанию"
+prefills the standard list of the spec. Editing creates a new version; old reports keep their
+version. A checklist can be disabled or deleted while unused.
 
-The employee card ("Сотрудники" → row) shows "Чек-листы должности": an existing checklist can be
-attached to the position there ("Добавить существующий чек-лист") without a copy. The employees
-table has a "Чек-лист" column; "Нет чек-листа" means the bot will ask nothing at the end of the
-shift for that employee.
+A position has at most one checklist. Binding a checklist to a position that already has one
+replaces the old binding (the position list marks it "сейчас: <name>"); a checklist left without
+positions is disabled automatically. The employee card ("Сотрудники" → row) shows the single
+"Чек-лист должности" with "Заменить" (pick another checklist, confirm) and "Убрать" (confirm);
+when the position has none, an existing checklist can be attached there. The employees table has a
+"Чек-лист" column; "Нет чек-листа" means the bot will ask nothing at the end of the shift for that
+employee.
 
 ## How the employee fills it
 
@@ -29,6 +33,12 @@ With a zone: the next shift in that zone sees "Приёмка" on its shift scre
 замечаний") or reports a problem (category, comment, photo → dispute, a critical category opens an
 incident). No answer by the deadline escalates to the master. Without a zone the report goes
 straight to the master. Masters resolve disputes in "Чистота и передача" with a formal decision.
+
+The report detail in the panel shows each item kind once: the checklist block lists the check
+items with their answers and remarks, "Сообщения следующей смене" shows the note texts, and
+"Фото" is a gallery of the photo items with the quality mark on the thumbnail. A click opens the
+viewer with previous / next navigation and a strip of thumbnails; the receiver's photo and the
+master's decisions follow below.
 
 ## Typical questions
 

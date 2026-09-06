@@ -491,6 +491,39 @@ describe('bonus: оцінка зміни, коригування, закритт
     expect(after?.status).toBe('CONFIRMED');
   });
 
+  it('a closed period can be reopened: scores go back to PRELIMINARY, points can change, base is kept', async () => {
+    const sessionId = await fullShift();
+    await bonus.evaluate(sessionId);
+    const closed = await bonus.closePeriod(siteId, month, { comment: 'Месяц закрыт' }, HEAD);
+    await bonus.setBaseAmounts(
+      closed.id!,
+      { items: [{ employeeId: ivanov, baseAmount: 5000 }] },
+      HR,
+    );
+    const [before] = await testDb.db.select().from(bonusShiftScores);
+    await expect(
+      bonus.adjust(before!.id, { delta: 5, reasonCode: 'MASTER_REVIEW', comment: 'late' }, HEAD),
+    ).rejects.toMatchObject({ code: 'PERIOD_CLOSED' });
+
+    const reopened = await bonus.reopenPeriod(closed.id!, { comment: 'Забыли проверку' }, HEAD);
+    expect(reopened.status).toBe('OPEN');
+    expect(reopened.closedAt).toBeNull();
+    const [score] = await testDb.db.select().from(bonusShiftScores);
+    expect(score).toMatchObject({ status: 'PRELIMINARY', confirmedBy: null, confirmedAt: null });
+    await expect(bonus.reopenPeriod(closed.id!, { comment: 'again' }, HEAD)).rejects.toMatchObject({
+      code: 'PERIOD_NOT_CLOSED',
+    });
+
+    const adjusted = await bonus.adjust(
+      score!.id,
+      { delta: -5, reasonCode: 'MASTER_REVIEW', comment: 'late' },
+      HEAD,
+    );
+    expect(adjusted.score).toBe(95);
+    const again = await bonus.closePeriod(siteId, month, { comment: 'Закрыт повторно' }, HEAD);
+    expect(again.employees[0]).toMatchObject({ sMonth: 95, baseAmount: 5000, bonusAmount: 4750 });
+  });
+
   it('версія правил: сума максимумів має дорівнювати 100; нова версія не чіпає старі періоди', async () => {
     await expect(
       bonus.createRuleVersion(

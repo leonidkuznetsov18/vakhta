@@ -126,8 +126,10 @@ describe('ReportsPage and AuditPage', () => {
     // The action shows its label with the raw code beside it.
     expect((await screen.findAllByText('Выгрузка отчёта')).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('report.export')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'До/После' }));
-    expect(await screen.findByText(/"format": "csv"/)).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Подробности' })[0]!);
+    // The sheet lists the fields of the after-state; the raw JSON sits under a disclosure.
+    const row = (await screen.findByText('format')).closest('tr')!;
+    expect(row.textContent).toContain('csv');
     // The details sheet hides the page from assistive tech until it is closed.
     fireEvent.keyDown(document.body, { key: 'Escape' });
     fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Журнал событий' }));

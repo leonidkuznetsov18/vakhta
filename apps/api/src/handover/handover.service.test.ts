@@ -419,7 +419,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
     ).toMatchObject({ ok: false, error: 'HANDOVER_INCOMPLETE' });
   });
 
-  it('FR-CLN-03: чек-лист добирається за посадою працівника і типом зони, фото-пункти з нього обовʼязкові', async () => {
+  it('FR-CLN-03: чек-лист добирається за посадою працівника (одна посада — один чек-лист), фото-пункти з нього обовʼязкові', async () => {
     const photo = { key: 'ITEM_03', label: 'Фото линии', kind: 'PHOTO' as const };
     const inserted = await testDb.db
       .insert(checklistDefinitions)
@@ -443,9 +443,13 @@ describe('handover: прибирання, чек-лист, фото, перед�
         },
       ])
       .returning();
+    // the position's checklist is replaced: the default binding goes, the new one comes
+    await testDb.db
+      .delete(checklistDefinitionPositions)
+      .where(eq(checklistDefinitionPositions.positionId, operatorId));
     await testDb.db
       .insert(checklistDefinitionPositions)
-      .values(inserted.map((d) => ({ definitionId: d.id, positionId: operatorId })));
+      .values({ definitionId: inserted[0]!.id, positionId: operatorId });
     await toHandover(dayEmployee);
     const draft = await handover.current(dayEmployee);
     expect(draft?.items.map((i) => i.label)).toEqual([

@@ -12,6 +12,10 @@ import {
   ScrollTextIcon,
   SettingsIcon,
   UserIcon,
+  SunIcon,
+  MoonIcon,
+  MonitorIcon,
+  type LucideIcon,
 } from 'lucide-react';
 import type { MeView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
@@ -48,7 +52,9 @@ import { useAttention } from './overview/attention.ts';
 import { RequestsPage } from './requests/RequestsPage.tsx';
 import { SchedulePage } from './schedule/SchedulePage.tsx';
 import { useSession } from './auth/useSession.ts';
+import { Button } from '@/components/ui/button';
 import { LanguageSwitcher, currentLocale } from './i18n.tsx';
+import { useAppearance, type Theme } from '@/lib/theme';
 import { NavigationProvider, type SectionKey } from './navigation.tsx';
 import { readRoute, writeRoute } from '@/lib/route';
 import { useEffect } from 'react';
@@ -224,6 +230,7 @@ export function App() {
               <LanguageSwitcher className="flex-1" />
               <InfoTip text={t.ui.hints.language} />
             </div>
+            <ThemeSwitcher />
             {version ? (
               <div className="px-2 text-xs text-muted-foreground tabular-nums group-data-[collapsible=icon]:hidden">
                 {t.ui.common.version} {version}
@@ -242,6 +249,21 @@ export function App() {
                 canSeeEmployees={me.roles.some((g) =>
                   ['ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER'].includes(g.role),
                 )}
+                canAdminister={me.roles.some((g) => g.role === 'ADMIN')}
+                onTarget={(target) => {
+                  if (target.openKey && target.openId) {
+                    try {
+                      localStorage.setItem(
+                        `vakhta.ui.${target.openKey}`,
+                        JSON.stringify(target.openId),
+                      );
+                    } catch {
+                      // Storage unavailable: the section still opens.
+                    }
+                  }
+                  writeRoute(target.section, target.sub);
+                  setActive(target.section);
+                }}
                 onEmployee={(emp) => {
                   // The employees tab reads its open row from storage, so the card opens on arrival.
                   try {
@@ -267,5 +289,39 @@ export function App() {
         </SidebarInset>
       </SidebarProvider>
     </NavigationProvider>
+  );
+}
+
+/** Light / dark / system in the sidebar footer; the same choice as in the profile. */
+function ThemeSwitcher() {
+  const t = messages(currentLocale());
+  const appearance = useAppearance();
+  const options: { key: Theme; icon: LucideIcon }[] = [
+    { key: 'light', icon: SunIcon },
+    { key: 'dark', icon: MoonIcon },
+    { key: 'system', icon: MonitorIcon },
+  ];
+  return (
+    <div
+      role="group"
+      aria-label={t.ui.common.theme}
+      className="flex gap-1 group-data-[collapsible=icon]:hidden"
+    >
+      {options.map(({ key, icon: Icon }) => (
+        <Button
+          key={key}
+          type="button"
+          size="sm"
+          variant={appearance.theme === key ? 'default' : 'outline'}
+          aria-pressed={appearance.theme === key}
+          aria-label={t.ui.common.themes[key]}
+          title={t.ui.common.themes[key]}
+          className="flex-1"
+          onClick={() => appearance.set({ theme: key })}
+        >
+          <Icon aria-hidden="true" />
+        </Button>
+      ))}
+    </div>
   );
 }

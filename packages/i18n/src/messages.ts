@@ -445,6 +445,19 @@ export interface Messages {
       readonly deleteVersion: string;
       /** Placeholder: {no} */
       readonly deleteConfirm: string;
+      /** Placeholder: {no}; a superseded version. */
+      readonly deleteHistoryConfirm: string;
+      readonly versionInUse: string;
+      /** Placeholders: {no}, {status}, {date} — one option of the version select. */
+      readonly versionOption: string;
+      /** Placeholder: {count} */
+      readonly versionsCount: string;
+      /** Placeholder: {count} */
+      readonly employeesInVersion: string;
+      readonly employeesReadOnly: string;
+      readonly removeFromVersion: string;
+      /** Labels of the validation detail keys (nightShifts, restMinutes, …). */
+      readonly issueDetails: Readonly<Record<string, string>>;
       readonly deleted: string;
       readonly noEmployees: string;
       readonly goToEmployees: string;
@@ -597,6 +610,13 @@ export interface Messages {
       readonly safe: string;
       readonly unsafe: string;
       readonly note: string;
+      /** Header of the notes block (NOTE items) in the report detail. */
+      readonly notes: string;
+      readonly noPhotos: string;
+      readonly prevPhoto: string;
+      readonly nextPhoto: string;
+      /** Placeholders: {index}, {total} */
+      readonly photoCounter: string;
     };
     readonly requests: {
       readonly scopeInbox: string;
@@ -717,6 +737,24 @@ export interface Messages {
       readonly adjustmentsTitle: string;
       readonly noAdjustments: string;
       readonly secondThresholdHint: string;
+      readonly howItWorks: string;
+      /** Short numbered guide for administrators: what happens with scores and what to do. */
+      readonly howSteps: readonly string[];
+      readonly periodClosedTitle: string;
+      readonly periodClosedHint: string;
+      readonly reopenPeriod: string;
+      readonly reopenConfirm: string;
+      readonly reopened: string;
+      readonly addBonus: string;
+      readonly takePoints: string;
+      readonly changeReview: string;
+      readonly restoreShift: string;
+      readonly whatToDo: string;
+      /** Steps shown on a shift under manual review. */
+      readonly reviewSteps: readonly string[];
+      /** Placeholders: {applicable}, {missing} */
+      readonly reviewReason: string;
+      readonly closedActions: string;
     };
     readonly reports: {
       readonly kinds: Readonly<
@@ -771,6 +809,19 @@ export interface Messages {
       readonly empty: string;
       readonly corrects: string;
       readonly all: string;
+      readonly actorTypes: Readonly<
+        Record<'EMPLOYEE' | 'WEB_USER' | 'SYSTEM' | 'TERMINAL', string>
+      >;
+      readonly details: string;
+      readonly objectId: string;
+      readonly changes: string;
+      readonly field: string;
+      readonly noChanges: string;
+      /** Placeholder: {count} */
+      readonly changedFields: string;
+      readonly rawJson: string;
+      readonly copyJson: string;
+      readonly copyId: string;
       /** Human labels for the audit action codes written by the API. */
       readonly actions: Readonly<Record<string, string>>;
     };
@@ -816,6 +867,13 @@ export interface Messages {
         readonly checklistAdded: string;
         readonly removeChecklist: string;
         readonly checklistRemoved: string;
+        readonly replaceChecklist: string;
+        /** Placeholder: {name} — the checklist that gives way. */
+        readonly replaceConfirm: string;
+        readonly checklistReplaced: string;
+        /** Placeholder: {name} */
+        readonly removeConfirm: string;
+        readonly onePerPosition: string;
         readonly noChecklistHint: string;
         readonly assignPosition: string;
         readonly positionAssigned: string;
@@ -925,6 +983,9 @@ export interface Messages {
         readonly positions: string;
         readonly anyPosition: string;
         readonly noPositions: string;
+        /** Placeholder: {name} — shown next to a position bound to another checklist. */
+        readonly positionTaken: string;
+        readonly positionsReplaceHint: string;
         readonly zoneType: string;
         readonly anyZoneType: string;
         readonly items: string;
@@ -1034,6 +1095,9 @@ export interface Messages {
       readonly commandPlaceholder: string;
       readonly commandSections: string;
       readonly commandEmployees: string;
+      readonly commandActions: string;
+      readonly commandChecklists: string;
+      readonly commandTerminals: string;
       /** Placeholder: {n} */
       readonly selected: string;
       readonly selectAll: string;

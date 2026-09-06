@@ -5,6 +5,7 @@ import {
   activityIntervals,
   and,
   auditLog,
+  authUser,
   bonusCriteriaResults,
   bonusShiftScores,
   desc,
@@ -754,11 +755,13 @@ export class ReportsService {
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(auditLog.at))
       .limit(q.limit ?? 200);
+    const names = await this.actorNames(rows);
     return rows.map((r) => ({
       id: r.id,
       at: r.at.toISOString(),
       actorType: r.actorType,
       actorId: r.actorId,
+      actorName: r.actorId ? (names.get(`${r.actorType}:${r.actorId}`) ?? null) : null,
       action: r.action,
       objectType: r.objectType,
       objectId: r.objectId,
@@ -766,6 +769,37 @@ export class ReportsService {
       after: r.after,
       reason: r.reason,
     }));
+  }
+
+  /** Panel users by email, employees by full name; other actor types stay as their id. */
+  private async actorNames(
+    rows: readonly { actorType: string; actorId: string | null }[],
+  ): Promise<Map<string, string>> {
+    const ids = (type: string) => [
+      ...new Set(
+        rows.filter((r) => r.actorType === type && r.actorId).map((r) => r.actorId as string),
+      ),
+    ];
+    const userIds = ids('WEB_USER');
+    const employeeIds = ids('EMPLOYEE');
+    const [users, people] = await Promise.all([
+      userIds.length
+        ? this.db
+            .select({ id: authUser.id, email: authUser.email })
+            .from(authUser)
+            .where(inArray(authUser.id, userIds))
+        : [],
+      employeeIds.length
+        ? this.db
+            .select({ id: employees.id, fullName: employees.fullName })
+            .from(employees)
+            .where(inArray(employees.id, employeeIds))
+        : [],
+    ]);
+    const names = new Map<string, string>();
+    for (const u of users) names.set(`WEB_USER:${u.id}`, u.email);
+    for (const p of people) names.set(`EMPLOYEE:${p.id}`, p.fullName);
+    return names;
   }
 
   async events(q: EventsQuery): Promise<DomainEventView[]> {

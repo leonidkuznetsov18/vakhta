@@ -378,44 +378,49 @@ export class OrgService {
   }
 
   /**
-   * Hard delete is allowed only while nothing refers to the terminal; once check-ins exist the
-   * row is history and the caller is told to disable it instead.
+   * Deleting a terminal: while nothing refers to it the row goes; once check-ins exist the row is
+   * history, so it is hidden from the panel, disabled and unpaired instead. Either way the
+   * administrator sees it gone.
    */
   async deleteTerminal(terminalId: string, reason: string, actor: Actor): Promise<void> {
     const terminal = await this.requireTerminal(terminalId);
-    try {
-      await this.db.transaction(async (tx) => {
-        await this.events.append(tx, {
-          type: 'QR_TERMINAL_DELETED',
-          source: 'WEB',
-          actor,
-          comment: reason,
-          payload: { terminalId: terminal.id, name: terminal.name },
-        });
-        await this.audit.record(tx, {
-          actor,
-          action: 'qr_terminal.delete',
-          objectType: 'qr_terminal',
-          objectId: terminal.id,
-          before: { siteId: terminal.siteId, name: terminal.name, checkpoint: terminal.checkpoint },
-          reason,
-        });
-        await tx.delete(qrTerminals).where(eq(qrTerminals.id, terminal.id));
+    const now = new Date();
+    await this.db.transaction(async (tx) => {
+      await this.events.append(tx, {
+        type: 'QR_TERMINAL_DELETED',
+        source: 'WEB',
+        actor,
+        comment: reason,
+        payload: { terminalId: terminal.id, name: terminal.name },
       });
-    } catch (e) {
-      if (isForeignKeyViolation(e)) {
-        throw new DomainError(
-          'TERMINAL_HAS_HISTORY',
-          409,
-          `Terminal ${terminalId} has check-in history; disable it instead of deleting`,
-        );
+      await this.audit.record(tx, {
+        actor,
+        action: 'qr_terminal.delete',
+        objectType: 'qr_terminal',
+        objectId: terminal.id,
+        before: { siteId: terminal.siteId, name: terminal.name, checkpoint: terminal.checkpoint },
+        reason,
+      });
+      try {
+        await tx.transaction(async (sp) => {
+          await sp.delete(qrTerminals).where(eq(qrTerminals.id, terminal.id));
+        });
+      } catch (e) {
+        if (!isForeignKeyViolation(e)) throw e;
+        await tx
+          .update(qrTerminals)
+          .set({ deletedAt: now, status: 'DISABLED', deviceTokenHash: null })
+          .where(eq(qrTerminals.id, terminal.id));
       }
-      throw e;
-    }
+    });
   }
 
   private async requireTerminal(id: string) {
-    const [row] = await this.db.select().from(qrTerminals).where(eq(qrTerminals.id, id)).limit(1);
+    const [row] = await this.db
+      .select()
+      .from(qrTerminals)
+      .where(and(eq(qrTerminals.id, id), isNull(qrTerminals.deletedAt)))
+      .limit(1);
     if (!row) throw new DomainError('TERMINAL_NOT_FOUND', 404, `Terminal ${id} not found`);
     return row;
   }
@@ -427,7 +432,11 @@ export class OrgService {
       this.db.select().from(teams).orderBy(asc(teams.name)),
       this.db.select().from(positions).orderBy(asc(positions.code)),
       this.db.select().from(responsibilityZones).orderBy(asc(responsibilityZones.code)),
-      this.db.select().from(qrTerminals).orderBy(asc(qrTerminals.name)),
+      this.db
+        .select()
+        .from(qrTerminals)
+        .where(isNull(qrTerminals.deletedAt))
+        .orderBy(asc(qrTerminals.name)),
       this.db.select().from(reasonCodes).orderBy(asc(reasonCodes.kind), asc(reasonCodes.code)),
     ]);
     return {

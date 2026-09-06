@@ -41,7 +41,7 @@ export function DetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className={cn('flex w-full flex-col gap-0 p-0 sm:max-w-xl', wide && 'sm:max-w-3xl')}
+        className={cn('flex w-full min-w-0 flex-col gap-0 p-0 sm:max-w-xl', wide && 'sm:max-w-3xl')}
         aria-label={t.closePanel}
       >
         <SheetHeader className="border-b px-6 py-4">
@@ -49,7 +49,7 @@ export function DetailSheet({
           {description ? <SheetDescription>{description}</SheetDescription> : null}
         </SheetHeader>
         <ScrollArea className="min-h-0 flex-1">
-          <div className="flex flex-col gap-4 px-6 py-4">{children}</div>
+          <div className="flex min-w-0 max-w-full flex-col gap-4 px-6 py-4">{children}</div>
         </ScrollArea>
         {footer ? <SheetFooter className="border-t px-6 py-4">{footer}</SheetFooter> : null}
       </SheetContent>

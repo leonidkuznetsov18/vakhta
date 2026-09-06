@@ -120,6 +120,20 @@
       "when": 1788706029797,
       "tag": "0016_bonus_manual_review",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788709894034,
+      "tag": "0017_checklist_one_per_position",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788710279958,
+      "tag": "0018_terminal_soft_delete",
+      "breakpoints": true
     }
   ]
 }

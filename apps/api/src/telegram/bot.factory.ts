@@ -410,6 +410,21 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     const action = ctx.match[1] === 'arr' ? 'ARRIVE' : 'DEPART';
     const result = await deps.attendance.checkInByQr(ctx.employee.id, ctx.match[2] ?? '', action);
     await ctx.answerCallbackQuery();
+    if (result.ok && action === 'ARRIVE') {
+      // Arrival opens the shift at once (the master start in the panel stays as the reserve):
+      // one screen with the shift buttons, no intermediate text. A refused start (a shift is
+      // already open, the window is closed) simply shows the home screen with the reason inside.
+      const started = await deps.shift.start(
+        ctx.employee.id,
+        { idempotencyKey: `tg:${ctx.update.update_id}:start` },
+        { actor: employeeActor(ctx.employee.id), source: 'TELEGRAM' },
+      );
+      if (!started.ok) {
+        deps.logger.info({ reason: started.error }, 'arrival recorded, shift not started');
+      }
+      await edit(ctx, await buildHome(ctx));
+      return;
+    }
     await edit(ctx, checkInResultScreen(ctx.t, result, deps.defaultTimezone));
     if (result.ok) await show(ctx, await buildHome(ctx));
   });

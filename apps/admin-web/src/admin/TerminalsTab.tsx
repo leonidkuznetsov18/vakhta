@@ -25,7 +25,7 @@ import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
-import { ApiError, adminOrgApi } from '../api.ts';
+import { adminOrgApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { AddDialog } from '@/components/app/add-dialog';
@@ -121,13 +121,7 @@ export function TerminalsTab({ org, onChanged }: Props) {
     });
     if (!reason) return;
     void run(async () => {
-      try {
-        await adminOrgApi.deleteTerminal(term.id, reason);
-      } catch (e) {
-        if (e instanceof ApiError && e.code === 'TERMINAL_HAS_HISTORY')
-          throw new Error(tr.hasHistory);
-        throw e;
-      }
+      await adminOrgApi.deleteTerminal(term.id, reason);
       await onChanged();
     }, tr.deleted);
   }

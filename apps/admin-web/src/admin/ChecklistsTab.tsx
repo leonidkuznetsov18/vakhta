@@ -247,6 +247,7 @@ export function ChecklistsTab({ org }: Props) {
             mode={editing === 'new' ? 'new' : null}
             trigger={c.create}
             org={org}
+            others={(rows ?? []).filter((r) => r.isActive)}
             onOpen={() => setEditing('new')}
             onClose={() => setEditing(null)}
             onSaved={async (saved) => {
@@ -341,6 +342,7 @@ export function ChecklistsTab({ org }: Props) {
           key={editing.id}
           mode={editing}
           org={org}
+          others={(rows ?? []).filter((r) => r.isActive && r.id !== editing.id)}
           onClose={() => setEditing(null)}
           onSaved={async (saved) => {
             setEditing(null);
@@ -389,6 +391,7 @@ const ISSUE_TEXT: Record<string, string> = {
 function ChecklistDialog({
   mode,
   org,
+  others,
   trigger,
   onOpen,
   onClose,
@@ -396,6 +399,8 @@ function ChecklistDialog({
 }: {
   readonly mode: ChecklistDefinitionView | 'new' | null;
   readonly org: OrgSnapshot;
+  /** Active checklists other than the one being edited: their positions would move here. */
+  readonly others: readonly ChecklistDefinitionView[];
   /** Trigger label of the create dialog; the edit dialog is opened from a row instead. */
   readonly trigger?: string;
   readonly onOpen?: () => void;
@@ -508,7 +513,7 @@ function ChecklistDialog({
           </FormField>
           <FormField
             label={c.positions}
-            hint={hints.checklistsPosition}
+            hint={`${hints.checklistsPosition} ${c.positionsReplaceHint}`}
             error={fieldErrors.positionIds}
             className="sm:col-span-3"
           >
@@ -521,6 +526,7 @@ function ChecklistDialog({
               >
                 {org.positions.map((p) => {
                   const checked = draft.positionIds.includes(p.id);
+                  const holder = others.find((c) => c.positions.some((x) => x.id === p.id));
                   return (
                     <label
                       key={p.id}
@@ -538,6 +544,11 @@ function ChecklistDialog({
                         aria-label={p.name}
                       />
                       {p.name}
+                      {holder && (
+                        <Muted className="text-xs">
+                          ({format(c.positionTaken, { name: holder.name })})
+                        </Muted>
+                      )}
                     </label>
                   );
                 })}

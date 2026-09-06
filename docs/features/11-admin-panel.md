@@ -14,10 +14,18 @@ Administration tabs:
   revoke roles with a scope.
 - "Справочники": sites (time zone), units, teams, positions, zones (type, shared, active), reason
   codes; every table has add, edit and delete with a reason.
-- "Терминалы": register, pairing code, enable / disable, edit, delete.
+- "Терминалы": register, pairing code, enable / disable, edit, delete (a terminal with history
+  is hidden and disabled, its records stay).
 - "Чек-листы": see the checklists doc.
 
 Panel conventions: every table is paginated (10/20/50/100), searchable and sortable; a row click
 opens the details on the right, the ⋯ menu holds the row actions; forms validate inline and the
-save button stays disabled until something changed; ⓘ icons carry hints (tap on a phone); ⌘K opens
-the command palette; filters, tabs and drafts survive a page reload; the URL keeps the section.
+save button stays disabled until something changed; ⓘ icons carry hints (tap on a phone); every
+clickable element shows a pointer cursor and a hover state; filters, tabs and drafts survive a page
+reload; the URL keeps the section.
+
+"Быстрый переход" (⌘K / Ctrl+K, or the button in the header) works like the search of
+documentation sites: type a few letters and pick a section, a quick action ("Добавить сотрудника",
+"Создать чек-лист", "Зарегистрировать терминал", "Добавить пользователя"), an employee by name or
+personnel number, a checklist or a terminal; Enter opens the target. The sidebar footer has the
+language switch (🇺🇦 🇬🇧 РУ) and the theme switch: light, dark or "Как в системе".

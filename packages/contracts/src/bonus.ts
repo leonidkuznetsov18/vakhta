@@ -167,6 +167,10 @@ export type SetBaseAmountsCommand = z.infer<typeof SetBaseAmountsCommand>;
 export const ClosePeriodCommand = z.object({ comment: z.string().trim().min(3).max(2000) });
 export type ClosePeriodCommand = z.infer<typeof ClosePeriodCommand>;
 
+/** Reopen a closed period: scores return to PRELIMINARY so reviews and points can be changed. */
+export const ReopenPeriodCommand = z.object({ comment: z.string().trim().min(3).max(2000) });
+export type ReopenPeriodCommand = z.infer<typeof ReopenPeriodCommand>;
+
 export const BonusRuleVersionView = z.object({
   id: Uuid,
   siteId: Uuid.nullable(),

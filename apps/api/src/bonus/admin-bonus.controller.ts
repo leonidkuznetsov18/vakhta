@@ -19,6 +19,7 @@ import {
   UpdateAdjustmentCommand,
   BonusMonthQuery,
   ClosePeriodCommand,
+  ReopenPeriodCommand,
   CreateRuleVersionCommand,
   SecondApprovalCommand,
   SetBaseAmountsCommand,
@@ -145,6 +146,17 @@ export class AdminBonusController {
     @CurrentUser() user: WebUser,
   ): Promise<BonusPeriodView> {
     return this.bonus.closePeriod(siteId, month, body, webUserActor(user));
+  }
+
+  @Post('period/:periodId/reopen')
+  @HttpCode(200)
+  @Roles('ADMIN', 'PRODUCTION_HEAD')
+  reopen(
+    @Param('periodId', ParseUUIDPipe) periodId: string,
+    @Body(new ZodValidationPipe(ReopenPeriodCommand)) body: ReopenPeriodCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<BonusPeriodView> {
+    return this.bonus.reopenPeriod(periodId, body, webUserActor(user));
   }
 
   @Post('period/:periodId/base')

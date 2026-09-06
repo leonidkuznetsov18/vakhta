@@ -17,6 +17,7 @@ import {
   responsibilityZones,
   scheduleVersions,
   shiftAssignments,
+  shiftSessions,
   shiftTemplates,
   sites,
   sql,
@@ -55,6 +56,7 @@ import type {
 import { format, type Messages } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
+import { isForeignKeyViolation } from '../common/pg-errors.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
 import { DATABASE } from '../infra/database.module.js';
@@ -223,22 +225,53 @@ export class ScheduleService {
   }
 
   /** Only a draft can go: published and superseded versions are history (spec 3.2). */
+  /**
+   * Drafts and superseded versions can be deleted (spec 3.2 keeps the published one as the live
+   * schedule). A superseded version whose assignments were worked stays as history.
+   */
   async deleteVersion(id: string, actor: Actor): Promise<void> {
+    try {
+      await this.deleteVersionWithin(id, actor);
+    } catch (e) {
+      if (isForeignKeyViolation(e)) {
+        throw new DomainError(
+          'SCHEDULE_VERSION_IN_USE',
+          409,
+          `Version ${id} is referenced by other records and stays as history`,
+        );
+      }
+      throw e;
+    }
+  }
+
+  private async deleteVersionWithin(id: string, actor: Actor): Promise<void> {
     await this.db.transaction(async (tx) => {
-      const [version] = await tx
-        .select()
-        .from(scheduleVersions)
-        .where(eq(scheduleVersions.id, id))
-        .for('update');
-      if (!version)
-        throw new DomainError('SCHEDULE_VERSION_NOT_FOUND', 404, `Version ${id} not found`);
-      if (version.status !== 'DRAFT')
+      const version = await this.requireVersion(id, tx);
+      if (version.status !== 'DRAFT' && version.status !== 'SUPERSEDED') {
         throw new DomainError(
           'SCHEDULE_TRANSITION_NOT_ALLOWED',
           409,
-          `Only a draft can be deleted; version ${id} is ${version.status}`,
+          `Only a draft or a superseded version can be deleted; version ${id} is ${version.status}`,
         );
-      const assignments = await this.loadAssignments(version.id, tx);
+      }
+      const [worked] = await tx
+        .select({ id: shiftSessions.id })
+        .from(shiftSessions)
+        .innerJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
+        .where(eq(shiftAssignments.scheduleVersionId, version.id))
+        .limit(1);
+      if (worked) {
+        throw new DomainError(
+          'SCHEDULE_VERSION_IN_USE',
+          409,
+          `Version ${id} has worked shifts and stays as history`,
+        );
+      }
+      await tx
+        .delete(assignmentAcknowledgements)
+        .where(eq(assignmentAcknowledgements.scheduleVersionId, version.id));
+      await tx.delete(shiftAssignments).where(eq(shiftAssignments.scheduleVersionId, version.id));
+      await tx.delete(scheduleVersions).where(eq(scheduleVersions.id, version.id));
       await this.events.append(tx, {
         type: 'SCHEDULE_VERSION_DELETED',
         source: 'WEB',
@@ -247,7 +280,7 @@ export class ScheduleService {
         payload: {
           periodMonth: version.periodMonth,
           versionNo: version.versionNo,
-          assignments: assignments.length,
+          status: version.status,
         },
       });
       await this.audit.record(tx, {
@@ -255,9 +288,12 @@ export class ScheduleService {
         action: 'schedule.version.delete',
         objectType: 'schedule_version',
         objectId: version.id,
-        before: { status: version.status, assignments: assignments.length },
+        before: {
+          periodMonth: version.periodMonth,
+          versionNo: version.versionNo,
+          status: version.status,
+        },
       });
-      await tx.delete(scheduleVersions).where(eq(scheduleVersions.id, version.id));
     });
   }
 

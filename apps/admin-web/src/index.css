@@ -16,6 +16,9 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-chart-8: var(--chart-8);
+  --color-chart-7: var(--chart-7);
+  --color-chart-6: var(--chart-6);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -67,11 +70,15 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* Chart series: eight hues far apart on the wheel, so neighbouring bars and lines read apart. */
+  --chart-1: oklch(0.58 0.2 258);
+  --chart-2: oklch(0.7 0.19 48);
+  --chart-3: oklch(0.63 0.19 148);
+  --chart-4: oklch(0.6 0.23 22);
+  --chart-5: oklch(0.55 0.24 300);
+  --chart-6: oklch(0.68 0.14 200);
+  --chart-7: oklch(0.65 0.22 350);
+  --chart-8: oklch(0.8 0.17 90);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -102,11 +109,14 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-1: oklch(0.7 0.17 258);
+  --chart-2: oklch(0.78 0.17 55);
+  --chart-3: oklch(0.75 0.18 150);
+  --chart-4: oklch(0.7 0.2 22);
+  --chart-5: oklch(0.72 0.2 305);
+  --chart-6: oklch(0.8 0.13 200);
+  --chart-7: oklch(0.75 0.2 350);
+  --chart-8: oklch(0.88 0.16 95);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -149,5 +159,36 @@
   }
   main {
     padding: 0 !important;
+  }
+}
+
+/* Interactive elements read as interactive: a pointer cursor and a hover state everywhere. */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='menuitem']:not([aria-disabled='true']),
+  [role='option']:not([aria-disabled='true']),
+  [role='tab']:not([aria-disabled='true']),
+  [role='switch']:not(:disabled),
+  [role='checkbox']:not([aria-disabled='true']),
+  a[href],
+  summary,
+  select:not(:disabled),
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  input[type='file']:not(:disabled),
+  label:has(> input:not(:disabled)),
+  [cmdk-item] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+  [role='tab']:hover,
+  [role='menuitem']:hover,
+  [role='option']:hover,
+  [cmdk-item]:hover {
+    background-color: color-mix(in oklab, var(--accent) 60%, transparent);
   }
 }

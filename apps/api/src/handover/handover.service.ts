@@ -1012,6 +1012,7 @@ function toItemView(
     remarkText: answer?.remarkText ?? null,
     safeToWork: answer?.safeToWork ?? null,
     needs: answer?.needs ?? [],
+    note: answer?.note ?? null,
   };
 }
 

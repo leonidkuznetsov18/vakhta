@@ -661,8 +661,8 @@ function PositionPanel({
 }
 
 /**
- * Checklists of the employee's position (ADR-0012): what the bot will ask for at the end of the
- * shift. An existing checklist is attached to the position here without creating a copy.
+ * The checklist of the employee's position (ADR-0012): one per position. It can be replaced by
+ * another existing checklist or removed; nothing is copied.
  */
 function ChecklistPanel({
   positionId,
@@ -676,26 +676,45 @@ function ChecklistPanel({
   readonly onChanged: (view: ChecklistDefinitionView) => void;
 }) {
   const [pick, setPick] = useState('');
+  const [replacing, setReplacing] = useState(false);
   const { busy, error, run } = useAction();
-  const bound = checklists.filter(
-    (c) => c.isActive && c.positions.some((p) => p.id === positionId),
-  );
-  const available = checklists.filter(
-    (c) => c.isActive && !c.positions.some((p) => p.id === positionId),
-  );
+  const { confirm, dialog } = useConfirm();
+  const current =
+    checklists.find((c) => c.isActive && c.positions.some((p) => p.id === positionId)) ?? null;
+  const available = checklists.filter((c) => c.isActive && c.id !== current?.id);
 
-  function add(ev: FormEvent) {
+  async function attach(ev: FormEvent) {
     ev.preventDefault();
     if (!pick) return;
-    void run(async () => {
-      onChanged(await checklistsApi.addPosition(pick, positionId));
-      setPick('');
-    }, e.checklistAdded);
+    if (current) {
+      const ok = await confirm({
+        title: e.replaceChecklist,
+        description: format(e.replaceConfirm, { name: current.name }),
+        confirmLabel: e.replaceChecklist,
+      });
+      if (ok === false) return;
+    }
+    void run(
+      async () => {
+        onChanged(await checklistsApi.addPosition(pick, positionId));
+        setPick('');
+        setReplacing(false);
+      },
+      current ? e.checklistReplaced : e.checklistAdded,
+    );
   }
 
-  function remove(id: string) {
+  async function remove() {
+    if (!current) return;
+    const ok = await confirm({
+      title: e.removeChecklist,
+      description: format(e.removeConfirm, { name: current.name }),
+      confirmLabel: e.removeChecklist,
+      destructive: true,
+    });
+    if (ok === false) return;
     void run(async () => {
-      onChanged(await checklistsApi.removePosition(id, positionId));
+      onChanged(await checklistsApi.removePosition(current.id, positionId));
     }, e.checklistRemoved);
   }
 
@@ -703,44 +722,46 @@ function ChecklistPanel({
     <div className="flex flex-col gap-3 border-t pt-4">
       <p className="flex items-center gap-1 text-sm font-medium">
         {e.checklists} · {positionName}
-        <InfoTip text={hints.employeesChecklists} />
+        <InfoTip text={`${hints.employeesChecklists} ${e.onePerPosition}`} />
       </p>
-      {bound.length === 0 ? (
+      {current ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm">
+          <span className="min-w-0 flex-1 truncate font-medium">{current.name}</span>
+          <Muted>
+            {format(t.checklists.itemsSummary, {
+              items: current.items.length,
+              photos: current.items.filter((i) => i.kind === 'PHOTO').length,
+            })}
+          </Muted>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy || available.length === 0}
+            onClick={() => setReplacing((v) => !v)}
+          >
+            {e.replaceChecklist}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={busy}
+            onClick={() => void remove()}
+          >
+            {e.removeChecklist}
+          </Button>
+        </div>
+      ) : (
         <Alert>
           <AlertTitle>{e.noChecklist}</AlertTitle>
           <AlertDescription>{e.noChecklistHint}</AlertDescription>
         </Alert>
-      ) : (
-        <ul className="flex flex-col gap-1">
-          {bound.map((c) => (
-            <li
-              key={c.id}
-              className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm"
-            >
-              <span className="min-w-0 flex-1 truncate">{c.name}</span>
-              <Muted>
-                {format(t.checklists.itemsSummary, {
-                  items: c.items.length,
-                  photos: c.items.filter((i) => i.kind === 'PHOTO').length,
-                })}
-              </Muted>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={busy || c.positions.length <= 1}
-                onClick={() => remove(c.id)}
-              >
-                {e.removeChecklist}
-              </Button>
-            </li>
-          ))}
-        </ul>
       )}
-      {available.length > 0 && (
-        <form className="flex flex-wrap items-end gap-3" onSubmit={add}>
+      {(!current || replacing) && available.length > 0 && (
+        <form className="flex flex-wrap items-end gap-3" onSubmit={attach}>
           <SelectField
-            label={e.addChecklist}
+            label={current ? e.replaceChecklist : e.addChecklist}
             value={pick}
             onChange={setPick}
             placeholder="…"
@@ -748,11 +769,12 @@ function ChecklistPanel({
             className="w-64"
           />
           <Button type="submit" variant="secondary" disabled={busy || !pick}>
-            {t.common.add}
+            {current ? e.replaceChecklist : t.common.add}
           </Button>
         </form>
       )}
       <Feedback error={error} />
+      {dialog}
     </div>
   );
 }

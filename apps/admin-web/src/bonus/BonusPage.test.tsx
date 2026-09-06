@@ -150,6 +150,10 @@ function mockApi(state: { status: string; scoreStatus?: string }) {
         state.status = 'CLOSED';
         return json(period('CLOSED'));
       }
+      if (url.pathname === '/admin/bonus/period/p1/reopen') {
+        state.status = 'OPEN';
+        return json(period('OPEN'));
+      }
       return json({ code: 'NOT_FOUND', message: url.pathname }, 404);
     }),
   );
@@ -173,12 +177,14 @@ describe('BonusPage', () => {
     expect(within(sheet).getByText(/Баллы посчитаны/)).toBeTruthy();
     fireEvent.click(within(sheet).getAllByRole('button', { name: 'Расшифровка' })[0]!);
     expect(await within(sheet).findByText('LATE_MINUTES:20')).toBeTruthy();
-    fireEvent.click(
-      within(sheet).getAllByRole('button', { name: 'Начислить или снять баллы' })[0]!,
-    );
+    // The card offers the two actions by name; "Take points" opens the dialog preset to a penalty.
+    expect(within(sheet).getByText(/Как это работает/)).toBeTruthy();
+    fireEvent.click(within(sheet).getAllByRole('button', { name: 'Снять баллы' })[0]!);
     const dialogs = await screen.findAllByRole('dialog');
     const dialog = dialogs[dialogs.length - 1]!;
-    fireEvent.click(within(dialog).getByRole('radio', { name: 'Снять (нарушение)' }));
+    expect(
+      within(dialog).getByRole('radio', { name: 'Снять (нарушение)' }).getAttribute('aria-checked'),
+    ).toBe('true');
     fireEvent.change(within(dialog).getByLabelText('Сколько баллов'), { target: { value: '15' } });
     fireEvent.change(within(dialog).getByLabelText('Причина'), {
       target: { value: 'MASTER_REVIEW' },
@@ -202,7 +208,8 @@ describe('BonusPage', () => {
     expect((await screen.findAllByText('Кузнецов Леонид')).length).toBeGreaterThan(0);
     await clickRowAction('Расшифровка');
     const sheet = await screen.findByRole('dialog');
-    expect(within(sheet).getByText(/применимо только 45 из 100/)).toBeTruthy();
+    expect(within(sheet).getByText(/Применимо только 45 из 100/)).toBeTruthy();
+    expect(within(sheet).getByText('Что делать')).toBeTruthy();
     fireEvent.click(within(sheet).getAllByRole('button', { name: 'Завершить проверку' })[0]!);
     const dialogs = await screen.findAllByRole('dialog');
     const dialog = dialogs[dialogs.length - 1]!;
@@ -239,5 +246,19 @@ describe('BonusPage', () => {
     });
     expect(await screen.findByRole('link', { name: 'Выгрузить CSV' })).toBeTruthy();
     expect(screen.getByLabelText('Бонусная база Кузнецов Леонид')).toBeTruthy();
+
+    // A closed period says so and can be reopened with a comment; scores become editable again.
+    expect(screen.getByText('Период закрыт')).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Открыть период снова' })[0]!);
+    const reopen = await screen.findByRole('alertdialog');
+    fireEvent.change(within(reopen).getByLabelText('Комментарий (обязательно)'), {
+      target: { value: 'Забыли проверку' },
+    });
+    fireEvent.click(within(reopen).getByRole('button', { name: 'Открыть период снова' }));
+    await screen.findByText('Период открыт снова.');
+    expect(calls.find((c) => c.path.endsWith('/reopen'))?.body).toEqual({
+      comment: 'Забыли проверку',
+    });
+    expect(await screen.findByRole('button', { name: 'Закрыть период' })).toBeTruthy();
   });
 });

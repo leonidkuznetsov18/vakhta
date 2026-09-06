@@ -251,7 +251,7 @@ describe('SchedulePage', () => {
     render(<SchedulePage />);
     expect(await screen.findByText('Отдых между сменами меньше нормы')).toBeTruthy();
     expect(screen.getByText('Дисбаланс дневных и ночных смен')).toBeTruthy();
-    expect(screen.getByText('restMinutes: 300')).toBeTruthy();
+    expect(screen.getByText('отдых, мин: 300')).toBeTruthy();
     const submit = screen.getByRole('button', {
       name: 'Отправить на согласование',
     }) as HTMLButtonElement;

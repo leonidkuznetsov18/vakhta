@@ -121,6 +121,10 @@ export class ChecklistsService {
         })
         .returning();
       if (!row) throw new Error('checklist_definitions: insert returned no row');
+      // Bindings belong to the current version only: the retired one gives them up.
+      await tx
+        .delete(checklistDefinitionPositions)
+        .where(eq(checklistDefinitionPositions.definitionId, current.id));
       await this.bind(tx, row.id, positionIds);
       await this.events.append(tx, {
         type: 'CHECKLIST_VERSION_CREATED',
@@ -147,7 +151,10 @@ export class ChecklistsService {
     });
   }
 
-  /** Attaches an existing checklist to one more position (from the employee card, ADR-0012). */
+  /**
+   * Attaches an existing checklist to a position (from the employee card, ADR-0012). A position
+   * has one checklist: the previous binding of that position, if any, is replaced.
+   */
   async addPosition(
     id: string,
     positionId: string,
@@ -156,29 +163,27 @@ export class ChecklistsService {
     const current = await this.requireLatest(id);
     await this.org.requirePosition(positionId);
     return this.db.transaction(async (tx) => {
-      await tx
-        .insert(checklistDefinitionPositions)
-        .values({ definitionId: current.id, positionId })
-        .onConflictDoNothing();
+      const replaced = await this.bind(tx, current.id, [positionId]);
       await this.events.append(tx, {
         type: 'CHECKLIST_POSITION_ADDED',
         source: 'WEB',
         actor,
         checklistVersionId: current.id,
-        payload: { checklistId: current.id, familyId: current.familyId, positionId },
+        payload: { checklistId: current.id, familyId: current.familyId, positionId, replaced },
       });
       await this.audit.record(tx, {
         actor,
         action: 'checklist.position.add',
         objectType: 'checklist',
         objectId: current.id,
+        before: replaced.length > 0 ? { replacedChecklistIds: replaced } : null,
         after: { positionId },
       });
       return this.view(tx, current.id);
     });
   }
 
-  /** Detaches a position; the last one cannot go, the checklist is disabled instead. */
+  /** Detaches a position; a checklist left without positions is disabled (it is never picked). */
   async removePosition(
     id: string,
     positionId: string,
@@ -186,14 +191,6 @@ export class ChecklistsService {
   ): Promise<ChecklistDefinitionView> {
     const current = await this.requireLatest(id);
     return this.db.transaction(async (tx) => {
-      const bound = (await this.positionsOf(tx, [current.id])).get(current.id) ?? [];
-      if (bound.length <= 1 && bound.some((p) => p.id === positionId)) {
-        throw new DomainError(
-          'CHECKLIST_LAST_POSITION',
-          409,
-          'A checklist keeps at least one position; disable it instead',
-        );
-      }
       await tx
         .delete(checklistDefinitionPositions)
         .where(
@@ -216,6 +213,7 @@ export class ChecklistsService {
         objectId: current.id,
         before: { positionId },
       });
+      await this.retireOrphans(tx, [current.id]);
       return this.view(tx, current.id);
     });
   }
@@ -227,6 +225,16 @@ export class ChecklistsService {
   ): Promise<ChecklistDefinitionView> {
     const current = await this.requireLatest(id);
     if (current.isActive === cmd.isActive) return this.view(this.db, current.id);
+    if (cmd.isActive) {
+      const bound = (await this.positionsOf(this.db, [current.id])).get(current.id) ?? [];
+      if (bound.length === 0) {
+        throw new DomainError(
+          'CHECKLIST_NO_POSITIONS',
+          409,
+          'A checklist needs a position before it can be enabled',
+        );
+      }
+    }
     return this.db.transaction(async (tx) => {
       await tx
         .update(checklistDefinitions)
@@ -329,11 +337,49 @@ export class ChecklistsService {
     return map;
   }
 
-  private async bind(tx: DbOrTx, definitionId: string, positionIds: readonly string[]) {
+  /**
+   * Binds positions to a definition; a position bound to another checklist moves here, because a
+   * position has one checklist. Returns the ids of the checklists that lost a position.
+   */
+  private async bind(
+    tx: DbOrTx,
+    definitionId: string,
+    positionIds: readonly string[],
+  ): Promise<string[]> {
+    if (positionIds.length === 0) return [];
+    const previous = await tx
+      .delete(checklistDefinitionPositions)
+      .where(
+        and(
+          inArray(checklistDefinitionPositions.positionId, [...positionIds]),
+          sql`${checklistDefinitionPositions.definitionId} <> ${definitionId}`,
+        ),
+      )
+      .returning({ definitionId: checklistDefinitionPositions.definitionId });
     await tx
       .insert(checklistDefinitionPositions)
       .values(positionIds.map((positionId) => ({ definitionId, positionId })))
       .onConflictDoNothing();
+    const replaced = [...new Set(previous.map((p) => p.definitionId))];
+    await this.retireOrphans(tx, replaced);
+    return replaced;
+  }
+
+  /** An active checklist always has a position: one left without positions is disabled. */
+  private async retireOrphans(tx: DbOrTx, definitionIds: readonly string[]): Promise<void> {
+    for (const id of definitionIds) {
+      const [left] = await tx
+        .select({ id: checklistDefinitionPositions.definitionId })
+        .from(checklistDefinitionPositions)
+        .where(eq(checklistDefinitionPositions.definitionId, id))
+        .limit(1);
+      if (!left) {
+        await tx
+          .update(checklistDefinitions)
+          .set({ isActive: false })
+          .where(eq(checklistDefinitions.id, id));
+      }
+    }
   }
 
   private async requirePositions(ids: readonly string[]): Promise<string[]> {
