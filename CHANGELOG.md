@@ -1,3 +1,9 @@
+## [0.20.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.19.0...v0.20.0) (2026-09-06)
+
+### Features
+
+* **employees:** delete a card that has no worked history ([d842266](https://github.com/leonidkuznetsov18/vakhta/commit/d842266d4cf9e0bb12c50d272b4150d2be50cb7f))
+
 ## [0.19.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.18.0...v0.19.0) (2026-09-06)
 
 ### Features
