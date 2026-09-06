@@ -1,8 +1,13 @@
-import { Controller, Get, Headers, UnauthorizedException } from '@nestjs/common';
-import type { KioskChallengeResponse } from '@vakhta/contracts';
+import { Body, Controller, Get, Headers, Post, UnauthorizedException } from '@nestjs/common';
+import {
+  PairTerminalCommand,
+  type KioskChallengeResponse,
+  type TerminalPaired,
+} from '@vakhta/contracts';
+import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { KioskService } from './kiosk.service.js';
 
-/** Публічний для мережі майданчика ендпоінт; автентифікація лише device token. */
+/** Reachable from the site network; authentication is the device token or a one-time pairing code. */
 @Controller('kiosk')
 export class KioskController {
   constructor(private readonly kiosk: KioskService) {}
@@ -15,5 +20,15 @@ export class KioskController {
     const challenge = await this.kiosk.issueChallenge(deviceToken);
     if (!challenge) throw new UnauthorizedException();
     return challenge;
+  }
+
+  /** The tablet types the code the administrator got in the panel; the token comes back once. */
+  @Post('pair')
+  async pair(
+    @Body(new ZodValidationPipe(PairTerminalCommand)) body: PairTerminalCommand,
+  ): Promise<TerminalPaired> {
+    const paired = await this.kiosk.pair(body.code);
+    if (!paired) throw new UnauthorizedException();
+    return paired;
   }
 }

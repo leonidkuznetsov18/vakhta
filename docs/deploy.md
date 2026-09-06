@@ -25,7 +25,7 @@ Checklist of what exists and how it is operated. Cloudflare Pages hosts the stat
 | PostgreSQL 18          | Railway `Postgres` (`postgres-ssl:18`)                         | private endpoint `postgres`; a TCP proxy exists only for the nightly dump            |
 | Redis 8                | Railway `Redis`                                                | private endpoint `redis`, `--save 60 1` on a volume                                  |
 | Panel `apps/admin-web` | Cloudflare Pages project `vakhta-panel`                        | `https://panel.vakhta.xyz`; the `pages.dev` host redirects there                     |
-| Kiosk `apps/qr-kiosk`  | Cloudflare Pages project `vakhta-kiosk`                        | `https://kiosk.vakhta.xyz`; rebuilt with the terminal token                          |
+| Kiosk `apps/qr-kiosk`  | Cloudflare Pages project `vakhta-kiosk`                        | `https://kiosk.vakhta.xyz`; the tablet pairs with a code from the panel               |
 | Photos, medical files  | Cloudflare R2 bucket `vakhta-media` (private, WEUR)            | S3 API keys with Object Read & Write on both buckets                                 |
 | Database backups       | Cloudflare R2 bucket `vakhta-backups`                          | lifecycle rule `expire-30d` on `postgres/`                                           |
 | Images                 | GHCR `ghcr.io/leonidkuznetsov18/vakhta-api`, `…-worker`        | published by CI from `master`, used for rollback and for other hosts                 |
@@ -52,7 +52,7 @@ Template with comments: `.env.production.example`. Secrets are generated with `o
    ```
 
 7. Cloudflare: enable R2, `wrangler r2 bucket create vakhta-media --location weur`, the same for `vakhta-backups`, `wrangler r2 bucket lifecycle add vakhta-backups --name expire-30d --prefix postgres/ --expire-days 30`; create an R2 API token (Object Read & Write, both buckets) in the dashboard and put its keys into `S3_ACCESS_KEY` / `S3_SECRET_KEY` of api and worker.
-8. Pages: `wrangler pages project create vakhta-panel --production-branch master`, build with `VITE_API_URL=https://<api domain> pnpm --filter admin-web run build`, then `wrangler pages deploy apps/admin-web/dist --project-name vakhta-panel --branch master`. The kiosk is the same with `VITE_KIOSK_DEVICE_TOKEN` from the panel ("Administration → Terminals"). `public/_headers` adds the security headers.
+8. Pages: `wrangler pages project create vakhta-panel --production-branch master`, build with `VITE_API_URL=https://<api domain> pnpm --filter admin-web run build`, then `wrangler pages deploy apps/admin-web/dist --project-name vakhta-panel --branch master`. The kiosk is the same build without any token: on the tablet, open the kiosk address and type the pairing code from "Administration → Terminals" (the panel also prints a link with the code when it is built with `VITE_KIOSK_URL`). `public/_headers` adds the security headers.
 9. Backups: secrets from section 3, then run the "DB backup" workflow once by hand and check the object in `vakhta-backups`.
 
 ## 5. CI/CD on every push to master
@@ -61,7 +61,7 @@ Template with comments: `.env.production.example`. Secrets are generated with `o
 
 - **release**: `semantic-release` reads Conventional Commits since the last tag. `feat` bumps the minor version, `fix`/`perf`/`refactor`/`config`/`infra` the patch, `docs`/`ci`/`chore`/`test` publish nothing. A release updates the root `package.json` version and `CHANGELOG.md` in a `chore(release): vX.Y.Z [skip ci]` commit, creates the tag `vX.Y.Z` and a GitHub Release with the notes (`.releaserc.json`).
 - **images**: builds `apps/api` and `apps/worker` and pushes `ghcr.io/leonidkuznetsov18/vakhta-{api,worker}` with tags `sha-<commit>`, `latest` and, when a release was published, `vX.Y.Z`.
-- **pages**: builds the panel and the kiosk with `VITE_API_URL` (repository variable `API_URL`), `VITE_CANONICAL_ORIGIN` (variables `PANEL_URL` and `KIOSK_URL`; Pages cannot redirect a whole `pages.dev` host itself, so the apps do it on load), `VITE_APP_VERSION` and `VITE_KIOSK_DEVICE_TOKEN` (secret `KIOSK_DEVICE_TOKEN`) and deploys them with `wrangler pages deploy` using secret `CLOUDFLARE_API_TOKEN` (permission "Cloudflare Pages: Edit") and variable `CLOUDFLARE_ACCOUNT_ID`. Without the token the job builds and skips the deploy with a warning.
+- **pages**: builds the panel and the kiosk with `VITE_API_URL` (repository variable `API_URL`), `VITE_CANONICAL_ORIGIN` (variables `PANEL_URL` and `KIOSK_URL`; Pages cannot redirect a whole `pages.dev` host itself, so the apps do it on load), `VITE_APP_VERSION` and, for the panel, `VITE_KIOSK_URL` (variable `KIOSK_URL`, used only to print pairing links) and deploys them with `wrangler pages deploy` using secret `CLOUDFLARE_API_TOKEN` (permission "Cloudflare Pages: Edit") and variable `CLOUDFLARE_ACCOUNT_ID`. Without the token the job builds and skips the deploy with a warning.
 - **Railway** deploys `api` and `worker` from `master` on its own and, with `checkSuites: true`, only after the GitHub check suite is green; `watchPatterns` skip rebuilds for commits that touch only docs or the changelog. Rollback: "Redeploy" of a previous deployment in Railway or the `sha-…` image tag.
 
 The version shown in the panel navigation comes from the release that built it.
@@ -85,7 +85,7 @@ Done for `vakhta.xyz` (Cloudflare DNS, all three records proxied, Railway custom
 
 - One API replica: the SSE change buses are in-process. For several replicas move them to Redis pub/sub.
 - `/metrics` is protected by a token, not by the network.
-- The kiosk device token is baked into the Pages build: a new terminal token means a rebuild and redeploy of `vakhta-kiosk`.
+- The kiosk keeps its device token in the tablet's browser storage after pairing. Re-pairing (a new code from the panel) rotates the token and invalidates the old one; clearing the browser data on the tablet means pairing again. No rebuild is involved.
 
 ## 10. Before announcing the pilot
 

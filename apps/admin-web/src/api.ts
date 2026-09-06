@@ -1,4 +1,9 @@
-import type { MeView } from '@vakhta/contracts';
+import type {
+  MeView,
+  SetTerminalStatusCommand,
+  TerminalPairingIssued,
+  TerminalView,
+} from '@vakhta/contracts';
 import { currentLocale } from './i18n.tsx';
 
 export const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
@@ -99,6 +104,7 @@ export const schedulesApi = {
     apiFetch<ScheduleVersionView[]>(`/admin/schedules${query(q)}`),
   create: (cmd: CreateScheduleVersionCommand) => post<ScheduleVersionView>('/admin/schedules', cmd),
   detail: (id: string) => apiFetch<ScheduleVersionDetail>(`/admin/schedules/${id}`),
+  remove: (id: string) => apiFetch<null>(`/admin/schedules/${id}`, { method: 'DELETE' }),
   putAssignments: (id: string, items: AssignmentInput[]) =>
     apiFetch<ScheduleVersionDetail>(`/admin/schedules/${id}/assignments`, {
       method: 'PUT',
@@ -176,6 +182,16 @@ export const adminOrgApi = {
   createZone: (cmd: CreateZoneCommand) => post<ZoneView>('/admin/org/zones', cmd),
   registerTerminal: (cmd: RegisterTerminalCommand) =>
     post<TerminalRegistered>('/admin/org/terminals', cmd),
+  issuePairing: (terminalId: string) =>
+    apiFetch<TerminalPairingIssued>(`/admin/org/terminals/${terminalId}/pairing`, {
+      method: 'POST',
+      body: '{}',
+    }),
+  setTerminalStatus: (terminalId: string, cmd: SetTerminalStatusCommand) =>
+    apiFetch<TerminalView>(`/admin/org/terminals/${terminalId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(cmd),
+    }),
 };
 
 // ---- оперативна зміна (ТЗ 9.2) ----

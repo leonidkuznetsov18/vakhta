@@ -35,7 +35,7 @@ pnpm --filter api auth:bootstrap -- --email admin@example.com --password 'long-s
 pnpm dev                    # everything: api :3000, worker, panel :5173, kiosk :5174
 ```
 
-`pnpm dev` first builds the packages through Turborepo, then keeps the API and the worker in watch mode (`tsc --watch` + `node --watch`) and starts Vite for the panel and the kiosk. The panel shows "API online" when the API answers on `/health`; the kiosk shows a QR when `VITE_KIOSK_DEVICE_TOKEN` in `.env` matches the `KIOSK_DEVICE_TOKEN` the seed ran with.
+`pnpm dev` first builds the packages through Turborepo, then keeps the API and the worker in watch mode (`tsc --watch` + `node --watch`) and starts Vite for the panel and the kiosk. The panel shows "API online" when the API answers on `/health`; the kiosk shows a QR when `VITE_KIOSK_DEVICE_TOKEN` in `.env` matches the `KIOSK_DEVICE_TOKEN` the seed ran with (a local shortcut: in production the tablet pairs with a one-time code from "Administration → Terminals" and keeps its device token in browser storage).
 
 Usual causes of "API unavailable" / "No connection to the server": the API is not running, `.env` lacks the mandatory `ACTIVATION_PEPPER`, the Docker stack is down, or `REDIS_URL` points at 6379 instead of 6380. Vite reads `VITE_*` from the root `.env`, not from the app folder.
 

@@ -7,13 +7,14 @@ import type {
   ScheduleVersionView,
   ShiftTemplateView,
 } from '@vakhta/contracts';
-import { messages } from '@vakhta/i18n';
+import { format, messages } from '@vakhta/i18n';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { Feedback } from '@/components/app/feedback';
-import { FormField, SelectField } from '@/components/app/fields';
+import { MonthField } from '@/components/app/date-picker';
+import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { EmptyState, Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
 import { employeesApi, orgApi, schedulesApi } from '../api.ts';
@@ -32,6 +33,7 @@ import {
   type GridState,
 } from './grid.ts';
 import { currentLocale } from '../i18n.tsx';
+import { useNavigation } from '../navigation.tsx';
 
 const t = messages(currentLocale());
 const s = t.admin.schedule;
@@ -70,6 +72,11 @@ export function SchedulePage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
+  const { go } = useNavigation();
+  const activeEmployees = useMemo(
+    () => employees.filter((e) => e.status === 'ACTIVE'),
+    [employees],
+  );
 
   const units = useMemo(
     () => org?.orgUnits.filter((u) => u.siteId === siteId) ?? [],
@@ -228,6 +235,22 @@ export function SchedulePage() {
     }, s.returned);
   }
 
+  async function deleteVersion() {
+    if (!version) return;
+    const ok = await confirm({
+      title: s.deleteVersion,
+      description: format(s.deleteConfirm, { no: version.versionNo }),
+      confirmLabel: s.deleteVersion,
+      destructive: true,
+    });
+    if (ok === false) return;
+    void run(async () => {
+      await schedulesApi.remove(version.id);
+      setSelectedId(null);
+      await loadVersions();
+    }, s.deleted);
+  }
+
   async function publish() {
     if (!version) return;
     const reason = await confirm({
@@ -263,21 +286,12 @@ export function SchedulePage() {
           options={units.map((u) => ({ value: u.id, label: u.name }))}
           className="w-56"
         />
-        <FormField label={s.month} className="w-44">
-          {(id) => (
-            <Input
-              id={id}
-              type="month"
-              value={month}
-              onChange={(e) => e.target.value && setMonth(e.target.value)}
-            />
-          )}
-        </FormField>
+        <MonthField label={s.month} value={month} onChange={setMonth} className="w-48" />
         <div className="flex items-center gap-1">
           <Button
             type="button"
             variant="secondary"
-            disabled={busy || !orgUnitId}
+            disabled={busy || !orgUnitId || activeEmployees.length === 0}
             onClick={createVersion}
           >
             {s.newVersion}
@@ -287,6 +301,17 @@ export function SchedulePage() {
       </Toolbar>
 
       <Feedback error={error} notice={notice} />
+
+      {org && activeEmployees.length === 0 && (
+        <Alert>
+          <AlertTitle>{s.noEmployees}</AlertTitle>
+          <AlertDescription>
+            <Button type="button" variant="outline" size="sm" onClick={() => go('administration')}>
+              {s.goToEmployees}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {versions.length === 0 ? (
         <EmptyState text={s.noVersions} />
@@ -311,7 +336,7 @@ export function SchedulePage() {
           <ScheduleGrid
             month={month}
             grid={grid}
-            employees={employees}
+            employees={activeEmployees}
             templates={templates}
             zones={zones}
             readOnly={!editable || busy}
@@ -348,6 +373,15 @@ export function SchedulePage() {
                   {s.submit}
                 </Button>
                 <InfoTip text={hints.scheduleSubmit} />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={busy}
+                  onClick={() => void deleteVersion()}
+                >
+                  {s.deleteVersion}
+                </Button>
+                <InfoTip text={hints.scheduleDelete} />
               </>
             )}
             {version.status === 'IN_REVIEW' && (

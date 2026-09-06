@@ -1,5 +1,5 @@
 import QRCode from 'qrcode';
-import { KioskChallengeResponse } from '@vakhta/contracts';
+import { KioskChallengeResponse, TerminalPaired } from '@vakhta/contracts';
 import { messages, resolveLocale } from '@vakhta/i18n';
 
 // The `pages.dev` host is a deployment artifact: land on the custom domain the API trusts.
@@ -10,7 +10,12 @@ if (CANONICAL_ORIGIN && location.origin !== CANONICAL_ORIGIN) {
 
 /**
  * The terminal shows a QR with a deep link to the bot and refreshes it every rotationSeconds (FR-QR-01).
- * The token itself never lives here longer than it is on screen.
+ * The challenge token itself never lives here longer than it is on screen.
+ *
+ * Pairing: the tablet has no device token until someone types the one-time code from the panel
+ * (or opens the link that carries it). The token then stays in this browser's storage; nobody
+ * copies secrets into environment variables. `VITE_KIOSK_DEVICE_TOKEN` remains a local-dev shortcut.
+ *
  * Language: `?lang=uk|en|ru` in the kiosk URL, otherwise the browser language, otherwise the default.
  */
 const locale = resolveLocale(
@@ -20,7 +25,7 @@ const t = messages(locale);
 document.documentElement.lang = locale;
 document.title = `${t.admin.productName} · ${t.kiosk.title}`;
 const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
-const DEVICE_TOKEN = import.meta.env['VITE_KIOSK_DEVICE_TOKEN'] ?? '';
+const TOKEN_KEY = 'vakhta.kiosk.deviceToken';
 
 const el = {
   title: byId('title'),
@@ -29,32 +34,116 @@ const el = {
   hint: byId('hint'),
   meta: byId('meta'),
   offline: byId('offline'),
+  repair: byId('repair') as HTMLButtonElement,
+  pair: byId('pair') as HTMLFormElement,
+  pairTitle: byId('pair-title'),
+  pairHint: byId('pair-hint'),
+  pairLabel: byId('pair-label'),
+  pairCode: byId('pair-code') as HTMLInputElement,
+  pairButton: byId('pair-button') as HTMLButtonElement,
+  pairError: byId('pair-error'),
 };
 
 el.title.textContent = t.kiosk.title;
 el.hint.textContent = t.kiosk.hint;
+el.pairTitle.textContent = t.kiosk.pairTitle;
+el.pairHint.textContent = t.kiosk.pairHint;
+el.pairLabel.textContent = t.kiosk.pairCode;
+el.pairButton.textContent = t.kiosk.pairButton;
+el.repair.textContent = t.kiosk.repair;
 
 let countdown = 0;
+let deviceToken = readToken();
 
-function showProblem(text: string): void {
+function readToken(): string {
+  try {
+    return localStorage.getItem(TOKEN_KEY) ?? import.meta.env['VITE_KIOSK_DEVICE_TOKEN'] ?? '';
+  } catch {
+    return import.meta.env['VITE_KIOSK_DEVICE_TOKEN'] ?? '';
+  }
+}
+
+function storeToken(token: string): void {
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    // Private mode or storage disabled: the token lives until the page reloads.
+  }
+}
+
+function forgetToken(): void {
+  deviceToken = '';
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Nothing to clear.
+  }
+}
+
+function showProblem(text: string, allowRepair = false): void {
   el.qr.hidden = true;
+  el.pair.hidden = true;
   el.offline.textContent = text;
   el.offline.hidden = false;
+  el.repair.hidden = !allowRepair;
   countdown = 10;
 }
 
+function showPairing(error?: string): void {
+  el.qr.hidden = true;
+  el.offline.hidden = true;
+  el.repair.hidden = true;
+  el.meta.textContent = '';
+  el.terminal.textContent = '';
+  el.pairError.textContent = error ?? '';
+  el.pairError.hidden = !error;
+  el.pair.hidden = false;
+  el.pairCode.focus();
+}
+
+async function pair(code: string): Promise<void> {
+  el.pairButton.disabled = true;
+  el.pairButton.textContent = t.kiosk.pairing;
+  try {
+    const res = await fetch(`${API_URL}/kiosk/pair`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (res.status === 401 || res.status === 400) {
+      showPairing(t.kiosk.pairInvalid);
+      return;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const paired = TerminalPaired.parse(await res.json());
+    deviceToken = paired.deviceToken;
+    storeToken(deviceToken);
+    el.pair.hidden = true;
+    el.pairCode.value = '';
+    el.terminal.textContent = paired.terminalName;
+    // Drop the code from the address bar so a reload does not retry it.
+    history.replaceState(null, '', location.pathname + location.search);
+    await fetchChallenge();
+  } catch {
+    showPairing(t.kiosk.offline);
+  } finally {
+    el.pairButton.disabled = false;
+    el.pairButton.textContent = t.kiosk.pairButton;
+  }
+}
+
 async function fetchChallenge(): Promise<void> {
-  if (!DEVICE_TOKEN) {
-    showProblem(t.kiosk.notConfigured);
+  if (!deviceToken) {
+    showPairing();
     return;
   }
   try {
     const res = await fetch(`${API_URL}/kiosk/challenge`, {
-      headers: { 'x-device-token': DEVICE_TOKEN },
+      headers: { 'x-device-token': deviceToken },
       cache: 'no-store',
     });
     if (res.status === 401 || res.status === 403) {
-      showProblem(t.kiosk.unauthorized);
+      showProblem(t.kiosk.unauthorized, true);
       return;
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -72,6 +161,8 @@ async function fetchChallenge(): Promise<void> {
     el.terminal.textContent = data.terminalName;
     countdown = data.rotationSeconds;
     el.offline.hidden = true;
+    el.repair.hidden = true;
+    el.pair.hidden = true;
     el.qr.hidden = false;
   } catch {
     showProblem(t.kiosk.offline);
@@ -79,12 +170,29 @@ async function fetchChallenge(): Promise<void> {
 }
 
 function tick(): void {
+  if (!el.pair.hidden) return;
   countdown -= 1;
   el.meta.textContent = `${t.kiosk.refreshIn} ${Math.max(0, countdown)} ${t.kiosk.seconds}`;
   if (countdown <= 0) void fetchChallenge();
 }
 
-void fetchChallenge();
+el.pair.addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const code = el.pairCode.value.trim();
+  if (code.length >= 8) void pair(code);
+});
+el.repair.addEventListener('click', () => {
+  forgetToken();
+  showPairing();
+});
+
+const codeFromLink = new URLSearchParams(location.hash.replace(/^#/, '')).get('pair');
+if (codeFromLink) {
+  el.pairCode.value = codeFromLink;
+  void pair(codeFromLink);
+} else {
+  void fetchChallenge();
+}
 setInterval(tick, 1000);
 
 function byId(id: string): HTMLElement {

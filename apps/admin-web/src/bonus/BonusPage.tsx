@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
+import { MonthField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
@@ -251,16 +252,7 @@ export function BonusPage() {
           options={org?.sites.map((s) => ({ value: s.id, label: s.name })) ?? []}
           className="w-56"
         />
-        <FormField label={b.month} className="w-44">
-          {(id) => (
-            <Input
-              id={id}
-              type="month"
-              value={month}
-              onChange={(e) => e.target.value && setMonth(e.target.value)}
-            />
-          )}
-        </FormField>
+        <MonthField label={b.month} value={month} onChange={setMonth} className="w-48" />
         {period && (
           <Muted className="pb-2">
             {b.period}: {period.status}

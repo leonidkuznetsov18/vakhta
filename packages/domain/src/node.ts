@@ -5,4 +5,5 @@
 export * from './index.js';
 export * from './qr/crypto.js';
 export * from './qr/device.js';
+export * from './qr/pairing.js';
 export * from './identity/crypto.js';

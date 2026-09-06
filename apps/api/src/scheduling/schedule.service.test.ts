@@ -400,4 +400,39 @@ describe('scheduling: версії, валідація, публікація, о
       ),
     ).rejects.toMatchObject({ code: 'EMPLOYEE_NOT_ACTIVE' });
   });
+
+  it('deletes a draft with its assignments; a published version is refused', async () => {
+    const draft = await schedule.createVersion(
+      { siteId, orgUnitId: unitId, periodMonth: MONTH },
+      PLANNER,
+    );
+    await schedule.putAssignments(
+      draft.id,
+      { items: [{ employeeId: ivanov, templateId: dayId, businessDate: day(1), kind: 'REGULAR' }] },
+      PLANNER,
+    );
+    await schedule.deleteVersion(draft.id, PLANNER);
+    await expect(schedule.detail(draft.id)).rejects.toMatchObject({
+      code: 'SCHEDULE_VERSION_NOT_FOUND',
+    });
+    expect(await schedule.list({ siteId, orgUnitId: unitId, periodMonth: MONTH })).toHaveLength(0);
+
+    const v1 = await schedule.createVersion(
+      { siteId, orgUnitId: unitId, periodMonth: MONTH },
+      PLANNER,
+    );
+    await schedule.putAssignments(
+      v1.id,
+      { items: [{ employeeId: ivanov, templateId: dayId, businessDate: day(1), kind: 'REGULAR' }] },
+      PLANNER,
+    );
+    await schedule.submit(v1.id, PLANNER);
+    await expect(schedule.deleteVersion(v1.id, PLANNER)).rejects.toMatchObject({
+      code: 'SCHEDULE_TRANSITION_NOT_ALLOWED',
+    });
+    await schedule.publish(v1.id, {}, HEAD);
+    await expect(schedule.deleteVersion(v1.id, PLANNER)).rejects.toMatchObject({
+      code: 'SCHEDULE_TRANSITION_NOT_ALLOWED',
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, isNull, or, gt } from '@vakhta/db';
+import { and, desc, eq, isNull, or, gt, inArray } from '@vakhta/db';
 import {
   employeePositions,
   employees,
@@ -119,7 +119,44 @@ export class EmployeesService {
       )
       .orderBy(desc(employees.createdAt))
       .limit(limit);
-    return rows.map((r) => this.toView(r.employee, r.linkId !== null));
+    const current = await this.currentPositions(rows.map((r) => r.employee.id));
+    return rows.map((r) =>
+      this.toView(r.employee, r.linkId !== null, current.get(r.employee.id) ?? null),
+    );
+  }
+
+  /** Assignment in force per employee (open-ended or not yet expired), newest first. */
+  private async currentPositions(
+    employeeIds: readonly string[],
+    now: Date = new Date(),
+  ): Promise<Map<string, EmployeeView['currentPosition']>> {
+    const map = new Map<string, EmployeeView['currentPosition']>();
+    if (employeeIds.length === 0) return map;
+    const rows = await this.db
+      .select({
+        employeeId: employeePositions.employeeId,
+        positionId: employeePositions.positionId,
+        orgUnitId: employeePositions.orgUnitId,
+        teamId: employeePositions.teamId,
+      })
+      .from(employeePositions)
+      .where(
+        and(
+          inArray(employeePositions.employeeId, [...employeeIds]),
+          or(isNull(employeePositions.validTo), gt(employeePositions.validTo, now)),
+        ),
+      )
+      .orderBy(desc(employeePositions.validFrom));
+    for (const r of rows) {
+      if (!map.has(r.employeeId)) {
+        map.set(r.employeeId, {
+          positionId: r.positionId,
+          orgUnitId: r.orgUnitId,
+          teamId: r.teamId,
+        });
+      }
+    }
+    return map;
   }
 
   async activeLinkByEmployee(
@@ -303,13 +340,18 @@ export class EmployeesService {
     });
   }
 
-  toView(row: EmployeeRecord, telegramLinked: boolean): EmployeeView {
+  toView(
+    row: EmployeeRecord,
+    telegramLinked: boolean,
+    currentPosition: EmployeeView['currentPosition'] = null,
+  ): EmployeeView {
     return {
       id: row.id,
       personnelNumber: row.personnelNumber,
       fullName: row.fullName,
       status: row.status,
       telegramLinked,
+      currentPosition,
       createdAt: row.createdAt.toISOString(),
     };
   }

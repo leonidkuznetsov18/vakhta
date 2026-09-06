@@ -90,6 +90,7 @@ function mockApi(state: { rows: ReturnType<typeof row>[] }) {
             fullName: 'Кузнецов Леонид',
             status: 'ACTIVE',
             telegramLinked: true,
+            currentPosition: null,
             createdAt: 'x',
           },
         ]);

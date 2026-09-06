@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   CreateOrgUnitCommand,
   CreatePositionCommand,
@@ -6,8 +16,11 @@ import {
   CreateTeamCommand,
   CreateZoneCommand,
   RegisterTerminalCommand,
+  SetTerminalStatusCommand,
   type OrgSnapshot,
+  type TerminalPairingIssued,
   type TerminalRegistered,
+  type TerminalView,
 } from '@vakhta/contracts';
 import {
   CurrentUser,
@@ -93,5 +106,32 @@ export class AdminOrgController {
     @CurrentUser() user: WebUser,
   ): Promise<TerminalRegistered> {
     return this.org.registerTerminal(body, webUserActor(user));
+  }
+
+  @Post('terminals/:id/pairing')
+  @HttpCode(201)
+  issuePairing(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: WebUser,
+  ): Promise<TerminalPairingIssued> {
+    return this.org.issuePairingCode(id, webUserActor(user));
+  }
+
+  @Patch('terminals/:id/status')
+  async setTerminalStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(SetTerminalStatusCommand)) body: SetTerminalStatusCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<TerminalView> {
+    const row = await this.org.setTerminalStatus(id, body, webUserActor(user));
+    return {
+      id: row.id,
+      siteId: row.siteId,
+      name: row.name,
+      checkpoint: row.checkpoint,
+      status: row.status,
+      paired: row.deviceTokenHash !== null,
+      lastSeenAt: row.lastSeenAt?.toISOString() ?? null,
+    };
   }
 }

@@ -370,6 +370,12 @@ export interface Messages {
       readonly acknowledged: string;
       readonly readOnlyHint: string;
       readonly unsaved: string;
+      readonly deleteVersion: string;
+      /** Placeholder: {no} */
+      readonly deleteConfirm: string;
+      readonly deleted: string;
+      readonly noEmployees: string;
+      readonly goToEmployees: string;
       readonly forbidden: string;
       readonly noTemplates: string;
     };
@@ -666,7 +672,16 @@ export interface Messages {
         readonly never: string;
         readonly register: string;
         readonly registered: string;
-        readonly tokenHint: string;
+        readonly pair: string;
+        /** Placeholders: {code}, {expires} */
+        readonly pairIssued: string;
+        readonly pairLink: string;
+        readonly pairHint: string;
+        readonly paired: string;
+        readonly notPaired: string;
+        readonly disable: string;
+        readonly enable: string;
+        readonly statusChanged: string;
         readonly checkpoints: Readonly<Record<'ENTRY' | 'EXIT' | 'BOTH', string>>;
         readonly statuses: Readonly<Record<'ACTIVE' | 'DISABLED', string>>;
       };
@@ -760,8 +775,11 @@ export interface Messages {
       readonly directoriesZoneType: string;
       readonly directoriesTimezone: string;
       readonly directoriesCode: string;
-      readonly terminalsToken: string;
+      readonly terminalsPair: string;
+      readonly terminalsStatus: string;
       readonly terminalsCheckpoint: string;
+      readonly scheduleDelete: string;
+      readonly employeesPositionColumn: string;
       readonly profileTwoFactor: string;
     };
   };
@@ -770,7 +788,13 @@ export interface Messages {
     readonly hint: string;
     readonly offline: string;
     readonly unauthorized: string;
-    readonly notConfigured: string;
+    readonly pairTitle: string;
+    readonly pairHint: string;
+    readonly pairCode: string;
+    readonly pairButton: string;
+    readonly pairing: string;
+    readonly pairInvalid: string;
+    readonly repair: string;
     readonly refreshIn: string;
     readonly seconds: string;
   };

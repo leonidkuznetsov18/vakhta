@@ -20,13 +20,33 @@ export const qrTerminals = pgTable(
       .references(() => sites.id),
     name: text('name').notNull(),
     checkpoint: checkpointType('checkpoint').notNull().default('BOTH'),
-    /** SHA-256 device token; сам токен показується один раз при реєстрації. */
-    deviceTokenHash: text('device_token_hash').notNull().unique(),
+    /** SHA-256 of the device token issued at pairing; null until the kiosk has paired. */
+    deviceTokenHash: text('device_token_hash').unique(),
     status: terminalStatus('status').notNull().default('ACTIVE'),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('qr_terminals_site_idx').on(t.siteId)],
+);
+
+/**
+ * One-time pairing codes (FR-QR-01): an administrator issues a code in the panel, the kiosk
+ * exchanges it for a device token. Only the hash is stored; a used code keeps `used_at`.
+ */
+export const terminalPairingCodes = pgTable(
+  'terminal_pairing_codes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    terminalId: uuid('terminal_id')
+      .notNull()
+      .references(() => qrTerminals.id, { onDelete: 'cascade' }),
+    codeHash: text('code_hash').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdBy: uuid('created_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('terminal_pairing_codes_terminal_idx').on(t.terminalId)],
 );
 
 /** Короткоживучий challenge (ADR-4): лише хеш токена, термінал, строк дії. */

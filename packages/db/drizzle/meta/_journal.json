@@ -85,6 +85,13 @@
       "when": 1788675669464,
       "tag": "0011_employee_locale",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788685149502,
+      "tag": "0012_terminal_pairing",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   HttpCode,
@@ -115,6 +116,21 @@ export class AdminSchedulesController {
       orgUnitId: detail.version.orgUnitId,
     });
     return detail;
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  @Roles(...EDITORS)
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: WebUser,
+  ): Promise<void> {
+    const detail = await this.schedules.detail(id);
+    assertScope(user, EDITORS, {
+      siteId: detail.version.siteId,
+      orgUnitId: detail.version.orgUnitId,
+    });
+    await this.schedules.deleteVersion(id, webUserActor(user));
   }
 
   @Put(':id/assignments')

@@ -20,6 +20,10 @@ export const EmployeeView = z.object({
   fullName: z.string(),
   status: EmployeeStatusSchema,
   telegramLinked: z.boolean(),
+  /** The personnel assignment in force now; null until HR assigns a position. */
+  currentPosition: z
+    .object({ positionId: Uuid, orgUnitId: Uuid, teamId: Uuid.nullable() })
+    .nullable(),
   createdAt: IsoDateTime,
 });
 export type EmployeeView = z.infer<typeof EmployeeView>;

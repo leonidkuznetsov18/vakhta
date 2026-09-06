@@ -35,3 +35,16 @@ export const KioskChallengeResponse = z.object({
   terminalName: z.string(),
 });
 export type KioskChallengeResponse = z.infer<typeof KioskChallengeResponse>;
+
+/** The kiosk sends the code typed on the tablet; the device token comes back exactly once. */
+export const PairTerminalCommand = z.object({
+  code: z.string().trim().min(8).max(16),
+});
+export type PairTerminalCommand = z.infer<typeof PairTerminalCommand>;
+
+export const TerminalPaired = z.object({
+  terminalId: Uuid,
+  terminalName: z.string(),
+  deviceToken: z.string().min(16),
+});
+export type TerminalPaired = z.infer<typeof TerminalPaired>;

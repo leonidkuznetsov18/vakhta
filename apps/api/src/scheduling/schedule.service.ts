@@ -221,6 +221,45 @@ export class ScheduleService {
     });
   }
 
+  /** Only a draft can go: published and superseded versions are history (spec 3.2). */
+  async deleteVersion(id: string, actor: Actor): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const [version] = await tx
+        .select()
+        .from(scheduleVersions)
+        .where(eq(scheduleVersions.id, id))
+        .for('update');
+      if (!version)
+        throw new DomainError('SCHEDULE_VERSION_NOT_FOUND', 404, `Version ${id} not found`);
+      if (version.status !== 'DRAFT')
+        throw new DomainError(
+          'SCHEDULE_TRANSITION_NOT_ALLOWED',
+          409,
+          `Only a draft can be deleted; version ${id} is ${version.status}`,
+        );
+      const assignments = await this.loadAssignments(version.id, tx);
+      await this.events.append(tx, {
+        type: 'SCHEDULE_VERSION_DELETED',
+        source: 'WEB',
+        actor,
+        scheduleVersionId: version.id,
+        payload: {
+          periodMonth: version.periodMonth,
+          versionNo: version.versionNo,
+          assignments: assignments.length,
+        },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'schedule.version.delete',
+        objectType: 'schedule_version',
+        objectId: version.id,
+        before: { status: version.status, assignments: assignments.length },
+      });
+      await tx.delete(scheduleVersions).where(eq(scheduleVersions.id, version.id));
+    });
+  }
+
   async detail(id: string): Promise<ScheduleVersionDetail> {
     const version = await this.requireVersion(id);
     const assignments = await this.loadAssignments(id);

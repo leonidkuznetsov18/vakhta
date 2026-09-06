@@ -57,6 +57,9 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     setList((l) => l.map((x) => (x.id === updated.id ? updated : x)));
   }
 
+  const unitName = (id: string) => org.orgUnits.find((u) => u.id === id)?.name ?? id;
+  const positionName = (id: string) => org.positions.find((p) => p.id === id)?.name ?? id;
+
   function create(ev: FormEvent) {
     ev.preventDefault();
     void run(async () => {
@@ -99,6 +102,24 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       cell: (emp) => <span className="tabular-nums">{emp.personnelNumber}</span>,
     },
     { key: 'name', header: e.fullName, cell: (emp) => emp.fullName },
+    {
+      key: 'position',
+      header: (
+        <span className="inline-flex items-center gap-1">
+          {e.position}
+          <InfoTip text={hints.employeesPositionColumn} />
+        </span>
+      ),
+      cell: (emp) =>
+        emp.currentPosition ? (
+          <span>
+            {positionName(emp.currentPosition.positionId)}
+            <Muted> · {unitName(emp.currentPosition.orgUnitId)}</Muted>
+          </span>
+        ) : (
+          <Muted>{e.noPosition}</Muted>
+        ),
+    },
     {
       key: 'status',
       header: e.status,
@@ -247,7 +268,24 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         rowKey={(emp) => emp.id}
         empty={t.common.empty}
         rowClassName={(emp) => (emp.status !== 'ACTIVE' ? 'text-muted-foreground' : undefined)}
-        expanded={(emp) => (openId === emp.id ? <PositionPanel employee={emp} org={org} /> : null)}
+        expanded={(emp) =>
+          openId === emp.id ? (
+            <PositionPanel
+              employee={emp}
+              org={org}
+              onAssigned={(view) =>
+                replace({
+                  ...emp,
+                  currentPosition: {
+                    positionId: view.positionId,
+                    orgUnitId: view.orgUnitId,
+                    teamId: view.teamId,
+                  },
+                })
+              }
+            />
+          ) : null
+        }
       />
       {dialog}
       <RelinkDialog
@@ -339,9 +377,11 @@ function RelinkDialog({
 function PositionPanel({
   employee,
   org,
+  onAssigned,
 }: {
   readonly employee: EmployeeView;
   readonly org: OrgSnapshot;
+  readonly onAssigned: (view: EmployeePositionView) => void;
 }) {
   const [history, setHistory] = useState<EmployeePositionView[] | null>(null);
   const [orgUnitId, setOrgUnitId] = useState(org.orgUnits[0]?.id ?? '');
@@ -370,6 +410,7 @@ function PositionPanel({
         view,
         ...(h ?? []).map((x) => (x.validTo === null ? { ...x, validTo: view.validFrom } : x)),
       ]);
+      onAssigned(view);
     }, e.positionAssigned);
   }
 

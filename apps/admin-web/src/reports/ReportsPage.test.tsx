@@ -91,13 +91,16 @@ describe('ReportsPage and AuditPage', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it('builds a report for a period and shows the data version, totals and export links', async () => {
+    // The period defaults to the current month; the calendar fields are covered by the domain tests.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-31T12:00:00Z') });
     const calls = mockApi();
     render(<ReportsPage />);
-    fireEvent.change(await screen.findByLabelText('С'), { target: { value: '2026-10-01' } });
-    fireEvent.change(screen.getByLabelText('По'), { target: { value: '2026-10-31' } });
+    expect(await screen.findByLabelText('С')).toBeTruthy();
+    expect(screen.getByLabelText('По')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Сформировать' }));
     expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
     expect(screen.getByText(/abc123def456/)).toBeTruthy();

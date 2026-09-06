@@ -73,6 +73,69 @@
         font-size: clamp(18px, 2.6vw, 28px);
         max-width: 30ch;
       }
+      .repair,
+      .pair button {
+        font: inherit;
+        font-size: clamp(16px, 2vw, 20px);
+        padding: 12px 28px;
+        border-radius: 10px;
+        border: 1px solid var(--muted);
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .pair button {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #10161c;
+        font-weight: 600;
+      }
+      .repair:hover,
+      .repair:focus-visible,
+      .pair button:hover,
+      .pair button:focus-visible {
+        filter: brightness(1.15);
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .pair button:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+      .pair {
+        display: grid;
+        gap: 16px;
+        justify-items: center;
+        max-width: 36ch;
+      }
+      .pair h2 {
+        margin: 0;
+        font-size: clamp(22px, 3vw, 32px);
+      }
+      .pair label {
+        display: grid;
+        gap: 8px;
+        width: 100%;
+        font-size: clamp(14px, 2vw, 18px);
+        color: var(--muted);
+      }
+      .pair input {
+        font: inherit;
+        font-size: clamp(28px, 5vw, 44px);
+        letter-spacing: 0.18em;
+        text-align: center;
+        text-transform: uppercase;
+        padding: 12px 16px;
+        border-radius: 10px;
+        border: 1px solid var(--muted);
+        background: #fff;
+        color: #10161c;
+        width: 100%;
+      }
+      .pair input:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 2px;
+      }
       [hidden] {
         display: none !important;
       }
@@ -86,6 +149,25 @@
       <p id="hint" class="hint"></p>
       <p id="meta" class="meta"></p>
       <p id="offline" class="offline" hidden></p>
+      <button id="repair" type="button" class="repair" hidden></button>
+      <form id="pair" class="pair" hidden autocomplete="off">
+        <h2 id="pair-title"></h2>
+        <p id="pair-hint" class="hint"></p>
+        <label>
+          <span id="pair-label"></span>
+          <input
+            id="pair-code"
+            name="code"
+            inputmode="text"
+            autocapitalize="characters"
+            spellcheck="false"
+            maxlength="9"
+            required
+          />
+        </label>
+        <p id="pair-error" class="offline" hidden></p>
+        <button id="pair-button" type="submit"></button>
+      </form>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

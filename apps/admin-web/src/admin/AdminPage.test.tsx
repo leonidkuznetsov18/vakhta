@@ -45,6 +45,7 @@ function mockApi() {
             fullName: body.fullName,
             status: 'ACTIVE',
             telegramLinked: false,
+            currentPosition: null,
             createdAt: 'x',
           },
           201,
@@ -86,14 +87,11 @@ function mockApi() {
         );
       }
       if (path === '/admin/org/terminals') {
+        return json({ id: 't1', siteId: SITE, name: body.name, checkpoint: body.checkpoint }, 201);
+      }
+      if (path === '/admin/org/terminals/t1/pairing') {
         return json(
-          {
-            id: 't1',
-            siteId: SITE,
-            name: body.name,
-            checkpoint: body.checkpoint,
-            deviceToken: 'dev-token-0123456789abcdef',
-          },
+          { terminalId: 't1', code: 'ABCD-2345', expiresAt: '2026-10-05T10:15:00Z' },
           201,
         );
       }
@@ -150,13 +148,14 @@ describe('AdminPage', () => {
     expect(screen.getByText('Планировщик')).toBeTruthy();
   });
 
-  it('registers a terminal and shows the token once', async () => {
+  it('registers a terminal and shows a pairing code instead of a device token', async () => {
     mockApi();
     render(<AdminPage />);
     fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Терминалы' }));
     fireEvent.change(await screen.findByLabelText('Название'), { target: { value: 'Проходная' } });
     fireEvent.click(screen.getByRole('button', { name: 'Зарегистрировать терминал' }));
-    await waitFor(() => expect(screen.getByText('dev-token-0123456789abcdef')).toBeTruthy());
-    expect(screen.getByText(/показывается один раз/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('ABCD-2345')).toBeTruthy());
+    expect(screen.getByText(/Введите его на экране терминала/)).toBeTruthy();
+    expect(screen.queryByText(/dev-token/)).toBeNull();
   });
 });

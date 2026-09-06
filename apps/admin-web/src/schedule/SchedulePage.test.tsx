@@ -40,6 +40,7 @@ const employees = [
     fullName: 'Кузнецов Леонид',
     status: 'ACTIVE',
     telegramLinked: true,
+    currentPosition: null,
     createdAt: 'x',
   },
   {
@@ -48,6 +49,7 @@ const employees = [
     fullName: 'Сидоров Пётр',
     status: 'ACTIVE',
     telegramLinked: false,
+    currentPosition: null,
     createdAt: 'x',
   },
 ];

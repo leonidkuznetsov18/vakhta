@@ -58,15 +58,28 @@ export const RegisterTerminalCommand = z.object({
 });
 export type RegisterTerminalCommand = z.infer<typeof RegisterTerminalCommand>;
 
-/** Device token показується один раз; далі термінал автентифікується лише ним. */
+/** Registration no longer returns a secret: the kiosk pairs with a short one-time code. */
 export const TerminalRegistered = z.object({
   id: Uuid,
   siteId: Uuid,
   name: Name,
   checkpoint: CheckpointSchema,
-  deviceToken: z.string().min(16),
 });
 export type TerminalRegistered = z.infer<typeof TerminalRegistered>;
+
+/** Pairing code shown once to the administrator; valid for a few minutes, single use. */
+export const TerminalPairingIssued = z.object({
+  terminalId: Uuid,
+  code: z.string().min(8),
+  expiresAt: IsoDateTime,
+});
+export type TerminalPairingIssued = z.infer<typeof TerminalPairingIssued>;
+
+export const SetTerminalStatusCommand = z.object({
+  status: z.enum(['ACTIVE', 'DISABLED']),
+  reason: z.string().trim().min(3).max(500),
+});
+export type SetTerminalStatusCommand = z.infer<typeof SetTerminalStatusCommand>;
 
 export const SiteView = z.object({
   id: Uuid,
@@ -98,6 +111,8 @@ export const TerminalView = z.object({
   name: z.string(),
   checkpoint: CheckpointSchema,
   status: z.enum(['ACTIVE', 'DISABLED']),
+  /** true once a kiosk has exchanged a pairing code for its device token. */
+  paired: z.boolean(),
   lastSeenAt: IsoDateTime.nullable(),
 });
 export const ReasonCodeView = z.object({

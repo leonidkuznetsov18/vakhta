@@ -4,11 +4,11 @@ import { REPORT_KINDS } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { DownloadIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
-import { FormField, SelectField } from '@/components/app/fields';
+import { DateField } from '@/components/app/date-picker';
+import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Toolbar } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
@@ -96,26 +96,8 @@ export function ReportsPage() {
             options={units.map((u) => ({ value: u.id, label: u.name }))}
             className="w-48"
           />
-          <FormField label={r.from} className="w-40">
-            {(id) => (
-              <Input
-                id={id}
-                type="date"
-                value={from}
-                onChange={(e) => e.target.value && setFrom(e.target.value)}
-              />
-            )}
-          </FormField>
-          <FormField label={r.to} className="w-40">
-            {(id) => (
-              <Input
-                id={id}
-                type="date"
-                value={to}
-                onChange={(e) => e.target.value && setTo(e.target.value)}
-              />
-            )}
-          </FormField>
+          <DateField label={r.from} value={from} onChange={setFrom} className="w-44" />
+          <DateField label={r.to} value={to} onChange={setTo} className="w-44" />
           <Button type="submit" disabled={busy}>
             {r.build}
           </Button>

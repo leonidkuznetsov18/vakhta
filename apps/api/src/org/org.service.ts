@@ -1,10 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq } from '@vakhta/db';
+import { and, asc, eq, isNull } from '@vakhta/db';
 import {
   orgUnits,
   positions,
   qrTerminals,
   reasonCodes,
+  terminalPairingCodes,
   responsibilityZones,
   sites,
   teams,
@@ -12,7 +13,12 @@ import {
   type DbOrTx,
 } from '@vakhta/db';
 import { IANAZone } from 'luxon';
-import { generateDeviceToken, hashDeviceToken } from '@vakhta/domain/node';
+import {
+  formatPairingCode,
+  generatePairingCode,
+  hashPairingCode,
+  pairingCodeExpiresAt,
+} from '@vakhta/domain/node';
 import type {
   CreateOrgUnitCommand,
   CreatePositionCommand,
@@ -21,6 +27,8 @@ import type {
   CreateZoneCommand,
   OrgSnapshot,
   RegisterTerminalCommand,
+  SetTerminalStatusCommand,
+  TerminalPairingIssued,
   TerminalRegistered,
 } from '@vakhta/contracts';
 import type { Actor } from '../common/actor.js';
@@ -101,30 +109,102 @@ export class OrgService {
     });
   }
 
-  /** FR-QR-01: термінал реєструється за майданчиком; токен повертається один раз. */
+  /** FR-QR-01: a terminal belongs to a site; it gets its device token later, through pairing. */
   async registerTerminal(cmd: RegisterTerminalCommand, actor: Actor): Promise<TerminalRegistered> {
     await this.requireSite(cmd.siteId);
-    const deviceToken = generateDeviceToken();
     const row = await this.insertWithAudit(
       'qr_terminal',
       'QR_TERMINAL_REGISTERED',
       actor,
       cmd,
       async (tx) => {
-        const [inserted] = await tx
-          .insert(qrTerminals)
-          .values({ ...cmd, deviceTokenHash: hashDeviceToken(deviceToken) })
-          .returning();
+        const [inserted] = await tx.insert(qrTerminals).values(cmd).returning();
         return inserted!;
       },
     );
+    return { id: row.id, siteId: row.siteId, name: row.name, checkpoint: row.checkpoint };
+  }
+
+  /**
+   * A short one-time code the administrator reads from the panel and someone types on the
+   * tablet. Issuing a new code voids the previous unused ones for the terminal.
+   */
+  async issuePairingCode(terminalId: string, actor: Actor): Promise<TerminalPairingIssued> {
+    const terminal = await this.requireTerminal(terminalId);
+    const code = generatePairingCode();
+    const issuedAt = new Date();
+    const expiresAt = pairingCodeExpiresAt(issuedAt);
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(terminalPairingCodes)
+        .set({ usedAt: issuedAt })
+        .where(
+          and(
+            eq(terminalPairingCodes.terminalId, terminal.id),
+            isNull(terminalPairingCodes.usedAt),
+          ),
+        );
+      await tx.insert(terminalPairingCodes).values({
+        terminalId: terminal.id,
+        codeHash: hashPairingCode(code),
+        expiresAt,
+        createdBy: actor.id,
+      });
+      await this.events.append(tx, {
+        type: 'QR_TERMINAL_PAIRING_ISSUED',
+        source: 'WEB',
+        actor,
+        payload: { terminalId: terminal.id, expiresAt: expiresAt.toISOString() },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'qr_terminal.pairing.issue',
+        objectType: 'qr_terminal',
+        objectId: terminal.id,
+        after: { expiresAt: expiresAt.toISOString() },
+      });
+    });
     return {
-      id: row.id,
-      siteId: row.siteId,
-      name: row.name,
-      checkpoint: row.checkpoint,
-      deviceToken,
+      terminalId: terminal.id,
+      code: formatPairingCode(code),
+      expiresAt: expiresAt.toISOString(),
     };
+  }
+
+  /** Disabling stops QR issuance without losing the pairing; enabling restores it. */
+  async setTerminalStatus(terminalId: string, cmd: SetTerminalStatusCommand, actor: Actor) {
+    const terminal = await this.requireTerminal(terminalId);
+    if (terminal.status === cmd.status) return terminal;
+    return this.db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(qrTerminals)
+        .set({ status: cmd.status })
+        .where(eq(qrTerminals.id, terminal.id))
+        .returning();
+      await this.events.append(tx, {
+        type: cmd.status === 'ACTIVE' ? 'QR_TERMINAL_ENABLED' : 'QR_TERMINAL_DISABLED',
+        source: 'WEB',
+        actor,
+        comment: cmd.reason,
+        payload: { terminalId: terminal.id },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: `qr_terminal.${cmd.status.toLowerCase()}`,
+        objectType: 'qr_terminal',
+        objectId: terminal.id,
+        before: { status: terminal.status },
+        after: { status: cmd.status },
+        reason: cmd.reason,
+      });
+      return updated!;
+    });
+  }
+
+  private async requireTerminal(id: string) {
+    const [row] = await this.db.select().from(qrTerminals).where(eq(qrTerminals.id, id)).limit(1);
+    if (!row) throw new DomainError('TERMINAL_NOT_FOUND', 404, `Terminal ${id} not found`);
+    return row;
   }
 
   async snapshot(): Promise<OrgSnapshot> {
@@ -152,14 +232,17 @@ export class OrgService {
         isShared,
         isActive,
       })),
-      terminals: term.map(({ id, siteId, name, checkpoint, status, lastSeenAt }) => ({
-        id,
-        siteId,
-        name,
-        checkpoint,
-        status,
-        lastSeenAt: lastSeenAt?.toISOString() ?? null,
-      })),
+      terminals: term.map(
+        ({ id, siteId, name, checkpoint, status, deviceTokenHash, lastSeenAt }) => ({
+          id,
+          siteId,
+          name,
+          checkpoint,
+          status,
+          paired: deviceTokenHash !== null,
+          lastSeenAt: lastSeenAt?.toISOString() ?? null,
+        }),
+      ),
       reasonCodes: r.map(
         ({
           kind,

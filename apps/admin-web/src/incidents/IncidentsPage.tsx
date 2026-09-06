@@ -17,6 +17,7 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
+import { DateField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { LiveBadge, Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
@@ -355,26 +356,8 @@ export function IncidentsPage() {
 
       <Section title={i.stats} hint={hints.incidentsStats}>
         <Toolbar>
-          <FormField label={i.from} className="w-44">
-            {(id) => (
-              <Input
-                id={id}
-                type="date"
-                value={from}
-                onChange={(e) => e.target.value && setFrom(e.target.value)}
-              />
-            )}
-          </FormField>
-          <FormField label={i.to} className="w-44">
-            {(id) => (
-              <Input
-                id={id}
-                type="date"
-                value={to}
-                onChange={(e) => e.target.value && setTo(e.target.value)}
-              />
-            )}
-          </FormField>
+          <DateField label={i.from} value={from} onChange={setFrom} className="w-44" />
+          <DateField label={i.to} value={to} onChange={setTo} className="w-44" />
         </Toolbar>
         {stats && (
           <div className="grid gap-4 xl:grid-cols-2">
