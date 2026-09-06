@@ -1,3 +1,10 @@
+## [0.15.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.14.0...v0.15.0) (2026-09-06)
+
+### Features
+
+* **panel:** "How it works" block and section FAQ everywhere ([ad49b4f](https://github.com/leonidkuznetsov18/vakhta/commit/ad49b4f3c53dc91d90684cfe2b4f08baeca09a56))
+* **schedule:** edit a published month in place; handover report opens under its row ([bf17f09](https://github.com/leonidkuznetsov18/vakhta/commit/bf17f0942d2f4ded01194e5c3804bfbae3c851be))
+
 ## [0.14.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.13.1...v0.14.0) (2026-09-06)
 
 ### Features
