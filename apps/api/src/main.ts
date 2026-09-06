@@ -8,12 +8,16 @@ import type { Auth } from './auth/auth.config.js';
 import { DomainErrorFilter } from './common/domain-error.js';
 import { corsOptions } from './config/cors.js';
 import { loadEnv } from './config/env.js';
+import { UnexpectedErrorFilter } from './common/unexpected-error.filter.js';
 import { createLogger } from './logger.js';
 import { MetricsService } from './metrics/metrics.module.js';
+import { initSentry, Sentry } from './observability/sentry.js';
 
 async function bootstrap(): Promise<void> {
   const env = loadEnv(process.env);
   const logger = createLogger(env);
+  // До створення застосунку, щоб помилки ініціалізації модулів теж потрапили в Sentry.
+  const sentry = initSentry(env, 'api');
 
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
@@ -21,7 +25,8 @@ async function bootstrap(): Promise<void> {
     { logger: ['error', 'warn'] },
   );
   app.enableShutdownHooks();
-  app.useGlobalFilters(new DomainErrorFilter());
+  // Порядок має значення: Nest перевіряє фільтри з кінця, тож DomainErrorFilter іде останнім.
+  app.useGlobalFilters(new UnexpectedErrorFilter(app.getHttpAdapter()), new DomainErrorFilter());
 
   // Панель і термінал живуть на інших origin; у продакшені список задається явно.
   // CORS має бути зареєстрований до маршрутів better-auth.
@@ -39,10 +44,15 @@ async function bootstrap(): Promise<void> {
   });
 
   await app.listen(env.API_PORT, env.API_HOST);
-  logger.info({ port: env.API_PORT, host: env.API_HOST, cors: env.CORS_ORIGINS }, 'api запущено');
+  logger.info(
+    { port: env.API_PORT, host: env.API_HOST, cors: env.CORS_ORIGINS, sentry },
+    'api запущено',
+  );
 }
 
-bootstrap().catch((error: unknown) => {
+bootstrap().catch(async (error: unknown) => {
   console.error('api не запустилось', error);
+  Sentry.captureException(error);
+  await Sentry.flush(2000);
   process.exit(1);
 });

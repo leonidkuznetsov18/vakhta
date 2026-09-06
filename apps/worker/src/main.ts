@@ -15,6 +15,7 @@ import {
 import { createDatabase } from '@vakhta/db';
 import { TIMER_JOBS } from '@vakhta/domain';
 import { loadWorkerEnv } from './env.js';
+import { initSentry, reportJobFailure, Sentry } from './observability/sentry.js';
 import { TelegramSender, relayOnce } from './outbox/relay.js';
 import { handleAckReminder, handleShiftReminder } from './timers/reminders.js';
 import { S3MediaStore, TelegramFileFetcher } from './media/adapters.js';
@@ -24,6 +25,7 @@ import { handleIncidentSla } from './timers/incident-sla.js';
 import { handleDowntimeEscalation, handleReturnReminder } from './timers/shift-timers.js';
 
 const env = loadWorkerEnv(process.env);
+const sentry = initSentry(env);
 
 const logger = pino({
   level: env.LOG_LEVEL,
@@ -52,7 +54,10 @@ if (sender) {
       .then((r) => {
         if (r.sent || r.skipped || r.failed || r.retried) logger.info(r, 'outbox');
       })
-      .catch((err: unknown) => logger.error({ err }, 'outbox relay'))
+      .catch((err: unknown) => {
+        logger.error({ err }, 'outbox relay');
+        reportJobFailure('outbox', undefined, err);
+      })
       .finally(() => {
         relayBusy = false;
       });
@@ -157,12 +162,18 @@ const workers = [
 ];
 
 for (const w of workers) {
-  w.on('failed', (job, err) => logger.error({ queue: w.name, jobId: job?.id, err }, 'job failed'));
-  w.on('error', (err) => logger.error({ queue: w.name, err }, 'worker error'));
+  w.on('failed', (job, err) => {
+    logger.error({ queue: w.name, jobId: job?.id, err }, 'job failed');
+    reportJobFailure(w.name, job?.id, err);
+  });
+  w.on('error', (err) => {
+    logger.error({ queue: w.name, err }, 'worker error');
+    reportJobFailure(w.name, undefined, err);
+  });
 }
 
 logger.info(
-  { queues: workers.map((w) => w.name), outboxRelay: sender !== null },
+  { queues: workers.map((w) => w.name), outboxRelay: sender !== null, sentry },
   'worker запущено',
 );
 
@@ -172,6 +183,7 @@ async function shutdown(signal: string): Promise<void> {
   await Promise.all(workers.map((w) => w.close()));
   await connection.quit();
   await client.end({ timeout: 5 });
+  await Sentry.flush(2000);
   process.exit(0);
 }
 

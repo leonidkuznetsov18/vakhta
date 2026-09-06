@@ -21,6 +21,7 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.0",
     "@nestjs/platform-fastify": "^11.1.0",
+    "@sentry/node": "^10.73.0",
     "@vakhta/contracts": "workspace:*",
     "@vakhta/db": "workspace:*",
     "@vakhta/domain": "workspace:*",
