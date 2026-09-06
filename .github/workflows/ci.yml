@@ -141,10 +141,13 @@ jobs:
           VITE_API_URL: ${{ vars.API_URL }}
           VITE_APP_VERSION: ${{ needs.release.outputs.version }}
           VITE_KIOSK_DEVICE_TOKEN: ${{ secrets.KIOSK_DEVICE_TOKEN || 'pending-register-terminal-first' }}
+          PANEL_URL: ${{ vars.PANEL_URL }}
+          KIOSK_URL: ${{ vars.KIOSK_URL }}
         run: |
           test -n "$VITE_API_URL" || { echo "Repository variable API_URL is not set" >&2; exit 1; }
-          pnpm --filter admin-web... run build
-          pnpm --filter qr-kiosk... run build
+          # Each app redirects from its pages.dev host to its canonical origin when the variable is set.
+          VITE_CANONICAL_ORIGIN="$PANEL_URL" pnpm --filter admin-web... run build
+          VITE_CANONICAL_ORIGIN="$KIOSK_URL" pnpm --filter qr-kiosk... run build
       - name: Deploy panel
         if: steps.guard.outputs.ready == 'true'
         uses: cloudflare/wrangler-action@v3

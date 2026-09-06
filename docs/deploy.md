@@ -24,8 +24,8 @@ Checklist of what exists and how it is operated. Cloudflare Pages hosts the stat
 | Worker `apps/worker`   | Railway service `worker`                                       | Dockerfile build, no public port, restart `ALWAYS`                                   |
 | PostgreSQL 18          | Railway `Postgres` (`postgres-ssl:18`)                         | private endpoint `postgres`; a TCP proxy exists only for the nightly dump            |
 | Redis 8                | Railway `Redis`                                                | private endpoint `redis`, `--save 60 1` on a volume                                  |
-| Panel `apps/admin-web` | Cloudflare Pages project `vakhta-panel`                        | `https://vakhta-panel.pages.dev` until a custom domain is attached                   |
-| Kiosk `apps/qr-kiosk`  | Cloudflare Pages project `vakhta-kiosk`                        | `https://vakhta-kiosk.pages.dev`; rebuilt with the terminal token                    |
+| Panel `apps/admin-web` | Cloudflare Pages project `vakhta-panel`                        | `https://panel.vakhta.xyz`; the `pages.dev` host redirects there                     |
+| Kiosk `apps/qr-kiosk`  | Cloudflare Pages project `vakhta-kiosk`                        | `https://kiosk.vakhta.xyz`; rebuilt with the terminal token                          |
 | Photos, medical files  | Cloudflare R2 bucket `vakhta-media` (private, WEUR)            | S3 API keys with Object Read & Write on both buckets                                 |
 | Database backups       | Cloudflare R2 bucket `vakhta-backups`                          | lifecycle rule `expire-30d` on `postgres/`                                           |
 | Images                 | GHCR `ghcr.io/leonidkuznetsov18/vakhta-api`, `…-worker`        | published by CI from `master`, used for rollback and for other hosts                 |
@@ -61,14 +61,14 @@ Template with comments: `.env.production.example`. Secrets are generated with `o
 
 - **release**: `semantic-release` reads Conventional Commits since the last tag. `feat` bumps the minor version, `fix`/`perf`/`refactor`/`config`/`infra` the patch, `docs`/`ci`/`chore`/`test` publish nothing. A release updates the root `package.json` version and `CHANGELOG.md` in a `chore(release): vX.Y.Z [skip ci]` commit, creates the tag `vX.Y.Z` and a GitHub Release with the notes (`.releaserc.json`).
 - **images**: builds `apps/api` and `apps/worker` and pushes `ghcr.io/leonidkuznetsov18/vakhta-{api,worker}` with tags `sha-<commit>`, `latest` and, when a release was published, `vX.Y.Z`.
-- **pages**: builds the panel and the kiosk with `VITE_API_URL` (repository variable `API_URL`), `VITE_APP_VERSION` and `VITE_KIOSK_DEVICE_TOKEN` (secret `KIOSK_DEVICE_TOKEN`) and deploys them with `wrangler pages deploy` using secret `CLOUDFLARE_API_TOKEN` (permission "Cloudflare Pages: Edit") and variable `CLOUDFLARE_ACCOUNT_ID`. Without the token the job builds and skips the deploy with a warning.
+- **pages**: builds the panel and the kiosk with `VITE_API_URL` (repository variable `API_URL`), `VITE_CANONICAL_ORIGIN` (variables `PANEL_URL` and `KIOSK_URL`; Pages cannot redirect a whole `pages.dev` host itself, so the apps do it on load), `VITE_APP_VERSION` and `VITE_KIOSK_DEVICE_TOKEN` (secret `KIOSK_DEVICE_TOKEN`) and deploys them with `wrangler pages deploy` using secret `CLOUDFLARE_API_TOKEN` (permission "Cloudflare Pages: Edit") and variable `CLOUDFLARE_ACCOUNT_ID`. Without the token the job builds and skips the deploy with a warning.
 - **Railway** deploys `api` and `worker` from `master` on its own and, with `checkSuites: true`, only after the GitHub check suite is green; `watchPatterns` skip rebuilds for commits that touch only docs or the changelog. Rollback: "Redeploy" of a previous deployment in Railway or the `sha-…` image tag.
 
 The version shown in the panel navigation comes from the release that built it.
 
 ## 6. Custom domain
 
-Until a domain is attached the panel (`pages.dev`) and the API (`railway.app`) are different sites, so the session cookie needs `AUTH_COOKIE_SAME_SITE=none`, which Safari and iOS block. With a domain: `panel.<domain>` and `kiosk.<domain>` as Pages custom domains, `api.<domain>` through `railway domain api.<domain> --service api`, then `PUBLIC_BASE_URL`, `CORS_ORIGINS`, `AUTH_COOKIE_SAME_SITE=lax`, a rebuild of the panel and kiosk with the new `VITE_API_URL`, and `set-webhook` again.
+Done for `vakhta.xyz` (Cloudflare DNS, all three records proxied, Railway custom domain active). Without a shared domain the panel (`pages.dev`) and the API (`railway.app`) are different sites, so the session cookie needs `AUTH_COOKIE_SAME_SITE=none`, which Safari and iOS block. The steps for a domain: `panel.<domain>` and `kiosk.<domain>` as Pages custom domains, `api.<domain>` through `railway domain api.<domain> --service api`, then `PUBLIC_BASE_URL`, `CORS_ORIGINS`, `AUTH_COOKIE_SAME_SITE=lax`, a rebuild of the panel and kiosk with the new `VITE_API_URL`, and `set-webhook` again.
 
 ## 7. Backups and recovery
 

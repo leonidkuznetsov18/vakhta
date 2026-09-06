@@ -2,6 +2,12 @@ import QRCode from 'qrcode';
 import { KioskChallengeResponse } from '@vakhta/contracts';
 import { messages, resolveLocale } from '@vakhta/i18n';
 
+// The `pages.dev` host is a deployment artifact: land on the custom domain the API trusts.
+const CANONICAL_ORIGIN = import.meta.env['VITE_CANONICAL_ORIGIN'];
+if (CANONICAL_ORIGIN && location.origin !== CANONICAL_ORIGIN) {
+  location.replace(`${CANONICAL_ORIGIN}${location.pathname}${location.search}${location.hash}`);
+}
+
 /**
  * The terminal shows a QR with a deep link to the bot and refreshes it every rotationSeconds (FR-QR-01).
  * The token itself never lives here longer than it is on screen.
