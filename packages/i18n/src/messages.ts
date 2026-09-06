@@ -163,6 +163,8 @@ export interface Messages {
     /** Button on the shift screen that opens the checklist while in HANDOVER. */
     readonly openButton: string;
     readonly header: string;
+    /** Header of the checklist screen when the shift has no zone. */
+    readonly headerNoZone: string;
     /** Placeholders: {done}, {total}, {photos}, {photosTotal} */
     readonly progress: string;
     readonly okButton: string;
@@ -208,6 +210,8 @@ export interface Messages {
     readonly pendingNotification: string;
     readonly reviewedNotification: string;
     readonly resolvedNotification: string;
+    /** Placeholder: {decision}; the report of a shift without a zone. */
+    readonly resolvedNotificationNoZone: string;
     readonly timeoutNotification: string;
   };
   readonly requests: {
@@ -455,6 +459,8 @@ export interface Messages {
       readonly clarify: string;
       readonly clarified: string;
       readonly startFor: string;
+      readonly startZone: string;
+      readonly startZoneNone: string;
       readonly start: string;
       readonly started: string;
       readonly detail: string;
@@ -528,6 +534,7 @@ export interface Messages {
       readonly scopeAll: string;
       readonly submitted: string;
       readonly zone: string;
+      readonly noZone: string;
       readonly submitter: string;
       readonly status: string;
       readonly remarks: string;
@@ -931,6 +938,7 @@ export interface Messages {
       readonly operationsMasterAction: string;
       readonly operationsClarify: string;
       readonly operationsStartFor: string;
+      readonly operationsStartZone: string;
       readonly operationsLive: string;
       readonly scheduleVersions: string;
       readonly scheduleSubmit: string;

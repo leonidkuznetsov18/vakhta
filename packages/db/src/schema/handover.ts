@@ -116,7 +116,7 @@ export const mediaObjects = pgTable(
   ],
 );
 
-/** Звіт передачі зони (FR-HND-01, ТЗ 5.9). Один незавершений на сесію. */
+/** Zone handover report (FR-HND-01, spec 5.9). One unfinished report per session. */
 export const handoverRecords = pgTable(
   'handover_records',
   {
@@ -124,9 +124,8 @@ export const handoverRecords = pgTable(
     shiftSessionId: uuid('shift_session_id')
       .notNull()
       .references(() => shiftSessions.id),
-    zoneId: uuid('zone_id')
-      .notNull()
-      .references(() => responsibilityZones.id),
+    /** null: the shift had no zone (started without a schedule); the master reviews the report. */
+    zoneId: uuid('zone_id').references(() => responsibilityZones.id),
     submittedBy: uuid('submitted_by')
       .notNull()
       .references(() => employees.id),

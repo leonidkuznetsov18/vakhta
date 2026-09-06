@@ -63,8 +63,9 @@ export type HandoverIssueView = z.infer<typeof HandoverIssueView>;
 export const HandoverView = z.object({
   id: Uuid,
   shiftSessionId: Uuid,
-  zoneId: Uuid,
-  zoneName: z.string(),
+  /** null: the shift had no zone; nobody accepts the report, the master reviews it. */
+  zoneId: Uuid.nullable(),
+  zoneName: z.string().nullable(),
   submittedBy: Uuid,
   submittedByName: z.string(),
   checklistDefinitionId: Uuid,

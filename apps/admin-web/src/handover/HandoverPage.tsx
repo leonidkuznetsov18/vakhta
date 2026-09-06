@@ -132,7 +132,7 @@ export function HandoverPage() {
       header: h.submitted,
       cell: (row) => <span className="tabular-nums">{formatDateTime(row.submittedAt)}</span>,
     },
-    { key: 'zone', header: h.zone, cell: (row) => row.zoneName },
+    { key: 'zone', header: h.zone, cell: (row) => row.zoneName ?? <Muted>{h.noZone}</Muted> },
     { key: 'submitter', header: h.submitter, cell: (row) => row.submittedByName },
     {
       key: 'status',
@@ -224,7 +224,7 @@ export function HandoverPage() {
           onOpenChange={(open) => !open && setOpenId(null)}
           title={
             <>
-              {openRow.zoneName}
+              {openRow.zoneName ?? h.noZone}
               <StatusPill tone={STATUS_TONE[openRow.status]}>
                 {all.handover.statuses[openRow.status]}
               </StatusPill>

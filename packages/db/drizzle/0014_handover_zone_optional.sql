@@ -1,0 +1,1 @@
+ALTER TABLE "handover_records" ALTER COLUMN "zone_id" DROP NOT NULL;

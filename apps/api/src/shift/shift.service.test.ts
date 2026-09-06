@@ -277,7 +277,24 @@ describe('shift: машина станів зміни в транзакції (�
       ok: true,
       session: { state: 'HANDOVER' },
     });
+    // Without a zone the checklist report is still required (spec 5.6); only the master may skip it.
     expect(await act(petrova, 'SUBMIT_HANDOVER')).toMatchObject({
+      ok: false,
+      error: 'HANDOVER_INCOMPLETE',
+    });
+    const beforeSubmit = await service.activeSession(petrova);
+    expect(
+      await service.transition(
+        petrova,
+        {
+          action: 'SUBMIT_HANDOVER',
+          expectedVersion: beforeSubmit!.version,
+          idempotencyKey: key(),
+          comment: 'Report skipped by the master during the pilot',
+        },
+        { ...meta(petrova), masterOverride: true },
+      ),
+    ).toMatchObject({
       ok: true,
       session: { state: 'READY_TO_CLOSE' },
     });

@@ -487,10 +487,11 @@ export class ReportsService {
     ];
     if (q.siteId) conditions.push(eq(responsibilityZones.siteId, q.siteId));
     if (q.orgUnitId) conditions.push(eq(responsibilityZones.orgUnitId, q.orgUnitId));
+    // Reports of shifts without a zone share one row; a site or unit filter leaves them out.
     const records = await this.db
       .select({ r: handoverRecords, zoneName: responsibilityZones.name })
       .from(handoverRecords)
-      .innerJoin(responsibilityZones, eq(handoverRecords.zoneId, responsibilityZones.id))
+      .leftJoin(responsibilityZones, eq(handoverRecords.zoneId, responsibilityZones.id))
       .where(and(...conditions));
     const ids = records.map((r) => r.r.id);
     const reviews = ids.length
@@ -505,8 +506,9 @@ export class ReportsService {
       : [];
     const rows = new Map<string, Row & { _rev: number; _revN: number }>();
     for (const rec of records) {
-      const row = rows.get(rec.r.zoneId) ?? {
-        zone: rec.zoneName,
+      const key = rec.r.zoneId ?? '';
+      const row = rows.get(key) ?? {
+        zone: rec.zoneName ?? '—',
         handovers: 0,
         accepted: 0,
         disputed: 0,
@@ -543,7 +545,7 @@ export class ReportsService {
         )
           inc(row, 'photosSuspect', 1);
       }
-      rows.set(rec.r.zoneId, row);
+      rows.set(key, row);
     }
     const out: Row[] = [...rows.values()].map(({ _rev, _revN, ...row }) => ({
       ...row,

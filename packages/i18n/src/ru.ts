@@ -243,6 +243,7 @@ export const ru: Messages = {
     defaultName: 'Уборка и передача зоны',
     openButton: '📋 Чек-лист и фото',
     header: 'Уборка и передача зоны «{zone}»',
+    headerNoZone: 'Уборка и передача смены',
     progress: 'Чек-лист: {done} из {total}. Фото: {photos} из {photosTotal}.',
     okButton: '✅',
     remarkButton: '⚠️',
@@ -290,6 +291,7 @@ export const ru: Messages = {
     reviewedNotification:
       'Принимающий отметил проблему по зоне «{zone}». Мастер рассмотрит материалы.',
     resolvedNotification: 'Решение мастера по передаче зоны «{zone}»: {decision}.',
+    resolvedNotificationNoZone: 'Решение мастера по вашему отчёту передачи: {decision}.',
     timeoutNotification:
       'Приёмка зоны «{zone}» передана мастеру: принимающий не ответил. Это не влияет на ваши баллы.',
   },
@@ -604,6 +606,8 @@ export const ru: Messages = {
       clarify: 'Нужна проверка',
       clarified: 'Смена отмечена для проверки.',
       startFor: 'Открыть смену сотруднику',
+      startZone: 'Зона ответственности',
+      startZoneNone: 'Без зоны',
       start: 'Открыть смену',
       started: 'Смена открыта.',
       detail: 'Подробности',
@@ -680,6 +684,7 @@ export const ru: Messages = {
       scopeAll: 'Все',
       submitted: 'Отправлен',
       zone: 'Зона',
+      noZone: 'Без зоны',
       submitter: 'Сдающий',
       status: 'Статус',
       remarks: 'Замечаний',
@@ -1204,6 +1209,8 @@ export const ru: Messages = {
         'Пометить смену «нужна проверка»: она уйдёт на разбор, а критерии бонуса будут ждать решения.',
       operationsStartFor:
         'Открыть смену сотруднику без телефона или с проблемой связи. Действие пишется в аудит.',
+      operationsStartZone:
+        'Зона, которую сотрудник убирает и передаёт в конце смены. Если в графике есть назначение с зоной, берётся она. Без зоны отчёт с чек-листом и фото уходит сразу мастеру.',
       operationsLive:
         'Список обновляется по событиям сервера. Если соединение потеряно, обновите страницу.',
       scheduleVersions:

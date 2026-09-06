@@ -570,7 +570,7 @@ export function handoverScreen(t: Messages, view: HandoverView, header: string):
   const lines = [
     header,
     '',
-    format(t.handover.header, { zone: view.zoneName }),
+    view.zoneName ? format(t.handover.header, { zone: view.zoneName }) : t.handover.headerNoZone,
     format(t.handover.progress, {
       done,
       total: checks.length,

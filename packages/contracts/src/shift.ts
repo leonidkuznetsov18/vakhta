@@ -50,6 +50,8 @@ export const MasterStartShiftCommand = z.object({
   employeeId: Uuid,
   idempotencyKey: IdempotencyKey,
   comment: z.string().trim().min(3).max(2000),
+  /** Zone the employee cleans and hands over when no schedule assignment provides one. */
+  zoneId: Uuid.optional(),
 });
 export type MasterStartShiftCommand = z.infer<typeof MasterStartShiftCommand>;
 

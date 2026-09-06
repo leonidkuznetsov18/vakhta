@@ -29,8 +29,11 @@ otherwise the checklist is disabled.
 At `CLEANING_DONE` the repository picks the active checklist by the employee position (the schedule
 assignment, otherwise the current position) and the zone type, in this order: position and zone
 type, position only, zone type only, general. When nothing is defined, the default checklist of the
-spec is created so the handover never opens without one. The schedule editor warns when rows have no
-zone, because a zone is still what makes the handover happen.
+spec is created so the handover never opens without one. The zone is optional on the report:
+a shift without a zone (started without a schedule or by a master without picking one) still gets
+its checklist, the report has no receiver and is escalated to the master at submission, and
+`SUBMIT_HANDOVER` requires a submitted report for every shift unless a master overrides it. The
+schedule editor warns when rows have no zone, because a zone is what makes the next shift accept it.
 
 ## Consequences
 

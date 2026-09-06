@@ -309,12 +309,14 @@ export class HandoverService {
 
       const plan = await this.planEnd(tx, draft.shiftSessionId);
       const deadline = acceptDeadline(now, plan, this.options.reviewWindowMinutes);
+      // Without a zone nobody accepts the report: it is the master's to review from the start.
       await tx
         .update(handoverRecords)
         .set({
           status: 'SUBMITTED',
           submittedAt: now,
           acceptDeadlineAt: deadline,
+          escalatedToMasterAt: draft.zoneId ? null : now,
           version: draft.version + 1,
           updatedAt: now,
         })
@@ -358,19 +360,22 @@ export class HandoverService {
         );
       }
 
-      // Наступна зміна в цій зоні отримує сповіщення про передачу (FR-HND-03).
-      for (const receiver of await this.nextShiftEmployees(tx, draft.zoneId, employeeId, now)) {
+      // The next shift in this zone is told about the handover (FR-HND-03).
+      const receivers = draft.zoneId
+        ? await this.nextShiftEmployees(tx, draft.zoneId, employeeId, now)
+        : [];
+      for (const receiver of receivers) {
         await this.notifications.enqueue(tx, {
           recipientType: 'EMPLOYEE',
           recipientId: receiver,
           template: 'HANDOVER_PENDING',
           payload: (t) => ({
-            text: format(t.handover.pendingNotification, { zone: view.zoneName }),
+            text: format(t.handover.pendingNotification, { zone: view.zoneName ?? '' }),
           }),
           dedupeKey: `handover-pending:${draft.id}:${receiver}`,
         });
       }
-      scheduled = { id: draft.id, deadline };
+      if (draft.zoneId) scheduled = { id: draft.id, deadline };
       return { ok: true, handover: await this.view(tx, draft.id), transition };
     });
     if (result.ok) {
@@ -427,9 +432,10 @@ export class HandoverService {
         ),
       )
       .orderBy(asc(handoverRecords.submittedAt));
+    const zoneId = session.zoneId;
     return rows.map((row) => ({
       id: row.r.id,
-      zoneId: row.r.zoneId,
+      zoneId,
       zoneName: row.zoneName,
       submittedBy: row.r.submittedBy,
       submittedByName: row.submitterName,
@@ -471,7 +477,19 @@ export class HandoverService {
         );
       }
       if (record.status !== 'SUBMITTED') {
-        throw new DomainError('HANDOVER_NOT_PENDING', 409, 'Звіт уже прийнято або вирішено');
+        throw new DomainError(
+          'HANDOVER_NOT_PENDING',
+          409,
+          'The report is already accepted or resolved',
+        );
+      }
+      const reportZoneId = record.zoneId;
+      if (!reportZoneId) {
+        throw new DomainError(
+          'HANDOVER_NOT_REVIEWABLE',
+          409,
+          'A report without a zone is reviewed by the master',
+        );
       }
       const session = await this.shift.activeSession(employeeId, tx);
       if (!session) throw new DomainError('NO_ACTIVE_SHIFT', 409, 'No active shift');
@@ -514,7 +532,7 @@ export class HandoverService {
           incidentId = await this.incidents.openFromReview(tx, {
             employeeId,
             shiftSessionId: session.id,
-            zoneId: record.zoneId,
+            zoneId: reportZoneId,
             reasonCode: reason.code,
             severity: reason.severity,
             comment: cmd.comment,
@@ -557,7 +575,9 @@ export class HandoverService {
           recipientType: 'EMPLOYEE',
           recipientId: record.submittedBy,
           template: 'HANDOVER_REVIEWED',
-          payload: (t) => ({ text: format(t.handover.reviewedNotification, { zone: zoneName }) }),
+          payload: (t) => ({
+            text: format(t.handover.reviewedNotification, { zone: zoneName ?? '' }),
+          }),
           dedupeKey: `handover-reviewed:${handoverId}`,
         });
       } else {
@@ -682,10 +702,14 @@ export class HandoverService {
         recipientId: record.submittedBy,
         template: 'HANDOVER_RESOLVED',
         payload: (t) => ({
-          text: format(t.handover.resolvedNotification, {
-            zone: zoneName,
-            decision: t.handover.resolutions[cmd.decision],
-          }),
+          text: zoneName
+            ? format(t.handover.resolvedNotification, {
+                zone: zoneName,
+                decision: t.handover.resolutions[cmd.decision],
+              })
+            : format(t.handover.resolvedNotificationNoZone, {
+                decision: t.handover.resolutions[cmd.decision],
+              }),
         }),
         dedupeKey: `handover-resolved:${handoverId}:${cmd.decision}`,
       });
@@ -788,7 +812,7 @@ export class HandoverService {
         definition: checklistDefinitions,
       })
       .from(handoverRecords)
-      .innerJoin(responsibilityZones, eq(handoverRecords.zoneId, responsibilityZones.id))
+      .leftJoin(responsibilityZones, eq(handoverRecords.zoneId, responsibilityZones.id))
       .innerJoin(employees, eq(handoverRecords.submittedBy, employees.id))
       .innerJoin(
         checklistDefinitions,
@@ -796,7 +820,7 @@ export class HandoverService {
       )
       .where(eq(handoverRecords.id, handoverId))
       .limit(1);
-    if (!row) throw new DomainError('HANDOVER_NOT_FOUND', 404, 'Звіт передачі не знайдено');
+    if (!row) throw new DomainError('HANDOVER_NOT_FOUND', 404, 'Handover report not found');
     const [answers, photos] = await Promise.all([
       tx.select().from(checklistAnswers).where(eq(checklistAnswers.handoverId, handoverId)),
       tx
@@ -827,7 +851,7 @@ export class HandoverService {
       id: r.id,
       shiftSessionId: r.shiftSessionId,
       zoneId: r.zoneId,
-      zoneName: row.zoneName,
+      zoneName: row.zoneName ?? null,
       submittedBy: r.submittedBy,
       submittedByName: row.submitterName,
       checklistDefinitionId: r.checklistDefinitionId,
@@ -866,7 +890,7 @@ export class HandoverService {
       throw new DomainError('HANDOVER_NOT_OPEN', 409, 'The shift is not in the handover state');
     }
     const record = await this.repository.ensureDraft(tx, session, now);
-    if (!record) throw new DomainError('ZONE_REQUIRED', 409, 'У зміни немає контрольної зони');
+    if (!record) throw new DomainError('HANDOVER_NOT_OPEN', 409, 'The handover draft is not open');
     if (record.status !== 'DRAFT' && !allowSubmitted) {
       throw new DomainError(
         'HANDOVER_ALREADY_SUBMITTED',
@@ -901,13 +925,14 @@ export class HandoverService {
     return row?.planEndAt ?? null;
   }
 
-  private async zoneName(tx: DbOrTx, zoneId: string): Promise<string> {
+  private async zoneName(tx: DbOrTx, zoneId: string | null): Promise<string | null> {
+    if (!zoneId) return null;
     const [row] = await tx
       .select({ name: responsibilityZones.name })
       .from(responsibilityZones)
       .where(eq(responsibilityZones.id, zoneId))
       .limit(1);
-    return row?.name ?? '';
+    return row?.name ?? null;
   }
 
   private async placeOf(
@@ -962,7 +987,7 @@ function tx_list(db: Database, conditions: ReturnType<typeof eq>[]) {
   return db
     .select({ id: handoverRecords.id })
     .from(handoverRecords)
-    .innerJoin(responsibilityZones, eq(handoverRecords.zoneId, responsibilityZones.id))
+    .leftJoin(responsibilityZones, eq(handoverRecords.zoneId, responsibilityZones.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(handoverRecords.submittedAt), desc(handoverRecords.createdAt));
 }

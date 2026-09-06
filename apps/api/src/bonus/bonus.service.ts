@@ -570,8 +570,10 @@ export class BonusService implements OnModuleInit {
             .limit(1)
         : [];
       const submitted = handover.status !== 'DRAFT';
+      // Spec 7.6: without a zone the handover criteria apply only once the report was actually
+      // submitted; a draft left behind by a master override keeps the 70-point maximum.
       handoverInputs = {
-        required: true,
+        required: session.zoneId !== null || submitted,
         status: handover.status,
         checklistComplete: submitted && handover.cannotCompleteReason === null,
         cannotComplete: handover.cannotCompleteReason !== null,

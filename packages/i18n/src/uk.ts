@@ -246,6 +246,7 @@ export const uk: Messages = {
     defaultName: 'Прибирання і передача зони',
     openButton: '📋 Чек-лист і фото',
     header: 'Прибирання і передача зони «{zone}»',
+    headerNoZone: 'Прибирання і передача зміни',
     progress: 'Чек-лист: {done} з {total}. Фото: {photos} з {photosTotal}.',
     okButton: '✅',
     remarkButton: '⚠️',
@@ -294,6 +295,7 @@ export const uk: Messages = {
     reviewedNotification:
       'Приймаючий відмітив проблему в зоні «{zone}». Майстер розгляне матеріали.',
     resolvedNotification: 'Рішення майстра щодо передачі зони «{zone}»: {decision}.',
+    resolvedNotificationNoZone: 'Рішення майстра щодо вашого звіту передачі: {decision}.',
     timeoutNotification:
       'Приймання зони «{zone}» передано майстру: приймаючий не відповів. Це не впливає на ваші бали.',
   },
@@ -607,6 +609,8 @@ export const uk: Messages = {
       clarify: 'Потрібна перевірка',
       clarified: 'Зміну позначено для перевірки.',
       startFor: 'Відкрити зміну працівнику',
+      startZone: 'Зона відповідальності',
+      startZoneNone: 'Без зони',
       start: 'Відкрити зміну',
       started: 'Зміну відкрито.',
       detail: 'Подробиці',
@@ -683,6 +687,7 @@ export const uk: Messages = {
       scopeAll: 'Усі',
       submitted: 'Надіслано',
       zone: 'Зона',
+      noZone: 'Без зони',
       submitter: 'Здає',
       status: 'Статус',
       remarks: 'Зауважень',
@@ -1206,6 +1211,8 @@ export const uk: Messages = {
         'Позначити зміну «потрібна перевірка»: вона піде на розбір, а критерії бонусу чекатимуть рішення.',
       operationsStartFor:
         'Відкрити зміну працівнику без телефона або з проблемою звʼязку. Дія пишеться в аудит.',
+      operationsStartZone:
+        'Зона, яку працівник прибирає і передає наприкінці зміни. Якщо в графіку є призначення із зоною, береться вона. Без зони звіт із чек-листом і фото одразу йде майстру.',
       operationsLive:
         'Список оновлюється за подіями сервера. Якщо зʼєднання втрачено, оновіть сторінку.',
       scheduleVersions:

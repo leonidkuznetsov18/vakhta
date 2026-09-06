@@ -245,6 +245,7 @@ export const en: Messages = {
     defaultName: 'Cleaning and zone handover',
     openButton: '📋 Checklist and photos',
     header: 'Cleaning and handover of zone "{zone}"',
+    headerNoZone: 'Cleaning and shift handover',
     progress: 'Checklist: {done} of {total}. Photos: {photos} of {photosTotal}.',
     okButton: '✅',
     remarkButton: '⚠️',
@@ -293,6 +294,7 @@ export const en: Messages = {
     reviewedNotification:
       'The receiver reported a problem in zone "{zone}". The shift master will review the materials.',
     resolvedNotification: 'Shift master decision on the handover of zone "{zone}": {decision}.',
+    resolvedNotificationNoZone: 'Master decision on your handover report: {decision}.',
     timeoutNotification:
       'Acceptance of zone "{zone}" was passed to the shift master: the receiver did not respond. This does not affect your score.',
   },
@@ -607,6 +609,8 @@ export const en: Messages = {
       clarify: 'Needs review',
       clarified: 'The shift is flagged for review.',
       startFor: 'Open a shift for the employee',
+      startZone: 'Responsibility zone',
+      startZoneNone: 'No zone',
       start: 'Open shift',
       started: 'Shift opened.',
       detail: 'Details',
@@ -683,6 +687,7 @@ export const en: Messages = {
       scopeAll: 'All',
       submitted: 'Submitted',
       zone: 'Zone',
+      noZone: 'No zone',
       submitter: 'Handed by',
       status: 'Status',
       remarks: 'Remarks',
@@ -1206,6 +1211,8 @@ export const en: Messages = {
         'Flag the shift as "needs review": it goes to a review and its bonus criteria wait for a decision.',
       operationsStartFor:
         'Open a shift for an employee without a phone or with a connectivity problem. The action is audited.',
+      operationsStartZone:
+        'The zone the employee cleans and hands over at the end of the shift. A schedule assignment with a zone takes precedence. Without a zone the report with the checklist and photos goes straight to the master.',
       operationsLive:
         'The list refreshes on server events. If the connection is lost, reload the page.',
       scheduleVersions:

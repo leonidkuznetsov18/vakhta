@@ -114,6 +114,7 @@ export function OperationsPage() {
   const [startOpen, setStartOpen] = useState(false);
   const [group, setGroup] = usePersistentState<StateGroup>('operations.group', 'ALL');
   const [startComment, setStartComment] = useState('');
+  const [startZone, setStartZone] = useState('');
   const [action, setAction] = useState<Record<string, ShiftAction | ''>>({});
   const [comment, setComment] = useState<Record<string, string>>({});
   const reloadRef = useRef<() => void>(() => undefined);
@@ -236,11 +237,13 @@ export function OperationsPage() {
         employeeId: startFor,
         idempotencyKey: newKey(),
         comment: startComment.trim(),
+        ...(startZone ? { zoneId: startZone } : {}),
       });
       if (!result.ok) setError(all.errors[result.error]);
       else {
         notifySuccess(o.started);
         setStartComment('');
+        setStartZone('');
         setStartFor('');
         setStartOpen(false);
       }
@@ -410,6 +413,21 @@ export function OperationsPage() {
                     value: e.id,
                     label: `${e.fullName} · ${e.personnelNumber}`,
                   }))}
+                />
+                <SelectField
+                  label={o.startZone}
+                  value={startZone}
+                  onChange={setStartZone}
+                  placeholder={o.startZoneNone}
+                  hint={hints.operationsStartZone}
+                  options={
+                    org?.zones
+                      .filter((z) => z.isActive)
+                      .map((z) => ({
+                        value: z.id,
+                        label: `${z.name} · ${org.orgUnits.find((u) => u.id === z.orgUnitId)?.name ?? ''}`,
+                      })) ?? []
+                  }
                 />
                 <FormField label={o.comment}>
                   {(id) => (

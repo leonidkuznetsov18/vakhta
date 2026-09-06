@@ -301,7 +301,7 @@ export class ShiftService {
    */
   async start(
     employeeId: string,
-    cmd: { idempotencyKey: string; comment?: string | undefined },
+    cmd: { idempotencyKey: string; comment?: string | undefined; zoneId?: string | undefined },
     meta: CommandMeta,
   ): Promise<TransitionResponse> {
     const now = meta.now ?? new Date();
@@ -335,7 +335,7 @@ export class ShiftService {
               presenceId: presence?.id ?? null,
               businessDate:
                 assignment?.businessDate ?? businessDateOf(now, this.options.defaultTimezone),
-              zoneId: assignment?.zoneId ?? null,
+              zoneId: assignment?.zoneId ?? cmd.zoneId ?? null,
               startMethod: meta.masterOverride ? 'MASTER' : 'EMPLOYEE',
             })
             .returning();
@@ -470,7 +470,7 @@ export class ShiftService {
 
   async masterStart(
     employeeId: string,
-    cmd: { idempotencyKey: string; comment: string },
+    cmd: { idempotencyKey: string; comment: string; zoneId?: string | undefined },
     actor: Actor,
     now: Date = new Date(),
   ): Promise<TransitionResponse> {
@@ -878,8 +878,7 @@ export class ShiftService {
       presenceConfirmed: presence !== null,
       masterOverride: meta.masterOverride === true,
       zoneAccepted: session.zoneId === null || session.zoneAcceptedAt !== null,
-      handoverComplete:
-        session.zoneId === null || (await this.handovers.hasSubmitted(tx, session.id)),
+      handoverComplete: await this.handovers.hasSubmitted(tx, session.id),
       ...(cmd?.reasonCode !== undefined ? { reasonCode: cmd.reasonCode } : {}),
       ...(cmd?.resumeIntoDowntime !== undefined
         ? { resumeIntoDowntime: cmd.resumeIntoDowntime }

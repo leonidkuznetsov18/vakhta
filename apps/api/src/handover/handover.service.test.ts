@@ -289,6 +289,70 @@ describe('handover: прибирання, чек-лист, фото, перед�
     expect(await testDb.db.select().from(checklistDefinitions)).toHaveLength(1);
   });
 
+  it('зміна без зони теж отримує чек-лист: звіт без приймаючого одразу йде майстру', async () => {
+    await testDb.db
+      .update(shiftAssignments)
+      .set({ zoneId: null })
+      .where(eq(shiftAssignments.employeeId, nightEmployee));
+    await openShift(nightEmployee);
+    expect((await act(nightEmployee, 'START_WORK')).ok).toBe(true);
+    expect((await act(nightEmployee, 'START_CLEANING')).ok).toBe(true);
+    expect((await act(nightEmployee, 'CLEANING_DONE')).ok).toBe(true);
+
+    const draft = await handover.current(nightEmployee);
+    expect(draft).toMatchObject({ status: 'DRAFT', zoneId: null, zoneName: null });
+    expect(draft?.issues.filter((i) => i.code === 'PHOTO_MISSING')).toHaveLength(3);
+
+    // the shift cannot be handed over without the report
+    const session = await shift.activeSession(nightEmployee);
+    expect(
+      await shift.transition(
+        nightEmployee,
+        { action: 'SUBMIT_HANDOVER', expectedVersion: session!.version, idempotencyKey: key() },
+        { actor: employeeActor(nightEmployee), source: 'TELEGRAM' },
+      ),
+    ).toMatchObject({ ok: false, error: 'HANDOVER_INCOMPLETE' });
+
+    await fillAll(nightEmployee);
+    const submitted = await handover.submit(
+      nightEmployee,
+      { idempotencyKey: key() },
+      employeeActor(nightEmployee),
+    );
+    expect(submitted.ok).toBe(true);
+    if (!submitted.ok) return;
+    expect(submitted.handover.status).toBe('SUBMITTED');
+    expect(submitted.handover.escalatedToMasterAt).not.toBeNull();
+    expect(submitted.transition.session?.state).toBe('READY_TO_CLOSE');
+    // nobody accepts it: no acceptance timeout, the day employee sees nothing to review
+    expect(
+      timers.scheduled.some((s) => s.jobId === `handover-timeout.${submitted.handover.id}`),
+    ).toBe(false);
+    await toHandover(dayEmployee);
+    expect(await handover.pendingForReceiver(dayEmployee)).toEqual([]);
+    await expect(
+      handover.review(
+        dayEmployee,
+        submitted.handover.id,
+        { decision: 'ACCEPTED', idempotencyKey: key() },
+        employeeActor(dayEmployee),
+      ),
+    ).rejects.toMatchObject({ code: 'HANDOVER_NOT_REVIEWABLE' });
+    // the master decides from the panel; the notification has no zone in it
+    const list = await handover.list({ scope: 'pending' });
+    expect(list.some((h) => h.id === submitted.handover.id && h.zoneName === null)).toBe(true);
+    const resolved = await handover.resolve(
+      submitted.handover.id,
+      { decision: 'RESOLVED_ACCEPTED', comment: 'Фото в порядке' },
+      MASTER,
+    );
+    expect(resolved.status).toBe('RESOLVED_ACCEPTED');
+    const notes = await testDb.db.select().from(notificationOutbox);
+    const text = notes.find((n) => n.template === 'HANDOVER_RESOLVED')?.payload.text ?? '';
+    expect(text).not.toContain('«»');
+    expect(text).toContain('Решение мастера по вашему отчёту передачи');
+  });
+
   it('FR-CLN-03: чек-лист добирається за посадою працівника і типом зони, фото-пункти з нього обовʼязкові', async () => {
     const [operator] = await testDb.db
       .insert(positions)
@@ -450,7 +514,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
     expect(submitted.handover.status).toBe('SUBMITTED');
     expect(submitted.transition.ok).toBe(true);
     if (!submitted.transition.ok) return;
-    expect(submitted.transition.session.state).toBe('READY_TO_CLOSE');
+    expect(submitted.transition.session?.state).toBe('READY_TO_CLOSE');
     expect(new Date(submitted.handover.acceptDeadlineAt!).getTime()).toBe(
       planEnd.getTime() + 30 * 60_000,
     );

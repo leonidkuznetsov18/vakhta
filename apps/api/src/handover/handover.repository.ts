@@ -52,9 +52,12 @@ export class HandoverRepository {
     return row !== null && row.status !== 'DRAFT';
   }
 
-  /** CLEANING_DONE → HANDOVER opens a draft on the checklist that fits the employee and the zone. */
+  /**
+   * CLEANING_DONE → HANDOVER opens a draft on the checklist that fits the employee and the zone.
+   * A shift without a zone (started without a schedule) still gets its checklist: the report then
+   * has no receiver and goes straight to the master.
+   */
   async ensureDraft(tx: DbOrTx, session: SessionLike, now: Date): Promise<RecordRow | null> {
-    if (!session.zoneId) return null;
     const existing = await this.current(tx, session.id);
     if (existing) return existing;
     const positionId = await this.positionOf(tx, session, now);
@@ -121,14 +124,16 @@ export class HandoverRepository {
    */
   async definitionFor(
     tx: DbOrTx,
-    zoneId: string,
+    zoneId: string | null,
     positionId: string | null,
   ): Promise<DefinitionRow> {
-    const [zone] = await tx
-      .select({ type: responsibilityZones.type })
-      .from(responsibilityZones)
-      .where(eq(responsibilityZones.id, zoneId))
-      .limit(1);
+    const [zone] = zoneId
+      ? await tx
+          .select({ type: responsibilityZones.type })
+          .from(responsibilityZones)
+          .where(eq(responsibilityZones.id, zoneId))
+          .limit(1)
+      : [];
     const zoneType = zone?.type ?? null;
     const candidates = await tx
       .select()
