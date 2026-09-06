@@ -66,6 +66,9 @@ export function App() {
             {t.admin.auth.signOut}
           </button>
           <LanguageSwitcher />
+          {import.meta.env['VITE_APP_VERSION'] ? (
+            <div className="version">v{import.meta.env['VITE_APP_VERSION']}</div>
+          ) : null}
         </div>
       </aside>
       <main className="content">

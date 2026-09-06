@@ -16,7 +16,7 @@ import {
  */
 export default defineRailway(() => {
   const region = 'europe-west4';
-  const repo = github('leonidkuznetsov18/vakhta', { branch: 'master', checkSuites: false });
+  const repo = github('leonidkuznetsov18/vakhta', { branch: 'master', checkSuites: true });
 
   const Redis = redis('Redis', { region });
   Redis.deploy = {
@@ -44,7 +44,11 @@ export default defineRailway(() => {
 
   const api = service('api', {
     source: repo,
-    build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/api/Dockerfile' },
+    build: {
+      builder: 'DOCKERFILE',
+      dockerfilePath: 'apps/api/Dockerfile',
+      watchPatterns: ['apps/api/**', 'packages/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'],
+    },
     deploy: {
       preDeployCommand: ['node packages/db/dist/migrate.js'],
       healthcheckPath: '/health',
@@ -87,7 +91,11 @@ export default defineRailway(() => {
 
   const worker = service('worker', {
     source: repo,
-    build: { builder: 'DOCKERFILE', dockerfilePath: 'apps/worker/Dockerfile' },
+    build: {
+      builder: 'DOCKERFILE',
+      dockerfilePath: 'apps/worker/Dockerfile',
+      watchPatterns: ['apps/worker/**', 'packages/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'],
+    },
     deploy: { restartPolicyType: 'ALWAYS' },
     replicas: { [region]: 1 },
     env: {

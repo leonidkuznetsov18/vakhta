@@ -1,5 +1,9 @@
-name: CI
+name: CI/CD
 
+# Every push to master: check → release (semantic-release from Conventional Commits) →
+# images to GHCR and the panel/kiosk to Cloudflare Pages. Railway builds the api and worker
+# from master itself and waits for the check suite to pass (checkSuites in .railway/railway.ts).
+# Pull requests run the check and a throwaway image build only.
 on:
   push:
     branches: [master]
@@ -7,40 +11,76 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PNPM_VERSION: 10.9.0
 
 jobs:
   check:
+    name: Build, lint, test
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
           cache: pnpm
-
       - run: pnpm install --frozen-lockfile
-
       - run: pnpm build
-
       - run: pnpm typecheck
-
       - run: pnpm lint
-
       - run: pnpm format:check
-
       - run: pnpm test
 
-  # Образи для продакшену: перевіряються на кожному PR, публікуються в GHCR з master.
-  # Railway збирає Dockerfile сам; GHCR потрібен для Fly/Render/VPS і для відкату на конкретний SHA.
+  release:
+    name: Version and changelog
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      published: ${{ steps.semantic.outputs.published }}
+      version: ${{ steps.semantic.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: semantic-release
+        id: semantic
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          pnpm exec semantic-release 2>&1 | tee release.log
+          if grep -qE "Published release [0-9]" release.log; then
+            v=$(grep -oE "Published release [0-9]+\.[0-9]+\.[0-9]+" release.log | tail -1 | awk '{print $3}')
+            echo "published=true" >> "$GITHUB_OUTPUT"; echo "version=$v" >> "$GITHUB_OUTPUT"
+          else
+            v=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")
+            echo "published=false" >> "$GITHUB_OUTPUT"; echo "version=$v" >> "$GITHUB_OUTPUT"
+          fi
+
   images:
+    name: Images (${{ matrix.app }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: check
+    needs: [check, release]
+    # PRs build without pushing; on master the release job has run first so the version tag exists.
+    if: always() && needs.check.result == 'success' && (github.event_name == 'pull_request' || needs.release.result == 'success')
     permissions:
       contents: read
       packages: write
@@ -49,16 +89,13 @@ jobs:
         app: [api, worker]
     steps:
       - uses: actions/checkout@v4
-
       - uses: docker/setup-buildx-action@v3
-
       - uses: docker/login-action@v3
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: github.event_name == 'push'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - uses: docker/metadata-action@v5
         id: meta
         with:
@@ -66,13 +103,59 @@ jobs:
           tags: |
             type=sha,format=long
             type=raw,value=latest,enable={{is_default_branch}}
-
+            type=raw,value=v${{ needs.release.outputs.version }},enable=${{ needs.release.outputs.published == 'true' }}
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/${{ matrix.app }}/Dockerfile
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+          push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,scope=${{ matrix.app }},mode=max
+
+  pages:
+    name: Panel and kiosk to Cloudflare Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [check, release]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.release.result == 'success'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Without the Cloudflare token (first days of the pilot) the job builds but does not deploy.
+      - name: Check Cloudflare credentials
+        id: guard
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ]; then echo "ready=true" >> "$GITHUB_OUTPUT"; else echo "ready=false" >> "$GITHUB_OUTPUT"; echo "::warning::CLOUDFLARE_API_TOKEN is not set, skipping the Pages deploy"; fi
+      - name: Build against the production API
+        env:
+          VITE_API_URL: ${{ vars.API_URL }}
+          VITE_APP_VERSION: ${{ needs.release.outputs.version }}
+          VITE_KIOSK_DEVICE_TOKEN: ${{ secrets.KIOSK_DEVICE_TOKEN || 'pending-register-terminal-first' }}
+        run: |
+          test -n "$VITE_API_URL" || { echo "Repository variable API_URL is not set" >&2; exit 1; }
+          pnpm --filter admin-web... run build
+          pnpm --filter qr-kiosk... run build
+      - name: Deploy panel
+        if: steps.guard.outputs.ready == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/admin-web/dist --project-name vakhta-panel --branch master --commit-hash ${{ github.sha }}
+      - name: Deploy kiosk
+        if: steps.guard.outputs.ready == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/qr-kiosk/dist --project-name vakhta-kiosk --branch master --commit-hash ${{ github.sha }}
