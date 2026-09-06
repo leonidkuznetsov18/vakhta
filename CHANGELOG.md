@@ -1,3 +1,9 @@
+## [0.14.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.13.1...v0.14.0) (2026-09-06)
+
+### Features
+
+* **panel:** hide undeletable schedule versions' delete button; cap bonus points by the room left ([03994d4](https://github.com/leonidkuznetsov18/vakhta/commit/03994d4f176fa6e754a32224e9a3f0070865d7ad))
+
 ## [0.13.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.13.0...v0.13.1) (2026-09-06)
 
 ### Bug fixes
