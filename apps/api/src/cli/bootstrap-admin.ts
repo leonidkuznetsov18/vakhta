@@ -6,13 +6,13 @@
 import { parseArgs } from 'node:util';
 import { createDatabase, authUser } from '@vakhta/db';
 import { CreateWebUserCommand } from '@vakhta/contracts';
-import { SYSTEM_ACTOR } from '../src/common/actor.js';
-import { AuditLog } from '../src/events/audit-log.js';
-import { EventStore } from '../src/events/event-store.js';
-import { loadEnv } from '../src/config/env.js';
-import { createAuth, type AuthConfig } from '../src/auth/auth.config.js';
-import { AuthService } from '../src/auth/auth.service.js';
-import { RolesService } from '../src/auth/roles.service.js';
+import { SYSTEM_ACTOR } from '../common/actor.js';
+import { AuditLog } from '../events/audit-log.js';
+import { EventStore } from '../events/event-store.js';
+import { loadEnv } from '../config/env.js';
+import { createAuth, type AuthConfig } from '../auth/auth.config.js';
+import { AuthService } from '../auth/auth.service.js';
+import { RolesService } from '../auth/roles.service.js';
 
 // pnpm передає роздільник `--` далі в команду; parseArgs вважав би все після нього позиційним.
 const argv = process.argv.slice(2);

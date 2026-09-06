@@ -78,6 +78,13 @@ export const EnvSchema = z.object({
   MEDIA_LINK_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   /** Строк апеляції по балах у робочих днях (ТЗ 7.7, 18 п. 14). */
   APPEAL_WINDOW_DAYS: z.coerce.number().int().positive().default(3),
+  /** Bearer-токен для GET /metrics; у продакшені обовʼязковий, щоб ендпоінт не був відкритим (ТЗ 12). */
+  METRICS_TOKEN: z.preprocess(emptyToUndefined, z.string().min(16).optional()),
+  /** SameSite cookie сесії панелі: lax, коли панель і API під одним доменом; none лише для різних сайтів. */
+  AUTH_COOKIE_SAME_SITE: z.enum(['lax', 'none']).default('lax'),
+  /** DSN Sentry; порожньо = вимкнено. */
+  SENTRY_DSN: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  SENTRY_ENVIRONMENT: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -102,5 +109,39 @@ export function loadEnv(source: Record<string, unknown>): Env {
       "TELEGRAM_WEBHOOK_SECRET обов'язковий у режимі webhook, коли задано TELEGRAM_BOT_TOKEN (ТЗ 12.2)",
     );
   }
+  assertProductionReady(parsed.data);
   return parsed.data;
+}
+
+const PLACEHOLDER = /change-me|example|^dev-|^vakhta/i;
+
+/**
+ * У NODE_ENV=production неповна або тестова конфігурація зупиняє процес до відкриття порту:
+ * дешевше впасти на деплої, ніж виявити відкритий /metrics або polling бота в проді.
+ */
+export function assertProductionReady(env: Env): void {
+  if (env.NODE_ENV !== 'production') return;
+  const problems: string[] = [];
+  if (!env.PUBLIC_BASE_URL.startsWith('https://')) problems.push('PUBLIC_BASE_URL має бути https');
+  for (const origin of env.CORS_ORIGINS) {
+    if (!origin.startsWith('https://')) problems.push(`CORS_ORIGINS: ${origin} має бути https`);
+  }
+  if (telegramMode(env) !== 'webhook') problems.push('TELEGRAM_MODE має бути webhook');
+  if (!env.TELEGRAM_BOT_TOKEN) problems.push('TELEGRAM_BOT_TOKEN обовʼязковий');
+  if (!env.TELEGRAM_WEBHOOK_SECRET) problems.push('TELEGRAM_WEBHOOK_SECRET обовʼязковий');
+  if (PLACEHOLDER.test(env.AUTH_SECRET)) problems.push('AUTH_SECRET схожий на заглушку');
+  if (PLACEHOLDER.test(env.ACTIVATION_PEPPER))
+    problems.push('ACTIVATION_PEPPER схожий на заглушку');
+  if (!env.S3_BUCKET || !env.S3_ACCESS_KEY || !env.S3_SECRET_KEY) {
+    problems.push(
+      'S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY обовʼязкові: без сховища фото передач не працюють',
+    );
+  } else if (PLACEHOLDER.test(env.S3_SECRET_KEY)) {
+    problems.push('S3_SECRET_KEY схожий на заглушку');
+  }
+  if (!env.METRICS_TOKEN)
+    problems.push('METRICS_TOKEN обовʼязковий: /metrics не можна лишати відкритим');
+  if (problems.length > 0) {
+    throw new Error(`Конфігурація не готова до продакшену: ${problems.join('; ')}`);
+  }
 }

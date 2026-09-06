@@ -21,8 +21,9 @@
     "generate": "drizzle-kit generate",
     "generate:custom": "drizzle-kit generate --custom",
     "migrate": "drizzle-kit migrate",
-    "seed": "node --env-file=../../.env dist/seed.js",
-    "studio": "drizzle-kit studio"
+    "seed": "node --env-file-if-exists=../../.env dist/seed.js",
+    "studio": "drizzle-kit studio",
+    "migrate:js": "node --env-file-if-exists=../../.env dist/migrate.js"
   },
   "dependencies": {
     "@vakhta/domain": "workspace:*",

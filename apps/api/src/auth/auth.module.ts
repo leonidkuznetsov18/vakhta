@@ -21,6 +21,7 @@ import { WebAuthGuard } from './web-auth.guard.js';
         secret: config.get('AUTH_SECRET', { infer: true }),
         baseURL: config.get('PUBLIC_BASE_URL', { infer: true }),
         trustedOrigins: config.get('CORS_ORIGINS', { infer: true }),
+        cookieSameSite: config.get('AUTH_COOKIE_SAME_SITE', { infer: true }),
       }),
       inject: [ConfigService, DATABASE],
     },

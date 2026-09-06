@@ -28,5 +28,10 @@ export default tseslint.config(
       '@typescript-eslint/consistent-type-imports': 'off',
     },
   },
+  {
+    // Скрипти k6 виконуються всередині k6, де __ENV є глобальним обʼєктом.
+    files: ['infra/load/**/*.js'],
+    languageOptions: { globals: { __ENV: 'readonly' } },
+  },
   prettier,
 );

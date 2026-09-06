@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "dev": "tsc -p tsconfig.build.json && concurrently -k -n tsc,worker -c blue,magenta \"tsc -p tsconfig.build.json --watch --preserveWatchOutput\" \"node --env-file=../../.env --watch --watch-preserve-output dist/main.js\"",
-    "start": "node --env-file=../../.env dist/main.js",
+    "dev": "tsc -p tsconfig.build.json && concurrently -k -n tsc,worker -c blue,magenta \"tsc -p tsconfig.build.json --watch --preserveWatchOutput\" \"node --env-file-if-exists=../../.env --watch --watch-preserve-output dist/main.js\"",
+    "start": "node --env-file-if-exists=../../.env dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },

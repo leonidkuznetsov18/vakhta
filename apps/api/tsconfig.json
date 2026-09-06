@@ -8,5 +8,5 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src", "scripts", "test"]
+  "include": ["src", "test"]
 }

@@ -27,6 +27,9 @@ export const WorkerEnvSchema = z.object({
   MEDIA_MIN_BRIGHTNESS: z.coerce.number().int().min(0).max(255).default(40),
   MEDIA_NEAR_DUPLICATE_DISTANCE: z.coerce.number().int().min(0).max(64).default(6),
   MEDIA_RETENTION_DAYS: z.coerce.number().int().positive().default(365),
+  /** DSN Sentry; порожньо = вимкнено. */
+  SENTRY_DSN: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  SENTRY_ENVIRONMENT: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
 });
 
 export type WorkerEnv = z.infer<typeof WorkerEnvSchema>;
@@ -37,5 +40,22 @@ export function loadWorkerEnv(source: Record<string, unknown>): WorkerEnv {
     const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     throw new Error(`Некоректна конфігурація worker: ${issues}`);
   }
+  assertProductionReady(parsed.data);
   return parsed.data;
+}
+
+/** У продакшені воркер без бота або сховища марний: аутбокс і фото зависають у PENDING. */
+export function assertProductionReady(env: WorkerEnv): void {
+  if (env.NODE_ENV !== 'production') return;
+  const problems: string[] = [];
+  if (!env.TELEGRAM_BOT_TOKEN)
+    problems.push('TELEGRAM_BOT_TOKEN обовʼязковий: інакше релей аутбоксу вимкнений');
+  if (!env.S3_BUCKET || !env.S3_ACCESS_KEY || !env.S3_SECRET_KEY) {
+    problems.push(
+      'S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY обовʼязкові: інакше фото лишаються PENDING',
+    );
+  }
+  if (problems.length > 0) {
+    throw new Error(`Конфігурація worker не готова до продакшену: ${problems.join('; ')}`);
+  }
 }

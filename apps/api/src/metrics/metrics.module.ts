@@ -1,12 +1,18 @@
+import { timingSafeEqual } from 'node:crypto';
 import {
   Controller,
   Get,
-  Header,
+  Headers,
   Inject,
   Injectable,
   Module,
+  Res,
+  UnauthorizedException,
   type OnModuleInit,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { FastifyReply } from 'fastify';
+import type { Env } from '../config/env.js';
 import {
   and,
   count,
@@ -91,14 +97,36 @@ export class MetricsService implements OnModuleInit {
   }
 }
 
-/** Ендпоінт без сесії: у продакшені закривається мережею (приватна адреса або allowlist). */
+/** Порівняння токенів сталим часом; різна довжина теж дає false без ранньої відповіді за часом. */
+export function metricsTokenMatches(header: string | undefined, token: string): boolean {
+  const presented = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
+  const a = Buffer.from(presented);
+  const b = Buffer.from(token);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/**
+ * Ендпоінт без сесії панелі. Коли задано METRICS_TOKEN (у продакшені обовʼязково),
+ * Prometheus шле `Authorization: Bearer <token>`; без токена в dev ендпоінт відкритий.
+ */
 @Controller('metrics')
 export class MetricsController {
-  constructor(private readonly metrics: MetricsService) {}
+  constructor(
+    private readonly metrics: MetricsService,
+    private readonly config: ConfigService<Env, true>,
+  ) {}
 
   @Get()
-  @Header('content-type', 'text/plain; version=0.0.4; charset=utf-8')
-  render(): Promise<string> {
+  async render(
+    @Headers('authorization') authorization: string | undefined,
+    @Res({ passthrough: true }) reply: Pick<FastifyReply, 'header'>,
+  ): Promise<string> {
+    const token = this.config.get('METRICS_TOKEN', { infer: true });
+    if (token && !metricsTokenMatches(authorization, token)) {
+      throw new UnauthorizedException('METRICS_TOKEN');
+    }
+    // Content-type лише для успішної відповіді: 401 лишається JSON фільтра винятків.
+    reply.header('content-type', 'text/plain; version=0.0.4; charset=utf-8');
     return this.metrics.render();
   }
 }

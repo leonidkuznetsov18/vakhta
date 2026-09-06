@@ -21,7 +21,8 @@
     "infra:down": "docker compose -f infra/compose/docker-compose.yml down",
     "db:generate": "pnpm --filter @vakhta/db generate",
     "db:migrate": "pnpm --filter @vakhta/db migrate",
-    "db:seed": "pnpm --filter @vakhta/db... build && pnpm --filter @vakhta/db seed"
+    "db:seed": "pnpm --filter @vakhta/db... build && pnpm --filter @vakhta/db seed",
+    "db:migrate:js": "pnpm --filter @vakhta/db... build && pnpm --filter @vakhta/db migrate:js"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",

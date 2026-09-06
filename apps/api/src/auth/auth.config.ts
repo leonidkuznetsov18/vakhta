@@ -17,6 +17,12 @@ export interface AuthConfig {
   readonly trustedOrigins: readonly string[];
   /** Лише для bootstrap першого користувача; у runtime самореєстрація вимкнена. */
   readonly allowSignUp?: boolean;
+  /**
+   * SameSite cookie сесії. Панель і API на різних origin, але під одним доменом
+   * (panel.example.com і api.example.com) є same-site, тому достатньо lax.
+   * none потрібен лише для різних сайтів і працює не в усіх браузерах (Safari ITP).
+   */
+  readonly cookieSameSite?: 'lax' | 'none';
 }
 
 export const AUTH_BASE_PATH = '/auth';
@@ -27,6 +33,8 @@ export const APP_NAME = 'Вахта';
  * при активності. OIDC-провайдер додається сюди ж, коли замовник назве IdP.
  */
 export function createAuth(config: AuthConfig) {
+  // Secure-cookie лише за https: локально панель ходить по http і cookie інакше не ставиться.
+  const secure = config.baseURL.startsWith('https://');
   return betterAuth({
     appName: APP_NAME,
     secret: config.secret,
@@ -55,6 +63,8 @@ export function createAuth(config: AuthConfig) {
     },
     advanced: {
       database: { generateId: 'uuid' },
+      useSecureCookies: secure,
+      defaultCookieAttributes: { sameSite: config.cookieSameSite ?? 'lax', secure },
     },
     plugins: [twoFactor({ issuer: APP_NAME })],
   });
