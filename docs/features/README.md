@@ -12,3 +12,5 @@ Rules:
 - Structure: what it is, how it works, where it lives in the bot / panel / kiosk, typical questions.
 - Update the file in the same pull request as the feature; a feature without its doc is not done.
 - Numbered file names keep the reading order; the assistant does not care about the numbers.
+- The panel's own "Как это работает" blocks and FAQ (`packages/i18n/src/*.ts`, `ui.guide`) must
+  agree with these docs: when a button or a rule changes, update both.

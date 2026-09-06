@@ -13,6 +13,7 @@ import { DateField } from '@/components/app/date-picker';
 import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, Toolbar } from '@/components/app/page';
+import { HowItWorks } from '@/components/app/how-it-works';
 import { formatDateTime } from '@/lib/format';
 import { isUnchanged } from '@/lib/forms';
 import { usePersistentState } from '@/lib/persistent-state';
@@ -179,6 +180,7 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <HowItWorks guide="reports" />
       <form onSubmit={build}>
         <Toolbar>
           <SelectField

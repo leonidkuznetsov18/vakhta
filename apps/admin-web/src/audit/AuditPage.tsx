@@ -25,6 +25,7 @@ import { currentLocale } from '../i18n.tsx';
 import { useRouteSub } from '@/lib/route';
 import { usePersistentState } from '@/lib/persistent-state';
 import { DetailSheet } from '@/components/app/detail-sheet';
+import { HowItWorks } from '@/components/app/how-it-works';
 
 const all = messages(currentLocale());
 const a = all.admin.audit;
@@ -307,6 +308,7 @@ export function AuditPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <HowItWorks guide="audit" />
       <div className="flex items-center gap-1">
         <Tabs value={tab} onValueChange={(v) => setTab(v as 'audit' | 'events')}>
           <TabsList>

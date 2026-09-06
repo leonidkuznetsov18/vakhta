@@ -43,6 +43,7 @@ import { MonthField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
+import { HowItWorks } from '@/components/app/how-it-works';
 import { isBlank } from '@/lib/forms';
 import { usePersistentState } from '@/lib/persistent-state';
 import { notifySuccess } from '@/lib/toast';
@@ -413,7 +414,7 @@ export function BonusPage() {
         </Alert>
       )}
 
-      {period && !closed && <HowItWorks />}
+      {period && !closed && <HowItWorks guide="bonus" />}
 
       {period && (
         <Section
@@ -764,34 +765,6 @@ function EmployeeDetail({
             />
           ))}
         </div>
-      )}
-    </div>
-  );
-}
-
-/** Numbered guide for administrators: what the scores are and which button does what. */
-function HowItWorks({ compact = false }: { readonly compact?: boolean }) {
-  const [openGuide, setOpenGuide] = usePersistentState('bonus.guideOpen', !compact);
-  return (
-    <div className={compact ? 'rounded-lg border bg-muted/40 p-3' : 'rounded-lg border p-4'}>
-      <button
-        type="button"
-        className="flex w-full items-center gap-2 text-left text-sm font-semibold"
-        aria-expanded={openGuide}
-        onClick={() => setOpenGuide((v) => !v)}
-      >
-        <ClipboardCheckIcon className="size-4" aria-hidden="true" />
-        {b.howItWorks}
-        <span className="ml-auto text-xs font-normal text-muted-foreground">
-          {openGuide ? all.ui.common.hide : all.ui.common.details}
-        </span>
-      </button>
-      {openGuide && (
-        <ol className="mt-2 flex list-decimal flex-col gap-1 pl-5 text-sm text-muted-foreground">
-          {b.howSteps.map((step) => (
-            <li key={step}>{step}</li>
-          ))}
-        </ol>
       )}
     </div>
   );

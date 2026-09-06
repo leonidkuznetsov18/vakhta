@@ -59,6 +59,7 @@ import { NavigationProvider, type SectionKey } from './navigation.tsx';
 import { readRoute, writeRoute } from '@/lib/route';
 import { useEffect } from 'react';
 import { CommandPalette } from '@/components/app/command-palette';
+import { FaqButton } from '@/components/app/how-it-works';
 
 const t = messages(currentLocale());
 
@@ -245,7 +246,8 @@ export function App() {
           <header className="flex h-14 items-center gap-2 border-b px-4">
             <SidebarTrigger aria-label={t.ui.common.menu} />
             <h1 className="text-lg font-semibold">{title}</h1>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              {active !== 'profile' && <FaqButton guide={active} />}
               <CommandPalette
                 sections={SECTIONS}
                 onSection={(key) => setActive(key)}

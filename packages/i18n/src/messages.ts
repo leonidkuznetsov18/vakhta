@@ -27,6 +27,32 @@ import type {
 } from '@vakhta/domain';
 
 /** Full catalog shape: the types guarantee that no action, state or error is left without text. */
+export type GuideKey =
+  | 'overview'
+  | 'operations'
+  | 'schedule'
+  | 'incidents'
+  | 'handover'
+  | 'requests'
+  | 'bonus'
+  | 'reports'
+  | 'audit'
+  | 'administration'
+  | 'employees'
+  | 'users'
+  | 'directories'
+  | 'terminals'
+  | 'checklists';
+
+export interface SectionGuide {
+  /** One sentence: what the section is for. */
+  readonly purpose: string;
+  /** Numbered steps of the normal use. */
+  readonly steps: readonly string[];
+  /** Questions people ask in the first week, with short answers naming the buttons. */
+  readonly faq: readonly { readonly q: string; readonly a: string }[];
+}
+
 export interface Messages {
   readonly language: {
     /** Button on the home screen that opens the language picker. */
@@ -747,9 +773,6 @@ export interface Messages {
       readonly adjustmentsTitle: string;
       readonly noAdjustments: string;
       readonly secondThresholdHint: string;
-      readonly howItWorks: string;
-      /** Short numbered guide for administrators: what happens with scores and what to do. */
-      readonly howSteps: readonly string[];
       readonly periodClosedTitle: string;
       readonly periodClosedHint: string;
       readonly reopenPeriod: string;
@@ -1106,6 +1129,12 @@ export interface Messages {
       readonly sortDesc: string;
       readonly noMatches: string;
       readonly closePanel: string;
+      readonly howItWorks: string;
+      readonly faq: string;
+      /** Placeholder: {section} */
+      readonly helpFor: string;
+      readonly openGuide: string;
+      readonly purpose: string;
       readonly theme: string;
       readonly themes: Readonly<Record<'system' | 'light' | 'dark', string>>;
       readonly density: string;
@@ -1124,6 +1153,8 @@ export interface Messages {
       readonly print: string;
       readonly chart: string;
     };
+    /** "How it works" blocks and the FAQ behind the help button, per section and administration tab. */
+    readonly guide: Readonly<Record<GuideKey, SectionGuide>>;
     readonly hints: {
       readonly language: string;
       readonly operationsIncludeClosed: string;

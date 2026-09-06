@@ -24,6 +24,7 @@ import { Deadline } from '@/components/app/deadline';
 import { EyeIcon, XIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Lightbox, PhotoThumb, type LightboxImage } from '@/components/app/photo';
+import { HowItWorks } from '@/components/app/how-it-works';
 import { GavelIcon } from 'lucide-react';
 import { useDeepLinkedId } from '@/lib/route';
 
@@ -361,6 +362,7 @@ export function HandoverPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <HowItWorks guide="handover" />
       <Toolbar>
         <SelectField
           label={h.site}

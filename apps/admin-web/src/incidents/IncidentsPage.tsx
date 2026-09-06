@@ -31,6 +31,7 @@ import { EyeIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { DetailSheet } from '@/components/app/detail-sheet';
 import { useConfirm } from '@/components/app/confirm-dialog';
+import { HowItWorks } from '@/components/app/how-it-works';
 import {
   BanIcon,
   CheckIcon,
@@ -287,6 +288,7 @@ export function IncidentsPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <HowItWorks guide="incidents" />
       <Toolbar>
         <SelectField
           label={i.site}

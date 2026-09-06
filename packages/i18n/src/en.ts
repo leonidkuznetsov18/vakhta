@@ -918,13 +918,6 @@ export const en: Messages = {
       noAdjustments: 'No adjustments.',
       secondThresholdHint:
         'Taking more than the threshold of the rules (10 points by default) applies after a second manager confirms it.',
-      howItWorks: 'How it works',
-      howSteps: [
-        'Points for every shift (0–100) are computed automatically from attendance, the checklist and the zone acceptance.',
-        'A shift marked "Manual review" waits for you: press "Finish review", set a score or exclude the shift.',
-        'To reward or penalise an employee, press "Add points" or "Take points" on the shift and give the reason.',
-        'Every adjustment is listed in the shift card: edit or delete it while the period is open. Close the period once everything is checked.',
-      ],
       periodClosedTitle: 'Period closed',
       periodClosedHint:
         'Scores are confirmed and frozen: reviews, points and deletions are unavailable. To fix something, reopen the period, make the changes and close it again.',
@@ -1400,6 +1393,11 @@ export const en: Messages = {
       sortDesc: 'Sort descending',
       noMatches: 'Nothing matches the search.',
       closePanel: 'Close panel',
+      howItWorks: 'How it works',
+      faq: 'Questions and answers',
+      helpFor: 'Help: {section}',
+      openGuide: 'Open the guide (PDF)',
+      purpose: 'What it is for',
       theme: 'Theme',
       themes: { system: 'System', light: 'Light', dark: 'Dark' },
       density: 'Density',
@@ -1416,6 +1414,392 @@ export const en: Messages = {
       clearSelection: 'Clear selection',
       print: 'Print',
       chart: 'Chart',
+    },
+    guide: {
+      overview: {
+        purpose:
+          'The landing page: what needs attention right now across the sections, one click away.',
+        steps: [
+          'Tiles show counters: open incidents, overdue acceptances, requests for you, pending overtime, unlinked employees, unpaired terminals.',
+          'Press "Open" on a tile: the section opens with the right filter already on.',
+          'Numbers refresh every minute; the same counters sit next to the sections in the sidebar.',
+        ],
+        faq: [
+          {
+            q: 'Why is a tile empty or "All clear"?',
+            a: 'Nothing in that section is urgent: no open incidents, nothing overdue, no decisions waiting.',
+          },
+          {
+            q: 'Who sees what?',
+            a: 'The overview shows only the sections your role can open: a master sees the shift and handovers, HR sees employees, accounting sees bonus and reports.',
+          },
+          {
+            q: 'How do I jump to a section or an employee quickly?',
+            a: 'Ctrl+K or ⌘K opens the quick search: type a section, an action, a surname, a checklist or a terminal.',
+          },
+        ],
+      },
+      operations: {
+        purpose:
+          'Who is on shift right now, in which state and for how long: the live picture of the floor for the master, with the reserve channel actions.',
+        steps: [
+          'Pick the site. The table lists open shifts: employee, state (work, break, downtime, cleaning…), since when and for how many minutes.',
+          'Turn on "Show closed within a day" to see finished shifts with their totals.',
+          'When the terminal is down or the employee has no phone, press "Open a shift for an employee" (reserve channel): pick the employee, optionally a zone, give the reason.',
+          'A row click expands the details: state intervals, downtime, the zone handover and events; the master actions live there too.',
+        ],
+        faq: [
+          {
+            q: 'The employee scanned the QR but there is no shift.',
+            a: 'Arrival and shift are different things. When the schedule has a shift for this time, the bot opens it right after "I am at work". Without a schedule the master opens it: "Open a shift for an employee".',
+          },
+          {
+            q: 'What does the "Downtime" state mean?',
+            a: 'The employee pressed "Start downtime" with a reason or "Report a problem". Downtime is counted separately, appears in the "Downtime" report, and the master closes the incident in "Downtime and incidents".',
+          },
+          {
+            q: 'How do I close a shift for an employee?',
+            a: 'From the row details, with a mandatory comment: the employee gets the summary in the bot. Counted time can be fixed later with an "Interval correction" request.',
+          },
+          {
+            q: 'Does the screen refresh itself?',
+            a: 'Yes, the page receives server events (the "Online" mark on the right). If the connection drops, the mark turns grey and the data catches up when it returns.',
+          },
+        ],
+      },
+      schedule: {
+        purpose:
+          'Planned shifts for a month per unit: versions, the "employees × days" grid, rule checks, publishing and acknowledgement by employees in the bot.',
+        steps: [
+          'Pick the site, unit and month. Press "New version" when the month has no schedule yet; the draft copies the published shifts.',
+          'Add employees from the list above the grid, set D (day) and N (night) per day, pick the zone of the row. "Rotation pattern" fills a month in one click.',
+          'Watch "Check": errors (red) block publishing, warnings (yellow) do not.',
+          'Draft: "Save" → "Submit for review" → the production head presses "Publish". Employees get a notification and an "Acknowledged" button.',
+          'The production head edits a published month right in the grid and presses "Publish changes": a new version appears, the previous one stays as history.',
+        ],
+        faq: [
+          {
+            q: 'Why has the employee no "Start shift" button?',
+            a: 'A shift starts only in the window around the planned one: from 3 hours before the start until its end. Check that the shift is in the published version, not a draft.',
+          },
+          {
+            q: 'What is "Superseded"?',
+            a: 'The previous published version replaced by a newer one. It is read-only; when no shift was worked against it, it can be deleted.',
+          },
+          {
+            q: 'Why can a version not be deleted?',
+            a: 'Shifts were opened against it: attendance, points and audit reference its assignments. Such versions stay as history and have no delete button.',
+          },
+          {
+            q: 'Why a zone on the row?',
+            a: 'The zone enables the handover: the next shift of that zone accepts the checklist and photos. Without a zone the report goes to the master and nobody accepts it.',
+          },
+          {
+            q: 'The employee has not pressed "Acknowledged".',
+            a: 'The "Acknowledgement" table under the grid shows who has not confirmed; "Remind about acknowledgement" sends the message again.',
+          },
+        ],
+      },
+      incidents: {
+        purpose:
+          'Downtime and problems reported by employees or opened by the system: reasons, SLA, owners and closing with a decision.',
+        steps: [
+          'Filters: site, status (open or all), reason. Rows past their SLA are highlighted.',
+          'A row click expands the incident: who reported it, photos, history, related shifts.',
+          'Assign an owner, add a comment, close it with a decision. Several incidents close at once through row selection.',
+          'Closing an incident returns the employee from downtime to work when they are still in downtime.',
+        ],
+        faq: [
+          {
+            q: 'Where do incidents come from?',
+            a: 'From the bot buttons "Start downtime" and "Report a problem", from critical remarks at zone acceptance and from timer escalations.',
+          },
+          {
+            q: 'What does SLA mean here?',
+            a: 'The reaction norm of the reason from the directory: while an incident stays open longer than the norm it is overdue and shows in the overview.',
+          },
+          {
+            q: 'Does downtime affect points?',
+            a: 'Recorded downtime with a reason does not lower points; unrecorded absence of work shows in the presence criterion.',
+          },
+          {
+            q: 'Can the reason be changed?',
+            a: 'Yes, in the incident details: "Edit" with a comment; the change goes to the audit.',
+          },
+        ],
+      },
+      handover: {
+        purpose:
+          'Zone handover reports: checklist, photos, the receiver remarks and the master decisions on disputes.',
+        steps: [
+          'Tabs: "Pending" (no receiver decision), "Overdue" (not accepted by the deadline), "All".',
+          'A row click expands the report: the checklist with answers, notes to the next shift, the photo gallery, the receiver acceptance and decisions.',
+          'On a dispute or an overdue report pick the decision (remark rejected, violation confirmed, no fault), a reason and a comment, press "Decide".',
+          'The decision changes the points of the handing-over employee under the "Acceptance result" criterion and notifies both sides in the bot.',
+        ],
+        faq: [
+          {
+            q: 'Why is the report "No zone"?',
+            a: 'The shift ran without a zone (for example, opened by the master without a schedule). There is no receiver, the report goes straight to the master, who confirms or rejects it.',
+          },
+          {
+            q: 'The photo does not open.',
+            a: 'Photo links are signed and live a few minutes: reload the page. Every view is written to the audit.',
+          },
+          {
+            q: 'What does "Receiver remark" mean?',
+            a: 'The next shift pressed "There is a problem" with a category, a comment and a photo. Until the master decides, the report is in dispute.',
+          },
+          {
+            q: 'How do I configure what is checked and photographed?',
+            a: 'Administration → "Checklists": a checklist is bound to a position, with items of three kinds: check, note, photo.',
+          },
+        ],
+      },
+      requests: {
+        purpose:
+          'Employee requests from the bot: vacation, sick leave, lateness, overtime, interval correction and others, routed for approval by role.',
+        steps: [
+          'The "For me" tab shows requests waiting for your decision; "All" filters by type and status.',
+          'Open a row: text, period, attachments (medical documents are visible to HR only), decision history.',
+          'Press "Approve" or "Reject" with a comment. The employee gets the answer in the bot.',
+          'Potential overtime is created by the system when fact exceeds plan: confirm it and the minutes go to the report.',
+        ],
+        faq: [
+          {
+            q: 'Who approves which type?',
+            a: 'The route is set by rules: lateness and early leave — the master, vacation and sick leave — HR, overtime — the production head. The request shows to whoever is next.',
+          },
+          {
+            q: 'What does an approved interval correction do?',
+            a: 'It changes the counted time of the shift retroactively: the original record stays, a correcting event is added, points are recomputed.',
+          },
+          {
+            q: 'How does a request affect points?',
+            a: 'An approved lateness restores the shift-start points; an approved vacation or sick leave excludes the shift from the month.',
+          },
+          {
+            q: 'What about overdue requests?',
+            a: 'A request without a decision longer than the norm is highlighted and appears in the overview; remind the owner.',
+          },
+        ],
+      },
+      bonus: {
+        purpose:
+          'Shift points (0–100) by the spec rules, manual reviews, rewards and penalties, the month coefficient and closing the period.',
+        steps: [
+          'Points for every shift (0–100) are computed automatically from attendance, the checklist and the zone acceptance.',
+          'A shift marked "Manual review" waits for you: press "Finish review", set a score or exclude the shift.',
+          'To reward or penalise an employee, press "Add points" or "Take points" on the shift and give the reason.',
+          'Every adjustment is listed in the shift card: edit or delete it while the period is open. Close the period once everything is checked.',
+        ],
+        faq: [
+          {
+            q: 'What is "Manual review"?',
+            a: 'The rules could not score the shift: fewer than 60 of 100 points apply (no schedule, checklist or zone). Press "Finish review": set a score or exclude the shift.',
+          },
+          {
+            q: 'How do I reward an employee?',
+            a: 'In the employee or shift card press "Add points": the amount is limited by the room left up to 100, a reason and a comment are required. The employee is notified.',
+          },
+          {
+            q: 'Why did the buttons disappear?',
+            a: 'The period is closed: scores are confirmed. Press "Reopen period", make the changes and close it again.',
+          },
+          {
+            q: 'What is the month S?',
+            a: 'The average score of evaluated shifts, weighted by planned duration. Bonus = base × S / 100 when S is at least 60.',
+          },
+          {
+            q: 'What is the second approval?',
+            a: 'A penalty above 10 points waits for another manager in the "Awaiting second approval" queue; until then the points do not change.',
+          },
+        ],
+      },
+      reports: {
+        purpose:
+          'Six reports per site and period: plan and actual hours, time structure, downtime, handovers, bot usage, bonus. Chart, totals, table, export.',
+        steps: [
+          'Pick the report, site, unit and period (presets or dates), press "Build".',
+          'The "View" block controls the picture: chart type, Top N, series and table columns.',
+          'Export CSV or XLSX: the file carries the data version and the generation time; "Print" prints the screen.',
+        ],
+        faq: [
+          {
+            q: "The numbers differ from yesterday's export.",
+            a: 'A report is built from current data: approved corrections and decisions change the past. Compare the data versions in the file headers.',
+          },
+          {
+            q: 'How do I pick the best employees of a quarter?',
+            a: 'The "Bonus" report with the period you need: Top 10 or 20 by average score or month S, export to XLSX.',
+          },
+          {
+            q: 'Why are some columns hidden?',
+            a: 'Columns and series are toggled with the chips in the "View" block; the choice is remembered per report.',
+          },
+        ],
+      },
+      audit: {
+        purpose:
+          'The immutable history: who changed what and when in the panel and the bot, with before / after states and the event journal of shifts.',
+        steps: [
+          'The "Actions audit" tab: time, who (e-mail or full name), action, object, reason. Filters by action and object, row search.',
+          'Press "Details": the full identifier with copy, the reason, the "What changed" table and the full JSON.',
+          'The "Event journal" tab: domain events (shift start, transitions, check-ins, handovers) with data; a correcting event references the corrected one.',
+        ],
+        faq: [
+          {
+            q: 'Can an entry be deleted?',
+            a: 'No. The audit and the event journal are append-only: the spec requires it, and the database forbids changes at the SQL level.',
+          },
+          {
+            q: 'How do I find everything about one employee?',
+            a: 'Type the surname or the identifier into the search above the table; in the event journal filter by type and find the employee.',
+          },
+          {
+            q: 'What does "corrects a1b2c3d4" mean?',
+            a: 'A correcting event (for example an approved interval correction) references the original one; the original does not change.',
+          },
+        ],
+      },
+      administration: {
+        purpose:
+          'Directories and access: employees and Telegram linking, panel users and roles, sites and zones, checkpoint terminals, position checklists.',
+        steps: [
+          'First-time setup order: directories (site, units, positions, zones) → employees and positions → position checklists → terminals → panel users.',
+          'Every tab has its own "How it works" block and its own questions behind the help button in the header.',
+        ],
+        faq: [
+          {
+            q: 'Where does a new administrator start?',
+            a: 'Create the site and units, add employees (or import CSV), issue activation codes, bind a checklist to a position, pair a terminal.',
+          },
+          {
+            q: "Where are the panel users' passwords?",
+            a: 'The password is shown once when the user is created; afterwards the user changes it in the profile. Recovery goes through an administrator.',
+          },
+        ],
+      },
+      employees: {
+        purpose:
+          'Employee cards: personnel number, full name, position and unit, Telegram link, status and the position checklist.',
+        steps: [
+          'Add an employee by hand or through "Import from CSV" (personnel number, full name).',
+          'Open the card: assign the unit, position and team ("Assign position"); the assignment history is kept.',
+          'Issue an activation code (or QR): the employee enters it in the bot once. The "Telegram" column shows whether the account is linked.',
+          'The "Position checklist" block shows what the bot asks at the zone handover: "Replace" or "Remove".',
+        ],
+        faq: [
+          {
+            q: 'The employee cannot activate.',
+            a: 'The code is valid for a limited time and once. Issue a new one in the card; "Relink Telegram" when the phone changed.',
+          },
+          {
+            q: 'What does "No checklist" mean?',
+            a: 'The position has no active checklist: the bot asks for no checklist and no photos. Create one on the "Checklists" tab with this position.',
+          },
+          {
+            q: 'Block or terminate?',
+            a: 'Blocking closes the bot and shifts temporarily, termination ends the history; both take a reason and go to the audit.',
+          },
+          {
+            q: 'The employee exists but cannot be added to the schedule.',
+            a: 'Only active employees enter the schedule; check the status and the unit in the card.',
+          },
+        ],
+      },
+      users: {
+        purpose:
+          'Who signs in to the panel and what they see: users with e-mail, roles (administrator, production head, master, HR, planner, cleanliness controller, accountant, auditor) and their scope.',
+        steps: [
+          'Press "Add user": e-mail, name; the password is generated and shown once.',
+          'Grant roles with a scope: enterprise, site, unit, team or zone. One e-mail can hold several roles.',
+          'Revoke a role or block sign-in when the person changes position or leaves.',
+        ],
+        faq: [
+          {
+            q: 'What does each role see?',
+            a: 'The sidebar shows only the available sections: a master sees the shift, incidents, handovers, requests; HR sees employees and requests; accounting sees bonus and reports; an auditor reads only.',
+          },
+          {
+            q: 'How do I enable two-factor protection?',
+            a: 'Every user enables it in the profile: an authenticator app and backup codes.',
+          },
+          {
+            q: 'What is a role scope?',
+            a: 'A limit on whose data is visible and in which units one may act; the server checks it on every request.',
+          },
+        ],
+      },
+      directories: {
+        purpose:
+          'The basis for everything else: sites with a time zone, units, teams, positions, responsibility zones and reasons (downtime, handovers, adjustments).',
+        steps: [
+          'Create the site: the time zone defines the business date and the planned shift times.',
+          'Add units, positions, teams; give zones a type and a unit.',
+          'Reasons: code, name, kind (downtime, handover, adjustment…), whether a comment or a photo is required, whether to notify the master.',
+        ],
+        faq: [
+          {
+            q: 'Can a position or a zone be deleted?',
+            a: 'While nothing references it (employees, shifts, reports). Otherwise disable it: it stops being offered and the history stays.',
+          },
+          {
+            q: 'Why a "shared" zone?',
+            a: 'A shared zone can be accepted by several shifts; a regular one only by the next shift of the same zone.',
+          },
+          {
+            q: 'Where do I change the meal length and timers?',
+            a: 'Those are system parameters set by the administrator in the server settings, not in the directories.',
+          },
+        ],
+      },
+      terminals: {
+        purpose:
+          'Checkpoint tablets that show the QR for arrival and departure; paired with a code, no tokens.',
+        steps: [
+          'Press "Register terminal": name, site, checkpoint (entry, exit, both).',
+          'Copy the pairing code (15 minutes, single use) or the link and enter it on the tablet in the kiosk.',
+          'Watch "Last sync": the terminal requests a QR every 45 seconds. "Disable" stops issuing QR codes, "Pairing code" pairs a new tablet.',
+        ],
+        faq: [
+          {
+            q: 'The tablet shows "Terminal disabled".',
+            a: 'The terminal is disabled in the panel or unpaired after a new code was issued. Enable it or enter the new code on the tablet.',
+          },
+          {
+            q: 'How do I delete a terminal?',
+            a: 'The "Delete" button with a reason: a terminal without history is deleted, one with history is hidden and disabled, its check-ins stay in the reports.',
+          },
+          {
+            q: 'The QR does not work for an employee.',
+            a: 'A code lives 90 seconds, the bot asks to scan a new one. Check the check-in window: 3 hours before the shift and up to 3 hours after.',
+          },
+        ],
+      },
+      checklists: {
+        purpose:
+          'What an employee checks, reports and photographs at the zone handover; a checklist is bound to a position.',
+        steps: [
+          'Press "Create checklist": name, positions (required), zone type, items of three kinds: check, note, photo. At least one "Photo" item is needed.',
+          'A position has one checklist: binding another one replaces the previous, and a checklist without positions is disabled.',
+          'An edit saves a new version: old reports keep theirs. "Disable" removes it from the lookup, "Delete" works while there are no reports.',
+        ],
+        faq: [
+          {
+            q: 'The employee has no checklist button in the bot.',
+            a: 'The position has no active checklist, or the shift has not reached the handover yet ("Cleaning done"). Bind a checklist to the position.',
+          },
+          {
+            q: 'How do I make different checklists per workshop?',
+            a: 'Create one checklist per position; the zone type gives a separate variant for another zone type of the same position.',
+          },
+          {
+            q: 'Is a photo mandatory?',
+            a: 'Yes: without at least one "Photo" item the checklist cannot be saved, and the bot does not send a report without photos. Photo quality is checked automatically.',
+          },
+        ],
+      },
     },
     hints: {
       language:

@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Feedback } from '@/components/app/feedback';
 import { InfoTip } from '@/components/app/info-tip';
 import { EmptyState, Muted, Section, type Tone } from '@/components/app/page';
+import { HowItWorks } from '@/components/app/how-it-works';
 import { formatTime } from '@/lib/format';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
@@ -163,6 +164,7 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
 
   return (
     <div className="flex flex-col gap-4">
+      <HowItWorks guide="overview" />
       <Feedback error={error ? describeError(error) : null} />
       <Section
         title={o.title}

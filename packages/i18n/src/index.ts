@@ -5,7 +5,7 @@ import type { Messages } from './messages.js';
 import { ru } from './ru.js';
 import { uk } from './uk.js';
 
-export type { Messages } from './messages.js';
+export type { GuideKey, Messages, SectionGuide } from './messages.js';
 export { en } from './en.js';
 export { ru } from './ru.js';
 export { uk } from './uk.js';

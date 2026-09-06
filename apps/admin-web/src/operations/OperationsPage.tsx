@@ -35,6 +35,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { DetailSheet } from '@/components/app/detail-sheet';
+import { HowItWorks } from '@/components/app/how-it-works';
 import { useDeepLinkedId } from '@/lib/route';
 
 const all = messages(currentLocale());
@@ -359,6 +360,7 @@ export function OperationsPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <HowItWorks guide="operations" />
       <Toolbar>
         <SelectField
           label={o.site}

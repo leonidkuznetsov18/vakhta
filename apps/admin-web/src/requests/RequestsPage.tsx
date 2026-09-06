@@ -26,6 +26,7 @@ import { Deadline } from '@/components/app/deadline';
 import { Textarea } from '@/components/ui/textarea';
 import { EyeIcon } from 'lucide-react';
 import { DetailSheet } from '@/components/app/detail-sheet';
+import { HowItWorks } from '@/components/app/how-it-works';
 import { useDeepLinkedId } from '@/lib/route';
 
 const all = messages(currentLocale());
@@ -284,6 +285,7 @@ export function RequestsPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <HowItWorks guide="requests" />
       <Toolbar>
         <div className="flex items-center gap-1">
           <Tabs value={scope} onValueChange={(v) => setScope(v as 'inbox' | 'all')}>

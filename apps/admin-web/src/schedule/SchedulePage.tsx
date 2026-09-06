@@ -41,6 +41,7 @@ import { notifySuccess } from '@/lib/toast';
 import { formatDate, formatMonth } from '@/lib/format';
 import { BellRingIcon, WandIcon } from 'lucide-react';
 import { DateField } from '@/components/app/date-picker';
+import { HowItWorks } from '@/components/app/how-it-works';
 import { monthDates } from '@vakhta/domain';
 
 const t = messages(currentLocale());
@@ -343,6 +344,7 @@ export function SchedulePage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <HowItWorks guide="schedule" />
       <Toolbar>
         <SelectField
           label={s.site}

@@ -18,6 +18,13 @@ Administration tabs:
   is hidden and disabled, its records stay).
 - "Чек-листы": see the checklists doc.
 
+Every section (and every administration tab) opens with a collapsible "Как это работает" block:
+one sentence on what the section is for and the numbered steps of normal use; "Вопросы и ответы"
+in the block and the "?" button in the page header open a side panel with the same steps, the
+frequently asked questions of that section and a link to the printable guide. The texts live in
+`packages/i18n` under `ui.guide` in the three languages, so the support bot, the guide and the
+panel say the same thing.
+
 Panel conventions: every table is paginated (10/20/50/100), searchable and sortable; a row click
 opens the details on the right, the ⋯ menu holds the row actions; forms validate inline and the
 save button stays disabled until something changed; ⓘ icons carry hints (tap on a phone); every

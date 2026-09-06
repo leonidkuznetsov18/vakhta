@@ -4,6 +4,7 @@ import { messages } from '@vakhta/i18n';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Spinner } from '@/components/ui/spinner';
 import { Feedback } from '@/components/app/feedback';
+import { HowItWorks } from '@/components/app/how-it-works';
 import { orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { ChecklistsTab } from './ChecklistsTab.tsx';
@@ -41,6 +42,7 @@ export function AdminPage() {
           </TabsTrigger>
         ))}
       </TabsList>
+      <HowItWorks guide={tab} key={tab} />
       <Feedback error={error} notice={null} />
       {!org && !error ? <Spinner /> : null}
       {org ? (
