@@ -13,13 +13,18 @@
 
 Redis навмисно не є джерелом істини (ADR-0011): після його втрати воркер не втрачає дані, а лише пропускає відкладені нагадування; оперативний стан у Postgres.
 
+## Резервне копіювання БД
+
+- Керована БД: PITR провайдера (Neon).
+- Незалежно від провайдера: workflow `.github/workflows/db-backup.yml` щоночі о 02:30 UTC виконує `scripts/db/backup.sh`: `pg_dump --format=custom --no-owner --no-privileges` і завантаження в `s3://<BACKUP_S3_BUCKET>/postgres/vakhta-<UTC-мітка>.dump`. Потрібні секрети репозиторію `PROD_DATABASE_URL`, `BACKUP_S3_ENDPOINT`, `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY` і змінна `DB_BACKUP_ENABLED=true`. Ротація: lifecycle-правило бакета на 30 днів.
+- Перевірка: у GitHub Actions останній запуск «DB backup» зелений, у бакеті є файл за сьогодні розміром більше кількох кілобайт.
+
 ## Відновлення БД
 
-1. Зупинити API і воркер (щоб не писати в стару базу).
-2. Відновити snapshot або `pg_restore -d vakhta backup.dump` у порожню базу тієї ж мажорної версії; розширення `btree_gist` і `pgcrypto` мають бути доступні.
-3. Перевірити `SELECT count(*) FROM domain_events` та останній `occurred_at`: це межа відновлених даних.
-4. Запустити міграції (idempotent) і сервіси.
-5. Події Telegram, що надійшли після точки відновлення, втрачено; працівники побачать актуальний екран при наступній дії, майстер оформляє корекції (FR-COR-03) за резервним каналом (`reserve-channel.md`).
+1. Зупинити API і воркер (Railway: «Remove» деплою або масштабувати до 0), щоб не писати в стару базу.
+2. Створити порожню базу тієї ж мажорної версії (Neon: нова гілка або база) і виконати `scripts/db/restore.sh s3://<бакет>/postgres/vakhta-<мітка>.dump <DATABASE_URL нової бази>`. Скрипт створює розширення `pgcrypto` і `btree_gist`, робить `pg_restore --exit-on-error` і друкує кількість подій та останній `occurred_at`: це межа відновлених даних.
+3. Перемкнути `DATABASE_URL` API і воркера на нову базу, запустити; pre-deploy міграції ідемпотентні.
+4. Події Telegram, що надійшли після точки відновлення, втрачено; працівники побачать актуальний екран при наступній дії, майстер оформляє корекції (FR-COR-03) за резервним каналом (`reserve-channel.md`).
 
 ## Відновлення фото
 
@@ -31,4 +36,14 @@ Redis навмисно не є джерелом істини (ADR-0011): піс�
 
 ## Навчання (ТЗ 16: recovery-тест)
 
-Раз на квартал: відновити останній бекап у staging, прогнати `pnpm test` проти нього не потрібно; достатньо перевірити, що панель відкриває «Аудит» і «Оперативная смена», а бот відповідає на `/plan`.
+Раз на квартал, 20 хвилин, без впливу на прод:
+
+```bash
+export DATABASE_URL_DRILL=postgres://...vakhta_drill   # порожня база
+scripts/db/restore.sh s3://vakhta-backups/postgres/<останній>.dump "$DATABASE_URL_DRILL"
+docker run --rm -p 3100:3000 -e DATABASE_URL="$DATABASE_URL_DRILL" -e REDIS_URL=redis://host.docker.internal:6380 \
+  -e AUTH_SECRET -e ACTIVATION_PEPPER ghcr.io/leonidkuznetsov18/vakhta-api:latest
+curl -s localhost:3100/health
+```
+
+Успіх: `/health` віддає `200`, у базі кількість подій збігається з продом на момент дампа, панель проти :3100 відкриває «Аудит» і «Оперативная смена». Результат і дату записати в журнал навчань.

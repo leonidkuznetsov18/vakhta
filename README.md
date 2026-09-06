@@ -145,23 +145,31 @@ curl -b cookies.txt -X POST localhost:3000/admin/employees/<id>/activation-codes
 
 ## Зміцнення і експлуатація
 
-- `GET /metrics` віддає метрики Prometheus (`http_request_duration_seconds` за маршрутом, `vakhta_outbox_pending`, `vakhta_shifts_active`, `vakhta_incidents_open`, стандартні метрики процесу); у продакшені ендпоінт закривається мережею. Пороги алертів у `docs/runbooks/observability.md`.
+- `GET /metrics` віддає метрики Prometheus (`http_request_duration_seconds` за маршрутом, `vakhta_outbox_pending`, `vakhta_shifts_active`, `vakhta_incidents_open`, стандартні метрики процесу); з `METRICS_TOKEN` потрібен `Authorization: Bearer`, у продакшені токен обовʼязковий. Правила алертів у `infra/monitoring/prometheus-alerts.yml`, пороги в `docs/runbooks/observability.md`.
+- Sentry вмикається `SENTRY_DSN` в API і воркері: лише несподівані помилки, без заголовків авторизації, cookie й секрету вебхука.
+- `NODE_ENV=production` вмикає перевірку конфігурації до відкриття порту: https у `PUBLIC_BASE_URL` і `CORS_ORIGINS`, `TELEGRAM_MODE=webhook` із секретом, секрети без заглушок, `S3_*`, `METRICS_TOKEN`. Шаблон змінних: `.env.production.example`.
+- Образи: `apps/api/Dockerfile` і `apps/worker/Dockerfile` збираються з кореня монорепо; CI публікує їх у GHCR з `master`. Міграції в контейнері: `node packages/db/dist/migrate.js`; адміністратор і вебхук: `node apps/api/dist/cli/bootstrap-admin.js`, `node apps/api/dist/cli/set-webhook.js`.
 - `apps/api/src/app.e2e.test.ts` піднімає весь застосунок на Fastify з Postgres і Redis у контейнерах і перевіряє межі доступу між ролями, аудит відмов до медичних документів, вивантаження звітів з аудитом, валідацію тіла і CORS.
 - `apps/api/src/load/shift-boundary.load.test.ts` моделює пік межі зміни: `VAKHTA_LOAD_EMPLOYEES` працівників одночасно відмічають прихід, двічі тиснуть «Почати зміну» і роблять перший перехід; перевіряються відсутність дублів (AC-05) і p95 на рівні сервісів. `infra/load/k6-shift-boundary.js` навантажує HTTP-поверхні (кіоск, панель) на staging.
-- Runbook-и: `docs/runbooks/deploy.md` (викладення й відкат), `recovery.md` (бекапи, відновлення, юридична блокада), `observability.md` (сигнали й алерти), `reserve-channel.md` (робота без бота). Чек-лист продакшену з Vercel і супутніми сервісами: `docs/deploy.md`.
+- Runbook-и: `docs/runbooks/deploy.md` (викладення й відкат), `recovery.md` (нічний бекап у R2 workflow-ом, відновлення `scripts/db/restore.sh`, навчання), `observability.md` (сигнали й алерти), `reserve-channel.md` (робота без бота). Середовища dev/prod, сервіси й порядок запуску: `docs/deploy.md`.
 
 ## Команди
 
-| Команда                        | Що робить                                                         |
-| ------------------------------ | ----------------------------------------------------------------- |
-| `pnpm build`                   | Збірка всіх пакетів у порядку залежностей (Turborepo)             |
-| `pnpm typecheck`               | Перевірка типів у кожному пакеті                                  |
-| `pnpm test`                    | Vitest у кожному пакеті; у `packages/domain` є property-тести FSM |
-| `pnpm lint`                    | ESLint для всього репозиторію                                     |
-| `pnpm check`                   | typecheck + lint + test                                           |
-| `pnpm infra:up` / `infra:down` | Локальний стек у Docker                                           |
-| `pnpm db:generate`             | Згенерувати SQL-міграцію зі схеми Drizzle                         |
-| `pnpm db:migrate`              | Застосувати міграції до `DATABASE_URL`                            |
+| Команда                                                      | Що робить                                                         |
+| ------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `pnpm build`                                                 | Збірка всіх пакетів у порядку залежностей (Turborepo)             |
+| `pnpm typecheck`                                             | Перевірка типів у кожному пакеті                                  |
+| `pnpm test`                                                  | Vitest у кожному пакеті; у `packages/domain` є property-тести FSM |
+| `pnpm lint`                                                  | ESLint для всього репозиторію                                     |
+| `pnpm check`                                                 | typecheck + lint + test                                           |
+| `pnpm infra:up` / `infra:down`                               | Локальний стек у Docker                                           |
+| `pnpm db:generate`                                           | Згенерувати SQL-міграцію зі схеми Drizzle                         |
+| `pnpm db:migrate`                                            | Застосувати міграції до `DATABASE_URL` (drizzle-kit, dev)         |
+| `pnpm db:migrate:js`                                         | Те саме через `packages/db/dist/migrate.js`, як у контейнері      |
+| `pnpm db:seed`                                               | Довідники пілоту, ідемпотентно                                    |
+| `pnpm --filter api auth:bootstrap -- --email … --password …` | Перший адміністратор панелі                                       |
+| `pnpm --filter api telegram:set-webhook`                     | Зареєструвати вебхук бота з `PUBLIC_BASE_URL`                     |
+| `docker build -f apps/api/Dockerfile .`                      | Образ API (для воркера `apps/worker/Dockerfile`)                  |
 
 ## Принципи, які не обговорюються
 
