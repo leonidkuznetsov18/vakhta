@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { AdminPage } from './AdminPage.tsx';
 import { clickRowAction } from '../test-utils.ts';
 
@@ -126,9 +126,14 @@ describe('AdminPage', () => {
       status: 'ACTIVE',
     });
 
+    // The row action opens the card, where the activation block shows the code, the link and the steps.
     await clickRowAction('Код активации');
-    expect(await screen.findByText(/Код активации: ABCD2345/)).toBeTruthy();
-    expect(screen.getByText('https://t.me/vakhta_worker_bot?start=act-ABCD2345')).toBeTruthy();
+    const sheet = await screen.findByRole('dialog');
+    expect(await within(sheet).findByText('ABCD2345')).toBeTruthy();
+    expect(
+      within(sheet).getByText('https://t.me/vakhta_worker_bot?start=act-ABCD2345'),
+    ).toBeTruthy();
+    expect(within(sheet).getByText(/Выдать новый код/)).toBeTruthy();
   });
 
   it('grants a role scoped to a unit', async () => {

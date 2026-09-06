@@ -12,7 +12,10 @@ Administration tabs:
   relink Telegram. The creation form takes the personnel number and the full name plus optional
   contacts: e-mail, phone and Telegram username; every field has a placeholder, an ⓘ hint and
   inline validation (the phone is normalized to +380…, the username is stored without "@"). The
-  card shows the contacts as mail / call / t.me links.
+  card shows the contacts as mail / call / t.me links and holds the "Активация в боте" block:
+  the steps for the administrator, "Выдать код активации", then the code with copy, the bot link
+  and the QR of the last issued code; the row action "Код активации" opens the card with a fresh
+  code.
 - "Пользователи и роли": create panel users (a generated password is shown once), grant and
   revoke roles with a scope.
 - "Справочники": sites (time zone), units, teams, positions, zones (type, shared, active), reason
@@ -33,6 +36,11 @@ opens the details on the right, the ⋯ menu holds the row actions; forms valida
 save button stays disabled until something changed; ⓘ icons carry hints (tap on a phone); every
 clickable element shows a pointer cursor and a hover state; filters, tabs and drafts survive a page
 reload; the URL keeps the section.
+
+Keyboard: a dialog or side panel opens with the caret in its first field (an ⓘ tip never grabs
+the focus, so no tooltip pops up on open); Enter submits a form when its button is enabled,
+Ctrl+Enter (⌘+Enter) submits from inside a comment box, including the confirmation dialogs;
+Escape closes; table rows are focusable and open on Enter; every control has a visible focus ring.
 
 "Быстрый переход" (⌘K / Ctrl+K, or the button in the header) works like the search of
 documentation sites: type a few letters and pick a section, a quick action ("Добавить сотрудника",

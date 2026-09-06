@@ -128,7 +128,9 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     }, t.common.added);
   }
 
+  /** The card holds the activation block; the row action opens it with a fresh code. */
   function issueCode(emp: EmployeeView) {
+    setOpenId(emp.id);
     void run(async () => setIssued(await adminEmployeesApi.issueCode(emp.id)));
   }
 
@@ -432,34 +434,6 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           className="w-56"
         />
         <Feedback error={error} />
-        {issued && (
-          <Alert>
-            <AlertTitle>
-              {format(e.codeIssued, {
-                code: issued.code,
-                expires: formatDateTime(issued.expiresAt),
-              })}
-            </AlertTitle>
-            <AlertDescription>
-              <div className="flex flex-wrap items-start gap-4">
-                <QrCode value={issued.deepLink} size={160} label={e.deepLink} />
-                <div className="flex flex-col gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span>{e.deepLink}:</span>
-                    <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
-                      {issued.deepLink}
-                    </code>
-                    <CopyButton value={issued.deepLink} />
-                  </div>
-                  <Muted className="flex items-center gap-1">
-                    {e.qrHint}
-                    <InfoTip text={hints.employeesQr} />
-                  </Muted>
-                </div>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
       </Section>
 
       <DataTable
@@ -507,6 +481,12 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           description={`${openEmployee.personnelNumber} · ${e.statuses[openEmployee.status]}`}
         >
           <ContactsRow employee={openEmployee} />
+          <ActivationPanel
+            employee={openEmployee}
+            issued={issued?.employeeId === openEmployee.id ? issued : null}
+            busy={busy}
+            onIssue={() => issueCode(openEmployee)}
+          />
           <PositionPanel
             employee={openEmployee}
             org={org}
@@ -744,6 +724,95 @@ function PositionPanel({
  * The checklist of the employee's position (ADR-0012): one per position. It can be replaced by
  * another existing checklist or removed; nothing is copied.
  */
+/**
+ * Activation inside the card: what the administrator does, the button, then the code, the link
+ * and the QR of the last issued code for this employee.
+ */
+function ActivationPanel({
+  employee,
+  issued,
+  busy,
+  onIssue,
+}: {
+  readonly employee: EmployeeView;
+  readonly issued: ActivationCodeIssued | null;
+  readonly busy: boolean;
+  readonly onIssue: () => void;
+}) {
+  const canIssue = employee.status === 'ACTIVE';
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="flex items-center gap-1 text-sm font-medium">
+          <KeyRoundIcon className="size-4" aria-hidden="true" />
+          {e.activation}
+          <InfoTip text={hints.employeesActivation} />
+        </span>
+        <StatusPill tone={employee.telegramLinked ? 'success' : 'warning'}>
+          {employee.telegramLinked ? e.linked : e.notLinked}
+        </StatusPill>
+        {canIssue && (
+          <Button
+            type="button"
+            size="sm"
+            variant={issued ? 'outline' : 'default'}
+            className="ml-auto"
+            disabled={busy}
+            onClick={onIssue}
+          >
+            <KeyRoundIcon aria-hidden="true" />
+            {issued ? e.reissueCodeButton : e.issueCodeButton}
+          </Button>
+        )}
+      </div>
+      {employee.telegramLinked ? (
+        <Muted>{e.activationLinked}</Muted>
+      ) : !canIssue ? (
+        <Muted>{e.activationUnavailable}</Muted>
+      ) : (
+        <>
+          <Muted>{e.activationIntro}</Muted>
+          <ol className="flex list-decimal flex-col gap-0.5 pl-5 text-sm text-muted-foreground">
+            {e.activationSteps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </>
+      )}
+      {issued && (
+        <div className="flex flex-col gap-3 rounded-md border bg-muted/40 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">{e.issueCode}:</span>
+            <code className="rounded bg-background px-2 py-1 font-mono text-xl font-semibold tracking-widest">
+              {issued.code}
+            </code>
+            <CopyButton value={issued.code} />
+            <Muted className="text-xs">
+              {format(e.codeValidUntil, { expires: formatDateTime(issued.expiresAt) })}
+            </Muted>
+          </div>
+          <div className="flex flex-wrap items-start gap-4">
+            <QrCode value={issued.deepLink} size={144} label={e.deepLink} />
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-muted-foreground">{e.deepLink}:</span>
+                <code className="rounded bg-background px-1.5 py-0.5 text-xs break-all">
+                  {issued.deepLink}
+                </code>
+                <CopyButton value={issued.deepLink} />
+              </div>
+              <Muted className="flex items-center gap-1 text-xs">
+                {e.qrHint}
+                <InfoTip text={hints.employeesQr} />
+              </Muted>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Optional contacts of the card as links: mail, call, open the Telegram profile. */
 function ContactsRow({ employee }: { readonly employee: EmployeeView }) {
   const items: { key: string; label: string; href: string; text: string }[] = [];

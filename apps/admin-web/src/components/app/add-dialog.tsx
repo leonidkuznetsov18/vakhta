@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { autoFocusFirstField } from '@/components/app/focus';
 import { InfoTip } from '@/components/app/info-tip';
 import { currentLocale } from '@/i18n';
 
@@ -56,7 +57,10 @@ export function AddDialog({
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className={wide ? 'sm:max-w-4xl' : 'sm:max-w-lg'}>
+      <DialogContent
+        className={wide ? 'sm:max-w-4xl' : 'sm:max-w-lg'}
+        onOpenAutoFocus={autoFocusFirstField}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-1">
             {title}

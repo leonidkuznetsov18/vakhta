@@ -960,6 +960,16 @@ export interface Messages {
         readonly invalidTelegram: string;
         readonly contacts: string;
         readonly noContacts: string;
+        /** Activation block of the employee card. */
+        readonly activation: string;
+        readonly activationIntro: string;
+        readonly activationSteps: readonly string[];
+        readonly issueCodeButton: string;
+        readonly reissueCodeButton: string;
+        /** Placeholder: {expires} */
+        readonly codeValidUntil: string;
+        readonly activationLinked: string;
+        readonly activationUnavailable: string;
       };
       readonly users: {
         readonly email: string;
@@ -1128,6 +1138,8 @@ export interface Messages {
       readonly invalidEmail: string;
       readonly invalidNumber: string;
       readonly moreInfo: string;
+      /** Under a comment box: how to submit without leaving the keyboard. */
+      readonly submitShortcut: string;
       readonly copy: string;
       readonly copied: string;
       readonly openInNewTab: string;

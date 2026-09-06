@@ -9,6 +9,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { autoFocusFirstField } from '@/components/app/focus';
 import { currentLocale } from '@/i18n';
 import { cn } from 'cn';
 
@@ -43,6 +44,7 @@ export function DetailSheet({
         side="right"
         className={cn('flex w-full min-w-0 flex-col gap-0 p-0 sm:max-w-xl', wide && 'sm:max-w-3xl')}
         aria-label={t.closePanel}
+        onOpenAutoFocus={autoFocusFirstField}
       >
         <SheetHeader className="border-b px-6 py-4">
           <SheetTitle className="flex flex-wrap items-center gap-2">{title}</SheetTitle>

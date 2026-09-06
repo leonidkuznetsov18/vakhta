@@ -1217,6 +1217,20 @@ export const en: Messages = {
         invalidTelegram: 'Telegram username: 5–32 Latin letters, digits or _, with or without @.',
         contacts: 'Contacts',
         noContacts: 'No contacts given.',
+        activation: 'Bot activation',
+        activationIntro:
+          'The employee links Telegram with a code: issue it here and pass it on any way you like.',
+        activationSteps: [
+          'Press "Issue activation code": the code is valid for a limited time and once.',
+          'Give the employee the code, the link or the QR: they scan the QR with the phone camera or type the code to the bot.',
+          'When the bot says "Account linked", the "Telegram" column shows "Linked" and the employee can check in by QR and start shifts.',
+        ],
+        issueCodeButton: 'Issue activation code',
+        reissueCodeButton: 'Issue a new code',
+        codeValidUntil: 'Valid until {expires}, once.',
+        activationLinked:
+          'Telegram is already linked. A new code is needed only when the phone changes: then "Relink Telegram" first.',
+        activationUnavailable: 'A code is issued to an active employee only.',
       },
       users: {
         email: 'Email',
@@ -1392,6 +1406,7 @@ export const en: Messages = {
       invalidEmail: 'Enter a valid e-mail address.',
       invalidNumber: 'Enter a whole number.',
       moreInfo: 'More information',
+      submitShortcut: 'Ctrl+Enter (⌘+Enter) confirms.',
       copy: 'Copy',
       copied: 'Copied',
       openInNewTab: 'Open in a new tab',

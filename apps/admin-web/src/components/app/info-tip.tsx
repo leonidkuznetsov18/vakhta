@@ -9,6 +9,15 @@ import { cn } from 'cn';
 const TRIGGER_CLASS =
   'inline-flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none active:bg-muted/80';
 
+/** True when the element got its focus from the keyboard (Tab), not from a script or a click. */
+function isKeyboardFocus(el: HTMLElement): boolean {
+  try {
+    return el.matches(':focus-visible');
+  } catch {
+    return true;
+  }
+}
+
 /** Touch screens have no hover: there the tip opens on tap and closes on tap outside. */
 function useCoarsePointer(): boolean {
   const [coarse, setCoarse] = useState(false);
@@ -41,7 +50,12 @@ export function InfoTip({
     return (
       <Popover>
         <PopoverTrigger asChild>
-          <button type="button" aria-label={label} className={cn(TRIGGER_CLASS, className)}>
+          <button
+            type="button"
+            aria-label={label}
+            data-info-tip
+            className={cn(TRIGGER_CLASS, className)}
+          >
             <InfoIcon className="size-3.5" aria-hidden="true" />
           </button>
         </PopoverTrigger>
@@ -56,7 +70,16 @@ export function InfoTip({
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button type="button" aria-label={label} className={cn(TRIGGER_CLASS, className)}>
+          <button
+            type="button"
+            aria-label={label}
+            data-info-tip
+            className={cn(TRIGGER_CLASS, className)}
+            onFocus={(event) => {
+              // Radix opens the tip on any focus; a programmatic focus (dialog opening) must not.
+              if (!isKeyboardFocus(event.currentTarget)) event.preventDefault();
+            }}
+          >
             <InfoIcon className="size-3.5" aria-hidden="true" />
           </button>
         </TooltipTrigger>
