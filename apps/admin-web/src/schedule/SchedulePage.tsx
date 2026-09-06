@@ -389,6 +389,33 @@ export function SchedulePage() {
         </Alert>
       )}
 
+      {org && orgUnitId && zones.length === 0 && (
+        <Alert>
+          <AlertTitle className="flex items-center gap-1">
+            {s.zone}
+            <InfoTip text={hints.scheduleZone} />
+          </AlertTitle>
+          <AlertDescription>
+            <p>
+              {format(s.noZonesInUnit, {
+                unit: units.find((u) => u.id === orgUnitId)?.name ?? orgUnitId,
+              })}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                location.hash = '#/administration/directories';
+                go('administration');
+              }}
+            >
+              {s.openDirectories}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {editable && zones.length > 0 && rowsWithoutZone > 0 && (
         <Alert>
           <AlertTitle className="flex items-center gap-1">

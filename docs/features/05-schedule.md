@@ -9,6 +9,9 @@ of versions next to it, so a month with dozens of versions stays readable.
 - The grid "employees × days": a shift template per cell (day / night), a zone per row, rotation
   patterns ("Шаблон ротации") to fill a month, keyboard navigation, per-day totals and monthly hour
   limits with warnings. Rows without a zone show a warning: without a zone there is no handover.
+  Zones belong to units: when the chosen unit has no active zones, a notice above the grid says
+  so and offers "Открыть справочники" (add zones to the unit, or move the employees to a unit
+  that has them).
 - Employees of a version: the bar above the grid counts them and, in a draft, holds the
   "Добавить сотрудника" select next to the count (with a hint); picking an employee adds a row, ✕
   at the end of a row ("Убрать из версии") removes the employee with all their shifts. Read-only

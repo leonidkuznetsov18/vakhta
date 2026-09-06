@@ -130,7 +130,7 @@ interface Call {
   body: unknown;
 }
 
-function mockApi(state: { status: string; issues?: unknown[] }) {
+function mockApi(state: { status: string; issues?: unknown[] }, snapshot: typeof org = org) {
   const calls: Call[] = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
@@ -142,7 +142,7 @@ function mockApi(state: { status: string; issues?: unknown[] }) {
         status,
         headers: { 'content-type': 'application/json' },
       });
-    if (path === '/admin/org') return json(org);
+    if (path === '/admin/org') return json(snapshot);
     if (path === '/admin/employees') return json(employees);
     if (path.startsWith('/admin/schedules/templates')) return json(templates);
     if (path.startsWith('/admin/schedules?')) return json([version(state.status)]);
@@ -190,6 +190,13 @@ describe('SchedulePage', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+  });
+
+  it('a unit without zones says so above the grid and points to the directories', async () => {
+    mockApi({ status: 'DRAFT' }, { ...org, zones: [] });
+    render(<SchedulePage />);
+    expect(await screen.findByText(/нет активных зон/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Открыть справочники' })).toBeTruthy();
   });
 
   it('shows filters, the version, the grid with an assignment and saves changes with PUT', async () => {

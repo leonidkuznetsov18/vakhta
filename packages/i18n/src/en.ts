@@ -644,6 +644,9 @@ export const en: Messages = {
       goToEmployees: 'Go to employees',
       zoneMissing:
         'Rows without a zone: {n}. Without a zone the employee gets no checklist and no zone handover at the end of the shift.',
+      noZonesInUnit:
+        'The unit "{unit}" has no active zones, so the "Zone" column offers only "No zone". Add zones to this unit in the directories or move the employees to a unit that has them. Without a zone the handover does not work: the report goes straight to the master.',
+      openDirectories: 'Open directories',
       dayTotals: 'D {day} · N {night}',
       createdOn: 'created {date}',
       remind: 'Remind to acknowledge',

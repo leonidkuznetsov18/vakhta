@@ -516,6 +516,9 @@ export interface Messages {
       readonly goToEmployees: string;
       /** Placeholder: {n} rows without a zone. */
       readonly zoneMissing: string;
+      /** Placeholder: {unit} — the chosen unit has no active zones, so rows cannot get one. */
+      readonly noZonesInUnit: string;
+      readonly openDirectories: string;
       /** Footer row of the grid: {day} day shifts, {night} night shifts on that date. */
       readonly dayTotals: string;
       readonly createdOn: string;
