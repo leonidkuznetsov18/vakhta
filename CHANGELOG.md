@@ -1,3 +1,9 @@
+## [0.27.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.26.0...v0.27.0) (2026-09-06)
+
+### Features
+
+* **panel:** the product mark in the sidebar instead of the initial letter ([097a584](https://github.com/leonidkuznetsov18/vakhta/commit/097a5845b4e54d2a3de60c804ffacc2f16f01fc7))
+
 ## [0.26.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.25.1...v0.26.0) (2026-09-06)
 
 ### Features
