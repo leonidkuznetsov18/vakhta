@@ -1,3 +1,10 @@
+## [0.13.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.12.0...v0.13.0) (2026-09-06)
+
+### Features
+
+* **panel:** clearer bonus flow, audit details, one checklist per position and schedule versions ([f19863f](https://github.com/leonidkuznetsov18/vakhta/commit/f19863fcf77b69ae68a0bb3766e6ed21c4b41214))
+* **support:** support assistant bot with a docs-driven knowledge base and voice ([8812a31](https://github.com/leonidkuznetsov18/vakhta/commit/8812a31a265517dd91c58354e1f2814ed30379f1))
+
 ## [0.12.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.11.0...v0.12.0) (2026-09-06)
 
 ### Features
