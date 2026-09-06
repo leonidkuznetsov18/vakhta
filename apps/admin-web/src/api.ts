@@ -74,6 +74,7 @@ import type {
   EmployeeView,
   ListScheduleVersionsQuery,
   OrgSnapshot,
+  RemindResult,
   ScheduleVersionDetail,
   ScheduleVersionView,
   ShiftTemplateView,
@@ -106,6 +107,7 @@ export const schedulesApi = {
   create: (cmd: CreateScheduleVersionCommand) => post<ScheduleVersionView>('/admin/schedules', cmd),
   detail: (id: string) => apiFetch<ScheduleVersionDetail>(`/admin/schedules/${id}`),
   remove: (id: string) => apiFetch<null>(`/admin/schedules/${id}`, { method: 'DELETE' }),
+  remind: (id: string) => post<RemindResult>(`/admin/schedules/${id}/remind`, {}),
   putAssignments: (id: string, items: AssignmentInput[]) =>
     apiFetch<ScheduleVersionDetail>(`/admin/schedules/${id}/assignments`, {
       method: 'PUT',
@@ -170,6 +172,8 @@ export const adminEmployeesApi = {
       cmd,
     ),
   positions: (id: string) => apiFetch<EmployeePositionView[]>(`/admin/employees/${id}/positions`),
+  issueCodes: (employeeIds: string[]) =>
+    post<ActivationCodeIssued[]>('/admin/employees/activation-codes', { employeeIds }),
   importMany: (cmd: ImportEmployeesCommand) =>
     post<ImportEmployeesResult>('/admin/employees/import', cmd),
   assignPosition: (id: string, cmd: AssignPositionCommand) =>

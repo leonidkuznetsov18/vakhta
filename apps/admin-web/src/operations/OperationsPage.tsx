@@ -34,6 +34,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { DetailSheet } from '@/components/app/detail-sheet';
+import { useDeepLinkedId } from '@/lib/route';
 
 const all = messages(currentLocale());
 const o = all.admin.operations;
@@ -107,7 +108,7 @@ export function OperationsPage() {
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [openId, setOpenId] = usePersistentState<string | null>('operations.openId', null);
+  const [openId, setOpenId] = useDeepLinkedId('operations', 'operations.openId');
   const [detail, setDetail] = useState<ShiftDetailView | null>(null);
   const [startFor, setStartFor] = useState('');
   const [startOpen, setStartOpen] = useState(false);

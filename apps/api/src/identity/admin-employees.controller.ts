@@ -18,6 +18,7 @@ import {
   type EmployeeView,
   ImportEmployeesCommand,
   type ImportEmployeesResult,
+  IssueActivationCodesCommand,
 } from '@vakhta/contracts';
 import {
   CurrentUser,
@@ -56,6 +57,15 @@ export class AdminEmployeesController {
   ): Promise<EmployeeView> {
     const row = await this.employees.create(body, webUserActor(user));
     return this.employees.toView(row, false);
+  }
+
+  @Post('activation-codes')
+  @HttpCode(201)
+  issueCodes(
+    @Body(new ZodValidationPipe(IssueActivationCodesCommand)) body: IssueActivationCodesCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ActivationCodeIssued[]> {
+    return this.activation.issueMany(body.employeeIds, webUserActor(user));
   }
 
   @Post('import')

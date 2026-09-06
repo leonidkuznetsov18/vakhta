@@ -47,6 +47,13 @@ export interface Messages {
     readonly homeNoSchedule: string;
     /** Shown on the home screen while no arrival is recorded: how presence is marked. */
     readonly checkInHint: string;
+    readonly helpButton: string;
+    /** Help text of /help: what the bot does and where the guide is; {url} may be empty. */
+    readonly help: string;
+    /** Descriptions for the Telegram command menu. */
+    readonly commands: Readonly<
+      Record<'start' | 'plan' | 'scores' | 'requests' | 'language' | 'help', string>
+    >;
     readonly access: Readonly<Record<Exclude<EmployeeAccess, 'ALLOWED'>, string>>;
   };
   readonly activation: {
@@ -401,6 +408,20 @@ export interface Messages {
       /** Footer row of the grid: {day} day shifts, {night} night shifts on that date. */
       readonly dayTotals: string;
       readonly createdOn: string;
+      readonly remind: string;
+      /** Placeholder: {n} */
+      readonly reminded: string;
+      readonly pattern: string;
+      readonly patternStart: string;
+      readonly patternApply: string;
+      readonly patterns: Readonly<
+        Record<'DAY_2_2' | 'NIGHT_2_2' | 'DAY_NIGHT_OFF_OFF' | 'WEEKDAYS_DAY', string>
+      >;
+      readonly hours: string;
+      /** Placeholder: {max} */
+      readonly limitHours: string;
+      /** Placeholder: {max} */
+      readonly limitConsecutive: string;
       readonly forbidden: string;
       readonly noTemplates: string;
     };
@@ -487,6 +508,9 @@ export interface Messages {
       readonly colDowntime: string;
       readonly colResolution: string;
       readonly colBreached: string;
+      readonly closeSelected: string;
+      /** Placeholder: {n} */
+      readonly bulkClosed: string;
       readonly totals: string;
       readonly live: string;
     };
@@ -694,6 +718,12 @@ export interface Messages {
         readonly qrHint: string;
         readonly search: string;
         readonly statusFilter: string;
+        readonly issueCodesSelected: string;
+        /** Placeholder: {n} */
+        readonly codesIssued: string;
+        readonly printCodes: string;
+        readonly codeSheetTitle: string;
+        readonly codeSheetHint: string;
         readonly statuses: Readonly<Record<'ACTIVE' | 'BLOCKED' | 'TERMINATED', string>>;
       };
       readonly users: {
@@ -826,6 +856,20 @@ export interface Messages {
       readonly sortDesc: string;
       readonly noMatches: string;
       readonly closePanel: string;
+      readonly theme: string;
+      readonly themes: Readonly<Record<'system' | 'light' | 'dark', string>>;
+      readonly density: string;
+      readonly densities: Readonly<Record<'comfortable' | 'compact', string>>;
+      readonly commandPalette: string;
+      readonly commandPlaceholder: string;
+      readonly commandSections: string;
+      readonly commandEmployees: string;
+      /** Placeholder: {n} */
+      readonly selected: string;
+      readonly selectAll: string;
+      readonly clearSelection: string;
+      readonly print: string;
+      readonly chart: string;
     };
     readonly hints: {
       readonly language: string;
@@ -888,6 +932,15 @@ export interface Messages {
       readonly usersGenerate: string;
       readonly overview: string;
       readonly tableSearch: string;
+      readonly profileTheme: string;
+      readonly profileDensity: string;
+      readonly commandPalette: string;
+      readonly scheduleKeyboard: string;
+      readonly schedulePattern: string;
+      readonly scheduleRemind: string;
+      readonly employeesBulkCodes: string;
+      readonly incidentsBulkClose: string;
+      readonly reportsChart: string;
       readonly profileTwoFactor: string;
     };
   };
@@ -905,5 +958,7 @@ export interface Messages {
     readonly repair: string;
     readonly refreshIn: string;
     readonly seconds: string;
+    readonly lastSync: string;
+    readonly fullscreen: string;
   };
 }

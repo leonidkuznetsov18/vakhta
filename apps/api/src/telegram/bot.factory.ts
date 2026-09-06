@@ -1,4 +1,4 @@
-import { Bot } from 'grammy';
+import { Bot, InlineKeyboard } from 'grammy';
 import type { Logger } from 'pino';
 import {
   businessDateOf,
@@ -154,6 +154,8 @@ function isShiftAction(value: string): value is ShiftAction {
 }
 
 export interface BotDeps {
+  /** Public address of the user guide, if published. */
+  readonly helpUrl?: string | null;
   readonly employees: EmployeesService;
   readonly activation: ActivationService;
   readonly schedule: ScheduleService;
@@ -238,6 +240,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       presenceSince: presence?.arrivedAt ?? null,
       timezone,
       pendingSwaps: pendingSwaps.length,
+      helpUrl: deps.helpUrl ?? null,
     });
     // Spec 5.1: during the shift and right after it the home screen is the shift screen.
     if (shift.session || shift.allowedActions.includes('START_SHIFT')) {
@@ -315,6 +318,25 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   bot.command('plan', async (ctx) => {
     const screen = await buildPlan(ctx, 'cur');
     await show(ctx, screen ?? (await buildHome(ctx)));
+  });
+
+  bot.command('scores', async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee) return show(ctx, await buildHome(ctx));
+    const month = businessDateOf(new Date(), deps.defaultTimezone).slice(0, 7);
+    await show(ctx, myScoresScreen(ctx.t, await deps.bonus.myScores(ctx.employee.id, month)));
+  });
+
+  bot.command('requests', async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee) return show(ctx, await buildHome(ctx));
+    await show(ctx, requestMenuScreen(ctx.t));
+  });
+
+  // /help: a short description of what the bot does and where the guide lives.
+  bot.command('help', async (ctx) => {
+    const url = deps.helpUrl ?? '';
+    const keyboard = url ? new InlineKeyboard().url(`ℹ️ ${ctx.t.bot.helpButton}`, url) : undefined;
+    const text = format(ctx.t.bot.help, { url }).trim();
+    await show(ctx, keyboard ? { text, keyboard } : { text });
   });
 
   // Interface language: /language or the home-screen button; the choice is stored per employee.

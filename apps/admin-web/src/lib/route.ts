@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { usePersistentState } from '@/lib/persistent-state';
 
 /**
  * The panel has no router; the address bar still carries `#/<section>/<sub>` so a reload or a
@@ -43,4 +44,24 @@ export function useRouteSub<T extends string>(
   }, [section]);
   const set = useCallback((next: T) => setSub(next), []);
   return [sub, set];
+}
+
+/**
+ * The id of the row open in a side panel, mirrored into `#/<section>/<id>` so a link can be
+ * shared and a reload lands on the same panel; the stored value is the fallback.
+ */
+export function useDeepLinkedId(
+  section: string,
+  storageKey: string,
+): [string | null, Dispatch<SetStateAction<string | null>>] {
+  const [stored, setStored] = usePersistentState<string | null>(storageKey, null);
+  const [id, setId] = useState<string | null>(() => {
+    const r = readRoute();
+    return r.section === section && r.sub ? r.sub : stored;
+  });
+  useEffect(() => {
+    setStored(id);
+    writeRoute(section, id ?? undefined);
+  }, [section, id, setStored]);
+  return [id, setId];
 }

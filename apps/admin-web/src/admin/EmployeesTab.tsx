@@ -43,6 +43,8 @@ import { QrCode } from '@/components/app/qr-code';
 import { UploadIcon } from 'lucide-react';
 import { validateWith, type FieldErrors } from '@/lib/validation';
 import { CreateEmployeeCommand } from '@vakhta/contracts';
+import { CodeSheet } from './CodeSheet.tsx';
+import { PrinterIcon } from 'lucide-react';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -123,6 +125,21 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   }
 
   const openEmployee = list.find((x) => x.id === openId) ?? null;
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [sheet, setSheet] = useState<ActivationCodeIssued[] | null>(null);
+  const selectable = list.filter((x) => selected.has(x.id) && x.status === 'ACTIVE');
+
+  function issueSelected() {
+    if (selectable.length === 0) return;
+    void run(
+      async () => {
+        const codes = await adminEmployeesApi.issueCodes(selectable.map((x) => x.id));
+        setSheet(codes);
+        setSelected(new Set());
+      },
+      format(e.codesIssued, { n: selectable.length }),
+    );
+  }
   const visibleList = statusFilter ? list.filter((x) => x.status === statusFilter) : list;
 
   const columns: Column<EmployeeView>[] = [
@@ -343,6 +360,22 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         activeKey={openId}
         empty={t.common.empty}
         storageKey="employees"
+        selectedKeys={selected}
+        onSelectionChange={setSelected}
+        selectionBar={
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              size="sm"
+              disabled={busy || selectable.length === 0}
+              onClick={issueSelected}
+            >
+              <PrinterIcon aria-hidden="true" />
+              {e.issueCodesSelected} ({selectable.length})
+            </Button>
+            <InfoTip text={hints.employeesBulkCodes} />
+          </div>
+        }
         loading={busy && list.length === 0}
         emptyAction={
           <Button type="button" variant="outline" onClick={() => setCreating(true)}>
@@ -376,6 +409,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           />
         </DetailSheet>
       )}
+      <CodeSheet codes={sheet} employees={list} onClose={() => setSheet(null)} />
       <ImportDialog
         open={importing}
         onOpenChange={setImporting}

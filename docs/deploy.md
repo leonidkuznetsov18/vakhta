@@ -85,6 +85,7 @@ Done for `vakhta.xyz` (Cloudflare DNS, all three records proxied, Railway custom
 
 - One API replica: the SSE change buses are in-process. For several replicas move them to Redis pub/sub.
 - `/metrics` is protected by a token, not by the network.
+- `USER_GUIDE_URL` (optional) points the bot's /help and the Help button at the published guide; CI ships `docs/user-guide/vakhta-user-guide.ru.pdf` as `panel.<domain>/user-guide.pdf`.
 - The kiosk keeps its device token in the tablet's browser storage after pairing. Re-pairing (a new code from the panel) rotates the token and invalidates the old one; clearing the browser data on the tablet means pairing again. No rebuild is involved.
 
 ## 10. Before announcing the pilot

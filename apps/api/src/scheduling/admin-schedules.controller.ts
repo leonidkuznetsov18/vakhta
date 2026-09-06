@@ -24,6 +24,7 @@ import {
   type ScheduleVersionView,
   type ShiftTemplateView,
   type ValidationIssueView,
+  type RemindResult,
 } from '@vakhta/contracts';
 import { canActOn, type ScopeTarget, type WebRole } from '@vakhta/domain';
 import { z } from 'zod';
@@ -192,6 +193,20 @@ export class AdminSchedulesController {
     const version = await this.schedules.requireVersion(id);
     assertScope(user, APPROVERS, { siteId: version.siteId, orgUnitId: version.orgUnitId });
     return this.schedules.publish(id, body, webUserActor(user));
+  }
+
+  @Post(':id/remind')
+  @Roles(...EDITORS, ...APPROVERS)
+  async remind(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: WebUser,
+  ): Promise<RemindResult> {
+    const detail = await this.schedules.detail(id);
+    assertScope(user, [...EDITORS, ...APPROVERS], {
+      siteId: detail.version.siteId,
+      orgUnitId: detail.version.orgUnitId,
+    });
+    return this.schedules.remindAcknowledgement(id, webUserActor(user));
   }
 
   @Get(':id/acknowledgements')

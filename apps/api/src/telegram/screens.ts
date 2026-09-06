@@ -86,6 +86,8 @@ export interface HomeInput {
   readonly timezone: string;
   /** Shift swaps waiting for this employee's consent. */
   readonly pendingSwaps: number;
+  /** Address of the user guide; when set the home screen gets a Help link. */
+  readonly helpUrl?: string | null;
 }
 
 /** Home screen (spec 5.1): presence, next shift, plan, acknowledgement. */
@@ -130,6 +132,7 @@ export function homeScreen(t: Messages, input: HomeInput): Screen {
   if (input.unacknowledged > 0) keyboard.row().text(t.schedule.ackButton, CALLBACK.ackAll);
   if (input.pendingSwaps > 0)
     keyboard.row().text(`${t.requests.counterpartYes}? (${input.pendingSwaps})`, 'rq:pending');
+  if (input.helpUrl) keyboard.row().url(`ℹ️ ${t.bot.helpButton}`, input.helpUrl);
   return { text: lines.join('\n'), keyboard };
 }
 

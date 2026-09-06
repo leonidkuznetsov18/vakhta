@@ -42,6 +42,11 @@ const el = {
   pairCode: byId('pair-code') as HTMLInputElement,
   pairButton: byId('pair-button') as HTMLButtonElement,
   pairError: byId('pair-error'),
+  time: byId('time'),
+  date: byId('date'),
+  sync: byId('sync'),
+  syncDot: byId('sync-dot'),
+  fullscreen: byId('fullscreen') as HTMLButtonElement,
 };
 
 el.title.textContent = t.kiosk.title;
@@ -51,6 +56,37 @@ el.pairHint.textContent = t.kiosk.pairHint;
 el.pairLabel.textContent = t.kiosk.pairCode;
 el.pairButton.textContent = t.kiosk.pairButton;
 el.repair.textContent = t.kiosk.repair;
+el.fullscreen.textContent = t.kiosk.fullscreen;
+
+const INTL: Record<string, string> = { uk: 'uk-UA', en: 'en-GB', ru: 'ru-RU' };
+let lastSync: Date | null = null;
+
+/** Clock and date in the header so the tablet doubles as the wall clock of the checkpoint. */
+function drawClock(): void {
+  const now = new Date();
+  const tag = INTL[locale] ?? 'ru-RU';
+  el.time.textContent = now.toLocaleTimeString(tag, { hour: '2-digit', minute: '2-digit' });
+  el.date.textContent = now.toLocaleDateString(tag, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'long',
+  });
+  el.sync.textContent = lastSync
+    ? `${t.kiosk.lastSync} ${lastSync.toLocaleTimeString(tag, { hour: '2-digit', minute: '2-digit' })}`
+    : t.kiosk.lastSync;
+}
+
+/** Keeps the screen on while the kiosk is shown; browsers without the API just ignore it. */
+async function keepAwake(): Promise<void> {
+  try {
+    const nav = navigator as Navigator & {
+      wakeLock?: { request: (type: 'screen') => Promise<unknown> };
+    };
+    await nav.wakeLock?.request('screen');
+  } catch {
+    // Denied or unsupported: nothing to do.
+  }
+}
 
 let countdown = 0;
 let deviceToken = readToken();
@@ -159,17 +195,21 @@ async function fetchChallenge(): Promise<void> {
     el.qr.append(canvas);
 
     el.terminal.textContent = data.terminalName;
+    lastSync = new Date();
+    el.syncDot.className = 'dot ok';
     countdown = data.rotationSeconds;
     el.offline.hidden = true;
     el.repair.hidden = true;
     el.pair.hidden = true;
     el.qr.hidden = false;
   } catch {
+    el.syncDot.className = 'dot bad';
     showProblem(t.kiosk.offline);
   }
 }
 
 function tick(): void {
+  drawClock();
   if (!el.pair.hidden) return;
   countdown -= 1;
   el.meta.textContent = `${t.kiosk.refreshIn} ${Math.max(0, countdown)} ${t.kiosk.seconds}`;
@@ -181,6 +221,15 @@ el.pair.addEventListener('submit', (ev) => {
   const code = el.pairCode.value.trim();
   if (code.length >= 8) void pair(code);
 });
+el.fullscreen.addEventListener('click', () => {
+  void document.documentElement.requestFullscreen?.().catch(() => undefined);
+  void keepAwake();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') void keepAwake();
+});
+drawClock();
+void keepAwake();
 el.repair.addEventListener('click', () => {
   forgetToken();
   showPairing();

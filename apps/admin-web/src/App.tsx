@@ -52,6 +52,7 @@ import { LanguageSwitcher, currentLocale } from './i18n.tsx';
 import { NavigationProvider, type SectionKey } from './navigation.tsx';
 import { readRoute, writeRoute } from '@/lib/route';
 import { useEffect } from 'react';
+import { CommandPalette } from '@/components/app/command-palette';
 
 const t = messages(currentLocale());
 
@@ -234,6 +235,25 @@ export function App() {
           <header className="flex h-14 items-center gap-2 border-b px-4">
             <SidebarTrigger aria-label={t.ui.common.menu} />
             <h1 className="text-lg font-semibold">{title}</h1>
+            <div className="ml-auto">
+              <CommandPalette
+                sections={SECTIONS}
+                onSection={(key) => setActive(key)}
+                canSeeEmployees={me.roles.some((g) =>
+                  ['ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER'].includes(g.role),
+                )}
+                onEmployee={(emp) => {
+                  // The employees tab reads its open row from storage, so the card opens on arrival.
+                  try {
+                    localStorage.setItem('vakhta.ui.employees.openId', JSON.stringify(emp.id));
+                  } catch {
+                    // Storage unavailable: the section still opens.
+                  }
+                  writeRoute('administration', 'employees');
+                  setActive('administration');
+                }}
+              />
+            </div>
           </header>
           <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
             {active === 'profile' ? (

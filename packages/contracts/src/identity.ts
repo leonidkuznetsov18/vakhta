@@ -57,6 +57,10 @@ export const ActivationCodeIssued = z.object({
 });
 export type ActivationCodeIssued = z.infer<typeof ActivationCodeIssued>;
 
+/** Codes for several employees at once (a team on a printed sheet); inactive ones are skipped. */
+export const IssueActivationCodesCommand = z.object({ employeeIds: z.array(Uuid).min(1).max(500) });
+export type IssueActivationCodesCommand = z.infer<typeof IssueActivationCodesCommand>;
+
 /** FR-AUTH-02: перепривʼязка лише HR/адміністратором із причиною. */
 export const RelinkTelegramCommand = z.object({
   telegramUserId: z.number().int().positive(),

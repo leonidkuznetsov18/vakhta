@@ -401,6 +401,40 @@ describe('scheduling: версії, валідація, публікація, о
     ).rejects.toMatchObject({ code: 'EMPLOYEE_NOT_ACTIVE' });
   });
 
+  it('a manual reminder reaches only employees with unacknowledged shifts, once per day', async () => {
+    const v1 = await schedule.createVersion(
+      { siteId, orgUnitId: unitId, periodMonth: MONTH },
+      PLANNER,
+    );
+    await schedule.putAssignments(
+      v1.id,
+      {
+        items: [
+          { employeeId: ivanov, templateId: dayId, businessDate: day(1), kind: 'REGULAR' },
+          { employeeId: petrova, templateId: dayId, businessDate: day(2), kind: 'REGULAR' },
+        ],
+      },
+      PLANNER,
+    );
+    await expect(schedule.remindAcknowledgement(v1.id, HEAD)).rejects.toMatchObject({
+      code: 'SCHEDULE_NOT_PUBLISHED',
+    });
+    await schedule.submit(v1.id, PLANNER);
+    await schedule.publish(v1.id, {}, HEAD);
+    // Petrova acknowledges; Ivanov (the only one with Telegram) has not, so he is the one reminded.
+    await schedule.acknowledge(v1.id, petrova, 'TELEGRAM');
+
+    const first = await schedule.remindAcknowledgement(v1.id, HEAD);
+    expect(first.reminded).toBe(1);
+    const again = await schedule.remindAcknowledgement(v1.id, HEAD);
+    expect(again.reminded).toBe(0);
+    const queued = await testDb.db
+      .select({ id: notificationOutbox.id, template: notificationOutbox.template })
+      .from(notificationOutbox)
+      .where(eq(notificationOutbox.template, 'ACK_REMINDER'));
+    expect(queued).toHaveLength(1);
+  });
+
   it('deletes a draft with its assignments; a published version is refused', async () => {
     const draft = await schedule.createVersion(
       { siteId, orgUnitId: unitId, periodMonth: MONTH },

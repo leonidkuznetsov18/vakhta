@@ -7,6 +7,8 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { DEFAULT_LOCALE, LOCALES } from '@vakhta/domain';
+import { messages } from '@vakhta/i18n';
 import type { Bot } from 'grammy';
 import type { Update } from 'grammy/types';
 import { AttendanceService } from '../attendance/attendance.service.js';
@@ -76,10 +78,12 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       store: this.store,
       dedup: this.dedup,
       defaultTimezone: this.config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
+      helpUrl: this.config.get('USER_GUIDE_URL', { infer: true }) ?? null,
       logger: this.logger,
     });
     await bot.init();
     this.bot = bot;
+    await this.registerCommands(bot);
 
     const expectedUsername = this.config.get('TELEGRAM_BOT_USERNAME', { infer: true });
     if (bot.botInfo.username !== expectedUsername) {
@@ -107,6 +111,21 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
         });
     } else {
       this.logger.info({ username: bot.botInfo.username }, 'telegram-бот: режим webhook');
+    }
+  }
+
+  /** The command menu of the bot in every interface language (base language as the default). */
+  private async registerCommands(bot: Bot<BotContext>): Promise<void> {
+    const keys = ['start', 'plan', 'scores', 'requests', 'language', 'help'] as const;
+    try {
+      for (const locale of LOCALES) {
+        const t = messages(locale);
+        const commands = keys.map((command) => ({ command, description: t.bot.commands[command] }));
+        if (locale === DEFAULT_LOCALE) await bot.api.setMyCommands(commands);
+        await bot.api.setMyCommands(commands, { language_code: locale });
+      }
+    } catch (error) {
+      this.logger.warn({ err: error }, 'telegram-бот: не вдалося оновити меню команд');
     }
   }
 

@@ -78,6 +78,20 @@ export class ActivationService {
   ) {}
 
   /** HR або адміністратор видає код; відповідь містить код один раз. */
+  /** Codes for a whole team at once; employees that are not active are skipped silently. */
+  async issueMany(employeeIds: readonly string[], actor: Actor): Promise<ActivationCodeIssued[]> {
+    const issued: ActivationCodeIssued[] = [];
+    for (const employeeId of new Set(employeeIds)) {
+      try {
+        issued.push(await this.issue(employeeId, actor));
+      } catch (e) {
+        if (e instanceof IdentityError && e.code === 'EMPLOYEE_NOT_ACTIVE') continue;
+        throw e;
+      }
+    }
+    return issued;
+  }
+
   async issue(employeeId: string, actor: Actor): Promise<ActivationCodeIssued> {
     return this.db.transaction(async (tx) => {
       const employee = await this.employees.requireById(employeeId, tx);

@@ -20,6 +20,16 @@ export const en: Messages = {
     homeNoSchedule: 'The schedule for the month is not published yet. You will be notified.',
     checkInHint:
       'Arrival and departure are recorded by scanning the QR on the terminal. If the terminal is unavailable, the master opens the shift from the panel.',
+    helpButton: 'Help',
+    help: 'Vakhta shift bot. Arrival and departure are recorded by QR on the terminal; the shift is run with buttons: start, break, meal, downtime, cleaning, handover. Requests and scores are in the menu. User guide: {url}',
+    commands: {
+      start: 'Home screen',
+      plan: 'My schedule',
+      scores: 'My scores',
+      requests: 'Requests',
+      language: 'Language',
+      help: 'Help',
+    },
     access: {
       NOT_REGISTERED:
         'You are not registered in the system. Get an activation code from HR or the administrator.',
@@ -554,6 +564,20 @@ export const en: Messages = {
       goToEmployees: 'Go to employees',
       dayTotals: 'D {day} · N {night}',
       createdOn: 'created {date}',
+      remind: 'Remind to acknowledge',
+      reminded: 'Reminders sent: {n}.',
+      pattern: 'Rotation pattern',
+      patternStart: 'From date',
+      patternApply: 'Fill with pattern',
+      patterns: {
+        DAY_2_2: '2 days / 2 off',
+        NIGHT_2_2: '2 nights / 2 off',
+        DAY_NIGHT_OFF_OFF: 'Day, night, 2 off',
+        WEEKDAYS_DAY: 'Weekdays, day shift',
+      },
+      hours: 'Hours',
+      limitHours: 'Over {max} h per month',
+      limitConsecutive: 'Over {max} shifts in a row',
       forbidden: 'Insufficient permissions for this action.',
       noTemplates: 'No shift templates are defined for the site.',
     },
@@ -644,6 +668,8 @@ export const en: Messages = {
       colDowntime: 'Downtime, min',
       colResolution: 'Avg. resolution, min',
       colBreached: 'SLA breached',
+      closeSelected: 'Close selected',
+      bulkClosed: 'Incidents closed: {n}.',
       totals: 'Total',
       live: 'Updating in real time',
     },
@@ -956,6 +982,12 @@ export const en: Messages = {
         qrHint: 'The employee scans the QR with the phone camera: the bot opens with the code.',
         search: 'Search by name or personnel number',
         statusFilter: 'Status',
+        issueCodesSelected: 'Activation codes for selected',
+        codesIssued: 'Codes issued: {n}.',
+        printCodes: 'Print code sheet',
+        codeSheetTitle: 'Activation codes',
+        codeSheetHint:
+          'Scan the QR with the phone camera or type the code in the bot @{bot}. The code is valid until {expires}.',
         statuses: { ACTIVE: 'Active', BLOCKED: 'Blocked', TERMINATED: 'Terminated' },
       },
       users: {
@@ -1092,6 +1124,19 @@ export const en: Messages = {
       sortDesc: 'Sort descending',
       noMatches: 'Nothing matches the search.',
       closePanel: 'Close panel',
+      theme: 'Theme',
+      themes: { system: 'System', light: 'Light', dark: 'Dark' },
+      density: 'Density',
+      densities: { comfortable: 'Comfortable', compact: 'Compact' },
+      commandPalette: 'Quick jump',
+      commandPlaceholder: 'Section or employee…',
+      commandSections: 'Sections',
+      commandEmployees: 'Employees',
+      selected: 'Selected: {n}',
+      selectAll: 'Select all',
+      clearSelection: 'Clear selection',
+      print: 'Print',
+      chart: 'Chart',
     },
     hints: {
       language:
@@ -1190,6 +1235,19 @@ export const en: Messages = {
       usersGenerate: 'A random 16-character password; copy it and hand it to the user in person.',
       overview: 'A summary for your role: only the queues you have access to.',
       tableSearch: 'Searches the visible columns of the current list.',
+      profileTheme: 'Light, dark or as the system. Stored in this browser.',
+      profileDensity: 'Compact density tightens table spacing so more rows fit on the screen.',
+      commandPalette: 'Ctrl+K or ⌘K: jump to a section or open an employee card by name.',
+      scheduleKeyboard:
+        'Arrows move through the grid, D or N sets a shift, Space toggles, Backspace clears.',
+      schedulePattern:
+        'Fills the employee row from the chosen date to the end of the month with a rotation pattern; filled days are overwritten.',
+      scheduleRemind:
+        'Send a bot reminder to those who have not yet acknowledged the published version.',
+      employeesBulkCodes:
+        'Issue activation codes to all selected active employees and print a sheet with QR codes.',
+      incidentsBulkClose: 'Close all selected resolved incidents with one comment.',
+      reportsChart: 'The chart is built from the report rows; hover to see the values.',
       terminalsCheckpoint: 'What the terminal records: entry, exit or both.',
       profileTwoFactor: 'After enabling, signing in requires a code from the authenticator app.',
     },
@@ -1208,5 +1266,7 @@ export const en: Messages = {
     repair: 'Pair again',
     refreshIn: 'Refresh in',
     seconds: 's',
+    lastSync: 'Connection',
+    fullscreen: 'Full screen',
   },
 };

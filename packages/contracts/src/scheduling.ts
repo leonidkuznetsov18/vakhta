@@ -141,6 +141,9 @@ export const AcknowledgementStatusView = z.object({
 });
 export type AcknowledgementStatusView = z.infer<typeof AcknowledgementStatusView>;
 
+export const RemindResult = z.object({ reminded: z.number().int().nonnegative() });
+export type RemindResult = z.infer<typeof RemindResult>;
+
 /** «Мій план» для бота і /me (FR-SCH-01/02). */
 export const MyPlanDay = z.object({
   date: BusinessDate,

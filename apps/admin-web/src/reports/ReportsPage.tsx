@@ -16,6 +16,8 @@ import { orgApi, reportsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
+import { ReportChart } from './ReportChart.tsx';
+import { PrinterIcon } from 'lucide-react';
 
 const all = messages(currentLocale());
 const r = all.admin.reports;
@@ -117,6 +119,10 @@ export function ReportsPage() {
                 </a>
               </Button>
               <InfoTip text={hints.reportsExport} />
+              <Button type="button" variant="outline" onClick={() => window.print()}>
+                <PrinterIcon aria-hidden="true" />
+                {all.ui.common.print}
+              </Button>
             </div>
           )}
         </Toolbar>
@@ -129,6 +135,7 @@ export function ReportsPage() {
             {formatDateTime(report.generatedAt)} · {r.dataVersion} {report.dataVersion}
             <InfoTip text={hints.reportsDataVersion} />
           </Muted>
+          <ReportChart report={report} />
           <DataTable
             columns={columns}
             rows={report.rows}

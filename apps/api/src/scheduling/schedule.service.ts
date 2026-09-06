@@ -46,6 +46,7 @@ import type {
   MyPlanView,
   PublishScheduleCommand,
   PutAssignmentsCommand,
+  RemindResult,
   ReturnToDraftCommand,
   ScheduleVersionDetail,
   ScheduleVersionView,
@@ -749,6 +750,52 @@ export class ScheduleService {
         ),
       );
     return rows;
+  }
+
+  /**
+   * Manual nudge from the panel: everyone with unacknowledged shifts in a published version gets
+   * the same reminder the worker sends after 24 hours. One reminder per employee per day.
+   */
+  async remindAcknowledgement(versionId: string, actor: Actor): Promise<RemindResult> {
+    const version = await this.requireVersion(versionId);
+    if (version.status !== 'PUBLISHED') {
+      throw new DomainError(
+        'SCHEDULE_NOT_PUBLISHED',
+        409,
+        'Only a published version can be reminded',
+      );
+    }
+    const status = await this.acknowledgementStatus(versionId);
+    const pending = status.filter((s) => s.telegramLinked && s.acknowledged < s.assignments);
+    const [year, m] = version.periodMonth.split('-');
+    const day = new Date().toISOString().slice(0, 10);
+    let reminded = 0;
+    await this.db.transaction(async (tx) => {
+      for (const row of pending) {
+        const queued = await this.notifications.enqueue(tx, {
+          recipientType: 'EMPLOYEE',
+          recipientId: row.employeeId,
+          template: 'ACK_REMINDER',
+          payload: (t) => ({
+            text: format(t.schedule.ackReminder, {
+              month: t.schedule.months[Number(m) - 1] ?? version.periodMonth,
+              year: year ?? '',
+            }),
+            buttons: [[{ text: t.schedule.ackButton, callbackData: `ack:${version.id}` }]],
+          }),
+          dedupeKey: `ack-reminder:manual:${version.id}:${row.employeeId}:${day}`,
+        });
+        if (queued) reminded += 1;
+      }
+      await this.audit.record(tx, {
+        actor,
+        action: 'schedule.version.remind',
+        objectType: 'schedule_version',
+        objectId: version.id,
+        after: { reminded, pending: pending.length },
+      });
+    });
+    return { reminded };
   }
 
   async acknowledgementStatus(versionId: string): Promise<AcknowledgementStatusView[]> {

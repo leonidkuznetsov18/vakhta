@@ -10,7 +10,7 @@ import {
   type IncidentSeverity,
   type IncidentStatus,
 } from '@vakhta/domain';
-import { messages } from '@vakhta/i18n';
+import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -41,6 +41,7 @@ import {
   CopyIcon,
   type LucideIcon,
 } from 'lucide-react';
+import { useDeepLinkedId } from '@/lib/route';
 
 const all = messages(currentLocale());
 const i = all.admin.incidents;
@@ -87,7 +88,7 @@ export function IncidentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const { confirm, dialog } = useConfirm();
-  const [openId, setOpenId] = usePersistentState<string | null>('incidents.openId', null);
+  const [openId, setOpenId] = useDeepLinkedId('incidents', 'incidents.openId');
   const [detail, setDetail] = useState<IncidentDetailView | null>(null);
   const [target, setTarget] = useState<Record<string, IncidentStatus | ''>>({});
   const [comment, setComment] = useState<Record<string, string>>({});
@@ -209,6 +210,33 @@ export function IncidentsPage() {
     rows.filter((r) => r.id !== row.id && r.status !== 'DUPLICATE');
 
   const openRow = rows.find((r) => r.id === openId) ?? null;
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const closable = rows.filter((r) => selected.has(r.id) && r.status === 'RESOLVED');
+
+  async function closeSelected() {
+    if (closable.length === 0) return;
+    const text = await confirm({
+      title: `${i.closeSelected} (${closable.length})`,
+      description: hints.incidentsBulkClose,
+      confirmLabel: i.transitions.CLOSED,
+      commentLabel: i.comment,
+    });
+    if (text === false) return;
+    setBusy(true);
+    setError(null);
+    try {
+      for (const row of closable) {
+        await incidentsApi.transition(row.id, { to: 'CLOSED', ...(text ? { comment: text } : {}) });
+      }
+      notifySuccess(format(i.bulkClosed, { n: closable.length }));
+      setSelected(new Set());
+      await reload();
+    } catch (e) {
+      setError(describeError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const columns: Column<IncidentView>[] = [
     {
@@ -287,6 +315,18 @@ export function IncidentsPage() {
         columns={columns}
         rows={rows}
         storageKey="incidents"
+        selectedKeys={selected}
+        onSelectionChange={setSelected}
+        selectionBar={
+          <Button
+            type="button"
+            size="sm"
+            disabled={busy || closable.length === 0}
+            onClick={() => void closeSelected()}
+          >
+            {i.closeSelected} ({closable.length})
+          </Button>
+        }
         onRowClick={(row) => setOpenId(openId === row.id ? null : row.id)}
         rowActions={(row) => [
           {

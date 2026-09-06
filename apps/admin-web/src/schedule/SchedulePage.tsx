@@ -30,13 +30,19 @@ import {
   removeRow,
   setCell,
   setZone,
+  applyPattern,
+  ROTATION_PATTERNS,
   type GridState,
+  type RotationPattern,
 } from './grid.ts';
 import { currentLocale } from '../i18n.tsx';
 import { useNavigation } from '../navigation.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { notifySuccess } from '@/lib/toast';
 import { formatDate, formatMonth } from '@/lib/format';
+import { BellRingIcon, WandIcon } from 'lucide-react';
+import { DateField } from '@/components/app/date-picker';
+import { monthDates } from '@vakhta/domain';
 
 const t = messages(currentLocale());
 const s = t.admin.schedule;
@@ -75,6 +81,9 @@ export function SchedulePage() {
   const [error, setError] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
   const { go } = useNavigation();
+  const [patternFor, setPatternFor] = useState('');
+  const [pattern, setPattern] = useState<RotationPattern>('DAY_2_2');
+  const [patternStart, setPatternStart] = useState(() => `${currentMonth()}-01`);
   const activeEmployees = useMemo(
     () => employees.filter((e) => e.status === 'ACTIVE'),
     [employees],
@@ -139,6 +148,7 @@ export function SchedulePage() {
   );
 
   useEffect(() => {
+    setPatternStart(`${month}-01`);
     setDetail(null);
     setAcks(null);
     setGrid(EMPTY_GRID);
@@ -238,6 +248,24 @@ export function SchedulePage() {
       await loadVersions(version.id);
       await loadDetail(version.id);
     }, s.returned);
+  }
+
+  function fillPattern() {
+    const day = templates.find((tpl) => !tpl.isNight)?.id ?? '';
+    const night = templates.find((tpl) => tpl.isNight)?.id ?? '';
+    if (!patternFor || !day) return;
+    setGrid((g) =>
+      applyPattern(g, patternFor, monthDates(month), patternStart, pattern, { day, night }),
+    );
+    setDirty(true);
+  }
+
+  function remind() {
+    if (!version) return;
+    void run(async () => {
+      const result = await schedulesApi.remind(version.id);
+      notifySuccess(format(s.reminded, { n: result.reminded }));
+    });
   }
 
   async function deleteVersion() {
@@ -358,6 +386,45 @@ export function SchedulePage() {
           </div>
           {templates.length === 0 && <Feedback error={s.noTemplates} notice={null} />}
 
+          {editable && grid.rows.length > 0 && (
+            <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/30 p-3">
+              <SelectField
+                label={s.employee}
+                value={patternFor}
+                onChange={setPatternFor}
+                placeholder="…"
+                options={grid.rows.map((r) => ({
+                  value: r.employeeId,
+                  label: employees.find((e) => e.id === r.employeeId)?.fullName ?? r.employeeId,
+                }))}
+                className="w-64"
+              />
+              <SelectField
+                label={s.pattern}
+                hint={hints.schedulePattern}
+                value={pattern}
+                onChange={(v) => setPattern(v as RotationPattern)}
+                options={ROTATION_PATTERNS.map((p) => ({ value: p, label: s.patterns[p] }))}
+                className="w-56"
+              />
+              <DateField
+                label={s.patternStart}
+                value={patternStart}
+                onChange={setPatternStart}
+                className="w-44"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busy || !patternFor}
+                onClick={fillPattern}
+              >
+                <WandIcon aria-hidden="true" />
+                {s.patternApply}
+              </Button>
+            </div>
+          )}
+
           <ScheduleGrid
             month={month}
             grid={grid}
@@ -433,7 +500,25 @@ export function SchedulePage() {
           </Section>
 
           {acks && (
-            <Section title={s.ackTitle} hint={hints.scheduleAck}>
+            <Section
+              title={s.ackTitle}
+              hint={hints.scheduleAck}
+              actions={
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={remind}
+                  >
+                    <BellRingIcon aria-hidden="true" />
+                    {s.remind}
+                  </Button>
+                  <InfoTip text={hints.scheduleRemind} />
+                </div>
+              }
+            >
               <AckTable rows={acks} />
             </Section>
           )}

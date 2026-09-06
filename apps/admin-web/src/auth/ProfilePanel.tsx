@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Feedback } from '@/components/app/feedback';
 import { FormField } from '@/components/app/fields';
 import { Muted, Section } from '@/components/app/page';
+import { SelectField } from '@/components/app/fields';
+import { useAppearance, type Density, type Theme } from '@/lib/theme';
 import { ApiError, authApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
 
@@ -62,6 +64,8 @@ export function ProfilePanel({ me, onChanged }: Props) {
   }
 
   const enabled = me.twoFactorEnabled || step === 'done';
+  const appearance = useAppearance();
+  const c = m.ui.common;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -87,6 +91,32 @@ export function ProfilePanel({ me, onChanged }: Props) {
             )}
           </dd>
         </dl>
+      </Section>
+
+      <Section title={c.theme} hint={m.ui.hints.profileTheme}>
+        <div className="flex flex-wrap gap-4">
+          <SelectField
+            label={c.theme}
+            value={appearance.theme}
+            onChange={(v) => appearance.set({ theme: v as Theme })}
+            options={(['system', 'light', 'dark'] as const).map((k) => ({
+              value: k,
+              label: c.themes[k],
+            }))}
+            className="w-56"
+          />
+          <SelectField
+            label={c.density}
+            hint={m.ui.hints.profileDensity}
+            value={appearance.density}
+            onChange={(v) => appearance.set({ density: v as Density })}
+            options={(['comfortable', 'compact'] as const).map((k) => ({
+              value: k,
+              label: c.densities[k],
+            }))}
+            className="w-56"
+          />
+        </div>
       </Section>
 
       <Section title={enabled ? t.twoFactorOn : t.twoFactorOff} hint={m.ui.hints.profileTwoFactor}>

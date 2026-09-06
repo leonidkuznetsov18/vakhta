@@ -23,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
   Pagination,
@@ -99,6 +100,11 @@ interface DataTableProps<T> {
   readonly caption?: string;
   /** Row currently highlighted (the one open in a side panel). */
   readonly activeKey?: string | null;
+  /** Checkboxes per row for bulk actions; the parent owns the selection. */
+  readonly selectedKeys?: ReadonlySet<string>;
+  readonly onSelectionChange?: (keys: Set<string>) => void;
+  /** Rendered above the table while something is selected (the bulk action bar). */
+  readonly selectionBar?: ReactNode;
 }
 
 export const PAGE_SIZES = [10, 20, 50, 100] as const;
@@ -268,6 +274,9 @@ export function DataTable<T>({
   footer,
   caption,
   activeKey,
+  selectedKeys,
+  onSelectionChange,
+  selectionBar,
 }: DataTableProps<T>) {
   const t = messages(currentLocale()).ui.common;
   const isMobile = useIsMobile();
@@ -300,7 +309,17 @@ export function DataTable<T>({
     () => sorted.slice((pages.page - 1) * pages.size, pages.page * pages.size),
     [sorted, pages.page, pages.size],
   );
-  const span = columns.length + (rowActions ? 1 : 0);
+  const selectable = selectedKeys !== undefined && onSelectionChange !== undefined;
+  const span = columns.length + (rowActions ? 1 : 0) + (selectable ? 1 : 0);
+  const toggleKey = (key: string, on: boolean) => {
+    if (!selectedKeys || !onSelectionChange) return;
+    const next = new Set(selectedKeys);
+    if (on) next.add(key);
+    else next.delete(key);
+    onSelectionChange(next);
+  };
+  const allVisibleSelected =
+    selectable && visible.length > 0 && visible.every((row) => selectedKeys.has(rowKey(row)));
 
   if (rows.length === 0 && loading) return <TableSkeleton columns={span} />;
   if (rows.length === 0)
@@ -351,6 +370,22 @@ export function DataTable<T>({
               {caption ? <caption className="sr-only">{caption}</caption> : null}
               <TableHeader>
                 <TableRow>
+                  {selectable ? (
+                    <TableHead className="w-8">
+                      <Checkbox
+                        aria-label={t.selectAll}
+                        checked={allVisibleSelected}
+                        onCheckedChange={(on) => {
+                          const next = new Set(selectedKeys);
+                          for (const row of visible) {
+                            if (on === true) next.add(rowKey(row));
+                            else next.delete(rowKey(row));
+                          }
+                          onSelectionChange?.(next);
+                        }}
+                      />
+                    </TableHead>
+                  ) : null}
                   {columns.map((c) => (
                     <TableHead
                       key={c.key}
@@ -416,6 +451,15 @@ export function DataTable<T>({
                         onKeyDown={handleRowKey(row)}
                         tabIndex={onRowClick ? 0 : undefined}
                       >
+                        {selectable ? (
+                          <TableCell className="w-8">
+                            <Checkbox
+                              aria-label={key}
+                              checked={selectedKeys.has(key)}
+                              onCheckedChange={(on) => toggleKey(key, on === true)}
+                            />
+                          </TableCell>
+                        ) : null}
                         {columns.map((c) => (
                           <TableCell
                             key={c.key}
@@ -466,6 +510,13 @@ export function DataTable<T>({
                   tabIndex={onRowClick ? 0 : undefined}
                 >
                   <div className="flex items-start justify-between gap-2">
+                    {selectable ? (
+                      <Checkbox
+                        aria-label={key}
+                        checked={selectedKeys.has(key)}
+                        onCheckedChange={(on) => toggleKey(key, on === true)}
+                      />
+                    ) : null}
                     <div className="min-w-0 flex-1 font-medium">
                       {first ? first.cell(row) : null}
                     </div>
@@ -495,6 +546,21 @@ export function DataTable<T>({
   return (
     <div className="flex flex-col gap-3">
       {searchBox}
+      {selectable && selectedKeys.size > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+          <span className="tabular-nums">{format(t.selected, { n: selectedKeys.size })}</span>
+          {selectionBar}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="ml-auto"
+            onClick={() => onSelectionChange?.(new Set())}
+          >
+            {t.clearSelection}
+          </Button>
+        </div>
+      ) : null}
       {body}
       <Paginator pages={pages} total={sorted.length} />
     </div>

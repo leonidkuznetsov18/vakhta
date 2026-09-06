@@ -245,6 +245,18 @@ describe('identity: активація і привʼязка Telegram (ТЗ 2.2,
     ).rejects.toMatchObject({ code: 'SAME_TELEGRAM_USER' });
   });
 
+  it('issues codes for several employees at once and skips inactive ones', async () => {
+    const ivanov = await createIvanov();
+    const blocked = await employeesService.create(
+      { personnelNumber: '000777', fullName: 'Заблокированный', status: 'BLOCKED' },
+      HR,
+    );
+    const issued = await activation.issueMany([ivanov.id, blocked.id, ivanov.id], HR);
+    expect(issued).toHaveLength(1);
+    expect(issued[0]?.employeeId).toBe(ivanov.id);
+    expect(issued[0]?.code).toHaveLength(8);
+  });
+
   it('CSV import creates new cards and reports duplicates without failing the batch', async () => {
     await createIvanov();
     const result = await employeesService.importMany(

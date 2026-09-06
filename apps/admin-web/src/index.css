@@ -128,3 +128,26 @@
     @apply font-sans;
   }
 }
+
+/* Compact density: tighter table cells and toolbar rhythm; chosen in the profile. */
+:root[data-density='compact'] [data-slot='table-cell'],
+:root[data-density='compact'] [data-slot='table-head'] {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+:root[data-density='compact'] [data-slot='table'] {
+  font-size: 0.8125rem;
+}
+
+/* Print: the report or code sheet only, no chrome. */
+@media print {
+  [data-slot='sidebar'],
+  [data-slot='sidebar-trigger'],
+  header,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+}

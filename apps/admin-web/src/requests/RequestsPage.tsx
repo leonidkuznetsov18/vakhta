@@ -26,6 +26,7 @@ import { Deadline } from '@/components/app/deadline';
 import { Textarea } from '@/components/ui/textarea';
 import { EyeIcon } from 'lucide-react';
 import { DetailSheet } from '@/components/app/detail-sheet';
+import { useDeepLinkedId } from '@/lib/route';
 
 const all = messages(currentLocale());
 const r = all.admin.requests;
@@ -59,7 +60,7 @@ export function RequestsPage() {
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [openId, setOpenId] = usePersistentState<string | null>('requests.openId', null);
+  const [openId, setOpenId] = useDeepLinkedId('requests', 'requests.openId');
   const [detail, setDetail] = useState<RequestDetailView | null>(null);
   const [shift, setShift] = useState<ShiftDetailView | null>(null);
   const [comment, setComment] = useState('');

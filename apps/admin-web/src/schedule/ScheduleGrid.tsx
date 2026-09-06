@@ -19,6 +19,8 @@ import { Muted } from '@/components/app/page';
 import { cn } from 'cn';
 import type { GridState } from './grid.ts';
 import { currentLocale } from '../i18n.tsx';
+import { longestStreak } from './grid.ts';
+import { DEFAULT_SCHEDULE_RULES } from '@vakhta/domain';
 
 const t = messages(currentLocale());
 
@@ -63,6 +65,63 @@ export function ScheduleGrid({
   const visible = grid.rows.slice((pages.page - 1) * pages.size, pages.page * pages.size);
   const dayKind = t.schedule.dayKinds;
   const nightIds = new Set(templates.filter((tpl) => tpl.isNight).map((tpl) => tpl.id));
+  const minutesOf = new Map(
+    templates.map((tpl) => {
+      const [sh = 0, sm = 0] = tpl.localStart.split(':').map(Number);
+      const [eh = 0, em = 0] = tpl.localEnd.split(':').map(Number);
+      const minutes = (eh * 60 + em - (sh * 60 + sm) + 24 * 60) % (24 * 60) || 24 * 60;
+      return [tpl.id, minutes];
+    }),
+  );
+  const dayTemplate = templates.find((tpl) => !tpl.isNight)?.id ?? '';
+  const nightTemplate = templates.find((tpl) => tpl.isNight)?.id ?? '';
+
+  /** Arrows move between cells; D/N set a shift, Space toggles the day template, Backspace clears. */
+  function onCellKey(
+    ev: React.KeyboardEvent<HTMLSelectElement>,
+    rowIndex: number,
+    dayIndex: number,
+  ) {
+    if (readOnly) return;
+    const move = (r: number, d: number) => {
+      const target = document.querySelector<HTMLSelectElement>(`[data-cell="${r}:${d}"]`);
+      if (target) {
+        ev.preventDefault();
+        target.focus();
+      }
+    };
+    const row = visible[rowIndex];
+    const date = days[dayIndex];
+    if (!row || !date) return;
+    switch (ev.key) {
+      case 'ArrowRight':
+        return move(rowIndex, dayIndex + 1);
+      case 'ArrowLeft':
+        return move(rowIndex, dayIndex - 1);
+      case 'ArrowDown':
+        return move(rowIndex + 1, dayIndex);
+      case 'ArrowUp':
+        return move(rowIndex - 1, dayIndex);
+      case 'Backspace':
+      case 'Delete':
+        ev.preventDefault();
+        return onCell(row.employeeId, date, '');
+      case ' ':
+        ev.preventDefault();
+        return onCell(row.employeeId, date, row.cells[date] ? '' : dayTemplate);
+      default: {
+        const k = ev.key.toLowerCase();
+        if ((k === 'd' || k === 'д' || k === 'в') && dayTemplate) {
+          ev.preventDefault();
+          return onCell(row.employeeId, date, dayTemplate);
+        }
+        if ((k === 'n' || k === 'н' || k === 'т') && nightTemplate) {
+          ev.preventDefault();
+          return onCell(row.employeeId, date, nightTemplate);
+        }
+      }
+    }
+  }
   const totals = days.map((d) => {
     let day = 0;
     let night = 0;
@@ -98,13 +157,27 @@ export function ScheduleGrid({
                 );
               })}
               <TableHead className="text-right">{s.shifts}</TableHead>
+              <TableHead className="text-right">
+                <span className="inline-flex items-center gap-1">
+                  {s.hours}
+                  <InfoTip text={t.ui.hints.scheduleKeyboard} />
+                </span>
+              </TableHead>
               {!readOnly && <TableHead className="w-10" />}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visible.map((row) => {
+            {visible.map((row, rowIndex) => {
               const emp = byId.get(row.employeeId);
               const count = Object.values(row.cells).filter(Boolean).length;
+              const minutes = Object.values(row.cells).reduce(
+                (sum, tpl) => sum + (tpl ? (minutesOf.get(tpl) ?? 0) : 0),
+                0,
+              );
+              const hours = Math.round(minutes / 60);
+              const streak = longestStreak(row, days);
+              const overHours = hours > DEFAULT_SCHEDULE_RULES.maxHoursPerMonth;
+              const overStreak = streak > DEFAULT_SCHEDULE_RULES.maxConsecutiveDays;
               return (
                 <TableRow key={row.employeeId}>
                   <TableCell className="sticky left-0 z-10 bg-background">
@@ -128,7 +201,7 @@ export function ScheduleGrid({
                       ))}
                     </NativeSelect>
                   </TableCell>
-                  {days.map((d) => {
+                  {days.map((d, dayIndex) => {
                     const templateId = row.cells[d] ?? '';
                     const tpl = templateId ? templateById.get(templateId) : undefined;
                     return (
@@ -147,6 +220,8 @@ export function ScheduleGrid({
                           disabled={readOnly}
                           onChange={(e) => onCell(row.employeeId, d, e.target.value)}
                           aria-label={`${emp?.fullName ?? ''} ${d}`}
+                          data-cell={`${rowIndex}:${dayIndex}`}
+                          onKeyDown={(ev) => onCellKey(ev, rowIndex, dayIndex)}
                           className="h-7 w-9 rounded-md border border-transparent bg-transparent text-center text-sm transition-colors hover:border-border focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-70"
                         >
                           <option value="">{dayKind.OFF}</option>
@@ -164,6 +239,25 @@ export function ScheduleGrid({
                     );
                   })}
                   <TableCell className="text-right tabular-nums">{count}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    <span
+                      className={cn(
+                        (overHours || overStreak) &&
+                          'font-medium text-amber-700 dark:text-amber-300',
+                      )}
+                      title={
+                        overHours
+                          ? format(s.limitHours, { max: DEFAULT_SCHEDULE_RULES.maxHoursPerMonth })
+                          : overStreak
+                            ? format(s.limitConsecutive, {
+                                max: DEFAULT_SCHEDULE_RULES.maxConsecutiveDays,
+                              })
+                            : undefined
+                      }
+                    >
+                      {hours}
+                    </span>
+                  </TableCell>
                   {!readOnly && (
                     <TableCell>
                       <Button
@@ -200,13 +294,14 @@ export function ScheduleGrid({
                 <TableCell className="text-right text-xs tabular-nums">
                   {grid.rows.reduce((n, r) => n + Object.values(r.cells).filter(Boolean).length, 0)}
                 </TableCell>
+                <TableCell />
                 {!readOnly && <TableCell />}
               </TableRow>
             )}
             {grid.rows.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={days.length + 4}
+                  colSpan={days.length + 5}
                   className="py-8 text-center text-muted-foreground"
                 >
                   {s.emptyGrid}

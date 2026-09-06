@@ -26,6 +26,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { DetailSheet } from '@/components/app/detail-sheet';
 import { Lightbox, PhotoThumb, type LightboxImage } from '@/components/app/photo';
 import { GavelIcon } from 'lucide-react';
+import { useDeepLinkedId } from '@/lib/route';
 
 const all = messages(currentLocale());
 const h = all.admin.handover;
@@ -53,7 +54,7 @@ export function HandoverPage() {
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [openId, setOpenId] = usePersistentState<string | null>('handover.openId', null);
+  const [openId, setOpenId] = useDeepLinkedId('handover', 'handover.openId');
   const [detail, setDetail] = useState<HandoverDetailView | null>(null);
   const [decision, setDecision] = useState<HandoverResolution | ''>('');
   const [comment, setComment] = useState('');
