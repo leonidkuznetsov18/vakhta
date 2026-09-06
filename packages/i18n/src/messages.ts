@@ -934,6 +934,8 @@ export interface Messages {
         /** Shown instead of the replace select when no other active checklist exists. */
         readonly noOtherChecklists: string;
         readonly noChecklistHint: string;
+        /** Jumps to the checklists tab with the create dialog open and this position ticked. */
+        readonly createChecklistFor: string;
         readonly assignPosition: string;
         readonly positionAssigned: string;
         readonly block: string;

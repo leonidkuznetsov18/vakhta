@@ -1196,6 +1196,7 @@ export const en: Messages = {
           'There is no other active checklist yet: create one on the "Checklists" tab with this position and it will replace the current one.',
         noChecklistHint:
           'This position has no checklist: the bot will ask for no checklist and no photos. Add an existing one or create a new one in the "Checklists" tab.',
+        createChecklistFor: 'Create a checklist for this position',
         assignPosition: 'Assign position',
         positionAssigned: 'Position assigned.',
         block: 'Block',

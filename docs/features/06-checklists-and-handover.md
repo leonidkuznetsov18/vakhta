@@ -13,7 +13,9 @@ A position has at most one checklist. Binding a checklist to a position that alr
 replaces the old binding (the position list marks it "сейчас: <name>"); a checklist left without
 positions is disabled automatically. The employee card ("Сотрудники" → row) shows the single
 "Чек-лист должности" with "Заменить" (pick another checklist, confirm) and "Убрать" (confirm);
-when the position has none, an existing checklist can be attached there. The employees table has a
+when the position has none, an existing checklist can be attached there or "Создать чек-лист для
+этой должности" jumps to the "Чек-листы" tab with the create dialog open and the position already
+ticked. The employees table has a
 "Чек-лист" column; "Нет чек-листа" means the bot will ask nothing at the end of the shift for that
 employee.
 

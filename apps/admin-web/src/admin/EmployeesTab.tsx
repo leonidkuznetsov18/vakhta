@@ -38,6 +38,7 @@ import {
   CircleCheckIcon,
   IdCardIcon,
   ChevronRightIcon,
+  ClipboardListIcon,
   KeyRoundIcon,
   MailIcon,
   PencilIcon,
@@ -52,6 +53,7 @@ import { QrCode } from '@/components/app/qr-code';
 import { UploadIcon } from 'lucide-react';
 import { validateWith, type FieldErrors } from '@/lib/validation';
 import { CreateEmployeeCommand, UpdateEmployeeCommand } from '@vakhta/contracts';
+import { CREATE_FOR_KEY } from './ChecklistsTab.tsx';
 import { CodeSheet } from './CodeSheet.tsx';
 import { PrinterIcon } from 'lucide-react';
 
@@ -1201,6 +1203,16 @@ function EmployeeDetailsForm({
   );
 }
 
+/** Opens the checklists tab with the create dialog and this position ticked (hash change switches the tab). */
+function createChecklistFor(positionId: string): void {
+  try {
+    localStorage.setItem(CREATE_FOR_KEY, JSON.stringify(positionId));
+  } catch {
+    // Storage unavailable: the tab still opens, without the preset.
+  }
+  location.hash = '#/administration/checklists';
+}
+
 /** Optional contacts of the card as links: mail, call, open the Telegram profile. */
 function ContactsRow({ employee }: { readonly employee: EmployeeView }) {
   const items: { key: string; label: string; href: string; text: string }[] = [];
@@ -1343,11 +1355,30 @@ function ChecklistPanel({
       ) : (
         <Alert>
           <AlertTitle>{e.noChecklist}</AlertTitle>
-          <AlertDescription>{e.noChecklistHint}</AlertDescription>
+          <AlertDescription>
+            <p>{e.noChecklistHint}</p>
+            <Button type="button" size="sm" onClick={() => createChecklistFor(positionId)}>
+              <ClipboardListIcon aria-hidden="true" />
+              {e.createChecklistFor}
+            </Button>
+          </AlertDescription>
         </Alert>
       )}
       {(!current || replacing) && available.length === 0 && (
-        <Muted className="text-xs">{e.noOtherChecklists}</Muted>
+        <div className="flex flex-wrap items-center gap-2">
+          <Muted className="text-xs">{e.noOtherChecklists}</Muted>
+          {current && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => createChecklistFor(positionId)}
+            >
+              <ClipboardListIcon aria-hidden="true" />
+              {e.createChecklistFor}
+            </Button>
+          )}
+        </div>
       )}
       {(!current || replacing) && available.length > 0 && (
         <form className="flex flex-wrap items-end gap-3" onSubmit={attach}>

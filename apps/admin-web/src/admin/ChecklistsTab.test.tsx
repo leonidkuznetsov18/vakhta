@@ -99,6 +99,18 @@ describe('ChecklistsTab', () => {
     expect(within(sheet).getByText('Действует')).toBeTruthy();
   });
 
+  it('arriving from an employee card opens the create dialog with that position ticked', async () => {
+    mockApi([]);
+    localStorage.setItem('vakhta.ui.checklists.createFor', JSON.stringify(POS));
+    render(<ChecklistsTab org={org} />);
+    const dialog = await screen.findByRole('dialog');
+    const box = within(dialog).getByRole('checkbox', { name: /Оператор линии/ });
+    expect(box.getAttribute('aria-checked') ?? (box as HTMLInputElement).checked.toString()).toBe(
+      'true',
+    );
+    expect(localStorage.getItem('vakhta.ui.checklists.createFor')).toBeNull();
+  });
+
   it('creates a checklist from the dialog: items in order, keys assigned by the server', async () => {
     const calls = mockApi([]);
     render(<ChecklistsTab org={org} />);

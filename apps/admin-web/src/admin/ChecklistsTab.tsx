@@ -99,6 +99,9 @@ function zoneTypeLabel(zoneType: string | null): string {
  * Checklists of the zone handover (spec 5.6, FR-CLN-03): admins build them here per position and
  * zone type; the bot walks the employee through the items and demands the photos.
  */
+/** localStorage key (with the `vakhta.ui.` prefix) written by the employee card. */
+export const CREATE_FOR_KEY = 'vakhta.ui.checklists.createFor';
+
 export function ChecklistsTab({ org }: Props) {
   const [rows, setRows] = useState<ChecklistDefinitionView[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -106,6 +109,23 @@ export function ChecklistsTab({ org }: Props) {
   const { confirm, dialog } = useConfirm();
   const [openId, setOpenId] = usePersistentState<string | null>('checklists.open', null);
   const [editing, setEditing] = useState<ChecklistDefinitionView | 'new' | null>(null);
+  // "Create a checklist for this position" from an employee card: the tab opens the create
+  // dialog with that position ticked (the key is consumed once).
+  const [presetPositionId, setPresetPositionId] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CREATE_FOR_KEY);
+      if (!raw) return;
+      localStorage.removeItem(CREATE_FOR_KEY);
+      const id = JSON.parse(raw) as string;
+      if (org.positions.some((p) => p.id === id)) {
+        setPresetPositionId(id);
+        setEditing('new');
+      }
+    } catch {
+      // Storage unavailable: the tab opens without a preset.
+    }
+  }, [org.positions]);
 
   const reload = useCallback(async () => {
     setRows(await checklistsApi.list());
@@ -246,6 +266,7 @@ export function ChecklistsTab({ org }: Props) {
             key="new"
             mode={editing === 'new' ? 'new' : null}
             trigger={c.create}
+            presetPositionId={presetPositionId}
             org={org}
             others={(rows ?? []).filter((r) => r.isActive)}
             onOpen={() => setEditing('new')}
@@ -393,6 +414,7 @@ function ChecklistDialog({
   org,
   others,
   trigger,
+  presetPositionId = null,
   onOpen,
   onClose,
   onSaved,
@@ -403,6 +425,8 @@ function ChecklistDialog({
   readonly others: readonly ChecklistDefinitionView[];
   /** Trigger label of the create dialog; the edit dialog is opened from a row instead. */
   readonly trigger?: string;
+  /** A position to tick when the create dialog opens from an employee card. */
+  readonly presetPositionId?: string | null;
   readonly onOpen?: () => void;
   readonly onClose: () => void;
   readonly onSaved: (saved: ChecklistDefinitionView) => Promise<void>;
@@ -412,6 +436,14 @@ function ChecklistDialog({
   const [draft, setDraft] = usePersistentState<Draft>(draftKey, () =>
     row ? draftOf(row) : emptyDraft(),
   );
+  useEffect(() => {
+    if (mode !== 'new' || !presetPositionId) return;
+    setDraft((d) =>
+      d.positionIds.includes(presetPositionId)
+        ? d
+        : { ...d, positionIds: [...d.positionIds, presetPositionId] },
+    );
+  }, [mode, presetPositionId, setDraft]);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const { busy, error, run } = useAction();
 
