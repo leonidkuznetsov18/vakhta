@@ -144,6 +144,9 @@ function mockApi(state: { status: string; issues?: unknown[] }) {
     if (path === '/admin/employees') return json(employees);
     if (path.startsWith('/admin/schedules/templates')) return json(templates);
     if (path.startsWith('/admin/schedules?')) return json([version(state.status)]);
+    if (path === '/admin/schedules' && method === 'POST') {
+      return json({ ...version('DRAFT'), id: 'v2', versionNo: 2, supersedesId: null }, 201);
+    }
     if (path === `/admin/schedules/${VERSION}`) return json(detail(state.status, state.issues));
     if (path === `/admin/schedules/${VERSION}/assignments` && method === 'PUT') {
       return json(detail(state.status, state.issues));
@@ -286,5 +289,22 @@ describe('SchedulePage', () => {
     });
     expect(await screen.findByText('Ознакомлены')).toBeTruthy();
     expect(screen.getByText('0/1')).toBeTruthy();
+  });
+
+  it('a published version offers "Change the schedule": a draft copy is created from it', async () => {
+    const calls = mockApi({ status: 'PUBLISHED' });
+    render(<SchedulePage />);
+    expect(await screen.findByText(/закрыта для правок/)).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Изменить график' }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'POST' && c.path === '/admin/schedules')).toBeTruthy(),
+    );
+    expect(
+      calls.find((c) => c.method === 'POST' && c.path === '/admin/schedules')?.body,
+    ).toMatchObject({ basedOnVersionId: VERSION });
+    expect(await screen.findByRole('status')).toBeTruthy();
+    expect((await screen.findByRole('status')).textContent).toContain(
+      'Создана версия 2 на основе версии',
+    );
   });
 });

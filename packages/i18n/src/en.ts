@@ -558,6 +558,12 @@ export const en: Messages = {
       acknowledged: 'Acknowledged',
       readOnlyHint:
         'This version is closed for editing. To change the schedule, create a new version.',
+      editPublished: 'Change the schedule',
+      editPublishedHint:
+        'A published version is not edited in place: a new version with the same shifts is created, you change it and publish it. The previous version stays in the history and the employees are notified about the changes.',
+      openDraft: 'Open draft v{no}',
+      versionCreatedFrom: 'Version {no} created from version {from}: make the changes and publish.',
+      versionCreated: 'Version {no} created.',
       unsaved: 'There are unsaved changes.',
       deleteVersion: 'Delete version',
       deleteConfirm: 'Delete draft version {no}? The shift layout of this version will be lost.',
@@ -1219,6 +1225,8 @@ export const en: Messages = {
         'The list refreshes on server events. If the connection is lost, reload the page.',
       scheduleVersions:
         'Every change to a published schedule creates a new version. The old one is marked as superseded.',
+      scheduleEditPublished:
+        'Changes within the current month work the same way: a new version based on the published one, edits, review and publication. Better leave the past days alone: worked shifts are already accounted for.',
       scheduleSubmit:
         'Send the version to the head of production. Disabled while there are errors or unsaved changes.',
       schedulePublish:

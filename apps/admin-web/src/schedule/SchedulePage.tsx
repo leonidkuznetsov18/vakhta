@@ -193,6 +193,7 @@ export function SchedulePage() {
 
   const version = detail?.version ?? null;
   const editable = version?.status === 'DRAFT';
+  const existingDraft = versions.find((v) => v.status === 'DRAFT') ?? null;
   const hasErrors = detail?.issues.some((i) => i.severity === 'ERROR') ?? false;
 
   function changeSite(id: string) {
@@ -201,16 +202,26 @@ export function SchedulePage() {
     setOrgUnitId(unit?.id ?? '');
   }
 
-  function createVersion() {
-    const published = versions.find((v) => v.status === 'PUBLISHED');
+  /**
+   * A new draft for the month. Based on the given version (the one on screen, when the planner
+   * wants to change a published schedule), otherwise on the published one, so the grid starts
+   * from the current shifts instead of empty.
+   */
+  function createVersion(basedOn?: ScheduleVersionView) {
+    const source = basedOn ?? versions.find((v) => v.status === 'PUBLISHED');
     void run(async () => {
       const created = await schedulesApi.create({
         siteId,
         orgUnitId,
         periodMonth: month,
-        ...(published ? { basedOnVersionId: published.id } : {}),
+        ...(source ? { basedOnVersionId: source.id } : {}),
       });
       await loadVersions(created.id);
+      notifySuccess(
+        source
+          ? format(s.versionCreatedFrom, { no: created.versionNo, from: source.versionNo })
+          : format(s.versionCreated, { no: created.versionNo }),
+      );
     });
   }
 
@@ -326,7 +337,7 @@ export function SchedulePage() {
             type="button"
             variant="secondary"
             disabled={busy || !orgUnitId || activeEmployees.length === 0}
-            onClick={createVersion}
+            onClick={() => createVersion()}
           >
             {s.newVersion}
           </Button>
@@ -364,7 +375,7 @@ export function SchedulePage() {
               type="button"
               variant="outline"
               disabled={busy || !orgUnitId || activeEmployees.length === 0}
-              onClick={createVersion}
+              onClick={() => createVersion()}
             >
               {s.newVersion}
             </Button>
@@ -392,8 +403,38 @@ export function SchedulePage() {
         <>
           <div className="flex flex-wrap items-baseline gap-3">
             <h2 className="text-base font-semibold">{formatMonth(month)}</h2>
-            {!editable && <Muted>{s.readOnlyHint}</Muted>}
+            {version.status === 'IN_REVIEW' && <Muted>{s.readOnlyHint}</Muted>}
           </div>
+          {(version.status === 'PUBLISHED' || version.status === 'SUPERSEDED') && (
+            <Alert>
+              <AlertTitle className="flex items-center gap-1">
+                {s.readOnlyHint}
+                <InfoTip text={hints.scheduleEditPublished} />
+              </AlertTitle>
+              <AlertDescription>
+                <p>{s.editPublishedHint}</p>
+                {existingDraft ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedId(existingDraft.id)}
+                  >
+                    {format(s.openDraft, { no: existingDraft.versionNo })}
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={busy || activeEmployees.length === 0}
+                    onClick={() => createVersion(version)}
+                  >
+                    {s.editPublished}
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
           {templates.length === 0 && <Feedback error={s.noTemplates} notice={null} />}
 
           {editable && grid.rows.length > 0 && (

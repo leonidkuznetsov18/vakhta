@@ -407,6 +407,15 @@ export interface Messages {
       readonly ackTitle: string;
       readonly acknowledged: string;
       readonly readOnlyHint: string;
+      /** Button on a published version: a draft copy is created to change the schedule. */
+      readonly editPublished: string;
+      readonly editPublishedHint: string;
+      /** Placeholder: {no} */
+      readonly openDraft: string;
+      /** Placeholders: {no}, {from} */
+      readonly versionCreatedFrom: string;
+      /** Placeholder: {no} */
+      readonly versionCreated: string;
       readonly unsaved: string;
       readonly deleteVersion: string;
       /** Placeholder: {no} */
@@ -943,6 +952,7 @@ export interface Messages {
       readonly operationsStartZone: string;
       readonly operationsLive: string;
       readonly scheduleVersions: string;
+      readonly scheduleEditPublished: string;
       readonly scheduleSubmit: string;
       readonly schedulePublish: string;
       readonly scheduleReturn: string;
