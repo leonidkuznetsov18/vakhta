@@ -1,3 +1,9 @@
+## [0.9.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.9.1...v0.9.2) (2026-09-06)
+
+### Bug fixes
+
+* **admin-web:** show Russian as a plain "РУ" badge instead of a flag ([bf3af3b](https://github.com/leonidkuznetsov18/vakhta/commit/bf3af3beec8ec9c7693fe1122d9df0ee25068d92))
+
 ## [0.9.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.9.0...v0.9.1) (2026-09-06)
 
 ### Bug fixes
