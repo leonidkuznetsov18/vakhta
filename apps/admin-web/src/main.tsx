@@ -23,7 +23,7 @@ createRoot(root).render(
   <StrictMode>
     <TooltipProvider delayDuration={200}>
       <App />
-      <Toaster richColors position="top-right" closeButton />
+      <Toaster richColors position="bottom-right" closeButton />
     </TooltipProvider>
   </StrictMode>,
 );
