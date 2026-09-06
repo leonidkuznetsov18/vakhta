@@ -435,6 +435,14 @@ export interface Messages {
       /** Button on a published version: a draft copy is created to change the schedule. */
       readonly editPublished: string;
       readonly editPublishedHint: string;
+      /** Editing a published month in place (production head, administrator). */
+      readonly revisingTitle: string;
+      readonly revisingHint: string;
+      readonly publishChanges: string;
+      readonly reviseConfirm: string;
+      /** Placeholder: {no} */
+      readonly revised: string;
+      readonly discardChanges: string;
       /** Placeholder: {no} */
       readonly openDraft: string;
       /** Placeholders: {no}, {from} */
@@ -1126,6 +1134,7 @@ export interface Messages {
       readonly operationsLive: string;
       readonly scheduleVersions: string;
       readonly scheduleEditPublished: string;
+      readonly scheduleRevise: string;
       readonly scheduleAddEmployee: string;
       readonly scheduleSubmit: string;
       readonly schedulePublish: string;

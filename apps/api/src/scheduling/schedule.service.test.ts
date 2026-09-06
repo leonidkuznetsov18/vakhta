@@ -435,6 +435,67 @@ describe('scheduling: версії, валідація, публікація, о
     expect(queued).toHaveLength(1);
   });
 
+  it('revise publishes an edited copy of the published month in one step and rolls back on errors', async () => {
+    const v1 = await schedule.createVersion(
+      { siteId, orgUnitId: unitId, periodMonth: MONTH },
+      PLANNER,
+    );
+    await schedule.putAssignments(
+      v1.id,
+      { items: [{ employeeId: ivanov, templateId: dayId, businessDate: day(1), kind: 'REGULAR' }] },
+      PLANNER,
+    );
+    await expect(schedule.revise(v1.id, { items: [] }, HEAD)).rejects.toMatchObject({
+      code: 'SCHEDULE_NOT_PUBLISHED',
+    });
+    await schedule.submit(v1.id, PLANNER);
+    await schedule.publish(v1.id, {}, HEAD);
+
+    // two shifts on one day: the whole revision is rejected and no version is left behind
+    await expect(
+      schedule.revise(
+        v1.id,
+        {
+          items: [
+            { employeeId: ivanov, templateId: dayId, businessDate: day(3), kind: 'REGULAR' },
+            { employeeId: ivanov, templateId: nightId, businessDate: day(3), kind: 'REGULAR' },
+          ],
+        },
+        HEAD,
+      ),
+    ).rejects.toMatchObject({ code: 'DUPLICATE_ASSIGNMENT' });
+    expect(await schedule.list({ siteId, orgUnitId: unitId, periodMonth: MONTH })).toHaveLength(1);
+
+    const revised = await schedule.revise(
+      v1.id,
+      {
+        items: [
+          { employeeId: ivanov, templateId: dayId, businessDate: day(1), kind: 'REGULAR' },
+          { employeeId: ivanov, templateId: nightId, businessDate: day(3), kind: 'REGULAR' },
+        ],
+        changeReason: 'added a night shift',
+      },
+      HEAD,
+    );
+    expect(revised).toMatchObject({
+      versionNo: 2,
+      status: 'PUBLISHED',
+      supersedesId: v1.id,
+      assignmentsCount: 2,
+      changeReason: 'added a night shift',
+    });
+    const [old] = await testDb.db
+      .select()
+      .from(scheduleVersions)
+      .where(eq(scheduleVersions.id, v1.id));
+    expect(old?.status).toBe('SUPERSEDED');
+    const changed = await testDb.db
+      .select()
+      .from(notificationOutbox)
+      .where(eq(notificationOutbox.template, 'SCHEDULE_CHANGED'));
+    expect(changed.length).toBeGreaterThanOrEqual(1);
+  });
+
   it('deletes a draft with its assignments; a published version is refused', async () => {
     const draft = await schedule.createVersion(
       { siteId, orgUnitId: unitId, periodMonth: MONTH },

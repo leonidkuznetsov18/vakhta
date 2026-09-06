@@ -17,6 +17,7 @@ import {
   CreateShiftTemplateCommand,
   ListScheduleVersionsQuery,
   PublishScheduleCommand,
+  ReviseScheduleCommand,
   PutAssignmentsCommand,
   ReturnToDraftCommand,
   type AcknowledgementStatusView,
@@ -193,6 +194,19 @@ export class AdminSchedulesController {
     const version = await this.schedules.requireVersion(id);
     assertScope(user, APPROVERS, { siteId: version.siteId, orgUnitId: version.orgUnitId });
     return this.schedules.publish(id, body, webUserActor(user));
+  }
+
+  @Post(':id/revise')
+  @HttpCode(200)
+  @Roles(...APPROVERS)
+  async revise(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(ReviseScheduleCommand)) body: ReviseScheduleCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ScheduleVersionView> {
+    const version = await this.schedules.requireVersion(id);
+    assertScope(user, APPROVERS, { siteId: version.siteId, orgUnitId: version.orgUnitId });
+    return this.schedules.revise(id, body, webUserActor(user));
   }
 
   @Post(':id/remind')

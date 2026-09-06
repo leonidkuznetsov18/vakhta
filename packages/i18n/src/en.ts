@@ -583,6 +583,14 @@ export const en: Messages = {
       editPublished: 'Change the schedule',
       editPublishedHint:
         'A published version is not edited in place: a new version with the same shifts is created, you change it and publish it. The previous version stays in the history and the employees are notified about the changes.',
+      revisingTitle: 'You are editing a published schedule',
+      revisingHint:
+        'Change shifts, add and remove employees right here. "Publish changes" saves the edits as a new version and publishes it at once: employees whose shifts changed are notified and asked to acknowledge, the previous version stays in the history.',
+      publishChanges: 'Publish changes',
+      reviseConfirm:
+        'Publish the changes as a new version? Employees whose shifts changed will be notified.',
+      revised: 'Version {no} published. Notifications sent.',
+      discardChanges: 'Discard edits',
       openDraft: 'Open draft v{no}',
       versionCreatedFrom: 'Version {no} created from version {from}: make the changes and publish.',
       versionCreated: 'Version {no} created.',
@@ -1428,6 +1436,8 @@ export const en: Messages = {
         'Every change to a published schedule creates a new version. The old one is marked as superseded.',
       scheduleEditPublished:
         'Changes within the current month work the same way: a new version based on the published one, edits, review and publication. Better leave the past days alone: worked shifts are already accounted for.',
+      scheduleRevise:
+        'A published month is edited in place: every save creates a new version and publishes it without a review step. Better leave past days alone: worked shifts are already counted.',
       scheduleAddEmployee:
         'Pick an employee from the list: a row appears in the grid, then set the shifts per day. The cross at the end of a row removes the employee from the version.',
       scheduleSubmit:

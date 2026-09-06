@@ -77,6 +77,16 @@ export const PublishScheduleCommand = z.object({
 });
 export type PublishScheduleCommand = z.infer<typeof PublishScheduleCommand>;
 
+/**
+ * Edit a published month in place: the items become a new version that is published at once,
+ * the current one is superseded and employees are notified of the difference.
+ */
+export const ReviseScheduleCommand = z.object({
+  items: z.array(AssignmentInput).max(5000),
+  changeReason: z.string().trim().max(1000).optional(),
+});
+export type ReviseScheduleCommand = z.infer<typeof ReviseScheduleCommand>;
+
 export const ScheduleVersionView = z.object({
   id: Uuid,
   siteId: Uuid,

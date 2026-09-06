@@ -21,9 +21,8 @@ import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
-import { EyeIcon } from 'lucide-react';
+import { EyeIcon, XIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { DetailSheet } from '@/components/app/detail-sheet';
 import { Lightbox, PhotoThumb, type LightboxImage } from '@/components/app/photo';
 import { GavelIcon } from 'lucide-react';
 import { useDeepLinkedId } from '@/lib/route';
@@ -122,7 +121,6 @@ export function HandoverPage() {
   }
 
   const handoverReasons = org?.reasonCodes.filter((r) => r.kind === 'HANDOVER' && r.isActive) ?? [];
-  const openRow = rows.find((r) => r.id === openId) ?? null;
   const [lightbox, setLightbox] = useState<{ images: LightboxImage[]; start: number }>({
     images: [],
     start: 0,
@@ -172,6 +170,194 @@ export function HandoverPage() {
       cell: (row) => <Deadline at={row.acceptDeadlineAt} breached={row.overdue} />,
     },
   ];
+
+  /** The report under its row: decision form, checklist and notes, photo gallery, acceptance and decisions. */
+  function renderDetail(row: HandoverListItemView) {
+    if (!detail || detail.handover.id !== row.id) return <Muted>{all.ui.common.loading}</Muted>;
+    return (
+      <div className="flex flex-col gap-4 py-1" data-testid="handover-detail">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{row.zoneName ?? h.noZone}</span>
+          <StatusPill tone={STATUS_TONE[row.status]}>
+            {all.handover.statuses[row.status]}
+          </StatusPill>
+          <Muted>
+            {row.submittedByName} · {formatDateTime(row.submittedAt)}
+          </Muted>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="ml-auto"
+            onClick={() => setOpenId(null)}
+          >
+            <XIcon aria-hidden="true" />
+            {all.ui.common.close}
+          </Button>
+        </div>
+        <div className="flex flex-col gap-4">
+          {HANDOVER_RESOLUTIONS.some((d) => canTransitionHandover(row.status, d)) && (
+            <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => resolve(e, row)}>
+              <SelectField
+                label={h.decision}
+                hint={hints.handoverDecision}
+                value={decision}
+                onChange={(v) => setDecision(v as HandoverResolution)}
+                placeholder="…"
+                required
+                options={HANDOVER_RESOLUTIONS.filter((d) =>
+                  canTransitionHandover(row.status, d),
+                ).map((d) => ({ value: d, label: all.handover.resolutions[d] }))}
+                className="w-72"
+              />
+              <SelectField
+                label={h.reasonCode}
+                value={reasonCode}
+                onChange={setReasonCode}
+                placeholder="—"
+                options={handoverReasons.map((r) => ({ value: r.code, label: r.label }))}
+                className="w-56"
+              />
+              <FormField label={h.comment} className="min-w-72 flex-1">
+                {(id) => (
+                  <Textarea
+                    rows={2}
+                    id={id}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    minLength={3}
+                    required
+                  />
+                )}
+              </FormField>
+              <Button type="submit" disabled={busy || !decision}>
+                {h.apply}
+              </Button>
+            </form>
+          )}
+          <div>
+            <h3 className="mb-2 text-sm font-semibold">{h.checklist}</h3>
+            <ul className="flex flex-col gap-1 text-sm">
+              {detail.handover.items
+                .filter((item) => item.kind === 'CHECK')
+                .map((item) => (
+                  <li key={item.key} className="flex gap-2">
+                    <span aria-hidden="true">{!item.answered ? '▫️' : item.ok ? '✅' : '⚠️'}</span>
+                    <span className="min-w-0">
+                      {item.label}
+                      {item.answered && !item.ok && (
+                        <Muted>
+                          {` · ${item.remarkCategory} · ${item.remarkText} · ${item.safeToWork ? h.safe : h.unsafe}${item.needs.length > 0 ? ` · ${item.needs.map((n) => all.handover.needs[n]).join(', ')}` : ''}`}
+                        </Muted>
+                      )}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+            {detail.handover.cannotCompleteReason && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                {h.cannotComplete}: {detail.handover.cannotCompleteReason}
+                {detail.handover.cannotCompleteComment
+                  ? ` · ${detail.handover.cannotCompleteComment}`
+                  : ''}
+              </p>
+            )}
+          </div>
+          {detail.handover.items.some((item) => item.kind === 'NOTE' && item.answered) && (
+            <div>
+              <h3 className="mb-2 text-sm font-semibold">{h.notes}</h3>
+              <ul className="flex flex-col gap-1 text-sm">
+                {detail.handover.items
+                  .filter((item) => item.kind === 'NOTE' && item.answered)
+                  .map((item) => (
+                    <li key={item.key} className="rounded-md border bg-muted/40 px-3 py-2">
+                      <Muted className="text-xs">{item.label}</Muted>
+                      <p className="whitespace-pre-wrap">{item.note ?? '—'}</p>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
+          <div>
+            <h3 className="mb-2 flex items-center gap-1 text-sm font-semibold">
+              {h.photos}
+              <Muted className="font-normal">({detail.handover.photos.length})</Muted>
+              <InfoTip text={hints.handoverPhoto} />
+            </h3>
+            {detail.handover.photos.length === 0 ? (
+              <Muted>{h.noPhotos}</Muted>
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3">
+                {detail.handover.photos.map((p) => (
+                  <PhotoThumb
+                    key={p.itemKey}
+                    media={p.media}
+                    loadLink={trackedLink}
+                    label={p.label}
+                    badge={all.handover.quality[p.media.quality]}
+                    onOpen={() =>
+                      setLightbox({
+                        images: detail.handover.photos
+                          .filter((x) => photoUrls.current.has(x.media.id))
+                          .map((x) => ({
+                            url: photoUrls.current.get(x.media.id)!,
+                            label: `${h.photoBefore}: ${x.label}`,
+                          })),
+                        start: detail.handover.photos
+                          .filter((x) => photoUrls.current.has(x.media.id))
+                          .findIndex((x) => x.itemKey === p.itemKey),
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <h3 className="mb-2 text-sm font-semibold">{h.reviews}</h3>
+              <ul className="flex flex-col gap-2 text-sm">
+                {detail.reviews.map((r) => (
+                  <li key={r.id} className="flex flex-col gap-1">
+                    <span>
+                      <span className="tabular-nums">{formatDateTime(r.reviewedAt)}</span>{' '}
+                      <strong>{r.reviewerName}</strong>{' '}
+                      <span aria-hidden="true">{r.decision === 'ACCEPTED' ? '✅' : '⚠️'}</span>
+                      {r.category ? ` · ${r.category}` : ''}
+                      {r.comment ? ` · ${r.comment}` : ''}
+                    </span>
+                    {r.media && (
+                      <PhotoThumb
+                        media={r.media}
+                        loadLink={loadLink}
+                        label={h.photoAfter}
+                        className="w-40"
+                        onOpen={(url) =>
+                          setLightbox({ images: [{ url, label: h.photoAfter }], start: 0 })
+                        }
+                      />
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="mb-2 text-sm font-semibold">{h.resolutions}</h3>
+              <ul className="flex flex-col gap-1 text-sm">
+                {detail.resolutions.map((r) => (
+                  <li key={r.id}>
+                    <span className="tabular-nums">{formatDateTime(r.at)}</span>{' '}
+                    {all.handover.resolutions[r.decision]}
+                    <Muted> · {r.comment}</Muted>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -229,6 +415,7 @@ export function HandoverPage() {
         empty={h.empty}
         rowClassName={(row) => (row.overdue ? 'bg-red-50/60 dark:bg-red-950/30' : undefined)}
         activeKey={openId}
+        expanded={(row) => (row.id === openId ? renderDetail(row) : null)}
       />
       <Lightbox
         images={lightbox.images}
@@ -236,195 +423,6 @@ export function HandoverPage() {
         onClose={() => setLightbox({ images: [], start: 0 })}
         title={h.photos}
       />
-      {openRow && (
-        <DetailSheet
-          open={openRow !== null}
-          onOpenChange={(open) => !open && setOpenId(null)}
-          title={
-            <>
-              {openRow.zoneName ?? h.noZone}
-              <StatusPill tone={STATUS_TONE[openRow.status]}>
-                {all.handover.statuses[openRow.status]}
-              </StatusPill>
-            </>
-          }
-          description={`${openRow.submittedByName} · ${formatDateTime(openRow.submittedAt)}`}
-          wide
-        >
-          {((row) =>
-            detail && detail.handover.id === row.id ? (
-              <>
-                <div className="flex flex-col gap-4">
-                  {HANDOVER_RESOLUTIONS.some((d) => canTransitionHandover(row.status, d)) && (
-                    <form
-                      className="flex flex-wrap items-end gap-3"
-                      onSubmit={(e) => resolve(e, row)}
-                    >
-                      <SelectField
-                        label={h.decision}
-                        hint={hints.handoverDecision}
-                        value={decision}
-                        onChange={(v) => setDecision(v as HandoverResolution)}
-                        placeholder="…"
-                        required
-                        options={HANDOVER_RESOLUTIONS.filter((d) =>
-                          canTransitionHandover(row.status, d),
-                        ).map((d) => ({ value: d, label: all.handover.resolutions[d] }))}
-                        className="w-72"
-                      />
-                      <SelectField
-                        label={h.reasonCode}
-                        value={reasonCode}
-                        onChange={setReasonCode}
-                        placeholder="—"
-                        options={handoverReasons.map((r) => ({ value: r.code, label: r.label }))}
-                        className="w-56"
-                      />
-                      <FormField label={h.comment} className="min-w-72 flex-1">
-                        {(id) => (
-                          <Textarea
-                            rows={2}
-                            id={id}
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            minLength={3}
-                            required
-                          />
-                        )}
-                      </FormField>
-                      <Button type="submit" disabled={busy || !decision}>
-                        {h.apply}
-                      </Button>
-                    </form>
-                  )}
-                  <div>
-                    <h3 className="mb-2 text-sm font-semibold">{h.checklist}</h3>
-                    <ul className="flex flex-col gap-1 text-sm">
-                      {detail.handover.items
-                        .filter((item) => item.kind === 'CHECK')
-                        .map((item) => (
-                          <li key={item.key} className="flex gap-2">
-                            <span aria-hidden="true">
-                              {!item.answered ? '▫️' : item.ok ? '✅' : '⚠️'}
-                            </span>
-                            <span className="min-w-0">
-                              {item.label}
-                              {item.answered && !item.ok && (
-                                <Muted>
-                                  {` · ${item.remarkCategory} · ${item.remarkText} · ${item.safeToWork ? h.safe : h.unsafe}${item.needs.length > 0 ? ` · ${item.needs.map((n) => all.handover.needs[n]).join(', ')}` : ''}`}
-                                </Muted>
-                              )}
-                            </span>
-                          </li>
-                        ))}
-                    </ul>
-                    {detail.handover.cannotCompleteReason && (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {h.cannotComplete}: {detail.handover.cannotCompleteReason}
-                        {detail.handover.cannotCompleteComment
-                          ? ` · ${detail.handover.cannotCompleteComment}`
-                          : ''}
-                      </p>
-                    )}
-                  </div>
-                  {detail.handover.items.some((item) => item.kind === 'NOTE' && item.answered) && (
-                    <div>
-                      <h3 className="mb-2 text-sm font-semibold">{h.notes}</h3>
-                      <ul className="flex flex-col gap-1 text-sm">
-                        {detail.handover.items
-                          .filter((item) => item.kind === 'NOTE' && item.answered)
-                          .map((item) => (
-                            <li key={item.key} className="rounded-md border bg-muted/40 px-3 py-2">
-                              <Muted className="text-xs">{item.label}</Muted>
-                              <p className="whitespace-pre-wrap">{item.note ?? '—'}</p>
-                            </li>
-                          ))}
-                      </ul>
-                    </div>
-                  )}
-                  <div>
-                    <h3 className="mb-2 flex items-center gap-1 text-sm font-semibold">
-                      {h.photos}
-                      <Muted className="font-normal">({detail.handover.photos.length})</Muted>
-                      <InfoTip text={hints.handoverPhoto} />
-                    </h3>
-                    {detail.handover.photos.length === 0 ? (
-                      <Muted>{h.noPhotos}</Muted>
-                    ) : (
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3">
-                        {detail.handover.photos.map((p) => (
-                          <PhotoThumb
-                            key={p.itemKey}
-                            media={p.media}
-                            loadLink={trackedLink}
-                            label={p.label}
-                            badge={all.handover.quality[p.media.quality]}
-                            onOpen={() =>
-                              setLightbox({
-                                images: detail.handover.photos
-                                  .filter((x) => photoUrls.current.has(x.media.id))
-                                  .map((x) => ({
-                                    url: photoUrls.current.get(x.media.id)!,
-                                    label: `${h.photoBefore}: ${x.label}`,
-                                  })),
-                                start: detail.handover.photos
-                                  .filter((x) => photoUrls.current.has(x.media.id))
-                                  .findIndex((x) => x.itemKey === p.itemKey),
-                              })
-                            }
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <h3 className="mb-2 text-sm font-semibold">{h.reviews}</h3>
-                      <ul className="flex flex-col gap-2 text-sm">
-                        {detail.reviews.map((r) => (
-                          <li key={r.id} className="flex flex-col gap-1">
-                            <span>
-                              <span className="tabular-nums">{formatDateTime(r.reviewedAt)}</span>{' '}
-                              <strong>{r.reviewerName}</strong>{' '}
-                              <span aria-hidden="true">
-                                {r.decision === 'ACCEPTED' ? '✅' : '⚠️'}
-                              </span>
-                              {r.category ? ` · ${r.category}` : ''}
-                              {r.comment ? ` · ${r.comment}` : ''}
-                            </span>
-                            {r.media && (
-                              <PhotoThumb
-                                media={r.media}
-                                loadLink={loadLink}
-                                label={h.photoAfter}
-                                className="w-40"
-                                onOpen={(url) =>
-                                  setLightbox({ images: [{ url, label: h.photoAfter }], start: 0 })
-                                }
-                              />
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h3 className="mb-2 text-sm font-semibold">{h.resolutions}</h3>
-                      <ul className="flex flex-col gap-1 text-sm">
-                        {detail.resolutions.map((r) => (
-                          <li key={r.id}>
-                            <span className="tabular-nums">{formatDateTime(r.at)}</span>{' '}
-                            {all.handover.resolutions[r.decision]}
-                            <Muted> · {r.comment}</Muted>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : null)(openRow)}
-        </DetailSheet>
-      )}
     </div>
   );
 }

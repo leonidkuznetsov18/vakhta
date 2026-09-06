@@ -120,6 +120,11 @@ export const schedulesApi = {
   submit: (id: string) => post<ScheduleVersionView>(`/admin/schedules/${id}/submit`),
   returnToDraft: (id: string, comment: string) =>
     post<ScheduleVersionView>(`/admin/schedules/${id}/return`, { comment }),
+  revise: (id: string, items: AssignmentInput[], changeReason?: string) =>
+    post<ScheduleVersionView>(`/admin/schedules/${id}/revise`, {
+      items,
+      ...(changeReason ? { changeReason } : {}),
+    }),
   publish: (id: string, changeReason?: string) =>
     post<ScheduleVersionView>(
       `/admin/schedules/${id}/publish`,

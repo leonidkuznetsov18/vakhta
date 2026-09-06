@@ -79,7 +79,8 @@ export function SchedulePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
-  const { go } = useNavigation();
+  const { go, roles } = useNavigation();
+  const canPublish = roles.includes('ADMIN') || roles.includes('PRODUCTION_HEAD');
   const [patternFor, setPatternFor] = useState('');
   const [pattern, setPattern] = useState<RotationPattern>('DAY_2_2');
   const [patternStart, setPatternStart] = useState(() => `${currentMonth()}-01`);
@@ -191,7 +192,10 @@ export function SchedulePage() {
   }
 
   const version = detail?.version ?? null;
-  const editable = version?.status === 'DRAFT';
+  // A published month is edited in place by those who can publish: saving makes a new version
+  // and publishes it at once (the old one becomes history, employees are notified).
+  const revising = version?.status === 'PUBLISHED' && canPublish;
+  const editable = version?.status === 'DRAFT' || revising;
   const existingDraft = versions.find((v) => v.status === 'DRAFT') ?? null;
   const hasErrors = detail?.issues.some((i) => i.severity === 'ERROR') ?? false;
 
@@ -302,6 +306,23 @@ export function SchedulePage() {
       setSelectedId(null);
       await loadVersions();
     }, s.deleted);
+  }
+
+  async function publishChanges() {
+    if (!version) return;
+    const reason = await confirm({
+      title: s.publishChanges,
+      description: s.reviseConfirm,
+      confirmLabel: s.publishChanges,
+      commentLabel: s.publishReason,
+    });
+    if (reason === false) return;
+    void run(async () => {
+      const created = await schedulesApi.revise(version.id, gridToItems(grid), reason || undefined);
+      setDirty(false);
+      await loadVersions(created.id);
+      notifySuccess(format(s.revised, { no: created.versionNo }));
+    });
   }
 
   async function publish() {
@@ -432,7 +453,28 @@ export function SchedulePage() {
             <h2 className="text-base font-semibold">{formatMonth(month)}</h2>
             {version.status === 'IN_REVIEW' && <Muted>{s.readOnlyHint}</Muted>}
           </div>
-          {(version.status === 'PUBLISHED' || version.status === 'SUPERSEDED') && (
+          {revising && (
+            <Alert>
+              <AlertTitle className="flex items-center gap-1">
+                {s.revisingTitle}
+                <InfoTip text={hints.scheduleRevise} />
+              </AlertTitle>
+              <AlertDescription>
+                <p>{s.revisingHint}</p>
+                {existingDraft && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedId(existingDraft.id)}
+                  >
+                    {format(s.openDraft, { no: existingDraft.versionNo })}
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+          {((version.status === 'PUBLISHED' && !canPublish) || version.status === 'SUPERSEDED') && (
             <Alert>
               <AlertTitle className="flex items-center gap-1">
                 {s.readOnlyHint}
@@ -540,7 +582,29 @@ export function SchedulePage() {
           />
 
           <div className="flex flex-wrap items-center gap-2">
-            {editable && (
+            {revising && (
+              <>
+                <Button
+                  type="button"
+                  disabled={busy || !dirty || hasErrors}
+                  onClick={() => void publishChanges()}
+                >
+                  {s.publishChanges} ({countShifts(grid)})
+                </Button>
+                <InfoTip text={hints.scheduleRevise} />
+                {dirty && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => void loadDetail(version.id)}
+                  >
+                    {s.discardChanges}
+                  </Button>
+                )}
+              </>
+            )}
+            {editable && !revising && (
               <>
                 <Button type="button" disabled={busy || !dirty} onClick={save}>
                   {s.save} ({countShifts(grid)})

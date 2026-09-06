@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SchedulePage } from './SchedulePage.tsx';
+import { NavigationProvider } from '../navigation.tsx';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const UNIT = 'a0000000-0000-4000-8000-000000000002';
@@ -160,6 +161,9 @@ function mockApi(state: { status: string; issues?: unknown[] }) {
       state.status = 'PUBLISHED';
       return json(version('PUBLISHED'));
     }
+    if (path === `/admin/schedules/${VERSION}/revise`) {
+      return json({ ...version('PUBLISHED'), id: 'v2', versionNo: 2, supersedesId: VERSION });
+    }
     if (path === `/admin/schedules/${VERSION}/acknowledgements`) {
       return json([
         {
@@ -292,7 +296,34 @@ describe('SchedulePage', () => {
     expect(screen.getByText('0/1')).toBeTruthy();
   });
 
-  it('a published version offers "Change the schedule": a draft copy is created from it', async () => {
+  it('an approver edits a published month in place: the grid is live and "Publish changes" revises', async () => {
+    const calls = mockApi({ status: 'PUBLISHED' });
+    render(
+      <NavigationProvider go={() => undefined} roles={['PRODUCTION_HEAD']}>
+        <SchedulePage />
+      </NavigationProvider>,
+    );
+    expect(await screen.findByText(/редактируете опубликованный/)).toBeTruthy();
+    const publishChanges = screen.getByRole('button', { name: /Опубликовать изменения/ });
+    expect((publishChanges as HTMLButtonElement).disabled).toBe(true);
+    // change the second day of the only row to a day shift
+    const cell = screen.getByLabelText('Кузнецов Леонид 2026-09-02') as HTMLSelectElement;
+    fireEvent.change(cell, { target: { value: TPL_DAY } });
+    expect((publishChanges as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(publishChanges);
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Опубликовать изменения' }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.path === `/admin/schedules/${VERSION}/revise`)).toBeTruthy(),
+    );
+    const body = calls.find((c) => c.path === `/admin/schedules/${VERSION}/revise`)?.body as {
+      items: { businessDate: string }[];
+    };
+    expect(body.items.some((i) => i.businessDate === '2026-09-02')).toBe(true);
+    expect((await screen.findByRole('status')).textContent).toContain('Опубликована версия 2');
+  });
+
+  it('a published version offers "Change the schedule" to a planner: a draft copy is created from it', async () => {
     const calls = mockApi({ status: 'PUBLISHED' });
     render(<SchedulePage />);
     expect(await screen.findByText(/закрыта для правок/)).toBeTruthy();

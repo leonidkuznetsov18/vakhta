@@ -34,7 +34,7 @@ With a zone: the next shift in that zone sees "Приёмка" on its shift scre
 incident). No answer by the deadline escalates to the master. Without a zone the report goes
 straight to the master. Masters resolve disputes in "Чистота и передача" with a formal decision.
 
-The report detail in the panel shows each item kind once: the checklist block lists the check
+The report opens under its row in the table (no side panel) and shows each item kind once: the checklist block lists the check
 items with their answers and remarks, "Сообщения следующей смене" shows the note texts, and
 "Фото" is a gallery of the photo items with the quality mark on the thumbnail. A click opens the
 viewer with previous / next navigation and a strip of thumbnails; the receiver's photo and the

@@ -47,6 +47,7 @@ import type {
   MyPlanView,
   PublishScheduleCommand,
   PutAssignmentsCommand,
+  ReviseScheduleCommand,
   RemindResult,
   ReturnToDraftCommand,
   ScheduleVersionDetail,
@@ -344,117 +345,124 @@ export class ScheduleService {
           'Редагувати можна лише чернетку; створіть нову версію',
         );
       }
-      const site = await this.org.requireSite(version.siteId, tx);
-      const templates = await this.templates.activeBySite(version.siteId, tx);
-
-      const employeeIds = [...new Set(cmd.items.map((i) => i.employeeId))];
-      const activeEmployees = employeeIds.length
-        ? await tx
-            .select({ id: employees.id, status: employees.status })
-            .from(employees)
-            .where(inArray(employees.id, employeeIds))
-        : [];
-      const activeSet = new Set(
-        activeEmployees.filter((e) => e.status === 'ACTIVE').map((e) => e.id),
-      );
-
-      const zoneIds = [...new Set(cmd.items.map((i) => i.zoneId).filter((z): z is string => !!z))];
-      const zones = zoneIds.length
-        ? await tx
-            .select()
-            .from(responsibilityZones)
-            .where(inArray(responsibilityZones.id, zoneIds))
-        : [];
-      const zoneMap = new Map(zones.map((z) => [z.id, z]));
-
-      const seen = new Set<string>();
-      const values = cmd.items.map((item) => {
-        if (!activeSet.has(item.employeeId)) {
-          throw new DomainError(
-            'EMPLOYEE_NOT_ACTIVE',
-            422,
-            `Працівник ${item.employeeId} не активний або не існує`,
-          );
-        }
-        const template = templates.get(item.templateId);
-        if (!template)
-          throw new DomainError(
-            'TEMPLATE_NOT_FOUND',
-            422,
-            `Шаблон ${item.templateId} не належить майданчику`,
-          );
-        if (item.zoneId) {
-          const zone = zoneMap.get(item.zoneId);
-          if (!zone || zone.orgUnitId !== version.orgUnitId) {
-            throw new DomainError(
-              'ZONE_MISMATCH',
-              422,
-              `Зона ${item.zoneId} не належить підрозділу версії`,
-            );
-          }
-        }
-        if (!item.businessDate.startsWith(version.periodMonth)) {
-          throw new DomainError(
-            'DATE_OUTSIDE_PERIOD',
-            422,
-            `Дата ${item.businessDate} поза місяцем ${version.periodMonth}`,
-          );
-        }
-        const key = `${item.employeeId}:${item.businessDate}`;
-        if (seen.has(key))
-          throw new DomainError(
-            'DUPLICATE_ASSIGNMENT',
-            422,
-            `Дві зміни для працівника ${item.employeeId} на ${item.businessDate}`,
-          );
-        seen.add(key);
-
-        const plan = planInstants(item.businessDate, template, site.timezone);
-        return {
-          scheduleVersionId: version.id,
-          employeeId: item.employeeId,
-          templateId: item.templateId,
-          businessDate: item.businessDate,
-          planStartAt: plan.planStartAt,
-          planEndAt: plan.planEndAt,
-          positionId: item.positionId ?? null,
-          orgUnitId: version.orgUnitId,
-          teamId: item.teamId ?? null,
-          zoneId: item.zoneId ?? null,
-          kind: item.kind,
-        };
-      });
-
-      await tx.delete(shiftAssignments).where(eq(shiftAssignments.scheduleVersionId, version.id));
-      if (values.length > 0) await tx.insert(shiftAssignments).values(values);
-      await tx
-        .update(scheduleVersions)
-        .set({ updatedAt: new Date() })
-        .where(eq(scheduleVersions.id, version.id));
-
-      await this.events.append(tx, {
-        type: 'SCHEDULE_ASSIGNMENTS_REPLACED',
-        source: 'WEB',
-        actor,
-        scheduleVersionId: version.id,
-        payload: { count: values.length, employees: employeeIds.length },
-      });
-      await this.audit.record(tx, {
-        actor,
-        action: 'schedule.assignments.replace',
-        objectType: 'schedule_version',
-        objectId: version.id,
-        after: { count: values.length },
-      });
-
+      const count = await this.replaceAssignments(tx, version, cmd, actor);
       const assignments = await this.loadAssignments(version.id, tx);
       const issues = await this.validateRows(version, assignments, tx);
       return {
-        version: this.toVersionView(version, values.length),
+        version: this.toVersionView(version, count),
         assignments: assignments.map((x) => this.toAssignmentView(x)),
         issues,
       };
     });
+  }
+
+  /** Validates and writes the whole month of a version; returns the number of assignments. */
+  private async replaceAssignments(
+    tx: DbOrTx,
+    version: VersionRow,
+    cmd: PutAssignmentsCommand,
+    actor: Actor,
+  ): Promise<number> {
+    const site = await this.org.requireSite(version.siteId, tx);
+    const templates = await this.templates.activeBySite(version.siteId, tx);
+
+    const employeeIds = [...new Set(cmd.items.map((i) => i.employeeId))];
+    const activeEmployees = employeeIds.length
+      ? await tx
+          .select({ id: employees.id, status: employees.status })
+          .from(employees)
+          .where(inArray(employees.id, employeeIds))
+      : [];
+    const activeSet = new Set(
+      activeEmployees.filter((e) => e.status === 'ACTIVE').map((e) => e.id),
+    );
+
+    const zoneIds = [...new Set(cmd.items.map((i) => i.zoneId).filter((z): z is string => !!z))];
+    const zones = zoneIds.length
+      ? await tx.select().from(responsibilityZones).where(inArray(responsibilityZones.id, zoneIds))
+      : [];
+    const zoneMap = new Map(zones.map((z) => [z.id, z]));
+
+    const seen = new Set<string>();
+    const values = cmd.items.map((item) => {
+      if (!activeSet.has(item.employeeId)) {
+        throw new DomainError(
+          'EMPLOYEE_NOT_ACTIVE',
+          422,
+          `Працівник ${item.employeeId} не активний або не існує`,
+        );
+      }
+      const template = templates.get(item.templateId);
+      if (!template)
+        throw new DomainError(
+          'TEMPLATE_NOT_FOUND',
+          422,
+          `Шаблон ${item.templateId} не належить майданчику`,
+        );
+      if (item.zoneId) {
+        const zone = zoneMap.get(item.zoneId);
+        if (!zone || zone.orgUnitId !== version.orgUnitId) {
+          throw new DomainError(
+            'ZONE_MISMATCH',
+            422,
+            `Зона ${item.zoneId} не належить підрозділу версії`,
+          );
+        }
+      }
+      if (!item.businessDate.startsWith(version.periodMonth)) {
+        throw new DomainError(
+          'DATE_OUTSIDE_PERIOD',
+          422,
+          `Дата ${item.businessDate} поза місяцем ${version.periodMonth}`,
+        );
+      }
+      const key = `${item.employeeId}:${item.businessDate}`;
+      if (seen.has(key))
+        throw new DomainError(
+          'DUPLICATE_ASSIGNMENT',
+          422,
+          `Дві зміни для працівника ${item.employeeId} на ${item.businessDate}`,
+        );
+      seen.add(key);
+
+      const plan = planInstants(item.businessDate, template, site.timezone);
+      return {
+        scheduleVersionId: version.id,
+        employeeId: item.employeeId,
+        templateId: item.templateId,
+        businessDate: item.businessDate,
+        planStartAt: plan.planStartAt,
+        planEndAt: plan.planEndAt,
+        positionId: item.positionId ?? null,
+        orgUnitId: version.orgUnitId,
+        teamId: item.teamId ?? null,
+        zoneId: item.zoneId ?? null,
+        kind: item.kind,
+      };
+    });
+
+    await tx.delete(shiftAssignments).where(eq(shiftAssignments.scheduleVersionId, version.id));
+    if (values.length > 0) await tx.insert(shiftAssignments).values(values);
+    await tx
+      .update(scheduleVersions)
+      .set({ updatedAt: new Date() })
+      .where(eq(scheduleVersions.id, version.id));
+
+    await this.events.append(tx, {
+      type: 'SCHEDULE_ASSIGNMENTS_REPLACED',
+      source: 'WEB',
+      actor,
+      scheduleVersionId: version.id,
+      payload: { count: values.length, employees: employeeIds.length },
+    });
+    await this.audit.record(tx, {
+      actor,
+      action: 'schedule.assignments.replace',
+      objectType: 'schedule_version',
+      objectId: version.id,
+      after: { count: values.length },
+    });
+    return values.length;
   }
 
   async validate(id: string): Promise<ValidationIssueView[]> {
@@ -494,140 +502,234 @@ export class ScheduleService {
     actor: Actor,
   ): Promise<ScheduleVersionView> {
     const now = new Date();
+    const result = await this.db.transaction((tx) => this.publishWithin(tx, id, cmd, actor, now));
+    await this.armTimers(result, now);
+    return this.toVersionView(result.updated, result.nextShifts.length);
+  }
+
+  /**
+   * Edit a published month in place (spec 3.2 kept intact): the items become a new version that
+   * is published in the same transaction, the current version is superseded and employees are
+   * notified of the difference. Validation errors roll everything back, so no draft is left.
+   */
+  async revise(id: string, cmd: ReviseScheduleCommand, actor: Actor): Promise<ScheduleVersionView> {
+    const now = new Date();
     const result = await this.db.transaction(async (tx) => {
-      const [version] = await tx
+      const [current] = await tx
         .select()
         .from(scheduleVersions)
         .where(eq(scheduleVersions.id, id))
         .for('update');
-      if (!version)
-        throw new DomainError('SCHEDULE_VERSION_NOT_FOUND', 404, `Версію ${id} не знайдено`);
-      const next = nextScheduleStatus(version.status, 'PUBLISH');
-      if (!next)
+      if (!current)
+        throw new DomainError('SCHEDULE_VERSION_NOT_FOUND', 404, `Version ${id} not found`);
+      if (current.status !== 'PUBLISHED') {
         throw new DomainError(
-          'SCHEDULE_TRANSITION_NOT_ALLOWED',
+          'SCHEDULE_NOT_PUBLISHED',
           409,
-          `Публікація неможлива зі статусу ${version.status}`,
-        );
-
-      const assignments = await this.loadAssignments(version.id, tx);
-      const issues = await this.validateRows(version, assignments, tx);
-      if (hasBlockingIssues(issues)) {
-        throw new DomainError(
-          'SCHEDULE_HAS_ERRORS',
-          422,
-          'Версія має помилки валідації; виправте перед публікацією',
+          `Only a published version can be revised in place; version ${id} is ${current.status}`,
         );
       }
-
-      const previous = await this.publishedFor(
-        version.siteId,
-        version.orgUnitId,
-        version.periodMonth,
-        tx,
-        true,
-      );
-      const previousShifts = previous
-        ? this.toPlanned(await this.loadAssignments(previous.id, tx))
-        : [];
-      if (previous) {
-        await tx
-          .update(scheduleVersions)
-          .set({ status: 'SUPERSEDED', updatedAt: now })
-          .where(eq(scheduleVersions.id, previous.id));
-        await this.events.append(tx, {
-          type: 'SCHEDULE_VERSION_SUPERSEDED',
-          source: 'WEB',
-          actor,
-          scheduleVersionId: previous.id,
-          payload: { supersededBy: version.id },
-        });
-      }
-
-      const [updated] = await tx
-        .update(scheduleVersions)
-        .set({
-          status: 'PUBLISHED',
-          publishedAt: now,
-          approvedBy: actor.id,
-          supersedesId: previous?.id ?? null,
-          changeReason: cmd.changeReason ?? null,
-          updatedAt: now,
+      const [agg] = await tx
+        .select({ maxNo: max(scheduleVersions.versionNo) })
+        .from(scheduleVersions)
+        .where(
+          and(
+            eq(scheduleVersions.siteId, current.siteId),
+            eq(scheduleVersions.orgUnitId, current.orgUnitId),
+            eq(scheduleVersions.periodMonth, current.periodMonth),
+          ),
+        );
+      const versionNo = (agg?.maxNo ?? 0) + 1;
+      const [row] = await tx
+        .insert(scheduleVersions)
+        .values({
+          siteId: current.siteId,
+          orgUnitId: current.orgUnitId,
+          periodMonth: current.periodMonth,
+          versionNo,
+          status: 'IN_REVIEW',
+          submittedAt: now,
+          createdBy: actor.id,
         })
-        .where(eq(scheduleVersions.id, version.id))
         .returning();
-      if (!updated) throw new Error('schedule_versions: update не повернув рядок');
-
-      const nextShifts = this.toPlanned(assignments);
-      const diff = diffSchedules(previousShifts, nextShifts);
-      const affected = [...diff.keys()];
-
-      const linked = affected.length
-        ? await tx
-            .select({ employeeId: telegramAccounts.employeeId })
-            .from(telegramAccounts)
-            .where(
-              and(
-                inArray(telegramAccounts.employeeId, affected),
-                eq(telegramAccounts.status, 'ACTIVE'),
-              ),
-            )
-        : [];
-      const linkedSet = new Set(linked.map((l) => l.employeeId));
-      let notified = 0;
-      for (const employeeId of affected) {
-        if (!linkedSet.has(employeeId)) continue;
-        const changes = diff.get(employeeId)!;
-        const employeeShifts = nextShifts.filter((s) => s.employeeId === employeeId);
-        const queued = await this.notifications.enqueue(tx, {
-          recipientType: 'EMPLOYEE',
-          recipientId: employeeId,
-          template: previous ? 'SCHEDULE_CHANGED' : 'SCHEDULE_PUBLISHED',
-          payload: (t) => ({
-            text: previous
-              ? format(t.schedule.changed, {
-                  ...monthLabel(t, version.periodMonth),
-                  added: changes.added.length,
-                  removed: changes.removed.length,
-                  changed: changes.changed.length,
-                })
-              : format(t.schedule.published, {
-                  ...monthLabel(t, version.periodMonth),
-                  shifts: employeeShifts.length,
-                }),
-            buttons: [[{ text: t.schedule.ackButton, callbackData: `ack:${version.id}` }]],
-          }),
-          dedupeKey: `schedule:${version.id}:${employeeId}`,
-        });
-        if (queued) notified += 1;
-      }
-
+      if (!row) throw new Error('schedule_versions: insert returned no row');
       await this.events.append(tx, {
-        type: 'SCHEDULE_PUBLISHED',
+        type: 'SCHEDULE_VERSION_CREATED',
         source: 'WEB',
         actor,
-        scheduleVersionId: version.id,
-        comment: cmd.changeReason ?? null,
+        scheduleVersionId: row.id,
         payload: {
-          supersedes: previous?.id ?? null,
-          assignments: nextShifts.length,
-          affected: affected.length,
-          notified,
+          periodMonth: current.periodMonth,
+          versionNo,
+          basedOn: current.id,
+          copied: 0,
+          revision: true,
         },
       });
       await this.audit.record(tx, {
         actor,
-        action: 'schedule.version.publish',
+        action: 'schedule.version.create',
         objectType: 'schedule_version',
-        objectId: version.id,
-        before: { status: version.status },
-        after: { status: 'PUBLISHED', supersedes: previous?.id ?? null },
-        reason: cmd.changeReason ?? null,
+        objectId: row.id,
+        after: { periodMonth: current.periodMonth, versionNo, basedOn: current.id, revision: true },
       });
-      return { updated, nextShifts };
+      await this.replaceAssignments(tx, row, { items: cmd.items }, actor);
+      return this.publishWithin(
+        tx,
+        row.id,
+        cmd.changeReason ? { changeReason: cmd.changeReason } : {},
+        actor,
+        now,
+      );
     });
+    await this.armTimers(result, now);
+    return this.toVersionView(result.updated, result.nextShifts.length);
+  }
 
-    // Таймери живуть у Redis, поза транзакцією; воркер перевіряє актуальність при спрацюванні.
+  private async publishWithin(
+    tx: DbOrTx,
+    id: string,
+    cmd: PublishScheduleCommand,
+    actor: Actor,
+    now: Date,
+  ): Promise<{ updated: VersionRow; nextShifts: PlannedShift[] }> {
+    const [version] = await tx
+      .select()
+      .from(scheduleVersions)
+      .where(eq(scheduleVersions.id, id))
+      .for('update');
+    if (!version)
+      throw new DomainError('SCHEDULE_VERSION_NOT_FOUND', 404, `Версію ${id} не знайдено`);
+    const next = nextScheduleStatus(version.status, 'PUBLISH');
+    if (!next)
+      throw new DomainError(
+        'SCHEDULE_TRANSITION_NOT_ALLOWED',
+        409,
+        `Публікація неможлива зі статусу ${version.status}`,
+      );
+
+    const assignments = await this.loadAssignments(version.id, tx);
+    const issues = await this.validateRows(version, assignments, tx);
+    if (hasBlockingIssues(issues)) {
+      throw new DomainError(
+        'SCHEDULE_HAS_ERRORS',
+        422,
+        'Версія має помилки валідації; виправте перед публікацією',
+      );
+    }
+
+    const previous = await this.publishedFor(
+      version.siteId,
+      version.orgUnitId,
+      version.periodMonth,
+      tx,
+      true,
+    );
+    const previousShifts = previous
+      ? this.toPlanned(await this.loadAssignments(previous.id, tx))
+      : [];
+    if (previous) {
+      await tx
+        .update(scheduleVersions)
+        .set({ status: 'SUPERSEDED', updatedAt: now })
+        .where(eq(scheduleVersions.id, previous.id));
+      await this.events.append(tx, {
+        type: 'SCHEDULE_VERSION_SUPERSEDED',
+        source: 'WEB',
+        actor,
+        scheduleVersionId: previous.id,
+        payload: { supersededBy: version.id },
+      });
+    }
+
+    const [updated] = await tx
+      .update(scheduleVersions)
+      .set({
+        status: 'PUBLISHED',
+        publishedAt: now,
+        approvedBy: actor.id,
+        supersedesId: previous?.id ?? null,
+        changeReason: cmd.changeReason ?? null,
+        updatedAt: now,
+      })
+      .where(eq(scheduleVersions.id, version.id))
+      .returning();
+    if (!updated) throw new Error('schedule_versions: update не повернув рядок');
+
+    const nextShifts = this.toPlanned(assignments);
+    const diff = diffSchedules(previousShifts, nextShifts);
+    const affected = [...diff.keys()];
+
+    const linked = affected.length
+      ? await tx
+          .select({ employeeId: telegramAccounts.employeeId })
+          .from(telegramAccounts)
+          .where(
+            and(
+              inArray(telegramAccounts.employeeId, affected),
+              eq(telegramAccounts.status, 'ACTIVE'),
+            ),
+          )
+      : [];
+    const linkedSet = new Set(linked.map((l) => l.employeeId));
+    let notified = 0;
+    for (const employeeId of affected) {
+      if (!linkedSet.has(employeeId)) continue;
+      const changes = diff.get(employeeId)!;
+      const employeeShifts = nextShifts.filter((s) => s.employeeId === employeeId);
+      const queued = await this.notifications.enqueue(tx, {
+        recipientType: 'EMPLOYEE',
+        recipientId: employeeId,
+        template: previous ? 'SCHEDULE_CHANGED' : 'SCHEDULE_PUBLISHED',
+        payload: (t) => ({
+          text: previous
+            ? format(t.schedule.changed, {
+                ...monthLabel(t, version.periodMonth),
+                added: changes.added.length,
+                removed: changes.removed.length,
+                changed: changes.changed.length,
+              })
+            : format(t.schedule.published, {
+                ...monthLabel(t, version.periodMonth),
+                shifts: employeeShifts.length,
+              }),
+          buttons: [[{ text: t.schedule.ackButton, callbackData: `ack:${version.id}` }]],
+        }),
+        dedupeKey: `schedule:${version.id}:${employeeId}`,
+      });
+      if (queued) notified += 1;
+    }
+
+    await this.events.append(tx, {
+      type: 'SCHEDULE_PUBLISHED',
+      source: 'WEB',
+      actor,
+      scheduleVersionId: version.id,
+      comment: cmd.changeReason ?? null,
+      payload: {
+        supersedes: previous?.id ?? null,
+        assignments: nextShifts.length,
+        affected: affected.length,
+        notified,
+      },
+    });
+    await this.audit.record(tx, {
+      actor,
+      action: 'schedule.version.publish',
+      objectType: 'schedule_version',
+      objectId: version.id,
+      before: { status: version.status },
+      after: { status: 'PUBLISHED', supersedes: previous?.id ?? null },
+      reason: cmd.changeReason ?? null,
+    });
+    return { updated, nextShifts };
+  }
+
+  /** Reminders live in Redis outside the transaction; the worker re-checks them when they fire. */
+  private async armTimers(
+    result: { updated: VersionRow; nextShifts: PlannedShift[] },
+    now: Date,
+  ): Promise<void> {
     const reminderMs = this.options.shiftReminderMinutes * 60_000;
     for (const s of result.nextShifts) {
       await this.timers.scheduleShiftReminder(s.id, new Date(s.planStartAt.getTime() - reminderMs));
@@ -636,7 +738,6 @@ export class ScheduleService {
     for (const employeeId of new Set(result.nextShifts.map((s) => s.employeeId))) {
       await this.timers.scheduleAckReminder(result.updated.id, employeeId, ackAt);
     }
-    return this.toVersionView(result.updated, result.nextShifts.length);
   }
 
   private async transition(

@@ -19,8 +19,13 @@ of versions next to it, so a month with dozens of versions stays readable.
 - Publishing supersedes the previous version, computes plan times from the site time zone and
   notifies affected employees; they acknowledge in the bot ("Ознакомлен"). The panel shows who
   acknowledged and can remind ("Напомнить об ознакомлении").
-- To change a published month: the alert on the published version offers "Изменить график": a
-  draft copy is created, edited, reviewed and published again.
+- To change a published month, the production head or an administrator edits it in place: the
+  grid of the published version is live for them, and "Опубликовать изменения" (optional reason)
+  sends the edited month as a new version that is published in the same step
+  (`POST /admin/schedules/:id/revise`); the previous version becomes "Заменён", employees whose
+  shifts changed are notified and asked to acknowledge. Validation errors reject the whole
+  revision and leave nothing behind. A planner, who cannot publish, still uses "Изменить
+  график": a draft copy that goes through review.
 - Drafts and superseded versions can be deleted ("Удалить версию"; for a superseded version the
   button sits in the read-only notice above the grid). A version that shifts were opened against
   is history: `ScheduleVersionView.deletable` is false and the button is not shown. Published

@@ -164,7 +164,10 @@ export function App() {
   const Page = active === 'profile' || active === 'overview' ? null : PAGES[active];
 
   return (
-    <NavigationProvider go={(section: SectionKey) => setActive(section)}>
+    <NavigationProvider
+      go={(section: SectionKey) => setActive(section)}
+      roles={me.roles.map((g) => g.role)}
+    >
       <SidebarProvider>
         <Sidebar collapsible="icon">
           <SidebarHeader>
