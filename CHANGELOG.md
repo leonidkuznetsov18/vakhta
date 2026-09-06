@@ -1,3 +1,9 @@
+## [0.9.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.9.0...v0.9.1) (2026-09-06)
+
+### Bug fixes
+
+* **admin-web:** tables scroll inside their container; language switcher shows flags ([498275d](https://github.com/leonidkuznetsov18/vakhta/commit/498275d5f9ae2d056395ccd79eccabbe45d7b2b9))
+
 ## [0.9.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.8.0...v0.9.0) (2026-09-06)
 
 ### Features
