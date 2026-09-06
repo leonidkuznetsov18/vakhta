@@ -24,11 +24,6 @@ export const EnvSchema = z.object({
   REDIS_URL: z.string().min(1),
   TELEGRAM_BOT_TOKEN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   TELEGRAM_BOT_USERNAME: z.string().default('VakhtaBot'),
-  /** Outgoing mail for activation cards: smtp(s)://user:pass@host:port; without it e-mail sending is off. */
-  SMTP_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
-  /** Sender shown to employees, e.g. "Вахта <noreply@vakhta.xyz>". */
-  MAIL_FROM: z.preprocess(emptyToUndefined, z.string().min(3).optional()),
-  MAIL_REPLY_TO: z.preprocess(emptyToUndefined, z.string().min(3).optional()),
   /** Public address of the user guide; the bot offers it under /help and the Help button. */
   USER_GUIDE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
   /** webhook для продакшену (потрібна публічна адреса), polling для розробки. За замовчуванням залежить від NODE_ENV. */

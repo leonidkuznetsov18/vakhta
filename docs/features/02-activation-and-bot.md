@@ -5,15 +5,10 @@
 1. HR or the administrator creates the employee in the panel ("Администрирование → Сотрудники →
    Добавить сотрудника": personnel number and full name) or imports a CSV.
 2. The employee card holds the collapsible block "Активация в боте": the steps for the
-   administrator, "Выдать код активации" (a one-time 8-character code valid 72 hours, the deep
-   link and the QR, with copy buttons), and two send buttons. "Отправить на почту" mails the card
-   (code, button with the link, QR inline) to the e-mail of the card; "Отправить в Telegram" sends
-   it as a photo with an "Активировать аккаунт" button to the employee's chat with the bot. A bot
-   cannot write first, so the Telegram button works once the employee has opened
-   @vakhta_worker_bot and pressed Start (the bot remembers everyone who wrote to it); until then
-   the panel says so and offers "Поделиться из моего Telegram". Every send issues a fresh code and
-   is written to the audit; the row menu "Код активации" opens the card with a new code; a code
-   sheet can still be printed for a team.
+   administrator and "Выдать код активации" (a one-time 8-character code valid 72 hours, the deep
+   link and the QR, with copy buttons). The administrator passes the code, the link or the QR to
+   the employee by any channel; the row menu "Код активации" opens the card with a new code; a
+   code sheet can be printed for a team.
 3. The employee opens @vakhta_worker_bot, presses Start and enters the code (or opens the link /
    scans the QR). The bot links the Telegram account to the employee card and shows the home screen.
 4. One Telegram account per employee. "Сменить Telegram" in the panel relinks to a new account;

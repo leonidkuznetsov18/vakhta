@@ -115,12 +115,6 @@ export const EmployeeView = z.object({
 });
 export type EmployeeView = z.infer<typeof EmployeeView>;
 
-/** Where the activation card goes: the employee's e-mail or their Telegram chat with the bot. */
-export const ActivationChannelSchema = z.enum(['EMAIL', 'TELEGRAM']);
-export type ActivationChannel = z.infer<typeof ActivationChannelSchema>;
-export const SendActivationCommand = z.object({ channel: ActivationChannelSchema });
-export type SendActivationCommand = z.infer<typeof SendActivationCommand>;
-
 /** Код показується один раз у відповіді; у базі лишається лише хеш. */
 export const ActivationCodeIssued = z.object({
   employeeId: Uuid,
@@ -129,14 +123,6 @@ export const ActivationCodeIssued = z.object({
   expiresAt: IsoDateTime,
 });
 export type ActivationCodeIssued = z.infer<typeof ActivationCodeIssued>;
-
-/** The card was sent: which channel, to whom (masked), and the code it carried. */
-export const ActivationDelivered = z.object({
-  channel: ActivationChannelSchema,
-  sentTo: z.string(),
-  issued: ActivationCodeIssued,
-});
-export type ActivationDelivered = z.infer<typeof ActivationDelivered>;
 
 /** Codes for several employees at once (a team on a printed sheet); inactive ones are skipped. */
 export const IssueActivationCodesCommand = z.object({ employeeIds: z.array(Uuid).min(1).max(500) });

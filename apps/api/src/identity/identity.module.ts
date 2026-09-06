@@ -11,7 +11,6 @@ import { AdminEmployeesController } from './admin-employees.controller.js';
 import { AdminPositionsController } from './admin-positions.controller.js';
 import { EmployeesService } from './employees.service.js';
 import { PositionsService } from './positions.service.js';
-import { TelegramContactsService } from './telegram-contacts.service.js';
 
 @Module({
   imports: [OrgModule],
@@ -20,7 +19,6 @@ import { TelegramContactsService } from './telegram-contacts.service.js';
     EmployeesService,
     ActivationService,
     PositionsService,
-    TelegramContactsService,
     {
       provide: ACTIVATION_OPTIONS,
       useFactory: (config: ConfigService<Env, true>): ActivationOptions => ({
@@ -33,6 +31,6 @@ import { TelegramContactsService } from './telegram-contacts.service.js';
       inject: [ConfigService],
     },
   ],
-  exports: [EmployeesService, ActivationService, PositionsService, TelegramContactsService],
+  exports: [EmployeesService, ActivationService, PositionsService],
 })
 export class IdentityModule {}

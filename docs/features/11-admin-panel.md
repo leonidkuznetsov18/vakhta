@@ -17,8 +17,8 @@ Administration tabs:
   checklist on the right. The card shows the contacts as mail / call / t.me links; "Изменить данные" turns them into a form
   (personnel number, full name, e-mail, phone, Telegram, same hints and validation, save only
   when something changed; every edit lands in the audit with before / after). The collapsible
-  "Активация в боте" block holds the steps for the administrator, "Выдать код активации", the
-  send buttons (e-mail, Telegram) and the last issued code with copy, the bot link and the QR;
+  "Активация в боте" block holds the steps for the administrator, "Выдать код активации" and
+  the last issued code with copy, the bot link and the QR;
   the row action "Код активации" opens the card with a fresh code. "Удалить сотрудника" (row menu
   and card, reason required) removes a card that has no worked history together with its planned
   shifts, codes and Telegram link; a card with shifts, check-ins, points or requests is refused

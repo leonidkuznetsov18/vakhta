@@ -116,21 +116,6 @@ Setup, once:
 Without the secrets the job logs that the announcement was skipped; a Telegram error never fails the
 release. The bot needs no admin rights in the group.
 
-## Activation cards by e-mail and Telegram
-
-The employee card has "Отправить на почту" and "Отправить в Telegram": the API issues a fresh
-code and sends the card (code, deep link, QR) itself. Telegram needs nothing extra: the worker bot
-records everyone who wrote to it (`telegram_contacts`), so the card goes to the employee's chat
-once they pressed Start; before that the panel explains it and offers a share link. E-mail needs an
-SMTP account:
-
-1. Pick a provider (Resend, Postmark, Google Workspace, an own relay) and verify the sending
-   domain there (`vakhta.xyz` in Cloudflare DNS: SPF and DKIM records the provider gives you).
-2. Put `SMTP_URL` (`smtps://user:password@host:465` or `smtp://…:587`) and `MAIL_FROM`
-   (`Вахта <noreply@vakhta.xyz>`), optionally `MAIL_REPLY_TO`, into `.env.production`.
-3. Set them on the Railway `api` service and redeploy. Without them the e-mail button answers
-   "not configured"; Telegram keeps working.
-
 ## Support assistant bot
 
 `docs/features/12-support-bot.md` describes what it does. It runs inside the API next to the worker

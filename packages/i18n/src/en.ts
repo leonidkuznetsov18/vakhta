@@ -63,21 +63,6 @@ export const en: Messages = {
         'Another Telegram account is already linked to this card. Only HR can change the account.',
       NO_PENDING: 'There is no pending link. Enter the code again.',
     },
-    emailSubject: 'Your code for the Vakhta bot',
-    greeting: 'Hello, {name}!',
-    emailIntro:
-      'You have been given access to the Vakhta shift bot. To start, link your Telegram in any of these ways:',
-    emailStepLink: 'Press "Open the bot" on the phone where Telegram is installed.',
-    emailStepQr: 'Or scan the QR code with the phone camera.',
-    emailStepCode: 'Or open the bot @{bot} and send it the code: {code}',
-    openBot: 'Open the bot',
-    codeLabel: 'Activation code',
-    validUntil: 'The code is valid until {expires} and works once.',
-    emailFooter:
-      'If this message reached you by mistake, simply do not open the link. Questions: your HR or the shift master.',
-    telegramCaption:
-      'Hello, {name}! Your activation code for the Vakhta bot: {code}. Press the button below or send the code to the bot. Valid until {expires}, once.',
-    telegramButton: 'Activate the account',
   },
   attendance: {
     activateFirst:
@@ -1101,7 +1086,6 @@ export const en: Messages = {
         'employee.telegram.relink': 'Telegram relinked',
         'employee.update': 'Employee details changed',
         'employee.delete': 'Employee deleted',
-        'employee.activation.send': 'Activation card sent',
         'employee.import': 'Employee import',
         'incident.update': 'Incident changed',
         'media.view': 'Photo viewed',
@@ -1256,17 +1240,6 @@ export const en: Messages = {
         activationLinked:
           'Telegram is already linked. A new code is needed only when the phone changes: then "Relink Telegram" first.',
         activationUnavailable: 'A code is issued to an active employee only.',
-        sendEmail: 'Send by e-mail',
-        sendTelegram: 'Send in Telegram',
-        sentTo: 'The activation card was sent: {to}.',
-        deliveryHint:
-          'The message carries the code, the link and the QR. Sending issues a new code; the previous one stops working.',
-        telegramNotStarted:
-          'A bot cannot write first. Ask the employee to open @{bot} and press "Start", then send again. Meanwhile you can share the link from your own Telegram.',
-        shareViaTelegram: 'Share from my Telegram',
-        mailNotConfigured: 'Outgoing mail is not configured on the server (SMTP_URL, MAIL_FROM).',
-        needEmail: 'Add an e-mail to the card to send the letter.',
-        needTelegram: 'Add a Telegram username to the card to send the message.',
         details: 'Employee details',
         detailsHint:
           'The personnel number, the full name and the contacts are edited here; the position changes below, and the audit keeps every edit.',

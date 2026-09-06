@@ -138,8 +138,6 @@ export const schedulesApi = {
 
 import type {
   ActivationCodeIssued,
-  ActivationDelivered,
-  SendActivationCommand,
   UpdateEmployeeCommand,
   AssignPositionCommand,
   ChangeEmployeeStatusCommand,
@@ -188,8 +186,6 @@ export const adminEmployeesApi = {
       method: 'DELETE',
       body: JSON.stringify({ reason }),
     }),
-  sendActivation: (id: string, cmd: SendActivationCommand) =>
-    post<ActivationDelivered>(`/admin/employees/${id}/activation/send`, cmd),
   relink: (id: string, cmd: RelinkTelegramCommand) =>
     post<{ employeeId: string; telegramUserId: number; linkedAt: string }>(
       `/admin/employees/${id}/telegram/relink`,

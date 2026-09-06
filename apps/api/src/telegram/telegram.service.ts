@@ -1,4 +1,3 @@
-import { InlineKeyboard, InputFile } from 'grammy';
 import { timingSafeEqual } from 'node:crypto';
 import {
   Inject,
@@ -16,7 +15,6 @@ import type { Subscription } from 'rxjs';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { telegramMode, type Env } from '../config/env.js';
 import { ActivationService } from '../identity/activation.service.js';
-import { TelegramContactsService } from '../identity/telegram-contacts.service.js';
 import { EmployeesService } from '../identity/employees.service.js';
 import { createLogger } from '../logger.js';
 import { ScheduleService } from '../scheduling/schedule.service.js';
@@ -50,7 +48,6 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     private readonly config: ConfigService<Env, true>,
     private readonly employees: EmployeesService,
     private readonly activation: ActivationService,
-    private readonly contacts: TelegramContactsService,
     private readonly schedule: ScheduleService,
     private readonly attendance: AttendanceService,
     private readonly shift: ShiftService,
@@ -77,7 +74,6 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     const bot = createBot(token, {
       employees: this.employees,
       activation: this.activation,
-      contacts: this.contacts,
       schedule: this.schedule,
       attendance: this.attendance,
       shift: this.shift,
@@ -197,24 +193,6 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
   get enabled(): boolean {
     return this.bot !== null;
   }
-
-  /** The activation card as a photo with the deep-link button (ActivationDeliveryService). */
-  async sendActivationCard(
-    chatId: number,
-    card: {
-      readonly png: Buffer;
-      readonly caption: string;
-      readonly button: string;
-      readonly url: string;
-    },
-  ): Promise<void> {
-    if (!this.bot) throw new Error('telegram bot is not configured');
-    await this.bot.api.sendPhoto(chatId, new InputFile(card.png, 'vakhta-qr.png'), {
-      caption: card.caption,
-      reply_markup: new InlineKeyboard().url(card.button, card.url),
-    });
-  }
-
   verifySecret(header: string | undefined): boolean {
     const expected = this.config.get('TELEGRAM_WEBHOOK_SECRET', { infer: true });
     if (!expected || !header) return false;

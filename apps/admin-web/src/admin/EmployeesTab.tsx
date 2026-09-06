@@ -31,7 +31,6 @@ import { ApiError, adminEmployeesApi, checklistsApi, employeesApi } from '../api
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { cn } from 'cn';
-import { notifySuccess } from '@/lib/toast';
 import { AddDialog } from '@/components/app/add-dialog';
 import {
   BanIcon,
@@ -40,11 +39,9 @@ import {
   ChevronRightIcon,
   ClipboardListIcon,
   KeyRoundIcon,
-  MailIcon,
   PencilIcon,
   Trash2Icon,
   XIcon,
-  SendIcon,
   Link2Icon,
   UserXIcon,
 } from 'lucide-react';
@@ -174,31 +171,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   /** The card holds the activation block; the row action opens it with a fresh code. */
   function issueCode(emp: EmployeeView) {
     setOpenId(emp.id);
-    setDeliveryIssue(null);
     void run(async () => setIssued(await adminEmployeesApi.issueCode(emp.id)));
-  }
-
-  const [deliveryIssue, setDeliveryIssue] = useState<{
-    employeeId: string;
-    code: string;
-  } | null>(null);
-
-  /** Sends the card where HR chose; a Telegram refusal turns into guidance, not a red error. */
-  function sendActivation(emp: EmployeeView, channel: 'EMAIL' | 'TELEGRAM') {
-    setDeliveryIssue(null);
-    void run(async () => {
-      try {
-        const sent = await adminEmployeesApi.sendActivation(emp.id, { channel });
-        setIssued(sent.issued);
-        notifySuccess(format(e.sentTo, { to: sent.sentTo }));
-      } catch (err) {
-        if (err instanceof ApiError && err.code) {
-          setDeliveryIssue({ employeeId: emp.id, code: err.code });
-          if (['TELEGRAM_NOT_STARTED', 'MAIL_NOT_CONFIGURED'].includes(err.code)) return;
-        }
-        throw err;
-      }
-    });
   }
 
   async function changeStatus(emp: EmployeeView, status: EmployeeView['status']) {
@@ -413,10 +386,8 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
             <ActivationPanel
               employee={emp}
               issued={issued?.employeeId === emp.id ? issued : null}
-              issue={deliveryIssue?.employeeId === emp.id ? deliveryIssue.code : null}
               busy={busy}
               onIssue={() => issueCode(emp)}
-              onSend={(channel) => sendActivation(emp, channel)}
             />
           </div>
           <div className="flex min-w-0 flex-col gap-4">
@@ -869,18 +840,13 @@ function PositionPanel({
 function ActivationPanel({
   employee,
   issued,
-  issue,
   busy,
   onIssue,
-  onSend,
 }: {
   readonly employee: EmployeeView;
   readonly issued: ActivationCodeIssued | null;
-  /** Error code of the last send, when the panel can explain it. */
-  readonly issue: string | null;
   readonly busy: boolean;
   readonly onIssue: () => void;
-  readonly onSend: (channel: 'EMAIL' | 'TELEGRAM') => void;
 }) {
   const canIssue = employee.status === 'ACTIVE';
   // Collapsed by default: the block is long, and most cards are opened for something else.
@@ -888,18 +854,12 @@ function ActivationPanel({
   const [seenIssue, setSeenIssue] = useState<string | null>(null);
   useEffect(() => {
     // A fresh code or a delivery result must be visible: expand once per issued code.
-    const key = issued ? `${issued.employeeId}:${issued.expiresAt}` : issue;
+    const key = issued ? `${issued.employeeId}:${issued.expiresAt}` : null;
     if (key && key !== seenIssue) {
       setSeenIssue(key);
       setOpen(true);
     }
-  }, [issued, issue, seenIssue, setOpen]);
-  const botUsername = issued ? new URL(issued.deepLink).pathname.replace(/^\//, '') : '';
-  const shareUrl = issued
-    ? `https://t.me/share/url?url=${encodeURIComponent(issued.deepLink)}&text=${encodeURIComponent(
-        `${e.issueCode}: ${issued.code}`,
-      )}`
-    : null;
+  }, [issued, seenIssue, setOpen]);
   return (
     <div className="flex flex-col gap-3 rounded-lg border p-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -946,57 +906,6 @@ function ActivationPanel({
               <li key={step}>{step}</li>
             ))}
           </ol>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              disabled={busy || !employee.email}
-              title={employee.email ? undefined : e.needEmail}
-              onClick={() => onSend('EMAIL')}
-            >
-              <MailIcon aria-hidden="true" />
-              {e.sendEmail}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              disabled={busy || !employee.telegramUsername}
-              title={employee.telegramUsername ? undefined : e.needTelegram}
-              onClick={() => onSend('TELEGRAM')}
-            >
-              <SendIcon aria-hidden="true" />
-              {e.sendTelegram}
-            </Button>
-            <InfoTip text={e.deliveryHint} />
-          </div>
-          {!employee.email && !employee.telegramUsername && (
-            <Muted className="text-xs">
-              {e.needEmail} {e.needTelegram}
-            </Muted>
-          )}
-          {issue === 'MAIL_NOT_CONFIGURED' && (
-            <Alert>
-              <AlertDescription>{e.mailNotConfigured}</AlertDescription>
-            </Alert>
-          )}
-          {issue === 'TELEGRAM_NOT_STARTED' && (
-            <Alert>
-              <AlertTitle>{e.sendTelegram}</AlertTitle>
-              <AlertDescription>
-                <p>{format(e.telegramNotStarted, { bot: botUsername || '…' })}</p>
-                {shareUrl && (
-                  <Button asChild size="sm" variant="outline">
-                    <a href={shareUrl} target="_blank" rel="noreferrer">
-                      <SendIcon aria-hidden="true" />
-                      {e.shareViaTelegram}
-                    </a>
-                  </Button>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
         </>
       )}
       {open && issued && (
