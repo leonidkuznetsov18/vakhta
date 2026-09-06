@@ -1,3 +1,9 @@
+## [0.17.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.16.0...v0.17.0) (2026-09-06)
+
+### Features
+
+* **panel:** keyboard-first dialogs and the activation block inside the employee card ([e73c494](https://github.com/leonidkuznetsov18/vakhta/commit/e73c49433e57ed83a52cec9165643884a8727a63))
+
 ## [0.16.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.15.0...v0.16.0) (2026-09-06)
 
 ### Features
