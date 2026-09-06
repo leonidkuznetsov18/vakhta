@@ -32,7 +32,7 @@ import {
   sql,
   type Database,
 } from '@vakhta/db';
-import { scoreMonth } from '@vakhta/domain';
+import { DEFAULT_LOCALE, scoreMonth, type Locale } from '@vakhta/domain';
 import type {
   AuditEntryView,
   AuditQuery,
@@ -42,7 +42,7 @@ import type {
   ReportQuery,
   ReportTableView,
 } from '@vakhta/contracts';
-import { messages } from '@vakhta/i18n';
+import { messages, type Messages } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -52,12 +52,10 @@ type Cell = string | number | null;
 type Row = Record<string, Cell>;
 type Column = ReportTableView['columns'][number];
 
-const t = messages('ru');
-const col = (key: string, kind: Column['kind'] = 'number'): Column => ({
-  key,
-  label: t.admin.reports.columns[key] ?? key,
-  kind,
-});
+/** Placed into the first text cell of the totals row; replaced with the localized word in build(). */
+const TOTALS_SENTINEL = '__TOTALS__';
+/** Columns are computed locale-free; labels are resolved once in build() for the requester's language. */
+const col = (key: string, kind: Column['kind'] = 'number'): Column => ({ key, label: key, kind });
 
 /**
  * Шість звітів MVP (ТЗ 9.3) як агрегати над проєкціями; без рейтингів «хто менше відпочивав».
@@ -70,10 +68,16 @@ export class ReportsService {
     private readonly audit: AuditLog,
   ) {}
 
-  async build(kind: ReportKind, q: ReportQuery, now: Date = new Date()): Promise<ReportTableView> {
+  async build(
+    kind: ReportKind,
+    q: ReportQuery,
+    locale: Locale = DEFAULT_LOCALE,
+    now: Date = new Date(),
+  ): Promise<ReportTableView> {
     if (q.from > q.to)
-      throw new DomainError('PERIOD_INVALID', 422, 'Дата початку пізніша за кінець');
-    const { columns, rows, totals } = await this.compute(kind, q);
+      throw new DomainError('PERIOD_INVALID', 422, 'The period start is after its end');
+    const t = messages(locale);
+    const { columns, rows, totals } = await this.compute(kind, q, t);
     const dataVersion = createHash('sha256')
       .update(JSON.stringify(rows))
       .digest('hex')
@@ -83,9 +87,16 @@ export class ReportsService {
       title: t.admin.reports.kinds[kind],
       from: q.from,
       to: q.to,
-      columns,
+      columns: columns.map((c) => ({ ...c, label: t.admin.reports.columns[c.key] ?? c.key })),
       rows,
-      totals,
+      totals: totals
+        ? Object.fromEntries(
+            Object.entries(totals).map(([k, v]) => [
+              k,
+              v === TOTALS_SENTINEL ? t.admin.reports.totals : v,
+            ]),
+          )
+        : null,
       generatedAt: now.toISOString(),
       dataVersion,
     };
@@ -97,9 +108,11 @@ export class ReportsService {
     q: ReportQuery,
     format: 'csv' | 'xlsx',
     actor: Actor,
+    locale: Locale = DEFAULT_LOCALE,
     now: Date = new Date(),
   ): Promise<{ body: Buffer; contentType: string; filename: string }> {
-    const report = await this.build(kind, q, now);
+    const t = messages(locale);
+    const report = await this.build(kind, q, locale, now);
     const header = report.columns.map((c) => c.label);
     const matrix = report.rows.map((r) => report.columns.map((c) => r[c.key] ?? ''));
     if (report.totals) matrix.push(report.columns.map((c) => report.totals?.[c.key] ?? ''));
@@ -146,6 +159,7 @@ export class ReportsService {
   private async compute(
     kind: ReportKind,
     q: ReportQuery,
+    t: Messages,
   ): Promise<{ columns: Column[]; rows: Row[]; totals: Row | null }> {
     switch (kind) {
       case 'hours':
@@ -159,7 +173,7 @@ export class ReportsService {
       case 'bot-usage':
         return this.botUsage(q);
       case 'bonus':
-        return this.bonus(q);
+        return this.bonus(q, t);
     }
   }
 
@@ -626,7 +640,7 @@ export class ReportsService {
     };
   }
 
-  private async bonus(q: ReportQuery) {
+  private async bonus(q: ReportQuery, t: Messages) {
     const conditions = [
       gte(bonusShiftScores.businessDate, q.from),
       lte(bonusShiftScores.businessDate, q.to),
@@ -793,7 +807,7 @@ function sumTotals(rows: Row[], columns: Column[]): Row {
   const totals: Row = {};
   for (const c of columns) {
     if (c.kind === 'text') {
-      totals[c.key] = c === columns[0] ? t.admin.reports.totals : '';
+      totals[c.key] = c === columns[0] ? TOTALS_SENTINEL : '';
       continue;
     }
     totals[c.key] = rows.reduce((s, r) => s + Number(r[c.key] ?? 0), 0);

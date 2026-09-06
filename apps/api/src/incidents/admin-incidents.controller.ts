@@ -28,7 +28,9 @@ import {
   webUserActor,
   type WebUser,
 } from '../auth/web-auth.guard.js';
+import { RequestLocale } from '../common/locale.decorator.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
+import type { Locale } from '@vakhta/domain';
 import { IncidentChanges } from './incident-changes.js';
 import { IncidentsService } from './incidents.service.js';
 
@@ -70,8 +72,9 @@ export class AdminIncidentsController {
   @Get('stats')
   stats(
     @Query(new ZodValidationPipe(IncidentStatsQuery)) q: IncidentStatsQuery,
+    @RequestLocale() locale: Locale,
   ): Promise<IncidentStatsView> {
-    return this.incidents.stats(q);
+    return this.incidents.stats(q, locale);
   }
 
   @Get(':id')

@@ -4,8 +4,9 @@ import { SCOPE_TYPES, WEB_ROLES, type ScopeType, type WebRole } from '@vakhta/do
 import { messages } from '@vakhta/i18n';
 import { usersApi } from '../api.ts';
 import { Feedback, Field, useAction } from './ui.tsx';
+import { currentLocale } from '../i18n.tsx';
 
-const all = messages('ru');
+const all = messages(currentLocale());
 const t = all.admin.administration;
 const u = t.users;
 

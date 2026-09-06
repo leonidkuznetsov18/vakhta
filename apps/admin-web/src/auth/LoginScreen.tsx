@@ -1,8 +1,9 @@
 import React, { useState, type FormEvent } from 'react';
 import { messages } from '@vakhta/i18n';
 import { ApiError, authApi } from '../api.ts';
+import { LanguageSwitcher, currentLocale } from '../i18n.tsx';
 
-const t = messages('ru').admin.auth;
+const t = messages(currentLocale()).admin.auth;
 
 interface Props {
   onSignedIn: () => void;
@@ -53,7 +54,7 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
   return (
     <main className="login">
       <form className="card" onSubmit={step === 'password' ? submitPassword : submitCode}>
-        <div className="brand">{messages('ru').admin.productName}</div>
+        <div className="brand">{messages(currentLocale()).admin.productName}</div>
         <h1>{step === 'password' ? t.signInTitle : t.totpTitle}</h1>
 
         {step === 'password' ? (
@@ -106,6 +107,7 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
         <button type="submit" disabled={busy}>
           {step === 'password' ? t.signIn : t.verify}
         </button>
+        <LanguageSwitcher />
       </form>
     </main>
   );

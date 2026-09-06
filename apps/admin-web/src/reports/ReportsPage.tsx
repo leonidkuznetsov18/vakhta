@@ -4,8 +4,9 @@ import { REPORT_KINDS } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { orgApi, reportsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
+import { currentLocale } from '../i18n.tsx';
 
-const r = messages('ru').admin.reports;
+const r = messages(currentLocale()).admin.reports;
 
 function monthStart(): string {
   const d = new Date();

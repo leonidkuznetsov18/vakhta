@@ -16,6 +16,7 @@ import type {
   EmployeeView,
   RelinkTelegramCommand,
 } from '@vakhta/contracts';
+import type { Locale } from '@vakhta/domain';
 import type { Actor } from '../common/actor.js';
 import { isUniqueViolation } from '../common/pg-errors.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -87,6 +88,14 @@ export class EmployeesService {
       }
       throw error;
     }
+  }
+
+  /** Interface language chosen in the bot; a preference, not a business event, so no audit row. */
+  async setLocale(employeeId: string, locale: Locale, tx: DbOrTx = this.db): Promise<void> {
+    await tx
+      .update(employees)
+      .set({ locale, updatedAt: new Date() })
+      .where(eq(employees.id, employeeId));
   }
 
   async getById(id: string, tx: DbOrTx = this.db): Promise<EmployeeRecord | null> {

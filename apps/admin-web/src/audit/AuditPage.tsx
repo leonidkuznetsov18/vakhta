@@ -3,8 +3,9 @@ import type { AuditEntryView, DomainEventView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { reportsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
+import { currentLocale } from '../i18n.tsx';
 
-const a = messages('ru').admin.audit;
+const a = messages(currentLocale()).admin.audit;
 
 function localTime(iso: string): string {
   return new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'medium' });

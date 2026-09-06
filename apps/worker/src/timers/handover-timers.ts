@@ -10,17 +10,16 @@ import {
   shiftAssignments,
   shiftSessions,
   sql,
+  employeeLocale,
   type Database,
 } from '@vakhta/db';
 import type { CleaningReminderJob, HandoverTimeoutJob } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import type { ReminderOutcome } from './reminders.js';
 
-const t = messages('ru');
-
 /**
- * Тайм-аут приймання (FR-HND-06): якщо приймаючий не відповів до дедлайну, зона переходить
- * майстру; здавач отримує повідомлення, що це не впливає на його бали.
+ * Acceptance timeout (FR-HND-06): if the receiver has not responded by the deadline, the zone
+ * goes to the shift master; the handing employee is told this does not affect their score.
  */
 export async function handleHandoverTimeout(
   db: Database,
@@ -69,6 +68,7 @@ export async function handleHandoverTimeout(
     .update(handoverRecords)
     .set({ escalatedToMasterAt: now, updatedAt: now })
     .where(eq(handoverRecords.id, row.r.id));
+  const t = messages(await employeeLocale(db, row.r.submittedBy));
   await db
     .insert(notificationOutbox)
     .values({
@@ -82,7 +82,7 @@ export async function handleHandoverTimeout(
   return 'queued';
 }
 
-/** Нагадування про прибирання за N хвилин до планового кінця (FR-CLN-01). Мовчить, якщо прибирання вже йде. */
+/** Cleaning reminder N minutes before the planned end (FR-CLN-01). Silent if cleaning is already underway. */
 export async function handleCleaningReminder(
   db: Database,
   data: CleaningReminderJob,
@@ -102,6 +102,7 @@ export async function handleCleaningReminder(
   const minutes = row.planEndAt
     ? Math.max(0, Math.round((row.planEndAt.getTime() - now.getTime()) / 60_000))
     : 0;
+  const t = messages(await employeeLocale(db, s.employeeId));
   const buttons =
     s.state === 'WORKING'
       ? [[{ text: t.actions.START_CLEANING, callbackData: `sh:START_CLEANING:${s.version}` }]]

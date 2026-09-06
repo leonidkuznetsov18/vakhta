@@ -1,3 +1,4 @@
+export * from './locale.js';
 export * from './shift-fsm/states.js';
 export * from './shift-fsm/actions.js';
 export * from './shift-fsm/machine.js';

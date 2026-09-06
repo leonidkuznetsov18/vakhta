@@ -9,8 +9,9 @@ import { SHIFT_ACTIONS, type ShiftAction } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import { employeesApi, orgApi, shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
+import { currentLocale } from '../i18n.tsx';
 
-const all = messages('ru');
+const all = messages(currentLocale());
 const o = all.admin.operations;
 
 function localTime(iso: string | null): string {

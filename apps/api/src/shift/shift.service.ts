@@ -52,7 +52,7 @@ import type {
   ShiftSummaryView,
   TransitionResponse,
 } from '@vakhta/contracts';
-import { format, messages } from '@vakhta/i18n';
+import { summaryLines } from '../telegram/screens.js';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
@@ -106,7 +106,6 @@ export interface CommandMeta {
 /** Робота з таймерами йде після коміту: BullMQ не бере участі в транзакції БД. */
 export type DeferredTimer = () => Promise<void>;
 
-const t = messages('ru');
 const TERMINAL = [...TERMINAL_STATES];
 
 /**
@@ -504,7 +503,7 @@ export class ShiftService {
           and(eq(shiftSessions.employeeId, employeeId), notInArray(shiftSessions.state, TERMINAL)),
         )
         .for('update');
-      if (!session) throw new DomainError('NO_ACTIVE_SHIFT', 409, t.errors.NO_ACTIVE_SHIFT);
+      if (!session) throw new DomainError('NO_ACTIVE_SHIFT', 409, 'No active shift');
       if (session.zoneId && !session.zoneAcceptedAt) {
         await tx
           .update(shiftSessions)
@@ -559,7 +558,7 @@ export class ShiftService {
         recipientType: 'EMPLOYEE',
         recipientId: session.employeeId,
         template: 'SHIFT_FLAGGED',
-        payload: { text: t.shift.flagged },
+        payload: (t) => ({ text: t.shift.flagged }),
         dedupeKey: `shift-flagged:${sessionId}:${now.getTime()}`,
       });
       return this.sessionView(tx, sessionId);
@@ -855,7 +854,7 @@ export class ShiftService {
         recipientType: 'EMPLOYEE',
         recipientId: session.employeeId,
         template: 'SHIFT_SUMMARY',
-        payload: { text: summaryText(view) },
+        payload: (t) => ({ text: summaryLines(t, view) }),
         dedupeKey: `shift-summary:${session.id}`,
       });
     }
@@ -1129,24 +1128,4 @@ function toSummaryView(s: ShiftSummary): ShiftSummaryView {
     overtimeMinutes: s.overtimeMinutes,
     overtimePending: s.overtimePending,
   };
-}
-
-/** Текст «Після зміни» (ТЗ 5.1) для бота й нотифікації. */
-export function summaryText(s: ShiftSummaryView): string {
-  const lines = [
-    format(t.shift.summaryTotals, {
-      total: s.totalMinutes,
-      work: s.workMinutes + s.preparationMinutes + s.serviceMinutes,
-      breaks: s.breakMinutes,
-      meal: s.mealMinutes,
-      downtime: s.downtimeMinutes,
-    }),
-  ];
-  if (s.lateMinutes > 0) lines.push(format(t.shift.summaryLate, { minutes: s.lateMinutes }));
-  if (s.earlyLeaveMinutes > 0)
-    lines.push(format(t.shift.summaryEarly, { minutes: s.earlyLeaveMinutes }));
-  if (s.overtimeMinutes > 0)
-    lines.push(format(t.shift.summaryOvertime, { minutes: s.overtimeMinutes }));
-  if (s.overtimePending) lines.push(t.shift.summaryOvertimePending);
-  return lines.join('\n');
 }

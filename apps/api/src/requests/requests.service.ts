@@ -69,7 +69,6 @@ export interface Decider extends Actor {
 type RequestRow = typeof requests.$inferSelect;
 type AssignmentRow = typeof shiftAssignments.$inferSelect;
 
-const t = messages('ru');
 const OPEN = ['SUBMITTED', 'IN_REVIEW'] as const;
 
 /**
@@ -157,7 +156,7 @@ export class RequestsService {
           recipientType: 'EMPLOYEE',
           recipientId: cmd.counterpartEmployeeId,
           template: 'REQUEST_COUNTERPART',
-          payload: {
+          payload: (t) => ({
             text: t.requests.counterpartAsk,
             buttons: [
               [
@@ -165,7 +164,7 @@ export class RequestsService {
                 { text: t.requests.counterpartNo, callbackData: `rq:no:${row.id}` },
               ],
             ],
-          },
+          }),
           dedupeKey: `request-counterpart:${row.id}`,
         });
       }
@@ -363,7 +362,7 @@ export class RequestsService {
           recipientType: 'EMPLOYEE',
           recipientId: row.employeeId,
           template: 'REQUEST_DECIDED',
-          payload: {
+          payload: (t) => ({
             text: format(t.requests.decidedNotification, {
               type: t.requests.types[row.type],
               decision:
@@ -372,7 +371,7 @@ export class RequestsService {
                   : t.requests.rejectedShort,
               comment: cmd.comment,
             }),
-          },
+          }),
           dedupeKey: `request-decided:${id}:${progress.status}`,
         });
       }
@@ -834,7 +833,7 @@ export class RequestsService {
       await this.schedule.submit(draft.id, decider);
       const published = await this.schedule.publish(
         draft.id,
-        { changeReason: `${t.requests.types[row.type]}: ${row.comment ?? ''}`.trim() },
+        { changeReason: `${messages().requests.types[row.type]}: ${row.comment ?? ''}`.trim() },
         decider,
       );
       versionId = versionId ?? published.id;

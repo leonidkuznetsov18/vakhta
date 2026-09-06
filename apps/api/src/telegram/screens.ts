@@ -1,6 +1,7 @@
 import { InlineKeyboard } from 'grammy';
 import {
   HANDOVER_ANGLES,
+  LOCALES,
   REMARK_NEEDS,
   addMonths,
   businessDateOf,
@@ -8,8 +9,10 @@ import {
   maskFullName,
   maskPersonnelNumber,
   type CheckAction,
+  type ChecklistKey,
   type EmployeeAccess,
   type HandoverAngle,
+  type Locale,
   type RequestType,
   type ShiftAction,
 } from '@vakhta/domain';
@@ -26,11 +29,15 @@ import type {
   ShiftScreenView,
   ShiftSummaryView,
 } from '@vakhta/contracts';
-import { format, messages } from '@vakhta/i18n';
+import { format, type Messages } from '@vakhta/i18n';
 import type { ActivationOutcome, ActivationPreview } from '../identity/activation.service.js';
 import type { EmployeeRecord } from '../identity/employees.service.js';
 import type { NextShift } from '../scheduling/schedule.service.js';
 
+/**
+ * Every screen is a pure function of the server state and the catalog `t` for the
+ * employee's language (ADR-11): nothing here reads the process locale.
+ */
 export interface Screen {
   readonly text: string;
   readonly keyboard?: InlineKeyboard;
@@ -44,9 +51,9 @@ export const CALLBACK = {
   ackAll: 'ack:all',
   arrivePrefix: 'arr:',
   departPrefix: 'dep:',
+  languageMenu: 'lang:menu',
+  languagePrefix: 'lang:',
 } as const;
-
-const t = messages('ru');
 
 function localTime(instant: Date, timezone: string): string {
   return formatLocal(instant, timezone).local.slice(11, 16);
@@ -58,24 +65,31 @@ function localDate(instant: Date, timezone: string): string {
   return `${day}.${m}`;
 }
 
-function weekdayShort(date: string): string {
+function weekdayShort(t: Messages, date: string): string {
   const day = new Date(`${date}T00:00:00Z`).getUTCDay();
   return t.schedule.weekdaysShort[day === 0 ? 6 : day - 1] ?? '';
+}
+
+/** Checklist item labels are stored in the definition; known keys are rendered in the employee's language. */
+function itemLabel(t: Messages, item: { readonly key: string; readonly label: string }): string {
+  return (
+    (t.handover.items as Readonly<Record<string, string>>)[item.key as ChecklistKey] ?? item.label
+  );
 }
 
 export interface HomeInput {
   readonly employee: EmployeeRecord;
   readonly next: NextShift | null;
   readonly unacknowledged: number;
-  /** Відкрита присутність: коли працівник відмітив прихід. */
+  /** Open presence: when the employee recorded arrival. */
   readonly presenceSince: Date | null;
   readonly timezone: string;
-  /** Обміни змінами, що чекають згоди цього працівника. */
+  /** Shift swaps waiting for this employee's consent. */
   readonly pendingSwaps: number;
 }
 
-/** Головний екран (ТЗ 5.1): присутність, найближча зміна, план, ознайомлення. */
-export function homeScreen(input: HomeInput): Screen {
+/** Home screen (spec 5.1): presence, next shift, plan, acknowledgement. */
+export function homeScreen(t: Messages, input: HomeInput): Screen {
   const lines = [
     format(t.bot.home, {
       name: maskFullName(input.employee.fullName),
@@ -93,7 +107,7 @@ export function homeScreen(input: HomeInput): Screen {
     lines.push(
       format(t.schedule.nextShift, {
         date: localDate(input.next.planStartAt, tz),
-        weekday: weekdayShort(businessDateOf(input.next.planStartAt, tz)),
+        weekday: weekdayShort(t, businessDateOf(input.next.planStartAt, tz)),
         kind: t.schedule.kindNames[input.next.isNight ? 'NIGHT' : 'DAY'],
         start: localTime(input.next.planStartAt, tz),
         end: localTime(input.next.planEndAt, tz),
@@ -109,19 +123,38 @@ export function homeScreen(input: HomeInput): Screen {
     .text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`)
     .text(t.requests.menuButton, 'rq:menu')
     .row()
-    .text(t.bonus.myScoresButton, BONUS_CALLBACK.me);
+    .text(t.bonus.myScoresButton, BONUS_CALLBACK.me)
+    .text(t.language.menuButton, CALLBACK.languageMenu);
   if (input.unacknowledged > 0) keyboard.row().text(t.schedule.ackButton, CALLBACK.ackAll);
   if (input.pendingSwaps > 0)
     keyboard.row().text(`${t.requests.counterpartYes}? (${input.pendingSwaps})`, 'rq:pending');
   return { text: lines.join('\n'), keyboard };
 }
 
-/** Після сканування QR: одна дія, що відповідає стану присутності (FR-UI-01). */
-export function checkInPromptScreen(input: {
-  readonly action: CheckAction;
-  readonly terminalName: string;
-  readonly token: string;
-}): Screen {
+/** Language picker: one button per supported locale, the current one marked. */
+export function languageScreen(t: Messages, current: Locale): Screen {
+  const keyboard = new InlineKeyboard();
+  for (const locale of LOCALES) {
+    keyboard
+      .text(
+        `${locale === current ? '✅ ' : ''}${t.language.names[locale]}`,
+        `${CALLBACK.languagePrefix}${locale}`,
+      )
+      .row();
+  }
+  keyboard.text(t.shift.backToShift, SHIFT_CALLBACK.back);
+  return { text: t.language.choose, keyboard };
+}
+
+/** After scanning a QR: a single action matching the presence state (FR-UI-01). */
+export function checkInPromptScreen(
+  t: Messages,
+  input: {
+    readonly action: CheckAction;
+    readonly terminalName: string;
+    readonly token: string;
+  },
+): Screen {
   const arrive = input.action === 'ARRIVE';
   return {
     text: format(arrive ? t.attendance.promptArrive : t.attendance.promptDepart, {
@@ -134,8 +167,8 @@ export function checkInPromptScreen(input: {
   };
 }
 
-/** Підтвердження з серверним часом і новим статусом (FR-UI-02). */
-export function checkInResultScreen(result: CheckInResult, timezone: string): Screen {
+/** Confirmation with server time and the new status (FR-UI-02). */
+export function checkInResultScreen(t: Messages, result: CheckInResult, timezone: string): Screen {
   if (!result.ok) return { text: t.attendance.failures[result.reason] };
   const terminal = result.terminalName ?? '';
   if (result.action === 'ARRIVE') {
@@ -154,8 +187,8 @@ export function checkInResultScreen(result: CheckInResult, timezone: string): Sc
   };
 }
 
-/** «Мій план» за місяць (FR-SCH-01): компактний календар з підсумками й навігацією. */
-export function planScreen(plan: MyPlanView): Screen {
+/** "My plan" for a month (FR-SCH-01): compact calendar with totals and navigation. */
+export function planScreen(t: Messages, plan: MyPlanView): Screen {
   const [year, m] = plan.month.split('-');
   const monthName = t.schedule.months[Number(m) - 1] ?? plan.month;
   const lines = [format(t.schedule.planHeader, { month: monthName, year: year ?? '' }), ''];
@@ -197,15 +230,21 @@ export function planScreen(plan: MyPlanView): Screen {
   return { text: lines.join('\n'), keyboard };
 }
 
-export function welcomeScreen(): Screen {
+export function welcomeScreen(t: Messages): Screen {
   return { text: `${t.bot.welcome}\n\n${t.bot.askCode}` };
 }
 
-export function accessDeniedScreen(access: Exclude<EmployeeAccess, 'ALLOWED'>): Screen {
+export function accessDeniedScreen(
+  t: Messages,
+  access: Exclude<EmployeeAccess, 'ALLOWED'>,
+): Screen {
   return { text: t.bot.access[access] };
 }
 
-export function activationPreviewScreen(preview: Extract<ActivationPreview, { ok: true }>): Screen {
+export function activationPreviewScreen(
+  t: Messages,
+  preview: Extract<ActivationPreview, { ok: true }>,
+): Screen {
   const position = preview.position
     ? format(t.activation.positionLine, {
         position: preview.position.position,
@@ -225,19 +264,20 @@ export function activationPreviewScreen(preview: Extract<ActivationPreview, { ok
   };
 }
 
-export function activationOutcomeScreen(outcome: ActivationOutcome): Screen {
+export function activationOutcomeScreen(t: Messages, outcome: ActivationOutcome): Screen {
   if (!outcome.ok) return { text: t.activation.failures[outcome.reason] };
   return { text: outcome.alreadyLinked ? t.activation.alreadyLinked : t.activation.success };
 }
 
 export function activationFailureText(
+  t: Messages,
   reason: Extract<ActivationPreview, { ok: false }>['reason'],
 ): string {
   return t.activation.failures[reason];
 }
 
 /* -------------------------------------------------------------------- */
-/* Зміна (ТЗ 4.4, 5.1): екран рендериться зі стану сервера, ADR-11        */
+/* Shift (spec 4.4, 5.1): the screen is rendered from server state, ADR-11 */
 /* -------------------------------------------------------------------- */
 
 export const SHIFT_CALLBACK = {
@@ -247,10 +287,10 @@ export const SHIFT_CALLBACK = {
   back: 'sh:back',
 } as const;
 
-/** Дії, які відкривають вибір причини замість негайного переходу. */
+/** Actions that open a reason picker instead of transitioning immediately. */
 const REASON_ACTIONS: readonly ShiftAction[] = ['START_DOWNTIME', 'EMERGENCY_EXIT'];
 
-function shiftLines(view: ShiftScreenView): string[] {
+function shiftLines(t: Messages, view: ShiftScreenView): string[] {
   const s = view.session;
   if (!s) return [];
   const tz = view.timezone;
@@ -281,11 +321,12 @@ function shiftLines(view: ShiftScreenView): string[] {
   if (s.needsClarification && (s.state === 'SHIFT_CLOSED' || s.state === 'EMERGENCY_EXIT')) {
     lines.push(t.shift.flagged);
   }
-  if (view.summary) lines.push('', summaryLines(view.summary));
+  if (view.summary) lines.push('', summaryLines(t, view.summary));
   return lines;
 }
 
-function summaryLines(s: ShiftSummaryView): string {
+/** Shift summary text (spec 5.1), shared by the bot screen and the closing notification. */
+export function summaryLines(t: Messages, s: ShiftSummaryView): string {
   const lines = [
     format(t.shift.summaryTotals, {
       total: s.totalMinutes,
@@ -304,12 +345,12 @@ function summaryLines(s: ShiftSummaryView): string {
   return lines.join('\n');
 }
 
-/** Клавіатура зміни: лише дозволені дії, по дві в рядку; взаємовиключні не показуються (FR-UI-01). */
-export function shiftKeyboard(view: ShiftScreenView): InlineKeyboard | undefined {
+/** Shift keyboard: only allowed actions, two per row; mutually exclusive ones are hidden (FR-UI-01). */
+export function shiftKeyboard(t: Messages, view: ShiftScreenView): InlineKeyboard | undefined {
   const version = view.session?.version ?? 0;
   const keyboard = new InlineKeyboard();
   let inRow = 0;
-  /** Новий рядок лише коли поточний не порожній: Telegram не приймає порожніх рядків. */
+  /** New row only when the current one is not empty: Telegram rejects empty rows. */
   const newRow = () => {
     if (inRow > 0) keyboard.row();
     inRow = 0;
@@ -341,10 +382,7 @@ export function shiftKeyboard(view: ShiftScreenView): InlineKeyboard | undefined
   }
   if (view.session?.state === 'HANDOVER') {
     newRow();
-    keyboard.text(
-      t.handover.header.split(' ')[0] === 'Уборка' ? '📋 Чек-лист и фото' : '📋',
-      'hv:open',
-    );
+    keyboard.text(t.handover.openButton, 'hv:open');
   }
   if (view.pendingHandovers > 0) {
     newRow();
@@ -378,18 +416,22 @@ export function shiftKeyboard(view: ShiftScreenView): InlineKeyboard | undefined
   return keyboard.inline_keyboard.some((row) => row.length > 0) ? keyboard : undefined;
 }
 
-/** Екран активної або щойно закритої зміни. */
-export function shiftScreen(view: ShiftScreenView, header: string): Screen {
-  const lines = [header, '', ...shiftLines(view)];
+/** Screen of an active or just-closed shift. */
+export function shiftScreen(t: Messages, view: ShiftScreenView, header: string): Screen {
+  const lines = [header, '', ...shiftLines(t, view)];
   if (view.offerResumeIntoDowntime && view.allowedActions.includes('RESUME')) {
     lines.push('', t.shift.resumeIntoDowntimeQuestion);
   }
-  const keyboard = shiftKeyboard(view);
+  const keyboard = shiftKeyboard(t, view);
   return keyboard ? { text: lines.join('\n'), keyboard } : { text: lines.join('\n') };
 }
 
-/** Вибір причини простою або екстреного виходу з довідника (FR-DWN-01). */
-export function reasonPickerScreen(view: ShiftScreenView, kind: 'DOWNTIME' | 'EMERGENCY'): Screen {
+/** Reason picker for downtime or emergency exit from the directory (FR-DWN-01). */
+export function reasonPickerScreen(
+  t: Messages,
+  view: ShiftScreenView,
+  kind: 'DOWNTIME' | 'EMERGENCY',
+): Screen {
   const reasons = kind === 'DOWNTIME' ? view.downtimeReasons : view.emergencyReasons;
   const version = view.session?.version ?? 0;
   const action = kind === 'DOWNTIME' ? 'START_DOWNTIME' : 'EMERGENCY_EXIT';
@@ -410,7 +452,7 @@ export function reasonPickerScreen(view: ShiftScreenView, kind: 'DOWNTIME' | 'EM
 }
 
 /* -------------------------------------------------------------------- */
-/* Проблеми та інциденти (ТЗ 5.5)                                         */
+/* Problems and incidents (spec 5.5)                                      */
 /* -------------------------------------------------------------------- */
 
 export const INCIDENT_CALLBACK = {
@@ -421,7 +463,7 @@ export const INCIDENT_CALLBACK = {
   cancel: 'inc:cancel',
 } as const;
 
-export function incidentReasonScreen(reasons: readonly ReasonOption[]): Screen {
+export function incidentReasonScreen(t: Messages, reasons: readonly ReasonOption[]): Screen {
   const keyboard = new InlineKeyboard();
   for (const r of reasons)
     keyboard.text(r.label, `${INCIDENT_CALLBACK.reasonPrefix}${r.code}`).row();
@@ -429,14 +471,14 @@ export function incidentReasonScreen(reasons: readonly ReasonOption[]): Screen {
   return { text: reasons.length === 0 ? t.shift.noReasons : t.incidents.chooseReason, keyboard };
 }
 
-export function incidentCommentScreen(): Screen {
+export function incidentCommentScreen(t: Messages): Screen {
   return {
     text: t.incidents.askComment,
     keyboard: new InlineKeyboard().text(t.incidents.cancel, INCIDENT_CALLBACK.cancel),
   };
 }
 
-export function incidentPhotoScreen(): Screen {
+export function incidentPhotoScreen(t: Messages): Screen {
   return {
     text: t.incidents.askPhoto,
     keyboard: new InlineKeyboard()
@@ -446,8 +488,8 @@ export function incidentPhotoScreen(): Screen {
   };
 }
 
-/** «Работа остановлена?»: «Так» додатково відкриває особистий DOWNTIME (ТЗ 5.5). */
-export function incidentStoppedScreen(reasonLabel: string): Screen {
+/** "Is work stopped?": "Yes" additionally opens a personal DOWNTIME (spec 5.5). */
+export function incidentStoppedScreen(t: Messages, reasonLabel: string): Screen {
   return {
     text: `${reasonLabel}\n\n${t.incidents.askStopped}`,
     keyboard: new InlineKeyboard()
@@ -459,7 +501,11 @@ export function incidentStoppedScreen(reasonLabel: string): Screen {
   };
 }
 
-export function incidentResultScreen(result: ReportProblemResult, reasonLabel: string): Screen {
+export function incidentResultScreen(
+  t: Messages,
+  result: ReportProblemResult,
+  reasonLabel: string,
+): Screen {
   const lines = [
     result.linkedToExisting
       ? t.incidents.linked
@@ -475,7 +521,7 @@ export function incidentResultScreen(result: ReportProblemResult, reasonLabel: s
 }
 
 /* -------------------------------------------------------------------- */
-/* Прибирання, чек-лист, фото, передача (ТЗ 5.6–5.8)                     */
+/* Cleaning, checklist, photos, handover (spec 5.6-5.8)                   */
 /* -------------------------------------------------------------------- */
 
 export const HANDOVER_CALLBACK = {
@@ -496,8 +542,8 @@ export const HANDOVER_CALLBACK = {
   reviewCategory: 'hr:rc:',
 } as const;
 
-/** Екран чек-листа в стані HANDOVER: рядок на пункт (✅ / ⚠️), три ракурси, подання. */
-export function handoverScreen(view: HandoverView, header: string): Screen {
+/** Checklist screen in HANDOVER: a line per item (✅ / ⚠️), three angles, submission. */
+export function handoverScreen(t: Messages, view: HandoverView, header: string): Screen {
   const done = view.items.filter((i) => i.answered).length;
   const lines = [
     header,
@@ -513,7 +559,7 @@ export function handoverScreen(view: HandoverView, header: string): Screen {
         : item.answered && !item.ok
           ? ` · ${item.remarkText ?? ''}`
           : '';
-    lines.push(`${mark} ${item.label}${extra}`);
+    lines.push(`${mark} ${itemLabel(t, item)}${extra}`);
   }
   for (const photo of view.photos) {
     lines.push(`🖼 ${t.handover.angles[photo.angle]}: ${t.handover.quality[photo.media.quality]}`);
@@ -524,10 +570,11 @@ export function handoverScreen(view: HandoverView, header: string): Screen {
     lines.push('', t.handover.notReady);
     const seen = new Set<string>();
     for (const issue of view.issues) {
+      const item = view.items.find((i) => i.key === issue.itemKey);
       const label =
         issue.code === 'PHOTO_MISSING'
           ? `${t.handover.issues.PHOTO_MISSING}: ${t.handover.angles[issue.angle!]}`
-          : `${t.handover.issues[issue.code]}: ${view.items.find((i) => i.key === issue.itemKey)?.label ?? issue.itemKey}`;
+          : `${t.handover.issues[issue.code]}: ${item ? itemLabel(t, item) : issue.itemKey}`;
       if (!seen.has(label)) lines.push(`• ${label}`);
       seen.add(label);
     }
@@ -538,13 +585,16 @@ export function handoverScreen(view: HandoverView, header: string): Screen {
   for (const item of view.items) {
     if (item.kind === 'NOTE') {
       keyboard
-        .text(item.answered ? `✍️ ${item.label} ✓` : t.handover.noteButton, HANDOVER_CALLBACK.note)
+        .text(
+          item.answered ? `✍️ ${itemLabel(t, item)} ✓` : t.handover.noteButton,
+          HANDOVER_CALLBACK.note,
+        )
         .row();
       continue;
     }
     keyboard
       .text(
-        `${item.answered && item.ok ? '✅' : t.handover.okButton} ${item.label}`,
+        `${item.answered && item.ok ? '✅' : t.handover.okButton} ${itemLabel(t, item)}`,
         `${HANDOVER_CALLBACK.ok}${item.key}`,
       )
       .text(
@@ -570,7 +620,7 @@ export function handoverScreen(view: HandoverView, header: string): Screen {
   return { text: lines.join('\n'), keyboard };
 }
 
-export function handoverPhotoPromptScreen(angle: HandoverAngle): Screen {
+export function handoverPhotoPromptScreen(t: Messages, angle: HandoverAngle): Screen {
   return {
     text: format(t.handover.askPhoto, { angle: t.handover.angles[angle] }),
     keyboard: new InlineKeyboard().text(t.handover.cancel, HANDOVER_CALLBACK.cancel),
@@ -578,21 +628,22 @@ export function handoverPhotoPromptScreen(angle: HandoverAngle): Screen {
 }
 
 export function handoverRemarkCategoryScreen(
-  itemLabel: string,
+  t: Messages,
+  itemLabelText: string,
   reasons: readonly ReasonOption[],
 ): Screen {
   const keyboard = new InlineKeyboard();
   for (const r of reasons)
     keyboard.text(r.label, `${HANDOVER_CALLBACK.remarkCategory}${r.code}`).row();
   keyboard.text(t.handover.cancel, HANDOVER_CALLBACK.cancel);
-  return { text: format(t.handover.chooseRemarkCategory, { item: itemLabel }), keyboard };
+  return { text: format(t.handover.chooseRemarkCategory, { item: itemLabelText }), keyboard };
 }
 
-export function handoverTextPromptScreen(text: string): Screen {
+export function handoverTextPromptScreen(t: Messages, text: string): Screen {
   return { text, keyboard: new InlineKeyboard().text(t.handover.cancel, HANDOVER_CALLBACK.cancel) };
 }
 
-export function handoverSafeScreen(): Screen {
+export function handoverSafeScreen(t: Messages): Screen {
   return {
     text: t.handover.askSafe,
     keyboard: new InlineKeyboard()
@@ -604,7 +655,7 @@ export function handoverSafeScreen(): Screen {
   };
 }
 
-export function handoverNeedsScreen(): Screen {
+export function handoverNeedsScreen(t: Messages): Screen {
   const keyboard = new InlineKeyboard();
   for (const need of REMARK_NEEDS)
     keyboard.text(t.handover.needs[need], `${HANDOVER_CALLBACK.need}${need}`).row();
@@ -612,7 +663,7 @@ export function handoverNeedsScreen(): Screen {
   return { text: t.handover.askNeeds, keyboard };
 }
 
-export function cannotCompleteReasonScreen(reasons: readonly ReasonOption[]): Screen {
+export function cannotCompleteReasonScreen(t: Messages, reasons: readonly ReasonOption[]): Screen {
   const keyboard = new InlineKeyboard();
   for (const r of reasons)
     keyboard.text(r.label, `${HANDOVER_CALLBACK.cannotReason}${r.code}`).row();
@@ -620,8 +671,9 @@ export function cannotCompleteReasonScreen(reasons: readonly ReasonOption[]): Sc
   return { text: t.handover.cannotCompleteReason, keyboard };
 }
 
-/** Приймаюча зміна: передачі, що чекають перевірки зони (FR-HND-03). */
+/** Receiving shift: handovers waiting for a zone check (FR-HND-03). */
 export function pendingHandoverScreen(
+  t: Messages,
   pending: readonly PendingHandoverView[],
   timezone: string,
 ): Screen {
@@ -649,7 +701,7 @@ export function pendingHandoverScreen(
   return { text: lines.join('\n').trim(), keyboard };
 }
 
-export function reviewCategoryScreen(reasons: readonly ReasonOption[]): Screen {
+export function reviewCategoryScreen(t: Messages, reasons: readonly ReasonOption[]): Screen {
   const keyboard = new InlineKeyboard();
   for (const r of reasons)
     keyboard.text(r.label, `${HANDOVER_CALLBACK.reviewCategory}${r.code}`).row();
@@ -658,7 +710,7 @@ export function reviewCategoryScreen(reasons: readonly ReasonOption[]): Screen {
 }
 
 /* -------------------------------------------------------------------- */
-/* Звернення (ТЗ 8)                                                       */
+/* Requests (spec 8)                                                      */
 /* -------------------------------------------------------------------- */
 
 export const REQUEST_CALLBACK = {
@@ -675,7 +727,7 @@ export const REQUEST_CALLBACK = {
   correctionPrefix: 'rq:corr:',
 } as const;
 
-/** Типи, доступні з бота (FR-SCH-05). Апеляція відкривається з екрана балів. */
+/** Types available from the bot (FR-SCH-05). Appeals start from the scores screen. */
 export const BOT_REQUEST_TYPES: readonly RequestType[] = [
   'VACATION',
   'DAY_OFF',
@@ -688,7 +740,7 @@ export const BOT_REQUEST_TYPES: readonly RequestType[] = [
   'TECH_ISSUE',
 ];
 
-export function requestMenuScreen(): Screen {
+export function requestMenuScreen(t: Messages): Screen {
   const keyboard = new InlineKeyboard();
   BOT_REQUEST_TYPES.forEach((type, i) => {
     keyboard.text(t.requests.types[type], `${REQUEST_CALLBACK.typePrefix}${type}`);
@@ -702,7 +754,7 @@ export function requestMenuScreen(): Screen {
   return { text: t.requests.chooseType, keyboard };
 }
 
-export function requestListScreen(items: readonly RequestView[]): Screen {
+export function requestListScreen(t: Messages, items: readonly RequestView[]): Screen {
   const lines =
     items.length === 0
       ? [t.requests.noRequests]
@@ -723,7 +775,7 @@ export function requestListScreen(items: readonly RequestView[]): Screen {
   };
 }
 
-export function requestPromptScreen(text: string, withSkip = false): Screen {
+export function requestPromptScreen(t: Messages, text: string, withSkip = false): Screen {
   const keyboard = new InlineKeyboard();
   if (withSkip) keyboard.text(t.requests.skip, REQUEST_CALLBACK.skip).row();
   keyboard.text(t.requests.cancel, REQUEST_CALLBACK.cancel);
@@ -731,6 +783,7 @@ export function requestPromptScreen(text: string, withSkip = false): Screen {
 }
 
 export function requestAssignmentScreen(
+  t: Messages,
   items: readonly { id: string; businessDate: string; templateCode: string }[],
   prefix: string,
   title: string,
@@ -755,6 +808,7 @@ export function requestAssignmentScreen(
 }
 
 export function requestChoiceScreen(
+  t: Messages,
   items: readonly { id: string; label: string }[],
   prefix: string,
   title: string,
@@ -765,7 +819,7 @@ export function requestChoiceScreen(
   return { text: items.length === 0 ? t.requests.noShifts : title, keyboard };
 }
 
-export function counterpartScreen(pending: readonly RequestView[]): Screen {
+export function counterpartScreen(t: Messages, pending: readonly RequestView[]): Screen {
   const keyboard = new InlineKeyboard();
   const lines: string[] = [];
   for (const r of pending) {
@@ -782,7 +836,7 @@ export function counterpartScreen(pending: readonly RequestView[]): Screen {
 }
 
 /* -------------------------------------------------------------------- */
-/* Бали (ТЗ 7.7)                                                          */
+/* Scores (spec 7.7)                                                      */
 /* -------------------------------------------------------------------- */
 
 export const BONUS_CALLBACK = {
@@ -792,8 +846,8 @@ export const BONUS_CALLBACK = {
   monthPrefix: 'bn:m:',
 } as const;
 
-/** «Мої бали»: коефіцієнт місяця і зміни зі статусами; підстава кожного зниження за кнопкою. */
-export function myScoresScreen(view: MyScoresView): Screen {
+/** "My scores": month coefficient and shifts with statuses; the basis of each reduction is a button away. */
+export function myScoresScreen(t: Messages, view: MyScoresView): Screen {
   const [year, m] = view.month.split('-');
   const monthName = t.schedule.months[Number(m) - 1] ?? view.month;
   const lines = [format(t.bonus.header, { month: monthName, year: year ?? '' }), ''];
@@ -839,8 +893,9 @@ export function myScoresScreen(view: MyScoresView): Screen {
   return { text: lines.join('\n'), keyboard };
 }
 
-/** Розшифровка зміни: критерій, бали, статус і підстава (ТЗ 7.1: працівник бачить причину). */
+/** Shift breakdown: criterion, points, status and basis (spec 7.1: the employee sees the reason). */
 export function scoreDetailScreen(
+  t: Messages,
   score: ShiftScoreView,
   appealDays: number,
   canAppeal: boolean,

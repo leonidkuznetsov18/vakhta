@@ -1,8 +1,9 @@
 import React from 'react';
 import type { AcknowledgementStatusView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
+import { currentLocale } from '../i18n.tsx';
 
-const t = messages('ru');
+const t = messages(currentLocale());
 
 /** Хто підтвердив ознайомлення з опублікованою версією (FR-SCH-03). */
 export function AckTable({ rows }: { readonly rows: readonly AcknowledgementStatusView[] }) {

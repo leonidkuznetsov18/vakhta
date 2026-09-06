@@ -13,8 +13,9 @@ import {
 import { messages } from '@vakhta/i18n';
 import { handoversApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
+import { currentLocale } from '../i18n.tsx';
 
-const all = messages('ru');
+const all = messages(currentLocale());
 const h = all.admin.handover;
 
 function localTime(iso: string | null): string {

@@ -1,34 +1,42 @@
-# Вахта: конвенції для агентів і людей
+# Vakhta: conventions for agents and people
 
-Продукт: Telegram-бот обліку змін + веб-панель, виробництво 24/7, дві 12-годинні зміни.
-Вимоги: ТЗ MVP v1.0 (посилання на розділи виглядають як «ТЗ 4.4», «FR-QR-03», «T-26», «AC-09»).
-Архітектура і план: `docs/architecture-and-plan.md`. Рішення: `docs/adr/`.
+Product: Telegram bot for shift accounting + admin web panel, 24/7 production, two 12-hour shifts.
+Requirements: the customer's spec "ТЗ MVP v1.0" (references look like "spec 4.4", "FR-QR-03", "T-26", "AC-09").
+Architecture and plan: `docs/architecture-and-plan.md`. Decisions: `docs/adr/`.
 
-## Стек
+## Language
 
-pnpm workspaces + Turborepo. TypeScript, ESM усюди (`"type": "module"`).
-API і worker: NestJS 11 на Fastify. Бот: grammY. База: PostgreSQL 16 + Drizzle. Черги: Redis + BullMQ.
-Панель: React 19 + Vite. Термінал: Vite vanilla. Тести: Vitest + fast-check + testcontainers.
+- Everything in the repository is English: code, identifiers, comments, test names, log and error messages,
+  commit messages, docs, README, ADRs, runbooks, workflow files. Only Ukrainian or English is used in chat.
+- The product UI is trilingual: Ukrainian (`uk`), English (`en`), Russian (`ru`). Every user-facing string
+  lives in `packages/i18n` in all three catalogs at once; nothing user-facing is hardcoded.
+  Base language per NFR-08 is `ru` (`DEFAULT_LOCALE`); keys are English.
+- Language sources: employee choice in the bot (`employees.locale`, set from the Telegram client language at
+  first link), `x-locale` / `Accept-Language` header for the panel, `?lang=` or browser language for the kiosk.
+- API `DomainError` messages are English developer text; clients localize by the stable `code`.
 
-## Правила коду
+## Stack
 
-- Node-пакети компілюються `tsc` у `dist/`; `exports` вказує на `dist`. Відносні імпорти в node-коді з розширенням `.js`.
-- `packages/domain` не імпортує NestJS, Drizzle, grammY чи будь-що з I/O. Лише чисті функції і типи. Тести там обов'язкові.
-- Кожна зміна стану проходить через `packages/domain/shift-fsm`; ніхто не пише в `activity_intervals` в обхід транзакції переходу.
-- Нові таблиці: `snake_case`, `timestamptz` для моментів, `uuid` для ідентифікаторів, обмеження інваріантів у SQL, а не лише в коді.
-- `domain_events` і `audit_log` append-only. Міграція, яка додає UPDATE/DELETE на них, не проходить review.
-- Тексти для користувача лише через `@vakhta/i18n`; базова мова `ru` (NFR-08), ключі англійською.
-- Коди станів, дій, причин і статусів: `UPPER_SNAKE_CASE`, як у ТЗ.
-- Не логувати bot token, QR-токени, presigned URL, вміст медичних документів.
-- TS best practice
-- React best Practice
-- NestJS best practice
+pnpm workspaces + Turborepo. TypeScript, ESM everywhere (`"type": "module"`).
+API and worker: NestJS 11 on Fastify. Bot: grammY. Database: PostgreSQL 16 + Drizzle. Queues: Redis + BullMQ.
+Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testcontainers.
 
-## Команди
+## Code rules
 
-`pnpm build`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm check`. Локальна інфраструктура: `pnpm infra:up`.
-Перед тим як здавати зміни: `pnpm check` має бути зеленим.
+- Node packages compile with `tsc` into `dist/`; `exports` point at `dist`. Relative imports in node code carry the `.js` extension.
+- `packages/domain` never imports NestJS, Drizzle, grammY or anything with I/O. Pure functions and types only. Tests are mandatory there.
+- Every state change goes through `packages/domain/shift-fsm`; nobody writes to `activity_intervals` outside the transition transaction.
+- New tables: `snake_case`, `timestamptz` for instants, `uuid` for identifiers, invariants enforced in SQL, not only in code.
+- `domain_events` and `audit_log` are append-only. A migration that adds UPDATE/DELETE on them does not pass review.
+- Codes of states, actions, reasons and statuses: `UPPER_SNAKE_CASE`, as in the spec.
+- Never log the bot token, QR tokens, presigned URLs or the content of medical documents.
+- TypeScript, React and NestJS best practices.
 
-## Що поза MVP
+## Commands
 
-Замовлення, випуск, OEE, обладнання, зарплата, інтеграції ERP/MES/СКУД, біометрія, рішення ШІ. Не додавати без окремого рішення.
+`pnpm build`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm check`. Local infrastructure: `pnpm infra:up`.
+Before handing over changes `pnpm check` must be green.
+
+## Out of MVP scope
+
+Orders, output, OEE, equipment, payroll, ERP/MES/access-control integrations, biometrics, AI decisions. Do not add without a separate decision.

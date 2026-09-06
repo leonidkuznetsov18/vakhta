@@ -1,31 +1,35 @@
-import type { ShiftAction, ShiftState, TransitionErrorCode } from '@vakhta/domain';
-import { ru } from './ru.js';
+import type { Locale, ShiftAction, ShiftState, TransitionErrorCode } from '@vakhta/domain';
+import { DEFAULT_LOCALE } from '@vakhta/domain';
+import { en } from './en.js';
 import type { Messages } from './messages.js';
+import { ru } from './ru.js';
+import { uk } from './uk.js';
 
 export type { Messages } from './messages.js';
+export { en } from './en.js';
 export { ru } from './ru.js';
+export { uk } from './uk.js';
+export { DEFAULT_LOCALE, LOCALES, isLocale, resolveLocale, type Locale } from '@vakhta/domain';
 
-export type Locale = 'ru';
+export const catalogs: Readonly<Record<Locale, Messages>> = { uk, en, ru };
 
-const catalogs: Readonly<Record<Locale, Messages>> = { ru };
-
-export function messages(locale: Locale = 'ru'): Messages {
+export function messages(locale: Locale = DEFAULT_LOCALE): Messages {
   return catalogs[locale];
 }
 
-export function actionLabel(action: ShiftAction, locale: Locale = 'ru'): string {
+export function actionLabel(action: ShiftAction, locale: Locale = DEFAULT_LOCALE): string {
   return catalogs[locale].actions[action];
 }
 
-export function stateLabel(state: ShiftState, locale: Locale = 'ru'): string {
+export function stateLabel(state: ShiftState, locale: Locale = DEFAULT_LOCALE): string {
   return catalogs[locale].states[state];
 }
 
-export function errorMessage(code: TransitionErrorCode, locale: Locale = 'ru'): string {
+export function errorMessage(code: TransitionErrorCode, locale: Locale = DEFAULT_LOCALE): string {
   return catalogs[locale].errors[code];
 }
 
-/** Підставляє {key} у шаблон. Невідомий ключ лишається як є, щоб помилку було видно в тексті. */
+/** Substitutes {key} placeholders. Unknown keys are left as is so the gap is visible in the text. */
 export function format(
   template: string,
   params: Readonly<Record<string, string | number>>,

@@ -1,7 +1,13 @@
 import type { Messages } from './messages.js';
 
-/** Базова мова інтерфейсу за NFR-08. Формулювання кнопок і станів узяті з ТЗ 4.3–4.4 і 5.1. */
+/** Base interface language (NFR-08). Button and state wording follows the spec, sections 4.3-4.4 and 5.1. */
 export const ru: Messages = {
+  language: {
+    menuButton: '🌐 Язык',
+    choose: 'Выберите язык интерфейса:',
+    changed: 'Язык изменён.',
+    names: { uk: 'Українська', en: 'English', ru: 'Русский' },
+  },
   bot: {
     welcome:
       'Это бот учёта смен «Вахта». Чтобы начать, откройте ссылку активации от HR или введите код активации сообщением.',
@@ -222,6 +228,7 @@ export const ru: Messages = {
       REMARK_SAFETY_REQUIRED: 'Не указано, можно ли безопасно работать',
       PHOTO_MISSING: 'Нет фото',
     },
+    openButton: '📋 Чек-лист и фото',
     header: 'Уборка и передача зоны «{zone}»',
     progress: 'Чек-лист: {done} из {total}. Фото: {photos} из 3.',
     okButton: '✅',
@@ -470,6 +477,7 @@ export const ru: Messages = {
       audit: 'Аудит',
     },
     placeholder: 'Раздел появится на соответствующем этапе плана.',
+    language: 'Язык',
     schedule: {
       site: 'Площадка',
       orgUnit: 'Подразделение',

@@ -3,8 +3,9 @@ import QRCode from 'qrcode';
 import type { MeView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { ApiError, authApi } from '../api.ts';
+import { currentLocale } from '../i18n.tsx';
 
-const m = messages('ru');
+const m = messages(currentLocale());
 const t = m.admin.auth;
 
 interface Props {

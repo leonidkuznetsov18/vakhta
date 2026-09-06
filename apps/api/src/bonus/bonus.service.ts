@@ -62,7 +62,7 @@ import type {
   SetBaseAmountsCommand,
   ShiftScoreView,
 } from '@vakhta/contracts';
-import { format, messages } from '@vakhta/i18n';
+import { format } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -83,7 +83,6 @@ export const BONUS_OPTIONS = Symbol('BONUS_OPTIONS');
 type ScoreRow = typeof bonusShiftScores.$inferSelect;
 type RuleRow = typeof bonusRuleVersions.$inferSelect;
 
-const t = messages('ru');
 const SYSTEM: Actor = { type: 'SYSTEM', id: null, role: 'SYSTEM' };
 
 /**
@@ -975,12 +974,12 @@ export class BonusService implements OnModuleInit {
           recipientType: 'EMPLOYEE',
           recipientId: e.employeeId,
           template: 'BONUS_PERIOD_CLOSED',
-          payload: {
+          payload: (t) => ({
             text: format(t.bonus.periodClosed, {
               month,
               score: e.sMonth === null ? '—' : String(e.sMonth),
             }),
-          },
+          }),
           dedupeKey: `bonus-period-closed:${period.id}:${e.employeeId}`,
         });
       }

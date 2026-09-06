@@ -9,6 +9,7 @@ import {
   shiftAssignments,
   shiftTemplates,
   sites,
+  employeeLocale,
   type Database,
 } from '@vakhta/db';
 import { formatLocal } from '@vakhta/domain';
@@ -17,11 +18,9 @@ import { format, messages } from '@vakhta/i18n';
 
 export type ReminderOutcome = 'queued' | 'duplicate' | 'stale';
 
-const t = messages('ru');
-
 /**
- * Нагадування «зміна скоро» (ТЗ 10). Таймер лише читає стан: якщо зміну скасовано,
- * версію замінено або час минув, нічого не робить (ADR-8).
+ * "Shift soon" reminder (spec 10). The timer only reads state: if the shift was cancelled,
+ * the version replaced or the time has passed, it does nothing (ADR-8).
  */
 export async function handleShiftReminder(
   db: Database,
@@ -51,6 +50,7 @@ export async function handleShiftReminder(
   if (!row || row.a.planStartAt.getTime() <= now.getTime()) return 'stale';
 
   const local = formatLocal(row.a.planStartAt, row.timezone).local;
+  const t = messages(await employeeLocale(db, row.a.employeeId));
   const text = format(t.schedule.shiftReminder, {
     kind: t.schedule.kindNames[row.isNight ? 'NIGHT' : 'DAY'],
     date: `${local.slice(8, 10)}.${local.slice(5, 7)}`,
@@ -71,7 +71,7 @@ export async function handleShiftReminder(
   return inserted.length > 0 ? 'queued' : 'duplicate';
 }
 
-/** Повторне нагадування про ознайомлення, доки хоч одна зміна версії не підтверджена. */
+/** Repeated acknowledgement reminder while at least one shift of the version is unconfirmed. */
 export async function handleAckReminder(
   db: Database,
   data: AckReminderJob,
@@ -106,6 +106,7 @@ export async function handleAckReminder(
   if (!pending) return 'stale';
 
   const [year, m] = version.periodMonth.split('-');
+  const t = messages(await employeeLocale(db, data.employeeId));
   const text = format(t.schedule.ackReminder, {
     month: t.schedule.months[Number(m) - 1] ?? version.periodMonth,
     year: year ?? '',

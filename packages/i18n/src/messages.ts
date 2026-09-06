@@ -22,10 +22,19 @@ import type {
   CommandErrorCode,
   ValidationIssueCode,
   WebRole,
+  Locale,
 } from '@vakhta/domain';
 
-/** Повна форма каталогу: типи гарантують, що жодна дія, стан чи помилка не лишилась без тексту. */
+/** Full catalog shape: the types guarantee that no action, state or error is left without text. */
 export interface Messages {
+  readonly language: {
+    /** Button on the home screen that opens the language picker. */
+    readonly menuButton: string;
+    readonly choose: string;
+    readonly changed: string;
+    /** Native names shown on the picker buttons. */
+    readonly names: Readonly<Record<Locale, string>>;
+  };
   readonly bot: {
     readonly welcome: string;
     readonly askCode: string;
@@ -33,15 +42,15 @@ export interface Messages {
     readonly notReady: string;
     readonly useButtons: string;
     readonly serverTimeLabel: string;
-    /** Плейсхолдери: {name}, {personnelNumber} */
+    /** Placeholders: {name}, {personnelNumber} */
     readonly home: string;
     readonly homeNoSchedule: string;
     readonly access: Readonly<Record<Exclude<EmployeeAccess, 'ALLOWED'>, string>>;
   };
   readonly activation: {
-    /** Плейсхолдери: {name}, {personnelNumber}, {position} */
+    /** Placeholders: {name}, {personnelNumber}, {position} */
     readonly preview: string;
-    /** Плейсхолдери: {position}, {orgUnit} */
+    /** Placeholders: {position}, {orgUnit} */
     readonly positionLine: string;
     readonly noPosition: string;
     readonly confirm: string;
@@ -53,17 +62,17 @@ export interface Messages {
   };
   readonly attendance: {
     readonly activateFirst: string;
-    /** Плейсхолдер: {terminal} */
+    /** Placeholder: {terminal} */
     readonly promptArrive: string;
     readonly promptDepart: string;
     readonly arriveButton: string;
     readonly departButton: string;
-    /** Плейсхолдери: {time}, {terminal} */
+    /** Placeholders: {time}, {terminal} */
     readonly arrived: string;
     readonly arrivedAlready: string;
     readonly departed: string;
     readonly departedAlready: string;
-    /** Плейсхолдер: {time} */
+    /** Placeholder: {time} */
     readonly presenceLine: string;
     readonly failures: Readonly<Record<CheckInFailure, string>>;
   };
@@ -72,13 +81,13 @@ export interface Messages {
   readonly errors: Readonly<Record<CommandErrorCode, string>>;
   readonly roles: Readonly<Record<WebRole, string>>;
   readonly shift: {
-    /** Плейсхолдери: {state}, {since} */
+    /** Placeholders: {state}, {since} */
     readonly stateLine: string;
-    /** Плейсхолдер: {resume} */
+    /** Placeholder: {resume} */
     readonly resumeLine: string;
-    /** Плейсхолдери: {start}, {end} */
+    /** Placeholders: {start}, {end} */
     readonly planLine: string;
-    /** Плейсхолдер: {zone} */
+    /** Placeholder: {zone} */
     readonly zoneLine: string;
     readonly zoneNotAccepted: string;
     readonly acceptZone: string;
@@ -90,17 +99,17 @@ export interface Messages {
     readonly staleButton: string;
     readonly closedHeader: string;
     readonly emergencyHeader: string;
-    /** Плейсхолдери: {total}, {work}, {breaks}, {meal}, {downtime} */
+    /** Placeholders: {total}, {work}, {breaks}, {meal}, {downtime} */
     readonly summaryTotals: string;
-    /** Плейсхолдер: {minutes} */
+    /** Placeholder: {minutes} */
     readonly summaryLate: string;
     readonly summaryEarly: string;
     readonly summaryOvertime: string;
     readonly summaryOvertimePending: string;
     readonly flagged: string;
-    /** Плейсхолдери: {state}, {limit} */
+    /** Placeholders: {state}, {limit} */
     readonly returnReminder: string;
-    /** Плейсхолдери: {name}, {minutes}, {reason} */
+    /** Placeholders: {name}, {minutes}, {reason} */
     readonly downtimeEscalation: string;
     readonly resumeIntoDowntimeQuestion: string;
     readonly resumeIntoDowntimeYes: string;
@@ -119,13 +128,13 @@ export interface Messages {
     readonly cancelled: string;
     readonly expired: string;
     readonly noShift: string;
-    /** Плейсхолдер: {reason} */
+    /** Placeholder: {reason} */
     readonly reported: string;
     readonly linked: string;
     readonly masterNotified: string;
     readonly safetyEscalated: string;
     readonly downtimeOpened: string;
-    /** Плейсхолдер: {error} */
+    /** Placeholder: {error} */
     readonly downtimeNotOpened: string;
     readonly resolvedNotice: string;
     readonly statuses: Readonly<Record<IncidentStatus, string>>;
@@ -139,6 +148,8 @@ export interface Messages {
     readonly resolutions: Readonly<Record<HandoverResolution, string>>;
     readonly quality: Readonly<Record<MediaQualityStatus, string>>;
     readonly issues: Readonly<Record<HandoverIssueCode, string>>;
+    /** Button on the shift screen that opens the checklist while in HANDOVER. */
+    readonly openButton: string;
     readonly header: string;
     readonly progress: string;
     readonly okButton: string;
@@ -204,12 +215,12 @@ export interface Messages {
     readonly cancel: string;
     readonly cancelled: string;
     readonly submitted: string;
-    /** Плейсхолдери: {type}, {status} */
+    /** Placeholders: {type}, {status} */
     readonly line: string;
     readonly counterpartAsk: string;
     readonly counterpartYes: string;
     readonly counterpartNo: string;
-    /** Плейсхолдери: {type}, {decision}, {comment} */
+    /** Placeholders: {type}, {decision}, {comment} */
     readonly decidedNotification: string;
     readonly scheduleChangedNotification: string;
     readonly chooseCounterpart: string;
@@ -232,33 +243,33 @@ export interface Messages {
       Record<'earned' | 'missed' | 'not_applicable' | 'pending' | 'appealed' | 'confirmed', string>
     >;
     readonly myScoresButton: string;
-    /** Плейсхолдери: {month}, {year} */
+    /** Placeholders: {month}, {year} */
     readonly header: string;
-    /** Плейсхолдер: {score} */
+    /** Placeholder: {score} */
     readonly monthLine: string;
     readonly monthPending: string;
     readonly noScores: string;
-    /** Плейсхолдери: {date}, {score}, {status} */
+    /** Placeholders: {date}, {score}, {status} */
     readonly shiftLine: string;
     readonly manualReview: string;
     readonly appealButton: string;
-    /** Плейсхолдер: {days} */
+    /** Placeholder: {days} */
     readonly appealHint: string;
     readonly appealSubmitted: string;
     readonly detailsButton: string;
-    /** Плейсхолдери: {month}, {score} */
+    /** Placeholders: {month}, {score} */
     readonly periodClosed: string;
   };
   readonly schedule: {
-    /** Назви місяців у називному відмінку, індекс 0 = січень. */
+    /** Month names in the nominative case, index 0 = January. */
     readonly months: readonly string[];
-    /** Короткі дні тижня, індекс 0 = понеділок. */
+    /** Short weekday names, index 0 = Monday. */
     readonly weekdaysShort: readonly string[];
     readonly dayKinds: Readonly<Record<'DAY' | 'NIGHT' | 'OFF', string>>;
     readonly kindNames: Readonly<Record<'DAY' | 'NIGHT', string>>;
-    /** Плейсхолдери: {month}, {year} */
+    /** Placeholders: {month}, {year} */
     readonly planHeader: string;
-    /** Плейсхолдери: {shifts}, {hours}, {day}, {night} */
+    /** Placeholders: {shifts}, {hours}, {day}, {night} */
     readonly planTotals: string;
     readonly planEmpty: string;
     readonly myPlanButton: string;
@@ -268,16 +279,16 @@ export interface Messages {
     readonly ackDone: string;
     readonly ackNothing: string;
     readonly ackRequired: string;
-    /** Плейсхолдери: {date}, {weekday}, {kind}, {start}, {end}, {zone} */
+    /** Placeholders: {date}, {weekday}, {kind}, {start}, {end}, {zone} */
     readonly nextShift: string;
     readonly noNextShift: string;
-    /** Плейсхолдери: {month}, {year}, {shifts} */
+    /** Placeholders: {month}, {year}, {shifts} */
     readonly published: string;
-    /** Плейсхолдери: {month}, {year}, {added}, {removed}, {changed} */
+    /** Placeholders: {month}, {year}, {added}, {removed}, {changed} */
     readonly changed: string;
-    /** Плейсхолдери: {kind}, {date}, {start}, {zone} */
+    /** Placeholders: {kind}, {date}, {start}, {zone} */
     readonly shiftReminder: string;
-    /** Плейсхолдери: {month}, {year} */
+    /** Placeholders: {month}, {year} */
     readonly ackReminder: string;
     readonly issues: Readonly<Record<ValidationIssueCode, string>>;
   };
@@ -298,6 +309,8 @@ export interface Messages {
       >
     >;
     readonly placeholder: string;
+    /** Label of the language switcher in the panel header. */
+    readonly language: string;
     readonly auth: {
       readonly signInTitle: string;
       readonly email: string;
@@ -597,7 +610,7 @@ export interface Messages {
         readonly notLinked: string;
         readonly create: string;
         readonly issueCode: string;
-        /** Плейсхолдери: {code}, {expires} */
+        /** Placeholders: {code}, {expires} */
         readonly codeIssued: string;
         readonly deepLink: string;
         readonly position: string;

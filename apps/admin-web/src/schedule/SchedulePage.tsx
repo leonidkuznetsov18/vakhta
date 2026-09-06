@@ -23,8 +23,9 @@ import {
   setZone,
   type GridState,
 } from './grid.ts';
+import { currentLocale } from '../i18n.tsx';
 
-const t = messages('ru');
+const t = messages(currentLocale());
 const s = t.admin.schedule;
 const EMPTY_GRID: GridState = { rows: [] };
 

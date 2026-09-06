@@ -13,6 +13,8 @@ import {
 import { orgUnits, positions, teams } from './org.js';
 
 export const employeeStatus = pgEnum('employee_status', ['ACTIVE', 'BLOCKED', 'TERMINATED']);
+/** Interface languages; mirrors LOCALES in @vakhta/domain. */
+export const localeEnum = pgEnum('locale', ['uk', 'en', 'ru']);
 
 /** Кадрова картка (ТЗ 2.2). Створюється HR або адміністратором до активації бота. */
 export const employees = pgTable('employees', {
@@ -20,6 +22,8 @@ export const employees = pgTable('employees', {
   personnelNumber: text('personnel_number').notNull().unique(),
   fullName: text('full_name').notNull(),
   status: employeeStatus('status').notNull().default('ACTIVE'),
+  /** Bot and notification language; null until the employee links Telegram or picks one. */
+  locale: localeEnum('locale'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

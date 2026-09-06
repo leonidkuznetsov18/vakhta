@@ -1,4 +1,5 @@
 import type { MeView } from '@vakhta/contracts';
+import { currentLocale } from './i18n.tsx';
 
 export const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
 
@@ -18,7 +19,11 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
     credentials: 'include',
-    headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },
+    headers: {
+      'content-type': 'application/json',
+      'x-locale': currentLocale(),
+      ...(init.headers ?? {}),
+    },
   });
   const text = await res.text();
   const body = text ? (JSON.parse(text) as unknown) : null;

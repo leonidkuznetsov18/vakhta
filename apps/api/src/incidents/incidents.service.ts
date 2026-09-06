@@ -49,6 +49,7 @@ import type {
   ReportProblemResult,
   ReportView,
 } from '@vakhta/contracts';
+import { DEFAULT_LOCALE, type Locale } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
@@ -70,7 +71,6 @@ export const INCIDENT_OPTIONS = Symbol('INCIDENT_OPTIONS');
 type IncidentRow = typeof downtimeIncidents.$inferSelect;
 type ReasonRow = typeof reasonCodes.$inferSelect;
 
-const t = messages('ru');
 const OPEN = [...OPEN_INCIDENT_STATUSES];
 
 /**
@@ -136,7 +136,12 @@ export class IncidentsService {
       throw new DomainError('COMMENT_REQUIRED', 422, 'Для цієї причини потрібен коментар');
     }
     const session = await this.shift.activeSession(employeeId);
-    if (!session) throw new DomainError('NO_ACTIVE_SHIFT', 409, t.incidents.noShift);
+    if (!session)
+      throw new DomainError(
+        'NO_ACTIVE_SHIFT',
+        409,
+        'A problem can be reported only during an open shift',
+      );
 
     const place = session.assignmentId ? await this.placeOf(session.assignmentId) : null;
     const deferred: DeferredTimer[] = [];
@@ -425,7 +430,7 @@ export class IncidentsService {
             recipientType: 'EMPLOYEE',
             recipientId: s.employeeId,
             template: 'INCIDENT_RESOLVED',
-            payload: { text: t.incidents.resolvedNotice },
+            payload: (t) => ({ text: t.incidents.resolvedNotice }),
             dedupeKey: `incident-resolved:${id}:${s.employeeId}:${cmd.to}`,
           });
         }
@@ -632,7 +637,11 @@ export class IncidentsService {
   }
 
   /** Звіт по причинах і зонах за період (ТЗ 9.1): інциденти, повідомлення, хвилини простою, SLA. */
-  async stats(q: IncidentStatsQuery, now: Date = new Date()): Promise<IncidentStatsView> {
+  async stats(
+    q: IncidentStatsQuery,
+    locale: Locale = DEFAULT_LOCALE,
+    now: Date = new Date(),
+  ): Promise<IncidentStatsView> {
     const from = new Date(q.from);
     const to = new Date(q.to);
     const scope = [gte(downtimeIncidents.openedAt, from), lt(downtimeIncidents.openedAt, to)];
@@ -755,7 +764,7 @@ export class IncidentsService {
       }),
       {
         key: 'TOTAL',
-        label: t.admin.incidents.totals,
+        label: messages(locale).admin.incidents.totals,
         incidents: 0,
         reports: 0,
         downtimeMinutes: 0,

@@ -763,3 +763,25 @@ h2 {
   border-radius: 4px;
   margin: 0;
 }
+
+/* Language switcher: three compact buttons, the active one filled. */
+.lang-switch {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.lang-item {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #cfd6dd);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.lang-item.active {
+  background: var(--accent, #1f6feb);
+  border-color: var(--accent, #1f6feb);
+  color: #fff;
+}

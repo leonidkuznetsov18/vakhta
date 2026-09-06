@@ -5,9 +5,11 @@ import {
   codeFromDeepLink,
   employeeAccess,
   isActivationDeepLink,
+  isLocale,
   isMonth,
   isValidStartParam,
   normalizeActivationCode,
+  resolveLocale,
 } from '@vakhta/domain';
 import {
   HANDOVER_ANGLES,
@@ -52,6 +54,7 @@ import {
   incidentResultScreen,
   incidentStoppedScreen,
   counterpartScreen,
+  languageScreen,
   myScoresScreen,
   pendingHandoverScreen,
   scoreDetailScreen,
@@ -69,7 +72,7 @@ import {
 } from './screens.js';
 import type { UpdateDedup } from './update-dedup.js';
 
-/** Незавершені кроки передачі й приймання; живуть у Redis поруч із повідомленням про проблему. */
+/** Unfinished handover and acceptance steps; live in Redis next to the problem report. */
 type PendingHandover =
   | { readonly kind: 'photo'; readonly angle: HandoverAngle }
   | { readonly kind: 'note' }
@@ -89,7 +92,7 @@ type PendingHandover =
       readonly comment?: string;
     };
 
-/** Незавершене звернення: тип і зібрані поля (ТЗ 8.1). */
+/** Unfinished request: type and the fields collected so far (spec 8.1). */
 interface PendingRequest {
   readonly type: RequestType;
   readonly step:
@@ -116,7 +119,7 @@ interface PendingRequest {
   readonly comment?: string;
 }
 
-/** «12.10–16.10» або «12.10» → ISO-дати в найближчому майбутньому. */
+/** "12.10–16.10" or "12.10" → ISO dates in the nearest future. */
 function parsePeriod(text: string, now: Date): { from: string; to: string } | null {
   const m = text.replace(/\s+/g, '').match(/^(\d{1,2})\.(\d{1,2})(?:[–—-](\d{1,2})\.(\d{1,2}))?$/);
   if (!m) return null;
@@ -135,7 +138,7 @@ function parsePeriod(text: string, now: Date): { from: string; to: string } | nu
   return { from, to };
 }
 
-/** Незавершене повідомлення про проблему живе в Redis, не в памʼяті процесу (ADR-11). */
+/** An unfinished problem report lives in Redis, not in process memory (ADR-11). */
 interface PendingReport {
   readonly reasonCode: string;
   readonly reasonLabel: string;
@@ -168,28 +171,30 @@ export interface BotDeps {
 }
 
 /**
- * Збирає grammY-бота. Стан не зберігається в памʼяті процесу (ADR-11): кожне оновлення
- * заново визначає працівника за Telegram user_id, а очікування підтвердження живе в Redis.
+ * Builds the grammY bot. No state is kept in process memory (ADR-11): every update resolves
+ * the employee by Telegram user_id again, and pending confirmations live in Redis.
  */
 export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   const bot = new Bot<BotContext>(token);
-  const t = messages('ru');
 
-  // ADR-3, рівень 1: повторна доставка update_id (webhook або polling) не доходить до обробників.
+  // ADR-3, level 1: a redelivered update_id (webhook or polling) never reaches the handlers.
   bot.use(async (ctx, next) => {
     if (!(await deps.dedup.claim(ctx.update.update_id))) {
-      deps.logger.debug({ updateId: ctx.update.update_id }, 'повторне оновлення, пропущено');
+      deps.logger.debug({ updateId: ctx.update.update_id }, 'duplicate update skipped');
       return;
     }
     await next();
   });
 
-  // FR-AUTH-01: хто пише і чи має доступ. Лише активна привʼязка дає employee.
+  // FR-AUTH-01: who writes and whether they have access. Only an active link yields an employee.
+  // The language follows the employee's saved choice, then the Telegram client language.
   bot.use(async (ctx, next) => {
     const from = ctx.from;
     const linked = from ? await deps.employees.findByTelegramUserId(from.id) : null;
     ctx.employee = linked?.employee ?? null;
     ctx.access = employeeAccess(linked?.employee.status ?? null);
+    ctx.locale = linked?.employee.locale ?? resolveLocale(from?.language_code);
+    ctx.t = messages(ctx.locale);
     await next();
   });
 
@@ -204,7 +209,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         screen.keyboard ? { reply_markup: screen.keyboard } : undefined,
       );
     } catch {
-      // Той самий текст або застаріле повідомлення: показуємо новим.
+      // Same text or an outdated message: send a new one instead.
       await show(ctx, screen);
     }
   }
@@ -212,8 +217,8 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   async function buildHome(ctx: BotContext): Promise<Screen> {
     if (ctx.access !== 'ALLOWED' || !ctx.employee) {
       return ctx.access === 'NOT_REGISTERED' || ctx.access === 'ALLOWED'
-        ? welcomeScreen()
-        : accessDeniedScreen(ctx.access);
+        ? welcomeScreen(ctx.t)
+        : accessDeniedScreen(ctx.t, ctx.access);
     }
     const [next, unacknowledged, presence, shiftRaw, pendingHandovers, pendingSwaps] =
       await Promise.all([
@@ -226,7 +231,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       ]);
     const shift = { ...shiftRaw, pendingHandovers: pendingHandovers.length };
     const timezone = next?.timezone ?? deps.defaultTimezone;
-    const home = homeScreen({
+    const home = homeScreen(ctx.t, {
       employee: ctx.employee,
       next,
       unacknowledged: unacknowledged.length,
@@ -234,21 +239,24 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       timezone,
       pendingSwaps: pendingSwaps.length,
     });
-    // ТЗ 5.1: у зміні і одразу після неї головний екран є екраном зміни.
+    // Spec 5.1: during the shift and right after it the home screen is the shift screen.
     if (shift.session || shift.allowedActions.includes('START_SHIFT')) {
-      return shiftScreen({ ...shift, timezone }, home.text);
+      return shiftScreen(ctx.t, { ...shift, timezone }, home.text);
     }
     return home;
   }
 
-  /** Спільний хвіст для всіх кнопок зміни: тост із результатом і перемальований екран. */
+  /** Common tail for every shift button: a toast with the result and a redrawn screen. */
   async function finishShiftCommand(
     ctx: BotContext,
     result: Awaited<ReturnType<ShiftService['transition']>>,
   ): Promise<void> {
     if (!result.ok) {
       await ctx.answerCallbackQuery({
-        text: result.error === 'VERSION_CONFLICT' ? t.shift.staleButton : t.errors[result.error],
+        text:
+          result.error === 'VERSION_CONFLICT'
+            ? ctx.t.shift.staleButton
+            : ctx.t.errors[result.error],
         show_alert: result.error !== 'VERSION_CONFLICT',
       });
     } else {
@@ -262,34 +270,38 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     const resolved =
       month === 'cur' ? businessDateOf(new Date(), deps.defaultTimezone).slice(0, 7) : month;
     if (!isMonth(resolved)) return null;
-    return planScreen(await deps.schedule.myPlan(ctx.employee.id, resolved));
+    return planScreen(ctx.t, await deps.schedule.myPlan(ctx.employee.id, resolved));
   }
 
   async function startActivation(ctx: BotContext, rawCode: string): Promise<void> {
     if (!ctx.from) return;
-    if (ctx.access === 'ALLOWED') return show(ctx, { text: t.bot.alreadyRegistered });
-    if (ctx.access !== 'NOT_REGISTERED') return show(ctx, accessDeniedScreen(ctx.access));
+    if (ctx.access === 'ALLOWED') return show(ctx, { text: ctx.t.bot.alreadyRegistered });
+    if (ctx.access !== 'NOT_REGISTERED') return show(ctx, accessDeniedScreen(ctx.t, ctx.access));
 
     const preview = await deps.activation.preview(ctx.from.id, rawCode);
-    if (!preview.ok) return show(ctx, { text: activationFailureText(preview.reason) });
-    await show(ctx, activationPreviewScreen(preview));
+    if (!preview.ok) return show(ctx, { text: activationFailureText(ctx.t, preview.reason) });
+    await show(ctx, activationPreviewScreen(ctx.t, preview));
   }
 
-  /** Deep link з терміналу (FR-QR-02): показати одну доречну дію (FR-UI-01). */
+  /** Deep link from the terminal (FR-QR-02): show the single relevant action (FR-UI-01). */
   async function startCheckIn(ctx: BotContext, qrToken: string): Promise<void> {
     if (ctx.access === 'BLOCKED' || ctx.access === 'TERMINATED') {
-      return show(ctx, accessDeniedScreen(ctx.access));
+      return show(ctx, accessDeniedScreen(ctx.t, ctx.access));
     }
     if (ctx.access === 'NOT_REGISTERED' || !ctx.employee) {
-      return show(ctx, { text: `${t.attendance.activateFirst}\n\n${t.bot.askCode}` });
+      return show(ctx, { text: `${ctx.t.attendance.activateFirst}\n\n${ctx.t.bot.askCode}` });
     }
 
     const preview = await deps.attendance.previewChallenge(qrToken);
-    if (!preview.ok) return show(ctx, { text: t.attendance.failures[preview.reason] });
+    if (!preview.ok) return show(ctx, { text: ctx.t.attendance.failures[preview.reason] });
     const action = await deps.attendance.intent(ctx.employee.id);
     await show(
       ctx,
-      checkInPromptScreen({ action, terminalName: preview.terminal.name, token: qrToken }),
+      checkInPromptScreen(ctx.t, {
+        action,
+        terminalName: preview.terminal.name,
+        token: qrToken,
+      }),
     );
   }
 
@@ -305,32 +317,52 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await show(ctx, screen ?? (await buildHome(ctx)));
   });
 
-  bot.callbackQuery(CALLBACK.activationConfirm, async (ctx) => {
-    const outcome = await deps.activation.confirm(ctx.from.id);
+  // Interface language: /language or the home-screen button; the choice is stored per employee.
+  bot.command('language', async (ctx) => {
+    await show(ctx, languageScreen(ctx.t, ctx.locale));
+  });
+
+  bot.callbackQuery(CALLBACK.languageMenu, async (ctx) => {
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(activationOutcomeScreen(outcome).text);
+    await edit(ctx, languageScreen(ctx.t, ctx.locale));
+  });
+
+  bot.callbackQuery(/^lang:(uk|en|ru)$/, async (ctx) => {
+    const locale = ctx.match[1];
+    if (!isLocale(locale)) return ctx.answerCallbackQuery();
+    if (ctx.employee) await deps.employees.setLocale(ctx.employee.id, locale);
+    ctx.locale = locale;
+    ctx.t = messages(locale);
+    await ctx.answerCallbackQuery({ text: ctx.t.language.changed });
+    await edit(ctx, await buildHome(ctx));
+  });
+
+  bot.callbackQuery(CALLBACK.activationConfirm, async (ctx) => {
+    const outcome = await deps.activation.confirm(ctx.from.id, ctx.from.language_code);
+    await ctx.answerCallbackQuery();
+    await ctx.editMessageText(activationOutcomeScreen(ctx.t, outcome).text);
   });
 
   bot.callbackQuery(CALLBACK.activationCancel, async (ctx) => {
     await deps.activation.cancel(ctx.from.id);
     await ctx.answerCallbackQuery();
-    await ctx.editMessageText(t.activation.cancelled);
+    await ctx.editMessageText(ctx.t.activation.cancelled);
   });
 
-  // «Я на роботі» / «Я пішов» (FR-TIME-01, FR-TIME-05): результат із серверним часом (FR-UI-02).
+  // "I am at work" / "I have left" (FR-TIME-01, FR-TIME-05): result with server time (FR-UI-02).
   bot.callbackQuery(/^(arr|dep):([A-Za-z0-9_-]{22})$/, async (ctx) => {
     if (ctx.access !== 'ALLOWED' || !ctx.employee) {
-      await ctx.answerCallbackQuery({ text: t.bot.access.NOT_REGISTERED, show_alert: true });
+      await ctx.answerCallbackQuery({ text: ctx.t.bot.access.NOT_REGISTERED, show_alert: true });
       return;
     }
     const action = ctx.match[1] === 'arr' ? 'ARRIVE' : 'DEPART';
     const result = await deps.attendance.checkInByQr(ctx.employee.id, ctx.match[2] ?? '', action);
     await ctx.answerCallbackQuery();
-    await edit(ctx, checkInResultScreen(result, deps.defaultTimezone));
+    await edit(ctx, checkInResultScreen(ctx.t, result, deps.defaultTimezone));
     if (result.ok) await show(ctx, await buildHome(ctx));
   });
 
-  // Кнопки зміни (ТЗ 4.4): версія в callback data захищає від застарілих кнопок (ТЗ 12.3).
+  // Shift buttons (spec 4.4): the version in callback data protects against stale buttons (spec 12.3).
   bot.callbackQuery(/^sh:pick:(DOWNTIME|EMERGENCY):(\d+)$/, async (ctx) => {
     if (ctx.access !== 'ALLOWED' || !ctx.employee) return ctx.answerCallbackQuery();
     await ctx.answerCallbackQuery();
@@ -340,7 +372,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     }
     await edit(
       ctx,
-      reasonPickerScreen(view, ctx.match[1] === 'DOWNTIME' ? 'DOWNTIME' : 'EMERGENCY'),
+      reasonPickerScreen(ctx.t, view, ctx.match[1] === 'DOWNTIME' ? 'DOWNTIME' : 'EMERGENCY'),
     );
   });
 
@@ -353,15 +385,15 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     if (ctx.access !== 'ALLOWED' || !ctx.employee) return ctx.answerCallbackQuery();
     try {
       await deps.shift.acceptZone(ctx.employee.id, employeeActor(ctx.employee.id));
-      await ctx.answerCallbackQuery({ text: t.shift.zoneAccepted });
+      await ctx.answerCallbackQuery({ text: ctx.t.shift.zoneAccepted });
     } catch (error) {
-      deps.logger.warn({ err: error }, 'зону не прийнято');
-      await ctx.answerCallbackQuery({ text: t.errors.NO_ACTIVE_SHIFT });
+      deps.logger.warn({ err: error }, 'zone not accepted');
+      await ctx.answerCallbackQuery({ text: ctx.t.errors.NO_ACTIVE_SHIFT });
     }
     await edit(ctx, await buildHome(ctx));
   });
 
-  // «Сообщить о проблеме» (ТЗ 5.5): причина → коментар/фото за потреби → «Работа остановлена?»
+  // "Report a problem" (spec 5.5): reason → comment/photo if required → "Is work stopped?"
   const pendingKey = (telegramUserId: number) => `incident:pending:${telegramUserId}`;
   async function readPending(ctx: BotContext): Promise<PendingReport | null> {
     if (!ctx.from) return null;
@@ -377,24 +409,24 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   }
   async function nextStep(ctx: BotContext, pending: PendingReport): Promise<void> {
     await writePending(ctx, pending);
-    if (pending.step === 'comment') return show(ctx, incidentCommentScreen());
-    if (pending.step === 'photo') return show(ctx, incidentPhotoScreen());
-    return show(ctx, incidentStoppedScreen(pending.reasonLabel));
+    if (pending.step === 'comment') return show(ctx, incidentCommentScreen(ctx.t));
+    if (pending.step === 'photo') return show(ctx, incidentPhotoScreen(ctx.t));
+    return show(ctx, incidentStoppedScreen(ctx.t, pending.reasonLabel));
   }
 
   bot.callbackQuery(/^inc:new:(\d+)$/, async (ctx) => {
     if (ctx.access !== 'ALLOWED' || !ctx.employee) return ctx.answerCallbackQuery();
     await ctx.answerCallbackQuery();
     const view = await deps.shift.screen(ctx.employee.id);
-    if (!view.session || view.session.endedAt) return edit(ctx, { text: t.incidents.noShift });
-    await edit(ctx, incidentReasonScreen(view.downtimeReasons));
+    if (!view.session || view.session.endedAt) return edit(ctx, { text: ctx.t.incidents.noShift });
+    await edit(ctx, incidentReasonScreen(ctx.t, view.downtimeReasons));
   });
 
   bot.callbackQuery(/^inc:r:([A-Z][A-Z0-9_]{1,63})$/, async (ctx) => {
     if (ctx.access !== 'ALLOWED' || !ctx.employee) return ctx.answerCallbackQuery();
     const reason = await deps.incidents.reason(ctx.match[1] ?? '');
     await ctx.answerCallbackQuery();
-    if (!reason) return edit(ctx, { text: t.shift.noReasons });
+    if (!reason) return edit(ctx, { text: ctx.t.shift.noReasons });
     await ctx.editMessageReplyMarkup().catch(() => undefined);
     await nextStep(ctx, {
       reasonCode: reason.code,
@@ -407,7 +439,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   bot.callbackQuery(/^inc:skip$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     const pending = await readPending(ctx);
-    if (!pending) return edit(ctx, { text: t.incidents.expired });
+    if (!pending) return edit(ctx, { text: ctx.t.incidents.expired });
     await ctx.editMessageReplyMarkup().catch(() => undefined);
     await nextStep(ctx, { ...pending, step: 'stop' });
   });
@@ -415,7 +447,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   bot.callbackQuery(/^inc:cancel$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     await clearPending(ctx);
-    await edit(ctx, { text: t.incidents.cancelled });
+    await edit(ctx, { text: ctx.t.incidents.cancelled });
     await show(ctx, await buildHome(ctx));
   });
 
@@ -424,7 +456,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     const pending = await readPending(ctx);
     if (!pending) {
       await ctx.answerCallbackQuery();
-      return edit(ctx, { text: t.incidents.expired });
+      return edit(ctx, { text: ctx.t.incidents.expired });
     }
     try {
       const result = await deps.incidents.report(
@@ -440,16 +472,16 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       );
       await clearPending(ctx);
       await ctx.answerCallbackQuery();
-      await edit(ctx, incidentResultScreen(result, pending.reasonLabel));
+      await edit(ctx, incidentResultScreen(ctx.t, result, pending.reasonLabel));
     } catch (error) {
-      deps.logger.warn({ err: error }, 'повідомлення про проблему відхилено');
+      deps.logger.warn({ err: error }, 'problem report rejected');
       await clearPending(ctx);
-      await ctx.answerCallbackQuery({ text: t.incidents.noShift, show_alert: true });
+      await ctx.answerCallbackQuery({ text: ctx.t.incidents.noShift, show_alert: true });
     }
     await show(ctx, await buildHome(ctx));
   });
 
-  // Прибирання і передача (ТЗ 5.6–5.8): чек-лист, фото, подання; приймання наступною зміною.
+  // Cleaning and handover (spec 5.6-5.8): checklist, photos, submission; acceptance by the next shift.
   const hvKey = (telegramUserId: number) => `handover:pending:${telegramUserId}`;
   async function readHv(ctx: BotContext): Promise<PendingHandover | null> {
     if (!ctx.from) return null;
@@ -467,7 +499,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     if (!ctx.employee) return;
     const view = await deps.handover.current(ctx.employee.id);
     if (!view) return edit(ctx, await buildHome(ctx));
-    await edit(ctx, handoverScreen(view, ''));
+    await edit(ctx, handoverScreen(ctx.t, view, ''));
   }
   async function handoverReasons(): Promise<{ code: string; label: string }[]> {
     return deps.incidents.reasonOptions('HANDOVER');
@@ -494,8 +526,8 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       );
       await ctx.answerCallbackQuery();
     } catch (error) {
-      deps.logger.warn({ err: error }, 'відповідь чек-листа відхилено');
-      await ctx.answerCallbackQuery({ text: t.errors.ACTION_NOT_ALLOWED, show_alert: true });
+      deps.logger.warn({ err: error }, 'checklist answer rejected');
+      await ctx.answerCallbackQuery({ text: ctx.t.errors.ACTION_NOT_ALLOWED, show_alert: true });
     }
     await showHandover(ctx);
   });
@@ -507,7 +539,9 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     const item = view?.items.find((i) => i.key === ctx.match[1]);
     if (!view || !item) return showHandover(ctx);
     await writeHv(ctx, { kind: 'remark', itemKey: item.key, step: 'category' });
-    await edit(ctx, handoverRemarkCategoryScreen(item.label, await handoverReasons()));
+    const label =
+      (ctx.t.handover.items as Readonly<Record<string, string>>)[item.key] ?? item.label;
+    await edit(ctx, handoverRemarkCategoryScreen(ctx.t, label, await handoverReasons()));
   });
 
   bot.callbackQuery(/^hv:rc:([A-Z][A-Z0-9_]{1,63})$/, async (ctx) => {
@@ -515,7 +549,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     const pending = await readHv(ctx);
     if (pending?.kind !== 'remark') return showHandover(ctx);
     await writeHv(ctx, { ...pending, category: ctx.match[1] ?? '', step: 'text' });
-    await edit(ctx, handoverTextPromptScreen(t.handover.askRemarkText));
+    await edit(ctx, handoverTextPromptScreen(ctx.t, ctx.t.handover.askRemarkText));
   });
 
   bot.callbackQuery(/^hv:safe:(1|0)$/, async (ctx) => {
@@ -523,7 +557,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     const pending = await readHv(ctx);
     if (pending?.kind !== 'remark') return showHandover(ctx);
     await writeHv(ctx, { ...pending, safeToWork: ctx.match[1] === '1', step: 'needs' });
-    await edit(ctx, handoverNeedsScreen());
+    await edit(ctx, handoverNeedsScreen(ctx.t));
   });
 
   bot.callbackQuery(/^hv:need:(MASTER|CLEANING|REPAIR|NONE)$/, async (ctx) => {
@@ -547,10 +581,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         },
         employeeActor(ctx.employee.id),
       );
-      await ctx.answerCallbackQuery({ text: t.handover.remarkSaved });
+      await ctx.answerCallbackQuery({ text: ctx.t.handover.remarkSaved });
     } catch (error) {
-      deps.logger.warn({ err: error }, 'зауваження відхилено');
-      await ctx.answerCallbackQuery({ text: t.errors.ACTION_NOT_ALLOWED, show_alert: true });
+      deps.logger.warn({ err: error }, 'remark rejected');
+      await ctx.answerCallbackQuery({ text: ctx.t.errors.ACTION_NOT_ALLOWED, show_alert: true });
     }
     await clearHv(ctx);
     await showHandover(ctx);
@@ -560,7 +594,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await ctx.answerCallbackQuery();
     if (!guardEmployee(ctx)) return;
     await writeHv(ctx, { kind: 'note' });
-    await edit(ctx, handoverTextPromptScreen(t.handover.askNote));
+    await edit(ctx, handoverTextPromptScreen(ctx.t, ctx.t.handover.askNote));
   });
 
   bot.callbackQuery(/^hv:ph:(OVERVIEW|SURFACES|FLOOR)$/, async (ctx) => {
@@ -569,13 +603,13 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     const angle = ctx.match[1] as HandoverAngle;
     if (!HANDOVER_ANGLES.includes(angle)) return;
     await writeHv(ctx, { kind: 'photo', angle });
-    await edit(ctx, handoverPhotoPromptScreen(angle));
+    await edit(ctx, handoverPhotoPromptScreen(ctx.t, angle));
   });
 
   bot.callbackQuery(/^hv:cannot$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     if (!guardEmployee(ctx)) return;
-    await edit(ctx, cannotCompleteReasonScreen(await handoverReasons()));
+    await edit(ctx, cannotCompleteReasonScreen(ctx.t, await handoverReasons()));
   });
 
   bot.callbackQuery(/^hv:cr:([A-Z][A-Z0-9_]{1,63})$/, async (ctx) => {
@@ -586,10 +620,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         { reasonCode: ctx.match[1] ?? '' },
         employeeActor(ctx.employee.id),
       );
-      await ctx.answerCallbackQuery({ text: t.handover.cannotCompleteSaved, show_alert: true });
+      await ctx.answerCallbackQuery({ text: ctx.t.handover.cannotCompleteSaved, show_alert: true });
     } catch (error) {
-      // «Другое» вимагає коментар: просимо текст, збережемо через pending
-      deps.logger.debug({ err: error }, 'причина потребує коментаря');
+      // "Other" requires a comment: ask for the text and keep it in the pending state.
+      deps.logger.debug({ err: error }, 'reason requires a comment');
       await ctx.answerCallbackQuery();
       await writeHv(ctx, {
         kind: 'remark',
@@ -597,7 +631,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         step: 'text',
         category: ctx.match[1] ?? '',
       });
-      return edit(ctx, handoverTextPromptScreen(t.incidents.askComment));
+      return edit(ctx, handoverTextPromptScreen(ctx.t, ctx.t.incidents.askComment));
     }
     await showHandover(ctx);
   });
@@ -611,13 +645,13 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         employeeActor(ctx.employee.id),
       );
       await ctx.answerCallbackQuery({
-        text: result.ok ? t.handover.submitted : t.handover.notReady,
+        text: result.ok ? ctx.t.handover.submitted : ctx.t.handover.notReady,
         show_alert: !result.ok,
       });
-      if (!result.ok) return edit(ctx, handoverScreen(result.handover, ''));
+      if (!result.ok) return edit(ctx, handoverScreen(ctx.t, result.handover, ''));
     } catch (error) {
-      deps.logger.warn({ err: error }, 'подання звіту відхилено');
-      await ctx.answerCallbackQuery({ text: t.errors.ACTION_NOT_ALLOWED, show_alert: true });
+      deps.logger.warn({ err: error }, 'handover submission rejected');
+      await ctx.answerCallbackQuery({ text: ctx.t.errors.ACTION_NOT_ALLOWED, show_alert: true });
     }
     await edit(ctx, await buildHome(ctx));
   });
@@ -627,16 +661,16 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await clearHv(ctx);
     if (!guardEmployee(ctx)) return;
     const view = await deps.handover.current(ctx.employee.id);
-    await edit(ctx, view ? handoverScreen(view, '') : await buildHome(ctx));
+    await edit(ctx, view ? handoverScreen(ctx.t, view, '') : await buildHome(ctx));
   });
 
-  // Приймання наступною зміною (FR-HND-03/04).
+  // Acceptance by the next shift (FR-HND-03/04).
   bot.callbackQuery(/^hr:open$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     if (!guardEmployee(ctx)) return;
     const pending = await deps.handover.pendingForReceiver(ctx.employee.id);
     if (pending.length === 0) return edit(ctx, await buildHome(ctx));
-    await edit(ctx, pendingHandoverScreen(pending, deps.defaultTimezone));
+    await edit(ctx, pendingHandoverScreen(ctx.t, pending, deps.defaultTimezone));
   });
 
   bot.callbackQuery(/^hr:ok:([0-9a-f-]{36})$/, async (ctx) => {
@@ -648,12 +682,15 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         { decision: 'ACCEPTED', idempotencyKey: `tg:${ctx.update.update_id}` },
         employeeActor(ctx.employee.id),
       );
-      await ctx.answerCallbackQuery({ text: t.handover.reviewAccepted });
+      await ctx.answerCallbackQuery({ text: ctx.t.handover.reviewAccepted });
     } catch (error) {
-      deps.logger.warn({ err: error }, 'приймання відхилено');
+      deps.logger.warn({ err: error }, 'acceptance rejected');
       const code = (error as { code?: string }).code;
       await ctx.answerCallbackQuery({
-        text: code === 'REVIEW_OWN_HANDOVER' ? t.handover.reviewOwn : t.errors.ACTION_NOT_ALLOWED,
+        text:
+          code === 'REVIEW_OWN_HANDOVER'
+            ? ctx.t.handover.reviewOwn
+            : ctx.t.errors.ACTION_NOT_ALLOWED,
         show_alert: true,
       });
     }
@@ -664,7 +701,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await ctx.answerCallbackQuery();
     if (!guardEmployee(ctx)) return;
     await writeHv(ctx, { kind: 'review', handoverId: ctx.match[1] ?? '', step: 'category' });
-    await edit(ctx, reviewCategoryScreen(await handoverReasons()));
+    await edit(ctx, reviewCategoryScreen(ctx.t, await handoverReasons()));
   });
 
   bot.callbackQuery(/^hr:rc:([A-Z][A-Z0-9_]{1,63})$/, async (ctx) => {
@@ -672,10 +709,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     const pending = await readHv(ctx);
     if (pending?.kind !== 'review') return edit(ctx, await buildHome(ctx));
     await writeHv(ctx, { ...pending, category: ctx.match[1] ?? '', step: 'comment' });
-    await edit(ctx, handoverTextPromptScreen(t.handover.reviewComment));
+    await edit(ctx, handoverTextPromptScreen(ctx.t, ctx.t.handover.reviewComment));
   });
 
-  // Звернення (ТЗ 8, FR-SCH-05): тип → поля за типом → коментар → подання.
+  // Requests (spec 8, FR-SCH-05): type → fields per type → comment → submission.
   const rqKey = (telegramUserId: number) => `request:pending:${telegramUserId}`;
   async function readRq(ctx: BotContext): Promise<PendingRequest | null> {
     if (!ctx.from) return null;
@@ -699,13 +736,15 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   ): Promise<void> {
     if (!ctx.employee) return;
     await writeRq(ctx, pending);
+    const t = ctx.t;
     switch (pending.step) {
       case 'period':
       case 'date':
-        return render(requestPromptScreen(t.requests.askPeriod));
+        return render(requestPromptScreen(t, t.requests.askPeriod));
       case 'shift':
         return render(
           requestAssignmentScreen(
+            t,
             await deps.requests.upcomingAssignments(ctx.employee.id),
             'rq:a:',
             t.requests.chooseShift,
@@ -718,6 +757,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         );
         return render(
           requestChoiceScreen(
+            t,
             candidates.map((c) => ({ id: c.id, label: c.fullName })),
             'rq:c:',
             t.requests.chooseCounterpart,
@@ -727,6 +767,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       case 'counterpartShift':
         return render(
           requestAssignmentScreen(
+            t,
             await deps.requests.upcomingAssignments(pending.counterpartEmployeeId ?? ''),
             'rq:ca:',
             t.requests.chooseCounterpartShift,
@@ -736,6 +777,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         const templates = await deps.requests.templatesFor(ctx.employee.id);
         return render(
           requestChoiceScreen(
+            t,
             templates.map((x) => ({ id: x.id, label: x.name })),
             'rq:tpl:',
             t.requests.chooseTemplate,
@@ -743,10 +785,11 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         );
       }
       case 'minutes':
-        return render(requestPromptScreen(t.requests.askMinutes));
+        return render(requestPromptScreen(t, t.requests.askMinutes));
       case 'reason':
         return render(
           requestChoiceScreen(
+            t,
             (await deps.incidents.reasonOptions('CORRECTION')).map((r) => ({
               id: r.code,
               label: r.label,
@@ -756,9 +799,9 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
           ),
         );
       case 'comment':
-        return render(requestPromptScreen(t.requests.askComment, pending.type === 'SICK'));
+        return render(requestPromptScreen(t, t.requests.askComment, pending.type === 'SICK'));
       case 'medical':
-        return render(requestPromptScreen(t.requests.askMedical, true));
+        return render(requestPromptScreen(t, t.requests.askMedical, true));
     }
   }
   const STEP_ORDER: Record<RequestType, PendingRequest['step'][]> = {
@@ -867,13 +910,14 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       }
       await deps.requests.create(ctx.employee.id, cmd, employeeActor(ctx.employee.id));
       await clearRq(ctx);
-      await show(ctx, { text: t.requests.submitted });
+      await show(ctx, { text: ctx.t.requests.submitted });
     } catch (error) {
-      deps.logger.warn({ err: error }, 'звернення відхилено');
+      deps.logger.warn({ err: error }, 'request rejected');
       await clearRq(ctx);
-      await show(ctx, {
-        text: (error as { message?: string }).message ?? t.errors.ACTION_NOT_ALLOWED,
-      });
+      // Domain errors carry a stable code; the text comes from the employee's catalog.
+      const code = (error as { code?: string }).code ?? '';
+      const known = (ctx.t.errors as Record<string, string>)[code];
+      await show(ctx, { text: known ?? ctx.t.errors.ACTION_NOT_ALLOWED });
     }
     await show(ctx, await buildHome(ctx));
   }
@@ -884,12 +928,12 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await askRq(ctx, { ...pending, step: next }, (s) => show(ctx, s));
   }
 
-  // Бали (ТЗ 7.7): місяць, розшифровка, апеляція у строк.
+  // Scores (spec 7.7): month, breakdown, appeal within the window.
   bot.callbackQuery(/^bn:(me|m:(\d{4}-\d{2}))$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     if (!guardEmployee(ctx)) return;
     const month = ctx.match[2] ?? businessDateOf(new Date(), deps.defaultTimezone).slice(0, 7);
-    await edit(ctx, myScoresScreen(await deps.bonus.myScores(ctx.employee.id, month)));
+    await edit(ctx, myScoresScreen(ctx.t, await deps.bonus.myScores(ctx.employee.id, month)));
   });
 
   bot.callbackQuery(/^bn:d:([0-9a-f-]{36})$/, async (ctx) => {
@@ -902,7 +946,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       score.status !== 'APPEALED' &&
       score.status !== 'NOT_EVALUATED' &&
       ageDays <= deps.appealWindowDays + 2;
-    await edit(ctx, scoreDetailScreen(score, deps.appealWindowDays, canAppeal));
+    await edit(ctx, scoreDetailScreen(ctx.t, score, deps.appealWindowDays, canAppeal));
   });
 
   bot.callbackQuery(/^bn:ap:([0-9a-f-]{36})$/, async (ctx) => {
@@ -917,20 +961,20 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await ctx.answerCallbackQuery();
     if (!guardEmployee(ctx)) return;
     await clearRq(ctx);
-    await edit(ctx, requestMenuScreen());
+    await edit(ctx, requestMenuScreen(ctx.t));
   });
 
   bot.callbackQuery(/^rq:list$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     if (!guardEmployee(ctx)) return;
-    await edit(ctx, requestListScreen(await deps.requests.mine(ctx.employee.id)));
+    await edit(ctx, requestListScreen(ctx.t, await deps.requests.mine(ctx.employee.id)));
   });
 
   bot.callbackQuery(/^rq:pending$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     if (!guardEmployee(ctx)) return;
     const pending = await deps.requests.pendingCounterpart(ctx.employee.id);
-    await edit(ctx, pending.length > 0 ? counterpartScreen(pending) : await buildHome(ctx));
+    await edit(ctx, pending.length > 0 ? counterpartScreen(ctx.t, pending) : await buildHome(ctx));
   });
 
   bot.callbackQuery(/^rq:t:([A-Z_]+)$/, async (ctx) => {
@@ -955,7 +999,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await ctx.answerCallbackQuery();
     if (!guardEmployee(ctx)) return;
     const pending = await readRq(ctx);
-    if (!pending) return edit(ctx, requestMenuScreen());
+    if (!pending) return edit(ctx, requestMenuScreen(ctx.t));
     const value = ctx.match[2] ?? '';
     const kind = ctx.match[1];
     const patched: PendingRequest =
@@ -975,7 +1019,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   bot.callbackQuery(/^rq:skip$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     const pending = await readRq(ctx);
-    if (!pending) return edit(ctx, requestMenuScreen());
+    if (!pending) return edit(ctx, requestMenuScreen(ctx.t));
     await ctx.editMessageReplyMarkup().catch(() => undefined);
     if (pending.step === 'medical') return submitRq(ctx, pending);
     await afterField(ctx, pending);
@@ -984,11 +1028,11 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   bot.callbackQuery(/^rq:cancel$/, async (ctx) => {
     await ctx.answerCallbackQuery();
     await clearRq(ctx);
-    await edit(ctx, { text: t.requests.cancelled });
+    await edit(ctx, { text: ctx.t.requests.cancelled });
     await show(ctx, await buildHome(ctx));
   });
 
-  // Згода або відмова другого працівника в обміні (крок COUNTERPART).
+  // Consent or refusal of the second employee in a swap (COUNTERPART step).
   bot.callbackQuery(/^rq:(ok|no):([0-9a-f-]{36})$/, async (ctx) => {
     if (!guardEmployee(ctx)) return ctx.answerCallbackQuery();
     try {
@@ -996,14 +1040,15 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         ctx.match[2] ?? '',
         {
           decision: ctx.match[1] === 'ok' ? 'APPROVED' : 'REJECTED',
-          comment: ctx.match[1] === 'ok' ? t.requests.counterpartYes : t.requests.counterpartNo,
+          comment:
+            ctx.match[1] === 'ok' ? ctx.t.requests.counterpartYes : ctx.t.requests.counterpartNo,
         },
         { ...employeeActor(ctx.employee.id), roles: [], employeeId: ctx.employee.id },
       );
-      await ctx.answerCallbackQuery({ text: t.requests.submitted });
+      await ctx.answerCallbackQuery({ text: ctx.t.requests.submitted });
     } catch (error) {
-      deps.logger.warn({ err: error }, 'рішення другого працівника відхилено');
-      await ctx.answerCallbackQuery({ text: t.errors.ACTION_NOT_ALLOWED, show_alert: true });
+      deps.logger.warn({ err: error }, 'counterpart decision rejected');
+      await ctx.answerCallbackQuery({ text: ctx.t.errors.ACTION_NOT_ALLOWED, show_alert: true });
     }
     await ctx.editMessageReplyMarkup().catch(() => undefined);
     await show(ctx, await buildHome(ctx));
@@ -1011,11 +1056,11 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
 
   bot.callbackQuery(/^sh:([A-Z_]+):(\d+)(?::([A-Z][A-Z0-9_]{1,63}))?$/, async (ctx) => {
     if (ctx.access !== 'ALLOWED' || !ctx.employee) {
-      await ctx.answerCallbackQuery({ text: t.bot.access.NOT_REGISTERED, show_alert: true });
+      await ctx.answerCallbackQuery({ text: ctx.t.bot.access.NOT_REGISTERED, show_alert: true });
       return;
     }
     const action = ctx.match[1] ?? '';
-    if (!isShiftAction(action)) return ctx.answerCallbackQuery({ text: t.bot.notReady });
+    if (!isShiftAction(action)) return ctx.answerCallbackQuery({ text: ctx.t.bot.notReady });
     const version = Number(ctx.match[2]);
     const extra = ctx.match[3];
     const meta = { actor: employeeActor(ctx.employee.id), source: 'TELEGRAM' as const };
@@ -1043,10 +1088,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     if (screen) await edit(ctx, screen);
   });
 
-  // «Ознайомлений» з нотифікації (ack:<versionId>) або з головного екрана (ack:all).
+  // "Acknowledged" from a notification (ack:<versionId>) or from the home screen (ack:all).
   bot.callbackQuery(/^ack:(all|[0-9a-f-]{36})$/, async (ctx) => {
     if (ctx.access !== 'ALLOWED' || !ctx.employee) {
-      await ctx.answerCallbackQuery({ text: t.bot.access.NOT_REGISTERED, show_alert: true });
+      await ctx.answerCallbackQuery({ text: ctx.t.bot.access.NOT_REGISTERED, show_alert: true });
       return;
     }
     const target = ctx.match[1] ?? 'all';
@@ -1060,11 +1105,11 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         acknowledged += (await deps.schedule.acknowledge(versionId, ctx.employee.id, 'TELEGRAM'))
           .acknowledged;
       } catch (error) {
-        deps.logger.warn({ err: error, versionId }, 'ознайомлення відхилено');
+        deps.logger.warn({ err: error, versionId }, 'acknowledgement rejected');
       }
     }
     await ctx.answerCallbackQuery({
-      text: acknowledged > 0 ? t.schedule.ackDone : t.schedule.ackNothing,
+      text: acknowledged > 0 ? ctx.t.schedule.ackDone : ctx.t.schedule.ackNothing,
     });
     await ctx.editMessageReplyMarkup().catch(() => undefined);
     await show(ctx, await buildHome(ctx));
@@ -1074,7 +1119,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     if (ctx.access === 'NOT_REGISTERED') {
       const code = normalizeActivationCode(ctx.message.text);
       if (code) return startActivation(ctx, code);
-      return show(ctx, { text: t.bot.askCode });
+      return show(ctx, { text: ctx.t.bot.askCode });
     }
     const pending = await readPending(ctx);
     if (pending?.step === 'comment') {
@@ -1086,7 +1131,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       const text = ctx.message.text.trim().slice(0, 2000);
       if (rq.step === 'period' || rq.step === 'date') {
         const period = parsePeriod(text, new Date());
-        if (!period) return show(ctx, requestPromptScreen(t.requests.badPeriod));
+        if (!period) return show(ctx, requestPromptScreen(ctx.t, ctx.t.requests.badPeriod));
         const patched: PendingRequest =
           rq.step === 'period'
             ? { ...rq, periodFrom: period.from, periodTo: period.to }
@@ -1096,11 +1141,12 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       if (rq.step === 'minutes') {
         const minutes = Number(text);
         if (!Number.isInteger(minutes) || minutes < 1 || minutes > 720)
-          return show(ctx, requestPromptScreen(t.requests.badMinutes));
+          return show(ctx, requestPromptScreen(ctx.t, ctx.t.requests.badMinutes));
         return afterField(ctx, { ...rq, minutes });
       }
       if (rq.step === 'comment') {
-        if (text.length < 3) return show(ctx, requestPromptScreen(t.requests.askComment));
+        if (text.length < 3)
+          return show(ctx, requestPromptScreen(ctx.t, ctx.t.requests.askComment));
         return afterField(ctx, { ...rq, comment: text });
       }
     }
@@ -1115,7 +1161,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         );
         await clearHv(ctx);
         const view = await deps.handover.current(ctx.employee.id);
-        return show(ctx, view ? handoverScreen(view, '') : await buildHome(ctx));
+        return show(ctx, view ? handoverScreen(ctx.t, view, '') : await buildHome(ctx));
       }
       if (hv.kind === 'remark' && hv.step === 'text') {
         if (hv.itemKey.startsWith('CANNOT:')) {
@@ -1126,14 +1172,14 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
           );
           await clearHv(ctx);
           const view = await deps.handover.current(ctx.employee.id);
-          return show(ctx, view ? handoverScreen(view, '') : await buildHome(ctx));
+          return show(ctx, view ? handoverScreen(ctx.t, view, '') : await buildHome(ctx));
         }
         await writeHv(ctx, { ...hv, text, step: 'safe' });
-        return show(ctx, handoverSafeScreen());
+        return show(ctx, handoverSafeScreen(ctx.t));
       }
       if (hv.kind === 'review' && hv.step === 'comment') {
         await writeHv(ctx, { ...hv, comment: text, step: 'photo' });
-        return show(ctx, handoverTextPromptScreen(t.handover.reviewPhoto));
+        return show(ctx, handoverTextPromptScreen(ctx.t, ctx.t.handover.reviewPhoto));
       }
     }
     await show(ctx, await buildHome(ctx));
@@ -1171,11 +1217,11 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
           );
           await clearHv(ctx);
           await show(ctx, {
-            text: format(t.handover.photoSaved, { angle: t.handover.angles[hv.angle] }),
+            text: format(ctx.t.handover.photoSaved, { angle: ctx.t.handover.angles[hv.angle] }),
           });
-          return show(ctx, handoverScreen(view, ''));
+          return show(ctx, handoverScreen(ctx.t, view, ''));
         } catch (error) {
-          deps.logger.warn({ err: error }, 'фото передачі відхилено');
+          deps.logger.warn({ err: error }, 'handover photo rejected');
           await clearHv(ctx);
           return show(ctx, await buildHome(ctx));
         }
@@ -1196,30 +1242,30 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
             employeeActor(ctx.employee.id),
           );
           await clearHv(ctx);
-          await show(ctx, { text: t.handover.reviewIssueSaved });
+          await show(ctx, { text: ctx.t.handover.reviewIssueSaved });
         } catch (error) {
-          deps.logger.warn({ err: error }, 'зауваження приймаючого відхилено');
+          deps.logger.warn({ err: error }, 'receiver remark rejected');
           await clearHv(ctx);
-          await show(ctx, { text: t.errors.ACTION_NOT_ALLOWED });
+          await show(ctx, { text: ctx.t.errors.ACTION_NOT_ALLOWED });
         }
         return show(ctx, await buildHome(ctx));
       }
     }
-    await show(ctx, { text: t.bot.useButtons });
+    await show(ctx, { text: ctx.t.bot.useButtons });
   });
 
   bot.on('callback_query:data', async (ctx) => {
-    await ctx.answerCallbackQuery({ text: t.bot.notReady });
+    await ctx.answerCallbackQuery({ text: ctx.t.bot.notReady });
   });
 
   bot.on('message', async (ctx) => {
-    await show(ctx, { text: t.bot.useButtons });
+    await show(ctx, { text: ctx.t.bot.useButtons });
   });
 
   bot.catch((err) => {
     deps.logger.error(
       { err: err.error, updateId: err.ctx.update.update_id },
-      'помилка в обробнику бота',
+      'error in bot handler',
     );
   });
 

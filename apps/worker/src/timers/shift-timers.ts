@@ -9,17 +9,16 @@ import {
   reasonCodes,
   shiftSessions,
   sql,
+  employeeLocale,
   type Database,
 } from '@vakhta/db';
 import type { DowntimeEscalationJob, ReturnReminderJob } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import type { ReminderOutcome } from './reminders.js';
 
-const t = messages('ru');
-
 /**
- * Нагадування повернутись (ТЗ 4.4, FR-BRK-01): спрацьовує, лише якщо той самий інтервал
- * досі відкритий. Повторне натискання у боті кодує актуальну версію сесії.
+ * Return reminder (spec 4.4, FR-BRK-01): fires only if the same interval is still open.
+ * The button encodes the current session version.
  */
 export async function handleReturnReminder(
   db: Database,
@@ -33,6 +32,7 @@ export async function handleReturnReminder(
     .limit(1);
   if (!row || row.session.state !== data.state) return 'stale';
 
+  const t = messages(await employeeLocale(db, row.session.employeeId));
   const text = format(t.shift.returnReminder, {
     state: t.states[data.state],
     limit: data.limitMinutes,
@@ -55,8 +55,9 @@ export async function handleReturnReminder(
 }
 
 /**
- * Ескалація простою (ТЗ 18 п. 9, FR-DWN-04): подія в журналі і рядок для майстра;
- * оперативний екран показує її за SSE. Якщо простій уже закрито, нічого не робить.
+ * Downtime escalation (spec 18 item 9, FR-DWN-04): an event in the log and a line for the
+ * shift master; the live screen shows it over SSE. Does nothing if the downtime is already closed.
+ * The text is in the default language: the reader is the master, not the employee.
  */
 export async function handleDowntimeEscalation(
   db: Database,
@@ -84,7 +85,7 @@ export async function handleDowntimeEscalation(
         .limit(1)
     : [];
   const minutes = Math.round((now.getTime() - row.interval.startedAt.getTime()) / 60_000);
-  const text = format(t.shift.downtimeEscalation, {
+  const text = format(messages().shift.downtimeEscalation, {
     name: row.fullName,
     minutes,
     reason: reason?.label ?? row.interval.reasonCode ?? '—',

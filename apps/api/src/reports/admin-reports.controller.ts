@@ -18,7 +18,9 @@ import {
   webUserActor,
   type WebUser,
 } from '../auth/web-auth.guard.js';
+import { RequestLocale } from '../common/locale.decorator.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
+import type { Locale } from '@vakhta/domain';
 import { ReportsService } from './reports.service.js';
 
 const Format = z.enum(['csv', 'xlsx']);
@@ -34,8 +36,9 @@ export class AdminReportsController {
   report(
     @Param('kind', new ZodValidationPipe(ReportKindSchema)) kind: ReportKind,
     @Query(new ZodValidationPipe(ReportQuery)) q: ReportQuery,
+    @RequestLocale() locale: Locale,
   ): Promise<ReportTableView> {
-    return this.reports.build(kind, q);
+    return this.reports.build(kind, q, locale);
   }
 
   @Get('reports/:kind/export/:format')
@@ -45,9 +48,10 @@ export class AdminReportsController {
     @Param('format', new ZodValidationPipe(Format)) format: 'csv' | 'xlsx',
     @Query(new ZodValidationPipe(ReportQuery)) q: ReportQuery,
     @CurrentUser() user: WebUser,
+    @RequestLocale() locale: Locale,
     @Res() reply: FastifyReply,
   ): Promise<void> {
-    const file = await this.reports.export(kind, q, format, webUserActor(user));
+    const file = await this.reports.export(kind, q, format, webUserActor(user), locale);
     await reply
       .header('content-type', file.contentType)
       .header('content-disposition', `attachment; filename="${file.filename}"`)

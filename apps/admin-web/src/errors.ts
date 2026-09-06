@@ -1,7 +1,8 @@
 import { messages } from '@vakhta/i18n';
 import { ApiError } from './api.ts';
+import { currentLocale } from './i18n.tsx';
 
-const t = messages('ru');
+const t = messages(currentLocale());
 
 /** Текст для користувача: 403 → «недостатньо прав», відомі коди домену → каталог, інакше повідомлення сервера. */
 export function describeError(e: unknown): string {

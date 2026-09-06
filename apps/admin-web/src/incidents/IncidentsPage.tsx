@@ -9,8 +9,9 @@ import { allowedIncidentTransitions, type IncidentStatus } from '@vakhta/domain'
 import { messages } from '@vakhta/i18n';
 import { incidentsApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
+import { currentLocale } from '../i18n.tsx';
 
-const all = messages('ru');
+const all = messages(currentLocale());
 const i = all.admin.incidents;
 
 function localTime(iso: string | null): string {

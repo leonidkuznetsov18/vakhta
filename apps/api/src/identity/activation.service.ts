@@ -17,6 +17,7 @@ import {
 } from '@vakhta/domain';
 import { generateActivationCode, hashActivationCode } from '@vakhta/domain/node';
 import type { ActivationCodeIssued } from '@vakhta/contracts';
+import { resolveLocale } from '@vakhta/domain';
 import { employeeActor, type Actor } from '../common/actor.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
@@ -140,12 +141,12 @@ export class ActivationService {
   }
 
   /** Крок 2: працівник підтвердив, що картка його. */
-  async confirm(telegramUserId: number): Promise<ActivationOutcome> {
+  async confirm(telegramUserId: number, languageCode?: string): Promise<ActivationOutcome> {
     const pending = await this.store.get(this.pendingKey(telegramUserId));
     if (!pending) return { ok: false, reason: 'NO_PENDING' };
     const { codeHash } = JSON.parse(pending) as { codeHash: string };
 
-    const outcome = await this.activateByHash(telegramUserId, codeHash);
+    const outcome = await this.activateByHash(telegramUserId, codeHash, languageCode);
     await this.store.del(this.pendingKey(telegramUserId));
     if (outcome.ok) await this.store.del(this.attemptsKey(telegramUserId));
     return outcome;
@@ -158,6 +159,7 @@ export class ActivationService {
   private async activateByHash(
     telegramUserId: number,
     codeHash: string,
+    languageCode?: string,
   ): Promise<ActivationOutcome> {
     return this.db.transaction(async (tx) => {
       const check = await this.checkCode(tx, telegramUserId, codeHash, true);
@@ -178,6 +180,13 @@ export class ActivationService {
         .insert(telegramAccounts)
         .values({ employeeId: employee.id, telegramUserId, status: 'ACTIVE' });
       await tx.update(activationCodes).set({ usedAt: now }).where(eq(activationCodes.id, code.id));
+      // First link: the Telegram client language becomes the bot language until the employee changes it.
+      if (!employee.locale) {
+        await tx
+          .update(employees)
+          .set({ locale: resolveLocale(languageCode), updatedAt: now })
+          .where(eq(employees.id, employee.id));
+      }
 
       const actor = employeeActor(employee.id);
       await this.events.append(tx, {

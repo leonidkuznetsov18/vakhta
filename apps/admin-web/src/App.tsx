@@ -12,8 +12,9 @@ import { OperationsPage } from './operations/OperationsPage.tsx';
 import { RequestsPage } from './requests/RequestsPage.tsx';
 import { SchedulePage } from './schedule/SchedulePage.tsx';
 import { useSession } from './auth/useSession.ts';
+import { LanguageSwitcher, currentLocale } from './i18n.tsx';
 
-const t = messages('ru');
+const t = messages(currentLocale());
 
 type SectionKey = keyof typeof t.admin.sections | 'profile';
 const SECTION_KEYS = Object.keys(t.admin.sections) as (keyof typeof t.admin.sections)[];
@@ -64,6 +65,7 @@ export function App() {
           <button type="button" className="nav-item" onClick={() => void signOut()}>
             {t.admin.auth.signOut}
           </button>
+          <LanguageSwitcher />
         </div>
       </aside>
       <main className="content">

@@ -3,8 +3,9 @@ import type { OrgSnapshot, TerminalRegistered } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { adminOrgApi } from '../api.ts';
 import { CopyButton, Feedback, Field, useAction } from './ui.tsx';
+import { currentLocale } from '../i18n.tsx';
 
-const t = messages('ru').admin.administration;
+const t = messages(currentLocale()).admin.administration;
 const tr = t.terminals;
 const CHECKPOINTS = ['BOTH', 'ENTRY', 'EXIT'] as const;
 

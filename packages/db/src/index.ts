@@ -1,5 +1,6 @@
 export * from './schema/index.js';
 export * from './client.js';
+export * from './locale.js';
 
 /**
  * Оператори запитів реекспортуються звідси, щоб застосунки не залежали від drizzle-orm

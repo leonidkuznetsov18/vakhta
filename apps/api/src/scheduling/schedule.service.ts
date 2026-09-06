@@ -51,7 +51,7 @@ import type {
   ScheduleVersionView,
   ValidationIssueView,
 } from '@vakhta/contracts';
-import { format, messages } from '@vakhta/i18n';
+import { format, type Messages } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -92,9 +92,7 @@ export interface NextShift {
   readonly acknowledged: boolean;
 }
 
-const t = messages('ru');
-
-function monthLabel(periodMonth: string): { month: string; year: string } {
+function monthLabel(t: Messages, periodMonth: string): { month: string; year: string } {
   const [year, m] = periodMonth.split('-');
   return { month: t.schedule.months[Number(m) - 1] ?? periodMonth, year: year ?? '' };
 }
@@ -502,28 +500,29 @@ export class ScheduleService {
             )
         : [];
       const linkedSet = new Set(linked.map((l) => l.employeeId));
-      const label = monthLabel(version.periodMonth);
       let notified = 0;
       for (const employeeId of affected) {
         if (!linkedSet.has(employeeId)) continue;
         const changes = diff.get(employeeId)!;
         const employeeShifts = nextShifts.filter((s) => s.employeeId === employeeId);
-        const text = previous
-          ? format(t.schedule.changed, {
-              ...label,
-              added: changes.added.length,
-              removed: changes.removed.length,
-              changed: changes.changed.length,
-            })
-          : format(t.schedule.published, { ...label, shifts: employeeShifts.length });
         const queued = await this.notifications.enqueue(tx, {
           recipientType: 'EMPLOYEE',
           recipientId: employeeId,
           template: previous ? 'SCHEDULE_CHANGED' : 'SCHEDULE_PUBLISHED',
-          payload: {
-            text,
+          payload: (t) => ({
+            text: previous
+              ? format(t.schedule.changed, {
+                  ...monthLabel(t, version.periodMonth),
+                  added: changes.added.length,
+                  removed: changes.removed.length,
+                  changed: changes.changed.length,
+                })
+              : format(t.schedule.published, {
+                  ...monthLabel(t, version.periodMonth),
+                  shifts: employeeShifts.length,
+                }),
             buttons: [[{ text: t.schedule.ackButton, callbackData: `ack:${version.id}` }]],
-          },
+          }),
           dedupeKey: `schedule:${version.id}:${employeeId}`,
         });
         if (queued) notified += 1;

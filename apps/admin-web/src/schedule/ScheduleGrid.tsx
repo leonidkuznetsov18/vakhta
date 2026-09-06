@@ -3,8 +3,9 @@ import type { EmployeeView, ShiftTemplateView, ZoneView } from '@vakhta/contract
 import { monthDates } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import type { GridState } from './grid.ts';
+import { currentLocale } from '../i18n.tsx';
 
-const t = messages('ru');
+const t = messages(currentLocale());
 
 interface Props {
   readonly month: string;

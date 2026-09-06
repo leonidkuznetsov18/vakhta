@@ -8,8 +8,9 @@ import type {
 import { format, messages } from '@vakhta/i18n';
 import { adminEmployeesApi, employeesApi } from '../api.ts';
 import { CopyButton, Feedback, Field, useAction } from './ui.tsx';
+import { currentLocale } from '../i18n.tsx';
 
-const t = messages('ru').admin.administration;
+const t = messages(currentLocale()).admin.administration;
 const e = t.employees;
 
 function fmtDate(iso: string): string {

@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import { messages } from '@vakhta/i18n';
 import { describeError } from '../errors.ts';
+import { currentLocale } from '../i18n.tsx';
 
-const c = messages('ru').admin.administration.common;
+const c = messages(currentLocale()).admin.administration.common;
 
 /** Стан однієї дії: зайнято / помилка / підтвердження. Спільний для всіх вкладок. */
 export function useAction() {

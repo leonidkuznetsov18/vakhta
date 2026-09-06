@@ -1,8 +1,9 @@
 import React from 'react';
 import type { EmployeeView, ScheduleVersionDetail } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
+import { currentLocale } from '../i18n.tsx';
 
-const t = messages('ru');
+const t = messages(currentLocale());
 
 interface Props {
   readonly detail: ScheduleVersionDetail;

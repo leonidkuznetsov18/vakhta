@@ -55,7 +55,7 @@ import type {
   SubmitHandoverCommand,
   TransitionResponse,
 } from '@vakhta/contracts';
-import { format, messages } from '@vakhta/i18n';
+import { format } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -81,8 +81,6 @@ type MediaRow = typeof mediaObjects.$inferSelect;
 export type SubmitResult =
   | { readonly ok: true; readonly handover: HandoverView; readonly transition: TransitionResponse }
   | { readonly ok: false; readonly handover: HandoverView };
-
-const t = messages('ru');
 
 /**
  * Прибирання, чек-лист, фото і передача зони (ТЗ 5.6–5.9, FR-CLN/FR-PHO/FR-HND). Здавач заповнює
@@ -288,7 +286,7 @@ export class HandoverService {
       if (draft.status !== 'DRAFT') {
         // Повторне натискання після подання: стан не змінюється, відповідь та сама (FR-UI-02).
         const session = await this.shift.activeSession(employeeId, tx);
-        if (!session) throw new DomainError('NO_ACTIVE_SHIFT', 409, t.errors.NO_ACTIVE_SHIFT);
+        if (!session) throw new DomainError('NO_ACTIVE_SHIFT', 409, 'No active shift');
         return {
           ok: true,
           handover: view,
@@ -347,7 +345,11 @@ export class HandoverService {
         deferred,
       );
       if (!transition.ok) {
-        throw new DomainError('HANDOVER_TRANSITION_FAILED', 409, t.errors[transition.error]);
+        throw new DomainError(
+          'HANDOVER_TRANSITION_FAILED',
+          409,
+          `Shift transition failed: ${transition.error}`,
+        );
       }
 
       // Наступна зміна в цій зоні отримує сповіщення про передачу (FR-HND-03).
@@ -356,7 +358,9 @@ export class HandoverService {
           recipientType: 'EMPLOYEE',
           recipientId: receiver,
           template: 'HANDOVER_PENDING',
-          payload: { text: format(t.handover.pendingNotification, { zone: view.zoneName }) },
+          payload: (t) => ({
+            text: format(t.handover.pendingNotification, { zone: view.zoneName }),
+          }),
           dedupeKey: `handover-pending:${draft.id}:${receiver}`,
         });
       }
@@ -454,13 +458,17 @@ export class HandoverService {
         .for('update');
       if (!record) throw new DomainError('HANDOVER_NOT_FOUND', 404, 'Звіт передачі не знайдено');
       if (!canReview(employeeId, record.submittedBy)) {
-        throw new DomainError('REVIEW_OWN_HANDOVER', 409, t.handover.reviewOwn);
+        throw new DomainError(
+          'REVIEW_OWN_HANDOVER',
+          409,
+          'An employee cannot accept their own handover',
+        );
       }
       if (record.status !== 'SUBMITTED') {
         throw new DomainError('HANDOVER_NOT_PENDING', 409, 'Звіт уже прийнято або вирішено');
       }
       const session = await this.shift.activeSession(employeeId, tx);
-      if (!session) throw new DomainError('NO_ACTIVE_SHIFT', 409, t.errors.NO_ACTIVE_SHIFT);
+      if (!session) throw new DomainError('NO_ACTIVE_SHIFT', 409, 'No active shift');
 
       if (cmd.decision === 'ISSUE') {
         if (
@@ -543,7 +551,7 @@ export class HandoverService {
           recipientType: 'EMPLOYEE',
           recipientId: record.submittedBy,
           template: 'HANDOVER_REVIEWED',
-          payload: { text: format(t.handover.reviewedNotification, { zone: zoneName }) },
+          payload: (t) => ({ text: format(t.handover.reviewedNotification, { zone: zoneName }) }),
           dedupeKey: `handover-reviewed:${handoverId}`,
         });
       } else {
@@ -667,12 +675,12 @@ export class HandoverService {
         recipientType: 'EMPLOYEE',
         recipientId: record.submittedBy,
         template: 'HANDOVER_RESOLVED',
-        payload: {
+        payload: (t) => ({
           text: format(t.handover.resolvedNotification, {
             zone: zoneName,
             decision: t.handover.resolutions[cmd.decision],
           }),
-        },
+        }),
         dedupeKey: `handover-resolved:${handoverId}:${cmd.decision}`,
       });
       return this.view(tx, handoverId);
@@ -847,14 +855,18 @@ export class HandoverService {
     allowSubmitted = false,
   ): Promise<RecordRow> {
     const session = await this.shift.activeSession(employeeId, tx);
-    if (!session) throw new DomainError('NO_ACTIVE_SHIFT', 409, t.errors.NO_ACTIVE_SHIFT);
+    if (!session) throw new DomainError('NO_ACTIVE_SHIFT', 409, 'No active shift');
     if (session.state !== 'HANDOVER' && !(allowSubmitted && session.state === 'READY_TO_CLOSE')) {
-      throw new DomainError('HANDOVER_NOT_OPEN', 409, t.errors.ACTION_NOT_ALLOWED);
+      throw new DomainError('HANDOVER_NOT_OPEN', 409, 'The shift is not in the handover state');
     }
     const record = await this.repository.ensureDraft(tx, session, now);
     if (!record) throw new DomainError('ZONE_REQUIRED', 409, 'У зміни немає контрольної зони');
     if (record.status !== 'DRAFT' && !allowSubmitted) {
-      throw new DomainError('HANDOVER_ALREADY_SUBMITTED', 409, t.handover.submitted);
+      throw new DomainError(
+        'HANDOVER_ALREADY_SUBMITTED',
+        409,
+        'The handover report is already submitted',
+      );
     }
     return record;
   }

@@ -7,8 +7,9 @@ import { DirectoriesTab } from './DirectoriesTab.tsx';
 import { EmployeesTab } from './EmployeesTab.tsx';
 import { TerminalsTab } from './TerminalsTab.tsx';
 import { UsersTab } from './UsersTab.tsx';
+import { currentLocale } from '../i18n.tsx';
 
-const t = messages('ru').admin.administration;
+const t = messages(currentLocale()).admin.administration;
 type Tab = keyof typeof t.tabs;
 const TABS = Object.keys(t.tabs) as Tab[];
 

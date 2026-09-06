@@ -21,8 +21,6 @@ type SessionLike = {
 type RecordRow = typeof handoverRecords.$inferSelect;
 type DefinitionRow = typeof checklistDefinitions.$inferSelect;
 
-const t = messages('ru');
-
 /**
  * Мінімум операцій зі звітом передачі, потрібних машині зміни (ТЗ 4.4, FR-HND-07): без залежностей
  * від інших сервісів, щоб ShiftService і HandoverService не утворювали цикл.
@@ -100,7 +98,7 @@ export class HandoverRepository {
     if (specific ?? generic) return (specific ?? generic)!;
     const items: ChecklistItemDefinition[] = DEFAULT_CHECKLIST_KEYS.map((key) => ({
       key,
-      label: t.handover.items[key],
+      label: messages().handover.items[key],
       kind: key === 'MESSAGE_NEXT' ? 'NOTE' : 'CHECK',
     }));
     const [created] = await tx

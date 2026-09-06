@@ -1,12 +1,18 @@
 import QRCode from 'qrcode';
 import { KioskChallengeResponse } from '@vakhta/contracts';
-import { messages } from '@vakhta/i18n';
+import { messages, resolveLocale } from '@vakhta/i18n';
 
 /**
- * Термінал показує QR із deep link на бота і оновлює його кожні rotationSeconds (FR-QR-01).
- * Сам токен ніколи не зберігається тут довше, ніж живе на екрані.
+ * The terminal shows a QR with a deep link to the bot and refreshes it every rotationSeconds (FR-QR-01).
+ * The token itself never lives here longer than it is on screen.
+ * Language: `?lang=uk|en|ru` in the kiosk URL, otherwise the browser language, otherwise the default.
  */
-const t = messages('ru');
+const locale = resolveLocale(
+  new URLSearchParams(location.search).get('lang') ?? navigator.language,
+);
+const t = messages(locale);
+document.documentElement.lang = locale;
+document.title = `${t.admin.productName} · ${t.kiosk.title}`;
 const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
 const DEVICE_TOKEN = import.meta.env['VITE_KIOSK_DEVICE_TOKEN'] ?? '';
 
@@ -77,6 +83,6 @@ setInterval(tick, 1000);
 
 function byId(id: string): HTMLElement {
   const node = document.getElementById(id);
-  if (!node) throw new Error(`Немає елемента #${id}`);
+  if (!node) throw new Error(`Element #${id} not found`);
   return node;
 }
