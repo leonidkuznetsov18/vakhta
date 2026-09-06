@@ -1,3 +1,9 @@
+## [0.23.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.22.0...v0.23.0) (2026-09-06)
+
+### Features
+
+* **kiosk:** language buttons in the corner of the screen ([55df6b8](https://github.com/leonidkuznetsov18/vakhta/commit/55df6b8afc0f274dcbad9005fb8cd6da5579a444))
+
 ## [0.22.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.21.0...v0.22.0) (2026-09-06)
 
 ### Features
