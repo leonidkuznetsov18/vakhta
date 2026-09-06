@@ -21,14 +21,14 @@ COPY --chown=node:node apps/admin-web/package.json apps/admin-web/
 COPY --chown=node:node apps/qr-kiosk/package.json apps/qr-kiosk/
 
 FROM deps AS build
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 COPY --chown=node:node packages packages
 COPY --chown=node:node apps/api apps/api
 RUN pnpm --filter api... run build
 
 FROM deps AS runtime
 ENV NODE_ENV=production
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --prod --filter api...
+RUN pnpm install --frozen-lockfile --prod --filter api...
 COPY --from=build --chown=node:node /repo/packages/contracts/dist packages/contracts/dist
 COPY --from=build --chown=node:node /repo/packages/db/dist packages/db/dist
 COPY --from=build --chown=node:node /repo/packages/db/drizzle packages/db/drizzle
