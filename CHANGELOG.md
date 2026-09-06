@@ -1,3 +1,9 @@
+## [0.25.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.25.0...v0.25.1) (2026-09-06)
+
+### Bug fixes
+
+* **panel:** keep the tab-title effect above the early returns ([2314fb1](https://github.com/leonidkuznetsov18/vakhta/commit/2314fb15a5e6b51142a776732adf9a20379fe382)), closes [#310](https://github.com/leonidkuznetsov18/vakhta/issues/310)
+
 ## [0.25.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.24.0...v0.25.0) (2026-09-06)
 
 ### Features
