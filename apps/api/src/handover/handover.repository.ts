@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   and,
+  checklistDefinitionPositions,
   checklistDefinitions,
   desc,
   employeePositions,
@@ -151,18 +152,23 @@ export class HandoverRepository {
       : [];
     const zoneType = zone?.type ?? null;
     const candidates = await tx
-      .select()
+      .select({ d: checklistDefinitions })
       .from(checklistDefinitions)
+      .innerJoin(
+        checklistDefinitionPositions,
+        eq(checklistDefinitionPositions.definitionId, checklistDefinitions.id),
+      )
       .where(
         and(
           eq(checklistDefinitions.isActive, true),
-          eq(checklistDefinitions.positionId, positionId),
+          eq(checklistDefinitionPositions.positionId, positionId),
         ),
       )
       .orderBy(desc(checklistDefinitions.version), desc(checklistDefinitions.createdAt));
+    const rows = candidates.map((c) => c.d);
     return (
-      (zoneType ? candidates.find((d) => d.zoneType === zoneType) : undefined) ??
-      candidates.find((d) => d.zoneType === null) ??
+      (zoneType ? rows.find((d) => d.zoneType === zoneType) : undefined) ??
+      rows.find((d) => d.zoneType === null) ??
       null
     );
   }

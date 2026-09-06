@@ -360,7 +360,17 @@ export function BonusPage() {
                       />
                     )}
                   </FormField>
-                  <Button type="submit" variant="secondary" disabled={busy}>
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    disabled={
+                      busy ||
+                      !Number.isInteger(Number(delta)) ||
+                      Number(delta) === 0 ||
+                      !reasonCode ||
+                      comment.trim().length < 3
+                    }
+                  >
                     {b.adjust}
                   </Button>
                 </form>

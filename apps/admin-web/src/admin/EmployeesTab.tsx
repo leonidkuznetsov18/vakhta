@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { isBlank, isUnchanged } from '@/lib/forms';
 import type {
   ChecklistDefinitionView,
   ActivationCodeIssued,
@@ -74,7 +75,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   }, []);
   /** Active checklists of a position: what the bot will ask this employee for (ADR-0012). */
   const checklistsOf = (positionId: string) =>
-    checklists?.filter((c) => c.isActive && c.positionId === positionId) ?? [];
+    checklists?.filter((c) => c.isActive && c.positions.some((p) => p.id === positionId)) ?? [];
   const [importing, setImporting] = useState(false);
   const [statusFilter, setStatusFilter] = usePersistentState<'' | EmployeeView['status']>(
     'employees.status',
@@ -330,7 +331,10 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
                   <Button type="button" variant="outline" onClick={() => setCreating(false)}>
                     {t.common.cancel}
                   </Button>
-                  <Button type="submit" disabled={busy}>
+                  <Button
+                    type="submit"
+                    disabled={busy || isBlank(personnelNumber) || isBlank(fullName)}
+                  >
                     {t.common.add}
                   </Button>
                 </DialogFooter>
@@ -437,6 +441,20 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
               })
             }
           />
+          {openEmployee.currentPosition && (
+            <ChecklistPanel
+              positionId={openEmployee.currentPosition.positionId}
+              positionName={positionName(openEmployee.currentPosition.positionId)}
+              checklists={checklists ?? []}
+              onChanged={(view) =>
+                setChecklists((list) =>
+                  (list ?? []).some((c) => c.id === view.id)
+                    ? (list ?? []).map((c) => (c.id === view.id ? view : c))
+                    : [...(list ?? []), view],
+                )
+              }
+            />
+          )}
         </DetailSheet>
       )}
       <CodeSheet codes={sheet} employees={list} onClose={() => setSheet(null)} />
@@ -616,10 +634,124 @@ function PositionPanel({
           options={teams.map((tm) => ({ value: tm.id, label: tm.name }))}
           className="w-48"
         />
-        <Button type="submit" variant="secondary" disabled={busy || !orgUnitId || !positionId}>
+        <Button
+          type="submit"
+          variant="secondary"
+          disabled={
+            busy ||
+            !orgUnitId ||
+            !positionId ||
+            (current !== null &&
+              isUnchanged(
+                { orgUnitId, positionId, teamId: teamId || null },
+                {
+                  orgUnitId: current.orgUnitId,
+                  positionId: current.positionId,
+                  teamId: current.teamId,
+                },
+              ))
+          }
+        >
           {e.assignPosition}
         </Button>
       </form>
+      <Feedback error={error} />
+    </div>
+  );
+}
+
+/**
+ * Checklists of the employee's position (ADR-0012): what the bot will ask for at the end of the
+ * shift. An existing checklist is attached to the position here without creating a copy.
+ */
+function ChecklistPanel({
+  positionId,
+  positionName,
+  checklists,
+  onChanged,
+}: {
+  readonly positionId: string;
+  readonly positionName: string;
+  readonly checklists: readonly ChecklistDefinitionView[];
+  readonly onChanged: (view: ChecklistDefinitionView) => void;
+}) {
+  const [pick, setPick] = useState('');
+  const { busy, error, run } = useAction();
+  const bound = checklists.filter(
+    (c) => c.isActive && c.positions.some((p) => p.id === positionId),
+  );
+  const available = checklists.filter(
+    (c) => c.isActive && !c.positions.some((p) => p.id === positionId),
+  );
+
+  function add(ev: FormEvent) {
+    ev.preventDefault();
+    if (!pick) return;
+    void run(async () => {
+      onChanged(await checklistsApi.addPosition(pick, positionId));
+      setPick('');
+    }, e.checklistAdded);
+  }
+
+  function remove(id: string) {
+    void run(async () => {
+      onChanged(await checklistsApi.removePosition(id, positionId));
+    }, e.checklistRemoved);
+  }
+
+  return (
+    <div className="flex flex-col gap-3 border-t pt-4">
+      <p className="flex items-center gap-1 text-sm font-medium">
+        {e.checklists} · {positionName}
+        <InfoTip text={hints.employeesChecklists} />
+      </p>
+      {bound.length === 0 ? (
+        <Alert>
+          <AlertTitle>{e.noChecklist}</AlertTitle>
+          <AlertDescription>{e.noChecklistHint}</AlertDescription>
+        </Alert>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {bound.map((c) => (
+            <li
+              key={c.id}
+              className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm"
+            >
+              <span className="min-w-0 flex-1 truncate">{c.name}</span>
+              <Muted>
+                {format(t.checklists.itemsSummary, {
+                  items: c.items.length,
+                  photos: c.items.filter((i) => i.kind === 'PHOTO').length,
+                })}
+              </Muted>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={busy || c.positions.length <= 1}
+                onClick={() => remove(c.id)}
+              >
+                {e.removeChecklist}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {available.length > 0 && (
+        <form className="flex flex-wrap items-end gap-3" onSubmit={add}>
+          <SelectField
+            label={e.addChecklist}
+            value={pick}
+            onChange={setPick}
+            placeholder="…"
+            options={available.map((c) => ({ value: c.id, label: c.name }))}
+            className="w-64"
+          />
+          <Button type="submit" variant="secondary" disabled={busy || !pick}>
+            {t.common.add}
+          </Button>
+        </form>
+      )}
       <Feedback error={error} />
     </div>
   );

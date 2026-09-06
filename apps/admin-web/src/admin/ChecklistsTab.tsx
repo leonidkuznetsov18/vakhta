@@ -19,6 +19,7 @@ import {
   XIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -32,6 +33,7 @@ import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
 import { usePersistentState } from '@/lib/persistent-state';
+import { isUnchanged } from '@/lib/forms';
 import { validateWith, type FieldErrors } from '@/lib/validation';
 import { ApiError, checklistsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
@@ -56,7 +58,7 @@ interface DraftItem {
 
 interface Draft {
   readonly name: string;
-  readonly positionId: string;
+  readonly positionIds: readonly string[];
   readonly zoneType: string;
   readonly items: readonly DraftItem[];
   readonly nextId: number;
@@ -67,7 +69,7 @@ const KIND_ICON: Record<ChecklistItemKind, string> = { CHECK: '▫️', NOTE: '�
 function emptyDraft(): Draft {
   return {
     name: '',
-    positionId: '',
+    positionIds: [],
     zoneType: '',
     items: [
       { id: 1, label: '', kind: 'CHECK' },
@@ -80,7 +82,7 @@ function emptyDraft(): Draft {
 function draftOf(row: ChecklistDefinitionView): Draft {
   return {
     name: row.name,
-    positionId: row.positionId ?? '',
+    positionIds: row.positions.map((p) => p.id),
     zoneType: row.zoneType ?? '',
     items: row.items.map((item, index) => ({ id: index + 1, label: item.label, kind: item.kind })),
     nextId: row.items.length + 1,
@@ -157,10 +159,15 @@ export function ChecklistsTab({ org }: Props) {
   const columns: Column<ChecklistDefinitionView>[] = [
     { key: 'name', header: t.common.name, cell: (r) => r.name, sortValue: (r) => r.name },
     {
-      key: 'position',
-      header: c.position,
-      cell: (r) => r.positionName ?? <StatusPill tone="warning">{c.anyPosition}</StatusPill>,
-      sortValue: (r) => r.positionName ?? '',
+      key: 'positions',
+      header: c.positions,
+      cell: (r) =>
+        r.positions.length > 0 ? (
+          r.positions.map((p) => p.name).join(', ')
+        ) : (
+          <StatusPill tone="warning">{c.anyPosition}</StatusPill>
+        ),
+      sortValue: (r) => r.positions.map((p) => p.name).join(', '),
     },
     {
       key: 'zoneType',
@@ -259,7 +266,7 @@ export function ChecklistsTab({ org }: Props) {
         loading={rows === null && !loadError}
         empty={t.common.empty}
         storageKey="checklists"
-        searchText={(r) => `${r.name} ${r.positionName ?? ''}`}
+        searchText={(r) => `${r.name} ${r.positions.map((p) => p.name).join(' ')}`}
         searchPlaceholder={c.search}
         emptyAction={
           <Button type="button" variant="outline" onClick={() => setEditing('new')}>
@@ -276,7 +283,7 @@ export function ChecklistsTab({ org }: Props) {
         title={open?.name ?? ''}
         description={
           open
-            ? `${open.positionName ?? c.anyPosition} · ${zoneTypeLabel(open.zoneType)} · ${format(c.versionLabel, { n: open.version })}`
+            ? `${open.positions.map((p) => p.name).join(', ') || c.anyPosition} · ${zoneTypeLabel(open.zoneType)} · ${format(c.versionLabel, { n: open.version })}`
             : undefined
         }
         footer={
@@ -436,6 +443,15 @@ function ChecklistDialog({
     });
   };
 
+  const initial = useMemo(() => (row ? draftOf(row) : emptyDraft()), [row]);
+  const comparable = (d: Draft) => ({
+    name: d.name,
+    positionIds: [...d.positionIds].sort(),
+    zoneType: d.zoneType,
+    items: d.items.map(({ label, kind }) => ({ label, kind })),
+  });
+  const unchanged = isUnchanged(comparable(draft), comparable(initial));
+
   const emptyLabels = useMemo(
     () => new Set(draft.items.filter((i) => i.label.trim() === '').map((i) => i.id)),
     [draft.items],
@@ -445,12 +461,13 @@ function ChecklistDialog({
     ev.preventDefault();
     const checked = validateWith(SaveChecklistCommand, {
       name: draft.name,
-      positionId: draft.positionId || undefined,
+      positionIds: draft.positionIds,
       zoneType: draft.zoneType || null,
       items: draft.items.map((i) => ({ label: i.label, kind: i.kind })),
     });
     const errors: FieldErrors = { ...checked.errors };
     if (errors.items) errors.items = ISSUE_TEXT[errors.items] ?? errors.items;
+    if (errors.positionIds) errors.positionIds = c.noPositions;
     if (emptyLabels.size > 0 && !errors.items) errors.items = c.emptyLabel;
     setFieldErrors(errors);
     if (!checked.ok || emptyLabels.size > 0) return;
@@ -489,15 +506,44 @@ function ChecklistDialog({
               />
             )}
           </FormField>
-          <SelectField
-            label={c.position}
-            value={draft.positionId}
-            onChange={(v) => patch({ positionId: v })}
-            placeholder={c.anyPosition}
-            options={org.positions.map((p) => ({ value: p.id, label: p.name }))}
+          <FormField
+            label={c.positions}
             hint={hints.checklistsPosition}
-            error={fieldErrors.positionId}
-          />
+            error={fieldErrors.positionIds}
+            className="sm:col-span-3"
+          >
+            {(id) => (
+              <div
+                id={id}
+                role="group"
+                aria-label={c.positions}
+                className="flex flex-wrap gap-2 rounded-lg border p-2"
+              >
+                {org.positions.map((p) => {
+                  const checked = draft.positionIds.includes(p.id);
+                  return (
+                    <label
+                      key={p.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/10"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(next) =>
+                          patch({
+                            positionIds: next
+                              ? [...draft.positionIds, p.id]
+                              : draft.positionIds.filter((x) => x !== p.id),
+                          })
+                        }
+                        aria-label={p.name}
+                      />
+                      {p.name}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </FormField>
           <SelectField
             label={c.zoneType}
             value={draft.zoneType}
@@ -609,7 +655,7 @@ function ChecklistDialog({
           <Button type="button" variant="outline" onClick={onClose}>
             {t.common.cancel}
           </Button>
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy || unchanged}>
             {row ? all.ui.common.save : t.common.add}
           </Button>
         </DialogFooter>

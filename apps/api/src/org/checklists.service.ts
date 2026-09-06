@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   and,
   asc,
+  checklistDefinitionPositions,
   checklistDefinitions,
   desc,
   eq,
@@ -27,11 +28,12 @@ import { DATABASE } from '../infra/database.module.js';
 import { OrgService } from './org.service.js';
 
 type DefinitionRow = typeof checklistDefinitions.$inferSelect;
+type PositionRef = { readonly id: string; readonly name: string };
 
 /**
- * Checklists the admin builds for the zone handover (spec 5.6, FR-CLN-03): one per position and
- * zone type, versioned. Editing writes a new version and retires the previous one, so a submitted
- * report always points at the exact items it was answered against.
+ * Checklists the admin builds for the zone handover (spec 5.6, FR-CLN-03, ADR-0012): bound to
+ * one or more positions, versioned. Editing writes a new version and retires the previous one, so
+ * a submitted report always points at the exact items it was answered against.
  */
 @Injectable()
 export class ChecklistsService {
@@ -49,13 +51,18 @@ export class ChecklistsService {
     for (const row of rows) {
       if (!latest.has(row.d.familyId)) latest.set(row.d.familyId, row);
     }
-    return [...latest.values()]
-      .map((row) => toView(row.d, row.positionName, row.handovers))
+    const chosen = [...latest.values()];
+    const bindings = await this.positionsOf(
+      this.db,
+      chosen.map((r) => r.d.id),
+    );
+    return chosen
+      .map((row) => toView(row.d, bindings.get(row.d.id) ?? [], row.handovers))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async create(cmd: SaveChecklistCommand, actor: Actor): Promise<ChecklistDefinitionView> {
-    await this.org.requirePosition(cmd.positionId);
+    const positionIds = await this.requirePositions(cmd.positionIds);
     const items = toItems(cmd);
     return this.db.transaction(async (tx) => {
       const [row] = await tx
@@ -63,26 +70,26 @@ export class ChecklistsService {
         .values({
           name: cmd.name,
           version: 1,
-          positionId: cmd.positionId,
           zoneType: cmd.zoneType ?? null,
           items,
           isActive: true,
         })
         .returning();
       if (!row) throw new Error('checklist_definitions: insert returned no row');
+      await this.bind(tx, row.id, positionIds);
       await this.events.append(tx, {
         type: 'CHECKLIST_CREATED',
         source: 'WEB',
         actor,
         checklistVersionId: row.id,
-        payload: { checklistId: row.id, familyId: row.familyId, name: row.name },
+        payload: { checklistId: row.id, familyId: row.familyId, name: row.name, positionIds },
       });
       await this.audit.record(tx, {
         actor,
         action: 'checklist.create',
         objectType: 'checklist',
         objectId: row.id,
-        after: summary(row),
+        after: { ...summary(row), positionIds },
       });
       return this.view(tx, row.id);
     });
@@ -95,7 +102,7 @@ export class ChecklistsService {
     actor: Actor,
   ): Promise<ChecklistDefinitionView> {
     const current = await this.requireLatest(id);
-    await this.org.requirePosition(cmd.positionId);
+    const positionIds = await this.requirePositions(cmd.positionIds);
     const items = toItems(cmd);
     return this.db.transaction(async (tx) => {
       await tx
@@ -108,13 +115,13 @@ export class ChecklistsService {
           familyId: current.familyId,
           name: cmd.name,
           version: current.version + 1,
-          positionId: cmd.positionId,
           zoneType: cmd.zoneType ?? null,
           items,
           isActive: current.isActive,
         })
         .returning();
       if (!row) throw new Error('checklist_definitions: insert returned no row');
+      await this.bind(tx, row.id, positionIds);
       await this.events.append(tx, {
         type: 'CHECKLIST_VERSION_CREATED',
         source: 'WEB',
@@ -125,6 +132,7 @@ export class ChecklistsService {
           familyId: row.familyId,
           version: row.version,
           supersedes: current.id,
+          positionIds,
         },
       });
       await this.audit.record(tx, {
@@ -133,9 +141,82 @@ export class ChecklistsService {
         objectType: 'checklist',
         objectId: row.id,
         before: summary(current),
-        after: summary(row),
+        after: { ...summary(row), positionIds },
       });
       return this.view(tx, row.id);
+    });
+  }
+
+  /** Attaches an existing checklist to one more position (from the employee card, ADR-0012). */
+  async addPosition(
+    id: string,
+    positionId: string,
+    actor: Actor,
+  ): Promise<ChecklistDefinitionView> {
+    const current = await this.requireLatest(id);
+    await this.org.requirePosition(positionId);
+    return this.db.transaction(async (tx) => {
+      await tx
+        .insert(checklistDefinitionPositions)
+        .values({ definitionId: current.id, positionId })
+        .onConflictDoNothing();
+      await this.events.append(tx, {
+        type: 'CHECKLIST_POSITION_ADDED',
+        source: 'WEB',
+        actor,
+        checklistVersionId: current.id,
+        payload: { checklistId: current.id, familyId: current.familyId, positionId },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'checklist.position.add',
+        objectType: 'checklist',
+        objectId: current.id,
+        after: { positionId },
+      });
+      return this.view(tx, current.id);
+    });
+  }
+
+  /** Detaches a position; the last one cannot go, the checklist is disabled instead. */
+  async removePosition(
+    id: string,
+    positionId: string,
+    actor: Actor,
+  ): Promise<ChecklistDefinitionView> {
+    const current = await this.requireLatest(id);
+    return this.db.transaction(async (tx) => {
+      const bound = (await this.positionsOf(tx, [current.id])).get(current.id) ?? [];
+      if (bound.length <= 1 && bound.some((p) => p.id === positionId)) {
+        throw new DomainError(
+          'CHECKLIST_LAST_POSITION',
+          409,
+          'A checklist keeps at least one position; disable it instead',
+        );
+      }
+      await tx
+        .delete(checklistDefinitionPositions)
+        .where(
+          and(
+            eq(checklistDefinitionPositions.definitionId, current.id),
+            eq(checklistDefinitionPositions.positionId, positionId),
+          ),
+        );
+      await this.events.append(tx, {
+        type: 'CHECKLIST_POSITION_REMOVED',
+        source: 'WEB',
+        actor,
+        checklistVersionId: current.id,
+        payload: { checklistId: current.id, familyId: current.familyId, positionId },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'checklist.position.remove',
+        objectType: 'checklist',
+        objectId: current.id,
+        before: { positionId },
+      });
+      return this.view(tx, current.id);
     });
   }
 
@@ -215,21 +296,57 @@ export class ChecklistsService {
     return tx
       .select({
         d: checklistDefinitions,
-        positionName: positions.name,
         handovers: sql<number>`(
           SELECT COUNT(*) FROM ${handoverRecords} hr
           JOIN ${checklistDefinitions} cd ON cd.id = hr.checklist_definition_id
           WHERE cd.family_id = ${checklistDefinitions.familyId}
         )`.mapWith(Number),
       })
-      .from(checklistDefinitions)
-      .leftJoin(positions, eq(checklistDefinitions.positionId, positions.id));
+      .from(checklistDefinitions);
+  }
+
+  private async positionsOf(
+    tx: DbOrTx,
+    definitionIds: readonly string[],
+  ): Promise<Map<string, PositionRef[]>> {
+    const map = new Map<string, PositionRef[]>();
+    if (definitionIds.length === 0) return map;
+    const rows = await tx
+      .select({
+        definitionId: checklistDefinitionPositions.definitionId,
+        id: positions.id,
+        name: positions.name,
+      })
+      .from(checklistDefinitionPositions)
+      .innerJoin(positions, eq(checklistDefinitionPositions.positionId, positions.id))
+      .where(inArray(checklistDefinitionPositions.definitionId, [...definitionIds]))
+      .orderBy(asc(positions.name));
+    for (const r of rows) {
+      const list = map.get(r.definitionId) ?? [];
+      list.push({ id: r.id, name: r.name });
+      map.set(r.definitionId, list);
+    }
+    return map;
+  }
+
+  private async bind(tx: DbOrTx, definitionId: string, positionIds: readonly string[]) {
+    await tx
+      .insert(checklistDefinitionPositions)
+      .values(positionIds.map((positionId) => ({ definitionId, positionId })))
+      .onConflictDoNothing();
+  }
+
+  private async requirePositions(ids: readonly string[]): Promise<string[]> {
+    const unique = [...new Set(ids)];
+    for (const id of unique) await this.org.requirePosition(id);
+    return unique;
   }
 
   private async view(tx: DbOrTx, id: string): Promise<ChecklistDefinitionView> {
     const [row] = await this.query(tx).where(eq(checklistDefinitions.id, id)).limit(1);
     if (!row) throw new DomainError('CHECKLIST_NOT_FOUND', 404, `Checklist ${id} not found`);
-    return toView(row.d, row.positionName, row.handovers);
+    const bound = (await this.positionsOf(tx, [id])).get(id) ?? [];
+    return toView(row.d, bound, row.handovers);
   }
 
   /** The row itself must be the latest version of its family: older versions are read-only. */
@@ -282,7 +399,6 @@ function summary(row: DefinitionRow): Record<string, unknown> {
   return {
     name: row.name,
     version: row.version,
-    positionId: row.positionId,
     zoneType: row.zoneType,
     items: row.items.length,
     photos: row.items.filter((i) => itemKind(i) === 'PHOTO').length,
@@ -291,7 +407,7 @@ function summary(row: DefinitionRow): Record<string, unknown> {
 
 function toView(
   row: DefinitionRow,
-  positionName: string | null,
+  bound: readonly PositionRef[],
   handovers: number,
 ): ChecklistDefinitionView {
   return {
@@ -299,8 +415,7 @@ function toView(
     familyId: row.familyId,
     name: row.name,
     version: row.version,
-    positionId: row.positionId,
-    positionName,
+    positions: [...bound],
     zoneType: row.zoneType,
     items: row.items.map((i) => ({ key: i.key, label: i.label, kind: itemKind(i) })),
     isActive: row.isActive,

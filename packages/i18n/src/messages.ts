@@ -656,6 +656,22 @@ export interface Messages {
       readonly build: string;
       readonly exportCsv: string;
       readonly exportXlsx: string;
+      readonly preset: string;
+      readonly presets: Readonly<
+        Record<'thisMonth' | 'lastMonth' | 'last7' | 'last30' | 'custom', string>
+      >;
+      readonly options: string;
+      readonly chartType: string;
+      readonly chartTypes: Readonly<Record<'bar' | 'line' | 'stacked', string>>;
+      readonly series: string;
+      readonly tableColumns: string;
+      readonly top: string;
+      readonly topAll: string;
+      /** Placeholder: {n} */
+      readonly rowsCount: string;
+      readonly search: string;
+      readonly summary: string;
+      readonly noSeries: string;
       readonly empty: string;
       readonly totals: string;
       readonly generatedAt: string;
@@ -721,6 +737,13 @@ export interface Messages {
         readonly noPosition: string;
         readonly checklist: string;
         readonly noChecklist: string;
+        /** Section of the employee card: checklists bound to the current position. */
+        readonly checklists: string;
+        readonly addChecklist: string;
+        readonly checklistAdded: string;
+        readonly removeChecklist: string;
+        readonly checklistRemoved: string;
+        readonly noChecklistHint: string;
         readonly assignPosition: string;
         readonly positionAssigned: string;
         readonly block: string;
@@ -826,7 +849,9 @@ export interface Messages {
       readonly checklists: {
         readonly intro: string;
         readonly position: string;
+        readonly positions: string;
         readonly anyPosition: string;
+        readonly noPositions: string;
         readonly zoneType: string;
         readonly anyZoneType: string;
         readonly items: string;
@@ -1008,6 +1033,7 @@ export interface Messages {
       readonly scheduleDelete: string;
       readonly employeesPositionColumn: string;
       readonly employeesChecklistColumn: string;
+      readonly employeesChecklists: string;
       readonly employeesImport: string;
       readonly employeesQr: string;
       readonly directoriesDelete: string;
@@ -1023,6 +1049,9 @@ export interface Messages {
       readonly employeesBulkCodes: string;
       readonly incidentsBulkClose: string;
       readonly reportsChart: string;
+      readonly reportsOptions: string;
+      readonly reportsSeries: string;
+      readonly reportsColumns: string;
       readonly profileTwoFactor: string;
     };
   };

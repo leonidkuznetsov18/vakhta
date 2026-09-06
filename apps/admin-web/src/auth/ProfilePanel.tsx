@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { isBlank } from '@/lib/forms';
 import QRCode from 'qrcode';
 import type { MeView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
@@ -142,7 +143,7 @@ export function ProfilePanel({ me, onChanged }: Props) {
               )}
             </FormField>
             <div>
-              <Button type="submit" disabled={busy}>
+              <Button type="submit" disabled={busy || !password}>
                 {t.enableTwoFactor}
               </Button>
             </div>
@@ -168,7 +169,7 @@ export function ProfilePanel({ me, onChanged }: Props) {
               )}
             </FormField>
             <div>
-              <Button type="submit" disabled={busy}>
+              <Button type="submit" disabled={busy || isBlank(code)}>
                 {t.verify}
               </Button>
             </div>

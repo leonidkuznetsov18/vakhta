@@ -64,7 +64,7 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
   it('refuses a checklist without a position: the position is the key', async () => {
     await expect(
       service.create(
-        { name: 'x', positionId: '00000000-0000-4000-8000-000000000009', items },
+        { name: 'x', positionIds: ['00000000-0000-4000-8000-000000000009'], items },
         admin,
       ),
     ).rejects.toMatchObject({ code: 'POSITION_NOT_FOUND' });
@@ -72,33 +72,32 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
 
   it('creates a checklist with generated keys and lists the latest version per family', async () => {
     const created = await service.create(
-      { name: 'Оператор линии', positionId, zoneType: 'AREA', items },
+      { name: 'Оператор линии', positionIds: [positionId], zoneType: 'AREA', items },
       admin,
     );
     expect(created).toMatchObject({
       name: 'Оператор линии',
       version: 1,
-      positionName: 'Оператор',
+      positions: [{ id: positionId, name: 'Оператор' }],
       zoneType: 'AREA',
       isActive: true,
       handovers: 0,
     });
     expect(created.items.map((i) => i.key)).toEqual(['ITEM_01', 'ITEM_02', 'ITEM_03']);
-    await service.create({ name: 'Общий', positionId, items: [items[2]!] }, admin);
+    await service.create({ name: 'Общий', positionIds: [positionId], items: [items[2]!] }, admin);
     const list = await service.list();
     expect(list.map((c) => c.name)).toEqual(['Общий', 'Оператор линии']);
     expect(list.find((c) => c.name === 'Общий')).toMatchObject({
-      positionId,
-      positionName: 'Оператор',
+      positions: [{ id: positionId, name: 'Оператор' }],
       zoneType: null,
     });
   });
 
   it('editing writes a new version, retires the previous one and keeps the family', async () => {
-    const v1 = await service.create({ name: 'Оператор', positionId, items }, admin);
+    const v1 = await service.create({ name: 'Оператор', positionIds: [positionId], items }, admin);
     const v2 = await service.update(
       v1.id,
-      { name: 'Оператор (обновлён)', positionId, items: [items[0]!, items[2]!] },
+      { name: 'Оператор (обновлён)', positionIds: [positionId], items: [items[0]!, items[2]!] },
       admin,
     );
     expect(v2).toMatchObject({ familyId: v1.familyId, version: 2, isActive: true });
@@ -111,14 +110,17 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
     expect((await service.list()).map((c) => c.version)).toEqual([2]);
     // the retired version is read-only
     await expect(
-      service.update(v1.id, { name: 'x', positionId, items }, admin),
+      service.update(v1.id, { name: 'x', positionIds: [positionId], items }, admin),
     ).rejects.toMatchObject({
       code: 'CHECKLIST_VERSION_STALE',
     });
   });
 
   it('status toggles on the current version; a disabled checklist stays disabled after an edit', async () => {
-    const created = await service.create({ name: 'Оператор', positionId, items }, admin);
+    const created = await service.create(
+      { name: 'Оператор', positionIds: [positionId], items },
+      admin,
+    );
     const disabled = await service.setStatus(
       created.id,
       { isActive: false, reason: 'Пилот завершён' },
@@ -127,7 +129,7 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
     expect(disabled.isActive).toBe(false);
     const edited = await service.update(
       created.id,
-      { name: 'Оператор 2', positionId, items },
+      { name: 'Оператор 2', positionIds: [positionId], items },
       admin,
     );
     expect(edited.isActive).toBe(false);
@@ -135,13 +137,19 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
   });
 
   it('deletes every version while unused and refuses once a handover refers to it', async () => {
-    const free = await service.create({ name: 'Свободный', positionId, items }, admin);
-    await service.update(free.id, { name: 'Свободный 2', positionId, items }, admin);
+    const free = await service.create(
+      { name: 'Свободный', positionIds: [positionId], items },
+      admin,
+    );
+    await service.update(free.id, { name: 'Свободный 2', positionIds: [positionId], items }, admin);
     const current = (await service.list()).find((c) => c.familyId === free.familyId)!;
     await service.delete(current.id, 'Ошибочно создан', admin);
     expect(await testDb.db.select().from(checklistDefinitions)).toHaveLength(0);
 
-    const used = await service.create({ name: 'Используемый', positionId, items }, admin);
+    const used = await service.create(
+      { name: 'Используемый', positionIds: [positionId], items },
+      admin,
+    );
     const [site] = await testDb.db
       .insert(sites)
       .values({ code: 'main', name: 'Основная', timezone: 'Europe/Kyiv' })
@@ -172,5 +180,30 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
       code: 'CHECKLIST_IN_USE',
     });
     expect((await service.list()).find((c) => c.id === used.id)?.handovers).toBe(1);
+  });
+
+  it('an existing checklist can be attached to more positions and keeps at least one', async () => {
+    const [fitter] = await testDb.db
+      .insert(positions)
+      .values({ code: 'FITTER', name: 'Наладчик' })
+      .returning();
+    const created = await service.create(
+      { name: 'Фото оборудования', positionIds: [positionId], items },
+      admin,
+    );
+    const both = await service.addPosition(created.id, fitter!.id, admin);
+    expect(both.positions.map((p) => p.name)).toEqual(['Наладчик', 'Оператор']);
+    // the new version keeps the bindings
+    const v2 = await service.update(
+      created.id,
+      { name: 'Фото оборудования', positionIds: both.positions.map((p) => p.id), items },
+      admin,
+    );
+    expect(v2.positions).toHaveLength(2);
+    const one = await service.removePosition(v2.id, positionId, admin);
+    expect(one.positions.map((p) => p.name)).toEqual(['Наладчик']);
+    await expect(service.removePosition(v2.id, fitter!.id, admin)).rejects.toMatchObject({
+      code: 'CHECKLIST_LAST_POSITION',
+    });
   });
 });

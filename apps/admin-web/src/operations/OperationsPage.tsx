@@ -21,6 +21,7 @@ import { employeesApi, orgApi, shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
+import { isBlank } from '@/lib/forms';
 import { notifySuccess } from '@/lib/toast';
 import { EyeIcon, FlagIcon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -446,7 +447,10 @@ export function OperationsPage() {
                   <Button type="button" variant="outline" onClick={() => setStartOpen(false)}>
                     {all.ui.common.cancel}
                   </Button>
-                  <Button type="submit" disabled={busy || !startFor}>
+                  <Button
+                    type="submit"
+                    disabled={busy || !startFor || startComment.trim().length < 3}
+                  >
                     {o.start}
                   </Button>
                 </DialogFooter>
@@ -539,7 +543,11 @@ export function OperationsPage() {
                         />
                       )}
                     </FormField>
-                    <Button type="submit" variant="secondary" disabled={busy}>
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      disabled={busy || !action[row.id] || isBlank(comment[row.id])}
+                    >
                       {o.apply}
                     </Button>
                   </form>

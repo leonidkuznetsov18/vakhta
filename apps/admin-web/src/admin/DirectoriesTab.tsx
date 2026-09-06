@@ -14,6 +14,7 @@ import { adminOrgApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { useState } from 'react';
+import { isBlank } from '@/lib/forms';
 import { AddDialog } from '@/components/app/add-dialog';
 import { DialogFooter } from '@/components/ui/dialog';
 import { useConfirm } from '@/components/app/confirm-dialog';
@@ -237,7 +238,7 @@ export function DirectoriesTab({ org, onChanged }: Props) {
                 <Button type="button" variant="outline" onClick={() => setDlg(null)}>
                   {t.common.cancel}
                 </Button>
-                <Button type="submit" disabled={busy}>
+                <Button type="submit" disabled={busy || isBlank(site.code) || isBlank(site.name)}>
                   {t.common.add}
                 </Button>
               </DialogFooter>
@@ -318,7 +319,7 @@ export function DirectoriesTab({ org, onChanged }: Props) {
                 <Button type="button" variant="outline" onClick={() => setDlg(null)}>
                   {t.common.cancel}
                 </Button>
-                <Button type="submit" disabled={busy || !unit.siteId}>
+                <Button type="submit" disabled={busy || !unit.siteId || isBlank(unit.name)}>
                   {t.common.add}
                 </Button>
               </DialogFooter>
@@ -385,7 +386,7 @@ export function DirectoriesTab({ org, onChanged }: Props) {
                 <Button type="button" variant="outline" onClick={() => setDlg(null)}>
                   {t.common.cancel}
                 </Button>
-                <Button type="submit" disabled={busy || !team.orgUnitId}>
+                <Button type="submit" disabled={busy || !team.orgUnitId || isBlank(team.name)}>
                   {t.common.add}
                 </Button>
               </DialogFooter>
@@ -458,7 +459,10 @@ export function DirectoriesTab({ org, onChanged }: Props) {
                 <Button type="button" variant="outline" onClick={() => setDlg(null)}>
                   {t.common.cancel}
                 </Button>
-                <Button type="submit" disabled={busy}>
+                <Button
+                  type="submit"
+                  disabled={busy || isBlank(position.code) || isBlank(position.name)}
+                >
                   {t.common.add}
                 </Button>
               </DialogFooter>
@@ -562,7 +566,10 @@ export function DirectoriesTab({ org, onChanged }: Props) {
                 <Button type="button" variant="outline" onClick={() => setDlg(null)}>
                   {t.common.cancel}
                 </Button>
-                <Button type="submit" disabled={busy || !zone.orgUnitId}>
+                <Button
+                  type="submit"
+                  disabled={busy || !zone.orgUnitId || isBlank(zone.code) || isBlank(zone.name)}
+                >
                   {t.common.add}
                 </Button>
               </DialogFooter>

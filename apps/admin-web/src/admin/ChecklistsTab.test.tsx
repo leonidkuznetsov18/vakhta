@@ -25,8 +25,7 @@ function checklist(over: Partial<ChecklistDefinitionView> = {}): ChecklistDefini
     familyId: 'f1',
     name: 'Оператор линии',
     version: 1,
-    positionId: POS,
-    positionName: 'Оператор линии',
+    positions: [{ id: POS, name: 'Оператор линии' }],
     zoneType: null,
     items: [
       { key: 'ITEM_01', label: 'Линия остановлена', kind: 'CHECK' },
@@ -108,7 +107,7 @@ describe('ChecklistsTab', () => {
     fireEvent.change(within(dialog).getByLabelText('Название'), {
       target: { value: 'Фасовка' },
     });
-    fireEvent.change(within(dialog).getByLabelText('Должность'), { target: { value: POS } });
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Оператор линии' }));
     fireEvent.change(within(dialog).getByLabelText('Текст пункта 1'), {
       target: { value: 'Весы обнулены' },
     });
@@ -129,7 +128,7 @@ describe('ChecklistsTab', () => {
     );
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
       name: 'Фасовка',
-      positionId: POS,
+      positionIds: [POS],
       zoneType: null,
       items: [
         { label: 'Весы обнулены', kind: 'CHECK' },
@@ -147,7 +146,7 @@ describe('ChecklistsTab', () => {
     fireEvent.click((await screen.findAllByRole('button', { name: 'Создать чек-лист' }))[0]!);
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByLabelText('Название'), { target: { value: 'Без фото' } });
-    fireEvent.change(within(dialog).getByLabelText('Должность'), { target: { value: POS } });
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Оператор линии' }));
     fireEvent.change(within(dialog).getByLabelText('Текст пункта 1'), {
       target: { value: 'Пункт' },
     });
@@ -183,7 +182,7 @@ describe('ChecklistsTab', () => {
     );
     expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({
       name: 'Оператор линии v2',
-      positionId: POS,
+      positionIds: [POS],
       zoneType: null,
       items: [
         { label: 'Линия остановлена', kind: 'CHECK' },

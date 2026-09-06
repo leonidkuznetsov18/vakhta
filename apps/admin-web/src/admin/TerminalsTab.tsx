@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { isBlank, isUnchanged } from '@/lib/forms';
 import {
   RegisterTerminalCommand,
   type OrgSnapshot,
@@ -194,7 +195,7 @@ export function TerminalsTab({ org, onChanged }: Props) {
                 <Button type="button" variant="outline" onClick={() => setCreating(false)}>
                   {t.common.cancel}
                 </Button>
-                <Button type="submit" disabled={busy}>
+                <Button type="submit" disabled={busy || isBlank(name)}>
                   {t.common.add}
                 </Button>
               </DialogFooter>
@@ -364,7 +365,22 @@ function EditTerminalDialog({
             <Button type="button" variant="outline" onClick={onClose}>
               {t.common.cancel}
             </Button>
-            <Button type="submit" disabled={busy}>
+            <Button
+              type="submit"
+              disabled={
+                busy ||
+                isBlank(name) ||
+                (terminal !== null &&
+                  isUnchanged(
+                    { name: name.trim(), siteId, checkpoint },
+                    {
+                      name: terminal.name,
+                      siteId: terminal.siteId,
+                      checkpoint: terminal.checkpoint,
+                    },
+                  ))
+              }
+            >
               {all.ui.common.save}
             </Button>
           </DialogFooter>

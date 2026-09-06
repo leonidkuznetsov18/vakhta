@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { isBlank, isUnchanged } from '@/lib/forms';
 import type { OrgSnapshot } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,41 @@ export function EditDirectoryDialog({
       setIsActive(edit.row.isActive);
     }
   }, [edit]);
+
+  /** The draft equals the record on screen: nothing to save. */
+  const unchanged = (() => {
+    if (!edit) return true;
+    if (isBlank(name)) return true;
+    switch (edit.kind) {
+      case 'sites':
+        return isUnchanged(
+          { name, timezone },
+          { name: edit.row.name, timezone: edit.row.timezone },
+        );
+      case 'orgUnits':
+        return isUnchanged(
+          { name, parentId: parentId || null },
+          { name: edit.row.name, parentId: edit.row.parentId ?? null },
+        );
+      case 'teams':
+        return isUnchanged(
+          { name, orgUnitId },
+          { name: edit.row.name, orgUnitId: edit.row.orgUnitId },
+        );
+      case 'positions':
+        return name === edit.row.name;
+      case 'zones':
+        return isUnchanged(
+          { name, type, isShared, isActive },
+          {
+            name: edit.row.name,
+            type: edit.row.type,
+            isShared: edit.row.isShared,
+            isActive: edit.row.isActive,
+          },
+        );
+    }
+  })();
 
   function submit(ev: FormEvent) {
     ev.preventDefault();
@@ -182,7 +218,7 @@ export function EditDirectoryDialog({
             <Button type="button" variant="outline" onClick={onClose}>
               {t.common.cancel}
             </Button>
-            <Button type="submit" disabled={busy}>
+            <Button type="submit" disabled={busy || unchanged}>
               {all.ui.common.save}
             </Button>
           </DialogFooter>

@@ -7,6 +7,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   smallint,
   text,
   timestamp,
@@ -68,15 +69,34 @@ export const checklistDefinitions = pgTable(
     name: text('name').notNull().default(''),
     version: integer('version').notNull(),
     zoneType: zoneType('zone_type'),
-    positionId: uuid('position_id').references(() => positions.id),
     items: jsonb('items').$type<ChecklistItemDefinition[]>().notNull(),
     validFrom: timestamp('valid_from', { withTimezone: true }).notNull().defaultNow(),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index('checklist_definitions_active_idx').on(t.isActive, t.zoneType, t.positionId),
+    index('checklist_definitions_active_idx').on(t.isActive, t.zoneType),
     index('checklist_definitions_family_idx').on(t.familyId, t.version),
+  ],
+);
+
+/**
+ * Positions a checklist version applies to (ADR-0012): the position is the key by which the
+ * employee gets a checklist, and one checklist may serve several positions.
+ */
+export const checklistDefinitionPositions = pgTable(
+  'checklist_definition_positions',
+  {
+    definitionId: uuid('definition_id')
+      .notNull()
+      .references(() => checklistDefinitions.id, { onDelete: 'cascade' }),
+    positionId: uuid('position_id')
+      .notNull()
+      .references(() => positions.id),
+  },
+  (t) => [
+    primaryKey({ columns: [t.definitionId, t.positionId] }),
+    index('checklist_definition_positions_position_idx').on(t.positionId),
   ],
 );
 

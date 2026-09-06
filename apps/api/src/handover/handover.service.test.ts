@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  checklistDefinitionPositions,
   checklistDefinitions,
   domainEvents,
   downtimeIncidents,
@@ -205,12 +206,17 @@ describe('handover: прибирання, чек-лист, фото, перед�
       })),
     );
     const t = messages().handover;
-    await testDb.db.insert(checklistDefinitions).values({
-      name: t.defaultName,
-      version: 1,
-      positionId: operatorId,
-      items: defaultChecklistItems({ items: t.items, angles: t.angles }),
-    });
+    const [byDefault] = await testDb.db
+      .insert(checklistDefinitions)
+      .values({
+        name: t.defaultName,
+        version: 1,
+        items: defaultChecklistItems({ items: t.items, angles: t.angles }),
+      })
+      .returning();
+    await testDb.db
+      .insert(checklistDefinitionPositions)
+      .values({ definitionId: byDefault!.id, positionId: operatorId });
     const start = new Date(Date.now() - 11 * 3_600_000);
     planEnd = new Date(start.getTime() + 12 * 3_600_000);
     await testDb.db.insert(shiftAssignments).values([
@@ -415,27 +421,31 @@ describe('handover: прибирання, чек-лист, фото, перед�
 
   it('FR-CLN-03: чек-лист добирається за посадою працівника і типом зони, фото-пункти з нього обовʼязкові', async () => {
     const photo = { key: 'ITEM_03', label: 'Фото линии', kind: 'PHOTO' as const };
-    await testDb.db.insert(checklistDefinitions).values([
-      {
-        name: 'Оператор, участок',
-        version: 1,
-        positionId: operatorId,
-        zoneType: 'AREA',
-        items: [
-          { key: 'ITEM_01', label: 'Линия остановлена', kind: 'CHECK' },
-          { key: 'ITEM_02', label: 'Сообщение', kind: 'NOTE' },
-          photo,
-        ],
-      },
-      {
-        name: 'Оператор, старая версия',
-        version: 1,
-        positionId: operatorId,
-        zoneType: 'AREA',
-        isActive: false,
-        items: [{ key: 'ITEM_01', label: 'Устарело', kind: 'CHECK' }, photo],
-      },
-    ]);
+    const inserted = await testDb.db
+      .insert(checklistDefinitions)
+      .values([
+        {
+          name: 'Оператор, участок',
+          version: 1,
+          zoneType: 'AREA',
+          items: [
+            { key: 'ITEM_01', label: 'Линия остановлена', kind: 'CHECK' },
+            { key: 'ITEM_02', label: 'Сообщение', kind: 'NOTE' },
+            photo,
+          ],
+        },
+        {
+          name: 'Оператор, старая версия',
+          version: 1,
+          zoneType: 'AREA',
+          isActive: false,
+          items: [{ key: 'ITEM_01', label: 'Устарело', kind: 'CHECK' }, photo],
+        },
+      ])
+      .returning();
+    await testDb.db
+      .insert(checklistDefinitionPositions)
+      .values(inserted.map((d) => ({ definitionId: d.id, positionId: operatorId })));
     await toHandover(dayEmployee);
     const draft = await handover.current(dayEmployee);
     expect(draft?.items.map((i) => i.label)).toEqual([

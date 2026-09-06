@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  BindChecklistPositionCommand,
   CreateChecklistCommand,
   CreateOrgUnitCommand,
   CreatePositionCommand,
@@ -257,6 +258,24 @@ export class AdminOrgController {
     @CurrentUser() user: WebUser,
   ): Promise<ChecklistDefinitionView> {
     return this.checklists.setStatus(id, body, webUserActor(user));
+  }
+
+  @Post('checklists/:id/positions')
+  addChecklistPosition(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(BindChecklistPositionCommand)) body: BindChecklistPositionCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ChecklistDefinitionView> {
+    return this.checklists.addPosition(id, body.positionId, webUserActor(user));
+  }
+
+  @Delete('checklists/:id/positions/:positionId')
+  removeChecklistPosition(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('positionId', ParseUUIDPipe) positionId: string,
+    @CurrentUser() user: WebUser,
+  ): Promise<ChecklistDefinitionView> {
+    return this.checklists.removePosition(id, positionId, webUserActor(user));
   }
 
   @Delete('checklists/:id')

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { isBlank } from '@/lib/forms';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -121,7 +122,10 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
               </FormField>
             )}
             <Feedback error={error} notice={null} />
-            <Button type="submit" disabled={busy}>
+            <Button
+              type="submit"
+              disabled={busy || (step === 'password' ? isBlank(email) || !password : isBlank(code))}
+            >
               {step === 'password' ? t.signIn : t.verify}
             </Button>
             <LanguageSwitcher />

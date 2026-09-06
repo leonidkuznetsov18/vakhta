@@ -9,6 +9,7 @@ import {
   positions,
   employeePositions,
   checklistDefinitions,
+  checklistDefinitionPositions,
   presenceSessions,
   reasonCodes,
   responsibilityZones,
@@ -70,7 +71,7 @@ describe('shift: машина станів зміни в транзакції (�
 
   beforeEach(async () => {
     await testDb.db.execute(
-      sql`TRUNCATE handover_records, checklist_definitions, employee_positions, positions, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, responsibility_zones, employees, org_units, sites, reason_codes CASCADE`,
+      sql`TRUNCATE handover_records, checklist_definition_positions, checklist_definitions, employee_positions, positions, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, responsibility_zones, employees, org_units, sites, reason_codes CASCADE`,
     );
     timers = new InMemoryTimerScheduler();
     changes = new ShiftChanges();
@@ -348,12 +349,17 @@ describe('shift: машина станів зміни в транзакції (�
       positionId: operator!.id,
       validFrom: new Date('2026-01-01T00:00:00Z'),
     });
-    await testDb.db.insert(checklistDefinitions).values({
-      name: 'Оператор',
-      version: 1,
-      positionId: operator!.id,
-      items: [{ key: 'ITEM_01', label: 'Фото линии', kind: 'PHOTO' }],
-    });
+    const [definition] = await testDb.db
+      .insert(checklistDefinitions)
+      .values({
+        name: 'Оператор',
+        version: 1,
+        items: [{ key: 'ITEM_01', label: 'Фото линии', kind: 'PHOTO' }],
+      })
+      .returning();
+    await testDb.db
+      .insert(checklistDefinitionPositions)
+      .values({ definitionId: definition!.id, positionId: operator!.id });
     await arrive(ivanov);
     await service.start(ivanov, { idempotencyKey: key() }, meta(ivanov));
     expect(await act(ivanov, 'START_WORK')).toMatchObject({

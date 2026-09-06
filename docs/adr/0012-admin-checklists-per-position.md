@@ -20,8 +20,10 @@ become `PHOTO` items of the default checklist; `handover_media` stores the photo
 instead of an enum angle. A checklist must contain at least one `PHOTO` item, enforced in the
 domain (`validateChecklistItems`) and in the contracts, so the photo is mandatory by construction.
 
-`checklist_definitions` gets `family_id` and `name`; the panel tab "Checklists" creates, edits,
-enables, disables and deletes them. Editing never rewrites a row: it inserts the next version of the
+`checklist_definitions` gets `family_id` and `name`; positions are bound through
+`checklist_definition_positions`, so one checklist may serve several positions and an existing
+checklist is attached to a position from the employee card without a copy. The panel tab
+"Checklists" creates, edits, enables, disables and deletes them. Editing never rewrites a row: it inserts the next version of the
 family and retires the previous one, so a submitted handover keeps pointing at the exact items it was
 answered against. Deleting is allowed only while no handover refers to any version of the family;
 otherwise the checklist is disabled.

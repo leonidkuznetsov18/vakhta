@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { isBlank } from '@/lib/forms';
 import type { OrgSnapshot, WebUserView } from '@vakhta/contracts';
 import { SCOPE_TYPES, WEB_ROLES, type ScopeType, type WebRole } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
@@ -219,7 +220,10 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
                 <Button type="button" variant="outline" onClick={() => setCreating(false)}>
                   {t.common.cancel}
                 </Button>
-                <Button type="submit" disabled={busy}>
+                <Button
+                  type="submit"
+                  disabled={busy || isBlank(email) || isBlank(name) || !password}
+                >
                   {t.common.add}
                 </Button>
               </DialogFooter>

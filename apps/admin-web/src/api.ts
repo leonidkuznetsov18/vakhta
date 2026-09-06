@@ -264,6 +264,12 @@ export const checklistsApi = {
       method: 'DELETE',
       body: JSON.stringify({ reason }),
     }),
+  addPosition: (id: string, positionId: string) =>
+    post<ChecklistDefinitionView>(`/admin/org/checklists/${id}/positions`, { positionId }),
+  removePosition: (id: string, positionId: string) =>
+    apiFetch<ChecklistDefinitionView>(`/admin/org/checklists/${id}/positions/${positionId}`, {
+      method: 'DELETE',
+    }),
 };
 
 // ---- оперативна зміна (ТЗ 9.2) ----
