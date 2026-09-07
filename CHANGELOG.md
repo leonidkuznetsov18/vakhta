@@ -1,3 +1,9 @@
+## [0.30.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.29.0...v0.30.0) (2026-09-07)
+
+### Features
+
+* **panel:** logo opens the overview, rail-sized mark and avatar, dash placeholders, preview page ([39ee3a8](https://github.com/leonidkuznetsov18/vakhta/commit/39ee3a8461732048c6d1fac3dc63a0016f04acc4))
+
 ## [0.29.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.28.0...v0.29.0) (2026-09-07)
 
 ### Features
