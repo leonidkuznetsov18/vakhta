@@ -1,3 +1,9 @@
+## [0.28.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.27.0...v0.28.0) (2026-09-07)
+
+### Features
+
+* **employees:** filter by the Telegram link next to the status filter ([20ed4db](https://github.com/leonidkuznetsov18/vakhta/commit/20ed4db11dd018a000032bcfbc05d65d3035d9c6))
+
 ## [0.27.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.26.0...v0.27.0) (2026-09-06)
 
 ### Features
