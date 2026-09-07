@@ -206,7 +206,15 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       format(e.codesIssued, { n: selectable.length }),
     );
   }
-  const visibleList = statusFilter ? list.filter((x) => x.status === statusFilter) : list;
+  const [telegramFilter, setTelegramFilter] = usePersistentState<'' | 'LINKED' | 'NOT_LINKED'>(
+    'employees.telegram',
+    '',
+  );
+  const visibleList = list.filter(
+    (x) =>
+      (!statusFilter || x.status === statusFilter) &&
+      (!telegramFilter || x.telegramLinked === (telegramFilter === 'LINKED')),
+  );
 
   const columns: Column<EmployeeView>[] = [
     {
@@ -574,17 +582,30 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           </>
         }
       >
-        <SelectField
-          label={e.statusFilter}
-          value={statusFilter}
-          onChange={(v) => setStatusFilter(v as '' | EmployeeView['status'])}
-          placeholder={all.ui.common.reset}
-          options={(['ACTIVE', 'BLOCKED', 'TERMINATED'] as const).map((st) => ({
-            value: st,
-            label: e.statuses[st],
-          }))}
-          className="w-56"
-        />
+        <div className="flex flex-wrap items-end gap-3">
+          <SelectField
+            label={e.statusFilter}
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as '' | EmployeeView['status'])}
+            placeholder={all.ui.common.reset}
+            options={(['ACTIVE', 'BLOCKED', 'TERMINATED'] as const).map((st) => ({
+              value: st,
+              label: e.statuses[st],
+            }))}
+            className="w-56"
+          />
+          <SelectField
+            label={e.telegramFilter}
+            value={telegramFilter}
+            onChange={(v) => setTelegramFilter(v as '' | 'LINKED' | 'NOT_LINKED')}
+            placeholder={all.ui.common.reset}
+            options={[
+              { value: 'LINKED', label: e.linked },
+              { value: 'NOT_LINKED', label: e.notLinked },
+            ]}
+            className="w-56"
+          />
+        </div>
         <Feedback error={error} />
       </Section>
 

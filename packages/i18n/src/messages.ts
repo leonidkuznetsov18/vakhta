@@ -953,6 +953,8 @@ export interface Messages {
         readonly qrHint: string;
         readonly search: string;
         readonly statusFilter: string;
+        /** Filter by the Telegram link: linked / not linked. */
+        readonly telegramFilter: string;
         readonly issueCodesSelected: string;
         /** Placeholder: {n} */
         readonly codesIssued: string;

@@ -1213,6 +1213,7 @@ export const ru: Messages = {
         qrHint: 'Сотрудник сканирует QR камерой телефона: откроется бот с кодом.',
         search: 'Поиск по ФИО или табельному номеру',
         statusFilter: 'Статус',
+        telegramFilter: 'Telegram',
         issueCodesSelected: 'Коды активации для выбранных',
         codesIssued: 'Выдано кодов: {n}.',
         printCodes: 'Печать листа кодов',

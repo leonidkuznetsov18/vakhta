@@ -1215,6 +1215,7 @@ export const uk: Messages = {
         qrHint: 'Працівник сканує QR камерою телефона: відкриється бот із кодом.',
         search: 'Пошук за ПІБ або табельним номером',
         statusFilter: 'Статус',
+        telegramFilter: 'Telegram',
         issueCodesSelected: 'Коди активації для вибраних',
         codesIssued: 'Видано кодів: {n}.',
         printCodes: 'Друк аркуша кодів',

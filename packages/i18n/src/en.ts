@@ -1215,6 +1215,7 @@ export const en: Messages = {
         qrHint: 'The employee scans the QR with the phone camera: the bot opens with the code.',
         search: 'Search by name or personnel number',
         statusFilter: 'Status',
+        telegramFilter: 'Telegram',
         issueCodesSelected: 'Activation codes for selected',
         codesIssued: 'Codes issued: {n}.',
         printCodes: 'Print code sheet',
