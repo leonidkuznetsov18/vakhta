@@ -538,7 +538,7 @@ export const uk: Messages = {
       requestsForMe: 'Звернення на моєму кроці',
       overdueRequests: 'Прострочені звернення',
       overtimePending: 'Переробка чекає рішення',
-      unlinkedEmployees: 'Працівники без Telegram',
+      unlinkedEmployees: 'Не активували Telegram',
       unpairedTerminals: 'Термінали без підключення',
       onShift: 'Зараз на зміні',
       inDowntime: 'У простої',

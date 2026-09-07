@@ -20,6 +20,7 @@ import { HowItWorks } from '@/components/app/how-it-works';
 import { formatTime } from '@/lib/format';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { writeRoute } from '@/lib/route';
 import { useNavigation, type SectionKey } from '../navigation.tsx';
 import { useAttention, type Attention } from './attention.ts';
 import { cn } from 'cn';
@@ -27,11 +28,24 @@ import { cn } from 'cn';
 const all = messages(currentLocale());
 const o = all.admin.overview;
 
+/** Filters of the destination page live in `vakhta.ui.*`; the page reads them when it mounts. */
+function presetStorage(values: Record<string, string>): void {
+  try {
+    for (const [key, value] of Object.entries(values)) {
+      localStorage.setItem(`vakhta.ui.${key}`, JSON.stringify(value));
+    }
+  } catch {
+    // Storage unavailable: the section still opens, without the filter.
+  }
+}
+
 interface Tile {
   readonly key: keyof Omit<Attention, 'refreshedAt'>;
   readonly label: string;
   readonly icon: LucideIcon;
   readonly section: SectionKey;
+  /** Presets the destination (tab, filters) before the jump, so the list shows exactly the counted rows. */
+  readonly prepare?: () => void;
   /** Tone when the count is above zero; neutral tiles are informational. */
   readonly tone: Tone;
 }
@@ -92,6 +106,10 @@ const TILES: readonly Tile[] = [
     icon: UsersIcon,
     section: 'administration',
     tone: 'warning',
+    prepare: () => {
+      presetStorage({ 'employees.status': 'ACTIVE', 'employees.telegram': 'NOT_LINKED' });
+      writeRoute('administration', 'employees');
+    },
   },
   {
     key: 'unpairedTerminals',
@@ -99,6 +117,7 @@ const TILES: readonly Tile[] = [
     icon: MonitorSmartphoneIcon,
     section: 'administration',
     tone: 'warning',
+    prepare: () => writeRoute('administration', 'terminals'),
   },
   {
     key: 'inDowntime',
@@ -154,7 +173,15 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
               <div className="truncate text-sm text-muted-foreground">{t.label}</div>
             </div>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => go(t.section)}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              t.prepare?.();
+              go(t.section);
+            }}
+          >
             {o.open}
           </Button>
         </CardContent>

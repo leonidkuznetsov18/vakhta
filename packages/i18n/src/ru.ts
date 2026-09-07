@@ -535,7 +535,7 @@ export const ru: Messages = {
       requestsForMe: 'Обращения на моём шаге',
       overdueRequests: 'Просроченные обращения',
       overtimePending: 'Переработка ждёт решения',
-      unlinkedEmployees: 'Сотрудники без Telegram',
+      unlinkedEmployees: 'Не активировали Telegram',
       unpairedTerminals: 'Терминалы без подключения',
       onShift: 'Сейчас на смене',
       inDowntime: 'В простое',

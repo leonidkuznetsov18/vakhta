@@ -538,7 +538,7 @@ export const en: Messages = {
       requestsForMe: 'Requests on my step',
       overdueRequests: 'Overdue requests',
       overtimePending: 'Overtime awaiting decision',
-      unlinkedEmployees: 'Employees without Telegram',
+      unlinkedEmployees: 'Have not activated Telegram',
       unpairedTerminals: 'Terminals not paired',
       onShift: 'On shift now',
       inDowntime: 'In downtime',
