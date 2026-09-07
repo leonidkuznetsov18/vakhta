@@ -1,3 +1,9 @@
+## [0.33.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.33.1...v0.33.2) (2026-09-07)
+
+### Bug fixes
+
+* **panel:** reports filters wrap as groups, month coefficient column is named ([4824515](https://github.com/leonidkuznetsov18/vakhta/commit/482451547242f87a2d3582587d75be5f37e472d4))
+
 ## [0.33.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.33.0...v0.33.1) (2026-09-07)
 
 ### Bug fixes
