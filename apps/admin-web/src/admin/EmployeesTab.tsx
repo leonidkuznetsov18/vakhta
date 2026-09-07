@@ -587,7 +587,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
             label={e.statusFilter}
             value={statusFilter}
             onChange={(v) => setStatusFilter(v as '' | EmployeeView['status'])}
-            placeholder={all.ui.common.reset}
+            placeholder="—"
             options={(['ACTIVE', 'BLOCKED', 'TERMINATED'] as const).map((st) => ({
               value: st,
               label: e.statuses[st],
@@ -598,7 +598,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
             label={e.telegramFilter}
             value={telegramFilter}
             onChange={(v) => setTelegramFilter(v as '' | 'LINKED' | 'NOT_LINKED')}
-            placeholder={all.ui.common.reset}
+            placeholder="—"
             options={[
               { value: 'LINKED', label: e.linked },
               { value: 'NOT_LINKED', label: e.notLinked },

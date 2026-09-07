@@ -180,12 +180,18 @@ export function App() {
       <SidebarProvider>
         <Sidebar collapsible="icon">
           <SidebarHeader>
-            <div className="flex items-center gap-2 px-1 py-1 text-base font-semibold group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-              <LogoMark className="size-9" />
+            {/* The mark is the way home: it opens the overview. Collapsed, it shrinks to the rail's 32 px. */}
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-base font-semibold hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
+              aria-label={t.admin.sections.overview}
+              onClick={() => setActive('overview')}
+            >
+              <LogoMark className="size-9 group-data-[collapsible=icon]:size-8" />
               <span className="truncate group-data-[collapsible=icon]:hidden">
                 {t.admin.productName}
               </span>
-            </div>
+            </button>
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
@@ -216,7 +222,7 @@ export function App() {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   size="lg"
-                  className="h-16 gap-3 group-data-[collapsible=icon]:size-12! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1!"
+                  className="h-16 gap-3 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!"
                   isActive={active === 'profile'}
                   tooltip={t.admin.auth.profile}
                   onClick={() => setActive('profile')}
@@ -226,7 +232,7 @@ export function App() {
                     name={me.name}
                     email={me.email}
                     image={me.image}
-                    className="size-12! shrink-0 group-data-[collapsible=icon]:size-10!"
+                    className="size-12! shrink-0 group-data-[collapsible=icon]:size-8!"
                   />
                   <span className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
                     <span className="truncate text-base font-medium">{me.name || me.email}</span>
