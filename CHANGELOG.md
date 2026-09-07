@@ -1,3 +1,9 @@
+## [0.33.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.32.0...v0.33.0) (2026-09-07)
+
+### Features
+
+* **overview:** the Telegram tile opens the employees list filtered to active, not linked ([be4ec73](https://github.com/leonidkuznetsov18/vakhta/commit/be4ec73db3ed2a6826d9b7062ad9f1d2abf0e042))
+
 ## [0.32.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.31.0...v0.32.0) (2026-09-07)
 
 ### Features
