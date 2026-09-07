@@ -1,3 +1,9 @@
+## [0.33.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.33.2...v0.33.3) (2026-09-07)
+
+### Bug fixes
+
+* **panel:** user card expands under the row instead of a side sheet ([ec27cef](https://github.com/leonidkuznetsov18/vakhta/commit/ec27cefecbb02e37cb1e5effe9f70051c6bc693c))
+
 ## [0.33.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.33.1...v0.33.2) (2026-09-07)
 
 ### Bug fixes
