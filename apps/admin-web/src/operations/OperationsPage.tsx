@@ -522,6 +522,7 @@ export function OperationsPage() {
                   >
                     <SelectField
                       label={o.masterAction}
+                      searchable={false}
                       hint={hints.operationsMasterAction}
                       value={action[row.id] ?? ''}
                       onChange={(v) => setAction((a) => ({ ...a, [row.id]: v as ShiftAction }))}
