@@ -34,6 +34,27 @@ export function switchLocale(locale: Locale): void {
 const LOCALE_FLAGS: Readonly<Record<Locale, string>> = { uk: '🇺🇦', en: '🇬🇧', ru: 'РУ' };
 
 /** Three small flag buttons, the active one filled; usable on the login screen and in the sidebar. */
+/** One button for the collapsed rail: shows the current language, a click moves to the next one. */
+export function CompactLanguageSwitcher({ className }: { readonly className?: string }) {
+  const active = currentLocale();
+  const t = messages(active);
+  const next = LOCALES[(LOCALES.indexOf(active) + 1) % LOCALES.length]!;
+  return (
+    <Button
+      type="button"
+      size="icon"
+      variant="outline"
+      aria-label={`${t.admin.language}: ${t.language.names[active]}`}
+      title={`${t.language.names[active]} → ${t.language.names[next]}`}
+      lang={active}
+      className={cn('size-8 text-base leading-none font-semibold', className)}
+      onClick={() => switchLocale(next)}
+    >
+      <span aria-hidden="true">{LOCALE_FLAGS[active]}</span>
+    </Button>
+  );
+}
+
 export function LanguageSwitcher({ className }: { readonly className?: string }) {
   const active = currentLocale();
   const t = messages(active);

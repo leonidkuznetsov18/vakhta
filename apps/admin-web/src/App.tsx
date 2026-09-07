@@ -53,7 +53,7 @@ import { RequestsPage } from './requests/RequestsPage.tsx';
 import { SchedulePage } from './schedule/SchedulePage.tsx';
 import { useSession } from './auth/useSession.ts';
 import { Button } from '@/components/ui/button';
-import { LanguageSwitcher, currentLocale } from './i18n.tsx';
+import { CompactLanguageSwitcher, LanguageSwitcher, currentLocale } from './i18n.tsx';
 import { useAppearance, type Theme } from '@/lib/theme';
 import { NavigationProvider, type SectionKey } from './navigation.tsx';
 import { readRoute, writeRoute } from '@/lib/route';
@@ -257,6 +257,11 @@ export function App() {
               <InfoTip text={t.ui.hints.language} />
             </div>
             <ThemeSwitcher />
+            {/* Collapsed rail: the current language and theme as single icons; a click cycles them. */}
+            <div className="hidden flex-col items-center gap-1 group-data-[collapsible=icon]:flex">
+              <CompactLanguageSwitcher />
+              <CompactThemeSwitcher />
+            </div>
             {version ? (
               <div className="px-2 text-xs text-muted-foreground tabular-nums group-data-[collapsible=icon]:hidden">
                 {t.ui.common.version} {version}
@@ -320,6 +325,34 @@ export function App() {
 }
 
 /** Light / dark / system in the sidebar footer; the same choice as in the profile. */
+const THEME_ORDER: Theme[] = ['light', 'dark', 'system'];
+const THEME_ICONS: Record<Theme, LucideIcon> = {
+  light: SunIcon,
+  dark: MoonIcon,
+  system: MonitorIcon,
+};
+
+/** One button for the collapsed rail: the current theme's icon, a click moves to the next theme. */
+function CompactThemeSwitcher() {
+  const t = messages(currentLocale());
+  const appearance = useAppearance();
+  const Icon = THEME_ICONS[appearance.theme];
+  const next = THEME_ORDER[(THEME_ORDER.indexOf(appearance.theme) + 1) % THEME_ORDER.length]!;
+  return (
+    <Button
+      type="button"
+      size="icon"
+      variant="outline"
+      className="size-8"
+      aria-label={`${t.ui.common.theme}: ${t.ui.common.themes[appearance.theme]}`}
+      title={`${t.ui.common.themes[appearance.theme]} → ${t.ui.common.themes[next]}`}
+      onClick={() => appearance.set({ theme: next })}
+    >
+      <Icon aria-hidden="true" />
+    </Button>
+  );
+}
+
 function ThemeSwitcher() {
   const t = messages(currentLocale());
   const appearance = useAppearance();
