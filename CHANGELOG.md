@@ -1,3 +1,9 @@
+## [0.29.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.28.0...v0.29.0) (2026-09-07)
+
+### Features
+
+* **panel:** searchable selects for long lists; collapsed sidebar keeps a large avatar ([907e0be](https://github.com/leonidkuznetsov18/vakhta/commit/907e0be09367c1966d81c44938bbcc9f7bdedf0c))
+
 ## [0.28.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.27.0...v0.28.0) (2026-09-07)
 
 ### Features
