@@ -1,3 +1,9 @@
+## [0.32.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.31.0...v0.32.0) (2026-09-07)
+
+### Features
+
+* **panel:** current language and theme as single icons in the collapsed rail ([faa4520](https://github.com/leonidkuznetsov18/vakhta/commit/faa45204712c8ccb98d9fdaf367e0f59c1e53b87))
+
 ## [0.31.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.30.0...v0.31.0) (2026-09-07)
 
 ### Features
