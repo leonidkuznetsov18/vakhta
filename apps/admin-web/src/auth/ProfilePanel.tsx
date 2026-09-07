@@ -11,6 +11,7 @@ import { FormField } from '@/components/app/fields';
 import { Muted, Section } from '@/components/app/page';
 import { SelectField } from '@/components/app/fields';
 import { useAppearance, type Theme } from '@/lib/theme';
+import { CameraIcon, XIcon } from 'lucide-react';
 import { UserAvatar, photoToDataUrl } from '@/components/app/avatar';
 import { InfoTip } from '@/components/app/info-tip';
 import { notifySuccess } from '@/lib/toast';
@@ -106,38 +107,44 @@ export function ProfilePanel({ me, onChanged }: Props) {
       <Section title={t.profile}>
         <div className="flex flex-wrap items-start gap-6">
           <div className="flex flex-col items-center gap-2">
-            <UserAvatar name={me.name} email={me.email} image={me.image} className="size-24" />
+            {/* The picture is the control: hover or focus shows the upload overlay; the cross removes it. */}
+            <div className="group relative size-24">
+              <button
+                type="button"
+                className="relative block size-24 overflow-hidden rounded-full focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                aria-label={t.uploadPhoto}
+                title={t.uploadPhoto}
+                disabled={profileBusy}
+                onClick={() => fileInput.current?.click()}
+              >
+                <UserAvatar name={me.name} email={me.email} image={me.image} className="size-24" />
+                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/45 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                  <CameraIcon className="size-7" aria-hidden="true" />
+                </span>
+              </button>
+              {me.image && (
+                <button
+                  type="button"
+                  className="absolute -top-1 -right-1 flex size-7 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:text-destructive focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  aria-label={t.removePhoto}
+                  title={t.removePhoto}
+                  disabled={profileBusy}
+                  onClick={() => void saveProfile({ image: null })}
+                >
+                  <XIcon className="size-4" aria-hidden="true" />
+                </button>
+              )}
+            </div>
             <input
               ref={fileInput}
               type="file"
               accept="image/png,image/jpeg,image/webp"
               className="sr-only"
-              aria-label={t.uploadPhoto}
+              tabIndex={-1}
+              aria-hidden="true"
               onChange={(e) => void choosePhoto(e.target.files?.[0])}
             />
-            <div className="flex flex-wrap items-center justify-center gap-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={profileBusy}
-                onClick={() => fileInput.current?.click()}
-              >
-                {t.uploadPhoto}
-              </Button>
-              {me.image && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={profileBusy}
-                  onClick={() => void saveProfile({ image: null })}
-                >
-                  {t.removePhoto}
-                </Button>
-              )}
-              <InfoTip text={t.photoHint} />
-            </div>
+            <InfoTip text={t.photoHint} />
           </div>
           <form
             className="flex min-w-0 flex-1 flex-col gap-3"

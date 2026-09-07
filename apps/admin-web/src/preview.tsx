@@ -12,7 +12,7 @@ import './index.css';
  * sidebar, the header and the pages can be screenshotted in a browser during development
  * (`pnpm --filter admin-web dev` → http://localhost:5173/preview.html). Not part of the build.
  */
-const me = {
+const me: { [k: string]: unknown; image: string | null } = {
   id: 'u-preview',
   email: 'admin@example.com',
   name: 'Леонид Кузнецов',
@@ -63,6 +63,11 @@ window.fetch = async (input: RequestInfo | URL) => {
   return json([]);
 };
 const params = new URLSearchParams(location.search);
+// `?avatar=1` gives the fixture user a photo (a 1×1 PNG stretched by the browser is enough for layout).
+if (params.get('avatar') === '1') {
+  me.image =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+}
 try {
   localStorage.setItem('vakhta.locale', params.get('lang') ?? 'uk');
   localStorage.setItem('vakhta.ui.theme', JSON.stringify(params.get('theme') ?? 'light'));
