@@ -1,3 +1,9 @@
+## [0.33.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.33.0...v0.33.1) (2026-09-07)
+
+### Bug fixes
+
+* **panel:** live shift details under the row, audit labels, chart units, month formatting ([96ee848](https://github.com/leonidkuznetsov18/vakhta/commit/96ee8480b7c80db9f1e9c4f733191ee36fd00274))
+
 ## [0.33.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.32.0...v0.33.0) (2026-09-07)
 
 ### Features
