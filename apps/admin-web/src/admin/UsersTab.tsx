@@ -20,7 +20,6 @@ import { useConfirm } from '@/components/app/confirm-dialog';
 import { useNavigation } from '../navigation.tsx';
 import { DialogFooter } from '@/components/ui/dialog';
 import { ShieldPlusIcon } from 'lucide-react';
-import { DetailSheet } from '@/components/app/detail-sheet';
 import { generatePassword } from '@/lib/password';
 import { CopyButton } from '@/components/app/copy-button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -61,7 +60,6 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
   const [creating, setCreating] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [issued, setIssued] = useState<{ email: string; password: string } | null>(null);
-  const openUser = list.find((x) => x.id === grantFor) ?? null;
   const [role, setRole] = useState<WebRole>('SHIFT_MASTER');
   const [scopeType, setScopeType] = useState<ScopeType>('ENTERPRISE');
   const [scopeId, setScopeId] = useState('');
@@ -168,6 +166,155 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
   const scopeName = (type: ScopeType, id: string | null) =>
     id ? (scopeOptions(org, type).find((o) => o.id === id)?.name ?? id) : null;
   const options = scopeOptions(org, scopeType);
+
+  function renderCard(user: WebUserView) {
+    return (
+      <div className="flex flex-col gap-3 py-1" data-testid="user-card">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{user.name}</span>
+          <Muted>{user.email}</Muted>
+          <span className="ml-auto flex flex-wrap gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              disabled={busy || !myRoles.includes('ADMIN')}
+              onClick={() => void removeUser(user)}
+            >
+              <Trash2Icon aria-hidden="true" />
+              {u.deleteUser}
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setGrantFor(null)}>
+              <XIcon aria-hidden="true" />
+              {all.ui.common.close}
+            </Button>
+          </span>
+        </div>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-4">
+            <form
+              className="flex flex-col gap-3 rounded-lg border p-3"
+              onSubmit={(ev) => saveName(ev, user)}
+              noValidate
+            >
+              <span className="text-sm font-medium">{u.details}</span>
+              <div className="flex flex-wrap items-end gap-3">
+                <FormField label={u.name} error={fieldErrors.name} className="min-w-64 flex-1">
+                  {(id) => (
+                    <Input
+                      id={id}
+                      value={draftName || user.name}
+                      onChange={(ev) => setDraftName(ev.target.value)}
+                    />
+                  )}
+                </FormField>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={busy || !draftName.trim() || draftName.trim() === user.name}
+                >
+                  {all.ui.common.save}
+                </Button>
+              </div>
+            </form>
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium">{u.currentRoles}</span>
+              {user.roles.length === 0 ? (
+                <Muted>{u.noRoles}</Muted>
+              ) : (
+                <ul className="flex flex-col gap-1 text-sm">
+                  {user.roles.map((g) => (
+                    <li
+                      key={g.id}
+                      className="flex flex-wrap items-center gap-2 rounded-md border px-2 py-1"
+                    >
+                      <span className="font-medium">{all.roles[g.role]}</span>
+                      <Muted>
+                        {u.scopeTypes[g.scopeType]}
+                        {scopeName(g.scopeType, g.scopeId)
+                          ? ` · ${scopeName(g.scopeType, g.scopeId)}`
+                          : ''}
+                      </Muted>
+                      <span className="ml-auto flex gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() => startReplace(user, g.id)}
+                        >
+                          <PencilIcon aria-hidden="true" />
+                          {u.replaceRole}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          disabled={busy}
+                          onClick={() => revoke(user, g.id)}
+                        >
+                          <XIcon aria-hidden="true" />
+                          {u.revoke}
+                        </Button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+          <div className="flex min-w-0 flex-col gap-2">
+            <span className="text-sm font-medium">{replacing ? u.replaceRole : u.grantRole}</span>
+            <form className="flex flex-wrap items-end gap-3" onSubmit={(ev) => grant(ev, user)}>
+              <SelectField
+                label={u.role}
+                value={role}
+                onChange={(v) => setRole(v as WebRole)}
+                options={WEB_ROLES.map((r) => ({ value: r, label: all.roles[r] }))}
+                className="w-56"
+              />
+              <SelectField
+                label={u.scopeType}
+                value={scopeType}
+                onChange={(v) => {
+                  setScopeType(v as ScopeType);
+                  setScopeId('');
+                }}
+                options={SCOPE_TYPES.map((s) => ({ value: s, label: u.scopeTypes[s] }))}
+                hint={hints.usersScope}
+                className="w-48"
+              />
+              {scopeType !== 'ENTERPRISE' && (
+                <SelectField
+                  label={u.scope}
+                  value={scopeId}
+                  onChange={setScopeId}
+                  placeholder="…"
+                  required
+                  options={options.map((o) => ({ value: o.id, label: o.name }))}
+                  className="w-56"
+                />
+              )}
+              <Button
+                type="submit"
+                variant="secondary"
+                disabled={busy || (scopeType !== 'ENTERPRISE' && !scopeId)}
+              >
+                {replacing ? u.replaceRole : u.grant}
+              </Button>
+              {replacing && (
+                <Button type="button" variant="ghost" onClick={() => setReplacing(null)}>
+                  {all.ui.common.cancel}
+                </Button>
+              )}
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const columns: Column<WebUserView>[] = [
     { key: 'email', header: u.email, cell: (user) => user.email, sortValue: (user) => user.email },
@@ -308,6 +455,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
         storageKey="users"
         searchText={(user) => `${user.email} ${user.name}`}
         activeKey={grantFor}
+        expanded={(user) => (user.id === grantFor ? renderCard(user) : null)}
         emptyAction={
           <Button type="button" variant="outline" onClick={() => setCreating(true)}>
             {u.create}
@@ -343,146 +491,6 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
         rowKey={(user) => user.id}
         empty={t.common.empty}
       />
-      {openUser && (
-        <DetailSheet
-          open
-          onOpenChange={(open) => !open && setGrantFor(null)}
-          title={openUser.name}
-          description={openUser.email}
-        >
-          {((user) => (
-            <>
-              <form
-                className="flex flex-col gap-3 rounded-lg border p-3"
-                onSubmit={(ev) => saveName(ev, user)}
-                noValidate
-              >
-                <span className="text-sm font-medium">{u.details}</span>
-                <div className="flex flex-wrap items-end gap-3">
-                  <FormField label={u.name} error={fieldErrors.name} className="min-w-64 flex-1">
-                    {(id) => (
-                      <Input
-                        id={id}
-                        value={draftName || user.name}
-                        onChange={(ev) => setDraftName(ev.target.value)}
-                      />
-                    )}
-                  </FormField>
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={busy || !draftName.trim() || draftName.trim() === user.name}
-                  >
-                    {all.ui.common.save}
-                  </Button>
-                </div>
-              </form>
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-medium">{u.currentRoles}</span>
-                {user.roles.length === 0 ? (
-                  <Muted>{u.noRoles}</Muted>
-                ) : (
-                  <ul className="flex flex-col gap-1 text-sm">
-                    {user.roles.map((g) => (
-                      <li
-                        key={g.id}
-                        className="flex flex-wrap items-center gap-2 rounded-md border px-2 py-1"
-                      >
-                        <span className="font-medium">{all.roles[g.role]}</span>
-                        <Muted>
-                          {u.scopeTypes[g.scopeType]}
-                          {scopeName(g.scopeType, g.scopeId)
-                            ? ` · ${scopeName(g.scopeType, g.scopeId)}`
-                            : ''}
-                        </Muted>
-                        <span className="ml-auto flex gap-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            disabled={busy}
-                            onClick={() => startReplace(user, g.id)}
-                          >
-                            <PencilIcon aria-hidden="true" />
-                            {u.replaceRole}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            disabled={busy}
-                            onClick={() => revoke(user, g.id)}
-                          >
-                            <XIcon aria-hidden="true" />
-                            {u.revoke}
-                          </Button>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <span className="text-sm font-medium">{replacing ? u.replaceRole : u.grantRole}</span>
-              <form className="flex flex-wrap items-end gap-3" onSubmit={(ev) => grant(ev, user)}>
-                <SelectField
-                  label={u.role}
-                  value={role}
-                  onChange={(v) => setRole(v as WebRole)}
-                  options={WEB_ROLES.map((r) => ({ value: r, label: all.roles[r] }))}
-                  className="w-56"
-                />
-                <SelectField
-                  label={u.scopeType}
-                  value={scopeType}
-                  onChange={(v) => {
-                    setScopeType(v as ScopeType);
-                    setScopeId('');
-                  }}
-                  options={SCOPE_TYPES.map((s) => ({ value: s, label: u.scopeTypes[s] }))}
-                  hint={hints.usersScope}
-                  className="w-48"
-                />
-                {scopeType !== 'ENTERPRISE' && (
-                  <SelectField
-                    label={u.scope}
-                    value={scopeId}
-                    onChange={setScopeId}
-                    placeholder="…"
-                    required
-                    options={options.map((o) => ({ value: o.id, label: o.name }))}
-                    className="w-56"
-                  />
-                )}
-                <Button
-                  type="submit"
-                  variant="secondary"
-                  disabled={busy || (scopeType !== 'ENTERPRISE' && !scopeId)}
-                >
-                  {replacing ? u.replaceRole : u.grant}
-                </Button>
-                {replacing && (
-                  <Button type="button" variant="ghost" onClick={() => setReplacing(null)}>
-                    {all.ui.common.cancel}
-                  </Button>
-                )}
-              </form>
-              <div className="flex justify-end border-t pt-3">
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  disabled={busy || !myRoles.includes('ADMIN')}
-                  onClick={() => void removeUser(user)}
-                >
-                  <Trash2Icon aria-hidden="true" />
-                  {u.deleteUser}
-                </Button>
-              </div>
-            </>
-          ))(openUser)}
-        </DetailSheet>
-      )}
       {dialog}
     </div>
   );

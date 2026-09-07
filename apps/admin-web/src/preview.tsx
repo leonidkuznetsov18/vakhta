@@ -12,7 +12,7 @@ import './index.css';
  * sidebar, the header and the pages can be screenshotted in a browser during development
  * (`pnpm --filter admin-web dev` → http://localhost:5173/preview.html). Not part of the build.
  */
-const me: { [k: string]: unknown; image: string | null } = {
+const me: { [k: string]: unknown; image: string | null; roles: Record<string, unknown>[] } = {
   id: 'u-preview',
   email: 'admin@example.com',
   name: 'Леонид Кузнецов',
@@ -148,6 +148,21 @@ window.fetch = async (input: RequestInfo | URL) => {
   if (path === '/me') return json(me);
   if (path.includes('attention')) return json(attention);
   if (path === '/admin/org') return json(org);
+  if (path === '/admin/users') {
+    return json([
+      me,
+      {
+        ...me,
+        id: 'u-master',
+        email: 'master@example.com',
+        name: 'Ткач Олена',
+        twoFactorEnabled: false,
+        roles: [
+          { ...me.roles[0], id: 'g2', role: 'SHIFT_MASTER', scopeType: 'ORG_UNIT', scopeId: 'u1' },
+        ],
+      },
+    ]);
+  }
   if (path === '/admin/shifts') return json([shift]);
   if (path === `/admin/shifts/${shift.id}`) return json(shiftDetail);
   if (path === '/admin/reports/hours') return json(hoursReport);
