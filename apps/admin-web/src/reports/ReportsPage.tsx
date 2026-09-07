@@ -189,52 +189,57 @@ export function ReportsPage() {
             value={kind}
             onChange={(v) => setKind(v as ReportKind)}
             options={REPORT_KINDS.map((k) => ({ value: k, label: r.kinds[k] }))}
-            className="w-72"
+            className="w-64"
           />
-          <SelectField
-            label={r.site}
-            value={siteId}
-            onChange={setSiteId}
-            placeholder="—"
-            options={org?.sites.map((s) => ({ value: s.id, label: s.name })) ?? []}
-            className="w-48"
-          />
-          <SelectField
-            label={r.orgUnit}
-            value={orgUnitId}
-            onChange={setOrgUnitId}
-            placeholder="—"
-            options={units.map((u) => ({ value: u.id, label: u.name }))}
-            className="w-48"
-          />
-          <SelectField
-            label={r.preset}
-            value={preset}
-            onChange={(v) => applyPreset(v as Preset)}
-            options={PRESETS.map((p) => ({ value: p, label: r.presets[p] }))}
-            className="w-44"
-          />
-          <DateField
-            label={r.from}
-            value={from}
-            onChange={(v) => {
-              setPreset('custom');
-              setFrom(v);
-            }}
-            className="w-44"
-          />
-          <DateField
-            label={r.to}
-            value={to}
-            onChange={(v) => {
-              setPreset('custom');
-              setTo(v);
-            }}
-            className="w-44"
-          />
-          <Button type="submit" disabled={busy || unchanged}>
-            {r.build}
-          </Button>
+          {/* Fields wrap as groups (place, period, action), so a narrower screen never splits "From" from "To". */}
+          <div className="flex flex-wrap items-end gap-3">
+            <SelectField
+              label={r.site}
+              value={siteId}
+              onChange={setSiteId}
+              placeholder="—"
+              options={org?.sites.map((s) => ({ value: s.id, label: s.name })) ?? []}
+              className="w-44"
+            />
+            <SelectField
+              label={r.orgUnit}
+              value={orgUnitId}
+              onChange={setOrgUnitId}
+              placeholder="—"
+              options={units.map((u) => ({ value: u.id, label: u.name }))}
+              className="w-44"
+            />
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <SelectField
+              label={r.preset}
+              value={preset}
+              onChange={(v) => applyPreset(v as Preset)}
+              options={PRESETS.map((p) => ({ value: p, label: r.presets[p] }))}
+              className="w-40"
+            />
+            <DateField
+              label={r.from}
+              value={from}
+              onChange={(v) => {
+                setPreset('custom');
+                setFrom(v);
+              }}
+              className="w-40"
+            />
+            <DateField
+              label={r.to}
+              value={to}
+              onChange={(v) => {
+                setPreset('custom');
+                setTo(v);
+              }}
+              className="w-40"
+            />
+            <Button type="submit" disabled={busy || unchanged}>
+              {r.build}
+            </Button>
+          </div>
           {report && (
             <div className="flex items-center gap-1">
               <Button asChild variant="outline">
