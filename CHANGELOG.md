@@ -1,3 +1,9 @@
+## [0.31.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.30.0...v0.31.0) (2026-09-07)
+
+### Features
+
+* **profile:** the photo is the control: hover overlay to upload, corner cross to remove ([f3bdc27](https://github.com/leonidkuznetsov18/vakhta/commit/f3bdc2708bd8054f5563c23e053700edeed92a8e))
+
 ## [0.30.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.29.0...v0.30.0) (2026-09-07)
 
 ### Features
