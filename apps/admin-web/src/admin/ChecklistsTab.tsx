@@ -181,6 +181,7 @@ export function ChecklistsTab({ org }: Props) {
     {
       key: 'positions',
       header: c.positions,
+      className: 'max-w-96 whitespace-normal',
       cell: (r) =>
         r.positions.length > 0 ? (
           r.positions.map((p) => p.name).join(', ')

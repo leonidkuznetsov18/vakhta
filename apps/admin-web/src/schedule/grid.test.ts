@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { ScheduleVersionDetail } from '@vakhta/contracts';
 import {
   addRow,
+  countChanges,
   countShifts,
   gridFromDetail,
   gridToItems,
   removeRow,
   setCell,
   setZone,
+  type GridState,
 } from './grid.ts';
 
 const EMP = '11111111-1111-4111-8111-111111111111';
@@ -80,5 +82,32 @@ describe('grid', () => {
     expect(gridToItems(g3)).toEqual([]);
     expect(addRow(g3, EMP).rows).toHaveLength(1);
     expect(removeRow(g3, EMP).rows).toHaveLength(0);
+  });
+});
+
+describe('countChanges', () => {
+  const base: GridState = {
+    rows: [
+      { employeeId: EMP, zoneId: ZONE, cells: { '2026-09-01': TPL_DAY, '2026-09-02': TPL_DAY } },
+    ],
+  };
+
+  it('is zero for the same grid', () => {
+    expect(countChanges(base, base)).toBe(0);
+  });
+
+  it('counts added, removed and re-templated shifts', () => {
+    const next = setCell(
+      setCell(setCell(base, EMP, '2026-09-01', TPL_NIGHT), EMP, '2026-09-02', ''),
+      EMP,
+      '2026-09-03',
+      TPL_DAY,
+    );
+    expect(countChanges(base, next)).toBe(3);
+  });
+
+  it('counts every shift of a row whose zone changed or which was removed', () => {
+    expect(countChanges(base, setZone(base, EMP, ''))).toBe(2);
+    expect(countChanges(base, removeRow(base, EMP))).toBe(2);
   });
 });

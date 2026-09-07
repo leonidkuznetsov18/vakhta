@@ -474,7 +474,7 @@ export function IncidentsPage() {
           <DateField label={i.to} value={to} onChange={setTo} className="w-44" />
         </Toolbar>
         {stats && (
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4 2xl:grid-cols-2">
             <StatsTable title={i.byReason} rows={stats.byReason} totals={stats.totals} />
             <StatsTable title={i.byZone} rows={stats.byZone} totals={stats.totals} />
           </div>

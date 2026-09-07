@@ -179,7 +179,9 @@ export function ProfilePanel({ me, onChanged }: Props) {
                       <li key={r.id}>
                         <Badge variant="secondary">
                           {m.roles[r.role]}
-                          <span className="ml-1 text-muted-foreground">{r.scopeType}</span>
+                          <span className="ml-1 text-muted-foreground">
+                            {m.admin.administration.users.scopeTypes[r.scopeType]}
+                          </span>
                         </Badge>
                       </li>
                     ))}

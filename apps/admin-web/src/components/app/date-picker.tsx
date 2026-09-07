@@ -1,17 +1,15 @@
 import { useState } from 'react';
 import { CalendarIcon } from 'lucide-react';
 import { enGB, ru, uk } from 'react-day-picker/locale';
-import type { Locale } from '@vakhta/domain';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { FormField } from '@/components/app/fields';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatMonth } from '@/lib/format';
 import { currentLocale } from '@/i18n';
 import { cn } from 'cn';
 
 const DAY_PICKER_LOCALES = { uk, en: enGB, ru } as const;
-const INTL_TAGS: Record<Locale, string> = { uk: 'uk-UA', en: 'en-GB', ru: 'ru-RU' };
 
 function dayPickerLocale() {
   return DAY_PICKER_LOCALES[currentLocale()];
@@ -34,13 +32,6 @@ function fromIsoMonth(value: string): Date | undefined {
   const [y, m] = value.split('-').map(Number);
   if (!y || !m) return undefined;
   return new Date(y, m - 1, 1);
-}
-
-function formatMonth(value: string): string {
-  const d = fromIsoMonth(value);
-  if (!d) return value;
-  const text = d.toLocaleDateString(INTL_TAGS[currentLocale()], { month: 'long', year: 'numeric' });
-  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 interface FieldProps {

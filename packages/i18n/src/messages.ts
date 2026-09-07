@@ -833,6 +833,7 @@ export interface Messages {
       readonly search: string;
       readonly summary: string;
       readonly noSeries: string;
+      readonly hoursUnit: string;
       readonly empty: string;
       readonly totals: string;
       readonly generatedAt: string;

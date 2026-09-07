@@ -53,6 +53,94 @@ const org = {
   reasonCodes: [],
   shiftTemplates: [],
 };
+// One open shift for "Live shift": the row and its expanded details.
+const shift = {
+  id: 'sh1',
+  employeeId: 'e1',
+  assignmentId: null,
+  businessDate: '2026-09-07',
+  state: 'WORKING',
+  resumeState: null,
+  version: 3,
+  startedAt: '2026-09-07T05:00:00.000Z',
+  endedAt: null,
+  stateSince: '2026-09-07T06:00:00.000Z',
+  planStartAt: '2026-09-07T05:00:00.000Z',
+  planEndAt: '2026-09-07T17:00:00.000Z',
+  zoneId: null,
+  zoneName: 'Линия 1',
+  zoneAccepted: true,
+  needsClarification: false,
+  clarificationReason: null,
+  fullName: 'Кузнецов Леонид',
+  personnelNumber: '0001',
+  orgUnitName: 'Цех Крышки',
+  presenceSince: '2026-09-07T04:50:00.000Z',
+  stateMinutes: 12,
+};
+const shiftDetail = {
+  session: shift,
+  intervals: [
+    {
+      id: 'i1',
+      state: 'PREPARATION',
+      startedAt: '2026-09-07T05:00:00.000Z',
+      endedAt: '2026-09-07T05:20:00.000Z',
+      resumeState: null,
+      reasonCode: null,
+    },
+    {
+      id: 'i2',
+      state: 'WORKING',
+      startedAt: '2026-09-07T05:20:00.000Z',
+      endedAt: null,
+      resumeState: null,
+      reasonCode: null,
+    },
+  ],
+  summary: null,
+  events: [
+    {
+      id: 'ev1',
+      type: 'SHIFT_STARTED',
+      occurredAt: '2026-09-07T05:00:00.000Z',
+      actorType: 'EMPLOYEE',
+      reasonCode: null,
+      comment: null,
+      payload: {},
+    },
+    {
+      id: 'ev2',
+      type: 'WORK_STARTED',
+      occurredAt: '2026-09-07T05:20:00.000Z',
+      actorType: 'EMPLOYEE',
+      reasonCode: null,
+      comment: null,
+      payload: {},
+    },
+  ],
+  serverTime: '2026-09-07T06:12:00.000Z',
+};
+// The hours report: minute columns, so the chart legend can be checked.
+const hoursReport = {
+  kind: 'hours',
+  title: 'Planned vs. actual hours and deviations',
+  from: '2026-09-01',
+  to: '2026-09-07',
+  columns: [
+    { key: 'employee', label: 'Employee', kind: 'text' },
+    { key: 'shifts', label: 'Shifts', kind: 'number' },
+    { key: 'plannedMinutes', label: 'Planned, min', kind: 'minutes' },
+    { key: 'actualMinutes', label: 'Actual, min', kind: 'minutes' },
+  ],
+  rows: [
+    { employee: 'Кузнецов Леонид', shifts: 1, plannedMinutes: 720, actualMinutes: 125 },
+    { employee: 'Ткач Олена', shifts: 1, plannedMinutes: 720, actualMinutes: 123 },
+  ],
+  totals: { employee: 'Total', shifts: 2, plannedMinutes: 1440, actualMinutes: 248 },
+  generatedAt: '2026-09-07T10:00:00.000Z',
+  dataVersion: 'preview',
+};
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
 window.fetch = async (input: RequestInfo | URL) => {
@@ -60,6 +148,9 @@ window.fetch = async (input: RequestInfo | URL) => {
   if (path === '/me') return json(me);
   if (path.includes('attention')) return json(attention);
   if (path === '/admin/org') return json(org);
+  if (path === '/admin/shifts') return json([shift]);
+  if (path === `/admin/shifts/${shift.id}`) return json(shiftDetail);
+  if (path === '/admin/reports/hours') return json(hoursReport);
   return json([]);
 };
 const params = new URLSearchParams(location.search);

@@ -23,6 +23,7 @@ import { IssuesPanel } from './IssuesPanel.tsx';
 import { ScheduleGrid } from './ScheduleGrid.tsx';
 import {
   addRow,
+  countChanges,
   countShifts,
   gridFromDetail,
   gridToItems,
@@ -76,6 +77,8 @@ export function SchedulePage() {
   const [detail, setDetail] = useState<ScheduleVersionDetail | null>(null);
   const [acks, setAcks] = useState<AcknowledgementStatusView[] | null>(null);
   const [grid, setGrid] = useState<GridState>(EMPTY_GRID);
+  /** The version as loaded: "Publish changes" counts the shifts that differ from it. */
+  const baseline = useMemo(() => (detail ? gridFromDetail(detail) : EMPTY_GRID), [detail]);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -618,7 +621,7 @@ export function SchedulePage() {
                   disabled={busy || !dirty || hasErrors}
                   onClick={() => void publishChanges()}
                 >
-                  {s.publishChanges} ({countShifts(grid)})
+                  {s.publishChanges} ({countChanges(baseline, grid)})
                 </Button>
                 <InfoTip text={hints.scheduleRevise} />
                 {dirty && (

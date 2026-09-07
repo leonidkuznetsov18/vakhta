@@ -81,6 +81,27 @@ export function countShifts(grid: GridState): number {
   return grid.rows.reduce((n, r) => n + Object.values(r.cells).filter(Boolean).length, 0);
 }
 
+/**
+ * Shifts that differ between two grids: added, removed, another template, or the same shift under
+ * another zone. This is what a revision publishes and what employees are asked to acknowledge.
+ */
+export function countChanges(before: GridState, after: GridState): number {
+  const prev = new Map(before.rows.map((r) => [r.employeeId, r]));
+  const next = new Map(after.rows.map((r) => [r.employeeId, r]));
+  let n = 0;
+  for (const employeeId of new Set([...prev.keys(), ...next.keys()])) {
+    const a = prev.get(employeeId);
+    const b = next.get(employeeId);
+    const zoneChanged = (a?.zoneId ?? '') !== (b?.zoneId ?? '');
+    for (const date of new Set([...Object.keys(a?.cells ?? {}), ...Object.keys(b?.cells ?? {})])) {
+      const x = a?.cells[date] ?? '';
+      const y = b?.cells[date] ?? '';
+      if (x !== y || (zoneChanged && y)) n += 1;
+    }
+  }
+  return n;
+}
+
 export type RotationPattern = 'DAY_2_2' | 'NIGHT_2_2' | 'DAY_NIGHT_OFF_OFF' | 'WEEKDAYS_DAY';
 export const ROTATION_PATTERNS: readonly RotationPattern[] = [
   'DAY_2_2',

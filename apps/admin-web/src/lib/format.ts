@@ -33,9 +33,11 @@ export function formatDate(iso: string | null | undefined): string {
 export function formatMonth(value: string): string {
   const [y, m] = value.split('-').map(Number);
   if (!y || !m) return value;
-  const text = new Date(y, m - 1, 1).toLocaleDateString(INTL[currentLocale()], {
+  // UTC on both sides: a local midnight formatted in another zone would name the previous month.
+  const text = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(INTL[currentLocale()], {
     month: 'long',
     year: 'numeric',
+    timeZone: 'UTC',
   });
   return text.charAt(0).toUpperCase() + text.slice(1);
 }

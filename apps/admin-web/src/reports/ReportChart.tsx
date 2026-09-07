@@ -14,6 +14,12 @@ import { Muted, Section } from '@/components/app/page';
 import { currentLocale } from '@/i18n';
 
 const all = messages(currentLocale());
+const HOURS_UNIT = all.admin.reports.hoursUnit;
+
+/** "Planned, min" → "Planned, h": minute columns are drawn in hours, so the legend says so. */
+function hoursLabel(label: string): string {
+  return `${label.replace(/,\s*[^,]*$/, '')}, ${HOURS_UNIT}`;
+}
 
 export type ChartType = 'bar' | 'line' | 'stacked';
 
@@ -83,7 +89,13 @@ export function ReportChart({
   const config = useMemo<ChartConfig>(
     () =>
       Object.fromEntries(
-        columns.map((c, i) => [c.key, { label: c.label, color: PALETTE[i % PALETTE.length] }]),
+        columns.map((c, i) => [
+          c.key,
+          {
+            label: c.kind === 'minutes' ? hoursLabel(c.label) : c.label,
+            color: PALETTE[i % PALETTE.length],
+          },
+        ]),
       ),
     [columns],
   );
