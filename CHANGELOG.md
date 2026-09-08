@@ -1,3 +1,9 @@
+## [0.46.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.46.0...v0.46.1) (2026-09-08)
+
+### Bug fixes
+
+* **identity:** a dismissed employee can be hired back on the same phone ([1b42628](https://github.com/leonidkuznetsov18/vakhta/commit/1b42628204dcf7311692b7696de4fdd0eb62960f))
+
 ## [0.46.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.45.4...v0.46.0) (2026-09-08)
 
 ### Features
