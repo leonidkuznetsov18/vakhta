@@ -201,21 +201,10 @@ export function HandoverPage() {
     if (!detail || detail.handover.id !== row.id) return <Muted>{all.ui.common.loading}</Muted>;
     return (
       <div className="flex flex-col gap-4 py-1" data-testid="handover-detail">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-semibold">{row.zoneName ?? h.noZone}</span>
-          <StatusPill tone={STATUS_TONE[SHOWN_AS[row.status]]}>
-            {h.shown[SHOWN_AS[row.status]]}
-          </StatusPill>
-          <Muted>
-            {row.submittedByName} · {formatDateTime(row.submittedAt)}
-          </Muted>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="ml-auto"
-            onClick={() => setOpenId(null)}
-          >
+        {/* The row right above already says the zone, the status, who submitted it and when —
+            repeating all four here only makes the card longer to read. */}
+        <div className="flex justify-end">
+          <Button type="button" size="sm" variant="ghost" onClick={() => setOpenId(null)}>
             <XIcon aria-hidden="true" />
             {all.ui.common.close}
           </Button>
@@ -270,9 +259,8 @@ export function HandoverPage() {
               <Muted className="font-normal">({detail.handover.photos.length})</Muted>
               <InfoTip text={hints.handoverPhoto} />
             </h3>
-            {detail.handover.photos.length === 0 ? (
-              <Muted>{h.noPhotos}</Muted>
-            ) : (
+            {/* The count in the heading already says there are none. */}
+            {detail.handover.photos.length === 0 ? null : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3">
                 {detail.handover.photos.map((p) => (
                   <PhotoThumb
