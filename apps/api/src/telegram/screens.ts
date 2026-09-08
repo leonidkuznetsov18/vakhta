@@ -315,38 +315,77 @@ export const SHIFT_CALLBACK = {
   back: 'sh:back',
 } as const;
 
+/**
+ * What the employee reads above the buttons (2026-09-08): one short block per state, as in the
+ * customer's mockup. Only the state actually in front of them is described — no running commentary
+ * of plan, zone and status on every screen.
+ */
 function shiftLines(t: Messages, view: ShiftScreenView): string[] {
   const s = view.session;
   if (!s) return [];
   const tz = view.timezone;
   const lines: string[] = [];
-  if (s.state === 'SHIFT_CLOSED' || s.state === 'EMERGENCY_EXIT') {
-    lines.push(s.state === 'SHIFT_CLOSED' ? t.shift.closedHeader : t.shift.emergencyHeader);
-  } else {
-    lines.push(
-      format(t.shift.stateLine, {
-        state: t.states[s.state],
-        since: s.stateSince ? localTime(new Date(s.stateSince), tz) : '—',
-      }),
-    );
-    if (s.resumeState) lines.push(format(t.shift.resumeLine, { resume: t.states[s.resumeState] }));
-  }
-  if (s.planStartAt && s.planEndAt) {
-    lines.push(
-      format(t.shift.planLine, {
-        start: localTime(new Date(s.planStartAt), tz),
-        end: localTime(new Date(s.planEndAt), tz),
-      }),
-    );
-  }
-  if (s.zoneName) {
-    lines.push(format(t.shift.zoneLine, { zone: s.zoneName }));
-    if (!s.zoneAccepted && s.state === 'PREPARATION') lines.push(t.shift.zoneNotAccepted);
-  }
-  // The report is in: the shift closes by scanning the exit QR, not by a button.
-  if (s.state === 'READY_TO_CLOSE') lines.push(t.shift.readyToCloseHint);
-  if (s.needsClarification && (s.state === 'SHIFT_CLOSED' || s.state === 'EMERGENCY_EXIT')) {
-    lines.push(t.shift.flagged);
+  const zone = s.zoneName ? format(t.shift.zoneLine, { zone: s.zoneName }) : null;
+  const plan =
+    s.planStartAt && s.planEndAt
+      ? format(t.shift.planLine, {
+          start: localTime(new Date(s.planStartAt), tz),
+          end: localTime(new Date(s.planEndAt), tz),
+        })
+      : null;
+
+  switch (s.state) {
+    case 'NOT_STARTED': {
+      if (plan) lines.push(plan);
+      break;
+    }
+    case 'PREPARATION': {
+      lines.push(
+        s.zoneId !== null && !s.zoneAccepted ? t.shift.zoneNotAccepted : t.shift.zoneAcceptedHeader,
+      );
+      if (zone) lines.push(zone);
+      break;
+    }
+    case 'WORKING': {
+      lines.push(t.shift.workingHeader);
+      if (zone) lines.push(zone);
+      if (plan) lines.push(plan);
+      break;
+    }
+    case 'BREAK':
+    case 'MEAL':
+    case 'SERVICE_TIME':
+    case 'DOWNTIME': {
+      lines.push(
+        format(t.shift.stateLine, {
+          state: t.states[s.state],
+          since: s.stateSince ? localTime(new Date(s.stateSince), tz) : '—',
+        }),
+      );
+      if (s.resumeState)
+        lines.push(format(t.shift.resumeLine, { resume: t.states[s.resumeState] }));
+      break;
+    }
+    case 'CLEANING': {
+      lines.push(t.shift.cleaningHeader);
+      if (zone) lines.push(zone);
+      break;
+    }
+    case 'HANDOVER': {
+      lines.push(t.shift.handoverHeader);
+      break;
+    }
+    // The report is in: the shift closes by scanning the exit QR, not by a button.
+    case 'READY_TO_CLOSE': {
+      lines.push(t.shift.readyToCloseHint);
+      break;
+    }
+    case 'SHIFT_CLOSED':
+    case 'EMERGENCY_EXIT': {
+      lines.push(s.state === 'SHIFT_CLOSED' ? t.shift.closedHeader : t.shift.emergencyHeader);
+      if (s.needsClarification) lines.push(t.shift.flagged);
+      break;
+    }
   }
   if (view.summary) lines.push('', summaryLines(t, view.summary));
   return lines;
@@ -389,17 +428,12 @@ export function shiftKeyboard(t: Messages, view: ShiftScreenView): InlineKeyboar
   const pair = (a: [string, string], b: [string, string]) =>
     keyboard.text(a[0], a[1]).text(b[0], b[1]).row();
   const action = (a: ShiftAction) => `${SHIFT_CALLBACK.prefix}${a}:${version}`;
-  const reason = (a: 'START_DOWNTIME' | 'EMERGENCY_EXIT') =>
-    `${SHIFT_CALLBACK.pick}${a === 'START_DOWNTIME' ? 'DOWNTIME' : 'EMERGENCY'}:${version}`;
   const problem = () => row(t.incidents.reportButton, `${INCIDENT_CALLBACK.newPrefix}${version}`);
   const planAndRequests = () =>
     pair(
       [t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`],
       [t.requests.menuButton, 'rq:menu'],
     );
-  const emergency = () => {
-    if (can('EMERGENCY_EXIT')) row(t.actions.EMERGENCY_EXIT, reason('EMERGENCY_EXIT'));
-  };
 
   switch (state) {
     case 'NOT_STARTED': {
@@ -436,7 +470,6 @@ export function shiftKeyboard(t: Messages, view: ShiftScreenView): InlineKeyboar
       problem();
       planAndRequests();
       if (can('START_CLEANING')) row(t.actions.START_CLEANING, action('START_CLEANING'));
-      emergency();
       break;
     }
     case 'BREAK':
@@ -451,21 +484,18 @@ export function shiftKeyboard(t: Messages, view: ShiftScreenView): InlineKeyboar
       }
       problem();
       planAndRequests();
-      emergency();
       break;
     }
     // Handing the shift over: tidy the place, then pass it on — or go back to work.
     case 'CLEANING': {
       if (can('CLEANING_DONE')) row(t.actions.CLEANING_DONE, action('CLEANING_DONE'));
       if (can('BACK_TO_WORK')) row(t.actions.BACK_TO_WORK, action('BACK_TO_WORK'));
-      emergency();
       break;
     }
     // The check: the checklist itself, and a way back to cleaning.
     case 'HANDOVER': {
       if (view.checklistAvailable) row(t.handover.openButton, 'hv:open');
       if (can('BACK_TO_CLEANING')) row(t.actions.BACK_TO_CLEANING, action('BACK_TO_CLEANING'));
-      emergency();
       break;
     }
     // The report is in and the shift waits for the exit QR; work can still be resumed.
@@ -473,7 +503,6 @@ export function shiftKeyboard(t: Messages, view: ShiftScreenView): InlineKeyboar
       if (can('CONTINUE_WORK')) row(t.actions.CONTINUE_WORK, action('CONTINUE_WORK'));
       problem();
       planAndRequests();
-      emergency();
       break;
     }
     case 'SHIFT_CLOSED':
@@ -493,7 +522,8 @@ export function shiftKeyboard(t: Messages, view: ShiftScreenView): InlineKeyboar
 
 /** Screen of an active or just-closed shift. */
 export function shiftScreen(t: Messages, view: ShiftScreenView, header: string): Screen {
-  const lines = [header, '', ...shiftLines(t, view)];
+  // An open shift needs no greeting above it: the state block is the whole message.
+  const lines = header ? [header, '', ...shiftLines(t, view)] : shiftLines(t, view);
   if (view.offerResumeIntoDowntime && view.allowedActions.includes('RESUME')) {
     lines.push('', t.shift.resumeIntoDowntimeQuestion);
   }
@@ -607,6 +637,7 @@ export const HANDOVER_CALLBACK = {
   cannot: 'hv:cannot',
   cannotReason: 'hv:cr:',
   submit: 'hv:submit',
+  edit: 'hv:edit',
   cancel: 'hv:cancel',
   remarkCategory: 'hv:rc:',
   safeYes: 'hv:safe:1',
@@ -621,14 +652,19 @@ export const HANDOVER_CALLBACK = {
  * Checklist screen in HANDOVER: a line per item (✅ / ⚠️ / 🖼), a button per item, submission.
  * Photo items are part of the checklist the admin built, so they appear where the admin put them.
  */
-export function handoverScreen(t: Messages, view: HandoverView, header: string): Screen {
+export function handoverScreen(
+  t: Messages,
+  view: HandoverView,
+  header: string,
+  options: { readonly expanded?: boolean } = {},
+): Screen {
   const checks = view.items.filter((i) => i.kind !== 'PHOTO');
   const photoItems = view.items.filter((i) => i.kind === 'PHOTO');
   const photoByKey = new Map(view.photos.map((p) => [p.itemKey, p]));
   const done = checks.filter((i) => i.answered).length;
   const lines = [
-    header,
-    '',
+    // The checklist is opened from the shift screen and needs no greeting above it.
+    ...(header ? [header, ''] : []),
     view.zoneName ? format(t.handover.header, { zone: view.zoneName }) : t.handover.headerNoZone,
     format(t.handover.progress, {
       done,
@@ -671,6 +707,16 @@ export function handoverScreen(t: Messages, view: HandoverView, header: string):
 
   if (view.status !== 'DRAFT') return { text: lines.join('\n') };
   const keyboard = new InlineKeyboard();
+  // A finished report is read, not edited: the items are already listed above with their marks, so
+  // the screen shows the one thing left to do. "Change the answers" brings the full list back.
+  const collapsed = view.issues.length === 0 && options.expanded !== true;
+  if (collapsed) {
+    keyboard.text(t.handover.editButton, HANDOVER_CALLBACK.edit).row();
+    keyboard.text(t.shift.backToShift, SHIFT_CALLBACK.back).row();
+    keyboard.text(t.handover.submit, HANDOVER_CALLBACK.submit).row();
+    const only = trimRows(keyboard);
+    return only ? { text: lines.join('\n'), keyboard: only } : { text: lines.join('\n') };
+  }
   for (const item of view.items) {
     if (item.kind === 'PHOTO') {
       keyboard

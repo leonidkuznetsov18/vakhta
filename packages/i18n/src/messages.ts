@@ -133,6 +133,10 @@ export interface Messages {
     readonly zoneNotAccepted: string;
     readonly acceptZone: string;
     readonly zoneAccepted: string;
+    readonly zoneAcceptedHeader: string;
+    readonly workingHeader: string;
+    readonly cleaningHeader: string;
+    readonly handoverHeader: string;
     readonly chooseDowntimeReason: string;
     readonly chooseEmergencyReason: string;
     readonly backToShift: string;
@@ -236,6 +240,7 @@ export interface Messages {
     readonly cannotCompleteReason: string;
     readonly cannotCompleteSaved: string;
     readonly submit: string;
+    readonly editButton: string;
     readonly submitted: string;
     readonly notReady: string;
     readonly superseded: string;

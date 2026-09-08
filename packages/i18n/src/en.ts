@@ -145,6 +145,10 @@ export const en: Messages = {
     zoneNotAccepted: "Accept the previous shift's zone. Inspect the workplace.",
     acceptZone: "✅ Accept the previous shift's zone",
     zoneAccepted: 'Zone accepted. You can start working.',
+    zoneAcceptedHeader: '✅ ZONE ACCEPTED\n\nYou can start working.',
+    workingHeader: 'YOU ARE WORKING',
+    cleaningHeader: 'Get the zone ready to hand over.\nTidy the workplace.',
+    handoverHeader: 'The check is left.\nFill in the checklist.',
     chooseDowntimeReason: 'Specify the downtime reason:',
     chooseEmergencyReason:
       'Specify the reason for the emergency exit. The shift master will be notified.',
@@ -293,7 +297,8 @@ export const en: Messages = {
     cannotCompleteReason: 'Specify why cleaning cannot be finished:',
     cannotCompleteSaved:
       'Reason saved. The report can be submitted as is; the criterion goes to the shift master for review.',
-    submit: 'Submit report',
+    submit: 'SEND THE REPORT',
+    editButton: '✏️ Change the answers',
     submitted: 'Report submitted. You can finish the shift without waiting for the receiver.',
     notReady: 'The report is not ready yet:',
     superseded: 'You returned to work after the report. The report is outdated and must be redone.',

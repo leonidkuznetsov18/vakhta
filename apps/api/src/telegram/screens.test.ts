@@ -58,7 +58,8 @@ function buttons(screen: ReturnType<typeof shiftScreen>): string[][] {
 describe('shift screen in the bot (spec 4.4, FR-UI-01)', () => {
   it('shows the state in site time, the plan and the zone; buttons only for allowed actions', () => {
     const screen = shiftScreen(t, view(), 'Здравствуйте');
-    expect(screen.text).toContain('Основная работа с 08:10');
+    // The work screen says what the mockup says: you are working, in this zone, on this plan.
+    expect(screen.text).toContain('ВЫ РАБОТАЕТЕ');
     expect(screen.text).toContain('08:00–20:00');
     expect(screen.text).toContain('Линия 1');
     // The work menu of the mockup: three pauses, a problem report, plan and requests, then finish.
@@ -68,11 +69,13 @@ describe('shift screen in the bot (spec 4.4, FR-UI-01)', () => {
       ['inc:new:3'],
       ['plan:cur', 'rq:menu'],
       ['sh:START_CLEANING:3'],
-      ['sh:pick:EMERGENCY:3'],
     ]);
-    // Downtime is reached through "Report a problem", not from a button of its own.
+    // Downtime is reached through "Report a problem", not from a button of its own, and nothing on
+    // any screen ends a shift: the exit QR does that.
     const data = buttons(screen).flat();
     expect(data).not.toContain('sh:pick:DOWNTIME:3');
+    expect(data).not.toContain('sh:pick:EMERGENCY:3');
+    expect(data).not.toContain('sh:CLOSE_SHIFT:3');
     expect(data).not.toContain('sh:RESUME:3');
     expect(data.every((d) => Buffer.byteLength(d) <= 64)).toBe(true);
   });
@@ -111,11 +114,7 @@ describe('shift screen in the bot (spec 4.4, FR-UI-01)', () => {
       }),
       'x',
     );
-    expect(buttons(cleaning)).toEqual([
-      ['sh:CLEANING_DONE:3'],
-      ['sh:BACK_TO_WORK:3'],
-      ['sh:pick:EMERGENCY:3'],
-    ]);
+    expect(buttons(cleaning)).toEqual([['sh:CLEANING_DONE:3'], ['sh:BACK_TO_WORK:3']]);
 
     const handover = shiftScreen(
       t,
@@ -125,11 +124,7 @@ describe('shift screen in the bot (spec 4.4, FR-UI-01)', () => {
       }),
       'x',
     );
-    expect(buttons(handover)).toEqual([
-      ['hv:open'],
-      ['sh:BACK_TO_CLEANING:3'],
-      ['sh:pick:EMERGENCY:3'],
-    ]);
+    expect(buttons(handover)).toEqual([['hv:open'], ['sh:BACK_TO_CLEANING:3']]);
 
     const ready = shiftScreen(
       t,
@@ -296,11 +291,15 @@ describe('problem report in the bot (spec 5.5)', () => {
 describe('language of the bot screens', () => {
   it('renders the same shift screen in every catalog language', async () => {
     const { shiftScreen: build } = await import('./screens.js');
-    expect(build(messages('en'), view(), 'x').text).toContain('State: Main work since 08:10.');
-    expect(build(messages('uk'), view(), 'x').text).toContain('Стан: Основна робота з 08:10.');
-    expect(build(messages('ru'), view(), 'x').text).toContain(
-      'Состояние: Основная работа с 08:10.',
-    );
+    expect(build(messages('en'), view(), 'x').text).toContain('YOU ARE WORKING');
+    expect(build(messages('uk'), view(), 'x').text).toContain('ВИ ПРАЦЮЄТЕ');
+    expect(build(messages('ru'), view(), 'x').text).toContain('ВЫ РАБОТАЕТЕ');
+    // A pause still says which state it is and where the return leads.
+    const paused = view({
+      session: { ...view().session!, state: 'BREAK', resumeState: 'WORKING' },
+      allowedActions: ['RESUME'],
+    });
+    expect(build(messages('ru'), paused, 'x').text).toContain('Состояние: Перерыв с 08:10.');
   });
 
   it('language picker lists the three locales, marks the current one and leads back', async () => {

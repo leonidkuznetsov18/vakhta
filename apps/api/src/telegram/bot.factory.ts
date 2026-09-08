@@ -210,9 +210,10 @@ export async function renderHomeScreen(
     helpUrl: deps.helpUrl ?? null,
     supportUrl: deps.supportUrl ?? null,
   });
-  // Spec 5.1: during the shift and right after it the home screen is the shift screen.
+  // Spec 5.1: during the shift and right after it the home screen is the shift screen. An open
+  // shift shows only its own state block; the greeting and the next shift belong to an idle day.
   if (shift.session || shift.allowedActions.includes('START_SHIFT')) {
-    return shiftScreen(t, { ...shift, timezone }, home.text);
+    return shiftScreen(t, { ...shift, timezone }, shift.session ? '' : home.text);
   }
   return home;
 }
@@ -611,6 +612,17 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await showHandover(ctx);
   });
 
+  // A finished report shows only "send"; this brings the full item list back for a correction.
+  bot.callbackQuery(/^hv:edit$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
+    const view = await deps.handover.current(ctx.employee.id);
+    await edit(
+      ctx,
+      view ? handoverScreen(ctx.t, view, '', { expanded: true }) : await buildHome(ctx),
+    );
+  });
+
   bot.callbackQuery(/^hv:ok:([A-Z][A-Z0-9_]{1,31})$/, async (ctx) => {
     if (!guardEmployee(ctx)) return ctx.answerCallbackQuery();
     try {
@@ -760,7 +772,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await clearHv(ctx);
     if (!guardEmployee(ctx)) return;
     const view = await deps.handover.current(ctx.employee.id);
-    await edit(ctx, view ? handoverScreen(ctx.t, view, '') : await buildHome(ctx));
+    await edit(
+      ctx,
+      view ? handoverScreen(ctx.t, view, '', { expanded: true }) : await buildHome(ctx),
+    );
   });
 
   // Requests (spec 8, FR-SCH-05): type → fields per type → comment → submission.
@@ -1212,7 +1227,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         );
         await clearHv(ctx);
         const view = await deps.handover.current(ctx.employee.id);
-        return show(ctx, view ? handoverScreen(ctx.t, view, '') : await buildHome(ctx));
+        return show(
+          ctx,
+          view ? handoverScreen(ctx.t, view, '', { expanded: true }) : await buildHome(ctx),
+        );
       }
       if (hv.kind === 'remark' && hv.step === 'text') {
         if (hv.itemKey.startsWith('CANNOT:')) {
@@ -1223,7 +1241,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
           );
           await clearHv(ctx);
           const view = await deps.handover.current(ctx.employee.id);
-          return show(ctx, view ? handoverScreen(ctx.t, view, '') : await buildHome(ctx));
+          return show(
+            ctx,
+            view ? handoverScreen(ctx.t, view, '', { expanded: true }) : await buildHome(ctx),
+          );
         }
         await writeHv(ctx, { ...hv, text, step: 'safe' });
         return show(ctx, handoverSafeScreen(ctx.t));
@@ -1269,7 +1290,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
               item: item ? checklistItemLabel(ctx.t, item) : hv.itemKey,
             }),
           });
-          return show(ctx, handoverScreen(ctx.t, view, ''));
+          return show(ctx, handoverScreen(ctx.t, view, '', { expanded: true }));
         } catch (error) {
           deps.logger.warn({ err: error }, 'handover photo rejected');
           await clearHv(ctx);
