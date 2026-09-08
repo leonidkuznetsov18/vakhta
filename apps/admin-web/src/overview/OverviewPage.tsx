@@ -147,16 +147,21 @@ const TILES: readonly Tile[] = [
   { key: 'onShift', label: o.onShift, icon: ActivityIcon, section: 'operations', tone: 'neutral' },
 ];
 
+/**
+ * An active tile is marked by its own colour and a lift, not by a black number: the palette is
+ * red for what is wrong, amber for what wants attention, emerald for what is well.
+ */
 const TONE_RING: Record<Tone, string> = {
   neutral: '',
-  info: 'border-blue-200 dark:border-blue-900',
-  success: 'border-emerald-200 dark:border-emerald-900',
-  warning: 'border-amber-300 dark:border-amber-900',
-  danger: 'border-red-300 dark:border-red-900',
+  info: 'border-border shadow-sm',
+  success:
+    'border-emerald-300 shadow-sm shadow-emerald-100 dark:border-emerald-800 dark:shadow-none',
+  warning: 'border-amber-300 shadow-sm shadow-amber-100 dark:border-amber-800 dark:shadow-none',
+  danger: 'border-red-300 shadow-sm shadow-red-100 dark:border-red-800 dark:shadow-none',
 };
 const TONE_TEXT: Record<Tone, string> = {
   neutral: 'text-foreground',
-  info: 'text-blue-700 dark:text-blue-300',
+  info: 'text-foreground',
   success: 'text-emerald-700 dark:text-emerald-300',
   warning: 'text-amber-700 dark:text-amber-300',
   danger: 'text-red-700 dark:text-red-300',
@@ -202,13 +207,30 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
     go('schedule');
   }
 
+  function open(t: Tile): void {
+    t.prepare?.();
+    go(t.section);
+  }
+
   const tile = (t: Tile) => {
     const value = data[t.key] ?? 0;
     const active = t.tone !== 'neutral' && value > 0;
     return (
       <Card
         key={t.key}
-        className={cn('gap-2 py-4 transition-shadow hover:shadow-md', active && TONE_RING[t.tone])}
+        role="button"
+        tabIndex={0}
+        onClick={() => open(t)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            open(t);
+          }
+        }}
+        className={cn(
+          'cursor-pointer gap-2 py-4 transition-shadow outline-none hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50',
+          active && TONE_RING[t.tone],
+        )}
       >
         <CardContent className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -222,21 +244,15 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
               <div className="truncate text-sm text-muted-foreground">{t.label}</div>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-3">
-            {/* Who is behind the number, without opening the section: the faces answer "who" and
-                pointing at them answers "which of them". */}
+          {/* Who is behind the number, without opening the section: the faces answer "who" and
+              pointing at them answers "which of them". The stack stops the click so reading the
+              names does not navigate away from them. */}
+          <div
+            className="flex shrink-0 items-center"
+            onClick={(e) => e.stopPropagation()}
+            role="presentation"
+          >
             <AvatarStack people={data.people[t.key] ?? []} max={4} size={26} />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                t.prepare?.();
-                go(t.section);
-              }}
-            >
-              {o.open}
-            </Button>
           </div>
         </CardContent>
       </Card>

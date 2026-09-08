@@ -232,10 +232,9 @@ export function ScheduleGrid({
                         key={d}
                         className={cn(
                           'p-0.5 text-center',
-                          tpl &&
-                            (tpl.isNight
-                              ? 'bg-indigo-50 dark:bg-indigo-950'
-                              : 'bg-amber-50 dark:bg-amber-950'),
+                          // Day and night are told apart by weight, not by hue: amber and red are
+                          // reserved for what needs attention, and a planned shift needs none.
+                          tpl && (tpl.isNight ? 'bg-foreground/10' : 'bg-muted/70'),
                         )}
                       >
                         <select

@@ -111,7 +111,9 @@ export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
 const TONE: Record<Tone, string> = {
   neutral: 'border-border bg-muted text-foreground',
-  info: 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200',
+  // The palette is white, black, red, amber and emerald: red for what is wrong, amber for what
+  // wants attention, emerald for what is well. Anything merely informational stays neutral.
+  info: 'border-border bg-muted text-foreground',
   success:
     'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
   warning:
