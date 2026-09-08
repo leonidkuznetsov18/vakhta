@@ -1,3 +1,9 @@
+## [0.47.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.46.2...v0.47.0) (2026-09-08)
+
+### Features
+
+* **kiosk:** one tablet can stand at several terminals ([3e703e8](https://github.com/leonidkuznetsov18/vakhta/commit/3e703e84aa5582109a0e3659d18d556867202407))
+
 ## [0.46.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.46.1...v0.46.2) (2026-09-08)
 
 ### Bug fixes
