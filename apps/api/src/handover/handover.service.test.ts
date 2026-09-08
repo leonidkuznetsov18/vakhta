@@ -384,7 +384,9 @@ describe('handover: прибирання, чек-лист, фото, перед�
     const notes = await testDb.db.select().from(notificationOutbox);
     const text = notes.find((n) => n.template === 'HANDOVER_RESOLVED')?.payload.text ?? '';
     expect(text).not.toContain('«»');
-    expect(text).toContain('Решение мастера по вашему отчёту передачи');
+    // An approval thanks the employee and names the point they earned (2026-09-08).
+    expect(text).toContain('одобрен');
+    expect(text).toContain('+1');
   });
 
   it('посада без чек-листа: кнопки в боті немає, чернетка не створюється, звіт не вимагається', async () => {

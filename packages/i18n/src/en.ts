@@ -316,6 +316,10 @@ export const en: Messages = {
     reviewedNotification:
       'The receiver reported a problem in zone "{zone}". The shift master will review the materials.',
     resolvedNotification: 'Shift master decision on the handover of zone "{zone}": {decision}.',
+    approvedNotification: '🙂 The checklist for zone "{zone}" is approved. Well done — +1 point!',
+    approvedNotificationNoZone: '🙂 Your checklist is approved. Well done — +1 point!',
+    remarkNotification: '⚠️ Remark on the checklist for zone "{zone}": {comment}',
+    remarkNotificationNoZone: '⚠️ Remark on your checklist: {comment}',
     resolvedNotificationNoZone: 'Master decision on your handover report: {decision}.',
     timeoutNotification:
       'Acceptance of zone "{zone}" was passed to the shift master: the receiver did not respond. This does not affect your score.',
@@ -789,6 +793,11 @@ export const en: Messages = {
       comment: 'Comment (required)',
       reasonCode: 'Reason',
       apply: 'Make decision',
+      approveChecklist: 'Approve',
+      addRemark: 'Add a remark',
+      remarkComment: 'Remark for the employee (required)',
+      reviewHint:
+        'Approve the checklist — the employee gets a thank-you in the bot and one point. Or send a remark: the checklist is marked red and the employee gets your text; no point is given.',
       applied: 'Decision saved.',
       openPhoto: 'Open photo',
       photoBefore: 'Handing over',

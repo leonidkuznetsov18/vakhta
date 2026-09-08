@@ -257,6 +257,10 @@ export interface Messages {
     readonly pendingNotification: string;
     readonly reviewedNotification: string;
     readonly resolvedNotification: string;
+    readonly approvedNotification: string;
+    readonly approvedNotificationNoZone: string;
+    readonly remarkNotification: string;
+    readonly remarkNotificationNoZone: string;
     /** Placeholder: {decision}; the report of a shift without a zone. */
     readonly resolvedNotificationNoZone: string;
     readonly timeoutNotification: string;
@@ -654,6 +658,10 @@ export interface Messages {
       readonly comment: string;
       readonly reasonCode: string;
       readonly apply: string;
+      readonly approveChecklist: string;
+      readonly addRemark: string;
+      readonly remarkComment: string;
+      readonly reviewHint: string;
       readonly applied: string;
       readonly openPhoto: string;
       readonly photoBefore: string;

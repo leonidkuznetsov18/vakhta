@@ -197,35 +197,32 @@ describe('HandoverPage', () => {
     expect(thumb.getAttribute('src')).toBe('https://storage.example/signed?x=1');
     expect(calls.some((c) => c.path === `/admin/handovers/media/${MEDIA}/link`)).toBe(true);
 
-    const decision = screen.getByLabelText('Решение') as HTMLSelectElement;
-    expect([...decision.options].map((o) => o.value)).toEqual([
-      '',
-      'RESOLVED_ACCEPTED',
-      'RESOLVED_ISSUE_CONFIRMED',
-      'RESOLVED_NO_FAULT',
-    ]);
-    fireEvent.change(decision, { target: { value: 'RESOLVED_NO_FAULT' } });
-    fireEvent.change(screen.getByLabelText('Комментарий (обязательно)'), {
+    // The master decides with two buttons: a remark needs its text, an approval does not.
+    const remark = screen.getByRole('button', { name: 'Замечание' });
+    expect((remark as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Замечание для сотрудника (обязательно)'), {
       target: { value: 'Пятно появилось после передачи' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Принять решение' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Замечание' }));
     await screen.findByText('Решение сохранено.');
     expect(calls.find((c) => c.path.endsWith('/resolve'))?.body).toEqual({
-      decision: 'RESOLVED_NO_FAULT',
+      decision: 'RESOLVED_ISSUE_CONFIRMED',
       comment: 'Пятно появилось после передачи',
     });
   });
 
-  it('an overdue acceptance is flagged and allows only master decisions without confirming a violation', async () => {
-    mockApi({ status: 'SUBMITTED' });
+  it('an overdue acceptance is flagged and the master can approve the checklist outright', async () => {
+    const calls = mockApi({ status: 'SUBMITTED' });
     render(<HandoverPage />);
     expect(await screen.findByText(/^просрочено на/)).toBeTruthy();
     await clickRowAction('Подробности');
-    const decision = (await screen.findByLabelText('Решение')) as HTMLSelectElement;
-    expect([...decision.options].map((o) => o.value)).toEqual([
-      '',
-      'RESOLVED_ACCEPTED',
-      'RESOLVED_NO_FAULT',
-    ]);
+    // Approving needs no text: the employee is thanked and earns the point.
+    const approve = await screen.findByRole('button', { name: 'Одобрить' });
+    expect((approve as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(approve);
+    await screen.findByText('Решение сохранено.');
+    expect(calls.find((c) => c.path.endsWith('/resolve'))?.body).toMatchObject({
+      decision: 'RESOLVED_ACCEPTED',
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { HandoverDetailView, HandoverListItemView, OrgSnapshot } from '@vakhta/contracts';
 import {
   HANDOVER_RESOLUTIONS,
@@ -21,11 +21,10 @@ import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
-import { EyeIcon, XIcon } from 'lucide-react';
+import { CheckIcon, EyeIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Lightbox, PhotoThumb, type LightboxImage } from '@/components/app/photo';
 import { HowItWorks } from '@/components/app/how-it-works';
-import { GavelIcon } from 'lucide-react';
 import { useDeepLinkedId } from '@/lib/route';
 
 const all = messages(currentLocale());
@@ -56,9 +55,7 @@ export function HandoverPage() {
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useDeepLinkedId('handover', 'handover.openId');
   const [detail, setDetail] = useState<HandoverDetailView | null>(null);
-  const [decision, setDecision] = useState<HandoverResolution | ''>('');
   const [comment, setComment] = useState('');
-  const [reasonCode, setReasonCode] = useState('');
   const reloadRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
@@ -103,25 +100,30 @@ export function HandoverPage() {
     };
   }, [openId, rows]);
 
-  function resolve(ev: FormEvent, row: HandoverListItemView) {
-    ev.preventDefault();
-    if (!decision || comment.trim().length < 3) return;
+  /**
+   * The master's decision is two buttons: approve the checklist (the employee is thanked and earns
+   * a point) or send a remark (the checklist is marked and the employee gets the text). The remark
+   * needs the text; an approval does not.
+   */
+  function resolve(row: HandoverListItemView, chosen: HandoverResolution) {
+    const text = comment.trim();
+    if (chosen === 'RESOLVED_ISSUE_CONFIRMED' && text.length < 3) return;
     setBusy(true);
     setError(null);
     handoversApi
-      .resolve(row.id, { decision, comment: comment.trim(), ...(reasonCode ? { reasonCode } : {}) })
+      .resolve(row.id, {
+        decision: chosen,
+        comment: text.length >= 3 ? text : h.approveChecklist,
+      })
       .then(async () => {
         notifySuccess(h.applied);
-        setDecision('');
         setComment('');
-        setReasonCode('');
         await reload();
       })
       .catch((e: unknown) => setError(describeError(e)))
       .finally(() => setBusy(false));
   }
 
-  const handoverReasons = org?.reasonCodes.filter((r) => r.kind === 'HANDOVER' && r.isActive) ?? [];
   const [lightbox, setLightbox] = useState<{ images: LightboxImage[]; start: number }>({
     images: [],
     start: 0,
@@ -198,28 +200,11 @@ export function HandoverPage() {
         </div>
         <div className="flex flex-col gap-4">
           {HANDOVER_RESOLUTIONS.some((d) => canTransitionHandover(row.status, d)) && (
-            <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => resolve(e, row)}>
-              <SelectField
-                label={h.decision}
-                hint={hints.handoverDecision}
-                value={decision}
-                onChange={(v) => setDecision(v as HandoverResolution)}
-                placeholder="…"
-                required
-                options={HANDOVER_RESOLUTIONS.filter((d) =>
-                  canTransitionHandover(row.status, d),
-                ).map((d) => ({ value: d, label: all.handover.resolutions[d] }))}
-                className="w-72"
-              />
-              <SelectField
-                label={h.reasonCode}
-                value={reasonCode}
-                onChange={setReasonCode}
-                placeholder="—"
-                options={handoverReasons.map((r) => ({ value: r.code, label: r.label }))}
-                className="w-56"
-              />
-              <FormField label={h.comment} className="min-w-72 flex-1">
+            <div className="flex flex-col gap-2">
+              <p className="max-w-3xl text-sm whitespace-normal text-muted-foreground">
+                {h.reviewHint}
+              </p>
+              <FormField label={h.remarkComment}>
                 {(id) => (
                   <Textarea
                     rows={2}
@@ -227,14 +212,33 @@ export function HandoverPage() {
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     minLength={3}
-                    required
                   />
                 )}
               </FormField>
-              <Button type="submit" disabled={busy || !decision}>
-                {h.apply}
-              </Button>
-            </form>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  disabled={busy || !canTransitionHandover(row.status, 'RESOLVED_ACCEPTED')}
+                  onClick={() => resolve(row, 'RESOLVED_ACCEPTED')}
+                >
+                  <CheckIcon aria-hidden="true" />
+                  {h.approveChecklist}
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={
+                    busy ||
+                    comment.trim().length < 3 ||
+                    !canTransitionHandover(row.status, 'RESOLVED_ISSUE_CONFIRMED')
+                  }
+                  onClick={() => resolve(row, 'RESOLVED_ISSUE_CONFIRMED')}
+                >
+                  <TriangleAlertIcon aria-hidden="true" />
+                  {h.addRemark}
+                </Button>
+              </div>
+            </div>
           )}
           <div>
             <h3 className="mb-2 text-sm font-semibold">{h.checklist}</h3>
@@ -400,18 +404,6 @@ export function HandoverPage() {
             icon: EyeIcon,
             onSelect: () => setOpenId(openId === row.id ? null : row.id),
           },
-          ...HANDOVER_RESOLUTIONS.filter((d) => canTransitionHandover(row.status, d)).map(
-            (d, idx) => ({
-              key: `decide-${d}`,
-              label: all.handover.resolutions[d],
-              icon: GavelIcon,
-              separator: idx === 0,
-              onSelect: () => {
-                setDecision(d);
-                setOpenId(row.id);
-              },
-            }),
-          ),
         ]}
         rowKey={(row) => row.id}
         empty={h.empty}

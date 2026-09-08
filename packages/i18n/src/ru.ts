@@ -313,6 +313,10 @@ export const ru: Messages = {
     reviewedNotification:
       'Принимающий отметил проблему по зоне «{zone}». Мастер рассмотрит материалы.',
     resolvedNotification: 'Решение мастера по передаче зоны «{zone}»: {decision}.',
+    approvedNotification: '🙂 Чек-лист зоны «{zone}» одобрен. Молодец — +1 балл!',
+    approvedNotificationNoZone: '🙂 Ваш чек-лист одобрен. Молодец — +1 балл!',
+    remarkNotification: '⚠️ Замечание к чек-листу зоны «{zone}»: {comment}',
+    remarkNotificationNoZone: '⚠️ Замечание к вашему чек-листу: {comment}',
     resolvedNotificationNoZone: 'Решение мастера по вашему отчёту передачи: {decision}.',
     timeoutNotification:
       'Приёмка зоны «{zone}» передана мастеру: принимающий не ответил. Это не влияет на ваши баллы.',
@@ -787,6 +791,11 @@ export const ru: Messages = {
       comment: 'Комментарий (обязательно)',
       reasonCode: 'Причина',
       apply: 'Принять решение',
+      approveChecklist: 'Одобрить',
+      addRemark: 'Замечание',
+      remarkComment: 'Замечание для сотрудника (обязательно)',
+      reviewHint:
+        'Одобрите чек-лист — сотрудник получит благодарность в боте и один балл. Или отправьте замечание: чек-лист помечается красным, сотрудник получит ваш текст, балл не начисляется.',
       applied: 'Решение сохранено.',
       openPhoto: 'Открыть фото',
       photoBefore: 'Сдающий',

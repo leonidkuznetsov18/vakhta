@@ -316,6 +316,10 @@ export const uk: Messages = {
     reviewedNotification:
       'Приймаючий відмітив проблему в зоні «{zone}». Майстер розгляне матеріали.',
     resolvedNotification: 'Рішення майстра щодо передачі зони «{zone}»: {decision}.',
+    approvedNotification: '🙂 Чек-лист зони «{zone}» схвалено. Молодець — +1 бал!',
+    approvedNotificationNoZone: '🙂 Ваш чек-лист схвалено. Молодець — +1 бал!',
+    remarkNotification: '⚠️ Зауваження до чек-листа зони «{zone}»: {comment}',
+    remarkNotificationNoZone: '⚠️ Зауваження до вашого чек-листа: {comment}',
     resolvedNotificationNoZone: 'Рішення майстра щодо вашого звіту передачі: {decision}.',
     timeoutNotification:
       'Приймання зони «{zone}» передано майстру: приймаючий не відповів. Це не впливає на ваші бали.',
@@ -789,6 +793,11 @@ export const uk: Messages = {
       comment: 'Коментар (обовʼязково)',
       reasonCode: 'Причина',
       apply: 'Ухвалити рішення',
+      approveChecklist: 'Схвалити',
+      addRemark: 'Зауваження',
+      remarkComment: 'Зауваження для працівника (обовʼязково)',
+      reviewHint:
+        'Схваліть чек-лист — працівник отримає подяку в боті й один бал. Або надішліть зауваження: чек-лист позначається червоним, працівник отримає ваш текст, бал не нараховується.',
       applied: 'Рішення збережено.',
       openPhoto: 'Відкрити фото',
       photoBefore: 'Здавач',

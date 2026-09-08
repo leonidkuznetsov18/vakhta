@@ -200,6 +200,79 @@ window.fetch = async (input: RequestInfo | URL) => {
     endedAt: '2026-09-07T18:10:00.000Z',
     autoCloseReason: 'NO_CHECKLIST',
   };
+  const handoverRecord = {
+    id: 'hv1',
+    shiftSessionId: 'sh1',
+    zoneId: 'z1',
+    zoneName: 'Перша стінка стаканів',
+    submittedBy: 'e1',
+    submittedByName: 'Ткач Олена',
+    checklistDefinitionId: 'def',
+    checklistVersion: 1,
+    status: 'SUBMITTED',
+    version: 2,
+    items: [
+      {
+        key: 'FLOOR',
+        label: 'Робочі поверхні чисті',
+        kind: 'CHECK',
+        answered: true,
+        ok: true,
+        remarkCategory: null,
+        remarkText: null,
+        safeToWork: null,
+        needs: [],
+        note: null,
+      },
+      {
+        key: 'WASTE',
+        label: 'Відходи паперу переміщені',
+        kind: 'CHECK',
+        answered: true,
+        ok: true,
+        remarkCategory: null,
+        remarkText: null,
+        safeToWork: null,
+        needs: [],
+        note: null,
+      },
+      {
+        key: 'MESSAGE_NEXT',
+        label: 'Повідомлення наступній зміні',
+        kind: 'NOTE',
+        answered: true,
+        ok: true,
+        remarkCategory: null,
+        remarkText: null,
+        safeToWork: null,
+        needs: [],
+        note: 'Привіт',
+      },
+    ],
+    photos: [],
+    issues: [],
+    cannotCompleteReason: null,
+    cannotCompleteComment: null,
+    submittedAt: '2026-09-07T08:32:00.000Z',
+    acceptDeadlineAt: '2026-09-07T14:25:00.000Z',
+    escalatedToMasterAt: null,
+    supersededById: null,
+    createdAt: '2026-09-07T08:00:00.000Z',
+  };
+  if (path === '/admin/handovers') {
+    const { items, issues, ...rest } = handoverRecord;
+    void items;
+    void issues;
+    return json([{ ...rest, remarks: 0, overdue: false, reviewDecision: null }]);
+  }
+  if (path === '/admin/handovers/hv1') {
+    return json({
+      handover: handoverRecord,
+      reviews: [],
+      resolutions: [],
+      serverTime: new Date().toISOString(),
+    });
+  }
   if (path === '/admin/shifts') return json([shift, closedNoChecklist]);
   if (path === `/admin/shifts/${shift.id}`) return json(shiftDetail);
   if (path === '/admin/bonus/points') {

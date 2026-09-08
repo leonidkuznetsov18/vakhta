@@ -699,20 +699,39 @@ export class HandoverService {
         reason: cmd.comment,
       });
       const zoneName = await this.zoneName(tx, record.zoneId);
+      // The master's decision reaches the employee in plain words: an approval thanks them and
+      // names the point they earned; a confirmed issue carries the remark text itself.
       await this.notifications.enqueue(tx, {
         recipientType: 'EMPLOYEE',
         recipientId: record.submittedBy,
         template: 'HANDOVER_RESOLVED',
-        payload: (t) => ({
-          text: zoneName
-            ? format(t.handover.resolvedNotification, {
-                zone: zoneName,
-                decision: t.handover.resolutions[cmd.decision],
-              })
-            : format(t.handover.resolvedNotificationNoZone, {
-                decision: t.handover.resolutions[cmd.decision],
-              }),
-        }),
+        payload: (t) => {
+          if (cmd.decision === 'RESOLVED_ACCEPTED') {
+            return {
+              text: zoneName
+                ? format(t.handover.approvedNotification, { zone: zoneName })
+                : t.handover.approvedNotificationNoZone,
+            };
+          }
+          if (cmd.decision === 'RESOLVED_ISSUE_CONFIRMED') {
+            const remark = cmd.comment ?? '';
+            return {
+              text: zoneName
+                ? format(t.handover.remarkNotification, { zone: zoneName, comment: remark })
+                : format(t.handover.remarkNotificationNoZone, { comment: remark }),
+            };
+          }
+          return {
+            text: zoneName
+              ? format(t.handover.resolvedNotification, {
+                  zone: zoneName,
+                  decision: t.handover.resolutions[cmd.decision],
+                })
+              : format(t.handover.resolvedNotificationNoZone, {
+                  decision: t.handover.resolutions[cmd.decision],
+                }),
+          };
+        },
         dedupeKey: `handover-resolved:${handoverId}:${cmd.decision}`,
       });
       return this.view(tx, handoverId);
