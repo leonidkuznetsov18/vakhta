@@ -1038,7 +1038,8 @@ export class BonusService implements OnModuleInit {
     month: string,
     now: Date = new Date(),
   ): Promise<BonusPointsView> {
-    const inMonth = like(shiftSessions.businessDate, `${month}-%`);
+    // `business_date` is a real date column: LIKE has no operator for it, so the value is cast.
+    const inMonth = sql`${shiftSessions.businessDate}::text like ${`${month}-%`}`;
     const shiftRows = await this.db
       .select({
         employeeId: shiftSessions.employeeId,
@@ -1127,8 +1128,13 @@ export class BonusService implements OnModuleInit {
       .innerJoin(orgUnits, eq(employeePositions.orgUnitId, orgUnits.id))
       .where(isNull(employeePositions.validTo));
     if (siteId) {
+      // Only people who clearly belong somewhere else are hidden: an employee without a current
+      // position has no site of their own, and dropping them would lose their points entirely.
+      const elsewhere = new Set(
+        unitRows.filter((r) => r.siteId !== siteId).map((r) => r.employeeId),
+      );
       const here = new Set(unitRows.filter((r) => r.siteId === siteId).map((r) => r.employeeId));
-      for (const id of [...byId.keys()]) if (!here.has(id)) byId.delete(id);
+      for (const id of [...byId.keys()]) if (elsewhere.has(id) && !here.has(id)) byId.delete(id);
     }
     const unitOf = new Map<string, { id: string; name: string }>();
     for (const r of unitRows) {

@@ -3,10 +3,12 @@ import {
   activityIntervals,
   bonusAdjustments,
   bonusShiftScores,
+  employeePositions,
   employees,
   eq,
   notificationOutbox,
   orgUnits,
+  positions,
   reasonCodes,
   requests,
   scheduleVersions,
@@ -232,6 +234,43 @@ describe('bonus: оцінка зміни, коригування, закритт
     // повторна оцінка з тими самими входами не створює дубля і зберігає хеш
     const again = await bonus.evaluate(sessionId);
     expect(again?.id).toBe(view?.id);
+  });
+
+  it('the points page reads a real month: shifts, checklists and the ledger, scoped to the site', async () => {
+    const sessionId = await fullShift();
+    void sessionId;
+
+    const view = await bonus.points(siteId, month);
+
+    // The employee worked one shift this month; the page must find it, not throw on the date filter.
+    expect(view.month).toBe(month);
+    expect(view.employees.length).toBeGreaterThan(0);
+    const row = view.employees.find((e) => e.personnelNumber === '1');
+    expect(row?.shifts).toBe(1);
+    // A month with nothing in it is empty, not an error.
+    expect((await bonus.points(siteId, '2020-01')).employees).toEqual([]);
+    // Someone who works at another site is not in this site's table; the unit says where they work.
+    const [position] = await testDb.db
+      .insert(positions)
+      .values({ code: 'OP', name: 'Оператор' })
+      .returning();
+    const [unit] = await testDb.db
+      .select()
+      .from(orgUnits)
+      .where(eq(orgUnits.siteId, siteId))
+      .limit(1);
+    await testDb.db.insert(employeePositions).values({
+      employeeId: ivanov,
+      orgUnitId: unit!.id,
+      positionId: position!.id,
+      validFrom: planStart,
+    });
+    const [other] = await testDb.db
+      .insert(sites)
+      .values({ code: 'second', name: 'Вторая', timezone: 'Europe/Kyiv' })
+      .returning();
+    expect((await bonus.points(other!.id, month)).employees).toEqual([]);
+    expect((await bonus.points(siteId, month)).employees).toHaveLength(1);
   });
 
   it('T-16: запізнення знижує лише критерій початку; затверджене звернення LATE відновлює бали', async () => {
