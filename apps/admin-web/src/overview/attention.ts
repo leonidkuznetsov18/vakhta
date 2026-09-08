@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ActiveShiftView, MeView } from '@vakhta/contracts';
+import type { StackedPerson } from '@/components/app/avatar-stack';
 import { employeesApi, handoversApi, incidentsApi, orgApi, requestsApi, shiftsApi } from '@/api';
 
 export interface Attention {
@@ -7,6 +8,11 @@ export interface Attention {
   readonly unscheduled: number | null;
   /** Who is on an unscheduled shift right now, so the banner can name them. */
   readonly unscheduledPeople: readonly ActiveShiftView[];
+  /**
+   * The people behind a counter, by tile. A number says how much is waiting; the faces say on whom,
+   * which is what turns the overview from a report into something to act on.
+   */
+  readonly people: Readonly<Partial<Record<keyof Attention, readonly StackedPerson[]>>>;
   readonly closedNoChecklist: number | null;
   readonly inDowntime: number | null;
   readonly openIncidents: number | null;
@@ -24,6 +30,7 @@ const EMPTY: Attention = {
   onShift: null,
   unscheduled: null,
   unscheduledPeople: [],
+  people: {},
   closedNoChecklist: null,
   inDowntime: null,
   openIncidents: null,
@@ -67,14 +74,41 @@ export function useAttention(me: MeView, intervalMs = 60_000) {
     const unscheduledPeople = (shifts ?? []).filter(
       (s) => s.endedAt === null && s.assignmentId === null,
     );
+    const person = (id: string, name: string, note?: string | null | undefined): StackedPerson => ({
+      id,
+      name,
+      seed: id,
+      ...(note ? { note } : {}),
+    });
+    const onShiftNow = (shifts ?? []).filter((s) => s.endedAt === null);
+    const noChecklist = (shifts ?? []).filter(
+      (s) => s.endedAt !== null && s.autoCloseReason === 'NO_CHECKLIST',
+    );
     setData({
-      onShift: shifts ? shifts.filter((s) => s.endedAt === null).length : null,
+      people: {
+        onShift: onShiftNow.map((s) => person(s.id, s.fullName, s.orgUnitName)),
+        unscheduled: unscheduledPeople.map((s) => person(s.id, s.fullName, s.orgUnitName)),
+        closedNoChecklist: noChecklist.map((s) => person(s.id, s.fullName, s.businessDate)),
+        inDowntime: onShiftNow
+          .filter((s) => s.state === 'DOWNTIME')
+          .map((s) => person(s.id, s.fullName, s.orgUnitName)),
+        overdueAcceptances: (handovers ?? []).map((h) =>
+          person(h.id, h.submittedByName, h.zoneName),
+        ),
+        requestsForMe: (requests ?? []).map((r) => person(r.id, r.employeeName)),
+        overdueRequests: (requests ?? [])
+          .filter((r) => r.overdue)
+          .map((r) => person(r.id, r.employeeName)),
+        overtimePending: (overtime ?? []).map((r) => person(r.shiftSessionId, r.employeeName)),
+        unlinkedEmployees: (employees ?? [])
+          .filter((e) => e.status === 'ACTIVE' && !e.telegramLinked)
+          .map((e) => person(e.id, e.fullName, e.personnelNumber)),
+      },
+      onShift: shifts ? onShiftNow.length : null,
       unscheduled: unscheduledPeople.length > 0 || shifts ? unscheduledPeople.length : null,
       unscheduledPeople,
-      closedNoChecklist: shifts
-        ? shifts.filter((s) => s.endedAt !== null && s.autoCloseReason === 'NO_CHECKLIST').length
-        : null,
-      inDowntime: shifts ? shifts.filter((s) => s.state === 'DOWNTIME').length : null,
+      closedNoChecklist: shifts ? noChecklist.length : null,
+      inDowntime: shifts ? onShiftNow.filter((s) => s.state === 'DOWNTIME').length : null,
       openIncidents: incidents ? incidents.length : null,
       slaBreached: incidents ? incidents.filter((i) => i.slaBreached).length : null,
       overdueAcceptances: handovers ? handovers.length : null,

@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Feedback } from '@/components/app/feedback';
 import { InfoTip } from '@/components/app/info-tip';
 import { EmptyState, Muted, Section, type Tone } from '@/components/app/page';
+import { AvatarStack } from '@/components/app/avatar-stack';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { formatTime } from '@/lib/format';
 import { writeSchedulePreset } from '../schedule/preset.ts';
@@ -43,7 +44,7 @@ function presetStorage(values: Record<string, string>): void {
 }
 
 interface Tile {
-  readonly key: keyof Omit<Attention, 'refreshedAt' | 'unscheduledPeople'>;
+  readonly key: keyof Omit<Attention, 'refreshedAt' | 'unscheduledPeople' | 'people'>;
   readonly label: string;
   readonly icon: LucideIcon;
   readonly section: SectionKey;
@@ -221,17 +222,22 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
               <div className="truncate text-sm text-muted-foreground">{t.label}</div>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              t.prepare?.();
-              go(t.section);
-            }}
-          >
-            {o.open}
-          </Button>
+          <div className="flex shrink-0 items-center gap-3">
+            {/* Who is behind the number, without opening the section: the faces answer "who" and
+                pointing at them answers "which of them". */}
+            <AvatarStack people={data.people[t.key] ?? []} max={4} size={26} />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                t.prepare?.();
+                go(t.section);
+              }}
+            >
+              {o.open}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -260,8 +266,17 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
                   key={group.orgUnitId ?? 'none'}
                   className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-3 py-2"
                 >
+                  <AvatarStack
+                    people={group.people.map((p) => ({
+                      id: p.id,
+                      name: p.fullName,
+                      seed: p.id,
+                      note: p.personnelNumber,
+                    }))}
+                    max={4}
+                  />
                   <span className="font-medium">{group.orgUnitName ?? o.noUnit}</span>
-                  <span className="min-w-0 flex-1 text-sm whitespace-normal text-muted-foreground">
+                  <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
                     {group.people.map((p) => p.fullName).join(', ')}
                   </span>
                   <Button
