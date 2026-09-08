@@ -1,3 +1,9 @@
+## [0.38.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.37.2...v0.38.0) (2026-09-08)
+
+### Features
+
+* **access:** shift master reviews only their unit; flag units without a master ([010b5b6](https://github.com/leonidkuznetsov18/vakhta/commit/010b5b6295866b921a24ea2c50a25607ee82a40e))
+
 ## [0.37.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.37.1...v0.37.2) (2026-09-08)
 
 ### Bug fixes
