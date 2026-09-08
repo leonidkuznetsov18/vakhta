@@ -1,3 +1,9 @@
+## [0.39.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.38.0...v0.39.0) (2026-09-08)
+
+### Features
+
+* **directories:** show the shift master's name per unit, not just a yes ([82e01da](https://github.com/leonidkuznetsov18/vakhta/commit/82e01da666c80236df3437ed2925cb4c8380dded))
+
 ## [0.38.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.37.2...v0.38.0) (2026-09-08)
 
 ### Features
