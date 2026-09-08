@@ -101,8 +101,7 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
                       name="email"
                       type="email"
                       autoComplete="username"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      defaultValue={email}
                     />
                   )}
                 </FormField>
@@ -113,8 +112,7 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
                       name="password"
                       type="password"
                       autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      defaultValue={password}
                     />
                   )}
                 </FormField>
