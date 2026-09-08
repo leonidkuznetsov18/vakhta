@@ -1,3 +1,9 @@
+## [0.53.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.52.3...v0.53.0) (2026-09-08)
+
+### Features
+
+* **reports:** one report — where the shift's time goes and why ([fa2f1fe](https://github.com/leonidkuznetsov18/vakhta/commit/fa2f1fed0da213d23f9e8df0b1540048b7e816e0))
+
 ## [0.52.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.52.2...v0.52.3) (2026-09-08)
 
 ### Refactoring
