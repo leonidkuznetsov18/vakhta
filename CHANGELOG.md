@@ -1,3 +1,9 @@
+## [0.46.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.46.1...v0.46.2) (2026-09-08)
+
+### Bug fixes
+
+* **bot:** the big button says what it does — cleaning and the checklist ([533622c](https://github.com/leonidkuznetsov18/vakhta/commit/533622c31e526db0a81deb3998bdd7ec6ff6b239))
+
 ## [0.46.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.46.0...v0.46.1) (2026-09-08)
 
 ### Bug fixes
