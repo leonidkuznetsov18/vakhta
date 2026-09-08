@@ -414,6 +414,7 @@ export const requestsApi = {
 import type {
   AdjustScoreCommand,
   BonusPeriodView,
+  BonusPointsView,
   BonusRuleVersionView,
   ReviewScoreCommand,
   SecondApprovalCommand,
@@ -423,6 +424,8 @@ import type {
 } from '@vakhta/contracts';
 
 export const bonusApi = {
+  points: (siteId: string, month: string) =>
+    apiFetch<BonusPointsView>(`/admin/bonus/points${query({ siteId, month })}`),
   period: (siteId: string, month: string, employeeId?: string) =>
     apiFetch<BonusPeriodView>(`/admin/bonus/period${query({ siteId, month, employeeId })}`),
   rules: () => apiFetch<BonusRuleVersionView[]>('/admin/bonus/rules'),

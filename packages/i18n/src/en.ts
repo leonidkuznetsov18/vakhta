@@ -854,6 +854,11 @@ export const en: Messages = {
       month: 'Month',
       employee: 'Employee',
       shifts: 'Shifts',
+      checklists: 'Checklists',
+      approved: 'Approved',
+      remarks: 'Remarks',
+      pointsHint:
+        'One point for every checklist the shift master approves. Read-only: points are earned in the bot and confirmed at the zone handover.',
       evaluated: 'Evaluated',
       pending: 'Awaiting evaluation',
       sMonth: 'Month coefficient (S)',
@@ -1693,33 +1698,24 @@ export const en: Messages = {
       },
       bonus: {
         purpose:
-          'Shift points (0–100) by the spec rules, manual reviews, rewards and penalties, the month coefficient and closing the period.',
+          'Points, read only. A point has one cause: a checklist the shift master approved. The page shows who has how many, with a chart and a table.',
         steps: [
-          'Points for every shift (0–100) are computed automatically from attendance, the checklist and the zone acceptance.',
-          'A shift marked "Manual review" waits for you: press "Finish review", set a score or exclude the shift.',
-          'To reward or penalise an employee, press "Add points" or "Take points" on the shift and give the reason.',
-          'Every adjustment is listed in the shift card: edit or delete it while the period is open. Close the period once everything is checked.',
+          'Pick the site and the month. Every approved checklist is one point.',
+          'The summary shows employees, approved checklists, remarks and total points; the chart ranks the top employees.',
+          'The table lists each employee: shifts, checklists, approved, remarks and points. Nothing is scored or edited here.',
         ],
         faq: [
           {
-            q: 'What is "Manual review"?',
-            a: 'The rules could not score the shift: fewer than 60 of 100 points apply (no schedule, checklist or zone). Press "Finish review": set a score or exclude the shift.',
+            q: 'How does an employee earn a point?',
+            a: 'They send the checklist in the bot and the shift master approves it at the zone handover. Each approved checklist is one point.',
           },
           {
-            q: 'How do I reward an employee?',
-            a: 'In the employee or shift card press "Add points": the amount is limited by the room left up to 100, a reason and a comment are required. The employee is notified.',
+            q: 'What is a remark?',
+            a: 'The master returned the checklist with a remark instead of approving it: no point, and the employee gets the remark text in the bot.',
           },
           {
-            q: 'Why did the buttons disappear?',
-            a: 'The period is closed: scores are confirmed. Press "Reopen period", make the changes and close it again.',
-          },
-          {
-            q: 'What is the month S?',
-            a: 'The average score of evaluated shifts, weighted by planned duration. Bonus = base × S / 100 when S is at least 60.',
-          },
-          {
-            q: 'What is the second approval?',
-            a: 'A penalty above 10 points waits for another manager in the "Awaiting second approval" queue; until then the points do not change.',
+            q: 'Can I add or take points here?',
+            a: 'No. The bonus is read only. Points come only from approved checklists; more point-earning actions may be added later.',
           },
         ],
       },

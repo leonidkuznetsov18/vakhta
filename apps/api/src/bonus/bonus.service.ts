@@ -64,6 +64,8 @@ import type {
   CriterionResultView,
   EmployeeMonthView,
   MyScoresView,
+  BonusPointsView,
+  EmployeePointsView,
   SecondApprovalCommand,
   SetBaseAmountsCommand,
   ShiftScoreView,
@@ -1016,6 +1018,81 @@ export class BonusService implements OnModuleInit {
   /* ------------------------------------------------------------------ */
   /* Період (ТЗ 7.6, матриця 2.1)                                        */
   /* ------------------------------------------------------------------ */
+
+  /**
+   * The read-only points view (2026-09-08): points come only from approved checklists, one each.
+   * Per employee for the month: closed shifts, checklists submitted, checklists the master approved
+   * or returned with a remark, and the points earned. Computed from the shift and handover tables;
+   * nothing here writes or scores.
+   */
+  async points(
+    siteId: string | null,
+    month: string,
+    now: Date = new Date(),
+  ): Promise<BonusPointsView> {
+    const inMonth = like(shiftSessions.businessDate, `${month}-%`);
+    const shiftRows = await this.db
+      .select({
+        employeeId: shiftSessions.employeeId,
+        name: employees.fullName,
+        personnelNumber: employees.personnelNumber,
+        shifts: sql<number>`count(*)::int`,
+      })
+      .from(shiftSessions)
+      .innerJoin(employees, eq(shiftSessions.employeeId, employees.id))
+      .where(and(inArray(shiftSessions.state, ['SHIFT_CLOSED', 'EMERGENCY_EXIT']), inMonth))
+      .groupBy(shiftSessions.employeeId, employees.fullName, employees.personnelNumber);
+
+    const handoverRows = await this.db
+      .select({
+        employeeId: handoverRecords.submittedBy,
+        name: employees.fullName,
+        personnelNumber: employees.personnelNumber,
+        checklists: sql<number>`count(*) filter (where ${handoverRecords.status} not in ('DRAFT','SUPERSEDED'))::int`,
+        approved: sql<number>`count(*) filter (where ${handoverRecords.status} in ('ACCEPTED','RESOLVED_ACCEPTED'))::int`,
+        remarks: sql<number>`count(*) filter (where ${handoverRecords.status} = 'RESOLVED_ISSUE_CONFIRMED')::int`,
+      })
+      .from(handoverRecords)
+      .innerJoin(shiftSessions, eq(handoverRecords.shiftSessionId, shiftSessions.id))
+      .innerJoin(employees, eq(handoverRecords.submittedBy, employees.id))
+      .where(inMonth)
+      .groupBy(handoverRecords.submittedBy, employees.fullName, employees.personnelNumber);
+
+    const byId = new Map<string, EmployeePointsView>();
+    for (const r of shiftRows) {
+      byId.set(r.employeeId, {
+        employeeId: r.employeeId,
+        employeeName: r.name,
+        personnelNumber: r.personnelNumber,
+        shifts: Number(r.shifts),
+        checklists: 0,
+        approved: 0,
+        remarks: 0,
+        points: 0,
+      });
+    }
+    for (const r of handoverRows) {
+      const row = byId.get(r.employeeId) ?? {
+        employeeId: r.employeeId,
+        employeeName: r.name,
+        personnelNumber: r.personnelNumber,
+        shifts: 0,
+        checklists: 0,
+        approved: 0,
+        remarks: 0,
+        points: 0,
+      };
+      row.checklists = Number(r.checklists);
+      row.approved = Number(r.approved);
+      row.remarks = Number(r.remarks);
+      row.points = Number(r.approved);
+      byId.set(r.employeeId, row);
+    }
+    const employeesView = [...byId.values()].sort(
+      (a, b) => b.points - a.points || a.employeeName.localeCompare(b.employeeName),
+    );
+    return { siteId, month, employees: employeesView, serverTime: now.toISOString() };
+  }
 
   async period(
     siteId: string,

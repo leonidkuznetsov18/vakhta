@@ -24,6 +24,7 @@ import {
   SecondApprovalCommand,
   SetBaseAmountsCommand,
   type BonusPeriodView,
+  type BonusPointsView,
   type BonusRuleVersionView,
   type ShiftScoreView,
 } from '@vakhta/contracts';
@@ -52,6 +53,13 @@ const VIEWERS = [
 @Roles(...VIEWERS)
 export class AdminBonusController {
   constructor(private readonly bonus: BonusService) {}
+
+  @Get('points')
+  points(
+    @Query(new ZodValidationPipe(BonusMonthQuery)) q: BonusMonthQuery,
+  ): Promise<BonusPointsView> {
+    return this.bonus.points(q.siteId, q.month);
+  }
 
   @Get('period')
   period(

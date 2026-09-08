@@ -127,6 +127,31 @@ export const BonusMonthQuery = z.object({
 });
 export type BonusMonthQuery = z.infer<typeof BonusMonthQuery>;
 
+/**
+ * The simplified points model (2026-09-08): the bonus is read-only and every point has one cause —
+ * an approved checklist. Per employee for the month: how many shifts, how many checklists were
+ * submitted, how many the master approved, and the points earned (one per approved checklist).
+ */
+export const EmployeePointsView = z.object({
+  employeeId: Uuid,
+  employeeName: z.string(),
+  personnelNumber: z.string(),
+  shifts: z.number().int().nonnegative(),
+  checklists: z.number().int().nonnegative(),
+  approved: z.number().int().nonnegative(),
+  remarks: z.number().int().nonnegative(),
+  points: z.number().int().nonnegative(),
+});
+export type EmployeePointsView = z.infer<typeof EmployeePointsView>;
+
+export const BonusPointsView = z.object({
+  siteId: Uuid.nullable(),
+  month: z.string(),
+  employees: z.array(EmployeePointsView),
+  serverTime: IsoDateTime,
+});
+export type BonusPointsView = z.infer<typeof BonusPointsView>;
+
 export const EmployeeMonthView = z.object({
   employeeId: Uuid,
   employeeName: z.string(),

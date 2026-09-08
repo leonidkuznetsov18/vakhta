@@ -198,6 +198,45 @@ window.fetch = async (input: RequestInfo | URL) => {
   };
   if (path === '/admin/shifts') return json([shift, closedNoChecklist]);
   if (path === `/admin/shifts/${shift.id}`) return json(shiftDetail);
+  if (path === '/admin/bonus/points') {
+    return json({
+      siteId: 's1',
+      month: '2026-09',
+      serverTime: new Date().toISOString(),
+      employees: [
+        {
+          employeeId: 'e1',
+          employeeName: 'Гринько Юлія',
+          personnelNumber: '132',
+          shifts: 5,
+          checklists: 5,
+          approved: 5,
+          remarks: 0,
+          points: 5,
+        },
+        {
+          employeeId: 'e2',
+          employeeName: 'Ткач Олена',
+          personnelNumber: '130',
+          shifts: 4,
+          checklists: 4,
+          approved: 3,
+          remarks: 1,
+          points: 3,
+        },
+        {
+          employeeId: 'e3',
+          employeeName: 'Панов Олег',
+          personnelNumber: '131',
+          shifts: 3,
+          checklists: 2,
+          approved: 2,
+          remarks: 0,
+          points: 2,
+        },
+      ],
+    });
+  }
   if (path === '/admin/reports/hours') return json(hoursReport);
   return json([]);
 };

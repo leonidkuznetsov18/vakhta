@@ -716,6 +716,10 @@ export interface Messages {
       readonly month: string;
       readonly employee: string;
       readonly shifts: string;
+      readonly checklists: string;
+      readonly approved: string;
+      readonly remarks: string;
+      readonly pointsHint: string;
       readonly evaluated: string;
       readonly pending: string;
       readonly sMonth: string;
