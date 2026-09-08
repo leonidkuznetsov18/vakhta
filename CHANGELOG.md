@@ -1,3 +1,9 @@
+## [0.37.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.37.0...v0.37.1) (2026-09-08)
+
+### Bug fixes
+
+* **panel:** sign-in reads DOM values so password-manager autofill works ([ea1d295](https://github.com/leonidkuznetsov18/vakhta/commit/ea1d29590ce7d6443707b07ef2e3800b642339b1))
+
 ## [0.37.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.36.0...v0.37.0) (2026-09-08)
 
 ### Features
