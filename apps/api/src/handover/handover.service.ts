@@ -287,7 +287,6 @@ export class HandoverService {
     now: Date = new Date(),
   ): Promise<SubmitResult> {
     const deferred: DeferredTimer[] = [];
-    let scheduled: { id: string; deadline: Date } | null = null;
     const result = await this.db.transaction(async (tx): Promise<SubmitResult> => {
       const draft = await this.requireDraft(tx, employeeId, now, true);
       const view = await this.view(tx, draft.id);
@@ -310,15 +309,16 @@ export class HandoverService {
       if (view.issues.length > 0) return { ok: false, handover: view };
 
       const plan = await this.planEnd(tx, draft.shiftSessionId);
+      // The deadline is now the master's review window: since 2026-09-08 the next shift no longer
+      // accepts or disputes the report — only the shift master decides (approve or remark).
       const deadline = acceptDeadline(now, plan, this.options.reviewWindowMinutes);
-      // Without a zone nobody accepts the report: it is the master's to review from the start.
       await tx
         .update(handoverRecords)
         .set({
           status: 'SUBMITTED',
           submittedAt: now,
           acceptDeadlineAt: deadline,
-          escalatedToMasterAt: draft.zoneId ? null : now,
+          escalatedToMasterAt: now,
           version: draft.version + 1,
           updatedAt: now,
         })
@@ -362,30 +362,10 @@ export class HandoverService {
         );
       }
 
-      // The next shift in this zone is told about the handover (FR-HND-03).
-      const receivers = draft.zoneId
-        ? await this.nextShiftEmployees(tx, draft.zoneId, employeeId, now)
-        : [];
-      for (const receiver of receivers) {
-        await this.notifications.enqueue(tx, {
-          recipientType: 'EMPLOYEE',
-          recipientId: receiver,
-          template: 'HANDOVER_PENDING',
-          payload: (t) => ({
-            text: format(t.handover.pendingNotification, { zone: view.zoneName ?? '' }),
-          }),
-          dedupeKey: `handover-pending:${draft.id}:${receiver}`,
-        });
-      }
-      if (draft.zoneId) scheduled = { id: draft.id, deadline };
       return { ok: true, handover: await this.view(tx, draft.id), transition };
     });
     if (result.ok) {
       await this.shift.settle(result.transition, deferred, source);
-      if (scheduled) {
-        const { id, deadline } = scheduled;
-        await this.timers.scheduleHandoverTimeout(id, deadline);
-      }
       this.changes.publish({
         handoverId: result.handover.id,
         status: result.handover.status,

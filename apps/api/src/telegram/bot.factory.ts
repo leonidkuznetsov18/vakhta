@@ -51,7 +51,6 @@ import {
   counterpartScreen,
   languageScreen,
   myScoresScreen,
-  pendingHandoverScreen,
   scoreDetailScreen,
   planScreen,
   requestAssignmentScreen,
@@ -60,7 +59,6 @@ import {
   requestMenuScreen,
   requestPromptScreen,
   reasonPickerScreen,
-  reviewCategoryScreen,
   shiftScreen,
   welcomeScreen,
   type Screen,
@@ -193,16 +191,14 @@ export async function renderHomeScreen(
   t: Messages,
   employee: EmployeeRecord,
 ): Promise<Screen> {
-  const [next, unacknowledged, presence, shiftRaw, pendingHandovers, pendingSwaps] =
-    await Promise.all([
-      deps.schedule.nextShift(employee.id),
-      deps.schedule.unacknowledgedVersions(employee.id),
-      deps.attendance.openPresence(employee.id),
-      deps.shift.screen(employee.id),
-      deps.handover.pendingForReceiver(employee.id),
-      deps.requests.pendingCounterpart(employee.id),
-    ]);
-  const shift = { ...shiftRaw, pendingHandovers: pendingHandovers.length };
+  const [next, unacknowledged, presence, shiftRaw, pendingSwaps] = await Promise.all([
+    deps.schedule.nextShift(employee.id),
+    deps.schedule.unacknowledgedVersions(employee.id),
+    deps.attendance.openPresence(employee.id),
+    deps.shift.screen(employee.id),
+    deps.requests.pendingCounterpart(employee.id),
+  ]);
+  const shift = { ...shiftRaw, pendingHandovers: 0 };
   const timezone = next?.timezone ?? deps.defaultTimezone;
   const home = homeScreen(t, {
     employee,
@@ -767,54 +763,6 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await edit(ctx, view ? handoverScreen(ctx.t, view, '') : await buildHome(ctx));
   });
 
-  // Acceptance by the next shift (FR-HND-03/04).
-  bot.callbackQuery(/^hr:open$/, async (ctx) => {
-    await ctx.answerCallbackQuery();
-    if (!guardEmployee(ctx)) return;
-    const pending = await deps.handover.pendingForReceiver(ctx.employee.id);
-    if (pending.length === 0) return edit(ctx, await buildHome(ctx));
-    await edit(ctx, pendingHandoverScreen(ctx.t, pending, deps.defaultTimezone));
-  });
-
-  bot.callbackQuery(/^hr:ok:([0-9a-f-]{36})$/, async (ctx) => {
-    if (!guardEmployee(ctx)) return ctx.answerCallbackQuery();
-    try {
-      await deps.handover.review(
-        ctx.employee.id,
-        ctx.match[1] ?? '',
-        { decision: 'ACCEPTED', idempotencyKey: `tg:${ctx.update.update_id}` },
-        employeeActor(ctx.employee.id),
-      );
-      await ctx.answerCallbackQuery({ text: ctx.t.handover.reviewAccepted });
-    } catch (error) {
-      deps.logger.warn({ err: error }, 'acceptance rejected');
-      const code = (error as { code?: string }).code;
-      await ctx.answerCallbackQuery({
-        text:
-          code === 'REVIEW_OWN_HANDOVER'
-            ? ctx.t.handover.reviewOwn
-            : ctx.t.errors.ACTION_NOT_ALLOWED,
-        show_alert: true,
-      });
-    }
-    await edit(ctx, await buildHome(ctx));
-  });
-
-  bot.callbackQuery(/^hr:issue:([0-9a-f-]{36})$/, async (ctx) => {
-    await ctx.answerCallbackQuery();
-    if (!guardEmployee(ctx)) return;
-    await writeHv(ctx, { kind: 'review', handoverId: ctx.match[1] ?? '', step: 'category' });
-    await edit(ctx, reviewCategoryScreen(ctx.t, await handoverReasons()));
-  });
-
-  bot.callbackQuery(/^hr:rc:([A-Z][A-Z0-9_]{1,63})$/, async (ctx) => {
-    await ctx.answerCallbackQuery();
-    const pending = await readHv(ctx);
-    if (pending?.kind !== 'review') return edit(ctx, await buildHome(ctx));
-    await writeHv(ctx, { ...pending, category: ctx.match[1] ?? '', step: 'comment' });
-    await edit(ctx, handoverTextPromptScreen(ctx.t, ctx.t.handover.reviewComment));
-  });
-
   // Requests (spec 8, FR-SCH-05): type → fields per type → comment → submission.
   const rqKey = (telegramUserId: number) => `request:pending:${telegramUserId}`;
   async function readRq(ctx: BotContext): Promise<PendingRequest | null> {
@@ -1280,10 +1228,6 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         await writeHv(ctx, { ...hv, text, step: 'safe' });
         return show(ctx, handoverSafeScreen(ctx.t));
       }
-      if (hv.kind === 'review' && hv.step === 'comment') {
-        await writeHv(ctx, { ...hv, comment: text, step: 'photo' });
-        return show(ctx, handoverTextPromptScreen(ctx.t, ctx.t.handover.reviewPhoto));
-      }
     }
     await show(ctx, await buildHome(ctx));
   });
@@ -1331,30 +1275,6 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
           await clearHv(ctx);
           return show(ctx, await buildHome(ctx));
         }
-      }
-      if (hv.kind === 'review' && hv.step === 'photo') {
-        try {
-          await deps.handover.review(
-            ctx.employee.id,
-            hv.handoverId,
-            {
-              decision: 'ISSUE',
-              ...(hv.category ? { category: hv.category } : {}),
-              ...(hv.comment ? { comment: hv.comment } : {}),
-              telegramFileId: largest.file_id,
-              telegramFileUniqueId: largest.file_unique_id,
-              idempotencyKey: `tg:${ctx.update.update_id}`,
-            },
-            employeeActor(ctx.employee.id),
-          );
-          await clearHv(ctx);
-          await show(ctx, { text: ctx.t.handover.reviewIssueSaved });
-        } catch (error) {
-          deps.logger.warn({ err: error }, 'receiver remark rejected');
-          await clearHv(ctx);
-          await show(ctx, { text: ctx.t.errors.ACTION_NOT_ALLOWED });
-        }
-        return show(ctx, await buildHome(ctx));
       }
     }
     await show(ctx, { text: ctx.t.bot.useButtons });

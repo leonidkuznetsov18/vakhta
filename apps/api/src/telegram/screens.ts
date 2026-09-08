@@ -407,10 +407,6 @@ export function shiftKeyboard(t: Messages, view: ShiftScreenView): InlineKeyboar
     newRow();
     keyboard.text(t.handover.openButton, 'hv:open');
   }
-  if (view.pendingHandovers > 0) {
-    newRow();
-    keyboard.text(`📥 ${t.admin.handover.review} (${view.pendingHandovers})`, 'hr:open');
-  }
   if (
     view.session &&
     view.session.state !== 'SHIFT_CLOSED' &&

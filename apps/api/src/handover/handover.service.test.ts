@@ -16,7 +16,6 @@ import {
   responsibilityZones,
   scheduleVersions,
   shiftAssignments,
-  shiftSessions,
   shiftTemplates,
   sites,
   sql,
@@ -563,7 +562,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
     expect(await testDb.db.select().from(mediaObjects)).toHaveLength(2);
   });
 
-  it('T-27/T-28: подання переводить у READY_TO_CLOSE, здавач закриває зміну; приймаюча зміна приймає зону', async () => {
+  it('подання переводить у READY_TO_CLOSE і одразу віддає звіт майстру (без приймання наступною зміною)', async () => {
     await toHandover(dayEmployee);
     await fillAll(dayEmployee);
     const submitted = await handover.submit(
@@ -577,17 +576,19 @@ describe('handover: прибирання, чек-лист, фото, перед�
     expect(submitted.transition.ok).toBe(true);
     if (!submitted.transition.ok) return;
     expect(submitted.transition.session?.state).toBe('READY_TO_CLOSE');
-    expect(new Date(submitted.handover.acceptDeadlineAt!).getTime()).toBe(
-      planEnd.getTime() + 30 * 60_000,
-    );
+
+    // Зміна 2026-09-08: приймання наступною зміною і спори прибрані — звіт одразу в майстра,
+    // тож нікого не сповіщаємо про приймання і тайм-аут приймання не плануємо.
+    const [record] = await testDb.db.select().from(handoverRecords);
+    expect(record!.escalatedToMasterAt).not.toBeNull();
     expect(
-      timers.scheduled.some((s) => s.jobId === `handover-timeout.${submitted.handover.id}`),
-    ).toBe(true);
+      timers.scheduled.some((t) => t.jobId === `handover-timeout.${submitted.handover.id}`),
+    ).toBe(false);
     const pendingNotices = await testDb.db
       .select()
       .from(notificationOutbox)
       .where(eq(notificationOutbox.template, 'HANDOVER_PENDING'));
-    expect(pendingNotices.map((x) => x.recipientId)).toEqual([nightEmployee]);
+    expect(pendingNotices).toHaveLength(0);
 
     // повторне подання тим самим ключем не ламає стан
     const again = await handover.submit(
@@ -597,31 +598,6 @@ describe('handover: прибирання, чек-лист, фото, перед�
     );
     expect(again.ok).toBe(true);
     expect((await act(dayEmployee, 'CLOSE_SHIFT')).ok).toBe(true);
-
-    await openShift(nightEmployee);
-    const pending = await handover.pendingForReceiver(nightEmployee);
-    expect(pending).toHaveLength(1);
-    expect(pending[0]).toMatchObject({
-      submittedByName: 'Иванов Иван',
-      remarks: 0,
-      photos: 3,
-      notes: ['Вентиль на линии подтекает, следите'],
-    });
-
-    const accepted = await handover.review(
-      nightEmployee,
-      pending[0]!.id,
-      { decision: 'ACCEPTED', idempotencyKey: key() },
-      employeeActor(nightEmployee),
-    );
-    expect(accepted.status).toBe('ACCEPTED');
-    const [session] = await testDb.db
-      .select()
-      .from(shiftSessions)
-      .where(eq(shiftSessions.employeeId, nightEmployee));
-    expect(session?.zoneAcceptedAt).not.toBeNull();
-    expect(timers.scheduled.some((s) => s.jobId.startsWith('handover-timeout'))).toBe(false);
-    expect(await handover.pendingForReceiver(nightEmployee)).toHaveLength(0);
   });
 
   it('T-29/T-30/T-32: власну передачу приймати не можна; зауваження вимагає фото, критичне створює інцидент; майстер вирішує', async () => {
