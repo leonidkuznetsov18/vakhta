@@ -247,14 +247,14 @@ export const uk: Messages = {
       SUBMITTED: 'Звіт надіслано',
       ACCEPTED: 'Зону прийнято',
       DISPUTED: 'Є зауваження приймаючого',
-      RESOLVED_ACCEPTED: 'Зауваження відхилено',
-      RESOLVED_ISSUE_CONFIRMED: 'Порушення підтверджено',
+      RESOLVED_ACCEPTED: 'Схвалено',
+      RESOLVED_ISSUE_CONFIRMED: 'Є зауваження',
       RESOLVED_NO_FAULT: 'Проблема не залежала від того, хто здавав',
       SUPERSEDED: 'Звіт застарів',
     },
     resolutions: {
-      RESOLVED_ACCEPTED: 'Зауваження відхилено, зону прийнято',
-      RESOLVED_ISSUE_CONFIRMED: 'Порушення підтверджено',
+      RESOLVED_ACCEPTED: 'Схвалено',
+      RESOLVED_ISSUE_CONFIRMED: 'Є зауваження',
       RESOLVED_NO_FAULT: 'Проблема не залежала від того, хто здавав',
     },
     quality: {

@@ -247,14 +247,14 @@ export const en: Messages = {
       SUBMITTED: 'Report submitted',
       ACCEPTED: 'Zone accepted',
       DISPUTED: 'Receiver raised an issue',
-      RESOLVED_ACCEPTED: 'Issue dismissed',
-      RESOLVED_ISSUE_CONFIRMED: 'Violation confirmed',
+      RESOLVED_ACCEPTED: 'Approved',
+      RESOLVED_ISSUE_CONFIRMED: 'Remark',
       RESOLVED_NO_FAULT: 'Not the fault of the handing employee',
       SUPERSEDED: 'Report outdated',
     },
     resolutions: {
-      RESOLVED_ACCEPTED: 'Issue dismissed, zone accepted',
-      RESOLVED_ISSUE_CONFIRMED: 'Violation confirmed',
+      RESOLVED_ACCEPTED: 'Approved',
+      RESOLVED_ISSUE_CONFIRMED: 'Remark',
       RESOLVED_NO_FAULT: 'Not the fault of the handing employee',
     },
     quality: {

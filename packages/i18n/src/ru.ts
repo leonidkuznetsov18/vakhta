@@ -244,14 +244,14 @@ export const ru: Messages = {
       SUBMITTED: 'Отчёт отправлен',
       ACCEPTED: 'Зона принята',
       DISPUTED: 'Есть замечание принимающего',
-      RESOLVED_ACCEPTED: 'Замечание отклонено',
-      RESOLVED_ISSUE_CONFIRMED: 'Нарушение подтверждено',
+      RESOLVED_ACCEPTED: 'Одобрено',
+      RESOLVED_ISSUE_CONFIRMED: 'Есть замечание',
       RESOLVED_NO_FAULT: 'Проблема не зависела от сдающего',
       SUPERSEDED: 'Отчёт устарел',
     },
     resolutions: {
-      RESOLVED_ACCEPTED: 'Замечание отклонено, зона принята',
-      RESOLVED_ISSUE_CONFIRMED: 'Нарушение подтверждено',
+      RESOLVED_ACCEPTED: 'Одобрено',
+      RESOLVED_ISSUE_CONFIRMED: 'Есть замечание',
       RESOLVED_NO_FAULT: 'Проблема не зависела от сдающего',
     },
     quality: {
