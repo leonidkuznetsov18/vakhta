@@ -1,3 +1,9 @@
+## [0.42.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.41.0...v0.42.0) (2026-09-08)
+
+### Features
+
+* **directories:** assign a unit's shift master from the unit form ([059ab44](https://github.com/leonidkuznetsov18/vakhta/commit/059ab44027633d4e3439bdece095903ad3a68028))
+
 ## [0.41.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.40.0...v0.41.0) (2026-09-08)
 
 ### Features
