@@ -264,7 +264,7 @@ function showPairing(error?: string): void {
   el.pairError.hidden = !error;
   el.pair.hidden = false;
   // Keep the switcher in view while pairing: it is the way back to a terminal already paired.
-  el.terminal.classList.add('open');
+  el.terminal.classList.add('pairing');
   el.pairCode.focus();
 }
 
@@ -335,7 +335,7 @@ async function fetchChallenge(): Promise<void> {
     el.repair.hidden = true;
     el.pair.hidden = true;
     el.qr.hidden = false;
-    el.terminal.classList.remove('open');
+    el.terminal.classList.remove('pairing');
   } catch {
     el.syncDot.className = 'dot bad';
     showProblem(t.kiosk.offline);
@@ -343,6 +343,24 @@ async function fetchChallenge(): Promise<void> {
 }
 
 /** Switching terminals: change the address, use that terminal's token, redraw the QR. */
+/**
+ * A select keeps focus after a mouse picks from it, and `:focus-within` would hold the switcher
+ * open long after the pointer has gone. So a pointer-driven choice gives the focus back and the
+ * title returns; a keyboard one keeps it, because that is where the person still is.
+ */
+let viaPointer = false;
+el.terminalSwitch.addEventListener('pointerdown', () => {
+  viaPointer = true;
+});
+el.terminalSwitch.addEventListener('keydown', () => {
+  viaPointer = false;
+});
+
+function releaseSwitch(): void {
+  el.terminal.classList.remove('open');
+  if (viaPointer && document.activeElement === el.terminalSwitch) el.terminalSwitch.blur();
+}
+
 el.terminalSwitch.addEventListener('change', () => {
   const value = el.terminalSwitch.value;
   if (value === ADD_TERMINAL) {
@@ -355,11 +373,14 @@ el.terminalSwitch.addEventListener('change', () => {
   deviceToken = chosen.token;
   setUrlTerminal(chosen.id);
   el.terminalName.textContent = chosen.name;
+  releaseSwitch();
   void fetchChallenge();
 });
 
-// On a touch screen there is no hover, so a tap on the name opens the list.
+// On a touch screen there is no hover, so a tap on the name opens the list; the pointer leaving
+// closes it again, whether the choice was made or abandoned.
 el.terminal.addEventListener('click', () => el.terminal.classList.add('open'));
+el.terminal.addEventListener('mouseleave', releaseSwitch);
 
 function tick(): void {
   drawClock();
