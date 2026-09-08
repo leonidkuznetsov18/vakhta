@@ -1,3 +1,9 @@
+## [0.45.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.45.1...v0.45.2) (2026-09-08)
+
+### Refactoring
+
+* **overview:** drop the disputed-handovers tile, name the master's queue ([dab9933](https://github.com/leonidkuznetsov18/vakhta/commit/dab99332ac7db046f6a0c78a06613ef304a6847d))
+
 ## [0.45.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.45.0...v0.45.1) (2026-09-08)
 
 ### Bug fixes
