@@ -178,18 +178,17 @@ describe('HandoverPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('shows a dispute with the checklist, the receiver remark and a signed photo link; the decision carries a comment', async () => {
+  it('shows the checklist, the note and a signed photo link; the decision carries a comment', async () => {
     const state = { status: 'DISPUTED' };
     const calls = mockApi(state);
     render(<HandoverPage />);
     expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
-    expect(screen.getByText('Есть замечание принимающего')).toBeTruthy();
     await clickRowAction('Подробности');
-    expect(await screen.findByText('Петрова Ольга')).toBeTruthy();
-    expect(screen.getByText(/Пятно/)).toBeTruthy();
-
     // The note is shown as text.
-    expect(screen.getByText('Проверьте станок 3')).toBeTruthy();
+    expect(await screen.findByText('Проверьте станок 3')).toBeTruthy();
+    // Nothing from the next shift is on the page any more: they stopped reviewing reports, so the
+    // block that showed their acceptance and remarks is gone with them.
+    expect(screen.queryByText('Петрова Ольга')).toBeNull();
     // Photos load as thumbnails through the signed link; each fetch is audited server-side.
     const thumb = await screen.findByAltText(/Общий вид зоны/);
     // A PHOTO item lives only in the photo block (its caption), not in the checklist.

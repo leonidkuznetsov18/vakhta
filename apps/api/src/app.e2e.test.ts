@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
-import { auditLog, desc } from '@vakhta/db';
+import { auditLog, desc, orgUnits, sites } from '@vakhta/db';
 import { DomainErrorFilter } from './common/domain-error.js';
 import { corsOptions } from './config/cors.js';
 import { ensureDockerHost } from '../test/docker.js';
@@ -185,6 +185,39 @@ describe('e2e: межі доступу панелі', () => {
     });
     expect(xlsx.statusCode).toBe(200);
     expect(xlsx.headers['content-type']).toContain('spreadsheetml');
+  });
+
+  it('creating a schedule version answers with the version itself, and it is then in the list', async () => {
+    const [site] = await db
+      .insert(sites)
+      .values({ code: 'E2E', name: 'E2E', timezone: 'Europe/Kyiv' })
+      .returning();
+    const [unit] = await db
+      .insert(orgUnits)
+      .values({ siteId: site!.id, name: 'E2E unit' })
+      .returning();
+
+    const created = await app.inject({
+      method: 'POST',
+      url: '/admin/schedules',
+      headers: as('admin@e2e.test'),
+      payload: { siteId: site!.id, orgUnitId: unit!.id, periodMonth: '2026-10' },
+    });
+    expect(created.statusCode).toBe(201);
+    // The panel names the new version in its toast and then selects it, so the body has to carry
+    // both: an empty object left "Version {no} created" on screen with nothing created.
+    const body = created.json() as { id?: string; versionNo?: number; status?: string };
+    expect(typeof body.id).toBe('string');
+    expect(body.versionNo).toBe(1);
+    expect(body.status).toBe('DRAFT');
+
+    const list = await app.inject({
+      method: 'GET',
+      url: `/admin/schedules?siteId=${site!.id}&orgUnitId=${unit!.id}&periodMonth=2026-10`,
+      headers: as('admin@e2e.test'),
+    });
+    expect(list.statusCode).toBe(200);
+    expect((list.json() as { id: string }[]).map((v) => v.id)).toContain(body.id);
   });
 
   it('невалідне тіло відхиляється 400 до бізнес-логіки; чужий origin не отримує CORS', async () => {

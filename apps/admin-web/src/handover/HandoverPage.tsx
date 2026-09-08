@@ -134,7 +134,6 @@ export function HandoverPage() {
     start: 0,
   });
   const photoUrls = useRef(new Map<string, string>());
-  const loadLink = useCallback((mediaId: string) => handoversApi.mediaLink(mediaId), []);
   // Remembers the signed links already fetched so the gallery can show every photo of the report.
   const trackedLink = useCallback(
     (mediaId: string) =>
@@ -323,46 +322,19 @@ export function HandoverPage() {
               </div>
             )}
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <h3 className="mb-2 text-sm font-semibold">{h.reviews}</h3>
-              <ul className="flex flex-col gap-2 text-sm">
-                {detail.reviews.map((r) => (
-                  <li key={r.id} className="flex flex-col gap-1">
-                    <span>
-                      <span className="tabular-nums">{formatDateTime(r.reviewedAt)}</span>{' '}
-                      <strong>{r.reviewerName}</strong>{' '}
-                      <span aria-hidden="true">{r.decision === 'ACCEPTED' ? '✅' : '⚠️'}</span>
-                      {r.category ? ` · ${r.category}` : ''}
-                      {r.comment ? ` · ${r.comment}` : ''}
-                    </span>
-                    {r.media && (
-                      <PhotoThumb
-                        media={r.media}
-                        loadLink={loadLink}
-                        label={h.photoAfter}
-                        className="w-40"
-                        onOpen={(url) =>
-                          setLightbox({ images: [{ url, label: h.photoAfter }], start: 0 })
-                        }
-                      />
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="mb-2 text-sm font-semibold">{h.resolutions}</h3>
-              <ul className="flex flex-col gap-1 text-sm">
-                {detail.resolutions.map((r) => (
-                  <li key={r.id}>
-                    <span className="tabular-nums">{formatDateTime(r.at)}</span>{' '}
-                    {all.handover.resolutions[r.decision]}
-                    <Muted> · {r.comment}</Muted>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {/* The next shift no longer reviews anything, so there is nothing to show under
+              "Acceptance by the next shift": what remains is the master's own decisions. */}
+          <div>
+            <h3 className="mb-2 text-sm font-semibold">{h.resolutions}</h3>
+            <ul className="flex flex-col gap-1 text-sm">
+              {detail.resolutions.map((r) => (
+                <li key={r.id}>
+                  <span className="tabular-nums">{formatDateTime(r.at)}</span>{' '}
+                  {all.handover.resolutions[r.decision]}
+                  <Muted> · {r.comment}</Muted>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>

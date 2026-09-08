@@ -162,10 +162,15 @@ export function SchedulePage() {
   const [pending, setPending] = useState<readonly string[]>([]);
   const [creating, setCreating] = useState(false);
   useEffect(() => {
+    // Wait for the directory: the unit is what tells us its site, and reading the preset before it
+    // arrives left the site on whatever was last used — the page then looked for versions of the
+    // right unit on the wrong site, found none, and offered to create one that the server refuses.
+    if (!org) return;
     const preset = takeSchedulePreset();
     if (!preset) return;
-    const unit = org?.orgUnits.find((u) => u.id === preset.orgUnitId);
-    if (unit) setSiteId(unit.siteId);
+    const unit = org.orgUnits.find((u) => u.id === preset.orgUnitId);
+    if (!unit) return;
+    setSiteId(unit.siteId);
     setOrgUnitId(preset.orgUnitId);
     setPending(preset.employeeIds);
   }, [org]);
@@ -282,6 +287,13 @@ export function SchedulePage() {
         periodMonth: month,
         ...(source ? { basedOnVersionId: source.id } : {}),
       });
+      // A body without the version is a broken answer, not a success: reporting "Version {no}
+      // created" over it left the page unchanged with nothing to show for the click.
+      if (!created?.id || typeof created.versionNo !== 'number') {
+        throw new Error(
+          `POST /admin/schedules answered without a version: ${JSON.stringify(created)}`,
+        );
+      }
       await loadVersions(created.id);
       notifySuccess(
         source
