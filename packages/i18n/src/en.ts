@@ -816,7 +816,7 @@ export const en: Messages = {
       apply: 'Make decision',
       approveChecklist: 'Approve',
       addRemark: 'Add a remark',
-      remarkComment: 'Comment (required)',
+      remarkComment: 'Comment (required for a remark)',
       reviewHint:
         'Approve the checklist — the employee gets a thank-you in the bot and one point. Or send a remark: the checklist is marked red and the employee gets your text; no point is given.',
       applied: 'Decision saved.',

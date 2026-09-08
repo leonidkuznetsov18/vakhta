@@ -222,6 +222,7 @@ export function HandoverPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <Button
                   type="button"
+                  variant="success"
                   disabled={busy || !canTransitionHandover(row.status, 'RESOLVED_ACCEPTED')}
                   onClick={() => resolve(row, 'RESOLVED_ACCEPTED')}
                 >

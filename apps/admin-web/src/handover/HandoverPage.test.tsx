@@ -199,7 +199,7 @@ describe('HandoverPage', () => {
     // The master decides with two buttons: a remark needs its text, an approval does not.
     const remark = screen.getByRole('button', { name: 'Замечание' });
     expect((remark as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText('Комментарий (обязательный)'), {
+    fireEvent.change(screen.getByLabelText('Комментарий (обязателен для замечания)'), {
       target: { value: 'Пятно появилось после передачи' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Замечание' }));
@@ -233,7 +233,7 @@ describe('HandoverPage', () => {
     const remark = await screen.findByRole('button', { name: 'Замечание' });
     // Empty, and under three characters, it stays shut — the employee needs to read what is wrong.
     expect((remark as HTMLButtonElement).disabled).toBe(true);
-    const field = screen.getByLabelText('Комментарий (обязательный)');
+    const field = screen.getByLabelText('Комментарий (обязателен для замечания)');
     fireEvent.change(field, { target: { value: 'ок' } });
     expect((remark as HTMLButtonElement).disabled).toBe(true);
 
