@@ -1,3 +1,9 @@
+## [0.52.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.52.1...v0.52.2) (2026-09-08)
+
+### Bug fixes
+
+* **preview:** the harness stops pretending unknown routes succeeded ([e07fd8d](https://github.com/leonidkuznetsov18/vakhta/commit/e07fd8de3da6b4e13faeabce5c15a862c56bcc51))
+
 ## [0.52.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.52.0...v0.52.1) (2026-09-08)
 
 ### Refactoring
