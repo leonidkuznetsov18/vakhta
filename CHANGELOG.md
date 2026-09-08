@@ -1,3 +1,10 @@
+## [0.49.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.49.2...v0.49.3) (2026-09-08)
+
+### Bug fixes
+
+* **handover:** an approved checklist reads "Approved", not "Issue dismissed" ([42b91ec](https://github.com/leonidkuznetsov18/vakhta/commit/42b91ecafd81073bc510c856cd4afd49b27b098c))
+* **handover:** approve is green, and the comment says when it is required ([52ad39b](https://github.com/leonidkuznetsov18/vakhta/commit/52ad39b1b917276d710d1bf0567efb1fcdadf5eb))
+
 ## [0.49.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.49.1...v0.49.2) (2026-09-08)
 
 ### Bug fixes
