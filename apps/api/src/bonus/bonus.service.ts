@@ -1114,16 +1114,22 @@ export class BonusService implements OnModuleInit {
       if (row) byId.set(r.employeeId, { ...row, points: Number(r.points) });
     }
 
-    // Each employee's current unit, so points can be filtered and rolled up per unit.
+    // Each employee's current unit, so points can be filtered and rolled up per unit. The unit also
+    // says which site the person belongs to: a site view keeps only the people who work there.
     const unitRows = await this.db
       .select({
         employeeId: employeePositions.employeeId,
         orgUnitId: employeePositions.orgUnitId,
         orgUnitName: orgUnits.name,
+        siteId: orgUnits.siteId,
       })
       .from(employeePositions)
       .innerJoin(orgUnits, eq(employeePositions.orgUnitId, orgUnits.id))
       .where(isNull(employeePositions.validTo));
+    if (siteId) {
+      const here = new Set(unitRows.filter((r) => r.siteId === siteId).map((r) => r.employeeId));
+      for (const id of [...byId.keys()]) if (!here.has(id)) byId.delete(id);
+    }
     const unitOf = new Map<string, { id: string; name: string }>();
     for (const r of unitRows) {
       if (!unitOf.has(r.employeeId))
