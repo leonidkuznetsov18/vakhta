@@ -1,3 +1,9 @@
+## [0.34.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.33.3...v0.34.0) (2026-09-08)
+
+### Features
+
+* **schedule,employees:** 4/2 rotation and bulk delete of employees ([796654f](https://github.com/leonidkuznetsov18/vakhta/commit/796654fbe2122b3c5ea5092e6ea7b7d4e08034b3))
+
 ## [0.33.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.33.2...v0.33.3) (2026-09-07)
 
 ### Bug fixes
