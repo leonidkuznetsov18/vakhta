@@ -1,3 +1,9 @@
+## [0.51.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.51.0...v0.51.1) (2026-09-08)
+
+### Bug fixes
+
+* **schedule:** the draft is created once, and an odd answer no longer dead-ends ([5126878](https://github.com/leonidkuznetsov18/vakhta/commit/5126878ee2e15fe4a81f19ea444c8d824cba6403))
+
 ## [0.51.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.50.0...v0.51.0) (2026-09-08)
 
 ### Features
