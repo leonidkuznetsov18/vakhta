@@ -203,48 +203,6 @@ export function HandoverPage() {
           </Button>
         </div>
         <div className="flex flex-col gap-4">
-          {HANDOVER_RESOLUTIONS.some((d) => canTransitionHandover(row.status, d)) && (
-            <div className="flex flex-col gap-2">
-              <p className="max-w-3xl text-sm whitespace-normal text-muted-foreground">
-                {h.reviewHint}
-              </p>
-              <FormField label={h.remarkComment}>
-                {(id) => (
-                  <Textarea
-                    rows={2}
-                    id={id}
-                    value={comments[row.id] ?? ''}
-                    onChange={(e) => setComments((c) => ({ ...c, [row.id]: e.target.value }))}
-                    minLength={3}
-                  />
-                )}
-              </FormField>
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  type="button"
-                  variant="success"
-                  disabled={busy || !canTransitionHandover(row.status, 'RESOLVED_ACCEPTED')}
-                  onClick={() => resolve(row, 'RESOLVED_ACCEPTED')}
-                >
-                  <CheckIcon aria-hidden="true" />
-                  {h.approveChecklist}
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={
-                    busy ||
-                    (comments[row.id] ?? '').trim().length < 3 ||
-                    !canTransitionHandover(row.status, 'RESOLVED_ISSUE_CONFIRMED')
-                  }
-                  onClick={() => resolve(row, 'RESOLVED_ISSUE_CONFIRMED')}
-                >
-                  <TriangleAlertIcon aria-hidden="true" />
-                  {h.addRemark}
-                </Button>
-              </div>
-            </div>
-          )}
           <div>
             <h3 className="mb-2 text-sm font-semibold">{h.checklist}</h3>
             <ul className="flex flex-col gap-1 text-sm">
@@ -323,20 +281,50 @@ export function HandoverPage() {
               </div>
             )}
           </div>
-          {/* The next shift no longer reviews anything, so there is nothing to show under
-              "Acceptance by the next shift": what remains is the master's own decisions. */}
-          <div>
-            <h3 className="mb-2 text-sm font-semibold">{h.resolutions}</h3>
-            <ul className="flex flex-col gap-1 text-sm">
-              {detail.resolutions.map((r) => (
-                <li key={r.id}>
-                  <span className="tabular-nums">{formatDateTime(r.at)}</span>{' '}
-                  {all.handover.resolutions[r.decision]}
-                  <Muted> · {r.comment}</Muted>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* The decision goes last: the checklist, the note and the photos are what it is made
+              on, and the status column already says how a report ended, so nothing repeats it here. */}
+          {HANDOVER_RESOLUTIONS.some((d) => canTransitionHandover(row.status, d)) && (
+            <div className="flex flex-col gap-2">
+              <p className="max-w-3xl text-sm whitespace-normal text-muted-foreground">
+                {h.reviewHint}
+              </p>
+              <FormField label={h.remarkComment}>
+                {(id) => (
+                  <Textarea
+                    rows={2}
+                    id={id}
+                    value={comments[row.id] ?? ''}
+                    onChange={(e) => setComments((c) => ({ ...c, [row.id]: e.target.value }))}
+                    minLength={3}
+                  />
+                )}
+              </FormField>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="success"
+                  disabled={busy || !canTransitionHandover(row.status, 'RESOLVED_ACCEPTED')}
+                  onClick={() => resolve(row, 'RESOLVED_ACCEPTED')}
+                >
+                  <CheckIcon aria-hidden="true" />
+                  {h.approveChecklist}
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={
+                    busy ||
+                    (comments[row.id] ?? '').trim().length < 3 ||
+                    !canTransitionHandover(row.status, 'RESOLVED_ISSUE_CONFIRMED')
+                  }
+                  onClick={() => resolve(row, 'RESOLVED_ISSUE_CONFIRMED')}
+                >
+                  <TriangleAlertIcon aria-hidden="true" />
+                  {h.addRemark}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
