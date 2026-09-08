@@ -727,6 +727,10 @@ export interface Messages {
       readonly checklists: string;
       readonly approved: string;
       readonly remarks: string;
+      readonly unit: string;
+      readonly unitLeaderboard: string;
+      readonly unitMasters: string;
+      readonly noUnit: string;
       readonly pointsHint: string;
       readonly evaluated: string;
       readonly pending: string;

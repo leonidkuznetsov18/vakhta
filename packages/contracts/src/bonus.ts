@@ -136,6 +136,9 @@ export const EmployeePointsView = z.object({
   employeeId: Uuid,
   employeeName: z.string(),
   personnelNumber: z.string(),
+  /** The employee's current unit, so points can be read and filtered per unit. */
+  orgUnitId: Uuid.nullable(),
+  orgUnitName: z.string().nullable(),
   shifts: z.number().int().nonnegative(),
   checklists: z.number().int().nonnegative(),
   approved: z.number().int().nonnegative(),
@@ -144,10 +147,23 @@ export const EmployeePointsView = z.object({
 });
 export type EmployeePointsView = z.infer<typeof EmployeePointsView>;
 
+/** Points rolled up per unit: which unit earned the most and who its shift masters are. */
+export const UnitPointsView = z.object({
+  orgUnitId: Uuid.nullable(),
+  orgUnitName: z.string().nullable(),
+  masters: z.array(z.string()),
+  employees: z.number().int().nonnegative(),
+  approved: z.number().int().nonnegative(),
+  remarks: z.number().int().nonnegative(),
+  points: z.number().int().nonnegative(),
+});
+export type UnitPointsView = z.infer<typeof UnitPointsView>;
+
 export const BonusPointsView = z.object({
   siteId: Uuid.nullable(),
   month: z.string(),
   employees: z.array(EmployeePointsView),
+  units: z.array(UnitPointsView),
   serverTime: IsoDateTime,
 });
 export type BonusPointsView = z.infer<typeof BonusPointsView>;

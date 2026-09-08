@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { BonusPointsView, OrgSnapshot } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
 import {
   ChartContainer,
   ChartLegend,
@@ -39,6 +39,7 @@ export function BonusPage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
   const [siteId, setSiteId] = usePersistentState('bonus.siteId', '');
   const [month, setMonth] = usePersistentState('bonus.month', currentMonth);
+  const [unitId, setUnitId] = usePersistentState('bonus.unitId', '');
   const [data, setData] = useState<BonusPointsView | null>(null);
   const { busy, error, run } = useAction();
 
@@ -57,14 +58,23 @@ export function BonusPage() {
     void run(async () => setData(await bonusApi.points(siteId, month)));
   }, [siteId, month]);
 
-  const rows = data?.employees ?? [];
+  const all = data?.employees ?? [];
+  const rows = unitId ? all.filter((r) => r.orgUnitId === unitId) : all;
+  const units = data?.units ?? [];
   const totalPoints = rows.reduce((s, r) => s + r.points, 0);
   const totalApproved = rows.reduce((s, r) => s + r.approved, 0);
   const totalRemarks = rows.reduce((s, r) => s + r.remarks, 0);
 
   const top = useMemo(() => rows.filter((r) => r.points > 0).slice(0, 10), [rows]);
   const chartConfig: ChartConfig = { points: { label: b.points, color: 'var(--chart-1)' } };
-  const chartData = top.map((r) => ({ name: r.employeeName, points: r.points }));
+  // A colour per unit, so the chart shows at a glance which unit a person belongs to.
+  const unitColour = new Map<string, string>();
+  units.forEach((u, i) => unitColour.set(u.orgUnitId ?? '', `var(--chart-${(i % 8) + 1})`));
+  const chartData = top.map((r) => ({
+    name: r.employeeName,
+    points: r.points,
+    fill: unitColour.get(r.orgUnitId ?? '') ?? 'var(--chart-1)',
+  }));
 
   const columns: Column<PointsRow>[] = [
     {
@@ -76,6 +86,12 @@ export function BonusPage() {
         </span>
       ),
       sortValue: (r) => r.employeeName,
+    },
+    {
+      key: 'unit',
+      header: b.unit,
+      cell: (r) => r.orgUnitName ?? <Muted>{b.noUnit}</Muted>,
+      sortValue: (r) => r.orgUnitName ?? '',
     },
     {
       key: 'shifts',
@@ -131,6 +147,16 @@ export function BonusPage() {
           className="w-56"
         />
         <MonthField label={b.month} value={month} onChange={setMonth} className="w-48" />
+        <SelectField
+          label={b.unit}
+          value={unitId}
+          onChange={setUnitId}
+          placeholder="—"
+          options={units
+            .filter((u) => u.orgUnitId !== null)
+            .map((u) => ({ value: u.orgUnitId as string, label: u.orgUnitName ?? '' }))}
+          className="w-56"
+        />
       </Toolbar>
       <Feedback error={error ? describeError(error) : null} />
 
@@ -145,6 +171,39 @@ export function BonusPage() {
           />
           <Tile label={b.points} value={totalPoints} />
         </dl>
+      </Section>
+
+      <Section title={b.unitLeaderboard}>
+        {units.length === 0 ? (
+          <Muted>{b.noLeaderboard}</Muted>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {units.map((u, i) => (
+              <li
+                key={u.orgUnitId ?? 'none'}
+                className="flex flex-wrap items-center gap-3 rounded-md border px-3 py-2"
+              >
+                <span
+                  aria-hidden="true"
+                  className="size-3 shrink-0 rounded-full"
+                  style={{ background: `var(--chart-${(i % 8) + 1})` }}
+                />
+                <span className="font-medium">{u.orgUnitName ?? b.noUnit}</span>
+                <Muted>
+                  {b.unitMasters}: {u.masters.length > 0 ? u.masters.join(', ') : '—'}
+                </Muted>
+                <span className="ml-auto flex items-center gap-4 tabular-nums">
+                  <span>
+                    {b.approved}: {u.approved}
+                  </span>
+                  <span className="font-semibold">
+                    {b.points}: {u.points}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </Section>
 
       <Section title={b.leaderboard} className="print:break-inside-avoid">
@@ -173,7 +232,11 @@ export function BonusPage() {
               />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar dataKey="points" fill="var(--color-points)" radius={4} />
+              <Bar dataKey="points" radius={4}>
+                {chartData.map((d) => (
+                  <Cell key={d.name} fill={d.fill} />
+                ))}
+              </Bar>
             </BarChart>
           </ChartContainer>
         )}

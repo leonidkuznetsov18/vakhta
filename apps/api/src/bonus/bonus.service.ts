@@ -13,6 +13,7 @@ import {
   desc,
   domainEvents,
   downtimeReports,
+  employeePositions,
   employees,
   eq,
   handoverMedia,
@@ -26,6 +27,8 @@ import {
   ne,
   or,
   orgUnits,
+  webUserRoles,
+  authUser,
   presenceSessions,
   reasonCodes,
   requests,
@@ -66,6 +69,7 @@ import type {
   MyScoresView,
   BonusPointsView,
   EmployeePointsView,
+  UnitPointsView,
   SecondApprovalCommand,
   SetBaseAmountsCommand,
   ShiftScoreView,
@@ -1064,6 +1068,8 @@ export class BonusService implements OnModuleInit {
         employeeId: r.employeeId,
         employeeName: r.name,
         personnelNumber: r.personnelNumber,
+        orgUnitId: null,
+        orgUnitName: null,
         shifts: Number(r.shifts),
         checklists: 0,
         approved: 0,
@@ -1076,6 +1082,8 @@ export class BonusService implements OnModuleInit {
         employeeId: r.employeeId,
         employeeName: r.name,
         personnelNumber: r.personnelNumber,
+        orgUnitId: null,
+        orgUnitName: null,
         shifts: 0,
         checklists: 0,
         approved: 0,
@@ -1088,10 +1096,72 @@ export class BonusService implements OnModuleInit {
       row.points = Number(r.approved);
       byId.set(r.employeeId, row);
     }
+    // Each employee's current unit, so points can be filtered and rolled up per unit.
+    const unitRows = await this.db
+      .select({
+        employeeId: employeePositions.employeeId,
+        orgUnitId: employeePositions.orgUnitId,
+        orgUnitName: orgUnits.name,
+      })
+      .from(employeePositions)
+      .innerJoin(orgUnits, eq(employeePositions.orgUnitId, orgUnits.id))
+      .where(isNull(employeePositions.validTo));
+    const unitOf = new Map<string, { id: string; name: string }>();
+    for (const r of unitRows) {
+      if (!unitOf.has(r.employeeId))
+        unitOf.set(r.employeeId, { id: r.orgUnitId, name: r.orgUnitName });
+    }
+    for (const [id, row] of byId) {
+      const unit = unitOf.get(id);
+      byId.set(id, {
+        ...row,
+        orgUnitId: unit?.id ?? null,
+        orgUnitName: unit?.name ?? null,
+      });
+    }
+
+    // Shift masters per unit, to show who is responsible for the unit's points.
+    const masterRows = await this.db
+      .select({ scopeId: webUserRoles.scopeId, name: authUser.name })
+      .from(webUserRoles)
+      .innerJoin(authUser, eq(webUserRoles.userId, authUser.id))
+      .where(and(eq(webUserRoles.role, 'SHIFT_MASTER'), eq(webUserRoles.scopeType, 'ORG_UNIT')))
+      .orderBy(asc(authUser.name));
+    const mastersByUnit = new Map<string, string[]>();
+    for (const m of masterRows) {
+      if (!m.scopeId) continue;
+      mastersByUnit.set(m.scopeId, [...(mastersByUnit.get(m.scopeId) ?? []), m.name]);
+    }
+
     const employeesView = [...byId.values()].sort(
       (a, b) => b.points - a.points || a.employeeName.localeCompare(b.employeeName),
     );
-    return { siteId, month, employees: employeesView, serverTime: now.toISOString() };
+    const unitAgg = new Map<string, UnitPointsView>();
+    for (const e of employeesView) {
+      const key = e.orgUnitId ?? '';
+      const row =
+        unitAgg.get(key) ??
+        ({
+          orgUnitId: e.orgUnitId,
+          orgUnitName: e.orgUnitName,
+          masters: e.orgUnitId ? (mastersByUnit.get(e.orgUnitId) ?? []) : [],
+          employees: 0,
+          approved: 0,
+          remarks: 0,
+          points: 0,
+        } satisfies UnitPointsView);
+      unitAgg.set(key, {
+        ...row,
+        employees: row.employees + 1,
+        approved: row.approved + e.approved,
+        remarks: row.remarks + e.remarks,
+        points: row.points + e.points,
+      });
+    }
+    const units = [...unitAgg.values()].sort(
+      (a, b) => b.points - a.points || (a.orgUnitName ?? '').localeCompare(b.orgUnitName ?? ''),
+    );
+    return { siteId, month, employees: employeesView, units, serverTime: now.toISOString() };
   }
 
   async period(

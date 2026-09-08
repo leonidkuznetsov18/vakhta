@@ -18,11 +18,24 @@ const points = {
   siteId: SITE,
   month: '2026-10',
   serverTime: '2026-10-05T10:00:00.000Z',
+  units: [
+    {
+      orgUnitId: 'u1',
+      orgUnitName: 'Цех фасовки',
+      masters: ['Ткач Олена'],
+      employees: 2,
+      approved: 5,
+      remarks: 1,
+      points: 5,
+    },
+  ],
   employees: [
     {
       employeeId: 'e1',
       employeeName: 'Кузнецов Леонид',
       personnelNumber: '0001',
+      orgUnitId: 'u1',
+      orgUnitName: 'Цех фасовки',
       shifts: 4,
       checklists: 4,
       approved: 3,
@@ -33,6 +46,8 @@ const points = {
       employeeId: 'e2',
       employeeName: 'Ткач Олена',
       personnelNumber: '0002',
+      orgUnitId: 'u1',
+      orgUnitName: 'Цех фасовки',
       shifts: 2,
       checklists: 2,
       approved: 2,

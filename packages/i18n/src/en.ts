@@ -866,6 +866,10 @@ export const en: Messages = {
       checklists: 'Checklists',
       approved: 'Approved',
       remarks: 'Remarks',
+      unit: 'Unit',
+      unitLeaderboard: 'Units by points',
+      unitMasters: 'Shift master',
+      noUnit: 'No unit',
       pointsHint:
         'One point for every checklist the shift master approves. Read-only: points are earned in the bot and confirmed at the zone handover.',
       evaluated: 'Evaluated',
