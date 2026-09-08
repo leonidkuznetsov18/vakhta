@@ -1220,7 +1220,12 @@ export class BonusService implements OnModuleInit {
    * checklist points and month-end awards so the shape of a period is readable at a glance.
    */
   async history(q: BonusHistoryQuery, now: Date = new Date()): Promise<BonusHistoryView> {
-    const fmt = q.groupBy === 'day' ? 'YYYY-MM-DD' : q.groupBy === 'month' ? 'YYYY-MM' : 'YYYY';
+    // The pattern is written into the statement, not bound: a bound parameter makes the select and
+    // the group-by two different expressions and Postgres refuses the query. The value comes from a
+    // closed enum, never from the caller's text.
+    const fmt = sql.raw(
+      q.groupBy === 'day' ? `'YYYY-MM-DD'` : q.groupBy === 'month' ? `'YYYY-MM'` : `'YYYY'`,
+    );
     // Month-end awards carry no business date; they belong to the last day of their month.
     const day = sql<string>`coalesce(${bonusPointAwards.businessDate}::text, ${bonusPointAwards.month} || '-01')`;
     const conditions = [sql`${day} >= ${q.from}`, sql`${day} <= ${q.to}`];
@@ -1240,8 +1245,9 @@ export class BonusService implements OnModuleInit {
       })
       .from(bonusPointAwards)
       .where(and(...conditions))
-      .groupBy(sql`to_char(${day}::date, ${fmt})`)
-      .orderBy(sql`to_char(${day}::date, ${fmt})`);
+      // Grouping by the output column keeps the two expressions provably identical.
+      .groupBy(sql`1`)
+      .orderBy(sql`1`);
     return {
       groupBy: q.groupBy,
       buckets: rows.map((r) => ({

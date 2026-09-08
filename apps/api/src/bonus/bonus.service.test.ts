@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   activityIntervals,
   bonusAdjustments,
+  bonusPointAwards,
   bonusShiftScores,
   employeePositions,
   employees,
@@ -271,6 +272,63 @@ describe('bonus: оцінка зміни, коригування, закритт
       .returning();
     expect((await bonus.points(other!.id, month)).employees).toEqual([]);
     expect((await bonus.points(siteId, month)).employees).toHaveLength(1);
+  });
+
+  it('the history tab groups the ledger by day, month and year, filtered by site and unit', async () => {
+    const [unit] = await testDb.db
+      .select()
+      .from(orgUnits)
+      .where(eq(orgUnits.siteId, siteId))
+      .limit(1);
+    await testDb.db.insert(bonusPointAwards).values([
+      {
+        employeeId: ivanov,
+        orgUnitId: unit!.id,
+        month: '2026-08',
+        businessDate: '2026-08-04',
+        kind: 'CHECKLIST_APPROVED',
+        points: 1,
+      },
+      {
+        employeeId: ivanov,
+        orgUnitId: unit!.id,
+        month: '2026-08',
+        businessDate: '2026-08-04',
+        kind: 'UNIT_OF_MONTH',
+        points: 1,
+      },
+      {
+        employeeId: ivanov,
+        orgUnitId: unit!.id,
+        month: '2026-09',
+        businessDate: '2026-09-02',
+        kind: 'CHECKLIST_APPROVED',
+        points: 1,
+      },
+    ]);
+    const range = { from: '2026-01-01', to: '2026-12-31' } as const;
+
+    // Every grouping runs the same aggregate; a bound format pattern used to break the GROUP BY.
+    const byDay = await bonus.history({ ...range, groupBy: 'day' });
+    expect(byDay.buckets.map((b) => b.key)).toEqual(['2026-08-04', '2026-09-02']);
+    expect(byDay.buckets[0]).toMatchObject({ points: 2, checklistPoints: 1, awardPoints: 1 });
+
+    const byMonth = await bonus.history({ ...range, groupBy: 'month' });
+    expect(byMonth.buckets.map((b) => b.key)).toEqual(['2026-08', '2026-09']);
+
+    const byYear = await bonus.history({ ...range, groupBy: 'year' });
+    expect(byYear.buckets).toEqual([
+      { key: '2026', points: 3, checklistPoints: 2, awardPoints: 1, employees: 1 },
+    ]);
+
+    // Filters narrow the same query without changing its shape.
+    expect((await bonus.history({ ...range, groupBy: 'year', siteId })).buckets).toHaveLength(1);
+    expect(
+      (await bonus.history({ ...range, groupBy: 'year', orgUnitId: unit!.id })).buckets,
+    ).toHaveLength(1);
+    expect(
+      (await bonus.history({ from: '2026-09-01', to: '2026-09-30', groupBy: 'day' })).buckets,
+    ).toHaveLength(1);
   });
 
   it('T-16: запізнення знижує лише критерій початку; затверджене звернення LATE відновлює бали', async () => {
