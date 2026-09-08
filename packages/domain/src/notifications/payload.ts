@@ -31,6 +31,8 @@ export const NOTIFICATION_TEMPLATES = [
   'BONUS_PERIOD_CLOSED',
   'BONUS_ADJUSTED',
   'BONUS_REVIEWED',
+  'BONUS_MONTH_CARD',
+  'BONUS_MONTH_MASTER',
 ] as const;
 export type NotificationTemplate = (typeof NOTIFICATION_TEMPLATES)[number];
 

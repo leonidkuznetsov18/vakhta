@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { businessDateOf, formatLocal, inferShiftFromArrival, planInstants } from './plan.js';
+import {
+  businessDateOf,
+  formatLocal,
+  inferShiftFromArrival,
+  planInstants,
+  previousMonth,
+} from './plan.js';
 import {
   earlyLeaveMinutes,
   lateMinutes,
@@ -133,5 +139,20 @@ describe('inferShiftFromArrival (unscheduled QR open)', () => {
 
   it('no templates means nothing can be inferred', () => {
     expect(inferShiftFromArrival([], new Date('2026-09-07T04:30:00Z'), KYIV)).toBeNull();
+  });
+});
+
+describe('previousMonth', () => {
+  it('steps back one month', () => {
+    expect(previousMonth('2026-09')).toBe('2026-08');
+    expect(previousMonth('2026-10')).toBe('2026-09');
+  });
+
+  it('rolls January back into the previous December', () => {
+    expect(previousMonth('2026-01')).toBe('2025-12');
+  });
+
+  it('rejects a month it cannot read', () => {
+    expect(() => previousMonth('nonsense')).toThrow();
   });
 });

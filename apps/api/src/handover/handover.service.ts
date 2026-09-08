@@ -7,6 +7,7 @@ import {
   desc,
   employees,
   eq,
+  employeePositions,
   gte,
   handoverMedia,
   handoverRecords,
@@ -14,6 +15,7 @@ import {
   handoverReviews,
   idempotencyKeys,
   inArray,
+  isNull,
   lte,
   mediaObjects,
   ne,
@@ -21,6 +23,7 @@ import {
   reasonCodes,
   responsibilityZones,
   scheduleVersions,
+  bonusPointAwards,
   shiftAssignments,
   shiftSessions,
   sql,
@@ -678,6 +681,37 @@ export class HandoverService {
         after: { status: cmd.decision },
         reason: cmd.comment,
       });
+      // An approved checklist is worth exactly one point; the ledger row carries the month and the
+      // day so the history reads by day, month or year, and the handover id keeps it idempotent.
+      if (cmd.decision === 'RESOLVED_ACCEPTED') {
+        const [shift] = await tx
+          .select({
+            businessDate: shiftSessions.businessDate,
+            orgUnitId: shiftAssignments.orgUnitId,
+          })
+          .from(shiftSessions)
+          .leftJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
+          .where(eq(shiftSessions.id, record.shiftSessionId))
+          .limit(1);
+        const businessDate = shift?.businessDate ?? null;
+        // An unscheduled shift has no assignment, so the unit comes from the employee's current
+        // position; without it the point would never count toward any unit of the month.
+        const orgUnitId = shift?.orgUnitId ?? (await this.currentUnitId(tx, record.submittedBy));
+        await tx
+          .insert(bonusPointAwards)
+          .values({
+            employeeId: record.submittedBy,
+            orgUnitId,
+            month: (businessDate ?? now.toISOString().slice(0, 10)).slice(0, 7),
+            businessDate,
+            kind: 'CHECKLIST_APPROVED',
+            points: 1,
+            handoverId: record.id,
+            awardedAt: now,
+          })
+          .onConflictDoNothing({ target: bonusPointAwards.handoverId });
+      }
+
       const zoneName = await this.zoneName(tx, record.zoneId);
       // The master's decision reaches the employee in plain words: an approval thanks them and
       // names the point they earned; a confirmed issue carries the remark text itself.
@@ -944,6 +978,16 @@ export class HandoverService {
       .where(eq(shiftSessions.id, sessionId))
       .limit(1);
     return row?.planEndAt ?? null;
+  }
+
+  /** The unit the employee is assigned to right now; null while they have no open position. */
+  private async currentUnitId(tx: DbOrTx, employeeId: string): Promise<string | null> {
+    const [row] = await tx
+      .select({ orgUnitId: employeePositions.orgUnitId })
+      .from(employeePositions)
+      .where(and(eq(employeePositions.employeeId, employeeId), isNull(employeePositions.validTo)))
+      .limit(1);
+    return row?.orgUnitId ?? null;
   }
 
   private async zoneName(tx: DbOrTx, zoneId: string | null): Promise<string | null> {

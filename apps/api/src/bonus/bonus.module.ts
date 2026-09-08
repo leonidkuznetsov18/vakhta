@@ -6,6 +6,8 @@ import { IncidentsModule } from '../incidents/incidents.module.js';
 import { RequestsModule } from '../requests/requests.module.js';
 import { ShiftModule } from '../shift/shift.module.js';
 import { AdminBonusController } from './admin-bonus.controller.js';
+import { BonusMonthCloseService } from './bonus-month-close.service.js';
+import { BonusMonthService } from './bonus-month.service.js';
 import { BONUS_OPTIONS, BonusService, type BonusOptions } from './bonus.service.js';
 
 @Module({
@@ -13,6 +15,8 @@ import { BONUS_OPTIONS, BonusService, type BonusOptions } from './bonus.service.
   controllers: [AdminBonusController],
   providers: [
     BonusService,
+    BonusMonthService,
+    BonusMonthCloseService,
     {
       provide: BONUS_OPTIONS,
       useFactory: (config: ConfigService<Env, true>): BonusOptions => ({
@@ -21,6 +25,6 @@ import { BONUS_OPTIONS, BonusService, type BonusOptions } from './bonus.service.
       inject: [ConfigService],
     },
   ],
-  exports: [BonusService],
+  exports: [BonusService, BonusMonthService],
 })
 export class BonusModule {}

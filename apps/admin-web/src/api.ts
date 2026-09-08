@@ -414,6 +414,7 @@ export const requestsApi = {
 import type {
   AdjustScoreCommand,
   BonusPeriodView,
+  BonusHistoryView,
   BonusPointsView,
   BonusRuleVersionView,
   ReviewScoreCommand,
@@ -426,6 +427,13 @@ import type {
 export const bonusApi = {
   points: (siteId: string, month: string) =>
     apiFetch<BonusPointsView>(`/admin/bonus/points${query({ siteId, month })}`),
+  history: (q: {
+    from: string;
+    to: string;
+    groupBy: 'day' | 'month' | 'year';
+    siteId?: string;
+    orgUnitId?: string;
+  }) => apiFetch<BonusHistoryView>(`/admin/bonus/history${query(q)}`),
   period: (siteId: string, month: string, employeeId?: string) =>
     apiFetch<BonusPeriodView>(`/admin/bonus/period${query({ siteId, month, employeeId })}`),
   rules: () => apiFetch<BonusRuleVersionView[]>('/admin/bonus/rules'),

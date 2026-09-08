@@ -333,6 +333,29 @@ window.fetch = async (input: RequestInfo | URL) => {
           points: 3,
         },
       ],
+      employeeOfMonth: { id: 'e1', name: 'Гринько Юлія', points: 5 },
+      unitOfMonth: { id: 'u1', name: 'Цех Крышки', points: 7 },
+      masterOfMonth: { id: 'u1', name: 'Ткач Олена', points: 7 },
+    });
+  }
+  if (path === '/admin/bonus/history') {
+    const bucket = (key: string, points: number, awards: number, employees: number) => ({
+      key,
+      points,
+      checklistPoints: points - awards,
+      awardPoints: awards,
+      employees,
+    });
+    return json({
+      groupBy: 'month',
+      serverTime: new Date().toISOString(),
+      buckets: [
+        bucket('2026-05', 18, 3, 6),
+        bucket('2026-06', 24, 4, 7),
+        bucket('2026-07', 21, 3, 7),
+        bucket('2026-08', 29, 4, 8),
+        bucket('2026-09', 10, 0, 3),
+      ],
     });
   }
   if (path === '/admin/reports/hours') return json(hoursReport);

@@ -11,9 +11,12 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import type { BonusRules } from '@vakhta/domain';
+import { date } from 'drizzle-orm/pg-core';
 import { employees } from './identity.js';
-import { sites } from './org.js';
+import { orgUnits, sites } from './org.js';
+import { handoverRecords } from './handover.js';
 import { shiftSessions } from './shift.js';
 
 export const bonusScoreStatus = pgEnum('bonus_score_status', [
@@ -165,4 +168,50 @@ export const bonusPeriodResults = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex('bonus_period_results_uq').on(t.periodId, t.employeeId)],
+);
+
+export const pointAwardKind = pgEnum('point_award_kind', [
+  /** The shift master approved the employee's checklist: one point. */
+  'CHECKLIST_APPROVED',
+  /** Everyone in the unit of the month gets an extra point. */
+  'UNIT_OF_MONTH',
+  /** The shift master of the unit of the month gets an extra point. */
+  'MASTER_OF_MONTH',
+]);
+
+/**
+ * The points ledger (2026-09-08). Every point ever earned is one append-only row, so the month's
+ * total resets naturally (rows carry their month) while the whole history stays readable by day,
+ * month or year. A checklist point is tied to its handover, which keeps awarding idempotent.
+ */
+export const bonusPointAwards = pgTable(
+  'bonus_point_awards',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    employeeId: uuid('employee_id')
+      .notNull()
+      .references(() => employees.id),
+    /** The employee's unit when the point was earned, so unit totals stay stable afterwards. */
+    orgUnitId: uuid('org_unit_id').references(() => orgUnits.id),
+    /** 'YYYY-MM': the period the point belongs to. */
+    month: text('month').notNull(),
+    /** The day it was earned; null for month-end awards. */
+    businessDate: date('business_date'),
+    kind: pointAwardKind('kind').notNull(),
+    points: integer('points').notNull().default(1),
+    handoverId: uuid('handover_id').references(() => handoverRecords.id),
+    note: text('note'),
+    awardedAt: timestamp('awarded_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('bonus_point_awards_month_idx').on(t.month),
+    index('bonus_point_awards_employee_month_idx').on(t.employeeId, t.month),
+    index('bonus_point_awards_unit_month_idx').on(t.orgUnitId, t.month),
+    /** One point per approved checklist, however many times the approval is replayed. */
+    uniqueIndex('bonus_point_awards_handover_uq').on(t.handoverId),
+    /** One month-end award of each kind per employee, however many times the month is closed. */
+    uniqueIndex('bonus_point_awards_month_kind_uq')
+      .on(t.employeeId, t.month, t.kind)
+      .where(sql`${t.kind} <> 'CHECKLIST_APPROVED'`),
+  ],
 );

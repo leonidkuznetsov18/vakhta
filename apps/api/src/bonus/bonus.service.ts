@@ -8,6 +8,7 @@ import {
   bonusCriteriaResults,
   bonusPeriodResults,
   bonusPeriods,
+  bonusPointAwards,
   bonusRuleVersions,
   bonusShiftScores,
   desc,
@@ -68,7 +69,10 @@ import type {
   EmployeeMonthView,
   MyScoresView,
   BonusPointsView,
+  BonusHistoryQuery,
+  BonusHistoryView,
   EmployeePointsView,
+  MonthWinnerView,
   UnitPointsView,
   SecondApprovalCommand,
   SetBaseAmountsCommand,
@@ -1093,9 +1097,23 @@ export class BonusService implements OnModuleInit {
       row.checklists = Number(r.checklists);
       row.approved = Number(r.approved);
       row.remarks = Number(r.remarks);
-      row.points = Number(r.approved);
       byId.set(r.employeeId, row);
     }
+    // Points come from the ledger, not from counting handovers: month-end awards live there too and
+    // the month's total resets by itself because every row carries its month.
+    const pointRows = await this.db
+      .select({
+        employeeId: bonusPointAwards.employeeId,
+        points: sql<number>`sum(${bonusPointAwards.points})::int`,
+      })
+      .from(bonusPointAwards)
+      .where(eq(bonusPointAwards.month, month))
+      .groupBy(bonusPointAwards.employeeId);
+    for (const r of pointRows) {
+      const row = byId.get(r.employeeId);
+      if (row) byId.set(r.employeeId, { ...row, points: Number(r.points) });
+    }
+
     // Each employee's current unit, so points can be filtered and rolled up per unit.
     const unitRows = await this.db
       .select({
@@ -1161,7 +1179,68 @@ export class BonusService implements OnModuleInit {
     const units = [...unitAgg.values()].sort(
       (a, b) => b.points - a.points || (a.orgUnitName ?? '').localeCompare(b.orgUnitName ?? ''),
     );
-    return { siteId, month, employees: employeesView, units, serverTime: now.toISOString() };
+    const topEmployee = employeesView.find((e) => e.points > 0) ?? null;
+    const topUnit = units.find((u) => u.points > 0 && u.orgUnitId !== null) ?? null;
+    const employeeOfMonth: MonthWinnerView | null = topEmployee
+      ? { name: topEmployee.employeeName, points: topEmployee.points, id: topEmployee.employeeId }
+      : null;
+    const unitOfMonth: MonthWinnerView | null = topUnit
+      ? { name: topUnit.orgUnitName ?? '', points: topUnit.points, id: topUnit.orgUnitId }
+      : null;
+    const masterOfMonth: MonthWinnerView | null =
+      topUnit && topUnit.masters.length > 0
+        ? { name: topUnit.masters.join(', '), points: topUnit.points, id: topUnit.orgUnitId }
+        : null;
+    return {
+      siteId,
+      month,
+      employees: employeesView,
+      units,
+      employeeOfMonth,
+      unitOfMonth,
+      masterOfMonth,
+      serverTime: now.toISOString(),
+    };
+  }
+
+  /**
+   * Points history for the "History" tab: totals per day, month or year from the ledger, split into
+   * checklist points and month-end awards so the shape of a period is readable at a glance.
+   */
+  async history(q: BonusHistoryQuery, now: Date = new Date()): Promise<BonusHistoryView> {
+    const fmt = q.groupBy === 'day' ? 'YYYY-MM-DD' : q.groupBy === 'month' ? 'YYYY-MM' : 'YYYY';
+    // Month-end awards carry no business date; they belong to the last day of their month.
+    const day = sql<string>`coalesce(${bonusPointAwards.businessDate}::text, ${bonusPointAwards.month} || '-01')`;
+    const conditions = [sql`${day} >= ${q.from}`, sql`${day} <= ${q.to}`];
+    if (q.siteId)
+      conditions.push(
+        sql`${bonusPointAwards.orgUnitId} in (select ${orgUnits.id} from ${orgUnits} where ${orgUnits.siteId} = ${q.siteId})`,
+      );
+    if (q.employeeId) conditions.push(eq(bonusPointAwards.employeeId, q.employeeId));
+    if (q.orgUnitId) conditions.push(eq(bonusPointAwards.orgUnitId, q.orgUnitId));
+    const rows = await this.db
+      .select({
+        key: sql<string>`to_char(${day}::date, ${fmt})`,
+        points: sql<number>`sum(${bonusPointAwards.points})::int`,
+        checklistPoints: sql<number>`sum(${bonusPointAwards.points}) filter (where ${bonusPointAwards.kind} = 'CHECKLIST_APPROVED')::int`,
+        awardPoints: sql<number>`sum(${bonusPointAwards.points}) filter (where ${bonusPointAwards.kind} <> 'CHECKLIST_APPROVED')::int`,
+        employees: sql<number>`count(distinct ${bonusPointAwards.employeeId})::int`,
+      })
+      .from(bonusPointAwards)
+      .where(and(...conditions))
+      .groupBy(sql`to_char(${day}::date, ${fmt})`)
+      .orderBy(sql`to_char(${day}::date, ${fmt})`);
+    return {
+      groupBy: q.groupBy,
+      buckets: rows.map((r) => ({
+        key: r.key,
+        points: Number(r.points ?? 0),
+        checklistPoints: Number(r.checklistPoints ?? 0),
+        awardPoints: Number(r.awardPoints ?? 0),
+        employees: Number(r.employees ?? 0),
+      })),
+      serverTime: now.toISOString(),
+    };
   }
 
   async period(

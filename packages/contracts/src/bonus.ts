@@ -159,13 +159,53 @@ export const UnitPointsView = z.object({
 });
 export type UnitPointsView = z.infer<typeof UnitPointsView>;
 
+/** The three "of the month" awards shown as a rating on top of the points table. */
+export const MonthWinnerView = z.object({
+  name: z.string(),
+  points: z.number().int().nonnegative(),
+  /** Employee or unit id, depending on the award. */
+  id: Uuid.nullable(),
+});
+export type MonthWinnerView = z.infer<typeof MonthWinnerView>;
+
 export const BonusPointsView = z.object({
   siteId: Uuid.nullable(),
   month: z.string(),
   employees: z.array(EmployeePointsView),
   units: z.array(UnitPointsView),
+  /** Top employee, top unit and that unit's shift master for the month; null when nobody scored. */
+  employeeOfMonth: MonthWinnerView.nullable(),
+  unitOfMonth: MonthWinnerView.nullable(),
+  masterOfMonth: MonthWinnerView.nullable(),
   serverTime: IsoDateTime,
 });
+
+/** Points history: totals per day, month or year, for the "History" tab. */
+export const BonusHistoryQuery = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  groupBy: z.enum(['day', 'month', 'year']).default('month'),
+  siteId: Uuid.optional(),
+  employeeId: Uuid.optional(),
+  orgUnitId: Uuid.optional(),
+});
+export type BonusHistoryQuery = z.infer<typeof BonusHistoryQuery>;
+
+export const BonusHistoryBucket = z.object({
+  key: z.string(),
+  points: z.number().int().nonnegative(),
+  checklistPoints: z.number().int().nonnegative(),
+  awardPoints: z.number().int().nonnegative(),
+  employees: z.number().int().nonnegative(),
+});
+export type BonusHistoryBucket = z.infer<typeof BonusHistoryBucket>;
+
+export const BonusHistoryView = z.object({
+  groupBy: z.enum(['day', 'month', 'year']),
+  buckets: z.array(BonusHistoryBucket),
+  serverTime: IsoDateTime,
+});
+export type BonusHistoryView = z.infer<typeof BonusHistoryView>;
 export type BonusPointsView = z.infer<typeof BonusPointsView>;
 
 export const EmployeeMonthView = z.object({

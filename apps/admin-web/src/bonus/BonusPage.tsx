@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { BonusPointsView, OrgSnapshot } from '@vakhta/contracts';
+import type { BonusHistoryView, BonusPointsView, OrgSnapshot } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
 import {
@@ -10,7 +10,9 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, type Column } from '@/components/app/data-table';
+import { DateField } from '@/components/app/date-picker';
 import { Feedback, useAction } from '@/components/app/feedback';
 import { MonthField } from '@/components/app/date-picker';
 import { SelectField } from '@/components/app/fields';
@@ -41,6 +43,14 @@ export function BonusPage() {
   const [month, setMonth] = usePersistentState('bonus.month', currentMonth);
   const [unitId, setUnitId] = usePersistentState('bonus.unitId', '');
   const [data, setData] = useState<BonusPointsView | null>(null);
+  const [tab, setTab] = usePersistentState<'points' | 'history'>('bonus.tab', 'points');
+  const [groupBy, setGroupBy] = usePersistentState<'day' | 'month' | 'year'>(
+    'bonus.groupBy',
+    'month',
+  );
+  const [from, setFrom] = usePersistentState('bonus.from', `${new Date().getFullYear()}-01-01`);
+  const [to, setTo] = usePersistentState('bonus.to', new Date().toISOString().slice(0, 10));
+  const [history, setHistory] = useState<BonusHistoryView | null>(null);
   const { busy, error, run } = useAction();
 
   useEffect(() => {
@@ -57,6 +67,21 @@ export function BonusPage() {
     if (!siteId) return;
     void run(async () => setData(await bonusApi.points(siteId, month)));
   }, [siteId, month]);
+
+  useEffect(() => {
+    if (tab !== 'history') return;
+    void run(async () =>
+      setHistory(
+        await bonusApi.history({
+          from,
+          to,
+          groupBy,
+          ...(siteId ? { siteId } : {}),
+          ...(unitId ? { orgUnitId: unitId } : {}),
+        }),
+      ),
+    );
+  }, [tab, from, to, groupBy, siteId, unitId]);
 
   const all = data?.employees ?? [];
   const rows = unitId ? all.filter((r) => r.orgUnitId === unitId) : all;
@@ -75,6 +100,34 @@ export function BonusPage() {
     points: r.points,
     fill: unitColour.get(r.orgUnitId ?? '') ?? 'var(--chart-1)',
   }));
+
+  const historyColumns: Column<BonusHistoryView['buckets'][number]>[] = [
+    { key: 'key', header: b.historyPeriod, cell: (r) => r.key },
+    {
+      key: 'points',
+      header: b.historyPoints,
+      align: 'right',
+      cell: (r) => <span className="font-semibold tabular-nums">{r.points}</span>,
+    },
+    {
+      key: 'checklists',
+      header: b.historyChecklists,
+      align: 'right',
+      cell: (r) => <span className="tabular-nums">{r.checklistPoints}</span>,
+    },
+    {
+      key: 'awards',
+      header: b.historyAwards,
+      align: 'right',
+      cell: (r) => <span className="tabular-nums">{r.awardPoints}</span>,
+    },
+    {
+      key: 'employees',
+      header: b.historyEmployees,
+      align: 'right',
+      cell: (r) => <span className="tabular-nums">{r.employees}</span>,
+    },
+  ];
 
   const columns: Column<PointsRow>[] = [
     {
@@ -146,7 +199,6 @@ export function BonusPage() {
           options={org?.sites.map((s) => ({ value: s.id, label: s.name })) ?? []}
           className="w-56"
         />
-        <MonthField label={b.month} value={month} onChange={setMonth} className="w-48" />
         <SelectField
           label={b.unit}
           value={unitId}
@@ -160,99 +212,193 @@ export function BonusPage() {
       </Toolbar>
       <Feedback error={error ? describeError(error) : null} />
 
-      <Section title={b.summary} hint={b.pointsHint}>
-        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Tile label={b.employee} value={rows.length} />
-          <Tile label={b.approved} value={totalApproved} />
-          <Tile
-            label={b.remarks}
-            value={totalRemarks}
-            tone={totalRemarks > 0 ? 'warning' : undefined}
-          />
-          <Tile label={b.points} value={totalPoints} />
-        </dl>
-      </Section>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as 'points' | 'history')} className="gap-4">
+        <TabsList>
+          <TabsTrigger value="points">{b.tabPoints}</TabsTrigger>
+          <TabsTrigger value="history">{b.tabHistory}</TabsTrigger>
+        </TabsList>
 
-      <Section title={b.unitLeaderboard}>
-        {units.length === 0 ? (
-          <Muted>{b.noLeaderboard}</Muted>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {units.map((u, i) => (
-              <li
-                key={u.orgUnitId ?? 'none'}
-                className="flex flex-wrap items-center gap-3 rounded-md border px-3 py-2"
-              >
-                <span
-                  aria-hidden="true"
-                  className="size-3 shrink-0 rounded-full"
-                  style={{ background: `var(--chart-${(i % 8) + 1})` }}
-                />
-                <span className="font-medium">{u.orgUnitName ?? b.noUnit}</span>
-                <Muted>
-                  {b.unitMasters}: {u.masters.length > 0 ? u.masters.join(', ') : '—'}
-                </Muted>
-                <span className="ml-auto flex items-center gap-4 tabular-nums">
-                  <span>
-                    {b.approved}: {u.approved}
-                  </span>
-                  <span className="font-semibold">
-                    {b.points}: {u.points}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
+        <TabsContent value="points" className="flex flex-col gap-4">
+          <Toolbar>
+            <MonthField label={b.month} value={month} onChange={setMonth} className="w-48" />
+          </Toolbar>
+          {(data?.employeeOfMonth || data?.unitOfMonth) && (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Winner label={b.employeeOfMonth} winner={data?.employeeOfMonth ?? null} icon="🏆" />
+              <Winner label={b.unitOfMonth} winner={data?.unitOfMonth ?? null} icon="🏭" />
+              <Winner label={b.masterOfMonth} winner={data?.masterOfMonth ?? null} icon="⭐" />
+            </div>
+          )}
 
-      <Section title={b.leaderboard} className="print:break-inside-avoid">
-        {chartData.length === 0 ? (
-          <Muted>{b.noLeaderboard}</Muted>
-        ) : (
-          <ChartContainer config={chartConfig} className="h-64 w-full">
-            <BarChart data={chartData} margin={{ left: 8, right: 8 }}>
-              <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="name"
-                tickLine={false}
-                axisLine={false}
-                interval={0}
-                height={56}
-                angle={-20}
-                textAnchor="end"
-                fontSize={11}
+          <Section title={b.summary} hint={b.pointsHint}>
+            <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Tile label={b.employee} value={rows.length} />
+              <Tile label={b.approved} value={totalApproved} />
+              <Tile
+                label={b.remarks}
+                value={totalRemarks}
+                tone={totalRemarks > 0 ? 'warning' : undefined}
               />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                width={32}
-                fontSize={11}
-                allowDecimals={false}
-              />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <ChartLegend content={<ChartLegendContent />} />
-              <Bar dataKey="points" radius={4}>
-                {chartData.map((d) => (
-                  <Cell key={d.name} fill={d.fill} />
+              <Tile label={b.points} value={totalPoints} />
+            </dl>
+          </Section>
+
+          <Section title={b.unitLeaderboard}>
+            {units.length === 0 ? (
+              <Muted>{b.noLeaderboard}</Muted>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {units.map((u, i) => (
+                  <li
+                    key={u.orgUnitId ?? 'none'}
+                    className="flex flex-wrap items-center gap-3 rounded-md border px-3 py-2"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="size-3 shrink-0 rounded-full"
+                      style={{ background: `var(--chart-${(i % 8) + 1})` }}
+                    />
+                    <span className="font-medium">{u.orgUnitName ?? b.noUnit}</span>
+                    <Muted>
+                      {b.unitMasters}: {u.masters.length > 0 ? u.masters.join(', ') : '—'}
+                    </Muted>
+                    <span className="ml-auto flex items-center gap-4 tabular-nums">
+                      <span>
+                        {b.approved}: {u.approved}
+                      </span>
+                      <span className="font-semibold">
+                        {b.points}: {u.points}
+                      </span>
+                    </span>
+                  </li>
                 ))}
-              </Bar>
-            </BarChart>
-          </ChartContainer>
-        )}
-      </Section>
+              </ul>
+            )}
+          </Section>
 
-      <Section title={b.detailTitle}>
-        <DataTable
-          columns={columns}
-          rows={rows}
-          storageKey="bonus-points"
-          searchText={(r) => `${r.employeeName} ${r.personnelNumber}`}
-          rowKey={(r) => r.employeeId}
-          empty={b.empty}
-          loading={busy && rows.length === 0}
-        />
-      </Section>
+          <Section title={b.leaderboard} className="print:break-inside-avoid">
+            {chartData.length === 0 ? (
+              <Muted>{b.noLeaderboard}</Muted>
+            ) : (
+              <ChartContainer config={chartConfig} className="h-64 w-full">
+                <BarChart data={chartData} margin={{ left: 8, right: 8 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    tickLine={false}
+                    axisLine={false}
+                    interval={0}
+                    height={56}
+                    angle={-20}
+                    textAnchor="end"
+                    fontSize={11}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    width={32}
+                    fontSize={11}
+                    allowDecimals={false}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar dataKey="points" radius={4} maxBarSize={72}>
+                    {chartData.map((d) => (
+                      <Cell key={d.name} fill={d.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
+            )}
+          </Section>
+
+          <Section title={b.detailTitle}>
+            <DataTable
+              columns={columns}
+              rows={rows}
+              storageKey="bonus-points"
+              searchText={(r) => `${r.employeeName} ${r.personnelNumber}`}
+              rowKey={(r) => r.employeeId}
+              empty={b.empty}
+              loading={busy && rows.length === 0}
+            />
+          </Section>
+        </TabsContent>
+        <TabsContent value="history" className="flex flex-col gap-4">
+          <Toolbar>
+            <DateField label={b.from} value={from} onChange={setFrom} className="w-44" />
+            <DateField label={b.to} value={to} onChange={setTo} className="w-44" />
+            <SelectField
+              label={b.groupBy}
+              searchable={false}
+              value={groupBy}
+              onChange={(v) => setGroupBy(v as 'day' | 'month' | 'year')}
+              options={[
+                { value: 'day', label: b.groupDay },
+                { value: 'month', label: b.groupMonth },
+                { value: 'year', label: b.groupYear },
+              ]}
+              className="w-44"
+            />
+          </Toolbar>
+          <Section title={b.tabHistory}>
+            {(history?.buckets.length ?? 0) === 0 ? (
+              <Muted>{b.historyEmpty}</Muted>
+            ) : (
+              <>
+                <ChartContainer
+                  config={{ points: { label: b.historyPoints, color: 'var(--chart-1)' } }}
+                  className="mb-4 h-56 w-full"
+                >
+                  <BarChart data={history?.buckets ?? []} margin={{ left: 8, right: 8 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="key" tickLine={false} axisLine={false} fontSize={11} />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      width={32}
+                      fontSize={11}
+                      allowDecimals={false}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="points" fill="var(--chart-1)" radius={4} maxBarSize={72} />
+                  </BarChart>
+                </ChartContainer>
+                <DataTable
+                  columns={historyColumns}
+                  rows={history?.buckets ?? []}
+                  storageKey="bonus-history"
+                  rowKey={(r) => r.key}
+                  empty={b.historyEmpty}
+                />
+              </>
+            )}
+          </Section>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function Winner({
+  label,
+  winner,
+  icon,
+}: {
+  readonly label: string;
+  readonly winner: { name: string; points: number } | null;
+  readonly icon: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border p-3">
+      <span aria-hidden="true" className="text-2xl">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <div className="text-sm text-muted-foreground">{label}</div>
+        <div className="truncate font-semibold">{winner?.name ?? '—'}</div>
+      </div>
+      <div className="ml-auto text-2xl font-semibold tabular-nums">{winner?.points ?? 0}</div>
     </div>
   );
 }

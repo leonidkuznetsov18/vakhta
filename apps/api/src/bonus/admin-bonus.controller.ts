@@ -17,6 +17,7 @@ import {
   CancelAdjustmentCommand,
   ReviewScoreCommand,
   UpdateAdjustmentCommand,
+  BonusHistoryQuery,
   BonusMonthQuery,
   ClosePeriodCommand,
   ReopenPeriodCommand,
@@ -24,6 +25,7 @@ import {
   SecondApprovalCommand,
   SetBaseAmountsCommand,
   type BonusPeriodView,
+  type BonusHistoryView,
   type BonusPointsView,
   type BonusRuleVersionView,
   type ShiftScoreView,
@@ -59,6 +61,13 @@ export class AdminBonusController {
     @Query(new ZodValidationPipe(BonusMonthQuery)) q: BonusMonthQuery,
   ): Promise<BonusPointsView> {
     return this.bonus.points(q.siteId, q.month);
+  }
+
+  @Get('history')
+  history(
+    @Query(new ZodValidationPipe(BonusHistoryQuery)) q: BonusHistoryQuery,
+  ): Promise<BonusHistoryView> {
+    return this.bonus.history(q);
   }
 
   @Get('period')

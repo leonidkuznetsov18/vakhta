@@ -114,6 +114,15 @@ export function inferShiftFromArrival(
   return [...candidates].sort(byNearestStart)[0] ?? null;
 }
 
+/** The month before the given 'YYYY-MM'; January rolls back to December of the previous year. */
+export function previousMonth(month: string): string {
+  const [year, index] = month.split('-').map(Number);
+  if (!year || !index) throw new Error(`bad month: ${month}`);
+  const y = index === 1 ? year - 1 : year;
+  const m = index === 1 ? 12 : index - 1;
+  return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}`;
+}
+
 /** Локальна дата моменту в часовому поясі майданчика, 'YYYY-MM-DD'. */
 export function businessDateOf(instant: Date, timezone: string): string {
   assertValidTimezone(timezone);

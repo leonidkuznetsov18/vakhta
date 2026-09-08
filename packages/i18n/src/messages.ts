@@ -332,6 +332,18 @@ export interface Messages {
     readonly excludedNotification: string;
     readonly appealSubmitted: string;
     readonly detailsButton: string;
+    /** Placeholders: {month} */
+    readonly monthCardTitle: string;
+    /** Placeholders: {points} */
+    readonly monthCardPoints: string;
+    /** Placeholders: {shifts}, {approved} */
+    readonly monthCardStats: string;
+    readonly monthCardEmployeeOfMonth: string;
+    /** Placeholders: {unit} */
+    readonly monthCardUnitOfMonth: string;
+    /** Placeholders: {unit} */
+    readonly monthCardMaster: string;
+    readonly monthCardWish: string;
     /** Placeholders: {month}, {score} */
     readonly periodClosed: string;
   };
@@ -729,6 +741,23 @@ export interface Messages {
       readonly remarks: string;
       readonly unit: string;
       readonly unitLeaderboard: string;
+      readonly tabPoints: string;
+      readonly tabHistory: string;
+      readonly employeeOfMonth: string;
+      readonly unitOfMonth: string;
+      readonly masterOfMonth: string;
+      readonly groupBy: string;
+      readonly groupDay: string;
+      readonly groupMonth: string;
+      readonly groupYear: string;
+      readonly historyPeriod: string;
+      readonly historyPoints: string;
+      readonly historyChecklists: string;
+      readonly historyAwards: string;
+      readonly historyEmployees: string;
+      readonly historyEmpty: string;
+      readonly from: string;
+      readonly to: string;
       readonly unitMasters: string;
       readonly noUnit: string;
       readonly pointsHint: string;
