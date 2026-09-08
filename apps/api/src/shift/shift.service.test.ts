@@ -43,6 +43,7 @@ const OPTIONS = {
   earlyStartWindowMinutes: 30,
   overtimeThresholdMinutes: 15,
   defaultTimezone: 'Europe/Kyiv',
+  autoCloseGraceMinutes: 120,
 };
 
 let keyCounter = 0;
@@ -509,6 +510,29 @@ describe('shift: машина станів зміни в транзакції (�
     const intervals = await testDb.db.select().from(activityIntervals);
     expect(intervals.filter((i) => i.state === 'WORKING')).toHaveLength(1);
     expect(await testDb.db.select().from(presenceSessions)).toHaveLength(1);
+  });
+
+  it('кінець дня: зміну, що лишилась відкритою після планового кінця, закриває система', async () => {
+    await arrive(ivanov);
+    const started = await service.start(ivanov, { idempotencyKey: key() }, meta(ivanov));
+    expect(started.ok).toBe(true);
+    // Плановий кінець у минулому, поза пільговим вікном: система має закрити зміну.
+    await testDb.db
+      .update(shiftSessions)
+      .set({ planEndAt: new Date(Date.now() - 5 * 3_600_000) })
+      .where(eq(shiftSessions.employeeId, ivanov));
+    const closedCount = await service.autoCloseStale(new Date());
+    expect(closedCount).toBe(1);
+    const [row] = await testDb.db
+      .select()
+      .from(shiftSessions)
+      .where(eq(shiftSessions.employeeId, ivanov));
+    expect(row!.state).toBe('SHIFT_CLOSED');
+    expect(row!.endedAt).not.toBeNull();
+    // Без чек-листа в цьому підрозділі звіт не потрібен, тож помітка нейтральна.
+    expect(row!.autoCloseReason).toBe('LEFT_OPEN');
+    // Повторний запуск нічого не закриває.
+    expect(await service.autoCloseStale(new Date())).toBe(0);
   });
 
   it('QR→QR: працівник без графіка все одно відкриває позапланову зміну з вікном за шаблоном', async () => {

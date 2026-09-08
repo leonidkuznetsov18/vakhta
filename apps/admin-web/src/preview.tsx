@@ -73,6 +73,7 @@ const shift = {
   zoneAccepted: true,
   needsClarification: false,
   clarificationReason: null,
+  autoCloseReason: null,
   fullName: 'Кузнецов Леонид',
   personnelNumber: '0001',
   orgUnitName: 'Цех Крышки',
@@ -185,7 +186,17 @@ window.fetch = async (input: RequestInfo | URL) => {
       })),
     );
   }
-  if (path === '/admin/shifts') return json([shift]);
+  const closedNoChecklist = {
+    ...shift,
+    id: 'sh-closed',
+    employeeId: 'e2',
+    fullName: 'Панов Олег',
+    personnelNumber: '131',
+    state: 'SHIFT_CLOSED',
+    endedAt: '2026-09-07T18:10:00.000Z',
+    autoCloseReason: 'NO_CHECKLIST',
+  };
+  if (path === '/admin/shifts') return json([shift, closedNoChecklist]);
   if (path === `/admin/shifts/${shift.id}`) return json(shiftDetail);
   if (path === '/admin/reports/hours') return json(hoursReport);
   return json([]);

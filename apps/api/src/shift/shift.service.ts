@@ -11,6 +11,8 @@ import {
   idempotencyKeys,
   inArray,
   isNull,
+  isNotNull,
+  lt,
   notInArray,
   or,
   orgUnits,
@@ -41,6 +43,7 @@ import {
   type ActivityInterval,
   type CommandErrorCode,
   type ShiftAction,
+  type UserShiftAction,
   type ShiftSnapshot,
   type ShiftSummary,
   type TransitionContext,
@@ -83,6 +86,8 @@ export interface ShiftOptions {
   readonly afterShiftHours?: number;
   /** Нагадування про прибирання до планового кінця зміни (FR-CLN-01). */
   readonly cleaningReminderMinutes?: number;
+  /** End-of-day auto-close: minutes after the planned end before a still-open shift is closed. */
+  readonly autoCloseGraceMinutes?: number;
 }
 
 export const SHIFT_OPTIONS = Symbol('SHIFT_OPTIONS');
@@ -98,6 +103,8 @@ export interface CommandInput {
   readonly reasonCode?: string | undefined;
   readonly comment?: string | undefined;
   readonly resumeIntoDowntime?: boolean | undefined;
+  /** Set only by the end-of-day auto-close: recorded on the session for the panel and reports. */
+  readonly autoCloseReason?: string | undefined;
 }
 
 export interface CommandMeta {
@@ -167,7 +174,7 @@ export class ShiftService {
     const session = recent ? await this.sessionView(this.db, recent.id) : null;
     const ctx = active ? await this.context(this.db, active, { masterOverride: false }) : {};
     // Після закриття показуємо підсумок (ТЗ 5.1 «Після зміни»); нову зміну відкриває майстер.
-    const actions: ShiftAction[] = active
+    const actions: UserShiftAction[] = active
       ? [...allowedActions({ state: active.state, resumeState: active.resumeState }, ctx)]
       : presence && !recent
         ? ['START_SHIFT']
@@ -657,6 +664,7 @@ export class ShiftService {
         updatedAt: now,
         ...(cmd.action === 'START_SHIFT' ? { startedAt: now } : {}),
         ...(terminal ? { endedAt: now } : {}),
+        ...(cmd.autoCloseReason ? { autoCloseReason: cmd.autoCloseReason } : {}),
         ...(flagged
           ? { needsClarification: true, clarificationReason: cmd.reasonCode ?? cmd.action }
           : {}),
@@ -1075,6 +1083,77 @@ export class ShiftService {
   }
 
   /**
+   * End-of-day auto-close (2026-09-08): shifts still open past their planned end plus the grace
+   * window are closed by the system. A shift whose position needs a checklist but whose employee
+   * never submitted the report is marked NO_CHECKLIST (shown red for the master); one that did (or
+   * whose position needs no checklist) is LEFT_OPEN, meaning the employee left without scanning the
+   * exit QR. Idempotent and safe to repeat.
+   */
+  async autoCloseStale(now: Date = new Date()): Promise<number> {
+    const grace = this.options.autoCloseGraceMinutes ?? 120;
+    const cutoff = new Date(now.getTime() - grace * 60_000);
+    const stale = await this.db
+      .select({ id: shiftSessions.id })
+      .from(shiftSessions)
+      .where(
+        and(
+          notInArray(shiftSessions.state, TERMINAL),
+          isNotNull(shiftSessions.planEndAt),
+          lt(shiftSessions.planEndAt, cutoff),
+        ),
+      );
+    let closed = 0;
+    for (const { id } of stale) {
+      if (await this.autoCloseOne(id, now)) closed += 1;
+    }
+    return closed;
+  }
+
+  private async autoCloseOne(sessionId: string, now: Date): Promise<boolean> {
+    const deferred: DeferredTimer[] = [];
+    const response = await this.db.transaction(async (tx) => {
+      const [session] = await tx
+        .select()
+        .from(shiftSessions)
+        .where(eq(shiftSessions.id, sessionId))
+        .for('update');
+      if (!session || (TERMINAL as readonly string[]).includes(session.state)) return null;
+      const reportRequired = await this.handovers.reportRequired(tx, session);
+      const submitted = await this.handovers.hasSubmitted(tx, session.id);
+      const reason = reportRequired && !submitted ? 'NO_CHECKLIST' : 'LEFT_OPEN';
+      return this.apply(
+        tx,
+        session,
+        {
+          action: 'AUTO_CLOSE',
+          expectedVersion: session.version,
+          idempotencyKey: `auto-close:${sessionId}`,
+          autoCloseReason: reason,
+        },
+        {
+          actor: { type: 'SYSTEM', id: null, role: 'SYSTEM' },
+          source: 'SYSTEM',
+          masterOverride: true,
+          now,
+        },
+        deferred,
+      );
+    });
+    if (response?.ok && !response.replayed) {
+      for (const run of deferred) await run();
+      this.changes.publish({
+        sessionId: response.session.id,
+        employeeId: response.session.employeeId,
+        state: response.session.state,
+        version: response.session.version,
+        at: response.serverTime,
+        source: 'SYSTEM',
+      });
+    }
+    return response?.ok === true;
+  }
+
+  /**
    * The planned window a starting shift gets: from the assignment when scheduled, otherwise
    * inferred from the site's active day/night templates by the arrival time (unscheduled shift).
    * With no templates the window is left open and the auto-close job falls back to a fixed length.
@@ -1213,6 +1292,7 @@ function toSessionView(row: {
     zoneAccepted: s.zoneId === null || s.zoneAcceptedAt !== null,
     needsClarification: s.needsClarification,
     clarificationReason: s.clarificationReason,
+    autoCloseReason: s.autoCloseReason,
   };
 }
 

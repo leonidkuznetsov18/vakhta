@@ -82,6 +82,10 @@ export const EnvSchema = z.object({
   /** Нагадування про прибирання до планового кінця (FR-CLN-01); вікно приймання (ТЗ 18 п. 11). */
   CLEANING_REMINDER_MINUTES: z.coerce.number().int().positive().default(30),
   HANDOVER_REVIEW_WINDOW_MINUTES: z.coerce.number().int().positive().default(30),
+  /** End-of-day auto-close: how long after the planned end a still-open shift is closed, and how
+   * often the driver scans for such shifts (2026-09-08, QR-to-QR shift lifecycle). */
+  AUTO_CLOSE_GRACE_MINUTES: z.coerce.number().int().positive().default(120),
+  AUTO_CLOSE_SCAN_MINUTES: z.coerce.number().int().positive().default(10),
   /** Приватне сховище фото (ADR-0006). Без S3_BUCKET посилання на фото недоступні. */
   S3_ENDPOINT: z.preprocess(emptyToUndefined, z.string().url().optional()),
   S3_REGION: z.string().default('us-east-1'),

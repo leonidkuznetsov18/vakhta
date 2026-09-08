@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { COMMAND_ERROR_CODES, RESUMABLE_STATES, SHIFT_ACTIONS, SHIFT_STATES } from '@vakhta/domain';
+import {
+  COMMAND_ERROR_CODES,
+  RESUMABLE_STATES,
+  SHIFT_STATES,
+  USER_SHIFT_ACTIONS,
+} from '@vakhta/domain';
 import {
   BusinessDate,
   Comment,
@@ -10,7 +15,7 @@ import {
   Uuid,
 } from './common.js';
 
-export const ShiftActionSchema = z.enum(SHIFT_ACTIONS);
+export const ShiftActionSchema = z.enum(USER_SHIFT_ACTIONS);
 export const ShiftStateSchema = z.enum(SHIFT_STATES);
 export const ResumableStateSchema = z.enum(RESUMABLE_STATES);
 
@@ -77,6 +82,8 @@ export const ShiftSessionView = z.object({
   zoneAccepted: z.boolean(),
   needsClarification: z.boolean(),
   clarificationReason: z.string().nullable(),
+  /** Set when the end-of-day job closed the shift: 'NO_CHECKLIST' (red) or 'LEFT_OPEN'. */
+  autoCloseReason: z.string().nullable(),
 });
 export type ShiftSessionView = z.infer<typeof ShiftSessionView>;
 

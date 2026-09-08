@@ -6,12 +6,14 @@ import type { Env } from '../config/env.js';
 import { AdminShiftsController } from './admin-shifts.controller.js';
 import { ShiftChanges } from './shift-changes.js';
 import { SHIFT_OPTIONS, ShiftService, type ShiftOptions } from './shift.service.js';
+import { ShiftAutoCloseService } from './shift-auto-close.service.js';
 
 @Module({
   imports: [AttendanceModule],
   controllers: [AdminShiftsController],
   providers: [
     ShiftService,
+    ShiftAutoCloseService,
     ShiftChanges,
     HandoverRepository,
     {
@@ -26,6 +28,7 @@ import { SHIFT_OPTIONS, ShiftService, type ShiftOptions } from './shift.service.
         overtimeThresholdMinutes: config.get('OVERTIME_THRESHOLD_MINUTES', { infer: true }),
         defaultTimezone: config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
         cleaningReminderMinutes: config.get('CLEANING_REMINDER_MINUTES', { infer: true }),
+        autoCloseGraceMinutes: config.get('AUTO_CLOSE_GRACE_MINUTES', { infer: true }),
       }),
       inject: [ConfigService],
     },

@@ -24,6 +24,7 @@ const session = {
   zoneAccepted: true,
   needsClarification: false,
   clarificationReason: null,
+  autoCloseReason: null,
 };
 
 describe('employee contacts', () => {

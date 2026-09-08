@@ -114,6 +114,7 @@ export interface Messages {
     readonly departedAlready: string;
     /** Placeholder: {time} */
     readonly presenceLine: string;
+    readonly finishChecklistFirst: string;
     readonly failures: Readonly<Record<CheckInFailure, string>>;
   };
   readonly actions: Readonly<Record<ShiftAction, string>>;
@@ -137,6 +138,7 @@ export interface Messages {
     readonly backToShift: string;
     readonly noReasons: string;
     readonly staleButton: string;
+    readonly readyToCloseHint: string;
     readonly closedHeader: string;
     readonly emergencyHeader: string;
     /** Placeholders: {total}, {work}, {breaks}, {meal}, {downtime} */
@@ -397,6 +399,7 @@ export interface Messages {
       readonly onShift: string;
       readonly inDowntime: string;
       readonly unscheduledShifts: string;
+      readonly closedNoChecklist: string;
       readonly unscheduledBanner: string;
       readonly unscheduledOpen: string;
       readonly open: string;
@@ -551,6 +554,7 @@ export interface Messages {
       readonly flags: string;
       readonly needsClarification: string;
       readonly zoneNotAccepted: string;
+      readonly closedNoChecklist: string;
       readonly masterAction: string;
       readonly comment: string;
       readonly apply: string;

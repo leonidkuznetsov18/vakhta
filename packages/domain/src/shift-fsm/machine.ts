@@ -1,4 +1,4 @@
-import { SHIFT_ACTIONS, type ShiftAction } from './actions.js';
+import { USER_SHIFT_ACTIONS, type ShiftAction, type UserShiftAction } from './actions.js';
 import {
   ACTIVE_STATES,
   RESUMABLE_STATES,
@@ -196,6 +196,14 @@ export const TRANSITION_RULES: readonly Rule[] = [
     resume: 'clear',
     effects: ['FINALIZE_SHIFT'],
   },
+  // The end-of-day job closes a shift left open past its planned end from any active state.
+  {
+    action: 'AUTO_CLOSE',
+    from: ACTIVE_STATES,
+    to: 'SHIFT_CLOSED',
+    resume: 'clear',
+    effects: ['FINALIZE_SHIFT'],
+  },
   {
     action: 'EMERGENCY_EXIT',
     from: ACTIVE_STATES,
@@ -284,8 +292,9 @@ export function transition(
 export function allowedActions(
   snapshot: ShiftSnapshot,
   ctx: TransitionContext = {},
-): readonly ShiftAction[] {
-  return SHIFT_ACTIONS.filter((action) => transition(snapshot, action, ctx).ok);
+): readonly UserShiftAction[] {
+  // AUTO_CLOSE is a system action driven by the timer, never shown to the employee.
+  return USER_SHIFT_ACTIONS.filter((action) => transition(snapshot, action, ctx).ok);
 }
 
 /** Перевірка структурного інваріанту знімка (ТЗ 4.5): resumeState є тоді й лише тоді, коли стан тимчасовий. */

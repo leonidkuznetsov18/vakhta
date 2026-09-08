@@ -76,6 +76,8 @@ export const en: Messages = {
     departed: 'Departure recorded at {time} (server time). Have a good rest!',
     departedAlready: 'Departure was already recorded at {time}.',
     presenceLine: 'You have been at work since {time}.',
+    finishChecklistFirst:
+      'Fill in and send the checklist first, then scan the exit QR to close the shift.',
     failures: {
       CHALLENGE_INVALID: 'QR not recognised. Scan the code on the terminal screen again.',
       CHALLENGE_EXPIRED: 'The QR has expired. Scan the new code on the terminal screen.',
@@ -102,6 +104,7 @@ export const en: Messages = {
     CONTINUE_WORK: 'Continue working',
     CLOSE_SHIFT: 'Finish shift',
     EMERGENCY_EXIT: 'Emergency exit',
+    AUTO_CLOSE: 'Closed automatically',
   },
   states: {
     NOT_STARTED: 'Shift not started',
@@ -147,6 +150,7 @@ export const en: Messages = {
     backToShift: '◀ Back',
     noReasons: 'The reason directory is empty. Contact the administrator.',
     staleButton: 'The button is outdated, the screen is refreshed.',
+    readyToCloseHint: 'The report is sent. Scan the QR at the exit to close the shift.',
     closedHeader: 'Shift closed.',
     emergencyHeader: 'Emergency exit recorded. The shift is handed to the shift master for review.',
     summaryTotals:
@@ -543,6 +547,7 @@ export const en: Messages = {
       onShift: 'On shift now',
       inDowntime: 'In downtime',
       unscheduledShifts: 'Unscheduled shifts',
+      closedNoChecklist: 'Closed without a checklist',
       unscheduledBanner:
         '{n} employees are on shift right now without a schedule. Build a schedule for them so their shifts are planned.',
       unscheduledOpen: 'Open schedule',
@@ -681,6 +686,7 @@ export const en: Messages = {
       flags: 'Flags',
       needsClarification: 'Needs review',
       zoneNotAccepted: 'Zone not accepted',
+      closedNoChecklist: 'Closed without a checklist',
       masterAction: 'Shift master action',
       comment: 'Comment (required)',
       apply: 'Apply',

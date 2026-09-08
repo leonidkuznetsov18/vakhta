@@ -37,6 +37,7 @@ function row(state: string, version = 3) {
     zoneAccepted: true,
     needsClarification: false,
     clarificationReason: null,
+    autoCloseReason: null,
     fullName: 'Кузнецов Леонид',
     personnelNumber: '0001',
     orgUnitName: 'Цех фасовки',

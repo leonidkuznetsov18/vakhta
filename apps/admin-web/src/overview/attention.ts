@@ -5,6 +5,7 @@ import { employeesApi, handoversApi, incidentsApi, orgApi, requestsApi, shiftsAp
 export interface Attention {
   readonly onShift: number | null;
   readonly unscheduled: number | null;
+  readonly closedNoChecklist: number | null;
   readonly inDowntime: number | null;
   readonly openIncidents: number | null;
   readonly slaBreached: number | null;
@@ -21,6 +22,7 @@ export interface Attention {
 const EMPTY: Attention = {
   onShift: null,
   unscheduled: null,
+  closedNoChecklist: null,
   inDowntime: null,
   openIncidents: null,
   slaBreached: null,
@@ -54,7 +56,7 @@ export function useAttention(me: MeView, intervalMs = 60_000) {
   const refresh = useCallback(async () => {
     const [shifts, incidents, handovers, disputes, requests, overtime, employees, org] =
       await Promise.all([
-        may(me, OPS) ? shiftsApi.list({}).catch(() => null) : null,
+        may(me, OPS) ? shiftsApi.list({ includeClosed: true }).catch(() => null) : null,
         may(me, OPS) ? incidentsApi.list({ scope: 'open' }).catch(() => null) : null,
         may(me, HANDOVER) ? handoversApi.list({ scope: 'overdue' }).catch(() => null) : null,
         may(me, HANDOVER) ? handoversApi.list({ scope: 'pending' }).catch(() => null) : null,
@@ -67,6 +69,9 @@ export function useAttention(me: MeView, intervalMs = 60_000) {
       onShift: shifts ? shifts.filter((s) => s.endedAt === null).length : null,
       unscheduled: shifts
         ? shifts.filter((s) => s.endedAt === null && s.assignmentId === null).length
+        : null,
+      closedNoChecklist: shifts
+        ? shifts.filter((s) => s.endedAt !== null && s.autoCloseReason === 'NO_CHECKLIST').length
         : null,
       inDowntime: shifts ? shifts.filter((s) => s.state === 'DOWNTIME').length : null,
       openIncidents: incidents ? incidents.length : null,

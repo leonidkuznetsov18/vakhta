@@ -408,23 +408,55 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       return;
     }
     const action = ctx.match[1] === 'arr' ? 'ARRIVE' : 'DEPART';
-    const result = await deps.attendance.checkInByQr(ctx.employee.id, ctx.match[2] ?? '', action);
+    const token = ctx.match[2] ?? '';
     await ctx.answerCallbackQuery();
-    if (result.ok && action === 'ARRIVE') {
-      // Arrival opens the shift at once (the master start in the panel stays as the reserve):
-      // one screen with the shift buttons, no intermediate text. A refused start (a shift is
-      // already open, the window is closed) simply shows the home screen with the reason inside.
-      const started = await deps.shift.start(
-        ctx.employee.id,
-        { idempotencyKey: `tg:${ctx.update.update_id}:start` },
-        { actor: employeeActor(ctx.employee.id), source: 'TELEGRAM' },
-      );
-      if (!started.ok) {
-        deps.logger.info({ reason: started.error }, 'arrival recorded, shift not started');
+
+    if (action === 'ARRIVE') {
+      const result = await deps.attendance.checkInByQr(ctx.employee.id, token, 'ARRIVE');
+      if (result.ok) {
+        // Arrival opens the shift at once, scheduled or not (the master start stays the reserve):
+        // one screen with the shift buttons, no intermediate text. A refused start simply shows the
+        // home screen with the reason inside.
+        const started = await deps.shift.start(
+          ctx.employee.id,
+          { idempotencyKey: `tg:${ctx.update.update_id}:start` },
+          { actor: employeeActor(ctx.employee.id), source: 'TELEGRAM' },
+        );
+        if (!started.ok) {
+          deps.logger.info({ reason: started.error }, 'arrival recorded, shift not started');
+        }
+        await edit(ctx, await buildHome(ctx));
+        return;
       }
-      await edit(ctx, await buildHome(ctx));
+      await edit(ctx, checkInResultScreen(ctx.t, result, deps.defaultTimezone));
       return;
     }
+
+    // Departure: the exit QR closes the shift only after the report is sent (state READY_TO_CLOSE).
+    // Scanning it earlier reminds the employee to finish the checklist; the shift and presence stay
+    // open, and the end-of-day job is the safety net. With no open shift it just closes presence.
+    const view = await deps.shift.screen(ctx.employee.id);
+    const state = view.session?.state;
+    if (state && state !== 'SHIFT_CLOSED' && state !== 'EMERGENCY_EXIT') {
+      if (state !== 'READY_TO_CLOSE') {
+        await edit(ctx, { text: ctx.t.attendance.finishChecklistFirst });
+        return;
+      }
+      const closed = await deps.shift.transition(
+        ctx.employee.id,
+        {
+          action: 'CLOSE_SHIFT',
+          expectedVersion: view.session!.version,
+          idempotencyKey: `tg:${ctx.update.update_id}:close`,
+        },
+        { actor: employeeActor(ctx.employee.id), source: 'TELEGRAM' },
+      );
+      if (!closed.ok) {
+        await edit(ctx, await buildHome(ctx));
+        return;
+      }
+    }
+    const result = await deps.attendance.checkInByQr(ctx.employee.id, token, 'DEPART');
     await edit(ctx, checkInResultScreen(ctx.t, result, deps.defaultTimezone));
     if (result.ok) await show(ctx, await buildHome(ctx));
   });

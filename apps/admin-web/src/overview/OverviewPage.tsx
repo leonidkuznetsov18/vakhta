@@ -128,6 +128,20 @@ const TILES: readonly Tile[] = [
     tone: 'warning',
   },
   {
+    key: 'closedNoChecklist',
+    label: o.closedNoChecklist,
+    icon: AlertTriangleIcon,
+    section: 'operations',
+    tone: 'danger',
+    prepare: () => {
+      try {
+        localStorage.setItem('vakhta.ui.operations.includeClosed', 'true');
+      } catch {
+        // storage unavailable
+      }
+    },
+  },
+  {
     key: 'inDowntime',
     label: o.inDowntime,
     icon: ActivityIcon,

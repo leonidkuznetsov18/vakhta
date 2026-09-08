@@ -5,7 +5,7 @@ import type {
   OrgSnapshot,
   ShiftDetailView,
 } from '@vakhta/contracts';
-import { SHIFT_ACTIONS, type ShiftAction, type ShiftState } from '@vakhta/domain';
+import { USER_SHIFT_ACTIONS, type ShiftState, type UserShiftAction } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -116,7 +116,7 @@ export function OperationsPage() {
   const [group, setGroup] = usePersistentState<StateGroup>('operations.group', 'ALL');
   const [startComment, setStartComment] = useState('');
   const [startZone, setStartZone] = useState('');
-  const [action, setAction] = useState<Record<string, ShiftAction | ''>>({});
+  const [action, setAction] = useState<Record<string, UserShiftAction | ''>>({});
   const [comment, setComment] = useState<Record<string, string>>({});
   const reloadRef = useRef<() => void>(() => undefined);
   const { confirm, dialog } = useConfirm();
@@ -327,6 +327,9 @@ export function OperationsPage() {
       cell: (row) => (
         <div className="flex flex-wrap gap-1">
           {row.needsClarification && <StatusPill tone="danger">{o.needsClarification}</StatusPill>}
+          {row.autoCloseReason === 'NO_CHECKLIST' && (
+            <StatusPill tone="danger">{o.closedNoChecklist}</StatusPill>
+          )}
           {!row.zoneAccepted && row.state === 'PREPARATION' && (
             <StatusPill tone="warning">{o.zoneNotAccepted}</StatusPill>
           )}
@@ -369,10 +372,10 @@ export function OperationsPage() {
               searchable={false}
               hint={hints.operationsMasterAction}
               value={action[row.id] ?? ''}
-              onChange={(v) => setAction((a) => ({ ...a, [row.id]: v as ShiftAction }))}
+              onChange={(v) => setAction((a) => ({ ...a, [row.id]: v as UserShiftAction }))}
               placeholder="…"
               required
-              options={SHIFT_ACTIONS.filter((a) => a !== 'START_SHIFT').map((a) => ({
+              options={USER_SHIFT_ACTIONS.filter((a) => a !== 'START_SHIFT').map((a) => ({
                 value: a,
                 label: all.actions[a],
               }))}
@@ -562,7 +565,9 @@ export function OperationsPage() {
         rowKey={(row) => row.id}
         empty={o.empty}
         rowClassName={(row) =>
-          row.needsClarification ? 'bg-red-50/60 dark:bg-red-950/30' : undefined
+          row.needsClarification || row.autoCloseReason === 'NO_CHECKLIST'
+            ? 'bg-red-50/60 dark:bg-red-950/30'
+            : undefined
         }
         activeKey={openId}
         expanded={(row) => (row.id === openId ? renderDetail(row) : null)}

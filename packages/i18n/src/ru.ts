@@ -76,6 +76,8 @@ export const ru: Messages = {
     departed: 'Уход зафиксирован в {time} (время сервера). Хорошего отдыха!',
     departedAlready: 'Уход уже был зафиксирован в {time}.',
     presenceLine: 'Вы на работе с {time}.',
+    finishChecklistFirst:
+      'Сначала заполните и отправьте чек-лист, затем отсканируйте QR на выходе, чтобы закрыть смену.',
     failures: {
       CHALLENGE_INVALID: 'QR не распознан. Отсканируйте код на экране терминала ещё раз.',
       CHALLENGE_EXPIRED: 'QR устарел. Отсканируйте новый код на экране терминала.',
@@ -102,6 +104,7 @@ export const ru: Messages = {
     CONTINUE_WORK: 'Продолжить работу',
     CLOSE_SHIFT: 'Закончить смену',
     EMERGENCY_EXIT: 'Экстренный уход',
+    AUTO_CLOSE: 'Закрыто автоматически',
   },
   states: {
     NOT_STARTED: 'Смена не начата',
@@ -145,6 +148,7 @@ export const ru: Messages = {
     backToShift: '◀ Назад',
     noReasons: 'Справочник причин пуст. Обратитесь к администратору.',
     staleButton: 'Кнопка устарела, экран обновлён.',
+    readyToCloseHint: 'Отчёт отправлен. Отсканируйте QR на выходе, чтобы закрыть смену.',
     closedHeader: 'Смена закрыта.',
     emergencyHeader: 'Экстренный уход зафиксирован. Смена передана мастеру на проверку.',
     summaryTotals:
@@ -540,6 +544,7 @@ export const ru: Messages = {
       onShift: 'Сейчас на смене',
       inDowntime: 'В простое',
       unscheduledShifts: 'Внеплановые смены',
+      closedNoChecklist: 'Закрыты без чек-листа',
       unscheduledBanner:
         'Сейчас на смене без графика {n} сотрудников. Создайте для них график, чтобы смены были запланированы.',
       unscheduledOpen: 'Открыть график',
@@ -679,6 +684,7 @@ export const ru: Messages = {
       flags: 'Отметки',
       needsClarification: 'Нужна проверка',
       zoneNotAccepted: 'Зона не принята',
+      closedNoChecklist: 'Закрыто без чек-листа',
       masterAction: 'Действие мастера',
       comment: 'Комментарий (обязательно)',
       apply: 'Выполнить',

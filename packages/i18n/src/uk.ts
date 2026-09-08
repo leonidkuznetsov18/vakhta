@@ -76,6 +76,8 @@ export const uk: Messages = {
     departed: 'Вихід зафіксовано о {time} (час сервера). Гарного відпочинку!',
     departedAlready: 'Вихід уже зафіксовано о {time}.',
     presenceLine: 'Ви на роботі з {time}.',
+    finishChecklistFirst:
+      'Спершу заповніть і відправте чек-лист, потім відскануйте QR на виході, щоб закрити зміну.',
     failures: {
       CHALLENGE_INVALID: 'QR не розпізнано. Відскануйте код на екрані термінала ще раз.',
       CHALLENGE_EXPIRED: 'QR застарів. Відскануйте новий код на екрані термінала.',
@@ -102,6 +104,7 @@ export const uk: Messages = {
     CONTINUE_WORK: 'Продовжити роботу',
     CLOSE_SHIFT: 'Закінчити зміну',
     EMERGENCY_EXIT: 'Екстрений вихід',
+    AUTO_CLOSE: 'Закрито автоматично',
   },
   states: {
     NOT_STARTED: 'Зміну не почато',
@@ -145,6 +148,7 @@ export const uk: Messages = {
     backToShift: '◀ Назад',
     noReasons: 'Довідник причин порожній. Зверніться до адміністратора.',
     staleButton: 'Кнопка застаріла, екран оновлено.',
+    readyToCloseHint: 'Звіт відправлено. Відскануйте QR на виході, щоб закрити зміну.',
     closedHeader: 'Зміну закрито.',
     emergencyHeader: 'Екстрений вихід зафіксовано. Зміну передано майстру на перевірку.',
     summaryTotals:
@@ -543,6 +547,7 @@ export const uk: Messages = {
       onShift: 'Зараз на зміні',
       inDowntime: 'У простої',
       unscheduledShifts: 'Позапланові зміни',
+      closedNoChecklist: 'Закриті без чек-листа',
       unscheduledBanner:
         'Зараз на зміні без графіка {n} працівників. Створіть для них графік, щоб зміни були заплановані.',
       unscheduledOpen: 'Відкрити графік',
@@ -681,6 +686,7 @@ export const uk: Messages = {
       flags: 'Позначки',
       needsClarification: 'Потрібна перевірка',
       zoneNotAccepted: 'Зону не прийнято',
+      closedNoChecklist: 'Закрито без чек-листа',
       masterAction: 'Дія майстра',
       comment: 'Коментар (обовʼязково)',
       apply: 'Виконати',

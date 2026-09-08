@@ -25,6 +25,7 @@ function view(over: Partial<ShiftScreenView> = {}): ShiftScreenView {
       zoneAccepted: true,
       needsClarification: false,
       clarificationReason: null,
+      autoCloseReason: null,
     },
     presenceOpen: true,
     allowedActions: [

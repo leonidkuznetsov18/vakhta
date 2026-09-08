@@ -337,6 +337,8 @@ function shiftLines(t: Messages, view: ShiftScreenView): string[] {
     lines.push(format(t.shift.zoneLine, { zone: s.zoneName }));
     if (!s.zoneAccepted && s.state === 'PREPARATION') lines.push(t.shift.zoneNotAccepted);
   }
+  // The report is in: the shift closes by scanning the exit QR, not by a button.
+  if (s.state === 'READY_TO_CLOSE') lines.push(t.shift.readyToCloseHint);
   if (s.needsClarification && (s.state === 'SHIFT_CLOSED' || s.state === 'EMERGENCY_EXIT')) {
     lines.push(t.shift.flagged);
   }
@@ -394,6 +396,8 @@ export function shiftKeyboard(t: Messages, view: ShiftScreenView): InlineKeyboar
       newRow();
       continue;
     }
+    // The shift now closes only by scanning the exit QR (2026-09-08): no manual close button.
+    if (action === 'CLOSE_SHIFT') continue;
     const data = REASON_ACTIONS.includes(action)
       ? `${SHIFT_CALLBACK.pick}${action === 'START_DOWNTIME' ? 'DOWNTIME' : 'EMERGENCY'}:${version}`
       : `${SHIFT_CALLBACK.prefix}${action}:${version}`;
