@@ -1,3 +1,10 @@
+## [0.45.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.45.0...v0.45.1) (2026-09-08)
+
+### Bug fixes
+
+* **bonus:** give the points from unscheduled shifts their unit back ([b59bbf1](https://github.com/leonidkuznetsov18/vakhta/commit/b59bbf1403b3617cbfa1032eaeeaaa8fff8135fb))
+* **bonus:** the site filter on the points page actually filters ([0ba98c6](https://github.com/leonidkuznetsov18/vakhta/commit/0ba98c69323a0d37d4b0e0b545289b3e2465f59f))
+
 ## [0.45.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.44.0...v0.45.0) (2026-09-08)
 
 ### Features
