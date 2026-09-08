@@ -714,7 +714,8 @@ export const en: Messages = {
       masterAction: 'Shift master action',
       comment: 'Comment (required)',
       apply: 'Apply',
-      applied: 'Action applied.',
+      applied: '{employee}: {action}. Shift state: {state}.',
+      masterReason: 'Reason',
       clarify: 'Needs review',
       clarified: 'The shift is flagged for review.',
       startFor: 'Open a shift for the employee',
@@ -1715,25 +1716,25 @@ export const en: Messages = {
       },
       handover: {
         purpose:
-          'Zone handover reports: checklist, photos, the receiver remarks and the master decisions on disputes.',
+          'The checklists employees sent at the end of their shift: what was checked, the photos and your decision. The next shift no longer accepts anything — the master decides alone.',
         steps: [
-          'Tabs: "Pending" (no receiver decision), "Overdue" (not accepted by the deadline), "All".',
-          'A row click expands the report: the checklist with answers, notes to the next shift, the photo gallery, the receiver acceptance and decisions.',
-          'On a dispute or an overdue report pick the decision (remark rejected, violation confirmed, no fault), a reason and a comment, press "Decide".',
-          'The decision changes the points of the handing-over employee under the "Acceptance result" criterion and notifies both sides in the bot.',
+          'Tabs: "Pending" (waiting for your decision), "Overdue" (waiting longer than the review window), "All".',
+          'A row click expands the report: the checklist items, the note to the next shift and the photos.',
+          'Two decisions: "Approve" — the employee is thanked in the bot and earns one point; "Remark" — write in the field what is wrong, the employee gets your text and no point.',
+          "You see only your own unit's checklists; an admin and the production head see them all.",
         ],
         faq: [
           {
             q: 'Why is the report "No zone"?',
-            a: 'The shift ran without a zone (for example, opened by the master without a schedule). There is no receiver, the report goes straight to the master, who confirms or rejects it.',
+            a: 'The shift ran without a zone — opened by the arrival QR with no schedule, for instance. It changes nothing about the decision: the report still reaches the master.',
           },
           {
             q: 'The photo does not open.',
             a: 'Photo links are signed and live a few minutes: reload the page. Every view is written to the audit.',
           },
           {
-            q: 'What does "Receiver remark" mean?',
-            a: 'The next shift pressed "There is a problem" with a category, a comment and a photo. Until the master decides, the report is in dispute.',
+            q: 'Who else sees these checklists?',
+            a: 'A shift master sees only their own unit — the one named in their role. An admin, the production head and the cleanliness controller see every unit.',
           },
           {
             q: 'How do I configure what is checked and photographed?',

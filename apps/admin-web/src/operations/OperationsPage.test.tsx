@@ -15,7 +15,28 @@ const org = {
   positions: [],
   zones: [],
   terminals: [],
-  reasonCodes: [],
+  reasonCodes: [
+    {
+      kind: 'EMERGENCY',
+      code: 'HEALTH',
+      label: 'Самочувствие',
+      requiresComment: true,
+      requiresPhoto: false,
+      notifyMaster: true,
+      severity: 'NORMAL',
+      isActive: true,
+    },
+    {
+      kind: 'DOWNTIME',
+      code: 'BREAKDOWN',
+      label: 'Поломка',
+      requiresComment: true,
+      requiresPhoto: false,
+      notifyMaster: true,
+      severity: 'NORMAL',
+      isActive: true,
+    },
+  ],
 };
 
 function row(state: string, version = 3) {
@@ -196,7 +217,7 @@ describe('OperationsPage', () => {
       target: { value: 'Вернулся, забыл нажать' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Выполнить' }));
-    await screen.findByText('Действие выполнено.');
+    await screen.findByText('Кузнецов Леонид: Вернуться. Состояние смены: Основная работа.');
     const call = calls.find((c) => c.path.endsWith('/transition'));
     expect(call?.body).toMatchObject({
       action: 'RESUME',
@@ -204,5 +225,51 @@ describe('OperationsPage', () => {
       comment: 'Вернулся, забыл нажать',
     });
     expect(typeof (call?.body as { idempotencyKey?: unknown }).idempotencyKey).toBe('string');
+  });
+
+  it('the emergency exit asks for a reason from the directory, and only then', async () => {
+    const state = { rows: [row('WORKING')] };
+    const calls = mockApi(state);
+    render(<OperationsPage />);
+    await clickRowAction('Подробности');
+    expect(await screen.findByText('SHIFT_STARTED')).toBeTruthy();
+
+    // Nothing to pick until the action needs one: an empty control on every other action is noise.
+    expect(screen.queryByLabelText('Причина')).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Действие мастера'), {
+      target: { value: 'EMERGENCY_EXIT' },
+    });
+    fireEvent.change(screen.getAllByLabelText('Комментарий (обязательно)')[0]!, {
+      target: { value: 'Ушёл по самочувствию' },
+    });
+    // The reason is required, so the button waits for it instead of failing on the server.
+    expect(screen.getByRole('button', { name: 'Выполнить' }).hasAttribute('disabled')).toBe(true);
+
+    fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'HEALTH' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Выполнить' }));
+    await screen.findByText(/Кузнецов Леонид: /);
+    expect(calls.find((c) => c.path.endsWith('/transition'))?.body).toMatchObject({
+      action: 'EMERGENCY_EXIT',
+      reasonCode: 'HEALTH',
+      comment: 'Ушёл по самочувствию',
+    });
+  });
+
+  it('offers only the actions this shift can take next', async () => {
+    mockApi({ rows: [row('HANDOVER')] });
+    render(<OperationsPage />);
+    await clickRowAction('Подробности');
+    expect(await screen.findByText('SHIFT_STARTED')).toBeTruthy();
+
+    const options = [...screen.getByLabelText('Действие мастера').querySelectorAll('option')].map(
+      (o) => o.value,
+    );
+    // From handover: send the report, go back to cleaning, close it as the master, or walk out.
+    expect(options).toContain('CLOSE_SHIFT');
+    expect(options).toContain('SUBMIT_HANDOVER');
+    // Not from here: work has not been started again, and the shift is past its preparation.
+    expect(options).not.toContain('START_WORK');
+    expect(options).not.toContain('START_SHIFT');
   });
 });

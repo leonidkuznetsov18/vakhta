@@ -580,7 +580,9 @@ export interface Messages {
       readonly masterAction: string;
       readonly comment: string;
       readonly apply: string;
+      /** Placeholders: {employee}, {action}, {state} */
       readonly applied: string;
+      readonly masterReason: string;
       readonly clarify: string;
       readonly clarified: string;
       readonly startFor: string;

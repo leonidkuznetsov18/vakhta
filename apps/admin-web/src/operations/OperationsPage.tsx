@@ -6,7 +6,7 @@ import type {
   ShiftDetailView,
 } from '@vakhta/contracts';
 import { allowedActions, type ShiftState, type UserShiftAction } from '@vakhta/domain';
-import { messages } from '@vakhta/i18n';
+import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -118,6 +118,7 @@ export function OperationsPage() {
   const [startZone, setStartZone] = useState('');
   const [action, setAction] = useState<Record<string, UserShiftAction | ''>>({});
   const [comment, setComment] = useState<Record<string, string>>({});
+  const [reason, setReason] = useState<Record<string, string>>({});
   const reloadRef = useRef<() => void>(() => undefined);
   const { confirm, dialog } = useConfirm();
 
@@ -202,26 +203,60 @@ export function OperationsPage() {
   function masterActions(row: ActiveShiftView): UserShiftAction[] {
     return allowedActions(
       { state: row.state, resumeState: row.resumeState },
-      { masterOverride: true, presenceConfirmed: true, zoneAccepted: true, handoverComplete: true },
+      {
+        masterOverride: true,
+        presenceConfirmed: true,
+        zoneAccepted: true,
+        handoverComplete: true,
+        // Downtime and the emergency exit need a reason; the form collects it, so they belong in the
+        // list. Probing without one would quietly hide the two actions a master needs most.
+        reasonCode: 'PROBE',
+      },
     ).filter((a) => a !== 'START_SHIFT');
+  }
+
+  /** Downtime and the emergency exit are recorded against a reason from the directory, not free text. */
+  function reasonKindFor(act: UserShiftAction | '' | undefined): 'DOWNTIME' | 'EMERGENCY' | null {
+    if (act === 'START_DOWNTIME') return 'DOWNTIME';
+    if (act === 'EMERGENCY_EXIT') return 'EMERGENCY';
+    return null;
+  }
+
+  function reasonOptions(act: UserShiftAction | '' | undefined) {
+    const kind = reasonKindFor(act);
+    if (!kind || !org) return [];
+    return org.reasonCodes
+      .filter((r) => r.kind === kind && r.isActive)
+      .map((r) => ({ value: r.code, label: r.label }));
   }
 
   function applyAction(row: ActiveShiftView) {
     const act = action[row.id];
     const text = (comment[row.id] ?? '').trim();
+    const why = reason[row.id] ?? '';
     if (!act || text.length < 3) return;
+    if (reasonKindFor(act) && !why) return;
     void run(async () => {
       const result = await shiftsApi.transition(row.id, {
         action: act,
         expectedVersion: row.version,
         idempotencyKey: newKey(),
         comment: text,
+        ...(why ? { reasonCode: why } : {}),
       });
       if (!result.ok) {
         setError(result.error === 'VERSION_CONFLICT' ? o.stale : all.errors[result.error]);
       } else {
-        notifySuccess(o.applied);
+        // Say what happened and to whom: "Дію виконано" left the master guessing which one landed.
+        notifySuccess(
+          format(o.applied, {
+            employee: row.fullName,
+            action: all.actions[act],
+            state: all.states[result.session.state],
+          }),
+        );
         setComment((c) => ({ ...c, [row.id]: '' }));
+        setReason((r) => ({ ...r, [row.id]: '' }));
       }
       await reload();
     });
@@ -384,7 +419,10 @@ export function OperationsPage() {
               searchable={false}
               hint={hints.operationsMasterAction}
               value={action[row.id] ?? ''}
-              onChange={(v) => setAction((a) => ({ ...a, [row.id]: v as UserShiftAction }))}
+              onChange={(v) => {
+                setAction((a) => ({ ...a, [row.id]: v as UserShiftAction }));
+                setReason((r) => ({ ...r, [row.id]: '' }));
+              }}
               placeholder="…"
               required
               options={masterActions(row).map((a) => ({
@@ -393,6 +431,21 @@ export function OperationsPage() {
               }))}
               className="w-64"
             />
+            {/* A reason only appears for the two actions the directory governs; showing it always
+                would leave an empty control on every other action, and hiding it when the action
+                needs one is what produced "specify a reason" with nowhere to specify it. */}
+            {reasonKindFor(action[row.id]) && (
+              <SelectField
+                label={o.masterReason}
+                searchable={false}
+                value={reason[row.id] ?? ''}
+                onChange={(v) => setReason((r) => ({ ...r, [row.id]: v }))}
+                placeholder="…"
+                required
+                options={reasonOptions(action[row.id])}
+                className="w-56"
+              />
+            )}
             <FormField label={o.comment} className="min-w-72 flex-1">
               {(id) => (
                 <Textarea
@@ -408,7 +461,12 @@ export function OperationsPage() {
             <Button
               type="submit"
               variant="secondary"
-              disabled={busy || !action[row.id] || isBlank(comment[row.id])}
+              disabled={
+                busy ||
+                !action[row.id] ||
+                isBlank(comment[row.id]) ||
+                (reasonKindFor(action[row.id]) !== null && !reason[row.id])
+              }
             >
               {o.apply}
             </Button>
