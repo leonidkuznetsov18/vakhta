@@ -1,3 +1,9 @@
+## [0.41.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.40.0...v0.41.0) (2026-09-08)
+
+### Features
+
+* **bonus:** points per unit — filter, unit leaderboard with its master, coloured chart ([c4a2a27](https://github.com/leonidkuznetsov18/vakhta/commit/c4a2a27bb7f2c939ebd342d34660e55206c45d64))
+
 ## [0.40.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.39.0...v0.40.0) (2026-09-08)
 
 ### Features
