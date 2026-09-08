@@ -1,3 +1,9 @@
+## [0.37.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.36.0...v0.37.0) (2026-09-08)
+
+### Features
+
+* **bonus:** read-only points — one approved checklist is one point ([361ef3f](https://github.com/leonidkuznetsov18/vakhta/commit/361ef3f9b8c802452f1c8868b178776e08d21643))
+
 ## [0.36.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.35.0...v0.36.0) (2026-09-08)
 
 ### Features
