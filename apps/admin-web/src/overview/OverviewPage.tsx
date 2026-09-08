@@ -44,7 +44,7 @@ function presetStorage(values: Record<string, string>): void {
 }
 
 interface Tile {
-  readonly key: keyof Omit<Attention, 'refreshedAt' | 'unscheduledPeople' | 'people'>;
+  readonly key: keyof Omit<Attention, 'refreshedAt' | 'unscheduledPeople' | 'people' | 'firstId'>;
   readonly label: string;
   readonly icon: LucideIcon;
   readonly section: SectionKey;
@@ -209,6 +209,11 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
 
   function open(t: Tile): void {
     t.prepare?.();
+    // Open the row the number stood for, not just the list it lives in: the destination reads the
+    // id from the address, so writing it before the jump lands the reader on the thing itself.
+    // Sections whose sub-path names a tab (administration) keep whatever `prepare` put there.
+    const id = data.firstId[t.key];
+    if (id && t.section !== 'administration') writeRoute(t.section, id);
     go(t.section);
   }
 

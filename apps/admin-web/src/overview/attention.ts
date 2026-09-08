@@ -13,6 +13,11 @@ export interface Attention {
    * which is what turns the overview from a report into something to act on.
    */
   readonly people: Readonly<Partial<Record<keyof Attention, readonly StackedPerson[]>>>;
+  /**
+   * The row a tile should open on arrival: landing on a filtered list still leaves the reader
+   * hunting for what the number stood for, and with one row there is nothing to choose anyway.
+   */
+  readonly firstId: Readonly<Partial<Record<keyof Attention, string>>>;
   readonly closedNoChecklist: number | null;
   readonly inDowntime: number | null;
   readonly openIncidents: number | null;
@@ -31,6 +36,7 @@ const EMPTY: Attention = {
   unscheduled: null,
   unscheduledPeople: [],
   people: {},
+  firstId: {},
   closedNoChecklist: null,
   inDowntime: null,
   openIncidents: null,
@@ -103,6 +109,16 @@ export function useAttention(me: MeView, intervalMs = 60_000) {
         unlinkedEmployees: (employees ?? [])
           .filter((e) => e.status === 'ACTIVE' && !e.telegramLinked)
           .map((e) => person(e.id, e.fullName, e.personnelNumber)),
+      },
+      firstId: {
+        onShift: onShiftNow[0]?.id,
+        closedNoChecklist: noChecklist[0]?.id,
+        inDowntime: onShiftNow.find((s) => s.state === 'DOWNTIME')?.id,
+        openIncidents: incidents?.[0]?.id,
+        slaBreached: incidents?.find((i) => i.slaBreached)?.id,
+        overdueAcceptances: handovers?.[0]?.id,
+        requestsForMe: requests?.[0]?.id,
+        overdueRequests: requests?.find((r) => r.overdue)?.id,
       },
       onShift: shifts ? onShiftNow.length : null,
       unscheduled: unscheduledPeople.length > 0 || shifts ? unscheduledPeople.length : null,

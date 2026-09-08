@@ -298,6 +298,11 @@ window.fetch = async (input: RequestInfo | URL) => {
       closedNoChecklist,
     ]);
   if (path === `/admin/shifts/${shift.id}`) return json(shiftDetail);
+  // Every shift the overview can deep-link into needs a detail, or opening its row lands on nothing.
+  if (path.startsWith('/admin/shifts/') && !path.includes('/', '/admin/shifts/'.length)) {
+    const id = path.slice('/admin/shifts/'.length);
+    return json({ ...shiftDetail, session: { ...shiftDetail.session, id } });
+  }
   if (path === '/admin/bonus/points') {
     const emp = (
       employeeId: string,

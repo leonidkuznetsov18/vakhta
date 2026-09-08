@@ -472,7 +472,7 @@ export function OperationsPage() {
             </Button>
           </form>
         )}
-        {detail && detail.session.id === row.id ? (
+        {detail?.session?.id === row.id ? (
           <DetailPanel detail={detail} />
         ) : (
           <Muted>{all.ui.common.loading}</Muted>
