@@ -70,46 +70,77 @@
         font-size: clamp(14px, 2vw, 20px);
         color: var(--muted);
       }
-      /* The terminal name doubles as the switcher: hovering it (or focusing it from a keyboard,
-         or tapping it on a touch screen) reveals a select of the terminals this tablet has paired. */
+      /*
+       * The terminal name IS the switcher. Both sit in one grid cell, so the box never changes
+       * width: at rest the name reads as a title, and pointing at it (or reaching it with the
+       * keyboard, or touching it on a screen with no hover) fades the name out and the select in.
+       */
       .terminal {
-        position: relative;
-        display: flex;
+        display: grid;
         align-items: center;
-        gap: 10px;
+        justify-items: start;
+        min-width: 0;
+      }
+      .terminal-name,
+      .terminal-switch {
+        grid-area: 1 / 1;
+        font: inherit;
+        font-weight: 600;
+        padding: 6px 32px 6px 10px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        white-space: nowrap;
+        transition: opacity 160ms ease-in-out;
       }
       .terminal-name {
         color: var(--accent);
-        font-weight: 600;
+        pointer-events: none;
       }
       .terminal-switch {
-        font: inherit;
-        font-size: clamp(13px, 1.4vw, 16px);
-        padding: 6px 10px;
-        border-radius: 8px;
-        border: 1px solid var(--muted);
-        background: #1b2130;
+        appearance: none;
+        -webkit-appearance: none;
+        background-color: #1b2130;
         color: var(--ink);
+        border-color: var(--muted);
         cursor: pointer;
         opacity: 0;
-        transition: opacity 120ms ease-in-out;
+        /* The caret lives in the control itself: an overlay would swallow the click. */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%2394a3b2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
       }
       .terminal-switch option {
         background: #1b2130;
         color: var(--ink);
+        font-weight: 400;
       }
-      .terminal-switch:focus-visible {
-        outline: 2px solid var(--accent);
-        outline-offset: 2px;
+      .terminal:hover .terminal-name,
+      .terminal:focus-within .terminal-name,
+      .terminal.open .terminal-name {
+        opacity: 0;
       }
       .terminal:hover .terminal-switch,
       .terminal:focus-within .terminal-switch,
       .terminal.open .terminal-switch {
         opacity: 1;
       }
+      .terminal-switch:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      /* No hover to reveal it with: the select is the title. */
       @media (hover: none) {
+        .terminal-name {
+          opacity: 0;
+        }
         .terminal-switch {
           opacity: 1;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .terminal-name,
+        .terminal-switch {
+          transition: none;
         }
       }
       .offline {
@@ -273,7 +304,7 @@
   <body>
     <header class="bar">
       <div id="terminal" class="terminal">
-        <span id="terminal-name" class="terminal-name"></span>
+        <span id="terminal-name" class="terminal-name" aria-hidden="true"></span>
         <select id="terminal-switch" class="terminal-switch" hidden></select>
       </div>
       <div class="clock">

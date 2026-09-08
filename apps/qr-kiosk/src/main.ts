@@ -210,6 +210,7 @@ function setUrlTerminal(id: string): void {
 /** The select next to the name: every paired terminal, plus a way to pair one more. */
 function renderSwitch(): void {
   const now = current();
+  el.terminalSwitch.setAttribute('aria-label', t.kiosk.switchTerminal);
   el.terminalSwitch.replaceChildren();
   for (const terminal of terminals) {
     const option = document.createElement('option');

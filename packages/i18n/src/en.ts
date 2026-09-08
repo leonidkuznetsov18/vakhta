@@ -2140,6 +2140,7 @@ export const en: Messages = {
     pairHint: 'Type the pairing code from the panel: Administration → Terminals.',
     pairCode: 'Pairing code',
     addTerminal: '+ Add a terminal',
+    switchTerminal: 'Terminal on screen',
     pairButton: 'Pair',
     pairing: 'Pairing…',
     pairInvalid: 'The code did not match or has expired. Get a new code in the panel.',
