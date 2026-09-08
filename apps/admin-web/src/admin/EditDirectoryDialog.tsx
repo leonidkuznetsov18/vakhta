@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { isBlank, isUnchanged } from '@/lib/forms';
-import type { OrgSnapshot } from '@vakhta/contracts';
+import type { OrgSnapshot, WebUserView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -34,11 +34,13 @@ export type DirectoryEdit =
 export function EditDirectoryDialog({
   edit,
   org,
+  users,
   onClose,
   onSaved,
 }: {
   readonly edit: DirectoryEdit | null;
   readonly org: OrgSnapshot;
+  readonly users: readonly WebUserView[];
   readonly onClose: () => void;
   readonly onSaved: () => Promise<void>;
 }) {
@@ -46,6 +48,7 @@ export function EditDirectoryDialog({
   const [name, setName] = useState('');
   const [timezone, setTimezone] = useState('');
   const [parentId, setParentId] = useState('');
+  const [masterUserId, setMasterUserId] = useState('');
   const [orgUnitId, setOrgUnitId] = useState('');
   const [type, setType] = useState<(typeof ZONE_TYPES)[number]>('AREA');
   const [isShared, setIsShared] = useState(false);
@@ -55,7 +58,10 @@ export function EditDirectoryDialog({
     if (!edit) return;
     setName(edit.row.name);
     if (edit.kind === 'sites') setTimezone(edit.row.timezone);
-    if (edit.kind === 'orgUnits') setParentId(edit.row.parentId ?? '');
+    if (edit.kind === 'orgUnits') {
+      setParentId(edit.row.parentId ?? '');
+      setMasterUserId(edit.row.masters[0]?.id ?? '');
+    }
     if (edit.kind === 'teams') setOrgUnitId(edit.row.orgUnitId);
     if (edit.kind === 'zones') {
       setType(edit.row.type);
@@ -76,8 +82,12 @@ export function EditDirectoryDialog({
         );
       case 'orgUnits':
         return isUnchanged(
-          { name, parentId: parentId || null },
-          { name: edit.row.name, parentId: edit.row.parentId ?? null },
+          { name, parentId: parentId || null, masterUserId: masterUserId || null },
+          {
+            name: edit.row.name,
+            parentId: edit.row.parentId ?? null,
+            masterUserId: edit.row.masters[0]?.id ?? null,
+          },
         );
       case 'teams':
         return isUnchanged(
@@ -108,7 +118,11 @@ export function EditDirectoryDialog({
           await adminOrgApi.updateSite(edit.row.id, { name, timezone });
           break;
         case 'orgUnits':
-          await adminOrgApi.updateOrgUnit(edit.row.id, { name, parentId: parentId || null });
+          await adminOrgApi.updateOrgUnit(edit.row.id, {
+            name,
+            parentId: parentId || null,
+            masterUserId: masterUserId || null,
+          });
           break;
         case 'teams':
           await adminOrgApi.updateTeam(edit.row.id, { name, orgUnitId });
@@ -167,15 +181,25 @@ export function EditDirectoryDialog({
             </FormField>
           )}
           {edit?.kind === 'orgUnits' && (
-            <SelectField
-              label={d.parent}
-              value={parentId}
-              onChange={setParentId}
-              placeholder={t.common.none}
-              options={org.orgUnits
-                .filter((u) => u.siteId === edit.row.siteId && u.id !== edit.row.id)
-                .map((u) => ({ value: u.id, label: u.name }))}
-            />
+            <>
+              <SelectField
+                label={d.parent}
+                value={parentId}
+                onChange={setParentId}
+                placeholder={t.common.none}
+                options={org.orgUnits
+                  .filter((u) => u.siteId === edit.row.siteId && u.id !== edit.row.id)
+                  .map((u) => ({ value: u.id, label: u.name }))}
+              />
+              <SelectField
+                label={d.unitMaster}
+                hint={d.noMasterNotice}
+                value={masterUserId}
+                onChange={setMasterUserId}
+                placeholder={t.common.none}
+                options={users.map((u) => ({ value: u.id, label: u.name || u.email }))}
+              />
+            </>
           )}
           {edit?.kind === 'teams' && (
             <SelectField

@@ -27,6 +27,8 @@ export const CreateOrgUnitCommand = z.object({
   siteId: Uuid,
   parentId: Uuid.nullable().optional(),
   name: Name,
+  /** Panel user to make this unit's shift master: they get the SHIFT_MASTER role scoped to it. */
+  masterUserId: Uuid.nullable().optional(),
 });
 export type CreateOrgUnitCommand = z.infer<typeof CreateOrgUnitCommand>;
 
@@ -45,6 +47,8 @@ export type UpdateSiteCommand = z.infer<typeof UpdateSiteCommand>;
 export const UpdateOrgUnitCommand = z.object({
   name: Name.optional(),
   parentId: Uuid.nullable().optional(),
+  /** Replaces the unit's shift master; null clears it. Omitted leaves the current master alone. */
+  masterUserId: Uuid.nullable().optional(),
 });
 export type UpdateOrgUnitCommand = z.infer<typeof UpdateOrgUnitCommand>;
 
@@ -135,9 +139,9 @@ export const OrgUnitView = z.object({
   siteId: Uuid,
   parentId: Uuid.nullable(),
   name: z.string(),
-  /** Names of the panel users who have the shift-master role scoped to this unit and can review
-   * its checklists. Empty means the unit has no master. */
-  masters: z.array(z.string()),
+  /** Panel users holding the shift-master role scoped to this unit; they review its checklists.
+   * Empty means the unit has no master. */
+  masters: z.array(z.object({ id: Uuid, name: z.string() })),
 });
 export const TeamView = z.object({ id: Uuid, orgUnitId: Uuid, name: z.string() });
 export const PositionView = z.object({ id: Uuid, code: z.string(), name: z.string() });

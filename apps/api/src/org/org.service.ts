@@ -77,8 +77,45 @@ export class OrgService {
         .insert(orgUnits)
         .values({ siteId: cmd.siteId, parentId: cmd.parentId ?? null, name: cmd.name })
         .returning();
+      if (cmd.masterUserId !== undefined) {
+        await this.setUnitMaster(tx, row!.id, cmd.masterUserId, actor);
+      }
       return row!;
     });
+  }
+
+  /**
+   * The unit's shift master is a panel user holding the SHIFT_MASTER role scoped to that unit, so
+   * assigning one from the unit form moves that grant: the previous master for the unit loses it
+   * and the chosen user gains it. null clears the master.
+   */
+  private async setUnitMaster(
+    tx: DbOrTx,
+    orgUnitId: string,
+    userId: string | null,
+    actor: Actor,
+  ): Promise<void> {
+    await tx
+      .delete(webUserRoles)
+      .where(
+        and(
+          eq(webUserRoles.role, 'SHIFT_MASTER'),
+          eq(webUserRoles.scopeType, 'ORG_UNIT'),
+          eq(webUserRoles.scopeId, orgUnitId),
+        ),
+      );
+    if (userId) {
+      await tx
+        .insert(webUserRoles)
+        .values({
+          userId,
+          role: 'SHIFT_MASTER',
+          scopeType: 'ORG_UNIT',
+          scopeId: orgUnitId,
+          grantedBy: actor.id,
+        })
+        .onConflictDoNothing();
+    }
   }
 
   async createTeam(cmd: CreateTeamCommand, actor: Actor) {
@@ -138,8 +175,13 @@ export class OrgService {
         throw new DomainError('ORG_UNIT_CYCLE', 422, 'A unit cannot be its own parent');
       await this.requireOrgUnit(cmd.parentId, unit.siteId);
     }
+    const { masterUserId, ...fields } = cmd;
     return this.updateWithAudit('org_unit', 'ORG_UNIT_UPDATED', actor, id, cmd, async (tx) => {
-      const [row] = await tx.update(orgUnits).set(cmd).where(eq(orgUnits.id, id)).returning();
+      const [row] =
+        Object.keys(fields).length > 0
+          ? await tx.update(orgUnits).set(fields).where(eq(orgUnits.id, id)).returning()
+          : await tx.select().from(orgUnits).where(eq(orgUnits.id, id)).limit(1);
+      if (masterUserId !== undefined) await this.setUnitMaster(tx, id, masterUserId, actor);
       return row ?? null;
     });
   }
@@ -441,17 +483,17 @@ export class OrgService {
         .orderBy(asc(qrTerminals.name)),
       this.db.select().from(reasonCodes).orderBy(asc(reasonCodes.kind), asc(reasonCodes.code)),
       this.db
-        .select({ scopeId: webUserRoles.scopeId, name: authUser.name })
+        .select({ scopeId: webUserRoles.scopeId, id: authUser.id, name: authUser.name })
         .from(webUserRoles)
         .innerJoin(authUser, eq(webUserRoles.userId, authUser.id))
         .where(and(eq(webUserRoles.role, 'SHIFT_MASTER'), eq(webUserRoles.scopeType, 'ORG_UNIT')))
         .orderBy(asc(authUser.name)),
     ]);
-    const mastersByUnit = new Map<string, string[]>();
+    const mastersByUnit = new Map<string, { id: string; name: string }[]>();
     for (const m of masters) {
       if (!m.scopeId) continue;
       const list = mastersByUnit.get(m.scopeId) ?? [];
-      list.push(m.name);
+      list.push({ id: m.id, name: m.name });
       mastersByUnit.set(m.scopeId, list);
     }
     return {

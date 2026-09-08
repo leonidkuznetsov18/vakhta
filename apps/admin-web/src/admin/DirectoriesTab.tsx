@@ -1,5 +1,5 @@
-import { type FormEvent } from 'react';
-import type { OrgSnapshot } from '@vakhta/contracts';
+import { useEffect, useState, type FormEvent } from 'react';
+import type { OrgSnapshot, WebUserView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -10,10 +10,9 @@ import { Feedback, useAction } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
-import { adminOrgApi } from '../api.ts';
+import { adminOrgApi, usersApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
-import { useState } from 'react';
 import { isBlank } from '@/lib/forms';
 import { AddDialog } from '@/components/app/add-dialog';
 import { DialogFooter } from '@/components/ui/dialog';
@@ -50,6 +49,13 @@ export function DirectoriesTab({ org, onChanged }: Props) {
     null,
   );
   const [editing, setEditing] = useState<DirectoryEdit | null>(null);
+  const [users, setUsers] = useState<WebUserView[]>([]);
+  useEffect(() => {
+    usersApi
+      .list()
+      .then(setUsers)
+      .catch(() => undefined);
+  }, []);
   const { confirm, dialog } = useConfirm();
 
   async function remove(kind: DirectoryEdit['kind'], id: string, name: string) {
@@ -104,6 +110,7 @@ export function DirectoriesTab({ org, onChanged }: Props) {
     siteId: org.sites[0]?.id ?? '',
     parentId: '',
     name: '',
+    masterUserId: '',
   });
   const [team, setTeam] = usePersistentState('directories.team', {
     orgUnitId: org.orgUnits[0]?.id ?? '',
@@ -149,7 +156,7 @@ export function DirectoriesTab({ org, onChanged }: Props) {
       header: d.unitMaster,
       cell: (u) =>
         u.masters.length > 0 ? (
-          <span>{u.masters.join(', ')}</span>
+          <span>{u.masters.map((m) => m.name).join(', ')}</span>
         ) : (
           <StatusPill tone="danger">{d.noMaster}</StatusPill>
         ),
@@ -294,6 +301,7 @@ export function DirectoriesTab({ org, onChanged }: Props) {
                       siteId: unit.siteId,
                       name: unit.name,
                       parentId: unit.parentId || null,
+                      masterUserId: unit.masterUserId || null,
                     }),
                   () => setUnit({ ...unit, name: '' }),
                 )
@@ -314,6 +322,14 @@ export function DirectoriesTab({ org, onChanged }: Props) {
                 options={org.orgUnits
                   .filter((u) => u.siteId === unit.siteId)
                   .map((u) => ({ value: u.id, label: u.name }))}
+              />
+              <SelectField
+                label={d.unitMaster}
+                hint={d.noMasterNotice}
+                value={unit.masterUserId}
+                onChange={(v) => setUnit({ ...unit, masterUserId: v })}
+                placeholder={t.common.none}
+                options={users.map((u) => ({ value: u.id, label: u.name || u.email }))}
               />
               <FormField label={t.common.name}>
                 {(id) => (
@@ -618,6 +634,7 @@ export function DirectoriesTab({ org, onChanged }: Props) {
       <EditDirectoryDialog
         edit={editing}
         org={org}
+        users={users}
         onClose={() => setEditing(null)}
         onSaved={async () => {
           setEditing(null);
