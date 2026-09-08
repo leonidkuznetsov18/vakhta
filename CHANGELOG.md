@@ -1,3 +1,9 @@
+## [0.48.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.47.2...v0.48.0) (2026-09-08)
+
+### Features
+
+* master actions that work, a checklist one press away, and named unscheduled shifts ([284886f](https://github.com/leonidkuznetsov18/vakhta/commit/284886f2055628abac3258042ce5fcaacb0007ca))
+
 ## [0.47.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.47.1...v0.47.2) (2026-09-08)
 
 ### Bug fixes
