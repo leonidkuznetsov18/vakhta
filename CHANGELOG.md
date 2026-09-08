@@ -1,3 +1,9 @@
+## [0.43.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.42.0...v0.43.0) (2026-09-08)
+
+### Features
+
+* **handover:** only the master reviews — drop next-shift acceptance and disputes ([19f2fa8](https://github.com/leonidkuznetsov18/vakhta/commit/19f2fa857bc632467fcdd2435462854f246f40d7))
+
 ## [0.42.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.41.0...v0.42.0) (2026-09-08)
 
 ### Features
