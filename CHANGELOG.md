@@ -1,3 +1,9 @@
+## [0.35.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.34.0...v0.35.0) (2026-09-08)
+
+### Features
+
+* **shift:** open the shift from QR even without a schedule (QR-to-QR, part 1) ([f452ff6](https://github.com/leonidkuznetsov18/vakhta/commit/f452ff6eb03aa7f7a3ee4c7195f3fefb2eb3c345))
+
 ## [0.34.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.33.3...v0.34.0) (2026-09-08)
 
 ### Features
