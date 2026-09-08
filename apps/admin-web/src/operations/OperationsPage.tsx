@@ -5,7 +5,7 @@ import type {
   OrgSnapshot,
   ShiftDetailView,
 } from '@vakhta/contracts';
-import { USER_SHIFT_ACTIONS, type ShiftState, type UserShiftAction } from '@vakhta/domain';
+import { allowedActions, type ShiftState, type UserShiftAction } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -194,6 +194,18 @@ export function OperationsPage() {
     }
   }
 
+  /**
+   * Only what this shift can actually do next, computed from its own state with the master's
+   * override — offering the whole action list produced "this action is not available" on a shift
+   * that was simply not there yet.
+   */
+  function masterActions(row: ActiveShiftView): UserShiftAction[] {
+    return allowedActions(
+      { state: row.state, resumeState: row.resumeState },
+      { masterOverride: true, presenceConfirmed: true, zoneAccepted: true, handoverComplete: true },
+    ).filter((a) => a !== 'START_SHIFT');
+  }
+
   function applyAction(row: ActiveShiftView) {
     const act = action[row.id];
     const text = (comment[row.id] ?? '').trim();
@@ -375,7 +387,7 @@ export function OperationsPage() {
               onChange={(v) => setAction((a) => ({ ...a, [row.id]: v as UserShiftAction }))}
               placeholder="…"
               required
-              options={USER_SHIFT_ACTIONS.filter((a) => a !== 'START_SHIFT').map((a) => ({
+              options={masterActions(row).map((a) => ({
                 value: a,
                 label: all.actions[a],
               }))}

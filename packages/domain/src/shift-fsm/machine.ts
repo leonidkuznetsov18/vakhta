@@ -61,6 +61,7 @@ export type TransitionErrorCode =
   | 'ZONE_NOT_ACCEPTED'
   | 'HANDOVER_INCOMPLETE'
   | 'REASON_REQUIRED'
+  | 'MASTER_ONLY'
   | 'RESUME_STATE_MISSING';
 
 export type TransitionResult =
@@ -78,7 +79,8 @@ export type TransitionResult =
       readonly error: TransitionErrorCode;
     };
 
-type Guard = (ctx: TransitionContext) => TransitionErrorCode | null;
+/** The snapshot comes along so a refusal can name the real obstacle, not just the rule. */
+type Guard = (ctx: TransitionContext, snapshot: ShiftSnapshot) => TransitionErrorCode | null;
 
 /**
  * Як змінюється resumeState:
@@ -106,6 +108,15 @@ const requireZone: Guard = (ctx) =>
 
 const requireHandover: Guard = (ctx) =>
   ctx.handoverComplete === true || ctx.masterOverride === true ? null : 'HANDOVER_INCOMPLETE';
+
+/**
+ * Closing before the report is the master's call alone. Without the override the refusal names what
+ * actually stands in the way: an open break or downtime has to be closed first either way.
+ */
+const requireMaster: Guard = (ctx, snapshot) => {
+  if (ctx.masterOverride === true) return null;
+  return isTemporary(snapshot.state) ? 'TEMPORARY_STATE_OPEN' : 'MASTER_ONLY';
+};
 
 const requireReason: Guard = (ctx) =>
   typeof ctx.reasonCode === 'string' && ctx.reasonCode.trim().length > 0 ? null : 'REASON_REQUIRED';
@@ -198,6 +209,17 @@ export const TRANSITION_RULES: readonly Rule[] = [
     resume: 'clear',
     effects: ['FINALIZE_SHIFT'],
   },
+  // A shift that is stuck short of its report is the master's to end: from the operations page,
+  // with a mandatory comment and the whole audit trail. Nobody else can close from these states —
+  // for an employee the shift ends by scanning the exit QR after the report has gone.
+  {
+    action: 'CLOSE_SHIFT',
+    from: ACTIVE_STATES,
+    to: 'SHIFT_CLOSED',
+    guard: requireMaster,
+    resume: 'clear',
+    effects: ['FINALIZE_SHIFT'],
+  },
   // The end-of-day job closes a shift left open past its planned end from any active state.
   {
     action: 'AUTO_CLOSE',
@@ -256,7 +278,7 @@ export function transition(
   const rule = TRANSITION_RULES.find((r) => r.action === action && r.from.includes(snapshot.state));
   if (!rule) return fail(snapshot, action, explainRejection(snapshot, action));
 
-  const guardError = rule.guard?.(ctx) ?? null;
+  const guardError = rule.guard?.(ctx, snapshot) ?? null;
   if (guardError) return fail(snapshot, action, guardError);
 
   if (rule.to === 'RESUME_STATE') {

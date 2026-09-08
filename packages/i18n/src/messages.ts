@@ -422,6 +422,8 @@ export interface Messages {
       readonly closedNoChecklist: string;
       readonly unscheduledBanner: string;
       readonly unscheduledOpen: string;
+      readonly unscheduledPlan: string;
+      readonly noUnit: string;
       readonly open: string;
       /** Placeholder: {time} */
       readonly refreshedAt: string;
@@ -1273,6 +1275,8 @@ export interface Messages {
       readonly add: string;
       readonly loading_rows: string;
       readonly nothingHere: string;
+      readonly newBuild: string;
+      readonly newBuildReload: string;
       readonly searchPlaceholder: string;
       readonly sortAsc: string;
       readonly sortDesc: string;

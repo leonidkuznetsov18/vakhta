@@ -162,6 +162,8 @@ export type ActivityIntervalView = z.infer<typeof ActivityIntervalView>;
 export const ActiveShiftView = ShiftSessionView.extend({
   fullName: z.string(),
   personnelNumber: z.string(),
+  /** The unit this shift belongs to, so a schedule can be started for the people standing in it. */
+  orgUnitId: Uuid.nullable(),
   orgUnitName: z.string().nullable(),
   presenceSince: IsoDateTime.nullable(),
   /** Скільки хвилин триває поточний стан на момент serverTime. */

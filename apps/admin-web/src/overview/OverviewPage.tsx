@@ -1,4 +1,5 @@
-import type { MeView } from '@vakhta/contracts';
+import { useMemo } from 'react';
+import type { ActiveShiftView, MeView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import {
   AlertTriangleIcon,
@@ -19,6 +20,7 @@ import { InfoTip } from '@/components/app/info-tip';
 import { EmptyState, Muted, Section, type Tone } from '@/components/app/page';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { formatTime } from '@/lib/format';
+import { writeSchedulePreset } from '../schedule/preset.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { writeRoute } from '@/lib/route';
@@ -41,7 +43,7 @@ function presetStorage(values: Record<string, string>): void {
 }
 
 interface Tile {
-  readonly key: keyof Omit<Attention, 'refreshedAt'>;
+  readonly key: keyof Omit<Attention, 'refreshedAt' | 'unscheduledPeople'>;
   readonly label: string;
   readonly icon: LucideIcon;
   readonly section: SectionKey;
@@ -168,6 +170,37 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
   const attention = visible.filter((t) => t.tone !== 'neutral' && (data[t.key] ?? 0) > 0);
   const quiet = visible.filter((t) => !attention.includes(t));
 
+  /** The people on an unscheduled shift, gathered by the unit whose schedule would hold them. */
+  const unscheduledByUnit = useMemo(() => {
+    const groups = new Map<
+      string,
+      { orgUnitId: string | null; orgUnitName: string | null; people: ActiveShiftView[] }
+    >();
+    for (const person of data.unscheduledPeople) {
+      const key = person.orgUnitId ?? '';
+      const group = groups.get(key) ?? {
+        orgUnitId: person.orgUnitId,
+        orgUnitName: person.orgUnitName,
+        people: [],
+      };
+      group.people.push(person);
+      groups.set(key, group);
+    }
+    return [...groups.values()].sort((a, b) =>
+      (a.orgUnitName ?? '').localeCompare(b.orgUnitName ?? ''),
+    );
+  }, [data.unscheduledPeople]);
+
+  /** Hands the unit and the people to the schedule page, which opens that month with them in it. */
+  function planFor(group: (typeof unscheduledByUnit)[number]): void {
+    if (!group.orgUnitId) return;
+    writeSchedulePreset({
+      orgUnitId: group.orgUnitId,
+      employeeIds: group.people.map((p) => p.employeeId),
+    });
+    go('schedule');
+  }
+
   const tile = (t: Tile) => {
     const value = data[t.key] ?? 0;
     const active = t.tone !== 'neutral' && value > 0;
@@ -208,9 +241,9 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
     <div className="flex flex-col gap-4">
       <HowItWorks guide="overview" />
       <Feedback error={error ? describeError(error) : null} />
-      {(data.unscheduled ?? 0) > 0 && (
+      {unscheduledByUnit.length > 0 && (
         <Card className="border-amber-300 dark:border-amber-900">
-          <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <CardContent className="flex flex-col gap-3">
             <div className="flex items-start gap-3">
               <CalendarClockIcon
                 aria-hidden="true"
@@ -218,9 +251,31 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
               />
               <p className="text-sm">{format(o.unscheduledBanner, { n: data.unscheduled ?? 0 })}</p>
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={() => go('schedule')}>
-              {o.unscheduledOpen}
-            </Button>
+            {/* Named, and grouped by unit: a schedule is written for one unit at a time, so each
+                group carries the button that opens that unit's month with these people already in
+                it. Without the names the tile only said how many, which nobody can act on. */}
+            <ul className="flex flex-col gap-2">
+              {unscheduledByUnit.map((group) => (
+                <li
+                  key={group.orgUnitId ?? 'none'}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-3 py-2"
+                >
+                  <span className="font-medium">{group.orgUnitName ?? o.noUnit}</span>
+                  <span className="min-w-0 flex-1 text-sm whitespace-normal text-muted-foreground">
+                    {group.people.map((p) => p.fullName).join(', ')}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={group.orgUnitId === null}
+                    onClick={() => planFor(group)}
+                  >
+                    {o.unscheduledPlan}
+                  </Button>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       )}

@@ -147,6 +147,29 @@ describe('тимчасові стани і resume_state (FR-BRK-01, ТЗ 4.4)', 
     });
   });
 
+  it('a master ends a shift stuck short of its report; nobody else can', () => {
+    // The employee's way out is the exit QR after the report has gone, so from these states the
+    // action belongs to the master alone, and the refusal says so.
+    expect(transition(at('HANDOVER'), 'CLOSE_SHIFT', FULL_CTX)).toMatchObject({
+      ok: false,
+      error: 'MASTER_ONLY',
+    });
+    expect(
+      transition(at('HANDOVER'), 'CLOSE_SHIFT', { ...FULL_CTX, masterOverride: true }),
+    ).toMatchObject({ ok: true, next: { state: 'SHIFT_CLOSED' } });
+    expect(
+      transition(at('WORKING'), 'CLOSE_SHIFT', { ...FULL_CTX, masterOverride: true }),
+    ).toMatchObject({ ok: true, next: { state: 'SHIFT_CLOSED' } });
+    // An open break is still an open break: the master closes it too, the employee is told why.
+    expect(transition(at('MEAL', 'WORKING'), 'CLOSE_SHIFT', FULL_CTX)).toMatchObject({
+      ok: false,
+      error: 'TEMPORARY_STATE_OPEN',
+    });
+    expect(
+      transition(at('MEAL', 'WORKING'), 'CLOSE_SHIFT', { ...FULL_CTX, masterOverride: true }),
+    ).toMatchObject({ ok: true, next: { state: 'SHIFT_CLOSED' } });
+  });
+
   it('T-13: простій під час прибирання повертає в CLEANING', () => {
     const end = run([['START_DOWNTIME'], ['RESUME']], at('CLEANING'));
     expect(end).toEqual(at('CLEANING'));

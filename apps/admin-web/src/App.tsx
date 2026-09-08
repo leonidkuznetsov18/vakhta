@@ -53,6 +53,7 @@ import { RequestsPage } from './requests/RequestsPage.tsx';
 import { SchedulePage } from './schedule/SchedulePage.tsx';
 import { useSession } from './auth/useSession.ts';
 import { Button } from '@/components/ui/button';
+import { useNewBuild } from '@/lib/build-check';
 import { CompactLanguageSwitcher, LanguageSwitcher, currentLocale } from './i18n.tsx';
 import { useAppearance, type Theme } from '@/lib/theme';
 import { NavigationProvider, type SectionKey } from './navigation.tsx';
@@ -154,6 +155,10 @@ export function App() {
     const sectionTitle = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];
     document.title = `${sectionTitle} · ${t.admin.productName}`;
   }, [active, state.status]);
+
+  // Every hook lives above the early returns: React keeps their order between renders, and a hook
+  // placed after them once crashed the panel on sign-in.
+  const newBuild = useNewBuild();
 
   if (state.status === 'loading') {
     return (
@@ -270,6 +275,14 @@ export function App() {
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>
+          {newBuild && (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-amber-50 px-4 py-2 text-sm dark:bg-amber-950/40">
+              <span>{t.ui.common.newBuild}</span>
+              <Button type="button" size="sm" variant="outline" onClick={() => location.reload()}>
+                {t.ui.common.newBuildReload}
+              </Button>
+            </div>
+          )}
           <header className="flex h-14 items-center gap-2 border-b px-4">
             <SidebarTrigger aria-label={t.ui.common.menu} />
             <h1 className="text-lg font-semibold">{title}</h1>

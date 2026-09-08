@@ -125,13 +125,16 @@ export const en: Messages = {
     SHIFT_NOT_STARTED: 'The shift has not started yet.',
     ALREADY_STARTED: 'The shift has already started.',
     SHIFT_NOT_ACTIVE: 'The shift is closed, actions are unavailable.',
-    ACTION_NOT_ALLOWED: 'This action is not available right now.',
+    ACTION_NOT_ALLOWED:
+      "This action is not available from the shift's current state. Pick one from the list — it only offers what is allowed now.",
     TEMPORARY_STATE_OPEN: 'Press "Return" first.',
     PRESENCE_REQUIRED: 'Confirm arrival by QR or through the shift master first.',
     ZONE_NOT_ACCEPTED: 'Accept the control zone or report a problem first.',
     HANDOVER_INCOMPLETE: 'Complete the checklist and upload three photos.',
     REASON_REQUIRED: 'Specify a reason.',
     RESUME_STATE_MISSING: 'Could not determine where to return. Contact the shift master.',
+    MASTER_ONLY:
+      'Only a shift master can close a shift before its report is sent — from Operations, with a comment. An employee closes a shift by scanning the exit QR.',
     VERSION_CONFLICT:
       'The state has already changed. The screen is refreshed, choose the action again.',
     NO_ACTIVE_SHIFT: 'There is no open shift.',
@@ -570,6 +573,8 @@ export const en: Messages = {
       unscheduledBanner:
         '{n} employees are on shift right now without a schedule. Build a schedule for them so their shifts are planned.',
       unscheduledOpen: 'Open schedule',
+      unscheduledPlan: 'Build a schedule for them',
+      noUnit: 'No unit',
       open: 'Open',
       refreshedAt: 'Updated {time}',
     },
@@ -1568,6 +1573,8 @@ export const en: Messages = {
       add: 'Add',
       loading_rows: 'Loading…',
       nothingHere: 'Nothing here yet.',
+      newBuild: 'A newer version of the panel is out. Reload the page to use it.',
+      newBuildReload: 'Reload',
       searchPlaceholder: 'Search…',
       sortAsc: 'Sort ascending',
       sortDesc: 'Sort descending',

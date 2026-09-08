@@ -20,6 +20,7 @@ import { ApiError, employeesApi, orgApi, schedulesApi } from '../api.ts';
 import { describeError as describe } from '../errors.ts';
 import { AckTable } from './AckTable.tsx';
 import { IssuesPanel } from './IssuesPanel.tsx';
+import { takeSchedulePreset } from './preset.ts';
 import { ScheduleGrid } from './ScheduleGrid.tsx';
 import {
   addRow,
@@ -151,6 +152,26 @@ export function SchedulePage() {
     },
     [siteId, orgUnitId, month],
   );
+
+  // Arriving from the overview's "these people are working without a schedule": open that unit and
+  // remember whom to add, then put them in as soon as a draft grid is on screen. The preset is read
+  // once, so a later reload of this page does not keep re-adding the same rows.
+  const [pending, setPending] = useState<readonly string[]>([]);
+  useEffect(() => {
+    const preset = takeSchedulePreset();
+    if (!preset) return;
+    const unit = org?.orgUnits.find((u) => u.id === preset.orgUnitId);
+    if (unit) setSiteId(unit.siteId);
+    setOrgUnitId(preset.orgUnitId);
+    setPending(preset.employeeIds);
+  }, [org]);
+
+  useEffect(() => {
+    if (pending.length === 0 || !detail || detail.version.status !== 'DRAFT') return;
+    setGrid((g) => pending.reduce((acc, id) => addRow(acc, id), g));
+    setDirty(true);
+    setPending([]);
+  }, [pending, detail]);
 
   useEffect(() => {
     setPatternStart(`${month}-01`);

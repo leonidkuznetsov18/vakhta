@@ -1154,6 +1154,26 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
             },
             meta,
           );
+    // Finishing the shift means one thing to the employee: fill in the checklist. The machine still
+    // walks through cleaning and handover — the intervals and the report draft depend on it — but
+    // the two steps happen in one press and the checklist itself is what comes back.
+    if (action === 'START_CLEANING' && result.ok) {
+      const opened = await deps.shift.transition(
+        ctx.employee.id,
+        {
+          action: 'CLEANING_DONE',
+          expectedVersion: result.session.version,
+          idempotencyKey: `${idempotencyKey}:handover`,
+        },
+        meta,
+      );
+      if (opened.ok) {
+        await ctx.answerCallbackQuery();
+        const draft = await deps.handover.current(ctx.employee.id);
+        await edit(ctx, draft ? handoverScreen(ctx.t, draft, '') : await buildHome(ctx));
+        return;
+      }
+    }
     await finishShiftCommand(ctx, result);
   });
 

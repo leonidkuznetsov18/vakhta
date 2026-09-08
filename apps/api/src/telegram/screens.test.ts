@@ -132,6 +132,19 @@ describe('shift screen in the bot (spec 4.4, FR-UI-01)', () => {
     );
     expect(buttons(handover)).toEqual([['hv:open'], ['sh:BACK_TO_CLEANING:3']]);
 
+    // A position with no checklist has nothing to fill in: the report itself is the button, or the
+    // shift could never reach the state the exit QR closes.
+    const noChecklist = shiftScreen(
+      t,
+      view({
+        session: { ...view().session!, state: 'HANDOVER' },
+        allowedActions: ['SUBMIT_HANDOVER', 'BACK_TO_CLEANING'],
+        checklistAvailable: false,
+      }),
+      'x',
+    );
+    expect(buttons(noChecklist)).toEqual([['sh:SUBMIT_HANDOVER:3'], ['sh:BACK_TO_CLEANING:3']]);
+
     const ready = shiftScreen(
       t,
       view({

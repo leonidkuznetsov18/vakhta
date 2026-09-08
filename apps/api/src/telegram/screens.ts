@@ -492,9 +492,11 @@ export function shiftKeyboard(t: Messages, view: ShiftScreenView): InlineKeyboar
       if (can('BACK_TO_WORK')) row(t.actions.BACK_TO_WORK, action('BACK_TO_WORK'));
       break;
     }
-    // The check: the checklist itself, and a way back to cleaning.
+    // The check: the checklist itself, and a way back. A position with no checklist has nothing to
+    // fill in, so for it the report is the button — otherwise the shift could never reach the QR.
     case 'HANDOVER': {
       if (view.checklistAvailable) row(t.handover.openButton, 'hv:open');
+      else if (can('SUBMIT_HANDOVER')) row(t.handover.submit, action('SUBMIT_HANDOVER'));
       if (can('BACK_TO_CLEANING')) row(t.actions.BACK_TO_CLEANING, action('BACK_TO_CLEANING'));
       break;
     }

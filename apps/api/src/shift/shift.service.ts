@@ -226,6 +226,7 @@ export class ShiftService {
         s: shiftSessions,
         fullName: employees.fullName,
         personnelNumber: employees.personnelNumber,
+        orgUnitId: orgUnits.id,
         orgUnitName: orgUnits.name,
         planStartAt:
           sql<Date | null>`coalesce(${shiftSessions.planStartAt}, ${shiftAssignments.planStartAt})`.mapWith(
@@ -263,6 +264,7 @@ export class ShiftService {
         s: shiftSessions,
         fullName: employees.fullName,
         personnelNumber: employees.personnelNumber,
+        orgUnitId: orgUnits.id,
         orgUnitName: orgUnits.name,
         planStartAt:
           sql<Date | null>`coalesce(${shiftSessions.planStartAt}, ${shiftAssignments.planStartAt})`.mapWith(
@@ -1002,6 +1004,7 @@ export class ShiftService {
       s: SessionRow;
       fullName: string;
       personnelNumber: string;
+      orgUnitId: string | null;
       orgUnitName: string | null;
       planStartAt: Date | null;
       planEndAt: Date | null;
@@ -1017,6 +1020,7 @@ export class ShiftService {
       ...base,
       fullName: row.fullName,
       personnelNumber: row.personnelNumber,
+      orgUnitId: row.orgUnitId,
       orgUnitName: row.orgUnitName,
       presenceSince: row.presenceSince?.toISOString() ?? null,
       stateMinutes: since ? Math.max(0, Math.round((now.getTime() - since.getTime()) / 60_000)) : 0,

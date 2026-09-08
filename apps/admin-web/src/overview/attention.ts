@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { MeView } from '@vakhta/contracts';
+import type { ActiveShiftView, MeView } from '@vakhta/contracts';
 import { employeesApi, handoversApi, incidentsApi, orgApi, requestsApi, shiftsApi } from '@/api';
 
 export interface Attention {
   readonly onShift: number | null;
   readonly unscheduled: number | null;
+  /** Who is on an unscheduled shift right now, so the banner can name them. */
+  readonly unscheduledPeople: readonly ActiveShiftView[];
   readonly closedNoChecklist: number | null;
   readonly inDowntime: number | null;
   readonly openIncidents: number | null;
@@ -21,6 +23,7 @@ export interface Attention {
 const EMPTY: Attention = {
   onShift: null,
   unscheduled: null,
+  unscheduledPeople: [],
   closedNoChecklist: null,
   inDowntime: null,
   openIncidents: null,
@@ -61,11 +64,13 @@ export function useAttention(me: MeView, intervalMs = 60_000) {
       may(me, EMPLOYEES) ? employeesApi.list().catch(() => null) : null,
       orgApi.snapshot().catch(() => null),
     ]);
+    const unscheduledPeople = (shifts ?? []).filter(
+      (s) => s.endedAt === null && s.assignmentId === null,
+    );
     setData({
       onShift: shifts ? shifts.filter((s) => s.endedAt === null).length : null,
-      unscheduled: shifts
-        ? shifts.filter((s) => s.endedAt === null && s.assignmentId === null).length
-        : null,
+      unscheduled: unscheduledPeople.length > 0 || shifts ? unscheduledPeople.length : null,
+      unscheduledPeople,
       closedNoChecklist: shifts
         ? shifts.filter((s) => s.endedAt !== null && s.autoCloseReason === 'NO_CHECKLIST').length
         : null,

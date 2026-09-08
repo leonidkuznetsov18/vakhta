@@ -86,6 +86,7 @@ const shift = {
   autoCloseReason: null,
   fullName: 'Кузнецов Леонид',
   personnelNumber: '0001',
+  orgUnitId: 'u1',
   orgUnitName: 'Цех Крышки',
   presenceSince: '2026-09-07T04:50:00.000Z',
   stateMinutes: 12,
