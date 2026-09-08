@@ -1,3 +1,9 @@
+## [0.47.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.47.1...v0.47.2) (2026-09-08)
+
+### Bug fixes
+
+* **kiosk:** the title comes back after a terminal is picked ([24f569c](https://github.com/leonidkuznetsov18/vakhta/commit/24f569cdace3c9abefedc73ff5d224d1be42700f))
+
 ## [0.47.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.47.0...v0.47.1) (2026-09-08)
 
 ### Refactoring
