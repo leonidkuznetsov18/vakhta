@@ -1,3 +1,13 @@
+## [0.49.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.48.1...v0.49.0) (2026-09-08)
+
+### Features
+
+* **schedule:** "Build a schedule" arrives with the draft already open and filled ([4b128d6](https://github.com/leonidkuznetsov18/vakhta/commit/4b128d6cf1581138c065e874e7ec8924f740c344))
+
+### Tests
+
+* **preview:** three people on an unscheduled shift, across two units ([259d28e](https://github.com/leonidkuznetsov18/vakhta/commit/259d28e3daec3213783555e6f0811fbff62160ec))
+
 ## [0.48.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.48.0...v0.48.1) (2026-09-08)
 
 ### Bug fixes
