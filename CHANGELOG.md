@@ -1,3 +1,9 @@
+## [0.47.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.47.0...v0.47.1) (2026-09-08)
+
+### Refactoring
+
+* **kiosk:** the terminal name becomes the switcher, it does not grow one ([2add488](https://github.com/leonidkuznetsov18/vakhta/commit/2add4883acee20cc62e2fd4eac09c10df945f5d1))
+
 ## [0.47.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.46.2...v0.47.0) (2026-09-08)
 
 ### Features
