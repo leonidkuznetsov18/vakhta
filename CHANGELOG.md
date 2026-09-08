@@ -1,3 +1,9 @@
+## [0.50.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.49.4...v0.50.0) (2026-09-08)
+
+### Features
+
+* **overview:** the faces behind every number ([6462140](https://github.com/leonidkuznetsov18/vakhta/commit/64621407e45e2b1baa1cab277d70a52714b6386e))
+
 ## [0.49.4](https://github.com/leonidkuznetsov18/vakhta/compare/v0.49.3...v0.49.4) (2026-09-08)
 
 ### Refactoring
