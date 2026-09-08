@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { OrgSnapshot, WebUserView } from '@vakhta/contracts';
-import { messages } from '@vakhta/i18n';
+import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,6 @@ import { DialogFooter } from '@/components/ui/dialog';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { PencilIcon, Trash2Icon } from 'lucide-react';
 import { EditDirectoryDialog, type DirectoryEdit } from './EditDirectoryDialog.tsx';
-import { format } from '@vakhta/i18n';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ApiError } from '../api.ts';
 
@@ -132,14 +131,21 @@ export function DirectoriesTab({ org, onChanged }: Props) {
   const unitName = (id: string | null) =>
     id ? (org.orgUnits.find((u) => u.id === id)?.name ?? id) : '—';
 
-  function submit(ev: FormEvent, action: () => Promise<unknown>, reset: () => void) {
+  /**
+   * `what` names the thing that was created — "Запис додано" over a list that looks unchanged says
+   * nothing about which of the six directories on this page just gained a row.
+   */
+  function submit(ev: FormEvent, action: () => Promise<unknown>, reset: () => void, what: string) {
     ev.preventDefault();
-    void run(async () => {
-      await action();
-      await onChanged();
-      reset();
-      setDlg(null);
-    }, t.common.added);
+    void run(
+      async () => {
+        await action();
+        await onChanged();
+        reset();
+        setDlg(null);
+      },
+      format(t.common.addedNamed, { what }),
+    );
   }
 
   const siteColumns: Column<OrgSnapshot['sites'][number]>[] = [
@@ -217,6 +223,7 @@ export function DirectoriesTab({ org, onChanged }: Props) {
                   ev,
                   () => adminOrgApi.createSite(site),
                   () => setSite({ ...site, code: '', name: '' }),
+                  site.name,
                 )
               }
             >
@@ -304,6 +311,7 @@ export function DirectoriesTab({ org, onChanged }: Props) {
                       masterUserId: unit.masterUserId || null,
                     }),
                   () => setUnit({ ...unit, name: '' }),
+                  unit.name,
                 )
               }
             >
@@ -397,6 +405,7 @@ export function DirectoriesTab({ org, onChanged }: Props) {
                   ev,
                   () => adminOrgApi.createTeam(team),
                   () => setTeam({ ...team, name: '' }),
+                  team.name,
                 )
               }
             >
@@ -464,6 +473,7 @@ export function DirectoriesTab({ org, onChanged }: Props) {
                   ev,
                   () => adminOrgApi.createPosition(position),
                   () => setPosition({ code: '', name: '' }),
+                  position.name,
                 )
               }
             >
@@ -551,6 +561,7 @@ export function DirectoriesTab({ org, onChanged }: Props) {
                       isShared: zone.isShared,
                     }),
                   () => setZone({ ...zone, code: '', name: '' }),
+                  zone.name,
                 );
               }}
             >

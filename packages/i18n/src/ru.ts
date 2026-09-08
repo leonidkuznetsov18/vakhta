@@ -1246,6 +1246,7 @@ export const ru: Messages = {
       common: {
         add: 'Добавить',
         added: 'Запись добавлена.',
+        addedNamed: 'Создано: {what}.',
         code: 'Код',
         name: 'Название',
         site: 'Площадка',

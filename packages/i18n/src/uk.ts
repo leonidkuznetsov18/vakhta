@@ -1248,6 +1248,7 @@ export const uk: Messages = {
       common: {
         add: 'Додати',
         added: 'Запис додано.',
+        addedNamed: 'Створено: {what}.',
         code: 'Код',
         name: 'Назва',
         site: 'Майданчик',

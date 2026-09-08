@@ -1248,6 +1248,7 @@ export const en: Messages = {
       common: {
         add: 'Add',
         added: 'Record added.',
+        addedNamed: 'Created: {what}.',
         code: 'Code',
         name: 'Name',
         site: 'Site',

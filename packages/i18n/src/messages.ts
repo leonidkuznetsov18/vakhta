@@ -960,6 +960,8 @@ export interface Messages {
       readonly common: {
         readonly add: string;
         readonly added: string;
+        /** Placeholders: {what} */
+        readonly addedNamed: string;
         readonly code: string;
         readonly name: string;
         readonly site: string;

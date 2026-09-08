@@ -32,6 +32,17 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 - Never log the bot token, QR tokens, presigned URLs or the content of medical documents.
 - TypeScript, React and NestJS best practices.
 
+## Panel state
+
+- Server state goes through TanStack Query (`useQuery`/`useMutation`): fetching, polling and
+  invalidation live there, never in a `useEffect` that calls the API by hand. An effect is for
+  synchronising with something outside React, not for loading data.
+- Client state goes through zustand stores, not context providers, `useReducer` or a pile of
+  `useState`. Hooks off a store are easier to read, to test and to extend, and they do not re-render
+  a whole subtree.
+- Touching an old screen means bringing that part of it over: leave the file on the current rules
+  rather than adding to the old shape.
+
 ## Admin panel UI
 
 - Every component, color, size and spacing comes from shadcn/ui (https://ui.shadcn.com); components are copied into

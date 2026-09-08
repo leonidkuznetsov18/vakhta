@@ -156,8 +156,9 @@ const hoursReport = {
 };
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
-window.fetch = async (input: RequestInfo | URL) => {
+window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const path = new URL(String(input), location.origin).pathname;
+  const method = init?.method ?? 'GET';
   if (path === '/me') return json(me);
   if (path.includes('attention')) return json(attention);
   if (path === '/admin/org') return json(org);
@@ -409,7 +410,11 @@ window.fetch = async (input: RequestInfo | URL) => {
     });
   }
   if (path === '/admin/reports/hours') return json(hoursReport);
-  return json([]);
+  // Anything this harness has no fixture for is a gap in the harness, not an empty answer from a
+  // server. Saying so out loud stops "the record was added" over a list that never changes from
+  // looking like a bug in the panel.
+  console.warn(`[preview] no fixture for ${method} ${path} — answering 404`);
+  return json({ code: 'PREVIEW_NO_FIXTURE', message: `${method} ${path}` }, 404);
 };
 const params = new URLSearchParams(location.search);
 // `?avatar=1` gives the fixture user a photo (a 1×1 PNG stretched by the browser is enough for layout).
@@ -425,6 +430,17 @@ try {
 }
 installZodLocale();
 applyStoredAppearance();
+// Nothing here reaches a server: `fetch` is stubbed above and every answer is a fixture. Without
+// saying so, a form that "saves" and a list that never changes read as a bug in the panel.
+{
+  const banner = document.createElement('div');
+  banner.textContent =
+    'PREVIEW — макет із вигаданими даними. Нічого не зберігається, запити не йдуть на сервер.';
+  banner.style.cssText =
+    'position:fixed;inset:auto 0 0 0;z-index:9999;background:#b91c1c;color:#fff;' +
+    'font:600 12px/1.6 system-ui,sans-serif;text-align:center;padding:4px 8px';
+  document.body.append(banner);
+}
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <TooltipProvider delayDuration={200}>
