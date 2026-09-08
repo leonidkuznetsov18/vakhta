@@ -1,3 +1,9 @@
+## [0.40.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.39.0...v0.40.0) (2026-09-08)
+
+### Features
+
+* **handover:** the master approves a checklist or returns it with a remark ([7a398ff](https://github.com/leonidkuznetsov18/vakhta/commit/7a398ff0d7050cbaf3a21cdf696a5da0f52fd1dd))
+
 ## [0.39.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.38.0...v0.39.0) (2026-09-08)
 
 ### Features
