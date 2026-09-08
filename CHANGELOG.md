@@ -1,3 +1,9 @@
+## [0.52.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.52.2...v0.52.3) (2026-09-08)
+
+### Refactoring
+
+* **operations:** the open shift stops repeating its row, and its form reads down ([6dc8717](https://github.com/leonidkuznetsov18/vakhta/commit/6dc8717587361fb0bf37e9a276764f6d20476ce1))
+
 ## [0.52.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.52.1...v0.52.2) (2026-09-08)
 
 ### Bug fixes
