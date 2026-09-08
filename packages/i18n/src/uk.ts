@@ -97,7 +97,7 @@ export const uk: Messages = {
     START_SERVICE_TIME: 'Службовий час',
     START_DOWNTIME: 'Почати простій',
     RESUME: 'Повернутися',
-    START_CLEANING: 'ПРИБИРАННЯ І ЧЕК-ЛИСТ',
+    START_CLEANING: 'ЗАВЕРШИТИ ЗМІНУ',
     CLEANING_DONE: 'Передати зміну',
     BACK_TO_CLEANING: '◀ Назад',
     BACK_TO_WORK: '◀ Назад',

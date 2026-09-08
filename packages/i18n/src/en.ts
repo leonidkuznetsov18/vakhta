@@ -97,7 +97,7 @@ export const en: Messages = {
     START_SERVICE_TIME: 'Service time',
     START_DOWNTIME: 'Start downtime',
     RESUME: 'Return',
-    START_CLEANING: 'CLEANING AND CHECKLIST',
+    START_CLEANING: 'FINISH THE SHIFT',
     CLEANING_DONE: 'Hand over the shift',
     BACK_TO_CLEANING: '◀ Back',
     BACK_TO_WORK: '◀ Back',

@@ -97,7 +97,7 @@ export const ru: Messages = {
     START_SERVICE_TIME: 'Служебное время',
     START_DOWNTIME: 'Начать простой',
     RESUME: 'Вернуться',
-    START_CLEANING: 'УБОРКА И ЧЕК-ЛИСТ',
+    START_CLEANING: 'ЗАВЕРШИТЬ СМЕНУ',
     CLEANING_DONE: 'Передать смену',
     BACK_TO_CLEANING: '◀ Назад',
     BACK_TO_WORK: '◀ Назад',
