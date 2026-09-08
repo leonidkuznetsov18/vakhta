@@ -192,11 +192,13 @@ describe('attendance: прихід і відхід за QR (FR-QR-03..06, FR-TIM
     expect(await testDb.db.select().from(presenceSessions)).toHaveLength(0);
   });
 
-  it('FR-QR-05: без призначеної зміни присутність не відкривається, вимкнений термінал відхиляє', async () => {
-    expect(await service.checkInByQr(nobody, await issueChallenge(), 'ARRIVE')).toMatchObject({
-      ok: false,
-      reason: 'NO_ASSIGNMENT',
-    });
+  it('без призначеної зміни присутність усе одно відкривається (QR→QR); вимкнений термінал відхиляє', async () => {
+    // Зміна змінена 2026-09-08: прихід по QR відкриває присутність навіть без графіка,
+    // а позапланову зміну потім відкриває сам старт за шаблонами майданчика.
+    const arrived = await service.checkInByQr(nobody, await issueChallenge(), 'ARRIVE');
+    expect(arrived).toMatchObject({ ok: true, action: 'ARRIVE' });
+    if (arrived.ok) expect(arrived.presence.status).toBe('OPEN');
+    expect(await service.listOpen()).toHaveLength(1);
 
     await testDb.db
       .update(qrTerminals)

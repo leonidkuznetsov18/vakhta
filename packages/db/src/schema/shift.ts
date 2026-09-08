@@ -66,6 +66,13 @@ export const shiftSessions = pgTable(
     startMethod: shiftStartMethod('start_method').notNull().default('EMPLOYEE'),
     zoneId: uuid('zone_id').references(() => responsibilityZones.id),
     zoneAcceptedAt: timestamp('zone_accepted_at', { withTimezone: true }),
+    /** Planned window of the shift, copied from the assignment or inferred at start for an
+     * unscheduled shift (assignment_id is null). The auto-close job reads plan_end_at. */
+    planStartAt: timestamp('plan_start_at', { withTimezone: true }),
+    planEndAt: timestamp('plan_end_at', { withTimezone: true }),
+    /** Set by the end-of-day auto-close job: 'NO_CHECKLIST' when the employee never submitted a
+     * report, 'REPORT_SUBMITTED' when they did but left without scanning the exit QR. Null otherwise. */
+    autoCloseReason: text('auto_close_reason'),
     needsClarification: boolean('needs_clarification').notNull().default(false),
     clarificationReason: text('clarification_reason'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

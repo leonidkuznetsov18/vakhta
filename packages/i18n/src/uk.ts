@@ -542,6 +542,10 @@ export const uk: Messages = {
       unpairedTerminals: 'Термінали без підключення',
       onShift: 'Зараз на зміні',
       inDowntime: 'У простої',
+      unscheduledShifts: 'Позапланові зміни',
+      unscheduledBanner:
+        'Зараз на зміні без графіка {n} працівників. Створіть для них графік, щоб зміни були заплановані.',
+      unscheduledOpen: 'Відкрити графік',
       open: 'Відкрити',
       refreshedAt: 'Оновлено {time}',
     },

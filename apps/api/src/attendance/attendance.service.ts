@@ -141,7 +141,9 @@ export class AttendanceService {
       actor,
       challenge: preview.challenge,
       terminal: preview.terminal,
-      requireAssignment: true,
+      // A QR arrival no longer needs a scheduled shift: the shift lives from QR to QR and opens
+      // as an unscheduled one when the employee is not in the published schedule (2026-09-08).
+      requireAssignment: false,
     };
     return this.db.transaction((tx) =>
       action === 'ARRIVE' ? this.arrive(tx, input) : this.depart(tx, input),

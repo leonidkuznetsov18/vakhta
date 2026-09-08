@@ -31,6 +31,7 @@ const me: { [k: string]: unknown; image: string | null; roles: Record<string, un
 };
 const attention = {
   onShift: 3,
+  unscheduled: 2,
   inDowntime: 1,
   openIncidents: 2,
   slaBreached: 0,

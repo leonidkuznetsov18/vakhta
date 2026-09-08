@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { businessDateOf, formatLocal, planInstants } from './plan.js';
+import { businessDateOf, formatLocal, inferShiftFromArrival, planInstants } from './plan.js';
 import {
   earlyLeaveMinutes,
   lateMinutes,
@@ -98,5 +98,40 @@ describe('відхилення (ТЗ 6.1, 7.3)', () => {
   it("фактична тривалість не буває від'ємною", () => {
     expect(shiftDurationMinutes(planEnd, planStart)).toBe(0);
     expect(shiftDurationMinutes(planStart, planEnd)).toBe(720);
+  });
+});
+
+describe('inferShiftFromArrival (unscheduled QR open)', () => {
+  const TEMPLATES = [
+    { id: 'day', localStart: '08:00', localEnd: '20:00', isNight: false },
+    { id: 'night', localStart: '20:00', localEnd: '08:00', isNight: true },
+  ];
+
+  it('a morning arrival opens the day shift with its planned window', () => {
+    // 07:30 Kyiv (04:30Z): within [08:00 − 3h, 20:00] of the day shift.
+    const r = inferShiftFromArrival(TEMPLATES, new Date('2026-09-07T04:30:00Z'), KYIV);
+    expect(r?.templateId).toBe('day');
+    expect(r?.isNight).toBe(false);
+    expect(r?.plan.planStartAt.toISOString()).toBe('2026-09-07T05:00:00.000Z');
+    expect(r?.plan.planEndAt.toISOString()).toBe('2026-09-07T17:00:00.000Z');
+    expect(r?.plan.businessDate).toBe('2026-09-07');
+  });
+
+  it('an evening arrival opens the night shift', () => {
+    // 19:40 Kyiv (16:40Z): within the night-shift window.
+    const r = inferShiftFromArrival(TEMPLATES, new Date('2026-09-07T16:40:00Z'), KYIV);
+    expect(r?.templateId).toBe('night');
+    expect(r?.plan.planStartAt.toISOString()).toBe('2026-09-07T17:00:00.000Z');
+    expect(r?.plan.planEndAt.toISOString()).toBe('2026-09-08T05:00:00.000Z');
+  });
+
+  it('an odd-hour arrival still opens the nearest shift', () => {
+    // 02:00 Kyiv (23:00Z prev day): outside every window, nearest start is the night that began 20:00.
+    const r = inferShiftFromArrival(TEMPLATES, new Date('2026-09-06T23:00:00Z'), KYIV);
+    expect(r).not.toBeNull();
+  });
+
+  it('no templates means nothing can be inferred', () => {
+    expect(inferShiftFromArrival([], new Date('2026-09-07T04:30:00Z'), KYIV)).toBeNull();
   });
 });

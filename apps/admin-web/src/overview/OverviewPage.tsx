@@ -8,6 +8,7 @@ import {
   MonitorSmartphoneIcon,
   UsersIcon,
   ActivityIcon,
+  CalendarClockIcon,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -120,6 +121,13 @@ const TILES: readonly Tile[] = [
     prepare: () => writeRoute('administration', 'terminals'),
   },
   {
+    key: 'unscheduled',
+    label: o.unscheduledShifts,
+    icon: CalendarClockIcon,
+    section: 'schedule',
+    tone: 'warning',
+  },
+  {
     key: 'inDowntime',
     label: o.inDowntime,
     icon: ActivityIcon,
@@ -193,6 +201,22 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
     <div className="flex flex-col gap-4">
       <HowItWorks guide="overview" />
       <Feedback error={error ? describeError(error) : null} />
+      {(data.unscheduled ?? 0) > 0 && (
+        <Card className="border-amber-300 dark:border-amber-900">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <CalendarClockIcon
+                aria-hidden="true"
+                className="mt-0.5 size-5 shrink-0 text-amber-600"
+              />
+              <p className="text-sm">{format(o.unscheduledBanner, { n: data.unscheduled ?? 0 })}</p>
+            </div>
+            <Button type="button" variant="outline" size="sm" onClick={() => go('schedule')}>
+              {o.unscheduledOpen}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
       <Section
         title={o.title}
         hint={all.ui.hints.overview}

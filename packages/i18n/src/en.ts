@@ -542,6 +542,10 @@ export const en: Messages = {
       unpairedTerminals: 'Terminals not paired',
       onShift: 'On shift now',
       inDowntime: 'In downtime',
+      unscheduledShifts: 'Unscheduled shifts',
+      unscheduledBanner:
+        '{n} employees are on shift right now without a schedule. Build a schedule for them so their shifts are planned.',
+      unscheduledOpen: 'Open schedule',
       open: 'Open',
       refreshedAt: 'Updated {time}',
     },

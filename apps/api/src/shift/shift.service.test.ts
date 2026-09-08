@@ -510,4 +510,25 @@ describe('shift: машина станів зміни в транзакції (�
     expect(intervals.filter((i) => i.state === 'WORKING')).toHaveLength(1);
     expect(await testDb.db.select().from(presenceSessions)).toHaveLength(1);
   });
+
+  it('QR→QR: працівник без графіка все одно відкриває позапланову зміну з вікном за шаблоном', async () => {
+    const [nobody] = await testDb.db
+      .insert(employees)
+      .values({ personnelNumber: '3', fullName: 'Сидоров Пётр' })
+      .returning();
+    await arrive(nobody!.id);
+    const started = await service.start(nobody!.id, { idempotencyKey: key() }, meta(nobody!.id));
+    expect(started.ok).toBe(true);
+    if (!started.ok) return;
+    // Позапланова: без призначення, але з планом, виведеним із денного шаблону майданчика.
+    expect(started.session.state).toBe('PREPARATION');
+    expect(started.session.assignmentId).toBeNull();
+    expect(started.session.planEndAt).not.toBeNull();
+    const [row] = await testDb.db
+      .select()
+      .from(shiftSessions)
+      .where(eq(shiftSessions.employeeId, nobody!.id));
+    expect(row!.assignmentId).toBeNull();
+    expect(row!.planEndAt).not.toBeNull();
+  });
 });

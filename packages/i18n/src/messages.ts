@@ -396,6 +396,9 @@ export interface Messages {
       readonly unpairedTerminals: string;
       readonly onShift: string;
       readonly inDowntime: string;
+      readonly unscheduledShifts: string;
+      readonly unscheduledBanner: string;
+      readonly unscheduledOpen: string;
       readonly open: string;
       /** Placeholder: {time} */
       readonly refreshedAt: string;

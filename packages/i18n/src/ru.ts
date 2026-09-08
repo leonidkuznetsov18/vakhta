@@ -539,6 +539,10 @@ export const ru: Messages = {
       unpairedTerminals: 'Терминалы без подключения',
       onShift: 'Сейчас на смене',
       inDowntime: 'В простое',
+      unscheduledShifts: 'Внеплановые смены',
+      unscheduledBanner:
+        'Сейчас на смене без графика {n} сотрудников. Создайте для них график, чтобы смены были запланированы.',
+      unscheduledOpen: 'Открыть график',
       open: 'Открыть',
       refreshedAt: 'Обновлено {time}',
     },

@@ -20,6 +20,9 @@ import {
   shiftAssignments,
   shiftSessions,
   shiftSummaries,
+  shiftTemplates,
+  qrTerminals,
+  sites,
   sql,
   type Database,
   type DbOrTx,
@@ -30,6 +33,7 @@ import {
   allowedActions,
   businessDateOf,
   computeShiftSummary,
+  inferShiftFromArrival,
   downtimeEscalationJobId,
   isActive,
   returnReminderJobId,
@@ -216,8 +220,14 @@ export class ShiftService {
         fullName: employees.fullName,
         personnelNumber: employees.personnelNumber,
         orgUnitName: orgUnits.name,
-        planStartAt: shiftAssignments.planStartAt,
-        planEndAt: shiftAssignments.planEndAt,
+        planStartAt:
+          sql<Date | null>`coalesce(${shiftSessions.planStartAt}, ${shiftAssignments.planStartAt})`.mapWith(
+            (v: unknown) => (v ? new Date(v as string) : null),
+          ),
+        planEndAt:
+          sql<Date | null>`coalesce(${shiftSessions.planEndAt}, ${shiftAssignments.planEndAt})`.mapWith(
+            (v: unknown) => (v ? new Date(v as string) : null),
+          ),
         zoneName: responsibilityZones.name,
         presenceSince: presenceSessions.arrivedAt,
         stateSince: this.stateSinceSql(),
@@ -247,8 +257,14 @@ export class ShiftService {
         fullName: employees.fullName,
         personnelNumber: employees.personnelNumber,
         orgUnitName: orgUnits.name,
-        planStartAt: shiftAssignments.planStartAt,
-        planEndAt: shiftAssignments.planEndAt,
+        planStartAt:
+          sql<Date | null>`coalesce(${shiftSessions.planStartAt}, ${shiftAssignments.planStartAt})`.mapWith(
+            (v: unknown) => (v ? new Date(v as string) : null),
+          ),
+        planEndAt:
+          sql<Date | null>`coalesce(${shiftSessions.planEndAt}, ${shiftAssignments.planEndAt})`.mapWith(
+            (v: unknown) => (v ? new Date(v as string) : null),
+          ),
         zoneName: responsibilityZones.name,
         presenceSince: presenceSessions.arrivedAt,
         stateSince: this.stateSinceSql(),
@@ -326,7 +342,10 @@ export class ShiftService {
         ? { id: presence.assignmentId }
         : await this.attendance.findArrivalAssignment(tx, employeeId, now);
       const assignment = picked ? await this.assignmentById(tx, picked.id) : null;
-      if (!assignment && !meta.masterOverride) return this.fail('NO_ASSIGNMENT', null, now);
+      // No schedule is no longer a wall: the shift lives from QR to QR (customer change 2026-09-08),
+      // and an unscheduled shift takes its planned window from the site's day/night templates so the
+      // auto-close job still knows when it should end. The master start stays the reserve channel.
+      const plan = await this.planForStart(tx, presence, assignment, now);
 
       let session: SessionRow;
       try {
@@ -338,9 +357,10 @@ export class ShiftService {
               employeeId,
               assignmentId: assignment?.id ?? null,
               presenceId: presence?.id ?? null,
-              businessDate:
-                assignment?.businessDate ?? businessDateOf(now, this.options.defaultTimezone),
-              zoneId: assignment?.zoneId ?? cmd.zoneId ?? null,
+              businessDate: plan.businessDate,
+              zoneId: plan.zoneId ?? cmd.zoneId ?? null,
+              planStartAt: plan.planStartAt,
+              planEndAt: plan.planEndAt,
               startMethod: meta.masterOverride ? 'MASTER' : 'EMPLOYEE',
             })
             .returning();
@@ -371,10 +391,10 @@ export class ShiftService {
         { ...meta, now },
         deferred,
       );
-      // FR-CLN-01: нагадування про прибирання за N хвилин до планового кінця.
-      if (applied.ok && assignment && this.options.cleaningReminderMinutes) {
+      // FR-CLN-01: нагадування про прибирання за N хвилин до планового кінця (і для позапланової).
+      if (applied.ok && plan.planEndAt && this.options.cleaningReminderMinutes) {
         const fireAt = new Date(
-          assignment.planEndAt.getTime() - this.options.cleaningReminderMinutes * 60_000,
+          plan.planEndAt.getTime() - this.options.cleaningReminderMinutes * 60_000,
         );
         deferred.push(() => this.timers.scheduleCleaningReminder(session.id, fireAt));
       }
@@ -949,8 +969,14 @@ export class ShiftService {
     const [row] = await tx
       .select({
         s: shiftSessions,
-        planStartAt: shiftAssignments.planStartAt,
-        planEndAt: shiftAssignments.planEndAt,
+        planStartAt:
+          sql<Date | null>`coalesce(${shiftSessions.planStartAt}, ${shiftAssignments.planStartAt})`.mapWith(
+            (v: unknown) => (v ? new Date(v as string) : null),
+          ),
+        planEndAt:
+          sql<Date | null>`coalesce(${shiftSessions.planEndAt}, ${shiftAssignments.planEndAt})`.mapWith(
+            (v: unknown) => (v ? new Date(v as string) : null),
+          ),
         zoneName: responsibilityZones.name,
         stateSince: this.stateSinceSql(),
       })
@@ -1046,6 +1072,90 @@ export class ShiftService {
       .orderBy(desc(shiftSessions.endedAt))
       .limit(1);
     return row ?? null;
+  }
+
+  /**
+   * The planned window a starting shift gets: from the assignment when scheduled, otherwise
+   * inferred from the site's active day/night templates by the arrival time (unscheduled shift).
+   * With no templates the window is left open and the auto-close job falls back to a fixed length.
+   */
+  private async planForStart(
+    tx: DbOrTx,
+    presence: { arrivedAt: Date; arrivalTerminalId: string | null } | null,
+    assignment: {
+      businessDate: string;
+      planStartAt: Date;
+      planEndAt: Date;
+      zoneId: string | null;
+    } | null,
+    now: Date,
+  ): Promise<{
+    businessDate: string;
+    planStartAt: Date | null;
+    planEndAt: Date | null;
+    zoneId: string | null;
+  }> {
+    if (assignment) {
+      return {
+        businessDate: assignment.businessDate,
+        planStartAt: assignment.planStartAt,
+        planEndAt: assignment.planEndAt,
+        zoneId: assignment.zoneId ?? null,
+      };
+    }
+    const siteId = await this.siteForPresence(tx, presence);
+    const templates = siteId ? await this.activeTemplates(tx, siteId) : [];
+    const inferred = inferShiftFromArrival(
+      templates,
+      presence?.arrivedAt ?? now,
+      this.options.defaultTimezone,
+    );
+    if (inferred) {
+      return {
+        businessDate: inferred.plan.businessDate,
+        planStartAt: inferred.plan.planStartAt,
+        planEndAt: inferred.plan.planEndAt,
+        zoneId: null,
+      };
+    }
+    return {
+      businessDate: businessDateOf(now, this.options.defaultTimezone),
+      planStartAt: null,
+      planEndAt: null,
+      zoneId: null,
+    };
+  }
+
+  private async siteForPresence(
+    tx: DbOrTx,
+    presence: { arrivalTerminalId: string | null } | null,
+  ): Promise<string | null> {
+    if (presence?.arrivalTerminalId) {
+      const [row] = await tx
+        .select({ siteId: qrTerminals.siteId })
+        .from(qrTerminals)
+        .where(eq(qrTerminals.id, presence.arrivalTerminalId))
+        .limit(1);
+      if (row) return row.siteId;
+    }
+    const [site] = await tx
+      .select({ id: sites.id })
+      .from(sites)
+      .orderBy(asc(sites.createdAt))
+      .limit(1);
+    return site?.id ?? null;
+  }
+
+  private async activeTemplates(tx: DbOrTx, siteId: string) {
+    return tx
+      .select({
+        id: shiftTemplates.id,
+        localStart: shiftTemplates.localStart,
+        localEnd: shiftTemplates.localEnd,
+        isNight: shiftTemplates.isNight,
+      })
+      .from(shiftTemplates)
+      .where(and(eq(shiftTemplates.siteId, siteId), eq(shiftTemplates.isActive, true)));
   }
 
   private async assignmentById(tx: DbOrTx, id: string) {

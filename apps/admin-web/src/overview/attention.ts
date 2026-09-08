@@ -4,6 +4,7 @@ import { employeesApi, handoversApi, incidentsApi, orgApi, requestsApi, shiftsAp
 
 export interface Attention {
   readonly onShift: number | null;
+  readonly unscheduled: number | null;
   readonly inDowntime: number | null;
   readonly openIncidents: number | null;
   readonly slaBreached: number | null;
@@ -19,6 +20,7 @@ export interface Attention {
 
 const EMPTY: Attention = {
   onShift: null,
+  unscheduled: null,
   inDowntime: null,
   openIncidents: null,
   slaBreached: null,
@@ -63,6 +65,9 @@ export function useAttention(me: MeView, intervalMs = 60_000) {
       ]);
     setData({
       onShift: shifts ? shifts.filter((s) => s.endedAt === null).length : null,
+      unscheduled: shifts
+        ? shifts.filter((s) => s.endedAt === null && s.assignmentId === null).length
+        : null,
       inDowntime: shifts ? shifts.filter((s) => s.state === 'DOWNTIME').length : null,
       openIncidents: incidents ? incidents.length : null,
       slaBreached: incidents ? incidents.filter((i) => i.slaBreached).length : null,

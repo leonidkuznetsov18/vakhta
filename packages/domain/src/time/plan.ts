@@ -64,6 +64,56 @@ export function planInstants(
   };
 }
 
+export interface ShiftTemplateForInference extends ShiftTemplateLocal {
+  readonly id: string;
+  readonly isNight: boolean;
+}
+
+export interface InferredShift {
+  readonly templateId: string;
+  readonly isNight: boolean;
+  readonly plan: PlanInstants;
+}
+
+/**
+ * Unscheduled arrival: no published assignment, but the shift must still open from QR to QR.
+ * Pick the site shift template the employee is arriving for. Candidates are every active template
+ * on the arrival's business date and the day before (a night shift belongs to the day it starts).
+ * The chosen one is the template whose window [start − arriveBefore, end] contains the arrival and
+ * whose planned start is nearest the arrival; when none contains it, the template with the nearest
+ * start overall, so a shift always opens. Returns null only when there are no templates at all.
+ */
+export function inferShiftFromArrival(
+  templates: readonly ShiftTemplateForInference[],
+  arrival: Date,
+  timezone: string,
+  arriveBeforeMinutes = 180,
+): InferredShift | null {
+  if (templates.length === 0) return null;
+  const dates = [
+    businessDateOf(new Date(arrival.getTime() - 24 * 3_600_000), timezone),
+    businessDateOf(arrival, timezone),
+  ];
+  const candidates: InferredShift[] = templates.flatMap((t) =>
+    dates.map((d) => ({
+      templateId: t.id,
+      isNight: t.isNight,
+      plan: planInstants(d, t, timezone),
+    })),
+  );
+  const t = arrival.getTime();
+  const before = arriveBeforeMinutes * 60_000;
+  // Nearest planned start, so a 07:30 arrival takes the day shift (start 08:00), not the night
+  // shift that merely ends at 08:00. Templates whose window contains the arrival win over the rest.
+  const byNearestStart = (a: InferredShift, b: InferredShift) =>
+    Math.abs(t - a.plan.planStartAt.getTime()) - Math.abs(t - b.plan.planStartAt.getTime());
+  const within = candidates
+    .filter((c) => t >= c.plan.planStartAt.getTime() - before && t <= c.plan.planEndAt.getTime())
+    .sort(byNearestStart);
+  if (within[0]) return within[0];
+  return [...candidates].sort(byNearestStart)[0] ?? null;
+}
+
 /** Локальна дата моменту в часовому поясі майданчика, 'YYYY-MM-DD'. */
 export function businessDateOf(instant: Date, timezone: string): string {
   assertValidTimezone(timezone);
