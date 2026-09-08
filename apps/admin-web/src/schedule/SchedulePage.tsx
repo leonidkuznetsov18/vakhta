@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AcknowledgementStatusView,
   EmployeeView,
@@ -76,6 +76,8 @@ export function SchedulePage() {
   const [versions, setVersions] = useState<ScheduleVersionView[]>([]);
   /** False until the list for the chosen unit and month has actually arrived. */
   const [versionsLoaded, setVersionsLoaded] = useState(false);
+  /** The freshest list, readable inside an async handler that started before the state updated. */
+  const versionsRef = useRef<ScheduleVersionView[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ScheduleVersionDetail | null>(null);
   const [acks, setAcks] = useState<AcknowledgementStatusView[] | null>(null);
@@ -148,6 +150,7 @@ export function SchedulePage() {
       if (!siteId || !orgUnitId) return;
       const list = await schedulesApi.list({ siteId, orgUnitId, periodMonth: month });
       setVersions(list);
+      versionsRef.current = list;
       setVersionsLoaded(true);
       const pick =
         preferId && list.some((v) => v.id === preferId) ? preferId : (list[0]?.id ?? null);
@@ -160,7 +163,12 @@ export function SchedulePage() {
   // remember whom to add, then put them in as soon as a draft grid is on screen. The preset is read
   // once, so a later reload of this page does not keep re-adding the same rows.
   const [pending, setPending] = useState<readonly string[]>([]);
-  const [creating, setCreating] = useState(false);
+  /**
+   * A ref, not state: the effect below re-runs on every version list and every detail, and a state
+   * flag is only visible on the next render — two runs in the same tick both saw "not creating" and
+   * both posted, which is where the second, confusing version came from.
+   */
+  const creating = useRef(false);
   useEffect(() => {
     // Wait for the directory: the unit is what tells us its site, and reading the preset before it
     // arrives left the site on whatever was last used — the page then looked for versions of the
@@ -190,8 +198,8 @@ export function SchedulePage() {
       setPending([]);
       return;
     }
-    if (creating) return;
-    setCreating(true);
+    if (creating.current) return;
+    creating.current = true;
     const source = versions.find((v) => v.status === 'PUBLISHED');
     void run(async () => {
       const created = await schedulesApi.create({
@@ -200,8 +208,13 @@ export function SchedulePage() {
         periodMonth: month,
         ...(source ? { basedOnVersionId: source.id } : {}),
       });
-      await loadVersions(created.id);
-    }).finally(() => setCreating(false));
+      // Reading the list back is what actually selects the draft; the created id only says which
+      // one to prefer. If the answer was odd, the list still shows whatever the server really has.
+      await loadVersions(created?.id);
+      creating.current = false;
+    }).catch(() => {
+      creating.current = false;
+    });
   }, [
     pending,
     versions,
@@ -211,7 +224,6 @@ export function SchedulePage() {
     siteId,
     orgUnitId,
     month,
-    creating,
     loadVersions,
   ]);
 
@@ -287,12 +299,20 @@ export function SchedulePage() {
         periodMonth: month,
         ...(source ? { basedOnVersionId: source.id } : {}),
       });
-      // A body without the version is a broken answer, not a success: reporting "Version {no}
-      // created" over it left the page unchanged with nothing to show for the click.
+      // An answer without a version is broken, but the month may still have gained one — so read
+      // the list back before deciding. Whatever the server really has is what the page should show;
+      // only if nothing arrived is this a failure worth stopping on.
       if (!created?.id || typeof created.versionNo !== 'number') {
-        throw new Error(
-          `POST /admin/schedules answered without a version: ${JSON.stringify(created)}`,
-        );
+        const before = versions.map((v) => v.id);
+        await loadVersions();
+        const appeared = versionsRef.current.find((v) => !before.includes(v.id));
+        if (!appeared) {
+          throw new Error(
+            `POST /admin/schedules answered without a version: ${JSON.stringify(created)}`,
+          );
+        }
+        notifySuccess(format(s.versionCreated, { no: appeared.versionNo }));
+        return;
       }
       await loadVersions(created.id);
       notifySuccess(

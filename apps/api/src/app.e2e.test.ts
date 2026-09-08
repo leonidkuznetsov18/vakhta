@@ -218,6 +218,45 @@ describe('e2e: межі доступу панелі', () => {
     });
     expect(list.statusCode).toBe(200);
     expect((list.json() as { id: string }[]).map((v) => v.id)).toContain(body.id);
+
+    // The overview's "Build a schedule" lands on a month that may already hold a draft, and on one
+    // that holds nothing at all. Both have to answer with a version — the panel selects it by id,
+    // and an answer shaped like the list is what left the page empty with a success message.
+    const second = await app.inject({
+      method: 'POST',
+      url: '/admin/schedules',
+      headers: as('admin@e2e.test'),
+      payload: { siteId: site!.id, orgUnitId: unit!.id, periodMonth: '2026-10' },
+    });
+    expect(second.statusCode).toBe(201);
+    const secondBody = second.json() as { id?: string; versionNo?: number };
+    expect(Array.isArray(second.json())).toBe(false);
+    expect(secondBody.versionNo).toBe(2);
+    expect(secondBody.id).not.toBe(body.id);
+
+    // A POST that carries the wrong site for the unit is refused, not answered with an empty body:
+    // the panel used to send exactly this pair while the directory was still loading.
+    const [other] = await db
+      .insert(sites)
+      .values({ code: 'E2E2', name: 'E2E other', timezone: 'Europe/Kyiv' })
+      .returning();
+    const mismatched = await app.inject({
+      method: 'POST',
+      url: '/admin/schedules',
+      headers: as('admin@e2e.test'),
+      payload: { siteId: other!.id, orgUnitId: unit!.id, periodMonth: '2026-10' },
+    });
+    expect(mismatched.statusCode).toBe(422);
+    expect((mismatched.json() as { code?: string }).code).toBe('ORG_UNIT_SITE_MISMATCH');
+
+    // And a body the command rejects is a 400 with a code, never a 2xx the panel has to interpret.
+    const invalid = await app.inject({
+      method: 'POST',
+      url: '/admin/schedules',
+      headers: as('admin@e2e.test'),
+      payload: { siteId: site!.id, orgUnitId: unit!.id, periodMonth: 'вересень' },
+    });
+    expect(invalid.statusCode).toBe(400);
   });
 
   it('невалідне тіло відхиляється 400 до бізнес-логіки; чужий origin не отримує CORS', async () => {
