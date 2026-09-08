@@ -142,6 +142,7 @@ import type {
   ActivationCodeIssued,
   UpdateEmployeeCommand,
   AssignPositionCommand,
+  BulkDeleteEmployeesResult,
   ChangeEmployeeStatusCommand,
   CreateEmployeeCommand,
   CreateOrgUnitCommand,
@@ -189,6 +190,8 @@ export const adminEmployeesApi = {
       method: 'DELETE',
       body: JSON.stringify({ reason }),
     }),
+  bulkDelete: (ids: string[], reason: string) =>
+    post<BulkDeleteEmployeesResult>('/admin/employees/bulk-delete', { ids, reason }),
   relink: (id: string, cmd: RelinkTelegramCommand) =>
     post<{ employeeId: string; telegramUserId: number; linkedAt: string }>(
       `/admin/employees/${id}/telegram/relink`,

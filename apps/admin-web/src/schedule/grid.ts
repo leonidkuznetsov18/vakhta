@@ -102,10 +102,13 @@ export function countChanges(before: GridState, after: GridState): number {
   return n;
 }
 
-export type RotationPattern = 'DAY_2_2' | 'NIGHT_2_2' | 'DAY_NIGHT_OFF_OFF' | 'WEEKDAYS_DAY';
+export type RotationPattern =
+  'DAY_2_2' | 'NIGHT_2_2' | 'DAY_4_2' | 'NIGHT_4_2' | 'DAY_NIGHT_OFF_OFF' | 'WEEKDAYS_DAY';
 export const ROTATION_PATTERNS: readonly RotationPattern[] = [
   'DAY_2_2',
   'NIGHT_2_2',
+  'DAY_4_2',
+  'NIGHT_4_2',
   'DAY_NIGHT_OFF_OFF',
   'WEEKDAYS_DAY',
 ];
@@ -125,6 +128,8 @@ export function applyPattern(
   const cycle: readonly string[] = {
     DAY_2_2: [templates.day, templates.day, '', ''],
     NIGHT_2_2: [templates.night, templates.night, '', ''],
+    DAY_4_2: [templates.day, templates.day, templates.day, templates.day, '', ''],
+    NIGHT_4_2: [templates.night, templates.night, templates.night, templates.night, '', ''],
     DAY_NIGHT_OFF_OFF: [templates.day, templates.night, '', ''],
     WEEKDAYS_DAY: [],
   }[pattern];

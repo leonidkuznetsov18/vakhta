@@ -650,6 +650,8 @@ export const en: Messages = {
       patterns: {
         DAY_2_2: '2 days / 2 off',
         NIGHT_2_2: '2 nights / 2 off',
+        DAY_4_2: '4 days / 2 off',
+        NIGHT_4_2: '4 nights / 2 off',
         DAY_NIGHT_OFF_OFF: 'Day, night, 2 off',
         WEEKDAYS_DAY: 'Weekdays, day shift',
       },
@@ -1276,6 +1278,11 @@ export const en: Messages = {
         deleteEmployeeConfirm:
           'Delete the card of {name} entirely? Planned shifts, activation codes and the Telegram link go with it. This cannot be undone; for an employee with worked shifts use "Terminate".',
         employeeDeleted: 'Employee deleted.',
+        deleteSelected: 'Delete selected',
+        deleteSelectedConfirm:
+          'Delete {n} selected employees? Those without worked history are deleted, those with history are terminated so the reports stay.',
+        deletingSelected: 'Deleting {n} employees…',
+        deleteSelectedResult: 'Deleted: {deleted}. Terminated: {terminated}.',
         hasHistory:
           'The employee has worked shifts, check-ins, points or requests: such a card is terminated ("Terminate"), not deleted, so the history and the reports stay.',
       },

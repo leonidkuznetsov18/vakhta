@@ -163,6 +163,27 @@ window.fetch = async (input: RequestInfo | URL) => {
       },
     ]);
   }
+  if (path === '/admin/employees') {
+    return json(
+      [
+        ['132', 'Гринько Юлія', true],
+        ['131', 'Панов Олег', false],
+        ['130', 'Ткач Олена', true],
+        ['129', 'Калашнік Світлана', false],
+      ].map(([personnelNumber, fullName, telegramLinked], i) => ({
+        id: `emp-${i}`,
+        personnelNumber,
+        fullName,
+        status: 'ACTIVE',
+        telegramLinked,
+        email: null,
+        phone: null,
+        telegramUsername: null,
+        currentPosition: null,
+        createdAt: '2026-09-01T00:00:00Z',
+      })),
+    );
+  }
   if (path === '/admin/shifts') return json([shift]);
   if (path === `/admin/shifts/${shift.id}`) return json(shiftDetail);
   if (path === '/admin/reports/hours') return json(hoursReport);

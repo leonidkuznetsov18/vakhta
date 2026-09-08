@@ -519,7 +519,10 @@ export interface Messages {
       readonly patternStart: string;
       readonly patternApply: string;
       readonly patterns: Readonly<
-        Record<'DAY_2_2' | 'NIGHT_2_2' | 'DAY_NIGHT_OFF_OFF' | 'WEEKDAYS_DAY', string>
+        Record<
+          'DAY_2_2' | 'NIGHT_2_2' | 'DAY_4_2' | 'NIGHT_4_2' | 'DAY_NIGHT_OFF_OFF' | 'WEEKDAYS_DAY',
+          string
+        >
       >;
       readonly hours: string;
       /** Placeholder: {max} */
@@ -1000,6 +1003,10 @@ export interface Messages {
         /** Placeholder: {name} */
         readonly deleteEmployeeConfirm: string;
         readonly employeeDeleted: string;
+        readonly deleteSelected: string;
+        readonly deleteSelectedConfirm: string;
+        readonly deletingSelected: string;
+        readonly deleteSelectedResult: string;
         readonly hasHistory: string;
       };
       readonly users: {

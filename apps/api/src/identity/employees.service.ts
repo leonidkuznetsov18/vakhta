@@ -28,6 +28,8 @@ import {
 import type {
   ChangeEmployeeStatusCommand,
   CreateEmployeeCommand,
+  BulkDeleteEmployeesCommand,
+  BulkDeleteEmployeesResult,
   DeleteEmployeeCommand,
   UpdateEmployeeCommand,
   EmployeeView,
@@ -315,6 +317,33 @@ export class EmployeesService {
         reason: cmd.reason,
       });
     });
+  }
+
+  /**
+   * Delete a batch: a card without worked history is removed, a card with history is terminated
+   * (TERMINATED) so its records stay. Each card runs on its own so one failure never rolls back
+   * the rest; the result reports the two counts for the toast.
+   */
+  async bulkDelete(
+    cmd: BulkDeleteEmployeesCommand,
+    actor: Actor,
+  ): Promise<BulkDeleteEmployeesResult> {
+    let deleted = 0;
+    let terminated = 0;
+    for (const id of cmd.ids) {
+      try {
+        await this.deleteEmployee(id, { reason: cmd.reason }, actor);
+        deleted += 1;
+      } catch (error) {
+        if (error instanceof IdentityError && error.code === 'EMPLOYEE_HAS_HISTORY') {
+          await this.changeStatus(id, { status: 'TERMINATED', reason: cmd.reason }, actor);
+          terminated += 1;
+        } else {
+          throw error;
+        }
+      }
+    }
+    return { deleted, terminated };
   }
 
   /** The full view of one employee: link state and the current assignment included. */

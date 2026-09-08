@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CopyButton } from '@/components/app/copy-button';
 import { useConfirm } from '@/components/app/confirm-dialog';
+import { notifyPromise } from '@/lib/toast';
 import { DataTable, type Column, type RowAction } from '@/components/app/data-table';
 import { Feedback, useAction } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
@@ -28,6 +29,7 @@ import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill, type Tone } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
 import { ApiError, adminEmployeesApi, checklistsApi, employeesApi } from '../api.ts';
+import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { cn } from 'cn';
@@ -205,6 +207,39 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       },
       format(e.codesIssued, { n: selectable.length }),
     );
+  }
+
+  /** Delete every selected card: no history deletes it, history terminates it; the toast shows both counts. */
+  function deleteSelected() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    void (async () => {
+      const reason = await confirm({
+        title: e.deleteSelected,
+        description: format(e.deleteSelectedConfirm, { n: ids.length }),
+        confirmLabel: e.deleteSelected,
+        commentLabel: t.common.reason,
+        commentRequired: true,
+        destructive: true,
+      });
+      if (!reason) return;
+      try {
+        const result = await notifyPromise(adminEmployeesApi.bulkDelete(ids, reason), {
+          loading: format(e.deletingSelected, { n: ids.length }),
+          success: (r) =>
+            format(e.deleteSelectedResult, { deleted: r.deleted, terminated: r.terminated }),
+          error: (err) => describeError(err),
+        });
+        const removed = new Set(ids);
+        if (result.deleted > 0 || result.terminated > 0) {
+          setList(await employeesApi.list());
+        }
+        setSelected(new Set());
+        if (openId && removed.has(openId)) setOpenId(null);
+      } catch {
+        // the toast already reported the failure
+      }
+    })();
   }
   const [telegramFilter, setTelegramFilter] = usePersistentState<'' | 'LINKED' | 'NOT_LINKED'>(
     'employees.telegram',
@@ -634,6 +669,16 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
               {e.issueCodesSelected} ({selectable.length})
             </Button>
             <InfoTip text={hints.employeesBulkCodes} />
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              disabled={busy || selected.size === 0}
+              onClick={deleteSelected}
+            >
+              <Trash2Icon aria-hidden="true" />
+              {e.deleteSelected} ({selected.size})
+            </Button>
           </div>
         }
         loading={busy && list.length === 0}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ScheduleVersionDetail } from '@vakhta/contracts';
 import {
   addRow,
+  applyPattern,
   countChanges,
   countShifts,
   gridFromDetail,
@@ -109,5 +110,50 @@ describe('countChanges', () => {
   it('counts every shift of a row whose zone changed or which was removed', () => {
     expect(countChanges(base, setZone(base, EMP, ''))).toBe(2);
     expect(countChanges(base, removeRow(base, EMP))).toBe(2);
+  });
+});
+
+describe('applyPattern 4/2', () => {
+  const dates = Array.from({ length: 8 }, (_, i) => `2026-09-0${i + 1}`);
+
+  it('fills four working days then two off, repeating', () => {
+    const grid = applyPattern(
+      { rows: [{ employeeId: EMP, zoneId: ZONE, cells: {} }] },
+      EMP,
+      dates,
+      dates[0]!,
+      'DAY_4_2',
+      {
+        day: TPL_DAY,
+        night: TPL_NIGHT,
+      },
+    );
+    const cells = grid.rows[0]!.cells;
+    expect(dates.map((d) => cells[d] ?? '')).toEqual([
+      TPL_DAY,
+      TPL_DAY,
+      TPL_DAY,
+      TPL_DAY,
+      '',
+      '',
+      TPL_DAY,
+      TPL_DAY,
+    ]);
+  });
+
+  it('NIGHT_4_2 uses the night template', () => {
+    const grid = applyPattern(
+      { rows: [{ employeeId: EMP, zoneId: ZONE, cells: {} }] },
+      EMP,
+      dates,
+      dates[0]!,
+      'NIGHT_4_2',
+      {
+        day: TPL_DAY,
+        night: TPL_NIGHT,
+      },
+    );
+    expect(grid.rows[0]!.cells[dates[0]!]).toBe(TPL_NIGHT);
+    expect(grid.rows[0]!.cells[dates[4]!] ?? '').toBe('');
   });
 });

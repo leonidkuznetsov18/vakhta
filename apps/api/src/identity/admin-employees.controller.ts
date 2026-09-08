@@ -15,6 +15,8 @@ import {
 import {
   ChangeEmployeeStatusCommand,
   CreateEmployeeCommand,
+  BulkDeleteEmployeesCommand,
+  type BulkDeleteEmployeesResult,
   DeleteEmployeeCommand,
   RelinkTelegramCommand,
   type ActivationCodeIssued,
@@ -112,6 +114,15 @@ export class AdminEmployeesController {
   ): Promise<EmployeeView> {
     await this.employees.update(id, body, webUserActor(user));
     return this.employees.viewOf(id);
+  }
+
+  @Post('bulk-delete')
+  @HttpCode(200)
+  async bulkDelete(
+    @Body(new ZodValidationPipe(BulkDeleteEmployeesCommand)) body: BulkDeleteEmployeesCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<BulkDeleteEmployeesResult> {
+    return this.employees.bulkDelete(body, webUserActor(user));
   }
 
   @Delete(':id')

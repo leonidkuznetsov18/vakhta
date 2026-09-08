@@ -73,6 +73,22 @@ export type UpdateEmployeeCommand = z.infer<typeof UpdateEmployeeCommand>;
 export const DeleteEmployeeCommand = z.object({ reason: z.string().trim().min(3).max(1000) });
 export type DeleteEmployeeCommand = z.infer<typeof DeleteEmployeeCommand>;
 
+/**
+ * Delete several cards at once: those without worked history are removed, those with history
+ * are terminated instead (their records stay). The result reports how many went each way.
+ */
+export const BulkDeleteEmployeesCommand = z.object({
+  ids: z.array(Uuid).min(1).max(500),
+  reason: z.string().trim().min(3).max(1000),
+});
+export type BulkDeleteEmployeesCommand = z.infer<typeof BulkDeleteEmployeesCommand>;
+
+export const BulkDeleteEmployeesResult = z.object({
+  deleted: z.number().int().nonnegative(),
+  terminated: z.number().int().nonnegative(),
+});
+export type BulkDeleteEmployeesResult = z.infer<typeof BulkDeleteEmployeesResult>;
+
 /** Bulk creation from a CSV: every row is validated, duplicates are reported, not created. */
 export const ImportEmployeesCommand = z.object({
   items: z
