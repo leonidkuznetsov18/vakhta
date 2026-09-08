@@ -67,13 +67,6 @@ const TILES: readonly Tile[] = [
     tone: 'warning',
   },
   {
-    key: 'disputes',
-    label: o.disputes,
-    icon: ClipboardCheckIcon,
-    section: 'handover',
-    tone: 'warning',
-  },
-  {
     key: 'overdueAcceptances',
     label: o.overdueAcceptances,
     icon: ClipboardCheckIcon,

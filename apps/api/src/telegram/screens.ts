@@ -426,6 +426,10 @@ export function shiftKeyboard(t: Messages, view: ShiftScreenView): InlineKeyboar
           [t.actions.START_BREAK, action('START_BREAK')],
           [t.actions.START_MEAL, action('START_MEAL')],
         );
+      } else if (can('START_BREAK')) {
+        row(t.actions.START_BREAK, action('START_BREAK'));
+      } else if (can('START_MEAL')) {
+        row(t.actions.START_MEAL, action('START_MEAL'));
       }
       if (can('START_SERVICE_TIME'))
         row(t.actions.START_SERVICE_TIME, action('START_SERVICE_TIME'));
@@ -439,7 +443,7 @@ export function shiftKeyboard(t: Messages, view: ShiftScreenView): InlineKeyboar
     case 'MEAL':
     case 'SERVICE_TIME':
     case 'DOWNTIME': {
-      if (view.offerResumeIntoDowntime) {
+      if (view.offerResumeIntoDowntime && can('RESUME')) {
         row(t.shift.resumeIntoDowntimeYes, `${SHIFT_CALLBACK.prefix}RESUME:${version}`);
         row(t.shift.resumeIntoDowntimeNo, `${SHIFT_CALLBACK.prefix}RESUME:${version}:DT`);
       } else if (can('RESUME')) {

@@ -405,7 +405,6 @@ export interface Messages {
       readonly allClear: string;
       readonly openIncidents: string;
       readonly slaBreached: string;
-      readonly disputes: string;
       readonly overdueAcceptances: string;
       readonly requestsForMe: string;
       readonly overdueRequests: string;

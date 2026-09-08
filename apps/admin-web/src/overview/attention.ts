@@ -9,7 +9,6 @@ export interface Attention {
   readonly inDowntime: number | null;
   readonly openIncidents: number | null;
   readonly slaBreached: number | null;
-  readonly disputes: number | null;
   readonly overdueAcceptances: number | null;
   readonly requestsForMe: number | null;
   readonly overdueRequests: number | null;
@@ -26,7 +25,6 @@ const EMPTY: Attention = {
   inDowntime: null,
   openIncidents: null,
   slaBreached: null,
-  disputes: null,
   overdueAcceptances: null,
   requestsForMe: null,
   overdueRequests: null,
@@ -54,17 +52,15 @@ export function useAttention(me: MeView, intervalMs = 60_000) {
   const [error, setError] = useState<unknown>(null);
 
   const refresh = useCallback(async () => {
-    const [shifts, incidents, handovers, disputes, requests, overtime, employees, org] =
-      await Promise.all([
-        may(me, OPS) ? shiftsApi.list({ includeClosed: true }).catch(() => null) : null,
-        may(me, OPS) ? incidentsApi.list({ scope: 'open' }).catch(() => null) : null,
-        may(me, HANDOVER) ? handoversApi.list({ scope: 'overdue' }).catch(() => null) : null,
-        may(me, HANDOVER) ? handoversApi.list({ scope: 'pending' }).catch(() => null) : null,
-        may(me, REQUESTS) ? requestsApi.list({ scope: 'inbox' }).catch(() => null) : null,
-        may(me, OPS) ? requestsApi.overtime('pending').catch(() => null) : null,
-        may(me, EMPLOYEES) ? employeesApi.list().catch(() => null) : null,
-        orgApi.snapshot().catch(() => null),
-      ]);
+    const [shifts, incidents, handovers, requests, overtime, employees, org] = await Promise.all([
+      may(me, OPS) ? shiftsApi.list({ includeClosed: true }).catch(() => null) : null,
+      may(me, OPS) ? incidentsApi.list({ scope: 'open' }).catch(() => null) : null,
+      may(me, HANDOVER) ? handoversApi.list({ scope: 'overdue' }).catch(() => null) : null,
+      may(me, REQUESTS) ? requestsApi.list({ scope: 'inbox' }).catch(() => null) : null,
+      may(me, OPS) ? requestsApi.overtime('pending').catch(() => null) : null,
+      may(me, EMPLOYEES) ? employeesApi.list().catch(() => null) : null,
+      orgApi.snapshot().catch(() => null),
+    ]);
     setData({
       onShift: shifts ? shifts.filter((s) => s.endedAt === null).length : null,
       unscheduled: shifts
@@ -76,7 +72,6 @@ export function useAttention(me: MeView, intervalMs = 60_000) {
       inDowntime: shifts ? shifts.filter((s) => s.state === 'DOWNTIME').length : null,
       openIncidents: incidents ? incidents.length : null,
       slaBreached: incidents ? incidents.filter((i) => i.slaBreached).length : null,
-      disputes: disputes ? disputes.filter((h) => h.status === 'DISPUTED').length : null,
       overdueAcceptances: handovers ? handovers.length : null,
       requestsForMe: requests ? requests.length : null,
       overdueRequests: requests ? requests.filter((r) => r.overdue).length : null,
