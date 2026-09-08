@@ -1,3 +1,10 @@
+## [0.52.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.52.0...v0.52.1) (2026-09-08)
+
+### Refactoring
+
+* **handover:** five statuses a reader can act on, one pill per row ([9467b29](https://github.com/leonidkuznetsov18/vakhta/commit/9467b29cfa448d646a1598ad64b7587963dc58da))
+* **handover:** the open report stops repeating its own row ([48b1817](https://github.com/leonidkuznetsov18/vakhta/commit/48b18171eab5aa275c91da9e93d1a04988e1b11c))
+
 ## [0.52.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.51.1...v0.52.0) (2026-09-08)
 
 ### Features
