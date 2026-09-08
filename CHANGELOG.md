@@ -1,3 +1,9 @@
+## [0.45.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.44.0...v0.45.0) (2026-09-08)
+
+### Features
+
+* **bot:** one short screen per shift state, as in the mockup ([f228947](https://github.com/leonidkuznetsov18/vakhta/commit/f2289476e930348e91297a3c3697017a3f220317))
+
 ## [0.44.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.43.0...v0.44.0) (2026-09-08)
 
 ### Features
