@@ -1,3 +1,9 @@
+## [0.37.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.37.1...v0.37.2) (2026-09-08)
+
+### Bug fixes
+
+* **panel:** make sign-in inputs uncontrolled so autofill is not overwritten ([e0cb110](https://github.com/leonidkuznetsov18/vakhta/commit/e0cb110cba69c68d32fb79a4f24df92aba1d9a2b))
+
 ## [0.37.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.37.0...v0.37.1) (2026-09-08)
 
 ### Bug fixes
