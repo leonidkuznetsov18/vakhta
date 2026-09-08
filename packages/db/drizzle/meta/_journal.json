@@ -169,6 +169,13 @@
       "when": 1788853681507,
       "tag": "0023_bonus_point_awards",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1788855290468,
+      "tag": "0024_backfill_award_units",
+      "breakpoints": true
     }
   ]
 }
