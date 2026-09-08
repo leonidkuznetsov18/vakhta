@@ -70,6 +70,15 @@ describe('shift screen in the bot (spec 4.4, FR-UI-01)', () => {
       ['plan:cur', 'rq:menu'],
       ['sh:START_CLEANING:3'],
     ]);
+    // The big button leads to cleaning and the checklist; it must not read as closing the shift,
+    // which only the exit QR does.
+    expect(screen.text).not.toContain('ЗАВЕРШИТЬ СМЕНУ');
+    const labels = (screen.keyboard?.inline_keyboard ?? []).flatMap((row) =>
+      row.map((btn) => ('text' in btn ? btn.text : '')),
+    );
+    expect(labels).toContain('УБОРКА И ЧЕК-ЛИСТ');
+    expect(labels.some((l) => l.toUpperCase().includes('ЗАВЕРШИТЬ СМЕНУ'))).toBe(false);
+    expect(labels.some((l) => l.toUpperCase().includes('ЗАКОНЧИТЬ'))).toBe(false);
     // Downtime is reached through "Report a problem", not from a button of its own, and nothing on
     // any screen ends a shift: the exit QR does that.
     const data = buttons(screen).flat();

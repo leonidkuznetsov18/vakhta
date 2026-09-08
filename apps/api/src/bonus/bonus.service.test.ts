@@ -320,7 +320,7 @@ describe('bonus: оцінка зміни, коригування, закритт
         points: 1,
       },
     ]);
-    const range = { from: '2026-01-01', to: '2026-12-31' } as const;
+    const range = { from: '2026-01-01', to: '2026-12-31', limit: 500 } as const;
 
     // Every grouping runs the same aggregate; a bound format pattern used to break the GROUP BY.
     const byDay = await bonus.history({ ...range, groupBy: 'day' });
@@ -332,8 +332,47 @@ describe('bonus: оцінка зміни, коригування, закритт
 
     const byYear = await bonus.history({ ...range, groupBy: 'year' });
     expect(byYear.buckets).toEqual([
-      { key: '2026', points: 3, checklistPoints: 2, awardPoints: 1, employees: 1 },
+      {
+        key: '2026',
+        points: 3,
+        checklistPoints: 2,
+        awardPoints: 1,
+        employees: 1,
+        units: ['Цех'],
+      },
     ]);
+
+    // The rows behind the totals carry the names, so the tab and the export read the same data.
+    expect(byYear.total).toBe(3);
+    expect(byYear.entries).toHaveLength(3);
+    expect(byYear.entries[0]).toMatchObject({
+      employeeName: 'Иванов Иван',
+      personnelNumber: '1',
+      orgUnitName: 'Цех',
+    });
+    // Newest first.
+    expect(byYear.entries.map((e) => e.businessDate)).toEqual([
+      '2026-09-02',
+      '2026-08-04',
+      '2026-08-04',
+    ]);
+
+    // Filtering by reason and by name narrows both the totals and the rows.
+    const awards = await bonus.history({ ...range, groupBy: 'year', kind: 'UNIT_OF_MONTH' });
+    expect(awards.entries.map((e) => e.kind)).toEqual(['UNIT_OF_MONTH']);
+    expect((await bonus.history({ ...range, groupBy: 'year', search: 'иванов' })).total).toBe(3);
+    expect((await bonus.history({ ...range, groupBy: 'year', search: 'петров' })).total).toBe(0);
+
+    // The download carries a header and one line per award, in both formats.
+    const csvFile = await bonus.exportHistory({ ...range, groupBy: 'year' }, 'csv', HEAD);
+    const text = csvFile.body.toString('utf8');
+    expect(csvFile.contentType).toContain('text/csv');
+    expect(csvFile.filename).toBe('vakhta-bonus-history-2026-01-01-2026-12-31.csv');
+    expect(text.split('\n')).toHaveLength(4);
+    expect(text).toContain('Иванов Иван');
+    const xlsxFile = await bonus.exportHistory({ ...range, groupBy: 'year' }, 'xlsx', HEAD);
+    expect(xlsxFile.contentType).toContain('spreadsheetml');
+    expect(xlsxFile.body.byteLength).toBeGreaterThan(0);
 
     // Filters narrow the same query without changing its shape.
     expect((await bonus.history({ ...range, groupBy: 'year', siteId })).buckets).toHaveLength(1);
@@ -341,7 +380,8 @@ describe('bonus: оцінка зміни, коригування, закритт
       (await bonus.history({ ...range, groupBy: 'year', orgUnitId: unit!.id })).buckets,
     ).toHaveLength(1);
     expect(
-      (await bonus.history({ from: '2026-09-01', to: '2026-09-30', groupBy: 'day' })).buckets,
+      (await bonus.history({ from: '2026-09-01', to: '2026-09-30', groupBy: 'day', limit: 500 }))
+        .buckets,
     ).toHaveLength(1);
   });
 

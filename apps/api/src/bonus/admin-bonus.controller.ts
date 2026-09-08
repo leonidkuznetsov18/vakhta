@@ -10,8 +10,12 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { FastifyReply } from 'fastify';
+import { z } from 'zod';
+import type { Locale } from '@vakhta/i18n';
 import {
   AdjustScoreCommand,
   CancelAdjustmentCommand,
@@ -37,6 +41,7 @@ import {
   webUserActor,
   type WebUser,
 } from '../auth/web-auth.guard.js';
+import { RequestLocale } from '../common/locale.decorator.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { BonusService } from './bonus.service.js';
 
@@ -68,6 +73,21 @@ export class AdminBonusController {
     @Query(new ZodValidationPipe(BonusHistoryQuery)) q: BonusHistoryQuery,
   ): Promise<BonusHistoryView> {
     return this.bonus.history(q);
+  }
+
+  @Get('history/export/:format')
+  async exportHistory(
+    @Param('format', new ZodValidationPipe(z.enum(['csv', 'xlsx']))) format: 'csv' | 'xlsx',
+    @Query(new ZodValidationPipe(BonusHistoryQuery)) q: BonusHistoryQuery,
+    @CurrentUser() user: WebUser,
+    @RequestLocale() locale: Locale,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const file = await this.bonus.exportHistory(q, format, webUserActor(user), locale);
+    await reply
+      .header('content-type', file.contentType)
+      .header('content-disposition', `attachment; filename="${file.filename}"`)
+      .send(file.body);
   }
 
   @Get('period')

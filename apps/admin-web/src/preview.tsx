@@ -345,10 +345,38 @@ window.fetch = async (input: RequestInfo | URL) => {
       checklistPoints: points - awards,
       awardPoints: awards,
       employees,
+      units: ['Цех Крышки', 'Цех Плёнка'],
+    });
+    const entry = (
+      id: string,
+      businessDate: string,
+      employeeName: string,
+      personnelNumber: string,
+      orgUnitName: string,
+      kind: string,
+      points: number,
+    ) => ({
+      id,
+      businessDate,
+      month: businessDate.slice(0, 7),
+      employeeId: `e-${id}`,
+      employeeName,
+      personnelNumber,
+      orgUnitId: 'u1',
+      orgUnitName,
+      kind,
+      points,
     });
     return json({
       groupBy: 'month',
       serverTime: new Date().toISOString(),
+      total: 4,
+      entries: [
+        entry('1', '2026-09-04', 'Гринько Юлія', '132', 'Цех Крышки', 'CHECKLIST_APPROVED', 1),
+        entry('2', '2026-09-03', 'Панов Олег', '131', 'Цех Крышки', 'CHECKLIST_APPROVED', 1),
+        entry('3', '2026-08-31', 'Ткач Олена', '130', 'Цех Плёнка', 'MASTER_OF_MONTH', 1),
+        entry('4', '2026-08-31', 'Гринько Юлія', '132', 'Цех Крышки', 'UNIT_OF_MONTH', 1),
+      ],
       buckets: [
         bucket('2026-05', 18, 3, 6),
         bucket('2026-06', 24, 4, 7),

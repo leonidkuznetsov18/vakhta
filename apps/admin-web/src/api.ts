@@ -415,6 +415,7 @@ import type {
   AdjustScoreCommand,
   BonusPeriodView,
   BonusHistoryView,
+  PointAwardKind,
   BonusPointsView,
   BonusRuleVersionView,
   ReviewScoreCommand,
@@ -424,16 +425,24 @@ import type {
   ShiftScoreView,
 } from '@vakhta/contracts';
 
+/** Everything the History tab can narrow by; the same shape drives the view and the download. */
+export interface BonusHistoryFilters {
+  readonly from: string;
+  readonly to: string;
+  readonly groupBy: 'day' | 'month' | 'year';
+  readonly siteId?: string;
+  readonly orgUnitId?: string;
+  readonly kind?: PointAwardKind;
+  readonly search?: string;
+}
+
 export const bonusApi = {
   points: (siteId: string, month: string) =>
     apiFetch<BonusPointsView>(`/admin/bonus/points${query({ siteId, month })}`),
-  history: (q: {
-    from: string;
-    to: string;
-    groupBy: 'day' | 'month' | 'year';
-    siteId?: string;
-    orgUnitId?: string;
-  }) => apiFetch<BonusHistoryView>(`/admin/bonus/history${query(q)}`),
+  history: (q: BonusHistoryFilters) =>
+    apiFetch<BonusHistoryView>(`/admin/bonus/history${query({ ...q, limit: '500' })}`),
+  historyExportUrl: (q: BonusHistoryFilters, format: 'csv' | 'xlsx') =>
+    `${API_URL}/admin/bonus/history/export/${format}${query({ ...q })}`,
   period: (siteId: string, month: string, employeeId?: string) =>
     apiFetch<BonusPeriodView>(`/admin/bonus/period${query({ siteId, month, employeeId })}`),
   rules: () => apiFetch<BonusRuleVersionView[]>('/admin/bonus/rules'),

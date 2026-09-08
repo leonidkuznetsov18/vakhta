@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { BonusHistoryView, BonusPointsView, OrgSnapshot } from '@vakhta/contracts';
-import { messages } from '@vakhta/i18n';
+import type {
+  BonusHistoryView,
+  BonusPointsView,
+  OrgSnapshot,
+  PointAwardKind,
+} from '@vakhta/contracts';
+import { format, messages } from '@vakhta/i18n';
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
 import {
   ChartContainer,
@@ -15,11 +20,14 @@ import { DataTable, type Column } from '@/components/app/data-table';
 import { DateField } from '@/components/app/date-picker';
 import { Feedback, useAction } from '@/components/app/feedback';
 import { MonthField } from '@/components/app/date-picker';
-import { SelectField } from '@/components/app/fields';
+import { FormField, SelectField } from '@/components/app/fields';
 import { Muted, Section, StatusPill, Toolbar } from '@/components/app/page';
 import { HowItWorks } from '@/components/app/how-it-works';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { DownloadIcon } from 'lucide-react';
 import { usePersistentState } from '@/lib/persistent-state';
-import { bonusApi, orgApi } from '../api.ts';
+import { bonusApi, orgApi, type BonusHistoryFilters } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 
@@ -50,6 +58,8 @@ export function BonusPage() {
   );
   const [from, setFrom] = usePersistentState('bonus.from', `${new Date().getFullYear()}-01-01`);
   const [to, setTo] = usePersistentState('bonus.to', new Date().toISOString().slice(0, 10));
+  const [kind, setKind] = usePersistentState<'' | PointAwardKind>('bonus.kind', '');
+  const [search, setSearch] = usePersistentState('bonus.search', '');
   const [history, setHistory] = useState<BonusHistoryView | null>(null);
   const { busy, error, run } = useAction();
 
@@ -68,23 +78,26 @@ export function BonusPage() {
     void run(async () => setData(await bonusApi.points(siteId, month)));
   }, [siteId, month]);
 
+  const filters: BonusHistoryFilters = useMemo(
+    () => ({
+      from,
+      to,
+      groupBy,
+      ...(siteId ? { siteId } : {}),
+      ...(unitId ? { orgUnitId: unitId } : {}),
+      ...(kind ? { kind } : {}),
+      ...(search.trim() ? { search: search.trim() } : {}),
+    }),
+    [from, to, groupBy, siteId, unitId, kind, search],
+  );
+
   useEffect(() => {
     if (tab !== 'history') return;
-    void run(async () =>
-      setHistory(
-        await bonusApi.history({
-          from,
-          to,
-          groupBy,
-          ...(siteId ? { siteId } : {}),
-          ...(unitId ? { orgUnitId: unitId } : {}),
-        }),
-      ),
-    );
-  }, [tab, from, to, groupBy, siteId, unitId]);
+    void run(async () => setHistory(await bonusApi.history(filters)));
+  }, [tab, filters]);
 
-  const all = data?.employees ?? [];
-  const rows = unitId ? all.filter((r) => r.orgUnitId === unitId) : all;
+  const everyone = data?.employees ?? [];
+  const rows = unitId ? everyone.filter((r) => r.orgUnitId === unitId) : everyone;
   const units = data?.units ?? [];
   const totalPoints = rows.reduce((s, r) => s + r.points, 0);
   const totalApproved = rows.reduce((s, r) => s + r.approved, 0);
@@ -126,6 +139,59 @@ export function BonusPage() {
       header: b.historyEmployees,
       align: 'right',
       cell: (r) => <span className="tabular-nums">{r.employees}</span>,
+    },
+    {
+      key: 'units',
+      header: b.historyUnits,
+      cell: (r) =>
+        r.units.length > 0 ? (
+          <span className="whitespace-normal">{r.units.join(', ')}</span>
+        ) : (
+          <Muted>{b.noUnit}</Muted>
+        ),
+    },
+  ];
+
+  const entryColumns: Column<BonusHistoryView['entries'][number]>[] = [
+    {
+      key: 'date',
+      header: b.historyDate,
+      cell: (r) => r.businessDate ?? r.month,
+      sortValue: (r) => r.businessDate ?? `${r.month}-01`,
+    },
+    {
+      key: 'employee',
+      header: b.employee,
+      cell: (r) => (
+        <span>
+          {r.employeeName} <Muted>{r.personnelNumber}</Muted>
+        </span>
+      ),
+      sortValue: (r) => r.employeeName,
+    },
+    {
+      key: 'unit',
+      header: b.unit,
+      cell: (r) => r.orgUnitName ?? <Muted>{b.noUnit}</Muted>,
+      sortValue: (r) => r.orgUnitName ?? '',
+    },
+    {
+      key: 'reason',
+      header: b.historyReason,
+      cell: (r) =>
+        r.kind === 'CHECKLIST_APPROVED' ? (
+          b.historyKinds[r.kind]
+        ) : (
+          <StatusPill tone="success">{b.historyKinds[r.kind]}</StatusPill>
+        ),
+      sortValue: (r) => b.historyKinds[r.kind] ?? r.kind,
+    },
+    {
+      key: 'points',
+      header: b.points,
+      align: 'right',
+      cell: (r) => <span className="font-semibold tabular-nums">{r.points}</span>,
+      sortValue: (r) => r.points,
     },
   ];
 
@@ -340,6 +406,51 @@ export function BonusPage() {
               ]}
               className="w-44"
             />
+            <SelectField
+              label={b.historyKind}
+              searchable={false}
+              value={kind}
+              onChange={(v) => setKind(v as '' | PointAwardKind)}
+              placeholder={b.historyAll}
+              options={[
+                { value: 'CHECKLIST_APPROVED', label: b.historyKinds.CHECKLIST_APPROVED ?? '' },
+                { value: 'UNIT_OF_MONTH', label: b.historyKinds.UNIT_OF_MONTH ?? '' },
+                { value: 'MASTER_OF_MONTH', label: b.historyKinds.MASTER_OF_MONTH ?? '' },
+              ]}
+              className="w-56"
+            />
+            <FormField label={b.employee} className="w-56">
+              {(id) => (
+                <Input
+                  id={id}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={all.ui.common.searchPlaceholder}
+                />
+              )}
+            </FormField>
+            <div className="flex items-end gap-1">
+              <Button asChild variant="outline">
+                <a
+                  href={bonusApi.historyExportUrl(filters, 'csv')}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <DownloadIcon aria-hidden="true" />
+                  {all.admin.reports.exportCsv}
+                </a>
+              </Button>
+              <Button asChild variant="outline">
+                <a
+                  href={bonusApi.historyExportUrl(filters, 'xlsx')}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <DownloadIcon aria-hidden="true" />
+                  {all.admin.reports.exportXlsx}
+                </a>
+              </Button>
+            </div>
           </Toolbar>
           <Section title={b.tabHistory}>
             {(history?.buckets.length ?? 0) === 0 ? (
@@ -373,6 +484,27 @@ export function BonusPage() {
                 />
               </>
             )}
+          </Section>
+          <Section
+            title={b.historyDetail}
+            hint={
+              history && history.total > history.entries.length
+                ? format(b.historyTruncated, {
+                    shown: history.entries.length,
+                    total: history.total,
+                  })
+                : undefined
+            }
+          >
+            <DataTable
+              columns={entryColumns}
+              rows={history?.entries ?? []}
+              storageKey="bonus-history-entries"
+              rowKey={(r) => r.id}
+              searchText={(r) => `${r.employeeName} ${r.personnelNumber} ${r.orgUnitName ?? ''}`}
+              empty={b.historyDetailEmpty}
+              loading={busy && (history?.entries.length ?? 0) === 0}
+            />
           </Section>
         </TabsContent>
       </Tabs>

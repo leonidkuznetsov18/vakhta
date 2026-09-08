@@ -754,6 +754,17 @@ export interface Messages {
       readonly groupDay: string;
       readonly groupMonth: string;
       readonly groupYear: string;
+      readonly historyDate: string;
+      readonly personnelNumber: string;
+      readonly historyReason: string;
+      readonly historyKinds: Readonly<Record<string, string>>;
+      readonly historyKind: string;
+      readonly historyAll: string;
+      readonly historyDetail: string;
+      readonly historyUnits: string;
+      /** Placeholders: {shown}, {total} */
+      readonly historyTruncated: string;
+      readonly historyDetailEmpty: string;
       readonly historyPeriod: string;
       readonly historyPoints: string;
       readonly historyChecklists: string;

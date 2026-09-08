@@ -436,7 +436,16 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     const state = view.session?.state;
     if (state && state !== 'SHIFT_CLOSED' && state !== 'EMERGENCY_EXIT') {
       if (state !== 'READY_TO_CLOSE') {
-        await edit(ctx, { text: ctx.t.attendance.finishChecklistFirst });
+        // The warning is the shift screen with the reminder on top, so the way to the checklist is
+        // one tap away instead of a dead end. The shift stays open and the QR is not spent.
+        await edit(
+          ctx,
+          shiftScreen(
+            ctx.t,
+            { ...view, timezone: deps.defaultTimezone },
+            ctx.t.attendance.finishChecklistFirst,
+          ),
+        );
         return;
       }
       const closed = await deps.shift.transition(

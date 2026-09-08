@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import * as XLSX from 'xlsx';
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import {
   activityIntervals,
@@ -47,6 +48,7 @@ import {
   handoverDecisionFrom,
   reviewSuggestion,
   scoreMonth,
+  DEFAULT_LOCALE,
   scoreShift,
   withScoreAdjustments,
   type BonusCriterion,
@@ -69,6 +71,7 @@ import type {
   EmployeeMonthView,
   MyScoresView,
   BonusPointsView,
+  BonusHistoryEntry,
   BonusHistoryQuery,
   BonusHistoryView,
   EmployeePointsView,
@@ -78,7 +81,7 @@ import type {
   SetBaseAmountsCommand,
   ShiftScoreView,
 } from '@vakhta/contracts';
-import { format } from '@vakhta/i18n';
+import { format, messages, type Locale } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -1226,15 +1229,8 @@ export class BonusService implements OnModuleInit {
     const fmt = sql.raw(
       q.groupBy === 'day' ? `'YYYY-MM-DD'` : q.groupBy === 'month' ? `'YYYY-MM'` : `'YYYY'`,
     );
-    // Month-end awards carry no business date; they belong to the last day of their month.
-    const day = sql<string>`coalesce(${bonusPointAwards.businessDate}::text, ${bonusPointAwards.month} || '-01')`;
-    const conditions = [sql`${day} >= ${q.from}`, sql`${day} <= ${q.to}`];
-    if (q.siteId)
-      conditions.push(
-        sql`${bonusPointAwards.orgUnitId} in (select ${orgUnits.id} from ${orgUnits} where ${orgUnits.siteId} = ${q.siteId})`,
-      );
-    if (q.employeeId) conditions.push(eq(bonusPointAwards.employeeId, q.employeeId));
-    if (q.orgUnitId) conditions.push(eq(bonusPointAwards.orgUnitId, q.orgUnitId));
+    const day = this.awardDay();
+    const where = and(...this.historyConditions(q));
     const rows = await this.db
       .select({
         key: sql<string>`to_char(${day}::date, ${fmt})`,
@@ -1242,12 +1238,26 @@ export class BonusService implements OnModuleInit {
         checklistPoints: sql<number>`sum(${bonusPointAwards.points}) filter (where ${bonusPointAwards.kind} = 'CHECKLIST_APPROVED')::int`,
         awardPoints: sql<number>`sum(${bonusPointAwards.points}) filter (where ${bonusPointAwards.kind} <> 'CHECKLIST_APPROVED')::int`,
         employees: sql<number>`count(distinct ${bonusPointAwards.employeeId})::int`,
+        units: sql<
+          string[]
+        >`coalesce(array_agg(distinct ${orgUnits.name}) filter (where ${orgUnits.name} is not null), '{}')`,
       })
       .from(bonusPointAwards)
-      .where(and(...conditions))
+      .innerJoin(employees, eq(bonusPointAwards.employeeId, employees.id))
+      .leftJoin(orgUnits, eq(bonusPointAwards.orgUnitId, orgUnits.id))
+      .where(where)
       // Grouping by the output column keeps the two expressions provably identical.
       .groupBy(sql`1`)
       .orderBy(sql`1`);
+
+    const entries = await this.historyEntries(q, q.limit);
+    const [counted] = await this.db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(bonusPointAwards)
+      .innerJoin(employees, eq(bonusPointAwards.employeeId, employees.id))
+      .leftJoin(orgUnits, eq(bonusPointAwards.orgUnitId, orgUnits.id))
+      .where(where);
+
     return {
       groupBy: q.groupBy,
       buckets: rows.map((r) => ({
@@ -1256,8 +1266,133 @@ export class BonusService implements OnModuleInit {
         checklistPoints: Number(r.checklistPoints ?? 0),
         awardPoints: Number(r.awardPoints ?? 0),
         employees: Number(r.employees ?? 0),
+        units: r.units ?? [],
       })),
+      entries,
+      total: Number(counted?.total ?? 0),
       serverTime: now.toISOString(),
+    };
+  }
+
+  /** Month-end awards carry no business date; they belong to the first day of their month. */
+  private awardDay() {
+    return sql<string>`coalesce(${bonusPointAwards.businessDate}::text, ${bonusPointAwards.month} || '-01')`;
+  }
+
+  private historyConditions(q: BonusHistoryQuery) {
+    const day = this.awardDay();
+    const conditions = [sql`${day} >= ${q.from}`, sql`${day} <= ${q.to}`];
+    if (q.siteId) conditions.push(eq(orgUnits.siteId, q.siteId));
+    if (q.employeeId) conditions.push(eq(bonusPointAwards.employeeId, q.employeeId));
+    if (q.orgUnitId) conditions.push(eq(bonusPointAwards.orgUnitId, q.orgUnitId));
+    if (q.kind) conditions.push(eq(bonusPointAwards.kind, q.kind));
+    if (q.search) {
+      const like = `%${q.search.toLowerCase()}%`;
+      conditions.push(
+        sql`(lower(${employees.fullName}) like ${like} or lower(${employees.personnelNumber}) like ${like})`,
+      );
+    }
+    return conditions;
+  }
+
+  /** The awards behind the totals, named and newest first, for reading and for the export. */
+  private async historyEntries(q: BonusHistoryQuery, limit: number): Promise<BonusHistoryEntry[]> {
+    const day = this.awardDay();
+    const rows = await this.db
+      .select({
+        id: bonusPointAwards.id,
+        businessDate: bonusPointAwards.businessDate,
+        month: bonusPointAwards.month,
+        employeeId: bonusPointAwards.employeeId,
+        employeeName: employees.fullName,
+        personnelNumber: employees.personnelNumber,
+        orgUnitId: bonusPointAwards.orgUnitId,
+        orgUnitName: orgUnits.name,
+        kind: bonusPointAwards.kind,
+        points: bonusPointAwards.points,
+      })
+      .from(bonusPointAwards)
+      .innerJoin(employees, eq(bonusPointAwards.employeeId, employees.id))
+      .leftJoin(orgUnits, eq(bonusPointAwards.orgUnitId, orgUnits.id))
+      .where(and(...this.historyConditions(q)))
+      .orderBy(sql`${day} desc`, asc(employees.fullName))
+      .limit(limit);
+    return rows.map((r) => ({
+      id: r.id,
+      businessDate: r.businessDate,
+      month: r.month,
+      employeeId: r.employeeId,
+      employeeName: r.employeeName,
+      personnelNumber: r.personnelNumber,
+      orgUnitId: r.orgUnitId,
+      orgUnitName: r.orgUnitName,
+      kind: r.kind,
+      points: r.points,
+    }));
+  }
+
+  /** The same rows as the History tab, as a file. Every download is audited, like a report. */
+  async exportHistory(
+    q: BonusHistoryQuery,
+    format: 'csv' | 'xlsx',
+    actor: Actor,
+    locale: Locale = DEFAULT_LOCALE,
+  ): Promise<{ body: Buffer; contentType: string; filename: string }> {
+    const t = messages(locale).admin.bonus;
+    const entries = await this.historyEntries(q, 20_000);
+    const header = [
+      t.historyDate,
+      t.month,
+      t.employee,
+      t.personnelNumber,
+      t.unit,
+      t.historyReason,
+      t.points,
+    ];
+    const matrix = entries.map((e) => [
+      e.businessDate ?? '',
+      e.month,
+      e.employeeName,
+      e.personnelNumber,
+      e.orgUnitName ?? '',
+      t.historyKinds[e.kind],
+      e.points,
+    ]);
+    await this.audit.record(this.db, {
+      actor,
+      action: 'bonus.history.export',
+      objectType: 'bonus',
+      objectId: 'history',
+      after: {
+        format,
+        from: q.from,
+        to: q.to,
+        siteId: q.siteId ?? null,
+        orgUnitId: q.orgUnitId ?? null,
+        kind: q.kind ?? null,
+        rows: entries.length,
+      },
+    });
+    const filename = `vakhta-bonus-history-${q.from}-${q.to}.${format}`;
+    if (format === 'csv') {
+      const cell = (v: string | number | undefined) => {
+        const text = String(v);
+        return /[";\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+      };
+      const lines = [header.map(cell).join(';'), ...matrix.map((r) => r.map(cell).join(';'))];
+      return {
+        body: Buffer.from(`\uFEFF${lines.join('\n')}`, 'utf8'),
+        contentType: 'text/csv; charset=utf-8',
+        filename,
+      };
+    }
+    const sheet = XLSX.utils.aoa_to_sheet([header, ...matrix]);
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, sheet, 'history');
+    return {
+      body: XLSX.write(book, { type: 'buffer', bookType: 'xlsx' }) as Buffer,
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      filename,
     };
   }
 

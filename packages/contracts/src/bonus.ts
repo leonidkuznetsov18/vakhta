@@ -180,7 +180,14 @@ export const BonusPointsView = z.object({
   serverTime: IsoDateTime,
 });
 
-/** Points history: totals per day, month or year, for the "History" tab. */
+export const PointAwardKindSchema = z.enum([
+  'CHECKLIST_APPROVED',
+  'UNIT_OF_MONTH',
+  'MASTER_OF_MONTH',
+]);
+export type PointAwardKind = z.infer<typeof PointAwardKindSchema>;
+
+/** Points history: totals per day, month or year plus the awards behind them ("History" tab). */
 export const BonusHistoryQuery = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -188,8 +195,29 @@ export const BonusHistoryQuery = z.object({
   siteId: Uuid.optional(),
   employeeId: Uuid.optional(),
   orgUnitId: Uuid.optional(),
+  /** Why the point was given; absent means every reason. */
+  kind: PointAwardKindSchema.optional(),
+  /** Name or personnel number, case-insensitive substring. */
+  search: z.string().trim().min(1).max(100).optional(),
+  /** How many detailed rows to return; the totals above them always cover the whole period. */
+  limit: z.coerce.number().int().min(1).max(5000).default(500),
 });
 export type BonusHistoryQuery = z.infer<typeof BonusHistoryQuery>;
+
+/** One award in the ledger, named: who earned it, in which unit, on what day and why. */
+export const BonusHistoryEntry = z.object({
+  id: Uuid,
+  businessDate: BusinessDate.nullable(),
+  month: z.string(),
+  employeeId: Uuid,
+  employeeName: z.string(),
+  personnelNumber: z.string(),
+  orgUnitId: Uuid.nullable(),
+  orgUnitName: z.string().nullable(),
+  kind: PointAwardKindSchema,
+  points: z.number().int(),
+});
+export type BonusHistoryEntry = z.infer<typeof BonusHistoryEntry>;
 
 export const BonusHistoryBucket = z.object({
   key: z.string(),
@@ -197,12 +225,18 @@ export const BonusHistoryBucket = z.object({
   checklistPoints: z.number().int().nonnegative(),
   awardPoints: z.number().int().nonnegative(),
   employees: z.number().int().nonnegative(),
+  /** Units that earned in this period, best first, so a row reads without opening the detail. */
+  units: z.array(z.string()),
 });
 export type BonusHistoryBucket = z.infer<typeof BonusHistoryBucket>;
 
 export const BonusHistoryView = z.object({
   groupBy: z.enum(['day', 'month', 'year']),
   buckets: z.array(BonusHistoryBucket),
+  /** The awards themselves, newest first, capped by the query's limit. */
+  entries: z.array(BonusHistoryEntry),
+  /** How many awards match the filter in total; larger than `entries` means the list is cut. */
+  total: z.number().int().nonnegative(),
   serverTime: IsoDateTime,
 });
 export type BonusHistoryView = z.infer<typeof BonusHistoryView>;
