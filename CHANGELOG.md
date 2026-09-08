@@ -1,3 +1,9 @@
+## [0.44.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.43.0...v0.44.0) (2026-09-08)
+
+### Features
+
+* **bonus:** monthly points, awards of the month and a history tab ([bc291ec](https://github.com/leonidkuznetsov18/vakhta/commit/bc291ec9c6490af3f1fe8552faaa20e32a80b832))
+
 ## [0.43.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.42.0...v0.43.0) (2026-09-08)
 
 ### Features
