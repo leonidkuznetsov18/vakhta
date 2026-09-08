@@ -583,6 +583,7 @@ export interface Messages {
       /** Placeholders: {employee}, {action}, {state} */
       readonly applied: string;
       readonly masterReason: string;
+      readonly stillOpen: string;
       readonly clarify: string;
       readonly clarified: string;
       readonly startFor: string;

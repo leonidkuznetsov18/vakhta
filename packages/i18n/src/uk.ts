@@ -715,6 +715,7 @@ export const uk: Messages = {
       comment: 'Коментар (обовʼязково)',
       apply: 'Виконати',
       applied: '{employee}: {action}. Стан зміни: {state}.',
+      stillOpen: 'триває',
       masterReason: 'Причина',
       clarify: 'Потрібна перевірка',
       clarified: 'Зміну позначено для перевірки.',

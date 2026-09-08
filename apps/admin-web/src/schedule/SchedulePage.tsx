@@ -74,8 +74,6 @@ export function SchedulePage() {
   const [month, setMonth] = usePersistentState('schedule.month', currentMonth);
   const [templates, setTemplates] = useState<ShiftTemplateView[]>([]);
   const [versions, setVersions] = useState<ScheduleVersionView[]>([]);
-  /** False until the list for the chosen unit and month has actually arrived. */
-  const [versionsLoaded, setVersionsLoaded] = useState(false);
   /** The freshest list, readable inside an async handler that started before the state updated. */
   const versionsRef = useRef<ScheduleVersionView[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -151,7 +149,6 @@ export function SchedulePage() {
       const list = await schedulesApi.list({ siteId, orgUnitId, periodMonth: month });
       setVersions(list);
       versionsRef.current = list;
-      setVersionsLoaded(true);
       const pick =
         preferId && list.some((v) => v.id === preferId) ? preferId : (list[0]?.id ?? null);
       setSelectedId(pick);
@@ -159,20 +156,11 @@ export function SchedulePage() {
     [siteId, orgUnitId, month],
   );
 
-  // Arriving from the overview's "these people are working without a schedule": open that unit and
-  // remember whom to add, then put them in as soon as a draft grid is on screen. The preset is read
-  // once, so a later reload of this page does not keep re-adding the same rows.
-  const [pending, setPending] = useState<readonly string[]>([]);
-  /**
-   * A ref, not state: the effect below re-runs on every version list and every detail, and a state
-   * flag is only visible on the next render — two runs in the same tick both saw "not creating" and
-   * both posted, which is where the second, confusing version came from.
-   */
-  const creating = useRef(false);
+  // Arriving from the overview's "these people are working without a schedule": open that unit's
+  // month and stop there. Creating the draft and filling it in is the master's move — doing it for
+  // them meant an effect that watched the version list and re-ran on every load of it, which is a
+  // loop, and a page that created versions nobody asked for.
   useEffect(() => {
-    // Wait for the directory: the unit is what tells us its site, and reading the preset before it
-    // arrives left the site on whatever was last used — the page then looked for versions of the
-    // right unit on the wrong site, found none, and offered to create one that the server refuses.
     if (!org) return;
     const preset = takeSchedulePreset();
     if (!preset) return;
@@ -180,56 +168,10 @@ export function SchedulePage() {
     if (!unit) return;
     setSiteId(unit.siteId);
     setOrgUnitId(preset.orgUnitId);
-    setPending(preset.employeeIds);
   }, [org]);
-
-  // The people go into a draft, so if this unit's month has none the draft is created first — from
-  // the published version when there is one, so nothing already planned is lost. Coming from the
-  // overview means "prepare this for me", and stopping at an empty page to ask for a version would
-  // be exactly the extra step the button exists to remove.
-  useEffect(() => {
-    if (pending.length === 0 || !siteId || !orgUnitId || !versionsLoaded) return;
-    const draft = versions.find((v) => v.status === 'DRAFT');
-    if (draft) {
-      if (selectedId !== draft.id) setSelectedId(draft.id);
-      if (!detail || detail.version.id !== draft.id) return;
-      setGrid((g) => pending.reduce((acc, id) => addRow(acc, id), g));
-      setDirty(true);
-      setPending([]);
-      return;
-    }
-    if (creating.current) return;
-    creating.current = true;
-    const source = versions.find((v) => v.status === 'PUBLISHED');
-    void run(async () => {
-      const created = await schedulesApi.create({
-        siteId,
-        orgUnitId,
-        periodMonth: month,
-        ...(source ? { basedOnVersionId: source.id } : {}),
-      });
-      // Reading the list back is what actually selects the draft; the created id only says which
-      // one to prefer. If the answer was odd, the list still shows whatever the server really has.
-      await loadVersions(created?.id);
-      creating.current = false;
-    }).catch(() => {
-      creating.current = false;
-    });
-  }, [
-    pending,
-    versions,
-    versionsLoaded,
-    detail,
-    selectedId,
-    siteId,
-    orgUnitId,
-    month,
-    loadVersions,
-  ]);
 
   useEffect(() => {
     setPatternStart(`${month}-01`);
-    setVersionsLoaded(false);
     setDetail(null);
     setAcks(null);
     setGrid(EMPTY_GRID);

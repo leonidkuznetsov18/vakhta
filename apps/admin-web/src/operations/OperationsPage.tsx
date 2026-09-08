@@ -658,7 +658,9 @@ function DetailPanel({ detail }: { readonly detail: ShiftDetailView }) {
             <li key={i.id} className="flex flex-wrap items-center gap-2">
               <StatusPill tone={STATE_TONE[i.state]}>{all.states[i.state]}</StatusPill>
               <span className="tabular-nums">
-                {formatTime(i.startedAt)}–{i.endedAt ? formatTime(i.endedAt) : '…'}
+                {/* An interval still running is said so, not trailed off: an ellipsis reads as a
+                    truncated time rather than as "it has not ended yet". */}
+                {formatTime(i.startedAt)}–{i.endedAt ? formatTime(i.endedAt) : o.stillOpen}
               </span>
               {i.reasonCode && <Muted>· {i.reasonCode}</Muted>}
             </li>

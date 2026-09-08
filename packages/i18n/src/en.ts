@@ -715,6 +715,7 @@ export const en: Messages = {
       comment: 'Comment (required)',
       apply: 'Apply',
       applied: '{employee}: {action}. Shift state: {state}.',
+      stillOpen: 'ongoing',
       masterReason: 'Reason',
       clarify: 'Needs review',
       clarified: 'The shift is flagged for review.',

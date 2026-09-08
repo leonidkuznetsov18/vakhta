@@ -362,7 +362,7 @@ describe('SchedulePage', () => {
     );
   });
 
-  it('arriving from the overview opens a draft for the unit and puts those people in it', async () => {
+  it('arriving from the overview opens that unit and month, and creates nothing by itself', async () => {
     // What "Build a schedule" hands over: this unit, these people.
     sessionStorage.setItem(
       'vakhta.ui.schedule.preset',
@@ -372,15 +372,11 @@ describe('SchedulePage', () => {
     const calls = mockApi(state);
     render(<SchedulePage />);
 
-    // The month had no draft, so one is created from the published version rather than stopping to
-    // ask — the button exists to remove exactly that step.
-    await waitFor(() => expect(state.created).toBe(true));
-    expect(
-      calls.find((c) => c.method === 'POST' && c.path === '/admin/schedules')?.body,
-    ).toMatchObject({ orgUnitId: UNIT, basedOnVersionId: VERSION });
-
-    // And the person from the overview is a row in the grid now, waiting for their shifts.
-    const grid = await screen.findByRole('table');
-    await waitFor(() => expect(within(grid).getByText('Сидоров Пётр')).toBeTruthy());
+    // The unit's month is on screen…
+    await waitFor(() => expect(calls.some((c) => c.path.includes(`orgUnitId=${UNIT}`))).toBe(true));
+    // …and nothing was created on the way: writing a version is the master's move, and doing it
+    // from an effect that watches the version list is a loop.
+    expect(state.created).toBe(false);
+    expect(calls.some((c) => c.method === 'POST' && c.path === '/admin/schedules')).toBe(false);
   });
 });

@@ -713,6 +713,7 @@ export const ru: Messages = {
       comment: 'Комментарий (обязательно)',
       apply: 'Выполнить',
       applied: '{employee}: {action}. Состояние смены: {state}.',
+      stillOpen: 'идёт',
       masterReason: 'Причина',
       clarify: 'Нужна проверка',
       clarified: 'Смена отмечена для проверки.',
