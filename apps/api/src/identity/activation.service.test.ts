@@ -226,6 +226,40 @@ describe('identity: активація і привʼязка Telegram (ТЗ 2.2,
     });
   });
 
+  it('dismissal frees the phone, and the reinstated card activates on it again', async () => {
+    const ivanov = await createIvanov();
+    const first = await activation.issue(ivanov.id, HR);
+    await activation.preview(TG_IVANOV, first.code);
+    await activation.confirm(TG_IVANOV);
+    expect(await employeesService.activeLinkByEmployee(ivanov.id)).not.toBeNull();
+
+    await employeesService.changeStatus(
+      ivanov.id,
+      { status: 'TERMINATED', reason: 'звільнення' },
+      HR,
+    );
+    // The link is gone, so the same phone is free for another card.
+    expect(await employeesService.activeLinkByEmployee(ivanov.id)).toBeNull();
+    const petrova = await employeesService.create(
+      { personnelNumber: '000777', fullName: 'Петрова Ольга', status: 'ACTIVE' },
+      HR,
+    );
+    const hers = await activation.issue(petrova.id, HR);
+    expect(await activation.preview(TG_IVANOV, hers.code)).toMatchObject({ ok: true });
+
+    // And the reinstated employee activates again on that same phone once it is free.
+    await employeesService.changeStatus(petrova.id, { status: 'TERMINATED', reason: 'x' }, HR);
+    await employeesService.changeStatus(
+      ivanov.id,
+      { status: 'ACTIVE', reason: 'поновлення на роботі' },
+      HR,
+    );
+    const again = await activation.issue(ivanov.id, HR);
+    expect(await activation.preview(TG_IVANOV, again.code)).toMatchObject({ ok: true });
+    await activation.confirm(TG_IVANOV);
+    expect(await employeesService.activeLinkByEmployee(ivanov.id)).not.toBeNull();
+  });
+
   it('один Telegram-акаунт не привʼязується до двох працівників; база теж відмовляє', async () => {
     const ivanov = await createIvanov();
     const petrova = await employeesService.create(

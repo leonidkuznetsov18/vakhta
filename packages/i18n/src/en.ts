@@ -1271,6 +1271,9 @@ export const en: Messages = {
         block: 'Block',
         unblock: 'Unblock',
         terminate: 'Terminate',
+        reinstate: 'Reinstate',
+        reinstateHint:
+          'The card becomes active again. Telegram was unlinked at dismissal, so issue a new activation code — the person scans it from the same phone.',
         statusChanged: 'Status changed.',
         relink: 'Change Telegram',
         relinkUserId: 'Numeric Telegram ID of the new account',

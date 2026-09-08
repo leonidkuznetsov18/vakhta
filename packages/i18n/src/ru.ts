@@ -1269,6 +1269,9 @@ export const ru: Messages = {
         block: 'Заблокировать',
         unblock: 'Разблокировать',
         terminate: 'Уволить',
+        reinstate: 'Восстановить на работе',
+        reinstateHint:
+          'Карточка снова станет активной. Telegram был отвязан при увольнении, поэтому выдайте новый код активации — человек сканирует его с того же телефона.',
         statusChanged: 'Статус изменён.',
         relink: 'Сменить Telegram',
         relinkUserId: 'Числовой Telegram ID нового аккаунта',

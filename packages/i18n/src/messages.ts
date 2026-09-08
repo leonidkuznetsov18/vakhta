@@ -994,6 +994,8 @@ export interface Messages {
         readonly block: string;
         readonly unblock: string;
         readonly terminate: string;
+        readonly reinstate: string;
+        readonly reinstateHint: string;
         readonly statusChanged: string;
         readonly relink: string;
         readonly relinkUserId: string;

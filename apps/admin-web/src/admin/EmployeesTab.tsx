@@ -45,6 +45,7 @@ import {
   Trash2Icon,
   XIcon,
   Link2Icon,
+  UserCheckIcon,
   UserXIcon,
 } from 'lucide-react';
 import { ImportDialog } from './ImportDialog.tsx';
@@ -177,10 +178,19 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   }
 
   async function changeStatus(emp: EmployeeView, status: EmployeeView['status']) {
-    const label = status === 'BLOCKED' ? e.block : status === 'ACTIVE' ? e.unblock : e.terminate;
+    // Coming back from a dismissal is its own action: it needs a new activation code, because the
+    // dismissal released the Telegram account so the phone could be used on another card.
+    const reinstating = status === 'ACTIVE' && emp.status === 'TERMINATED';
+    const label = reinstating
+      ? e.reinstate
+      : status === 'BLOCKED'
+        ? e.block
+        : status === 'ACTIVE'
+          ? e.unblock
+          : e.terminate;
     const reason = await confirm({
       title: `${label}: ${emp.fullName}`,
-      description: hints.employeesStatus,
+      description: reinstating ? e.reinstateHint : hints.employeesStatus,
       confirmLabel: label,
       commentLabel: t.common.reason,
       commentRequired: true,
@@ -367,6 +377,18 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
             key: 'unblock',
             label: e.unblock,
             icon: CircleCheckIcon,
+            disabled: busy,
+            separator: true,
+            onSelect: () => void changeStatus(emp, 'ACTIVE'),
+          },
+        ]
+      : []),
+    ...(emp.status === 'TERMINATED'
+      ? [
+          {
+            key: 'reinstate',
+            label: e.reinstate,
+            icon: UserCheckIcon,
             disabled: busy,
             separator: true,
             onSelect: () => void changeStatus(emp, 'ACTIVE'),

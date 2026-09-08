@@ -1271,6 +1271,9 @@ export const uk: Messages = {
         block: 'Заблокувати',
         unblock: 'Розблокувати',
         terminate: 'Звільнити',
+        reinstate: 'Поновити на роботі',
+        reinstateHint:
+          'Картка знову стане активною. Telegram було відвʼязано при звільненні, тому видайте новий код активації — людина сканує його з того самого телефона.',
         statusChanged: 'Статус змінено.',
         relink: 'Змінити Telegram',
         relinkUserId: 'Числовий Telegram ID нового акаунта',

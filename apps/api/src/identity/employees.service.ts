@@ -535,6 +535,12 @@ export class EmployeesService {
         .where(eq(employees.id, id))
         .returning();
       if (!after) throw new IdentityError('EMPLOYEE_NOT_FOUND', `Працівника ${id} не знайдено`);
+      // Dismissal frees the Telegram account (2026-09-08): the link is unique per account, so a
+      // closed card holding one keeps that phone from ever activating another card — including the
+      // same person's new card when they are hired back. Blocking is temporary and keeps its link.
+      if (after.status === 'TERMINATED' && before.status !== 'TERMINATED') {
+        await this.revokeTelegramLink(tx, id, actor, cmd.reason, 'TERMINATION');
+      }
       await this.events.append(tx, {
         type: 'EMPLOYEE_STATUS_CHANGED',
         source: 'WEB',
@@ -554,6 +560,36 @@ export class EmployeesService {
       });
       return after;
     });
+  }
+
+  /** Revokes the employee's active Telegram link, if any, and records why it went. */
+  private async revokeTelegramLink(
+    tx: DbOrTx,
+    employeeId: string,
+    actor: Actor,
+    reason: string,
+    via: 'TERMINATION' | 'RELINK' | 'UNLINK',
+  ): Promise<boolean> {
+    const current = await this.activeLinkByEmployee(employeeId, tx);
+    if (!current) return false;
+    await tx
+      .update(telegramAccounts)
+      .set({
+        status: 'REVOKED',
+        revokedAt: new Date(),
+        revokedBy: actor.id,
+        revokeReason: reason,
+      })
+      .where(eq(telegramAccounts.id, current.id));
+    await this.events.append(tx, {
+      type: 'TELEGRAM_LINK_REVOKED',
+      source: 'WEB',
+      actor,
+      employeeId,
+      comment: reason,
+      payload: { telegramUserId: current.telegramUserId, via },
+    });
+    return true;
   }
 
   /**

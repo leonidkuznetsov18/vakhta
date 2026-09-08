@@ -176,6 +176,13 @@
       "when": 1788855290468,
       "tag": "0024_backfill_award_units",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1788868245683,
+      "tag": "0025_release_telegram_on_dismissal",
+      "breakpoints": true
     }
   ]
 }
