@@ -280,7 +280,23 @@ window.fetch = async (input: RequestInfo | URL) => {
       serverTime: new Date().toISOString(),
     });
   }
-  if (path === '/admin/shifts') return json([shift, closedNoChecklist]);
+  // Three people on an unscheduled shift across two units: enough to see how the overview groups
+  // and names them, which one number never showed.
+  const unscheduled = (
+    id: string,
+    employeeId: string,
+    fullName: string,
+    personnelNumber: string,
+    orgUnitId: string,
+    orgUnitName: string,
+  ) => ({ ...shift, id, employeeId, fullName, personnelNumber, orgUnitId, orgUnitName });
+  if (path === '/admin/shifts')
+    return json([
+      shift,
+      unscheduled('sh2', 'e2', 'Ткач Олена', '130', 'u1', 'Цех Крышки'),
+      unscheduled('sh3', 'e3', 'Панов Олег', '131', 'u2', 'Цех Плёнка'),
+      closedNoChecklist,
+    ]);
   if (path === `/admin/shifts/${shift.id}`) return json(shiftDetail);
   if (path === '/admin/bonus/points') {
     const emp = (
