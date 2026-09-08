@@ -30,21 +30,69 @@ function mockApi() {
       const url = new URL(String(input));
       calls.push(url.pathname + url.search);
       if (url.pathname === '/admin/org') return json(org);
-      if (url.pathname === '/admin/reports/hours') {
+      if (url.pathname === '/admin/reports/losses') {
+        const category = url.searchParams.get('category');
         return json({
-          kind: 'hours',
-          title: 'План/факт часов и отклонения',
           from: url.searchParams.get('from'),
           to: url.searchParams.get('to'),
-          columns: [
-            { key: 'employee', label: 'Сотрудник', kind: 'text' },
-            { key: 'shifts', label: 'Смен', kind: 'number' },
-            { key: 'lateMinutes', label: 'Опоздания, мин', kind: 'minutes' },
-          ],
-          rows: [{ employee: 'Кузнецов Леонид', shifts: 12, lateMinutes: 35 }],
-          totals: { employee: 'Итого', shifts: 12, lateMinutes: 35 },
+          totalMinutes: 9108,
+          lostMinutes: 4276,
+          explainedShare: 0.04,
+          category,
+          categoryLabel: category ? 'Передача' : null,
+          bars: category
+            ? [
+                {
+                  key: 'BREAKDOWN',
+                  label: 'Поломка',
+                  minutes: 90,
+                  share: 0.6,
+                  cumulative: 0.6,
+                  intervals: 3,
+                  employees: 2,
+                },
+              ]
+            : [
+                {
+                  key: 'HANDOVER',
+                  label: 'Передача',
+                  minutes: 2170,
+                  share: 0.51,
+                  cumulative: 0.51,
+                  intervals: 54,
+                  employees: 6,
+                },
+                {
+                  key: 'PREPARATION',
+                  label: 'Подготовка',
+                  minutes: 689,
+                  share: 0.16,
+                  cumulative: 0.67,
+                  intervals: 33,
+                  employees: 6,
+                },
+              ],
+          intervals: category
+            ? [
+                {
+                  id: 'i1',
+                  businessDate: '2026-10-05',
+                  employeeId: 'e1',
+                  employeeName: 'Кузнецов Леонид',
+                  orgUnitName: 'Цех',
+                  zoneName: 'Линия 1',
+                  category: 'HANDOVER',
+                  categoryLabel: 'Передача',
+                  reasonLabel: null,
+                  comment: null,
+                  startedAt: '2026-10-05T10:00:00.000Z',
+                  endedAt: '2026-10-05T10:40:00.000Z',
+                  minutes: 40,
+                },
+              ]
+            : [],
+          intervalsTotal: category ? 1 : 0,
           generatedAt: '2026-10-05T10:00:00.000Z',
-          dataVersion: 'abc123def456',
         });
       }
       if (url.pathname === '/admin/audit')
@@ -94,27 +142,34 @@ describe('ReportsPage and AuditPage', () => {
     vi.useRealTimers();
   });
 
-  it('builds a report for a period and shows the data version, totals and export links', async () => {
+  it('ranks the categories of lost time, then drills into one of them', async () => {
     // The period defaults to the current month; the calendar fields are covered by the domain tests.
     vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-31T12:00:00Z') });
     const calls = mockApi();
     render(<ReportsPage />);
-    expect(await screen.findByLabelText('С')).toBeTruthy();
-    expect(screen.getByLabelText('По')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Сформировать' }));
-    expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
-    expect(screen.getByText(/abc123def456/)).toBeTruthy();
-    expect(screen.getByText('Итого')).toBeTruthy();
+
+    // Level one arrives on its own: no "build" button to press, the period is the query.
+    expect(await screen.findByText('Передача')).toBeTruthy();
+    expect(screen.getByText('Подготовка')).toBeTruthy();
     expect(
       calls.some(
         (c) =>
-          c.startsWith('/admin/reports/hours?') &&
+          c.startsWith('/admin/reports/losses?') &&
           c.includes('from=2026-10-01') &&
           c.includes('to=2026-10-31'),
       ),
     ).toBe(true);
+    // How much of the loss carries a reason travels with the totals: 4% is a warning, not a detail.
+    expect(screen.getByText('4%')).toBeTruthy();
+
+    // Level two and three: choosing the category asks for it and shows its intervals.
+    fireEvent.click(screen.getByText('Передача'));
+    expect(await screen.findByText('Поломка')).toBeTruthy();
+    expect(calls.some((c) => c.includes('category=HANDOVER'))).toBe(true);
+    expect(screen.getByText('Кузнецов Леонид')).toBeTruthy();
+
     const csv = screen.getByRole('link', { name: 'CSV' });
-    expect(csv.getAttribute('href')).toContain('/admin/reports/hours/export/csv?');
+    expect(csv.getAttribute('href')).toContain('/admin/reports/losses/export/csv?');
     expect(screen.getByRole('link', { name: 'XLSX' }).getAttribute('href')).toContain(
       '/export/xlsx',
     );

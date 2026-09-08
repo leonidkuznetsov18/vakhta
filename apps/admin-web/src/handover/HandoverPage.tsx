@@ -21,7 +21,7 @@ import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
-import { CheckIcon, EyeIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
+import { CheckIcon, EyeIcon, TriangleAlertIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Lightbox, PhotoThumb, type LightboxImage } from '@/components/app/photo';
 import { HowItWorks } from '@/components/app/how-it-works';
@@ -201,14 +201,6 @@ export function HandoverPage() {
     if (!detail || detail.handover.id !== row.id) return <Muted>{all.ui.common.loading}</Muted>;
     return (
       <div className="flex flex-col gap-4 py-1" data-testid="handover-detail">
-        {/* The row right above already says the zone, the status, who submitted it and when —
-            repeating all four here only makes the card longer to read. */}
-        <div className="flex justify-end">
-          <Button type="button" size="sm" variant="ghost" onClick={() => setOpenId(null)}>
-            <XIcon aria-hidden="true" />
-            {all.ui.common.close}
-          </Button>
-        </div>
         <div className="flex flex-col gap-4">
           <div>
             <h3 className="mb-2 text-sm font-semibold">{h.checklist}</h3>

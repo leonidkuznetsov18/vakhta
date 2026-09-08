@@ -3,12 +3,10 @@ import type { FastifyReply } from 'fastify';
 import {
   AuditQuery,
   EventsQuery,
-  ReportKindSchema,
-  ReportQuery,
+  LossesQuery,
   type AuditEntryView,
   type DomainEventView,
-  type ReportKind,
-  type ReportTableView,
+  type LossesView,
 } from '@vakhta/contracts';
 import { z } from 'zod';
 import {
@@ -21,6 +19,7 @@ import {
 import { RequestLocale } from '../common/locale.decorator.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import type { Locale } from '@vakhta/domain';
+import { LossesService } from './losses.service.js';
 import { ReportsService } from './reports.service.js';
 
 const Format = z.enum(['csv', 'xlsx']);
@@ -29,29 +28,30 @@ const Format = z.enum(['csv', 'xlsx']);
 @Controller('admin')
 @UseGuards(WebAuthGuard)
 export class AdminReportsController {
-  constructor(private readonly reports: ReportsService) {}
+  constructor(
+    private readonly reports: ReportsService,
+    private readonly lossesService: LossesService,
+  ) {}
 
-  @Get('reports/:kind')
+  @Get('reports/losses')
   @Roles('ADMIN', 'PRODUCTION_HEAD', 'HR', 'ACCOUNTANT', 'AUDITOR', 'SHIFT_MASTER', 'PLANNER')
-  report(
-    @Param('kind', new ZodValidationPipe(ReportKindSchema)) kind: ReportKind,
-    @Query(new ZodValidationPipe(ReportQuery)) q: ReportQuery,
+  losses(
+    @Query(new ZodValidationPipe(LossesQuery)) q: LossesQuery,
     @RequestLocale() locale: Locale,
-  ): Promise<ReportTableView> {
-    return this.reports.build(kind, q, locale);
+  ): Promise<LossesView> {
+    return this.lossesService.overview(q, locale);
   }
 
-  @Get('reports/:kind/export/:format')
+  @Get('reports/losses/export/:format')
   @Roles('ADMIN', 'PRODUCTION_HEAD', 'HR', 'ACCOUNTANT', 'AUDITOR')
-  async export(
-    @Param('kind', new ZodValidationPipe(ReportKindSchema)) kind: ReportKind,
+  async exportLosses(
     @Param('format', new ZodValidationPipe(Format)) format: 'csv' | 'xlsx',
-    @Query(new ZodValidationPipe(ReportQuery)) q: ReportQuery,
+    @Query(new ZodValidationPipe(LossesQuery)) q: LossesQuery,
     @CurrentUser() user: WebUser,
     @RequestLocale() locale: Locale,
     @Res() reply: FastifyReply,
   ): Promise<void> {
-    const file = await this.reports.export(kind, q, format, webUserActor(user), locale);
+    const file = await this.lossesService.export(q, format, webUserActor(user), locale);
     await reply
       .header('content-type', file.contentType)
       .header('content-disposition', `attachment; filename="${file.filename}"`)

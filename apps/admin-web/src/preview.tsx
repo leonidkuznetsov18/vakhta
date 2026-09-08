@@ -409,6 +409,59 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       ],
     });
   }
+  if (path === '/admin/reports/losses') {
+    const category = new URL(String(input), location.origin).searchParams.get('category');
+    const bar = (key: string, label: string, minutes: number, cumulative: number, n: number) => ({
+      key,
+      label,
+      minutes,
+      share: minutes / 4276,
+      cumulative,
+      intervals: n,
+      employees: 6,
+    });
+    return json({
+      from: '2026-09-01',
+      to: '2026-09-30',
+      totalMinutes: 9108,
+      lostMinutes: 4276,
+      explainedShare: 0.04,
+      category,
+      categoryLabel: category ? 'Передача' : null,
+      bars: category
+        ? [bar('BREAKDOWN', 'Поломка', 90, 0.56, 3), bar('', 'Причину не вказано', 70, 1, 51)]
+        : [
+            bar('HANDOVER', 'Передача', 2170, 0.51, 54),
+            bar('PREPARATION', 'Підготовка', 689, 0.67, 33),
+            bar('READY_TO_CLOSE', 'Готова до закриття', 579, 0.8, 33),
+            bar('BREAK', 'Перерва', 341, 0.88, 51),
+            bar('MEAL', 'Обід', 309, 0.95, 26),
+            bar('DOWNTIME', 'Простій', 160, 0.99, 5),
+            bar('CLEANING', 'Прибирання', 24, 1, 55),
+          ],
+      intervals: category
+        ? [
+            {
+              id: 'iv1',
+              businessDate: '2026-09-08',
+              employeeId: 'e1',
+              employeeName: 'Гринько Юлія',
+              orgUnitName: 'Цех Крышки',
+              zoneName: 'Линия 1',
+              category: 'HANDOVER',
+              categoryLabel: 'Передача',
+              reasonLabel: null,
+              comment: null,
+              startedAt: '2026-09-08T15:01:00.000Z',
+              endedAt: '2026-09-08T15:41:00.000Z',
+              minutes: 40,
+            },
+          ]
+        : [],
+      intervalsTotal: category ? 1 : 0,
+      generatedAt: new Date().toISOString(),
+    });
+  }
   if (path === '/admin/reports/hours') return json(hoursReport);
   // Anything this harness has no fixture for is a gap in the harness, not an empty answer from a
   // server. Saying so out loud stops "the record was added" over a list that never changes from

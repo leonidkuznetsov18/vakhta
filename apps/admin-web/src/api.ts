@@ -480,18 +480,26 @@ import type {
   AuditQuery,
   DomainEventView,
   EventsQuery,
-  ReportKind,
-  ReportQuery,
-  ReportTableView,
+  LossesQuery,
+  LossesView,
 } from '@vakhta/contracts';
 
+function lossQuery(q: LossesQuery): string {
+  return query({
+    from: q.from,
+    to: q.to,
+    siteId: q.siteId,
+    orgUnitId: q.orgUnitId,
+    category: q.category,
+    reason: q.reason,
+    noReason: q.noReason ? 'true' : undefined,
+  });
+}
+
 export const reportsApi = {
-  build: (kind: ReportKind, q: ReportQuery) =>
-    apiFetch<ReportTableView>(
-      `/admin/reports/${kind}${query({ siteId: q.siteId, orgUnitId: q.orgUnitId, from: q.from, to: q.to })}`,
-    ),
-  exportUrl: (kind: ReportKind, q: ReportQuery, format: 'csv' | 'xlsx') =>
-    `${API_URL}/admin/reports/${kind}/export/${format}${query({ siteId: q.siteId, orgUnitId: q.orgUnitId, from: q.from, to: q.to })}`,
+  losses: (q: LossesQuery) => apiFetch<LossesView>(`/admin/reports/losses${lossQuery(q)}`),
+  lossesExportUrl: (q: LossesQuery, format: 'csv' | 'xlsx') =>
+    `${API_URL}/admin/reports/losses/export/${format}${lossQuery(q)}`,
   audit: (q: AuditQuery) =>
     apiFetch<AuditEntryView[]>(
       `/admin/audit${query({ from: q.from, to: q.to, actorId: q.actorId, action: q.action, objectType: q.objectType, objectId: q.objectId, limit: q.limit ? String(q.limit) : undefined })}`,

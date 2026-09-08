@@ -23,7 +23,7 @@ import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { isBlank } from '@/lib/forms';
 import { notifySuccess } from '@/lib/toast';
-import { EyeIcon, FlagIcon, XIcon } from 'lucide-react';
+import { EyeIcon, FlagIcon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -387,14 +387,9 @@ export function OperationsPage() {
 
   function renderDetail(row: ActiveShiftView) {
     return (
-      <div className="flex flex-col gap-4 py-1" data-testid="shift-detail">
-        {/* The row right above already carries the name, the state, the number and the unit. */}
-        <div className="flex justify-end">
-          <Button type="button" size="sm" variant="ghost" onClick={() => setOpenId(null)}>
-            <XIcon aria-hidden="true" />
-            {all.ui.common.close}
-          </Button>
-        </div>
+      /* Clicking the row opens and closes it, so a "close" button inside repeats what the row
+         already does. Two columns: what the master can do, and what the shift has done. */
+      <div className="grid items-start gap-6 py-1 md:grid-cols-2" data-testid="shift-detail">
         {/* One control under another: the action, then the reason it needs, then the comment, then
             the button. Side by side the four read as unrelated fields on a single line. */}
         {row.endedAt === null && (
@@ -641,7 +636,7 @@ export function OperationsPage() {
 
 function DetailPanel({ detail }: { readonly detail: ShiftDetailView }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="flex flex-col gap-4">
       <div>
         <h3 className="mb-2 text-sm font-semibold">{o.intervals}</h3>
         <ul className="flex flex-col gap-1 text-sm">

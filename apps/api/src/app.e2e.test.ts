@@ -156,31 +156,45 @@ describe('e2e: межі доступу панелі', () => {
     expect(hr.statusCode).toBe(404);
   });
 
-  it('вивантаження звіту доступне бухгалтерії й фіксується в аудиті з версією даних (FR-WEB-05)', async () => {
+  it('the loss report and its download: the master reads it, only an editor downloads it', async () => {
+    // Every role that runs a shift can read where the time went…
+    const read = await app.inject({
+      method: 'GET',
+      url: '/admin/reports/losses?from=2026-09-01&to=2026-09-30',
+      headers: as('master@e2e.test'),
+    });
+    expect(read.statusCode).toBe(200);
+    const view = read.json() as { bars: unknown[]; lostMinutes: number; explainedShare: number };
+    expect(Array.isArray(view.bars)).toBe(true);
+    expect(typeof view.lostMinutes).toBe('number');
+    // …and the report always says how much of the loss it can explain.
+    expect(typeof view.explainedShare).toBe('number');
+
     const forbidden = await app.inject({
       method: 'GET',
-      url: '/admin/reports/hours/export/csv?from=2026-09-01&to=2026-09-30',
+      url: '/admin/reports/losses/export/csv?from=2026-09-01&to=2026-09-30',
       headers: as('master@e2e.test'),
     });
     expect(forbidden.statusCode).toBe(403);
+
     const csv = await app.inject({
       method: 'GET',
-      url: '/admin/reports/hours/export/csv?from=2026-09-01&to=2026-09-30',
+      url: '/admin/reports/losses/export/csv?from=2026-09-01&to=2026-09-30',
       headers: as('admin@e2e.test'),
     });
     expect(csv.statusCode).toBe(200);
     expect(csv.headers['content-type']).toContain('text/csv');
-    expect(csv.body).toContain('Сотрудник');
+    // The download is audited like any other, with what was asked for.
     const [entry] = await db.select().from(auditLog).orderBy(desc(auditLog.at)).limit(1);
     expect(entry).toMatchObject({
       action: 'report.export',
       objectType: 'report',
-      objectId: 'hours',
+      objectId: 'losses',
     });
-    expect((entry?.after as { dataVersion?: string })?.dataVersion).toHaveLength(12);
+
     const xlsx = await app.inject({
       method: 'GET',
-      url: '/admin/reports/bonus/export/xlsx?from=2026-09-01&to=2026-09-30',
+      url: '/admin/reports/losses/export/xlsx?from=2026-09-01&to=2026-09-30',
       headers: as('admin@e2e.test'),
     });
     expect(xlsx.statusCode).toBe(200);
