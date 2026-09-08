@@ -130,7 +130,10 @@ interface Call {
   body: unknown;
 }
 
-function mockApi(state: { status: string; issues?: unknown[] }, snapshot: typeof org = org) {
+function mockApi(
+  state: { status: string; issues?: unknown[]; created?: boolean },
+  snapshot: typeof org = org,
+) {
   const calls: Call[] = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
@@ -145,9 +148,21 @@ function mockApi(state: { status: string; issues?: unknown[] }, snapshot: typeof
     if (path === '/admin/org') return json(snapshot);
     if (path === '/admin/employees') return json(employees);
     if (path.startsWith('/admin/schedules/templates')) return json(templates);
-    if (path.startsWith('/admin/schedules?')) return json([version(state.status)]);
+    if (path.startsWith('/admin/schedules?')) {
+      const list = [version(state.status)];
+      // Once a draft has been created it is part of the month, like it would be on the server.
+      if (state.created) {
+        list.unshift({ ...version('DRAFT'), id: 'v2', versionNo: 2, supersedesId: null });
+      }
+      return json(list);
+    }
     if (path === '/admin/schedules' && method === 'POST') {
+      state.created = true;
       return json({ ...version('DRAFT'), id: 'v2', versionNo: 2, supersedesId: null }, 201);
+    }
+    if (path === '/admin/schedules/v2') {
+      const d = detail('DRAFT', state.issues);
+      return json({ ...d, version: { ...d.version, id: 'v2', versionNo: 2 }, assignments: [] });
     }
     if (path === `/admin/schedules/${VERSION}`) return json(detail(state.status, state.issues));
     if (path === `/admin/schedules/${VERSION}/assignments` && method === 'PUT') {
@@ -345,5 +360,27 @@ describe('SchedulePage', () => {
     expect((await screen.findByRole('status')).textContent).toContain(
       'Создана версия 2 на основе версии',
     );
+  });
+
+  it('arriving from the overview opens a draft for the unit and puts those people in it', async () => {
+    // What "Build a schedule" hands over: this unit, these people.
+    sessionStorage.setItem(
+      'vakhta.ui.schedule.preset',
+      JSON.stringify({ orgUnitId: UNIT, employeeIds: [EMP2] }),
+    );
+    const state = { status: 'PUBLISHED' as string, created: false };
+    const calls = mockApi(state);
+    render(<SchedulePage />);
+
+    // The month had no draft, so one is created from the published version rather than stopping to
+    // ask — the button exists to remove exactly that step.
+    await waitFor(() => expect(state.created).toBe(true));
+    expect(
+      calls.find((c) => c.method === 'POST' && c.path === '/admin/schedules')?.body,
+    ).toMatchObject({ orgUnitId: UNIT, basedOnVersionId: VERSION });
+
+    // And the person from the overview is a row in the grid now, waiting for their shifts.
+    const grid = await screen.findByRole('table');
+    await waitFor(() => expect(within(grid).getByText('Сидоров Пётр')).toBeTruthy());
   });
 });

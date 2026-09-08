@@ -573,7 +573,7 @@ export const uk: Messages = {
       unscheduledBanner:
         'Зараз на зміні без графіка {n} працівників. Створіть для них графік, щоб зміни були заплановані.',
       unscheduledOpen: 'Відкрити графік',
-      unscheduledPlan: 'Створити для них графік',
+      unscheduledPlan: 'Створити графік',
       noUnit: 'Без підрозділу',
       open: 'Відкрити',
       refreshedAt: 'Оновлено {time}',

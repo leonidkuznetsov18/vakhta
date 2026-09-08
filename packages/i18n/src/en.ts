@@ -573,7 +573,7 @@ export const en: Messages = {
       unscheduledBanner:
         '{n} employees are on shift right now without a schedule. Build a schedule for them so their shifts are planned.',
       unscheduledOpen: 'Open schedule',
-      unscheduledPlan: 'Build a schedule for them',
+      unscheduledPlan: 'Build a schedule',
       noUnit: 'No unit',
       open: 'Open',
       refreshedAt: 'Updated {time}',

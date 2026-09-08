@@ -570,7 +570,7 @@ export const ru: Messages = {
       unscheduledBanner:
         'Сейчас на смене без графика {n} сотрудников. Создайте для них график, чтобы смены были запланированы.',
       unscheduledOpen: 'Открыть график',
-      unscheduledPlan: 'Создать для них график',
+      unscheduledPlan: 'Создать график',
       noUnit: 'Без подразделения',
       open: 'Открыть',
       refreshedAt: 'Обновлено {time}',

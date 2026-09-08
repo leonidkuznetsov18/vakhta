@@ -74,6 +74,8 @@ export function SchedulePage() {
   const [month, setMonth] = usePersistentState('schedule.month', currentMonth);
   const [templates, setTemplates] = useState<ShiftTemplateView[]>([]);
   const [versions, setVersions] = useState<ScheduleVersionView[]>([]);
+  /** False until the list for the chosen unit and month has actually arrived. */
+  const [versionsLoaded, setVersionsLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ScheduleVersionDetail | null>(null);
   const [acks, setAcks] = useState<AcknowledgementStatusView[] | null>(null);
@@ -146,6 +148,7 @@ export function SchedulePage() {
       if (!siteId || !orgUnitId) return;
       const list = await schedulesApi.list({ siteId, orgUnitId, periodMonth: month });
       setVersions(list);
+      setVersionsLoaded(true);
       const pick =
         preferId && list.some((v) => v.id === preferId) ? preferId : (list[0]?.id ?? null);
       setSelectedId(pick);
@@ -157,6 +160,7 @@ export function SchedulePage() {
   // remember whom to add, then put them in as soon as a draft grid is on screen. The preset is read
   // once, so a later reload of this page does not keep re-adding the same rows.
   const [pending, setPending] = useState<readonly string[]>([]);
+  const [creating, setCreating] = useState(false);
   useEffect(() => {
     const preset = takeSchedulePreset();
     if (!preset) return;
@@ -166,15 +170,49 @@ export function SchedulePage() {
     setPending(preset.employeeIds);
   }, [org]);
 
+  // The people go into a draft, so if this unit's month has none the draft is created first — from
+  // the published version when there is one, so nothing already planned is lost. Coming from the
+  // overview means "prepare this for me", and stopping at an empty page to ask for a version would
+  // be exactly the extra step the button exists to remove.
   useEffect(() => {
-    if (pending.length === 0 || !detail || detail.version.status !== 'DRAFT') return;
-    setGrid((g) => pending.reduce((acc, id) => addRow(acc, id), g));
-    setDirty(true);
-    setPending([]);
-  }, [pending, detail]);
+    if (pending.length === 0 || !siteId || !orgUnitId || !versionsLoaded) return;
+    const draft = versions.find((v) => v.status === 'DRAFT');
+    if (draft) {
+      if (selectedId !== draft.id) setSelectedId(draft.id);
+      if (!detail || detail.version.id !== draft.id) return;
+      setGrid((g) => pending.reduce((acc, id) => addRow(acc, id), g));
+      setDirty(true);
+      setPending([]);
+      return;
+    }
+    if (creating) return;
+    setCreating(true);
+    const source = versions.find((v) => v.status === 'PUBLISHED');
+    void run(async () => {
+      const created = await schedulesApi.create({
+        siteId,
+        orgUnitId,
+        periodMonth: month,
+        ...(source ? { basedOnVersionId: source.id } : {}),
+      });
+      await loadVersions(created.id);
+    }).finally(() => setCreating(false));
+  }, [
+    pending,
+    versions,
+    versionsLoaded,
+    detail,
+    selectedId,
+    siteId,
+    orgUnitId,
+    month,
+    creating,
+    loadVersions,
+  ]);
 
   useEffect(() => {
     setPatternStart(`${month}-01`);
+    setVersionsLoaded(false);
     setDetail(null);
     setAcks(null);
     setGrid(EMPTY_GRID);
