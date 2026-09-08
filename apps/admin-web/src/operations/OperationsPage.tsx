@@ -388,27 +388,18 @@ export function OperationsPage() {
   function renderDetail(row: ActiveShiftView) {
     return (
       <div className="flex flex-col gap-4 py-1" data-testid="shift-detail">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-semibold">{row.fullName}</span>
-          <StatusPill tone={STATE_TONE[row.state]}>{all.states[row.state]}</StatusPill>
-          <Muted>
-            {row.personnelNumber}
-            {row.orgUnitName ? ` · ${row.orgUnitName}` : ''}
-          </Muted>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="ml-auto"
-            onClick={() => setOpenId(null)}
-          >
+        {/* The row right above already carries the name, the state, the number and the unit. */}
+        <div className="flex justify-end">
+          <Button type="button" size="sm" variant="ghost" onClick={() => setOpenId(null)}>
             <XIcon aria-hidden="true" />
             {all.ui.common.close}
           </Button>
         </div>
+        {/* One control under another: the action, then the reason it needs, then the comment, then
+            the button. Side by side the four read as unrelated fields on a single line. */}
         {row.endedAt === null && (
           <form
-            className="flex flex-wrap items-end gap-3"
+            className="flex max-w-2xl flex-col gap-3"
             onSubmit={(e) => {
               e.preventDefault();
               applyAction(row);
@@ -429,7 +420,6 @@ export function OperationsPage() {
                 value: a,
                 label: all.actions[a],
               }))}
-              className="w-64"
             />
             {/* A reason only appears for the two actions the directory governs; showing it always
                 would leave an empty control on every other action, and hiding it when the action
@@ -443,10 +433,9 @@ export function OperationsPage() {
                 placeholder="…"
                 required
                 options={reasonOptions(action[row.id])}
-                className="w-56"
               />
             )}
-            <FormField label={o.comment} className="min-w-72 flex-1">
+            <FormField label={o.comment}>
               {(id) => (
                 <Textarea
                   id={id}
@@ -458,18 +447,20 @@ export function OperationsPage() {
                 />
               )}
             </FormField>
-            <Button
-              type="submit"
-              variant="secondary"
-              disabled={
-                busy ||
-                !action[row.id] ||
-                isBlank(comment[row.id]) ||
-                (reasonKindFor(action[row.id]) !== null && !reason[row.id])
-              }
-            >
-              {o.apply}
-            </Button>
+            <div>
+              <Button
+                type="submit"
+                variant="secondary"
+                disabled={
+                  busy ||
+                  !action[row.id] ||
+                  isBlank(comment[row.id]) ||
+                  (reasonKindFor(action[row.id]) !== null && !reason[row.id])
+                }
+              >
+                {o.apply}
+              </Button>
+            </div>
           </form>
         )}
         {detail?.session?.id === row.id ? (
