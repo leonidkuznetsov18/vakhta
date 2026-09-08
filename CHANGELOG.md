@@ -1,3 +1,13 @@
+## [0.46.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.45.4...v0.46.0) (2026-09-08)
+
+### Features
+
+* **bot:** nothing in the bot ends a shift any more ([fb6edea](https://github.com/leonidkuznetsov18/vakhta/commit/fb6edeac1913f14634658039559e9e6a90978c48))
+
+### Tests
+
+* **bonus:** stop the period test failing on another test's leftovers ([8ec3920](https://github.com/leonidkuznetsov18/vakhta/commit/8ec3920f80c8e7b97d58bfd0c0568baf8bb8606a))
+
 ## [0.45.4](https://github.com/leonidkuznetsov18/vakhta/compare/v0.45.3...v0.45.4) (2026-09-08)
 
 ### Bug fixes
