@@ -1,3 +1,9 @@
+## [0.45.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.45.2...v0.45.3) (2026-09-08)
+
+### Bug fixes
+
+* **bonus:** the points page crashed on its own month filter ([6a7de8b](https://github.com/leonidkuznetsov18/vakhta/commit/6a7de8bcdc5a9e659b107e5212703b6efc2867b3))
+
 ## [0.45.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.45.1...v0.45.2) (2026-09-08)
 
 ### Refactoring
