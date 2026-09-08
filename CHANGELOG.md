@@ -1,3 +1,9 @@
+## [0.49.4](https://github.com/leonidkuznetsov18/vakhta/compare/v0.49.3...v0.49.4) (2026-09-08)
+
+### Refactoring
+
+* **handover:** the decision goes under what it is made on ([ac21336](https://github.com/leonidkuznetsov18/vakhta/commit/ac21336af28dfb4be3f5ca1a8471b54f9fac097c))
+
 ## [0.49.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.49.2...v0.49.3) (2026-09-08)
 
 ### Bug fixes
