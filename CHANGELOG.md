@@ -1,3 +1,9 @@
+## [0.49.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.49.0...v0.49.1) (2026-09-08)
+
+### Bug fixes
+
+* **handover:** the remark button was shut no matter what the master typed ([6a83a40](https://github.com/leonidkuznetsov18/vakhta/commit/6a83a40b8eef7805de38941ca2d947bc974f9bf4))
+
 ## [0.49.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.48.1...v0.49.0) (2026-09-08)
 
 ### Features
