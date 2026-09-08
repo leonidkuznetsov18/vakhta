@@ -206,12 +206,27 @@ describe('bonus: оцінка зміни, коригування, закритт
       .update(shiftSummaries)
       .set({ earlyLeaveMinutes: 0, plannedMinutes: 720 })
       .where(eq(shiftSummaries.shiftSessionId, sessionId));
+    // Closing a shift also evaluates it in the background (ShiftChanges → evaluate, fire and
+    // forget). Wait for that write here, or it lands after the next test truncated its tables and
+    // shows up as an extra score in a period that should hold one.
+    await evaluationSettled(sessionId);
     return sessionId;
+  }
+
+  async function evaluationSettled(sessionId: string): Promise<void> {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      const rows = await testDb.db
+        .select()
+        .from(bonusShiftScores)
+        .where(eq(bonusShiftScores.shiftSessionId, sessionId));
+      if (rows.length > 0) return;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error('the background evaluation of the shift never landed');
   }
 
   it('закриття зміни через шину подій оцінює її: без зони максимум 70 застосовних балів, S = 100 (7.6)', async () => {
     const sessionId = await fullShift();
-    await new Promise((r) => setTimeout(r, 50));
     const view = await bonus.evaluate(sessionId);
     if (view?.status !== 'PRELIMINARY' || view.score !== 100) {
       throw new Error(
@@ -238,8 +253,7 @@ describe('bonus: оцінка зміни, коригування, закритт
   });
 
   it('the points page reads a real month: shifts, checklists and the ledger, scoped to the site', async () => {
-    const sessionId = await fullShift();
-    void sessionId;
+    await fullShift();
 
     const view = await bonus.points(siteId, month);
 
