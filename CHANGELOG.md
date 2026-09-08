@@ -1,3 +1,9 @@
+## [0.36.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.35.0...v0.36.0) (2026-09-08)
+
+### Features
+
+* **shift:** close from QR after the checklist and auto-close at end of day (QR-to-QR, part 2) ([be042ad](https://github.com/leonidkuznetsov18/vakhta/commit/be042ad989ee094c92e2a03774da844c1073ac50))
+
 ## [0.35.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.34.0...v0.35.0) (2026-09-08)
 
 ### Features
