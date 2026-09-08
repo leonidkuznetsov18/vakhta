@@ -36,22 +36,15 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  async function submitPassword(e: FormEvent<HTMLFormElement>) {
+  async function submitPassword(e: FormEvent) {
     e.preventDefault();
-    // Read the DOM values, not React state: a password manager fills the inputs without firing
-    // React's onChange in every browser, so the controlled state can lag behind what is on screen.
-    const data = new FormData(e.currentTarget);
-    const emailValue = String(data.get('email') ?? email).trim();
-    const passwordValue = String(data.get('password') ?? password);
-    setEmail(emailValue);
-    setPassword(passwordValue);
-    const checked = validateWith(SignInForm, { email: emailValue, password: passwordValue });
+    const checked = validateWith(SignInForm, { email: email.trim(), password });
     setFieldErrors(checked.errors);
     if (!checked.ok) return;
     setBusy(true);
     setError(null);
     try {
-      const result = await authApi.signIn(emailValue, passwordValue);
+      const result = await authApi.signIn(email.trim(), password);
       if (result.twoFactorRedirect) {
         setStep('totp');
         return;
@@ -64,7 +57,7 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
     }
   }
 
-  async function submitCode(e: FormEvent<HTMLFormElement>) {
+  async function submitCode(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
@@ -98,10 +91,10 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
                   {(id) => (
                     <Input
                       id={id}
-                      name="email"
                       type="email"
                       autoComplete="username"
-                      defaultValue={email}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                     />
                   )}
                 </FormField>
@@ -109,10 +102,10 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
                   {(id) => (
                     <Input
                       id={id}
-                      name="password"
                       type="password"
                       autoComplete="current-password"
-                      defaultValue={password}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                     />
                   )}
                 </FormField>
@@ -136,9 +129,7 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
             <Feedback error={error} notice={null} />
             <Button
               type="submit"
-              // The password step stays enabled even before React sees the typed/autofilled value:
-              // submitPassword reads the form's DOM values and validates them.
-              disabled={busy || (step === 'totp' && isBlank(code))}
+              disabled={busy || (step === 'password' ? isBlank(email) || !password : isBlank(code))}
             >
               {step === 'password' ? t.signIn : t.verify}
             </Button>
