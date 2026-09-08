@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RoleGrant } from './roles.js';
-import { canActOn, grantCovers } from './scope.js';
+import { canActOn, grantCovers, reviewableUnitIds } from './scope.js';
 
 const SITE = '11111111-1111-4111-8111-111111111111';
 const UNIT = '22222222-2222-4222-8222-222222222222';
@@ -28,5 +28,34 @@ describe('області доступу (FR-AUTH-03, ADR-9)', () => {
     expect(canActOn(grants, ['PLANNER'], { orgUnitId: OTHER })).toBe(false);
     expect(canActOn(grants, ['ADMIN', 'PLANNER'], { orgUnitId: OTHER })).toBe(false);
     expect(canActOn(grants, ['AUDITOR'], { orgUnitId: OTHER })).toBe(true);
+  });
+});
+
+describe('reviewableUnitIds (майстер бачить лише свій підрозділ)', () => {
+  it('ENTERPRISE або SITE = без обмеження (null)', () => {
+    expect(
+      reviewableUnitIds([{ role: 'ADMIN', scopeType: 'ENTERPRISE', scopeId: null }]),
+    ).toBeNull();
+    expect(
+      reviewableUnitIds([{ role: 'PRODUCTION_HEAD', scopeType: 'SITE', scopeId: SITE }]),
+    ).toBeNull();
+  });
+
+  it('майстер підрозділу бачить лише свої підрозділи', () => {
+    const units = reviewableUnitIds([
+      { role: 'SHIFT_MASTER', scopeType: 'ORG_UNIT', scopeId: UNIT },
+      { role: 'SHIFT_MASTER', scopeType: 'ORG_UNIT', scopeId: OTHER },
+    ]);
+    expect(units).not.toBeNull();
+    expect([...(units as ReadonlySet<string>)].sort()).toEqual([UNIT, OTHER].sort());
+  });
+
+  it('ролі без права ревʼю ігноруються; порожній набір = нічого не видно', () => {
+    expect([
+      ...(reviewableUnitIds([
+        { role: 'ACCOUNTANT', scopeType: 'ENTERPRISE', scopeId: null },
+      ]) as ReadonlySet<string>),
+    ]).toEqual([]);
+    expect([...(reviewableUnitIds([]) as ReadonlySet<string>)]).toEqual([]);
   });
 });

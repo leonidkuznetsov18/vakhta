@@ -1349,6 +1349,10 @@ export const en: Messages = {
         zones: 'Zones',
         timezone: 'Time zone (IANA)',
         parent: 'Parent unit',
+        unitMaster: 'Shift master',
+        noMaster: 'No master',
+        noMasterNotice:
+          '{n} units have no shift master. In "Users and roles" grant the Shift-master role scoped to the unit, otherwise nobody can review its checklists.',
         type: 'Type',
         shared: 'Shared zone',
         active: 'Active',

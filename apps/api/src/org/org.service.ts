@@ -9,6 +9,7 @@ import {
   responsibilityZones,
   sites,
   teams,
+  webUserRoles,
   type Database,
   type DbOrTx,
 } from '@vakhta/db';
@@ -426,7 +427,7 @@ export class OrgService {
   }
 
   async snapshot(): Promise<OrgSnapshot> {
-    const [s, u, t, p, z, term, r] = await Promise.all([
+    const [s, u, t, p, z, term, r, masters] = await Promise.all([
       this.db.select().from(sites).orderBy(asc(sites.code)),
       this.db.select().from(orgUnits).orderBy(asc(orgUnits.name)),
       this.db.select().from(teams).orderBy(asc(teams.name)),
@@ -438,10 +439,23 @@ export class OrgService {
         .where(isNull(qrTerminals.deletedAt))
         .orderBy(asc(qrTerminals.name)),
       this.db.select().from(reasonCodes).orderBy(asc(reasonCodes.kind), asc(reasonCodes.code)),
+      this.db
+        .select({ scopeId: webUserRoles.scopeId })
+        .from(webUserRoles)
+        .where(and(eq(webUserRoles.role, 'SHIFT_MASTER'), eq(webUserRoles.scopeType, 'ORG_UNIT'))),
     ]);
+    const masterUnits = new Set(
+      masters.map((m) => m.scopeId).filter((x): x is string => x !== null),
+    );
     return {
       sites: s.map(({ id, code, name, timezone }) => ({ id, code, name, timezone })),
-      orgUnits: u.map(({ id, siteId, parentId, name }) => ({ id, siteId, parentId, name })),
+      orgUnits: u.map(({ id, siteId, parentId, name }) => ({
+        id,
+        siteId,
+        parentId,
+        name,
+        hasMaster: masterUnits.has(id),
+      })),
       teams: t.map(({ id, orgUnitId, name }) => ({ id, orgUnitId, name })),
       positions: p.map(({ id, code, name }) => ({ id, code, name })),
       zones: z.map(({ id, siteId, orgUnitId, code, name, type, isShared, isActive }) => ({

@@ -135,6 +135,8 @@ export const OrgUnitView = z.object({
   siteId: Uuid,
   parentId: Uuid.nullable(),
   name: z.string(),
+  /** true when a panel user has the shift-master role scoped to this unit (can review its checklists). */
+  hasMaster: z.boolean(),
 });
 export const TeamView = z.object({ id: Uuid, orgUnitId: Uuid, name: z.string() });
 export const PositionView = z.object({ id: Uuid, code: z.string(), name: z.string() });

@@ -56,8 +56,9 @@ export class AdminHandoverController {
   @Get()
   list(
     @Query(new ZodValidationPipe(HandoverListQuery)) q: HandoverListQuery,
+    @CurrentUser() user: WebUser,
   ): Promise<HandoverListItemView[]> {
-    return this.handovers.list(q);
+    return this.handovers.list(q, new Date(), user.grants);
   }
 
   @Sse('stream')

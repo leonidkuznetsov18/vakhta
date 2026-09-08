@@ -1061,6 +1061,9 @@ export interface Messages {
         readonly zones: string;
         readonly timezone: string;
         readonly parent: string;
+        readonly unitMaster: string;
+        readonly noMaster: string;
+        readonly noMasterNotice: string;
         readonly type: string;
         readonly shared: string;
         readonly active: string;

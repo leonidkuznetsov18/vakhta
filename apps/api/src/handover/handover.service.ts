@@ -33,9 +33,11 @@ import {
   canTransitionHandover,
   handoverTimeoutJobId,
   itemKind,
+  reviewableUnitIds,
   validateHandoverDraft,
   type ChecklistItemDefinition,
   type HandoverStatus,
+  type RoleGrant,
 } from '@vakhta/domain';
 import type {
   AnswerChecklistCommand,
@@ -720,7 +722,11 @@ export class HandoverService {
     return view;
   }
 
-  async list(q: HandoverListQuery, now: Date = new Date()): Promise<HandoverListItemView[]> {
+  async list(
+    q: HandoverListQuery,
+    now: Date = new Date(),
+    grants?: readonly RoleGrant[],
+  ): Promise<HandoverListItemView[]> {
     const scope = q.scope ?? 'pending';
     const conditions = [];
     if (scope === 'pending')
@@ -733,6 +739,16 @@ export class HandoverService {
     if (scope === 'all') conditions.push(ne(handoverRecords.status, 'DRAFT'));
     if (q.zoneId) conditions.push(eq(handoverRecords.zoneId, q.zoneId));
     if (q.siteId) conditions.push(eq(responsibilityZones.siteId, q.siteId));
+    // A shift master is bound to their unit: they review only handovers in their unit's zones.
+    // ENTERPRISE/SITE reviewers (admins, production heads) are not restricted.
+    if (grants) {
+      const units = reviewableUnitIds(grants);
+      if (units !== null) {
+        conditions.push(
+          units.size > 0 ? inArray(responsibilityZones.orgUnitId, [...units]) : sql`false`,
+        );
+      }
+    }
     const rows = await tx_list(this.db, conditions);
     const out: HandoverListItemView[] = [];
     for (const row of rows) {

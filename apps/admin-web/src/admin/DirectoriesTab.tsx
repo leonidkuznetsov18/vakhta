@@ -21,6 +21,7 @@ import { useConfirm } from '@/components/app/confirm-dialog';
 import { PencilIcon, Trash2Icon } from 'lucide-react';
 import { EditDirectoryDialog, type DirectoryEdit } from './EditDirectoryDialog.tsx';
 import { format } from '@vakhta/i18n';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ApiError } from '../api.ts';
 
 const all = messages(currentLocale());
@@ -143,6 +144,16 @@ export function DirectoriesTab({ org, onChanged }: Props) {
     { key: 'name', header: t.common.name, cell: (u) => u.name },
     { key: 'site', header: t.common.site, cell: (u) => siteName(u.siteId) },
     { key: 'parent', header: d.parent, cell: (u) => unitName(u.parentId) },
+    {
+      key: 'master',
+      header: d.unitMaster,
+      cell: (u) =>
+        u.hasMaster ? (
+          <StatusPill tone="success">{all.ui.common.yes}</StatusPill>
+        ) : (
+          <StatusPill tone="danger">{d.noMaster}</StatusPill>
+        ),
+    },
   ];
   const teamColumns: Column<OrgSnapshot['teams'][number]>[] = [
     { key: 'name', header: t.common.name, cell: (tm) => tm.name },
@@ -327,6 +338,13 @@ export function DirectoriesTab({ org, onChanged }: Props) {
           </AddDialog>
         }
       >
+        {org.orgUnits.some((u) => !u.hasMaster) && (
+          <Alert variant="destructive" className="mb-3">
+            <AlertDescription>
+              {format(d.noMasterNotice, { n: org.orgUnits.filter((u) => !u.hasMaster).length })}
+            </AlertDescription>
+          </Alert>
+        )}
         <DataTable
           columns={unitColumns}
           onRowClick={(u) => setEditing({ kind: 'orgUnits', row: u })}
