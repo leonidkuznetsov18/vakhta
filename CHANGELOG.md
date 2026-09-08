@@ -1,3 +1,9 @@
+## [0.51.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.50.0...v0.51.0) (2026-09-08)
+
+### Features
+
+* **overview:** the whole tile opens its queue, and colour means one thing ([de2c32a](https://github.com/leonidkuznetsov18/vakhta/commit/de2c32ab953518b3160095ca10d202bb7b76ed8f))
+
 ## [0.50.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.49.4...v0.50.0) (2026-09-08)
 
 ### Features
