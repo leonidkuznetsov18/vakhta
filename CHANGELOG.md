@@ -1,3 +1,9 @@
+## [0.49.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.49.1...v0.49.2) (2026-09-08)
+
+### Bug fixes
+
+* **schedule:** "Build a schedule" lands on the right site, and a failed create says so ([7131136](https://github.com/leonidkuznetsov18/vakhta/commit/7131136b84daef615b9272b66f22686f8a665696))
+
 ## [0.49.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.49.0...v0.49.1) (2026-09-08)
 
 ### Bug fixes
