@@ -55,7 +55,12 @@ export function HandoverPage() {
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useDeepLinkedId('handover', 'handover.openId');
   const [detail, setDetail] = useState<HandoverDetailView | null>(null);
-  const [comment, setComment] = useState('');
+  /**
+   * The comment belongs to the report it is written for, not to the page: one shared string carried
+   * a half-typed remark over to whatever row was opened next. Keyed by report id, like every other
+   * per-row draft in the panel — a store would buy nothing here, the state dies with the page.
+   */
+  const [comments, setComments] = useState<Record<string, string>>({});
   const reloadRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
@@ -106,7 +111,7 @@ export function HandoverPage() {
    * needs the text; an approval does not.
    */
   function resolve(row: HandoverListItemView, chosen: HandoverResolution) {
-    const text = comment.trim();
+    const text = (comments[row.id] ?? '').trim();
     if (chosen === 'RESOLVED_ISSUE_CONFIRMED' && text.length < 3) return;
     setBusy(true);
     setError(null);
@@ -117,7 +122,7 @@ export function HandoverPage() {
       })
       .then(async () => {
         notifySuccess(h.applied);
-        setComment('');
+        setComments((c) => ({ ...c, [row.id]: '' }));
         await reload();
       })
       .catch((e: unknown) => setError(describeError(e)))
@@ -209,8 +214,8 @@ export function HandoverPage() {
                   <Textarea
                     rows={2}
                     id={id}
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
+                    value={comments[row.id] ?? ''}
+                    onChange={(e) => setComments((c) => ({ ...c, [row.id]: e.target.value }))}
                     minLength={3}
                   />
                 )}
@@ -229,7 +234,7 @@ export function HandoverPage() {
                   variant="destructive"
                   disabled={
                     busy ||
-                    comment.trim().length < 3 ||
+                    (comments[row.id] ?? '').trim().length < 3 ||
                     !canTransitionHandover(row.status, 'RESOLVED_ISSUE_CONFIRMED')
                   }
                   onClick={() => resolve(row, 'RESOLVED_ISSUE_CONFIRMED')}

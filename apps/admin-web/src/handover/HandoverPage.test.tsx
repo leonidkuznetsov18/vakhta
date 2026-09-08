@@ -200,7 +200,7 @@ describe('HandoverPage', () => {
     // The master decides with two buttons: a remark needs its text, an approval does not.
     const remark = screen.getByRole('button', { name: 'Замечание' });
     expect((remark as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText('Замечание для сотрудника (обязательно)'), {
+    fireEvent.change(screen.getByLabelText('Комментарий (обязательный)'), {
       target: { value: 'Пятно появилось после передачи' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Замечание' }));
@@ -223,6 +223,30 @@ describe('HandoverPage', () => {
     await screen.findByText('Решение сохранено.');
     expect(calls.find((c) => c.path.endsWith('/resolve'))?.body).toMatchObject({
       decision: 'RESOLVED_ACCEPTED',
+    });
+  });
+
+  it('a remark on a submitted report: the button waits for the text, then sends it', async () => {
+    const calls = mockApi({ status: 'SUBMITTED' });
+    render(<HandoverPage />);
+    await clickRowAction('Подробности');
+
+    const remark = await screen.findByRole('button', { name: 'Замечание' });
+    // Empty, and under three characters, it stays shut — the employee needs to read what is wrong.
+    expect((remark as HTMLButtonElement).disabled).toBe(true);
+    const field = screen.getByLabelText('Комментарий (обязательный)');
+    fireEvent.change(field, { target: { value: 'ок' } });
+    expect((remark as HTMLButtonElement).disabled).toBe(true);
+
+    // And from three on it opens: a remark used to be reachable only after a dispute, so on a plain
+    // submitted report this button was disabled no matter what the master typed.
+    fireEvent.change(field, { target: { value: 'Пол не вымыт под станком' } });
+    expect((remark as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(remark);
+    await screen.findByText('Решение сохранено.');
+    expect(calls.find((c) => c.path.endsWith('/resolve'))?.body).toMatchObject({
+      decision: 'RESOLVED_ISSUE_CONFIRMED',
+      comment: 'Пол не вымыт под станком',
     });
   });
 });

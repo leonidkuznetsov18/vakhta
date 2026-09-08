@@ -136,6 +136,10 @@ describe('життєвий цикл передачі (ТЗ 5.9, FR-HND-*)', () =
     expect(canTransitionHandover('SUBMITTED', 'ACCEPTED')).toBe(true);
     expect(canTransitionHandover('SUBMITTED', 'DISPUTED')).toBe(true);
     expect(canTransitionHandover('SUBMITTED', 'SUPERSEDED')).toBe(true);
+    // The master decides on a submitted report directly: approve it, or confirm a remark. Before the
+    // next shift stopped reviewing, a remark could only follow a dispute they had raised.
+    expect(canTransitionHandover('SUBMITTED', 'RESOLVED_ACCEPTED')).toBe(true);
+    expect(canTransitionHandover('SUBMITTED', 'RESOLVED_ISSUE_CONFIRMED')).toBe(true);
     expect(canTransitionHandover('DISPUTED', 'RESOLVED_ISSUE_CONFIRMED')).toBe(true);
     expect(canTransitionHandover('ACCEPTED', 'DISPUTED')).toBe(false);
     expect(canTransitionHandover('RESOLVED_NO_FAULT', 'SUBMITTED')).toBe(false);

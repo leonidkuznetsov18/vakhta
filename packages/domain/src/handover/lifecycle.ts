@@ -20,8 +20,19 @@ export type HandoverResolution = (typeof HANDOVER_RESOLUTIONS)[number];
 
 const TRANSITIONS: Readonly<Record<HandoverStatus, readonly HandoverStatus[]>> = {
   DRAFT: ['SUBMITTED', 'SUPERSEDED'],
-  /** Приймання, спір, рішення майстра по тайм-ауту або повернення до роботи (FR-HND-07). */
-  SUBMITTED: ['ACCEPTED', 'DISPUTED', 'RESOLVED_ACCEPTED', 'RESOLVED_NO_FAULT', 'SUPERSEDED'],
+  /**
+   * The master's two decisions, plus a return to work (FR-HND-07). Confirming a remark used to be
+   * reachable only from a dispute, because the next shift raised it — since the next shift stopped
+   * reviewing (2026-09-08) the master raises it themselves, straight from the submitted report.
+   */
+  SUBMITTED: [
+    'ACCEPTED',
+    'DISPUTED',
+    'RESOLVED_ACCEPTED',
+    'RESOLVED_ISSUE_CONFIRMED',
+    'RESOLVED_NO_FAULT',
+    'SUPERSEDED',
+  ],
   DISPUTED: ['RESOLVED_ACCEPTED', 'RESOLVED_ISSUE_CONFIRMED', 'RESOLVED_NO_FAULT'],
   ACCEPTED: [],
   RESOLVED_ACCEPTED: [],
