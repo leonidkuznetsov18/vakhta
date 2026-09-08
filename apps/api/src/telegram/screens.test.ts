@@ -61,12 +61,86 @@ describe('shift screen in the bot (spec 4.4, FR-UI-01)', () => {
     expect(screen.text).toContain('Основная работа с 08:10');
     expect(screen.text).toContain('08:00–20:00');
     expect(screen.text).toContain('Линия 1');
+    // The work menu of the mockup: three pauses, a problem report, plan and requests, then finish.
+    expect(buttons(screen)).toEqual([
+      ['sh:START_BREAK:3', 'sh:START_MEAL:3'],
+      ['sh:START_SERVICE_TIME:3'],
+      ['inc:new:3'],
+      ['plan:cur', 'rq:menu'],
+      ['sh:START_CLEANING:3'],
+      ['sh:pick:EMERGENCY:3'],
+    ]);
+    // Downtime is reached through "Report a problem", not from a button of its own.
     const data = buttons(screen).flat();
-    expect(data).toContain('sh:START_BREAK:3');
-    expect(data).toContain('sh:pick:DOWNTIME:3');
-    expect(data).toContain('sh:pick:EMERGENCY:3');
+    expect(data).not.toContain('sh:pick:DOWNTIME:3');
     expect(data).not.toContain('sh:RESUME:3');
     expect(data.every((d) => Buffer.byteLength(d) <= 64)).toBe(true);
+  });
+
+  it('preparation asks for the zone, then offers only work and the plan', () => {
+    const preparation = { ...view().session!, state: 'PREPARATION' as const, zoneId: 'z' };
+    const before = shiftScreen(
+      t,
+      view({
+        session: { ...preparation, zoneAccepted: false },
+        allowedActions: ['EMERGENCY_EXIT'],
+        canAcceptZone: true,
+      }),
+      'x',
+    );
+    expect(buttons(before)).toEqual([['sh:zone:3'], ['inc:new:3'], ['plan:cur']]);
+
+    const after = shiftScreen(
+      t,
+      view({
+        session: { ...preparation, zoneAccepted: true },
+        allowedActions: ['START_WORK', 'START_BREAK', 'EMERGENCY_EXIT'],
+        canAcceptZone: false,
+      }),
+      'x',
+    );
+    expect(buttons(after)).toEqual([['sh:START_WORK:3'], ['plan:cur']]);
+  });
+
+  it('handing over and checking carry two buttons each, and never a close', () => {
+    const cleaning = shiftScreen(
+      t,
+      view({
+        session: { ...view().session!, state: 'CLEANING' },
+        allowedActions: ['CLEANING_DONE', 'BACK_TO_WORK', 'EMERGENCY_EXIT'],
+      }),
+      'x',
+    );
+    expect(buttons(cleaning)).toEqual([
+      ['sh:CLEANING_DONE:3'],
+      ['sh:BACK_TO_WORK:3'],
+      ['sh:pick:EMERGENCY:3'],
+    ]);
+
+    const handover = shiftScreen(
+      t,
+      view({
+        session: { ...view().session!, state: 'HANDOVER' },
+        allowedActions: ['SUBMIT_HANDOVER', 'BACK_TO_CLEANING', 'EMERGENCY_EXIT'],
+      }),
+      'x',
+    );
+    expect(buttons(handover)).toEqual([
+      ['hv:open'],
+      ['sh:BACK_TO_CLEANING:3'],
+      ['sh:pick:EMERGENCY:3'],
+    ]);
+
+    const ready = shiftScreen(
+      t,
+      view({
+        session: { ...view().session!, state: 'READY_TO_CLOSE' },
+        allowedActions: ['CONTINUE_WORK', 'CLOSE_SHIFT', 'EMERGENCY_EXIT'],
+      }),
+      'x',
+    );
+    expect(buttons(ready).flat()).not.toContain('sh:CLOSE_SHIFT:3');
+    expect(ready.text).toContain('Отсканируйте QR на выходе');
   });
 
   it('a temporary state has a single Return button; from downtime it offers two options (FR-DWN-06)', () => {
@@ -107,7 +181,7 @@ describe('shift screen in the bot (spec 4.4, FR-UI-01)', () => {
       'x',
     );
     expect(buttons(screen)[0]).toEqual(['sh:zone:3']);
-    expect(screen.text).toContain('Зона ещё не принята');
+    expect(screen.text).toContain('Примите зону предыдущей смены');
   });
 
   it('after closing shows the summary without shift action buttons', () => {
@@ -133,7 +207,7 @@ describe('shift screen in the bot (spec 4.4, FR-UI-01)', () => {
       }),
       'x',
     );
-    expect(screen.text).toContain('Смена закрыта.');
+    expect(screen.text).toContain('ВЫ ЗАКРЫЛИ СМЕНУ');
     expect(screen.text).toContain('Итого 725 мин: работа 650, перерывы 30, обед 30, простой 15.');
     expect(screen.text).toContain('Сверх плана: 5 мин.');
     // after closing: My plan, Requests and a correction request; no shift actions

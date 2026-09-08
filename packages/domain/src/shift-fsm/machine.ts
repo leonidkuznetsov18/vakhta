@@ -174,6 +174,8 @@ export const TRANSITION_RULES: readonly Rule[] = [
     effects: ['OPEN_HANDOVER_DRAFT'],
   },
   { action: 'BACK_TO_CLEANING', from: ['HANDOVER'], to: 'CLEANING', resume: 'clear' },
+  // Pressed "finish the shift" too early: cleaning goes back to work, nothing is lost.
+  { action: 'BACK_TO_WORK', from: ['CLEANING'], to: 'WORKING', resume: 'clear' },
   {
     action: 'SUBMIT_HANDOVER',
     from: ['HANDOVER'],

@@ -299,15 +299,21 @@ export function activationFailureText(
 /* Shift (spec 4.4, 5.1): the screen is rendered from server state, ADR-11 */
 /* -------------------------------------------------------------------- */
 
+/**
+ * `row()` after the last button leaves an empty row behind and Telegram rejects those, so the
+ * keyboard is rebuilt from the rows that actually carry buttons.
+ */
+function trimRows(keyboard: InlineKeyboard): InlineKeyboard | undefined {
+  const rows = keyboard.inline_keyboard.filter((r) => r.length > 0);
+  return rows.length > 0 ? new InlineKeyboard(rows) : undefined;
+}
+
 export const SHIFT_CALLBACK = {
   prefix: 'sh:',
   pick: 'sh:pick:',
   zone: 'sh:zone:',
   back: 'sh:back',
 } as const;
-
-/** Actions that open a reason picker instead of transitioning immediately. */
-const REASON_ACTIONS: readonly ShiftAction[] = ['START_DOWNTIME', 'EMERGENCY_EXIT'];
 
 function shiftLines(t: Messages, view: ShiftScreenView): string[] {
   const s = view.session;
@@ -366,73 +372,119 @@ export function summaryLines(t: Messages, s: ShiftSummaryView): string {
   return lines.join('\n');
 }
 
-/** Shift keyboard: only allowed actions, two per row; mutually exclusive ones are hidden (FR-UI-01). */
+/**
+ * Shift keyboard (2026-09-08): one short screen per state, as in the customer's mockup. Preparation
+ * offers the zone and nothing else; work offers the three pauses and one big "finish the shift";
+ * handover offers the checklist and a way back. The shift itself is closed by the exit QR, so no
+ * screen carries a close button — only the emergency exit stays, as the way out when leaving cannot
+ * wait for a checklist.
+ */
 export function shiftKeyboard(t: Messages, view: ShiftScreenView): InlineKeyboard | undefined {
   const version = view.session?.version ?? 0;
+  const state = view.session?.state ?? 'NOT_STARTED';
   const keyboard = new InlineKeyboard();
-  let inRow = 0;
-  /** New row only when the current one is not empty: Telegram rejects empty rows. */
-  const newRow = () => {
-    if (inRow > 0) keyboard.row();
-    inRow = 0;
+  const can = (action: ShiftAction) => view.allowedActions.includes(action as never);
+  /** A button of its own on one row; `pair` puts two side by side. */
+  const row = (label: string, data: string) => keyboard.text(label, data).row();
+  const pair = (a: [string, string], b: [string, string]) =>
+    keyboard.text(a[0], a[1]).text(b[0], b[1]).row();
+  const action = (a: ShiftAction) => `${SHIFT_CALLBACK.prefix}${a}:${version}`;
+  const reason = (a: 'START_DOWNTIME' | 'EMERGENCY_EXIT') =>
+    `${SHIFT_CALLBACK.pick}${a === 'START_DOWNTIME' ? 'DOWNTIME' : 'EMERGENCY'}:${version}`;
+  const problem = () => row(t.incidents.reportButton, `${INCIDENT_CALLBACK.newPrefix}${version}`);
+  const planAndRequests = () =>
+    pair(
+      [t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`],
+      [t.requests.menuButton, 'rq:menu'],
+    );
+  const emergency = () => {
+    if (can('EMERGENCY_EXIT')) row(t.actions.EMERGENCY_EXIT, reason('EMERGENCY_EXIT'));
   };
-  const add = (label: string, data: string) => {
-    if (inRow === 2) newRow();
-    keyboard.text(label, data);
-    inRow += 1;
-  };
-  if (view.canAcceptZone) {
-    add(t.shift.acceptZone, `${SHIFT_CALLBACK.zone}${version}`);
-    newRow();
-  }
-  for (const action of view.allowedActions) {
-    if (action === 'RESUME' && view.offerResumeIntoDowntime) {
-      newRow();
-      keyboard.text(t.shift.resumeIntoDowntimeYes, `${SHIFT_CALLBACK.prefix}RESUME:${version}`);
-      inRow = 1;
-      newRow();
-      keyboard.text(t.shift.resumeIntoDowntimeNo, `${SHIFT_CALLBACK.prefix}RESUME:${version}:DT`);
-      inRow = 1;
-      newRow();
-      continue;
+
+  switch (state) {
+    case 'NOT_STARTED': {
+      if (can('START_SHIFT')) row(t.actions.START_SHIFT, action('START_SHIFT'));
+      row(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`);
+      break;
     }
-    // The shift now closes only by scanning the exit QR (2026-09-08): no manual close button.
-    if (action === 'CLOSE_SHIFT') continue;
-    const data = REASON_ACTIONS.includes(action)
-      ? `${SHIFT_CALLBACK.pick}${action === 'START_DOWNTIME' ? 'DOWNTIME' : 'EMERGENCY'}:${version}`
-      : `${SHIFT_CALLBACK.prefix}${action}:${version}`;
-    add(t.actions[action], data);
-  }
-  if (view.session?.state === 'HANDOVER' && view.checklistAvailable) {
-    newRow();
-    keyboard.text(t.handover.openButton, 'hv:open');
-  }
-  if (
-    view.session &&
-    view.session.state !== 'SHIFT_CLOSED' &&
-    view.session.state !== 'EMERGENCY_EXIT' &&
-    view.session.state !== 'NOT_STARTED'
-  ) {
-    newRow();
-    keyboard.text(t.incidents.reportButton, `${INCIDENT_CALLBACK.newPrefix}${version}`);
-    inRow = 1;
-    newRow();
-    keyboard
-      .text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`)
-      .text(t.requests.menuButton, 'rq:menu');
-  } else if (view.session) {
-    newRow();
-    keyboard
-      .text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`)
-      .text(t.requests.menuButton, 'rq:menu');
-    if (view.session.state === 'SHIFT_CLOSED' || view.session.state === 'EMERGENCY_EXIT') {
-      keyboard
-        .row()
-        .text(t.requests.types.CORRECTION, `rq:corr:${view.session.id}`)
-        .text(t.bonus.myScoresButton, BONUS_CALLBACK.me);
+    // Zone acceptance: accept the previous shift's zone, or say what is wrong with it.
+    case 'PREPARATION': {
+      if (view.canAcceptZone) {
+        row(t.shift.acceptZone, `${SHIFT_CALLBACK.zone}${version}`);
+        problem();
+        row(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`);
+        break;
+      }
+      if (can('START_WORK')) row(t.actions.START_WORK, action('START_WORK'));
+      row(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`);
+      break;
+    }
+    // The work menu: three pauses, a way to report a problem, and one big finish button.
+    case 'WORKING': {
+      if (can('START_BREAK') && can('START_MEAL')) {
+        pair(
+          [t.actions.START_BREAK, action('START_BREAK')],
+          [t.actions.START_MEAL, action('START_MEAL')],
+        );
+      }
+      if (can('START_SERVICE_TIME'))
+        row(t.actions.START_SERVICE_TIME, action('START_SERVICE_TIME'));
+      problem();
+      planAndRequests();
+      if (can('START_CLEANING')) row(t.actions.START_CLEANING, action('START_CLEANING'));
+      emergency();
+      break;
+    }
+    case 'BREAK':
+    case 'MEAL':
+    case 'SERVICE_TIME':
+    case 'DOWNTIME': {
+      if (view.offerResumeIntoDowntime) {
+        row(t.shift.resumeIntoDowntimeYes, `${SHIFT_CALLBACK.prefix}RESUME:${version}`);
+        row(t.shift.resumeIntoDowntimeNo, `${SHIFT_CALLBACK.prefix}RESUME:${version}:DT`);
+      } else if (can('RESUME')) {
+        row(t.actions.RESUME, action('RESUME'));
+      }
+      problem();
+      planAndRequests();
+      emergency();
+      break;
+    }
+    // Handing the shift over: tidy the place, then pass it on — or go back to work.
+    case 'CLEANING': {
+      if (can('CLEANING_DONE')) row(t.actions.CLEANING_DONE, action('CLEANING_DONE'));
+      if (can('BACK_TO_WORK')) row(t.actions.BACK_TO_WORK, action('BACK_TO_WORK'));
+      emergency();
+      break;
+    }
+    // The check: the checklist itself, and a way back to cleaning.
+    case 'HANDOVER': {
+      if (view.checklistAvailable) row(t.handover.openButton, 'hv:open');
+      if (can('BACK_TO_CLEANING')) row(t.actions.BACK_TO_CLEANING, action('BACK_TO_CLEANING'));
+      emergency();
+      break;
+    }
+    // The report is in and the shift waits for the exit QR; work can still be resumed.
+    case 'READY_TO_CLOSE': {
+      if (can('CONTINUE_WORK')) row(t.actions.CONTINUE_WORK, action('CONTINUE_WORK'));
+      problem();
+      planAndRequests();
+      emergency();
+      break;
+    }
+    case 'SHIFT_CLOSED':
+    case 'EMERGENCY_EXIT': {
+      planAndRequests();
+      if (view.session) {
+        pair(
+          [t.requests.types.CORRECTION, `rq:corr:${view.session.id}`],
+          [t.bonus.myScoresButton, BONUS_CALLBACK.me],
+        );
+      }
+      break;
     }
   }
-  return keyboard.inline_keyboard.some((row) => row.length > 0) ? keyboard : undefined;
+  return trimRows(keyboard);
 }
 
 /** Screen of an active or just-closed shift. */
@@ -647,11 +699,15 @@ export function handoverScreen(t: Messages, view: HandoverView, header: string):
       )
       .row();
   }
-  if (view.issues.length === 0) keyboard.text(t.handover.submit, HANDOVER_CALLBACK.submit).row();
-  if (!view.cannotCompleteReason)
+  // "I cannot finish" is only an answer to something still missing; a complete report just goes.
+  if (view.issues.length > 0 && !view.cannotCompleteReason)
     keyboard.text(t.handover.cannotComplete, HANDOVER_CALLBACK.cannot).row();
-  keyboard.text(t.shift.backToShift, SHIFT_CALLBACK.back);
-  return { text: lines.join('\n'), keyboard };
+  keyboard.text(t.shift.backToShift, SHIFT_CALLBACK.back).row();
+  // One final button at the bottom, as in the mockup: send the report. The shift itself is closed
+  // by the exit QR, so there is no close button here.
+  if (view.issues.length === 0) keyboard.text(t.handover.submit, HANDOVER_CALLBACK.submit).row();
+  const trimmed = trimRows(keyboard);
+  return trimmed ? { text: lines.join('\n'), keyboard: trimmed } : { text: lines.join('\n') };
 }
 
 export function handoverPhotoPromptScreen(t: Messages, item: string): Screen {
