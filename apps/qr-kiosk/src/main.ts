@@ -39,6 +39,8 @@ const TOKEN_KEY = 'vakhta.kiosk.deviceToken';
 const el = {
   title: byId('title'),
   terminal: byId('terminal'),
+  terminalName: byId('terminal-name'),
+  terminalSwitch: byId('terminal-switch') as HTMLSelectElement,
   qr: byId('qr'),
   hint: byId('hint'),
   meta: byId('meta'),
@@ -123,9 +125,51 @@ async function keepAwake(): Promise<void> {
 }
 
 let countdown = 0;
-let deviceToken = readToken();
 
-function readToken(): string {
+/**
+ * A tablet can stand at more than one terminal, so it keeps every terminal it has paired: id, name
+ * and that terminal's own device token. `?terminal=<id>` in the address says which one is on screen,
+ * so a browser bookmark or a kiosk-mode start URL pins a screen to its terminal. A token is never
+ * shared between terminals — each is paired on its own with its own code.
+ */
+interface PairedTerminal {
+  readonly id: string;
+  readonly name: string;
+  readonly token: string;
+}
+
+const TERMINALS_KEY = 'vakhta.kiosk.terminals';
+const TERMINAL_PARAM = 'terminal';
+
+function readTerminals(): PairedTerminal[] {
+  try {
+    const raw = localStorage.getItem(TERMINALS_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (x): x is PairedTerminal =>
+        typeof x === 'object' &&
+        x !== null &&
+        typeof (x as PairedTerminal).id === 'string' &&
+        typeof (x as PairedTerminal).name === 'string' &&
+        typeof (x as PairedTerminal).token === 'string',
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writeTerminals(list: readonly PairedTerminal[]): void {
+  try {
+    localStorage.setItem(TERMINALS_KEY, JSON.stringify(list));
+  } catch {
+    // Private mode or storage disabled: the pairings live until the page reloads.
+  }
+}
+
+let terminals = readTerminals();
+
+function legacyToken(): string {
   try {
     return localStorage.getItem(TOKEN_KEY) ?? import.meta.env['VITE_KIOSK_DEVICE_TOKEN'] ?? '';
   } catch {
@@ -133,21 +177,71 @@ function readToken(): string {
   }
 }
 
-function storeToken(token: string): void {
-  try {
-    localStorage.setItem(TOKEN_KEY, token);
-  } catch {
-    // Private mode or storage disabled: the token lives until the page reloads.
-  }
+function selectedId(): string {
+  return new URLSearchParams(location.search).get(TERMINAL_PARAM) ?? '';
 }
 
+/** The terminal on screen: the one named in the address, else the first paired one. */
+function current(): PairedTerminal | null {
+  const wanted = selectedId();
+  return terminals.find((x) => x.id === wanted) ?? terminals[0] ?? null;
+}
+
+// A tablet paired before this screen existed has one bare token and no id yet; it keeps working and
+// gets its name and id from the first challenge, which then files it among the paired terminals.
+let deviceToken = current()?.token ?? legacyToken();
+
+function remember(terminal: PairedTerminal, select = true): void {
+  terminals = [...terminals.filter((x) => x.id !== terminal.id), terminal].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+  writeTerminals(terminals);
+  deviceToken = terminal.token;
+  if (select) setUrlTerminal(terminal.id);
+  renderSwitch();
+}
+
+function setUrlTerminal(id: string): void {
+  const url = new URL(location.href);
+  url.searchParams.set(TERMINAL_PARAM, id);
+  history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
+/** The select next to the name: every paired terminal, plus a way to pair one more. */
+function renderSwitch(): void {
+  const now = current();
+  el.terminalSwitch.replaceChildren();
+  for (const terminal of terminals) {
+    const option = document.createElement('option');
+    option.value = terminal.id;
+    option.textContent = terminal.name;
+    option.selected = terminal.id === now?.id;
+    el.terminalSwitch.append(option);
+  }
+  const add = document.createElement('option');
+  add.value = ADD_TERMINAL;
+  add.textContent = t.kiosk.addTerminal;
+  el.terminalSwitch.append(add);
+  // With nothing paired the pairing form is already on screen; one terminal has nothing to switch to
+  // but still offers adding a second.
+  el.terminalSwitch.hidden = terminals.length === 0;
+}
+
+const ADD_TERMINAL = '__add__';
+
 function forgetToken(): void {
+  const now = current();
+  if (now) {
+    terminals = terminals.filter((x) => x.id !== now.id);
+    writeTerminals(terminals);
+  }
   deviceToken = '';
   try {
     localStorage.removeItem(TOKEN_KEY);
   } catch {
     // Nothing to clear.
   }
+  renderSwitch();
 }
 
 function showProblem(text: string, allowRepair = false): void {
@@ -164,10 +258,12 @@ function showPairing(error?: string): void {
   el.offline.hidden = true;
   el.repair.hidden = true;
   el.meta.textContent = '';
-  el.terminal.textContent = '';
+  el.terminalName.textContent = '';
   el.pairError.textContent = error ?? '';
   el.pairError.hidden = !error;
   el.pair.hidden = false;
+  // Keep the switcher in view while pairing: it is the way back to a terminal already paired.
+  el.terminal.classList.add('open');
   el.pairCode.focus();
 }
 
@@ -186,13 +282,10 @@ async function pair(code: string): Promise<void> {
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const paired = TerminalPaired.parse(await res.json());
-    deviceToken = paired.deviceToken;
-    storeToken(deviceToken);
+    remember({ id: paired.terminalId, name: paired.terminalName, token: paired.deviceToken });
     el.pair.hidden = true;
     el.pairCode.value = '';
-    el.terminal.textContent = paired.terminalName;
-    // Drop the code from the address bar so a reload does not retry it.
-    history.replaceState(null, '', location.pathname + location.search);
+    el.terminalName.textContent = paired.terminalName;
     await fetchChallenge();
   } catch {
     showPairing(t.kiosk.offline);
@@ -228,7 +321,12 @@ async function fetchChallenge(): Promise<void> {
     });
     el.qr.append(canvas);
 
-    el.terminal.textContent = data.terminalName;
+    el.terminalName.textContent = data.terminalName;
+    // A tablet paired before the switcher existed arrives with a bare token: file it now that the
+    // challenge has told us which terminal it belongs to, and it joins the list like any other.
+    if (!terminals.some((x) => x.id === data.terminalId)) {
+      remember({ id: data.terminalId, name: data.terminalName, token: deviceToken }, !selectedId());
+    }
     lastSync = new Date();
     el.syncDot.className = 'dot ok';
     countdown = data.rotationSeconds;
@@ -236,11 +334,31 @@ async function fetchChallenge(): Promise<void> {
     el.repair.hidden = true;
     el.pair.hidden = true;
     el.qr.hidden = false;
+    el.terminal.classList.remove('open');
   } catch {
     el.syncDot.className = 'dot bad';
     showProblem(t.kiosk.offline);
   }
 }
+
+/** Switching terminals: change the address, use that terminal's token, redraw the QR. */
+el.terminalSwitch.addEventListener('change', () => {
+  const value = el.terminalSwitch.value;
+  if (value === ADD_TERMINAL) {
+    renderSwitch();
+    showPairing();
+    return;
+  }
+  const chosen = terminals.find((x) => x.id === value);
+  if (!chosen) return;
+  deviceToken = chosen.token;
+  setUrlTerminal(chosen.id);
+  el.terminalName.textContent = chosen.name;
+  void fetchChallenge();
+});
+
+// On a touch screen there is no hover, so a tap on the name opens the list.
+el.terminal.addEventListener('click', () => el.terminal.classList.add('open'));
 
 function tick(): void {
   drawClock();
@@ -268,6 +386,10 @@ el.repair.addEventListener('click', () => {
   forgetToken();
   showPairing();
 });
+
+renderSwitch();
+const chosen = current();
+if (chosen) el.terminalName.textContent = chosen.name;
 
 const codeFromLink = new URLSearchParams(location.hash.replace(/^#/, '')).get('pair');
 if (codeFromLink) {

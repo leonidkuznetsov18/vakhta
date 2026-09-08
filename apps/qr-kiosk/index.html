@@ -70,9 +70,47 @@
         font-size: clamp(14px, 2vw, 20px);
         color: var(--muted);
       }
+      /* The terminal name doubles as the switcher: hovering it (or focusing it from a keyboard,
+         or tapping it on a touch screen) reveals a select of the terminals this tablet has paired. */
       .terminal {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .terminal-name {
         color: var(--accent);
         font-weight: 600;
+      }
+      .terminal-switch {
+        font: inherit;
+        font-size: clamp(13px, 1.4vw, 16px);
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--muted);
+        background: #1b2130;
+        color: var(--ink);
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 120ms ease-in-out;
+      }
+      .terminal-switch option {
+        background: #1b2130;
+        color: var(--ink);
+      }
+      .terminal-switch:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .terminal:hover .terminal-switch,
+      .terminal:focus-within .terminal-switch,
+      .terminal.open .terminal-switch {
+        opacity: 1;
+      }
+      @media (hover: none) {
+        .terminal-switch {
+          opacity: 1;
+        }
       }
       .offline {
         color: var(--crit);
@@ -234,7 +272,10 @@
   </head>
   <body>
     <header class="bar">
-      <div id="terminal" class="terminal"></div>
+      <div id="terminal" class="terminal">
+        <span id="terminal-name" class="terminal-name"></span>
+        <select id="terminal-switch" class="terminal-switch" hidden></select>
+      </div>
       <div class="clock">
         <span id="time" class="time"></span><span id="date" class="date"></span>
       </div>

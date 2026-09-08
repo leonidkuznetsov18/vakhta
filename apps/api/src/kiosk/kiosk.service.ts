@@ -127,6 +127,7 @@ export class KioskService {
       deepLink: buildDeepLink(this.options.botUsername, token),
       expiresAt: expiresAt.toISOString(),
       rotationSeconds: this.options.rotationSeconds,
+      terminalId: terminal.id,
       terminalName: terminal.name,
     };
   }

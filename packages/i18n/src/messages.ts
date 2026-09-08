@@ -1408,6 +1408,7 @@ export interface Messages {
     readonly pairTitle: string;
     readonly pairHint: string;
     readonly pairCode: string;
+    readonly addTerminal: string;
     readonly pairButton: string;
     readonly pairing: string;
     readonly pairInvalid: string;

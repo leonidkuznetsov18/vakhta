@@ -32,6 +32,8 @@ export const KioskChallengeResponse = z.object({
   deepLink: z.url(),
   expiresAt: IsoDateTime,
   rotationSeconds: z.number().int().positive(),
+  /** Which terminal this screen is: the kiosk keys its paired terminals by it. */
+  terminalId: Uuid,
   terminalName: z.string(),
 });
 export type KioskChallengeResponse = z.infer<typeof KioskChallengeResponse>;
