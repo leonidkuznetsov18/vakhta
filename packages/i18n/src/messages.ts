@@ -681,6 +681,8 @@ export interface Messages {
       readonly apply: string;
       readonly approveChecklist: string;
       readonly addRemark: string;
+      /** The five states a reader can act on; every stored status maps onto one. */
+      readonly shown: Readonly<Record<string, string>>;
       readonly remarkComment: string;
       readonly reviewHint: string;
       readonly applied: string;

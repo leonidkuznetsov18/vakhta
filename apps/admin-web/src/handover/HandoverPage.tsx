@@ -30,14 +30,33 @@ import { useDeepLinkedId } from '@/lib/route';
 const all = messages(currentLocale());
 const h = all.admin.handover;
 const hints = all.ui.hints;
-const STATUS_TONE: Record<HandoverStatus, Tone> = {
+/**
+ * A report is in one of four places as far as anyone reading this page is concerned: a draft, sent
+ * and waiting, approved, or approved with a remark — plus superseded, which means a newer report
+ * replaced it. The statuses left over from the days when the next shift accepted zones and disputes
+ * were resolved say nothing a reader can act on, so they are shown as the one they amount to.
+ */
+const SHOWN_AS: Record<
+  HandoverStatus,
+  'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REMARK' | 'SUPERSEDED'
+> = {
+  DRAFT: 'DRAFT',
+  SUBMITTED: 'SUBMITTED',
+  // Raised by the next shift, still waiting on the master: for the reader it is simply waiting.
+  DISPUTED: 'SUBMITTED',
+  // Accepted by the next shift, or by the master, or found to be nobody's fault: all approved.
+  ACCEPTED: 'APPROVED',
+  RESOLVED_ACCEPTED: 'APPROVED',
+  RESOLVED_NO_FAULT: 'APPROVED',
+  RESOLVED_ISSUE_CONFIRMED: 'REMARK',
+  SUPERSEDED: 'SUPERSEDED',
+};
+
+const STATUS_TONE: Record<(typeof SHOWN_AS)[HandoverStatus], Tone> = {
   DRAFT: 'neutral',
   SUBMITTED: 'info',
-  ACCEPTED: 'success',
-  DISPUTED: 'warning',
-  RESOLVED_ACCEPTED: 'success',
-  RESOLVED_ISSUE_CONFIRMED: 'danger',
-  RESOLVED_NO_FAULT: 'success',
+  APPROVED: 'success',
+  REMARK: 'danger',
   SUPERSEDED: 'neutral',
 };
 
@@ -155,13 +174,12 @@ export function HandoverPage() {
     {
       key: 'status',
       header: h.status,
+      // One pill: a row is in one state, and "cleaning not finished" belongs with the report itself,
+      // where the reason for it is written.
       cell: (row) => (
-        <div className="flex flex-wrap gap-1">
-          <StatusPill tone={STATUS_TONE[row.status]}>
-            {all.handover.statuses[row.status]}
-          </StatusPill>
-          {row.cannotCompleteReason && <StatusPill tone="warning">{h.cannotComplete}</StatusPill>}
-        </div>
+        <StatusPill tone={STATUS_TONE[SHOWN_AS[row.status]]}>
+          {h.shown[SHOWN_AS[row.status]]}
+        </StatusPill>
       ),
     },
     { key: 'remarks', header: h.remarks, align: 'right', cell: (row) => row.remarks },
@@ -185,8 +203,8 @@ export function HandoverPage() {
       <div className="flex flex-col gap-4 py-1" data-testid="handover-detail">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold">{row.zoneName ?? h.noZone}</span>
-          <StatusPill tone={STATUS_TONE[row.status]}>
-            {all.handover.statuses[row.status]}
+          <StatusPill tone={STATUS_TONE[SHOWN_AS[row.status]]}>
+            {h.shown[SHOWN_AS[row.status]]}
           </StatusPill>
           <Muted>
             {row.submittedByName} · {formatDateTime(row.submittedAt)}
