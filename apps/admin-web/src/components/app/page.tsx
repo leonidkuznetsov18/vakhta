@@ -107,6 +107,14 @@ export function LiveBadge({ live, hint }: { readonly live: boolean; readonly hin
   );
 }
 
+/**
+ * How a chosen option in a group of buttons is marked: its own border and a lift, not a black fill.
+ * Black reads as "primary action" everywhere else in the panel, and a language or a theme is a
+ * setting, not an action.
+ */
+export const SELECTED_TOGGLE =
+  'border-emerald-500 text-foreground shadow-sm shadow-emerald-100 dark:border-emerald-600 dark:shadow-none';
+
 export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 
 const TONE: Record<Tone, string> = {

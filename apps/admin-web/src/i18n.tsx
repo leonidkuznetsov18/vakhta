@@ -1,6 +1,7 @@
 import { LOCALES, isLocale, messages, resolveLocale, type Locale } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { cn } from 'cn';
+import { SELECTED_TOGGLE } from '@/components/app/page';
 
 const STORAGE_KEY = 'vakhta.locale';
 
@@ -65,12 +66,15 @@ export function LanguageSwitcher({ className }: { readonly className?: string })
           key={locale}
           type="button"
           size="sm"
-          variant={locale === active ? 'default' : 'outline'}
+          variant="outline"
           aria-pressed={locale === active}
           aria-label={t.language.names[locale]}
           title={t.language.names[locale]}
           lang={locale}
-          className="flex-1 text-base leading-none font-semibold"
+          className={cn(
+            'flex-1 text-base leading-none font-semibold',
+            locale === active && SELECTED_TOGGLE,
+          )}
           onClick={() => switchLocale(locale)}
         >
           <span aria-hidden="true">{LOCALE_FLAGS[locale]}</span>

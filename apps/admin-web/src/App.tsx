@@ -52,7 +52,9 @@ import { useAttention } from './overview/attention.ts';
 import { RequestsPage } from './requests/RequestsPage.tsx';
 import { SchedulePage } from './schedule/SchedulePage.tsx';
 import { useSession } from './auth/useSession.ts';
+import { cn } from 'cn';
 import { Button } from '@/components/ui/button';
+import { SELECTED_TOGGLE } from '@/components/app/page';
 import { useNewBuild } from '@/lib/build-check';
 import { CompactLanguageSwitcher, LanguageSwitcher, currentLocale } from './i18n.tsx';
 import { useAppearance, type Theme } from '@/lib/theme';
@@ -385,11 +387,11 @@ function ThemeSwitcher() {
           key={key}
           type="button"
           size="sm"
-          variant={appearance.theme === key ? 'default' : 'outline'}
+          variant="outline"
           aria-pressed={appearance.theme === key}
           aria-label={t.ui.common.themes[key]}
           title={t.ui.common.themes[key]}
-          className="flex-1"
+          className={cn('flex-1', appearance.theme === key && SELECTED_TOGGLE)}
           onClick={() => appearance.set({ theme: key })}
         >
           <Icon aria-hidden="true" />
