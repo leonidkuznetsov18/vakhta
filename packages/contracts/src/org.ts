@@ -135,8 +135,9 @@ export const OrgUnitView = z.object({
   siteId: Uuid,
   parentId: Uuid.nullable(),
   name: z.string(),
-  /** true when a panel user has the shift-master role scoped to this unit (can review its checklists). */
-  hasMaster: z.boolean(),
+  /** Names of the panel users who have the shift-master role scoped to this unit and can review
+   * its checklists. Empty means the unit has no master. */
+  masters: z.array(z.string()),
 });
 export const TeamView = z.object({ id: Uuid, orgUnitId: Uuid, name: z.string() });
 export const PositionView = z.object({ id: Uuid, code: z.string(), name: z.string() });

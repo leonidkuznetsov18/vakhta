@@ -148,8 +148,8 @@ export function DirectoriesTab({ org, onChanged }: Props) {
       key: 'master',
       header: d.unitMaster,
       cell: (u) =>
-        u.hasMaster ? (
-          <StatusPill tone="success">{all.ui.common.yes}</StatusPill>
+        u.masters.length > 0 ? (
+          <span>{u.masters.join(', ')}</span>
         ) : (
           <StatusPill tone="danger">{d.noMaster}</StatusPill>
         ),
@@ -338,10 +338,12 @@ export function DirectoriesTab({ org, onChanged }: Props) {
           </AddDialog>
         }
       >
-        {org.orgUnits.some((u) => !u.hasMaster) && (
+        {org.orgUnits.some((u) => u.masters.length === 0) && (
           <Alert variant="destructive" className="mb-3">
             <AlertDescription>
-              {format(d.noMasterNotice, { n: org.orgUnits.filter((u) => !u.hasMaster).length })}
+              {format(d.noMasterNotice, {
+                n: org.orgUnits.filter((u) => u.masters.length === 0).length,
+              })}
             </AlertDescription>
           </Alert>
         )}

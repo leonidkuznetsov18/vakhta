@@ -10,6 +10,7 @@ import {
   sites,
   teams,
   webUserRoles,
+  authUser,
   type Database,
   type DbOrTx,
 } from '@vakhta/db';
@@ -440,13 +441,19 @@ export class OrgService {
         .orderBy(asc(qrTerminals.name)),
       this.db.select().from(reasonCodes).orderBy(asc(reasonCodes.kind), asc(reasonCodes.code)),
       this.db
-        .select({ scopeId: webUserRoles.scopeId })
+        .select({ scopeId: webUserRoles.scopeId, name: authUser.name })
         .from(webUserRoles)
-        .where(and(eq(webUserRoles.role, 'SHIFT_MASTER'), eq(webUserRoles.scopeType, 'ORG_UNIT'))),
+        .innerJoin(authUser, eq(webUserRoles.userId, authUser.id))
+        .where(and(eq(webUserRoles.role, 'SHIFT_MASTER'), eq(webUserRoles.scopeType, 'ORG_UNIT')))
+        .orderBy(asc(authUser.name)),
     ]);
-    const masterUnits = new Set(
-      masters.map((m) => m.scopeId).filter((x): x is string => x !== null),
-    );
+    const mastersByUnit = new Map<string, string[]>();
+    for (const m of masters) {
+      if (!m.scopeId) continue;
+      const list = mastersByUnit.get(m.scopeId) ?? [];
+      list.push(m.name);
+      mastersByUnit.set(m.scopeId, list);
+    }
     return {
       sites: s.map(({ id, code, name, timezone }) => ({ id, code, name, timezone })),
       orgUnits: u.map(({ id, siteId, parentId, name }) => ({
@@ -454,7 +461,7 @@ export class OrgService {
         siteId,
         parentId,
         name,
-        hasMaster: masterUnits.has(id),
+        masters: mastersByUnit.get(id) ?? [],
       })),
       teams: t.map(({ id, orgUnitId, name }) => ({ id, orgUnitId, name })),
       positions: p.map(({ id, code, name }) => ({ id, code, name })),

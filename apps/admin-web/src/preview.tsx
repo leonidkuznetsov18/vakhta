@@ -47,9 +47,9 @@ const attention = {
 const org = {
   sites: [{ id: 's1', code: 'main', name: 'Основная площадка', timezone: 'Europe/Kyiv' }],
   orgUnits: [
-    { id: 'u1', siteId: 's1', parentId: null, name: 'Цех Крышки', hasMaster: true },
-    { id: 'u2', siteId: 's1', parentId: null, name: 'Цех Плёнка', hasMaster: false },
-    { id: 'u3', siteId: 's1', parentId: null, name: 'Склад', hasMaster: false },
+    { id: 'u1', siteId: 's1', parentId: null, name: 'Цех Крышки', masters: ['Ткач Олена'] },
+    { id: 'u2', siteId: 's1', parentId: null, name: 'Цех Плёнка', masters: [] },
+    { id: 'u3', siteId: 's1', parentId: null, name: 'Склад', masters: [] },
   ],
   teams: [],
   positions: [{ id: 'p1', code: 'OPERATOR', name: 'Оператор' }],
