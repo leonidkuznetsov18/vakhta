@@ -1,3 +1,9 @@
+## [0.45.4](https://github.com/leonidkuznetsov18/vakhta/compare/v0.45.3...v0.45.4) (2026-09-08)
+
+### Bug fixes
+
+* **bonus:** the history tab crashed on its own grouping ([38125b8](https://github.com/leonidkuznetsov18/vakhta/commit/38125b8d9e2b0d42f2481ff2009130c816df6c3b))
+
 ## [0.45.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.45.2...v0.45.3) (2026-09-08)
 
 ### Bug fixes
