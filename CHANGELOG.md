@@ -1,3 +1,9 @@
+## [0.52.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.51.1...v0.52.0) (2026-09-08)
+
+### Features
+
+* **overview:** a tile opens the row it counted, not just the list ([8aaba26](https://github.com/leonidkuznetsov18/vakhta/commit/8aaba261c71728fe8544c8357b5bccb15778119e))
+
 ## [0.51.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.51.0...v0.51.1) (2026-09-08)
 
 ### Bug fixes
