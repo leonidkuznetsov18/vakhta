@@ -1,3 +1,9 @@
+## [0.48.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.48.0...v0.48.1) (2026-09-08)
+
+### Bug fixes
+
+* **operations:** the emergency exit has a reason field, and the toast says what happened ([e29c7cb](https://github.com/leonidkuznetsov18/vakhta/commit/e29c7cbb6aa852316af3d62d50a30b46a795ef3c))
+
 ## [0.48.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.47.2...v0.48.0) (2026-09-08)
 
 ### Features
