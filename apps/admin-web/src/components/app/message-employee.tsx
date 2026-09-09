@@ -72,13 +72,15 @@ export function MessageEmployeeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      {/* A phone gets the whole screen: a small box in the middle leaves the keyboard covering the
+          field being typed into. The close button of the dialog stays where it always is. */}
+      <DialogContent className="max-sm:top-0 max-sm:left-0 max-sm:h-dvh max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:grid-rows-[auto_1fr] max-sm:rounded-none">
         <DialogHeader>
           <DialogTitle>{t.title}</DialogTitle>
           <DialogDescription>{t.description}</DialogDescription>
         </DialogHeader>
         <form
-          className="flex flex-col gap-4"
+          className="flex min-h-0 flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault();
             send();
@@ -99,11 +101,14 @@ export function MessageEmployeeDialog({
           {/* Only people with a bot are offered: a message to anyone else would sit in the outbox
               waiting for a Telegram account that does not exist. */}
           {people !== null && reachable.length === 0 && <Muted>{t.nobody}</Muted>}
-          <FormField label={t.text}>
+          {/* The message is the point of the dialog, so it takes the room: six lines on a desktop
+              and everything left over on a phone. */}
+          <FormField label={t.text} className="flex min-h-0 flex-1 flex-col">
             {(id) => (
               <Textarea
                 id={id}
-                rows={4}
+                rows={6}
+                className="min-h-32 flex-1"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder={t.placeholder}
