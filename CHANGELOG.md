@@ -1,3 +1,13 @@
+## [0.69.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.68.0...v0.69.0) (2026-09-09)
+
+### Features
+
+* **admin-web:** write to an employee from anywhere in the panel ([9f2b30b](https://github.com/leonidkuznetsov18/vakhta/commit/9f2b30bcf7e5ea09c1835a5ded790a45ee3c80e5))
+
+### Bug fixes
+
+* **shift:** a shift is not born already expired, and the finish button always leads somewhere ([fb096f7](https://github.com/leonidkuznetsov18/vakhta/commit/fb096f7a342ea7f4384839737ad12c8f905c048c))
+
 ## [0.68.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.67.1...v0.68.0) (2026-09-09)
 
 ### Features
