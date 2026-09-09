@@ -372,7 +372,7 @@ import type {
 export const handoversApi = {
   list: (q: HandoverListQuery) =>
     apiFetch<HandoverListItemView[]>(
-      `/admin/handovers${query({ siteId: q.siteId, zoneId: q.zoneId, scope: q.scope })}`,
+      `/admin/handovers${query({ siteId: q.siteId, zoneId: q.zoneId, scope: q.scope, date: q.date })}`,
     ),
   detail: (id: string) => apiFetch<HandoverDetailView>(`/admin/handovers/${id}`),
   resolve: (id: string, cmd: ResolveHandoverCommand) =>

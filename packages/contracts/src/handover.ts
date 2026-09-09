@@ -7,7 +7,7 @@ import {
   REMARK_NEEDS,
 } from '@vakhta/domain';
 import { ChecklistItemKindSchema } from './checklists.js';
-import { Comment, IdempotencyKey, IsoDateTime, ReasonCode, Uuid } from './common.js';
+import { BusinessDate, Comment, IdempotencyKey, IsoDateTime, ReasonCode, Uuid } from './common.js';
 
 export const HandoverStatusSchema = z.enum(HANDOVER_STATUSES);
 export const HandoverResolutionSchema = z.enum(HANDOVER_RESOLUTIONS);
@@ -189,6 +189,8 @@ export const HandoverListQuery = z.object({
   zoneId: Uuid.optional(),
   /** pending (типово): SUBMITTED і DISPUTED; overdue: прострочені; all. */
   scope: z.enum(['pending', 'overdue', 'all']).optional(),
+  /** The business date of the shift the report closed; empty means every day. */
+  date: BusinessDate.optional(),
 });
 export type HandoverListQuery = z.infer<typeof HandoverListQuery>;
 

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
+import { DateField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import {
@@ -28,7 +29,7 @@ import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
-import { CheckIcon, EyeIcon, TriangleAlertIcon } from 'lucide-react';
+import { CheckIcon, EyeIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Lightbox, PhotoThumb, type LightboxImage } from '@/components/app/photo';
 import { HowItWorks } from '@/components/app/how-it-works';
@@ -71,6 +72,8 @@ const STATUS_TONE: Record<(typeof SHOWN_AS)[HandoverStatus], Tone> = {
 export function HandoverPage() {
   const [org, setOrg] = useState<OrgSnapshot | null>(null);
   const [siteId, setSiteId] = usePersistentState('handover.siteId', '');
+  /** Empty means every day; the reports of one shift are found by picking that day. */
+  const [date, setDate] = usePersistentState('handover.date', '');
   const [scope, setScope] = usePersistentState<'pending' | 'overdue' | 'all'>(
     'handover.scope',
     'pending',
@@ -97,8 +100,10 @@ export function HandoverPage() {
   }, []);
 
   const reload = useCallback(async () => {
-    setRows(await handoversApi.list({ ...(siteId ? { siteId } : {}), scope }));
-  }, [siteId, scope]);
+    setRows(
+      await handoversApi.list({ ...(siteId ? { siteId } : {}), ...(date ? { date } : {}), scope }),
+    );
+  }, [siteId, scope, date]);
 
   useEffect(() => {
     reloadRef.current = () => {
@@ -356,6 +361,28 @@ export function HandoverPage() {
             </TabsList>
           </Tabs>
           <InfoTip text={hints.handoverScope} />
+        </div>
+        {/* One day of reports, with a way back to all of them: a shift is looked up by its date. */}
+        <div className="flex items-end gap-1">
+          <DateField
+            label={h.date}
+            value={date}
+            onChange={setDate}
+            hint={hints.handoverDate}
+            className="w-44"
+          />
+          {date && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={h.dateAll}
+              title={h.dateAll}
+              onClick={() => setDate('')}
+            >
+              <XIcon aria-hidden="true" />
+            </Button>
+          )}
         </div>
         <div className="ml-auto">
           <LiveBadge live={live} />

@@ -770,6 +770,9 @@ export class HandoverService {
         lte(handoverRecords.acceptDeadlineAt, now),
       );
     if (scope === 'all') conditions.push(ne(handoverRecords.status, 'DRAFT'));
+    // A day is the shift's business date, not the calendar day the report happened to be sent on:
+    // a night shift hands over after midnight and still belongs to the day it started.
+    if (q.date) conditions.push(eq(shiftSessions.businessDate, q.date));
     if (q.zoneId) conditions.push(eq(handoverRecords.zoneId, q.zoneId));
     if (q.siteId) conditions.push(eq(responsibilityZones.siteId, q.siteId));
     // A shift master is bound to their unit: they review only handovers in their unit's zones.
@@ -1053,6 +1056,7 @@ function tx_list(db: Database, conditions: ReturnType<typeof eq>[]) {
     .select({ id: handoverRecords.id })
     .from(handoverRecords)
     .leftJoin(responsibilityZones, eq(handoverRecords.zoneId, responsibilityZones.id))
+    .leftJoin(shiftSessions, eq(handoverRecords.shiftSessionId, shiftSessions.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(handoverRecords.submittedAt), desc(handoverRecords.createdAt));
 }

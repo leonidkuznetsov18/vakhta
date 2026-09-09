@@ -780,6 +780,8 @@ export const en: Messages = {
     },
     handover: {
       site: 'Site',
+      date: 'Date',
+      dateAll: 'Show every day',
       scopePending: 'Pending',
       scopeOverdue: 'Overdue',
       scopeAll: 'All',
@@ -2065,6 +2067,8 @@ export const en: Messages = {
         'The report will be linked to the selected primary incident; the original reports are kept.',
       incidentsStats:
         'Incidents, reports and downtime minutes by reason and zone for the selected period.',
+      handoverDate:
+        "Show the checklists of one shift. The day is the shift's business date: a night shift hands over after midnight and still belongs to the day it started.",
       handoverScope:
         '"Pending" are reports without a receiver decision; "Overdue" were not accepted by the deadline.',
       handoverDeadline:

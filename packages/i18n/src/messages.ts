@@ -652,6 +652,8 @@ export interface Messages {
     };
     readonly handover: {
       readonly site: string;
+      readonly date: string;
+      readonly dateAll: string;
       readonly scopePending: string;
       readonly scopeOverdue: string;
       readonly scopeAll: string;
@@ -1359,6 +1361,7 @@ export interface Messages {
       readonly incidentsSla: string;
       readonly incidentsDuplicate: string;
       readonly incidentsStats: string;
+      readonly handoverDate: string;
       readonly handoverScope: string;
       readonly handoverDeadline: string;
       readonly handoverDecision: string;
