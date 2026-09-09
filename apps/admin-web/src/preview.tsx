@@ -537,7 +537,71 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   if (path === '/admin/reports/hours') return json(hoursReport);
   // A quiet week is the normal state of this section, and the empty answer is what the panel gets
   // from the real server — not a 404 that reads as a broken page.
-  if (path === '/admin/incidents') return json([]);
+  const incident = {
+    id: 'inc1',
+    siteId: 's1',
+    orgUnitId: 'u1',
+    zoneId: 'z1',
+    zoneName: 'Линия 1',
+    reasonCode: 'SAFETY',
+    reasonLabel: 'Безпека',
+    severity: 'CRITICAL',
+    status: 'IN_PROGRESS',
+    duplicateOfId: null,
+    assigneeId: null,
+    openedAt: '2026-09-08T09:18:00.000Z',
+    slaDueAt: '2026-09-08T09:48:00.000Z',
+    acknowledgedAt: '2026-09-08T09:25:00.000Z',
+    resolvedAt: null,
+    closedAt: null,
+    escalatedAt: null,
+    slaBreached: true,
+    reportsCount: 1,
+    stoppedNow: 1,
+    lastComment: 'Огородили ділянку',
+  };
+  if (path === '/admin/incidents') return json([incident]);
+  if (path === '/admin/incidents/inc1')
+    return json({
+      incident,
+      reports: [
+        {
+          id: 'rep1',
+          incidentId: 'inc1',
+          shiftSessionId: 'sh1',
+          employeeId: 'e4',
+          fullName: 'Гринько Юлія',
+          zoneId: 'z1',
+          reasonCode: 'SAFETY',
+          comment: 'роботу зупинено',
+          stoppedWork: true,
+          reportedAt: '2026-09-08T09:18:00.000Z',
+          hasPhoto: true,
+        },
+      ],
+      history: [
+        {
+          id: 'h1',
+          fromStatus: null,
+          toStatus: 'REPORTED',
+          actorType: 'EMPLOYEE',
+          actorId: 'e4',
+          at: '2026-09-08T09:18:00.000Z',
+          comment: null,
+        },
+        {
+          id: 'h2',
+          fromStatus: 'REPORTED',
+          toStatus: 'IN_PROGRESS',
+          actorType: 'WEB_USER',
+          actorId: 'u1',
+          at: '2026-09-08T09:25:00.000Z',
+          comment: 'Огородили ділянку',
+        },
+      ],
+      duplicates: [],
+      serverTime: new Date().toISOString(),
+    });
   // One request awaiting a decision and one shift that ran over: enough to see both tables of the
   // section, and the row the overview's tiles deep-link into.
   if (path === '/admin/requests')

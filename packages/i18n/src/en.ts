@@ -1104,7 +1104,7 @@ export const en: Messages = {
       lossFrom: 'From',
       lossTo: 'To',
       lossComment: 'Comment',
-      lossBack: '← All categories',
+      lossBack: 'All categories',
       lossPickCategory:
         'Pick a category on the chart to see its reasons and the intervals behind them.',
       lossEmpty: 'No intervals in this period.',
@@ -1603,6 +1603,8 @@ export const en: Messages = {
     },
     common: {
       actions: 'Actions',
+      hoursShort: 'h',
+      minutesShort: 'min',
       search: 'Search',
       filters: 'Filters',
       apply: 'Apply',

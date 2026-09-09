@@ -20,6 +20,7 @@ import { DateField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import {
+  EmptyState,
   LiveBadge,
   Muted,
   ROW_DANGER,
@@ -37,7 +38,6 @@ import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
 import { EyeIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { DetailSheet } from '@/components/app/detail-sheet';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { HowItWorks } from '@/components/app/how-it-works';
 import {
@@ -218,7 +218,6 @@ export function IncidentsPage() {
   const others = (row: IncidentView) =>
     rows.filter((r) => r.id !== row.id && r.status !== 'DUPLICATE');
 
-  const openRow = rows.find((r) => r.id === openId) ?? null;
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const closable = rows.filter((r) => selected.has(r.id) && r.status === 'RESOLVED');
 
@@ -294,6 +293,109 @@ export function IncidentsPage() {
     },
   ];
 
+  /**
+   * The row's own panel, opened under it: the decision on the left, what the shift floor reported
+   * and what has happened so far on the right. The reason, the zone and the status are columns of
+   * the row above, so nothing repeats them here.
+   */
+  function renderDetail(row: IncidentView) {
+    return (
+      <div className="grid items-start gap-6 py-1 md:grid-cols-2" data-testid="incident-detail">
+        {allowedIncidentTransitions(row.status).length > 0 && (
+          <form
+            className="flex max-w-2xl flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              apply(row);
+            }}
+          >
+            <SelectField
+              label={i.status}
+              searchable={false}
+              value={target[row.id] ?? ''}
+              onChange={(v) => setTarget((t) => ({ ...t, [row.id]: v as IncidentStatus }))}
+              placeholder="…"
+              required
+              options={allowedIncidentTransitions(row.status).map((st) => ({
+                value: st,
+                label: i.transitions[st],
+              }))}
+            />
+            {target[row.id] === 'DUPLICATE' && (
+              <SelectField
+                label={i.duplicateOf}
+                hint={hints.incidentsDuplicate}
+                value={duplicateOf[row.id] ?? ''}
+                onChange={(v) => setDuplicateOf((d) => ({ ...d, [row.id]: v }))}
+                placeholder="…"
+                required
+                options={others(row).map((o) => ({
+                  value: o.id,
+                  label: `${formatTime(o.openedAt)} · ${o.reasonLabel} · ${o.zoneName ?? '—'}`,
+                }))}
+              />
+            )}
+            <FormField
+              label={
+                target[row.id] === 'RESOLVED' || target[row.id] === 'REJECTED'
+                  ? i.commentRequired
+                  : i.comment
+              }
+            >
+              {(id) => (
+                <Textarea
+                  rows={2}
+                  id={id}
+                  value={comment[row.id] ?? ''}
+                  onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}
+                  required={target[row.id] === 'RESOLVED' || target[row.id] === 'REJECTED'}
+                  minLength={3}
+                />
+              )}
+            </FormField>
+            <div>
+              <Button type="submit" variant="success" disabled={busy || !target[row.id]}>
+                {i.apply}
+              </Button>
+            </div>
+          </form>
+        )}
+        {detail && detail.incident.id === row.id ? (
+          <div className="flex flex-col gap-4">
+            <div>
+              <h3 className="mb-2 text-sm font-semibold">{i.reportsTitle}</h3>
+              <ul className="flex flex-col gap-1 text-sm">
+                {detail.reports.map((r) => (
+                  <li key={r.id}>
+                    <span className="tabular-nums">{formatTime(r.reportedAt)}</span>{' '}
+                    <strong>{r.fullName}</strong>{' '}
+                    <Muted>
+                      {`${r.stoppedWork ? i.stoppedWork : i.notStopped}${r.hasPhoto ? ` · ${i.photo}` : ''}${r.comment ? ` · ${r.comment}` : ''}`}
+                    </Muted>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="mb-2 text-sm font-semibold">{i.history}</h3>
+              <ul className="flex flex-col gap-1 text-sm">
+                {detail.history.map((h) => (
+                  <li key={h.id}>
+                    <span className="tabular-nums">{formatTime(h.at)}</span>{' '}
+                    {all.incidents.statuses[h.toStatus]}
+                    <Muted>{` · ${h.actorType}${h.comment ? ` · ${h.comment}` : ''}`}</Muted>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ) : (
+          <Muted>{all.ui.common.loading}</Muted>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <HowItWorks guide="incidents" />
@@ -361,132 +463,26 @@ export function IncidentsPage() {
         empty={i.empty}
         rowClassName={(row) => (row.slaBreached ? ROW_DANGER : undefined)}
         activeKey={openId}
+        expanded={(row) => (row.id === openId ? renderDetail(row) : null)}
       />
       {dialog}
-      {openRow && (
-        <DetailSheet
-          open={openRow !== null}
-          onOpenChange={(open) => !open && setOpenId(null)}
-          title={
-            <>
-              {openRow.reasonLabel}
-              <StatusPill tone={STATUS_TONE[openRow.status]}>
-                {all.incidents.statuses[openRow.status]}
-              </StatusPill>
-            </>
-          }
-          description={`${openRow.zoneName ?? '—'} · ${all.incidents.severities[openRow.severity]}`}
-          wide
-        >
-          {((row) => (
-            <>
-              <div className="flex flex-col gap-4">
-                {allowedIncidentTransitions(row.status).length > 0 && (
-                  <form
-                    className="flex flex-wrap items-end gap-3"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      apply(row);
-                    }}
-                  >
-                    <SelectField
-                      label={i.status}
-                      value={target[row.id] ?? ''}
-                      onChange={(v) => setTarget((t) => ({ ...t, [row.id]: v as IncidentStatus }))}
-                      placeholder="…"
-                      required
-                      options={allowedIncidentTransitions(row.status).map((s) => ({
-                        value: s,
-                        label: i.transitions[s],
-                      }))}
-                      className="w-56"
-                    />
-                    {target[row.id] === 'DUPLICATE' && (
-                      <SelectField
-                        label={i.duplicateOf}
-                        hint={hints.incidentsDuplicate}
-                        value={duplicateOf[row.id] ?? ''}
-                        onChange={(v) => setDuplicateOf((d) => ({ ...d, [row.id]: v }))}
-                        placeholder="…"
-                        required
-                        options={others(row).map((o) => ({
-                          value: o.id,
-                          label: `${formatTime(o.openedAt)} · ${o.reasonLabel} · ${o.zoneName ?? '—'}`,
-                        }))}
-                        className="w-72"
-                      />
-                    )}
-                    <FormField
-                      label={
-                        target[row.id] === 'RESOLVED' || target[row.id] === 'REJECTED'
-                          ? i.commentRequired
-                          : i.comment
-                      }
-                      className="min-w-72 flex-1"
-                    >
-                      {(id) => (
-                        <Textarea
-                          rows={2}
-                          id={id}
-                          value={comment[row.id] ?? ''}
-                          onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}
-                          required={target[row.id] === 'RESOLVED' || target[row.id] === 'REJECTED'}
-                          minLength={3}
-                        />
-                      )}
-                    </FormField>
-                    <Button type="submit" variant="secondary" disabled={busy || !target[row.id]}>
-                      {i.apply}
-                    </Button>
-                  </form>
-                )}
-                {detail && detail.incident.id === row.id && (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <h3 className="mb-2 text-sm font-semibold">{i.reportsTitle}</h3>
-                      <ul className="flex flex-col gap-1 text-sm">
-                        {detail.reports.map((r) => (
-                          <li key={r.id}>
-                            <span className="tabular-nums">{formatTime(r.reportedAt)}</span>{' '}
-                            <strong>{r.fullName}</strong>{' '}
-                            <Muted>
-                              {`${r.stoppedWork ? i.stoppedWork : i.notStopped}${r.hasPhoto ? ` · ${i.photo}` : ''}${r.comment ? ` · ${r.comment}` : ''}`}
-                            </Muted>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h3 className="mb-2 text-sm font-semibold">{i.history}</h3>
-                      <ul className="flex flex-col gap-1 text-sm">
-                        {detail.history.map((h) => (
-                          <li key={h.id}>
-                            <span className="tabular-nums">{formatTime(h.at)}</span>{' '}
-                            {all.incidents.statuses[h.toStatus]}
-                            <Muted>{` · ${h.actorType}${h.comment ? ` · ${h.comment}` : ''}`}</Muted>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          ))(openRow)}
-        </DetailSheet>
-      )}
 
       <Section title={i.stats} hint={hints.incidentsStats}>
         <Toolbar>
           <DateField label={i.from} value={from} onChange={setFrom} className="w-44" />
           <DateField label={i.to} value={to} onChange={setTo} className="w-44" />
         </Toolbar>
-        {stats && (
-          <div className="grid gap-4 2xl:grid-cols-2">
-            <StatsTable title={i.byReason} rows={stats.byReason} totals={stats.totals} />
-            <StatsTable title={i.byZone} rows={stats.byZone} totals={stats.totals} />
-          </div>
-        )}
+        {/* Two cuts of one period: when the period holds nothing, both tables said so, and the
+            section repeated itself. One sentence answers for the period. */}
+        {stats &&
+          (stats.byReason.length === 0 && stats.byZone.length === 0 ? (
+            <EmptyState text={all.ui.common.noResults} />
+          ) : (
+            <div className="grid gap-4 2xl:grid-cols-2">
+              <StatsTable title={i.byReason} rows={stats.byReason} totals={stats.totals} />
+              <StatsTable title={i.byZone} rows={stats.byZone} totals={stats.totals} />
+            </div>
+          ))}
       </Section>
     </div>
   );

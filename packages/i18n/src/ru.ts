@@ -1102,7 +1102,7 @@ export const ru: Messages = {
       lossFrom: 'Начало',
       lossTo: 'Конец',
       lossComment: 'Комментарий',
-      lossBack: '← Все категории',
+      lossBack: 'Все категории',
       lossPickCategory:
         'Выберите категорию на графике, чтобы увидеть причины и конкретные интервалы.',
       lossEmpty: 'За этот период интервалов нет.',
@@ -1603,6 +1603,8 @@ export const ru: Messages = {
     },
     common: {
       actions: 'Действия',
+      hoursShort: 'ч',
+      minutesShort: 'мин',
       search: 'Поиск',
       filters: 'Фильтры',
       apply: 'Применить',

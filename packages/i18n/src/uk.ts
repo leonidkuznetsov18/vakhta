@@ -1104,7 +1104,7 @@ export const uk: Messages = {
       lossFrom: 'Початок',
       lossTo: 'Кінець',
       lossComment: 'Коментар',
-      lossBack: '← Усі категорії',
+      lossBack: 'Усі категорії',
       lossPickCategory: 'Оберіть категорію на графіку, щоб побачити причини і конкретні інтервали.',
       lossEmpty: 'За цей період інтервалів немає.',
       exportCsv: 'CSV',
@@ -1604,6 +1604,8 @@ export const uk: Messages = {
     },
     common: {
       actions: 'Дії',
+      hoursShort: 'год',
+      minutesShort: 'хв',
       search: 'Пошук',
       filters: 'Фільтри',
       apply: 'Застосувати',

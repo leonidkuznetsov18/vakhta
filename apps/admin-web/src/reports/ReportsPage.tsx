@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { LossesQuery, LossesView, OrgSnapshot } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { Bar, CartesianGrid, Cell, ComposedChart, Line, XAxis, YAxis } from 'recharts';
-import { DownloadIcon } from 'lucide-react';
+import { ArrowLeftIcon, DownloadIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   ChartContainer,
@@ -18,7 +18,7 @@ import { HowItWorks } from '@/components/app/how-it-works';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill, Toolbar } from '@/components/app/page';
 import { usePersistentState } from '@/lib/persistent-state';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, formatDuration } from '@/lib/format';
 import { reportsApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
@@ -246,9 +246,19 @@ export function ReportsPage() {
       <Feedback error={error ? describeError(error) : null} />
 
       <Section title={r.lossTitle} hint={r.lossPurpose}>
+        {/* The way out of a category sits above everything the category changed, not under the
+            tables it opened: a reader who drilled in should not hunt for it. */}
+        {category && (
+          <div>
+            <Button type="button" variant="outline" onClick={() => setCategory(null)}>
+              <ArrowLeftIcon aria-hidden="true" />
+              {r.lossBack}
+            </Button>
+          </div>
+        )}
         <dl className="mb-4 grid gap-3 sm:grid-cols-3">
-          <Tile label={r.lossTotal} value={data?.totalMinutes ?? 0} />
-          <Tile label={r.lossLost} value={data?.lostMinutes ?? 0} tone="warning" />
+          <Tile label={r.lossTotal} value={formatDuration(data?.totalMinutes ?? 0)} />
+          <Tile label={r.lossLost} value={formatDuration(data?.lostMinutes ?? 0)} tone="warning" />
           <Tile
             label={r.lossExplained}
             value={`${Math.round((data?.explainedShare ?? 0) * 100)}%`}
@@ -256,12 +266,6 @@ export function ReportsPage() {
             tone={(data?.explainedShare ?? 0) < 0.5 ? 'danger' : undefined}
           />
         </dl>
-
-        {category && (
-          <Button type="button" variant="ghost" size="sm" onClick={() => setCategory(null)}>
-            {r.lossBack}
-          </Button>
-        )}
 
         {bars.length === 0 ? (
           <Muted>{r.lossEmpty}</Muted>

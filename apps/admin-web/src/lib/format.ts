@@ -1,4 +1,4 @@
-import type { Locale } from '@vakhta/i18n';
+import { messages, type Locale } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 
 const INTL: Record<Locale, string> = { uk: 'uk-UA', en: 'en-GB', ru: 'ru-RU' };
@@ -40,4 +40,17 @@ export function formatMonth(value: string): string {
     timeZone: 'UTC',
   });
   return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/**
+ * A span of time with its unit on it: "166 h 39 min", "45 min". A bare number of minutes beside a
+ * label like "total shift time" reads as anything — minutes, hours, or shifts.
+ */
+export function formatDuration(minutes: number): string {
+  const t = messages(currentLocale()).ui.common;
+  const whole = Math.max(0, Math.round(minutes));
+  const h = Math.floor(whole / 60);
+  const m = whole % 60;
+  if (h === 0) return `${m} ${t.minutesShort}`;
+  return m === 0 ? `${h} ${t.hoursShort}` : `${h} ${t.hoursShort} ${m} ${t.minutesShort}`;
 }

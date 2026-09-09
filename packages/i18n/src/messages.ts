@@ -1283,6 +1283,9 @@ export interface Messages {
     };
     readonly common: {
       readonly actions: string;
+      /** Short units for a duration: "3 h 20 min". */
+      readonly hoursShort: string;
+      readonly minutesShort: string;
       readonly search: string;
       readonly filters: string;
       readonly apply: string;

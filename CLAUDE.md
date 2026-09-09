@@ -50,6 +50,11 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 - Long lists and tables are paginated. Forms validate input with the zod contracts and show inline errors.
 - Every non-obvious control has an information tooltip; tooltip texts live in `@vakhta/i18n` in all three languages.
 - Every interactive element has visible hover, active and focus states. The interface must be usable without a manual.
+- The details of a table row open as a sub-row under it (`DataTable`'s `expanded`), never in a side sheet: the row
+  stays visible, and the reader keeps their place in the list. A sheet or a dialog is for what is not a row — creating
+  a record, the questions and answers, a document. The sub-row never repeats what the row's own columns already show.
+- A number carries its unit where it is read: a duration is formatted (`formatDuration`), not printed as bare minutes,
+  unless the column header already names the unit.
 
 ## Commands
 
