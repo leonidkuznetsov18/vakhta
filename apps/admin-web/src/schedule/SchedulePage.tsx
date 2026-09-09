@@ -466,7 +466,7 @@ export function SchedulePage() {
 
       <Feedback error={error} />
 
-      {presetHere && preset && !presetInGrid && (
+      {presetHere && preset && !preset.orgUnitId && !presetInGrid && (
         <Alert>
           <AlertTitle className="flex items-center gap-1">
             {format(s.presetTitle, { n: preset.people.length })}
@@ -715,7 +715,10 @@ export function SchedulePage() {
             {editable && !revising && (
               <>
                 <Button type="button" disabled={busy || !dirty} onClick={save}>
-                  {s.save} ({countShifts(grid)})
+                  {/* What the button is about to write, not how big the month is: on a version
+                      that already holds two hundred shifts, "Save (200)" for one edited cell
+                      counted the month rather than the work. */}
+                  {s.save} ({countChanges(baseline, grid)})
                 </Button>
                 {/* An empty month is refused by the server (SCHEDULE_EMPTY), so the button says
                     so first instead of spending a round trip on a 422. */}
