@@ -31,6 +31,7 @@ import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { isBlank } from '@/lib/forms';
 import { notifySuccess } from '@/lib/toast';
+import { cn } from 'cn';
 import { EyeIcon, FlagIcon, SendIcon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Textarea } from '@/components/ui/textarea';
@@ -411,7 +412,7 @@ export function OperationsPage() {
     return (
       /* Clicking the row opens and closes it, so a "close" button inside repeats what the row
          already does. Two columns: what the master can do, and what the shift has done. */
-      <div className="grid items-start gap-6 py-1 md:grid-cols-2" data-testid="shift-detail">
+      <div className="grid items-start gap-6 py-1 md:grid-cols-3" data-testid="shift-detail">
         {/* One control under another: the action, then the reason it needs, then the comment, then
             the button. Side by side the four read as unrelated fields on a single line. */}
         <form
@@ -485,7 +486,7 @@ export function OperationsPage() {
           </div>
         </form>
         {detail?.session?.id === row.id ? (
-          <DetailPanel detail={detail} />
+          <DetailPanel detail={detail} className="md:col-span-2" />
         ) : (
           <Muted>{all.ui.common.loading}</Muted>
         )}
@@ -667,9 +668,17 @@ export function OperationsPage() {
   );
 }
 
-function DetailPanel({ detail }: { readonly detail: ShiftDetailView }) {
+function DetailPanel({
+  detail,
+  className,
+}: {
+  readonly detail: ShiftDetailView;
+  readonly className?: string;
+}) {
   return (
-    <div className="flex flex-col gap-4">
+    // Side by side: a full day is twenty intervals and forty events, and one under the other made
+    // a column two screens tall out of two lists that each fit in half the width.
+    <div className={cn('grid items-start gap-4 sm:grid-cols-2', className)}>
       <div>
         <h3 className="mb-2 text-sm font-semibold">{o.intervals}</h3>
         <ul className="flex flex-col gap-1 text-sm">
@@ -700,7 +709,7 @@ function DetailPanel({ detail }: { readonly detail: ShiftDetailView }) {
         </ul>
       </div>
       {detail.summary && (
-        <div className="md:col-span-2">
+        <div className="sm:col-span-2">
           <h3 className="mb-2 text-sm font-semibold">{o.summary}</h3>
           <p className="text-sm">
             {detail.summary.totalMinutes} {o.minutes} · {all.states.WORKING.toLowerCase()}{' '}
