@@ -19,6 +19,7 @@ import type {
   CheckInFailure,
   EmployeeAccess,
   ShiftAction,
+  UserShiftAction,
   ShiftState,
   CommandErrorCode,
   ValidationIssueCode,
@@ -155,6 +156,8 @@ export interface Messages {
     readonly summaryOvertime: string;
     readonly summaryOvertimePending: string;
     readonly flagged: string;
+    /** Placeholder: {text} — what the master typed in the panel. */
+    readonly masterMessage: string;
     /** Placeholders: {state}, {limit} */
     readonly returnReminder: string;
     /** Placeholders: {name}, {minutes}, {reason} */
@@ -575,7 +578,13 @@ export interface Messages {
       readonly needsClarification: string;
       readonly zoneNotAccepted: string;
       readonly closedNoChecklist: string;
+      readonly sendMessage: string;
+      /** Placeholder: {employee} */
+      readonly messageSent: string;
       readonly masterAction: string;
+      /** What the master's action does to the shift, said in the panel's own words: the
+       *  catalog above holds the buttons the employee sees in the bot. */
+      readonly masterActionLabels: Readonly<Record<UserShiftAction, string>>;
       readonly comment: string;
       readonly apply: string;
       /** Placeholders: {employee}, {action}, {state} */
@@ -1340,6 +1349,7 @@ export interface Messages {
       readonly language: string;
       readonly operationsScope: string;
       readonly operationsDate: string;
+      readonly operationsMessage: string;
       readonly operationsMasterAction: string;
       readonly operationsClarify: string;
       readonly operationsStartFor: string;

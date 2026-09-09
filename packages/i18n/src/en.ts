@@ -169,6 +169,7 @@ export const en: Messages = {
     summaryOvertime: 'Over plan: {minutes} min.',
     summaryOvertimePending: 'Overtime awaits the manager decision.',
     flagged: 'The shift is marked "needs review". The shift master will clarify the details.',
+    masterMessage: 'A message from your shift master:\n\n{text}',
     returnReminder:
       'You have been in "{state}" for {limit} min. Press "Return" when you continue working.',
     downtimeEscalation:
@@ -707,7 +708,26 @@ export const en: Messages = {
       needsClarification: 'Needs review',
       zoneNotAccepted: 'Zone not accepted',
       closedNoChecklist: 'Closed without a checklist',
+      sendMessage: 'Send',
+      messageSent: 'Message sent to {employee}.',
       masterAction: 'Shift master action',
+      masterActionLabels: {
+        START_SHIFT: '▶️ Open the shift',
+        START_WORK: '🛠 Move to work',
+        START_BREAK: '☕ Break',
+        START_MEAL: '🍽 Meal',
+        START_SERVICE_TIME: '🧰 Service time',
+        START_DOWNTIME: '⛔ Start downtime',
+        RESUME: '↩️ Back to work',
+        START_CLEANING: '🧹 Cleaning and checklist',
+        CLEANING_DONE: '📋 Cleaning finished',
+        BACK_TO_CLEANING: '🧹 Back to cleaning',
+        BACK_TO_WORK: '🛠 Back to work',
+        SUBMIT_HANDOVER: '📤 Send the handover report',
+        CONTINUE_WORK: '🔄 Continue working',
+        CLOSE_SHIFT: '🏁 Close the shift',
+        EMERGENCY_EXIT: '🚨 Emergency exit',
+      },
       comment: 'Comment (required)',
       apply: 'Apply',
       applied: '{employee}: {action}. Shift state: {state}.',
@@ -2035,6 +2055,8 @@ export const en: Messages = {
         'Which shifts to list: open, closed or all. Without a date, "closed" means the last 24 hours.',
       operationsDate:
         'List the shifts of the chosen day instead of the live picture. "Show current" brings the live screen back.',
+      operationsMessage:
+        'The comment goes into the record of the action, and "Message on Telegram" sends the same text to the employee\'s bot. Neither changes the state of the shift.',
       operationsMasterAction:
         'The transition runs on behalf of the shift master, bypassing bot guards. The comment is mandatory and audited.',
       operationsClarify:

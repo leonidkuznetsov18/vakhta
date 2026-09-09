@@ -166,6 +166,7 @@ export const ru: Messages = {
     summaryOvertime: 'Сверх плана: {minutes} мин.',
     summaryOvertimePending: 'Переработка ждёт решения руководителя.',
     flagged: 'Смена отмечена «нужна проверка». Мастер уточнит детали.',
+    masterMessage: 'Сообщение от мастера:\n\n{text}',
     returnReminder:
       'Вы в состоянии «{state}» уже {limit} мин. Нажмите «Вернуться», когда продолжите работу.',
     downtimeEscalation:
@@ -705,7 +706,26 @@ export const ru: Messages = {
       needsClarification: 'Нужна проверка',
       zoneNotAccepted: 'Зона не принята',
       closedNoChecklist: 'Закрыто без чек-листа',
+      sendMessage: 'Отправить',
+      messageSent: 'Сообщение отправлено: {employee}.',
       masterAction: 'Действие мастера',
+      masterActionLabels: {
+        START_SHIFT: '▶️ Открыть смену',
+        START_WORK: '🛠 Перевести в работу',
+        START_BREAK: '☕ Перерыв',
+        START_MEAL: '🍽 Обед',
+        START_SERVICE_TIME: '🧰 Служебное время',
+        START_DOWNTIME: '⛔ Начать простой',
+        RESUME: '↩️ Вернуть в работу',
+        START_CLEANING: '🧹 Уборка и чек-лист',
+        CLEANING_DONE: '📋 Уборка завершена',
+        BACK_TO_CLEANING: '🧹 Вернуть к уборке',
+        BACK_TO_WORK: '🛠 Вернуть в работу',
+        SUBMIT_HANDOVER: '📤 Отправить отчёт передачи',
+        CONTINUE_WORK: '🔄 Продолжить работу',
+        CLOSE_SHIFT: '🏁 Закрыть смену',
+        EMERGENCY_EXIT: '🚨 Экстренный выход',
+      },
       comment: 'Комментарий (обязательно)',
       apply: 'Выполнить',
       applied: '{employee}: {action}. Состояние смены: {state}.',
@@ -2035,6 +2055,8 @@ export const ru: Messages = {
         'Какие смены показывать: открытые, закрытые или все. Без даты «закрытые» — это последние 24 часа.',
       operationsDate:
         'Показать смены за выбранный день вместо текущей картины. «Показать текущие» возвращает живой экран.',
+      operationsMessage:
+        'Комментарий идёт в запись действия, а кнопка «Написать в Telegram» отправляет этот же текст сотруднику в бот. Состояние смены при этом не меняется.',
       operationsMasterAction:
         'Переход выполняется от имени мастера в обход проверок бота. Комментарий обязателен и попадает в аудит.',
       operationsClarify:

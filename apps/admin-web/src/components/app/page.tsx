@@ -9,6 +9,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { InfoTip } from '@/components/app/info-tip';
 import { currentLocale } from '@/i18n';
 import { cn } from 'cn';
@@ -90,18 +91,35 @@ export function Muted({
 /** Live-updates indicator for pages fed by server-sent events. */
 export function LiveBadge({ live, hint }: { readonly live: boolean; readonly hint?: string }) {
   const o = messages(currentLocale()).admin.operations;
+  const state = live ? o.live : o.offline;
+  // A dot, not a sentence: the state is either "green, fine" or "red, reload", and a line of text
+  // in the toolbar took the room of a control to say it. The words stay a hover and a screen
+  // reader away, so nothing is lost.
   return (
     <div className="flex items-center gap-1" aria-live="polite">
-      <Badge variant={live ? 'default' : 'outline'}>
-        <span
-          aria-hidden="true"
-          className={cn(
-            'mr-1 inline-block size-1.5 rounded-full',
-            live ? 'bg-primary-foreground' : 'bg-muted-foreground',
-          )}
-        />
-        {live ? o.live : o.offline}
-      </Badge>
+      {/* Its own provider, like the info tip: a page rendered on its own (a test, a preview) has
+          no app-level one, and a tooltip without a provider throws. */}
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              tabIndex={0}
+              role="status"
+              aria-label={state}
+              className="inline-flex size-6 cursor-default items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'inline-block size-2.5 rounded-full',
+                  live ? 'bg-emerald-500' : 'bg-red-500',
+                )}
+              />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{state}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       {hint ? <InfoTip text={hint} /> : null}
     </div>
   );
@@ -114,6 +132,14 @@ export function LiveBadge({ live, hint }: { readonly live: boolean; readonly hin
  */
 export const SELECTED_TOGGLE =
   'border-emerald-500 text-foreground shadow-sm shadow-emerald-100 dark:border-emerald-600 dark:shadow-none';
+
+/**
+ * A table row that needs attention: red, and still red once it is opened. The selected-row
+ * background is written under the same variant, so without repeating the tint there the highlight
+ * painted over exactly the rows that were worth marking.
+ */
+export const ROW_DANGER =
+  'bg-red-50/60 data-[state=selected]:bg-red-50/60 dark:bg-red-950/30 dark:data-[state=selected]:bg-red-950/30';
 
 export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
 

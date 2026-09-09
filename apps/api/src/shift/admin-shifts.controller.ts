@@ -15,6 +15,7 @@ import { interval, map, merge, type Observable } from 'rxjs';
 import {
   ActiveShiftsQuery,
   ClarifyShiftCommand,
+  ShiftMessageCommand,
   MasterStartShiftCommand,
   MasterTransitionCommand,
   type ActiveShiftView,
@@ -94,6 +95,18 @@ export class AdminShiftsController {
     @CurrentUser() user: WebUser,
   ): Promise<TransitionResponse> {
     return this.shifts.masterTransition(id, body, webUserActor(user));
+  }
+
+  /** Words, not a transition: the shift only says whom to write to. */
+  @Post(':id/message')
+  @HttpCode(204)
+  @Roles(...MASTERS)
+  async message(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(ShiftMessageCommand)) body: ShiftMessageCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<void> {
+    await this.shifts.message(id, body.text, webUserActor(user));
   }
 
   @Post(':id/clarify')

@@ -60,6 +60,7 @@ import type {
   ShiftSummaryView,
   TransitionResponse,
 } from '@vakhta/contracts';
+import { format } from '@vakhta/i18n';
 import { summaryLines } from '../telegram/screens.js';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import type { Actor } from '../common/actor.js';
@@ -619,6 +620,46 @@ export class ShiftService {
       source: 'WEB',
     });
     return view;
+  }
+
+  /**
+   * A message from the master to the employee's bot (spec 9.2): no state changes, the shift is only
+   * the address. A closed shift still has a person behind it, which is exactly when a master needs
+   * to ask why the checklist never came.
+   */
+  async message(
+    sessionId: string,
+    text: string,
+    actor: Actor,
+    now: Date = new Date(),
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const session = await this.requireSession(sessionId, tx);
+      await this.events.append(tx, {
+        type: 'SHIFT_MESSAGE_SENT',
+        source: 'WEB',
+        actor,
+        occurredAt: now,
+        employeeId: session.employeeId,
+        shiftSessionId: sessionId,
+        comment: text,
+        payload: { state: session.state },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'shift.message',
+        objectType: 'shift_session',
+        objectId: sessionId,
+        reason: text,
+      });
+      await this.notifications.enqueue(tx, {
+        recipientType: 'EMPLOYEE',
+        recipientId: session.employeeId,
+        template: 'MASTER_MESSAGE',
+        payload: (t) => ({ text: format(t.shift.masterMessage, { text }) }),
+        dedupeKey: `shift-message:${sessionId}:${now.getTime()}`,
+      });
+    });
   }
 
   /* ------------------------------------------------------------------ */

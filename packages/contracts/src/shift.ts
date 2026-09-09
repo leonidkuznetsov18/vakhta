@@ -63,6 +63,10 @@ export type MasterStartShiftCommand = z.infer<typeof MasterStartShiftCommand>;
 export const ClarifyShiftCommand = z.object({ reason: z.string().trim().min(3).max(1000) });
 export type ClarifyShiftCommand = z.infer<typeof ClarifyShiftCommand>;
 
+/** A note from the master straight to the employee's bot; it changes no state. */
+export const ShiftMessageCommand = z.object({ text: z.string().trim().min(3).max(1000) });
+export type ShiftMessageCommand = z.infer<typeof ShiftMessageCommand>;
+
 export const ShiftSessionView = z.object({
   id: Uuid,
   employeeId: Uuid,

@@ -443,7 +443,10 @@ export function DataTable<T>({
                       <TableRow
                         className={cn(
                           onRowClick && 'cursor-pointer',
-                          activeKey === key && 'bg-accent/60',
+                          // Repeated under the selected variant so a row that carries its own
+                          // tone (an incident, a shift closed without a checklist) keeps that tone
+                          // when it is opened: the plain class alone lost to `data-state=selected`.
+                          activeKey === key && 'bg-accent/60 data-[state=selected]:bg-accent/60',
                           rowClassName?.(row),
                         )}
                         data-state={activeKey === key ? 'selected' : undefined}

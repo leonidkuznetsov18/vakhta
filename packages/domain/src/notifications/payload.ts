@@ -20,6 +20,8 @@ export const NOTIFICATION_TEMPLATES = [
   'DOWNTIME_ESCALATION',
   'SHIFT_SUMMARY',
   'SHIFT_FLAGGED',
+  /** Free text a master sends to one employee from the live-shift screen. */
+  'MASTER_MESSAGE',
   'INCIDENT_RESOLVED',
   'CLEANING_REMINDER',
   'HANDOVER_PENDING',

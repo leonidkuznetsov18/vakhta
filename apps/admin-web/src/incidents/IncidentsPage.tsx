@@ -19,7 +19,15 @@ import { Feedback } from '@/components/app/feedback';
 import { DateField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
-import { LiveBadge, Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
+import {
+  LiveBadge,
+  Muted,
+  ROW_DANGER,
+  Section,
+  StatusPill,
+  type Tone,
+  Toolbar,
+} from '@/components/app/page';
 import { formatTime } from '@/lib/format';
 import { incidentsApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
@@ -351,7 +359,7 @@ export function IncidentsPage() {
         ]}
         rowKey={(row) => row.id}
         empty={i.empty}
-        rowClassName={(row) => (row.slaBreached ? 'bg-red-50/60 dark:bg-red-950/30' : undefined)}
+        rowClassName={(row) => (row.slaBreached ? ROW_DANGER : undefined)}
         activeKey={openId}
       />
       {dialog}

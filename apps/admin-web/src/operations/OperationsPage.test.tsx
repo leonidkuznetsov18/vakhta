@@ -194,7 +194,10 @@ describe('OperationsPage', () => {
     expect(source.url).toContain('/admin/shifts/stream');
     expect(source.init?.withCredentials).toBe(true);
     source.onopen?.();
-    expect(await screen.findByText('Обновляется в реальном времени')).toBeTruthy();
+    // The live state is a dot; its words live in the accessible name and the tooltip.
+    expect(
+      await screen.findByRole('status', { name: 'Обновляется в реальном времени' }),
+    ).toBeTruthy();
 
     state.rows = [row('WORKING', 4)];
     const before = calls.filter((c) => c.path === '/admin/shifts').length;
@@ -217,7 +220,9 @@ describe('OperationsPage', () => {
       target: { value: 'Вернулся, забыл нажать' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Выполнить' }));
-    await screen.findByText('Кузнецов Леонид: Вернуться. Состояние смены: Основная работа.');
+    await screen.findByText(
+      'Кузнецов Леонид: ↩️ Вернуть в работу. Состояние смены: Основная работа.',
+    );
     const call = calls.find((c) => c.path.endsWith('/transition'));
     expect(call?.body).toMatchObject({
       action: 'RESUME',

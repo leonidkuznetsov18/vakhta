@@ -328,6 +328,8 @@ export const shiftsApi = {
     post<TransitionResponse>(`/admin/shifts/${id}/transition`, cmd),
   clarify: (id: string, reason: string) =>
     post<ShiftSessionView>(`/admin/shifts/${id}/clarify`, { reason }),
+  /** Words to the employee's bot; the shift is only the address, nothing changes state. */
+  message: (id: string, text: string) => post<void>(`/admin/shifts/${id}/message`, { text }),
   start: (cmd: MasterStartShiftCommand) => post<TransitionResponse>('/admin/shifts/start', cmd),
   /** SSE: cookie сесії передається з withCredentials. */
   streamUrl: () => `${API_URL}/admin/shifts/stream`,

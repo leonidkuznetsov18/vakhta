@@ -15,7 +15,15 @@ import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
-import { LiveBadge, Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
+import {
+  LiveBadge,
+  Muted,
+  ROW_DANGER,
+  Section,
+  StatusPill,
+  type Tone,
+  Toolbar,
+} from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
 import { requestsApi, shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
@@ -319,7 +327,7 @@ export function RequestsPage() {
         ]}
         rowKey={(req) => req.id}
         empty={r.empty}
-        rowClassName={(req) => (req.overdue ? 'bg-red-50/60 dark:bg-red-950/30' : undefined)}
+        rowClassName={(req) => (req.overdue ? ROW_DANGER : undefined)}
         activeKey={openId}
       />
       {openRow && (

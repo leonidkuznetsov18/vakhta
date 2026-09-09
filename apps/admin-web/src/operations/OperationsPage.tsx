@@ -16,7 +16,14 @@ import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { DateField } from '@/components/app/date-picker';
 import { InfoTip } from '@/components/app/info-tip';
-import { LiveBadge, Muted, StatusPill, Toolbar, type Tone } from '@/components/app/page';
+import {
+  LiveBadge,
+  Muted,
+  ROW_DANGER,
+  StatusPill,
+  type Tone,
+  Toolbar,
+} from '@/components/app/page';
 import { formatTime } from '@/lib/format';
 import { employeesApi, orgApi, shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
@@ -24,7 +31,7 @@ import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { isBlank } from '@/lib/forms';
 import { notifySuccess } from '@/lib/toast';
-import { EyeIcon, FlagIcon } from 'lucide-react';
+import { EyeIcon, FlagIcon, SendIcon } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -254,7 +261,7 @@ export function OperationsPage() {
         notifySuccess(
           format(o.applied, {
             employee: row.fullName,
-            action: all.actions[act],
+            action: o.masterActionLabels[act],
             state: all.states[result.session.state],
           }),
         );
@@ -262,6 +269,18 @@ export function OperationsPage() {
         setReason((r) => ({ ...r, [row.id]: '' }));
       }
       await reload();
+    });
+  }
+
+  /** The comment as a message to the employee's bot: available on a closed shift too, which is
+      exactly when a master needs to ask why the checklist never came. */
+  function sendMessage(row: ActiveShiftView) {
+    const text = (comment[row.id] ?? '').trim();
+    if (text.length < 3) return;
+    void run(async () => {
+      await shiftsApi.message(row.id, text);
+      notifySuccess(format(o.messageSent, { employee: row.fullName }));
+      setComment((c) => ({ ...c, [row.id]: '' }));
     });
   }
 
@@ -395,14 +414,14 @@ export function OperationsPage() {
       <div className="grid items-start gap-6 py-1 md:grid-cols-2" data-testid="shift-detail">
         {/* One control under another: the action, then the reason it needs, then the comment, then
             the button. Side by side the four read as unrelated fields on a single line. */}
-        {row.endedAt === null && (
-          <form
-            className="flex max-w-2xl flex-col gap-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              applyAction(row);
-            }}
-          >
+        <form
+          className="flex max-w-2xl flex-col gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            applyAction(row);
+          }}
+        >
+          {row.endedAt === null && (
             <SelectField
               label={o.masterAction}
               searchable={false}
@@ -416,36 +435,38 @@ export function OperationsPage() {
               required
               options={masterActions(row).map((a) => ({
                 value: a,
-                label: all.actions[a],
+                label: o.masterActionLabels[a],
               }))}
             />
-            {/* A reason only appears for the two actions the directory governs; showing it always
-                would leave an empty control on every other action, and hiding it when the action
-                needs one is what produced "specify a reason" with nowhere to specify it. */}
-            {reasonKindFor(action[row.id]) && (
-              <SelectField
-                label={o.masterReason}
-                searchable={false}
-                value={reason[row.id] ?? ''}
-                onChange={(v) => setReason((r) => ({ ...r, [row.id]: v }))}
-                placeholder="…"
-                required
-                options={reasonOptions(action[row.id])}
+          )}
+          {/* A reason only appears for the two actions the directory governs; showing it always
+              would leave an empty control on every other action, and hiding it when the action
+              needs one is what produced "specify a reason" with nowhere to specify it. */}
+          {row.endedAt === null && reasonKindFor(action[row.id]) && (
+            <SelectField
+              label={o.masterReason}
+              searchable={false}
+              value={reason[row.id] ?? ''}
+              onChange={(v) => setReason((r) => ({ ...r, [row.id]: v }))}
+              placeholder="…"
+              required
+              options={reasonOptions(action[row.id])}
+            />
+          )}
+          <FormField label={o.comment} hint={hints.operationsMessage}>
+            {(id) => (
+              <Textarea
+                id={id}
+                rows={2}
+                value={comment[row.id] ?? ''}
+                onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}
+                minLength={3}
+                required={row.endedAt === null}
               />
             )}
-            <FormField label={o.comment}>
-              {(id) => (
-                <Textarea
-                  id={id}
-                  rows={2}
-                  value={comment[row.id] ?? ''}
-                  onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}
-                  minLength={3}
-                  required
-                />
-              )}
-            </FormField>
-            <div>
+          </FormField>
+          <div className="flex flex-wrap gap-2">
+            {row.endedAt === null && (
               <Button
                 type="submit"
                 variant="secondary"
@@ -458,9 +479,18 @@ export function OperationsPage() {
               >
                 {o.apply}
               </Button>
-            </div>
-          </form>
-        )}
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy || isBlank(comment[row.id])}
+              onClick={() => sendMessage(row)}
+            >
+              <SendIcon aria-hidden="true" />
+              {o.sendMessage}
+            </Button>
+          </div>
+        </form>
         {detail?.session?.id === row.id ? (
           <DetailPanel detail={detail} />
         ) : (
@@ -633,9 +663,7 @@ export function OperationsPage() {
         rowKey={(row) => row.id}
         empty={o.empty}
         rowClassName={(row) =>
-          row.needsClarification || row.autoCloseReason === 'NO_CHECKLIST'
-            ? 'bg-red-50/60 dark:bg-red-950/30'
-            : undefined
+          row.needsClarification || row.autoCloseReason === 'NO_CHECKLIST' ? ROW_DANGER : undefined
         }
         activeKey={openId}
         expanded={(row) => (row.id === openId ? renderDetail(row) : null)}

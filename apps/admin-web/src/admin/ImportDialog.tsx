@@ -17,7 +17,7 @@ import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback, useAction } from '@/components/app/feedback';
 import { FormField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
-import { Muted, StatusPill } from '@/components/app/page';
+import { Muted, ROW_DANGER, StatusPill } from '@/components/app/page';
 import { employeesFromCsv, type EmployeeRow } from '@/lib/csv';
 import { adminEmployeesApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
@@ -140,7 +140,7 @@ export function ImportDialog({
                 empty={t.common.empty}
                 pageSize={10}
                 caption={e.importPreview}
-                rowClassName={(r) => (r.error ? 'bg-red-50/60 dark:bg-red-950/30' : undefined)}
+                rowClassName={(r) => (r.error ? ROW_DANGER : undefined)}
               />
             </>
           )}

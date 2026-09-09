@@ -468,6 +468,14 @@ describe('shift: машина станів зміни в транзакції (�
     );
     expect(flagged.needsClarification).toBe(true);
 
+    // Words, not a transition: the message reaches the employee's bot and the state is untouched.
+    await service.message(started.session.id, 'Позвони мне после смены', MASTER);
+    const outbox = await testDb.db.select().from(notificationOutbox);
+    const sent = outbox.filter((o) => o.template === 'MASTER_MESSAGE');
+    expect(sent).toHaveLength(1);
+    expect((sent[0]!.payload as { text: string }).text).toContain('Позвони мне после смены');
+    expect((await service.activeSession(started.session.employeeId))?.state).toBe('WORKING');
+
     const list = await service.listActive({});
     // "show closed within a day" used to pass a Date into raw SQL and answered 500
     const withClosed = await service.listActive({ scope: 'ALL' });
@@ -493,6 +501,7 @@ describe('shift: машина станів зміни в транзакції (�
       'SHIFT_STARTED',
       'WORK_STARTED',
       'SHIFT_FLAGGED_FOR_REVIEW',
+      'SHIFT_MESSAGE_SENT',
     ]);
   });
 

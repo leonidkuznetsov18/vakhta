@@ -13,7 +13,14 @@ import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
-import { LiveBadge, Muted, StatusPill, Toolbar, type Tone } from '@/components/app/page';
+import {
+  LiveBadge,
+  Muted,
+  ROW_DANGER,
+  StatusPill,
+  type Tone,
+  Toolbar,
+} from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
 import { handoversApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
@@ -371,7 +378,7 @@ export function HandoverPage() {
         ]}
         rowKey={(row) => row.id}
         empty={h.empty}
-        rowClassName={(row) => (row.overdue ? 'bg-red-50/60 dark:bg-red-950/30' : undefined)}
+        rowClassName={(row) => (row.overdue ? ROW_DANGER : undefined)}
         activeKey={openId}
         expanded={(row) => (row.id === openId ? renderDetail(row) : null)}
       />

@@ -167,6 +167,7 @@ export const uk: Messages = {
     summaryOvertime: 'Понад план: {minutes} хв.',
     summaryOvertimePending: 'Переробка чекає на рішення керівника.',
     flagged: 'Зміну позначено «потрібна перевірка». Майстер уточнить деталі.',
+    masterMessage: 'Повідомлення від майстра:\n\n{text}',
     returnReminder:
       'Ви в стані «{state}» уже {limit} хв. Натисніть «Повернутися», коли продовжите роботу.',
     downtimeEscalation: 'Простій {name}: {minutes} хв, причина «{reason}». Потрібна увага майстра.',
@@ -707,7 +708,26 @@ export const uk: Messages = {
       needsClarification: 'Потрібна перевірка',
       zoneNotAccepted: 'Зону не прийнято',
       closedNoChecklist: 'Закрито без чек-листа',
+      sendMessage: 'Відправити',
+      messageSent: 'Повідомлення надіслано: {employee}.',
       masterAction: 'Дія майстра',
+      masterActionLabels: {
+        START_SHIFT: '▶️ Відкрити зміну',
+        START_WORK: '🛠 Перевести в роботу',
+        START_BREAK: '☕ Перерва',
+        START_MEAL: '🍽 Обід',
+        START_SERVICE_TIME: '🧰 Службовий час',
+        START_DOWNTIME: '⛔ Почати простій',
+        RESUME: '↩️ Повернути в роботу',
+        START_CLEANING: '🧹 Прибирання і чек-лист',
+        CLEANING_DONE: '📋 Прибирання завершено',
+        BACK_TO_CLEANING: '🧹 Повернути до прибирання',
+        BACK_TO_WORK: '🛠 Повернути в роботу',
+        SUBMIT_HANDOVER: '📤 Відправити звіт передачі',
+        CONTINUE_WORK: '🔄 Продовжити роботу',
+        CLOSE_SHIFT: '🏁 Закрити зміну',
+        EMERGENCY_EXIT: '🚨 Екстрений вихід',
+      },
       comment: 'Коментар (обовʼязково)',
       apply: 'Виконати',
       applied: '{employee}: {action}. Стан зміни: {state}.',
@@ -2036,6 +2056,8 @@ export const uk: Messages = {
         'Які зміни показувати: відкриті, закриті або всі. Без дати «закриті» — це останні 24 години.',
       operationsDate:
         'Показати зміни за обраний день замість поточної картини. «Показати поточні» повертає живий екран.',
+      operationsMessage:
+        'Коментар іде в запис дії, а кнопка «Написати в Telegram» надсилає цей самий текст працівнику в бот. Стан зміни при цьому не змінюється.',
       operationsMasterAction:
         'Перехід виконується від імені майстра в обхід перевірок бота. Коментар обовʼязковий і потрапляє в аудит.',
       operationsClarify:
