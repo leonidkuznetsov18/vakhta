@@ -1,3 +1,9 @@
+## [0.56.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.56.0...v0.56.1) (2026-09-09)
+
+### Refactoring
+
+* **schedule:** the grid says who and how many, nothing above it repeats them ([0218c51](https://github.com/leonidkuznetsov18/vakhta/commit/0218c517847e44190eb9e877d982fa2049330d0c))
+
 ## [0.56.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.55.0...v0.56.0) (2026-09-09)
 
 ### Features
