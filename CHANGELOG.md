@@ -1,3 +1,9 @@
+## [0.59.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.58.0...v0.59.0) (2026-09-09)
+
+### Features
+
+* **operations:** the master's own action names, a message to the employee, a live dot ([4e77078](https://github.com/leonidkuznetsov18/vakhta/commit/4e770787cc5818ab5b38e15d036e1609913b4ae2))
+
 ## [0.58.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.57.0...v0.58.0) (2026-09-09)
 
 ### Features
