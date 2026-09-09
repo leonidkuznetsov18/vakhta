@@ -479,7 +479,12 @@ export function DataTable<T>({
                       </TableRow>
                       {extra ? (
                         <TableRow className="hover:bg-transparent">
-                          <TableCell colSpan={span} className="bg-muted/40 p-4">
+                          {/* The detail belongs to its row, so it wears the row's tone: a grey
+                              panel under a red row read as a different, calmer thing. */}
+                          <TableCell
+                            colSpan={span}
+                            className={cn('bg-muted/40 p-4', rowClassName?.(row))}
+                          >
                             {extra}
                           </TableCell>
                         </TableRow>
