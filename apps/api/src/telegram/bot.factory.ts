@@ -138,6 +138,11 @@ interface PendingReport {
   readonly step: 'comment' | 'photo' | 'stop';
   readonly comment?: string;
   readonly photoFileId?: string;
+  /** Sent with the file id: the media object cannot be registered without it. */
+  readonly photoFileUniqueId?: string;
+  readonly photoSizeBytes?: number;
+  readonly photoWidth?: number;
+  readonly photoHeight?: number;
   readonly requiresPhoto: boolean;
 }
 const PENDING_TTL_SECONDS = 600;
@@ -572,6 +577,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
           idempotencyKey: `tg:${ctx.update.update_id}`,
           ...(pending.comment ? { comment: pending.comment } : {}),
           ...(pending.photoFileId ? { photoFileId: pending.photoFileId } : {}),
+          ...(pending.photoFileUniqueId ? { photoFileUniqueId: pending.photoFileUniqueId } : {}),
+          ...(pending.photoSizeBytes ? { photoSizeBytes: pending.photoSizeBytes } : {}),
+          ...(pending.photoWidth ? { photoWidth: pending.photoWidth } : {}),
+          ...(pending.photoHeight ? { photoHeight: pending.photoHeight } : {}),
         },
         employeeActor(ctx.employee.id),
       );
@@ -1288,7 +1297,15 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     if (pending?.step === 'photo') {
       return nextStep(ctx, {
         ...pending,
-        ...(largest ? { photoFileId: largest.file_id } : {}),
+        ...(largest
+          ? {
+              photoFileId: largest.file_id,
+              photoFileUniqueId: largest.file_unique_id,
+              ...(largest.file_size ? { photoSizeBytes: largest.file_size } : {}),
+              photoWidth: largest.width,
+              photoHeight: largest.height,
+            }
+          : {}),
         step: 'stop',
       });
     }

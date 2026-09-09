@@ -61,7 +61,7 @@ class FakeEventSource {
   close() {}
 }
 
-function mockApi(state: { rows: ReturnType<typeof incident>[] }) {
+function mockApi(state: { rows: ReturnType<typeof incident>[]; media?: unknown }) {
   const calls: { method: string; path: string; body: unknown }[] = [];
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
@@ -108,6 +108,7 @@ function mockApi(state: { rows: ReturnType<typeof incident>[] }) {
               stoppedWork: true,
               reportedAt: '2026-09-07T06:00:00.000Z',
               hasPhoto: true,
+              media: state.media ?? null,
             },
           ],
           history: [
@@ -124,6 +125,9 @@ function mockApi(state: { rows: ReturnType<typeof incident>[] }) {
           duplicates: [],
           serverTime: 'x',
         });
+      }
+      if (url.pathname.startsWith('/admin/incidents/media/')) {
+        return json({ url: 'https://storage.example/incident.jpg?signed=1', expiresAt: 'x' });
       }
       if (url.pathname === `/admin/incidents/${INC}/transition`) {
         state.rows = [incident(INC, body.to, { acknowledgedAt: 'x' }), ...state.rows.slice(1)];
@@ -168,6 +172,29 @@ describe('IncidentsPage', () => {
       comment: 'Иду смотреть',
     });
     expect((await screen.findAllByText('Подтверждён')).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('the photo of a report is shown, not the word "photo"', async () => {
+    mockApi({
+      rows: [incident(INC, 'REPORTED')],
+      media: {
+        id: 'm1',
+        quality: 'OK',
+        width: 1280,
+        height: 960,
+        receivedAt: '2026-09-07T06:00:30.000Z',
+        processedAt: '2026-09-07T06:01:00.000Z',
+        duplicateOfId: null,
+      },
+    });
+    render(<IncidentsPage />);
+    await screen.findAllByText('Поломка');
+    await clickRowAction('Подробности');
+
+    // The thumbnail arrives behind a signed link, and the line stops saying the word.
+    const thumb = await screen.findByAltText(/Кузнецов Леонид/);
+    expect(thumb.getAttribute('src')).toBe('https://storage.example/incident.jpg?signed=1');
+    expect(screen.queryByText(/· фото ·/)).toBeNull();
   });
 
   it('a duplicate requires choosing the primary incident; an SSE event re-reads the list', async () => {

@@ -150,6 +150,8 @@ export class IncidentsService {
     const place = session.assignmentId ? await this.placeOf(session.assignmentId) : null;
     const deferred: DeferredTimer[] = [];
     let scheduleSla: { id: string; dueAt: Date } | null = null;
+    /** Registered inside the transaction, fetched from Telegram after it commits. */
+    let photoId: string | null = null;
 
     const result = await this.db.transaction(async (tx): Promise<ReportProblemResult> => {
       const candidates = session.zoneId
@@ -224,6 +226,24 @@ export class IncidentsService {
         if (!escalatesImmediately(severity)) scheduleSla = { id: incident.id, dueAt };
       }
 
+      // A photo of a problem becomes a media object like a checklist photo does: registered here,
+      // pulled out of Telegram by the worker, and shown in the panel afterwards. Without this the
+      // report kept a Telegram file id nobody could turn into a picture.
+      const photo =
+        cmd.photoFileId && cmd.photoFileUniqueId
+          ? await this.media.register(tx, {
+              telegramFileId: cmd.photoFileId,
+              telegramFileUniqueId: cmd.photoFileUniqueId,
+              uploadedBy: employeeId,
+              purpose: 'incident',
+              sizeBytes: cmd.photoSizeBytes,
+              width: cmd.photoWidth,
+              height: cmd.photoHeight,
+              now,
+            })
+          : null;
+      photoId = photo?.id ?? null;
+
       const [report] = await tx
         .insert(downtimeReports)
         .values({
@@ -236,6 +256,7 @@ export class IncidentsService {
           stoppedWork: cmd.stoppedWork,
           reportedAt: now,
           telegramFileId: cmd.photoFileId ?? null,
+          mediaObjectId: photo?.id ?? null,
         })
         .returning();
       if (!report) throw new Error('downtime_reports: insert не повернув рядок');
@@ -311,6 +332,7 @@ export class IncidentsService {
       return response;
     });
 
+    if (photoId) await this.media.enqueue(photoId);
     for (const run of deferred) await run();
     if (scheduleSla) {
       const { id, dueAt } = scheduleSla;

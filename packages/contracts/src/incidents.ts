@@ -14,6 +14,11 @@ export const ReportProblemCommand = z.object({
   idempotencyKey: IdempotencyKey,
   /** Telegram file_id фото; у S3 переносить воркер фази 4. */
   photoFileId: z.string().min(1).max(200).optional(),
+  /** Telegram file_unique_id: without it the photo cannot become a media object. */
+  photoFileUniqueId: z.string().min(1).max(200).optional(),
+  photoSizeBytes: z.number().int().positive().optional(),
+  photoWidth: z.number().int().positive().optional(),
+  photoHeight: z.number().int().positive().optional(),
 });
 export type ReportProblemCommand = z.infer<typeof ReportProblemCommand>;
 

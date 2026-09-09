@@ -3,6 +3,7 @@ import {
   domainEvents,
   downtimeIncidents,
   downtimeReports,
+  mediaObjects,
   employees,
   eq,
   incidentStatusHistory,
@@ -216,6 +217,51 @@ describe('incidents: повідомлення про проблему, дубл�
     expect(incident!.slaDueAt.getTime() - incident!.openedAt.getTime()).toBe(60 * 60_000);
     const history = await testDb.db.select().from(incidentStatusHistory);
     expect(history.map((h) => h.toStatus)).toEqual(['REPORTED']);
+  });
+
+  it('a photo of a problem becomes a media object the panel can show', async () => {
+    const result = await incidents.report(
+      ivanov,
+      {
+        reasonCode: 'BREAKDOWN',
+        stoppedWork: false,
+        idempotencyKey: key(),
+        photoFileId: 'AgACtelegram-file',
+        photoFileUniqueId: 'AQADunique',
+        photoSizeBytes: 51_200,
+        photoWidth: 1280,
+        photoHeight: 960,
+      },
+      employeeActor(ivanov),
+    );
+
+    // Registered like a checklist photo, and queued for the worker to pull out of Telegram: the
+    // report used to keep a Telegram file id nobody could turn into a picture.
+    const [media] = await testDb.db.select().from(mediaObjects);
+    expect(media).toMatchObject({
+      purpose: 'incident',
+      telegramFileId: 'AgACtelegram-file',
+      telegramFileUniqueId: 'AQADunique',
+      width: 1280,
+      height: 960,
+    });
+    expect(timers.media).toEqual([media!.id]);
+
+    const [report] = await testDb.db.select().from(downtimeReports);
+    expect(report!.mediaObjectId).toBe(media!.id);
+    const detail = await incidents.detail(result.incidentId);
+    expect(detail.reports[0]).toMatchObject({ hasPhoto: true, media: { id: media!.id } });
+  });
+
+  it('a report without a photo carries none', async () => {
+    const result = await incidents.report(
+      ivanov,
+      { reasonCode: 'BREAKDOWN', stoppedWork: false, idempotencyKey: key() },
+      employeeActor(ivanov),
+    );
+    const detail = await incidents.detail(result.incidentId);
+    expect(detail.reports[0]).toMatchObject({ hasPhoto: false, media: null });
+    expect(await testDb.db.select().from(mediaObjects)).toHaveLength(0);
   });
 
   it('«Работа остановлена: да» відкриває особистий DOWNTIME атомарно з інцидентом', async () => {
