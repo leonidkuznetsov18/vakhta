@@ -444,12 +444,12 @@ export function RequestsPage() {
                           />
                         )}
                       </FormField>
-                      <Button type="submit" disabled={busy}>
+                      <Button type="submit" variant="success" disabled={busy}>
                         {r.approve}
                       </Button>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="destructive"
                         disabled={busy}
                         onClick={() => decide(req, 'REJECTED')}
                       >

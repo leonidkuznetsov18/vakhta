@@ -472,7 +472,7 @@ export function OperationsPage() {
           <div>
             <Button
               type="submit"
-              variant="secondary"
+              variant="success"
               disabled={
                 busy ||
                 isBlank(comment[row.id]) ||
