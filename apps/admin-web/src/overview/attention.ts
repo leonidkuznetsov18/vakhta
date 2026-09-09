@@ -119,6 +119,9 @@ export function useAttention(me: MeView, intervalMs = 60_000) {
         overdueAcceptances: handovers?.[0]?.id,
         requestsForMe: requests?.[0]?.id,
         overdueRequests: requests?.find((r) => r.overdue)?.id,
+        // The requests page reads one id for both its tables; an overtime row is addressed by the
+        // shift it belongs to.
+        overtimePending: overtime?.[0]?.shiftSessionId,
       },
       onShift: shifts ? onShiftNow.length : null,
       unscheduled: unscheduledPeople.length > 0 || shifts ? unscheduledPeople.length : null,

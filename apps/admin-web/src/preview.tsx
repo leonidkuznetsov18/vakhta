@@ -358,14 +358,16 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     employeeId: string,
     fullName: string,
     personnelNumber: string,
-    orgUnitId: string,
-    orgUnitName: string,
+    orgUnitId: string | null,
+    orgUnitName: string | null,
   ) => ({ ...shift, id, employeeId, fullName, personnelNumber, orgUnitId, orgUnitName });
   if (path === '/admin/shifts')
     return json([
       shift,
       unscheduled('sh2', 'e2', 'Ткач Олена', '130', 'u1', 'Цех Крышки'),
       unscheduled('sh3', 'e3', 'Панов Олег', '131', 'u2', 'Цех Плёнка'),
+      // Nobody's unit: the case where the schedule page has nothing to open by itself.
+      unscheduled('sh4', 'e4', 'Гринько Юлія', '132', null, null),
       closedNoChecklist,
     ]);
   if (path === `/admin/shifts/${shift.id}`) return json(shiftDetail);
@@ -536,6 +538,53 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   // A quiet week is the normal state of this section, and the empty answer is what the panel gets
   // from the real server — not a 404 that reads as a broken page.
   if (path === '/admin/incidents') return json([]);
+  // One request awaiting a decision and one shift that ran over: enough to see both tables of the
+  // section, and the row the overview's tiles deep-link into.
+  if (path === '/admin/requests')
+    return json([
+      {
+        id: 'rq1',
+        type: 'VACATION',
+        status: 'IN_REVIEW',
+        employeeId: 'e2',
+        employeeName: 'Ткач Олена',
+        currentStep: 1,
+        currentStepKey: 'MASTER',
+        totalSteps: 2,
+        periodFrom: '2026-09-20',
+        periodTo: '2026-09-24',
+        assignmentId: null,
+        assignmentDate: null,
+        counterpartEmployeeId: null,
+        counterpartName: null,
+        shiftSessionId: null,
+        comment: 'Сімейні обставини',
+        minutes: null,
+        approvedMinutes: null,
+        hasMedicalDocument: false,
+        medicalMediaId: null,
+        submittedAt: '2026-09-08T09:00:00.000Z',
+        stepDeadlineAt: '2026-09-09T09:00:00.000Z',
+        decidedAt: null,
+        resultVersionId: null,
+        overdue: false,
+      },
+    ]);
+  if (path === '/admin/requests/overtime')
+    return json([
+      {
+        id: null,
+        shiftSessionId: 'sh1',
+        employeeId: 'e1',
+        employeeName: 'Кузнецов Леонид',
+        businessDate: '2026-09-07',
+        minutes: 95,
+        status: 'PENDING',
+        decidedBy: null,
+        comment: null,
+        decidedAt: null,
+      },
+    ]);
   if (path === '/admin/incidents/stats') {
     const zero = {
       key: 'total',

@@ -79,7 +79,6 @@ export function RequestsPage() {
   const [proposalTime, setProposalTime] = useState('');
   const [proposalState, setProposalState] = useState<ShiftState>('WORKING');
   const [overtimeComment, setOvertimeComment] = useState<Record<string, string>>({});
-  const [openOvertime, setOpenOvertime] = useState<string | null>(null);
   const reloadRef = useRef<() => void>(() => undefined);
 
   const reload = useCallback(async () => {
@@ -108,7 +107,9 @@ export function RequestsPage() {
   }, []);
 
   useEffect(() => {
-    if (!openId) {
+    // An id that belongs to the overtime table below is not a request: asking the server for it
+    // would answer 404 over a page that is showing the right row.
+    if (!openId || !rows.some((r) => r.id === openId)) {
       setDetail(null);
       setShift(null);
       return;
@@ -190,6 +191,9 @@ export function RequestsPage() {
   }
 
   const openRow = rows.find((r) => r.id === openId) ?? null;
+  // The overtime rows sit in the same section under the requests, so they share its deep link:
+  // arriving from the overview has to open the row the number stood for, not nothing at all.
+  const openOvertime = overtime.some((row) => row.shiftSessionId === openId) ? openId : null;
 
   const columns: Column<RequestView>[] = [
     {
@@ -478,9 +482,7 @@ export function RequestsPage() {
           columns={overtimeColumns}
           rows={overtime}
           rowKey={(row) => row.shiftSessionId}
-          onRowClick={(row) =>
-            setOpenOvertime(openOvertime === row.shiftSessionId ? null : row.shiftSessionId)
-          }
+          onRowClick={(row) => setOpenId(openId === row.shiftSessionId ? null : row.shiftSessionId)}
           activeKey={openOvertime}
           expanded={(row) => (row.shiftSessionId === openOvertime ? overtimeDecision(row) : null)}
           empty={r.overtimeEmpty}

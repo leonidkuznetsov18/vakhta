@@ -232,6 +232,14 @@ export function SchedulePage() {
     preset !== null &&
     preset.month === month &&
     (preset.orgUnitId === null || preset.orgUnitId === orgUnitId);
+  /**
+   * Whether the grid already shows the people we came here for. When it does, naming them again
+   * above it would repeat the rows; when it does not — no unit to plan in, so no version and no
+   * grid — the page would otherwise answer a click with a blank month and no hint of whom it was
+   * about.
+   */
+  const presetInGrid =
+    preset !== null && preset.people.every((p) => grid.rows.some((r) => r.employeeId === p.id));
 
   // The version the preset needs: the month's open draft, or a new one. Asked for exactly once —
   // the effect that used to watch the version list re-created on every load of it, which is a loop.
@@ -457,6 +465,21 @@ export function SchedulePage() {
       </Toolbar>
 
       <Feedback error={error} />
+
+      {presetHere && preset && !presetInGrid && (
+        <Alert>
+          <AlertTitle className="flex items-center gap-1">
+            {format(s.presetTitle, { n: preset.people.length })}
+            <InfoTip text={hints.schedulePreset} />
+          </AlertTitle>
+          <AlertDescription className="flex flex-col gap-1">
+            <p className="font-medium text-foreground">
+              {preset.people.map((person) => person.name).join(', ')}
+            </p>
+            <p>{preset.orgUnitId ? s.presetHint : s.presetNoUnit}</p>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {org && activeEmployees.length === 0 && (
         <Alert>

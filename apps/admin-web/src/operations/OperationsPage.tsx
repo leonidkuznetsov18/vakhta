@@ -418,7 +418,11 @@ export function OperationsPage() {
           className="flex max-w-2xl flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            applyAction(row);
+            // One button, two errands: with an action chosen it makes the transition, without one
+            // it sends the comment to the employee. Two buttons over one comment field made the
+            // master decide which of them the text belonged to.
+            if (action[row.id]) applyAction(row);
+            else sendMessage(row);
           }}
         >
           {row.endedAt === null && (
@@ -465,29 +469,18 @@ export function OperationsPage() {
               />
             )}
           </FormField>
-          <div className="flex flex-wrap gap-2">
-            {row.endedAt === null && (
-              <Button
-                type="submit"
-                variant="secondary"
-                disabled={
-                  busy ||
-                  !action[row.id] ||
-                  isBlank(comment[row.id]) ||
-                  (reasonKindFor(action[row.id]) !== null && !reason[row.id])
-                }
-              >
-                {o.apply}
-              </Button>
-            )}
+          <div>
             <Button
-              type="button"
-              variant="outline"
-              disabled={busy || isBlank(comment[row.id])}
-              onClick={() => sendMessage(row)}
+              type="submit"
+              variant="secondary"
+              disabled={
+                busy ||
+                isBlank(comment[row.id]) ||
+                (reasonKindFor(action[row.id]) !== null && !reason[row.id])
+              }
             >
-              <SendIcon aria-hidden="true" />
-              {o.sendMessage}
+              {action[row.id] ? null : <SendIcon aria-hidden="true" />}
+              {o.apply}
             </Button>
           </div>
         </form>

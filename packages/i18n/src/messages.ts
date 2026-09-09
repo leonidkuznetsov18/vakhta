@@ -530,6 +530,10 @@ export interface Messages {
       /** Labels of the validation detail keys (nightShifts, restMinutes, …). */
       readonly issueDetails: Readonly<Record<string, string>>;
       readonly deleted: string;
+      /** Placeholder: {n} */
+      readonly presetTitle: string;
+      readonly presetHint: string;
+      readonly presetNoUnit: string;
       readonly noEmployees: string;
       readonly goToEmployees: string;
       /** Placeholder: {unit} — the chosen unit has no active zones, so rows cannot get one. */
@@ -578,7 +582,6 @@ export interface Messages {
       readonly needsClarification: string;
       readonly zoneNotAccepted: string;
       readonly closedNoChecklist: string;
-      readonly sendMessage: string;
       /** Placeholder: {employee} */
       readonly messageSent: string;
       readonly masterAction: string;
@@ -1355,6 +1358,7 @@ export interface Messages {
       readonly operationsStartFor: string;
       readonly operationsStartZone: string;
       readonly operationsLive: string;
+      readonly schedulePreset: string;
       readonly scheduleVersions: string;
       readonly scheduleEditPublished: string;
       readonly scheduleRevise: string;
