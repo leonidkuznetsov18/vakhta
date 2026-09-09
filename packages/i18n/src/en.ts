@@ -698,8 +698,6 @@ export const en: Messages = {
       scope: 'Shifts',
       scopes: { OPEN: 'Open', CLOSED: 'Closed', ALL: 'All' },
       date: 'Date',
-      dateAny: 'Now',
-      dateClear: 'Show current',
       live: 'Updating in real time',
       offline: 'No live connection, refresh the page',
       employee: 'Employee',
@@ -1692,7 +1690,7 @@ export const en: Messages = {
           'Who is on shift right now, in which state and for how long: the live picture of the floor for the master, with the reserve channel actions.',
         steps: [
           'Pick the site. The table lists open shifts: employee, state (work, break, downtime, cleaning…), since when and for how many minutes.',
-          'Turn on "Show closed within a day" to see finished shifts with their totals.',
+          'The date is the day whose shifts are listed (today by default), and "Shifts" chooses open, closed or all.',
           'When the terminal is down or the employee has no phone, press "Open a shift for an employee" (reserve channel): pick the employee, optionally a zone, give the reason.',
           'A row click expands the details: state intervals, downtime, the zone handover and events; the master actions live there too.',
         ],
@@ -2060,7 +2058,7 @@ export const en: Messages = {
       operationsScope:
         'Which shifts to list: open, closed or all. Without a date, "closed" means the last 24 hours.',
       operationsDate:
-        'List the shifts of the chosen day instead of the live picture. "Show current" brings the live screen back.',
+        'The day whose shifts are listed. Today by default; a night shift belongs to the day it started on.',
       operationsMessage:
         'The comment goes into the record of the action, and "Message on Telegram" sends the same text to the employee\'s bot. Neither changes the state of the shift.',
       operationsMasterAction:

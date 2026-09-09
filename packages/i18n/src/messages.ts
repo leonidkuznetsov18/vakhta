@@ -567,8 +567,6 @@ export interface Messages {
       readonly scope: string;
       readonly scopes: Record<'OPEN' | 'CLOSED' | 'ALL', string>;
       readonly date: string;
-      readonly dateAny: string;
-      readonly dateClear: string;
       readonly live: string;
       readonly offline: string;
       readonly employee: string;

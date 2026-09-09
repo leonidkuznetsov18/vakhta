@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarIcon, XIcon } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
 import { enGB, ru, uk } from 'react-day-picker/locale';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -43,24 +43,8 @@ interface FieldProps {
   readonly disabled?: boolean;
 }
 
-interface DateFieldProps extends FieldProps {
-  /** Shown on the trigger while no day is chosen; the default is a dash. */
-  readonly emptyLabel?: string;
-  /** When given, the popover offers a way back to no date at all, under this label. */
-  readonly clearLabel?: string;
-}
-
 /** Calendar date field: the trigger is a labelled button, the popover holds the shadcn calendar. */
-export function DateField({
-  label,
-  value,
-  onChange,
-  hint,
-  className,
-  disabled,
-  emptyLabel,
-  clearLabel,
-}: DateFieldProps) {
+export function DateField({ label, value, onChange, hint, className, disabled }: FieldProps) {
   const [open, setOpen] = useState(false);
   const selected = fromIsoDate(value);
   return (
@@ -76,9 +60,7 @@ export function DateField({
               className={cn('w-full justify-start font-normal', !value && 'text-muted-foreground')}
             >
               <CalendarIcon aria-hidden="true" />
-              <span className="tabular-nums">
-                {value ? formatDate(value) : (emptyLabel ?? '—')}
-              </span>
+              <span className="tabular-nums">{value ? formatDate(value) : '—'}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -94,25 +76,6 @@ export function DateField({
                 setOpen(false);
               }}
             />
-            {/* A filter needs a way out of itself: picking a day is easy, unpicking it is not,
-                and without this the screen would stay on one date until the field is emptied. */}
-            {clearLabel && value ? (
-              <div className="border-t p-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    onChange('');
-                    setOpen(false);
-                  }}
-                >
-                  <XIcon aria-hidden="true" />
-                  {clearLabel}
-                </Button>
-              </div>
-            ) : null}
           </PopoverContent>
         </Popover>
       )}

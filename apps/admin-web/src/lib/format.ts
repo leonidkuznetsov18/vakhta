@@ -54,3 +54,11 @@ export function formatDuration(minutes: number): string {
   if (h === 0) return `${m} ${t.minutesShort}`;
   return m === 0 ? `${h} ${t.hoursShort}` : `${h} ${t.hoursShort} ${m} ${t.minutesShort}`;
 }
+
+/** Today as 'YYYY-MM-DD' in local time; the browser's ISO string is UTC and slips a day at night. */
+export function todayIso(): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}

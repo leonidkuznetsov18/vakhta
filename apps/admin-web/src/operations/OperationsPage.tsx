@@ -24,7 +24,7 @@ import {
   type Tone,
   Toolbar,
 } from '@/components/app/page';
-import { formatTime } from '@/lib/format';
+import { formatTime, todayIso } from '@/lib/format';
 import { employeesApi, orgApi, shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
@@ -114,7 +114,9 @@ export function OperationsPage() {
   const [siteId, setSiteId] = usePersistentState('operations.siteId', '');
   const [orgUnitId, setOrgUnitId] = usePersistentState('operations.orgUnitId', '');
   const [scope, setScope] = usePersistentState<ShiftScope>('operations.scope', 'OPEN');
-  const [date, setDate] = usePersistentState('operations.date', '');
+  // The screen always stands on a day, and by default on today: an empty field meant "the live
+  // picture", which read as a filter that had not been set rather than as a choice.
+  const [date, setDate] = usePersistentState('operations.day', todayIso);
   const [rows, setRows] = useState<ActiveShiftView[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -552,8 +554,6 @@ export function OperationsPage() {
           value={date}
           onChange={setDate}
           hint={hints.operationsDate}
-          emptyLabel={o.dateAny}
-          clearLabel={o.dateClear}
           className="w-44"
         />
         <div className="ml-auto flex items-center gap-2">
@@ -637,7 +637,7 @@ export function OperationsPage() {
         className="flex-wrap justify-start"
         aria-label={o.state}
       >
-        {GROUPS.filter((g) => g !== 'CLOSED' || scope !== 'OPEN' || date !== '').map((g) => (
+        {GROUPS.filter((g) => g !== 'CLOSED' || scope !== 'OPEN').map((g) => (
           <ToggleGroupItem key={g} value={g} className="gap-1">
             {o.groups[g]}
             <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">{counts[g]}</span>
