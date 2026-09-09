@@ -1,3 +1,13 @@
+## [0.65.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.64.1...v0.65.0) (2026-09-09)
+
+### Features
+
+* **schedule:** remove the acknowledgements section ([3269be5](https://github.com/leonidkuznetsov18/vakhta/commit/3269be5de22d17f332101be1f1d110c996356f5e))
+
+### Bug fixes
+
+* **schedule:** the delete button is offered only when the version can go ([c9d467d](https://github.com/leonidkuznetsov18/vakhta/commit/c9d467dbb41d61ad33d5fbf4ee2e07d9d790210c))
+
 ## [0.64.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.64.0...v0.64.1) (2026-09-09)
 
 ### Bug fixes
