@@ -262,6 +262,24 @@ export function SchedulePage() {
    * wants to change a published schedule), otherwise on the published one, so the grid starts
    * from the current shifts instead of empty.
    */
+  /**
+   * The same version, asked for out loud. Nothing checks a month any more — not the rest between
+   * shifts, not the hours, not a person standing in two units at once — so the one moment to say
+   * that is before a version exists to be filled in.
+   */
+  async function confirmVersion(basedOn?: ScheduleVersionView) {
+    const ok = await confirm({
+      title: s.newVersion,
+      description: format(s.newVersionConfirm, {
+        month: formatMonth(month),
+        unit: units.find((u) => u.id === orgUnitId)?.name ?? orgUnitId,
+      }),
+      confirmLabel: s.newVersionCreate,
+    });
+    if (ok === false) return;
+    createVersion(basedOn);
+  }
+
   function createVersion(basedOn?: ScheduleVersionView) {
     const source = basedOn ?? versions.find((v) => v.status === 'PUBLISHED');
     void run(async () => {
@@ -446,7 +464,7 @@ export function SchedulePage() {
             type="button"
             variant="secondary"
             disabled={busy || !orgUnitId || activeEmployees.length === 0}
-            onClick={() => createVersion()}
+            onClick={() => void confirmVersion()}
           >
             {s.newVersion}
           </Button>
@@ -502,7 +520,7 @@ export function SchedulePage() {
               type="button"
               variant="outline"
               disabled={busy || !orgUnitId || activeEmployees.length === 0}
-              onClick={() => createVersion()}
+              onClick={() => void confirmVersion()}
             >
               {s.newVersion}
             </Button>
@@ -590,7 +608,7 @@ export function SchedulePage() {
                     type="button"
                     size="sm"
                     disabled={busy || activeEmployees.length === 0}
-                    onClick={() => createVersion(version)}
+                    onClick={() => void confirmVersion(version)}
                   >
                     {s.editPublished}
                   </Button>

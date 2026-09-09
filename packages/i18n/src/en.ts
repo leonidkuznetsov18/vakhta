@@ -575,6 +575,9 @@ export const en: Messages = {
       versions: 'Versions',
       noVersions: 'There are no schedule versions for this month yet. Create a draft.',
       newVersion: 'New version',
+      newVersionConfirm:
+        'Create a new schedule version for {month} in "{unit}"? The panel does not check the rest between shifts, the hours per month, or one person standing in two units at once — check that yourself before publishing. Once published, the employees are notified.',
+      newVersionCreate: 'Create the version',
       version: 'Version',
       statuses: {
         DRAFT: 'Draft',

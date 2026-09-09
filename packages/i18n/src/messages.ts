@@ -468,6 +468,9 @@ export interface Messages {
       readonly versions: string;
       readonly noVersions: string;
       readonly newVersion: string;
+      /** Placeholders: {month}, {unit} — asked before a version is created. */
+      readonly newVersionConfirm: string;
+      readonly newVersionCreate: string;
       readonly version: string;
       readonly statuses: Readonly<Record<ScheduleStatus, string>>;
       readonly employee: string;

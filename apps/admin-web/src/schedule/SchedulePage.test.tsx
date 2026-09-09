@@ -318,6 +318,10 @@ describe('SchedulePage', () => {
     render(<SchedulePage />);
     expect(await screen.findByText(/закрыта для правок/)).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Изменить график' }));
+    // Nothing checks a month any more, so a version is created only after the master says so.
+    const ask = await screen.findByRole('alertdialog');
+    expect(within(ask).getByText(/Панель не проверяет отдых между сменами/)).toBeTruthy();
+    fireEvent.click(within(ask).getByRole('button', { name: 'Создать версию' }));
     await waitFor(() =>
       expect(calls.find((c) => c.method === 'POST' && c.path === '/admin/schedules')).toBeTruthy(),
     );
