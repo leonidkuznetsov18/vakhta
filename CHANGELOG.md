@@ -1,3 +1,9 @@
+## [0.60.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.59.1...v0.60.0) (2026-09-09)
+
+### Features
+
+* **incidents:** the incident opens under its row, not in a side sheet ([9f763ae](https://github.com/leonidkuznetsov18/vakhta/commit/9f763ae625bfa594f17c040573eafe71cfd453bf))
+
 ## [0.59.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.59.0...v0.59.1) (2026-09-09)
 
 ### Bug fixes
