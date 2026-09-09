@@ -1,3 +1,9 @@
+## [0.63.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.62.0...v0.63.0) (2026-09-09)
+
+### Features
+
+* **schedule:** creating a version is asked for out loud ([929d7f9](https://github.com/leonidkuznetsov18/vakhta/commit/929d7f96133ec0da70daef33acc181c7cc85a3c2))
+
 ## [0.62.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.61.1...v0.62.0) (2026-09-09)
 
 ### Features
