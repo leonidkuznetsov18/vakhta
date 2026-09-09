@@ -639,7 +639,6 @@ export const en: Messages = {
         'Delete version {no} from the history? It was superseded and no shift of it was worked.',
       versionInUse: 'Shifts of this version were worked; it stays in the history.',
       versionOption: 'Version {no} · {status} · {date}',
-      versionsCount: 'Versions this month: {count}',
       employeesReadOnly:
         'Employees and shifts change only in a draft: press "Edit schedule" or open the draft.',
       removeFromVersion: 'Remove from the version',
@@ -668,7 +667,6 @@ export const en: Messages = {
         'The unit "{unit}" has no active zones, so the "Zone" column offers only "No zone". Add zones to this unit in the directories or move the employees to a unit that has them. Without a zone the handover does not work: the report goes straight to the master.',
       openDirectories: 'Open directories',
       dayTotals: 'D {day} · N {night}',
-      createdOn: 'created {date}',
       remind: 'Remind to acknowledge',
       reminded: 'Reminders sent: {n}.',
       pattern: 'Rotation pattern',
@@ -2047,7 +2045,7 @@ export const en: Messages = {
       scheduleAddEmployee:
         'Pick an employee from the list: a row appears in the grid, then set the shifts per day. The cross at the end of a row removes the employee from the version.',
       scheduleSubmit:
-        'Send the version to the head of production. Disabled while there are errors or unsaved changes.',
+        'Send the version to the head of production. Disabled while there are errors, unsaved changes, or not a single shift in the month.',
       schedulePublish:
         'Employees get a notification and an "Acknowledged" button. They see the reason in the message.',
       scheduleReturn: 'Return the version to the planner for rework with a comment.',

@@ -219,7 +219,7 @@ describe('SchedulePage', () => {
     render(<SchedulePage />);
 
     expect(await screen.findByText('Цех фасовки')).toBeTruthy();
-    expect(await screen.findByText('Черновик')).toBeTruthy();
+    expect(await screen.findByText(/Версия 1 · Черновик/)).toBeTruthy();
     const cell = (await screen.findByLabelText('Кузнецов Леонид 2026-09-05')) as HTMLSelectElement;
     expect(cell.value).toBe(TPL_NIGHT);
 
@@ -298,7 +298,7 @@ describe('SchedulePage', () => {
     const publish = (await screen.findByRole('button', {
       name: 'Опубликовать',
     })) as HTMLButtonElement;
-    expect(screen.getByText('На согласовании')).toBeTruthy();
+    expect(screen.getByText(/Версия 1 · На согласовании/)).toBeTruthy();
     expect(
       (screen.getByLabelText('Кузнецов Леонид 2026-09-05') as HTMLSelectElement).disabled,
     ).toBe(true);
@@ -383,9 +383,16 @@ describe('SchedulePage', () => {
     );
     // The person is a row of the grid, ready for shifts: that row is what tells the master whom
     // this month is being written for, so nothing repeats it above the grid.
+    expect(await screen.findByRole('button', { name: /Действия: Сидоров Пётр/ })).toBeTruthy();
+    // Nobody has a shift yet, so the month cannot go for approval: the server refuses an empty
+    // version, and the button says so without spending a round trip on it.
     expect(
-      await screen.findByRole('button', { name: /Убрать из версии: Сидоров Пётр/ }),
-    ).toBeTruthy();
+      (
+        screen.getByRole('button', {
+          name: 'Отправить на согласование',
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
   });
 
   it('arriving when the month already has a draft fills that draft instead of making another', async () => {
@@ -402,7 +409,7 @@ describe('SchedulePage', () => {
     render(<SchedulePage />);
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /Убрать из версии: Сидоров Пётр/ })).toBeTruthy(),
+      expect(screen.getByRole('button', { name: /Действия: Сидоров Пётр/ })).toBeTruthy(),
     );
     expect(calls.some((c) => c.method === 'POST' && c.path === '/admin/schedules')).toBe(false);
   });

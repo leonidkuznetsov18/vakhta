@@ -518,8 +518,6 @@ export interface Messages {
       readonly versionInUse: string;
       /** Placeholders: {no}, {status}, {date} — one option of the version select. */
       readonly versionOption: string;
-      /** Placeholder: {count} */
-      readonly versionsCount: string;
       readonly employeesReadOnly: string;
       readonly removeFromVersion: string;
       readonly addEmployeePlaceholder: string;
@@ -534,7 +532,6 @@ export interface Messages {
       readonly openDirectories: string;
       /** Footer row of the grid: {day} day shifts, {night} night shifts on that date. */
       readonly dayTotals: string;
-      readonly createdOn: string;
       readonly remind: string;
       /** Placeholder: {n} */
       readonly reminded: string;

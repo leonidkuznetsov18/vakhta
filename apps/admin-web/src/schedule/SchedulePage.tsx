@@ -15,7 +15,7 @@ import { Feedback } from '@/components/app/feedback';
 import { MonthField } from '@/components/app/date-picker';
 import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
-import { EmptyState, Muted, Section, StatusPill, Toolbar, type Tone } from '@/components/app/page';
+import { EmptyState, Muted, Section, Toolbar } from '@/components/app/page';
 import { ApiError, employeesApi, orgApi, schedulesApi } from '../api.ts';
 import { describeError as describe } from '../errors.ts';
 import { AckTable } from './AckTable.tsx';
@@ -50,13 +50,6 @@ const t = messages(currentLocale());
 const s = t.admin.schedule;
 const hints = t.ui.hints;
 const EMPTY_GRID: GridState = { rows: [] };
-const STATUS_TONE: Record<ScheduleVersionView['status'], Tone> = {
-  DRAFT: 'neutral',
-  IN_REVIEW: 'info',
-  PUBLISHED: 'success',
-  SUPERSEDED: 'warning',
-  CLOSED: 'neutral',
-};
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7);
@@ -521,21 +514,6 @@ export function SchedulePage() {
               }))}
             className="w-full sm:w-96"
           />
-          {version && (
-            <div className="flex flex-wrap items-center gap-2 pb-1.5">
-              <StatusPill tone={STATUS_TONE[version.status]}>
-                {s.statuses[version.status]}
-              </StatusPill>
-              <Muted className="text-xs">
-                {format(s.createdOn, {
-                  date: formatDate(version.publishedAt ?? version.createdAt),
-                })}
-              </Muted>
-              <Muted className="text-xs">
-                {format(s.versionsCount, { count: versions.length })}
-              </Muted>
-            </div>
-          )}
         </div>
       )}
 
@@ -701,10 +679,12 @@ export function SchedulePage() {
                 <Button type="button" disabled={busy || !dirty} onClick={save}>
                   {s.save} ({countShifts(grid)})
                 </Button>
+                {/* An empty month is refused by the server (SCHEDULE_EMPTY), so the button says
+                    so first instead of spending a round trip on a 422. */}
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={busy || dirty || hasErrors}
+                  disabled={busy || dirty || hasErrors || countShifts(grid) === 0}
                   onClick={submit}
                 >
                   {s.submit}

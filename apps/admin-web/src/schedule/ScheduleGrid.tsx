@@ -2,7 +2,6 @@ import type { EmployeeView, ShiftTemplateView, ZoneView } from '@vakhta/contract
 import { monthDates } from '@vakhta/domain';
 import { format, messages } from '@vakhta/i18n';
 import { XIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import {
   Table,
@@ -12,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Paginator, usePages } from '@/components/app/data-table';
+import { Paginator, RowMenu, usePages } from '@/components/app/data-table';
 import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted } from '@/components/app/page';
@@ -183,14 +182,15 @@ export function ScheduleGrid({
                   </TableHead>
                 );
               })}
-              <TableHead className="text-right">{s.shifts}</TableHead>
-              <TableHead className="text-right">
-                <span className="inline-flex items-center gap-1">
-                  {s.hours}
+              {/* The month is wider than any screen, so what a planner needs at all times — the
+                  totals and the row's own actions — rides along the right edge instead of waiting
+                  at the end of a horizontal scroll. */}
+              <TableHead className="sticky right-0 z-20 bg-background/85 text-right backdrop-blur-sm">
+                <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                  {s.shifts} / {s.hours}
                   <InfoTip text={t.ui.hints.scheduleKeyboard} />
                 </span>
               </TableHead>
-              {!readOnly && <TableHead className="w-10" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -206,7 +206,7 @@ export function ScheduleGrid({
               const overHours = hours > DEFAULT_SCHEDULE_RULES.maxHoursPerMonth;
               const overStreak = streak > DEFAULT_SCHEDULE_RULES.maxConsecutiveDays;
               return (
-                <TableRow key={row.employeeId}>
+                <TableRow key={row.employeeId} className="group/row">
                   <TableCell className="sticky left-0 z-10 bg-background">
                     <div className="font-medium">{emp?.fullName ?? row.employeeId}</div>
                     <Muted>{emp?.personnelNumber}</Muted>
@@ -264,40 +264,48 @@ export function ScheduleGrid({
                       </TableCell>
                     );
                   })}
-                  <TableCell className="text-right tabular-nums">{count}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    <span
-                      className={cn(
-                        (overHours || overStreak) &&
-                          'font-medium text-amber-700 dark:text-amber-300',
-                      )}
-                      title={
-                        overHours
-                          ? format(s.limitHours, { max: DEFAULT_SCHEDULE_RULES.maxHoursPerMonth })
-                          : overStreak
-                            ? format(s.limitConsecutive, {
-                                max: DEFAULT_SCHEDULE_RULES.maxConsecutiveDays,
-                              })
-                            : undefined
-                      }
-                    >
-                      {hours}
-                    </span>
-                  </TableCell>
-                  {!readOnly && (
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`${s.removeFromVersion}: ${emp?.fullName ?? ''}`}
-                        title={s.removeFromVersion}
-                        onClick={() => onRemove(row.employeeId)}
+                  <TableCell className="sticky right-0 z-20 bg-background/85 p-0 backdrop-blur-sm">
+                    <div className="flex items-center justify-end gap-2 border-l py-1 pr-2 pl-3">
+                      <span className="tabular-nums">{count}</span>
+                      <span className="text-muted-foreground">/</span>
+                      <span
+                        className={cn(
+                          'tabular-nums',
+                          (overHours || overStreak) &&
+                            'font-medium text-amber-700 dark:text-amber-300',
+                        )}
+                        title={
+                          overHours
+                            ? format(s.limitHours, { max: DEFAULT_SCHEDULE_RULES.maxHoursPerMonth })
+                            : overStreak
+                              ? format(s.limitConsecutive, {
+                                  max: DEFAULT_SCHEDULE_RULES.maxConsecutiveDays,
+                                })
+                              : undefined
+                        }
                       >
-                        <XIcon aria-hidden="true" />
-                      </Button>
-                    </TableCell>
-                  )}
+                        {hours}
+                      </span>
+                      {/* Kept out of sight until the row is pointed at or focused: the menu is
+                          for the one row in hand, and a column of them reads as clutter. */}
+                      {!readOnly && (
+                        <span className="opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
+                          <RowMenu
+                            label={`${t.ui.common.actions}: ${emp?.fullName ?? ''}`}
+                            actions={[
+                              {
+                                key: 'remove',
+                                label: s.removeFromVersion,
+                                icon: XIcon,
+                                destructive: true,
+                                onSelect: () => onRemove(row.employeeId),
+                              },
+                            ]}
+                          />
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               );
             })}
@@ -318,17 +326,15 @@ export function ScheduleGrid({
                     </span>
                   </TableCell>
                 ))}
-                <TableCell className="text-right text-xs tabular-nums">
+                <TableCell className="sticky right-0 z-20 bg-muted/40 text-right text-xs tabular-nums backdrop-blur-sm">
                   {grid.rows.reduce((n, r) => n + Object.values(r.cells).filter(Boolean).length, 0)}
                 </TableCell>
-                <TableCell />
-                {!readOnly && <TableCell />}
               </TableRow>
             )}
             {grid.rows.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={days.length + 5}
+                  colSpan={days.length + 3}
                   className="py-8 text-center text-muted-foreground"
                 >
                   {s.emptyGrid}
