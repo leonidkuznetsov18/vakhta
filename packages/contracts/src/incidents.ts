@@ -58,6 +58,8 @@ export const IncidentView = z.object({
   closedAt: IsoDateTime.nullable(),
   escalatedAt: IsoDateTime.nullable(),
   slaBreached: z.boolean(),
+  /** Who reported it first: the incident belongs to the person who hit the problem. */
+  reportedBy: z.string().nullable(),
   reportsCount: z.number().int().nonnegative(),
   /** Скільки працівників зараз у DOWNTIME за цим інцидентом. */
   stoppedNow: z.number().int().nonnegative(),

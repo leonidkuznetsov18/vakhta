@@ -275,6 +275,12 @@ export function IncidentsPage() {
         </div>
       ),
     },
+    {
+      key: 'reportedBy',
+      header: i.reportedBy,
+      cell: (row) => row.reportedBy ?? '—',
+      sortValue: (row) => row.reportedBy ?? '',
+    },
     { key: 'zone', header: i.zone, cell: (row) => row.zoneName ?? '—' },
     { key: 'reports', header: i.reports, align: 'right', cell: (row) => row.reportsCount },
     { key: 'stopped', header: i.stoppedNow, align: 'right', cell: (row) => row.stoppedNow },
@@ -304,7 +310,58 @@ export function IncidentsPage() {
    */
   function renderDetail(row: IncidentView) {
     return (
-      <div className="grid items-start gap-6 py-1 md:grid-cols-2" data-testid="incident-detail">
+      <div className="flex flex-col gap-6 py-1" data-testid="incident-detail">
+        {/* What happened first, and what to do about it under it: the decision is taken after
+            reading the reports, not beside them. */}
+        {detail && detail.incident.id === row.id ? (
+          <div className="grid items-start gap-6 md:grid-cols-2">
+            <div>
+              <h3 className="mb-2 text-sm font-semibold">{i.reportsTitle}</h3>
+              <ul className="flex flex-col gap-3 text-sm">
+                {detail.reports.map((r) => (
+                  <li key={r.id} className="flex flex-col gap-1">
+                    <div>
+                      <span className="tabular-nums">{formatTime(r.reportedAt)}</span>{' '}
+                      <strong>{r.fullName}</strong>{' '}
+                      <Muted>
+                        {`${r.stoppedWork ? i.stoppedWork : i.notStopped}${r.hasPhoto && !r.media ? ` · ${i.photo}` : ''}${r.comment ? ` · ${r.comment}` : ''}`}
+                      </Muted>
+                    </div>
+                    {/* The photo itself, not the word "photo": what the employee saw is the whole
+                          point of the report, and it is shown here the way a handover shows its own. */}
+                    {r.media && (
+                      <PhotoThumb
+                        className="w-40"
+                        media={r.media}
+                        loadLink={trackedLink}
+                        label={`${r.fullName} · ${formatTime(r.reportedAt)}`}
+                        onOpen={(url) =>
+                          setLightbox([
+                            { url, label: `${r.fullName} · ${formatTime(r.reportedAt)}` },
+                          ])
+                        }
+                      />
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="mb-2 text-sm font-semibold">{i.history}</h3>
+              <ul className="flex flex-col gap-1 text-sm">
+                {detail.history.map((h) => (
+                  <li key={h.id}>
+                    <span className="tabular-nums">{formatTime(h.at)}</span>{' '}
+                    {all.incidents.statuses[h.toStatus]}
+                    <Muted>{` · ${h.actorType}${h.comment ? ` · ${h.comment}` : ''}`}</Muted>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ) : (
+          <Muted>{all.ui.common.loading}</Muted>
+        )}
         {allowedIncidentTransitions(row.status).length > 0 && (
           <form
             className="flex max-w-2xl flex-col gap-3"
@@ -363,55 +420,6 @@ export function IncidentsPage() {
               </Button>
             </div>
           </form>
-        )}
-        {detail && detail.incident.id === row.id ? (
-          <div className="flex flex-col gap-4">
-            <div>
-              <h3 className="mb-2 text-sm font-semibold">{i.reportsTitle}</h3>
-              <ul className="flex flex-col gap-3 text-sm">
-                {detail.reports.map((r) => (
-                  <li key={r.id} className="flex flex-col gap-1">
-                    <div>
-                      <span className="tabular-nums">{formatTime(r.reportedAt)}</span>{' '}
-                      <strong>{r.fullName}</strong>{' '}
-                      <Muted>
-                        {`${r.stoppedWork ? i.stoppedWork : i.notStopped}${r.hasPhoto && !r.media ? ` · ${i.photo}` : ''}${r.comment ? ` · ${r.comment}` : ''}`}
-                      </Muted>
-                    </div>
-                    {/* The photo itself, not the word "photo": what the employee saw is the whole
-                        point of the report, and it is shown here the way a handover shows its own. */}
-                    {r.media && (
-                      <PhotoThumb
-                        className="w-40"
-                        media={r.media}
-                        loadLink={trackedLink}
-                        label={`${r.fullName} · ${formatTime(r.reportedAt)}`}
-                        onOpen={(url) =>
-                          setLightbox([
-                            { url, label: `${r.fullName} · ${formatTime(r.reportedAt)}` },
-                          ])
-                        }
-                      />
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="mb-2 text-sm font-semibold">{i.history}</h3>
-              <ul className="flex flex-col gap-1 text-sm">
-                {detail.history.map((h) => (
-                  <li key={h.id}>
-                    <span className="tabular-nums">{formatTime(h.at)}</span>{' '}
-                    {all.incidents.statuses[h.toStatus]}
-                    <Muted>{` · ${h.actorType}${h.comment ? ` · ${h.comment}` : ''}`}</Muted>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        ) : (
-          <Muted>{all.ui.common.loading}</Muted>
         )}
       </div>
     );

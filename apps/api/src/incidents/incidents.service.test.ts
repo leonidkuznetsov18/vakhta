@@ -249,6 +249,8 @@ describe('incidents: повідомлення про проблему, дубл�
     expect(report!.mediaObjectId).toBe(media!.id);
     const detail = await incidents.detail(result.incidentId);
     expect(detail.reports[0]).toMatchObject({ hasPhoto: true, media: { id: media!.id } });
+    // The queue names the person who hit the problem without opening the row.
+    expect(detail.incident.reportedBy).toBe('Иванов Иван');
   });
 
   it('a report without a photo carries none', async () => {

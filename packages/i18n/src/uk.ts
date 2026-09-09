@@ -742,6 +742,7 @@ export const uk: Messages = {
       severity: 'Критичність',
       reason: 'Причина',
       zone: 'Зона',
+      reportedBy: 'Повідомив',
       reports: 'Повідомлень',
       stoppedNow: 'У простої зараз',
       status: 'Статус',

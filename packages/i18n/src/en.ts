@@ -742,6 +742,7 @@ export const en: Messages = {
       severity: 'Severity',
       reason: 'Reason',
       zone: 'Zone',
+      reportedBy: 'Reported by',
       reports: 'Reports',
       stoppedNow: 'In downtime now',
       status: 'Status',

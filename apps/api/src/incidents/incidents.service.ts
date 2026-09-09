@@ -795,11 +795,17 @@ export class IncidentsService {
       sql<number>`(SELECT COUNT(DISTINCT ${downtimeReports.employeeId}) FROM ${downtimeReports} JOIN ${shiftSessions} ON ${shiftSessions.id} = ${downtimeReports.shiftSessionId} WHERE ${downtimeReports.incidentId} = ${downtimeIncidents.id} AND ${shiftSessions.state} = 'DOWNTIME')`.mapWith(
         Number,
       );
+    // The person behind the incident, read with it: the queue is scanned by who has the problem,
+    // and opening every row to find that out is not scanning.
+    const reportedBy = sql<
+      string | null
+    >`(SELECT e.full_name FROM ${downtimeReports} r JOIN ${employees} e ON e.id = r.employee_id WHERE r.incident_id = ${downtimeIncidents.id} ORDER BY r.reported_at LIMIT 1)`;
     return this.db
       .select({
         i: downtimeIncidents,
         zoneName: responsibilityZones.name,
         reasonLabel: reasonCodes.label,
+        reportedBy,
         stoppedNow,
       })
       .from(downtimeIncidents)
@@ -821,6 +827,7 @@ export class IncidentsService {
       i: IncidentRow;
       zoneName: string | null;
       reasonLabel: string | null;
+      reportedBy: string | null;
       stoppedNow: number;
     },
     now: Date,
@@ -846,6 +853,7 @@ export class IncidentsService {
       escalatedAt: i.escalatedAt?.toISOString() ?? null,
       slaBreached:
         isOpenIncident(i.status) || i.acknowledgedAt !== null ? slaBreached(i, now) : false,
+      reportedBy: row.reportedBy,
       reportsCount: i.reportsCount,
       stoppedNow: row.stoppedNow,
       lastComment: i.lastComment,

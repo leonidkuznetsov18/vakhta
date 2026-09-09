@@ -564,6 +564,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     closedAt: null,
     escalatedAt: null,
     slaBreached: true,
+    reportedBy: 'Гринько Юлія',
     reportsCount: 1,
     stoppedNow: 1,
     lastComment: 'Огородили ділянку',

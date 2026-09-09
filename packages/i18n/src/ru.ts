@@ -740,6 +740,7 @@ export const ru: Messages = {
       severity: 'Критичность',
       reason: 'Причина',
       zone: 'Зона',
+      reportedBy: 'Сообщил',
       reports: 'Сообщений',
       stoppedNow: 'В простое сейчас',
       status: 'Статус',

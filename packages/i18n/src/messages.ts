@@ -621,6 +621,7 @@ export interface Messages {
       readonly severity: string;
       readonly reason: string;
       readonly zone: string;
+      readonly reportedBy: string;
       readonly reports: string;
       readonly stoppedNow: string;
       readonly status: string;

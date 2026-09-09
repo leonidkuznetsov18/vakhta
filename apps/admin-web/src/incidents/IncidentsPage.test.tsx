@@ -37,6 +37,7 @@ function incident(id: string, status: string, over: Record<string, unknown> = {}
     closedAt: null,
     escalatedAt: null,
     slaBreached: false,
+    reportedBy: 'Кузнецов Леонид',
     reportsCount: 2,
     stoppedNow: 1,
     lastComment: 'Заклинило',
@@ -160,7 +161,8 @@ describe('IncidentsPage', () => {
     expect(await screen.findAllByText('Итого')).toHaveLength(2);
 
     await clickRowAction('Подробности');
-    expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
+    // The name is in the row's own column and again in the report under it.
+    expect((await screen.findAllByText('Кузнецов Леонид')).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/работа остановлена · фото · Заклинило/)).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Статус'), { target: { value: 'ACKNOWLEDGED' } });
