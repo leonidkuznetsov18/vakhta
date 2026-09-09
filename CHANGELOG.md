@@ -1,3 +1,9 @@
+## [0.60.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.60.1...v0.60.2) (2026-09-09)
+
+### Bug fixes
+
+* **shift:** an unplanned shift belongs to the unit its employee is posted to ([95f48ae](https://github.com/leonidkuznetsov18/vakhta/commit/95f48ae4c126310658e040f6da8d700867717ee6))
+
 ## [0.60.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.60.0...v0.60.1) (2026-09-09)
 
 ### Bug fixes
