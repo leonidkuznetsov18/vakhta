@@ -1,3 +1,9 @@
+## [0.68.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.67.1...v0.68.0) (2026-09-09)
+
+### Features
+
+* **incidents:** every report opens its own incident ([5ada6c5](https://github.com/leonidkuznetsov18/vakhta/commit/5ada6c508e3f874a9d887bbe03528bbac38c405f))
+
 ## [0.67.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.67.0...v0.67.1) (2026-09-09)
 
 ### Bug fixes
