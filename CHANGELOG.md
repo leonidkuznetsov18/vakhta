@@ -1,3 +1,9 @@
+## [0.70.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.69.0...v0.70.0) (2026-09-09)
+
+### Features
+
+* **incidents:** the queue names who reported, and the decision comes after the reports ([c7fc003](https://github.com/leonidkuznetsov18/vakhta/commit/c7fc0037c3409bbffd32809649f49f668ca2b199))
+
 ## [0.69.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.68.0...v0.69.0) (2026-09-09)
 
 ### Features
