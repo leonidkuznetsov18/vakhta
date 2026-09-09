@@ -279,7 +279,6 @@ describe('problem report in the bot (spec 5.5)', () => {
       t,
       {
         incidentId: 'a0000000-0000-4000-8000-000000000001',
-        linkedToExisting: false,
         severity: 'SAFETY',
         downtimeStarted: true,
         downtimeError: null,
@@ -290,11 +289,10 @@ describe('problem report in the bot (spec 5.5)', () => {
     expect(result.text).toContain('Проблема «Безопасность» зарегистрирована.');
     expect(result.text).toContain('эскалация отправлена немедленно');
     expect(result.text).toContain('Открыт личный простой');
-    const linked = s.incidentResultScreen(
+    const second = s.incidentResultScreen(
       t,
       {
         incidentId: 'a0000000-0000-4000-8000-000000000001',
-        linkedToExisting: true,
         severity: 'NORMAL',
         downtimeStarted: false,
         downtimeError: 'TEMPORARY_STATE_OPEN',
@@ -302,8 +300,9 @@ describe('problem report in the bot (spec 5.5)', () => {
       },
       'Поломка',
     );
-    expect(linked.text).toContain('уже зарегистрирована');
-    expect(linked.text).toContain('Сначала нажмите «Вернуться».');
+    // Every report is its own incident now, so the second one is announced like the first.
+    expect(second.text).toContain('Проблема «Поломка» зарегистрирована.');
+    expect(second.text).toContain('Сначала нажмите «Вернуться».');
   });
 });
 

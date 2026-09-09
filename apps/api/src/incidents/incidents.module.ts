@@ -21,7 +21,6 @@ import { INCIDENT_OPTIONS, IncidentsService, type IncidentOptions } from './inci
           criticalMinutes: config.get('INCIDENT_SLA_CRITICAL_MINUTES', { infer: true }),
           safetyMinutes: config.get('INCIDENT_SLA_SAFETY_MINUTES', { infer: true }),
         },
-        duplicateWindowMinutes: config.get('INCIDENT_DUPLICATE_WINDOW_MINUTES', { infer: true }),
       }),
       inject: [ConfigService],
     },

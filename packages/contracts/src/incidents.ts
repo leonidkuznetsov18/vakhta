@@ -88,7 +88,6 @@ export type IncidentDetailView = z.infer<typeof IncidentDetailView>;
 /** Результат повідомлення для бота: інцидент і чи відкрився особистий простій. */
 export const ReportProblemResult = z.object({
   incidentId: Uuid,
-  linkedToExisting: z.boolean(),
   severity: IncidentSeveritySchema,
   downtimeStarted: z.boolean(),
   downtimeError: z.string().nullable(),

@@ -614,9 +614,7 @@ export function incidentResultScreen(
   reasonLabel: string,
 ): Screen {
   const lines = [
-    result.linkedToExisting
-      ? t.incidents.linked
-      : format(t.incidents.reported, { reason: reasonLabel }),
+    format(t.incidents.reported, { reason: reasonLabel }),
     result.severity === 'SAFETY' ? t.incidents.safetyEscalated : t.incidents.masterNotified,
   ];
   if (result.downtimeStarted) lines.push(t.incidents.downtimeOpened);

@@ -28,7 +28,6 @@ import {
   OPEN_INCIDENT_STATUSES,
   canTransitionIncident,
   escalatesImmediately,
-  findDuplicateCandidate,
   incidentSlaJobId,
   isOpenIncident,
   slaBreached,
@@ -66,7 +65,6 @@ import { IncidentChanges } from './incident-changes.js';
 
 export interface IncidentOptions {
   readonly sla: SlaPolicy;
-  readonly duplicateWindowMinutes: number;
 }
 
 export const INCIDENT_OPTIONS = Symbol('INCIDENT_OPTIONS');
@@ -154,77 +152,41 @@ export class IncidentsService {
     let photoId: string | null = null;
 
     const result = await this.db.transaction(async (tx): Promise<ReportProblemResult> => {
-      const candidates = session.zoneId
-        ? await tx
-            .select({
-              id: downtimeIncidents.id,
-              zoneId: downtimeIncidents.zoneId,
-              reasonCode: downtimeIncidents.reasonCode,
-              status: downtimeIncidents.status,
-              openedAt: downtimeIncidents.openedAt,
-            })
-            .from(downtimeIncidents)
-            .where(
-              and(
-                eq(downtimeIncidents.zoneId, session.zoneId),
-                inArray(downtimeIncidents.status, OPEN),
-              ),
-            )
-            .for('update')
-        : [];
-      const existing = findDuplicateCandidate(
-        candidates,
-        { zoneId: session.zoneId, reasonCode: cmd.reasonCode, reportedAt: now },
-        this.options.duplicateWindowMinutes,
-      );
-
-      let incident: IncidentRow;
-      if (existing) {
-        const [row] = await tx
-          .update(downtimeIncidents)
-          .set({
-            reportsCount: sql`${downtimeIncidents.reportsCount} + 1`,
-            lastComment: cmd.comment ?? sql`${downtimeIncidents.lastComment}`,
-            updatedAt: now,
-          })
-          .where(eq(downtimeIncidents.id, existing.id))
-          .returning();
-        if (!row) throw new Error('downtime_incidents: update не повернув рядок');
-        incident = row;
-      } else {
-        const severity: IncidentSeverity = reason.severity;
-        const dueAt = slaDueAt(now, severity, this.options.sla);
-        const [row] = await tx
-          .insert(downtimeIncidents)
-          .values({
-            siteId: place?.siteId ?? null,
-            orgUnitId: place?.orgUnitId ?? null,
-            zoneId: session.zoneId,
-            reasonCode: cmd.reasonCode,
-            severity,
-            status: 'REPORTED',
-            openedAt: now,
-            slaDueAt: dueAt,
-            escalatedAt: escalatesImmediately(severity) ? now : null,
-            reportsCount: 1,
-            lastComment: cmd.comment ?? null,
-            createdAt: now,
-            updatedAt: now,
-          })
-          .returning();
-        if (!row) throw new Error('downtime_incidents: insert не повернув рядок');
-        incident = row;
-        await tx.insert(incidentStatusHistory).values({
-          incidentId: incident.id,
-          fromStatus: null,
-          toStatus: 'REPORTED',
-          actorType: actor.type,
-          actorId: actor.id,
-          at: now,
-          comment: cmd.comment ?? null,
-        });
-        if (!escalatesImmediately(severity)) scheduleSla = { id: incident.id, dueAt };
-      }
+      // Every report opens its own incident. Folding a second report into an open one with the
+      // same reason and zone made one row stand for several breakdowns, and a master closing it
+      // closed problems nobody had looked at. Two reports that really are one are merged by hand
+      // with the "duplicate" action.
+      const severity: IncidentSeverity = reason.severity;
+      const dueAt = slaDueAt(now, severity, this.options.sla);
+      const [incident] = await tx
+        .insert(downtimeIncidents)
+        .values({
+          siteId: place?.siteId ?? null,
+          orgUnitId: place?.orgUnitId ?? null,
+          zoneId: session.zoneId,
+          reasonCode: cmd.reasonCode,
+          severity,
+          status: 'REPORTED',
+          openedAt: now,
+          slaDueAt: dueAt,
+          escalatedAt: escalatesImmediately(severity) ? now : null,
+          reportsCount: 1,
+          lastComment: cmd.comment ?? null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning();
+      if (!incident) throw new Error('downtime_incidents: insert не повернув рядок');
+      await tx.insert(incidentStatusHistory).values({
+        incidentId: incident.id,
+        fromStatus: null,
+        toStatus: 'REPORTED',
+        actorType: actor.type,
+        actorId: actor.id,
+        at: now,
+        comment: cmd.comment ?? null,
+      });
+      if (!escalatesImmediately(severity)) scheduleSla = { id: incident.id, dueAt };
 
       // A photo of a problem becomes a media object like a checklist photo does: registered here,
       // pulled out of Telegram by the worker, and shown in the panel afterwards. Without this the
@@ -262,7 +224,7 @@ export class IncidentsService {
       if (!report) throw new Error('downtime_reports: insert не повернув рядок');
 
       await this.events.append(tx, {
-        type: existing ? 'INCIDENT_REPORT_LINKED' : 'INCIDENT_REPORTED',
+        type: 'INCIDENT_REPORTED',
         source,
         actor,
         occurredAt: now,
@@ -280,7 +242,7 @@ export class IncidentsService {
           notifyMaster: reason.notifyMaster,
         },
       });
-      if (!existing && escalatesImmediately(incident.severity)) {
+      if (escalatesImmediately(incident.severity)) {
         await this.events.append(tx, {
           type: 'INCIDENT_ESCALATED',
           source: 'SYSTEM',
@@ -317,7 +279,6 @@ export class IncidentsService {
 
       const response: ReportProblemResult = {
         incidentId: incident.id,
-        linkedToExisting: existing !== null,
         severity: incident.severity,
         downtimeStarted,
         downtimeError,

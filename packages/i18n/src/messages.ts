@@ -180,7 +180,6 @@ export interface Messages {
     readonly noShift: string;
     /** Placeholder: {reason} */
     readonly reported: string;
-    readonly linked: string;
     readonly masterNotified: string;
     readonly safetyEscalated: string;
     readonly downtimeOpened: string;

@@ -74,7 +74,6 @@ export const EnvSchema = z.object({
   INCIDENT_SLA_CRITICAL_MINUTES: z.coerce.number().int().nonnegative().default(30),
   INCIDENT_SLA_SAFETY_MINUTES: z.coerce.number().int().nonnegative().default(0),
   /** Вікно, в якому повідомлення тієї ж зони й причини лінкуються до одного інциденту (FR-DWN-04). */
-  INCIDENT_DUPLICATE_WINDOW_MINUTES: z.coerce.number().int().positive().default(60),
   /** Нагадування про прибирання до планового кінця (FR-CLN-01); вікно приймання (ТЗ 18 п. 11). */
   CLEANING_REMINDER_MINUTES: z.coerce.number().int().positive().default(30),
   HANDOVER_REVIEW_WINDOW_MINUTES: z.coerce.number().int().positive().default(30),

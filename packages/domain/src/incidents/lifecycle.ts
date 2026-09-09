@@ -68,41 +68,6 @@ export function escalatesImmediately(severity: IncidentSeverity): boolean {
   return severity === 'SAFETY';
 }
 
-export interface DuplicateCandidate {
-  readonly id: string;
-  readonly zoneId: string | null;
-  readonly reasonCode: string;
-  readonly status: IncidentStatus;
-  readonly openedAt: Date;
-}
-
-/**
- * FR-DWN-04: повідомлення кількох працівників про ту саму проблему лінкуються до одного інциденту.
- * Збіг: та сама зона (не null) і причина, інцидент відкритий і не старший за вікно.
- */
-export function findDuplicateCandidate(
-  candidates: readonly DuplicateCandidate[],
-  report: {
-    readonly zoneId: string | null;
-    readonly reasonCode: string;
-    readonly reportedAt: Date;
-  },
-  windowMinutes: number,
-): DuplicateCandidate | null {
-  if (!report.zoneId) return null;
-  const since = report.reportedAt.getTime() - windowMinutes * 60_000;
-  const matches = candidates
-    .filter(
-      (c) =>
-        c.zoneId === report.zoneId &&
-        c.reasonCode === report.reasonCode &&
-        isOpenIncident(c.status) &&
-        c.openedAt.getTime() >= since,
-    )
-    .sort((a, b) => b.openedAt.getTime() - a.openedAt.getTime());
-  return matches[0] ?? null;
-}
-
 /** SLA порушено, якщо реакції не було до строку; для закритих порівнюється фактичний час реакції. */
 export function slaBreached(
   incident: {

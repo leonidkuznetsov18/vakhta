@@ -92,7 +92,6 @@ describe('incidents: повідомлення про проблему, дубл�
       timers,
       {
         sla: { normalMinutes: 60, criticalMinutes: 30, safetyMinutes: 0 },
-        duplicateWindowMinutes: 60,
       },
     );
 
@@ -199,7 +198,6 @@ describe('incidents: повідомлення про проблему, дубл�
       employeeActor(ivanov),
     );
     expect(result).toMatchObject({
-      linkedToExisting: false,
       severity: 'NORMAL',
       downtimeStarted: false,
       downtimeError: null,
@@ -292,7 +290,7 @@ describe('incidents: повідомлення про проблему, дубл�
     expect(events.map((e) => e.type)).toContain('DOWNTIME_STARTED');
   });
 
-  it('FR-DWN-04: повідомлення другого працівника з тієї ж зони лінкується до відкритого інциденту', async () => {
+  it('every report opens its own incident, even with the same reason in the same zone', async () => {
     const first = await incidents.report(
       ivanov,
       { reasonCode: 'BREAKDOWN', stoppedWork: true, idempotencyKey: key() },
@@ -303,21 +301,23 @@ describe('incidents: повідомлення про проблему, дубл�
       { reasonCode: 'BREAKDOWN', stoppedWork: true, idempotencyKey: key() },
       employeeActor(petrova),
     );
-    expect(second.incidentId).toBe(first.incidentId);
-    expect(second.linkedToExisting).toBe(true);
-    const other = await incidents.report(
-      sidorov,
-      { reasonCode: 'BREAKDOWN', stoppedWork: false, idempotencyKey: key() },
-      employeeActor(sidorov),
-    );
-    expect(other.incidentId).not.toBe(first.incidentId);
+    // Reports used to fold into an open incident of the same reason and zone, so one row stood
+    // for several breakdowns and closing it closed problems nobody had looked at.
+    expect(second.incidentId).not.toBe(first.incidentId);
 
     const detail = await incidents.detail(first.incidentId);
-    expect(detail.incident.reportsCount).toBe(2);
-    expect(detail.incident.stoppedNow).toBe(2);
-    expect(detail.reports.map((r) => r.fullName).sort()).toEqual(['Иванов Иван', 'Петрова Ольга']);
+    expect(detail.incident.reportsCount).toBe(1);
+    expect(detail.reports.map((r) => r.fullName)).toEqual(['Иванов Иван']);
     expect(await testDb.db.select().from(downtimeIncidents)).toHaveLength(2);
+    // Each one carries its own deadline, so neither hides behind the other's.
     expect(timers.scheduled.filter((s) => s.jobId.startsWith('incident-sla')).length).toBe(2);
+    const events = await testDb.db
+      .select({ type: domainEvents.type, incidentId: domainEvents.incidentId })
+      .from(domainEvents);
+    const reported = events.filter((e) => e.type === 'INCIDENT_REPORTED').map((e) => e.incidentId);
+    expect(reported).toContain(first.incidentId);
+    expect(reported).toContain(second.incidentId);
+    expect(events.some((e) => e.type === 'INCIDENT_REPORT_LINKED')).toBe(false);
   });
 
   it('FR-DWN-02/03: «Другое» вимагає коментар; безпека ескалюється негайно без SLA-таймера', async () => {

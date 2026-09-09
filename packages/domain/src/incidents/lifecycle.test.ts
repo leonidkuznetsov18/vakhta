@@ -3,7 +3,6 @@ import {
   allowedIncidentTransitions,
   canTransitionIncident,
   escalatesImmediately,
-  findDuplicateCandidate,
   slaBreached,
   slaDueAt,
 } from './lifecycle.js';
@@ -28,60 +27,6 @@ describe('життєвий цикл інциденту (ТЗ 5.5, FR-DWN-03..05)
     expect(slaDueAt(at, 'SAFETY', policy).getTime()).toBe(at.getTime());
     expect(escalatesImmediately('SAFETY')).toBe(true);
     expect(escalatesImmediately('CRITICAL')).toBe(false);
-  });
-
-  it('лінкує повідомлення до відкритого інциденту тієї ж зони і причини у вікні', () => {
-    const now = new Date('2026-09-07T10:00:00Z');
-    const candidates = [
-      {
-        id: 'old',
-        zoneId: 'z1',
-        reasonCode: 'BREAKDOWN',
-        status: 'REPORTED' as const,
-        openedAt: new Date('2026-09-07T08:00:00Z'),
-      },
-      {
-        id: 'closed',
-        zoneId: 'z1',
-        reasonCode: 'BREAKDOWN',
-        status: 'CLOSED' as const,
-        openedAt: new Date('2026-09-07T09:50:00Z'),
-      },
-      {
-        id: 'other-zone',
-        zoneId: 'z2',
-        reasonCode: 'BREAKDOWN',
-        status: 'REPORTED' as const,
-        openedAt: new Date('2026-09-07T09:55:00Z'),
-      },
-      {
-        id: 'match',
-        zoneId: 'z1',
-        reasonCode: 'BREAKDOWN',
-        status: 'ACKNOWLEDGED' as const,
-        openedAt: new Date('2026-09-07T09:30:00Z'),
-      },
-    ];
-    const hit = findDuplicateCandidate(
-      candidates,
-      { zoneId: 'z1', reasonCode: 'BREAKDOWN', reportedAt: now },
-      60,
-    );
-    expect(hit?.id).toBe('match');
-    expect(
-      findDuplicateCandidate(
-        candidates,
-        { zoneId: null, reasonCode: 'BREAKDOWN', reportedAt: now },
-        60,
-      ),
-    ).toBeNull();
-    expect(
-      findDuplicateCandidate(
-        candidates,
-        { zoneId: 'z1', reasonCode: 'POWER', reportedAt: now },
-        60,
-      ),
-    ).toBeNull();
   });
 
   it('порушення SLA рахується за фактом реакції або поточним часом', () => {

@@ -121,7 +121,6 @@ describe('handover: прибирання, чек-лист, фото, перед�
       timers,
       {
         sla: { normalMinutes: 60, criticalMinutes: 30, safetyMinutes: 0 },
-        duplicateWindowMinutes: 60,
       },
     );
     handover = new HandoverService(

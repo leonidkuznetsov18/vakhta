@@ -192,7 +192,6 @@ export const en: Messages = {
     expired: 'The wait time has expired. Start again via "Report a problem".',
     noShift: 'A problem can be reported only during an open shift.',
     reported: 'Problem "{reason}" is registered.',
-    linked: 'This problem is already registered, your report was added to it.',
     masterNotified: 'The shift master is notified.',
     safetyEscalated: 'This is a safety issue: the escalation was sent immediately.',
     downtimeOpened: 'Personal downtime opened. Press "Return" when work resumes.',
