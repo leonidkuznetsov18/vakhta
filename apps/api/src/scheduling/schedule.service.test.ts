@@ -470,5 +470,22 @@ describe('scheduling: версії, валідація, публікація, о
     await expect(schedule.deleteVersion(v1.id, PLANNER)).rejects.toMatchObject({
       code: 'SCHEDULE_TRANSITION_NOT_ALLOWED',
     });
+
+    // A superseded version that a later one points at is not deletable, and says so before the
+    // button is offered: the panel used to show a delete the database then refused.
+    const v2 = await schedule.createVersion(
+      { siteId, orgUnitId: unitId, periodMonth: MONTH, basedOnVersionId: v1.id },
+      PLANNER,
+    );
+    await schedule.submit(v2.id, PLANNER);
+    await schedule.publish(v2.id, {}, HEAD);
+    const superseded = (
+      await schedule.list({ siteId, orgUnitId: unitId, periodMonth: MONTH })
+    ).find((v) => v.id === v1.id);
+    expect(superseded).toMatchObject({ status: 'SUPERSEDED', deletable: false });
+    expect((await schedule.detail(v1.id)).version.deletable).toBe(false);
+    await expect(schedule.deleteVersion(v1.id, PLANNER)).rejects.toMatchObject({
+      code: 'SCHEDULE_VERSION_IN_USE',
+    });
   });
 });

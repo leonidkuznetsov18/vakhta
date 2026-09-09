@@ -14,7 +14,6 @@ import {
   responsibilityZones,
   scheduleVersions,
   shiftAssignments,
-  shiftSessions,
   shiftTemplates,
   sites,
   sql,
@@ -64,6 +63,27 @@ export interface ScheduleOptions {
 }
 
 export const SCHEDULE_OPTIONS = Symbol('SCHEDULE_OPTIONS');
+
+/**
+ * Everything the database will refuse to let go of, listed the way the foreign keys are: a version
+ * another one supersedes, a version a request produced, and assignments a shift, an arrival, a QR
+ * scan or a request still points at. The panel asks this before offering a delete — it used to ask
+ * only about worked shifts and offered deletes that came back as "still in use".
+ */
+const IN_USE = (versionId: unknown) => sql<boolean>`(
+  exists (select 1 from schedule_versions later where later.supersedes_id = ${versionId})
+  or exists (select 1 from requests rq where rq.result_version_id = ${versionId})
+  or exists (
+    select 1 from shift_assignments sa
+    where sa.schedule_version_id = ${versionId}
+      and (
+        exists (select 1 from shift_sessions x where x.assignment_id = sa.id)
+        or exists (select 1 from presence_sessions x where x.assignment_id = sa.id)
+        or exists (select 1 from qr_challenge_uses x where x.assignment_id = sa.id)
+        or exists (select 1 from requests x where x.assignment_id = sa.id)
+      )
+  )
+)`;
 
 type VersionRow = typeof scheduleVersions.$inferSelect;
 type AssignmentRow = typeof shiftAssignments.$inferSelect;
@@ -123,13 +143,13 @@ export class ScheduleService {
         // Written as plain SQL: drizzle drops the table qualifier of columns in a single-table
         // select, which makes `schedule_versions.id` ambiguous inside the subqueries.
         count: sql<number>`(select count(*)::int from shift_assignments sa where sa.schedule_version_id = schedule_versions.id and sa.status = 'PLANNED')`,
-        worked: sql<boolean>`exists (select 1 from shift_sessions ss join shift_assignments sa on ss.assignment_id = sa.id where sa.schedule_version_id = schedule_versions.id)`,
+        inUse: IN_USE(sql`schedule_versions.id`),
       })
       .from(scheduleVersions)
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(scheduleVersions.periodMonth), desc(scheduleVersions.versionNo))
       .limit(200);
-    return rows.map((r) => this.toVersionView(r.v, r.count, r.worked));
+    return rows.map((r) => this.toVersionView(r.v, r.count, r.inUse));
   }
 
   async createVersion(
@@ -248,11 +268,11 @@ export class ScheduleService {
           `Only a draft or a superseded version can be deleted; version ${id} is ${version.status}`,
         );
       }
-      if (await this.hasWorkedShifts(version.id, tx)) {
+      if (await this.isInUse(version.id, tx)) {
         throw new DomainError(
           'SCHEDULE_VERSION_IN_USE',
           409,
-          `Version ${id} has worked shifts and stays as history`,
+          `Version ${id} is worked or replaced by a later one and stays as history`,
         );
       }
       await tx
@@ -292,7 +312,7 @@ export class ScheduleService {
       version: this.toVersionView(
         version,
         assignments.filter((x) => x.a.status === 'PLANNED').length,
-        await this.hasWorkedShifts(id),
+        await this.isInUse(id),
       ),
       assignments: assignments.map((x) => this.toAssignmentView(x)),
     };
@@ -1109,22 +1129,21 @@ export class ScheduleService {
     }));
   }
 
-  /** A shift session opened against an assignment of the version: the version is history. */
-  private async hasWorkedShifts(versionId: string, tx: DbOrTx = this.db): Promise<boolean> {
-    const [worked] = await tx
-      .select({ id: shiftSessions.id })
-      .from(shiftSessions)
-      .innerJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
-      .where(eq(shiftAssignments.scheduleVersionId, versionId))
-      .limit(1);
-    return worked !== undefined;
+  /**
+   * Whether anything still points at this version's assignments: a shift somebody worked, or a
+   * later version that replaced one of them. Either way the rows cannot go, and the panel must not
+   * offer a delete that the database will refuse.
+   */
+  private async isInUse(versionId: string, tx: DbOrTx = this.db): Promise<boolean> {
+    const [used] = await tx.execute<{ used: boolean }>(sql`select ${IN_USE(versionId)} as used`);
+    return used?.used === true;
   }
 
-  /** `worked` matters only for superseded versions; drafts never had sessions. */
+  /** `inUse` matters only for superseded versions; nothing ever points at a draft. */
   private toVersionView(
     row: VersionRow,
     assignmentsCount: number,
-    worked = false,
+    inUse = false,
   ): ScheduleVersionView {
     return {
       id: row.id,
@@ -1141,7 +1160,7 @@ export class ScheduleService {
       changeReason: row.changeReason,
       createdAt: row.createdAt.toISOString(),
       assignmentsCount,
-      deletable: row.status === 'DRAFT' || (row.status === 'SUPERSEDED' && !worked),
+      deletable: (row.status === 'DRAFT' || row.status === 'SUPERSEDED') && !inUse,
     };
   }
 

@@ -627,7 +627,8 @@ export const en: Messages = {
       deleteConfirm: 'Delete draft version {no}? The shift layout of this version will be lost.',
       deleteHistoryConfirm:
         'Delete version {no} from the history? It was superseded and no shift of it was worked.',
-      versionInUse: 'Shifts of this version were worked; it stays in the history.',
+      versionInUse:
+        'This version cannot be deleted: it was worked, or a later version or a request points at it. It stays in the history.',
       versionOption: 'Version {no} · {status} · {date}',
       employeesReadOnly:
         'Employees and shifts change only in a draft: press "Edit schedule" or open the draft.',
