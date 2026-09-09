@@ -381,11 +381,11 @@ describe('SchedulePage', () => {
     expect(calls.filter((c) => c.method === 'POST' && c.path === '/admin/schedules')).toHaveLength(
       1,
     );
-    // The names are on screen — the master no longer has to remember them from the overview —
-    // and the person is a row of the grid, ready for shifts.
-    expect(await screen.findByText(/Создаём график для 1 сотрудников/)).toBeTruthy();
-    await waitFor(() => expect(screen.getAllByText('Сидоров Пётр').length).toBeGreaterThan(1));
-    expect(screen.getByRole('button', { name: /Убрать из версии: Сидоров Пётр/ })).toBeTruthy();
+    // The person is a row of the grid, ready for shifts: that row is what tells the master whom
+    // this month is being written for, so nothing repeats it above the grid.
+    expect(
+      await screen.findByRole('button', { name: /Убрать из версии: Сидоров Пётр/ }),
+    ).toBeTruthy();
   });
 
   it('arriving when the month already has a draft fills that draft instead of making another', async () => {
@@ -401,7 +401,6 @@ describe('SchedulePage', () => {
     const calls = mockApi(state);
     render(<SchedulePage />);
 
-    expect(await screen.findByText(/Создаём график для 1 сотрудников/)).toBeTruthy();
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /Убрать из версии: Сидоров Пётр/ })).toBeTruthy(),
     );

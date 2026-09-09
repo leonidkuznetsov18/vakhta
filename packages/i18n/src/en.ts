@@ -640,7 +640,6 @@ export const en: Messages = {
       versionInUse: 'Shifts of this version were worked; it stays in the history.',
       versionOption: 'Version {no} · {status} · {date}',
       versionsCount: 'Versions this month: {count}',
-      employeesInVersion: 'Employees in the version: {count}',
       employeesReadOnly:
         'Employees and shifts change only in a draft: press "Edit schedule" or open the draft.',
       removeFromVersion: 'Remove from the version',
@@ -662,16 +661,9 @@ export const en: Messages = {
         to: 'to',
       },
       deleted: 'Version deleted.',
-      presetTitle: 'Building a schedule for {n} employees who have none',
-      presetHint:
-        'They are added to the grid below: set their shifts and save. A row can be removed.',
-      presetNoUnit:
-        'These people belong to no unit: pick one and create a version, and they will be added to it.',
       noEmployees:
         'There are no employees yet. Add them under Administration → Employees first, then build the schedule.',
       goToEmployees: 'Go to employees',
-      zoneMissing:
-        'Rows without a zone: {n}. Without a zone the employee gets no checklist and no zone handover at the end of the shift.',
       noZonesInUnit:
         'The unit "{unit}" has no active zones, so the "Zone" column offers only "No zone". Add zones to this unit in the directories or move the employees to a unit that has them. Without a zone the handover does not work: the report goes straight to the master.',
       openDirectories: 'Open directories',
@@ -2046,8 +2038,6 @@ export const en: Messages = {
         'The zone the employee cleans and hands over at the end of the shift. A schedule assignment with a zone takes precedence. Without a zone the report with the checklist and photos goes straight to the master.',
       operationsLive:
         'The list refreshes on server events. If the connection is lost, reload the page.',
-      schedulePreset:
-        'You came from the overview, where these people started a shift with no schedule. The panel opened their unit and month and added them to the draft.',
       scheduleVersions:
         'Every change to a published schedule creates a new version. The old one is marked as superseded.',
       scheduleEditPublished:

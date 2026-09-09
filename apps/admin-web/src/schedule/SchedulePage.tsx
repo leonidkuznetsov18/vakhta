@@ -108,7 +108,6 @@ export function SchedulePage() {
     () => org?.orgUnits.filter((u) => u.siteId === siteId) ?? [],
     [org, siteId],
   );
-  const rowsWithoutZone = grid.rows.filter((r) => !r.zoneId).length;
   const zones = useMemo(
     () => org?.zones.filter((z) => z.orgUnitId === orgUnitId && z.isActive) ?? [],
     [org, orgUnitId],
@@ -451,23 +450,6 @@ export function SchedulePage() {
 
       <Feedback error={error} />
 
-      {/* Arrived from the overview: the names stay on screen, because a master who had to
-          remember three surnames on the way here would plan the wrong people. */}
-      {presetHere && preset && (
-        <Alert>
-          <AlertTitle className="flex items-center gap-1">
-            {format(s.presetTitle, { n: preset.people.length })}
-            <InfoTip text={hints.schedulePreset} />
-          </AlertTitle>
-          <AlertDescription className="flex flex-col gap-1">
-            <p className="font-medium text-foreground">
-              {preset.people.map((person) => person.name).join(', ')}
-            </p>
-            <p>{preset.orgUnitId ? s.presetHint : s.presetNoUnit}</p>
-          </AlertDescription>
-        </Alert>
-      )}
-
       {org && activeEmployees.length === 0 && (
         <Alert>
           <AlertTitle>{s.noEmployees}</AlertTitle>
@@ -503,15 +485,6 @@ export function SchedulePage() {
               {s.openDirectories}
             </Button>
           </AlertDescription>
-        </Alert>
-      )}
-
-      {editable && zones.length > 0 && rowsWithoutZone > 0 && (
-        <Alert>
-          <AlertTitle className="flex items-center gap-1">
-            {format(s.zoneMissing, { n: rowsWithoutZone })}
-            <InfoTip text={hints.scheduleZone} />
-          </AlertTitle>
         </Alert>
       )}
 

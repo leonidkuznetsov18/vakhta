@@ -137,9 +137,6 @@ export function ScheduleGrid({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/30 p-3">
-        <span className="pb-1.5 text-sm font-medium">
-          {format(s.employeesInVersion, { count: grid.rows.length })}
-        </span>
         {readOnly ? (
           <Muted className="pb-1.5 text-xs">{s.employeesReadOnly}</Muted>
         ) : available.length > 0 ? (
@@ -163,7 +160,14 @@ export function ScheduleGrid({
         <Table className="min-w-max">
           <TableHeader>
             <TableRow>
-              <TableHead className="sticky left-0 z-10 bg-background">{s.employee}</TableHead>
+              <TableHead className="sticky left-0 z-10 bg-background">
+                <span className="inline-flex items-center gap-1.5">
+                  {s.employee}
+                  <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">
+                    {grid.rows.length}
+                  </span>
+                </span>
+              </TableHead>
               <TableHead className="min-w-40">
                 <span className="inline-flex items-center gap-1">
                   {s.zone}
