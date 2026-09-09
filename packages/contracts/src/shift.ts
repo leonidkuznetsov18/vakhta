@@ -191,11 +191,18 @@ export const ShiftDetailView = z.object({
 });
 export type ShiftDetailView = z.infer<typeof ShiftDetailView>;
 
+/** Which shifts the live screen lists: the open ones, the finished ones, or both. */
+export const SHIFT_SCOPES = ['OPEN', 'CLOSED', 'ALL'] as const;
+export const ShiftScopeSchema = z.enum(SHIFT_SCOPES);
+export type ShiftScope = z.infer<typeof ShiftScopeSchema>;
+
 export const ActiveShiftsQuery = z.object({
   siteId: Uuid.optional(),
   orgUnitId: Uuid.optional(),
-  /** Показати і закриті сьогодні. */
-  includeClosed: z.coerce.boolean().optional(),
+  /** Defaults to OPEN; CLOSED and ALL reach back one day unless `date` names another one. */
+  scope: ShiftScopeSchema.optional(),
+  /** A business date to read instead of the live picture: every shift booked on that day. */
+  date: BusinessDate.optional(),
 });
 export type ActiveShiftsQuery = z.infer<typeof ActiveShiftsQuery>;
 

@@ -470,9 +470,17 @@ describe('shift: машина станів зміни в транзакції (�
 
     const list = await service.listActive({});
     // "show closed within a day" used to pass a Date into raw SQL and answered 500
-    const withClosed = await service.listActive({ includeClosed: true });
+    const withClosed = await service.listActive({ scope: 'ALL' });
     expect(withClosed.length).toBeGreaterThanOrEqual(list.length);
     expect(list).toHaveLength(1);
+    // A named day is read from the record, so a running shift shows on its own business date and
+    // on no other, and "closed" on that day still excludes it.
+    const day = list[0]!.businessDate;
+    expect(await service.listActive({ date: day })).toHaveLength(1);
+    expect(await service.listActive({ date: day, scope: 'CLOSED' })).toHaveLength(0);
+    expect(await service.listActive({ date: '2000-01-01', scope: 'ALL' })).toHaveLength(0);
+    // Nothing has ended yet, so the closed list is empty while the open one is not.
+    expect(await service.listActive({ scope: 'CLOSED' })).toHaveLength(0);
     expect(list[0]).toMatchObject({
       fullName: 'Иванов Иван',
       state: 'WORKING',

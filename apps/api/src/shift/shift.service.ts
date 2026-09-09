@@ -207,16 +207,25 @@ export class ShiftService {
     };
   }
 
-  /** Оперативний екран (ТЗ 9.2): незакриті зміни, за бажанням і закриті сьогодні. */
+  /** Оперативний екран (ТЗ 9.2): незакриті зміни, за вибором — закриті або конкретний день. */
   async listActive(q: ActiveShiftsQuery, now: Date = new Date()): Promise<ActiveShiftView[]> {
     const since = new Date(now.getTime() - 24 * 3_600_000);
+    const scope = q.scope ?? 'OPEN';
+    const open = notInArray(shiftSessions.state, TERMINAL);
+    const closed = inArray(shiftSessions.state, TERMINAL);
+    // A named day is read from the record: every shift booked on that business date, whatever the
+    // clock says now. Without a day the screen stays live, and finished shifts reach back 24 hours.
     const conditions = [
-      q.includeClosed
-        ? or(
-            notInArray(shiftSessions.state, ['SHIFT_CLOSED', 'EMERGENCY_EXIT']),
-            gte(shiftSessions.endedAt, since),
+      q.date
+        ? and(
+            eq(shiftSessions.businessDate, q.date),
+            scope === 'OPEN' ? open : scope === 'CLOSED' ? closed : undefined,
           )
-        : notInArray(shiftSessions.state, TERMINAL),
+        : scope === 'CLOSED'
+          ? and(closed, gte(shiftSessions.endedAt, since))
+          : scope === 'ALL'
+            ? or(open, gte(shiftSessions.endedAt, since))
+            : open,
     ];
     if (q.orgUnitId) conditions.push(eq(shiftAssignments.orgUnitId, q.orgUnitId));
     if (q.siteId) conditions.push(eq(orgUnits.siteId, q.siteId));

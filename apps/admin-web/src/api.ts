@@ -319,7 +319,8 @@ export const shiftsApi = {
       `/admin/shifts${query({
         siteId: q.siteId,
         orgUnitId: q.orgUnitId,
-        includeClosed: q.includeClosed ? 'true' : undefined,
+        scope: q.scope,
+        date: q.date,
       })}`,
     ),
   detail: (id: string) => apiFetch<ShiftDetailView>(`/admin/shifts/${id}`),

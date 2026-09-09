@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import type {
-  ActiveShiftView,
-  EmployeeView,
-  OrgSnapshot,
-  ShiftDetailView,
+import {
+  SHIFT_SCOPES,
+  type ActiveShiftView,
+  type EmployeeView,
+  type OrgSnapshot,
+  type ShiftDetailView,
+  type ShiftScope,
 } from '@vakhta/contracts';
 import { allowedActions, type ShiftState, type UserShiftAction } from '@vakhta/domain';
 import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { DataTable, type Column, type RowAction } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
+import { DateField } from '@/components/app/date-picker';
 import { InfoTip } from '@/components/app/info-tip';
 import { LiveBadge, Muted, StatusPill, Toolbar, type Tone } from '@/components/app/page';
 import { formatTime } from '@/lib/format';
@@ -104,7 +105,8 @@ export function OperationsPage() {
   const [employees, setEmployees] = useState<EmployeeView[]>([]);
   const [siteId, setSiteId] = usePersistentState('operations.siteId', '');
   const [orgUnitId, setOrgUnitId] = usePersistentState('operations.orgUnitId', '');
-  const [includeClosed, setIncludeClosed] = usePersistentState('operations.includeClosed', false);
+  const [scope, setScope] = usePersistentState<ShiftScope>('operations.scope', 'OPEN');
+  const [date, setDate] = usePersistentState('operations.date', '');
   const [rows, setRows] = useState<ActiveShiftView[]>([]);
   const [live, setLive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -145,10 +147,11 @@ export function OperationsPage() {
     const list = await shiftsApi.list({
       ...(siteId ? { siteId } : {}),
       ...(orgUnitId ? { orgUnitId } : {}),
-      ...(includeClosed ? { includeClosed: true } : {}),
+      ...(scope === 'OPEN' ? {} : { scope }),
+      ...(date ? { date } : {}),
     });
     setRows(list);
-  }, [siteId, orgUnitId, includeClosed]);
+  }, [siteId, orgUnitId, scope, date]);
 
   useEffect(() => {
     reloadRef.current = () => {
@@ -511,15 +514,24 @@ export function OperationsPage() {
           options={units.map((u) => ({ value: u.id, label: u.name }))}
           className="w-56"
         />
-        <div className="flex h-8 items-center gap-2">
-          <Checkbox
-            id="ops-closed"
-            checked={includeClosed}
-            onCheckedChange={(v) => setIncludeClosed(v === true)}
-          />
-          <Label htmlFor="ops-closed">{o.includeClosed}</Label>
-          <InfoTip text={hints.operationsIncludeClosed} />
-        </div>
+        <SelectField
+          label={o.scope}
+          value={scope}
+          onChange={(v) => setScope((v || 'OPEN') as ShiftScope)}
+          hint={hints.operationsScope}
+          options={SHIFT_SCOPES.map((s) => ({ value: s, label: o.scopes[s] }))}
+          className="w-44"
+        />
+        {/* A day instead of the live picture: the same list, read from the records of that date. */}
+        <DateField
+          label={o.date}
+          value={date}
+          onChange={setDate}
+          hint={hints.operationsDate}
+          emptyLabel={o.dateAny}
+          clearLabel={o.dateClear}
+          className="w-44"
+        />
         <div className="ml-auto flex items-center gap-2">
           <Dialog open={startOpen} onOpenChange={setStartOpen}>
             <DialogTrigger asChild>
@@ -601,7 +613,7 @@ export function OperationsPage() {
         className="flex-wrap justify-start"
         aria-label={o.state}
       >
-        {GROUPS.filter((g) => g !== 'CLOSED' || includeClosed).map((g) => (
+        {GROUPS.filter((g) => g !== 'CLOSED' || scope !== 'OPEN' || date !== '').map((g) => (
           <ToggleGroupItem key={g} value={g} className="gap-1">
             {o.groups[g]}
             <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">{counts[g]}</span>

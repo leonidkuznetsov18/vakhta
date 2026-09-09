@@ -69,7 +69,7 @@ export function useAttention(me: MeView, intervalMs = 60_000) {
 
   const refresh = useCallback(async () => {
     const [shifts, incidents, handovers, requests, overtime, employees, org] = await Promise.all([
-      may(me, OPS) ? shiftsApi.list({ includeClosed: true }).catch(() => null) : null,
+      may(me, OPS) ? shiftsApi.list({ scope: 'ALL' }).catch(() => null) : null,
       may(me, OPS) ? incidentsApi.list({ scope: 'open' }).catch(() => null) : null,
       may(me, HANDOVER) ? handoversApi.list({ scope: 'overdue' }).catch(() => null) : null,
       may(me, REQUESTS) ? requestsApi.list({ scope: 'inbox' }).catch(() => null) : null,

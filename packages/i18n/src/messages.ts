@@ -562,7 +562,11 @@ export interface Messages {
     readonly operations: {
       readonly site: string;
       readonly orgUnit: string;
-      readonly includeClosed: string;
+      readonly scope: string;
+      readonly scopes: Record<'OPEN' | 'CLOSED' | 'ALL', string>;
+      readonly date: string;
+      readonly dateAny: string;
+      readonly dateClear: string;
       readonly live: string;
       readonly offline: string;
       readonly employee: string;
@@ -1337,7 +1341,8 @@ export interface Messages {
     readonly guide: Readonly<Record<GuideKey, SectionGuide>>;
     readonly hints: {
       readonly language: string;
-      readonly operationsIncludeClosed: string;
+      readonly operationsScope: string;
+      readonly operationsDate: string;
       readonly operationsMasterAction: string;
       readonly operationsClarify: string;
       readonly operationsStartFor: string;

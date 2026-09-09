@@ -694,7 +694,11 @@ export const en: Messages = {
     operations: {
       site: 'Site',
       orgUnit: 'Unit',
-      includeClosed: 'Show shifts closed within a day',
+      scope: 'Shifts',
+      scopes: { OPEN: 'Open', CLOSED: 'Closed', ALL: 'All' },
+      date: 'Date',
+      dateAny: 'Now',
+      dateClear: 'Show current',
       live: 'Updating in real time',
       offline: 'No live connection, refresh the page',
       employee: 'Employee',
@@ -2023,8 +2027,10 @@ export const en: Messages = {
     hints: {
       language:
         'Panel language. The choice is kept in this browser; reports and exports come in the same language.',
-      operationsIncludeClosed:
-        'Show shifts closed within the last day together with the active ones.',
+      operationsScope:
+        'Which shifts to list: open, closed or all. Without a date, "closed" means the last 24 hours.',
+      operationsDate:
+        'List the shifts of the chosen day instead of the live picture. "Show current" brings the live screen back.',
       operationsMasterAction:
         'The transition runs on behalf of the shift master, bypassing bot guards. The comment is mandatory and audited.',
       operationsClarify:

@@ -128,13 +128,7 @@ const TILES: readonly Tile[] = [
     icon: AlertTriangleIcon,
     section: 'operations',
     tone: 'danger',
-    prepare: () => {
-      try {
-        localStorage.setItem('vakhta.ui.operations.includeClosed', 'true');
-      } catch {
-        // storage unavailable
-      }
-    },
+    prepare: () => presetStorage({ 'operations.scope': 'ALL' }),
   },
   {
     key: 'inDowntime',
