@@ -236,9 +236,14 @@ export function ScheduleGrid({
                         key={d}
                         className={cn(
                           'p-0.5 text-center',
-                          // Day and night are told apart by weight, not by hue: amber and red are
-                          // reserved for what needs attention, and a planned shift needs none.
-                          tpl && (tpl.isNight ? 'bg-foreground/10' : 'bg-muted/70'),
+                          // Day is amber, night is the darkest thing on the page: a month is read
+                          // by its pattern, and two greys apart by a shade were the same grey at
+                          // arm's length. The letter takes its colour from the cell, so it stays
+                          // legible on both, in either theme.
+                          tpl &&
+                            (tpl.isNight
+                              ? 'bg-foreground text-background'
+                              : 'bg-amber-200 text-amber-950 dark:bg-amber-900 dark:text-amber-50'),
                         )}
                       >
                         <select
@@ -248,7 +253,7 @@ export function ScheduleGrid({
                           aria-label={`${emp?.fullName ?? ''} ${d}`}
                           data-cell={`${rowIndex}:${dayIndex}`}
                           onKeyDown={(ev) => onCellKey(ev, rowIndex, dayIndex)}
-                          className="h-7 w-9 rounded-md border border-transparent bg-transparent text-center text-sm transition-colors hover:border-border focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-70"
+                          className="h-7 w-9 rounded-md border border-transparent bg-transparent text-center text-sm text-inherit transition-colors hover:border-border focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-70"
                         >
                           <option value="">{dayKind.OFF}</option>
                           {templates.map((tpl2) => (

@@ -23,7 +23,9 @@ export function IssuesPanel({ detail, employees }: Props) {
   );
 
   return (
-    <ul className="flex flex-col gap-2">
+    // A month for twenty people is a hundred warnings, and the list pushed the grid and the
+    // buttons off the screen. It keeps its own height and scrolls inside it.
+    <ul className="flex max-h-96 flex-col gap-2 overflow-y-auto pr-1">
       {sorted.map((issue, i) => {
         const dates = [...new Set(issue.assignmentIds.map((id) => dateOf.get(id)).filter(Boolean))]
           .sort()
