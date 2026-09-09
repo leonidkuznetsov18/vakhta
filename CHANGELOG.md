@@ -1,3 +1,9 @@
+## [0.56.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.55.0...v0.56.0) (2026-09-09)
+
+### Features
+
+* **schedule:** arriving from the overview opens a draft with those people in it ([8ef462f](https://github.com/leonidkuznetsov18/vakhta/commit/8ef462f8eb084b4ff9ba2079c39428f2a94c6df0))
+
 ## [0.55.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.54.0...v0.55.0) (2026-09-09)
 
 ### Features
