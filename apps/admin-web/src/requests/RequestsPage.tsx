@@ -33,7 +33,6 @@ import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
 import { Textarea } from '@/components/ui/textarea';
 import { EyeIcon } from 'lucide-react';
-import { DetailSheet } from '@/components/app/detail-sheet';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { useDeepLinkedId } from '@/lib/route';
 
@@ -190,7 +189,6 @@ export function RequestsPage() {
       .finally(() => setBusy(false));
   }
 
-  const openRow = rows.find((r) => r.id === openId) ?? null;
   // The overtime rows sit in the same section under the requests, so they share its deep link:
   // arriving from the overview has to open the row the number stood for, not nothing at all.
   const openOvertime = overtime.some((row) => row.shiftSessionId === openId) ? openId : null;
@@ -297,6 +295,132 @@ export function RequestsPage() {
     );
   }
 
+  /**
+   * The request opened under its own row: the comment, the decision and what has been decided so
+   * far. The type, the employee and the status are columns of the row above, so they stay there.
+   */
+  function requestDetail(req: RequestView) {
+    if (!detail || detail.request.id !== req.id) return <Muted>{all.ui.common.loading}</Muted>;
+    return (
+      <div className="grid items-start gap-6 py-1 md:grid-cols-2" data-testid="request-detail">
+        <div className="flex max-w-2xl flex-col gap-3">
+          {req.comment && <p className="text-sm">{req.comment}</p>}
+          {req.hasMedicalDocument && <MedicalLink request={detail.request} />}
+          {req.currentStepKey && (
+            <form
+              className="flex flex-col gap-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                decide(req, 'APPROVED');
+              }}
+            >
+              {(req.type === 'LATE' || req.type === 'EARLY_LEAVE') && (
+                <FormField label={r.approvedMinutes} hint={hints.requestsApprovedMinutes}>
+                  {(id) => (
+                    <Input
+                      id={id}
+                      type="number"
+                      min={0}
+                      max={720}
+                      value={approvedMinutes}
+                      onChange={(e) => setApprovedMinutes(e.target.value)}
+                    />
+                  )}
+                </FormField>
+              )}
+              {req.type === 'CORRECTION' && shift && (
+                <>
+                  <SelectField
+                    label={r.proposalKind}
+                    hint={hints.requestsProposal}
+                    searchable={false}
+                    value={proposalKind}
+                    onChange={(v) => setProposalKind(v as ProposalKind)}
+                    options={PROPOSAL_KINDS.map((k) => ({ value: k, label: k }))}
+                  />
+                  {proposalKind !== 'CLOSE_SHIFT_AT' && (
+                    <SelectField
+                      label={r.proposalInterval}
+                      value={proposalInterval}
+                      onChange={setProposalInterval}
+                      placeholder="…"
+                      required
+                      options={shift.intervals.map((i) => ({
+                        value: i.id,
+                        label: `${all.states[i.state]} ${formatDateTime(i.startedAt)} – ${i.endedAt ? formatDateTime(i.endedAt) : '…'}`,
+                      }))}
+                    />
+                  )}
+                  {proposalKind !== 'RECLASSIFY' && (
+                    <FormField label={r.proposalTime}>
+                      {(id) => (
+                        <Input
+                          id={id}
+                          type="datetime-local"
+                          value={proposalTime}
+                          onChange={(e) => setProposalTime(e.target.value)}
+                          required
+                        />
+                      )}
+                    </FormField>
+                  )}
+                  {proposalKind === 'RECLASSIFY' && (
+                    <SelectField
+                      label={r.proposalState}
+                      searchable={false}
+                      value={proposalState}
+                      onChange={(v) => setProposalState(v as ShiftState)}
+                      options={SHIFT_STATES.map((st) => ({ value: st, label: all.states[st] }))}
+                    />
+                  )}
+                </>
+              )}
+              <FormField label={r.comment}>
+                {(id) => (
+                  <Textarea
+                    rows={2}
+                    id={id}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    minLength={3}
+                    required
+                  />
+                )}
+              </FormField>
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" variant="success" disabled={busy}>
+                  {r.approve}
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={busy}
+                  onClick={() => decide(req, 'REJECTED')}
+                >
+                  {r.reject}
+                </Button>
+              </div>
+            </form>
+          )}
+        </div>
+        <div>
+          <h3 className="mb-2 text-sm font-semibold">{r.history}</h3>
+          <ul className="flex flex-col gap-1 text-sm">
+            {detail.decisions.map((d) => (
+              <li key={d.id}>
+                <span className="tabular-nums">{formatDateTime(d.at)}</span> {d.stepKey}:{' '}
+                {d.decision === 'APPROVED'
+                  ? all.requests.approvedShort
+                  : all.requests.rejectedShort}
+                <Muted>{` · ${d.actingRole ?? d.actorType} · ${d.comment}`}</Muted>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <HowItWorks guide="requests" />
@@ -333,150 +457,8 @@ export function RequestsPage() {
         empty={r.empty}
         rowClassName={(req) => (req.overdue ? ROW_DANGER : undefined)}
         activeKey={openId}
+        expanded={(req) => (req.id === openId ? requestDetail(req) : null)}
       />
-      {openRow && (
-        <DetailSheet
-          open={openRow !== null}
-          onOpenChange={(open) => !open && setOpenId(null)}
-          title={
-            <>
-              {all.requests.types[openRow.type]}
-              <StatusPill tone={STATUS_TONE[openRow.status]}>
-                {all.requests.statuses[openRow.status]}
-              </StatusPill>
-            </>
-          }
-          description={`${openRow.employeeName} · ${formatDateTime(openRow.submittedAt)}`}
-          wide
-        >
-          {((req) =>
-            detail && detail.request.id === req.id ? (
-              <>
-                <div className="flex flex-col gap-4">
-                  {req.comment && <p className="text-sm">{req.comment}</p>}
-                  {req.hasMedicalDocument && <MedicalLink request={detail.request} />}
-                  {req.currentStepKey && (
-                    <form
-                      className="flex flex-wrap items-end gap-3"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        decide(req, 'APPROVED');
-                      }}
-                    >
-                      {(req.type === 'LATE' || req.type === 'EARLY_LEAVE') && (
-                        <FormField
-                          label={r.approvedMinutes}
-                          hint={hints.requestsApprovedMinutes}
-                          className="w-56"
-                        >
-                          {(id) => (
-                            <Input
-                              id={id}
-                              type="number"
-                              min={0}
-                              max={720}
-                              value={approvedMinutes}
-                              onChange={(e) => setApprovedMinutes(e.target.value)}
-                            />
-                          )}
-                        </FormField>
-                      )}
-                      {req.type === 'CORRECTION' && shift && (
-                        <>
-                          <SelectField
-                            label={r.proposalKind}
-                            hint={hints.requestsProposal}
-                            value={proposalKind}
-                            onChange={(v) => setProposalKind(v as ProposalKind)}
-                            options={PROPOSAL_KINDS.map((k) => ({ value: k, label: k }))}
-                            className="w-52"
-                          />
-                          {proposalKind !== 'CLOSE_SHIFT_AT' && (
-                            <SelectField
-                              label={r.proposalInterval}
-                              value={proposalInterval}
-                              onChange={setProposalInterval}
-                              placeholder="…"
-                              required
-                              options={shift.intervals.map((i) => ({
-                                value: i.id,
-                                label: `${all.states[i.state]} ${formatDateTime(i.startedAt)} – ${i.endedAt ? formatDateTime(i.endedAt) : '…'}`,
-                              }))}
-                              className="w-80"
-                            />
-                          )}
-                          {proposalKind !== 'RECLASSIFY' && (
-                            <FormField label={r.proposalTime} className="w-56">
-                              {(id) => (
-                                <Input
-                                  id={id}
-                                  type="datetime-local"
-                                  value={proposalTime}
-                                  onChange={(e) => setProposalTime(e.target.value)}
-                                  required
-                                />
-                              )}
-                            </FormField>
-                          )}
-                          {proposalKind === 'RECLASSIFY' && (
-                            <SelectField
-                              label={r.proposalState}
-                              value={proposalState}
-                              onChange={(v) => setProposalState(v as ShiftState)}
-                              options={SHIFT_STATES.map((s) => ({
-                                value: s,
-                                label: all.states[s],
-                              }))}
-                              className="w-56"
-                            />
-                          )}
-                        </>
-                      )}
-                      <FormField label={r.comment} className="min-w-72 flex-1">
-                        {(id) => (
-                          <Textarea
-                            rows={2}
-                            id={id}
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            minLength={3}
-                            required
-                          />
-                        )}
-                      </FormField>
-                      <Button type="submit" variant="success" disabled={busy}>
-                        {r.approve}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        disabled={busy}
-                        onClick={() => decide(req, 'REJECTED')}
-                      >
-                        {r.reject}
-                      </Button>
-                    </form>
-                  )}
-                  <div>
-                    <h3 className="mb-2 text-sm font-semibold">{r.history}</h3>
-                    <ul className="flex flex-col gap-1 text-sm">
-                      {detail.decisions.map((d) => (
-                        <li key={d.id}>
-                          <span className="tabular-nums">{formatDateTime(d.at)}</span> {d.stepKey}:{' '}
-                          {d.decision === 'APPROVED'
-                            ? all.requests.approvedShort
-                            : all.requests.rejectedShort}
-                          <Muted>{` · ${d.actingRole ?? d.actorType} · ${d.comment}`}</Muted>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </>
-            ) : null)(openRow)}
-        </DetailSheet>
-      )}
-
       <Section title={r.overtimeTitle} hint={hints.requestsOvertime}>
         <DataTable
           columns={overtimeColumns}

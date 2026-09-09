@@ -604,36 +604,52 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     });
   // One request awaiting a decision and one shift that ran over: enough to see both tables of the
   // section, and the row the overview's tiles deep-link into.
-  if (path === '/admin/requests')
-    return json([
-      {
-        id: 'rq1',
-        type: 'VACATION',
-        status: 'IN_REVIEW',
-        employeeId: 'e2',
-        employeeName: 'Ткач Олена',
-        currentStep: 1,
-        currentStepKey: 'MASTER',
-        totalSteps: 2,
-        periodFrom: '2026-09-20',
-        periodTo: '2026-09-24',
-        assignmentId: null,
-        assignmentDate: null,
-        counterpartEmployeeId: null,
-        counterpartName: null,
-        shiftSessionId: null,
-        comment: 'Сімейні обставини',
-        minutes: null,
-        approvedMinutes: null,
-        hasMedicalDocument: false,
-        medicalMediaId: null,
-        submittedAt: '2026-09-08T09:00:00.000Z',
-        stepDeadlineAt: '2026-09-09T09:00:00.000Z',
-        decidedAt: null,
-        resultVersionId: null,
-        overdue: false,
-      },
-    ]);
+  const request = {
+    id: 'rq1',
+    type: 'VACATION',
+    status: 'IN_REVIEW',
+    employeeId: 'e2',
+    employeeName: 'Ткач Олена',
+    currentStep: 1,
+    currentStepKey: 'MASTER',
+    totalSteps: 2,
+    periodFrom: '2026-09-20',
+    periodTo: '2026-09-24',
+    assignmentId: null,
+    assignmentDate: null,
+    counterpartEmployeeId: null,
+    counterpartName: null,
+    shiftSessionId: null,
+    comment: 'Сімейні обставини',
+    minutes: null,
+    approvedMinutes: null,
+    hasMedicalDocument: false,
+    medicalMediaId: null,
+    submittedAt: '2026-09-08T09:00:00.000Z',
+    stepDeadlineAt: '2026-09-09T09:00:00.000Z',
+    decidedAt: null,
+    resultVersionId: null,
+    overdue: false,
+  };
+  if (path === '/admin/requests') return json([request]);
+  if (path === '/admin/requests/rq1')
+    return json({
+      request,
+      decisions: [
+        {
+          id: 'd1',
+          step: 1,
+          stepKey: 'MASTER',
+          actorType: 'WEB_USER',
+          actorId: 'u1',
+          actingRole: 'SHIFT_MASTER',
+          decision: 'APPROVED',
+          comment: 'Заміну знайшли',
+          at: '2026-09-08T10:00:00.000Z',
+        },
+      ],
+      serverTime: new Date().toISOString(),
+    });
   if (path === '/admin/requests/overtime')
     return json([
       {

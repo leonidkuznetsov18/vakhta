@@ -129,7 +129,7 @@ describe('RequestsPage', () => {
     expect(screen.getByText(/^просрочено на/)).toBeTruthy();
     await clickRowAction('Подробности');
     // The decision form lives in the side sheet; the overtime table has its own buttons.
-    const sheet = await screen.findByRole('dialog');
+    const sheet = await screen.findByTestId('request-detail');
     expect(await within(sheet).findByText('Пробки на мосту')).toBeTruthy();
     fireEvent.change(within(sheet).getByLabelText('Утверждённое отклонение, мин'), {
       target: { value: '15' },
@@ -167,7 +167,7 @@ describe('RequestsPage', () => {
     const calls = mockApi(state);
     render(<RequestsPage />);
     await clickRowAction('Подробности');
-    const sheet = await screen.findByRole('dialog');
+    const sheet = await screen.findByTestId('request-detail');
     const kind = (await within(sheet).findByLabelText('Тип коррекции')) as HTMLSelectElement;
     expect(kind.value).toBe('CLOSE_SHIFT_AT');
     fireEvent.change(within(sheet).getByLabelText('Новое время'), {

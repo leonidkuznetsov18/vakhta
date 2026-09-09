@@ -571,5 +571,26 @@ describe('shift: машина станів зміни в транзакції (�
       .where(eq(shiftSessions.employeeId, nobody!.id));
     expect(row!.assignmentId).toBeNull();
     expect(row!.planEndAt).not.toBeNull();
+
+    // A shift without an assignment still belongs to the unit the person is posted to: the
+    // overview names that unit and the schedule page knows whose month to open. Without this the
+    // shift had no unit at all and the panel could only say "no unit".
+    const [unit] = await testDb.db.select().from(orgUnits).limit(1);
+    const [role] = await testDb.db
+      .insert(positions)
+      .values({ code: 'PACKER', name: 'Пакувальник' })
+      .returning();
+    await testDb.db.insert(employeePositions).values({
+      employeeId: nobody!.id,
+      orgUnitId: unit!.id,
+      positionId: role!.id,
+      validFrom: new Date('2026-01-01T00:00:00Z'),
+    });
+    const listed = (await service.listActive({})).find((v) => v.employeeId === nobody!.id);
+    expect(listed).toMatchObject({ orgUnitId: unit!.id, orgUnitName: unit!.name });
+    // And the unit filter finds it there, or the overview's link would land on an empty list.
+    expect(
+      (await service.listActive({ orgUnitId: unit!.id })).some((v) => v.id === listed!.id),
+    ).toBe(true);
   });
 });

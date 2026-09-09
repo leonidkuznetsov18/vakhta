@@ -5,6 +5,7 @@ import {
   asc,
   desc,
   domainEvents,
+  employeePositions,
   employees,
   eq,
   gte,
@@ -208,6 +209,19 @@ export class ShiftService {
     };
   }
 
+  /**
+   * The unit a shift belongs to: the one its schedule assignment names, and for a shift worked
+   * without a schedule — the one the employee is currently posted to. A shift with no assignment
+   * used to have no unit at all, so the overview could not say which month to write for these
+   * people, and the schedule page opened on nothing.
+   */
+  private unitOfShift() {
+    return sql<string | null>`coalesce(${shiftAssignments.orgUnitId}, (
+      select p.org_unit_id from ${employeePositions} p
+      where p.employee_id = ${shiftSessions.employeeId} and p.valid_to is null
+      order by p.valid_from desc limit 1))`;
+  }
+
   /** Оперативний екран (ТЗ 9.2): незакриті зміни, за вибором — закриті або конкретний день. */
   async listActive(q: ActiveShiftsQuery, now: Date = new Date()): Promise<ActiveShiftView[]> {
     const since = new Date(now.getTime() - 24 * 3_600_000);
@@ -228,7 +242,7 @@ export class ShiftService {
             ? or(open, gte(shiftSessions.endedAt, since))
             : open,
     ];
-    if (q.orgUnitId) conditions.push(eq(shiftAssignments.orgUnitId, q.orgUnitId));
+    if (q.orgUnitId) conditions.push(sql`${this.unitOfShift()} = ${q.orgUnitId}`);
     if (q.siteId) conditions.push(eq(orgUnits.siteId, q.siteId));
 
     const rows = await this.db
@@ -253,7 +267,7 @@ export class ShiftService {
       .from(shiftSessions)
       .innerJoin(employees, eq(shiftSessions.employeeId, employees.id))
       .leftJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
-      .leftJoin(orgUnits, eq(shiftAssignments.orgUnitId, orgUnits.id))
+      .leftJoin(orgUnits, sql`${orgUnits.id} = ${this.unitOfShift()}`)
       .leftJoin(responsibilityZones, eq(shiftSessions.zoneId, responsibilityZones.id))
       .leftJoin(
         presenceSessions,
@@ -291,7 +305,7 @@ export class ShiftService {
       .from(shiftSessions)
       .innerJoin(employees, eq(shiftSessions.employeeId, employees.id))
       .leftJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
-      .leftJoin(orgUnits, eq(shiftAssignments.orgUnitId, orgUnits.id))
+      .leftJoin(orgUnits, sql`${orgUnits.id} = ${this.unitOfShift()}`)
       .leftJoin(responsibilityZones, eq(shiftSessions.zoneId, responsibilityZones.id))
       .leftJoin(
         presenceSessions,
