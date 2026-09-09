@@ -1,3 +1,9 @@
+## [0.55.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.54.0...v0.55.0) (2026-09-09)
+
+### Features
+
+* **operations:** filter shifts by scope and business date ([9d8d197](https://github.com/leonidkuznetsov18/vakhta/commit/9d8d197a768ec082a6c56ac3d6d8db460ee8b730))
+
 ## [0.54.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.53.1...v0.54.0) (2026-09-09)
 
 ### Features
