@@ -1,3 +1,9 @@
+## [0.67.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.66.0...v0.67.0) (2026-09-09)
+
+### Features
+
+* **admin-web:** the row a link points at is turned to and scrolled to ([8eb9193](https://github.com/leonidkuznetsov18/vakhta/commit/8eb9193cea38cfe2df59d9908c3f0b614de5e2e4))
+
 ## [0.66.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.65.0...v0.66.0) (2026-09-09)
 
 ### Features
