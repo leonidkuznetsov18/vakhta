@@ -1,3 +1,9 @@
+## [0.59.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.59.0...v0.59.1) (2026-09-09)
+
+### Bug fixes
+
+* **overview:** a tile always lands on something visible ([d2e4fe2](https://github.com/leonidkuznetsov18/vakhta/commit/d2e4fe252f6301e36db178ae19e236fc9dae1a71))
+
 ## [0.59.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.58.0...v0.59.0) (2026-09-09)
 
 ### Features
