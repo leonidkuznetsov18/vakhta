@@ -1,3 +1,9 @@
+## [0.54.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.53.1...v0.54.0) (2026-09-09)
+
+### Features
+
+* **admin-web:** show unscheduled shifts as attention tiles ([06b3e39](https://github.com/leonidkuznetsov18/vakhta/commit/06b3e396ef360969d484880808022e936e94d60b))
+
 ## [0.53.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.53.0...v0.53.1) (2026-09-09)
 
 ### Refactoring
