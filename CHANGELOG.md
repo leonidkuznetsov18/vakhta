@@ -1,3 +1,9 @@
+## [0.64.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.63.0...v0.64.0) (2026-09-09)
+
+### Features
+
+* **handover:** find the checklists of one day ([8f9923d](https://github.com/leonidkuznetsov18/vakhta/commit/8f9923d2932307bd4d0d1f52e300fdb3b201878d))
+
 ## [0.63.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.62.0...v0.63.0) (2026-09-09)
 
 ### Features
