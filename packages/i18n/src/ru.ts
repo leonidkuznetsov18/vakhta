@@ -567,10 +567,7 @@ export const ru: Messages = {
       inDowntime: 'В простое',
       unscheduledShifts: 'Внеплановые смены',
       closedNoChecklist: 'Закрыты без чек-листа',
-      unscheduledBanner:
-        'Сейчас на смене без графика {n} сотрудников. Создайте для них график, чтобы смены были запланированы.',
-      unscheduledOpen: 'Открыть график',
-      unscheduledPlan: 'Создать график',
+      unscheduledUnit: 'Без графика: {unit}',
       noUnit: 'Без подразделения',
       open: 'Открыть',
       refreshedAt: 'Обновлено {time}',

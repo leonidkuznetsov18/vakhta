@@ -570,10 +570,7 @@ export const uk: Messages = {
       inDowntime: 'У простої',
       unscheduledShifts: 'Позапланові зміни',
       closedNoChecklist: 'Закриті без чек-листа',
-      unscheduledBanner:
-        'Зараз на зміні без графіка {n} працівників. Створіть для них графік, щоб зміни були заплановані.',
-      unscheduledOpen: 'Відкрити графік',
-      unscheduledPlan: 'Створити графік',
+      unscheduledUnit: 'Без графіка: {unit}',
       noUnit: 'Без підрозділу',
       open: 'Відкрити',
       refreshedAt: 'Оновлено {time}',

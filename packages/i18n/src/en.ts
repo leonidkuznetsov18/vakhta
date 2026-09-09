@@ -570,10 +570,7 @@ export const en: Messages = {
       inDowntime: 'In downtime',
       unscheduledShifts: 'Unscheduled shifts',
       closedNoChecklist: 'Closed without a checklist',
-      unscheduledBanner:
-        '{n} employees are on shift right now without a schedule. Build a schedule for them so their shifts are planned.',
-      unscheduledOpen: 'Open schedule',
-      unscheduledPlan: 'Build a schedule',
+      unscheduledUnit: 'No schedule: {unit}',
       noUnit: 'No unit',
       open: 'Open',
       refreshedAt: 'Updated {time}',

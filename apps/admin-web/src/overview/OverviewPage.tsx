@@ -12,13 +12,12 @@ import {
   CalendarClockIcon,
   type LucideIcon,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Feedback } from '@/components/app/feedback';
 import { InfoTip } from '@/components/app/info-tip';
 import { EmptyState, Muted, Section, type Tone } from '@/components/app/page';
-import { AvatarStack } from '@/components/app/avatar-stack';
+import { AvatarStack, type StackedPerson } from '@/components/app/avatar-stack';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { formatTime } from '@/lib/format';
 import { writeSchedulePreset } from '../schedule/preset.ts';
@@ -167,14 +166,73 @@ const TONE_TEXT: Record<Tone, string> = {
   danger: 'text-red-700 dark:text-red-300',
 };
 
+/**
+ * One card of the overview: a number, what it counts, and the faces behind it. The whole card is
+ * the control — clicking it opens what the number stands for, so there is no separate button.
+ */
+function TileCard({
+  icon: Icon,
+  value,
+  label,
+  tone,
+  active,
+  people,
+  onOpen,
+}: {
+  readonly icon: LucideIcon;
+  readonly value: number;
+  readonly label: string;
+  readonly tone: Tone;
+  readonly active: boolean;
+  readonly people: readonly StackedPerson[];
+  readonly onOpen: () => void;
+}) {
+  return (
+    <Card
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className={cn(
+        'cursor-pointer gap-2 py-4 transition-shadow outline-none hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50',
+        active && TONE_RING[tone],
+      )}
+    >
+      <CardContent className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Icon aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <div className={cn('text-2xl font-semibold tabular-nums', active && TONE_TEXT[tone])}>
+              {value}
+            </div>
+            <div className="truncate text-sm text-muted-foreground">{label}</div>
+          </div>
+        </div>
+        {/* Who is behind the number, without opening the section: the faces answer "who" and
+            pointing at them answers "which of them". The stack stops the click so reading the
+            names does not navigate away from them. */}
+        <div
+          className="flex shrink-0 items-center"
+          onClick={(e) => e.stopPropagation()}
+          role="presentation"
+        >
+          <AvatarStack people={people} max={4} size={26} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 /** "Overview": the queues waiting on the signed-in role, one tile each, with a shortcut. */
 export function OverviewPage({ me }: { readonly me: MeView }) {
   const { data, error } = useAttention(me);
   const { go } = useNavigation();
-  const visible = TILES.filter((t) => data[t.key] !== null);
   const loading = data.refreshedAt === null;
-  const attention = visible.filter((t) => t.tone !== 'neutral' && (data[t.key] ?? 0) > 0);
-  const quiet = visible.filter((t) => !attention.includes(t));
 
   /** The people on an unscheduled shift, gathered by the unit whose schedule would hold them. */
   const unscheduledByUnit = useMemo(() => {
@@ -197,13 +255,23 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
     );
   }, [data.unscheduledPeople]);
 
+  // One card per unit stands in for the plain "unscheduled" tile: the tile only said how many, the
+  // cards say who and in which unit, and each one opens that unit's month with those people in it.
+  const grouped = unscheduledByUnit.length > 0;
+  const visible = TILES.filter(
+    (t) => data[t.key] !== null && !(grouped && t.key === 'unscheduled'),
+  );
+  const attention = visible.filter((t) => t.tone !== 'neutral' && (data[t.key] ?? 0) > 0);
+  const quiet = visible.filter((t) => !attention.includes(t));
+
   /** Hands the unit and the people to the schedule page, which opens that month with them in it. */
   function planFor(group: (typeof unscheduledByUnit)[number]): void {
-    if (!group.orgUnitId) return;
-    writeSchedulePreset({
-      orgUnitId: group.orgUnitId,
-      employeeIds: group.people.map((p) => p.employeeId),
-    });
+    if (group.orgUnitId) {
+      writeSchedulePreset({
+        orgUnitId: group.orgUnitId,
+        employeeIds: group.people.map((p) => p.employeeId),
+      });
+    }
     go('schedule');
   }
 
@@ -217,104 +285,41 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
     go(t.section);
   }
 
-  const tile = (t: Tile) => {
-    const value = data[t.key] ?? 0;
-    const active = t.tone !== 'neutral' && value > 0;
-    return (
-      <Card
-        key={t.key}
-        role="button"
-        tabIndex={0}
-        onClick={() => open(t)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            open(t);
-          }
-        }}
-        className={cn(
-          'cursor-pointer gap-2 py-4 transition-shadow outline-none hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50',
-          active && TONE_RING[t.tone],
-        )}
-      >
-        <CardContent className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <t.icon aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
-            <div className="min-w-0">
-              <div
-                className={cn('text-2xl font-semibold tabular-nums', active && TONE_TEXT[t.tone])}
-              >
-                {value}
-              </div>
-              <div className="truncate text-sm text-muted-foreground">{t.label}</div>
-            </div>
-          </div>
-          {/* Who is behind the number, without opening the section: the faces answer "who" and
-              pointing at them answers "which of them". The stack stops the click so reading the
-              names does not navigate away from them. */}
-          <div
-            className="flex shrink-0 items-center"
-            onClick={(e) => e.stopPropagation()}
-            role="presentation"
-          >
-            <AvatarStack people={data.people[t.key] ?? []} max={4} size={26} />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
+  const tile = (t: Tile) => (
+    <TileCard
+      key={t.key}
+      icon={t.icon}
+      value={data[t.key] ?? 0}
+      label={t.label}
+      tone={t.tone}
+      active={t.tone !== 'neutral' && (data[t.key] ?? 0) > 0}
+      people={data.people[t.key] ?? []}
+      onOpen={() => open(t)}
+    />
+  );
+
+  const unscheduledTile = (group: (typeof unscheduledByUnit)[number]) => (
+    <TileCard
+      key={group.orgUnitId ?? 'none'}
+      icon={CalendarClockIcon}
+      value={group.people.length}
+      label={format(o.unscheduledUnit, { unit: group.orgUnitName ?? o.noUnit })}
+      tone="warning"
+      active
+      people={group.people.map((p) => ({
+        id: p.id,
+        name: p.fullName,
+        seed: p.id,
+        note: p.personnelNumber,
+      }))}
+      onOpen={() => planFor(group)}
+    />
+  );
 
   return (
     <div className="flex flex-col gap-4">
       <HowItWorks guide="overview" />
       <Feedback error={error ? describeError(error) : null} />
-      {unscheduledByUnit.length > 0 && (
-        <Card className="border-amber-300 dark:border-amber-900">
-          <CardContent className="flex flex-col gap-3">
-            <div className="flex items-start gap-3">
-              <CalendarClockIcon
-                aria-hidden="true"
-                className="mt-0.5 size-5 shrink-0 text-amber-600"
-              />
-              <p className="text-sm">{format(o.unscheduledBanner, { n: data.unscheduled ?? 0 })}</p>
-            </div>
-            {/* Named, and grouped by unit: a schedule is written for one unit at a time, so each
-                group carries the button that opens that unit's month with these people already in
-                it. Without the names the tile only said how many, which nobody can act on. */}
-            <ul className="flex flex-col gap-2">
-              {unscheduledByUnit.map((group) => (
-                <li
-                  key={group.orgUnitId ?? 'none'}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-3 py-2"
-                >
-                  <AvatarStack
-                    people={group.people.map((p) => ({
-                      id: p.id,
-                      name: p.fullName,
-                      seed: p.id,
-                      note: p.personnelNumber,
-                    }))}
-                    max={4}
-                  />
-                  <span className="font-medium">{group.orgUnitName ?? o.noUnit}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-                    {group.people.map((p) => p.fullName).join(', ')}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={group.orgUnitId === null}
-                    onClick={() => planFor(group)}
-                  >
-                    {o.unscheduledPlan}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
       <Section
         title={o.title}
         hint={all.ui.hints.overview}
@@ -332,10 +337,13 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
               <Skeleton key={i} className="h-20 rounded-xl" />
             ))}
           </div>
-        ) : attention.length === 0 ? (
+        ) : attention.length === 0 && !grouped ? (
           <EmptyState text={o.allClear} />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{attention.map(tile)}</div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {unscheduledByUnit.map(unscheduledTile)}
+            {attention.map(tile)}
+          </div>
         )}
       </Section>
       {!loading && quiet.length > 0 && (

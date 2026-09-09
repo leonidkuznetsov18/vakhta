@@ -420,9 +420,8 @@ export interface Messages {
       readonly inDowntime: string;
       readonly unscheduledShifts: string;
       readonly closedNoChecklist: string;
-      readonly unscheduledBanner: string;
-      readonly unscheduledOpen: string;
-      readonly unscheduledPlan: string;
+      /** Placeholder: {unit} */
+      readonly unscheduledUnit: string;
       readonly noUnit: string;
       readonly open: string;
       /** Placeholder: {time} */
