@@ -1,3 +1,9 @@
+## [0.57.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.56.1...v0.57.0) (2026-09-09)
+
+### Features
+
+* **schedule:** totals and row actions ride the grid's right edge ([7e19326](https://github.com/leonidkuznetsov18/vakhta/commit/7e193269b0d633bb378c41026c89cd9172226dc1))
+
 ## [0.56.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.56.0...v0.56.1) (2026-09-09)
 
 ### Refactoring
