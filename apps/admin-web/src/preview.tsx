@@ -533,6 +533,27 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     });
   }
   if (path === '/admin/reports/hours') return json(hoursReport);
+  // A quiet week is the normal state of this section, and the empty answer is what the panel gets
+  // from the real server — not a 404 that reads as a broken page.
+  if (path === '/admin/incidents') return json([]);
+  if (path === '/admin/incidents/stats') {
+    const zero = {
+      key: 'total',
+      label: 'Усього',
+      incidents: 0,
+      reports: 0,
+      downtimeMinutes: 0,
+      avgResolutionMinutes: null,
+      slaBreached: 0,
+    };
+    return json({
+      from: '2026-09-01T00:00:00.000Z',
+      to: '2026-09-08T00:00:00.000Z',
+      byReason: [],
+      byZone: [],
+      totals: zero,
+    });
+  }
   if (path.startsWith('/admin/schedules/templates')) return json(scheduleTemplates);
   if (path === '/admin/schedules' && method === 'POST') {
     const body = JSON.parse(String(init?.body ?? '{}')) as {

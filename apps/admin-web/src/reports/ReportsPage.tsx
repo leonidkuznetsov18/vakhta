@@ -37,6 +37,24 @@ type Bar_ = LossesView['bars'][number];
 type Interval = LossesView['intervals'][number];
 
 /**
+ * The Pareto zones, and the whole point of the colour: red is the vital few that make up the first
+ * 80% of the lost time, amber is what comes after them, grey is the tail that can wait. One bar
+ * colour would have said only "these are bars"; this says where to start.
+ */
+const ZONES = ['vital', 'next', 'tail'] as const;
+type Zone = (typeof ZONES)[number];
+const ZONE_FILL: Record<Zone, string> = {
+  vital: 'var(--chart-4)',
+  next: 'var(--chart-2)',
+  tail: 'var(--muted-foreground)',
+};
+/** `cumulative` is a share of one, not a percentage. */
+function zoneOf(cumulative: number): Zone {
+  if (cumulative <= 0.8) return 'vital';
+  return cumulative <= 0.95 ? 'next' : 'tail';
+}
+
+/**
  * "Time losses" — the one report (2026-09-09).
  *
  * A Pareto of the time a shift did not spend on its main work: categories ranked by how much they
@@ -83,11 +101,14 @@ export function ReportsPage() {
   const chart = bars.map((b) => ({
     ...b,
     minutes: b.minutes,
+    // The zone is taken before the share becomes a percentage: the axis wants 0…100, the colour
+    // rule is written against 0…1, and reading one as the other painted every bar the same.
+    zone: zoneOf(b.cumulative),
     cumulative: Math.round(b.cumulative * 100),
   }));
   const config: ChartConfig = {
-    minutes: { label: r.lossMinutes, color: 'var(--chart-1)' },
-    cumulative: { label: r.lossCumulative, color: 'var(--chart-2)' },
+    minutes: { label: r.lossMinutes, color: 'var(--chart-4)' },
+    cumulative: { label: r.lossCumulative, color: 'var(--foreground)' },
   };
   // Everything up to the 80% line is what to fix first; the tail is noise until that is done.
   const vital = (b: Bar_) => b.cumulative <= 0.8;
@@ -272,22 +293,36 @@ export function ReportsPage() {
                   {chart.map((b) => (
                     <Cell
                       key={b.key}
-                      fill={vital(b) ? 'var(--chart-1)' : 'var(--chart-4)'}
+                      fill={ZONE_FILL[b.zone]}
                       cursor="pointer"
                       onClick={() => !category && setCategory(b.key)}
                     />
                   ))}
                 </Bar>
+                {/* The cumulative share is a reference, not a series: black keeps the hues free
+                    to mean the zones. */}
                 <Line
                   yAxisId="right"
                   type="monotone"
                   dataKey="cumulative"
-                  stroke="var(--chart-2)"
+                  stroke="var(--foreground)"
                   dot={false}
                   strokeWidth={2}
                 />
               </ComposedChart>
             </ChartContainer>
+            <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              {ZONES.map((zone) => (
+                <span key={zone} className="inline-flex items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    className="size-2.5 rounded-full"
+                    style={{ background: ZONE_FILL[zone] }}
+                  />
+                  {r.lossZones[zone]}
+                </span>
+              ))}
+            </div>
             <DataTable
               columns={barColumns}
               rows={bars}

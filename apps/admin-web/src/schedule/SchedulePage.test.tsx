@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SchedulePage } from './SchedulePage.tsx';
+import { useScheduleDrafts } from './store.ts';
 import { NavigationProvider } from '../navigation.tsx';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
@@ -201,6 +202,8 @@ describe('SchedulePage', () => {
   beforeEach(() => {
     vi.useRealTimers();
     vi.setSystemTime(new Date('2026-09-06T10:00:00Z'));
+    // The store lives in a module, so clearing storage between tests is not enough.
+    useScheduleDrafts.setState({ drafts: {} });
   });
   afterEach(() => {
     cleanup();
@@ -393,6 +396,29 @@ describe('SchedulePage', () => {
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
+  });
+
+  it('unsaved rows survive leaving the section and coming back', async () => {
+    sessionStorage.setItem(
+      'vakhta.ui.schedule.preset',
+      JSON.stringify({
+        orgUnitId: UNIT,
+        month: '2026-09',
+        people: [{ id: EMP2, name: 'Сидоров Пётр' }],
+      }),
+    );
+    const state = { status: 'DRAFT' as string, created: false };
+    const calls = mockApi(state);
+    const first = render(<SchedulePage />);
+    await screen.findByRole('button', { name: /Действия: Сидоров Пётр/ });
+
+    // Another section, then back: the page is unmounted and the version is read from a server
+    // that never saw these rows, so without a store they would be gone.
+    first.unmount();
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+    render(<SchedulePage />);
+    expect(await screen.findByRole('button', { name: /Действия: Сидоров Пётр/ })).toBeTruthy();
+    expect(await screen.findByText('Есть несохранённые изменения.')).toBeTruthy();
   });
 
   it('arriving when the month already has a draft fills that draft instead of making another', async () => {

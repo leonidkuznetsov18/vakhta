@@ -1062,6 +1062,11 @@ export const en: Messages = {
       lossMinutes: 'Minutes',
       lossShare: 'Share',
       lossCumulative: 'Cumulative',
+      lossZones: {
+        vital: 'Fix first — the first 80% of the lost time',
+        next: 'Next — from 80% to 95%',
+        tail: 'Tail — the rest, it can wait',
+      },
       lossIntervals: 'Intervals',
       lossEmployees: 'Employees',
       lossTotal: 'Total shift time',
@@ -1829,11 +1834,15 @@ export const en: Messages = {
           "One report: where a shift's time goes and why. It shows which causes eat the most time, so it is clear what to fix first.",
         steps: [
           'Pick the period, and a site or unit if you need one. The report builds itself.',
-          'The chart ranks the categories of non-working time; the line is the running share. The red bars up to 80% are what most of the loss is made of.',
+          'The chart ranks the categories of non-working time; the black line is the cumulative share. Red bars are the first 80% of the losses and are fixed first, amber ones run from 80% to 95%, grey ones are the tail that can wait.',
           'Clicking a category opens the reasons recorded inside it, and under them the intervals themselves: who, when, how long, what they said.',
           '"With a reason" says how far the report can be trusted: the rest of the time sits in states with no explanation.',
           'CSV and XLSX download the intervals of whatever slice is on screen.',
         ],
+        video: {
+          url: 'https://www.youtube.com/watch?v=hdxZfFOkTJQ',
+          label: 'Video: Pareto analysis and the 80/20 chart — how to read it',
+        },
         faq: [
           {
             q: 'Why this, when we already have points and shifts?',

@@ -51,6 +51,8 @@ export interface SectionGuide {
   readonly steps: readonly string[];
   /** Questions people ask in the first week, with short answers naming the buttons. */
   readonly faq: readonly { readonly q: string; readonly a: string }[];
+  /** An outside explanation of the method the section is built on, when one exists. */
+  readonly video?: { readonly url: string; readonly label: string };
 }
 
 export interface Messages {
@@ -896,6 +898,8 @@ export interface Messages {
       readonly lossMinutes: string;
       readonly lossShare: string;
       readonly lossCumulative: string;
+      /** Legend of the Pareto zones, which the bar colours encode. */
+      readonly lossZones: Readonly<Record<'vital' | 'next' | 'tail', string>>;
       readonly lossIntervals: string;
       readonly lossEmployees: string;
       readonly lossTotal: string;

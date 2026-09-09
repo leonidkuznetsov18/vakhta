@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpenIcon, CircleHelpIcon, ClipboardListIcon } from 'lucide-react';
+import { BookOpenIcon, CircleHelpIcon, CirclePlayIcon, ClipboardListIcon } from 'lucide-react';
 import { format, messages, type GuideKey } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { DetailSheet } from '@/components/app/detail-sheet';
@@ -66,6 +66,19 @@ export function HowItWorks({
               <li key={step}>{step}</li>
             ))}
           </ol>
+          {/* Some sections rest on a method older than this panel; the explanation of the method
+              itself is better watched once than paraphrased in a hint. */}
+          {g.video && (
+            <a
+              href={g.video.url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex w-fit items-center gap-1.5 font-medium text-foreground underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            >
+              <CirclePlayIcon className="size-4 shrink-0" aria-hidden="true" />
+              {g.video.label}
+            </a>
+          )}
         </div>
       )}
       <FaqSheet guide={guide} open={faq} onOpenChange={setFaq} />

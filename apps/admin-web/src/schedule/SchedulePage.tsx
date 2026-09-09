@@ -21,6 +21,7 @@ import { describeError as describe } from '../errors.ts';
 import { AckTable } from './AckTable.tsx';
 import { IssuesPanel } from './IssuesPanel.tsx';
 import { takeSchedulePreset, type SchedulePreset } from './preset.ts';
+import { draftOf, useScheduleDrafts } from './store.ts';
 import { ScheduleGrid } from './ScheduleGrid.tsx';
 import {
   addRow,
@@ -185,8 +186,11 @@ export function SchedulePage() {
   const loadDetail = useCallback(async (id: string) => {
     const d = await schedulesApi.detail(id);
     setDetail(d);
-    setGrid(gridFromDetail(d));
-    setDirty(false);
+    // Unsaved edits outlive the page: leaving for another section unmounts it, and the version
+    // read back from the server knows nothing about rows and shifts that were never saved.
+    const kept = d.version.status === 'DRAFT' ? draftOf(id) : undefined;
+    setGrid(kept ?? gridFromDetail(d));
+    setDirty(kept !== undefined);
     setAcks(d.version.status === 'PUBLISHED' ? await schedulesApi.acknowledgements(id) : null);
   }, []);
 
@@ -293,6 +297,15 @@ export function SchedulePage() {
     });
   }
 
+  // Synchronising with something outside React: the store is where an unsaved month waits out a
+  // trip to another section or a reload.
+  useEffect(() => {
+    if (!version) return;
+    const { keep, drop } = useScheduleDrafts.getState();
+    if (dirty) keep(version.id, grid);
+    else drop(version.id);
+  }, [version, grid, dirty]);
+
   function save() {
     if (!version) return;
     void run(async () => {
@@ -369,6 +382,7 @@ export function SchedulePage() {
           throw new Error(s.versionInUse);
         throw e;
       }
+      useScheduleDrafts.getState().drop(version.id);
       setSelectedId(null);
       await loadVersions();
     }, s.deleted);
@@ -385,6 +399,7 @@ export function SchedulePage() {
     if (reason === false) return;
     void run(async () => {
       const created = await schedulesApi.revise(version.id, gridToItems(grid), reason || undefined);
+      useScheduleDrafts.getState().drop(version.id);
       setDirty(false);
       await loadVersions(created.id);
       notifySuccess(format(s.revised, { no: created.versionNo }));
