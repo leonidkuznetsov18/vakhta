@@ -1,3 +1,9 @@
+## [0.67.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.67.0...v0.67.1) (2026-09-09)
+
+### Bug fixes
+
+* **incidents:** a photo of a problem is registered, so there is one to show ([4e919d5](https://github.com/leonidkuznetsov18/vakhta/commit/4e919d583abee4ac985dee929b6d52fe9ea1b092))
+
 ## [0.67.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.66.0...v0.67.0) (2026-09-09)
 
 ### Features
