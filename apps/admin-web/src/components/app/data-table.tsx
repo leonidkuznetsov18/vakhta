@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type KeyboardEvent,
   type MouseEvent,
@@ -305,10 +306,40 @@ export function DataTable<T>({
   }, [filtered, sort, columns]);
 
   const pages = usePages(sorted.length, pageSize, storageKey);
+  /** The row the address points at, so it can be scrolled to once it has rendered. */
+  const activeRow = useRef<HTMLElement | null>(null);
+  const holdActive = (el: HTMLElement | null) => {
+    activeRow.current = el;
+  };
+  const scrolledFor = useRef<string | null>(null);
   const visible = useMemo(
     () => sorted.slice((pages.page - 1) * pages.size, pages.page * pages.size),
     [sorted, pages.page, pages.size],
   );
+  // Arriving on a row that is not on the first page, or below the fold, used to look like the
+  // link had gone nowhere. The page holding it is turned to, and the row is brought into view once
+  // per key — not on every reload, which on a live screen would fight the reader for the scroll.
+  const activeIndex = activeKey ? sorted.findIndex((row) => rowKey(row) === activeKey) : -1;
+  useEffect(() => {
+    if (activeIndex < 0) return;
+    const page = Math.floor(activeIndex / pages.size) + 1;
+    if (page !== pages.page) pages.setPage(page);
+  }, [activeIndex, pages]);
+  useEffect(() => {
+    if (!activeKey) {
+      scrolledFor.current = null;
+      return;
+    }
+    if (scrolledFor.current === activeKey) return;
+    const el = activeRow.current;
+    if (!el) return;
+    scrolledFor.current = activeKey;
+    // "nearest" scrolls the least it can and does nothing at all when the row is already on
+    // screen, which is the whole intent: bring it into view without moving the page under anyone.
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    el.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+  });
+
   const selectable = selectedKeys !== undefined && onSelectionChange !== undefined;
   const span = columns.length + (rowActions ? 1 : 0) + (selectable ? 1 : 0);
   const toggleKey = (key: string, on: boolean) => {
@@ -441,6 +472,7 @@ export function DataTable<T>({
                   return (
                     <RowGroup key={key}>
                       <TableRow
+                        ref={activeKey === key ? holdActive : undefined}
                         className={cn(
                           onRowClick && 'cursor-pointer',
                           // Repeated under the selected variant so a row that carries its own
@@ -507,6 +539,7 @@ export function DataTable<T>({
               return (
                 <li
                   key={key}
+                  ref={activeKey === key ? holdActive : undefined}
                   className={cn(
                     'rounded-lg border bg-card p-3 text-sm',
                     onRowClick && 'cursor-pointer',
