@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
-  AcknowledgementStatusView,
   EmployeeView,
   OrgSnapshot,
   ScheduleVersionDetail,
@@ -15,10 +14,9 @@ import { Feedback } from '@/components/app/feedback';
 import { MonthField } from '@/components/app/date-picker';
 import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
-import { EmptyState, Muted, Section, Toolbar } from '@/components/app/page';
+import { EmptyState, Muted, Toolbar } from '@/components/app/page';
 import { ApiError, employeesApi, orgApi, schedulesApi } from '../api.ts';
 import { describeError as describe } from '../errors.ts';
-import { AckTable } from './AckTable.tsx';
 import { takeSchedulePreset, type SchedulePreset } from './preset.ts';
 import { draftOf, useScheduleDrafts } from './store.ts';
 import { ScheduleGrid } from './ScheduleGrid.tsx';
@@ -41,7 +39,7 @@ import { useNavigation } from '../navigation.tsx';
 import { usePersistentState } from '@/lib/persistent-state';
 import { notifySuccess } from '@/lib/toast';
 import { formatDate, formatMonth } from '@/lib/format';
-import { BellRingIcon, WandIcon } from 'lucide-react';
+import { WandIcon } from 'lucide-react';
 import { DateField } from '@/components/app/date-picker';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { monthDates } from '@vakhta/domain';
@@ -71,7 +69,6 @@ export function SchedulePage() {
   const versionsRef = useRef<ScheduleVersionView[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ScheduleVersionDetail | null>(null);
-  const [acks, setAcks] = useState<AcknowledgementStatusView[] | null>(null);
   const [grid, setGrid] = useState<GridState>(EMPTY_GRID);
   /** The version as loaded: "Publish changes" counts the shifts that differ from it. */
   const baseline = useMemo(() => (detail ? gridFromDetail(detail) : EMPTY_GRID), [detail]);
@@ -176,7 +173,6 @@ export function SchedulePage() {
   useEffect(() => {
     setPatternStart(`${month}-01`);
     setDetail(null);
-    setAcks(null);
     setGrid(EMPTY_GRID);
     setDirty(false);
     loadVersions().catch((e: unknown) => setError(describe(e)));
@@ -190,7 +186,6 @@ export function SchedulePage() {
     const kept = d.version.status === 'DRAFT' ? draftOf(id) : undefined;
     setGrid(kept ?? gridFromDetail(d));
     setDirty(kept !== undefined);
-    setAcks(d.version.status === 'PUBLISHED' ? await schedulesApi.acknowledgements(id) : null);
   }, []);
 
   useEffect(() => {
@@ -374,14 +369,6 @@ export function SchedulePage() {
       applyPattern(g, patternFor, monthDates(month), patternStart, pattern, { day, night }),
     );
     setDirty(true);
-  }
-
-  function remind() {
-    if (!version) return;
-    void run(async () => {
-      const result = await schedulesApi.remind(version.id);
-      notifySuccess(format(s.reminded, { n: result.reminded }));
-    });
   }
 
   async function deleteVersion() {
@@ -759,30 +746,6 @@ export function SchedulePage() {
             )}
             {changes > 0 && <Muted>{s.unsaved}</Muted>}
           </div>
-
-          {acks && (
-            <Section
-              title={s.ackTitle}
-              hint={hints.scheduleAck}
-              actions={
-                <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={busy}
-                    onClick={remind}
-                  >
-                    <BellRingIcon aria-hidden="true" />
-                    {s.remind}
-                  </Button>
-                  <InfoTip text={hints.scheduleRemind} />
-                </div>
-              }
-            >
-              <AckTable rows={acks} />
-            </Section>
-          )}
         </>
       )}
       {dialog}

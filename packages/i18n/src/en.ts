@@ -606,8 +606,6 @@ export const en: Messages = {
       published: 'Schedule published. Notifications sent.',
       submitted: 'Version submitted for review.',
       returned: 'Version returned to draft.',
-      ackTitle: 'Acknowledgement',
-      acknowledged: 'Acknowledged',
       readOnlyHint:
         'This version is closed for editing. To change the schedule, create a new version.',
       editPublished: 'Change the schedule',
@@ -644,8 +642,6 @@ export const en: Messages = {
         'The unit "{unit}" has no active zones, so the "Zone" column offers only "No zone". Add zones to this unit in the directories or move the employees to a unit that has them. Without a zone the handover does not work: the report goes straight to the master.',
       openDirectories: 'Open directories',
       dayTotals: 'D {day} · N {night}',
-      remind: 'Remind to acknowledge',
-      reminded: 'Reminders sent: {n}.',
       pattern: 'Rotation pattern',
       patternStart: 'From date',
       patternApply: 'Fill with pattern',
@@ -2057,8 +2053,6 @@ export const en: Messages = {
       scheduleReturn: 'Return the version to the planner for rework with a comment.',
       scheduleZone:
         'The responsibility zone defines which zone the employee cleans and hands over at the end of the shift. Without a zone no checklist and no photos are requested.',
-      scheduleAck:
-        'How many shifts of the version the employee confirmed with "Acknowledged" in the bot.',
       incidentsScope:
         '"Open" is everything not yet resolved or closed; "All" includes closed ones and duplicates.',
       incidentsSla:
@@ -2162,8 +2156,6 @@ export const en: Messages = {
         'Arrows move through the grid, D or N sets a shift, Space toggles, Backspace clears.',
       schedulePattern:
         'Fills the employee row from the chosen date to the end of the month with a rotation pattern; filled days are overwritten.',
-      scheduleRemind:
-        'Send a bot reminder to those who have not yet acknowledged the published version.',
       employeesBulkCodes:
         'Issue activation codes to all selected active employees and print a sheet with QR codes.',
       incidentsBulkClose: 'Close all selected resolved incidents with one comment.',

@@ -491,8 +491,6 @@ export interface Messages {
       readonly published: string;
       readonly submitted: string;
       readonly returned: string;
-      readonly ackTitle: string;
-      readonly acknowledged: string;
       readonly readOnlyHint: string;
       /** Button on a published version: a draft copy is created to change the schedule. */
       readonly editPublished: string;
@@ -532,9 +530,6 @@ export interface Messages {
       readonly openDirectories: string;
       /** Footer row of the grid: {day} day shifts, {night} night shifts on that date. */
       readonly dayTotals: string;
-      readonly remind: string;
-      /** Placeholder: {n} */
-      readonly reminded: string;
       readonly pattern: string;
       readonly patternStart: string;
       readonly patternApply: string;
@@ -1356,7 +1351,6 @@ export interface Messages {
       readonly schedulePublish: string;
       readonly scheduleReturn: string;
       readonly scheduleZone: string;
-      readonly scheduleAck: string;
       readonly incidentsScope: string;
       readonly incidentsSla: string;
       readonly incidentsDuplicate: string;
@@ -1428,7 +1422,6 @@ export interface Messages {
       readonly commandPalette: string;
       readonly scheduleKeyboard: string;
       readonly schedulePattern: string;
-      readonly scheduleRemind: string;
       readonly employeesBulkCodes: string;
       readonly incidentsBulkClose: string;
       readonly reportsChart: string;

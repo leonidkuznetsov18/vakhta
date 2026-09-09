@@ -73,13 +73,11 @@ export const authApi = {
 // ---- довідники та графік (ТЗ 9.1 «График») ----
 
 import type {
-  AcknowledgementStatusView,
   AssignmentInput,
   CreateScheduleVersionCommand,
   EmployeeView,
   ListScheduleVersionsQuery,
   OrgSnapshot,
-  RemindResult,
   ScheduleVersionDetail,
   ScheduleVersionView,
   ShiftTemplateView,
@@ -112,7 +110,6 @@ export const schedulesApi = {
   create: (cmd: CreateScheduleVersionCommand) => post<ScheduleVersionView>('/admin/schedules', cmd),
   detail: (id: string) => apiFetch<ScheduleVersionDetail>(`/admin/schedules/${id}`),
   remove: (id: string) => apiFetch<null>(`/admin/schedules/${id}`, { method: 'DELETE' }),
-  remind: (id: string) => post<RemindResult>(`/admin/schedules/${id}/remind`, {}),
   putAssignments: (id: string, items: AssignmentInput[]) =>
     apiFetch<ScheduleVersionDetail>(`/admin/schedules/${id}/assignments`, {
       method: 'PUT',
@@ -132,8 +129,6 @@ export const schedulesApi = {
       `/admin/schedules/${id}/publish`,
       changeReason ? { changeReason } : {},
     ),
-  acknowledgements: (id: string) =>
-    apiFetch<AcknowledgementStatusView[]>(`/admin/schedules/${id}/acknowledgements`),
 };
 
 // ---- адміністрування: працівники, користувачі, довідники, термінали (ТЗ 9.1) ----

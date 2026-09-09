@@ -272,7 +272,7 @@ describe('SchedulePage', () => {
     });
   });
 
-  it('after submission shows the review buttons, after publishing the acknowledgement table', async () => {
+  it('after submission shows the review buttons, and publishing carries a reason', async () => {
     const state = { status: 'DRAFT' };
     const calls = mockApi(state);
     render(<SchedulePage />);
@@ -301,8 +301,7 @@ describe('SchedulePage', () => {
     expect(calls.find((c) => c.path.endsWith('/publish'))?.body).toEqual({
       changeReason: 'Перестановка после отпуска',
     });
-    expect(await screen.findByText('Ознакомлены')).toBeTruthy();
-    expect(screen.getByText('0/1')).toBeTruthy();
+    expect(await screen.findByText(/Версия 1 · Опубликован/)).toBeTruthy();
   });
 
   it('an approver edits a published month in place: the grid is live and "Publish changes" revises', async () => {
