@@ -1,3 +1,13 @@
+## [0.66.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.65.0...v0.66.0) (2026-09-09)
+
+### Features
+
+* **incidents:** the report shows its photo, not the word "photo" ([834c81c](https://github.com/leonidkuznetsov18/vakhta/commit/834c81ce0b93bf675f91841c449d1b18430d4313))
+
+### Bug fixes
+
+* **overview:** a shift tile carries the day of the row it opens ([67c8163](https://github.com/leonidkuznetsov18/vakhta/commit/67c816399ea3294be8b4b2b7f425ddfc3a549899))
+
 ## [0.65.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.64.1...v0.65.0) (2026-09-09)
 
 ### Features
