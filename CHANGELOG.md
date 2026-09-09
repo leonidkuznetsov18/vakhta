@@ -1,3 +1,9 @@
+## [0.60.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.60.0...v0.60.1) (2026-09-09)
+
+### Bug fixes
+
+* **operations:** the screen always stands on a day, today by default ([a46b547](https://github.com/leonidkuznetsov18/vakhta/commit/a46b547581f8eeb40939035e6bcf8463c4b78898))
+
 ## [0.60.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.59.1...v0.60.0) (2026-09-09)
 
 ### Features
