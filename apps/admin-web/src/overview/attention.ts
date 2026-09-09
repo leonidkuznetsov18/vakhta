@@ -18,6 +18,12 @@ export interface Attention {
    * hunting for what the number stood for, and with one row there is nothing to choose anyway.
    */
   readonly firstId: Readonly<Partial<Record<keyof Attention, string>>>;
+  /**
+   * The business date that row belongs to. The live-shift screen stands on a day, and a shift
+   * closed last night or a night shift started yesterday is not on today's — the tile has to carry
+   * the day with it or the list it opens is empty.
+   */
+  readonly firstDate: Readonly<Partial<Record<keyof Attention, string>>>;
   readonly closedNoChecklist: number | null;
   readonly inDowntime: number | null;
   readonly openIncidents: number | null;
@@ -37,6 +43,7 @@ const EMPTY: Attention = {
   unscheduledPeople: [],
   people: {},
   firstId: {},
+  firstDate: {},
   closedNoChecklist: null,
   inDowntime: null,
   openIncidents: null,
@@ -109,6 +116,11 @@ export function useAttention(me: MeView, intervalMs = 60_000) {
         unlinkedEmployees: (employees ?? [])
           .filter((e) => e.status === 'ACTIVE' && !e.telegramLinked)
           .map((e) => person(e.id, e.fullName, e.personnelNumber)),
+      },
+      firstDate: {
+        onShift: onShiftNow[0]?.businessDate,
+        closedNoChecklist: noChecklist[0]?.businessDate,
+        inDowntime: onShiftNow.find((s) => s.state === 'DOWNTIME')?.businessDate,
       },
       firstId: {
         onShift: onShiftNow[0]?.id,

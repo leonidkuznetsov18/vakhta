@@ -42,13 +42,26 @@ function presetStorage(values: Record<string, string>): void {
   }
 }
 
+/**
+ * The live-shift screen stands on a day and on a scope, so a tile that counts rows there hands over
+ * both. Without the day the screen opens on today and the row the number stood for — a shift closed
+ * last night, a night shift started yesterday — is not in the list at all.
+ */
+function opsFilters(data: Attention, key: keyof Attention, scope: 'OPEN' | 'ALL'): void {
+  const day = data.firstDate[key];
+  presetStorage({ 'operations.scope': scope, ...(day ? { 'operations.day': day } : {}) });
+}
+
 interface Tile {
-  readonly key: keyof Omit<Attention, 'refreshedAt' | 'unscheduledPeople' | 'people' | 'firstId'>;
+  readonly key: keyof Omit<
+    Attention,
+    'refreshedAt' | 'unscheduledPeople' | 'people' | 'firstId' | 'firstDate'
+  >;
   readonly label: string;
   readonly icon: LucideIcon;
   readonly section: SectionKey;
   /** Presets the destination (tab, filters) before the jump, so the list shows exactly the counted rows. */
-  readonly prepare?: () => void;
+  readonly prepare?: (data: Attention) => void;
   /** Tone when the count is above zero; neutral tiles are informational. */
   readonly tone: Tone;
 }
@@ -128,7 +141,7 @@ const TILES: readonly Tile[] = [
     icon: AlertTriangleIcon,
     section: 'operations',
     tone: 'danger',
-    prepare: () => presetStorage({ 'operations.scope': 'ALL' }),
+    prepare: (data) => opsFilters(data, 'closedNoChecklist', 'ALL'),
   },
   {
     key: 'inDowntime',
@@ -136,8 +149,16 @@ const TILES: readonly Tile[] = [
     icon: ActivityIcon,
     section: 'operations',
     tone: 'warning',
+    prepare: (data) => opsFilters(data, 'inDowntime', 'OPEN'),
   },
-  { key: 'onShift', label: o.onShift, icon: ActivityIcon, section: 'operations', tone: 'neutral' },
+  {
+    key: 'onShift',
+    label: o.onShift,
+    icon: ActivityIcon,
+    section: 'operations',
+    tone: 'neutral',
+    prepare: (data) => opsFilters(data, 'onShift', 'OPEN'),
+  },
 ];
 
 /**
@@ -273,7 +294,7 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
   }
 
   function open(t: Tile): void {
-    t.prepare?.();
+    t.prepare?.(data);
     // Open the row the number stood for, not just the list it lives in: the destination reads the
     // id from the address, so writing it before the jump lands the reader on the thing itself.
     // Sections whose sub-path names a tab (administration) keep whatever `prepare` put there.
