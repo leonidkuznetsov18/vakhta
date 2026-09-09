@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ShiftScreenView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
+import { USER_SHIFT_ACTIONS } from '@vakhta/domain';
 import { reasonPickerScreen, shiftScreen } from './screens.js';
 
 const t = messages('ru');
@@ -84,6 +85,39 @@ describe('shift screen in the bot (spec 4.4, FR-UI-01)', () => {
     expect(data).not.toContain('sh:CLOSE_SHIFT:3');
     expect(data).not.toContain('sh:RESUME:3');
     expect(data.every((d) => Buffer.byteLength(d) <= 64)).toBe(true);
+  });
+
+  it('no screen of an open shift offers a way to close it: the exit QR does that', () => {
+    const states = [
+      'PREPARATION',
+      'WORKING',
+      'BREAK',
+      'MEAL',
+      'SERVICE_TIME',
+      'DOWNTIME',
+      'CLEANING',
+      'HANDOVER',
+      'READY_TO_CLOSE',
+    ] as const;
+    for (const state of states) {
+      const screen = shiftScreen(
+        t,
+        view({
+          session: { ...view().session!, state },
+          // Even offered every action the machine knows, the screen must not draw a close button.
+          allowedActions: [...USER_SHIFT_ACTIONS],
+        }),
+        'x',
+      );
+      expect(buttons(screen).flat()).not.toContain(`sh:CLOSE_SHIFT:3`);
+    }
+    // And once the report is in, the screen says what actually ends the shift.
+    const ready = shiftScreen(
+      t,
+      view({ session: { ...view().session!, state: 'READY_TO_CLOSE' }, allowedActions: [] }),
+      'x',
+    );
+    expect(ready.text).toContain('Отсканируйте QR на выходе');
   });
 
   it('preparation asks for the zone, then offers only work and the plan', () => {

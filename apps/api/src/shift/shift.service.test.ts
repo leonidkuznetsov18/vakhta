@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   activityIntervals,
+  and,
   domainEvents,
   employees,
   eq,
@@ -21,7 +22,7 @@ import {
   sites,
   sql,
 } from '@vakhta/db';
-import { DEFAULT_ATTENDANCE_WINDOW, checkIntervalInvariants } from '@vakhta/domain';
+import { DEFAULT_ATTENDANCE_WINDOW, businessDateOf, checkIntervalInvariants } from '@vakhta/domain';
 import type { ShiftChangedEvent, TransitionResponse } from '@vakhta/contracts';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor } from '../common/actor.js';
@@ -550,6 +551,28 @@ describe('shift: машина станів зміни в транзакції (�
     expect(row!.autoCloseReason).toBe('LEFT_OPEN');
     // Повторний запуск нічого не закриває.
     expect(await service.autoCloseStale(new Date())).toBe(0);
+  });
+
+  it("a presence left open since yesterday does not give today's shift yesterday's window", async () => {
+    const [late] = await testDb.db
+      .insert(employees)
+      .values({ personnelNumber: '4', fullName: 'Кравець Ігор' })
+      .returning();
+    await arrive(late!.id);
+    // The employee never scanned the exit: the arrival is a day old when the next shift starts.
+    const yesterday = new Date(Date.now() - 24 * 3_600_000);
+    await testDb.db
+      .update(presenceSessions)
+      .set({ arrivedAt: yesterday })
+      .where(and(eq(presenceSessions.employeeId, late!.id), eq(presenceSessions.status, 'OPEN')));
+
+    const started = await service.start(late!.id, { idempotencyKey: key() }, meta(late!.id));
+    expect(started.ok).toBe(true);
+    if (!started.ok) return;
+    // Taken from that stale arrival, the shift was born with a window that had already ended, and
+    // the end-of-day job closed it a minute after it opened.
+    expect(started.session.businessDate).toBe(businessDateOf(new Date(), 'Europe/Kyiv'));
+    expect(new Date(started.session.planEndAt!).getTime()).toBeGreaterThan(Date.now());
   });
 
   it('QR→QR: працівник без графіка все одно відкриває позапланову зміну з вікном за шаблоном', async () => {

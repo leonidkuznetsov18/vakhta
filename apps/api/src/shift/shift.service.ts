@@ -1252,11 +1252,16 @@ export class ShiftService {
     }
     const siteId = await this.siteForPresence(tx, presence);
     const templates = siteId ? await this.activeTemplates(tx, siteId) : [];
-    const inferred = inferShiftFromArrival(
-      templates,
-      presence?.arrivedAt ?? now,
-      this.options.defaultTimezone,
-    );
+    // A presence left open from an earlier day says nothing about the shift starting now. Taking
+    // its arrival gave the shift yesterday's business date and yesterday's planned window — one
+    // already in the past — and the end-of-day job closed the shift a minute after it opened.
+    const arrival =
+      presence &&
+      businessDateOf(presence.arrivedAt, this.options.defaultTimezone) ===
+        businessDateOf(now, this.options.defaultTimezone)
+        ? presence.arrivedAt
+        : now;
+    const inferred = inferShiftFromArrival(templates, arrival, this.options.defaultTimezone);
     if (inferred) {
       return {
         businessDate: inferred.plan.businessDate,

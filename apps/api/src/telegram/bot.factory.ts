@@ -1179,7 +1179,23 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       if (opened.ok) {
         await ctx.answerCallbackQuery();
         const draft = await deps.handover.current(ctx.employee.id);
-        await edit(ctx, draft ? handoverScreen(ctx.t, draft, '') : await buildHome(ctx));
+        if (draft) {
+          await edit(ctx, handoverScreen(ctx.t, draft, ''));
+          return;
+        }
+        // Nothing to fill in — the position carries no checklist — so the shift goes straight to
+        // waiting for the exit QR. Leaving it in handover was a dead end: the button appeared to
+        // do nothing and the shift could only end by the end-of-day job.
+        await deps.shift.transition(
+          ctx.employee.id,
+          {
+            action: 'SUBMIT_HANDOVER',
+            expectedVersion: opened.session.version,
+            idempotencyKey: `${idempotencyKey}:ready`,
+          },
+          meta,
+        );
+        await edit(ctx, await buildHome(ctx));
         return;
       }
     }

@@ -26,6 +26,10 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 - Node packages compile with `tsc` into `dist/`; `exports` point at `dist`. Relative imports in node code carry the `.js` extension.
 - `packages/domain` never imports NestJS, Drizzle, grammY or anything with I/O. Pure functions and types only. Tests are mandatory there.
 - Every state change goes through `packages/domain/shift-fsm`; nobody writes to `activity_intervals` outside the transition transaction.
+- An employee never ends a shift with a button. «ЗАВЕРШИТИ ЗМІНУ» is only the label of `START_CLEANING`: it walks the
+  shift to the checklist and, when the position carries none, to `READY_TO_CLOSE`. The shift closes when the exit QR is
+  scanned after the report has gone (`CLOSE_SHIFT` from `READY_TO_CLOSE`), by the master with a comment from the
+  operations screen, or by the end-of-day job. No bot screen may draw a close button; a test asserts that.
 - New tables: `snake_case`, `timestamptz` for instants, `uuid` for identifiers, invariants enforced in SQL, not only in code.
 - `domain_events` and `audit_log` are append-only. A migration that adds UPDATE/DELETE on them does not pass review.
 - Codes of states, actions, reasons and statuses: `UPPER_SNAKE_CASE`, as in the spec.
