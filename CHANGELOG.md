@@ -1,3 +1,9 @@
+## [0.61.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.61.0...v0.61.1) (2026-09-09)
+
+### Bug fixes
+
+* **schedule:** the save button counts the work, and the notice stops flashing ([d1f3070](https://github.com/leonidkuznetsov18/vakhta/commit/d1f30702d357bc3b9d8a0aca5aafe8559c84d70d))
+
 ## [0.61.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.60.2...v0.61.0) (2026-09-09)
 
 ### Features
