@@ -1,3 +1,9 @@
+## [0.62.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.61.1...v0.62.0) (2026-09-09)
+
+### Features
+
+* **schedule:** remove the validation of a month ([61c3541](https://github.com/leonidkuznetsov18/vakhta/commit/61c354138b53b4a45815ba5fd7b8358786059094))
+
 ## [0.61.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.61.0...v0.61.1) (2026-09-09)
 
 ### Bug fixes
