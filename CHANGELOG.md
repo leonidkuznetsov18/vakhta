@@ -1,3 +1,9 @@
+## [0.64.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.64.0...v0.64.1) (2026-09-09)
+
+### Bug fixes
+
+* **schedule:** the save button opens only when there is something to save ([0e8a38d](https://github.com/leonidkuznetsov18/vakhta/commit/0e8a38d27d821daf04f45306c5507e9050e4f831))
+
 ## [0.64.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.63.0...v0.64.0) (2026-09-09)
 
 ### Features
