@@ -73,8 +73,10 @@ export function AvatarStack({
       </TooltipTrigger>
       {/* Names only: whatever the stack sits next to already says what these people have in
           common, and repeating it in the tooltip is one more thing to read for nothing. */}
-      <TooltipContent className="max-w-72">
-        <ul className="flex flex-col gap-0.5">
+      {/* A unit can hold a hundred people, and the list grew past the window: capped and scrolled,
+          it stays a tooltip instead of a column running off the screen. */}
+      <TooltipContent className="max-w-72 items-start">
+        <ul className="flex max-h-100 flex-col gap-0.5 overflow-y-auto pr-1">
           {people.map((person) => (
             <li key={person.id}>
               {person.name}
