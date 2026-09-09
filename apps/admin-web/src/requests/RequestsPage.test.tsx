@@ -148,6 +148,8 @@ describe('RequestsPage', () => {
     expect(screen.getByText('45')).toBeTruthy();
     // Close the sheet: while it is open the rest of the page is hidden from assistive tech.
     fireEvent.keyDown(document.body, { key: 'Escape' });
+    // The overtime decision opens under its row, like every other decision in the panel.
+    fireEvent.click(screen.getByText('45'));
     fireEvent.change(screen.getAllByLabelText('Комментарий (обязательно)').at(-1)!, {
       target: { value: 'Замена заболевшего' },
     });

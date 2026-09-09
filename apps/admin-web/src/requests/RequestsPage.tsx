@@ -71,6 +71,7 @@ export function RequestsPage() {
   const [proposalTime, setProposalTime] = useState('');
   const [proposalState, setProposalState] = useState<ShiftState>('WORKING');
   const [overtimeComment, setOvertimeComment] = useState<Record<string, string>>({});
+  const [openOvertime, setOpenOvertime] = useState<string | null>(null);
   const reloadRef = useRef<() => void>(() => undefined);
 
   const reload = useCallback(async () => {
@@ -242,46 +243,47 @@ export function RequestsPage() {
     { key: 'employee', header: r.employee, cell: (row) => row.employeeName },
     { key: 'date', header: all.admin.operations.plan, cell: (row) => row.businessDate },
     { key: 'minutes', header: r.overtimeMinutes, align: 'right', cell: (row) => row.minutes },
-    {
-      key: 'decision',
-      header: r.decision,
-      cell: (row) => (
-        <form
-          className="flex flex-wrap items-end gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            decideOvertime(row, 'APPROVED');
-          }}
-        >
-          <FormField label={r.comment} className="min-w-64">
-            {(id) => (
-              <Input
-                id={id}
-                value={overtimeComment[row.shiftSessionId] ?? ''}
-                onChange={(e) =>
-                  setOvertimeComment((c) => ({ ...c, [row.shiftSessionId]: e.target.value }))
-                }
-                minLength={3}
-                required
-              />
-            )}
-          </FormField>
-          <Button type="submit" size="sm" disabled={busy}>
+  ];
+
+  /** The decision under the row it belongs to: a form squeezed into a cell had no room to be read. */
+  function overtimeDecision(row: OvertimeView) {
+    return (
+      <form
+        className="flex max-w-xl flex-col gap-3 py-1"
+        onSubmit={(e) => {
+          e.preventDefault();
+          decideOvertime(row, 'APPROVED');
+        }}
+      >
+        <FormField label={r.comment}>
+          {(id) => (
+            <Input
+              id={id}
+              value={overtimeComment[row.shiftSessionId] ?? ''}
+              onChange={(e) =>
+                setOvertimeComment((c) => ({ ...c, [row.shiftSessionId]: e.target.value }))
+              }
+              minLength={3}
+              required
+            />
+          )}
+        </FormField>
+        <div className="flex gap-2">
+          <Button type="submit" variant="success" disabled={busy}>
             {r.approve}
           </Button>
           <Button
             type="button"
-            size="sm"
-            variant="outline"
+            variant="destructive"
             disabled={busy}
             onClick={() => decideOvertime(row, 'REJECTED')}
           >
             {r.reject}
           </Button>
-        </form>
-      ),
-    },
-  ];
+        </div>
+      </form>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -468,6 +470,11 @@ export function RequestsPage() {
           columns={overtimeColumns}
           rows={overtime}
           rowKey={(row) => row.shiftSessionId}
+          onRowClick={(row) =>
+            setOpenOvertime(openOvertime === row.shiftSessionId ? null : row.shiftSessionId)
+          }
+          activeKey={openOvertime}
+          expanded={(row) => (row.shiftSessionId === openOvertime ? overtimeDecision(row) : null)}
           empty={r.overtimeEmpty}
         />
       </Section>
