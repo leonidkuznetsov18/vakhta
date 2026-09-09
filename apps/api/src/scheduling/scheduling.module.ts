@@ -15,12 +15,6 @@ import { TemplatesService } from './templates.service.js';
     {
       provide: SCHEDULE_OPTIONS,
       useFactory: (config: ConfigService<Env, true>): ScheduleOptions => ({
-        rules: {
-          minRestMinutes: config.get('SCHEDULE_MIN_REST_MINUTES', { infer: true }),
-          maxHoursPerMonth: config.get('SCHEDULE_MAX_HOURS_PER_MONTH', { infer: true }),
-          maxConsecutiveDays: config.get('SCHEDULE_MAX_CONSECUTIVE_DAYS', { infer: true }),
-          nightShare: { min: 0.3, max: 0.7, minShifts: 6 },
-        },
         shiftReminderMinutes: config.get('SHIFT_REMINDER_MINUTES', { infer: true }),
         ackReminderHours: config.get('ACK_REMINDER_HOURS', { infer: true }),
         defaultTimezone: config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),

@@ -7,12 +7,9 @@ import {
   employees,
   eq,
   gt,
-  gte,
   inArray,
   isNull,
-  lte,
   max,
-  ne,
   orgUnits,
   responsibilityZones,
   scheduleVersions,
@@ -29,15 +26,10 @@ import {
   buildMonthPlan,
   diffSchedules,
   formatLocal,
-  hasBlockingIssues,
-  monthDates,
   nextScheduleStatus,
   planInstants,
-  validateSchedule,
   type PlannedShift,
   type ScheduleAction,
-  type ScheduleRules,
-  type ValidationIssue,
 } from '@vakhta/domain';
 import type {
   AcknowledgementStatusView,
@@ -52,7 +44,6 @@ import type {
   ReturnToDraftCommand,
   ScheduleVersionDetail,
   ScheduleVersionView,
-  ValidationIssueView,
 } from '@vakhta/contracts';
 import { format, type Messages } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
@@ -67,7 +58,6 @@ import { OrgService } from '../org/org.service.js';
 import { TemplatesService } from './templates.service.js';
 
 export interface ScheduleOptions {
-  readonly rules: ScheduleRules;
   readonly shiftReminderMinutes: number;
   readonly ackReminderHours: number;
   readonly defaultTimezone: string;
@@ -298,7 +288,6 @@ export class ScheduleService {
   async detail(id: string): Promise<ScheduleVersionDetail> {
     const version = await this.requireVersion(id);
     const assignments = await this.loadAssignments(id);
-    const issues = await this.validateRows(version, assignments);
     return {
       version: this.toVersionView(
         version,
@@ -306,7 +295,6 @@ export class ScheduleService {
         await this.hasWorkedShifts(id),
       ),
       assignments: assignments.map((x) => this.toAssignmentView(x)),
-      issues,
     };
   }
 
@@ -347,11 +335,9 @@ export class ScheduleService {
       }
       const count = await this.replaceAssignments(tx, version, cmd, actor);
       const assignments = await this.loadAssignments(version.id, tx);
-      const issues = await this.validateRows(version, assignments, tx);
       return {
         version: this.toVersionView(version, count),
         assignments: assignments.map((x) => this.toAssignmentView(x)),
-        issues,
       };
     });
   }
@@ -463,11 +449,6 @@ export class ScheduleService {
       after: { count: values.length },
     });
     return values.length;
-  }
-
-  async validate(id: string): Promise<ValidationIssueView[]> {
-    const version = await this.requireVersion(id);
-    return this.validateRows(version, await this.loadAssignments(id));
   }
 
   /* ------------------------------------------------------------------ */
@@ -609,14 +590,6 @@ export class ScheduleService {
       );
 
     const assignments = await this.loadAssignments(version.id, tx);
-    const issues = await this.validateRows(version, assignments, tx);
-    if (hasBlockingIssues(issues)) {
-      throw new DomainError(
-        'SCHEDULE_HAS_ERRORS',
-        422,
-        'Версія має помилки валідації; виправте перед публікацією',
-      );
-    }
 
     const previous = await this.publishedFor(
       version.siteId,
@@ -767,18 +740,9 @@ export class ScheduleService {
         );
 
       const assignments = await this.loadAssignments(version.id, tx);
-      if (opts.requireNoErrors) {
-        const issues = await this.validateRows(version, assignments, tx);
-        if (hasBlockingIssues(issues)) {
-          throw new DomainError(
-            'SCHEDULE_HAS_ERRORS',
-            422,
-            'Версія має помилки валідації; виправте перед поданням',
-          );
-        }
-        if (assignments.length === 0) {
-          throw new DomainError('SCHEDULE_EMPTY', 422, 'Порожню версію подати не можна');
-        }
+      // An empty month is still refused: there is nothing in it to approve or to publish.
+      if (opts.requireNoErrors && assignments.length === 0) {
+        throw new DomainError('SCHEDULE_EMPTY', 422, 'Порожню версію подати не можна');
       }
       const [updated] = await tx
         .update(scheduleVersions)
@@ -1132,45 +1096,6 @@ export class ScheduleService {
   }
 
   /** Контекст валідації: опубліковані зміни тих самих працівників поза цією версією і її ключем. */
-  private async validateRows(
-    version: VersionRow,
-    assignments: AssignmentWithTemplate[],
-    tx: DbOrTx = this.db,
-  ): Promise<ValidationIssueView[]> {
-    const own = this.toPlanned(assignments.filter((x) => x.a.status === 'PLANNED'));
-    const employeeIds = [...new Set(own.map((s) => s.employeeId))];
-    if (employeeIds.length === 0) return [];
-
-    const dates = monthDates(version.periodMonth);
-    const from = new Date(`${dates[0]}T00:00:00Z`);
-    from.setUTCDate(from.getUTCDate() - 2);
-    const to = new Date(`${dates[dates.length - 1]}T00:00:00Z`);
-    to.setUTCDate(to.getUTCDate() + 3);
-
-    const rows = await tx
-      .select({
-        a: shiftAssignments,
-        templateCode: shiftTemplates.code,
-        isNight: shiftTemplates.isNight,
-      })
-      .from(shiftAssignments)
-      .innerJoin(scheduleVersions, eq(shiftAssignments.scheduleVersionId, scheduleVersions.id))
-      .innerJoin(shiftTemplates, eq(shiftAssignments.templateId, shiftTemplates.id))
-      .where(
-        and(
-          inArray(shiftAssignments.employeeId, employeeIds),
-          eq(shiftAssignments.status, 'PLANNED'),
-          eq(scheduleVersions.status, 'PUBLISHED'),
-          ne(scheduleVersions.id, version.id),
-          sql`not (${scheduleVersions.siteId} = ${version.siteId} and ${scheduleVersions.orgUnitId} = ${version.orgUnitId} and ${scheduleVersions.periodMonth} = ${version.periodMonth})`,
-          gte(shiftAssignments.planStartAt, from),
-          lte(shiftAssignments.planStartAt, to),
-        ),
-      );
-    const context = this.toPlanned(rows.map((r) => ({ ...r, acknowledgedAt: null })));
-    return validateSchedule(own, context, this.options.rules).map(toIssueView);
-  }
-
   private toPlanned(rows: readonly AssignmentWithTemplate[]): PlannedShift[] {
     return rows.map((r) => ({
       id: r.a.id,
@@ -1244,14 +1169,4 @@ export class ScheduleService {
 /** Локальний час 'HH:mm' для текстів бота. */
 export function localTime(instant: Date, timezone: string): string {
   return formatLocal(instant, timezone).local.slice(11, 16);
-}
-
-function toIssueView(issue: ValidationIssue): ValidationIssueView {
-  return {
-    code: issue.code,
-    severity: issue.severity,
-    employeeId: issue.employeeId,
-    assignmentIds: [...issue.assignmentIds],
-    details: { ...issue.details },
-  };
 }

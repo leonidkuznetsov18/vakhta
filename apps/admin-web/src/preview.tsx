@@ -704,7 +704,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   if (path.startsWith('/admin/schedules/sv-')) {
     const id = path.split('/')[3];
     const version = scheduleVersions.find((v) => v.id === id);
-    if (version) return json({ version, assignments: [], issues: [] });
+    if (version) return json({ version, assignments: [] });
   }
   // Anything this harness has no fixture for is a gap in the harness, not an empty answer from a
   // server. Saying so out loud stops "the record was added" over a list that never changes from

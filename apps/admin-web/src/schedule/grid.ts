@@ -149,16 +149,3 @@ export function applyPattern(
   }
   return next;
 }
-
-/** Longest run of consecutive planned days in the row, for the "too many in a row" warning. */
-export function longestStreak(row: GridRow, dates: readonly string[]): number {
-  let best = 0;
-  let run = 0;
-  for (const date of dates) {
-    if (row.cells[date]) {
-      run += 1;
-      if (run > best) best = run;
-    } else run = 0;
-  }
-  return best;
-}

@@ -100,12 +100,6 @@ describe('requests: маршрути, рішення, нова версія гр
       notifications,
       timers,
       {
-        rules: {
-          minRestMinutes: 660,
-          maxHoursPerMonth: 200,
-          maxConsecutiveDays: 4,
-          nightShare: { min: 0.3, max: 0.7, minShifts: 6 },
-        },
         shiftReminderMinutes: 120,
         ackReminderHours: 24,
         defaultTimezone: 'Europe/Kyiv',

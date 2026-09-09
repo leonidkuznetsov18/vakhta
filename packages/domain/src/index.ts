@@ -12,7 +12,6 @@ export * from './identity/activation.js';
 export * from './access/roles.js';
 export * from './access/scope.js';
 export * from './scheduling/types.js';
-export * from './scheduling/validation.js';
 export * from './scheduling/calendar.js';
 export * from './scheduling/changes.js';
 export * from './attendance/window.js';

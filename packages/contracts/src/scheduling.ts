@@ -1,16 +1,10 @@
 import { z } from 'zod';
-import {
-  ASSIGNMENT_STATUSES,
-  SCHEDULE_STATUSES,
-  SHIFT_KINDS,
-  VALIDATION_ISSUE_CODES,
-} from '@vakhta/domain';
+import { ASSIGNMENT_STATUSES, SCHEDULE_STATUSES, SHIFT_KINDS } from '@vakhta/domain';
 import { BusinessDate, IsoDateTime, Uuid } from './common.js';
 
 export const ScheduleStatusSchema = z.enum(SCHEDULE_STATUSES);
 export const ShiftKindSchema = z.enum(SHIFT_KINDS);
 export const AssignmentStatusSchema = z.enum(ASSIGNMENT_STATUSES);
-export const ValidationIssueCodeSchema = z.enum(VALIDATION_ISSUE_CODES);
 
 /** 'YYYY-MM' */
 export const Month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
@@ -126,19 +120,9 @@ export const AssignmentView = z.object({
 });
 export type AssignmentView = z.infer<typeof AssignmentView>;
 
-export const ValidationIssueView = z.object({
-  code: ValidationIssueCodeSchema,
-  severity: z.enum(['ERROR', 'WARNING']),
-  employeeId: Uuid,
-  assignmentIds: z.array(Uuid),
-  details: z.record(z.string(), z.union([z.number(), z.string()])),
-});
-export type ValidationIssueView = z.infer<typeof ValidationIssueView>;
-
 export const ScheduleVersionDetail = z.object({
   version: ScheduleVersionView,
   assignments: z.array(AssignmentView),
-  issues: z.array(ValidationIssueView),
 });
 export type ScheduleVersionDetail = z.infer<typeof ScheduleVersionDetail>;
 

@@ -24,7 +24,6 @@ import {
   type ScheduleVersionDetail,
   type ScheduleVersionView,
   type ShiftTemplateView,
-  type ValidationIssueView,
   type RemindResult,
 } from '@vakhta/contracts';
 import { canActOn, type ScopeTarget, type WebRole } from '@vakhta/domain';
@@ -145,17 +144,6 @@ export class AdminSchedulesController {
     const version = await this.schedules.requireVersion(id);
     assertScope(user, EDITORS, { siteId: version.siteId, orgUnitId: version.orgUnitId });
     return this.schedules.putAssignments(id, body, webUserActor(user));
-  }
-
-  @Post(':id/validate')
-  @HttpCode(200)
-  async validate(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: WebUser,
-  ): Promise<ValidationIssueView[]> {
-    const version = await this.schedules.requireVersion(id);
-    assertScope(user, ALL_PANEL_ROLES, { siteId: version.siteId, orgUnitId: version.orgUnitId });
-    return this.schedules.validate(id);
   }
 
   @Post(':id/submit')

@@ -99,7 +99,7 @@ function version(status: string, assignmentsCount = 1) {
   };
 }
 
-function detail(status: string, issues: unknown[] = []) {
+function detail(status: string) {
   return {
     version: version(status),
     assignments: [
@@ -121,7 +121,6 @@ function detail(status: string, issues: unknown[] = []) {
         acknowledgedAt: null,
       },
     ],
-    issues,
   };
 }
 
@@ -131,10 +130,7 @@ interface Call {
   body: unknown;
 }
 
-function mockApi(
-  state: { status: string; issues?: unknown[]; created?: boolean },
-  snapshot: typeof org = org,
-) {
+function mockApi(state: { status: string; created?: boolean }, snapshot: typeof org = org) {
   const calls: Call[] = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
@@ -162,12 +158,12 @@ function mockApi(
       return json({ ...version('DRAFT'), id: 'v2', versionNo: 2, supersedesId: null }, 201);
     }
     if (path === '/admin/schedules/v2') {
-      const d = detail('DRAFT', state.issues);
+      const d = detail('DRAFT');
       return json({ ...d, version: { ...d.version, id: 'v2', versionNo: 2 }, assignments: [] });
     }
-    if (path === `/admin/schedules/${VERSION}`) return json(detail(state.status, state.issues));
+    if (path === `/admin/schedules/${VERSION}`) return json(detail(state.status));
     if (path === `/admin/schedules/${VERSION}/assignments` && method === 'PUT') {
-      return json(detail(state.status, state.issues));
+      return json(detail(state.status));
     }
     if (path === `/admin/schedules/${VERSION}/submit`) {
       state.status = 'IN_REVIEW';
@@ -255,37 +251,6 @@ describe('SchedulePage', () => {
         },
       ],
     });
-    expect(screen.getByText('Замечаний нет.')).toBeTruthy();
-  });
-
-  it('validation errors block submission, warnings do not', async () => {
-    mockApi({
-      status: 'DRAFT',
-      issues: [
-        {
-          code: 'REST_TOO_SHORT',
-          severity: 'ERROR',
-          employeeId: EMP,
-          assignmentIds: [ASSIGN],
-          details: { restMinutes: 300 },
-        },
-        {
-          code: 'NIGHT_SHARE_UNBALANCED',
-          severity: 'WARNING',
-          employeeId: EMP,
-          assignmentIds: [],
-          details: {},
-        },
-      ],
-    });
-    render(<SchedulePage />);
-    expect(await screen.findByText('Отдых между сменами меньше нормы')).toBeTruthy();
-    expect(screen.getByText('Дисбаланс дневных и ночных смен')).toBeTruthy();
-    expect(screen.getByText('отдых, мин: 300')).toBeTruthy();
-    const submit = screen.getByRole('button', {
-      name: 'Отправить на согласование',
-    }) as HTMLButtonElement;
-    expect(submit.disabled).toBe(true);
   });
 
   it('after submission shows the review buttons, after publishing the acknowledgement table', async () => {

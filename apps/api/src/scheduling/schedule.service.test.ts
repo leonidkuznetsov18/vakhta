@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq, notificationOutbox, scheduleVersions, sql, telegramAccounts } from '@vakhta/db';
-import { DEFAULT_SCHEDULE_RULES, addMonths, businessDateOf } from '@vakhta/domain';
+import { addMonths, businessDateOf } from '@vakhta/domain';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
 import { EmployeesService } from '../identity/employees.service.js';
@@ -52,7 +52,6 @@ describe('scheduling: версії, валідація, публікація, о
       new NotificationsService(),
       timers,
       {
-        rules: DEFAULT_SCHEDULE_RULES,
         shiftReminderMinutes: 120,
         ackReminderHours: 24,
         defaultTimezone: 'Europe/Kyiv',
@@ -130,37 +129,14 @@ describe('scheduling: версії, валідація, публікація, о
     await testDb.db.insert(telegramAccounts).values({ employeeId: ivanov, telegramUserId: 111 });
   });
 
-  it('чернетка → помилки валідації блокують подання → виправлення → публікація з нотифікацією і таймерами', async () => {
+  it('чернетка → подання → публікація з нотифікацією і таймерами', async () => {
     const v1 = await schedule.createVersion(
       { siteId, orgUnitId: unitId, periodMonth: MONTH },
       PLANNER,
     );
     expect(v1).toMatchObject({ versionNo: 1, status: 'DRAFT', assignmentsCount: 0 });
 
-    // Ніч 1-го закінчується о 08:00 2-го; день 2-го починається о 08:00: відпочинку 0 → помилка.
-    const bad = await schedule.putAssignments(
-      v1.id,
-      {
-        items: [
-          {
-            employeeId: ivanov,
-            templateId: nightId,
-            businessDate: day(1),
-            zoneId,
-            kind: 'REGULAR',
-          },
-          { employeeId: ivanov, templateId: dayId, businessDate: day(2), zoneId, kind: 'REGULAR' },
-          { employeeId: petrova, templateId: dayId, businessDate: day(1), kind: 'REGULAR' },
-        ],
-      },
-      PLANNER,
-    );
-    expect(bad.issues.map((i) => i.code)).toContain('REST_TOO_SHORT');
-    await expect(schedule.submit(v1.id, PLANNER)).rejects.toMatchObject({
-      code: 'SCHEDULE_HAS_ERRORS',
-    });
-
-    const good = await schedule.putAssignments(
+    const saved = await schedule.putAssignments(
       v1.id,
       {
         items: [
@@ -178,8 +154,7 @@ describe('scheduling: версії, валідація, публікація, о
       },
       PLANNER,
     );
-    expect(good.issues.filter((i) => i.severity === 'ERROR')).toEqual([]);
-    const first = good.assignments.find(
+    const first = saved.assignments.find(
       (a) => a.employeeId === ivanov && a.businessDate === day(1),
     );
     // 08:00 за Києвом у вересні-жовтні = 05:00Z; після переходу на зимовий час 06:00Z.
@@ -323,40 +298,6 @@ describe('scheduling: версії, валідація, публікація, о
       [2, 'PUBLISHED'],
       [1, 'SUPERSEDED'],
     ]);
-  });
-
-  it('валідація бачить опубліковані зміни того ж працівника в іншому підрозділі', async () => {
-    const a = await schedule.createVersion(
-      { siteId, orgUnitId: unitId, periodMonth: MONTH },
-      PLANNER,
-    );
-    await schedule.putAssignments(
-      a.id,
-      {
-        items: [{ employeeId: ivanov, templateId: dayId, businessDate: day(10), kind: 'REGULAR' }],
-      },
-      PLANNER,
-    );
-    await schedule.submit(a.id, PLANNER);
-    await schedule.publish(a.id, {}, HEAD);
-
-    const b = await schedule.createVersion(
-      { siteId, orgUnitId: otherUnitId, periodMonth: MONTH },
-      PLANNER,
-    );
-    const detail = await schedule.putAssignments(
-      b.id,
-      {
-        items: [
-          { employeeId: ivanov, templateId: nightId, businessDate: day(10), kind: 'REGULAR' },
-        ],
-      },
-      PLANNER,
-    );
-    expect(detail.issues.map((i) => i.code)).toContain('REST_TOO_SHORT');
-    await expect(schedule.submit(b.id, PLANNER)).rejects.toMatchObject({
-      code: 'SCHEDULE_HAS_ERRORS',
-    });
   });
 
   it('відхиляє чужу зону, неактивного працівника, дату поза місяцем і дубль дня', async () => {

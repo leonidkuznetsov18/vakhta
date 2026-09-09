@@ -19,7 +19,6 @@ import { EmptyState, Muted, Section, Toolbar } from '@/components/app/page';
 import { ApiError, employeesApi, orgApi, schedulesApi } from '../api.ts';
 import { describeError as describe } from '../errors.ts';
 import { AckTable } from './AckTable.tsx';
-import { IssuesPanel } from './IssuesPanel.tsx';
 import { takeSchedulePreset, type SchedulePreset } from './preset.ts';
 import { draftOf, useScheduleDrafts } from './store.ts';
 import { ScheduleGrid } from './ScheduleGrid.tsx';
@@ -226,20 +225,11 @@ export function SchedulePage() {
   const revising = version?.status === 'PUBLISHED' && canPublish;
   const editable = version?.status === 'DRAFT' || revising;
   const existingDraft = versions.find((v) => v.status === 'DRAFT') ?? null;
-  const hasErrors = detail?.issues.some((i) => i.severity === 'ERROR') ?? false;
   /** The preset still speaks about what is on screen (the master has not moved on). */
   const presetHere =
     preset !== null &&
     preset.month === month &&
     (preset.orgUnitId === null || preset.orgUnitId === orgUnitId);
-  /**
-   * Whether the grid already shows the people we came here for. When it does, naming them again
-   * above it would repeat the rows; when it does not — no unit to plan in, so no version and no
-   * grid — the page would otherwise answer a click with a blank month and no hint of whom it was
-   * about.
-   */
-  const presetInGrid =
-    preset !== null && preset.people.every((p) => grid.rows.some((r) => r.employeeId === p.id));
 
   // The version the preset needs: the month's open draft, or a new one. Asked for exactly once —
   // the effect that used to watch the version list re-created on every load of it, which is a loop.
@@ -466,21 +456,6 @@ export function SchedulePage() {
 
       <Feedback error={error} />
 
-      {presetHere && preset && !preset.orgUnitId && !presetInGrid && (
-        <Alert>
-          <AlertTitle className="flex items-center gap-1">
-            {format(s.presetTitle, { n: preset.people.length })}
-            <InfoTip text={hints.schedulePreset} />
-          </AlertTitle>
-          <AlertDescription className="flex flex-col gap-1">
-            <p className="font-medium text-foreground">
-              {preset.people.map((person) => person.name).join(', ')}
-            </p>
-            <p>{preset.orgUnitId ? s.presetHint : s.presetNoUnit}</p>
-          </AlertDescription>
-        </Alert>
-      )}
-
       {org && activeEmployees.length === 0 && (
         <Alert>
           <AlertTitle>{s.noEmployees}</AlertTitle>
@@ -694,7 +669,7 @@ export function SchedulePage() {
               <>
                 <Button
                   type="button"
-                  disabled={busy || !dirty || hasErrors}
+                  disabled={busy || !dirty}
                   onClick={() => void publishChanges()}
                 >
                   {s.publishChanges} ({countChanges(baseline, grid)})
@@ -725,7 +700,7 @@ export function SchedulePage() {
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={busy || dirty || hasErrors || countShifts(grid) === 0}
+                  disabled={busy || dirty || countShifts(grid) === 0}
                   onClick={submit}
                 >
                   {s.submit}
@@ -744,7 +719,7 @@ export function SchedulePage() {
             )}
             {version.status === 'IN_REVIEW' && (
               <>
-                <Button type="button" disabled={busy || hasErrors} onClick={() => void publish()}>
+                <Button type="button" disabled={busy} onClick={() => void publish()}>
                   {s.publish}
                 </Button>
                 <InfoTip text={hints.schedulePublish} />
@@ -760,10 +735,6 @@ export function SchedulePage() {
             )}
             {dirty && <Muted>{s.unsaved}</Muted>}
           </div>
-
-          <Section title={s.issuesTitle} hint={hints.scheduleIssues}>
-            <IssuesPanel detail={detail} employees={employees} />
-          </Section>
 
           {acks && (
             <Section

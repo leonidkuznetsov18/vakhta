@@ -18,8 +18,6 @@ import { Muted } from '@/components/app/page';
 import { cn } from 'cn';
 import type { GridState } from './grid.ts';
 import { currentLocale } from '../i18n.tsx';
-import { longestStreak } from './grid.ts';
-import { DEFAULT_SCHEDULE_RULES } from '@vakhta/domain';
 
 const t = messages(currentLocale());
 
@@ -202,9 +200,6 @@ export function ScheduleGrid({
                 0,
               );
               const hours = Math.round(minutes / 60);
-              const streak = longestStreak(row, days);
-              const overHours = hours > DEFAULT_SCHEDULE_RULES.maxHoursPerMonth;
-              const overStreak = streak > DEFAULT_SCHEDULE_RULES.maxConsecutiveDays;
               return (
                 <TableRow key={row.employeeId} className="group/row">
                   <TableCell className="sticky left-0 z-10 bg-background">
@@ -273,24 +268,7 @@ export function ScheduleGrid({
                     <div className="flex items-center justify-end gap-2 border-l py-1 pr-2 pl-3">
                       <span className="tabular-nums">{count}</span>
                       <span className="text-muted-foreground">/</span>
-                      <span
-                        className={cn(
-                          'tabular-nums',
-                          (overHours || overStreak) &&
-                            'font-medium text-amber-700 dark:text-amber-300',
-                        )}
-                        title={
-                          overHours
-                            ? format(s.limitHours, { max: DEFAULT_SCHEDULE_RULES.maxHoursPerMonth })
-                            : overStreak
-                              ? format(s.limitConsecutive, {
-                                  max: DEFAULT_SCHEDULE_RULES.maxConsecutiveDays,
-                                })
-                              : undefined
-                        }
-                      >
-                        {hours}
-                      </span>
+                      <span className="tabular-nums">{hours}</span>
                       {/* Kept out of sight until the row is pointed at or focused: the menu is
                           for the one row in hand, and a column of them reads as clutter. */}
                       {!readOnly && (

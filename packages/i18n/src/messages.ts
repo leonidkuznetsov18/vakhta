@@ -22,7 +22,6 @@ import type {
   UserShiftAction,
   ShiftState,
   CommandErrorCode,
-  ValidationIssueCode,
   WebRole,
   Locale,
 } from '@vakhta/domain';
@@ -387,7 +386,6 @@ export interface Messages {
     readonly shiftReminder: string;
     /** Placeholders: {month}, {year} */
     readonly ackReminder: string;
-    readonly issues: Readonly<Record<ValidationIssueCode, string>>;
   };
   readonly admin: {
     readonly productName: string;
@@ -490,10 +488,6 @@ export interface Messages {
       readonly published: string;
       readonly submitted: string;
       readonly returned: string;
-      readonly issuesTitle: string;
-      readonly noIssues: string;
-      readonly error: string;
-      readonly warning: string;
       readonly ackTitle: string;
       readonly acknowledged: string;
       readonly readOnlyHint: string;
@@ -527,13 +521,7 @@ export interface Messages {
       readonly removeFromVersion: string;
       readonly addEmployeePlaceholder: string;
       readonly allEmployeesAdded: string;
-      /** Labels of the validation detail keys (nightShifts, restMinutes, …). */
-      readonly issueDetails: Readonly<Record<string, string>>;
       readonly deleted: string;
-      /** Placeholder: {n} */
-      readonly presetTitle: string;
-      readonly presetHint: string;
-      readonly presetNoUnit: string;
       readonly noEmployees: string;
       readonly goToEmployees: string;
       /** Placeholder: {unit} — the chosen unit has no active zones, so rows cannot get one. */
@@ -554,10 +542,6 @@ export interface Messages {
         >
       >;
       readonly hours: string;
-      /** Placeholder: {max} */
-      readonly limitHours: string;
-      /** Placeholder: {max} */
-      readonly limitConsecutive: string;
       readonly forbidden: string;
       readonly noTemplates: string;
     };
@@ -1359,7 +1343,6 @@ export interface Messages {
       readonly operationsStartFor: string;
       readonly operationsStartZone: string;
       readonly operationsLive: string;
-      readonly schedulePreset: string;
       readonly scheduleVersions: string;
       readonly scheduleEditPublished: string;
       readonly scheduleRevise: string;
@@ -1369,7 +1352,6 @@ export interface Messages {
       readonly scheduleReturn: string;
       readonly scheduleZone: string;
       readonly scheduleAck: string;
-      readonly scheduleIssues: string;
       readonly incidentsScope: string;
       readonly incidentsSla: string;
       readonly incidentsDuplicate: string;

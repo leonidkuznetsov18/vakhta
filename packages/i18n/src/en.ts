@@ -488,14 +488,6 @@ export const en: Messages = {
       'Reminder: {kind} shift on {date}, starts at {start}{zone}. Record arrival by QR at the checkpoint.',
     ackReminder:
       'You have not confirmed acknowledgement of the schedule for {month} {year}. Open "My plan" and press "Acknowledged".',
-    issues: {
-      OVERLAP: 'Shifts overlap in time',
-      REST_TOO_SHORT: 'Rest between shifts is below the norm',
-      DUPLICATE_DAY: 'Two shifts on one day',
-      MONTH_HOURS_EXCEEDED: 'Monthly hours limit exceeded',
-      TOO_MANY_CONSECUTIVE_DAYS: 'Too many working days in a row',
-      NIGHT_SHARE_UNBALANCED: 'Day and night shifts are unbalanced',
-    },
   },
   roles: {
     ADMIN: 'Administrator',
@@ -611,10 +603,6 @@ export const en: Messages = {
       published: 'Schedule published. Notifications sent.',
       submitted: 'Version submitted for review.',
       returned: 'Version returned to draft.',
-      issuesTitle: 'Validation',
-      noIssues: 'No issues.',
-      error: 'Error',
-      warning: 'Warning',
       ackTitle: 'Acknowledgement',
       acknowledged: 'Acknowledged',
       readOnlyHint:
@@ -645,27 +633,7 @@ export const en: Messages = {
       removeFromVersion: 'Remove',
       addEmployeePlaceholder: 'Pick an employee…',
       allEmployeesAdded: 'Every active employee is already in the version.',
-      issueDetails: {
-        overlapMinutes: 'overlap, min',
-        restMinutes: 'rest, min',
-        minRestMinutes: 'minimum rest, min',
-        days: 'days in a row',
-        maxConsecutiveDays: 'maximum in a row',
-        plannedHours: 'planned hours',
-        maxHoursPerMonth: 'maximum per month',
-        nightShifts: 'night shifts',
-        totalShifts: 'shifts in total',
-        share: 'night share',
-        businessDate: 'date',
-        from: 'from',
-        to: 'to',
-      },
       deleted: 'Version deleted.',
-      presetTitle: 'Building a schedule for {n} employees who have none',
-      presetHint:
-        'They are added to the grid below: set their shifts and save. A row can be removed.',
-      presetNoUnit:
-        'These people belong to no unit: pick one and create a version, and they will be added to it.',
       noEmployees:
         'There are no employees yet. Add them under Administration → Employees first, then build the schedule.',
       goToEmployees: 'Go to employees',
@@ -687,8 +655,6 @@ export const en: Messages = {
         WEEKDAYS_DAY: 'Weekdays, day shift',
       },
       hours: 'Hours',
-      limitHours: 'Over {max} h per month',
-      limitConsecutive: 'Over {max} shifts in a row',
       forbidden: 'Insufficient permissions for this action.',
       noTemplates: 'No shift templates are defined for the site.',
     },
@@ -2071,8 +2037,6 @@ export const en: Messages = {
         'The zone the employee cleans and hands over at the end of the shift. A schedule assignment with a zone takes precedence. Without a zone the report with the checklist and photos goes straight to the master.',
       operationsLive:
         'The list refreshes on server events. If the connection is lost, reload the page.',
-      schedulePreset:
-        'You came from the overview, where these people started a shift with no schedule. The panel opened their unit and month and added them to the draft.',
       scheduleVersions:
         'Every change to a published schedule creates a new version. The old one is marked as superseded.',
       scheduleEditPublished:
@@ -2090,7 +2054,6 @@ export const en: Messages = {
         'The responsibility zone defines which zone the employee cleans and hands over at the end of the shift. Without a zone no checklist and no photos are requested.',
       scheduleAck:
         'How many shifts of the version the employee confirmed with "Acknowledged" in the bot.',
-      scheduleIssues: 'Errors block submission and publishing; warnings are only shown.',
       incidentsScope:
         '"Open" is everything not yet resolved or closed; "All" includes closed ones and duplicates.',
       incidentsSla:
