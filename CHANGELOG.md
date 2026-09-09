@@ -1,3 +1,9 @@
+## [0.53.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.53.0...v0.53.1) (2026-09-09)
+
+### Refactoring
+
+* **requests:** the overtime decision opens under its row ([ddee2cb](https://github.com/leonidkuznetsov18/vakhta/commit/ddee2cb2956e80f41978a88fb6ed446503bbbc27))
+
 ## [0.53.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.52.3...v0.53.0) (2026-09-08)
 
 ### Features
