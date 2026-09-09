@@ -535,6 +535,12 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     });
   }
   if (path === '/admin/reports/hours') return json(hoursReport);
+  // A tiny grey PNG stands in for the photo: the point is that a thumbnail appears at all.
+  if (path.startsWith('/admin/incidents/media/'))
+    return json({
+      url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+      expiresAt: new Date(Date.now() + 300_000).toISOString(),
+    });
   // A quiet week is the normal state of this section, and the empty answer is what the panel gets
   // from the real server — not a 404 that reads as a broken page.
   const incident = {
@@ -577,6 +583,15 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
           stoppedWork: true,
           reportedAt: '2026-09-08T09:18:00.000Z',
           hasPhoto: true,
+          media: {
+            id: 'm1',
+            quality: 'OK',
+            width: 1280,
+            height: 960,
+            receivedAt: '2026-09-08T09:18:30.000Z',
+            processedAt: '2026-09-08T09:19:00.000Z',
+            duplicateOfId: null,
+          },
         },
       ],
       history: [

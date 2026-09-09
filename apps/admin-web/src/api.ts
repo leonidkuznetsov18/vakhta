@@ -350,6 +350,7 @@ export const incidentsApi = {
     post<IncidentView>(`/admin/incidents/${id}/transition`, cmd),
   stats: (from: string, to: string, siteId?: string) =>
     apiFetch<IncidentStatsView>(`/admin/incidents/stats${query({ from, to, siteId })}`),
+  mediaLink: (mediaId: string) => apiFetch<MediaLinkView>(`/admin/incidents/media/${mediaId}/link`),
   streamUrl: () => `${API_URL}/admin/incidents/stream`,
 };
 

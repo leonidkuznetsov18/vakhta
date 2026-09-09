@@ -14,6 +14,7 @@ import {
   inArray,
   incidentStatusHistory,
   lt,
+  mediaObjects,
   orgUnits,
   reasonCodes,
   responsibilityZones,
@@ -45,6 +46,7 @@ import type {
   IncidentUpdateCommand,
   IncidentView,
   IncidentsQuery,
+  MediaObjectView,
   ReportProblemCommand,
   ReportProblemResult,
   ReportView,
@@ -53,6 +55,7 @@ import { DEFAULT_LOCALE, type Locale } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
+import { MediaService } from '../handover/media.service.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore, type EventSource } from '../events/event-store.js';
 import { DATABASE } from '../infra/database.module.js';
@@ -86,6 +89,7 @@ export class IncidentsService {
     private readonly notifications: NotificationsService,
     private readonly shift: ShiftService,
     private readonly changes: IncidentChanges,
+    private readonly media: MediaService,
     @Inject(TIMER_SCHEDULER) private readonly timers: TimerScheduler,
     @Inject(INCIDENT_OPTIONS) private readonly options: IncidentOptions,
   ) {}
@@ -619,9 +623,23 @@ export class IncidentsService {
         .where(eq(incidentStatusHistory.incidentId, id))
         .orderBy(asc(incidentStatusHistory.at)),
     ]);
+    // The photos of the reports, in one read: the panel shows them the way the handover does, and
+    // a report that only says "photo" is a report nobody can act on.
+    const mediaIds = reports.map(({ r }) => r.mediaObjectId).filter((id): id is string => !!id);
+    const photos = new Map<string, MediaObjectView>();
+    if (mediaIds.length > 0) {
+      const rows = await this.db
+        .select()
+        .from(mediaObjects)
+        .where(inArray(mediaObjects.id, mediaIds));
+      for (const row of rows) photos.set(row.id, this.media.toView(row));
+    }
+
     return {
       incident,
-      reports: reports.map(({ r, fullName }) => toReportView(r, fullName)),
+      reports: reports.map(({ r, fullName }) =>
+        toReportView(r, fullName, r.mediaObjectId ? (photos.get(r.mediaObjectId) ?? null) : null),
+      ),
       history: history.map((h) => ({
         id: h.id,
         fromStatus: h.fromStatus,
@@ -882,8 +900,13 @@ export class IncidentsService {
   }
 }
 
-function toReportView(r: typeof downtimeReports.$inferSelect, fullName: string): ReportView {
+function toReportView(
+  r: typeof downtimeReports.$inferSelect,
+  fullName: string,
+  media: MediaObjectView | null = null,
+): ReportView {
   return {
+    media,
     id: r.id,
     incidentId: r.incidentId,
     shiftSessionId: r.shiftSessionId,

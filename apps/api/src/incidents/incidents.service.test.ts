@@ -27,6 +27,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { ShiftChanges } from '../shift/shift-changes.js';
 import { ShiftService } from '../shift/shift.service.js';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
+import { MediaService } from '../handover/media.service.js';
 import { IncidentChanges } from './incident-changes.js';
 import { IncidentsService } from './incidents.service.js';
 
@@ -86,6 +87,7 @@ describe('incidents: повідомлення про проблему, дубл�
       new NotificationsService(),
       shift,
       new IncidentChanges(),
+      new MediaService(testDb.db, new AuditLog(), timers, { linkTtlSeconds: 300 }),
       timers,
       {
         sla: { normalMinutes: 60, criticalMinutes: 30, safetyMinutes: 0 },

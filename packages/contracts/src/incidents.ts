@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MediaObjectView } from './handover.js';
 import { INCIDENT_SEVERITIES, INCIDENT_STATUSES } from '@vakhta/domain';
 import { Comment, IdempotencyKey, IsoDateTime, ReasonCode, Uuid } from './common.js';
 
@@ -28,6 +29,8 @@ export const ReportView = z.object({
   stoppedWork: z.boolean(),
   reportedAt: IsoDateTime,
   hasPhoto: z.boolean(),
+  /** The photo itself, once the worker has pulled it out of Telegram; null while it has not. */
+  media: MediaObjectView.nullable(),
 });
 export type ReportView = z.infer<typeof ReportView>;
 

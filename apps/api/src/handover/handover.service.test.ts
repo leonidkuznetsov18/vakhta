@@ -103,6 +103,13 @@ describe('handover: прибирання, чек-лист, фото, перед�
       },
       repository,
     );
+    const media = new MediaService(
+      testDb.db,
+      audit,
+      timers,
+      { linkTtlSeconds: 300 },
+      new InMemoryObjectStorage(),
+    );
     const incidents = new IncidentsService(
       testDb.db,
       events,
@@ -110,18 +117,12 @@ describe('handover: прибирання, чек-лист, фото, перед�
       notifications,
       shift,
       new IncidentChanges(),
+      media,
       timers,
       {
         sla: { normalMinutes: 60, criticalMinutes: 30, safetyMinutes: 0 },
         duplicateWindowMinutes: 60,
       },
-    );
-    const media = new MediaService(
-      testDb.db,
-      audit,
-      timers,
-      { linkTtlSeconds: 300 },
-      new InMemoryObjectStorage(),
     );
     handover = new HandoverService(
       testDb.db,

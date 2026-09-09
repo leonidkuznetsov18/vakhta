@@ -19,6 +19,7 @@ import { Feedback } from '@/components/app/feedback';
 import { DateField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
+import { Lightbox, PhotoThumb, type LightboxImage } from '@/components/app/photo';
 import {
   EmptyState,
   LiveBadge,
@@ -110,6 +111,9 @@ export function IncidentsPage() {
     new Date().toISOString().slice(0, 10),
   );
   const reloadRef = useRef<() => void>(() => undefined);
+  /** The photo of a report, opened full size; the link is signed and every view is audited. */
+  const [lightbox, setLightbox] = useState<LightboxImage[]>([]);
+  const trackedLink = useCallback((mediaId: string) => incidentsApi.mediaLink(mediaId), []);
 
   useEffect(() => {
     orgApi
@@ -364,14 +368,31 @@ export function IncidentsPage() {
           <div className="flex flex-col gap-4">
             <div>
               <h3 className="mb-2 text-sm font-semibold">{i.reportsTitle}</h3>
-              <ul className="flex flex-col gap-1 text-sm">
+              <ul className="flex flex-col gap-3 text-sm">
                 {detail.reports.map((r) => (
-                  <li key={r.id}>
-                    <span className="tabular-nums">{formatTime(r.reportedAt)}</span>{' '}
-                    <strong>{r.fullName}</strong>{' '}
-                    <Muted>
-                      {`${r.stoppedWork ? i.stoppedWork : i.notStopped}${r.hasPhoto ? ` · ${i.photo}` : ''}${r.comment ? ` · ${r.comment}` : ''}`}
-                    </Muted>
+                  <li key={r.id} className="flex flex-col gap-1">
+                    <div>
+                      <span className="tabular-nums">{formatTime(r.reportedAt)}</span>{' '}
+                      <strong>{r.fullName}</strong>{' '}
+                      <Muted>
+                        {`${r.stoppedWork ? i.stoppedWork : i.notStopped}${r.hasPhoto && !r.media ? ` · ${i.photo}` : ''}${r.comment ? ` · ${r.comment}` : ''}`}
+                      </Muted>
+                    </div>
+                    {/* The photo itself, not the word "photo": what the employee saw is the whole
+                        point of the report, and it is shown here the way a handover shows its own. */}
+                    {r.media && (
+                      <PhotoThumb
+                        className="w-40"
+                        media={r.media}
+                        loadLink={trackedLink}
+                        label={`${r.fullName} · ${formatTime(r.reportedAt)}`}
+                        onOpen={(url) =>
+                          setLightbox([
+                            { url, label: `${r.fullName} · ${formatTime(r.reportedAt)}` },
+                          ])
+                        }
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -466,6 +487,7 @@ export function IncidentsPage() {
         expanded={(row) => (row.id === openId ? renderDetail(row) : null)}
       />
       {dialog}
+      <Lightbox images={lightbox} onClose={() => setLightbox([])} title={i.photo} />
 
       <Section title={i.stats} hint={hints.incidentsStats}>
         <Toolbar>

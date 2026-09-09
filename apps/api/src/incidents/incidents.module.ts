@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.js';
+import { MediaModule } from '../handover/media.module.js';
 import { ShiftModule } from '../shift/shift.module.js';
 import { AdminIncidentsController } from './admin-incidents.controller.js';
 import { IncidentChanges } from './incident-changes.js';
 import { INCIDENT_OPTIONS, IncidentsService, type IncidentOptions } from './incidents.service.js';
 
 @Module({
-  imports: [ShiftModule],
+  imports: [ShiftModule, MediaModule],
   controllers: [AdminIncidentsController],
   providers: [
     IncidentsService,

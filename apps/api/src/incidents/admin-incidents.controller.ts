@@ -20,6 +20,7 @@ import {
   type IncidentDetailView,
   type IncidentStatsView,
   type IncidentView,
+  type MediaLinkView,
 } from '@vakhta/contracts';
 import {
   CurrentUser,
@@ -31,6 +32,7 @@ import {
 import { RequestLocale } from '../common/locale.decorator.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import type { Locale } from '@vakhta/domain';
+import { MediaService } from '../handover/media.service.js';
 import { IncidentChanges } from './incident-changes.js';
 import { IncidentsService } from './incidents.service.js';
 
@@ -54,6 +56,7 @@ export class AdminIncidentsController {
   constructor(
     private readonly incidents: IncidentsService,
     private readonly changes: IncidentChanges,
+    private readonly media: MediaService,
   ) {}
 
   @Get()
@@ -75,6 +78,15 @@ export class AdminIncidentsController {
     @RequestLocale() locale: Locale,
   ): Promise<IncidentStatsView> {
     return this.incidents.stats(q, locale);
+  }
+
+  /** The photo of a report, behind a signed short-lived link like every other photo (FR-PHO-06). */
+  @Get('media/:id/link')
+  link(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: WebUser,
+  ): Promise<MediaLinkView> {
+    return this.media.link(id, webUserActor(user));
   }
 
   @Get(':id')
