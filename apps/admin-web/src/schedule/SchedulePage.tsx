@@ -225,6 +225,12 @@ export function SchedulePage() {
   const revising = version?.status === 'PUBLISHED' && canPublish;
   const editable = version?.status === 'DRAFT' || revising;
   const existingDraft = versions.find((v) => v.status === 'DRAFT') ?? null;
+  /**
+   * What a save would write differently from the version on the server. Everything the buttons and
+   * the "unsaved" notice say is this number: `dirty` only means the grid was touched, and touching
+   * it is not the same as changing it — a row added with no shifts writes nothing at all.
+   */
+  const changes = countChanges(baseline, grid);
   /** The preset still speaks about what is on screen (the master has not moved on). */
   const presetHere =
     preset !== null &&
@@ -687,13 +693,13 @@ export function SchedulePage() {
               <>
                 <Button
                   type="button"
-                  disabled={busy || !dirty}
+                  disabled={busy || changes === 0}
                   onClick={() => void publishChanges()}
                 >
-                  {s.publishChanges} ({countChanges(baseline, grid)})
+                  {s.publishChanges} ({changes})
                 </Button>
                 <InfoTip text={hints.scheduleRevise} />
-                {dirty && (
+                {changes > 0 && (
                   <Button
                     type="button"
                     variant="outline"
@@ -707,18 +713,18 @@ export function SchedulePage() {
             )}
             {editable && !revising && (
               <>
-                <Button type="button" disabled={busy || !dirty} onClick={save}>
-                  {/* What the button is about to write, not how big the month is: on a version
-                      that already holds two hundred shifts, "Save (200)" for one edited cell
-                      counted the month rather than the work. */}
-                  {s.save} ({countChanges(baseline, grid)})
+                {/* What the button is about to write, not how big the month is: on a version that
+                    already holds two hundred shifts, "Save (200)" for one edited cell counted the
+                    month rather than the work — and with nothing to write it stays shut. */}
+                <Button type="button" disabled={busy || changes === 0} onClick={save}>
+                  {s.save} ({changes})
                 </Button>
                 {/* An empty month is refused by the server (SCHEDULE_EMPTY), so the button says
                     so first instead of spending a round trip on a 422. */}
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={busy || dirty || countShifts(grid) === 0}
+                  disabled={busy || changes > 0 || countShifts(grid) === 0}
                   onClick={submit}
                 >
                   {s.submit}
@@ -751,7 +757,7 @@ export function SchedulePage() {
                 </Button>
               </>
             )}
-            {dirty && <Muted>{s.unsaved}</Muted>}
+            {changes > 0 && <Muted>{s.unsaved}</Muted>}
           </div>
 
           {acks && (

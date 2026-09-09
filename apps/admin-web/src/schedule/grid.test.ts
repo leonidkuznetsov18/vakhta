@@ -17,6 +17,7 @@ const EMP = '11111111-1111-4111-8111-111111111111';
 const TPL_DAY = '22222222-2222-4222-8222-222222222222';
 const TPL_NIGHT = '33333333-3333-4333-8333-333333333333';
 const ZONE = '44444444-4444-4444-8444-444444444444';
+const OTHER = '66666666-6666-4666-8666-666666666666';
 
 function assignment(over: Partial<ScheduleVersionDetail['assignments'][number]>) {
   return {
@@ -110,6 +111,22 @@ describe('countChanges', () => {
   it('counts every shift of a row whose zone changed or which was removed', () => {
     expect(countChanges(base, setZone(base, EMP, ''))).toBe(2);
     expect(countChanges(base, removeRow(base, EMP))).toBe(2);
+  });
+
+  // The count is what a save would write differently, and the save button is enabled by it: a row
+  // standing in the grid with no shifts writes nothing, so it must not offer to be saved.
+  it('a row without shifts is not a change, and becomes one as soon as it has a shift', () => {
+    const added = addRow(base, OTHER);
+    expect(countChanges(base, added)).toBe(0);
+    expect(gridToItems(added)).toHaveLength(gridToItems(base).length);
+    expect(countChanges(base, setZone(added, OTHER, ZONE))).toBe(0);
+    expect(countChanges(base, setCell(added, OTHER, '2026-09-01', TPL_DAY))).toBe(1);
+    expect(countChanges(added, base)).toBe(0);
+  });
+
+  it('an empty grid saved over a full one counts every shift it removes', () => {
+    expect(countChanges(base, { rows: [] })).toBe(2);
+    expect(countChanges({ rows: [] }, base)).toBe(2);
   });
 });
 

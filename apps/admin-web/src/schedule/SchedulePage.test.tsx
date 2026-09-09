@@ -222,13 +222,32 @@ describe('SchedulePage', () => {
     const cell = (await screen.findByLabelText('Кузнецов Леонид 2026-09-05')) as HTMLSelectElement;
     expect(cell.value).toBe(TPL_NIGHT);
 
+    // The button follows what a save would write, and nothing else: shut on an untouched month,
+    // shut again on a row added without shifts, open the moment a day is given a template.
     const save = screen.getByRole('button', { name: /Сохранить/ }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
+    expect(save.textContent).toContain('(0)');
+
+    fireEvent.change(screen.getByLabelText('Добавить сотрудника'), { target: { value: EMP2 } });
+    expect(await screen.findByRole('button', { name: /Действия: Сидоров Пётр/ })).toBeTruthy();
+    expect(save.disabled).toBe(true);
+    expect(screen.queryByText('Есть несохранённые изменения.')).toBeNull();
+
     fireEvent.change(screen.getByLabelText('Кузнецов Леонид 2026-09-07'), {
       target: { value: TPL_DAY },
     });
     expect(save.disabled).toBe(false);
+    expect(save.textContent).toContain('(1)');
     expect(screen.getByText('Есть несохранённые изменения.')).toBeTruthy();
+
+    // Undoing the edit by hand leaves nothing to write, and the button shuts again.
+    fireEvent.change(screen.getByLabelText('Кузнецов Леонид 2026-09-07'), {
+      target: { value: '' },
+    });
+    expect(save.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Кузнецов Леонид 2026-09-07'), {
+      target: { value: TPL_DAY },
+    });
 
     fireEvent.click(save);
     await screen.findByText('Изменения сохранены.');
@@ -387,7 +406,11 @@ describe('SchedulePage', () => {
     expect(calls.some((c) => c.method === 'PUT')).toBe(false);
     render(<SchedulePage />);
     expect(await screen.findByRole('button', { name: /Действия: Сидоров Пётр/ })).toBeTruthy();
-    expect(await screen.findByText('Есть несохранённые изменения.')).toBeTruthy();
+    // The row came back, and it is still nothing to save: a person with no shifts writes nothing.
+    expect(screen.queryByText('Есть несохранённые изменения.')).toBeNull();
+    expect((screen.getByRole('button', { name: /Сохранить/ }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
   });
 
   it('arriving when the month already has a draft fills that draft instead of making another', async () => {
