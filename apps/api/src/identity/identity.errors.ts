@@ -4,7 +4,8 @@ export type IdentityErrorCode =
   | 'EMPLOYEE_NOT_ACTIVE'
   | 'TELEGRAM_USER_TAKEN'
   | 'SAME_TELEGRAM_USER'
-  | 'EMPLOYEE_HAS_HISTORY';
+  | 'EMPLOYEE_HAS_HISTORY'
+  | 'EMPLOYEE_NOT_LINKED';
 
 /** Доменна помилка identity; у HTTP її перетворює IdentityExceptionFilter. */
 export class IdentityError extends Error {

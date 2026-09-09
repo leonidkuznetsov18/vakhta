@@ -15,6 +15,7 @@ import {
 import {
   ChangeEmployeeStatusCommand,
   CreateEmployeeCommand,
+  SendEmployeeMessageCommand,
   BulkDeleteEmployeesCommand,
   type BulkDeleteEmployeesResult,
   DeleteEmployeeCommand,
@@ -133,6 +134,18 @@ export class AdminEmployeesController {
     @CurrentUser() user: WebUser,
   ): Promise<void> {
     await this.employees.deleteEmployee(id, body, webUserActor(user));
+  }
+
+  /** Words to one employee's bot; nothing about the employee changes. */
+  @Post(':id/message')
+  @HttpCode(200)
+  @Roles('ADMIN', 'HR', 'PRODUCTION_HEAD', 'SHIFT_MASTER')
+  message(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(SendEmployeeMessageCommand)) body: SendEmployeeMessageCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<{ employeeId: string; fullName: string }> {
+    return this.employees.message(id, body.text, webUserActor(user));
   }
 
   @Post(':id/status')

@@ -100,6 +100,9 @@ export const orgApi = {
 
 export const employeesApi = {
   list: () => apiFetch<EmployeeView[]>('/admin/employees'),
+  /** Words to one employee's bot; the panel sends them from anywhere it is open. */
+  message: (id: string, text: string) =>
+    post<{ employeeId: string; fullName: string }>(`/admin/employees/${id}/message`, { text }),
 };
 
 export const schedulesApi = {

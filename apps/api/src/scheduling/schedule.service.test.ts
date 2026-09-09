@@ -41,7 +41,7 @@ describe('scheduling: версії, валідація, публікація, о
     const audit = new AuditLog();
     org = new OrgService(testDb.db, events, audit);
     templates = new TemplatesService(testDb.db, events, audit, org);
-    employeesService = new EmployeesService(testDb.db, events, audit);
+    employeesService = new EmployeesService(testDb.db, events, audit, new NotificationsService());
     timers = new InMemoryTimerScheduler();
     schedule = new ScheduleService(
       testDb.db,

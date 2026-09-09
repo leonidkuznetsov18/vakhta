@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import {
   ActivityIcon,
-  LayoutDashboardIcon,
   AlertTriangleIcon,
   BarChart3Icon,
   CalendarDaysIcon,
   ClipboardCheckIcon,
   CoinsIcon,
   InboxIcon,
+  LayoutDashboardIcon,
   LogOutIcon,
+  MonitorIcon,
+  MoonIcon,
   ScrollTextIcon,
+  SendIcon,
   SettingsIcon,
   SunIcon,
-  MoonIcon,
-  MonitorIcon,
   type LucideIcon,
 } from 'lucide-react';
 import type { MeView } from '@vakhta/contracts';
@@ -38,6 +39,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { InfoTip } from '@/components/app/info-tip';
 import { UserAvatar } from '@/components/app/avatar';
 import { LogoMark } from '@/components/app/logo';
+import { MessageEmployeeDialog } from '@/components/app/message-employee';
 import { LoginScreen } from './auth/LoginScreen.tsx';
 import { ProfilePanel } from './auth/ProfilePanel.tsx';
 import { AdminPage } from './admin/AdminPage.tsx';
@@ -132,6 +134,8 @@ const EMPTY_ME: MeView = {
 export function App() {
   const { state, refresh, signOut } = useSession();
   const badges = useBadges(state.status === 'authenticated' ? state.me : null);
+  /** The "write to an employee" dialog, reachable from every section. */
+  const [writing, setWriting] = useState(false);
   const [active, setActive] = useState<ActiveKey>(() => {
     const { section } = readRoute();
     return section in PAGES || section === 'profile' || section === 'overview'
@@ -185,6 +189,7 @@ export function App() {
       roles={me.roles.map((g) => g.role)}
     >
       <SidebarProvider>
+        <MessageEmployeeDialog open={writing} onOpenChange={setWriting} />
         <Sidebar collapsible="icon">
           <SidebarHeader>
             {/* The mark is the way home: it opens the overview. Collapsed, it shrinks to the rail's 32 px. */}
@@ -203,6 +208,20 @@ export function App() {
           <SidebarContent>
             <SidebarGroup>
               <SidebarGroupContent>
+                {/* Above the sections and outside them: writing to somebody is not a place in the
+                    panel, it is something done from wherever the reader already is. */}
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      tooltip={t.admin.message.title}
+                      onClick={() => setWriting(true)}
+                    >
+                      <SendIcon aria-hidden="true" />
+                      <span>{t.admin.message.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+                <SidebarSeparator className="my-2" />
                 <SidebarMenu aria-label={t.ui.common.menu}>
                   {SECTIONS.map(({ key, icon: Icon }) => (
                     <SidebarMenuItem key={key}>

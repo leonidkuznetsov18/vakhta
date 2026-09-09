@@ -1,12 +1,20 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq, sql } from '@vakhta/db';
-import { activationCodes, auditLog, domainEvents, employees, telegramAccounts } from '@vakhta/db';
+import {
+  activationCodes,
+  auditLog,
+  domainEvents,
+  employees,
+  notificationOutbox,
+  telegramAccounts,
+} from '@vakhta/db';
 import { UpdateEmployeeCommand } from '@vakhta/contracts';
 import { codeFromDeepLink } from '@vakhta/domain';
 import { isUniqueViolation } from '../common/pg-errors.js';
 import { InMemoryShortTermStore } from '../infra/short-term-store.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
 import { ActivationService } from './activation.service.js';
 import { EmployeesService } from './employees.service.js';
@@ -26,7 +34,7 @@ describe('identity: активація і привʼязка Telegram (ТЗ 2.2,
     testDb = await startTestDatabase();
     const events = new EventStore();
     const audit = new AuditLog();
-    employeesService = new EmployeesService(testDb.db, events, audit);
+    employeesService = new EmployeesService(testDb.db, events, audit, new NotificationsService());
     store = new InMemoryShortTermStore();
     activation = new ActivationService(testDb.db, store, events, audit, employeesService, {
       pepper: 'integration-test-pepper-0123456789',
@@ -151,6 +159,31 @@ describe('identity: активація і привʼязка Telegram (ТЗ 2.2,
       'ACTIVATION_CODE_ISSUED',
       'TELEGRAM_LINKED',
     ]);
+  });
+
+  it('a message from the panel reaches a linked employee and is refused for an unlinked one', async () => {
+    const ivanov = await createIvanov();
+    // Nobody is on the other end yet: an enqueued notification would sit in the outbox forever.
+    await expect(employeesService.message(ivanov.id, 'Зателефонуй майстру', HR)).rejects.toThrow();
+
+    const { code } = await activation.issue(ivanov.id, HR);
+    await activation.preview(TG_IVANOV, code);
+    await activation.confirm(TG_IVANOV);
+
+    const sent = await employeesService.message(ivanov.id, 'Зателефонуй майстру', HR);
+    expect(sent).toMatchObject({ employeeId: ivanov.id });
+    const outbox = await testDb.db
+      .select()
+      .from(notificationOutbox)
+      .where(eq(notificationOutbox.recipientId, ivanov.id));
+    const message = outbox.filter((o) => o.template === 'MASTER_MESSAGE');
+    expect(message).toHaveLength(1);
+    expect((message[0]!.payload as { text: string }).text).toContain('Зателефонуй майстру');
+    const events = await testDb.db
+      .select({ type: domainEvents.type })
+      .from(domainEvents)
+      .where(eq(domainEvents.employeeId, ivanov.id));
+    expect(events.map((e) => e.type)).toContain('EMPLOYEE_MESSAGE_SENT');
   });
 
   it('використаний код не спрацьовує вдруге, а підтвердження без превʼю відхиляється', async () => {

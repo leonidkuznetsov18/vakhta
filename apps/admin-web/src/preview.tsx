@@ -535,6 +535,8 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     });
   }
   if (path === '/admin/reports/hours') return json(hoursReport);
+  if (path.startsWith('/admin/employees/') && path.endsWith('/message'))
+    return json({ employeeId: path.split('/')[3], fullName: 'Ткач Олена' });
   // A tiny grey PNG stands in for the photo: the point is that a thumbnail appears at all.
   if (path.startsWith('/admin/incidents/media/'))
     return json({

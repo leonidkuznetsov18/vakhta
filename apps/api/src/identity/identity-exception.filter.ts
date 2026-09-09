@@ -9,6 +9,7 @@ const STATUS: Readonly<Record<IdentityErrorCode, HttpStatus>> = {
   TELEGRAM_USER_TAKEN: HttpStatus.CONFLICT,
   SAME_TELEGRAM_USER: HttpStatus.CONFLICT,
   EMPLOYEE_HAS_HISTORY: HttpStatus.CONFLICT,
+  EMPLOYEE_NOT_LINKED: HttpStatus.CONFLICT,
 };
 
 @Catch(IdentityError)

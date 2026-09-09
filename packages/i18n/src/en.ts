@@ -657,6 +657,16 @@ export const en: Messages = {
       forbidden: 'Insufficient permissions for this action.',
       noTemplates: 'No shift templates are defined for the site.',
     },
+    message: {
+      title: 'Write to an employee',
+      description: 'The message reaches the employee in Telegram. Nothing about the shift changes.',
+      employee: 'Employee',
+      text: 'Message',
+      placeholder: 'What to tell the employee',
+      send: 'Send',
+      sent: 'Message sent to {employee}.',
+      nobody: 'Nobody has an active Telegram yet: hand out activation codes first.',
+    },
     operations: {
       site: 'Site',
       orgUnit: 'Unit',

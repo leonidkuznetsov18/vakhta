@@ -542,6 +542,18 @@ export interface Messages {
       readonly forbidden: string;
       readonly noTemplates: string;
     };
+    /** "Write to an employee": the dialog reachable from the sidebar. */
+    readonly message: {
+      readonly title: string;
+      readonly description: string;
+      readonly employee: string;
+      readonly text: string;
+      readonly placeholder: string;
+      readonly send: string;
+      /** Placeholder: {employee} */
+      readonly sent: string;
+      readonly nobody: string;
+    };
     readonly operations: {
       readonly site: string;
       readonly orgUnit: string;

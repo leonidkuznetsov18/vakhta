@@ -44,6 +44,12 @@ export const EmployeeContacts = z.object({
 
 /** HR або адміністратор створює картку до активації (ТЗ 2.2). */
 const optionalId = z.preprocess(blankToUndefined, Uuid.optional());
+/** A note from the panel straight to the employee's bot; it changes nothing about them. */
+export const SendEmployeeMessageCommand = z.object({
+  text: z.string().trim().min(3).max(1000),
+});
+export type SendEmployeeMessageCommand = z.infer<typeof SendEmployeeMessageCommand>;
+
 export const CreateEmployeeCommand = EmployeeContacts.extend({
   personnelNumber: PersonnelNumber,
   fullName: z.string().trim().min(3).max(200),

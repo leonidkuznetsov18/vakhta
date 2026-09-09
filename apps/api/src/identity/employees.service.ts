@@ -38,11 +38,13 @@ import type {
   RelinkTelegramCommand,
 } from '@vakhta/contracts';
 import type { Locale } from '@vakhta/domain';
+import { format } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { isUniqueViolation } from '../common/pg-errors.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
 import { DATABASE } from '../infra/database.module.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { IdentityError } from './identity.errors.js';
 
 export type EmployeeRecord = typeof employees.$inferSelect;
@@ -66,6 +68,7 @@ export class EmployeesService {
     @Inject(DATABASE) private readonly db: Database,
     private readonly events: EventStore,
     private readonly audit: AuditLog,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(cmd: CreateEmployeeCommand, actor: Actor): Promise<EmployeeRecord> {
@@ -401,6 +404,54 @@ export class EmployeesService {
     const row = await this.getById(id, tx);
     if (!row) throw new IdentityError('EMPLOYEE_NOT_FOUND', `Працівника ${id} не знайдено`);
     return row;
+  }
+
+  /**
+   * A message from the panel to one employee's bot (spec 10): no state changes, the employee is
+   * only the address. Refused when nobody is on the other end — an unlinked employee has no bot,
+   * and an enqueued notification for them would sit in the outbox forever.
+   */
+  async message(employeeId: string, text: string, actor: Actor, now: Date = new Date()) {
+    const employee = await this.requireById(employeeId);
+    const [link] = await this.db
+      .select({ id: telegramAccounts.id })
+      .from(telegramAccounts)
+      .where(
+        and(eq(telegramAccounts.employeeId, employeeId), eq(telegramAccounts.status, 'ACTIVE')),
+      )
+      .limit(1);
+    if (!link) {
+      throw new IdentityError(
+        'EMPLOYEE_NOT_LINKED',
+        `Employee ${employeeId} has no active Telegram link`,
+      );
+    }
+    await this.db.transaction(async (tx) => {
+      await this.events.append(tx, {
+        type: 'EMPLOYEE_MESSAGE_SENT',
+        source: 'WEB',
+        actor,
+        occurredAt: now,
+        employeeId,
+        comment: text,
+        payload: {},
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'employee.message',
+        objectType: 'employee',
+        objectId: employeeId,
+        reason: text,
+      });
+      await this.notifications.enqueue(tx, {
+        recipientType: 'EMPLOYEE',
+        recipientId: employeeId,
+        template: 'MASTER_MESSAGE',
+        payload: (t) => ({ text: format(t.shift.masterMessage, { text }) }),
+        dedupeKey: `employee-message:${employeeId}:${now.getTime()}`,
+      });
+    });
+    return { employeeId, fullName: employee.fullName };
   }
 
   async list(limit = 200): Promise<EmployeeView[]> {
