@@ -1,3 +1,9 @@
+## [0.61.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.60.2...v0.61.0) (2026-09-09)
+
+### Features
+
+* **schedule:** day is amber, night is black, and the checks keep their height ([f013e17](https://github.com/leonidkuznetsov18/vakhta/commit/f013e17a772bc48d72e9ab016ae262c8055caee5))
+
 ## [0.60.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.60.1...v0.60.2) (2026-09-09)
 
 ### Bug fixes
