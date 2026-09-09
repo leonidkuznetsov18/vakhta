@@ -362,21 +362,49 @@ describe('SchedulePage', () => {
     );
   });
 
-  it('arriving from the overview opens that unit and month, and creates nothing by itself', async () => {
-    // What "Build a schedule" hands over: this unit, these people.
+  it('arriving from the overview opens a draft with those people already in the grid', async () => {
+    // What "Build a schedule" hands over: this unit, this month, these people by name.
     sessionStorage.setItem(
       'vakhta.ui.schedule.preset',
-      JSON.stringify({ orgUnitId: UNIT, employeeIds: [EMP2] }),
+      JSON.stringify({
+        orgUnitId: UNIT,
+        month: '2026-09',
+        people: [{ id: EMP2, name: 'Сидоров Пётр' }],
+      }),
     );
     const state = { status: 'PUBLISHED' as string, created: false };
     const calls = mockApi(state);
     render(<SchedulePage />);
 
-    // The unit's month is on screen…
-    await waitFor(() => expect(calls.some((c) => c.path.includes(`orgUnitId=${UNIT}`))).toBe(true));
-    // …and nothing was created on the way: writing a version is the master's move, and doing it
-    // from an effect that watches the version list is a loop.
-    expect(state.created).toBe(false);
+    // The month had only a published version, so a draft is created to hold the newcomers.
+    await waitFor(() => expect(state.created).toBe(true));
+    expect(calls.filter((c) => c.method === 'POST' && c.path === '/admin/schedules')).toHaveLength(
+      1,
+    );
+    // The names are on screen — the master no longer has to remember them from the overview —
+    // and the person is a row of the grid, ready for shifts.
+    expect(await screen.findByText(/Создаём график для 1 сотрудников/)).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText('Сидоров Пётр').length).toBeGreaterThan(1));
+    expect(screen.getByRole('button', { name: /Убрать из версии: Сидоров Пётр/ })).toBeTruthy();
+  });
+
+  it('arriving when the month already has a draft fills that draft instead of making another', async () => {
+    sessionStorage.setItem(
+      'vakhta.ui.schedule.preset',
+      JSON.stringify({
+        orgUnitId: UNIT,
+        month: '2026-09',
+        people: [{ id: EMP2, name: 'Сидоров Пётр' }],
+      }),
+    );
+    const state = { status: 'DRAFT' as string, created: false };
+    const calls = mockApi(state);
+    render(<SchedulePage />);
+
+    expect(await screen.findByText(/Создаём график для 1 сотрудников/)).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Убрать из версии: Сидоров Пётр/ })).toBeTruthy(),
+    );
     expect(calls.some((c) => c.method === 'POST' && c.path === '/admin/schedules')).toBe(false);
   });
 });

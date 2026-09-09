@@ -529,6 +529,10 @@ export interface Messages {
       /** Labels of the validation detail keys (nightShifts, restMinutes, …). */
       readonly issueDetails: Readonly<Record<string, string>>;
       readonly deleted: string;
+      /** Placeholder: {n} */
+      readonly presetTitle: string;
+      readonly presetHint: string;
+      readonly presetNoUnit: string;
       readonly noEmployees: string;
       readonly goToEmployees: string;
       /** Placeholder: {n} rows without a zone. */
@@ -1348,6 +1352,7 @@ export interface Messages {
       readonly operationsStartFor: string;
       readonly operationsStartZone: string;
       readonly operationsLive: string;
+      readonly schedulePreset: string;
       readonly scheduleVersions: string;
       readonly scheduleEditPublished: string;
       readonly scheduleRevise: string;

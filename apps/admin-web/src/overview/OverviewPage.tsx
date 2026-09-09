@@ -258,12 +258,15 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
   const attention = visible.filter((t) => t.tone !== 'neutral' && (data[t.key] ?? 0) > 0);
   const quiet = visible.filter((t) => !attention.includes(t));
 
-  /** Hands the unit and the people to the schedule page, which opens that month with them in it. */
+  /** Hands the unit, the month and the people to the schedule page, which opens a version with
+      them already in it — the master should not have to memorise three surnames on the way. */
   function planFor(group: (typeof unscheduledByUnit)[number]): void {
-    if (group.orgUnitId) {
+    const first = group.people[0];
+    if (first) {
       writeSchedulePreset({
         orgUnitId: group.orgUnitId,
-        employeeIds: group.people.map((p) => p.employeeId),
+        month: first.businessDate.slice(0, 7),
+        people: group.people.map((p) => ({ id: p.employeeId, name: p.fullName })),
       });
     }
     go('schedule');

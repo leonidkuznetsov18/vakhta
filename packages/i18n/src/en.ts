@@ -662,6 +662,11 @@ export const en: Messages = {
         to: 'to',
       },
       deleted: 'Version deleted.',
+      presetTitle: 'Building a schedule for {n} employees who have none',
+      presetHint:
+        'They are added to the grid below: set their shifts and save. A row can be removed.',
+      presetNoUnit:
+        'These people belong to no unit: pick one and create a version, and they will be added to it.',
       noEmployees:
         'There are no employees yet. Add them under Administration → Employees first, then build the schedule.',
       goToEmployees: 'Go to employees',
@@ -2041,6 +2046,8 @@ export const en: Messages = {
         'The zone the employee cleans and hands over at the end of the shift. A schedule assignment with a zone takes precedence. Without a zone the report with the checklist and photos goes straight to the master.',
       operationsLive:
         'The list refreshes on server events. If the connection is lost, reload the page.',
+      schedulePreset:
+        'You came from the overview, where these people started a shift with no schedule. The panel opened their unit and month and added them to the draft.',
       scheduleVersions:
         'Every change to a published schedule creates a new version. The old one is marked as superseded.',
       scheduleEditPublished:

@@ -59,11 +59,80 @@ const org = {
   ],
   teams: [],
   positions: [{ id: 'p1', code: 'OPERATOR', name: 'Оператор' }],
-  zones: [],
+  zones: [
+    {
+      id: 'z1',
+      siteId: 's1',
+      orgUnitId: 'u1',
+      code: 'L1',
+      name: 'Линия 1',
+      type: 'AREA',
+      isShared: false,
+      isActive: true,
+    },
+    {
+      id: 'z2',
+      siteId: 's1',
+      orgUnitId: 'u2',
+      code: 'L2',
+      name: 'Линия 2',
+      type: 'AREA',
+      isShared: false,
+      isActive: true,
+    },
+  ],
   terminals: [],
   reasonCodes: [],
   shiftTemplates: [],
 };
+
+/**
+ * The schedule month, kept in memory: the overview hands the page a unit, a month and the people
+ * who worked without a schedule, and the page answers by opening a draft with them in it. A static
+ * fixture could not show that — the draft has to appear where there was none.
+ */
+const scheduleTemplates = [
+  {
+    id: 'tpl-day',
+    siteId: 's1',
+    code: 'DAY',
+    name: 'Дневная',
+    localStart: '08:00',
+    localEnd: '20:00',
+    isNight: false,
+    isActive: true,
+  },
+  {
+    id: 'tpl-night',
+    siteId: 's1',
+    code: 'NIGHT',
+    name: 'Ночная',
+    localStart: '20:00',
+    localEnd: '08:00',
+    isNight: true,
+    isActive: true,
+  },
+];
+const scheduleVersions: Record<string, unknown>[] = [];
+function scheduleVersion(orgUnitId: string, periodMonth: string) {
+  return {
+    id: `sv-${scheduleVersions.length + 1}`,
+    siteId: 's1',
+    orgUnitId,
+    periodMonth,
+    versionNo: scheduleVersions.length + 1,
+    status: 'DRAFT',
+    createdBy: null,
+    submittedAt: null,
+    approvedBy: null,
+    publishedAt: null,
+    supersedesId: null,
+    changeReason: null,
+    createdAt: new Date().toISOString(),
+    assignmentsCount: 0,
+    deletable: true,
+  };
+}
 // One open shift for "Live shift": the row and its expanded details.
 const shift = {
   id: 'sh1',
@@ -180,12 +249,13 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   if (path === '/admin/employees') {
     return json(
       [
-        ['132', 'Гринько Юлія', true],
-        ['131', 'Панов Олег', false],
-        ['130', 'Ткач Олена', true],
-        ['129', 'Калашнік Світлана', false],
-      ].map(([personnelNumber, fullName, telegramLinked], i) => ({
-        id: `emp-${i}`,
+        ['e1', '0001', 'Кузнецов Леонид', true],
+        ['e2', '130', 'Ткач Олена', true],
+        ['e3', '131', 'Панов Олег', false],
+        ['e4', '132', 'Гринько Юлія', true],
+        ['e5', '129', 'Калашнік Світлана', false],
+      ].map(([id, personnelNumber, fullName, telegramLinked]) => ({
+        id,
         personnelNumber,
         fullName,
         status: 'ACTIVE',
@@ -463,6 +533,29 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     });
   }
   if (path === '/admin/reports/hours') return json(hoursReport);
+  if (path.startsWith('/admin/schedules/templates')) return json(scheduleTemplates);
+  if (path === '/admin/schedules' && method === 'POST') {
+    const body = JSON.parse(String(init?.body ?? '{}')) as {
+      orgUnitId: string;
+      periodMonth: string;
+    };
+    const created = scheduleVersion(body.orgUnitId, body.periodMonth);
+    scheduleVersions.push(created);
+    return json(created, 201);
+  }
+  if (path === '/admin/schedules') {
+    const q = new URL(String(input), location.origin).searchParams;
+    return json(
+      scheduleVersions.filter(
+        (v) => v.orgUnitId === q.get('orgUnitId') && v.periodMonth === q.get('periodMonth'),
+      ),
+    );
+  }
+  if (path.startsWith('/admin/schedules/sv-')) {
+    const id = path.split('/')[3];
+    const version = scheduleVersions.find((v) => v.id === id);
+    if (version) return json({ version, assignments: [], issues: [] });
+  }
   // Anything this harness has no fixture for is a gap in the harness, not an empty answer from a
   // server. Saying so out loud stops "the record was added" over a list that never changes from
   // looking like a bug in the panel.

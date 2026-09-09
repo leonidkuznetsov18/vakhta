@@ -20,7 +20,7 @@ import { ApiError, employeesApi, orgApi, schedulesApi } from '../api.ts';
 import { describeError as describe } from '../errors.ts';
 import { AckTable } from './AckTable.tsx';
 import { IssuesPanel } from './IssuesPanel.tsx';
-import { takeSchedulePreset } from './preset.ts';
+import { takeSchedulePreset, type SchedulePreset } from './preset.ts';
 import { ScheduleGrid } from './ScheduleGrid.tsx';
 import {
   addRow,
@@ -88,6 +88,14 @@ export function SchedulePage() {
   const { confirm, dialog } = useConfirm();
   const { go, roles } = useNavigation();
   const canPublish = roles.includes('ADMIN') || roles.includes('PRODUCTION_HEAD');
+  /** Who the overview sent us here for, kept on screen until their month is saved. */
+  const [preset, setPreset] = useState<SchedulePreset | null>(null);
+  /** Set once a version has been asked for on the preset's behalf, so it is never asked twice. */
+  const presetVersion = useRef(false);
+  /** The version whose grid already received the preset's people. */
+  const presetFilled = useRef<string | null>(null);
+  /** Which site/unit/month the loaded versions belong to; empty means "not read yet". */
+  const [versionsKey, setVersionsKey] = useState<string | null>(null);
   const [patternFor, setPatternFor] = useState('');
   const [pattern, setPattern] = useState<RotationPattern>('DAY_2_2');
   const [patternStart, setPatternStart] = useState(() => `${currentMonth()}-01`);
@@ -149,6 +157,7 @@ export function SchedulePage() {
       const list = await schedulesApi.list({ siteId, orgUnitId, periodMonth: month });
       setVersions(list);
       versionsRef.current = list;
+      setVersionsKey(`${siteId}|${orgUnitId}|${month}`);
       const pick =
         preferId && list.some((v) => v.id === preferId) ? preferId : (list[0]?.id ?? null);
       setSelectedId(pick);
@@ -156,19 +165,21 @@ export function SchedulePage() {
     [siteId, orgUnitId, month],
   );
 
-  // Arriving from the overview's "these people are working without a schedule": open that unit's
-  // month and stop there. Creating the draft and filling it in is the master's move — doing it for
-  // them meant an effect that watched the version list and re-ran on every load of it, which is a
-  // loop, and a page that created versions nobody asked for.
+  // Arriving from the overview's "these people are working without a schedule": open their unit
+  // and their month, and remember whom we came for.
   useEffect(() => {
     if (!org) return;
-    const preset = takeSchedulePreset();
-    if (!preset) return;
-    const unit = org.orgUnits.find((u) => u.id === preset.orgUnitId);
-    if (!unit) return;
-    setSiteId(unit.siteId);
-    setOrgUnitId(preset.orgUnitId);
-  }, [org]);
+    const arrived = takeSchedulePreset();
+    if (!arrived) return;
+    const unit = org.orgUnits.find((u) => u.id === arrived.orgUnitId);
+    if (unit) {
+      setSiteId(unit.siteId);
+      setOrgUnitId(unit.id);
+    }
+    setMonth(arrived.month);
+    presetVersion.current = false;
+    setPreset(arrived);
+  }, [org, setSiteId, setOrgUnitId, setMonth]);
 
   useEffect(() => {
     setPatternStart(`${month}-01`);
@@ -220,6 +231,31 @@ export function SchedulePage() {
   const editable = version?.status === 'DRAFT' || revising;
   const existingDraft = versions.find((v) => v.status === 'DRAFT') ?? null;
   const hasErrors = detail?.issues.some((i) => i.severity === 'ERROR') ?? false;
+  /** The preset still speaks about what is on screen (the master has not moved on). */
+  const presetHere =
+    preset !== null &&
+    preset.month === month &&
+    (preset.orgUnitId === null || preset.orgUnitId === orgUnitId);
+
+  // The version the preset needs: the month's open draft, or a new one. Asked for exactly once —
+  // the effect that used to watch the version list re-created on every load of it, which is a loop.
+  useEffect(() => {
+    if (!presetHere || presetVersion.current || !preset?.orgUnitId) return;
+    if (versionsKey !== `${siteId}|${orgUnitId}|${month}`) return;
+    presetVersion.current = true;
+    if (existingDraft) setSelectedId(existingDraft.id);
+    else createVersion();
+  }, [presetHere, preset, versionsKey, siteId, orgUnitId, month, existingDraft]);
+
+  // Put the people we came for into the grid of that version. Once per version: a row the master
+  // deletes stays deleted, and the alert keeps naming them while the month is filled in.
+  useEffect(() => {
+    if (!preset || !detail || !editable) return;
+    if (presetFilled.current === detail.version.id) return;
+    presetFilled.current = detail.version.id;
+    setGrid((g) => preset.people.reduce((acc, person) => addRow(acc, person.id), g));
+    setDirty(true);
+  }, [preset, detail, editable]);
 
   function changeSite(id: string) {
     setSiteId(id);
@@ -272,6 +308,7 @@ export function SchedulePage() {
       setDetail(d);
       setGrid(gridFromDetail(d));
       setDirty(false);
+      setPreset(null);
       setVersions((list) => list.map((v) => (v.id === d.version.id ? d.version : v)));
     }, s.saved);
   }
@@ -413,6 +450,23 @@ export function SchedulePage() {
       </Toolbar>
 
       <Feedback error={error} />
+
+      {/* Arrived from the overview: the names stay on screen, because a master who had to
+          remember three surnames on the way here would plan the wrong people. */}
+      {presetHere && preset && (
+        <Alert>
+          <AlertTitle className="flex items-center gap-1">
+            {format(s.presetTitle, { n: preset.people.length })}
+            <InfoTip text={hints.schedulePreset} />
+          </AlertTitle>
+          <AlertDescription className="flex flex-col gap-1">
+            <p className="font-medium text-foreground">
+              {preset.people.map((person) => person.name).join(', ')}
+            </p>
+            <p>{preset.orgUnitId ? s.presetHint : s.presetNoUnit}</p>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {org && activeEmployees.length === 0 && (
         <Alert>
