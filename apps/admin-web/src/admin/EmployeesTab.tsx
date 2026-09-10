@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isBlank, isUnchanged } from '@/lib/forms';
 import type {
   ChecklistDefinitionView,
@@ -21,15 +22,16 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CopyButton } from '@/components/app/copy-button';
 import { useConfirm } from '@/components/app/confirm-dialog';
-import { notifyPromise } from '@/lib/toast';
+import { notifyPromise, notifySuccess } from '@/lib/toast';
 import { DataTable, type Column, type RowAction } from '@/components/app/data-table';
-import { Feedback, useAction } from '@/components/app/feedback';
+import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill, type Tone } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
 import { ApiError, adminEmployeesApi, checklistsApi, employeesApi } from '../api.ts';
-import { describeError } from '../errors.ts';
+import { describeError, readError } from '../errors.ts';
+import { keys } from '@/lib/query';
 import { currentLocale } from '../i18n.tsx';
 import { setUiState, usePersistentState } from '@/lib/ui-store';
 import { cn } from 'cn';
@@ -60,6 +62,8 @@ import { PrinterIcon } from 'lucide-react';
 const all = messages(currentLocale());
 const t = all.admin.administration;
 const e = t.employees;
+/** The activation block is collapsed by default; issuing a code opens it where it is asked for. */
+const ACTIVATION_OPEN = 'employees.activationOpen';
 const hints = all.ui.hints;
 const STATUS_TONE: Record<EmployeeView['status'], Tone> = {
   ACTIVE: 'success',
@@ -69,7 +73,6 @@ const STATUS_TONE: Record<EmployeeView['status'], Tone> = {
 
 /** Employee cards: creation, activation code, position, status, Telegram relink (spec 2, FR-ID-*). */
 export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
-  const [list, setList] = useState<EmployeeView[]>([]);
   const [personnelNumber, setPersonnelNumber] = usePersistentState('employees.personnelNumber', '');
   const [fullName, setFullName] = usePersistentState('employees.fullName', '');
   const [email, setEmail] = usePersistentState('employees.email', '');
@@ -81,16 +84,11 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const [issued, setIssued] = useState<ActivationCodeIssued | null>(null);
   const [creating, setCreating] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [checklists, setChecklists] = useState<ChecklistDefinitionView[] | null>(null);
-  useEffect(() => {
-    checklistsApi
-      .list()
-      .then(setChecklists)
-      .catch(() => setChecklists([]));
-  }, []);
+  const checklists =
+    useQuery({ queryKey: keys.checklists, queryFn: () => checklistsApi.list() }).data ?? [];
   /** Active checklists of a position: what the bot will ask this employee for (ADR-0012). */
   const checklistsOf = (positionId: string) =>
-    checklists?.filter((c) => c.isActive && c.positions.some((p) => p.id === positionId)) ?? [];
+    checklists.filter((c) => c.isActive && c.positions.some((p) => p.id === positionId));
   const [importing, setImporting] = useState(false);
   const [statusFilter, setStatusFilter] = usePersistentState<'' | EmployeeView['status']>(
     'employees.status',
@@ -98,16 +96,80 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   );
   const [openId, setOpenId] = usePersistentState<string | null>('employees.openId', null);
   const [relinkFor, setRelinkFor] = useState<EmployeeView | null>(null);
-  const { busy, error, run } = useAction();
   const { confirm, dialog } = useConfirm();
+  const client = useQueryClient();
+  const roster = useQuery({ queryKey: keys.employees, queryFn: () => employeesApi.list() });
+  const list = roster.data ?? [];
+  /** One roster on the server; every card that changes re-reads it rather than patching a copy. */
+  const reload = () => client.invalidateQueries({ queryKey: keys.employees });
 
-  useEffect(() => {
-    void run(async () => setList(await employeesApi.list()));
-  }, [run]);
+  const add = useMutation({
+    mutationFn: (cmd: CreateEmployeeCommand) => adminEmployeesApi.create(cmd),
+    onSuccess: async () => {
+      notifySuccess(t.common.added);
+      setPersonnelNumber('');
+      setFullName('');
+      setEmail('');
+      setPhone('');
+      setTelegramUsername('');
+      setNewOrgUnitId('');
+      setNewPositionId('');
+      setNewTeamId('');
+      setCreating(false);
+      await reload();
+    },
+  });
 
-  function replace(updated: EmployeeView) {
-    setList((l) => l.map((x) => (x.id === updated.id ? updated : x)));
-  }
+  const drop = useMutation({
+    mutationFn: async (v: { emp: EmployeeView; reason: string }) => {
+      try {
+        await adminEmployeesApi.remove(v.emp.id, v.reason);
+      } catch (err) {
+        if (err instanceof ApiError && err.code === 'EMPLOYEE_HAS_HISTORY') {
+          throw new Error(e.hasHistory);
+        }
+        throw err;
+      }
+    },
+    onSuccess: async (_result, v) => {
+      notifySuccess(e.employeeDeleted);
+      if (openId === v.emp.id) setOpenId(null);
+      await reload();
+    },
+  });
+
+  const issue = useMutation({
+    mutationFn: (emp: EmployeeView) => adminEmployeesApi.issueCode(emp.id),
+    onSuccess: (code) => setIssued(code),
+  });
+
+  const setStatus = useMutation({
+    mutationFn: (v: { emp: EmployeeView; status: EmployeeView['status']; reason: string }) =>
+      adminEmployeesApi.changeStatus(v.emp.id, { status: v.status, reason: v.reason }),
+    onSuccess: async () => {
+      notifySuccess(e.statusChanged);
+      await reload();
+    },
+  });
+
+  const issueMany = useMutation({
+    mutationFn: (ids: readonly string[]) => adminEmployeesApi.issueCodes([...ids]),
+    onSuccess: (codes, ids) => {
+      notifySuccess(format(e.codesIssued, { n: ids.length }));
+      setSheet(codes);
+      setSelected(new Set());
+    },
+  });
+
+  const busy =
+    add.isPending ||
+    drop.isPending ||
+    issue.isPending ||
+    setStatus.isPending ||
+    issueMany.isPending;
+  const error = readError(
+    roster.error ?? add.error ?? drop.error ?? issue.error ?? setStatus.error ?? issueMany.error,
+  );
 
   const unitName = (id: string) => org.orgUnits.find((u) => u.id === id)?.name ?? id;
   const positionName = (id: string) => org.positions.find((p) => p.id === id)?.name ?? id;
@@ -130,20 +192,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     if (errors.phone) errors.phone = e.invalidPhone;
     if (errors.telegramUsername) errors.telegramUsername = e.invalidTelegram;
     setFieldErrors(errors);
-    if (!checked.ok) return;
-    void run(async () => {
-      const created = await adminEmployeesApi.create(checked.data);
-      setList((l) => [created, ...l]);
-      setPersonnelNumber('');
-      setFullName('');
-      setEmail('');
-      setPhone('');
-      setTelegramUsername('');
-      setNewOrgUnitId('');
-      setNewPositionId('');
-      setNewTeamId('');
-      setCreating(false);
-    }, t.common.added);
+    if (checked.ok) add.mutate(checked.data);
   }
 
   /** Hard delete with a reason; a card with worked history is refused and the panel points to "Terminate". */
@@ -157,24 +206,15 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       destructive: true,
     });
     if (!reason) return;
-    void run(async () => {
-      try {
-        await adminEmployeesApi.remove(emp.id, reason);
-      } catch (err) {
-        if (err instanceof ApiError && err.code === 'EMPLOYEE_HAS_HISTORY') {
-          throw new Error(e.hasHistory);
-        }
-        throw err;
-      }
-      setList((l) => l.filter((x) => x.id !== emp.id));
-      if (openId === emp.id) setOpenId(null);
-    }, e.employeeDeleted);
+    drop.mutate({ emp, reason });
   }
 
   /** The card holds the activation block; the row action opens it with a fresh code. */
   function issueCode(emp: EmployeeView) {
     setOpenId(emp.id);
-    void run(async () => setIssued(await adminEmployeesApi.issueCode(emp.id)));
+    // A fresh code has to be visible, and the block it lands in is collapsed by default.
+    setUiState({ [ACTIVATION_OPEN]: true });
+    issue.mutate(emp);
   }
 
   async function changeStatus(emp: EmployeeView, status: EmployeeView['status']) {
@@ -197,10 +237,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       destructive: status === 'TERMINATED',
     });
     if (!reason) return;
-    void run(
-      async () => replace(await adminEmployeesApi.changeStatus(emp.id, { status, reason })),
-      e.statusChanged,
-    );
+    setStatus.mutate({ emp, status, reason });
   }
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -208,15 +245,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const selectable = list.filter((x) => selected.has(x.id) && x.status === 'ACTIVE');
 
   function issueSelected() {
-    if (selectable.length === 0) return;
-    void run(
-      async () => {
-        const codes = await adminEmployeesApi.issueCodes(selectable.map((x) => x.id));
-        setSheet(codes);
-        setSelected(new Set());
-      },
-      format(e.codesIssued, { n: selectable.length }),
-    );
+    if (selectable.length > 0) issueMany.mutate(selectable.map((x) => x.id));
   }
 
   /** Delete every selected card: no history deletes it, history terminates it; the toast shows both counts. */
@@ -241,9 +270,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           error: (err) => describeError(err),
         });
         const removed = new Set(ids);
-        if (result.deleted > 0 || result.terminated > 0) {
-          setList(await employeesApi.list());
-        }
+        if (result.deleted > 0 || result.terminated > 0) await reload();
         setSelected(new Set());
         if (openId && removed.has(openId)) setOpenId(null);
       } catch {
@@ -447,7 +474,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         </div>
         <div className="grid gap-4 xl:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-4">
-            <EmployeeDetailsForm employee={emp} onSaved={replace} />
+            <EmployeeDetailsForm key={emp.id} employee={emp} onSaved={reload} />
             <ActivationPanel
               employee={emp}
               issued={issued?.employeeId === emp.id ? issued : null}
@@ -456,32 +483,13 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
             />
           </div>
           <div className="flex min-w-0 flex-col gap-4">
-            <PositionPanel
-              employee={emp}
-              org={org}
-              onAssigned={(view) =>
-                replace({
-                  ...emp,
-                  currentPosition: {
-                    positionId: view.positionId,
-                    orgUnitId: view.orgUnitId,
-                    teamId: view.teamId,
-                  },
-                })
-              }
-            />
+            <PositionPanel employee={emp} org={org} onAssigned={reload} />
             {emp.currentPosition && (
               <ChecklistPanel
                 positionId={emp.currentPosition.positionId}
                 positionName={positionName(emp.currentPosition.positionId)}
-                checklists={checklists ?? []}
-                onChanged={(view) =>
-                  setChecklists((list) =>
-                    (list ?? []).some((c) => c.id === view.id)
-                      ? (list ?? []).map((c) => (c.id === view.id ? view : c))
-                      : [...(list ?? []), view],
-                  )
-                }
+                checklists={checklists}
+                onChanged={() => client.invalidateQueries({ queryKey: keys.checklists })}
               />
             )}
           </div>
@@ -703,7 +711,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
             </Button>
           </div>
         }
-        loading={busy && list.length === 0}
+        loading={roster.isPending}
         emptyAction={
           <Button type="button" variant="outline" onClick={() => setCreating(true)}>
             {e.create}
@@ -715,20 +723,14 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         rowClassName={(emp) => (emp.status !== 'ACTIVE' ? 'text-muted-foreground' : undefined)}
       />
       <CodeSheet codes={sheet} employees={list} onClose={() => setSheet(null)} />
-      <ImportDialog
-        open={importing}
-        onOpenChange={setImporting}
-        onImported={async () => {
-          setList(await employeesApi.list());
-        }}
-      />
+      <ImportDialog open={importing} onOpenChange={setImporting} onImported={reload} />
       {dialog}
       <RelinkDialog
         employee={relinkFor}
         onClose={() => setRelinkFor(null)}
-        onRelinked={(emp) => {
-          replace({ ...emp, telegramLinked: true });
+        onRelinked={() => {
           setRelinkFor(null);
+          void reload();
         }}
       />
     </div>
@@ -743,23 +745,28 @@ function RelinkDialog({
 }: {
   readonly employee: EmployeeView | null;
   readonly onClose: () => void;
-  readonly onRelinked: (employee: EmployeeView) => void;
+  readonly onRelinked: () => void;
 }) {
   const [userId, setUserId] = useState('');
   const [reason, setReason] = useState('');
-  const { busy, error, run } = useAction();
   const telegramUserId = Number(userId);
   const valid = Number.isInteger(telegramUserId) && telegramUserId > 0 && reason.trim().length >= 3;
 
-  function submit(ev: FormEvent) {
-    ev.preventDefault();
-    if (!employee || !valid) return;
-    void run(async () => {
-      await adminEmployeesApi.relink(employee.id, { telegramUserId, reason: reason.trim() });
-      onRelinked(employee);
+  const relink = useMutation({
+    mutationFn: (id: string) =>
+      adminEmployeesApi.relink(id, { telegramUserId, reason: reason.trim() }),
+    onSuccess: () => {
       setUserId('');
       setReason('');
-    });
+      onRelinked();
+    },
+  });
+  const busy = relink.isPending;
+  const error = readError(relink.error);
+
+  function submit(ev: FormEvent) {
+    ev.preventDefault();
+    if (employee && valid) relink.mutate(employee.id);
   }
 
   return (
@@ -816,45 +823,15 @@ function PositionPanel({
 }: {
   readonly employee: EmployeeView;
   readonly org: OrgSnapshot;
-  readonly onAssigned: (view: EmployeePositionView) => void;
+  readonly onAssigned: () => void;
 }) {
-  const [history, setHistory] = useState<EmployeePositionView[] | null>(null);
-  const [orgUnitId, setOrgUnitId] = useState(org.orgUnits[0]?.id ?? '');
-  const [positionId, setPositionId] = useState(org.positions[0]?.id ?? '');
-  const [teamId, setTeamId] = useState('');
-  const { busy, error, run } = useAction();
-
-  useEffect(() => {
-    void run(async () => setHistory(await adminEmployeesApi.positions(employee.id)));
-  }, [employee.id, run]);
-
-  const current = history?.find((h) => h.validTo === null) ?? null;
-  // Open the form on the assignment in force, so "save" without changes is not a silent transfer.
-  useEffect(() => {
-    if (!current) return;
-    setOrgUnitId(current.orgUnitId);
-    setPositionId(current.positionId);
-    setTeamId(current.teamId ?? '');
-  }, [current]);
+  const history = useQuery({
+    queryKey: keys.employeePositions(employee.id),
+    queryFn: () => adminEmployeesApi.positions(employee.id),
+  });
+  const current = history.data?.find((h) => h.validTo === null) ?? null;
   const unitName = (id: string) => org.orgUnits.find((u) => u.id === id)?.name ?? id;
   const positionName = (id: string) => org.positions.find((p) => p.id === id)?.name ?? id;
-  const teams = org.teams.filter((tm) => tm.orgUnitId === orgUnitId);
-
-  function assign(ev: FormEvent) {
-    ev.preventDefault();
-    void run(async () => {
-      const view = await adminEmployeesApi.assignPosition(employee.id, {
-        orgUnitId,
-        positionId,
-        ...(teamId ? { teamId } : {}),
-      });
-      setHistory((h) => [
-        view,
-        ...(h ?? []).map((x) => (x.validTo === null ? { ...x, validTo: view.validFrom } : x)),
-      ]);
-      onAssigned(view);
-    }, e.positionAssigned);
-  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -865,6 +842,59 @@ function PositionPanel({
           : e.noPosition}
         <InfoTip text={hints.employeesPosition} />
       </p>
+      {/* The form opens on the assignment in force, so a save without changes is not a silent
+          transfer; a new assignment mounts a form of its own rather than being written over. */}
+      <AssignPositionForm
+        key={current?.id ?? 'none'}
+        employeeId={employee.id}
+        org={org}
+        current={current}
+        onAssigned={onAssigned}
+      />
+    </div>
+  );
+}
+
+function AssignPositionForm({
+  employeeId,
+  org,
+  current,
+  onAssigned,
+}: {
+  readonly employeeId: string;
+  readonly org: OrgSnapshot;
+  readonly current: EmployeePositionView | null;
+  readonly onAssigned: () => void;
+}) {
+  const client = useQueryClient();
+  const [orgUnitId, setOrgUnitId] = useState(current?.orgUnitId ?? org.orgUnits[0]?.id ?? '');
+  const [positionId, setPositionId] = useState(current?.positionId ?? org.positions[0]?.id ?? '');
+  const [teamId, setTeamId] = useState(current?.teamId ?? '');
+  const teams = org.teams.filter((tm) => tm.orgUnitId === orgUnitId);
+
+  const move = useMutation({
+    mutationFn: () =>
+      adminEmployeesApi.assignPosition(employeeId, {
+        orgUnitId,
+        positionId,
+        ...(teamId ? { teamId } : {}),
+      }),
+    onSuccess: async () => {
+      notifySuccess(e.positionAssigned);
+      await client.invalidateQueries({ queryKey: keys.employeePositions(employeeId) });
+      onAssigned();
+    },
+  });
+  const busy = move.isPending;
+  const error = readError(move.error);
+
+  function assign(ev: FormEvent) {
+    ev.preventDefault();
+    move.mutate();
+  }
+
+  return (
+    <>
       <form className="flex flex-wrap items-end gap-3" onSubmit={assign}>
         <SelectField
           label={t.common.orgUnit}
@@ -913,7 +943,7 @@ function PositionPanel({
         </Button>
       </form>
       <Feedback error={error} />
-    </div>
+    </>
   );
 }
 
@@ -938,16 +968,7 @@ function ActivationPanel({
 }) {
   const canIssue = employee.status === 'ACTIVE';
   // Collapsed by default: the block is long, and most cards are opened for something else.
-  const [open, setOpen] = usePersistentState('employees.activationOpen', false);
-  const [seenIssue, setSeenIssue] = useState<string | null>(null);
-  useEffect(() => {
-    // A fresh code or a delivery result must be visible: expand once per issued code.
-    const key = issued ? `${issued.employeeId}:${issued.expiresAt}` : null;
-    if (key && key !== seenIssue) {
-      setSeenIssue(key);
-      setOpen(true);
-    }
-  }, [issued, seenIssue, setOpen]);
+  const [open, setOpen] = usePersistentState(ACTIVATION_OPEN, false);
   return (
     <div className="flex flex-col gap-3 rounded-lg border p-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -1040,7 +1061,7 @@ function EmployeeDetailsForm({
   onSaved,
 }: {
   readonly employee: EmployeeView;
-  readonly onSaved: (view: EmployeeView) => void;
+  readonly onSaved: () => void;
 }) {
   const initial = {
     personnelNumber: employee.personnelNumber,
@@ -1052,20 +1073,18 @@ function EmployeeDetailsForm({
   const [draft, setDraft] = useState(initial);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [editing, setEditing] = useState(false);
-  const { busy, error, run } = useAction();
-  useEffect(() => {
-    setDraft(initial);
-    setErrors({});
-    setEditing(false);
-  }, [
-    employee.id,
-    employee.personnelNumber,
-    employee.fullName,
-    employee.email,
-    employee.phone,
-    employee.telegramUsername,
-  ]);
   const unchanged = isUnchanged(draft, initial);
+
+  const save = useMutation({
+    mutationFn: (cmd: UpdateEmployeeCommand) => adminEmployeesApi.update(employee.id, cmd),
+    onSuccess: () => {
+      notifySuccess(e.detailsSaved);
+      setEditing(false);
+      onSaved();
+    },
+  });
+  const busy = save.isPending;
+  const error = readError(save.error);
 
   function submit(ev: FormEvent) {
     ev.preventDefault();
@@ -1074,11 +1093,7 @@ function EmployeeDetailsForm({
     if (next.phone) next.phone = e.invalidPhone;
     if (next.telegramUsername) next.telegramUsername = e.invalidTelegram;
     setErrors(next);
-    if (!checked.ok) return;
-    void run(async () => {
-      onSaved(await adminEmployeesApi.update(employee.id, checked.data));
-      setEditing(false);
-    }, e.detailsSaved);
+    if (checked.ok) save.mutate(checked.data);
   }
 
   const field = (key: keyof typeof draft) => (value: string) =>
@@ -1269,15 +1284,33 @@ function ChecklistPanel({
   readonly positionId: string;
   readonly positionName: string;
   readonly checklists: readonly ChecklistDefinitionView[];
-  readonly onChanged: (view: ChecklistDefinitionView) => void;
+  readonly onChanged: () => void;
 }) {
   const [pick, setPick] = useState('');
   const [replacing, setReplacing] = useState(false);
-  const { busy, error, run } = useAction();
   const { confirm, dialog } = useConfirm();
   const current =
     checklists.find((c) => c.isActive && c.positions.some((p) => p.id === positionId)) ?? null;
   const available = checklists.filter((c) => c.isActive && c.id !== current?.id);
+
+  const attachTo = useMutation({
+    mutationFn: (checklistId: string) => checklistsApi.addPosition(checklistId, positionId),
+    onSuccess: () => {
+      notifySuccess(current ? e.checklistReplaced : e.checklistAdded);
+      setPick('');
+      setReplacing(false);
+      onChanged();
+    },
+  });
+  const detach = useMutation({
+    mutationFn: (checklistId: string) => checklistsApi.removePosition(checklistId, positionId),
+    onSuccess: () => {
+      notifySuccess(e.checklistRemoved);
+      onChanged();
+    },
+  });
+  const busy = attachTo.isPending || detach.isPending;
+  const error = readError(attachTo.error ?? detach.error);
 
   async function attach(ev: FormEvent) {
     ev.preventDefault();
@@ -1290,14 +1323,7 @@ function ChecklistPanel({
       });
       if (ok === false) return;
     }
-    void run(
-      async () => {
-        onChanged(await checklistsApi.addPosition(pick, positionId));
-        setPick('');
-        setReplacing(false);
-      },
-      current ? e.checklistReplaced : e.checklistAdded,
-    );
+    attachTo.mutate(pick);
   }
 
   async function remove() {
@@ -1309,9 +1335,7 @@ function ChecklistPanel({
       destructive: true,
     });
     if (ok === false) return;
-    void run(async () => {
-      onChanged(await checklistsApi.removePosition(current.id, positionId));
-    }, e.checklistRemoved);
+    detach.mutate(current.id);
   }
 
   return (

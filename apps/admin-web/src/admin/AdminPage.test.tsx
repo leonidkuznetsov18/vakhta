@@ -27,6 +27,8 @@ interface Call {
 
 function mockApi() {
   const calls: Call[] = [];
+  // The roster is re-read after every change, so the mock keeps what it was told, like a server.
+  const employees: unknown[] = [];
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
   vi.stubGlobal(
@@ -37,20 +39,19 @@ function mockApi() {
       const body = init?.body ? JSON.parse(String(init.body)) : null;
       calls.push({ method, path, body });
       if (path === '/admin/org') return json(org);
-      if (path === '/admin/employees' && method === 'GET') return json([]);
+      if (path === '/admin/employees' && method === 'GET') return json(employees);
       if (path === '/admin/employees' && method === 'POST') {
-        return json(
-          {
-            id: EMP,
-            personnelNumber: body.personnelNumber,
-            fullName: body.fullName,
-            status: 'ACTIVE',
-            telegramLinked: false,
-            currentPosition: null,
-            createdAt: 'x',
-          },
-          201,
-        );
+        const created = {
+          id: EMP,
+          personnelNumber: body.personnelNumber,
+          fullName: body.fullName,
+          status: 'ACTIVE',
+          telegramLinked: false,
+          currentPosition: null,
+          createdAt: 'x',
+        };
+        employees.unshift(created);
+        return json(created, 201);
       }
       if (path === `/admin/employees/${EMP}/activation-codes`) {
         return json(

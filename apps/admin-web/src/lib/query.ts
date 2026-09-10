@@ -30,6 +30,7 @@ export const keys = {
   users: ['users'] as const,
   employees: ['employees'] as const,
   employee: (id: string) => ['employees', id] as const,
+  employeePositions: (id: string) => ['employees', id, 'positions'] as const,
   shifts: (q: unknown) => ['shifts', q] as const,
   shift: (id: string | null) => ['shifts', 'detail', id] as const,
   handovers: (q: unknown) => ['handovers', q] as const,
