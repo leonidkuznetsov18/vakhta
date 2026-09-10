@@ -1,3 +1,9 @@
+## [0.70.8](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.7...v0.70.8) (2026-09-10)
+
+### Bug fixes
+
+* **worker:** commit media processing and completion atomically ([2bb08b9](https://github.com/leonidkuznetsov18/vakhta/commit/2bb08b99407795a8752e6992cc4b454c1d6409b3))
+
 ## [0.70.7](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.6...v0.70.7) (2026-09-10)
 
 ### Bug fixes
