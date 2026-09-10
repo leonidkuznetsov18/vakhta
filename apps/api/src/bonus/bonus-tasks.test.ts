@@ -345,16 +345,14 @@ describe('durable bonus source admission', () => {
   });
 
   it('recovers real source pairs before limiting, without coalescing or irrelevant-event starvation', async () => {
-    await fixture.db
-      .insert(domainEvents)
-      .values(
-        Array.from({ length: 110 }, () => ({
-          type: 'BONUS_SCORE_COMPUTED',
-          source: 'SYSTEM' as const,
-          occurredAt: NOW,
-          shiftSessionId: sessionId,
-        })),
-      );
+    await fixture.db.insert(domainEvents).values(
+      Array.from({ length: 110 }, () => ({
+        type: 'BONUS_SCORE_COMPUTED',
+        source: 'SYSTEM' as const,
+        occurredAt: NOW,
+        shiftSessionId: sessionId,
+      })),
+    );
     const sources = await fixture.db
       .insert(domainEvents)
       .values(

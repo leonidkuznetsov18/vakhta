@@ -172,17 +172,15 @@ export async function recoverBonusTasks(tx: Transaction, limit = 100) {
       })
       .returning({ id: domainEvents.id, occurredAt: domainEvents.occurredAt });
     if (!event) continue;
-    await tx
-      .insert(auditLog)
-      .values({
-        actorType: 'SYSTEM',
-        action: 'bonus.recover',
-        objectType: 'shift_session',
-        objectId: session.id,
-        after: { sourceEventId: event.id },
-        reason: 'Terminal score missing without a recoverable source',
-        at: now,
-      });
+    await tx.insert(auditLog).values({
+      actorType: 'SYSTEM',
+      action: 'bonus.recover',
+      objectType: 'shift_session',
+      objectId: session.id,
+      after: { sourceEventId: event.id },
+      reason: 'Terminal score missing without a recoverable source',
+      at: now,
+    });
     const result = await enqueueBonusRecalculation(tx, {
       sourceEventId: event.id,
       targetSessionId: session.id,

@@ -261,7 +261,9 @@ export const bonusMonthGuards = pgTable(
   'bonus_month_guards',
   {
     month: text('month').primaryKey(),
-    revision: bigint('revision', { mode: 'bigint' }).notNull().default(sql`1`),
+    revision: bigint('revision', { mode: 'bigint' })
+      .notNull()
+      .default(sql`1`),
   },
   (t) => [
     check('bonus_month_guards_month_check', sql`${t.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
