@@ -1,3 +1,13 @@
+## [0.81.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.80.1...v0.81.0) (2026-09-10)
+
+### Features
+
+* **photo-inspection:** add searchable annotated photo library ([6061a35](https://github.com/leonidkuznetsov18/vakhta/commit/6061a352b7b46edd23e4e4c43b92b397fcc4b26e))
+
+### Tests
+
+* **photo-inspection:** validate library fixture context ([fb9c605](https://github.com/leonidkuznetsov18/vakhta/commit/fb9c6055e9ea46455df44acf0cac555fd2b71ccf))
+
 ## [0.80.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.80.0...v0.80.1) (2026-09-10)
 
 ### Bug fixes
