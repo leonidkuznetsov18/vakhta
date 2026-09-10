@@ -139,16 +139,11 @@ export function HandoverPage() {
     start: 0,
   });
   /**
-   * The signed links, read once and kept in the query cache: the gallery needs every photo of the
-   * report, not only the one that was clicked, and the link the server signs lives five minutes.
+   * Each thumbnail signs its own link and leaves it in the cache under the media id; the gallery
+   * needs every photo of the report, not only the one that was clicked, so it reads them from
+   * there rather than asking the server a second time for what is already on screen.
    */
   const linkOf = (mediaId: string) => client.getQueryData<MediaLinkView>(keys.media(mediaId))?.url;
-  const trackedLink = (mediaId: string) =>
-    client.fetchQuery({
-      queryKey: keys.media(mediaId),
-      queryFn: () => handoversApi.mediaLink(mediaId),
-      staleTime: 4 * 60_000,
-    });
 
   const columns: Column<HandoverListItemView>[] = [
     {
@@ -245,7 +240,7 @@ export function HandoverPage() {
                   <PhotoThumb
                     key={p.itemKey}
                     media={p.media}
-                    loadLink={trackedLink}
+                    loadLink={handoversApi.mediaLink}
                     label={p.label}
                     badge={all.handover.quality[p.media.quality]}
                     onOpen={() => {

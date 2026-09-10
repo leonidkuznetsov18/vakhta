@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
 import { InfoIcon } from 'lucide-react';
 import { messages } from '@vakhta/i18n';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { currentLocale } from '@/i18n';
+import { useMediaQuery } from '@/lib/media-query';
 import { cn } from 'cn';
 
 const TRIGGER_CLASS =
@@ -19,18 +19,7 @@ function isKeyboardFocus(el: HTMLElement): boolean {
 }
 
 /** Touch screens have no hover: there the tip opens on tap and closes on tap outside. */
-function useCoarsePointer(): boolean {
-  const [coarse, setCoarse] = useState(false);
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return;
-    const mql = window.matchMedia('(hover: none), (pointer: coarse)');
-    const onChange = () => setCoarse(mql.matches);
-    onChange();
-    mql.addEventListener('change', onChange);
-    return () => mql.removeEventListener('change', onChange);
-  }, []);
-  return coarse;
-}
+const COARSE = '(hover: none), (pointer: coarse)';
 
 /**
  * Information tip next to a label or heading. Keyboard reachable: the trigger is a button with
@@ -45,7 +34,7 @@ export function InfoTip({
   readonly className?: string;
 }) {
   const label = messages(currentLocale()).ui.common.moreInfo;
-  const coarse = useCoarsePointer();
+  const coarse = useMediaQuery(COARSE);
   if (coarse) {
     return (
       <Popover>

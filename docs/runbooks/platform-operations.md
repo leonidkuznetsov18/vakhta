@@ -1,0 +1,135 @@
+# Platform operations and access
+
+Owner decision, 2026-09-10: work only in the current Vakhta repository on `master`; push verified
+changes directly, without PRs or additional worktrees. Preserve other sessions' edits and serialize
+writes and index operations. This runbook records checked access, actual ownership and diagnostic
+entry points. A logged-in CLI is not proof that every provider permission or every historical log exists.
+
+## Access and service map
+
+Checked on 2026-09-10 around 10:10–10:18 UTC. Recheck identities and target environment before changes.
+Credentials remain in existing CLI sessions / 1Password. No resolved secrets belong in this document.
+
+| Platform   | Verified access and owned resources                                                                                                   | Boundaries                                                                                                                                                                          |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub     | Authenticated `gh`; `leonidkuznetsov18/vakhta`, default branch `master`; Actions jobs/logs/releases readable                          | Use normal direct pushes after checks; do not introduce a PR requirement. Settings and secret values are separate capabilities.                                                     |
+| Cloudflare | Authenticated Wrangler OAuth; Pages `vakhta-panel` and `vakhta-kiosk`; R2 bucket listing includes `vakhta-media` and `vakhta-backups` | Pages projects report no Git provider. CLI authentication is separate from GitHub Actions credentials. R2 listing does not test reading/writing private media or restoring backups. |
+| Railway    | Authenticated CLI linked to project `vakhta`, production environment; api, worker, Postgres and Redis status/logs readable            | Use explicit service/environment when reading logs. Do not dump `railway variables` or run migrations as a diagnostic probe.                                                        |
+| Namecheap  | Authenticated browser for account `leonidkuznetsov`; `vakhta.xyz` active through Sep 6, 2027, auto-renew checked                      | Profile → Tools shows API Access OFF / Not available. Browser administration works; API integration is not enabled.                                                                 |
+| 1Password  | CLI metadata access and matching Namecheap/Cloudflare/Vakhta entries verified                                                         | Prefer autofill or `op run`; never print secret fields or put them in shell arguments, Git, screenshots or logs.                                                                    |
+
+Namecheap delegates `vakhta.xyz` to `isaac.ns.cloudflare.com` and `julissa.ns.cloudflare.com`; both
+its dashboard and public NS resolution agree. Change authoritative DNS records in Cloudflare. Domain
+registration/renewal and nameserver delegation belong to Namecheap. Do not switch to Namecheap DNS to
+make its record editor available. Private Email management is a separate provider surface; a visible
+mail tab or domain account does not prove mail delivery or mailbox/API log access.
+
+Namecheap documents eligibility for production API access and an IPv4 allowlist. Its current UI is the
+verified blocker; this task did not purchase services, top up funds or contact support to change it.
+Use authenticated browser administration meanwhile. Recheck eligibility before a dedicated API setup.
+[Official Namecheap API eligibility](https://www.namecheap.com/support/knowledgebase/article.aspx/9739/63/api-faq/).
+
+## Deployment provenance snapshot
+
+This snapshot precedes the next direct push; it is not a permanent assertion about the deployed version.
+
+| Surface    | Observed deployment / source                                                         | Meaning                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| Panel      | Pages deployment `1eb4701a-9223-433e-9ed2-7c5161a8a3ba`, source `5b50cd4`            | Direct Upload project, production branch master; no connected Git provider                          |
+| Kiosk      | Pages deployment `2f91abb3-14ea-469e-a837-04c817ffc23c`, source `ca779fa`            | Separate publication history from panel; compare affected files before calling the difference stale |
+| API        | Railway deployment `22240ce7-ff6b-4229-97eb-137f44893d4d`, source `324d29e`, SUCCESS | Public domain `api.vakhta.xyz`, port 3000, Dockerfile build                                         |
+| Worker     | Railway deployment `394efbdd-696f-463a-bdb1-6d2a5c411470`, source `324d29e`, SUCCESS | Standalone worker, separate deployment from API                                                     |
+| PostgreSQL | Railway image `ghcr.io/railwayapp-templates/postgres-ssl:18`, deployment SUCCESS     | Provider configuration evidence; local/test PostgreSQL is 16                                        |
+| Redis      | Railway image `redis:8.2`, deployment SUCCESS                                        | Provider configuration evidence; local/test Redis uses 7-alpine                                     |
+
+API/worker watch patterns include their respective app, packages and pnpm workspace/lock files. An
+unrelated frontend-only commit need not redeploy backend code. `/health` returned status ok during this
+inspection; its source returns process liveness and server time, not database/Redis readiness.
+
+## GitHub release and Telegram changelog
+
+Source: `.github/workflows/ci.yml` and `scripts/release/announce-telegram.mjs`.
+
+```text
+push master -> check -> semantic-release
+                       |-> new version -> announce -> existing Telegram changelog bot -> Vakhta Dev
+                       |-> images
+                       |-> production Pages build -> guarded upload
+```
+
+The owner identifies the destination as the private group **"Вахта Dev"**, with messages from
+**"Вахта Changelog Bot"**. This is distinct from the employee-facing `@vakhta_worker_bot`.
+The script uses `TELEGRAM_RELEASE_BOT_TOKEN` and `TELEGRAM_RELEASE_CHAT_ID` from GitHub secrets; do not
+copy their values into documentation or add a second bot/destination.
+
+Run `34462629265` published `v0.70.1`; its announcement log explicitly says the announcement was sent.
+The owner's screenshot shows the matching release message. The `announce` job depends on `release`,
+not `images`/`pages`; a message can arrive before all deployment jobs finish. The send step has
+`continue-on-error: true`, so inspect that step/log rather than treating overall release success as
+proof of delivery. A docs/chore-only push may legitimately publish no version and send no message.
+
+That same run explicitly logged missing `CLOUDFLARE_API_TOKEN` and skipped panel/kiosk uploads. Local
+Wrangler authentication does not fix that GitHub secret. Actual Pages projects have no Git provider;
+the observed deployment path is Direct Upload. Before automating uploads, choose the delivery owner
+and configure a dedicated appropriately scoped CI token; never copy a desktop OAuth session into CI.
+No token, deployment destination or notification behavior was changed in this access/documentation pass.
+[Inspected CI run](https://github.com/leonidkuznetsov18/vakhta/actions/runs/34462629265).
+
+## Diagnostic entry points
+
+Run commands from the current repository. Read results privately and publish only a redacted summary;
+logs may contain employee details, request parameters or third-party errors. Keep queries bounded.
+
+```sh
+# Repository, releases and a selected CI run
+ gh repo view --json nameWithOwner,defaultBranchRef,url
+ gh run list --limit 10 --json databaseId,headSha,status,conclusion,displayTitle
+ gh run view <run-id> --json jobs
+ gh run view <run-id> --log-failed
+ gh release list --limit 5
+
+# Cloudflare project/deployment history and storage inventory
+ wrangler whoami
+ wrangler pages project list
+ wrangler pages deployment list --project-name vakhta-panel --environment production --json
+ wrangler pages deployment list --project-name vakhta-kiosk --environment production --json
+ wrangler r2 bucket list
+
+# Railway: specify the intended linked production environment and service
+ railway status --json
+ railway logs --service api --environment production --lines 100 --json
+ railway logs --service worker --environment production --lines 100 --json
+ railway logs --service api --environment production --latest --build --lines 100
+ railway logs --service api --environment production --http --status '>=500' --lines 50
+ railway logs --service Postgres --environment production --lines 50 --json
+ railway logs --service Redis --environment production --lines 50 --json
+
+# Public liveness and delegation, without credentials
+ curl -fsS --max-time 15 https://api.vakhta.xyz/health
+ dig +short NS vakhta.xyz
+```
+
+In the bounded deployment-log sample, API returned seven records, worker four, Postgres 60 and Redis 60. Log reads succeeded; this small sample is not an all-time error audit. HTTP/build commands above
+are supported by installed `railway logs --help`; those specific modes were not exercised in this pass.
+For an incident, bind the time window, deployment and request ID before examining more data.
+
+Pages Function tails are for deployed Functions; they do not replace browser JavaScript errors or
+historical static-asset request analytics. No Pages Functions runtime was identified in these Vite
+apps. Use browser console/network evidence for frontend issues, deployment history for publication
+issues and Cloudflare DNS/security dashboards for edge failures. Do not claim every static request is
+retained as a downloadable log. [Cloudflare logging scope](https://developers.cloudflare.com/pages/functions/debugging-and-logging/).
+
+## From an error to a verified correction
+
+1. Identify the user journey and affected deployed revision: panel, kiosk, employee bot, API or worker.
+2. Correlate bounded logs, browser evidence and relevant source/contracts. Keep private data out of the handoff.
+3. Reproduce the failure at the cheapest meaningful layer; record expected behavior before editing.
+4. Implement the authorized small change in this checkout, update feature memory, review the fixed diff,
+   and run `pnpm build` / `pnpm check` plus relevant regression and mobile/bot checks.
+5. Commit exact owned paths in English, push normally to master, inspect CI/release/announcement outcomes,
+   then verify the affected deployment and user journey. A green build and a Telegram message alone do
+   not prove the frontend was uploaded or the API/worker revision changed.
+
+The [product QA runbook](product-qa.md) defines dev identity, terminal and credential handling. The
+[architecture audit](../audits/2026-09-10/architecture-audit.md) maps source boundaries; its historical
+PR/worktree proposals are superseded by the owner's direct-master decision.

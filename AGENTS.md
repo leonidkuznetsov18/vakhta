@@ -18,7 +18,7 @@ Architecture and plan: `docs/architecture-and-plan.md`. Decisions: `docs/adr/`.
 ## Stack
 
 pnpm workspaces + Turborepo. TypeScript, ESM everywhere (`"type": "module"`).
-API: NestJS 11 on Fastify. Worker: standalone TypeScript with BullMQ. Bot: grammY. Database: Drizzle; local/test PostgreSQL 16. The backup workflow targets PostgreSQL 18; verify the live engine before compatibility changes. Queues: Redis + BullMQ.
+API: NestJS 11 on Fastify. Worker: standalone TypeScript with BullMQ. Bot: grammY. Database: Drizzle; local/test PostgreSQL 16. Railway currently configures PostgreSQL 18 and Redis 8.2 images; verify actual engine behavior before compatibility changes. Queues: Redis + BullMQ.
 Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testcontainers.
 
 ## Decision priority and scope

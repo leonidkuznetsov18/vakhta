@@ -20,8 +20,8 @@ async lifecycle, compatibility and migration risk. Include a small diagram only 
 
 ## IMPLEMENT
 
-Independently reviewable steps and permitted files. Assign one writer per worktree and an integration
-owner. Describe meaningful regression tests before implementation. No work beyond the accepted scope.
+Independently reviewable steps and permitted files. Assign one exclusive writer in the current checkout and a single
+integration/index owner. Do not create a PR, topic branch or worktree. Describe meaningful regression tests before implementation. No work beyond the accepted scope.
 
 ## VERIFY and HARDEN
 

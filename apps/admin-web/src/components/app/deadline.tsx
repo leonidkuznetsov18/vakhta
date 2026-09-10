@@ -1,19 +1,9 @@
-import { useEffect, useState } from 'react';
 import { format, messages } from '@vakhta/i18n';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { StatusPill, type Tone } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
+import { useNow } from '@/lib/clock';
 import { currentLocale } from '@/i18n';
-
-/** A clock that ticks once a minute, so relative times stay honest on a page left open. */
-export function useNow(intervalMs = 60_000): Date {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
-  return now;
-}
 
 /** "2 ч 15 мин" or "40 мин"; zero reads as "now". */
 export function formatSpan(ms: number): string {

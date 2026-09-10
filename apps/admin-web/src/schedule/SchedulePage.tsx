@@ -234,8 +234,7 @@ export function SchedulePage() {
   });
 
   const returnDraft = useMutation({
-    mutationFn: (v: { id: string; comment: string }) =>
-      schedulesApi.returnToDraft(v.id, v.comment),
+    mutationFn: (v: { id: string; comment: string }) => schedulesApi.returnToDraft(v.id, v.comment),
     onSuccess: async () => {
       notifySuccess(s.returned);
       await reload();

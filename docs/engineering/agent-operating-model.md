@@ -5,13 +5,13 @@ follow RECON → SPEC → DESIGN → IMPLEMENT → VERIFY → HARDEN → REPORT.
 acceptance criteria form the implementation authority. A small docs correction needs only a scoped
 writer and proportional review.
 
-| Role                | Input and permitted work                                                                                                     | Output and handoff                                                                                  |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Architect/Planner   | Inspect source, request and constraints; write specification/design only. No implementation code.                            | Accepted criteria, non-goals, FSD/backend placement, risks, test plan and allowed files.            |
-| Implementer         | Execute accepted scope inside one feature boundary in the current repository; write implementation and developer tests.               | Fixed base/head, change summary, criteria evidence, questions and regression results.               |
+| Role                | Input and permitted work                                                                                                             | Output and handoff                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| Architect/Planner   | Inspect source, request and constraints; write specification/design only. No implementation code.                                    | Accepted criteria, non-goals, FSD/backend placement, risks, test plan and allowed files.            |
+| Implementer         | Execute accepted scope inside one feature boundary in the current repository; write implementation and developer tests.              | Fixed base/head, change summary, criteria evidence, questions and regression results.               |
 | QA/Test-writer      | Independently derive cases from criteria and gaps; add tests during an exclusive write turn, reproduce failures, test user journeys. | Reproduction evidence, independent regression commit, limitations and tested revision.              |
-| Reviewer            | Inspect fixed diff plus spec, run proportionate checks; do not silently expand or rewrite implementation.                    | Blockers mapped to criteria, architecture/type/access/async concerns, DoD verdict.                  |
-| Lean/Process Expert | Analyze delivery metadata, workflow definitions and handoff artifacts only. Does not implement or review application code.   | Separate measured value stream, ranked waste, concrete tooling changes and before/after comparison. |
+| Reviewer            | Inspect fixed diff plus spec, run proportionate checks; do not silently expand or rewrite implementation.                            | Blockers mapped to criteria, architecture/type/access/async concerns, DoD verdict.                  |
+| Lean/Process Expert | Analyze delivery metadata, workflow definitions and handoff artifacts only. Does not implement or review application code.           | Separate measured value stream, ranked waste, concrete tooling changes and before/after comparison. |
 
 Scoped prompts live in `.codex/roles/`. They are handoff instructions, not an automatically installed
 agent runtime configuration. Keep inherited model settings unless the owner requests a specific model.

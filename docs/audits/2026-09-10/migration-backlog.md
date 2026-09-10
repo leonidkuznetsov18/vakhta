@@ -5,7 +5,6 @@
 > The audit worktree was removed after its commit was preserved in master. Historical measurements
 > remain valid for their recorded sample. Use [the current operating model](../../engineering/agent-operating-model.md).
 
-
 Baseline: `08979de`. All rows below are proposed follow-up work, not implemented by this audit.
 Sizes are relative estimates: S = one narrow concern, usually below one day; M = a few focused days;
 L = a larger design/verification effort that must be split before implementation. They are not promises.

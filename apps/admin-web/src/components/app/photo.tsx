@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronLeftIcon, ChevronRightIcon, ExpandIcon } from 'lucide-react';
 import type { MediaObjectView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
@@ -6,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Muted } from '@/components/app/page';
-import { describeError } from '@/errors';
+import { readError } from '@/errors';
 import { currentLocale } from '@/i18n';
+import { keys } from '@/lib/query';
 import { cn } from 'cn';
 
 type LinkLoader = (mediaId: string) => Promise<{ url: string }>;
@@ -33,18 +35,16 @@ export function PhotoThumb({
   readonly className?: string;
 }) {
   const t = messages(currentLocale()).admin.handover;
-  const [url, setUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    loadLink(media.id)
-      .then((l) => alive && setUrl(l.url))
-      .catch((e: unknown) => alive && setFailed(describeError(e)));
-    return () => {
-      alive = false;
-    };
-  }, [media.id, loadLink]);
+  // Nothing is kept: a link is signed for minutes, and asking for it again is the audit entry
+  // that says the photo was looked at. So this query is stale the moment it lands.
+  const link = useQuery({
+    queryKey: keys.media(media.id),
+    queryFn: () => loadLink(media.id),
+    staleTime: 0,
+    gcTime: 0,
+  });
+  const url = link.data?.url ?? null;
+  const failed = readError(link.error);
 
   if (failed) return <Muted className="text-destructive">{failed}</Muted>;
   if (!url) {
@@ -103,11 +103,17 @@ export function Lightbox({
   readonly start?: number;
 }) {
   const t = messages(currentLocale());
-  const [index, setIndex] = useState(start);
-  useEffect(() => setIndex(start), [start, images]);
+  // Which of these images is on screen. Remembered against the set it belongs to, so a new set —
+  // another row's photos — opens at its own starting image instead of the previous one's index.
+  const [chosen, setChosen] = useState<{
+    readonly of: readonly LightboxImage[];
+    readonly index: number;
+  } | null>(null);
+  const index = chosen?.of === images ? chosen.index : start;
+  const setIndex = (next: number) => setChosen({ of: images, index: next });
   const gallery = images.length > 2;
   const shown = gallery ? [images[Math.min(index, images.length - 1)]!] : images;
-  const step = (delta: number) => setIndex((i) => (i + delta + images.length) % images.length);
+  const step = (delta: number) => setIndex((index + delta + images.length) % images.length);
   return (
     <Dialog open={images.length > 0} onOpenChange={(open) => !open && onClose()}>
       <DialogContent

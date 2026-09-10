@@ -49,6 +49,8 @@ export const keys = {
   audit: (q: unknown) => ['audit', q] as const,
   /** A signed link to one photo; short-lived on the server, so cached only briefly here. */
   media: (id: string) => ['media', id] as const,
+  /** A QR drawn on the client: the same link and size always draw the same picture. */
+  qr: (value: string, size: number) => ['qr', value, size] as const,
   checklists: ['checklists'] as const,
   terminals: ['terminals'] as const,
 };

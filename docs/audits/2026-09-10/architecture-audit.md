@@ -5,7 +5,6 @@
 > The audit worktree was removed after its commit was preserved in master. Historical measurements
 > remain valid for their recorded sample. Use [the current operating model](../../engineering/agent-operating-model.md).
 
-
 ## Scope and evidence
 
 This audit inspects baseline `08979de0c9c9c72b79bd03f74c2b8b500cf438ad` in an isolated worktree.

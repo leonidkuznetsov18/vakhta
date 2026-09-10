@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 /**
  * A panel left open for days keeps running the build it loaded, so a fix can be live for hours and
@@ -13,6 +13,9 @@ function loadedEntry(): string | null {
   return script ? new URL(script.src, location.href).pathname : null;
 }
 
+/** The entry this tab is running, read once: the document cannot change it under us. */
+const MINE = loadedEntry();
+
 async function deployedEntry(): Promise<string | null> {
   const res = await fetch(`${location.pathname}?build=${Date.now()}`, {
     cache: 'no-store',
@@ -24,34 +27,20 @@ async function deployedEntry(): Promise<string | null> {
   return match?.[1] ? new URL(match[1], location.href).pathname : null;
 }
 
-/** True once a newer build is on the server; stays true until the page is reloaded. */
+/**
+ * True once a newer build is on the server. A poll like any other read, so it also runs when the
+ * tab comes back to the foreground — the moment someone is about to trust what it shows.
+ */
 export function useNewBuild(intervalMs = CHECK_MS): boolean {
-  const [stale, setStale] = useState(false);
-
-  useEffect(() => {
-    const mine = loadedEntry();
-    if (!mine) return;
-    let alive = true;
-    const check = () => {
-      deployedEntry()
-        .then((theirs) => {
-          if (alive && theirs && theirs !== mine) setStale(true);
-        })
-        .catch(() => undefined);
-    };
-    const id = setInterval(check, intervalMs);
-    // A tab coming back to the foreground is the moment someone is about to trust what it shows.
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') check();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    check();
-    return () => {
-      alive = false;
-      clearInterval(id);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [intervalMs]);
-
-  return stale;
+  const deployed = useQuery({
+    queryKey: ['build'],
+    queryFn: deployedEntry,
+    enabled: MINE !== null,
+    refetchInterval: intervalMs,
+    refetchIntervalInBackground: false,
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
+  });
+  return MINE !== null && deployed.data != null && deployed.data !== MINE;
 }
