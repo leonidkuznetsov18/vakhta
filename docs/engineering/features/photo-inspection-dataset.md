@@ -300,3 +300,36 @@ viewport and textarea rectangles at 100% and about 300%, a 90x50px drag with unc
 rectangle drawn after zoom/pan with normalized geometry. Native two-touch browser input changed scale
 from 100% to 187.5%. Desktop/mobile screenshots were inspected. Lean: proceed; direct gestures reduce
 repeated zoom-button clicks while a dedicated pan tool avoids accidental annotations.
+
+## One-time AI suggestion selection — 2026-09-11
+
+Each annotation may retain an optional `sourceFindingIndex` alongside its source run ID. Completed
+run arrays are immutable, so the pair identifies a finding independently of human edits. The editor
+and available-option selector share this identity; rapid duplicate actions do nothing, deleting the
+annotation restores the original option, and an all-added message explains the empty option list.
+The existing JSON review/revision storage preserves the additive field without a migration. Contracts
+reject duplicate references; the existing save transaction verifies run ownership/status and that the
+indexed finding has geometry. Existing version conflict and authorization rules are unchanged.
+
+Older untouched copies are linked in the draft only when their source content matches exactly. The
+same normalization applies to the saved baseline so opening a review does not invent pending changes.
+Already edited legacy copies without a finding index cannot be attributed reliably; they are retained
+without guessing or deleting historical data. Cross-run object deduplication is outside this change.
+
+Workplace guidance remains optional as specified by the current request contract and worker prompt;
+no save prerequisite is reintroduced. All locales explicitly explain this. Rename the overall comment
+to General photo note, retain its stored data and Not assessable requirement, and expose an inline
+explanation, example and associated accessible description. Per-region comments retain their purpose.
+FAQ and generated HTML cover selection/restoration and both fields; existing video assets are unchanged.
+
+Verification: 18 focused frontend tests, 3 contract tests and 10 API integration tests passed. Panel
+type-check, API build and focused lint passed. Independent read-only review found no blockers; its
+optional-wording ambiguity and unrelated select projection were corrected. Isolated browser QA
+confirmed empty-guidance analysis, copy/edit/save, reopening with the option still hidden, and deleting
+the region to restore its original suggestion. Desktop 1440x1000 and mobile 390x844 screenshots were
+captured and visually inspected, including inline notes and keyboard tooltip access. No production
+photos or operational records were changed.
+
+Lean: proceed. Prevent duplicate work and keep restoration reversible; clarify optional input without
+adding a mandatory step. Observe duplicate-region creation and requests for help during the pilot;
+no measured production time saving is claimed.

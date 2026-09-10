@@ -1,3 +1,4 @@
+import { availableSuggestions } from './suggestions';
 import { hasReviewChanges, reviewChanges } from './review-changes';
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('@annotorious/annotorious', () => ({
@@ -6,7 +7,11 @@ vi.mock('@annotorious/annotorious', () => ({
   UserSelectAction: { EDIT: 'EDIT', SELECT: 'SELECT' },
 }));
 import { fromCanvas, InspectionEditor, reviewIsValid, toCanvas } from './editor';
-import type { InspectionAnnotation, PhotoInspectionView } from '@vakhta/contracts';
+import type {
+  InspectionAnnotation,
+  InspectionRunView,
+  PhotoInspectionView,
+} from '@vakhta/contracts';
 const id = '10000000-0000-4000-8000-000000000001';
 const view: PhotoInspectionView = {
   version: 0,
@@ -35,7 +40,90 @@ const view: PhotoInspectionView = {
     orientationPolicy: 'EXIF_AUTO_ORIENT',
   },
 };
+const finding = {
+  category: 'RAG',
+  comment: 'Rag on the table',
+  geometry: { type: 'RECTANGLE', x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+} satisfies NonNullable<InspectionRunView['prediction']>['findings'][number];
+const run: InspectionRunView = {
+  id,
+  status: 'SUCCEEDED',
+  model: 'test',
+  promptVersion: 'test',
+  requestedAt: '2026-09-11T00:00:00Z',
+  completedAt: '2026-09-11T00:01:00Z',
+  errorCode: null,
+  reviewVersion: 0,
+  prediction: {
+    status: 'PROBLEMS',
+    summary: 'Possible rag',
+    limitations: '',
+    findings: [finding, finding],
+  },
+};
 describe('photo inspection form and geometry', () => {
+  it('adds each source finding once, retains identity after edits and reopening, and restores deleted options', () => {
+    const editor = new InspectionEditor({ ...view, runs: [run] });
+    editor.acceptSuggestion(run, 0);
+    editor.acceptSuggestion(run, 0);
+    expect(editor.store.getState().review.annotations).toHaveLength(1);
+    expect(availableSuggestions(run, editor.store.getState().review).map((s) => s.index)).toEqual([
+      1,
+    ]);
+    const region = editor.store.getState().review.annotations[0];
+    if (!region) throw new Error('Expected region');
+    editor.editAnnotation(region.id, { category: 'OTHER', comment: 'Corrected description' });
+    editor.coordinates(region.id, 'x', 0.3);
+    const saved = { ...view, version: 1, review: editor.store.getState().review, runs: [run] };
+    editor.saved(saved);
+    const reopened = new InspectionEditor(saved);
+    reopened.acceptSuggestion(run, 0);
+    expect(reopened.store.getState().review.annotations).toHaveLength(1);
+    reopened.acceptSuggestion(run, 1);
+    expect(availableSuggestions(run, reopened.store.getState().review)).toHaveLength(0);
+    reopened.remove(region.id);
+    expect(availableSuggestions(run, reopened.store.getState().review).map((s) => s.index)).toEqual(
+      [0],
+    );
+    reopened.acceptSuggestion(run, 0);
+    expect(reopened.store.getState().review.annotations).toHaveLength(2);
+    expect(reopened.store.getState().review.annotations[1]?.comment).toBe(finding.comment);
+  });
+  it('links an unchanged legacy copy without discarding or modifying its content', () => {
+    const legacy = { ...finding, id: crypto.randomUUID(), sourceRunId: run.id };
+    const editor = new InspectionEditor({
+      ...view,
+      runs: [run],
+      review: { ...view.review, annotations: [legacy] },
+    });
+    editor.editAnnotation(legacy.id, { comment: 'Edited old copy' });
+    editor.acceptSuggestion(run, 0);
+    expect(editor.store.getState().review.annotations).toHaveLength(1);
+    expect(editor.store.getState().review.annotations[0]?.sourceFindingIndex).toBe(0);
+  });
+  it('ignores read-only, locked, missing and unlocatable suggestions', () => {
+    const editor = new InspectionEditor(view);
+    editor.lock();
+    editor.acceptSuggestion(run, 0);
+    editor.unlock();
+    editor.acceptSuggestion(run, 5);
+    editor.acceptSuggestion(
+      {
+        ...run,
+        prediction: {
+          status: 'PROBLEMS',
+          summary: 'Rag',
+          limitations: '',
+          findings: [{ ...finding, geometry: null }],
+        },
+      },
+      0,
+    );
+    expect(editor.store.getState().review.annotations).toHaveLength(0);
+    const reader = new InspectionEditor({ ...view, canEdit: false });
+    reader.acceptSuggestion(run, 0);
+    expect(reader.store.getState().review.annotations).toHaveLength(0);
+  });
   it('counts changes relative to the saved review and removes reverted changes', () => {
     const editor = new InspectionEditor(view);
     editor.change({ comment: 'A draft', guidance: 'Keep clear' });

@@ -159,6 +159,53 @@ describe('photo inspection persistence and access', () => {
       code: 'INSPECTION_FORBIDDEN',
     });
   });
+  it('persists finding identity through edits and rejects missing source positions without saving', async () => {
+    const pending = await service.analyze(id, { requestId: randomUUID(), version: 0 }, master);
+    const run = pending.runs[0];
+    if (!run) throw new Error('Expected run');
+    const geometry = { type: 'RECTANGLE' as const, x: 0.1, y: 0.1, width: 0.2, height: 0.2 };
+    await fixture.db
+      .update(photoInspectionRuns)
+      .set({
+        status: 'SUCCEEDED',
+        completedAt: new Date(),
+        prediction: {
+          status: 'PROBLEMS',
+          summary: 'Possible rag',
+          limitations: '',
+          findings: [
+            { category: 'RAG', comment: 'Rag', geometry },
+            { category: 'OTHER', comment: 'Unlocated', geometry: null },
+          ],
+        },
+      })
+      .where(eq(photoInspectionRuns.id, run.id));
+    const annotation = {
+      id: randomUUID(),
+      sourceRunId: run.id,
+      sourceFindingIndex: 0,
+      geometry,
+      category: 'OTHER' as const,
+      comment: 'Corrected by master',
+    };
+    const review: InspectionReview = { ...clean, status: 'PROBLEMS', annotations: [annotation] };
+    const saved = await service.save(id, { version: 0, review }, master);
+    expect(saved.review.annotations[0]).toMatchObject(annotation);
+    expect((await service.get(id, master)).review).toEqual(saved.review);
+    for (const sourceFindingIndex of [1, 2])
+      await expect(
+        service.save(
+          id,
+          {
+            version: 1,
+            review: { ...review, annotations: [{ ...annotation, sourceFindingIndex }] },
+          },
+          master,
+        ),
+      ).rejects.toMatchObject({ code: 'INSPECTION_INVALID_SOURCE' });
+    expect((await service.get(id, master)).version).toBe(1);
+    expect(await fixture.db.select().from(photoInspectionRevisions)).toHaveLength(1);
+  });
   it('uses unsaved guidance without saving a human review and rejects changed request replays', async () => {
     const request = { requestId: randomUUID(), version: 0, guidance: 'Keep this surface clear' };
     const result = await service.analyze(id, request, master);

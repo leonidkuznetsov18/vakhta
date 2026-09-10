@@ -21,14 +21,26 @@ export function EditableReview({ editor, busy }: { editor: InspectionEditor; bus
         onChange={(value) => editor.change({ status: InspectionReview.shape.status.parse(value) })}
         options={Object.entries(t.statuses).map(([value, label]) => ({ value, label }))}
       />
-      <FormField label={t.reviewComment} hint={t.hints.reviewComment}>
+      <FormField
+        label={t.reviewComment}
+        hint={t.reviewCommentHelp}
+        optional={state.review.status !== 'NOT_ASSESSABLE'}
+      >
         {(id) => (
-          <Textarea
-            id={id}
-            value={state.review.comment}
-            maxLength={4000}
-            onChange={(e) => editor.change({ comment: e.target.value })}
-          />
+          <>
+            <Textarea
+              id={id}
+              value={state.review.comment}
+              maxLength={4000}
+              required={state.review.status === 'NOT_ASSESSABLE'}
+              aria-describedby={`${id}-help`}
+              placeholder={t.reviewCommentPlaceholder}
+              onChange={(e) => editor.change({ comment: e.target.value })}
+            />
+            <p id={`${id}-help`} className="text-xs text-muted-foreground">
+              {t.reviewCommentHelp}
+            </p>
+          </>
         )}
       </FormField>
       {state.review.annotations.length === 0 && (
@@ -127,7 +139,7 @@ export function EditableReview({ editor, busy }: { editor: InspectionEditor; bus
           </div>
         ))}
       </div>
-      <FormField label={t.guidance} hint={t.guidanceHint}>
+      <FormField label={t.guidance} hint={t.guidanceHint} optional>
         {(id) => (
           <Textarea
             id={id}

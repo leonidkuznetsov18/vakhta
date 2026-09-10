@@ -25,6 +25,7 @@ import {
   INSPECTION_MODEL,
   INSPECTION_PROMPT_VERSION,
   InspectionContext,
+  InspectionPrediction,
   InspectionReview,
   PhotoInspectionView,
   type RequestInspectionAnalysis,
@@ -209,7 +210,7 @@ export class PhotoInspectionService {
       );
       for (const runId of runIds) {
         const [run] = await tx
-          .select({ id: photoInspectionRuns.id })
+          .select({ id: photoInspectionRuns.id, prediction: photoInspectionRuns.prediction })
           .from(photoInspectionRuns)
           .where(
             and(
@@ -224,6 +225,17 @@ export class PhotoInspectionService {
             422,
             'Suggestion belongs to another inspection',
           );
+        const findings = InspectionPrediction.parse(run.prediction).findings;
+        for (const annotation of review.annotations) {
+          if (annotation.sourceRunId !== runId || annotation.sourceFindingIndex === undefined)
+            continue;
+          if (!findings[annotation.sourceFindingIndex]?.geometry)
+            throw new DomainError(
+              'INSPECTION_INVALID_SOURCE',
+              422,
+              'Source finding must exist and have geometry',
+            );
+        }
       }
       const version = row.version + 1;
       await tx

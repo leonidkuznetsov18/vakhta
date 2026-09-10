@@ -1,3 +1,5 @@
+import { useStore } from 'zustand';
+import { availableSuggestions } from '../model/suggestions';
 import type { PhotoInspectionView } from '@vakhta/contracts';
 import type { InspectionEditor } from '../model/editor';
 import { messages } from '@vakhta/i18n';
@@ -15,6 +17,7 @@ export function PredictionPanel({
   editor: InspectionEditor;
   disabled: boolean;
 }) {
+  const review = useStore(editor.store, (state) => state.review);
   const run = latest.runs[0];
   if (!run || run.status === 'PENDING') return null;
   if (run.status === 'FAILED')
@@ -24,6 +27,7 @@ export function PredictionPanel({
       </p>
     );
   if (!run.prediction) return null;
+  const suggestions = availableSuggestions(run, review);
   return (
     <section className="flex min-w-0 flex-col gap-2 rounded-md border p-3 text-sm">
       <h3 className="font-semibold">{t.aiTitle}</h3>
@@ -34,8 +38,11 @@ export function PredictionPanel({
       <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words text-muted-foreground">
         {run.prediction.limitations}
       </p>
-      {run.prediction.findings.map((finding, index) => (
-        <div key={`${run.id}:${index}`} className="rounded-md border p-2">
+      {run.prediction.findings.length > 0 && suggestions.length === 0 && (
+        <p role="status">{t.allSuggestionsAdded}</p>
+      )}
+      {suggestions.map(({ finding, index, key }) => (
+        <div key={key} className="rounded-md border p-2">
           <p className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words">
             {finding.comment}
           </p>
@@ -47,7 +54,7 @@ export function PredictionPanel({
               size="sm"
               variant="outline"
               disabled={disabled}
-              onClick={() => editor.accept(finding, run.id)}
+              onClick={() => editor.acceptSuggestion(run, index)}
             >
               {t.accept}
             </IconButton>

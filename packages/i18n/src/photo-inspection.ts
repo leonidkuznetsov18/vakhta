@@ -9,7 +9,7 @@ export const inspectionUk = {
     edited: 'Змінено областей',
     removed: 'Видалено областей',
     status: 'Результат перевірки',
-    comment: 'Коментар до перевірки',
+    comment: 'Загальна примітка до фото',
     guidance: 'Вимоги до робочого місця',
   },
   marker: {
@@ -41,7 +41,7 @@ export const inspectionUk = {
     selectRegion: 'Виділити цю область на фото.',
     remove: 'Прибрати цю область із розмітки. Збережіть перевірку, щоб застосувати зміну.',
     status:
-      'Оберіть підсумок огляду. Якщо фото не дає змоги оцінити стан, поясніть причину в коментарі.',
+      'Оберіть підсумок огляду. Якщо фото не дає змоги оцінити стан, поясніть причину в загальній примітці до фото.',
     reviewComment: 'Додайте загальне спостереження або поясніть, чому фото неможливо оцінити.',
     category:
       'Оберіть тип проблеми в цій області. Якщо жоден не підходить, оберіть «Інша проблема».',
@@ -68,10 +68,15 @@ export const inspectionUk = {
   dirty: 'Є незбережені зміни',
   discard: 'Відкинути незбережені зміни?',
   status: 'Результат перевірки',
-  reviewComment: 'Коментар до перевірки',
+  reviewComment: 'Загальна примітка до фото',
+  reviewCommentHelp:
+    'Поясніть загальний результат огляду. Для «Не можна оцінити» вкажіть причину; конкретні проблеми описуйте в полях «Що не так» біля областей.',
+  reviewCommentPlaceholder: 'Наприклад: фото темне, стан підлоги не видно.',
+  allSuggestionsAdded:
+    'Усі пропозиції додано до розмітки. Якщо видалите відповідну область, пропозиція знову з’явиться тут.',
   guidance: 'Вимоги до цього робочого місця',
   guidanceHint:
-    'Опишіть, де мають бути інструменти та які зони повинні залишатися вільними. AI врахує поточні вимоги навіть до збереження.',
+    'Необов’язково для запуску AI. Опишіть, де мають бути інструменти та які зони повинні бути вільними. AI врахує введені вимоги без попереднього збереження.',
   analyze: 'Аналізувати з AI',
   analyzeHint:
     'Знайти можливі проблеми на фото. Можна запускати без збереження; перевірте підказки й додайте правильні до розмітки.',
@@ -128,7 +133,7 @@ export const inspectionEn = {
     edited: 'Regions edited',
     removed: 'Regions deleted',
     status: 'Review outcome',
-    comment: 'Review comment',
+    comment: 'General photo note',
     guidance: 'Workplace requirements',
   },
   marker: {
@@ -160,7 +165,7 @@ export const inspectionEn = {
     selectRegion: 'Highlight this region on the photo.',
     remove: 'Remove this region from the annotations. Save the review to apply the change.',
     status:
-      'Choose the inspection outcome. Explain in the comment if the photo cannot be assessed.',
+      'Choose the inspection outcome. Explain in the general photo note if the photo cannot be assessed.',
     reviewComment: 'Add a general observation or explain why the photo cannot be assessed.',
     category: 'Choose the problem type for this region. Choose Other problem if none fits.',
     comment:
@@ -186,10 +191,15 @@ export const inspectionEn = {
   dirty: 'Unsaved changes',
   discard: 'Discard unsaved changes?',
   status: 'Review outcome',
-  reviewComment: 'Review comment',
+  reviewComment: 'General photo note',
+  reviewCommentHelp:
+    'Explain the overall review outcome. For Not assessable, give a reason; describe individual problems in What is wrong beside each region.',
+  reviewCommentPlaceholder: 'For example: the photo is dark; the floor is not visible.',
+  allSuggestionsAdded:
+    'All suggestions have been added. Deleting a corresponding region returns its suggestion here.',
   guidance: 'Workplace requirements',
   guidanceHint:
-    'Describe where tools belong and which areas must remain empty. AI uses the current requirements even before saving.',
+    'Optional for AI analysis. Describe where tools belong and which areas must remain empty. AI uses these requirements without saving first.',
   analyze: 'Analyze with AI',
   analyzeHint:
     'Find possible problems in the photo. No save is needed; check suggestions and add correct ones to your annotations.',
@@ -246,7 +256,7 @@ export const inspectionRu = {
     edited: 'Изменено областей',
     removed: 'Удалено областей',
     status: 'Результат проверки',
-    comment: 'Комментарий к проверке',
+    comment: 'Общая заметка к фото',
     guidance: 'Требования к рабочему месту',
   },
   marker: {
@@ -278,7 +288,8 @@ export const inspectionRu = {
     accept: 'Добавить эту подсказку AI в вашу разметку для проверки и сохранения.',
     selectRegion: 'Выделить эту область на фото.',
     remove: 'Убрать эту область из разметки. Сохраните проверку, чтобы применить изменение.',
-    status: 'Выберите итог осмотра. Если фото нельзя оценить, объясните причину в комментарии.',
+    status:
+      'Выберите итог осмотра. Если фото нельзя оценить, объясните причину в общей заметке к фото.',
     reviewComment: 'Добавьте общее наблюдение или объясните, почему фото нельзя оценить.',
     category:
       'Выберите тип проблемы в этой области. Если ни один не подходит, выберите «Другая проблема».',
@@ -304,10 +315,15 @@ export const inspectionRu = {
   dirty: 'Есть несохранённые изменения',
   discard: 'Отбросить несохранённые изменения?',
   status: 'Результат проверки',
-  reviewComment: 'Комментарий к проверке',
+  reviewComment: 'Общая заметка к фото',
+  reviewCommentHelp:
+    'Поясните общий результат осмотра. Для «Нельзя оценить» укажите причину; отдельные проблемы описывайте в полях «Что не так» возле областей.',
+  reviewCommentPlaceholder: 'Например: фото тёмное, состояние пола не видно.',
+  allSuggestionsAdded:
+    'Все предложения добавлены в разметку. Если удалить соответствующую область, предложение снова появится здесь.',
   guidance: 'Требования к рабочему месту',
   guidanceHint:
-    'Опишите, где должны быть инструменты и какие зоны должны оставаться свободными. AI учтёт текущие требования даже до сохранения.',
+    'Необязательно для запуска AI. Опишите, где должны быть инструменты и какие зоны должны оставаться свободными. AI учтёт введённые требования без предварительного сохранения.',
   analyze: 'Анализировать с AI',
   analyzeHint:
     'Найти возможные проблемы на фото. Можно запускать без сохранения; проверьте подсказки и добавьте верные в разметку.',

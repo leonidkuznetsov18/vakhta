@@ -77,6 +77,18 @@ export const inspectionGuideUk: SectionGuide = {
       q: 'Як збільшувати й переміщувати фото?',
       a: 'Коліщатко миші змінює масштаб навколо курсора від 100% до 500%. Оберіть «Перемістити фото», щоб тягнути його мишею або одним пальцем, а двома пальцями — змінювати масштаб. Середня кнопка миші переміщує фото в будь-якому режимі. Для розмітки поверніться до вибору області, прямокутника або багатокутника. Кнопки масштабу й прокручування з клавіатури залишаються доступними.',
     },
+    {
+      q: 'Чому додана пропозиція AI зникла?',
+      a: 'Її вже додано до вашої розмітки, тому повторне додавання недоступне. Редагуйте область у списку. Якщо видалите її, початкова пропозиція повернеться до списку AI. Збережіть зміни, щоб зберегти результат.',
+    },
+    {
+      q: 'Для чого загальна примітка до фото?',
+      a: 'Для пояснення результату всього огляду, наприклад «Фото темне, стан підлоги не видно». Вона необов’язкова, крім результату «Не можна оцінити», коли потрібна причина. Конкретні проблеми описуйте у «Що не так» біля кожної області. Це примітка майстра, а не інструкція для AI.',
+    },
+    {
+      q: 'Чи обов’язково заповнювати вимоги перед аналізом AI?',
+      a: 'Ні. AI може шукати видимі проблеми без цього поля. Вкажіть відомі правила, щоб пояснити, де дозволено залишати предмети. Попереднє збереження не потрібне; остаточний висновок робить майстер.',
+    },
   ],
   video: {
     url: '/guides/photo-inspection.uk.mp4',
@@ -163,6 +175,18 @@ export const inspectionGuideEn: SectionGuide = {
       q: 'How do I zoom and pan the photo?',
       a: 'The mouse wheel zooms around the cursor from 100% to 500%. Choose Pan photo to drag with the mouse or one finger, or pinch with two fingers. The middle mouse button pans in any mode. Return to Select region, Rectangle or Polygon to annotate. Zoom buttons and keyboard scrolling remain available.',
     },
+    {
+      q: 'Why did an AI suggestion disappear after adding it?',
+      a: 'It is already in your annotations, so it cannot be added again. Edit its region in the list. Deleting that region returns the original suggestion to the AI list. Save changes to persist the result.',
+    },
+    {
+      q: 'What is the general photo note for?',
+      a: 'Explain the overall review outcome, for example “The photo is dark; the floor is not visible.” It is optional except for Not assessable, which requires a reason. Describe individual problems in What is wrong beside each region. This is the reviewer’s note, not an instruction for AI.',
+    },
+    {
+      q: 'Are workplace requirements required before AI analysis?',
+      a: 'No. AI can look for visible problems without this field. Enter known rules to explain where objects are allowed. No prior save is needed; the master makes the final assessment.',
+    },
   ],
   video: {
     url: '/guides/photo-inspection.en.mp4',
@@ -248,6 +272,18 @@ export const inspectionGuideRu: SectionGuide = {
     {
       q: 'Как увеличивать и перемещать фото?',
       a: 'Колёсико мыши меняет масштаб вокруг курсора от 100% до 500%. Выберите «Переместить фото», чтобы тянуть его мышью или одним пальцем, а двумя пальцами — менять масштаб. Средняя кнопка мыши перемещает фото в любом режиме. Для разметки вернитесь к выбору области, прямоугольнику или многоугольнику. Кнопки масштаба и прокрутка с клавиатуры остаются доступны.',
+    },
+    {
+      q: 'Почему добавленное предложение AI исчезло?',
+      a: 'Оно уже добавлено в вашу разметку, поэтому повторное добавление недоступно. Редактируйте область в списке. Если удалить её, исходное предложение вернётся в список AI. Сохраните изменения, чтобы сохранить результат.',
+    },
+    {
+      q: 'Для чего общая заметка к фото?',
+      a: 'Для пояснения результата всего осмотра, например «Фото тёмное, состояние пола не видно». Она необязательна, кроме результата «Нельзя оценить», когда нужна причина. Отдельные проблемы описывайте в «Что не так» возле каждой области. Это заметка мастера, а не инструкция для AI.',
+    },
+    {
+      q: 'Обязательно ли заполнять требования перед анализом AI?',
+      a: 'Нет. AI может искать видимые проблемы без этого поля. Укажите известные правила, чтобы объяснить, где разрешено оставлять предметы. Предварительное сохранение не требуется; окончательный вывод делает мастер.',
     },
   ],
   video: {

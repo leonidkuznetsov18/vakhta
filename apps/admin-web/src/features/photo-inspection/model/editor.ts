@@ -1,3 +1,4 @@
+import { availableSuggestions, linkLegacySuggestions } from './suggestions';
 import { InspectionViewport, INSPECTION_ZOOM } from './viewport';
 export { INSPECTION_ZOOM } from './viewport';
 import { hasReviewChanges } from './review-changes';
@@ -15,6 +16,7 @@ import {
   InspectionReview,
   type InspectionAnnotation,
   type InspectionPrediction,
+  type InspectionRunView,
   type PhotoInspectionView,
 } from '@vakhta/contracts';
 
@@ -101,9 +103,9 @@ export class InspectionEditor {
   readonly viewport;
   constructor(readonly initial: PhotoInspectionView) {
     this.store = createStore<EditorState>(() => ({
-      review: structuredClone(initial.review),
+      review: linkLegacySuggestions(initial.review, initial.runs),
       version: initial.version,
-      savedReview: structuredClone(initial.review),
+      savedReview: linkLegacySuggestions(initial.review, initial.runs),
       selected: null,
       tool: initial.canEdit ? 'select' : 'pan',
       zoom: INSPECTION_ZOOM.min,
@@ -235,13 +237,25 @@ export class InspectionEditor {
   zoom(delta: number): void {
     this.viewport.zoomTo(this.store.getState().zoom + delta);
   }
-  accept(finding: InspectionPrediction['findings'][number], runId: string | null): void {
-    if (!finding.geometry) return;
+  acceptSuggestion(run: InspectionRunView, index: number): void {
+    if (this.locked || !this.initial.canEdit || run.status !== 'SUCCEEDED') return;
+    const suggestion = availableSuggestions(run, this.store.getState().review).find(
+      (item) => item.index === index,
+    );
+    if (suggestion) this.accept(suggestion.finding, run.id, index);
+  }
+  private accept(
+    finding: InspectionPrediction['findings'][number],
+    runId: string | null,
+    sourceFindingIndex?: number,
+  ): void {
+    if (this.locked || !this.initial.canEdit || !finding.geometry) return;
     const annotation: InspectionAnnotation = {
       id: crypto.randomUUID(),
       ...finding,
       geometry: finding.geometry,
       sourceRunId: runId,
+      ...(sourceFindingIndex === undefined ? {} : { sourceFindingIndex }),
     };
     this.canvas?.addAnnotation(toCanvas(annotation, this.width, this.height));
     this.change({

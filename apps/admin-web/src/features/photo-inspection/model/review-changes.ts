@@ -12,6 +12,7 @@ export function reviewChanges(review: InspectionReview, saved: InspectionReview)
       (before.comment.trim() !== region.comment.trim() ||
         before.category !== region.category ||
         before.sourceRunId !== region.sourceRunId ||
+        before.sourceFindingIndex !== region.sourceFindingIndex ||
         JSON.stringify(before.geometry) !== JSON.stringify(region.geometry))
     );
   }).length;

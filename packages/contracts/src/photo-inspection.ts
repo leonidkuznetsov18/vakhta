@@ -38,6 +38,8 @@ export const InspectionAnnotation = z.object({
   category: InspectionCategory,
   comment: z.string().trim().min(1).max(2000),
   sourceRunId: z.uuid().nullable().default(null),
+  // Index in the immutable source run, retained when the human edits the region.
+  sourceFindingIndex: z.number().int().min(0).max(29).optional(),
 });
 export type InspectionAnnotation = z.infer<typeof InspectionAnnotation>;
 export const InspectionReview = z
@@ -48,6 +50,18 @@ export const InspectionReview = z
     annotations: z.array(InspectionAnnotation).max(100),
   })
   .superRefine((v, ctx) => {
+    const sources = new Set<string>();
+    for (const [index, annotation] of v.annotations.entries()) {
+      if (annotation.sourceFindingIndex === undefined) continue;
+      const source = `${annotation.sourceRunId}:${annotation.sourceFindingIndex}`;
+      if (!annotation.sourceRunId || sources.has(source))
+        ctx.addIssue({
+          code: 'custom',
+          path: ['annotations', index, 'sourceFindingIndex'],
+          message: 'A finding requires a source run and can only be added once',
+        });
+      sources.add(source);
+    }
     if (v.status === 'COMPLIANT' && v.annotations.length)
       ctx.addIssue({
         code: 'custom',

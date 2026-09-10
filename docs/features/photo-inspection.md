@@ -42,7 +42,7 @@ Gemma 4 analysis and explicitly copy individual suggestions into the human revie
 ## Operator flow
 
 Open photo → mark regions and describe observations → choose review outcome → save.
-Optionally save workplace guidance first, then request AI → inspect suggestions → copy useful
+Optionally enter workplace guidance, then request AI → inspect suggestions → copy useful
 findings and correct them → save the human review. Guidance describes the visible requirements,
 including what belongs in a zone; the model must not invent workplace rules.
 
@@ -54,7 +54,7 @@ review time on held-out shifts/workplaces before deciding whether to automate an
 ## First-time user guidance
 
 The editor includes the existing **How it works** and **Questions and answers** pattern. Six steps
-and fourteen FAQ answers explain annotation, its purpose, concrete comments, normal/unassessable
+and FAQ answers explain annotation, its purpose, concrete comments, normal/unassessable
 photos, workplace rules, AI errors, analysis prerequisites and the separation from handover decisions.
 The handover page also directs users to this photo-specific help.
 
@@ -80,3 +80,14 @@ wheel events. Pan photo enables left-button dragging and one-/two-finger pan and
 dragging pans in any annotation mode. Drawing/selecting remains owned by the annotation tools; return
 to one of those tools to edit regions. Native scrollbars and keyboard scrolling remain available.
 Only the photo and its annotation overlay transform; other form controls keep their size and position.
+
+## AI suggestion selection and field guidance
+
+Each finding in an immutable AI run can be copied once. Its option disappears while the linked
+annotation exists, including after editing its text/category/geometry and saving/reopening. Removing
+the annotation returns the original option; copying it again uses the original AI content. When all
+options are copied, the panel explains that deletion restores them. Separate runs remain independent.
+
+Workplace requirements are optional for analysis and require no prior save. The general photo note
+explains the overall human review, is optional except for Not assessable, and is not an AI instruction.
+Its inline help and example distinguish it from each region's What is wrong description.
