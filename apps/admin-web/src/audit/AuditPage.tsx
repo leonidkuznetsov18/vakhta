@@ -1,3 +1,4 @@
+import { DetailText, ScrollableText, TextPreview } from '@/components/app/row-detail';
 import { useQuery } from '@tanstack/react-query';
 import type { AuditEntryView, DomainEventView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
@@ -221,7 +222,7 @@ export function AuditPage() {
     {
       key: 'reason',
       header: a.reason,
-      cell: (e) => <span className="line-clamp-2">{e.reason ?? '—'}</span>,
+      cell: (e) => <TextPreview text={e.reason ?? '—'} />,
     },
     {
       key: 'actions',
@@ -273,7 +274,9 @@ export function AuditPage() {
     {
       key: 'reason',
       header: a.reason,
-      cell: (e) => [e.reasonCode, e.comment].filter(Boolean).join(' · ') || '—',
+      cell: (e) => (
+        <TextPreview text={[e.reasonCode, e.comment].filter(Boolean).join(' · ') || '—'} />
+      ),
     },
     {
       key: 'actions',
@@ -404,9 +407,7 @@ export function AuditPage() {
                 <span className="text-sm font-semibold">{a.reason}</span>
                 <CopyButton value={openAudit.reason} />
               </div>
-              <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm whitespace-pre-wrap">
-                {openAudit.reason}
-              </p>
+              <ScrollableText label={a.reason} text={openAudit.reason} />
             </div>
           )}
           <ChangesTable before={openAudit.before} after={openAudit.after} />
@@ -435,10 +436,10 @@ export function AuditPage() {
               <IdRow label={a.corrects} value={openEvent.correctsEventId} />
             )}
             {(openEvent.reasonCode || openEvent.comment) && (
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-muted-foreground">{a.reason}:</span>
-                <span>{[openEvent.reasonCode, openEvent.comment].filter(Boolean).join(' · ')}</span>
-              </div>
+              <DetailText
+                label={a.reason}
+                text={[openEvent.reasonCode, openEvent.comment].filter(Boolean).join(' · ')}
+              />
             )}
           </div>
           {isRecord(openEvent.payload) && Object.keys(openEvent.payload).length > 0 && (

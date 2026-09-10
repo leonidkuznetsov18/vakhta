@@ -215,6 +215,15 @@ export function Paginator({ pages: p, total }: { readonly pages: Pages; readonly
   );
 }
 
+/** Plain textual cells wrap within a readable measure; structured controls keep their own layout. */
+function cellContent(content: ReactNode): ReactNode {
+  return typeof content === 'string' ? (
+    <span className="block max-w-xs whitespace-normal [overflow-wrap:anywhere]">{content}</span>
+  ) : (
+    content
+  );
+}
+
 /** A click on a control inside the row must not also fire the row's main action. */
 function isInteractive(target: EventTarget | null): boolean {
   return (
@@ -487,7 +496,7 @@ export function DataTable<T>({
                             key={c.key}
                             className={cn(c.align === 'right' && 'text-right', c.className)}
                           >
-                            {c.cell(row)}
+                            {cellContent(c.cell(row))}
                           </TableCell>
                         ))}
                         {rowActions ? (
@@ -546,7 +555,7 @@ export function DataTable<T>({
                       />
                     ) : null}
                     <div className="min-w-0 flex-1 font-medium">
-                      {first ? first.cell(row) : null}
+                      {first ? cellContent(first.cell(row)) : null}
                     </div>
                     {rowActions ? <RowMenu actions={actions} label={t.actions} /> : null}
                   </div>
@@ -558,7 +567,7 @@ export function DataTable<T>({
                           <dt className="text-xs text-muted-foreground">
                             {c.label ?? (typeof c.header === 'string' ? c.header : '')}
                           </dt>
-                          <dd className="min-w-0">{c.cell(row)}</dd>
+                          <dd className="min-w-0">{cellContent(c.cell(row))}</dd>
                         </RowGroup>
                       ))}
                   </dl>

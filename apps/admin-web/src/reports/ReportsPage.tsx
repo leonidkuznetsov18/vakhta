@@ -1,3 +1,4 @@
+import { ScrollableText } from '@/components/app/row-detail';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { LossesQuery, LossesView } from '@vakhta/contracts';
@@ -197,7 +198,7 @@ export function ReportsPage() {
       header: r.lossComment,
       cell: (i) => (
         <>
-          {i.comment ?? <Muted>—</Muted>}
+          {i.comment ? <ScrollableText label={r.lossComment} text={i.comment} /> : <Muted>—</Muted>}
           {i.estimatedEnd && (
             <p className="text-muted-foreground text-xs">{all.shift.estimatedClosure}</p>
           )}

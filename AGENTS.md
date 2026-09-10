@@ -80,6 +80,9 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 
 - Use the shared calendar trigger/popover for period filters, consistent with Schedule. Do not hide
   the calendar behind an unrelated period dropdown. Reuse the same control across related pages.
+- Long text must never stretch a page. Previews use bounded wrapping or TextPreview truncation;
+  full text uses ScrollableText/DetailText with preserved newlines, long-word wrapping, bounded width
+  and height, and vertical scrolling when needed. Never truncate the only available full version.
 - Expanded rows use the shared RowDetail reading surface: bounded width, grouped sections, wrapping
   prose, bounded scrollable long text/history and one-column mobile layouts. Keep actions near their fields.
 - For every UI/UX change, capture AND visually inspect screenshots of the affected desktop and mobile

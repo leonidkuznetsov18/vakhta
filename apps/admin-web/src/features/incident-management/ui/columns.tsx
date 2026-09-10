@@ -1,3 +1,4 @@
+import { TextPreview } from '@/components/app/row-detail';
 import type { IncidentView } from '@vakhta/contracts';
 import { type IncidentSeverity, type IncidentStatus } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
@@ -69,7 +70,11 @@ export function incidentColumns(knowledge: boolean): Column<IncidentView>[] {
       cell: (row) => (
         <div>
           <div>{row.reasonLabel}</div>
-          {row.rootCause && <Muted>{row.rootCause}</Muted>}
+          {row.rootCause && (
+            <Muted>
+              <TextPreview text={row.rootCause} />
+            </Muted>
+          )}
         </div>
       ),
     },
@@ -107,9 +112,7 @@ export function incidentColumns(knowledge: boolean): Column<IncidentView>[] {
         {
           key: 'resolution',
           header: i.resolution,
-          cell: (row) => (
-            <span className="whitespace-pre-wrap">{row.resolution || i.missingSolution}</span>
-          ),
+          cell: (row) => <TextPreview text={row.resolution || i.missingSolution} />,
         },
       ]
     : columns;

@@ -12,19 +12,37 @@ export function RowDetail({ children }: { children: ReactNode }) {
   );
 }
 
-/** Bounded prose preserves complete text, line breaks and keyboard scrolling. */
+/** Compact preview; full prose belongs in the record details. */
+export function TextPreview({ text }: { text: string }) {
+  return (
+    <span
+      className="block max-w-xs line-clamp-2 whitespace-normal [overflow-wrap:anywhere]"
+      title={text}
+    >
+      {text}
+    </span>
+  );
+}
+
+/** Complete text remains available with line wrapping and keyboard scrolling. */
+export function ScrollableText({ label, text }: { label: string; text: string }) {
+  return (
+    <div
+      role="region"
+      aria-label={label}
+      tabIndex={0}
+      className="max-h-60 min-w-0 max-w-prose overflow-y-auto rounded-md border bg-muted/30 p-3 text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {text}
+    </div>
+  );
+}
+
 export function DetailText({ label, text }: { label: string; text: string }) {
   return (
     <section className="min-w-0 max-w-prose space-y-2">
       <h3 className="text-sm font-semibold">{label}</h3>
-      <div
-        role="region"
-        aria-label={label}
-        tabIndex={0}
-        className="max-h-60 overflow-y-auto rounded-md border bg-muted/30 p-3 text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {text}
-      </div>
+      <ScrollableText label={label} text={text} />
     </section>
   );
 }
