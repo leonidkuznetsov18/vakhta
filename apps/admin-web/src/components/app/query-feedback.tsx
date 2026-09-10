@@ -2,7 +2,7 @@ import { useIsMutating } from '@tanstack/react-query';
 import { messages } from '@vakhta/i18n';
 import { AlertCircleIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
+import { LoadingState } from '@/shared/ui/loading-state';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { currentLocale } from '@/i18n';
 import { readError } from '@/errors';
@@ -32,7 +32,7 @@ export function QueryFeedback({ query }: { query: QueryFeedbackState }) {
           disabled={query.isFetching}
           onClick={() => void query.refetch()}
         >
-          {query.isFetching ? t.loading : t.retry}
+          {query.isFetching ? <LoadingState label={t.loading} /> : t.retry}
         </Button>
       </Alert>
     );
@@ -43,29 +43,11 @@ export function QueryFeedback({ query }: { query: QueryFeedbackState }) {
       </p>
     );
   if (!query.isFetching) return null;
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="flex items-center gap-2 text-sm text-muted-foreground"
-    >
-      <Spinner />
-      {query.isPending ? t.loading : t.refreshing}
-    </div>
-  );
+  return <LoadingState label={query.isPending ? t.loading : t.refreshing} />;
 }
 
 /** Shared mutation feedback also covers dialogs and forms outside a table. */
 export function MutationActivity() {
   const pending = useIsMutating();
-  return pending ? (
-    <div
-      role="status"
-      aria-live="polite"
-      className="flex items-center gap-2 text-sm text-muted-foreground"
-    >
-      <Spinner />
-      {messages(currentLocale()).ui.common.saving}
-    </div>
-  ) : null;
+  return pending ? <LoadingState label={messages(currentLocale()).ui.common.saving} /> : null;
 }

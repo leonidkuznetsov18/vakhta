@@ -39,3 +39,19 @@ prevented line clamping. Live production verification is separate from this fixt
 Proceed: consistent visual states remove uncertainty and unnecessary repeated clicks. Keep existing
 worker workflows and recorded business decisions unchanged. Validate only affected surfaces; do not
 create artificial production incidents, shifts or messages for screenshots.
+
+## 2026-09-10 — One Spinner loading presentation
+
+Owner requirement: remove skeleton placeholders and use the existing shadcn Spinner everywhere.
+`shared/ui/loading-state.tsx` owns the animation wrapper, localized accessible status and optional
+operation label. Initial app/table/photo/QR states, Query feedback, mutation activity, retry buttons
+and Sonner loading icons reuse it. Overview uses its existing QueryFeedback once instead of also
+rendering six loading cards. Unused sidebar skeleton and Skeleton primitive were removed. Spinner
+is now the only animation implementation; no pulse placeholders remain in panel source.
+
+Loading presentation changes do not alter requests, mutation retries, cached data, error/offline states
+or successful empty results. Five table-state regressions, panel typecheck and affected lint passed.
+Actual shared components with synthetic pending requests were captured and visually inspected at
+390×844 and 1440×1000: page, table, photo, QR, refreshing and saving all use the same animated icon;
+no skeletons or horizontal page overflow. Production publication is checked separately.
+Lean: Proceed. Consistent feedback reduces visual noise and ambiguity without extra worker actions.

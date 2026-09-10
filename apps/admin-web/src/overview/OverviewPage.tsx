@@ -14,7 +14,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Feedback } from '@/components/app/feedback';
 import { InfoTip } from '@/components/app/info-tip';
 import { EmptyState, Muted, Section, type Tone } from '@/components/app/page';
@@ -336,13 +335,7 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
           ) : null
         }
       >
-        {loading ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 6 }, (_, i) => (
-              <Skeleton key={i} className="h-20 rounded-xl" />
-            ))}
-          </div>
-        ) : attention.length === 0 && !grouped ? (
+        {loading ? null : attention.length === 0 && !grouped ? (
           <EmptyState text={o.allClear} />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

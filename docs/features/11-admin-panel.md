@@ -66,3 +66,9 @@ documentation sites: type a few letters and pick a section, a quick action ("Д�
 "Создать чек-лист", "Зарегистрировать терминал", "Добавить пользователя"), an employee by name or
 personnel number, a checklist or a terminal; Enter opens the target. The sidebar footer has the
 language switch (🇺🇦 🇬🇧 РУ) and the theme switch: light, dark or "Как в системе".
+
+### Loading feedback
+
+All pending panel surfaces use one shared animated Spinner. Skeleton rows/cards are not used.
+Loading, refreshing and saving retain their specific labels; failures, offline states and empty
+results remain distinct.

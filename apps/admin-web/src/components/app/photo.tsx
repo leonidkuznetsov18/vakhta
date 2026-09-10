@@ -6,7 +6,7 @@ import type { MediaObjectView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingState } from '@/shared/ui/loading-state';
 import { Muted } from '@/components/app/page';
 import { currentLocale } from '@/i18n';
 import { keys } from '@/lib/query';
@@ -50,9 +50,8 @@ export function PhotoThumb({
   if (link.isError || link.fetchStatus === 'paused') return <QueryFeedback query={link} />;
   if (!url) {
     return (
-      <div className={cn('flex flex-col gap-1', className)}>
-        <Skeleton className="aspect-[4/3] w-full rounded-md" />
-        <Muted className="text-xs">{t.photoLoading}</Muted>
+      <div className={cn('flex aspect-[4/3] items-center justify-center', className)}>
+        <LoadingState label={t.photoLoading} />
       </div>
     );
   }

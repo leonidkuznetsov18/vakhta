@@ -37,7 +37,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Spinner } from '@/components/ui/spinner';
+import { LoadingState } from '@/shared/ui/loading-state';
 import { InfoTip } from '@/components/app/info-tip';
 import { UserAvatar } from '@/components/app/avatar';
 import { LogoMark } from '@/components/app/logo';
@@ -168,7 +168,7 @@ export function App() {
   if (state.status === 'loading') {
     return (
       <main className="flex min-h-svh items-center justify-center" aria-busy="true">
-        <Spinner />
+        <LoadingState />
       </main>
     );
   }

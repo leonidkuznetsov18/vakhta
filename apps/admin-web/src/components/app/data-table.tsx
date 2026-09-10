@@ -28,7 +28,7 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
-import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingState } from '@/shared/ui/loading-state';
 import {
   Table,
   TableBody,
@@ -76,7 +76,7 @@ interface DataTableProps<T> {
   /** Extra text and a call to action under the empty message. */
   readonly emptyDescription?: string;
   readonly emptyAction?: ReactNode;
-  /** While true and there are no rows, skeleton rows are drawn instead of the empty state. */
+  /** While true and there are no rows, a spinner is drawn instead of the empty state. */
   readonly loading?: boolean;
   readonly queryState?: QueryFeedbackState;
   /** When the same query feeds several tables, the parent may render one shared feedback. */
@@ -365,7 +365,7 @@ export function DataTable<T>({
   if (rows.length === 0 && queryState?.fetchStatus === 'paused')
     return queryFeedback ? <QueryFeedback query={queryState} /> : null;
   if (rows.length === 0 && (queryState ? queryState.isPending && queryState.isFetching : loading))
-    return <TableSkeleton columns={span} />;
+    return <LoadingState label={t.loading_rows} className="w-full py-8" />;
   if (rows.length === 0)
     return <EmptyState text={empty} description={emptyDescription} action={emptyAction} />;
 
@@ -622,23 +622,6 @@ export function DataTable<T>({
       ) : null}
       {body}
       <Paginator pages={pages} total={sorted.length} />
-    </div>
-  );
-}
-
-/** Placeholder rows while the first page loads; the same height as real rows so nothing jumps. */
-function TableSkeleton({ columns }: { readonly columns: number }) {
-  const t = messages(currentLocale()).ui.common;
-  return (
-    <div className="flex flex-col gap-2 rounded-lg border p-3" role="status" aria-busy="true">
-      <span className="sr-only">{t.loading_rows}</span>
-      {Array.from({ length: 5 }, (_, i) => (
-        <div key={i} className="flex gap-3">
-          {Array.from({ length: Math.min(columns, 6) }, (_, j) => (
-            <Skeleton key={j} className="h-5 flex-1" />
-          ))}
-        </div>
-      ))}
     </div>
   );
 }
