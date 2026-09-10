@@ -47,3 +47,10 @@ master's decisions follow below.
 - "There is no checklist button": the position has no checklist, or the shift is not yet in
   HANDOVER; ask the administrator to attach a checklist to the position.
 - "I cannot send the report": read the list under "Отчёт ещё не готов" on the screen.
+
+## Master remarks and completed reports
+
+A master must enter a comment before selecting **Remark**. The same text is stored with the master
+resolution and delivered through the existing Telegram outbox to the employee who submitted the
+report. Opening the table row shows the saved decision, timestamp and comment beside the checklist
+and photos. Completed reports show read-only information without decision fields or submit buttons.
