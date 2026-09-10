@@ -1,3 +1,14 @@
+## [0.73.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.0...v0.73.1) (2026-09-10)
+
+### Bug fixes
+
+* **admin:** center sidebar counters and trailing actions on mobile ([d4dac8d](https://github.com/leonidkuznetsov18/vakhta/commit/d4dac8dde3b8b440156ef7ff2c62819ccf64f6ab))
+* **admin:** remove repeated metadata from expanded records ([4e4e683](https://github.com/leonidkuznetsov18/vakhta/commit/4e4e6837881f5acf521901f051f494d89b72adb5))
+
+### Tests
+
+* **shift:** make stale presence regression independent of wall clock ([be8cc44](https://github.com/leonidkuznetsov18/vakhta/commit/be8cc4411fabe5f64e9e9ce881aefab6224919a1))
+
 ## [0.73.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.72.0...v0.73.0) (2026-09-10)
 
 ### Features
