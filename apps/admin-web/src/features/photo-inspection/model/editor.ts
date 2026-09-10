@@ -1,3 +1,4 @@
+import { hasReviewChanges } from './review-changes';
 import { createStore } from 'zustand/vanilla';
 import { z } from 'zod';
 import {
@@ -81,7 +82,7 @@ export function fromCanvas(annotation: ImageAnnotation, width: number, height: n
 interface EditorState {
   review: InspectionReview;
   version: number;
-  dirty: boolean;
+  savedReview: InspectionReview;
   selected: string | null;
   tool: 'rectangle' | 'polygon' | 'select';
   zoom: number;
@@ -94,14 +95,14 @@ export class InspectionEditor {
   readonly store;
   private canvas: ImageAnnotator | null = null;
   private locked = false;
-  private requestId: string | null = null;
+  private analysis: { requestId: string; version: number; guidance: string } | null = null;
   private width = 1;
   private height = 1;
   constructor(readonly initial: PhotoInspectionView) {
     this.store = createStore<EditorState>(() => ({
       review: structuredClone(initial.review),
       version: initial.version,
-      dirty: false,
+      savedReview: structuredClone(initial.review),
       selected: null,
       tool: 'select',
       zoom: INSPECTION_ZOOM.min,
@@ -134,7 +135,7 @@ export class InspectionEditor {
     };
     const failed = () => this.store.setState({ imageStatus: 'failed' });
     const preventLoss = (event: BeforeUnloadEvent) => {
-      if (this.store.getState().dirty) {
+      if (hasReviewChanges(this.store.getState())) {
         event.preventDefault();
         event.returnValue = '';
       }
@@ -179,7 +180,7 @@ export class InspectionEditor {
     }
   };
   change(patch: Partial<InspectionReview>): void {
-    this.store.setState((state) => ({ review: { ...state.review, ...patch }, dirty: true }));
+    this.store.setState((state) => ({ review: { ...state.review, ...patch } }));
   }
   editAnnotation(
     id: string,
@@ -272,11 +273,19 @@ export class InspectionEditor {
     this.store.setState({ invalidGeometry: false });
   }
   analysisRequest() {
-    this.requestId ??= crypto.randomUUID();
-    return { requestId: this.requestId, version: this.store.getState().version };
+    const { version, review } = this.store.getState();
+    const guidance = review.guidance.trim();
+    if (
+      !this.analysis ||
+      this.analysis.version !== version ||
+      this.analysis.guidance !== guidance
+    ) {
+      this.analysis = { requestId: crypto.randomUUID(), version, guidance };
+    }
+    return this.analysis;
   }
   analysisReceived(): void {
-    this.requestId = null;
+    this.analysis = null;
   }
   lock(): void {
     this.canvas?.cancelDrawing();
@@ -293,8 +302,12 @@ export class InspectionEditor {
     this.tool(this.store.getState().tool);
   }
   saved(view: PhotoInspectionView): void {
-    this.requestId = null;
-    this.store.setState({ version: view.version, dirty: false });
+    this.analysis = null;
+    this.store.setState({
+      version: view.version,
+      review: structuredClone(view.review),
+      savedReview: structuredClone(view.review),
+    });
   }
 }
 

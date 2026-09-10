@@ -1,30 +1,30 @@
-import type { InspectionReview } from '@vakhta/contracts';
-import { hasInspectionInput } from '../model/analysis';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
-import { SparklesIcon } from 'lucide-react';
+import { WandSparklesIcon } from 'lucide-react';
 import { IconButton } from '@/shared/ui/icon-button';
+import { LoadingState } from '@/shared/ui/loading-state';
 
 export function AnalyzeButton({
-  review,
   disabled,
+  loading = false,
   onAnalyze,
 }: {
-  review: InspectionReview;
   disabled: boolean;
+  loading?: boolean;
   onAnalyze: () => void;
 }) {
   const t = messages(currentLocale()).photoInspection;
-  const empty = !hasInspectionInput(review);
-  const unavailable = disabled || empty;
   return (
     <IconButton
-      icon={SparklesIcon}
+      icon={WandSparklesIcon}
       label={t.analyze}
-      tooltip={empty ? t.analyzeEmptyHint : t.analyzeHint}
+      tooltip={t.analyzeHint}
       variant="outline"
-      disabled={unavailable}
+      disabled={disabled || loading}
+      aria-busy={loading}
       onClick={onAnalyze}
-    />
+    >
+      {loading ? <LoadingState label={t.aiPending} /> : t.analyze}
+    </IconButton>
   );
 }

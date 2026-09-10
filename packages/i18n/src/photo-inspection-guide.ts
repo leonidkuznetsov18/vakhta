@@ -9,8 +9,8 @@ export const inspectionGuideUk: SectionGuide = {
     'У «Вимоги до цього робочого місця» запишіть відомі правила: наприклад, «Після зміни стіл має бути порожнім, інструменти — на панелі». Не вигадуйте вимог, яких немає.',
     'Якщо бачите проблему, оберіть «Прямокутник» і обведіть її, або «Багатокутник» — натискайте на вершини та замкніть контур. Для кожної області виберіть категорію та запишіть у «Що не так» конкретне спостереження: «Брудна ганчірка залишена на столі».',
     'Оберіть результат: «Є проблеми» — позначили недоліки; «Проблем не знайдено» — перевірили видиму зону й недоліків немає; «Не можна оцінити» — поясніть, чого не видно. Якщо перевірку ще не завершено, залиште «Ще не перевірено».',
-    'Натисніть «Зберегти перевірку». Фото не змінюється: окремо зберігаються області, ваші описи та результат. Перед переходом до іншого фото збережіть зміни.',
-    'За бажанням натисніть «Аналізувати з Gemma 4» після збереження коментаря, вимог або описаної області. Прочитайте припущення AI. Лише правильні додайте кнопкою «Додати до моєї розмітки», виправте неточності й збережіть перевірку ще раз.',
+    'Натисніть «Зберегти зміни». Фото не змінюється: окремо зберігаються області, ваші описи та результат. Перед переходом до іншого фото збережіть зміни. Лічильник показує змінені поля й області; нижче видно їх перелік. Після збереження біля фото з’явиться позначка, а незавершена перевірка позначатиметься окремо.',
+    'За бажанням натисніть «Аналізувати з AI» навіть до збереження чи заповнення полів. Прочитайте припущення AI. Лише правильні додайте кнопкою «Додати до моєї розмітки», виправте неточності й збережіть перевірку ще раз.',
   ],
   faq: [
     {
@@ -47,7 +47,7 @@ export const inspectionGuideUk: SectionGuide = {
     },
     {
       q: 'Чому кнопка аналізу вимкнена?',
-      a: 'Додайте й збережіть хоча б коментар, вимоги або опис області. Самі пробіли не рахуються. Кнопка також недоступна під час збереження, незбережених змін або вже запущеного аналізу. Наведіть на неї курсор для підказки.',
+      a: 'AI доступний без попереднього збереження й навіть із порожніми полями. Він враховує поточні вимоги до робочого місця та не зберігає вашу перевірку автоматично. Кнопка тимчасово недоступна під час збереження або вже запущеного аналізу.',
     },
     {
       q: 'Чи можна довіряти висновку AI без перевірки?',
@@ -63,7 +63,7 @@ export const inspectionGuideUk: SectionGuide = {
     },
     {
       q: 'Чи потрібно майстру експортувати файли щодня?',
-      a: 'Ні. Після «Зберегти перевірку» дані вже в системі. Експорт потрібен відповідальному за підготовку навчального набору: він отримує опис областей і посилання на оригінал. Неперевірені фото не стають навчальними прикладами автоматично.',
+      a: 'Ні. Після «Зберегти зміни» дані вже в системі. Експорт потрібен відповідальному за підготовку навчального набору: він отримує опис областей і посилання на оригінал. Неперевірені фото не стають навчальними прикладами автоматично.',
     },
     {
       q: 'Що робити, якщо фото не завантажується або перевірку змінив колега?',
@@ -91,8 +91,8 @@ export const inspectionGuideEn: SectionGuide = {
     'Enter known rules in Workplace requirements, such as “The table must be clear after the shift; tools belong on the panel.” Do not invent rules.',
     'For a visible problem, choose Rectangle and drag around it, or choose Polygon, click its corners and close the outline. Select a category and describe each region in What is wrong, for example “Dirty rag left on the table.”',
     'Choose the outcome: Problems found for marked issues; No problems found after inspecting the visible area; Not assessable with an explanation of missing evidence. Leave Not reviewed if your inspection is incomplete.',
-    'Select Save review. The original photo is unchanged; regions, descriptions and your outcome are saved separately. Save before moving to another photo.',
-    'Optionally select Analyze with Gemma 4 after saving a comment, requirements or a described region. Read its suggestions. Use Add to my annotations only for correct findings, correct any inaccuracies and save the review again.',
+    'Select Save changes. The original photo is unchanged; regions, descriptions and your outcome are saved separately. Save before moving to another photo. The counter counts changed fields and regions; the summary lists them. A marker beside the photo shows saved work and distinguishes an unfinished review.',
+    'Optionally select Analyze with AI even before saving or filling in fields. Read its suggestions. Use Add to my annotations only for correct findings, correct any inaccuracies and save the review again.',
   ],
   faq: [
     {
@@ -129,7 +129,7 @@ export const inspectionGuideEn: SectionGuide = {
     },
     {
       q: 'Why is Analyze disabled?',
-      a: 'Add and save at least a comment, requirements or a region description. Whitespace does not count. The action is also unavailable while saving, while changes are unsaved or during an active analysis. Hover over it for an explanation.',
+      a: 'AI is available before saving and with empty fields. It uses the current workplace requirements and does not automatically save your review. The button is temporarily unavailable while saving or while an analysis is running.',
     },
     {
       q: 'Can I trust AI without checking?',
@@ -145,7 +145,7 @@ export const inspectionGuideEn: SectionGuide = {
     },
     {
       q: 'Must a master export files every day?',
-      a: 'No. Save review already stores the data in the system. Export is for the person preparing a training dataset; it supplies region descriptions and access to the original image. Unreviewed photos do not automatically become training examples.',
+      a: 'No. Save changes already stores the data in the system. Export is for the person preparing a training dataset; it supplies region descriptions and access to the original image. Unreviewed photos do not automatically become training examples.',
     },
     {
       q: 'What if an image fails to load or another reviewer changes the review?',
@@ -173,8 +173,8 @@ export const inspectionGuideRu: SectionGuide = {
     'В «Требования к рабочему месту» запишите известные правила: например, «После смены стол должен быть пустым, инструменты — на панели». Не придумывайте требований.',
     'Если видите проблему, выберите «Прямоугольник» и обведите её, или «Многоугольник» — нажимайте на вершины и замкните контур. Для каждой области выберите категорию и опишите в «Что не так» конкретное наблюдение: «Грязная тряпка оставлена на столе».',
     'Выберите результат: «Есть проблемы» — отметили недостатки; «Проблем не найдено» — проверили видимую зону и недостатков нет; «Нельзя оценить» — объясните, чего не видно. Если проверка не завершена, оставьте «Ещё не проверено».',
-    'Нажмите «Сохранить проверку». Фото не меняется: отдельно сохраняются области, описания и результат. Сохраните изменения перед переходом к другому фото.',
-    'При желании нажмите «Анализировать с Gemma 4» после сохранения комментария, требований или описанной области. Прочитайте предположения AI. Только верные добавьте кнопкой «Добавить в мою разметку», исправьте неточности и сохраните проверку ещё раз.',
+    'Нажмите «Сохранить изменения». Фото не меняется: отдельно сохраняются области, описания и результат. Сохраните изменения перед переходом к другому фото. Счётчик показывает изменённые поля и области; ниже виден их список. После сохранения у фото появится отметка; незавершённая проверка обозначается отдельно.',
+    'При желании нажмите «Анализировать с AI» даже до сохранения или заполнения полей. Прочитайте предположения AI. Только верные добавьте кнопкой «Добавить в мою разметку», исправьте неточности и сохраните проверку ещё раз.',
   ],
   faq: [
     {
@@ -211,7 +211,7 @@ export const inspectionGuideRu: SectionGuide = {
     },
     {
       q: 'Почему кнопка анализа выключена?',
-      a: 'Добавьте и сохраните хотя бы комментарий, требования или описание области. Пробелы не считаются. Кнопка также недоступна при сохранении, несохранённых изменениях или уже запущенном анализе. Наведите курсор для подсказки.',
+      a: 'AI доступен до сохранения и даже с пустыми полями. Он учитывает текущие требования к рабочему месту и не сохраняет вашу проверку автоматически. Кнопка временно недоступна при сохранении или уже запущенном анализе.',
     },
     {
       q: 'Можно ли доверять AI без проверки?',
@@ -227,7 +227,7 @@ export const inspectionGuideRu: SectionGuide = {
     },
     {
       q: 'Нужно ли мастеру экспортировать файлы каждый день?',
-      a: 'Нет. После «Сохранить проверку» данные уже в системе. Экспорт нужен ответственному за подготовку обучающего набора: он получает описания областей и доступ к оригиналу. Непроверенные фото не становятся обучающими примерами автоматически.',
+      a: 'Нет. После «Сохранить изменения» данные уже в системе. Экспорт нужен ответственному за подготовку обучающего набора: он получает описания областей и доступ к оригиналу. Непроверенные фото не становятся обучающими примерами автоматически.',
     },
     {
       q: 'Что делать, если фото не загружается или проверку изменил коллега?',

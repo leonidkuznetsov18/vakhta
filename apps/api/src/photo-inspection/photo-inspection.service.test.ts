@@ -159,6 +159,20 @@ describe('photo inspection persistence and access', () => {
       code: 'INSPECTION_FORBIDDEN',
     });
   });
+  it('uses unsaved guidance without saving a human review and rejects changed request replays', async () => {
+    const request = { requestId: randomUUID(), version: 0, guidance: 'Keep this surface clear' };
+    const result = await service.analyze(id, request, master);
+    expect(result.version).toBe(0);
+    expect(result.review).toMatchObject({ status: 'UNREVIEWED', guidance: '', annotations: [] });
+    expect(await fixture.db.select().from(photoInspectionRevisions)).toHaveLength(0);
+    expect((await fixture.db.select().from(photoInspectionRuns))[0]?.guidance).toBe(
+      request.guidance,
+    );
+    await service.analyze(id, request, master);
+    await expect(
+      service.analyze(id, { ...request, guidance: 'Different rules' }, master),
+    ).rejects.toMatchObject({ code: 'INSPECTION_CONFLICT' });
+  });
   it('admits one durable run for simultaneous requests and immutable request replays', async () => {
     const request = { requestId: randomUUID(), version: 0 };
     await Promise.all([service.analyze(id, request, master), service.analyze(id, request, master)]);

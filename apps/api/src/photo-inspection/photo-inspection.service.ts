@@ -256,7 +256,11 @@ export class PhotoInspectionService {
         .from(photoInspectionRuns)
         .where(eq(photoInspectionRuns.id, input.requestId));
       if (replay) {
-        if (replay.inspectionId !== row.id || replay.reviewVersion !== input.version)
+        if (
+          replay.inspectionId !== row.id ||
+          replay.reviewVersion !== input.version ||
+          (input.guidance !== undefined && replay.guidance !== input.guidance)
+        )
           throw new DomainError(
             'INSPECTION_CONFLICT',
             409,
@@ -268,7 +272,7 @@ export class PhotoInspectionService {
         throw new DomainError(
           'INSPECTION_CONFLICT',
           409,
-          'Save or reload the current review first',
+          'Reload the current review version first',
         );
       const [pending] = await tx
         .select({ id: photoInspectionRuns.id })
@@ -305,7 +309,7 @@ export class PhotoInspectionService {
         inspectionId: row.id,
         reviewVersion: row.version,
         context: row.context,
-        guidance: InspectionReview.parse(row.review).guidance,
+        guidance: input.guidance ?? InspectionReview.parse(row.review).guidance,
         model: INSPECTION_MODEL,
         promptVersion: INSPECTION_PROMPT_VERSION,
         requestedBy: user.id,

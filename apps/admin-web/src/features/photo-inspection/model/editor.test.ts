@@ -1,3 +1,4 @@
+import { hasReviewChanges, reviewChanges } from './review-changes';
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('@annotorious/annotorious', () => ({
   createImageAnnotator: vi.fn(),
@@ -35,6 +36,50 @@ const view: PhotoInspectionView = {
   },
 };
 describe('photo inspection form and geometry', () => {
+  it('counts changes relative to the saved review and removes reverted changes', () => {
+    const editor = new InspectionEditor(view);
+    editor.change({ comment: 'A draft', guidance: 'Keep clear' });
+    let state = editor.store.getState();
+    expect(reviewChanges(state.review, state.savedReview).total).toBe(2);
+    editor.change({ comment: '', guidance: '' });
+    expect(hasReviewChanges(editor.store.getState())).toBe(false);
+    editor.addBox();
+    const region = editor.store.getState().review.annotations[0];
+    if (!region) throw new Error('Expected region');
+    editor.editAnnotation(region.id, { comment: 'Dust' });
+    state = editor.store.getState();
+    expect(reviewChanges(state.review, state.savedReview)).toMatchObject({
+      added: 1,
+      edited: 0,
+      total: 2,
+    });
+    editor.saved({ ...view, version: 1, review: state.review });
+    expect(hasReviewChanges(editor.store.getState())).toBe(false);
+    editor.editAnnotation(region.id, { comment: 'Dust on table', category: 'DIRT' });
+    state = editor.store.getState();
+    expect(reviewChanges(state.review, state.savedReview)).toMatchObject({ edited: 1, total: 1 });
+    editor.remove(region.id);
+    state = editor.store.getState();
+    expect(reviewChanges(state.review, state.savedReview)).toMatchObject({
+      removed: 1,
+      edited: 0,
+      total: 2,
+    });
+  });
+  it('snapshots unsaved AI requirements without saving or changing the draft', () => {
+    const editor = new InspectionEditor(view);
+    editor.change({ guidance: ' Keep the table clear ' });
+    const request = editor.analysisRequest();
+    expect(request).toMatchObject({ version: 0, guidance: 'Keep the table clear' });
+    expect(editor.analysisRequest()).toEqual(request);
+    editor.analysisReceived();
+    expect(hasReviewChanges(editor.store.getState())).toBe(true);
+    expect(editor.store.getState().version).toBe(0);
+    expect(editor.analysisRequest().requestId).not.toBe(request.requestId);
+    editor.change({ guidance: 'New requirements' });
+    expect(editor.analysisRequest()).toMatchObject({ guidance: 'New requirements' });
+  });
+
   it('removes only the selected region and leaves a draft requiring a human outcome', () => {
     const editor = new InspectionEditor(view);
     editor.addBox();
@@ -44,7 +89,7 @@ describe('photo inspection form and geometry', () => {
     expect(editor.store.getState().review.annotations).toHaveLength(1);
     expect(editor.store.getState().review.annotations.some((a) => a.id === selected)).toBe(false);
     expect(editor.store.getState().selected).toBeNull();
-    expect(editor.store.getState().dirty).toBe(true);
+    expect(hasReviewChanges(editor.store.getState())).toBe(true);
     expect(editor.store.getState().review.status).toBe('UNREVIEWED');
     expect(editor.removeSelected()).toBe(false);
   });
@@ -71,7 +116,7 @@ describe('photo inspection form and geometry', () => {
     editor.zoom(-100);
     expect(editor.store.getState().zoom).toBe(1);
     expect(editor.store.getState().review).toEqual(view.review);
-    expect(editor.store.getState().dirty).toBe(false);
+    expect(hasReviewChanges(editor.store.getState())).toBe(false);
   });
   it('round trips normalized rectangles and polygons independent of display size', () => {
     const shapes: InspectionAnnotation['geometry'][] = [
@@ -105,8 +150,8 @@ describe('photo inspection form and geometry', () => {
     if (!annotation) throw new Error('Expected region');
     editor.editAnnotation(annotation.id, { comment: 'Dust on the surface' });
     expect(reviewIsValid(editor.store.getState())).toBe(true);
-    expect(editor.store.getState().dirty).toBe(true);
-    editor.saved({ ...view, version: 1 });
+    expect(hasReviewChanges(editor.store.getState())).toBe(true);
+    editor.saved({ ...view, version: 1, review: editor.store.getState().review });
     expect(editor.store.getState().version).toBe(1);
     expect(editor.store.getState().review.annotations).toHaveLength(1);
   });

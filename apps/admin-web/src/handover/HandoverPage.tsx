@@ -39,7 +39,7 @@ import { Deadline } from '@/components/app/deadline';
 import { CheckIcon, EyeIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { PhotoThumb } from '@/components/app/photo';
-import { PhotoInspectionDialog } from '@/features/photo-inspection';
+import { InspectionMarker, PhotoInspectionDialog } from '@/features/photo-inspection';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { useDeepLinkedId } from '@/lib/route';
 
@@ -261,20 +261,22 @@ export function HandoverPage() {
               </h3>
               <div className="grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
                 {detail.handover.photos.map((p) => (
-                  <PhotoThumb
-                    key={p.itemKey}
-                    media={p.media}
-                    loadLink={handoversApi.mediaLink}
-                    label={p.label}
-                    badge={all.handover.quality[p.media.quality]}
-                    onOpen={() =>
-                      setInspection({
-                        handoverId: detail.handover.id,
-                        photo: p,
-                        photos: detail.handover.photos,
-                      })
-                    }
-                  />
+                  <div key={p.itemKey} className="flex min-w-0 flex-col gap-2">
+                    <PhotoThumb
+                      media={p.media}
+                      loadLink={handoversApi.mediaLink}
+                      label={p.label}
+                      badge={all.handover.quality[p.media.quality]}
+                      onOpen={() =>
+                        setInspection({
+                          handoverId: detail.handover.id,
+                          photo: p,
+                          photos: detail.handover.photos,
+                        })
+                      }
+                    />
+                    <InspectionMarker inspection={p.inspection} />
+                  </div>
                 ))}
               </div>
             </div>

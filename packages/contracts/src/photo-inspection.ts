@@ -139,6 +139,7 @@ export const PhotoInspectionView = z.object({
 });
 export type PhotoInspectionView = z.infer<typeof PhotoInspectionView>;
 export const RequestInspectionAnalysis = z.object({
+  guidance: z.string().trim().max(4000).optional(),
   requestId: z.uuid(),
   version: z.number().int().nonnegative(),
 });

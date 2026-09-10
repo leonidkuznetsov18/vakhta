@@ -19,8 +19,13 @@ Gemma 4 analysis and explicitly copy individual suggestions into the human revie
   the local draft. Masters and cleanliness controllers write within their granted scope; authorized
   viewers can read within their scope. Completed handovers permit this independent dataset review,
   without reopening operational decisions, notifications, scoring or shift state.
-- The Analyze button requires a saved nonblank comment, workplace guidance or region description.
-  A tooltip explains the prerequisite and analysis on hover and keyboard focus, including when disabled.
+- Analyze with AI is an optional helper, available with empty or unsaved form fields. Only saving or
+  a running analysis temporarily disables it. Current workplace guidance is snapshotted for the run;
+  analysis never saves the human review. Suggestions still require explicit human acceptance.
+- Save changes shows the number of changed fields and regions compared with the last saved version,
+  plus a readable summary. One edited region counts once; reverting edits removes them from the count.
+- Handover photo thumbnails identify persisted human work, including clean reviews without regions.
+  Unfinished drafts are labeled separately. AI-only runs and replacement photos remain unmarked.
 - Manual AI requests use Cloudflare Gemma 4, persist before dispatch, survive restarts and deduplicate
   retries. No automatic backlog analysis. Bounded request volume, image size, timeout and attempts.
 - Predictions retain model/prompt/context version separately from human truth. Unsupported equipment

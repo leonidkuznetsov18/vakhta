@@ -19,6 +19,7 @@ import {
   lt,
   lte,
   mediaObjects,
+  photoInspections,
   ne,
   orgUnits,
   reasonCodes,
@@ -61,6 +62,7 @@ import type {
   SubmitHandoverCommand,
   TransitionResponse,
 } from '@vakhta/contracts';
+import { InspectionReview } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
@@ -866,9 +868,22 @@ export class HandoverService {
     const [answers, photos] = await Promise.all([
       tx.select().from(checklistAnswers).where(eq(checklistAnswers.handoverId, handoverId)),
       tx
-        .select({ itemKey: handoverMedia.itemKey, media: mediaObjects })
+        .select({
+          itemKey: handoverMedia.itemKey,
+          media: mediaObjects,
+          inspection: photoInspections.review,
+        })
         .from(handoverMedia)
         .innerJoin(mediaObjects, eq(handoverMedia.mediaObjectId, mediaObjects.id))
+        .leftJoin(
+          photoInspections,
+          and(
+            eq(photoInspections.handoverId, handoverMedia.handoverId),
+            eq(photoInspections.mediaId, handoverMedia.mediaObjectId),
+            eq(photoInspections.itemKey, handoverMedia.itemKey),
+            sql`${photoInspections.version} > 0`,
+          ),
+        )
         .where(eq(handoverMedia.handoverId, handoverId)),
     ]);
     const byKey = new Map(answers.map((a) => [a.itemKey, a]));
@@ -905,6 +920,12 @@ export class HandoverService {
         itemKey: p.itemKey,
         label: row.definition.items.find((i) => i.key === p.itemKey)?.label ?? p.itemKey,
         media: this.media.toView(p.media),
+        inspection: p.inspection
+          ? (() => {
+              const review = InspectionReview.parse(p.inspection);
+              return { status: review.status, annotationCount: review.annotations.length };
+            })()
+          : null,
       })),
       issues: issues.map((i) => ({
         code: i.code,

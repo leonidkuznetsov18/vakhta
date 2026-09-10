@@ -1,3 +1,4 @@
+import { hasReviewChanges, reviewChanges } from '../model/review-changes';
 import { useState } from 'react';
 import { useStore } from 'zustand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -85,7 +86,8 @@ export function PhotoInspectionDialog({
   const [generation, setGeneration] = useState(0);
   const [editor, setEditor] = useState<InspectionEditor | null>(null);
   const close = () => {
-    if (!editor?.store.getState().dirty || window.confirm(t.discard)) onClose();
+    if (!editor || !hasReviewChanges(editor.store.getState()) || window.confirm(t.discard))
+      onClose();
   };
   const index =
     photos?.findIndex(
@@ -93,7 +95,10 @@ export function PhotoInspectionDialog({
     ) ?? -1;
   const navigate = (delta: number) => {
     const next = photos?.[index + delta];
-    if (next && (!editor?.store.getState().dirty || window.confirm(t.discard)))
+    if (
+      next &&
+      (!editor || !hasReviewChanges(editor.store.getState()) || window.confirm(t.discard))
+    )
       onPhotoChange?.(next);
   };
   return (
@@ -186,6 +191,7 @@ function InspectionSession({
     createInspectionSession(initial, register),
   );
   const state = useStore(store);
+  const changes = reviewChanges(state.review, state.savedReview);
   const client = useQueryClient();
   const link = useQuery({
     queryKey: [...inspectionKey(id), 'link'],
@@ -205,6 +211,7 @@ function InspectionSession({
     onSuccess: (view) => {
       editor.saved(view);
       client.setQueryData(inspectionKey(id), view);
+      void client.invalidateQueries({ queryKey: ['handovers'] });
       notifySuccess(t.saved);
     },
   });
@@ -227,7 +234,7 @@ function InspectionSession({
   const valid = reviewIsValid(state);
   const error = save.error ?? analyze.error ?? exportReview.error;
   const reload = async () => {
-    if (state.dirty && !window.confirm(t.discard)) return;
+    if (hasReviewChanges(state) && !window.confirm(t.discard)) return;
     await client.invalidateQueries({ queryKey: inspectionKey(id) });
     // Reload is explicit; ordinary background updates never overwrite an unsaved review.
     resetSession();
@@ -309,7 +316,11 @@ function InspectionSession({
           icon={DownloadIcon}
           label={t.export}
           tooltip={t.hints.export}
-          disabled={state.dirty || latest.review.status === 'UNREVIEWED' || exportReview.isPending}
+          disabled={
+            hasReviewChanges(state) ||
+            latest.review.status === 'UNREVIEWED' ||
+            exportReview.isPending
+          }
           onClick={() => exportReview.mutate()}
         >
           {t.export}
@@ -396,9 +407,17 @@ function InspectionSession({
           ) : (
             <ReadOnlyReview review={state.review} select={(id) => editor.select(id)} />
           )}
-          {state.dirty && (
+          {hasReviewChanges(state) && (
             <p role="status" className="text-sm">
-              {t.dirty}
+              {t.dirty}: {changes.total}
+              <span className="mt-1 block text-muted-foreground">
+                {[
+                  ...(changes.added ? [`${t.changes.added}: ${changes.added}`] : []),
+                  ...(changes.edited ? [`${t.changes.edited}: ${changes.edited}`] : []),
+                  ...(changes.removed ? [`${t.changes.removed}: ${changes.removed}`] : []),
+                  ...changes.fields.map((field) => t.changes[field]),
+                ].join(' · ')}
+              </span>
             </p>
           )}
           {!valid && (
@@ -409,17 +428,23 @@ function InspectionSession({
           {initial.canEdit && (
             <div className="flex flex-wrap gap-2">
               <IconButton
-                disabled={busy || !state.dirty || !valid || state.imageStatus !== 'ready'}
+                disabled={
+                  busy || !hasReviewChanges(state) || !valid || state.imageStatus !== 'ready'
+                }
                 icon={SaveIcon}
-                label={t.save}
+                label={`${t.save} (${changes.total})`}
                 tooltip={t.hints.save}
                 onClick={() => save.mutate()}
               >
-                {save.isPending && !save.isPaused ? <LoadingState label={t.save} /> : t.save}
+                {save.isPending && !save.isPaused ? (
+                  <LoadingState label={`${t.save} (${changes.total})`} />
+                ) : (
+                  `${t.save} (${changes.total})`
+                )}
               </IconButton>
               <AnalyzeButton
-                review={state.review}
-                disabled={busy || state.dirty || pending}
+                disabled={busy || pending}
+                loading={(analyze.isPending && !analyze.isPaused) || pending}
                 onAnalyze={() => analyze.mutate()}
               />
             </div>
@@ -429,7 +454,6 @@ function InspectionSession({
               {messages(currentLocale()).ui.common.waitingConnection}
             </p>
           )}
-          {pending && <LoadingState label={t.aiPending} />}
           <PredictionPanel
             latest={latest}
             editor={editor}

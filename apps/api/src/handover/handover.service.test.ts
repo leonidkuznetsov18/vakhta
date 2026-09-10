@@ -13,6 +13,7 @@ import {
   eq,
   handoverRecords,
   mediaObjects,
+  photoInspections,
   notificationOutbox,
   orgUnits,
   positions,
@@ -490,6 +491,42 @@ describe('handover: прибирання, чек-лист, фото, перед�
       expect.objectContaining({ itemKey: 'ITEM_03', label: 'Фото линии' }),
     ]);
     expect(withPhoto?.issues.some((i) => i.code === 'PHOTO_MISSING')).toBe(false);
+    const attached = withPhoto?.photos[0];
+    if (!withPhoto || !attached) throw new Error('Expected attached photo');
+    expect(attached.inspection).toBeNull();
+    const [inspection] = await testDb.db
+      .insert(photoInspections)
+      .values({
+        handoverId: withPhoto.id,
+        mediaId: attached.media.id,
+        itemKey: attached.itemKey,
+        context: {},
+        review: { status: 'UNREVIEWED', comment: '', guidance: '', annotations: [] },
+      })
+      .returning();
+    if (!inspection) throw new Error('Expected inspection');
+    expect((await handover.current(dayEmployee))?.photos[0]?.inspection).toBeNull();
+    await testDb.db
+      .update(photoInspections)
+      .set({
+        version: 1,
+        review: { status: 'COMPLIANT', comment: '', guidance: '', annotations: [] },
+      })
+      .where(eq(photoInspections.id, inspection.id));
+    expect((await handover.current(dayEmployee))?.photos[0]?.inspection).toEqual({
+      status: 'COMPLIANT',
+      annotationCount: 0,
+    });
+    await handover.attachPhoto(
+      dayEmployee,
+      {
+        itemKey: attached.itemKey,
+        telegramFileId: 'replacement',
+        telegramFileUniqueId: 'replacement',
+      },
+      employeeActor(dayEmployee),
+    );
+    expect((await handover.current(dayEmployee))?.photos[0]?.inspection).toBeNull();
   });
 
   it('AC-10: без повного чек-листа і трьох фото звіт не подається; SUBMIT_HANDOVER без звіту заборонено', async () => {

@@ -4,6 +4,21 @@ export const inspectionUk = {
     'Видалити вибрану область: Backspace або Delete поза текстовими полями. Потім збережіть перевірку.',
   selectToDeleteHint: 'Спочатку виберіть область на фото або в списку.',
 
+  changes: {
+    added: 'Додано областей',
+    edited: 'Змінено областей',
+    removed: 'Видалено областей',
+    status: 'Результат перевірки',
+    comment: 'Коментар до перевірки',
+    guidance: 'Вимоги до робочого місця',
+  },
+  marker: {
+    annotated: 'Розмітку збережено',
+    reviewed: 'Перевірку збережено',
+    draft: 'Є збережена чернетка',
+    regions: 'Областей',
+    incomplete: 'Перевірку ще не завершено',
+  },
   hints: {
     close: 'Закрити перевірку фото. Для незбережених змін з’явиться підтвердження.',
     previous: 'Перейти до попереднього фото цього звіту.',
@@ -44,7 +59,7 @@ export const inspectionUk = {
   comment: 'Що не так',
   category: 'Категорія',
   remove: 'Видалити область',
-  save: 'Зберегти перевірку',
+  save: 'Зберегти зміни',
   saved: 'Перевірку збережено',
   dirty: 'Є незбережені зміни',
   discard: 'Відкинути незбережені зміни?',
@@ -52,14 +67,12 @@ export const inspectionUk = {
   reviewComment: 'Коментар до перевірки',
   guidance: 'Вимоги до цього робочого місця',
   guidanceHint:
-    'Опишіть, де мають бути інструменти та які зони повинні залишатися вільними. Збережіть вимоги перед запуском AI.',
-  analyze: 'Аналізувати з Gemma 4',
-  analyzeEmptyHint:
-    'Додайте й збережіть коментар, вимоги до робочого місця або опис області, щоб почати аналіз.',
+    'Опишіть, де мають бути інструменти та які зони повинні залишатися вільними. AI врахує поточні вимоги навіть до збереження.',
+  analyze: 'Аналізувати з AI',
   analyzeHint:
-    'Збережіть зміни. Gemma 4 знайде можливі проблеми на фото з урахуванням вимог. Перевірте її висновок.',
+    'Знайти можливі проблеми на фото. Можна запускати без збереження; перевірте підказки й додайте правильні до розмітки.',
   aiTitle: 'Припущення AI — перевірте самостійно',
-  aiPending: 'Gemma 4 аналізує фото',
+  aiPending: 'AI аналізує фото',
   aiFailed: 'Аналіз не завершено. Перевірте підключення та спробуйте ще раз.',
   accept: 'Додати до моєї розмітки',
   noGeometry: 'Позначте область вручну: AI не визначив її координати.',
@@ -106,6 +119,21 @@ export const inspectionEn = {
     'Delete the selected region with Backspace or Delete outside text fields. Save the review afterwards.',
   selectToDeleteHint: 'Select a region on the photo or in the list first.',
 
+  changes: {
+    added: 'Regions added',
+    edited: 'Regions edited',
+    removed: 'Regions deleted',
+    status: 'Review outcome',
+    comment: 'Review comment',
+    guidance: 'Workplace requirements',
+  },
+  marker: {
+    annotated: 'Annotations saved',
+    reviewed: 'Review saved',
+    draft: 'Draft saved',
+    regions: 'Regions',
+    incomplete: 'Review not completed',
+  },
   hints: {
     close: 'Close photo inspection. Unsaved changes require confirmation.',
     previous: 'Open the previous photo in this report.',
@@ -145,7 +173,7 @@ export const inspectionEn = {
   comment: 'What is wrong',
   category: 'Category',
   remove: 'Delete region',
-  save: 'Save review',
+  save: 'Save changes',
   saved: 'Review saved',
   dirty: 'Unsaved changes',
   discard: 'Discard unsaved changes?',
@@ -153,14 +181,12 @@ export const inspectionEn = {
   reviewComment: 'Review comment',
   guidance: 'Workplace requirements',
   guidanceHint:
-    'Describe where tools belong and which areas must remain empty. Save requirements before requesting AI.',
-  analyze: 'Analyze with Gemma 4',
-  analyzeEmptyHint:
-    'Add and save a comment, workplace requirements or a region description to start analysis.',
+    'Describe where tools belong and which areas must remain empty. AI uses the current requirements even before saving.',
+  analyze: 'Analyze with AI',
   analyzeHint:
-    'Save changes. Gemma 4 suggests visible problems using workplace requirements. Verify its findings.',
+    'Find possible problems in the photo. No save is needed; check suggestions and add correct ones to your annotations.',
   aiTitle: 'AI suggestions — verify independently',
-  aiPending: 'Gemma 4 is analyzing the photo',
+  aiPending: 'AI is analyzing the photo',
   aiFailed: 'Analysis did not complete. Check the connection and try again.',
   accept: 'Add to my annotations',
   noGeometry: 'Mark the region manually: AI could not locate it.',
@@ -207,6 +233,21 @@ export const inspectionRu = {
     'Удалить выбранную область: Backspace или Delete вне текстовых полей. Затем сохраните проверку.',
   selectToDeleteHint: 'Сначала выберите область на фото или в списке.',
 
+  changes: {
+    added: 'Добавлено областей',
+    edited: 'Изменено областей',
+    removed: 'Удалено областей',
+    status: 'Результат проверки',
+    comment: 'Комментарий к проверке',
+    guidance: 'Требования к рабочему месту',
+  },
+  marker: {
+    annotated: 'Разметка сохранена',
+    reviewed: 'Проверка сохранена',
+    draft: 'Есть сохранённый черновик',
+    regions: 'Областей',
+    incomplete: 'Проверка ещё не завершена',
+  },
   hints: {
     close: 'Закрыть проверку фото. Для несохранённых изменений появится подтверждение.',
     previous: 'Открыть предыдущее фото этого отчёта.',
@@ -246,7 +287,7 @@ export const inspectionRu = {
   comment: 'Что не так',
   category: 'Категория',
   remove: 'Удалить область',
-  save: 'Сохранить проверку',
+  save: 'Сохранить изменения',
   saved: 'Проверка сохранена',
   dirty: 'Есть несохранённые изменения',
   discard: 'Отбросить несохранённые изменения?',
@@ -254,14 +295,12 @@ export const inspectionRu = {
   reviewComment: 'Комментарий к проверке',
   guidance: 'Требования к рабочему месту',
   guidanceHint:
-    'Опишите, где должны находиться инструменты и какие зоны должны оставаться пустыми. Сохраните требования перед запуском AI.',
-  analyze: 'Анализировать с Gemma 4',
-  analyzeEmptyHint:
-    'Добавьте и сохраните комментарий, требования к рабочему месту или описание области, чтобы начать анализ.',
+    'Опишите, где должны быть инструменты и какие зоны должны оставаться свободными. AI учтёт текущие требования даже до сохранения.',
+  analyze: 'Анализировать с AI',
   analyzeHint:
-    'Сохраните изменения. Gemma 4 найдёт возможные проблемы на фото с учётом требований. Проверьте её вывод.',
+    'Найти возможные проблемы на фото. Можно запускать без сохранения; проверьте подсказки и добавьте верные в разметку.',
   aiTitle: 'Предположения AI — проверьте самостоятельно',
-  aiPending: 'Gemma 4 анализирует фото',
+  aiPending: 'AI анализирует фото',
   aiFailed: 'Анализ не завершён. Проверьте подключение и попробуйте снова.',
   accept: 'Добавить в мою разметку',
   noGeometry: 'Отметьте область вручную: AI не определил её координаты.',

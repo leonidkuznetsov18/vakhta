@@ -141,7 +141,7 @@ per-rule completeness matrix, double-review adjudication or trained custom check
 Retention must be aligned with any future frozen dataset. Current saved human reviews and model
 suggestions provide the collection foundation, not evidence that autonomous inspection is reliable.
 
-## Owner refinement — empty analysis action
+## Historical refinement — empty analysis action (superseded)
 
 On 2026-09-11 the owner requested disabling Analyze for an empty form and adding a short hover
 explanation. The button requires non-whitespace text in a comment, guidance or region description;
@@ -234,3 +234,33 @@ rules. Panel type-check and focused lint pass. Browser QA verified Delete and Ba
 Backspace text editing without region loss, and the toolbar action. Desktop/mobile screenshots were
 captured and inspected. Localized FAQ and generated HTML now include deletion usage. Lean: proceed;
 the nearby action and familiar keys remove the need to search inside a long annotation list.
+
+## AI helper and visible saved work — 2026-09-11
+
+The owner superseded the save-before-analysis rule: AI is an optional assistant for finding new
+problems, available with empty or unsaved fields. Saving/request admission and an active analysis
+still guard against duplicate operations. The request snapshots current guidance without saving
+human review data; an optional contract field preserves older clients. Request IDs are reused only
+for an unchanged version/guidance payload, and the server rejects mismatched replay payloads.
+
+The editor owns a saved baseline and derives changes from it. Each changed top-level field and each
+added, edited or removed region counts once; repeated typing and reverted changes do not accumulate.
+The save label includes the total and an adjacent summary names the affected fields/region counts.
+Successful save replaces the baseline with the canonical server review and invalidates handover data.
+
+Handover photos expose a small nullable inspection summary via a single exact-identity left join.
+Only human-saved versions (>0) qualify. The feature-owned marker distinguishes annotations, completed
+review outcomes and unfinished drafts. AI-only rows and replacement media have no marker. No database
+migration or operational handover transition changes are needed.
+
+Verification: 23 API integration tests passed, including unsaved guidance, unchanged human revision,
+replay mismatch, persisted summary and replacement isolation. API build and panel type-check passed;
+focused panel tests and lint passed. Independent backend review found no blockers and reused these
+results. Isolated browser QA exercised empty and unsaved AI requests, preserved draft text, accepting
+an AI region, change-count reversion and reset after save. Desktop (1440px) and mobile (390px)
+screenshots of the editor and saved marker were captured and inspected. Production data was untouched.
+Localized guides/FAQ were regenerated; animation work from a concurrent writer is separate.
+
+Lean: proceed. Remove the unnecessary save before requesting help and prevent repeated inspection
+through a durable, explicit marker. The count explains the next save without requiring JSON reading.
+Observe whether masters reopen completed photos unnecessarily; no production time saving is claimed.

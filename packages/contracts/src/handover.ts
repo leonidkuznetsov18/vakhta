@@ -46,6 +46,13 @@ export const HandoverPhotoView = z.object({
   itemKey: z.string(),
   label: z.string(),
   media: MediaObjectView,
+  inspection: z
+    .object({
+      status: z.enum(['UNREVIEWED', 'COMPLIANT', 'PROBLEMS', 'NOT_ASSESSABLE']),
+      annotationCount: z.number().int().nonnegative(),
+    })
+    .nullable()
+    .optional(),
 });
 export type HandoverPhotoView = z.infer<typeof HandoverPhotoView>;
 
