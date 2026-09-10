@@ -27,7 +27,6 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { AddDialog } from '@/components/app/add-dialog';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { DataTable, type Column } from '@/components/app/data-table';
-import { DetailSheet } from '@/components/app/detail-sheet';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
@@ -127,7 +126,6 @@ export function ChecklistsTab({ org }: Props) {
   };
 
   const reload = () => client.invalidateQueries({ queryKey: keys.checklists });
-  const open = rows?.find((r) => r.id === openId) ?? null;
 
   const setStatus = useMutation({
     mutationFn: (v: { row: ChecklistDefinitionView; isActive: boolean; reason: string }) =>
@@ -309,68 +307,39 @@ export function ChecklistsTab({ org }: Props) {
           </Button>
         }
         activeKey={openId}
-        onRowClick={(r) => setOpenId(r.id)}
+        onRowClick={(r) => setOpenId(openId === r.id ? null : r.id)}
+        expanded={(row) =>
+          row.id === openId ? (
+            <div className="flex max-w-3xl flex-col gap-4" data-testid="checklist-detail">
+              <Muted>
+                <time dateTime={row.validFrom}>{formatDateTime(row.validFrom)}</time>
+              </Muted>
+              <BotPreview
+                items={row.items.map((item, index) => ({
+                  id: index,
+                  label: item.label,
+                  kind: item.kind,
+                }))}
+              />
+              <div className="flex flex-wrap gap-2 border-t pt-4">
+                {actions(row).map((action) => (
+                  <Button
+                    key={action.key}
+                    type="button"
+                    variant={action.destructive ? 'destructive' : 'outline'}
+                    disabled={action.disabled}
+                    onClick={action.onSelect}
+                  >
+                    <action.icon aria-hidden="true" />
+                    {action.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : null
+        }
         rowActions={actions}
       />
-      <DetailSheet
-        open={open !== null}
-        onOpenChange={(next) => !next && setOpenId(null)}
-        title={open?.name ?? ''}
-        description={
-          open
-            ? `${open.positions.map((p) => p.name).join(', ') || c.anyPosition} · ${zoneTypeLabel(open.zoneType)} · ${format(c.versionLabel, { n: open.version })}`
-            : undefined
-        }
-        footer={
-          open ? (
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={() => setEditing(open)} disabled={busy}>
-                <PencilIcon aria-hidden="true" />
-                {c.edit}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => void toggle(open)}
-                disabled={busy}
-              >
-                <PowerIcon aria-hidden="true" />
-                {open.isActive ? c.disable : c.enable}
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => void remove(open)}
-                disabled={busy}
-              >
-                <Trash2Icon aria-hidden="true" />
-                {c.delete}
-              </Button>
-            </div>
-          ) : undefined
-        }
-      >
-        {open && (
-          <>
-            <div className="flex flex-wrap gap-1">
-              <StatusPill tone={open.isActive ? 'success' : 'neutral'}>
-                {open.isActive ? c.active : c.inactive}
-              </StatusPill>
-              <StatusPill tone="info">{format(c.usedIn, { n: open.handovers })}</StatusPill>
-            </div>
-            <Muted>
-              {formatDateTime(open.validFrom)} ·{' '}
-              {format(c.itemsSummary, {
-                items: open.items.length,
-                photos: open.items.filter((i) => i.kind === 'PHOTO').length,
-              })}
-            </Muted>
-            <BotPreview
-              items={open.items.map((i, index) => ({ id: index, label: i.label, kind: i.kind }))}
-            />
-          </>
-        )}
-      </DetailSheet>
       {editing !== null && editing !== 'new' && (
         <ChecklistDialog
           key={editing.id}
@@ -393,16 +362,20 @@ export function ChecklistsTab({ org }: Props) {
 /** The checklist as the bot renders it: one line per item with the same marks. */
 function BotPreview({ items }: { readonly items: readonly DraftItem[] }) {
   return (
-    <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+    <div className="min-w-0 rounded-lg border bg-muted/40 p-3 text-base leading-relaxed md:text-sm">
       <p className="mb-2 flex items-center gap-1 font-medium">
         {c.preview}
         <InfoTip text={hints.checklistsItems} />
       </p>
       <ul className="flex flex-col gap-1">
         {items.map((item) => (
-          <li key={item.id} className="flex gap-2">
-            <span aria-hidden="true">{KIND_ICON[item.kind]}</span>
-            <span className={item.label.trim() ? '' : 'text-muted-foreground italic'}>
+          <li key={item.id} className="flex items-start gap-2">
+            <span className="w-5 shrink-0 text-center" aria-hidden="true">
+              {KIND_ICON[item.kind]}
+            </span>
+            <span
+              className={`min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere] ${item.label.trim() ? '' : 'text-muted-foreground italic'}`}
+            >
               {item.label.trim() || c.itemLabel}
             </span>
           </li>

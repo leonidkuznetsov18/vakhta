@@ -61,3 +61,10 @@ Day reports are reviewed by 22:00; night reports by 10:00 the following day, in 
 The deadline is scheduled shift end plus two hours, independent of submission time. Pending reports
 become overdue only after that instant. Final decisions retain an absolute deadline without a running
 lateness indicator. Historical completed reports are not rewritten by the deadline migration.
+
+### Checklist catalog details
+
+Clicking a checklist table row or mobile card expands its bot preview and management actions under
+that record. Clicking again collapses it. No side sheet is used for reading checklist details. The
+preview row owns name, position, zone, version, status and counts; expanded content adds the complete
+ordered checklist. Creating/editing a checklist still uses the existing versioned editor dialog.

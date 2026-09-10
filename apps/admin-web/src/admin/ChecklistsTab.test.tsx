@@ -94,10 +94,14 @@ describe('ChecklistsTab', () => {
     render(<ChecklistsTab org={org} />);
     expect(await screen.findByText('3 пунктов · 1 фото')).toBeTruthy();
     fireEvent.click(screen.getAllByText('Оператор линии')[0]!);
-    const sheet = await screen.findByRole('dialog');
-    expect(within(sheet).getByText('Так увидит сотрудник в боте')).toBeTruthy();
-    expect(within(sheet).getByText('Фото линии')).toBeTruthy();
-    expect(within(sheet).getByText('Действует')).toBeTruthy();
+    const detail = await screen.findByTestId('checklist-detail');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(within(detail).getByText('Так увидит сотрудник в боте')).toBeTruthy();
+    expect(within(detail).getByText('Фото линии')).toBeTruthy();
+    expect(within(detail).queryByText('Действует')).toBeNull();
+    expect(within(detail).getByRole('button', { name: 'Изменить' })).toBeTruthy();
+    fireEvent.click(screen.getAllByText('Оператор линии')[0]!);
+    expect(screen.queryByTestId('checklist-detail')).toBeNull();
   });
 
   it('arriving from an employee card opens the create dialog with that position ticked', async () => {
