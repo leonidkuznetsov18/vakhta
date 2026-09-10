@@ -9,6 +9,7 @@ import { Muted } from '@/components/app/page';
 import { formatDateTime as formatTime } from '@/lib/format';
 import { currentLocale } from '@/i18n';
 import { Textarea } from '@/components/ui/textarea';
+import { incidentDetailView } from '../model/detail';
 import type { IncidentWorkspaceModel } from '../model/workspace';
 
 const all = messages(currentLocale());
@@ -24,6 +25,8 @@ export function IncidentDetail({
 }) {
   const { detail, trackedLink, setLightbox, busy, form, setField, apply, others } = model;
   const draft = form(row);
+  const readOnly = model.isReadOnly(row);
+  const view = incidentDetailView(row, detail, readOnly);
 
   return (
     <div
@@ -38,11 +41,11 @@ export function IncidentDetail({
           <div className="min-w-0">
             <h3 className="mb-2 text-sm font-semibold">{i.reportsTitle}</h3>
             <ul className="flex flex-col gap-3 text-sm">
-              {detail.reports.map((r) => (
+              {view.reports.map((r) => (
                 <li key={r.id} className="flex flex-col gap-1">
                   <div>
-                    <span className="tabular-nums">{formatTime(r.reportedAt)}</span>{' '}
-                    <strong>{r.fullName}</strong>{' '}
+                    <span className="tabular-nums">{r.showTime && formatTime(r.reportedAt)}</span>{' '}
+                    {r.showAuthor && <strong>{r.fullName}</strong>}{' '}
                     <Muted>
                       {`${r.stoppedWork ? i.stoppedWork : i.notStopped}${r.hasPhoto && !r.media ? ` · ${i.photo}` : ''}`}
                     </Muted>
@@ -53,6 +56,7 @@ export function IncidentDetail({
                   {r.media && (
                     <PhotoThumb
                       className="w-40"
+                      showCaption={false}
                       media={r.media}
                       loadLink={trackedLink}
                       label={`${r.fullName} · ${formatTime(r.reportedAt)}`}
@@ -65,45 +69,49 @@ export function IncidentDetail({
               ))}
             </ul>
           </div>
-          <div className="min-w-0">
-            <h3 className="mb-2 text-sm font-semibold">{i.history}</h3>
-            <ul
-              tabIndex={0}
-              aria-label={i.history}
-              className="flex max-h-80 flex-col gap-4 overflow-y-auto pr-2 text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {detail.history.map((h) => (
-                <li key={h.id} className="min-w-0 space-y-2 border-l-2 pl-3">
-                  <span className="tabular-nums">{formatTime(h.at)}</span>{' '}
-                  {all.incidents.statuses[h.toStatus]}
-                  <Muted>{` · ${h.actorType}`}</Muted>
-                  {h.rootCause && (
-                    <p className="whitespace-pre-wrap">
-                      <strong>{i.rootCause}: </strong>
-                      {h.rootCause}
-                    </p>
-                  )}
-                  {h.resolution && (
-                    <p className="whitespace-pre-wrap">
-                      <strong>{i.resolution}: </strong>
-                      {h.resolution}
-                    </p>
-                  )}
-                  {h.comment && <p className="whitespace-pre-wrap">{h.comment}</p>}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {view.history.length > 0 && (
+            <div className="min-w-0">
+              <h3 className="mb-2 text-sm font-semibold">{i.history}</h3>
+              <ul
+                tabIndex={0}
+                aria-label={i.history}
+                className="flex max-h-80 flex-col gap-4 overflow-y-auto pr-2 text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {view.history.map((h) => (
+                  <li key={h.id} className="min-w-0 space-y-2 border-l-2 pl-3">
+                    <span className="tabular-nums">{formatTime(h.at)}</span>{' '}
+                    {all.incidents.statuses[h.toStatus]}
+                    <Muted>{` · ${h.actorType}`}</Muted>
+                    {h.rootCause && (
+                      <p className="whitespace-pre-wrap">
+                        <strong>{i.rootCause}: </strong>
+                        {h.rootCause}
+                      </p>
+                    )}
+                    {h.resolution && (
+                      <p className="whitespace-pre-wrap">
+                        <strong>{i.resolution}: </strong>
+                        {h.resolution}
+                      </p>
+                    )}
+                    {h.comment && <p className="whitespace-pre-wrap">{h.comment}</p>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       ) : (
         <QueryFeedback query={model.detailQuery} />
       )}
-      {row.lastComment && <DetailText label={i.legacyComment} text={row.lastComment} />}
-      {model.isReadOnly(row) ? (
-        <div className="grid min-w-0 gap-6 md:grid-cols-2">
-          <DetailText label={i.rootCause} text={row.rootCause || '—'} />
-          <DetailText label={i.resolution} text={row.resolution || i.missingSolution} />
-        </div>
+      {view.legacyComment && <DetailText label={i.legacyComment} text={view.legacyComment} />}
+      {readOnly ? (
+        (row.rootCause || row.resolution) && (
+          <div className="grid min-w-0 gap-6 md:grid-cols-2">
+            {row.rootCause && <DetailText label={i.rootCause} text={row.rootCause} />}
+            {row.resolution && <DetailText label={i.resolution} text={row.resolution} />}
+          </div>
+        )
       ) : (
         <form
           className="flex max-w-2xl flex-col gap-3"

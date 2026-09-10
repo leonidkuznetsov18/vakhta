@@ -105,6 +105,8 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 - The details of a table row open as a sub-row under it (`DataTable`'s `expanded`), never in a side sheet: the row
   stays visible, and the reader keeps their place in the list. A sheet or a dialog is for what is not a row — creating
   a record, the questions and answers, a document. The sub-row never repeats what the row's own columns already show.
+  Avoid repeated author/time/photo captions and identical legacy comments. Preserve additional reports, distinct
+  historical decisions and full text when the preview is truncated; never remove stored evidence to simplify UI.
 - A number carries its unit where it is read: a duration is formatted (`formatDuration`), not printed as bare minutes,
   unless the column header already names the unit.
 

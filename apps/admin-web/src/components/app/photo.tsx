@@ -23,6 +23,7 @@ export function PhotoThumb({
   loadLink,
   label,
   badge,
+  showCaption = true,
   onOpen,
   className,
 }: {
@@ -31,6 +32,8 @@ export function PhotoThumb({
   readonly label: string;
   /** Short marker drawn over the image (quality, "after"). */
   readonly badge?: string;
+  /** Hide redundant visible metadata while retaining accessible and lightbox labels. */
+  readonly showCaption?: boolean;
   readonly onOpen?: (url: string) => void;
   readonly className?: string;
 }) {
@@ -71,9 +74,14 @@ export function PhotoThumb({
           <ExpandIcon className="size-4" aria-hidden="true" />
         </span>
       </button>
-      <figcaption className="line-clamp-2 text-xs leading-snug text-muted-foreground" title={label}>
-        {label}
-      </figcaption>
+      {showCaption && (
+        <figcaption
+          className="line-clamp-2 text-xs leading-snug text-muted-foreground"
+          title={label}
+        >
+          {label}
+        </figcaption>
+      )}
     </figure>
   );
 }

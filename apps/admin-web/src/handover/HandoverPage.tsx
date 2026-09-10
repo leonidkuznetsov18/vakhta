@@ -238,14 +238,12 @@ export function HandoverPage() {
               </ul>
             </div>
           )}
-          <div>
-            <h3 className="mb-2 flex items-center gap-1 text-sm font-semibold">
-              {h.photos}
-              <Muted className="font-normal">({detail.handover.photos.length})</Muted>
-              <InfoTip text={hints.handoverPhoto} />
-            </h3>
-            {/* The count in the heading already says there are none. */}
-            {detail.handover.photos.length === 0 ? null : (
+          {detail.handover.photos.length > 0 && (
+            <div>
+              <h3 className="mb-2 flex items-center gap-1 text-sm font-semibold">
+                {h.photos}
+                <InfoTip text={hints.handoverPhoto} />
+              </h3>
               <div className="grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
                 {detail.handover.photos.map((p) => (
                   <PhotoThumb
@@ -267,14 +265,17 @@ export function HandoverPage() {
                   />
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
           {detail.resolutions.length > 0 && (
             <ul className="flex flex-col gap-3 text-sm">
               {detail.resolutions.map((resolution) => (
                 <li key={resolution.id}>
-                  <strong>{h.shown[SHOWN_AS[resolution.decision]]}</strong>
-                  <Muted> · {formatDateTime(resolution.at)}</Muted>
+                  {(detail.resolutions.length > 1 ||
+                    SHOWN_AS[resolution.decision] !== SHOWN_AS[row.status]) && (
+                    <strong>{h.shown[SHOWN_AS[resolution.decision]]} · </strong>
+                  )}
+                  <Muted>{formatDateTime(resolution.at)}</Muted>
                   <DetailText label={h.remarkComment} text={resolution.comment} />
                 </li>
               ))}

@@ -96,3 +96,23 @@ inspected; month/year modes contained no day grid. Production publication is che
 Source: [DayPicker range selection](https://daypicker.dev/docs/selection-modes/).
 Lean: Proceed. The selection surface now matches the requested unit; applying once avoids unnecessary
 requests while selecting endpoints. No production activity or worker messages were created for QA.
+
+## 2026-09-10 — Details without repeated preview metadata
+
+The incident detail view model suppresses the first report's matching author/opening time, redundant
+photo captions and an empty initial REPORTED history entry already represented by the row. Additional
+reports retain their identity/time. A legacy comment already present in a report/history is shown once.
+Read-only current cause/solution remain available in full below truncated previews; matching history
+values and missing-value placeholders are omitted. Unique older decisions and comments remain visible.
+Photo accessible labels and lightbox labels are unchanged. No stored reports/history are modified.
+
+Handover details omit the repeated photo count, empty photo section and a single decision label that
+already matches the preview. Multiple historical decisions retain their labels. Request/shift details
+already contain additional evidence/actions rather than repeated static identity fields. Editable
+forms remain complete; deduplication does not remove fields needed to make a decision.
+
+Verification: 18 focused incident/model/handover tests passed; panel typecheck and changed-code lint
+passed. Actual shared components were captured and inspected at 390px and 1440px with synthetic data:
+no repeated photo caption, no horizontal page overflow, full decision text remains readable.
+Lean: Proceed. Reduce repeated reading while preserving evidence and complete prose; no extra worker
+input. Production verification is recorded separately after CI publication.
