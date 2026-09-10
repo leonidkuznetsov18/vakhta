@@ -1,3 +1,14 @@
+## [0.80.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.80.0...v0.80.1) (2026-09-10)
+
+### Bug fixes
+
+* **photo-inspection:** enable image panning by default ([774e873](https://github.com/leonidkuznetsov18/vakhta/commit/774e873a4f8329f3787d48f7276f3d13e1246208))
+* **photo-inspection:** remove redundant selection button ([a699fdd](https://github.com/leonidkuznetsov18/vakhta/commit/a699fdd472f6712ab096a69e7567aa972c51d57f))
+
+### Maintenance
+
+* **release:** integrate published v0.80.0 metadata ([738a74c](https://github.com/leonidkuznetsov18/vakhta/commit/738a74c2f77d25165afeb20c96ef576f7ee15dc8))
+
 ## [0.80.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.79.1...v0.80.0) (2026-09-10)
 
 ### Features
