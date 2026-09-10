@@ -348,3 +348,13 @@ changed the annotation bounds while image scroll remained fixed. Native two-touc
 the image from 100% to 200%, with browser page scale remaining 1. Desktop 1440x1000 and mobile 390x844
 screenshots were captured and visually inspected. Lean: proceed; removes an unnecessary activation
 step while preserving annotation editing. Automatic-review groundwork remains a separate pending task.
+
+## Remove explicit selection action — 2026-09-11
+
+Remove Select region from the toolbar; selection and background panning remain the default mode.
+Rectangle and Polygon now toggle off when pressed again, cancelling drawing through the existing
+canvas adapter. Successful drawing still returns to selection automatically. Localized tooltips explain
+cancellation; no annotation data or persistence behavior changes. Twelve focused editor tests, panel
+type-check and focused lint passed. Desktop/mobile screenshots were visually inspected, and browser
+interaction confirmed the active drawing tool toggles back to neutral. Lean: proceed; fewer controls,
+with a retained exit from drawing so removal does not create a dead end.

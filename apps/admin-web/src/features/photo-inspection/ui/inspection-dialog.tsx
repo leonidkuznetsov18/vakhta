@@ -9,7 +9,6 @@ import { ApiError } from '@/api';
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
-  MousePointer2Icon,
   SquareIcon,
   PentagonIcon,
   SquarePlusIcon,
@@ -53,7 +52,7 @@ import { AnalyzeButton } from './analyze-button';
 import '@annotorious/annotorious/annotorious.css';
 
 const t = messages(currentLocale()).photoInspection;
-const toolIcons = { select: MousePointer2Icon, rectangle: SquareIcon, polygon: PentagonIcon };
+const toolIcons = { rectangle: SquareIcon, polygon: PentagonIcon };
 const errorText = (error: unknown) =>
   error instanceof ApiError && error.code === 'INSPECTION_CONFLICT'
     ? t.conflict
@@ -260,7 +259,7 @@ function InspectionSession({
       <div className="flex flex-wrap gap-2">
         {initial.canEdit && (
           <>
-            {(['select', 'rectangle', 'polygon'] as const).map((tool) => (
+            {(['rectangle', 'polygon'] as const).map((tool) => (
               <IconButton
                 icon={toolIcons[tool]}
                 label={t[tool]}
@@ -270,7 +269,7 @@ function InspectionSession({
                 variant={state.tool === tool ? 'default' : 'outline'}
                 disabled={busy || state.imageStatus !== 'ready'}
                 aria-pressed={state.tool === tool}
-                onClick={() => editor.tool(tool)}
+                onClick={() => editor.toggleDrawingTool(tool)}
               >
                 {t[tool]}
               </IconButton>

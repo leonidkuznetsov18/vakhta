@@ -224,6 +224,10 @@ export class InspectionEditor {
     this.store.setState({ selected: null });
     return true;
   }
+  toggleDrawingTool(tool: 'rectangle' | 'polygon'): void {
+    if (this.locked || !this.initial.canEdit) return;
+    this.tool(this.store.getState().tool === tool ? 'select' : tool);
+  }
   tool(tool: EditorState['tool']): void {
     this.canvas?.cancelDrawing();
     const drawing = tool === 'rectangle' || tool === 'polygon';

@@ -124,6 +124,20 @@ describe('photo inspection form and geometry', () => {
     reader.acceptSuggestion(run, 0);
     expect(reader.store.getState().review.annotations).toHaveLength(0);
   });
+  it('returns to default selection by toggling the active drawing tool without changing review data', () => {
+    const editor = new InspectionEditor(view);
+    expect(editor.store.getState().tool).toBe('select');
+    editor.toggleDrawingTool('rectangle');
+    expect(editor.store.getState().tool).toBe('rectangle');
+    editor.toggleDrawingTool('polygon');
+    expect(editor.store.getState().tool).toBe('polygon');
+    editor.toggleDrawingTool('polygon');
+    expect(editor.store.getState().tool).toBe('select');
+    editor.lock();
+    editor.toggleDrawingTool('rectangle');
+    expect(editor.store.getState().tool).toBe('select');
+    expect(hasReviewChanges(editor.store.getState())).toBe(false);
+  });
   it('counts changes relative to the saved review and removes reverted changes', () => {
     const editor = new InspectionEditor(view);
     editor.change({ comment: 'A draft', guidance: 'Keep clear' });

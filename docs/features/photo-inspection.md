@@ -77,7 +77,8 @@ save. Editing text, read-only access and pending operations do not permit shortc
 
 In the inspection editor, the wheel zooms around the cursor (100–500%), including trackpad pinch
 wheel events. Default selection mode also enables background dragging and one-/two-finger pan and pinch;
-no activation button is needed. Annotation shapes and handles retain selection/editing. Middle-button
+no activation button is needed. Annotation shapes and handles retain selection/editing. There is no separate Select region button;
+pressing the active Rectangle/Polygon tool again cancels drawing and restores default selection/pan. Middle-button
 dragging pans in any annotation mode. Drawing/selecting remains owned by the annotation tools; return
 to one of those tools to edit regions. Native scrollbars and keyboard scrolling remain available.
 Only the photo and its annotation overlay transform; other form controls keep their size and position.
