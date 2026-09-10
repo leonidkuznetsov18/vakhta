@@ -11,6 +11,7 @@ import { Muted } from '@/components/app/page';
 import { currentLocale } from '@/i18n';
 import { keys } from '@/lib/query';
 import { cn } from 'cn';
+import { ZoomablePhoto } from '@/shared/ui/zoomable-photo';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 type LinkLoader = (mediaId: string) => Promise<{ url: string }>;
@@ -126,7 +127,7 @@ export function Lightbox({
       <DialogContent
         className="sm:max-w-5xl"
         onKeyDown={(e) => {
-          if (!gallery) return;
+          if (!gallery || e.defaultPrevented) return;
           if (e.key === 'ArrowRight') step(1);
           if (e.key === 'ArrowLeft') step(-1);
         }}
@@ -143,14 +144,7 @@ export function Lightbox({
         </DialogHeader>
         <div className={cn('grid gap-3', shown.length > 1 && 'md:grid-cols-2')}>
           {shown.map((img) => (
-            <figure key={img.url} className="flex flex-col gap-1">
-              <img
-                src={img.url}
-                alt={img.label}
-                className="max-h-[70vh] w-full rounded-md object-contain"
-              />
-              <figcaption className="text-sm text-muted-foreground">{img.label}</figcaption>
-            </figure>
+            <ZoomablePhoto key={img.url} url={img.url} label={img.label} />
           ))}
         </div>
         {gallery && (

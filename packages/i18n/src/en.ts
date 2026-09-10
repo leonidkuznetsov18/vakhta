@@ -870,6 +870,11 @@ export const en: Messages = {
       noPhotos: 'No photos.',
       prevPhoto: 'Previous photo',
       nextPhoto: 'Next photo',
+      zoomIn: 'Zoom in',
+      zoomOut: 'Zoom out',
+      resetZoom: 'Reset zoom',
+      zoomLevel: 'Zoom level',
+      zoomHint: 'Zoom: + / − or pinch. Pan: drag or arrow keys. Reset: 0.',
       photoCounter: '{index} of {total}',
     },
     requests: {

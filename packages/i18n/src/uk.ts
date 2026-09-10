@@ -870,6 +870,12 @@ export const uk: Messages = {
       noPhotos: 'Фото немає.',
       prevPhoto: 'Попереднє фото',
       nextPhoto: 'Наступне фото',
+      zoomIn: 'Збільшити',
+      zoomOut: 'Зменшити',
+      resetZoom: 'Скинути масштаб',
+      zoomLevel: 'Масштаб',
+      zoomHint:
+        'Масштаб: + / − або жест двома пальцями. Переміщення: перетягування або стрілки. Скинути: 0.',
       photoCounter: '{index} з {total}',
     },
     requests: {

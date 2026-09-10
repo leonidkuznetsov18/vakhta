@@ -734,6 +734,11 @@ export interface Messages {
       readonly noPhotos: string;
       readonly prevPhoto: string;
       readonly nextPhoto: string;
+      readonly zoomIn: string;
+      readonly zoomOut: string;
+      readonly resetZoom: string;
+      readonly zoomLevel: string;
+      readonly zoomHint: string;
       /** Placeholders: {index}, {total} */
       readonly photoCounter: string;
     };

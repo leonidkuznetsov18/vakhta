@@ -867,6 +867,12 @@ export const ru: Messages = {
       noPhotos: 'Фото нет.',
       prevPhoto: 'Предыдущее фото',
       nextPhoto: 'Следующее фото',
+      zoomIn: 'Увеличить',
+      zoomOut: 'Уменьшить',
+      resetZoom: 'Сбросить масштаб',
+      zoomLevel: 'Масштаб',
+      zoomHint:
+        'Масштаб: + / − или жест двумя пальцами. Перемещение: перетаскивание или стрелки. Сбросить: 0.',
       photoCounter: '{index} из {total}',
     },
     requests: {
