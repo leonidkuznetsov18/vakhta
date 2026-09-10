@@ -76,7 +76,7 @@ export const EnvSchema = z.object({
   /** Вікно, в якому повідомлення тієї ж зони й причини лінкуються до одного інциденту (FR-DWN-04). */
   /** Нагадування про прибирання до планового кінця (FR-CLN-01); вікно приймання (ТЗ 18 п. 11). */
   CLEANING_REMINDER_MINUTES: z.coerce.number().int().positive().default(30),
-  HANDOVER_REVIEW_WINDOW_MINUTES: z.coerce.number().int().positive().default(30),
+  HANDOVER_REVIEW_WINDOW_MINUTES: z.coerce.number().int().positive().default(120),
   /** End-of-day auto-close: how long after the planned end a still-open shift is closed, and how
    * often the driver scans for such shifts (2026-09-08, QR-to-QR shift lifecycle). */
   AUTO_CLOSE_GRACE_MINUTES: z.coerce.number().int().positive().default(120),

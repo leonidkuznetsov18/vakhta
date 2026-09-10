@@ -1,6 +1,9 @@
+import { readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   backgroundTasks,
+  auditLog,
+  shiftSessions,
   checklistDefinitionPositions,
   checklistDefinitions,
   domainEvents,
@@ -140,7 +143,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
       media,
       repository,
       new HandoverChanges(),
-      { reviewWindowMinutes: 30 },
+      { reviewWindowMinutes: 120 },
     );
 
     const [site] = await testDb.db
@@ -774,5 +777,86 @@ describe('handover: прибирання, чек-лист, фото, перед�
     expect((await timerJobs()).map((row) => row.jobId.split('.')[0])).toEqual([
       'cleaning-reminder',
     ]);
+  });
+  it('anchors unscheduled review to the session plan and becomes overdue strictly after the deadline', async () => {
+    await toHandover(dayEmployee);
+    await fillAll(dayEmployee);
+    const end = new Date(Date.now() - 90 * 60_000);
+    await testDb.db
+      .update(shiftSessions)
+      .set({ assignmentId: null, planEndAt: end })
+      .where(eq(shiftSessions.employeeId, dayEmployee));
+    const submitted = await handover.submit(
+      dayEmployee,
+      { idempotencyKey: key() },
+      employeeActor(dayEmployee),
+    );
+    const deadline = new Date(end.getTime() + 120 * 60_000);
+    expect(submitted.handover.acceptDeadlineAt).toBe(deadline.toISOString());
+    expect(await handover.list({ scope: 'overdue' }, deadline)).toHaveLength(0);
+    expect((await handover.list({ scope: 'pending' }, deadline))[0]?.overdue).toBe(false);
+    const after = new Date(deadline.getTime() + 1);
+    expect((await handover.list({ scope: 'overdue' }, after))[0]?.overdue).toBe(true);
+    await testDb.db
+      .update(handoverRecords)
+      .set({ status: 'DISPUTED' })
+      .where(eq(handoverRecords.id, submitted.handover.id));
+    expect(await handover.list({ scope: 'overdue' }, after)).toHaveLength(1);
+    await handover.resolve(
+      submitted.handover.id,
+      { decision: 'RESOLVED_ACCEPTED', comment: 'Checked and approved' },
+      MASTER,
+      after,
+    );
+    expect(await handover.list({ scope: 'overdue' }, after)).toHaveLength(0);
+  });
+
+  it('migrates pending review deadlines once with audit and preserves completed reports', async () => {
+    await toHandover(dayEmployee);
+    await fillAll(dayEmployee);
+    const submitted = await handover.submit(
+      dayEmployee,
+      { idempotencyKey: key() },
+      employeeActor(dayEmployee),
+    );
+    const oldDeadline = new Date('2026-09-01T17:30:00Z');
+    const [record] = await testDb.db
+      .update(handoverRecords)
+      .set({ acceptDeadlineAt: oldDeadline })
+      .where(eq(handoverRecords.id, submitted.handover.id))
+      .returning();
+    if (!record) throw new Error('Missing fixture');
+    const { id, ...completedFields } = record;
+    const [completed] = await testDb.db
+      .insert(handoverRecords)
+      .values({ ...completedFields, status: 'RESOLVED_ACCEPTED' })
+      .returning();
+    const migration = await readFile(
+      new URL('../../../../packages/db/drizzle/0030_handover_review_deadline.sql', import.meta.url),
+      'utf8',
+    );
+    for (let run = 0; run < 2; run++) {
+      await testDb.db.transaction(async (tx) => {
+        for (const statement of migration.split('--> statement-breakpoint'))
+          await tx.execute(sql.raw(statement));
+      });
+    }
+    const [pending] = await testDb.db
+      .select()
+      .from(handoverRecords)
+      .where(eq(handoverRecords.id, id));
+    expect(pending?.acceptDeadlineAt?.toISOString()).toBe(
+      new Date(planEnd.getTime() + 120 * 60_000).toISOString(),
+    );
+    if (!completed) throw new Error('Missing completed fixture');
+    const [unchanged] = await testDb.db
+      .select()
+      .from(handoverRecords)
+      .where(eq(handoverRecords.id, completed.id));
+    expect(unchanged?.acceptDeadlineAt).toEqual(oldDeadline);
+    const audits = await testDb.db.select().from(auditLog).where(eq(auditLog.objectId, id));
+    expect(
+      audits.filter((entry) => entry.action === 'handover.review_deadline_migrated'),
+    ).toHaveLength(1);
   });
 });

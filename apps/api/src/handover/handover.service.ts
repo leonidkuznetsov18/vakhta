@@ -16,6 +16,7 @@ import {
   idempotencyKeys,
   inArray,
   isNull,
+  lt,
   lte,
   mediaObjects,
   ne,
@@ -755,8 +756,8 @@ export class HandoverService {
       conditions.push(inArray(handoverRecords.status, ['SUBMITTED', 'DISPUTED']));
     if (scope === 'overdue')
       conditions.push(
-        eq(handoverRecords.status, 'SUBMITTED'),
-        lte(handoverRecords.acceptDeadlineAt, now),
+        inArray(handoverRecords.status, ['SUBMITTED', 'DISPUTED']),
+        lt(handoverRecords.acceptDeadlineAt, now),
       );
     if (scope === 'all') conditions.push(ne(handoverRecords.status, 'DRAFT'));
     // A day is the shift's business date, not the calendar day the report happened to be sent on:
@@ -789,9 +790,9 @@ export class HandoverService {
         ...rest,
         remarks: items.filter((i) => i.answered && i.ok === false).length,
         overdue:
-          base.status === 'SUBMITTED' &&
+          (base.status === 'SUBMITTED' || base.status === 'DISPUTED') &&
           base.acceptDeadlineAt !== null &&
-          new Date(base.acceptDeadlineAt).getTime() <= now.getTime(),
+          new Date(base.acceptDeadlineAt).getTime() < now.getTime(),
         reviewDecision: review[0]?.decision ?? null,
       });
       void issues;
@@ -964,12 +965,15 @@ export class HandoverService {
 
   private async planEnd(tx: DbOrTx, sessionId: string): Promise<Date | null> {
     const [row] = await tx
-      .select({ planEndAt: shiftAssignments.planEndAt })
+      .select({
+        sessionPlanEnd: shiftSessions.planEndAt,
+        assignmentPlanEnd: shiftAssignments.planEndAt,
+      })
       .from(shiftSessions)
-      .innerJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
+      .leftJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
       .where(eq(shiftSessions.id, sessionId))
       .limit(1);
-    return row?.planEndAt ?? null;
+    return row?.sessionPlanEnd ?? row?.assignmentPlanEnd ?? null;
   }
 
   /** The unit the employee is assigned to right now; null while they have no open position. */

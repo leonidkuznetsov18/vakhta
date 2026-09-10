@@ -160,7 +160,7 @@ describe('життєвий цикл передачі (ТЗ 5.9, FR-HND-*)', () =
     const planEnd = new Date('2026-09-07T17:00:00Z');
     expect(acceptDeadline(submitted, planEnd, 30).toISOString()).toBe('2026-09-07T17:30:00.000Z');
     expect(acceptDeadline(new Date('2026-09-07T17:10:00Z'), planEnd, 30).toISOString()).toBe(
-      '2026-09-07T17:40:00.000Z',
+      '2026-09-07T17:30:00.000Z',
     );
     expect(acceptDeadline(submitted, null, 30).toISOString()).toBe('2026-09-07T17:00:00.000Z');
   });
@@ -177,5 +177,21 @@ describe('життєвий цикл передачі (ТЗ 5.9, FR-HND-*)', () =
         },
       ),
     );
+  });
+  it('keeps day and night review deadlines fixed even for late submissions', () => {
+    const dayEnd = new Date('2026-09-10T17:00:00Z');
+    expect(acceptDeadline(new Date('2026-09-10T18:33:00Z'), dayEnd, 120).toISOString()).toBe(
+      '2026-09-10T19:00:00.000Z',
+    );
+    expect(acceptDeadline(new Date('2026-09-10T20:15:00Z'), dayEnd, 120).toISOString()).toBe(
+      '2026-09-10T19:00:00.000Z',
+    );
+    expect(
+      acceptDeadline(
+        new Date('2026-09-11T05:33:00Z'),
+        new Date('2026-09-11T05:00:00Z'),
+        120,
+      ).toISOString(),
+    ).toBe('2026-09-11T07:00:00.000Z');
   });
 });

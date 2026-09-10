@@ -79,14 +79,14 @@ export function canReview(reviewerEmployeeId: string, submittedBy: string): bool
 }
 
 /**
- * Строк приймання (FR-HND-06): наступна зміна перевіряє зону до основної роботи; якщо приймаючого
- * немає до дедлайну, зона переходить майстру. Дедлайн = кінець зміни здавача + вікно.
+ * Master review deadline is anchored to the shift plan, even when the report arrives late.
+ * Missing historical plans fall back to submission time; they must not invent a shift boundary.
  */
 export function acceptDeadline(
   submittedAt: Date,
   planEndAt: Date | null,
   reviewWindowMinutes: number,
 ): Date {
-  const base = planEndAt && planEndAt.getTime() > submittedAt.getTime() ? planEndAt : submittedAt;
+  const base = planEndAt ?? submittedAt;
   return new Date(base.getTime() + reviewWindowMinutes * 60_000);
 }

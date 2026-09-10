@@ -54,3 +54,10 @@ A master must enter a comment before selecting **Remark**. The same text is stor
 resolution and delivered through the existing Telegram outbox to the employee who submitted the
 report. Opening the table row shows the saved decision, timestamp and comment beside the checklist
 and photos. Completed reports show read-only information without decision fields or submit buttons.
+
+### Master review deadline
+
+Day reports are reviewed by 22:00; night reports by 10:00 the following day, in the site timezone.
+The deadline is scheduled shift end plus two hours, independent of submission time. Pending reports
+become overdue only after that instant. Final decisions retain an absolute deadline without a running
+lateness indicator. Historical completed reports are not rewritten by the deadline migration.

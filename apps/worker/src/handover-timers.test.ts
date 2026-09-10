@@ -1,5 +1,7 @@
+import { readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  backgroundTasks,
   checklistDefinitions,
   domainEvents,
   employees,
@@ -102,6 +104,64 @@ describe('worker: тайм-аут приймання і нагадування �
       .from(domainEvents)
       .where(eq(domainEvents.shiftSessionId, sessionId));
     expect(events.map((e) => e.type)).toContain('HANDOVER_TIMEOUT');
+  });
+
+  it('reschedules a legacy durable timeout with the migrated review deadline', async () => {
+    const end = new Date('2026-09-10T17:00:00.000Z');
+    const old = new Date('2026-09-10T17:30:00.000Z');
+    const deadline = new Date('2026-09-10T19:00:00.000Z');
+    await testDb.db
+      .update(shiftSessions)
+      .set({ planEndAt: end })
+      .where(eq(shiftSessions.id, sessionId));
+    const [record] = await testDb.db
+      .insert(handoverRecords)
+      .values({
+        shiftSessionId: sessionId,
+        zoneId,
+        submittedBy: employeeId,
+        checklistDefinitionId: definitionId,
+        status: 'SUBMITTED',
+        submittedAt: end,
+        acceptDeadlineAt: old,
+      })
+      .returning();
+    if (!record) throw new Error('Missing fixture');
+    await testDb.db.insert(backgroundTasks).values({
+      kind: 'HANDOVER_TIMEOUT',
+      dedupeKey: `handover-timeout.${record.id}`,
+      payload: { handoverId: record.id, fireAt: old.toISOString() },
+      dueAt: old,
+      availableAt: old,
+    });
+    const migration = await readFile(
+      new URL('../../../packages/db/drizzle/0030_handover_review_deadline.sql', import.meta.url),
+      'utf8',
+    );
+    await testDb.db.transaction(async (tx) => {
+      for (const statement of migration.split('--> statement-breakpoint'))
+        await tx.execute(sql.raw(statement));
+    });
+    const [task] = await testDb.db
+      .select()
+      .from(backgroundTasks)
+      .where(eq(backgroundTasks.dedupeKey, `handover-timeout.${record.id}`));
+    expect(task?.dueAt).toEqual(deadline);
+    expect(task?.payload.fireAt).toBe(deadline.toISOString());
+    expect(task?.status).toBe('PENDING');
+    await expect(
+      testDb.db
+        .update(backgroundTasks)
+        .set({ dueAt: old })
+        .where(eq(backgroundTasks.dedupeKey, `handover-timeout.${record.id}`)),
+    ).rejects.toThrow();
+
+    const job = { handoverId: record.id, fireAt: String(task?.payload.fireAt) };
+    expect(await handleHandoverTimeout(testDb.db, job, new Date(deadline.getTime() - 1))).toBe(
+      'stale',
+    );
+    expect(await handleHandoverTimeout(testDb.db, job, deadline)).toBe('queued');
+    expect(await handleHandoverTimeout(testDb.db, job, deadline)).toBe('duplicate');
   });
 
   it('дедлайн ще не настав або зону вже прийнято: нічого не робить', async () => {

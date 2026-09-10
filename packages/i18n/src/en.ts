@@ -2113,9 +2113,9 @@ export const en: Messages = {
       handoverDate:
         "Show the checklists of one shift. The day is the shift's business date: a night shift hands over after midnight and still belongs to the day it started.",
       handoverScope:
-        '"Pending" are reports without a receiver decision; "Overdue" were not accepted by the deadline.',
+        'Pending reports await a final master decision; overdue reports have passed their review deadline.',
       handoverDeadline:
-        'The receiving shift must check the zone by this time. Afterwards the handover goes to the master.',
+        'The master reviews day-shift reports by 22:00 and night-shift reports by 10:00 the following day, in site time. Late submission does not extend the deadline. Only reports without a final decision become overdue.',
       handoverDecision:
         'A formal decision on the dispute. It affects the handing employee score and is audited.',
       handoverPhoto: 'The photo link is signed and lives a few minutes; every view is audited.',
