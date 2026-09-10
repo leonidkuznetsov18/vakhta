@@ -1,3 +1,10 @@
+## [0.70.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.0...v0.70.1) (2026-09-10)
+
+### Refactoring
+
+* **admin-web:** the live-shift screen reads through the query cache ([da2ece2](https://github.com/leonidkuznetsov18/vakhta/commit/da2ece2f36ad7261a8e419ad1d3223b996b86dee))
+* **admin-web:** the losses report reads through the query cache ([324d29e](https://github.com/leonidkuznetsov18/vakhta/commit/324d29ec6d4e84a9d11608b7e2526e93c49ed931))
+
 ## [0.70.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.69.0...v0.70.0) (2026-09-09)
 
 ### Features
