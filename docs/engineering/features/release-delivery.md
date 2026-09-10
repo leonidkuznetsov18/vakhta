@@ -57,3 +57,25 @@ Proceed. A reliable displayed version reduces diagnosis and rechecking when a de
 Keep the existing release flow and employee experience. No claim of measured production-time savings
 is made. The regression criterion is that the same source resolves to the same release despite later
 tags; observe the actual subsequent CI result before calling the deployment verified.
+
+## 2026-09-10 — Release every successful master delivery
+
+Owner decision: each new successful master push must publish a version, including maintenance-only
+changes. The prior configuration explicitly suppressed docs/CI/chore/test/style, and custom type
+rules could hide breaking-change defaults. The actual commit-analyzer now selects explicit breaking
+major, feat minor, and a header fallback patch; the highest matching rule wins. Maintenance and build
+entries are visible in release notes. Conventional Commits remain required for meaningful changelogs.
+The tagged metadata commit remains `[skip ci]`; no new commits on rerun means no new version.
+
+The existing check → version/tag/GitHub release/changelog → images/Pages and Telegram announcement
+path is retained. Failed checks still block publishing. No manual release, token change or duplicate
+Telegram message is introduced. Existing source-bound version recovery remains covered.
+
+Verification: the installed analyzer and notes generator cover every supported type, unstructured
+fallback, breaking `!`/footer precedence, mixed deliveries, no commits and maintenance note visibility.
+The six existing Git-history resolver regressions are retained. Before this policy change, CI
+34501472459 completed successfully and published v0.71.1; previous failed/canceled runs were separate
+reasons a release did not appear. Live verification of this policy is recorded after its next CI run.
+
+Source: [commit-analyzer release rules](https://github.com/semantic-release/commit-analyzer#releaserules).
+Lean: Proceed. Predictable versioning reduces manual release diagnosis without adding worker actions.

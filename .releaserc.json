@@ -7,17 +7,9 @@
       {
         "preset": "conventionalcommits",
         "releaseRules": [
+          { "breaking": true, "release": "major" },
           { "type": "feat", "release": "minor" },
-          { "type": "fix", "release": "patch" },
-          { "type": "perf", "release": "patch" },
-          { "type": "refactor", "release": "patch" },
-          { "type": "config", "release": "patch" },
-          { "type": "infra", "release": "patch" },
-          { "type": "docs", "release": false },
-          { "type": "ci", "release": false },
-          { "type": "chore", "release": false },
-          { "type": "test", "release": false },
-          { "type": "style", "release": false }
+          { "header": "*", "release": "patch" }
         ]
       }
     ],
@@ -35,9 +27,11 @@
             { "type": "infra", "section": "Infrastructure" },
             { "type": "docs", "section": "Documentation", "hidden": false },
             { "type": "ci", "section": "CI/CD", "hidden": false },
-            { "type": "chore", "hidden": true },
+            { "type": "chore", "section": "Maintenance", "hidden": false },
             { "type": "test", "section": "Tests", "hidden": false },
-            { "type": "style", "hidden": true }
+            { "type": "style", "section": "Styles", "hidden": false },
+            { "type": "build", "section": "Build", "hidden": false },
+            { "type": "revert", "section": "Reverts", "hidden": false }
           ]
         }
       }

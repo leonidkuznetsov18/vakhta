@@ -139,7 +139,10 @@ Work only in `/Users/leonidkuznetsov/Projects/Personal/vakhta`. Commit only task
 verification, then push normally to `origin master`; never force-push. Preserve other sessions' edits
 and coordinate a single writer/index owner. If the remote advanced, inspect and integrate without
 resetting or rebasing someone else's work. Use English Conventional Commits and `CONTRIBUTING.md`.
-Keep one reviewable concern per commit. `refactor`, `config` and `infra` can trigger a release.
+Keep one reviewable concern per commit. Every new successful master delivery releases: breaking
+changes are major, `feat` is minor, all other changes are patch (including docs/ci/chore/test/style/build).
+Use Conventional Commits. Only the tagged release metadata commit uses `[skip ci]` to prevent recursion;
+do not suppress CI for ordinary changes. Reruns reuse the source release instead of inventing versions.
 
 **[G2]** Understand the full operational path: GitHub CI/release, Cloudflare hosting/DNS/storage,
 Railway services/deployments/logs, and Namecheap domain/email administration. Use authenticated tools

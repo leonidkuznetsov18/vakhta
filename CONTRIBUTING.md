@@ -27,8 +27,12 @@ Inspect remote divergence before integration and repeat affected checks when the
 
 Commit subjects follow `type(scope): outcome` in English. Existing types are `feat`, `fix`, `perf`,
 `refactor`, `config`, `infra`, `docs`, `ci`, `chore`, `test`, `style`, and conventional `build` where
-appropriate. `.releaserc.json` determines release behavior: feat is minor; fix/perf/refactor/config/infra
-are patch; docs/ci/chore/test/style do not release on their own. Breaking changes require an explicit
+appropriate. `.releaserc.json` releases every new successful master delivery: `feat` is minor;
+`!` / `BREAKING CHANGE:` is major; all other changes are patch, including docs, CI, tests and build.
+The highest bump across the delivery wins. Use Conventional Commits so the changelog explains each
+change. The tagged `chore(release)` metadata commit uses `[skip ci]` to prevent a release loop;
+rerunning an already released source must not create another version. Do not add `[skip ci]` to
+ordinary changes. Failed checks block publishing. Breaking changes require an explicit
 compatibility decision and `!` / `BREAKING CHANGE:` as appropriate. There is no commitlint hook yet.
 
 Use `docs/templates/change.md` for the handoff. Review a fixed diff before committing/pushing, link the
