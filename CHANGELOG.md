@@ -1,3 +1,9 @@
+## [0.73.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.72.0...v0.73.0) (2026-09-10)
+
+### Features
+
+* **admin:** select inclusive day month and year ranges ([23b1946](https://github.com/leonidkuznetsov18/vakhta/commit/23b1946c933bd86af382af444c0492845ecdfbd7))
+
 ## [0.72.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.71.2...v0.72.0) (2026-09-10)
 
 ### Features
