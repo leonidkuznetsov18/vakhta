@@ -582,19 +582,25 @@ describe('shift: машина станів зміни в транзакції (�
       .returning();
     await arrive(late!.id);
     // The employee never scanned the exit: the arrival is a day old when the next shift starts.
-    const yesterday = new Date(Date.now() - 24 * 3_600_000);
+    const now = new Date('2026-09-10T07:00:00.000Z');
+    const yesterday = new Date(now.getTime() - 24 * 3_600_000);
     await testDb.db
       .update(presenceSessions)
       .set({ arrivedAt: yesterday })
       .where(and(eq(presenceSessions.employeeId, late!.id), eq(presenceSessions.status, 'OPEN')));
 
-    const started = await service.start(late!.id, { idempotencyKey: key() }, meta(late!.id));
+    const started = await service.start(
+      late!.id,
+      { idempotencyKey: key() },
+      { ...meta(late!.id), now },
+    );
     expect(started.ok).toBe(true);
     if (!started.ok) return;
     // Taken from that stale arrival, the shift was born with a window that had already ended, and
     // the end-of-day job closed it a minute after it opened.
-    expect(started.session.businessDate).toBe(businessDateOf(new Date(), 'Europe/Kyiv'));
-    expect(new Date(started.session.planEndAt!).getTime()).toBeGreaterThan(Date.now());
+    expect(started.session.businessDate).toBe(businessDateOf(now, 'Europe/Kyiv'));
+    expect(started.session.planStartAt).toBe('2026-09-10T05:00:00.000Z');
+    expect(started.session.planEndAt).toBe('2026-09-10T17:00:00.000Z');
   });
 
   it('QR→QR: працівник без графіка все одно відкриває позапланову зміну з вікном за шаблоном', async () => {

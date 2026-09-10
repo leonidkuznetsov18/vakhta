@@ -79,3 +79,10 @@ reasons a release did not appear. Live verification of this policy is recorded a
 
 Source: [commit-analyzer release rules](https://github.com/semantic-release/commit-analyzer#releaserules).
 Lean: Proceed. Predictable versioning reduces manual release diagnosis without adding worker actions.
+
+## 2026-09-10 — Deterministic stale-presence regression
+
+CI run 34505725780 failed after 20:00 Kyiv because the stale-presence regression compared the seeded
+day-only template end against the live wall clock. The test now supplies an explicit 10:00 Kyiv
+command time and asserts exact same-day 08:00–20:00 boundaries. Production shift logic is unchanged.
+The targeted PostgreSQL integration regression passed; full CI remains the delivery gate.
