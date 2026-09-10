@@ -1375,6 +1375,10 @@ export interface Messages {
       readonly sortDesc: string;
       readonly noMatches: string;
       readonly closePanel: string;
+      readonly howItWorksHint: string;
+      readonly faqHint: string;
+      readonly openGuideHint: string;
+      readonly retryHint: string;
       readonly howItWorks: string;
       readonly faq: string;
       /** Placeholder: {section} */

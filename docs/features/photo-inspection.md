@@ -55,3 +55,8 @@ A full, printable HTML guide and a silent 60-second illustrative video are avail
 English and Russian at `/guides/photo-inspection.{uk,en,ru}.html`. The video explains concepts with
 synthetic workplace drawings; it is not a recording or an accuracy claim. Text remains available
 without video playback. Training is explicitly a future, separately evaluated stage.
+
+Every photo-editor action includes an icon, its existing label and a short explanatory tooltip.
+Disabled actions still expose their explanation to keyboard users. Information icons beside fields
+explain the expected input, including rectangle coordinates; on a phone, tap the information icon.
+The Ukrainian interface uses Ukrainian explanations, with equivalent English and Russian catalogs.

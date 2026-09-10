@@ -1,7 +1,7 @@
 import { useIsMutating } from '@tanstack/react-query';
 import { messages } from '@vakhta/i18n';
-import { AlertCircleIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { AlertCircleIcon, RefreshCwIcon } from 'lucide-react';
+import { IconButton } from '@/shared/ui/icon-button';
 import { LoadingState } from '@/shared/ui/loading-state';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { currentLocale } from '@/i18n';
@@ -24,7 +24,10 @@ export function QueryFeedback({ query }: { query: QueryFeedbackState }) {
       <Alert variant="destructive" role="alert" className="max-w-2xl">
         <AlertCircleIcon />
         <AlertTitle>{readError(query.error)}</AlertTitle>
-        <Button
+        <IconButton
+          icon={RefreshCwIcon}
+          label={t.retry}
+          tooltip={t.retryHint}
           type="button"
           variant="outline"
           size="sm"
@@ -33,7 +36,7 @@ export function QueryFeedback({ query }: { query: QueryFeedbackState }) {
           onClick={() => void query.refetch()}
         >
           {query.isFetching ? <LoadingState label={t.loading} /> : t.retry}
-        </Button>
+        </IconButton>
       </Alert>
     );
   if (query.fetchStatus === 'paused')

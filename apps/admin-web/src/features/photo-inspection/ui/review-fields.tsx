@@ -3,7 +3,8 @@ import { InspectionCategory, InspectionReview } from '@vakhta/contracts';
 import type { InspectionEditor } from '../model/editor';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
-import { Button } from '@/components/ui/button';
+import { FocusIcon, Trash2Icon } from 'lucide-react';
+import { IconButton } from '@/shared/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { FormField, SelectField } from '@/components/app/fields';
@@ -15,11 +16,12 @@ export function EditableReview({ editor, busy }: { editor: InspectionEditor; bus
     <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
       <SelectField
         label={t.status}
+        hint={t.hints.status}
         value={state.review.status}
         onChange={(value) => editor.change({ status: InspectionReview.shape.status.parse(value) })}
         options={Object.entries(t.statuses).map(([value, label]) => ({ value, label }))}
       />
-      <FormField label={t.reviewComment}>
+      <FormField label={t.reviewComment} hint={t.hints.reviewComment}>
         {(id) => (
           <Textarea
             id={id}
@@ -38,11 +40,20 @@ export function EditableReview({ editor, busy }: { editor: InspectionEditor; bus
             key={annotation.id}
             className={`min-w-0 rounded-md border p-3 ${state.selected === annotation.id ? 'border-primary' : ''}`}
           >
-            <Button variant="ghost" size="sm" onClick={() => editor.select(annotation.id)}>
+            <IconButton
+              icon={FocusIcon}
+              label={`${index + 1}. ${t.categories[annotation.category]}`}
+              tooltip={t.hints.selectRegion}
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => editor.select(annotation.id)}
+            >
               {index + 1}. {t.categories[annotation.category]}
-            </Button>
+            </IconButton>
             <SelectField
               label={t.category}
+              hint={t.hints.category}
               value={annotation.category}
               onChange={(value) =>
                 editor.editAnnotation(annotation.id, {
@@ -54,7 +65,7 @@ export function EditableReview({ editor, busy }: { editor: InspectionEditor; bus
                 label,
               }))}
             />
-            <FormField label={t.comment}>
+            <FormField label={t.comment} hint={t.hints.comment}>
               {(id) => (
                 <Textarea
                   id={id}
@@ -71,36 +82,50 @@ export function EditableReview({ editor, busy }: { editor: InspectionEditor; bus
                 <summary className="cursor-pointer text-xs">{t.coordinates}</summary>
                 <fieldset className="grid grid-cols-2 gap-2">
                   {(['x', 'y', 'width', 'height'] as const).map((field) => (
-                    <label key={field} className="text-xs">
-                      {t.coordinateLabels[field]}
-                      <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={1}
-                        value={
-                          annotation.geometry.type === 'RECTANGLE'
-                            ? Number((annotation.geometry[field] * 100).toFixed(2))
-                            : 0
-                        }
-                        onChange={(e) =>
-                          editor.coordinates(annotation.id, field, e.target.valueAsNumber / 100)
-                        }
-                      />
-                    </label>
+                    <FormField
+                      key={field}
+                      label={t.coordinateLabels[field]}
+                      hint={t.hints.coordinates[field]}
+                    >
+                      {(id) => (
+                        <Input
+                          id={id}
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={
+                            annotation.geometry.type === 'RECTANGLE'
+                              ? Number((annotation.geometry[field] * 100).toFixed(2))
+                              : 0
+                          }
+                          onChange={(e) =>
+                            editor.coordinates(annotation.id, field, e.target.valueAsNumber / 100)
+                          }
+                        />
+                      )}
+                    </FormField>
                   ))}
                 </fieldset>
               </details>
             )}
             {
-              <Button size="sm" variant="ghost" onClick={() => editor.remove(annotation.id)}>
+              <IconButton
+                icon={Trash2Icon}
+                label={t.remove}
+                tooltip={t.hints.remove}
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => editor.remove(annotation.id)}
+              >
                 {t.remove}
-              </Button>
+              </IconButton>
             }
           </div>
         ))}
       </div>
-      <FormField label={t.guidance}>
+      <FormField label={t.guidance} hint={t.guidanceHint}>
         {(id) => (
           <Textarea
             id={id}
@@ -128,9 +153,16 @@ export function ReadOnlyReview({
       <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words">{review.comment}</p>
       {review.annotations.map((a, index) => (
         <div key={a.id} className="rounded-md border p-3">
-          <Button size="sm" variant="ghost" onClick={() => select(a.id)}>
+          <IconButton
+            icon={FocusIcon}
+            label={`${index + 1}. ${t.categories[a.category]}`}
+            tooltip={t.hints.selectRegion}
+            size="sm"
+            variant="ghost"
+            onClick={() => select(a.id)}
+          >
             {index + 1}. {t.categories[a.category]}
-          </Button>
+          </IconButton>
           <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words">{a.comment}</p>
         </div>
       ))}

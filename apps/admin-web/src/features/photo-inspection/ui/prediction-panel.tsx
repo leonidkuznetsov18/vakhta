@@ -2,7 +2,8 @@ import type { PhotoInspectionView } from '@vakhta/contracts';
 import type { InspectionEditor } from '../model/editor';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
-import { Button } from '@/components/ui/button';
+import { CopyPlusIcon } from 'lucide-react';
+import { IconButton } from '@/shared/ui/icon-button';
 const t = messages(currentLocale()).photoInspection;
 
 export function PredictionPanel({
@@ -39,14 +40,17 @@ export function PredictionPanel({
             {finding.comment}
           </p>
           {finding.geometry ? (
-            <Button
+            <IconButton
+              icon={CopyPlusIcon}
+              label={t.accept}
+              tooltip={t.hints.accept}
               size="sm"
               variant="outline"
               disabled={disabled}
               onClick={() => editor.accept(finding, run.id)}
             >
               {t.accept}
-            </Button>
+            </IconButton>
           ) : (
             <p>{t.noGeometry}</p>
           )}

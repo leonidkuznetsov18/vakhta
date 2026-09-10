@@ -5,7 +5,22 @@ import { type HandoverPhotoView, type PhotoInspectionView } from '@vakhta/contra
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { ApiError } from '@/api';
-import { Button } from '@/components/ui/button';
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  MousePointer2Icon,
+  SquareIcon,
+  PentagonIcon,
+  SquarePlusIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+  DownloadIcon,
+  ExternalLinkIcon,
+  RefreshCwIcon,
+  SaveIcon,
+  XIcon,
+} from 'lucide-react';
+import { IconButton } from '@/shared/ui/icon-button';
 import { HowItWorks } from '@/components/app/how-it-works';
 import {
   Dialog,
@@ -30,6 +45,7 @@ import { AnalyzeButton } from './analyze-button';
 import '@annotorious/annotorious/annotorious.css';
 
 const t = messages(currentLocale()).photoInspection;
+const toolIcons = { select: MousePointer2Icon, rectangle: SquareIcon, polygon: PentagonIcon };
 const errorText = (error: unknown) =>
   error instanceof ApiError && error.code === 'INSPECTION_CONFLICT'
     ? t.conflict
@@ -80,28 +96,50 @@ export function PhotoInspectionDialog({
         if (!open) close();
       }}
     >
-      <DialogContent className="flex max-h-[95dvh] w-[96vw] flex-col overflow-y-auto sm:max-w-7xl">
+      <DialogContent
+        showCloseButton={false}
+        className="flex max-h-[95dvh] w-[96vw] flex-col overflow-y-auto sm:max-w-7xl"
+      >
+        <div className="absolute top-2 right-2">
+          <IconButton
+            data-slot="dialog-close"
+            icon={XIcon}
+            label={messages(currentLocale()).ui.common.close}
+            tooltip={t.hints.close}
+            variant="ghost"
+            size="icon-sm"
+            onClick={close}
+          >
+            <span className="sr-only">{messages(currentLocale()).ui.common.close}</span>
+          </IconButton>
+        </div>
         <DialogHeader>
           <DialogTitle>{t.title}</DialogTitle>
           <DialogDescription>{photo.label}</DialogDescription>
           {photos && photos.length > 1 && (
             <div className="flex gap-2">
-              <Button
+              <IconButton
                 size="sm"
                 variant="outline"
+                icon={ArrowLeftIcon}
+                label={t.previous}
+                tooltip={t.hints.previous}
                 disabled={index <= 0}
                 onClick={() => navigate(-1)}
               >
                 {t.previous}
-              </Button>
-              <Button
+              </IconButton>
+              <IconButton
                 size="sm"
                 variant="outline"
+                icon={ArrowRightIcon}
+                label={t.next}
+                tooltip={t.hints.next}
                 disabled={index >= photos.length - 1}
                 onClick={() => navigate(1)}
               >
                 {t.next}
-              </Button>
+              </IconButton>
             </div>
           )}
         </DialogHeader>
@@ -193,7 +231,10 @@ function InspectionSession({
         {initial.canEdit && (
           <>
             {(['select', 'rectangle', 'polygon'] as const).map((tool) => (
-              <Button
+              <IconButton
+                icon={toolIcons[tool]}
+                label={t[tool]}
+                tooltip={t.hints[tool]}
                 key={tool}
                 size="sm"
                 variant={state.tool === tool ? 'default' : 'outline'}
@@ -202,49 +243,68 @@ function InspectionSession({
                 onClick={() => editor.tool(tool)}
               >
                 {t[tool]}
-              </Button>
+              </IconButton>
             ))}
-            <Button
+            <IconButton
               size="sm"
               variant="outline"
               disabled={busy || state.imageStatus !== 'ready'}
               onClick={() => editor.addBox()}
+              icon={SquarePlusIcon}
+              label={t.addBox}
+              tooltip={t.drawKeyboard}
               title={t.drawKeyboard}
             >
               {t.addBox}
-            </Button>
+            </IconButton>
           </>
         )}
-        <Button
+        <IconButton
           size="sm"
           variant="outline"
+          icon={ZoomInIcon}
+          label={t.zoomIn}
+          tooltip={t.hints.zoomIn}
           disabled={state.zoom >= 4}
           onClick={() => editor.zoom(0.5)}
         >
           {t.zoomIn}
-        </Button>
-        <Button
+        </IconButton>
+        <IconButton
           size="sm"
           variant="outline"
+          icon={ZoomOutIcon}
+          label={t.zoomOut}
+          tooltip={t.hints.zoomOut}
           disabled={state.zoom <= 1}
           onClick={() => editor.zoom(-0.5)}
         >
           {t.zoomOut}
-        </Button>
-        <Button
+        </IconButton>
+        <IconButton
           size="sm"
           variant="outline"
+          icon={DownloadIcon}
+          label={t.export}
+          tooltip={t.hints.export}
           disabled={state.dirty || latest.review.status === 'UNREVIEWED' || exportReview.isPending}
           onClick={() => exportReview.mutate()}
         >
           {t.export}
-        </Button>
+        </IconButton>
         {link.data && (
-          <Button size="sm" variant="outline" asChild>
+          <IconButton
+            icon={ExternalLinkIcon}
+            label={t.original}
+            tooltip={t.hints.original}
+            size="sm"
+            variant="outline"
+            asChild
+          >
             <a href={link.data.url} target="_blank" rel="noreferrer">
               {t.original}
             </a>
-          </Button>
+          </IconButton>
         )}
       </div>
       <p className="text-sm text-muted-foreground">{initial.canEdit ? t.drawHint : t.readOnly}</p>
@@ -252,9 +312,16 @@ function InspectionSession({
         <div role="alert" className="rounded-md border border-destructive p-3 text-sm">
           {errorText(error)}
           {error instanceof ApiError && error.code === 'INSPECTION_CONFLICT' && (
-            <Button variant="outline" size="sm" onClick={() => void reload()}>
+            <IconButton
+              variant="outline"
+              size="sm"
+              icon={RefreshCwIcon}
+              label={t.reload}
+              tooltip={t.hints.reload}
+              onClick={() => void reload()}
+            >
               {t.reload}
-            </Button>
+            </IconButton>
           )}
         </div>
       )}
@@ -269,9 +336,15 @@ function InspectionSession({
               {state.imageStatus === 'failed' && (
                 <p role="alert">
                   {t.imageFailed}{' '}
-                  <Button variant="outline" onClick={() => void link.refetch()}>
+                  <IconButton
+                    variant="outline"
+                    icon={RefreshCwIcon}
+                    label={t.refresh}
+                    tooltip={t.hints.refresh}
+                    onClick={() => void link.refetch()}
+                  >
                     {t.refresh}
-                  </Button>
+                  </IconButton>
                 </p>
               )}
               <div style={{ width: `${state.zoom * 100}%` }}>
@@ -304,12 +377,15 @@ function InspectionSession({
           )}
           {initial.canEdit && (
             <div className="flex flex-wrap gap-2">
-              <Button
+              <IconButton
                 disabled={busy || !state.dirty || !valid || state.imageStatus !== 'ready'}
+                icon={SaveIcon}
+                label={t.save}
+                tooltip={t.hints.save}
                 onClick={() => save.mutate()}
               >
                 {save.isPending && !save.isPaused ? <LoadingState label={t.save} /> : t.save}
-              </Button>
+              </IconButton>
               <AnalyzeButton
                 review={state.review}
                 disabled={busy || state.dirty || pending}

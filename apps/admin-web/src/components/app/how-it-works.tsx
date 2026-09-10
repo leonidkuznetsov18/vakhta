@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BookOpenIcon, CircleHelpIcon, CirclePlayIcon, ClipboardListIcon } from 'lucide-react';
 import { format, messages, type GuideKey } from '@vakhta/i18n';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/shared/ui/icon-button';
 import { DetailSheet } from '@/components/app/detail-sheet';
 import { usePersistentState } from '@/lib/ui-store';
 import { currentLocale } from '@/i18n';
@@ -41,22 +41,32 @@ export function HowItWorks({
       data-testid={`guide-${guide}`}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <button
+        <IconButton
+          icon={ClipboardListIcon}
+          label={t.ui.common.howItWorks}
+          tooltip={t.ui.common.howItWorksHint}
+          variant="ghost"
           type="button"
-          className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-semibold"
+          className="h-auto min-w-0 flex-1 basis-full justify-start gap-2 text-left text-sm font-semibold sm:basis-auto"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
-          <ClipboardListIcon className="size-4 shrink-0" aria-hidden="true" />
           {t.ui.common.howItWorks}
           <span className="ml-auto text-xs font-normal text-muted-foreground">
             {open ? t.ui.common.hide : t.ui.common.details}
           </span>
-        </button>
-        <Button type="button" size="sm" variant="outline" onClick={() => setFaq(true)}>
-          <CircleHelpIcon aria-hidden="true" />
+        </IconButton>
+        <IconButton
+          icon={CircleHelpIcon}
+          label={t.ui.common.faq}
+          tooltip={t.ui.common.faqHint}
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setFaq(true)}
+        >
           {t.ui.common.faq}
-        </Button>
+        </IconButton>
       </div>
       {open && (
         <div className="mt-2 flex flex-col gap-2 text-sm text-muted-foreground">
@@ -80,7 +90,10 @@ export function FaqButton({ guide }: { readonly guide: GuideKey }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button
+      <IconButton
+        icon={CircleHelpIcon}
+        label={t.ui.common.faq}
+        tooltip={t.ui.common.faqHint}
         type="button"
         variant="outline"
         size="sm"
@@ -88,9 +101,8 @@ export function FaqButton({ guide }: { readonly guide: GuideKey }) {
         title={format(t.ui.common.helpFor, { section: sectionTitle(guide) })}
         onClick={() => setOpen(true)}
       >
-        <CircleHelpIcon aria-hidden="true" />
         <span className="hidden sm:inline">{t.ui.common.faq}</span>
-      </Button>
+      </IconButton>
       <FaqSheet guide={guide} open={open} onOpenChange={setOpen} />
     </>
   );
@@ -116,12 +128,17 @@ function FaqSheet({
       title={format(t.ui.common.helpFor, { section: sectionTitle(guide) })}
       description={g.purpose}
       footer={
-        <Button asChild variant="outline">
+        <IconButton
+          icon={BookOpenIcon}
+          label={g.document?.label ?? t.ui.common.openGuide}
+          tooltip={t.ui.common.openGuideHint}
+          asChild
+          variant="outline"
+        >
           <a href={g.document?.url ?? GUIDE_URL} target="_blank" rel="noreferrer">
-            <BookOpenIcon aria-hidden="true" />
             {g.document?.label ?? t.ui.common.openGuide}
           </a>
-        </Button>
+        </IconButton>
       }
     >
       {g.video && <GuideVideoLink video={g.video} />}

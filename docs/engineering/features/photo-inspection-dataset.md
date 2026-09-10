@@ -172,3 +172,25 @@ HTML stayed within 390 CSS pixels. Actual video playback advanced with duration 
 media error. Representative Ukrainian and Russian video frames were visually inspected. Lean final
 recommendation: keep help collapsed until requested, keep human confirmation explicit, and teach
 normal/unassessable examples alongside problems. No operational decision behavior changes.
+
+## Owner refinement — icons and contextual help
+
+All photo-editor actions use `shared/ui/icon-button.tsx`: the existing shadcn Button plus a Lucide
+icon and a short localized tooltip. Visible labels, pressed states, event handlers, link attributes
+and disabled conditions remain intact. Disabled actions expose help through a keyboard-focusable
+wrapper; enabled actions receive the tooltip description directly. Radix Slot.Slottable preserves
+anchor semantics for the original-image and guide links (official reference:
+https://www.radix-ui.com/primitives/docs/utilities/slot).
+
+Reuse FormField/SelectField hints for information icons beside all nine editable controls, including
+rectangle coordinates. Existing InfoTip provides hover/focus help and tap popovers on touch devices.
+Shared help and query-retry actions use the same IconButton, without importing photo-domain content.
+Catalogs include Ukrainian, English and Russian descriptions. No review or AI business rules change.
+
+Verification: 12 focused component tests pass (analysis prerequisites, shared help, IconButton toggle
+and link semantics); panel type-check and focused lint pass. Desktop 1440px and mobile 390px
+screenshots were captured and inspected. Mobile inspection found and fixed help-header overlap;
+field explanations open on touch and all fields retain accessible labels. Synthetic review editing
+and saving remain functional. Lean recommendation: proceed with icon-plus-text actions and optional
+help; avoid forcing workers to identify an action by an unfamiliar symbol. Actual reduction in
+training time has not been measured.
