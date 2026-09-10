@@ -15,10 +15,7 @@ export function RowDetail({ children }: { children: ReactNode }) {
 /** Compact preview; full prose belongs in the record details. */
 export function TextPreview({ text }: { text: string }) {
   return (
-    <span
-      className="block max-w-xs line-clamp-2 whitespace-normal [overflow-wrap:anywhere]"
-      title={text}
-    >
+    <span className="max-w-xs line-clamp-2 whitespace-normal [overflow-wrap:anywhere]" title={text}>
       {text}
     </span>
   );

@@ -134,7 +134,7 @@ describe('RequestsPage', () => {
     fireEvent.change(within(sheet).getByLabelText('Утверждённое отклонение, мин'), {
       target: { value: '15' },
     });
-    fireEvent.change(within(sheet).getByLabelText('Комментарий (обязательно)'), {
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Комментарий (обязательно)' }), {
       target: { value: 'Подтверждаю 15 минут' },
     });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Одобрить' }));
@@ -173,7 +173,7 @@ describe('RequestsPage', () => {
     fireEvent.change(within(sheet).getByLabelText('Новое время'), {
       target: { value: '2026-10-03T20:05' },
     });
-    fireEvent.change(within(sheet).getByLabelText('Комментарий (обязательно)'), {
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Комментарий (обязательно)' }), {
       target: { value: 'По камерам ушёл в 20:05' },
     });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Одобрить' }));

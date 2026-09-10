@@ -1319,6 +1319,11 @@ export interface Messages {
       readonly close: string;
       readonly save: string;
       readonly loading: string;
+      readonly retry: string;
+      readonly refreshing: string;
+      readonly partialLoadError: string;
+      readonly waitingConnection: string;
+      readonly saving: string;
       readonly noResults: string;
       readonly details: string;
       readonly hide: string;

@@ -1,3 +1,4 @@
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeftIcon, ChevronRightIcon, ExpandIcon } from 'lucide-react';
@@ -7,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Muted } from '@/components/app/page';
-import { readError } from '@/errors';
 import { currentLocale } from '@/i18n';
 import { keys } from '@/lib/query';
 import { cn } from 'cn';
@@ -44,9 +44,7 @@ export function PhotoThumb({
     gcTime: 0,
   });
   const url = link.data?.url ?? null;
-  const failed = readError(link.error);
-
-  if (failed) return <Muted className="text-destructive">{failed}</Muted>;
+  if (link.isError || link.fetchStatus === 'paused') return <QueryFeedback query={link} />;
   if (!url) {
     return (
       <div className={cn('flex flex-col gap-1', className)}>

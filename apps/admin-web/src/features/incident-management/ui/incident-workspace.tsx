@@ -1,3 +1,4 @@
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { messages } from '@vakhta/i18n';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable } from '@/components/app/data-table';
@@ -42,6 +43,7 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
       ) : (
         <HowItWorks guide="incidents" />
       )}
+      <QueryFeedback query={model.orgQuery} />
       <Toolbar>
         <SelectField
           label={i.site}
@@ -80,6 +82,7 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
       <Feedback error={error} />
 
       <DataTable
+        queryState={model.listQuery}
         columns={incidentColumns(knowledge)}
         rows={rows}
         storageKey={knowledge ? 'incidentKnowledge' : 'incidents'}
@@ -98,6 +101,7 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
 
       {!knowledge && (
         <Section title={i.stats} hint={hints.incidentsStats}>
+          <QueryFeedback query={model.statsQuery} />
           {/* Two cuts of one period: when the period holds nothing, both tables said so, and the
             section repeated itself. One sentence answers for the period. */}
           {stats &&

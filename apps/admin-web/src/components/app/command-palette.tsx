@@ -1,3 +1,4 @@
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { EmployeeView } from '@vakhta/contracts';
@@ -78,14 +79,15 @@ export function CommandPalette({
 
   // The index is read on the first open and shared with the sections that already have it: a
   // panel nobody searches in pays nothing, and one that is searched twice asks once.
-  const { employees } = useEmployees(open && canSeeEmployees);
-  const checklists =
-    useQuery({
-      queryKey: keys.checklists,
-      queryFn: () => checklistsApi.list(),
-      enabled: open && canAdminister,
-    }).data ?? [];
-  const terminals = useOrg(open && canAdminister).orgOrEmpty.terminals;
+  const { employees, queryState: employeesQuery } = useEmployees(open && canSeeEmployees);
+  const checklistsQuery = useQuery({
+    queryKey: keys.checklists,
+    queryFn: () => checklistsApi.list(),
+    enabled: open && canAdminister,
+  });
+  const checklists = checklistsQuery.data ?? [];
+  const { orgOrEmpty, queryState: orgQuery } = useOrg(open && canAdminister);
+  const terminals = orgOrEmpty.terminals;
 
   const go = (fn: () => void) => {
     setOpen(false);
@@ -134,7 +136,15 @@ export function CommandPalette({
       <CommandDialog open={open} onOpenChange={setOpen} title={c.commandPalette}>
         <CommandInput placeholder={c.commandPlaceholder} />
         <CommandList>
-          <CommandEmpty>{c.noResults}</CommandEmpty>
+          {canSeeEmployees && <QueryFeedback query={employeesQuery} />}
+          {canAdminister && <QueryFeedback query={checklistsQuery} />}
+          {canAdminister && <QueryFeedback query={orgQuery} />}
+          {!employeesQuery.isFetching &&
+            !checklistsQuery.isFetching &&
+            !orgQuery.isFetching &&
+            !employeesQuery.isError &&
+            !checklistsQuery.isError &&
+            !orgQuery.isError && <CommandEmpty>{c.noResults}</CommandEmpty>}
           <CommandGroup heading={c.commandSections}>
             {sections.map(({ key, icon: Icon }) => (
               <CommandItem

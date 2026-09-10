@@ -1,3 +1,4 @@
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { useQuery } from '@tanstack/react-query';
 import QRCode from 'qrcode';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,6 +20,7 @@ export function QrCode({
     retry: false,
   });
   const src = code.data ?? null;
+  if (code.isError) return <QueryFeedback query={code} />;
   if (!src) return <Skeleton style={{ width: size, height: size }} className="rounded-md" />;
   return (
     <img src={src} alt={label} width={size} height={size} className="rounded-md border bg-white" />

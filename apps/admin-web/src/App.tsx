@@ -1,3 +1,4 @@
+import { MutationActivity } from '@/components/app/query-feedback';
 import { useState } from 'react';
 import {
   ActivityIcon,
@@ -332,6 +333,7 @@ export function App() {
             </div>
           </header>
           <main className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
+            <MutationActivity />
             {active === 'profile' ? (
               <ProfilePanel me={me} onChanged={() => void refresh()} />
             ) : active === 'overview' ? (

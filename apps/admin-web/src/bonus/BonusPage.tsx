@@ -1,3 +1,4 @@
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { useQuery } from '@tanstack/react-query';
 import type { BonusHistoryView, BonusPointsView, PointAwardKind } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
@@ -13,7 +14,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { DateField } from '@/components/app/date-picker';
-import { Feedback } from '@/components/app/feedback';
 import { MonthField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
 import { Muted, Section, StatusPill, Toolbar } from '@/components/app/page';
@@ -25,7 +25,6 @@ import { usePersistentState } from '@/lib/ui-store';
 import { useOrg } from '@/lib/org';
 import { keys } from '@/lib/query';
 import { bonusApi, type BonusHistoryFilters } from '../api.ts';
-import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 
 import { nominationStatus } from './nomination-status.ts';
@@ -45,7 +44,7 @@ type PointsRow = BonusPointsView['employees'][number];
  * scored, adjusted or closed here: points are earned in the bot and confirmed at the zone handover.
  */
 export function BonusPage() {
-  const { org } = useOrg();
+  const { org, queryState: orgQuery } = useOrg();
   const [siteId, setSiteId] = usePersistentState('bonus.siteId', '');
   const [month, setMonth] = usePersistentState('bonus.month', currentMonth);
   const [unitId, setUnitId] = usePersistentState('bonus.unitId', '');
@@ -246,6 +245,7 @@ export function BonusPage() {
   return (
     <div className="flex flex-col gap-4">
       <HowItWorks guide="bonus" />
+      <QueryFeedback query={orgQuery} />
       <Toolbar>
         <SelectField
           label={b.site}
@@ -265,7 +265,6 @@ export function BonusPage() {
           className="w-56"
         />
       </Toolbar>
-      <Feedback error={readError(points.error ?? historyQuery.error)} />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as 'points' | 'history')} className="gap-4">
         <TabsList>
@@ -370,6 +369,7 @@ export function BonusPage() {
 
           <Section title={b.detailTitle}>
             <DataTable
+              queryState={points}
               columns={columns}
               rows={rows}
               storageKey="bonus-points"
@@ -466,6 +466,7 @@ export function BonusPage() {
                   </BarChart>
                 </ChartContainer>
                 <DataTable
+                  queryState={historyQuery}
                   columns={historyColumns}
                   rows={history?.buckets ?? []}
                   storageKey="bonus-history"
@@ -487,6 +488,7 @@ export function BonusPage() {
             }
           >
             <DataTable
+              queryState={historyQuery}
               columns={entryColumns}
               rows={history?.entries ?? []}
               storageKey="bonus-history-entries"

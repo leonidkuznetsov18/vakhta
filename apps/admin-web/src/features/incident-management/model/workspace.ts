@@ -52,7 +52,7 @@ function setField(id: string, key: keyof Draft, value: string) {
 /** Query owns records; Zustand owns only filters, selection and unsaved decisions. */
 export function useIncidentWorkspace(knowledge: boolean) {
   const prefix = knowledge ? 'incidentKnowledge' : 'incidents';
-  const { org } = useOrg();
+  const { org, queryState: orgQuery } = useOrg();
   const [siteId, setSiteId] = usePersistentState(`${prefix}.siteId`, '');
   const [scope, setScopeValue] = usePersistentState<'open' | 'all'>(`${prefix}.scope`, 'open');
   const [periodMode, setPeriodModeValue] = usePersistentState<PeriodMode>(
@@ -168,6 +168,10 @@ export function useIncidentWorkspace(knowledge: boolean) {
   const setLightbox = (images: LightboxImage[]) => useWorkspaceState.setState({ lightbox: images });
   return {
     knowledge,
+    listQuery: list,
+    orgQuery,
+    detailQuery,
+    statsQuery,
     isReadOnly,
     org,
     siteId,
@@ -189,7 +193,7 @@ export function useIncidentWorkspace(knowledge: boolean) {
     detail: detailQuery.data ?? null,
     stats: statsQuery.data ?? null,
     loading: list.isPending,
-    error: readError(list.error ?? detailQuery.error ?? save.error ?? statsQuery.error),
+    error: readError(save.error),
     setScope: (value: string) => {
       if (value === 'all' || value === 'open') setScopeValue(value);
     },

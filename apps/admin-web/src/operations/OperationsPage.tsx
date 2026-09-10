@@ -1,3 +1,4 @@
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -112,7 +113,7 @@ function newKey(): string {
  * shift master actions with a mandatory comment and the "needs review" flag (FR-COR-01/04).
  */
 export function OperationsPage() {
-  const { org } = useOrg();
+  const { org, queryState: orgQuery } = useOrg();
   const { active: activeEmployees } = useEmployees();
   const [siteId, setSiteId] = usePersistentState('operations.siteId', '');
   const [orgUnitId, setOrgUnitId] = usePersistentState('operations.orgUnitId', '');
@@ -151,12 +152,12 @@ export function OperationsPage() {
   const client = useQueryClient();
   const refresh = () => client.invalidateQueries({ queryKey: ['shifts'] });
 
-  const detail =
-    useQuery({
-      queryKey: keys.shift(openId),
-      queryFn: () => shiftsApi.detail(openId!),
-      enabled: openId !== null,
-    }).data ?? null;
+  const detailQuery = useQuery({
+    queryKey: keys.shift(openId),
+    queryFn: () => shiftsApi.detail(openId!),
+    enabled: openId !== null,
+  });
+  const detail = detailQuery.data ?? null;
 
   /**
    * Only what this shift can actually do next, computed from its own state with the master's
@@ -261,7 +262,7 @@ export function OperationsPage() {
 
   const busy = apply.isPending || message.isPending || ask.isPending || begin.isPending;
   const error =
-    readError(apply.error ?? message.error ?? ask.error ?? begin.error ?? shifts.error) ??
+    readError(apply.error ?? message.error ?? ask.error ?? begin.error) ??
     (refused ? (refused === 'VERSION_CONFLICT' ? o.stale : all.errors[refused]) : null) ??
     (refusedStart ? all.errors[refusedStart] : null);
 
@@ -398,11 +399,8 @@ export function OperationsPage() {
       /* Clicking the row opens and closes it, so a "close" button inside repeats what the row
          already does. Read shift evidence before the bounded action form. */
       <div className="flex min-w-0 flex-col gap-6 py-1" data-testid="shift-detail">
-        {detail?.session?.id === row.id ? (
-          <DetailPanel detail={detail} />
-        ) : (
-          <Muted>{all.ui.common.loading}</Muted>
-        )}
+        <QueryFeedback query={detailQuery} />
+        {detail?.session?.id === row.id && <DetailPanel detail={detail} />}
         {/* One control under another: the action, then the reason it needs, then the comment, then
             the button. Side by side the four read as unrelated fields on a single line. */}
         {!readOnly && (
@@ -504,6 +502,7 @@ export function OperationsPage() {
   return (
     <div className="flex flex-col gap-4">
       <HowItWorks guide="operations" />
+      <QueryFeedback query={orgQuery} />
       <Toolbar>
         <SelectField
           label={o.site}
@@ -635,9 +634,10 @@ export function OperationsPage() {
       <Feedback error={error} />
 
       <DataTable
+        queryState={shifts}
         columns={columns}
         rows={visibleRows}
-        loading={!org}
+        loading={orgQuery.isPending && orgQuery.isFetching}
         storageKey="operations"
         onRowClick={(row) => setOpenId(openId === row.id ? null : row.id)}
         rowActions={rowActions}

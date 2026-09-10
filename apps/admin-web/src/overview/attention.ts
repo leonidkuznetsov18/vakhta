@@ -158,5 +158,14 @@ export function useAttention(me: MeView, intervalMs = 60_000) {
       };
     },
   });
-  return { data: query.data ?? EMPTY, error: query.error, refresh: query.refetch };
+  const data = query.data ?? EMPTY;
+  const incomplete =
+    query.isSuccess &&
+    (data.unpairedTerminals === null ||
+      (may(me, OPS) &&
+        (data.onShift === null || data.openIncidents === null || data.overtimePending === null)) ||
+      (may(me, HANDOVER) && data.overdueAcceptances === null) ||
+      (may(me, REQUESTS) && data.requestsForMe === null) ||
+      (may(me, EMPLOYEES) && data.unlinkedEmployees === null));
+  return { data, error: query.error, refresh: query.refetch, queryState: query, incomplete };
 }

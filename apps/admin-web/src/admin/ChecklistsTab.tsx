@@ -158,7 +158,7 @@ export function ChecklistsTab({ org }: Props) {
   });
 
   const busy = setStatus.isPending || drop.isPending;
-  const error = readError(list.error ?? setStatus.error ?? drop.error);
+  const error = readError(setStatus.error ?? drop.error);
 
   async function toggle(row: ChecklistDefinitionView) {
     const isActive = !row.isActive;
@@ -294,6 +294,7 @@ export function ChecklistsTab({ org }: Props) {
         <Feedback error={error} />
       </Section>
       <DataTable
+        queryState={list}
         columns={columns}
         rows={rows ?? []}
         rowKey={(r) => r.id}

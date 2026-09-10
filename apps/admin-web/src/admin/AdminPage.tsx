@@ -1,9 +1,7 @@
 import { messages } from '@vakhta/i18n';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Spinner } from '@/components/ui/spinner';
-import { Feedback } from '@/components/app/feedback';
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { HowItWorks } from '@/components/app/how-it-works';
-import { readError } from '../errors.ts';
 import { ChecklistsTab } from './ChecklistsTab.tsx';
 import { DirectoriesTab } from './DirectoriesTab.tsx';
 import { EmployeesTab } from './EmployeesTab.tsx';
@@ -20,8 +18,7 @@ const TABS = Object.keys(t.tabs) as Tab[];
 /** "Administration" section: tabs per spec 9.1 over one shared snapshot of the directories. */
 export function AdminPage() {
   const [tab, setTab] = useRouteSub<Tab>('administration', TABS, 'employees');
-  const { org, error: failed } = useOrg();
-  const error = readError(failed);
+  const { org, queryState } = useOrg();
 
   return (
     <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
@@ -33,8 +30,7 @@ export function AdminPage() {
         ))}
       </TabsList>
       <HowItWorks guide={tab} key={tab} />
-      <Feedback error={error} notice={null} />
-      {!org && !error ? <Spinner /> : null}
+      <QueryFeedback query={queryState} />
       {org ? (
         <>
           <TabsContent value="employees">

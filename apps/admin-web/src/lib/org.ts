@@ -20,7 +20,12 @@ const EMPTY: OrgSnapshot = {
  */
 export function useOrg(enabled = true) {
   const query = useQuery({ queryKey: keys.org, queryFn: () => orgApi.snapshot(), enabled });
-  return { org: query.data ?? null, orgOrEmpty: query.data ?? EMPTY, error: query.error };
+  return {
+    org: query.data ?? null,
+    orgOrEmpty: query.data ?? EMPTY,
+    error: query.error,
+    queryState: query,
+  };
 }
 
 /** The staff list, shared the same way. */
@@ -32,6 +37,7 @@ export function useEmployees(enabled = true) {
     active: employees.filter((e) => e.status === 'ACTIVE'),
     /** The list has arrived: an empty roster reads differently from one still on its way. */
     loaded: query.data !== undefined,
+    queryState: query,
     error: query.error,
   };
 }

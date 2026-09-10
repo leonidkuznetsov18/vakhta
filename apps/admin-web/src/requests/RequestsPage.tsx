@@ -1,3 +1,4 @@
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { DetailText } from '@/components/app/row-detail';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -87,21 +88,21 @@ export function RequestsPage() {
   // An id that belongs to the overtime table below is not a request: asking the server for it
   // would answer 404 over a page that is showing the right row.
   const openRequestId = openId && rows.some((r) => r.id === openId) ? openId : null;
-  const detail =
-    useQuery({
-      queryKey: keys.request(openRequestId),
-      queryFn: () => requestsApi.detail(openRequestId!),
-      enabled: openRequestId !== null,
-    }).data ?? null;
+  const detailQuery = useQuery({
+    queryKey: keys.request(openRequestId),
+    queryFn: () => requestsApi.detail(openRequestId!),
+    enabled: openRequestId !== null,
+  });
+  const detail = detailQuery.data ?? null;
   // A correction is decided against the shift it corrects, so that shift is read beside it.
   const correctionShiftId =
     detail?.request.type === 'CORRECTION' ? detail.request.shiftSessionId : null;
-  const shift =
-    useQuery({
-      queryKey: keys.shift(correctionShiftId),
-      queryFn: () => shiftsApi.detail(correctionShiftId!),
-      enabled: correctionShiftId !== null,
-    }).data ?? null;
+  const correctionQuery = useQuery({
+    queryKey: keys.shift(correctionShiftId),
+    queryFn: () => shiftsApi.detail(correctionShiftId!),
+    enabled: correctionShiftId !== null,
+  });
+  const shift = correctionQuery.data ?? null;
 
   const refresh = () => client.invalidateQueries({ queryKey: ['requests'] });
   const decision = useMutation({
@@ -112,7 +113,7 @@ export function RequestsPage() {
     },
   });
   const busy = decision.isPending;
-  const error = readError(list.error ?? overtimeQuery.error ?? decision.error);
+  const error = readError(decision.error);
 
   function buildProposal() {
     if (proposalKind === 'CLOSE_SHIFT_AT')
@@ -270,16 +271,22 @@ export function RequestsPage() {
    * far. The type, the employee and the status are columns of the row above, so they stay there.
    */
   function requestDetail(req: RequestView) {
-    if (!detail || detail.request.id !== req.id) return <Muted>{all.ui.common.loading}</Muted>;
+    if (!detail || detail.request.id !== req.id) return <QueryFeedback query={detailQuery} />;
     return (
       <div
         className="grid min-w-0 items-start gap-6 py-1 lg:grid-cols-2"
         data-testid="request-detail"
       >
+        {(detailQuery.isFetching || detailQuery.isError) && (
+          <div className="lg:col-span-2">
+            <QueryFeedback query={detailQuery} />
+          </div>
+        )}
         <div className="flex max-w-2xl flex-col gap-3">
           {req.comment && <DetailText label={r.comment} text={req.comment} />}
           {req.hasMedicalDocument && <MedicalLink request={detail.request} />}
-          {req.currentStepKey && (
+          {correctionShiftId && <QueryFeedback query={correctionQuery} />}
+          {req.currentStepKey && (!correctionShiftId || correctionQuery.isSuccess) && (
             <form
               className="flex flex-col gap-3"
               onSubmit={(e) => {
@@ -419,6 +426,7 @@ export function RequestsPage() {
       <Feedback error={error} />
 
       <DataTable
+        queryState={list}
         columns={columns}
         rows={rows}
         storageKey="requests"
@@ -439,6 +447,7 @@ export function RequestsPage() {
       />
       <Section title={r.overtimeTitle} hint={hints.requestsOvertime}>
         <DataTable
+          queryState={overtimeQuery}
           columns={overtimeColumns}
           rows={overtime}
           rowKey={(row) => row.shiftSessionId}

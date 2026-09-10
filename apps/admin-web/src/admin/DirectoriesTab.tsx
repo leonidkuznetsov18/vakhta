@@ -1,3 +1,4 @@
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { OrgSnapshot } from '@vakhta/contracts';
@@ -50,7 +51,8 @@ export function DirectoriesTab({ org }: Props) {
     null,
   );
   const [editing, setEditing] = useState<DirectoryEdit | null>(null);
-  const users = useQuery({ queryKey: keys.users, queryFn: () => usersApi.list() }).data ?? [];
+  const usersQuery = useQuery({ queryKey: keys.users, queryFn: () => usersApi.list() });
+  const users = usersQuery.data ?? [];
   const { confirm, dialog } = useConfirm();
   const client = useQueryClient();
   /** Every directory on this page lives in one snapshot, so every change re-reads that one thing. */
@@ -218,6 +220,7 @@ export function DirectoriesTab({ org }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <Feedback error={error} />
+      <QueryFeedback query={usersQuery} />
 
       <Section
         title={d.sites}

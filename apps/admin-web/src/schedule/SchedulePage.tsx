@@ -1,3 +1,4 @@
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ScheduleVersionView } from '@vakhta/contracts';
@@ -60,8 +61,8 @@ function currentMonth(): string {
  * DRAFT → IN_REVIEW → PUBLISHED, the assignment grid and validation results (spec 3.2, 9.1).
  */
 export function SchedulePage() {
-  const { org, error: orgError } = useOrg();
-  const { employees, active: activeEmployees, error: employeesError } = useEmployees();
+  const { org, queryState: orgQuery } = useOrg();
+  const { employees, active: activeEmployees, queryState: employeesQuery } = useEmployees();
   const [storedSite, setStoredSite] = usePersistentState('schedule.siteId', '');
   const [storedUnit, setStoredUnit] = usePersistentState('schedule.orgUnitId', '');
   const [month, setMonth] = usePersistentState('schedule.month', currentMonth);
@@ -288,12 +289,7 @@ export function SchedulePage() {
     revise.isPending ||
     remove.isPending;
   const error = readError(
-    orgError ??
-      employeesError ??
-      templatesQuery.error ??
-      versionsQuery.error ??
-      detailQuery.error ??
-      create.error ??
+    create.error ??
       save.error ??
       submit.error ??
       returnDraft.error ??
@@ -423,8 +419,13 @@ export function SchedulePage() {
       </Toolbar>
 
       <Feedback error={error} />
+      <QueryFeedback query={orgQuery} />
+      <QueryFeedback query={employeesQuery} />
+      <QueryFeedback query={versionsQuery} />
+      <QueryFeedback query={detailQuery} />
+      <QueryFeedback query={templatesQuery} />
 
-      {org && activeEmployees.length === 0 && (
+      {org && employeesQuery.isSuccess && activeEmployees.length === 0 && (
         <Alert>
           <AlertTitle>{s.noEmployees}</AlertTitle>
           <AlertDescription>
@@ -462,7 +463,7 @@ export function SchedulePage() {
         </Alert>
       )}
 
-      {versions.length === 0 ? (
+      {versionsQuery.isPending || versionsQuery.isError ? null : versions.length === 0 ? (
         <EmptyState
           text={s.noVersions}
           action={
@@ -566,7 +567,9 @@ export function SchedulePage() {
               </AlertDescription>
             </Alert>
           )}
-          {templates.length === 0 && <Feedback error={s.noTemplates} notice={null} />}
+          {templatesQuery.isSuccess && templates.length === 0 && (
+            <Feedback error={s.noTemplates} notice={null} />
+          )}
 
           {editable && grid.rows.length > 0 && (
             <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/30 p-3">

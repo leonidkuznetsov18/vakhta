@@ -1,3 +1,4 @@
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { ScrollableText } from '@/components/app/row-detail';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -14,7 +15,6 @@ import {
 } from '@/components/ui/chart';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { DateField } from '@/components/app/date-picker';
-import { Feedback } from '@/components/app/feedback';
 import { SelectField } from '@/components/app/fields';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { InfoTip } from '@/components/app/info-tip';
@@ -24,7 +24,6 @@ import { useOrg } from '@/lib/org';
 import { keys } from '@/lib/query';
 import { formatDateTime, formatDuration } from '@/lib/format';
 import { reportsApi } from '../api.ts';
-import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { reportPresentation } from './report-presentation';
 
@@ -71,7 +70,7 @@ function zoneOf(cumulative: number): Zone {
  * sits next to the totals rather than in a footnote.
  */
 export function ReportsPage() {
-  const { org } = useOrg();
+  const { org, queryState: orgQuery } = useOrg();
   const [from, setFrom] = usePersistentState('losses.from', monthStart);
   const [to, setTo] = usePersistentState('losses.to', today);
   const [siteId, setSiteId] = usePersistentState('losses.siteId', '');
@@ -212,6 +211,7 @@ export function ReportsPage() {
   return (
     <div className="flex flex-col gap-4">
       <HowItWorks guide="reports" />
+      <QueryFeedback query={orgQuery} />
       <Toolbar>
         <DateField label={r.from} value={from} onChange={setFrom} className="w-44" />
         <DateField label={r.to} value={to} onChange={setTo} className="w-44" />
@@ -239,7 +239,7 @@ export function ReportsPage() {
           <ExportButton query={presentation.exportQuery} format="xlsx" label={r.exportXlsx} />
         </div>
       </Toolbar>
-      <Feedback error={report.error ? describeError(report.error) : null} />
+      <QueryFeedback query={report} />
       {presentation.exportWarning && <p role="status">{presentation.exportWarning}</p>}
       {presentation.asOf && <Muted>{presentation.asOf}</Muted>}
 
@@ -326,6 +326,8 @@ export function ReportsPage() {
               ))}
             </div>
             <DataTable
+              queryState={report}
+              queryFeedback={false}
               columns={barColumns}
               rows={bars}
               storageKey={category ? 'losses-reasons' : 'losses-categories'}
@@ -343,6 +345,8 @@ export function ReportsPage() {
           <Muted>{presentation.count}</Muted>
           {presentation.truncation && <p role="status">{presentation.truncation}</p>}
           <DataTable
+            queryState={report}
+            queryFeedback={false}
             columns={intervalColumns}
             rows={data?.intervals ?? []}
             storageKey="losses-intervals"

@@ -1,3 +1,4 @@
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { DetailText } from '@/components/app/row-detail';
 import type { IncidentView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
@@ -29,6 +30,7 @@ export function IncidentDetail({
       className="flex w-full min-w-0 max-w-5xl flex-col gap-6 py-1 whitespace-normal [overflow-wrap:anywhere]"
       data-testid="incident-detail"
     >
+      {detail && <QueryFeedback query={model.detailQuery} />}
       {/* What happened first, and what to do about it under it: the decision is taken after
             reading the reports, not beside them. */}
       {detail && detail.incident.id === row.id ? (
@@ -94,7 +96,7 @@ export function IncidentDetail({
           </div>
         </div>
       ) : (
-        <Muted>{all.ui.common.loading}</Muted>
+        <QueryFeedback query={model.detailQuery} />
       )}
       {row.lastComment && <DetailText label={i.legacyComment} text={row.lastComment} />}
       {model.isReadOnly(row) ? (

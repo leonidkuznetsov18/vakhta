@@ -80,6 +80,10 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 
 - Use the shared calendar trigger/popover for period filters, consistent with Schedule. Do not hide
   the calendar behind an unrelated period dropdown. Reuse the same control across related pages.
+- Every async surface must distinguish initial loading, background refresh, offline/paused,
+  failure with retry, successful empty data and saving. Bind tables and details to the real Query
+  state; never turn missing data during loading/failure into "no records" or an endless spinner.
+  Preserve cached data during refresh and unsaved input after failures; do not auto-retry mutations.
 - Long text must never stretch a page. Previews use bounded wrapping or TextPreview truncation;
   full text uses ScrollableText/DetailText with preserved newlines, long-word wrapping, bounded width
   and height, and vertical scrolling when needed. Never truncate the only available full version.

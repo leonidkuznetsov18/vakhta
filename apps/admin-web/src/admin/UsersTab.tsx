@@ -150,7 +150,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
     rename.isPending ||
     drop.isPending;
   const error = readError(
-    users.error ?? add.error ?? grantRole.error ?? revokeRole.error ?? rename.error ?? drop.error,
+    add.error ?? grantRole.error ?? revokeRole.error ?? rename.error ?? drop.error,
   );
 
   function create(ev: FormEvent) {
@@ -488,6 +488,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
       </Section>
 
       <DataTable
+        queryState={users}
         columns={columns}
         rows={list}
         storageKey="users"

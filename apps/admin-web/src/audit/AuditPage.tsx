@@ -15,13 +15,11 @@ import {
 } from '@/components/ui/table';
 import { CopyButton } from '@/components/app/copy-button';
 import { DataTable, type Column } from '@/components/app/data-table';
-import { Feedback } from '@/components/app/feedback';
 import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, StatusPill, Toolbar } from '@/components/app/page';
 import { formatDateTimeSeconds } from '@/lib/format';
 import { reportsApi } from '../api.ts';
-import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { useRouteSub } from '@/lib/route';
 import { usePersistentState } from '@/lib/ui-store';
@@ -167,7 +165,6 @@ export function AuditPage() {
   const audit: readonly AuditEntryView[] = auditQuery.data ?? [];
   const events: readonly DomainEventView[] = eventsQuery.data ?? [];
   const loading = tab === 'audit' ? auditQuery.isPending : eventsQuery.isPending;
-  const error = readError(tab === 'audit' ? auditQuery.error : eventsQuery.error);
 
   const actionOptions = [...new Set(audit.map((e) => e.action))]
     .sort()
@@ -347,9 +344,10 @@ export function AuditPage() {
           {a.apply}
         </Button>
       </Toolbar>
-      <Feedback error={error} />
+
       {tab === 'audit' ? (
         <DataTable
+          queryState={auditQuery}
           columns={auditColumns}
           rows={auditRows}
           loading={loading}
@@ -364,6 +362,7 @@ export function AuditPage() {
         />
       ) : (
         <DataTable
+          queryState={eventsQuery}
           columns={eventColumns}
           rows={eventRows}
           loading={loading}

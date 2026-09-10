@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button';
+import { QueryFeedback } from '@/components/app/query-feedback';
 import type { ActiveShiftView, MeView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import {
@@ -234,7 +236,7 @@ function TileCard({
 
 /** "Overview": the queues waiting on the signed-in role, one tile each, with a shortcut. */
 export function OverviewPage({ me }: { readonly me: MeView }) {
-  const { data, error } = useAttention(me);
+  const { data, error, queryState, incomplete, refresh } = useAttention(me);
   const { go } = useNavigation();
   const loading = data.refreshedAt === null;
 
@@ -308,6 +310,20 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
   return (
     <div className="flex flex-col gap-4">
       <HowItWorks guide="overview" />
+      <QueryFeedback query={queryState} />
+      {incomplete && (
+        <div className="space-y-2">
+          <Feedback error={messages(currentLocale()).ui.common.partialLoadError} />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={queryState.isFetching}
+            onClick={() => void refresh()}
+          >
+            {messages(currentLocale()).ui.common.retry}
+          </Button>
+        </div>
+      )}
       <Feedback error={error ? describeError(error) : null} />
       <Section
         title={o.title}

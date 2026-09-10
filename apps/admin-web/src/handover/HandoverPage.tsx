@@ -1,3 +1,4 @@
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { DetailText } from '@/components/app/row-detail';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -76,7 +77,7 @@ const STATUS_TONE: Record<(typeof SHOWN_AS)[HandoverStatus], Tone> = {
 
 /** "Cleanliness and handover" (spec 9.1): acceptance queue, disputes, overdue, photos via signed links, decisions. */
 export function HandoverPage() {
-  const { org } = useOrg();
+  const { org, queryState: orgQuery } = useOrg();
   const [siteId, setSiteId] = usePersistentState('handover.siteId', '');
   /** Empty means every day; the reports of one shift are found by picking that day. */
   const [date, setDate] = usePersistentState('handover.date', '');
@@ -101,12 +102,12 @@ export function HandoverPage() {
   const rows = list.data ?? [];
   const live = useLiveUpdates(handoversApi.streamUrl(), 'handover', ['handovers']);
 
-  const detail =
-    useQuery({
-      queryKey: keys.handover(openId),
-      queryFn: () => handoversApi.detail(openId!),
-      enabled: openId !== null,
-    }).data ?? null;
+  const detailQuery = useQuery({
+    queryKey: keys.handover(openId),
+    queryFn: () => handoversApi.detail(openId!),
+    enabled: openId !== null,
+  });
+  const detail = detailQuery.data ?? null;
 
   /** One decision at a time; the list and the open report are both stale once it lands. */
   const decide = useMutation({
@@ -119,7 +120,7 @@ export function HandoverPage() {
     },
   });
   const busy = decide.isPending;
-  const error = readError(list.error ?? decide.error);
+  const error = readError(decide.error);
 
   /**
    * The master's decision is two buttons: approve the checklist (the employee is thanked and earns
@@ -189,9 +190,10 @@ export function HandoverPage() {
 
   /** The report under its row: decision form, checklist and notes, photo gallery, acceptance and decisions. */
   function renderDetail(row: HandoverListItemView) {
-    if (!detail || detail.handover.id !== row.id) return <Muted>{all.ui.common.loading}</Muted>;
+    if (!detail || detail.handover.id !== row.id) return <QueryFeedback query={detailQuery} />;
     return (
       <div className="flex min-w-0 flex-col gap-6 py-1" data-testid="handover-detail">
+        <QueryFeedback query={detailQuery} />
         <div className="flex min-w-0 flex-col gap-6">
           <div className="max-w-prose rounded-md border p-3">
             <h3 className="mb-2 text-sm font-semibold">{h.checklist}</h3>
@@ -329,6 +331,7 @@ export function HandoverPage() {
   return (
     <div className="flex flex-col gap-4">
       <HowItWorks guide="handover" />
+      <QueryFeedback query={orgQuery} />
       <Toolbar>
         <SelectField
           label={h.site}
@@ -377,6 +380,7 @@ export function HandoverPage() {
       <Feedback error={error} />
 
       <DataTable
+        queryState={list}
         columns={columns}
         rows={rows}
         storageKey="handover"

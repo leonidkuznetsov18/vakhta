@@ -1,3 +1,4 @@
+import { QueryFeedback, type QueryFeedbackState } from './query-feedback';
 import { RowDetail } from './row-detail';
 import { useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { format, messages } from '@vakhta/i18n';
@@ -77,6 +78,9 @@ interface DataTableProps<T> {
   readonly emptyAction?: ReactNode;
   /** While true and there are no rows, skeleton rows are drawn instead of the empty state. */
   readonly loading?: boolean;
+  readonly queryState?: QueryFeedbackState;
+  /** When the same query feeds several tables, the parent may render one shared feedback. */
+  readonly queryFeedback?: boolean;
   readonly pageSize?: number;
   /** Remembers page size, search and sort across reloads under this key. */
   readonly storageKey?: string;
@@ -291,6 +295,8 @@ export function DataTable<T>({
   emptyDescription,
   emptyAction,
   loading = false,
+  queryState,
+  queryFeedback = true,
   pageSize = DEFAULT_PAGE_SIZE,
   storageKey,
   searchText,
@@ -348,7 +354,12 @@ export function DataTable<T>({
   const allVisibleSelected =
     selectable && visible.length > 0 && visible.every((row) => selectedKeys.has(rowKey(row)));
 
-  if (rows.length === 0 && loading) return <TableSkeleton columns={span} />;
+  if (rows.length === 0 && queryState?.isError)
+    return queryFeedback ? <QueryFeedback query={queryState} /> : null;
+  if (rows.length === 0 && queryState?.fetchStatus === 'paused')
+    return queryFeedback ? <QueryFeedback query={queryState} /> : null;
+  if (rows.length === 0 && (queryState ? queryState.isPending && queryState.isFetching : loading))
+    return <TableSkeleton columns={span} />;
   if (rows.length === 0)
     return <EmptyState text={empty} description={emptyDescription} action={emptyAction} />;
 
@@ -585,7 +596,8 @@ export function DataTable<T>({
     );
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" aria-busy={queryState?.isFetching || undefined}>
+      {queryState && queryFeedback && <QueryFeedback query={queryState} />}
       {searchBox}
       {selectable && selectedKeys.size > 0 ? (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">

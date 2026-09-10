@@ -1,3 +1,4 @@
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isBlank, isUnchanged } from '@/lib/forms';
@@ -275,13 +276,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     issueMany.isPending ||
     dropMany.isPending;
   const error = readError(
-    roster.error ??
-      add.error ??
-      drop.error ??
-      issue.error ??
-      setStatus.error ??
-      issueMany.error ??
-      dropMany.error,
+    add.error ?? drop.error ?? issue.error ?? setStatus.error ?? issueMany.error ?? dropMany.error,
   );
 
   const [telegramFilter, setTelegramFilter] = usePersistentState<'' | 'LINKED' | 'NOT_LINKED'>(
@@ -681,6 +676,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       </Section>
 
       <DataTable
+        queryState={roster}
         columns={columns}
         rows={visibleList}
         rowKey={(emp) => emp.id}
@@ -839,6 +835,8 @@ function PositionPanel({
   const unitName = (id: string) => org.orgUnits.find((u) => u.id === id)?.name ?? id;
   const positionName = (id: string) => org.positions.find((p) => p.id === id)?.name ?? id;
 
+  if (!history.data && (history.isPending || history.isError))
+    return <QueryFeedback query={history} />;
   return (
     <div className="flex flex-col gap-3">
       <p className="flex items-center gap-1 text-sm">
