@@ -1,3 +1,9 @@
+## [0.76.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.76.0...v0.76.1) (2026-09-10)
+
+### Bug fixes
+
+* **photo-inspection:** require input before enabling analysis ([9177cf1](https://github.com/leonidkuznetsov18/vakhta/commit/9177cf14224537a9c29da16aca4d782c0c7e1748))
+
 ## [0.76.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.75.0...v0.76.0) (2026-09-10)
 
 ### Features
