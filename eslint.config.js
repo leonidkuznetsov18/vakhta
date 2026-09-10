@@ -6,7 +6,14 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['**/node_modules/**', '**/dist/**', '**/.turbo/**', 'packages/db/drizzle/**'],
+    // `test-results/` is where the runners write; it is ignored by git for the same reason.
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.turbo/**',
+      '**/test-results/**',
+      'packages/db/drizzle/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

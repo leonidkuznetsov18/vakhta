@@ -182,3 +182,48 @@
     background-color: color-mix(in oklab, var(--accent) 60%, transparent);
   }
 }
+
+/*
+ * A burst of sparks thrown from one point (`SparkleBurst`). Each spark animates as it mounts, so
+ * mounting the burst under a new key is the whole trigger: nothing starts it, nothing stops it,
+ * and nothing is left running when it is gone. The arc through `--spark-peak` is what makes the
+ * spark read as thrown rather than pushed.
+ */
+@layer components {
+  .spark {
+    position: absolute;
+    width: var(--spark-size);
+    height: var(--spark-size);
+    margin: calc(var(--spark-size) / -2);
+    background: var(--spark-color);
+    clip-path: polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%);
+    opacity: 0;
+    will-change: transform, opacity;
+    animation: spark-throw 900ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spark {
+      animation: none;
+    }
+  }
+}
+
+@keyframes spark-throw {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.2) rotate(0deg);
+  }
+  12% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+    transform: translate(calc(var(--spark-x) * 0.62), var(--spark-peak)) scale(1)
+      rotate(calc(var(--spark-spin) * 0.55));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--spark-x), var(--spark-y)) scale(0.35) rotate(var(--spark-spin));
+  }
+}
