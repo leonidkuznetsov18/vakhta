@@ -220,7 +220,7 @@ function isInteractive(target: EventTarget | null): boolean {
   return (
     target instanceof Element &&
     target.closest(
-      'button, a, input, select, textarea, label, [role="menuitem"], [role="menu"]',
+      'button, a, input, select, textarea, label, [role="menuitem"], [role="menu"], [data-row-detail]',
     ) !== null
   );
 }
