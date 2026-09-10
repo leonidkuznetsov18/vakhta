@@ -7,8 +7,8 @@ import {
   type IncidentTransitionCommand,
   type IncidentUpdateCommand,
 } from '@vakhta/contracts';
-import { allowedIncidentTransitions } from '@vakhta/domain';
-import { format, messages } from '@vakhta/i18n';
+import { allowedIncidentTransitions, isOpenIncident } from '@vakhta/domain';
+import { messages } from '@vakhta/i18n';
 import { incidentsApi } from '@/api';
 import { readError } from '@/errors';
 import { currentLocale } from '@/i18n';
@@ -19,7 +19,6 @@ import { useOrg } from '@/lib/org';
 import { keys } from '@/lib/query';
 import { notifySuccess } from '@/lib/toast';
 import { todayIso, formatDateTime } from '@/lib/format';
-import { useConfirm } from '@/components/app/confirm-dialog';
 import type { LightboxImage } from '@/components/app/photo';
 import { EyeIcon, CheckIcon } from 'lucide-react';
 import { incidentPeriod, type PeriodMode } from './period';
@@ -34,10 +33,9 @@ type Draft = {
 };
 interface WorkspaceState {
   drafts: Record<string, Partial<Draft>>;
-  selected: Set<string>;
   lightbox: LightboxImage[];
 }
-const initialState = (): WorkspaceState => ({ drafts: {}, selected: new Set(), lightbox: [] });
+const initialState = (): WorkspaceState => ({ drafts: {}, lightbox: [] });
 const useWorkspaceState = create<WorkspaceState>(() => initialState());
 // Sign-out clears shared filters and also drops transient incident notes and signed photo URLs.
 useUiStore.subscribe((state, previous) => {
@@ -62,8 +60,7 @@ export function useIncidentWorkspace(knowledge: boolean) {
   );
   const [date, setDate] = usePersistentState(`${prefix}.date`, todayIso);
   const [openId, setOpenId] = useDeepLinkedId(prefix, `${prefix}.openId`);
-  const { drafts, selected, lightbox } = useWorkspaceState(useShallow((state) => state));
-  const { confirm, dialog } = useConfirm();
+  const { drafts, lightbox } = useWorkspaceState(useShallow((state) => state));
   const client = useQueryClient();
   const timezone = org?.sites.find((site) => site.id === siteId)?.timezone ?? 'Europe/Kyiv';
   const range = incidentPeriod(periodMode, date, timezone);
@@ -125,19 +122,9 @@ export function useIncidentWorkspace(knowledge: boolean) {
       await client.invalidateQueries({ queryKey: ['incidents'] });
     },
   });
-  const closeMany = useMutation({
-    mutationFn: async (items: IncidentView[]) => {
-      for (const row of items) await incidentsApi.transition(row.id, { to: 'CLOSED' });
-      return items.length;
-    },
-    onSuccess: (count) => {
-      notifySuccess(format(i.bulkClosed, { n: count }));
-      useWorkspaceState.setState({ selected: new Set() });
-    },
-    // Partial success also needs fresh rows before a retry.
-    onSettled: () => client.invalidateQueries({ queryKey: ['incidents'] }),
-  });
+  const isReadOnly = (row: IncidentView) => knowledge || !isOpenIncident(row.status);
   function apply(row: IncidentView) {
+    if (isReadOnly(row)) return;
     const draft = form(row);
     const rootCause = draft.rootCause.trim();
     const resolution = draft.resolution.trim();
@@ -175,24 +162,14 @@ export function useIncidentWorkspace(knowledge: boolean) {
         : {}),
     });
   }
-  const closable = rows.filter((row) => selected.has(row.id) && row.status === 'RESOLVED');
-  async function closeSelected() {
-    if (!closable.length) return;
-    if (
-      (await confirm({
-        title: `${i.closeSelected} (${closable.length})`,
-        confirmLabel: i.transitions.CLOSED,
-      })) !== false
-    )
-      closeMany.mutate(closable);
-  }
-  const busy = save.isPending || closeMany.isPending;
+  const busy = save.isPending;
   const toggleRow = (row: IncidentView) => setOpenId(openId === row.id ? null : row.id);
   const setLightbox = (images: LightboxImage[]) => useWorkspaceState.setState({ lightbox: images });
   const year = Number(date.slice(0, 4));
   const currentYear = new Date().getFullYear();
   return {
     knowledge,
+    isReadOnly,
     org,
     siteId,
     setSiteId,
@@ -203,21 +180,15 @@ export function useIncidentWorkspace(knowledge: boolean) {
     rows,
     openId,
     busy,
-    closable,
-    selected,
     lightbox,
-    dialog,
     form,
     setField,
     apply,
     toggleRow,
-    closeSelected,
     detail: detailQuery.data ?? null,
     stats: statsQuery.data ?? null,
     loading: list.isPending,
-    error: readError(
-      list.error ?? detailQuery.error ?? save.error ?? closeMany.error ?? statsQuery.error,
-    ),
+    error: readError(list.error ?? detailQuery.error ?? save.error ?? statsQuery.error),
     setScope: (value: string) => {
       if (value === 'all' || value === 'open') setScopeValue(value);
     },
@@ -255,7 +226,7 @@ export function useIncidentWorkspace(knowledge: boolean) {
       })),
     rowActions: (row: IncidentView) => [
       { key: 'detail', label: i.detail, icon: EyeIcon, onSelect: () => toggleRow(row) },
-      ...allowedIncidentTransitions(row.status).map((status) => ({
+      ...(isReadOnly(row) ? [] : allowedIncidentTransitions(row.status)).map((status) => ({
         key: `to-${status}`,
         label: i.transitions[status],
         icon: CheckIcon,
@@ -266,7 +237,6 @@ export function useIncidentWorkspace(knowledge: boolean) {
         },
       })),
     ],
-    setSelected: (value: Set<string>) => useWorkspaceState.setState({ selected: value }),
     trackedLink: incidentsApi.mediaLink,
     setLightbox,
     closeLightbox: () => setLightbox([]),

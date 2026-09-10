@@ -78,6 +78,10 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 
 ## Admin panel UI
 
+- Completed or resolved reports, incidents and shifts render read-only details. Hide editing textareas,
+  selects, submit buttons and mutation actions; preserve photos, recorded decisions and history.
+  Filters and navigation remain available. Do not show a disabled editing form as the final state.
+
 - Every component, color, size and spacing comes from shadcn/ui (https://ui.shadcn.com); components are copied into
   `apps/admin-web/src/components/ui`. No bespoke CSS where a shadcn primitive exists.
 - Long lists and tables are paginated. Forms validate input with the zod contracts and show inline errors.

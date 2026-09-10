@@ -20,8 +20,7 @@ export function IncidentDetail({
   row: IncidentView;
   model: IncidentWorkspaceModel;
 }) {
-  const { detail, trackedLink, setLightbox, busy, knowledge, form, setField, apply, others } =
-    model;
+  const { detail, trackedLink, setLightbox, busy, form, setField, apply, others } = model;
   const draft = form(row);
 
   return (
@@ -91,7 +90,7 @@ export function IncidentDetail({
           {row.lastComment}
         </p>
       )}
-      {knowledge ? (
+      {model.isReadOnly(row) ? (
         <dl className="grid gap-4 md:grid-cols-2 text-sm">
           <div>
             <dt className="font-semibold">{i.rootCause}</dt>
@@ -112,6 +111,7 @@ export function IncidentDetail({
         >
           <SelectField
             label={i.status}
+            disabled={busy}
             searchable={false}
             value={draft.target}
             onChange={(v) => setField(row.id, 'target', v)}
@@ -120,6 +120,7 @@ export function IncidentDetail({
           />
           {draft.target === 'DUPLICATE' && (
             <SelectField
+              disabled={busy}
               label={i.duplicateOf}
               hint={hints.incidentsDuplicate}
               value={draft.duplicateOf}
@@ -133,6 +134,7 @@ export function IncidentDetail({
             {(id) => (
               <Textarea
                 id={id}
+                disabled={busy}
                 rows={3}
                 value={draft.rootCause}
                 maxLength={2000}
@@ -146,6 +148,7 @@ export function IncidentDetail({
             {(id) => (
               <Textarea
                 id={id}
+                disabled={busy}
                 rows={3}
                 value={draft.resolution}
                 maxLength={2000}

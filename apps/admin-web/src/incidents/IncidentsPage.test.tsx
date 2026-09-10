@@ -284,4 +284,18 @@ describe('IncidentsPage', () => {
       ).toBe(true),
     );
   });
+  it.each(['RESOLVED', 'CLOSED', 'REJECTED', 'DUPLICATE'])(
+    'shows %s incidents as read-only information',
+    async (status) => {
+      mockApi({
+        rows: [incident(INC, status, { rootCause: 'Worn belt', resolution: 'Replaced belt' })],
+      });
+      render(<IncidentsPage />);
+      await clickRowAction('Подробности');
+      const detail = await screen.findByTestId('incident-detail');
+      expect(detail.querySelector('textarea, select, form, button[type="submit"]')).toBeNull();
+      expect(detail.textContent).toContain('Replaced belt');
+      expect(screen.queryByRole('menuitem', { name: 'В работу' })).toBeNull();
+    },
+  );
 });

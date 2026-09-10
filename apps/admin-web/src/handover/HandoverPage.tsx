@@ -258,6 +258,17 @@ export function HandoverPage() {
               </div>
             )}
           </div>
+          {detail.resolutions.length > 0 && (
+            <ul className="flex flex-col gap-3 text-sm">
+              {detail.resolutions.map((resolution) => (
+                <li key={resolution.id}>
+                  <strong>{h.shown[SHOWN_AS[resolution.decision]]}</strong>
+                  <Muted> · {formatDateTime(resolution.at)}</Muted>
+                  <p className="whitespace-pre-wrap">{resolution.comment}</p>
+                </li>
+              ))}
+            </ul>
+          )}
           {/* The decision goes last: the checklist, the note and the photos are what it is made
               on, and the status column already says how a report ended, so nothing repeats it here. */}
           {HANDOVER_RESOLUTIONS.some((d) => canTransitionHandover(row.status, d)) && (

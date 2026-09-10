@@ -1,5 +1,4 @@
 import { messages } from '@vakhta/i18n';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
@@ -31,11 +30,7 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
     live,
     error,
     rows,
-    selected,
-    busy,
-    closable,
     openId,
-    dialog,
     lightbox,
     stats,
   } = model;
@@ -99,20 +94,6 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
         searchText={model.searchText}
         searchPlaceholder={i.search}
         loading={model.loading}
-        selectedKeys={knowledge ? undefined : selected}
-        onSelectionChange={knowledge ? undefined : model.setSelected}
-        selectionBar={
-          !knowledge && (
-            <Button
-              type="button"
-              size="sm"
-              disabled={busy || closable.length === 0}
-              onClick={model.closeSelected}
-            >
-              {i.closeSelected} ({closable.length})
-            </Button>
-          )
-        }
         onRowClick={model.toggleRow}
         rowActions={knowledge ? undefined : model.rowActions}
         rowKey={(row) => row.id}
@@ -121,7 +102,6 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
         activeKey={openId}
         expanded={(row) => (row.id === openId ? <IncidentDetail row={row} model={model} /> : null)}
       />
-      {dialog}
       <Lightbox images={lightbox} onClose={model.closeLightbox} title={i.photo} />
 
       {!knowledge && (

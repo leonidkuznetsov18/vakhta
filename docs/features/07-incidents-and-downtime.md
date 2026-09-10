@@ -6,7 +6,7 @@
 - "Сообщить о проблеме": reason, comment or photo when the reason requires it, and the question
   whether work has stopped; a critical reason notifies the master at once.
 - Panel "Простои и инциденты": list with statuses (OPEN → IN_PROGRESS → RESOLVED / REJECTED /
-  DUPLICATE), SLA deadlines, quick transitions from the row menu, bulk close, statistics per
+  DUPLICATE), SLA deadlines, actions for open incidents, statistics per
   reason and zone. The employee is notified when the incident is resolved.
 - Reports "Простои" and "Структура времени" show downtime minutes per employee, reason and zone.
 
@@ -23,3 +23,5 @@ The **Incident knowledge base** page shows historical incidents, photos, causes 
 search. Both incident pages support day, month, year and all-time calendar filters. This is a knowledge
 archive for future assistance, without an LLM integration. See
 [engineering memory](../engineering/features/incident-knowledge.md).
+
+Resolved and closed records show only read-only information, photos and history.

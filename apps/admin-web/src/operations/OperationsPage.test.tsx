@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { setUiState } from '@/lib/ui-store';
 import { OperationsPage } from './OperationsPage.tsx';
 import { clickRowAction, render } from '../test-utils.tsx';
 
@@ -49,7 +50,8 @@ function row(state: string, version = 3) {
     resumeState: state === 'BREAK' ? 'WORKING' : null,
     version,
     startedAt: '2026-09-07T05:00:00.000Z',
-    endedAt: null,
+    endedAt:
+      state === 'SHIFT_CLOSED' || state === 'EMERGENCY_EXIT' ? '2026-09-07T17:00:00.000Z' : null,
     stateSince: '2026-09-07T06:00:00.000Z',
     planStartAt: '2026-09-07T05:00:00.000Z',
     planEndAt: '2026-09-07T17:00:00.000Z',
@@ -277,4 +279,16 @@ describe('OperationsPage', () => {
     expect(options).not.toContain('START_WORK');
     expect(options).not.toContain('START_SHIFT');
   });
+  it.each(['SHIFT_CLOSED', 'EMERGENCY_EXIT'])(
+    'shows terminal %s shift details without action or message fields',
+    async (state) => {
+      setUiState({ 'operations.scope': 'ALL' });
+      mockApi({ rows: [row(state)] });
+      render(<OperationsPage />);
+      await clickRowAction('Подробности');
+      const detail = await screen.findByTestId('shift-detail');
+      expect(detail.querySelector('textarea, select, form, button[type="submit"]')).toBeNull();
+      expect(await screen.findByText('SHIFT_STARTED')).toBeTruthy();
+    },
+  );
 });

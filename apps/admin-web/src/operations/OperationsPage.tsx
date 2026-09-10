@@ -7,7 +7,7 @@ import {
   type ShiftScope,
   type MasterStartShiftCommand,
 } from '@vakhta/contracts';
-import { allowedActions, type ShiftState, type UserShiftAction } from '@vakhta/domain';
+import { allowedActions, isTerminal, type ShiftState, type UserShiftAction } from '@vakhta/domain';
 import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/app/confirm-dialog';
@@ -393,84 +393,87 @@ export function OperationsPage() {
   ];
 
   function renderDetail(row: ActiveShiftView) {
+    const readOnly = row.endedAt !== null || isTerminal(row.state);
     return (
       /* Clicking the row opens and closes it, so a "close" button inside repeats what the row
          already does. Two columns: what the master can do, and what the shift has done. */
       <div className="grid items-start gap-6 py-1 md:grid-cols-3" data-testid="shift-detail">
         {/* One control under another: the action, then the reason it needs, then the comment, then
             the button. Side by side the four read as unrelated fields on a single line. */}
-        <form
-          className="flex max-w-2xl flex-col gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            // One button, two errands: with an action chosen it makes the transition, without one
-            // it sends the comment to the employee. Two buttons over one comment field made the
-            // master decide which of them the text belonged to.
-            if (action[row.id]) applyAction(row);
-            else sendMessage(row);
-          }}
-        >
-          {row.endedAt === null && (
-            <SelectField
-              label={o.masterAction}
-              searchable={false}
-              hint={hints.operationsMasterAction}
-              value={action[row.id] ?? ''}
-              onChange={(v) => {
-                setAction((a) => ({ ...a, [row.id]: v as UserShiftAction }));
-                setReason((r) => ({ ...r, [row.id]: '' }));
-              }}
-              placeholder="…"
-              required
-              options={masterActions(row).map((a) => ({
-                value: a,
-                label: o.masterActionLabels[a],
-              }))}
-            />
-          )}
-          {/* A reason only appears for the two actions the directory governs; showing it always
-              would leave an empty control on every other action, and hiding it when the action
-              needs one is what produced "specify a reason" with nowhere to specify it. */}
-          {row.endedAt === null && reasonKindFor(action[row.id]) && (
-            <SelectField
-              label={o.masterReason}
-              searchable={false}
-              value={reason[row.id] ?? ''}
-              onChange={(v) => setReason((r) => ({ ...r, [row.id]: v }))}
-              placeholder="…"
-              required
-              options={reasonOptions(action[row.id])}
-            />
-          )}
-          <FormField label={o.comment} hint={hints.operationsMessage}>
-            {(id) => (
-              <Textarea
-                id={id}
-                rows={2}
-                value={comment[row.id] ?? ''}
-                onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}
-                minLength={3}
-                required={row.endedAt === null}
+        {!readOnly && (
+          <form
+            className="flex max-w-2xl flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              // One button, two errands: with an action chosen it makes the transition, without one
+              // it sends the comment to the employee. Two buttons over one comment field made the
+              // master decide which of them the text belonged to.
+              if (action[row.id]) applyAction(row);
+              else sendMessage(row);
+            }}
+          >
+            {row.endedAt === null && (
+              <SelectField
+                label={o.masterAction}
+                searchable={false}
+                hint={hints.operationsMasterAction}
+                value={action[row.id] ?? ''}
+                onChange={(v) => {
+                  setAction((a) => ({ ...a, [row.id]: v as UserShiftAction }));
+                  setReason((r) => ({ ...r, [row.id]: '' }));
+                }}
+                placeholder="…"
+                required
+                options={masterActions(row).map((a) => ({
+                  value: a,
+                  label: o.masterActionLabels[a],
+                }))}
               />
             )}
-          </FormField>
-          <div>
-            <Button
-              type="submit"
-              variant="success"
-              disabled={
-                busy ||
-                isBlank(comment[row.id]) ||
-                (reasonKindFor(action[row.id]) !== null && !reason[row.id])
-              }
-            >
-              {action[row.id] ? null : <SendIcon aria-hidden="true" />}
-              {o.apply}
-            </Button>
-          </div>
-        </form>
+            {/* A reason only appears for the two actions the directory governs; showing it always
+              would leave an empty control on every other action, and hiding it when the action
+              needs one is what produced "specify a reason" with nowhere to specify it. */}
+            {row.endedAt === null && reasonKindFor(action[row.id]) && (
+              <SelectField
+                label={o.masterReason}
+                searchable={false}
+                value={reason[row.id] ?? ''}
+                onChange={(v) => setReason((r) => ({ ...r, [row.id]: v }))}
+                placeholder="…"
+                required
+                options={reasonOptions(action[row.id])}
+              />
+            )}
+            <FormField label={o.comment} hint={hints.operationsMessage}>
+              {(id) => (
+                <Textarea
+                  id={id}
+                  rows={2}
+                  value={comment[row.id] ?? ''}
+                  onChange={(e) => setComment((c) => ({ ...c, [row.id]: e.target.value }))}
+                  minLength={3}
+                  required={row.endedAt === null}
+                />
+              )}
+            </FormField>
+            <div>
+              <Button
+                type="submit"
+                variant="success"
+                disabled={
+                  busy ||
+                  isBlank(comment[row.id]) ||
+                  (reasonKindFor(action[row.id]) !== null && !reason[row.id])
+                }
+              >
+                {action[row.id] ? null : <SendIcon aria-hidden="true" />}
+                {o.apply}
+              </Button>
+            </div>
+          </form>
+        )}
         {detail?.session?.id === row.id ? (
-          <DetailPanel detail={detail} className="md:col-span-2" />
+          <DetailPanel detail={detail} className={readOnly ? 'md:col-span-3' : 'md:col-span-2'} />
         ) : (
           <Muted>{all.ui.common.loading}</Muted>
         )}
@@ -485,7 +488,7 @@ export function OperationsPage() {
       icon: EyeIcon,
       onSelect: () => setOpenId(openId === row.id ? null : row.id),
     },
-    ...(!row.needsClarification && row.endedAt === null
+    ...(!row.needsClarification && row.endedAt === null && !isTerminal(row.state)
       ? [
           {
             key: 'clarify',

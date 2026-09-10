@@ -152,7 +152,19 @@ function mockApi(state: { status: string }) {
                   },
                 ]
               : [],
-          resolutions: [],
+          resolutions:
+            state.status === 'RESOLVED_ACCEPTED'
+              ? [
+                  {
+                    id: 'resolution',
+                    resolvedBy: null,
+                    decision: 'RESOLVED_ACCEPTED',
+                    reasonCode: null,
+                    comment: 'Master approved the clean station',
+                    at: '2026-09-07T18:00:00.000Z',
+                  },
+                ]
+              : [],
           serverTime: 'x',
         });
       }
@@ -247,5 +259,14 @@ describe('HandoverPage', () => {
       decision: 'RESOLVED_ISSUE_CONFIRMED',
       comment: 'Пол не вымыт под станком',
     });
+  });
+  it('shows a completed report and its decision without editing controls', async () => {
+    mockApi({ status: 'RESOLVED_ACCEPTED' });
+    render(<HandoverPage />);
+    await clickRowAction('Подробности');
+    const decision = await screen.findByText('Master approved the clean station');
+    expect(decision).toBeTruthy();
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Одобрить' })).toBeNull();
   });
 });

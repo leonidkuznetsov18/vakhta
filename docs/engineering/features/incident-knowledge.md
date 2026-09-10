@@ -21,7 +21,7 @@ Owner-approved behavior, 2026-09-10:
 ## Implementation and reuse
 
 Frontend slice: `features/incident-management` exposes the workspace; the knowledge page is a thin
-page wrapper. Query owns server records and invalidation; Zustand owns drafts, filters and selection.
+page wrapper. Query owns server records and invalidation; Zustand owns drafts and filters.
 Sign-out clears transient notes/photos. No forbidden React hooks were added. Reuse existing shadcn
 fields, calendar, DataTable, photo viewer and hash navigation rather than introducing parallel table or
 routing infrastructure. Legacy shared primitives and client-side table pagination remain boundary debt;
@@ -46,3 +46,12 @@ review are required; CI is the full integration gate. Production rollout evidenc
 
 Known existing system limitations: broad role/scope enforcement and durable Telegram admission are
 separate tracked reliability work. This feature does not claim to resolve those boundaries.
+
+## Completed records — owner clarification
+
+Resolved, closed, rejected and duplicate incidents are read-only in the panel; only open incident
+states show decision fields/actions. Remove bulk closing/reopening controls from this view. Terminal
+shift details hide the action/message form and use the full detail width. Completed checklist reports
+retain their existing read-only rule and show recorded master decisions as text. Filters, search,
+photo viewing and history remain available. This is presentation behavior; audited backend correction
+and lifecycle APIs retain their existing permissions and semantics.
