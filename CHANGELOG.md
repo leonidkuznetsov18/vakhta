@@ -1,3 +1,9 @@
+## [0.70.7](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.6...v0.70.7) (2026-09-10)
+
+### Bug fixes
+
+* **shifts:** preserve planned accounting at automatic closure ([a9be981](https://github.com/leonidkuznetsov18/vakhta/commit/a9be9813c968e653af90250224ca408558e3546b))
+
 ## [0.70.6](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.5...v0.70.6) (2026-09-10)
 
 ### Bug fixes
