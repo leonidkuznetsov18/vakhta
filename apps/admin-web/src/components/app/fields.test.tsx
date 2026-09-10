@@ -58,7 +58,7 @@ describe('SelectField', () => {
     expect(screen.getByRole('alert')).toBeTruthy();
   });
 
-  it('opens the searchable select with ArrowDown', { timeout: 60_000 }, async () => {
+  it('opens the searchable select with ArrowDown', async () => {
     render(<SelectField label="Employee" value="" onChange={() => undefined} options={many} />);
     const trigger = screen.getByRole('combobox', { name: 'Employee' });
     fireEvent.keyDown(trigger, { key: 'ArrowDown' });
@@ -100,27 +100,17 @@ describe('SelectField', () => {
     expect((screen.getByLabelText('Статус') as HTMLSelectElement).tagName).toBe('SELECT');
   });
 
-  it(
-    'turns into a searchable combobox for long lists and filters by typing',
-    { timeout: 60_000 },
-    async () => {
-      const onChange = vi.fn();
-      render(
-        <SelectField
-          label="Сотрудник"
-          value=""
-          onChange={onChange}
-          options={many}
-          placeholder="…"
-        />,
-      );
-      const trigger = screen.getByRole('combobox', { name: 'Сотрудник' });
-      fireEvent.click(trigger);
-      const search = await screen.findByPlaceholderText('Поиск');
-      fireEvent.change(search, { target: { value: 'Кузнец' } });
-      expect(screen.queryByText('Сотрудник 1 · 001')).toBeNull();
-      fireEvent.click(await screen.findByText('Кузнецов Леонид · 0004'));
-      expect(onChange).toHaveBeenCalledWith('e3');
-    },
-  );
+  it('turns into a searchable combobox for long lists and filters by typing', async () => {
+    const onChange = vi.fn();
+    render(
+      <SelectField label="Сотрудник" value="" onChange={onChange} options={many} placeholder="…" />,
+    );
+    const trigger = screen.getByRole('combobox', { name: 'Сотрудник' });
+    fireEvent.click(trigger);
+    const search = await screen.findByPlaceholderText('Поиск');
+    fireEvent.change(search, { target: { value: 'Кузнец' } });
+    expect(screen.queryByText('Сотрудник 1 · 001')).toBeNull();
+    fireEvent.click(await screen.findByText('Кузнецов Леонид · 0004'));
+    expect(onChange).toHaveBeenCalledWith('e3');
+  });
 });

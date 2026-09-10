@@ -47,6 +47,10 @@ if normal inspection, registration or authorized actions regress.
   submission and initial dialog focus. Affected Operations, Handover, Incidents, Requests, Admin,
   Reports, Audit, Bonus and Overview suites passed across the focused runs.
 - TypeScript typecheck, affected-file ESLint, formatting and the production panel build passed.
+- The first CI attempt exposed recursive NWSAPI 2.2.27 `Element.matches` fallback for unsupported
+  native `:modal`/`:fullscreen` states in jsdom. A CPU profile isolated that recursion. The test setup
+  now models only the absent native top-layer states as false; real Radix/cmdk and focus behavior remain.
+  All seven field tests dropped from about 18 seconds locally to 174 ms without extended timeouts.
 - The terminal registration regression test caught a newly created terminal being absent until the
   organization snapshot refreshed. The canonical registration response now provides its temporary
   inline row and pairing code; the regression test passes.

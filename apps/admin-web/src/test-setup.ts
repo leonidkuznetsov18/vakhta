@@ -12,6 +12,16 @@ try {
 }
 
 // Radix primitives (used by shadcn/ui) touch browser APIs that jsdom does not implement.
+// Floating UI probes native top-layer states. jsdom has none; its NWSAPI 2.2.27 fallback
+// recursively calls Element.matches for :modal/:fullscreen until stack exhaustion. Model only
+// these unsupported browser states; retain real selectors, popup behavior and focus handling.
+const matchesSelector = Element.prototype.matches;
+Element.prototype.matches = function (selector: string): boolean {
+  if (selector === ':modal' || selector === ':fullscreen' || selector === ':popover-open')
+    return false;
+  return matchesSelector.call(this, selector);
+};
+
 class ResizeObserverStub {
   observe(): void {}
   unobserve(): void {}
