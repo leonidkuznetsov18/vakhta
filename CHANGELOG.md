@@ -1,3 +1,9 @@
+## [0.73.6](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.5...v0.73.6) (2026-09-10)
+
+### Bug fixes
+
+* **admin:** freeze incident SLA at the first response ([2f0f903](https://github.com/leonidkuznetsov18/vakhta/commit/2f0f9034871fc451b92c3ff9fae523ab0d57670c))
+
 ## [0.73.5](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.4...v0.73.5) (2026-09-10)
 
 ### Bug fixes
