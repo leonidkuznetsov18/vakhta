@@ -62,3 +62,7 @@ key from the linked/unlinked employee filter.
 Lean: proceed. Surface work when it becomes actionable, preserve ownership and remove repeated filter
 clearing. Distinguish a waiting decision from a breached deadline to avoid false urgency. No new worker
 input or production employee actions are needed for this correction. Live release evidence follows CI.
+
+Production confirmation: v0.73.7 on panel.vakhta.xyz shows six pending master decisions and a matching
+sidebar badge. Clicking the card opens the first report under /handover with exactly six submitted
+reports in the resulting queue. Desktop screenshot captured and inspected. No reports were changed.
