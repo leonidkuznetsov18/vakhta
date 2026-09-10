@@ -1,3 +1,13 @@
+## [0.74.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.9...v0.74.0) (2026-09-10)
+
+### Features
+
+* **admin-web:** unify tables, filters and keyboard interactions ([1448939](https://github.com/leonidkuznetsov18/vakhta/commit/144893925f7e0ac0e41b5fa72347529610c0c300))
+
+### Tests
+
+* **admin-web:** model unsupported native top-layer states in jsdom ([4b0568d](https://github.com/leonidkuznetsov18/vakhta/commit/4b0568df4546b9274334e2233093b0164277b16a))
+
 ## [0.73.9](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.8...v0.73.9) (2026-09-10)
 
 ### Bug fixes
