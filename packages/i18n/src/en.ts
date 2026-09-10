@@ -1696,9 +1696,9 @@ export const en: Messages = {
         purpose:
           'The landing page: what needs attention right now across the sections, one click away.',
         steps: [
-          'Tiles show counters: open incidents, overdue acceptances, requests for you, pending overtime, unlinked employees, unpaired terminals.',
-          'Press "Open" on a tile: the section opens with the right filter already on.',
-          'Numbers refresh every minute; the same counters sit next to the sections in the sidebar.',
+          'Tiles show counters: open incidents, checklists awaiting a master decision (including before the deadline), requests for you, pending overtime, unlinked employees, unpaired terminals.',
+          'Press a tile: the section opens with the right filter already on.',
+          'Numbers refresh after decisions and every minute; the same counters sit next to the sections in the sidebar.',
         ],
         faq: [
           {
