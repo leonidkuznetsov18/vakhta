@@ -1,3 +1,14 @@
+## [0.73.8](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.7...v0.73.8) (2026-09-10)
+
+### Bug fixes
+
+* **admin:** always display filtered table totals ([2c093a0](https://github.com/leonidkuznetsov18/vakhta/commit/2c093a0f523e9ec6be930609c77b994a5001ce1c))
+
+### Documentation
+
+* **overview:** align help with pending decision counters ([e2b703d](https://github.com/leonidkuznetsov18/vakhta/commit/e2b703d5d7ffe99b5b742060c612cad3b8e16e97))
+* **overview:** record production queue verification ([a56c79d](https://github.com/leonidkuznetsov18/vakhta/commit/a56c79da9cfb8985940487f9d2e6ac422e24a2cf))
+
 ## [0.73.7](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.6...v0.73.7) (2026-09-10)
 
 ### Bug fixes
