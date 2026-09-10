@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { isBlank } from '@/lib/forms';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { Feedback } from '@/components/app/feedback';
 import { FormField } from '@/components/app/fields';
 import { ApiError, authApi } from '../api.ts';
 import { LanguageSwitcher, currentLocale } from '../i18n.tsx';
+import { useDocumentTitle } from '@/lib/title';
 import { validateWith, type FieldErrors } from '@/lib/validation';
 import { z } from 'zod';
 
@@ -23,52 +25,48 @@ interface Props {
 
 /** Two-step sign-in: password, then TOTP when the user has the second factor enabled. */
 export function LoginScreen({ onSignedIn, offline }: Props) {
-  const productName = messages(currentLocale()).admin.productName;
-  const signInTitle = messages(currentLocale()).admin.auth.signInTitle;
-  useEffect(() => {
-    document.title = `${signInTitle} · ${productName}`;
-  }, [signInTitle, productName]);
+  useDocumentTitle(`${all.admin.auth.signInTitle} · ${all.admin.productName}`);
   const [step, setStep] = useState<'password' | 'totp'>('password');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
-  const [error, setError] = useState<string | null>(offline ? t.networkError : null);
-  const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  async function submitPassword(e: FormEvent) {
+  const signIn = useMutation({
+    mutationFn: () => authApi.signIn(email.trim(), password),
+    onSuccess: (result) => {
+      if (result.twoFactorRedirect) setStep('totp');
+      else onSignedIn();
+    },
+  });
+  const verify = useMutation({
+    mutationFn: () => authApi.verifyTotp(code.trim()),
+    onSuccess: () => onSignedIn(),
+  });
+  const busy = signIn.isPending || verify.isPending;
+  /** A refused password and a server that never answered read differently to whoever is typing. */
+  const failed = signIn.error ?? verify.error;
+  const error =
+    failed === null
+      ? offline
+        ? t.networkError
+        : null
+      : failed instanceof ApiError
+        ? signIn.error
+          ? t.invalidCredentials
+          : t.invalidCode
+        : t.networkError;
+
+  function submitPassword(e: FormEvent) {
     e.preventDefault();
     const checked = validateWith(SignInForm, { email: email.trim(), password });
     setFieldErrors(checked.errors);
-    if (!checked.ok) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await authApi.signIn(email.trim(), password);
-      if (result.twoFactorRedirect) {
-        setStep('totp');
-        return;
-      }
-      onSignedIn();
-    } catch (err) {
-      setError(err instanceof ApiError ? t.invalidCredentials : t.networkError);
-    } finally {
-      setBusy(false);
-    }
+    if (checked.ok) signIn.mutate();
   }
 
-  async function submitCode(e: FormEvent) {
+  function submitCode(e: FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await authApi.verifyTotp(code.trim());
-      onSignedIn();
-    } catch (err) {
-      setError(err instanceof ApiError ? t.invalidCode : t.networkError);
-    } finally {
-      setBusy(false);
-    }
+    verify.mutate();
   }
 
   return (

@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { isBlank } from '@/lib/forms';
 import QRCode from 'qrcode';
 import type { MeView } from '@vakhta/contracts';
@@ -31,76 +32,78 @@ export function ProfilePanel({ me, onChanged }: Props) {
   const [step, setStep] = useState<'idle' | 'password' | 'verify' | 'done'>('idle');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
-  const [qr, setQr] = useState<string | null>(null);
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
-  async function startEnable(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
+  /** The QR and the backup codes come back once, with the secret; they are the answer, not state. */
+  const enable = useMutation({
+    mutationFn: async () => {
       const result = await authApi.enableTwoFactor(password);
-      setQr(await QRCode.toDataURL(result.totpURI, { margin: 1, width: 220 }));
-      setBackupCodes(result.backupCodes);
-      setStep('verify');
-    } catch (err) {
-      setError(err instanceof ApiError ? t.invalidCredentials : t.networkError);
-    } finally {
-      setBusy(false);
-      setPassword('');
-    }
-  }
-
-  async function confirm(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await authApi.verifyTotp(code.trim());
+      return {
+        qr: await QRCode.toDataURL(result.totpURI, { margin: 1, width: 220 }),
+        backupCodes: result.backupCodes,
+      };
+    },
+    onSuccess: () => setStep('verify'),
+    onSettled: () => setPassword(''),
+  });
+  const verify = useMutation({
+    mutationFn: () => authApi.verifyTotp(code.trim()),
+    onSuccess: () => {
       setStep('done');
       onChanged();
-    } catch (err) {
-      setError(err instanceof ApiError ? t.invalidCode : t.networkError);
-    } finally {
-      setBusy(false);
-    }
+    },
+  });
+  const qr = enable.data?.qr ?? null;
+  const backupCodes = enable.data?.backupCodes ?? [];
+  const busy = enable.isPending || verify.isPending;
+  const error = enable.error
+    ? enable.error instanceof ApiError
+      ? t.invalidCredentials
+      : t.networkError
+    : verify.error
+      ? verify.error instanceof ApiError
+        ? t.invalidCode
+        : t.networkError
+      : null;
+
+  function startEnable(e: FormEvent) {
+    e.preventDefault();
+    enable.mutate();
+  }
+
+  function confirm(e: FormEvent) {
+    e.preventDefault();
+    verify.mutate();
   }
 
   const enabled = me.twoFactorEnabled || step === 'done';
   const appearance = useAppearance();
   const c = m.ui.common;
   const [name, setName] = useState(me.name);
-  const [profileBusy, setProfileBusy] = useState(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
+  /** The file picker is a DOM element the page has to reach for; nothing about it is state. */
   const fileInput = useRef<HTMLInputElement>(null);
 
-  async function saveProfile(cmd: { name?: string; image?: string | null }) {
-    setProfileBusy(true);
-    setProfileError(null);
-    try {
-      await authApi.updateMe(cmd);
+  const saveProfile = useMutation({
+    mutationFn: (cmd: { name?: string; image?: string | null }) => authApi.updateMe(cmd),
+    onSuccess: () => {
       notifySuccess(t.profileSaved);
       onChanged();
-    } catch (err) {
-      setProfileError(err instanceof ApiError ? err.message : t.networkError);
-    } finally {
-      setProfileBusy(false);
-    }
-  }
-
-  async function choosePhoto(file: File | undefined) {
-    if (!file) return;
-    try {
-      const image = await photoToDataUrl(file);
-      await saveProfile({ image });
-    } catch {
-      setProfileError(t.photoTooLarge);
-    } finally {
+    },
+  });
+  /** A picture too big to send never reaches the server, so its refusal is not the mutation's. */
+  const choosePhoto = useMutation({
+    mutationFn: async (file: File) => saveProfile.mutateAsync({ image: await photoToDataUrl(file) }),
+    onSettled: () => {
       if (fileInput.current) fileInput.current.value = '';
-    }
-  }
+    },
+  });
+  const profileBusy = saveProfile.isPending || choosePhoto.isPending;
+  const profileError = saveProfile.error
+    ? saveProfile.error instanceof ApiError
+      ? saveProfile.error.message
+      : t.networkError
+    : choosePhoto.error
+      ? t.photoTooLarge
+      : null;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -129,7 +132,7 @@ export function ProfilePanel({ me, onChanged }: Props) {
                   aria-label={t.removePhoto}
                   title={t.removePhoto}
                   disabled={profileBusy}
-                  onClick={() => void saveProfile({ image: null })}
+                  onClick={() => saveProfile.mutate({ image: null })}
                 >
                   <XIcon className="size-4" aria-hidden="true" />
                 </button>
@@ -142,7 +145,10 @@ export function ProfilePanel({ me, onChanged }: Props) {
               className="sr-only"
               tabIndex={-1}
               aria-hidden="true"
-              onChange={(e) => void choosePhoto(e.target.files?.[0])}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) choosePhoto.mutate(file);
+              }}
             />
             <InfoTip text={t.photoHint} />
           </div>
@@ -151,7 +157,7 @@ export function ProfilePanel({ me, onChanged }: Props) {
             onSubmit={(e) => {
               e.preventDefault();
               if (name.trim().length >= 2 && name.trim() !== me.name) {
-                void saveProfile({ name: name.trim() });
+                saveProfile.mutate({ name: name.trim() });
               }
             }}
             noValidate
