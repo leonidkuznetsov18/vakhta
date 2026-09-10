@@ -99,6 +99,8 @@ export default defineRailway(() => {
     deploy: { restartPolicyType: 'ALWAYS' },
     replicas: { [region]: 1 },
     env: {
+      CLOUDFLARE_AI_ACCOUNT_ID: preserve(),
+      CLOUDFLARE_AI_TOKEN: preserve(),
       DATABASE_URL: preserve(),
       LOG_LEVEL: preserve(),
       NODE_ENV: preserve(),

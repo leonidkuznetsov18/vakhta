@@ -104,8 +104,15 @@ Local verification on 2026-09-10/11, isolated PostgreSQL 16 testcontainers and s
   prediction and 605 input/210 output tokens. This is protocol evidence, not a quality benchmark.
 - Panel production build and focused ESLint passed. API/worker/panel type checks and final formatting passed. Existing CI supplies the full workspace integration gate.
 
-Deployment verification is pending the feature push. Check CI/release/announcement, Pages source,
-Railway API/worker source and a read-only authenticated photo opening before reporting delivery.
+Initial source `56f9f37` passed full CI `34530246776`, released v0.76.0 and sent the existing Telegram
+announcement. Pages deployment `e71423f7-96ae-41de-9674-312ea74afdc8`, Railway API
+`1275766c-9f37-4723-a063-d590f2a912fd` and worker `7b48806a-de94-453b-9f03-852a38b97391`
+reported successful deployment at that source. A read-only production database check confirmed all
+three inspection tables and both enabled immutability triggers. API health returned ok.
+Authenticated `dev@vakhta.xyz` administrator QA opened existing photos and navigated between them;
+Ukrainian desktop/mobile layouts were visually inspected. No production review or AI run was created.
+Cloudflare inference verification remains the synthetic protocol check above; workplace accuracy is
+not established by deployment.
 Kiosk and Telegram user flows are unchanged and do not need redundant smoke tests.
 
 ## Dataset pilot and remaining work
@@ -133,3 +140,14 @@ Known limits: rough regions are not pixel-accurate segmentation labels; no bulk 
 per-rule completeness matrix, double-review adjudication or trained custom checkpoint exists yet.
 Retention must be aligned with any future frozen dataset. Current saved human reviews and model
 suggestions provide the collection foundation, not evidence that autonomous inspection is reliable.
+
+## Owner refinement — empty analysis action
+
+On 2026-09-11 the owner requested disabling Analyze for an empty form and adding a short hover
+explanation. The button requires non-whitespace text in a comment, guidance or region description;
+existing pending/unsaved-change guards still apply. A focusable wrapper exposes the tooltip even
+when the native button is disabled. All three catalogs explain the prerequisite and model assistance.
+Seven component tests passed for empty/whitespace inputs, each supported input route, busy/unsaved
+protection and keyboard tooltip access. Real browser QA confirmed hover text, disabled-before-save
+and enabled-after-save behavior; desktop/mobile screenshots were inspected. Type-check and focused
+lint passed. Railway IaC preserves both already-configured AI variables without embedding credentials.

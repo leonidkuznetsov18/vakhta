@@ -25,6 +25,7 @@ import {
 import { type InspectionEditor, createInspectionSession, reviewIsValid } from '../model/editor';
 import { EditableReview, ReadOnlyReview } from './review-fields';
 import { PredictionPanel } from './prediction-panel';
+import { AnalyzeButton } from './analyze-button';
 import '@annotorious/annotorious/annotorious.css';
 
 const t = messages(currentLocale()).photoInspection;
@@ -307,13 +308,11 @@ function InspectionSession({
               >
                 {save.isPending && !save.isPaused ? <LoadingState label={t.save} /> : t.save}
               </Button>
-              <Button
-                variant="outline"
+              <AnalyzeButton
+                review={state.review}
                 disabled={busy || state.dirty || pending}
-                onClick={() => analyze.mutate()}
-              >
-                {t.analyze}
-              </Button>
+                onAnalyze={() => analyze.mutate()}
+              />
             </div>
           )}
           {paused && (

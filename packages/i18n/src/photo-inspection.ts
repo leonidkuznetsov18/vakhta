@@ -18,6 +18,10 @@ export const inspectionUk = {
   guidanceHint:
     'Опишіть, де мають бути інструменти та які зони повинні залишатися вільними. Збережіть вимоги перед запуском AI.',
   analyze: 'Аналізувати з Gemma 4',
+  analyzeEmptyHint:
+    'Додайте й збережіть коментар, вимоги до робочого місця або опис області, щоб почати аналіз.',
+  analyzeHint:
+    'Збережіть зміни. Gemma 4 знайде можливі проблеми на фото з урахуванням вимог. Перевірте її висновок.',
   aiTitle: 'Припущення AI — перевірте самостійно',
   aiPending: 'Gemma 4 аналізує фото',
   aiFailed: 'Аналіз не завершено. Перевірте підключення та спробуйте ще раз.',
@@ -80,6 +84,10 @@ export const inspectionEn = {
   guidanceHint:
     'Describe where tools belong and which areas must remain empty. Save requirements before requesting AI.',
   analyze: 'Analyze with Gemma 4',
+  analyzeEmptyHint:
+    'Add and save a comment, workplace requirements or a region description to start analysis.',
+  analyzeHint:
+    'Save changes. Gemma 4 suggests visible problems using workplace requirements. Verify its findings.',
   aiTitle: 'AI suggestions — verify independently',
   aiPending: 'Gemma 4 is analyzing the photo',
   aiFailed: 'Analysis did not complete. Check the connection and try again.',
@@ -142,6 +150,10 @@ export const inspectionRu = {
   guidanceHint:
     'Опишите, где должны находиться инструменты и какие зоны должны оставаться пустыми. Сохраните требования перед запуском AI.',
   analyze: 'Анализировать с Gemma 4',
+  analyzeEmptyHint:
+    'Добавьте и сохраните комментарий, требования к рабочему месту или описание области, чтобы начать анализ.',
+  analyzeHint:
+    'Сохраните изменения. Gemma 4 найдёт возможные проблемы на фото с учётом требований. Проверьте её вывод.',
   aiTitle: 'Предположения AI — проверьте самостоятельно',
   aiPending: 'Gemma 4 анализирует фото',
   aiFailed: 'Анализ не завершён. Проверьте подключение и попробуйте снова.',
