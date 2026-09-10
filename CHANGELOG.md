@@ -1,3 +1,9 @@
+## [0.79.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.78.0...v0.79.0) (2026-09-10)
+
+### Features
+
+* **photo-inspection:** clarify AI help and saved review progress ([9dad4f5](https://github.com/leonidkuznetsov18/vakhta/commit/9dad4f520ff46e2e13b7cd0cf2eb81ff6b78771b))
+
 ## [0.78.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.77.0...v0.78.0) (2026-09-10)
 
 ### Features
