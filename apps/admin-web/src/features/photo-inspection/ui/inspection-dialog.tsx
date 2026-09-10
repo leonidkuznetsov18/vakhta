@@ -224,6 +224,17 @@ function InspectionSession({
       client.setQueryData(inspectionKey(id), view);
     },
   });
+  /**
+   * The run this session asked for, once it has come back with an answer. The identity comes from
+   * the run itself rather than from a clock, so a reader who opens a photo that was analysed
+   * yesterday is not congratulated for it, and a second analysis celebrates a second time.
+   */
+  const requestedRunId = analyze.data?.runs[0]?.id ?? null;
+  const newestRun = latest.runs[0];
+  const finishedRunId =
+    requestedRunId !== null && newestRun?.id === requestedRunId && newestRun.status === 'SUCCEEDED'
+      ? newestRun.id
+      : null;
   const exportReview = useMutation({
     mutationFn: () => inspectionApi.export(id),
     retry: false,
@@ -456,6 +467,7 @@ function InspectionSession({
               <AnalyzeButton
                 disabled={busy || pending}
                 loading={(analyze.isPending && !analyze.isPaused) || pending}
+                finished={finishedRunId}
                 onAnalyze={() => analyze.mutate()}
               />
             </div>
