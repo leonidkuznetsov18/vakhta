@@ -1,3 +1,9 @@
+## [0.70.10](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.9...v0.70.10) (2026-09-10)
+
+### Bug fixes
+
+* **media:** persist processing tasks with source transactions ([e17b431](https://github.com/leonidkuznetsov18/vakhta/commit/e17b4316aecbff4fa513e5757de8ae030518f932))
+
 ## [0.70.9](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.8...v0.70.9) (2026-09-10)
 
 ### Bug fixes
