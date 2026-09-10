@@ -4,6 +4,19 @@ Use the dedicated `dev@vakhta.xyz` account. Verify the exact origin before filli
 The panel uses account authentication; the kiosk uses its own device-pairing flow. Do not assume an
 email/password login exists on the kiosk or replace an active production device's pairing.
 
+## Owner-approved verification targets
+
+Confirmed by the project owner on 2026-09-10:
+
+- Panel: `dev@vakhta.xyz`.
+- Telegram worker identity: `@cryptoleonid`.
+- Kiosk terminal: `Основний` (the displayed Ukrainian name).
+
+Use the existing paired kiosk browser. The owner selected this terminal for verification; this does
+not establish that it is isolated from production. Do not regenerate its pairing code or disconnect it
+to obtain a test session. Inspect the current worker state before any attendance or shift transition.
+The Telegram username identifies the approved account; the application itself links by Telegram user ID.
+
 ## 1Password setup
 
 Install the official CLI (`brew install 1password-cli` on this Mac), enable the desktop application's

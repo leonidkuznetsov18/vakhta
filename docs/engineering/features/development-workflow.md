@@ -57,6 +57,7 @@ repository files. Session artifacts and test reports are ignored.
 
 ## Remaining work
 
-Confirm the isolated Telegram identity and terminal, then record actual cross-surface journey evidence.
+The owner subsequently confirmed `@cryptoleonid` and terminal `Основний`; follow-up runtime evidence
+is recorded in `worker-bot-qa.md`. Complete the remaining cross-surface journey checks there.
 Migrate legacy React hooks and frontend folder boundaries with affected features. Add browser E2E
 coverage for critical journeys; the secret launcher only supplies credentials to test commands.
