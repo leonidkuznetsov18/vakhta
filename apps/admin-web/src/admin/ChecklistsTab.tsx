@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   SaveChecklistCommand,
   type ChecklistDefinitionView,
@@ -27,7 +28,7 @@ import { AddDialog } from '@/components/app/add-dialog';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { DetailSheet } from '@/components/app/detail-sheet';
-import { Feedback, useAction } from '@/components/app/feedback';
+import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
@@ -36,8 +37,10 @@ import { usePersistentState } from '@/lib/ui-store';
 import { isUnchanged } from '@/lib/forms';
 import { validateWith, type FieldErrors } from '@/lib/validation';
 import { ApiError, checklistsApi } from '../api.ts';
-import { describeError } from '../errors.ts';
+import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { keys } from '@/lib/query';
+import { notifySuccess } from '@/lib/toast';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -103,9 +106,9 @@ function zoneTypeLabel(zoneType: string | null): string {
 export const CREATE_FOR_KEY = 'checklists.createFor';
 
 export function ChecklistsTab({ org }: Props) {
-  const [rows, setRows] = useState<ChecklistDefinitionView[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const { busy, error, run } = useAction();
+  const client = useQueryClient();
+  const list = useQuery({ queryKey: keys.checklists, queryFn: () => checklistsApi.list() });
+  const rows = list.data ?? null;
   const { confirm, dialog } = useConfirm();
   const [openId, setOpenId] = usePersistentState<string | null>('checklists.open', null);
   /**
@@ -123,15 +126,39 @@ export function ChecklistsTab({ org }: Props) {
     if (preset !== null) forgetPreset(null);
   };
 
-  const reload = useCallback(async () => {
-    setRows(await checklistsApi.list());
-  }, []);
-
-  useEffect(() => {
-    reload().catch((e: unknown) => setLoadError(describeError(e)));
-  }, [reload]);
-
+  const reload = () => client.invalidateQueries({ queryKey: keys.checklists });
   const open = rows?.find((r) => r.id === openId) ?? null;
+
+  const setStatus = useMutation({
+    mutationFn: (v: { row: ChecklistDefinitionView; isActive: boolean; reason: string }) =>
+      checklistsApi.setStatus(v.row.id, {
+        isActive: v.isActive,
+        ...(v.reason ? { reason: v.reason } : {}),
+      }),
+    onSuccess: async () => {
+      notifySuccess(c.statusChanged);
+      await reload();
+    },
+  });
+
+  const drop = useMutation({
+    mutationFn: async (v: { row: ChecklistDefinitionView; reason: string }) => {
+      try {
+        await checklistsApi.delete(v.row.id, v.reason);
+      } catch (e) {
+        if (e instanceof ApiError && e.code === 'CHECKLIST_IN_USE') throw new Error(c.inUse);
+        throw e;
+      }
+    },
+    onSuccess: async (_result, v) => {
+      notifySuccess(c.deleted);
+      if (openId === v.row.id) setOpenId(null);
+      await reload();
+    },
+  });
+
+  const busy = setStatus.isPending || drop.isPending;
+  const error = readError(list.error ?? setStatus.error ?? drop.error);
 
   async function toggle(row: ChecklistDefinitionView) {
     const isActive = !row.isActive;
@@ -144,10 +171,7 @@ export function ChecklistsTab({ org }: Props) {
       destructive: !isActive,
     });
     if (reason === false) return;
-    void run(async () => {
-      await checklistsApi.setStatus(row.id, { isActive, ...(reason ? { reason } : {}) });
-      await reload();
-    }, c.statusChanged);
+    setStatus.mutate({ row, isActive, reason });
   }
 
   async function remove(row: ChecklistDefinitionView) {
@@ -160,16 +184,7 @@ export function ChecklistsTab({ org }: Props) {
       destructive: true,
     });
     if (!reason) return;
-    void run(async () => {
-      try {
-        await checklistsApi.delete(row.id, reason);
-      } catch (e) {
-        if (e instanceof ApiError && e.code === 'CHECKLIST_IN_USE') throw new Error(c.inUse);
-        throw e;
-      }
-      if (openId === row.id) setOpenId(null);
-      await reload();
-    }, c.deleted);
+    drop.mutate({ row, reason });
   }
 
   const columns: Column<ChecklistDefinitionView>[] = [
@@ -270,19 +285,19 @@ export function ChecklistsTab({ org }: Props) {
             onClose={closeCreate}
             onSaved={async (saved) => {
               closeCreate();
-              await reload();
               setOpenId(saved.id);
+              await reload();
             }}
           />
         }
       >
-        <Feedback error={error ?? loadError} />
+        <Feedback error={error} />
       </Section>
       <DataTable
         columns={columns}
         rows={rows ?? []}
         rowKey={(r) => r.id}
-        loading={rows === null && !loadError}
+        loading={list.isPending}
         empty={t.common.empty}
         storageKey="checklists"
         searchText={(r) => `${r.name} ${r.positions.map((p) => p.name).join(' ')}`}
@@ -364,8 +379,8 @@ export function ChecklistsTab({ org }: Props) {
           onClose={() => setEditing(null)}
           onSaved={async (saved) => {
             setEditing(null);
-            await reload();
             setOpenId(saved.id);
+            await reload();
           }}
         />
       )}
@@ -429,20 +444,18 @@ function ChecklistDialog({
   readonly onSaved: (saved: ChecklistDefinitionView) => Promise<void>;
 }) {
   const row = mode === 'new' || mode === null ? null : mode;
-  const draftKey = `checklists.draft.${row?.id ?? 'new'}`;
-  const [draft, setDraft] = usePersistentState<Draft>(draftKey, () =>
-    row ? draftOf(row) : emptyDraft(),
-  );
-  useEffect(() => {
-    if (mode !== 'new' || !presetPositionId) return;
-    setDraft((d) =>
-      d.positionIds.includes(presetPositionId)
-        ? d
-        : { ...d, positionIds: [...d.positionIds, presetPositionId] },
-    );
-  }, [mode, presetPositionId, setDraft]);
+  /**
+   * The unsaved draft, per checklist. A creation started from an employee card keys itself by that
+   * position, so it begins with the position ticked — and, being a draft of its own, unticking it
+   * sticks and a half-written generic draft is not disturbed.
+   */
+  const draftKey = `checklists.draft.${row?.id ?? (presetPositionId ? `new:${presetPositionId}` : 'new')}`;
+  const [draft, setDraft] = usePersistentState<Draft>(draftKey, () => {
+    if (row) return draftOf(row);
+    const blank = emptyDraft();
+    return presetPositionId ? { ...blank, positionIds: [presetPositionId] } : blank;
+  });
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const { busy, error, run } = useAction();
 
   const patch = (next: Partial<Draft>) => setDraft((d) => ({ ...d, ...next }));
   const setItem = (id: number, next: Partial<DraftItem>) =>
@@ -477,7 +490,7 @@ function ChecklistDialog({
     });
   };
 
-  const initial = useMemo(() => (row ? draftOf(row) : emptyDraft()), [row]);
+  const initial = row ? draftOf(row) : emptyDraft();
   const comparable = (d: Draft) => ({
     name: d.name,
     positionIds: [...d.positionIds].sort(),
@@ -486,10 +499,19 @@ function ChecklistDialog({
   });
   const unchanged = isUnchanged(comparable(draft), comparable(initial));
 
-  const emptyLabels = useMemo(
-    () => new Set(draft.items.filter((i) => i.label.trim() === '').map((i) => i.id)),
-    [draft.items],
-  );
+  const emptyLabels = new Set(draft.items.filter((i) => i.label.trim() === '').map((i) => i.id));
+
+  const save = useMutation({
+    mutationFn: (cmd: SaveChecklistCommand) =>
+      row ? checklistsApi.update(row.id, cmd) : checklistsApi.create(cmd),
+    onSuccess: async (saved) => {
+      notifySuccess(row ? c.updated : c.created);
+      setDraft(row ? draftOf(saved) : emptyDraft());
+      await onSaved(saved);
+    },
+  });
+  const busy = save.isPending;
+  const error = readError(save.error);
 
   function submit(ev: FormEvent) {
     ev.preventDefault();
@@ -505,16 +527,7 @@ function ChecklistDialog({
     if (emptyLabels.size > 0 && !errors.items) errors.items = c.emptyLabel;
     setFieldErrors(errors);
     if (!checked.ok || emptyLabels.size > 0) return;
-    void run(
-      async () => {
-        const saved = row
-          ? await checklistsApi.update(row.id, checked.data)
-          : await checklistsApi.create(checked.data);
-        setDraft(row ? draftOf(saved) : emptyDraft());
-        await onSaved(saved);
-      },
-      row ? c.updated : c.created,
-    );
+    save.mutate(checked.data);
   }
 
   return (

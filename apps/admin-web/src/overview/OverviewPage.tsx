@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type { ActiveShiftView, MeView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import {
@@ -240,25 +239,7 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
   const loading = data.refreshedAt === null;
 
   /** The people on an unscheduled shift, gathered by the unit whose schedule would hold them. */
-  const unscheduledByUnit = useMemo(() => {
-    const groups = new Map<
-      string,
-      { orgUnitId: string | null; orgUnitName: string | null; people: ActiveShiftView[] }
-    >();
-    for (const person of data.unscheduledPeople) {
-      const key = person.orgUnitId ?? '';
-      const group = groups.get(key) ?? {
-        orgUnitId: person.orgUnitId,
-        orgUnitName: person.orgUnitName,
-        people: [],
-      };
-      group.people.push(person);
-      groups.set(key, group);
-    }
-    return [...groups.values()].sort((a, b) =>
-      (a.orgUnitName ?? '').localeCompare(b.orgUnitName ?? ''),
-    );
-  }, [data.unscheduledPeople]);
+  const unscheduledByUnit = groupByUnit(data.unscheduledPeople);
 
   // One card per unit stands in for the plain "unscheduled" tile: the tile only said how many, the
   // cards say who and in which unit, and each one opens that unit's month with those people in it.
@@ -364,5 +345,25 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
         <InfoTip text={all.ui.hints.overview} />
       </Muted>
     </div>
+  );
+}
+
+function groupByUnit(people: readonly ActiveShiftView[]) {
+  const groups = new Map<
+    string,
+    { orgUnitId: string | null; orgUnitName: string | null; people: ActiveShiftView[] }
+  >();
+  for (const person of people) {
+    const key = person.orgUnitId ?? '';
+    const group = groups.get(key) ?? {
+      orgUnitId: person.orgUnitId,
+      orgUnitName: person.orgUnitName,
+      people: [],
+    };
+    group.people.push(person);
+    groups.set(key, group);
+  }
+  return [...groups.values()].sort((a, b) =>
+    (a.orgUnitName ?? '').localeCompare(b.orgUnitName ?? ''),
   );
 }
