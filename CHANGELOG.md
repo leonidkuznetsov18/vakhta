@@ -1,3 +1,13 @@
+## [0.70.6](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.5...v0.70.6) (2026-09-10)
+
+### Bug fixes
+
+* **bonus:** freeze monthly nominations and awards atomically ([bcb61de](https://github.com/leonidkuznetsov18/vakhta/commit/bcb61deaeb468581ef47f2de357b5717853aed7c))
+
+### Documentation
+
+* **ops:** record verified Cloudflare credentials and publication ([4eb4ef9](https://github.com/leonidkuznetsov18/vakhta/commit/4eb4ef91466228add14e3ed865305d42ade1e931))
+
 ## [0.70.5](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.4...v0.70.5) (2026-09-10)
 
 ### Bug fixes
