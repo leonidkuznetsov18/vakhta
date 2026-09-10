@@ -266,6 +266,7 @@ describe('HandoverPage', () => {
     await clickRowAction('Подробности');
     const decision = await screen.findByText('Master approved the clean station');
     expect(decision).toBeTruthy();
+    expect(screen.queryByText(/просрочено на/)).toBeNull();
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Одобрить' })).toBeNull();
   });

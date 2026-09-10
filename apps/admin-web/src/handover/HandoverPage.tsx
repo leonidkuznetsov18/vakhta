@@ -1,9 +1,11 @@
+import { DetailText } from '@/components/app/row-detail';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { HandoverListItemView, MediaLinkView } from '@vakhta/contracts';
 import {
   HANDOVER_RESOLUTIONS,
   canTransitionHandover,
+  isHandoverPending,
   type HandoverResolution,
   type HandoverStatus,
 } from '@vakhta/domain';
@@ -174,7 +176,14 @@ export function HandoverPage() {
           <InfoTip text={hints.handoverDeadline} />
         </span>
       ),
-      cell: (row) => <Deadline at={row.acceptDeadlineAt} breached={row.overdue} />,
+      cell: (row) => (
+        <div className="flex flex-col items-start gap-1">
+          <span className="tabular-nums">{formatDateTime(row.acceptDeadlineAt)}</span>
+          {isHandoverPending(row.status) && (
+            <Deadline at={row.acceptDeadlineAt} breached={row.overdue} />
+          )}
+        </div>
+      ),
     },
   ];
 
@@ -182,9 +191,9 @@ export function HandoverPage() {
   function renderDetail(row: HandoverListItemView) {
     if (!detail || detail.handover.id !== row.id) return <Muted>{all.ui.common.loading}</Muted>;
     return (
-      <div className="flex flex-col gap-4 py-1" data-testid="handover-detail">
-        <div className="flex flex-col gap-4">
-          <div>
+      <div className="flex min-w-0 flex-col gap-6 py-1" data-testid="handover-detail">
+        <div className="flex min-w-0 flex-col gap-6">
+          <div className="max-w-prose rounded-md border p-3">
             <h3 className="mb-2 text-sm font-semibold">{h.checklist}</h3>
             <ul className="flex flex-col gap-1 text-sm">
               {detail.handover.items
@@ -220,8 +229,7 @@ export function HandoverPage() {
                   .filter((item) => item.kind === 'NOTE' && item.answered)
                   .map((item) => (
                     <li key={item.key} className="rounded-md border bg-muted/40 px-3 py-2">
-                      <Muted className="text-xs">{item.label}</Muted>
-                      <p className="whitespace-pre-wrap">{item.note ?? '—'}</p>
+                      <DetailText label={item.label} text={item.note ?? '—'} />
                     </li>
                   ))}
               </ul>
@@ -235,7 +243,7 @@ export function HandoverPage() {
             </h3>
             {/* The count in the heading already says there are none. */}
             {detail.handover.photos.length === 0 ? null : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3">
+              <div className="grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
                 {detail.handover.photos.map((p) => (
                   <PhotoThumb
                     key={p.itemKey}
@@ -264,7 +272,7 @@ export function HandoverPage() {
                 <li key={resolution.id}>
                   <strong>{h.shown[SHOWN_AS[resolution.decision]]}</strong>
                   <Muted> · {formatDateTime(resolution.at)}</Muted>
-                  <p className="whitespace-pre-wrap">{resolution.comment}</p>
+                  <DetailText label={h.remarkComment} text={resolution.comment} />
                 </li>
               ))}
             </ul>
@@ -272,7 +280,7 @@ export function HandoverPage() {
           {/* The decision goes last: the checklist, the note and the photos are what it is made
               on, and the status column already says how a report ended, so nothing repeats it here. */}
           {HANDOVER_RESOLUTIONS.some((d) => canTransitionHandover(row.status, d)) && (
-            <div className="flex flex-col gap-2">
+            <div className="flex max-w-2xl flex-col gap-3 border-t pt-4">
               <p className="max-w-3xl text-sm whitespace-normal text-muted-foreground">
                 {h.reviewHint}
               </p>

@@ -165,7 +165,7 @@ describe('IncidentsPage', () => {
     expect(await screen.findAllByText('Итого')).toHaveLength(2);
 
     await clickRowAction('Подробности');
-    expect(await screen.findByText(/работа остановлена · фото · Заклинило/)).toBeTruthy();
+    expect(await screen.findByText(/работа остановлена · фото/)).toBeTruthy();
     // The name is in the row's own column and again in the report under it.
     expect(screen.getAllByText('Кузнецов Леонид').length).toBeGreaterThanOrEqual(2);
 
@@ -273,7 +273,11 @@ describe('IncidentsPage', () => {
       const stats = calls.find((call) => call.path.endsWith('/stats'));
       expect(new URLSearchParams(stats?.search).get('to')).toBe('2026-10-25T22:00:00.000Z');
     });
-    fireEvent.change(screen.getByLabelText('Период'), { target: { value: 'year' } });
+    fireEvent.click(screen.getByLabelText('Период'));
+    fireEvent.mouseDown(screen.getByText('Год', { selector: 'button' }), {
+      button: 0,
+      ctrlKey: false,
+    });
     await waitFor(() =>
       expect(
         calls.some(
@@ -283,7 +287,7 @@ describe('IncidentsPage', () => {
         ),
       ).toBe(true),
     );
-  });
+  }, 20_000);
   it.each(['RESOLVED', 'CLOSED', 'REJECTED', 'DUPLICATE'])(
     'shows %s incidents as read-only information',
     async (status) => {

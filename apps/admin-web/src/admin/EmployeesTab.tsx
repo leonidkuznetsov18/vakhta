@@ -478,7 +478,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
             </Button>
           </span>
         </div>
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-4">
             <EmployeeDetailsForm key={emp.id} employee={emp} onSaved={reload} />
             <ActivationPanel

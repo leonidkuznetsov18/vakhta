@@ -34,8 +34,9 @@ type Draft = {
 interface WorkspaceState {
   drafts: Record<string, Partial<Draft>>;
   lightbox: LightboxImage[];
+  calendarOpen: boolean;
 }
-const initialState = (): WorkspaceState => ({ drafts: {}, lightbox: [] });
+const initialState = (): WorkspaceState => ({ drafts: {}, lightbox: [], calendarOpen: false });
 const useWorkspaceState = create<WorkspaceState>(() => initialState());
 // Sign-out clears shared filters and also drops transient incident notes and signed photo URLs.
 useUiStore.subscribe((state, previous) => {
@@ -60,7 +61,7 @@ export function useIncidentWorkspace(knowledge: boolean) {
   );
   const [date, setDate] = usePersistentState(`${prefix}.date`, todayIso);
   const [openId, setOpenId] = useDeepLinkedId(prefix, `${prefix}.openId`);
-  const { drafts, lightbox } = useWorkspaceState(useShallow((state) => state));
+  const { drafts, lightbox, calendarOpen } = useWorkspaceState(useShallow((state) => state));
   const client = useQueryClient();
   const timezone = org?.sites.find((site) => site.id === siteId)?.timezone ?? 'Europe/Kyiv';
   const range = incidentPeriod(periodMode, date, timezone);
@@ -165,8 +166,6 @@ export function useIncidentWorkspace(knowledge: boolean) {
   const busy = save.isPending;
   const toggleRow = (row: IncidentView) => setOpenId(openId === row.id ? null : row.id);
   const setLightbox = (images: LightboxImage[]) => useWorkspaceState.setState({ lightbox: images });
-  const year = Number(date.slice(0, 4));
-  const currentYear = new Date().getFullYear();
   return {
     knowledge,
     isReadOnly,
@@ -175,6 +174,8 @@ export function useIncidentWorkspace(knowledge: boolean) {
     setSiteId,
     scope,
     periodMode,
+    calendarOpen,
+    setCalendarOpen: (open: boolean) => useWorkspaceState.setState({ calendarOpen: open }),
     date,
     live,
     rows,
@@ -196,22 +197,15 @@ export function useIncidentWorkspace(knowledge: boolean) {
       if (value === 'all' || value === 'day' || value === 'month' || value === 'year')
         setPeriodModeValue(value);
     },
-    setDate,
-    setMonth: (value: string) => setDate(`${value}-01`),
-    setYear: (value: string) => setDate(`${value}-01-01`),
-    periodOptions: [
-      { value: 'all', label: i.allDates },
-      { value: 'day', label: i.day },
-      { value: 'month', label: i.month },
-      { value: 'year', label: i.year },
-    ],
-    yearOptions: Array.from(
-      { length: Math.max(currentYear + 1, year) - Math.min(2020, year) + 1 },
-      (_, index) => {
-        const value = String(Math.max(currentYear + 1, year) - index);
-        return { value, label: value };
-      },
-    ),
+    selectDate: (value: string) => {
+      setDate(value);
+      if (periodMode === 'all') setPeriodModeValue('month');
+      useWorkspaceState.setState({ calendarOpen: false });
+    },
+    clearPeriod: () => {
+      setPeriodModeValue('all');
+      useWorkspaceState.setState({ calendarOpen: false });
+    },
     others: (row: IncidentView) =>
       rows
         .filter((item) => item.id !== row.id && item.status !== 'DUPLICATE')

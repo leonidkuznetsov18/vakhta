@@ -225,7 +225,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
             </Button>
           </span>
         </div>
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-4">
             <form
               className="flex flex-col gap-3 rounded-lg border p-3"
@@ -234,7 +234,11 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
             >
               <span className="text-sm font-medium">{u.details}</span>
               <div className="flex flex-wrap items-end gap-3">
-                <FormField label={u.name} error={fieldErrors.name} className="min-w-64 flex-1">
+                <FormField
+                  label={u.name}
+                  error={fieldErrors.name}
+                  className="w-full min-w-0 sm:min-w-48 sm:flex-1"
+                >
                   {(id) => (
                     <Input
                       id={id}

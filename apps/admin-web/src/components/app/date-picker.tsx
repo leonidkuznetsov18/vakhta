@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CalendarIcon } from 'lucide-react';
 import { enGB, ru, uk } from 'react-day-picker/locale';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { FormField } from '@/components/app/fields';
@@ -122,6 +123,101 @@ export function MonthField({ label, value, onChange, hint, className, disabled }
                 setOpen(false);
               }}
             />
+          </PopoverContent>
+        </Popover>
+      )}
+    </FormField>
+  );
+}
+
+/** Shared day/month/year filter, using the same calendar surface as scheduling. */
+export function CalendarPeriodField({
+  label,
+  value,
+  mode,
+  labels,
+  open,
+  onOpenChange,
+  onModeChange,
+  onSelect,
+  onClear,
+}: {
+  label: string;
+  value: string;
+  mode: 'all' | 'day' | 'month' | 'year';
+  labels: { day: string; month: string; year: string; all: string };
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onModeChange: (mode: string) => void;
+  onSelect: (value: string) => void;
+  onClear: () => void;
+}) {
+  const selected = fromIsoDate(value);
+  const unit = mode === 'all' ? 'month' : mode;
+  const first =
+    selected &&
+    (unit === 'year'
+      ? new Date(selected.getFullYear(), 0, 1)
+      : unit === 'month'
+        ? new Date(selected.getFullYear(), selected.getMonth(), 1)
+        : selected);
+  const last =
+    selected &&
+    (unit === 'year'
+      ? new Date(selected.getFullYear(), 11, 31)
+      : unit === 'month'
+        ? new Date(selected.getFullYear(), selected.getMonth() + 1, 0)
+        : selected);
+  const text =
+    mode === 'all'
+      ? labels.all
+      : mode === 'year'
+        ? value.slice(0, 4)
+        : mode === 'month'
+          ? formatMonth(value.slice(0, 7))
+          : formatDate(value);
+  return (
+    <FormField label={label} className="w-56 max-w-full">
+      {(id) => (
+        <Popover open={open} onOpenChange={onOpenChange}>
+          <PopoverTrigger asChild>
+            <Button
+              id={id}
+              type="button"
+              variant="outline"
+              className="w-full justify-start font-normal"
+            >
+              <CalendarIcon aria-hidden="true" />
+              <span className="tabular-nums">{text}</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Tabs value={unit} onValueChange={onModeChange} className="p-3 pb-0">
+              <TabsList className="w-full" aria-label={label}>
+                <TabsTrigger value="day">{labels.day}</TabsTrigger>
+                <TabsTrigger value="month">{labels.month}</TabsTrigger>
+                <TabsTrigger value="year">{labels.year}</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <Calendar
+              mode="single"
+              locale={dayPickerLocale()}
+              captionLayout="dropdown"
+              selected={mode === 'all' ? undefined : first}
+              defaultMonth={selected}
+              modifiers={
+                mode !== 'all' && first && last ? { period: { from: first, to: last } } : {}
+              }
+              modifiersClassNames={{ period: 'bg-accent text-accent-foreground' }}
+              onSelect={(day) => {
+                if (day) onSelect(toIsoDate(day));
+              }}
+            />
+            <div className="border-t p-2">
+              <Button type="button" variant="ghost" className="w-full" onClick={onClear}>
+                {labels.all}
+              </Button>
+            </div>
           </PopoverContent>
         </Popover>
       )}

@@ -396,8 +396,13 @@ export function OperationsPage() {
     const readOnly = row.endedAt !== null || isTerminal(row.state);
     return (
       /* Clicking the row opens and closes it, so a "close" button inside repeats what the row
-         already does. Two columns: what the master can do, and what the shift has done. */
-      <div className="grid items-start gap-6 py-1 md:grid-cols-3" data-testid="shift-detail">
+         already does. Read shift evidence before the bounded action form. */
+      <div className="flex min-w-0 flex-col gap-6 py-1" data-testid="shift-detail">
+        {detail?.session?.id === row.id ? (
+          <DetailPanel detail={detail} />
+        ) : (
+          <Muted>{all.ui.common.loading}</Muted>
+        )}
         {/* One control under another: the action, then the reason it needs, then the comment, then
             the button. Side by side the four read as unrelated fields on a single line. */}
         {!readOnly && (
@@ -471,11 +476,6 @@ export function OperationsPage() {
               </Button>
             </div>
           </form>
-        )}
-        {detail?.session?.id === row.id ? (
-          <DetailPanel detail={detail} className={readOnly ? 'md:col-span-3' : 'md:col-span-2'} />
-        ) : (
-          <Muted>{all.ui.common.loading}</Muted>
         )}
       </div>
     );
@@ -665,10 +665,14 @@ function DetailPanel({
   return (
     // Side by side: a full day is twenty intervals and forty events, and one under the other made
     // a column two screens tall out of two lists that each fit in half the width.
-    <div className={cn('grid items-start gap-4 sm:grid-cols-2', className)}>
+    <div className={cn('grid min-w-0 items-start gap-4 md:grid-cols-2', className)}>
       <div>
         <h3 className="mb-2 text-sm font-semibold">{o.intervals}</h3>
-        <ul className="flex flex-col gap-1 text-sm">
+        <ul
+          tabIndex={0}
+          aria-label={o.intervals}
+          className="flex max-h-80 flex-col gap-2 overflow-y-auto rounded-md border p-3 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+        >
           {detail.intervals.map((i) => (
             <li key={i.id} className="flex flex-wrap items-center gap-2">
               <StatusPill tone={STATE_TONE[i.state]}>{all.states[i.state]}</StatusPill>
@@ -684,13 +688,17 @@ function DetailPanel({
       </div>
       <div>
         <h3 className="mb-2 text-sm font-semibold">{o.events}</h3>
-        <ul className="flex flex-col gap-1 text-sm">
+        <ul
+          tabIndex={0}
+          aria-label={o.events}
+          className="flex max-h-80 flex-col gap-3 overflow-y-auto rounded-md border p-3 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+        >
           {detail.events.map((e) => (
             <li key={e.id} className="flex flex-wrap items-center gap-2">
               <code className="rounded bg-muted px-1 text-xs">{e.type}</code>
               <span className="tabular-nums">{formatTime(e.occurredAt)}</span>
               {e.actorType && <Muted>· {e.actorType}</Muted>}
-              {e.comment && <Muted>· {e.comment}</Muted>}
+              {e.comment && <p className="w-full whitespace-pre-wrap">{e.comment}</p>}
             </li>
           ))}
         </ul>

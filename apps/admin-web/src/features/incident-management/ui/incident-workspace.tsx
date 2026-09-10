@@ -2,7 +2,7 @@ import { messages } from '@vakhta/i18n';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
-import { DateField, MonthField } from '@/components/app/date-picker';
+import { CalendarPeriodField } from '@/components/app/date-picker';
 import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Lightbox } from '@/components/app/photo';
@@ -62,25 +62,17 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
             <InfoTip text={hints.incidentsScope} />
           </div>
         )}
-        <SelectField
+        <CalendarPeriodField
           label={i.period}
-          value={periodMode}
-          onChange={model.setPeriodMode}
-          searchable={false}
-          options={model.periodOptions}
+          value={date}
+          mode={periodMode}
+          labels={{ day: i.day, month: i.month, year: i.year, all: i.allDates }}
+          open={model.calendarOpen}
+          onOpenChange={model.setCalendarOpen}
+          onModeChange={model.setPeriodMode}
+          onSelect={model.selectDate}
+          onClear={model.clearPeriod}
         />
-        {periodMode === 'day' && <DateField label={i.date} value={date} onChange={model.setDate} />}
-        {periodMode === 'month' && (
-          <MonthField label={i.month} value={date.slice(0, 7)} onChange={model.setMonth} />
-        )}
-        {periodMode === 'year' && (
-          <SelectField
-            label={i.year}
-            value={date.slice(0, 4)}
-            onChange={model.setYear}
-            options={model.yearOptions}
-          />
-        )}
         <div className="ml-auto">
           <LiveBadge live={live} />
         </div>

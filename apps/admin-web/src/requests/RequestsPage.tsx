@@ -1,3 +1,4 @@
+import { DetailText } from '@/components/app/row-detail';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { OvertimeView, RequestView } from '@vakhta/contracts';
@@ -271,9 +272,12 @@ export function RequestsPage() {
   function requestDetail(req: RequestView) {
     if (!detail || detail.request.id !== req.id) return <Muted>{all.ui.common.loading}</Muted>;
     return (
-      <div className="grid items-start gap-6 py-1 md:grid-cols-2" data-testid="request-detail">
+      <div
+        className="grid min-w-0 items-start gap-6 py-1 lg:grid-cols-2"
+        data-testid="request-detail"
+      >
         <div className="flex max-w-2xl flex-col gap-3">
-          {req.comment && <p className="text-sm">{req.comment}</p>}
+          {req.comment && <DetailText label={r.comment} text={req.comment} />}
           {req.hasMedicalDocument && <MedicalLink request={detail.request} />}
           {req.currentStepKey && (
             <form
@@ -374,14 +378,19 @@ export function RequestsPage() {
         </div>
         <div>
           <h3 className="mb-2 text-sm font-semibold">{r.history}</h3>
-          <ul className="flex flex-col gap-1 text-sm">
+          <ul
+            tabIndex={0}
+            aria-label={r.history}
+            className="flex max-h-80 flex-col gap-4 overflow-y-auto rounded-md border p-3 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+          >
             {detail.decisions.map((d) => (
               <li key={d.id}>
                 <span className="tabular-nums">{formatDateTime(d.at)}</span> {d.stepKey}:{' '}
                 {d.decision === 'APPROVED'
                   ? all.requests.approvedShort
                   : all.requests.rejectedShort}
-                <Muted>{` · ${d.actingRole ?? d.actorType} · ${d.comment}`}</Muted>
+                <Muted>{` · ${d.actingRole ?? d.actorType}`}</Muted>
+                <p className="whitespace-pre-wrap">{d.comment}</p>
               </li>
             ))}
           </ul>

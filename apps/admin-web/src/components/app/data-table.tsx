@@ -1,3 +1,4 @@
+import { RowDetail } from './row-detail';
 import { useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { format, messages } from '@vakhta/i18n';
 import {
@@ -503,7 +504,7 @@ export function DataTable<T>({
                             colSpan={span}
                             className={cn('bg-muted/40 p-4', rowClassName?.(row))}
                           >
-                            {extra}
+                            <RowDetail>{extra}</RowDetail>
                           </TableCell>
                         </TableRow>
                       ) : null}
@@ -561,7 +562,11 @@ export function DataTable<T>({
                         </RowGroup>
                       ))}
                   </dl>
-                  {extra ? <div className="mt-3 border-t pt-3">{extra}</div> : null}
+                  {extra ? (
+                    <div className="mt-3 border-t pt-3">
+                      <RowDetail>{extra}</RowDetail>
+                    </div>
+                  ) : null}
                 </li>
               );
             })}

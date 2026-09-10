@@ -55,3 +55,15 @@ shift details hide the action/message form and use the full detail width. Comple
 retain their existing read-only rule and show recorded master decisions as text. Filters, search,
 photo viewing and history remain available. This is presentation behavior; audited backend correction
 and lifecycle APIs retain their existing permissions and semantics.
+
+## Calendar and detail readability
+
+Both incident pages use CalendarPeriodField: an always-visible calendar trigger matching Schedule,
+day/month/year tabs inside the same popover, and an all-time reset. All-time remains the default.
+RowDetail provides a common bounded reading surface for every expanded table row and mobile card.
+Incident cause, solution and legacy text use DetailText (readable line length, preserved line breaks,
+long-word wrapping, keyboard-scrollable height limit). History metadata and prose occupy separate lines.
+Operations, handovers, requests, employees and users reuse the same detail boundary; forms and photos
+have bounded widths and narrow layouts stack vertically. Business permissions and mutations are unchanged.
+Lean: proceed; consistent controls and grouping reduce searching and re-reading without extra worker input.
+Visual acceptance requires actual desktop/mobile screenshots; no production records are created for QA.

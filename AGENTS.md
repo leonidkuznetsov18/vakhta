@@ -78,6 +78,14 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 
 ## Admin panel UI
 
+- Use the shared calendar trigger/popover for period filters, consistent with Schedule. Do not hide
+  the calendar behind an unrelated period dropdown. Reuse the same control across related pages.
+- Expanded rows use the shared RowDetail reading surface: bounded width, grouped sections, wrapping
+  prose, bounded scrollable long text/history and one-column mobile layouts. Keep actions near their fields.
+- For every UI/UX change, capture AND visually inspect screenshots of the affected desktop and mobile
+  views. Reuse the current authenticated QA session and inspect only changed surfaces. Automated tests
+  alone do not replace this visual check. Record any blocked screenshot check honestly.
+
 - Completed or resolved reports, incidents and shifts render read-only details. Hide editing textareas,
   selects, submit buttons and mutation actions; preserve photos, recorded decisions and history.
   Filters and navigation remain available. Do not show a disabled editing form as the final state.

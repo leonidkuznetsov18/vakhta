@@ -1,3 +1,4 @@
+import { DetailText } from '@/components/app/row-detail';
 import type { IncidentView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
@@ -24,12 +25,15 @@ export function IncidentDetail({
   const draft = form(row);
 
   return (
-    <div className="flex flex-col gap-6 py-1" data-testid="incident-detail">
+    <div
+      className="flex w-full min-w-0 max-w-5xl flex-col gap-6 py-1 whitespace-normal [overflow-wrap:anywhere]"
+      data-testid="incident-detail"
+    >
       {/* What happened first, and what to do about it under it: the decision is taken after
             reading the reports, not beside them. */}
       {detail && detail.incident.id === row.id ? (
-        <div className="grid items-start gap-6 md:grid-cols-2">
-          <div>
+        <div className="grid min-w-0 items-start gap-6 md:grid-cols-2">
+          <div className="min-w-0">
             <h3 className="mb-2 text-sm font-semibold">{i.reportsTitle}</h3>
             <ul className="flex flex-col gap-3 text-sm">
               {detail.reports.map((r) => (
@@ -38,9 +42,10 @@ export function IncidentDetail({
                     <span className="tabular-nums">{formatTime(r.reportedAt)}</span>{' '}
                     <strong>{r.fullName}</strong>{' '}
                     <Muted>
-                      {`${r.stoppedWork ? i.stoppedWork : i.notStopped}${r.hasPhoto && !r.media ? ` · ${i.photo}` : ''}${r.comment ? ` · ${r.comment}` : ''}`}
+                      {`${r.stoppedWork ? i.stoppedWork : i.notStopped}${r.hasPhoto && !r.media ? ` · ${i.photo}` : ''}`}
                     </Muted>
                   </div>
+                  {r.comment && <DetailText label={i.comment} text={r.comment} />}
                   {/* The photo itself, not the word "photo": what the employee saw is the whole
                           point of the report, and it is shown here the way a handover shows its own. */}
                   {r.media && (
@@ -58,24 +63,31 @@ export function IncidentDetail({
               ))}
             </ul>
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="mb-2 text-sm font-semibold">{i.history}</h3>
-            <ul className="flex flex-col gap-1 text-sm">
+            <ul
+              tabIndex={0}
+              aria-label={i.history}
+              className="flex max-h-80 flex-col gap-4 overflow-y-auto pr-2 text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               {detail.history.map((h) => (
-                <li key={h.id}>
+                <li key={h.id} className="min-w-0 space-y-2 border-l-2 pl-3">
                   <span className="tabular-nums">{formatTime(h.at)}</span>{' '}
                   {all.incidents.statuses[h.toStatus]}
+                  <Muted>{` · ${h.actorType}`}</Muted>
                   {h.rootCause && (
                     <p className="whitespace-pre-wrap">
-                      {i.rootCause}: {h.rootCause}
+                      <strong>{i.rootCause}: </strong>
+                      {h.rootCause}
                     </p>
                   )}
                   {h.resolution && (
                     <p className="whitespace-pre-wrap">
-                      {i.resolution}: {h.resolution}
+                      <strong>{i.resolution}: </strong>
+                      {h.resolution}
                     </p>
                   )}
-                  <Muted>{` · ${h.actorType}${h.comment ? ` · ${h.comment}` : ''}`}</Muted>
+                  {h.comment && <p className="whitespace-pre-wrap">{h.comment}</p>}
                 </li>
               ))}
             </ul>
@@ -84,23 +96,12 @@ export function IncidentDetail({
       ) : (
         <Muted>{all.ui.common.loading}</Muted>
       )}
-      {row.lastComment && (
-        <p className="text-sm">
-          <strong>{i.legacyComment}: </strong>
-          {row.lastComment}
-        </p>
-      )}
+      {row.lastComment && <DetailText label={i.legacyComment} text={row.lastComment} />}
       {model.isReadOnly(row) ? (
-        <dl className="grid gap-4 md:grid-cols-2 text-sm">
-          <div>
-            <dt className="font-semibold">{i.rootCause}</dt>
-            <dd className="whitespace-pre-wrap">{row.rootCause || '—'}</dd>
-          </div>
-          <div>
-            <dt className="font-semibold">{i.resolution}</dt>
-            <dd className="whitespace-pre-wrap">{row.resolution || i.missingSolution}</dd>
-          </div>
-        </dl>
+        <div className="grid min-w-0 gap-6 md:grid-cols-2">
+          <DetailText label={i.rootCause} text={row.rootCause || '—'} />
+          <DetailText label={i.resolution} text={row.resolution || i.missingSolution} />
+        </div>
       ) : (
         <form
           className="flex max-w-2xl flex-col gap-3"
