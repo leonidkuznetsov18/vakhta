@@ -54,7 +54,7 @@ Source: `.github/workflows/ci.yml` and `scripts/release/announce-telegram.mjs`.
 push master -> check -> semantic-release
                        |-> new version -> announce -> existing Telegram changelog bot -> Vakhta Dev
                        |-> images
-                       |-> production Pages build -> guarded upload
+                       |-> production Pages build -> required upload
 ```
 
 The owner identifies the destination as the private group **"Вахта Dev"**, with messages from
@@ -74,6 +74,33 @@ the observed deployment path is Direct Upload. Before automating uploads, choose
 and configure a dedicated appropriately scoped CI token; never copy a desktop OAuth session into CI.
 No token, deployment destination or notification behavior was changed in this access/documentation pass.
 [Inspected CI run](https://github.com/leonidkuznetsov18/vakhta/actions/runs/34462629265).
+
+### Dedicated Pages CI credential and workspace correction
+
+On 2026-09-10 the owner approved creation and storage of the account-owned token
+`vakhta-github-pages`, expiring 2027-09-11. Its only permission is **Pages Write**, covering Pages
+projects in account `8d31b0a5b6972c2ff30a7f33e299fee1`; it grants no DNS or R2 access. The credential
+is stored in 1Password Private as **Vakhta GitHub Pages — Cloudflare** (item
+`bz3zlrbzfnmy5of43jiyjbcpxm`, concealed `credential` field) and the repository Actions secret
+`CLOUDFLARE_API_TOKEN`. A credential-backed Pages project listing returned HTTP 200 and both expected
+project names. This verifies authentication/read access, not publication.
+
+The Pages-only retry of run `34471342564` then exposed a previously hidden deployment failure:
+`cloudflare/wrangler-action@v3` tried `pnpm add wrangler@3.90.0` at the workspace root and failed with
+`ERR_PNPM_ADDING_TO_ROOT` before upload. Both deployment steps now run the explicitly pinned
+`pnpm dlx wrangler@4.129.0`, preserving the production paths, project names, branch and source SHA.
+The local command resolved and printed version 4.129.0 without changing workspace dependencies.
+Missing token/account configuration now fails the job; a green result must not conceal skipped uploads.
+
+Application baseline `7195396` passed build/lint/tests in that run and published `v0.70.4`; the existing
+Telegram announcement step succeeded. The workflow-only correction reuses that application evidence;
+its publication outcome must be checked in the next CI run before claiming the panel/kiosk are current.
+Rotate the dedicated token through 1Password and the existing GitHub secret before expiry. Do not
+replace it with a desktop OAuth session or widen permissions to repair an unrelated deployment error.
+
+Sources: [Cloudflare direct upload with CI](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/),
+[account-owned tokens](https://developers.cloudflare.com/fundamentals/api/get-started/account-owned-tokens/),
+[Wrangler 4.129.0 release](https://github.com/cloudflare/workers-sdk/releases/tag/wrangler%404.129.0).
 
 ## Diagnostic entry points
 
