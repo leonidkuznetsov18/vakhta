@@ -7,7 +7,7 @@ import { useMediaQuery } from '@/lib/media-query';
 import { cn } from 'cn';
 
 const TRIGGER_CLASS =
-  'inline-flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none active:bg-muted/80';
+  'inline-flex size-5 shrink-0 align-middle items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none active:bg-muted/80';
 
 /** True when the element got its focus from the keyboard (Tab), not from a script or a click. */
 function isKeyboardFocus(el: HTMLElement): boolean {

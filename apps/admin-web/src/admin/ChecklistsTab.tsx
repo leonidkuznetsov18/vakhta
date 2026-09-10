@@ -621,7 +621,7 @@ function ChecklistDialog({
             <ol className="flex flex-col gap-2" aria-label={c.items}>
               {draft.items.map((item, index) => (
                 <li key={item.id} className="flex items-start gap-2">
-                  <span className="w-6 pt-2 text-right text-xs tabular-nums text-muted-foreground">
+                  <span className="flex h-10 w-6 shrink-0 items-center justify-end text-xs tabular-nums text-muted-foreground md:h-8">
                     {index + 1}
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-1">

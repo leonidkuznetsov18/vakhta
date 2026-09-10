@@ -61,3 +61,17 @@ and trailing actions are vertically centered; button text reserves space for bad
 Desktop offsets remain unchanged. Dark-theme screenshots at 390×844 and 1440×1000 were inspected;
 DOM measurements confirmed identical row/indicator centers for single/double-digit counters and actions.
 This presentation-only correction needs no new behavior tests. Diff/format and the existing CI apply.
+
+## 2026-09-10 — Card and list alignment
+
+The shared mobile card header now centers the selection checkbox, primary value and action menu on
+one axis, reserving the existing 40px control height. Definition labels and values share a 24px line
+height so short badges and multiline values start consistently. Inline information icons use middle
+alignment. Checklist editor item numbers center against the first input row at 40px mobile / 32px
+desktop instead of a fixed top padding. Sidebar counter/action centering is included in the preceding
+patch. Selection, menus, editing and keyboard behavior remain unchanged.
+
+Verification: inspected 390px/1440px screenshots of actual shared controls with synthetic records.
+Mobile checkbox/title/menu centers match exactly; desktop number/input/action centers match. No page
+horizontal overflow. Production verification follows publication. Lean: Proceed;
+consistent alignment reduces visual searching without adding controls or changing worker tasks.

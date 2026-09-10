@@ -563,7 +563,7 @@ export function DataTable<T>({
                   onKeyDown={handleRowKey(row)}
                   tabIndex={onRowClick ? 0 : undefined}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-h-10 items-center justify-between gap-2">
                     {selectable ? (
                       <Checkbox
                         aria-label={key}
@@ -581,10 +581,10 @@ export function DataTable<T>({
                       .filter((c) => !c.hideOnCards)
                       .map((c) => (
                         <RowGroup key={c.key}>
-                          <dt className="text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                          <dt className="text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
                             {c.label ?? c.header}
                           </dt>
-                          <dd className="min-w-0">{cellContent(c.cell(row))}</dd>
+                          <dd className="min-w-0 leading-6">{cellContent(c.cell(row))}</dd>
                         </RowGroup>
                       ))}
                   </dl>
