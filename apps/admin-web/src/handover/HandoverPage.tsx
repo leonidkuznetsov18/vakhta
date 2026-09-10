@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { HandoverDetailView, HandoverListItemView, OrgSnapshot } from '@vakhta/contracts';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { HandoverListItemView, MediaLinkView } from '@vakhta/contracts';
 import {
   HANDOVER_RESOLUTIONS,
   canTransitionHandover,
@@ -23,10 +24,13 @@ import {
   Toolbar,
 } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
-import { handoversApi, orgApi } from '../api.ts';
-import { describeError } from '../errors.ts';
+import { handoversApi } from '../api.ts';
+import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/ui-store';
+import { useLiveUpdates } from '@/lib/live';
+import { useOrg } from '@/lib/org';
+import { keys } from '@/lib/query';
 import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
 import { CheckIcon, EyeIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
@@ -70,7 +74,7 @@ const STATUS_TONE: Record<(typeof SHOWN_AS)[HandoverStatus], Tone> = {
 
 /** "Cleanliness and handover" (spec 9.1): acceptance queue, disputes, overdue, photos via signed links, decisions. */
 export function HandoverPage() {
-  const [org, setOrg] = useState<OrgSnapshot | null>(null);
+  const { org } = useOrg();
   const [siteId, setSiteId] = usePersistentState('handover.siteId', '');
   /** Empty means every day; the reports of one shift are found by picking that day. */
   const [date, setDate] = usePersistentState('handover.date', '');
@@ -78,63 +82,42 @@ export function HandoverPage() {
     'handover.scope',
     'pending',
   );
-  const [rows, setRows] = useState<HandoverListItemView[]>([]);
-  const [live, setLive] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useDeepLinkedId('handover', 'handover.openId');
-  const [detail, setDetail] = useState<HandoverDetailView | null>(null);
   /**
    * The comment belongs to the report it is written for, not to the page: one shared string carried
    * a half-typed remark over to whatever row was opened next. Keyed by report id, like every other
    * per-row draft in the panel — a store would buy nothing here, the state dies with the page.
    */
   const [comments, setComments] = useState<Record<string, string>>({});
-  const reloadRef = useRef<() => void>(() => undefined);
+  const client = useQueryClient();
 
-  useEffect(() => {
-    orgApi
-      .snapshot()
-      .then(setOrg)
-      .catch((e: unknown) => setError(describeError(e)));
-  }, []);
+  const query = { ...(siteId ? { siteId } : {}), ...(date ? { date } : {}), scope };
+  const list = useQuery({
+    queryKey: keys.handovers(query),
+    queryFn: () => handoversApi.list(query),
+  });
+  const rows = list.data ?? [];
+  const live = useLiveUpdates(handoversApi.streamUrl(), 'handover', ['handovers']);
 
-  const reload = useCallback(async () => {
-    setRows(
-      await handoversApi.list({ ...(siteId ? { siteId } : {}), ...(date ? { date } : {}), scope }),
-    );
-  }, [siteId, scope, date]);
+  const detail =
+    useQuery({
+      queryKey: keys.handover(openId),
+      queryFn: () => handoversApi.detail(openId!),
+      enabled: openId !== null,
+    }).data ?? null;
 
-  useEffect(() => {
-    reloadRef.current = () => {
-      reload().catch((e: unknown) => setError(describeError(e)));
-    };
-    reloadRef.current();
-  }, [reload]);
-
-  useEffect(() => {
-    if (typeof EventSource === 'undefined') return;
-    const source = new EventSource(handoversApi.streamUrl(), { withCredentials: true });
-    source.onopen = () => setLive(true);
-    source.onerror = () => setLive(false);
-    source.addEventListener('handover', () => reloadRef.current());
-    return () => source.close();
-  }, []);
-
-  useEffect(() => {
-    if (!openId) {
-      setDetail(null);
-      return;
-    }
-    let alive = true;
-    handoversApi
-      .detail(openId)
-      .then((d) => alive && setDetail(d))
-      .catch((e: unknown) => alive && setError(describeError(e)));
-    return () => {
-      alive = false;
-    };
-  }, [openId, rows]);
+  /** One decision at a time; the list and the open report are both stale once it lands. */
+  const decide = useMutation({
+    mutationFn: (v: { id: string; decision: HandoverResolution; comment: string }) =>
+      handoversApi.resolve(v.id, { decision: v.decision, comment: v.comment }),
+    onSuccess: async (_result, v) => {
+      notifySuccess(h.applied);
+      setComments((c) => ({ ...c, [v.id]: '' }));
+      await client.invalidateQueries({ queryKey: ['handovers'] });
+    },
+  });
+  const busy = decide.isPending;
+  const error = readError(list.error ?? decide.error);
 
   /**
    * The master's decision is two buttons: approve the checklist (the employee is thanked and earns
@@ -144,36 +127,28 @@ export function HandoverPage() {
   function resolve(row: HandoverListItemView, chosen: HandoverResolution) {
     const text = (comments[row.id] ?? '').trim();
     if (chosen === 'RESOLVED_ISSUE_CONFIRMED' && text.length < 3) return;
-    setBusy(true);
-    setError(null);
-    handoversApi
-      .resolve(row.id, {
-        decision: chosen,
-        comment: text.length >= 3 ? text : h.approveChecklist,
-      })
-      .then(async () => {
-        notifySuccess(h.applied);
-        setComments((c) => ({ ...c, [row.id]: '' }));
-        await reload();
-      })
-      .catch((e: unknown) => setError(describeError(e)))
-      .finally(() => setBusy(false));
+    decide.mutate({
+      id: row.id,
+      decision: chosen,
+      comment: text.length >= 3 ? text : h.approveChecklist,
+    });
   }
 
   const [lightbox, setLightbox] = useState<{ images: LightboxImage[]; start: number }>({
     images: [],
     start: 0,
   });
-  const photoUrls = useRef(new Map<string, string>());
-  // Remembers the signed links already fetched so the gallery can show every photo of the report.
-  const trackedLink = useCallback(
-    (mediaId: string) =>
-      handoversApi.mediaLink(mediaId).then((l) => {
-        photoUrls.current.set(mediaId, l.url);
-        return l;
-      }),
-    [],
-  );
+  /**
+   * The signed links, read once and kept in the query cache: the gallery needs every photo of the
+   * report, not only the one that was clicked, and the link the server signs lives five minutes.
+   */
+  const linkOf = (mediaId: string) => client.getQueryData<MediaLinkView>(keys.media(mediaId))?.url;
+  const trackedLink = (mediaId: string) =>
+    client.fetchQuery({
+      queryKey: keys.media(mediaId),
+      queryFn: () => handoversApi.mediaLink(mediaId),
+      staleTime: 4 * 60_000,
+    });
 
   const columns: Column<HandoverListItemView>[] = [
     {
@@ -273,19 +248,16 @@ export function HandoverPage() {
                     loadLink={trackedLink}
                     label={p.label}
                     badge={all.handover.quality[p.media.quality]}
-                    onOpen={() =>
+                    onOpen={() => {
+                      const loaded = detail.handover.photos.filter((x) => linkOf(x.media.id));
                       setLightbox({
-                        images: detail.handover.photos
-                          .filter((x) => photoUrls.current.has(x.media.id))
-                          .map((x) => ({
-                            url: photoUrls.current.get(x.media.id)!,
-                            label: `${h.photoBefore}: ${x.label}`,
-                          })),
-                        start: detail.handover.photos
-                          .filter((x) => photoUrls.current.has(x.media.id))
-                          .findIndex((x) => x.itemKey === p.itemKey),
-                      })
-                    }
+                        images: loaded.map((x) => ({
+                          url: linkOf(x.media.id)!,
+                          label: `${h.photoBefore}: ${x.label}`,
+                        })),
+                        start: loaded.findIndex((x) => x.itemKey === p.itemKey),
+                      });
+                    }}
                   />
                 ))}
               </div>

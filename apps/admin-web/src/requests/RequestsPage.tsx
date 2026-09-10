@@ -1,10 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type {
-  OvertimeView,
-  RequestDetailView,
-  RequestView,
-  ShiftDetailView,
-} from '@vakhta/contracts';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { OvertimeView, RequestView } from '@vakhta/contracts';
 import { SHIFT_STATES, type RequestStatus, type ShiftState } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import { ExternalLinkIcon } from 'lucide-react';
@@ -26,9 +22,11 @@ import {
 } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
 import { requestsApi, shiftsApi } from '../api.ts';
-import { describeError } from '../errors.ts';
+import { describeError, readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/ui-store';
+import { useLiveUpdates } from '@/lib/live';
+import { keys } from '@/lib/query';
 import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
 import { Textarea } from '@/components/ui/textarea';
@@ -63,14 +61,7 @@ function when(req: RequestView): string {
 /** "Requests" (spec 9.1): the inbox by role, decisions with a comment, overtime, interval corrections. */
 export function RequestsPage() {
   const [scope, setScope] = usePersistentState<'inbox' | 'all'>('requests.scope', 'inbox');
-  const [rows, setRows] = useState<RequestView[]>([]);
-  const [overtime, setOvertime] = useState<OvertimeView[]>([]);
-  const [live, setLive] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useDeepLinkedId('requests', 'requests.openId');
-  const [detail, setDetail] = useState<RequestDetailView | null>(null);
-  const [shift, setShift] = useState<ShiftDetailView | null>(null);
   const [comment, setComment] = useState('');
   const [approvedMinutes, setApprovedMinutes] = useState('');
   const [proposalKind, setProposalKind] = useState<ProposalKind>('CLOSE_SHIFT_AT');
@@ -78,57 +69,49 @@ export function RequestsPage() {
   const [proposalTime, setProposalTime] = useState('');
   const [proposalState, setProposalState] = useState<ShiftState>('WORKING');
   const [overtimeComment, setOvertimeComment] = useState<Record<string, string>>({});
-  const reloadRef = useRef<() => void>(() => undefined);
+  const client = useQueryClient();
 
-  const reload = useCallback(async () => {
-    const [list, ot] = await Promise.all([
-      requestsApi.list({ scope }),
-      requestsApi.overtime('pending'),
-    ]);
-    setRows(list);
-    setOvertime(ot);
-  }, [scope]);
+  const list = useQuery({
+    queryKey: keys.requests({ scope }),
+    queryFn: () => requestsApi.list({ scope }),
+  });
+  const rows = list.data ?? [];
+  const overtimeQuery = useQuery({
+    queryKey: keys.overtime('pending'),
+    queryFn: () => requestsApi.overtime('pending'),
+  });
+  const overtime = overtimeQuery.data ?? [];
+  const live = useLiveUpdates(requestsApi.streamUrl(), 'request', ['requests']);
 
-  useEffect(() => {
-    reloadRef.current = () => {
-      reload().catch((e: unknown) => setError(describeError(e)));
-    };
-    reloadRef.current();
-  }, [reload]);
+  // An id that belongs to the overtime table below is not a request: asking the server for it
+  // would answer 404 over a page that is showing the right row.
+  const openRequestId = openId && rows.some((r) => r.id === openId) ? openId : null;
+  const detail =
+    useQuery({
+      queryKey: keys.request(openRequestId),
+      queryFn: () => requestsApi.detail(openRequestId!),
+      enabled: openRequestId !== null,
+    }).data ?? null;
+  // A correction is decided against the shift it corrects, so that shift is read beside it.
+  const correctionShiftId =
+    detail?.request.type === 'CORRECTION' ? detail.request.shiftSessionId : null;
+  const shift =
+    useQuery({
+      queryKey: keys.shift(correctionShiftId),
+      queryFn: () => shiftsApi.detail(correctionShiftId!),
+      enabled: correctionShiftId !== null,
+    }).data ?? null;
 
-  useEffect(() => {
-    if (typeof EventSource === 'undefined') return;
-    const source = new EventSource(requestsApi.streamUrl(), { withCredentials: true });
-    source.onopen = () => setLive(true);
-    source.onerror = () => setLive(false);
-    source.addEventListener('request', () => reloadRef.current());
-    return () => source.close();
-  }, []);
-
-  useEffect(() => {
-    // An id that belongs to the overtime table below is not a request: asking the server for it
-    // would answer 404 over a page that is showing the right row.
-    if (!openId || !rows.some((r) => r.id === openId)) {
-      setDetail(null);
-      setShift(null);
-      return;
-    }
-    let alive = true;
-    requestsApi
-      .detail(openId)
-      .then(async (d) => {
-        if (!alive) return;
-        setDetail(d);
-        if (d.request.type === 'CORRECTION' && d.request.shiftSessionId) {
-          const s = await shiftsApi.detail(d.request.shiftSessionId);
-          if (alive) setShift(s);
-        } else setShift(null);
-      })
-      .catch((e: unknown) => alive && setError(describeError(e)));
-    return () => {
-      alive = false;
-    };
-  }, [openId, rows]);
+  const refresh = () => client.invalidateQueries({ queryKey: ['requests'] });
+  const decision = useMutation({
+    mutationFn: (run: () => Promise<unknown>) => run(),
+    onSuccess: async () => {
+      notifySuccess(r.decided);
+      await refresh();
+    },
+  });
+  const busy = decision.isPending;
+  const error = readError(list.error ?? overtimeQuery.error ?? decision.error);
 
   function buildProposal() {
     if (proposalKind === 'CLOSE_SHIFT_AT')
@@ -148,45 +131,31 @@ export function RequestsPage() {
       : undefined;
   }
 
-  function decide(req: RequestView, decision: 'APPROVED' | 'REJECTED') {
+  function decide(req: RequestView, verdict: 'APPROVED' | 'REJECTED') {
     const text = comment.trim();
     if (text.length < 3) return;
-    setBusy(true);
-    setError(null);
     const proposal =
-      decision === 'APPROVED' && req.type === 'CORRECTION' ? buildProposal() : undefined;
-    requestsApi
-      .decide(req.id, {
-        decision,
+      verdict === 'APPROVED' && req.type === 'CORRECTION' ? buildProposal() : undefined;
+    setComment('');
+    setApprovedMinutes('');
+    decision.mutate(() =>
+      requestsApi.decide(req.id, {
+        decision: verdict,
         comment: text,
         ...(approvedMinutes && (req.type === 'LATE' || req.type === 'EARLY_LEAVE')
           ? { approvedMinutes: Number(approvedMinutes) }
           : {}),
         ...(proposal ? { proposal } : {}),
-      })
-      .then(async () => {
-        notifySuccess(r.decided);
-        setComment('');
-        setApprovedMinutes('');
-        await reload();
-      })
-      .catch((e: unknown) => setError(describeError(e)))
-      .finally(() => setBusy(false));
+      }),
+    );
   }
 
-  function decideOvertime(row: OvertimeView, decision: 'APPROVED' | 'REJECTED') {
+  function decideOvertime(row: OvertimeView, verdict: 'APPROVED' | 'REJECTED') {
     const text = (overtimeComment[row.shiftSessionId] ?? '').trim();
     if (text.length < 3) return;
-    setBusy(true);
-    setError(null);
-    requestsApi
-      .decideOvertime(row.shiftSessionId, { decision, comment: text })
-      .then(async () => {
-        notifySuccess(r.decided);
-        await reload();
-      })
-      .catch((e: unknown) => setError(describeError(e)))
-      .finally(() => setBusy(false));
+    decision.mutate(() =>
+      requestsApi.decideOvertime(row.shiftSessionId, { decision: verdict, comment: text }),
+    );
   }
 
   // The overtime rows sit in the same section under the requests, so they share its deep link:

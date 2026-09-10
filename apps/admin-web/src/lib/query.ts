@@ -47,6 +47,8 @@ export const keys = {
   bonusHistory: (q: unknown) => ['bonus', 'history', q] as const,
   losses: (q: unknown) => ['reports', 'losses', q] as const,
   audit: (q: unknown) => ['audit', q] as const,
+  /** A signed link to one photo; short-lived on the server, so cached only briefly here. */
+  media: (id: string) => ['media', id] as const,
   checklists: ['checklists'] as const,
   terminals: ['terminals'] as const,
 };
