@@ -1,3 +1,9 @@
+## [0.72.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.71.2...v0.72.0) (2026-09-10)
+
+### Features
+
+* **admin:** improve mobile navigation forms and record readability ([2d1ba9d](https://github.com/leonidkuznetsov18/vakhta/commit/2d1ba9d0a9ab3a0acf14569aabd44d0f73a29491))
+
 ## [0.71.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.71.1...v0.71.2) (2026-09-10)
 
 ### Bug fixes
