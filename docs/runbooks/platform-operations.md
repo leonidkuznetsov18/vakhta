@@ -102,6 +102,24 @@ Sources: [Cloudflare direct upload with CI](https://developers.cloudflare.com/pa
 [account-owned tokens](https://developers.cloudflare.com/fundamentals/api/get-started/account-owned-tokens/),
 [Wrangler 4.129.0 release](https://github.com/cloudflare/workers-sdk/releases/tag/wrangler%404.129.0).
 
+The correction shipped as `a5ee2e5`. Run `34472618740` passed both actual upload steps, and Pages
+deployment history confirms that source for panel `5482faa3-ec23-460c-a5a6-9653d35bb415` and kiosk
+`68a37467-a0cf-44e9-a93b-2d1c02db3117`. The authenticated panel displayed v0.70.5 and loaded the
+updated loss report with its cutoff and matching export URLs. At 390x844, filters, export controls
+and the wrapped cutoff text remained readable. No application console errors were captured;
+unrelated wallet-extension errors were excluded. The paired kiosk still selected `Основний`.
+
+The owner's existing `.env.production` user API token was separately verified active; Pages access
+returned HTTP 403. Its Access Custom Pages permission is for Cloudflare Access block pages, not
+Pages hosting. With explicit owner authorization it is saved in Private as **Vakhta Cloudflare API —
+user token**, item `btchjtxgsfbcl74ok5y2lzu5em`, concealed `credential` field; a read-back comparison
+matched the source without exposing either value. The owner chose to retain this token and the
+dedicated CI token, removing only vault duplicates. The inventory contained no duplicate Cloudflare
+items: the two credentials and the separate **Cloudflare** login were retained. No provider token
+was revoked. The Origin CA deprecation notice refers to a different certificate-service key and
+does not invalidate these API tokens.
+[Cloudflare Origin CA key deprecation](https://developers.cloudflare.com/fundamentals/api/get-started/ca-keys/).
+
 ## Diagnostic entry points
 
 Run commands from the current repository. Read results privately and publish only a redacted summary;
