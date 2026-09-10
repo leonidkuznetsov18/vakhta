@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   SHIFT_SCOPES,
   type ActiveShiftView,
-  type EmployeeView,
-  type OrgSnapshot,
   type ShiftDetailView,
   type ShiftScope,
 } from '@vakhta/contracts';
@@ -12,7 +11,7 @@ import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { DataTable, type Column, type RowAction } from '@/components/app/data-table';
-import { Feedback } from '@/components/app/feedback';
+import { Feedback, useAction } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { DateField } from '@/components/app/date-picker';
 import { InfoTip } from '@/components/app/info-tip';
@@ -25,10 +24,13 @@ import {
   Toolbar,
 } from '@/components/app/page';
 import { formatTime, todayIso } from '@/lib/format';
-import { employeesApi, orgApi, shiftsApi } from '../api.ts';
+import { shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/ui-store';
+import { useLiveUpdates } from '@/lib/live';
+import { useEmployees, useOrg } from '@/lib/org';
+import { keys } from '@/lib/query';
 import { isBlank } from '@/lib/forms';
 import { notifySuccess } from '@/lib/toast';
 import { cn } from 'cn';
@@ -109,20 +111,15 @@ function newKey(): string {
  * shift master actions with a mandatory comment and the "needs review" flag (FR-COR-01/04).
  */
 export function OperationsPage() {
-  const [org, setOrg] = useState<OrgSnapshot | null>(null);
-  const [employees, setEmployees] = useState<EmployeeView[]>([]);
+  const { org } = useOrg();
+  const { active: activeEmployees } = useEmployees();
   const [siteId, setSiteId] = usePersistentState('operations.siteId', '');
   const [orgUnitId, setOrgUnitId] = usePersistentState('operations.orgUnitId', '');
   const [scope, setScope] = usePersistentState<ShiftScope>('operations.scope', 'OPEN');
   // The screen always stands on a day, and by default on today: an empty field meant "the live
   // picture", which read as a filter that had not been set rather than as a choice.
   const [date, setDate] = usePersistentState('operations.day', todayIso);
-  const [rows, setRows] = useState<ActiveShiftView[]>([]);
-  const [live, setLive] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useDeepLinkedId('operations', 'operations.openId');
-  const [detail, setDetail] = useState<ShiftDetailView | null>(null);
   const [startFor, setStartFor] = useState('');
   const [startOpen, setStartOpen] = useState(false);
   const [group, setGroup] = usePersistentState<StateGroup>('operations.group', 'ALL');
@@ -131,82 +128,35 @@ export function OperationsPage() {
   const [action, setAction] = useState<Record<string, UserShiftAction | ''>>({});
   const [comment, setComment] = useState<Record<string, string>>({});
   const [reason, setReason] = useState<Record<string, string>>({});
-  const reloadRef = useRef<() => void>(() => undefined);
   const { confirm, dialog } = useConfirm();
+  const { busy, error, run, setError } = useAction();
 
-  const units = useMemo(
-    () => org?.orgUnits.filter((u) => u.siteId === siteId) ?? [],
-    [org, siteId],
-  );
+  const units = org?.orgUnits.filter((u) => u.siteId === siteId) ?? [];
 
-  useEffect(() => {
-    let alive = true;
-    Promise.all([orgApi.snapshot(), employeesApi.list()])
-      .then(([snapshot, list]) => {
-        if (!alive) return;
-        setOrg(snapshot);
-        setEmployees(list);
-      })
-      .catch((e: unknown) => alive && setError(describeError(e)));
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const query = {
+    ...(siteId ? { siteId } : {}),
+    ...(orgUnitId ? { orgUnitId } : {}),
+    ...(scope === 'OPEN' ? {} : { scope }),
+    ...(date ? { date } : {}),
+  };
+  const shifts = useQuery({
+    queryKey: keys.shifts(query),
+    queryFn: () => shiftsApi.list(query),
+  });
+  const rows = shifts.data ?? [];
+  // Any state change anywhere on the floor makes this list stale; the heartbeat keeps the
+  // connection alive and the badge honest (spec 9.2).
+  const live = useLiveUpdates(shiftsApi.streamUrl(), 'shift', ['shifts']);
 
-  const reload = useCallback(async () => {
-    const list = await shiftsApi.list({
-      ...(siteId ? { siteId } : {}),
-      ...(orgUnitId ? { orgUnitId } : {}),
-      ...(scope === 'OPEN' ? {} : { scope }),
-      ...(date ? { date } : {}),
-    });
-    setRows(list);
-  }, [siteId, orgUnitId, scope, date]);
+  const client = useQueryClient();
+  const refresh = () => client.invalidateQueries({ queryKey: ['shifts'] });
 
-  useEffect(() => {
-    reloadRef.current = () => {
-      reload().catch((e: unknown) => setError(describeError(e)));
-    };
-    reloadRef.current();
-  }, [reload]);
-
-  // SSE: any state change re-reads the list; the heartbeat keeps the connection alive (spec 9.2).
-  useEffect(() => {
-    if (typeof EventSource === 'undefined') return;
-    const source = new EventSource(shiftsApi.streamUrl(), { withCredentials: true });
-    source.onopen = () => setLive(true);
-    source.onerror = () => setLive(false);
-    source.addEventListener('shift', () => reloadRef.current());
-    return () => source.close();
-  }, []);
-
-  useEffect(() => {
-    if (!openId) {
-      setDetail(null);
-      return;
-    }
-    let alive = true;
-    shiftsApi
-      .detail(openId)
-      .then((d) => alive && setDetail(d))
-      .catch((e: unknown) => alive && setError(describeError(e)));
-    return () => {
-      alive = false;
-    };
-  }, [openId, rows]);
-
-  async function run(fn: () => Promise<void>, done?: string) {
-    setBusy(true);
-    setError(null);
-    try {
-      await fn();
-      if (done) notifySuccess(done);
-    } catch (e) {
-      setError(describeError(e));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const detail =
+    useQuery({
+      queryKey: keys.shift(openId),
+      queryFn: () => shiftsApi.detail(openId!),
+      enabled: openId !== null,
+    }).data ?? null;
 
   /**
    * Only what this shift can actually do next, computed from its own state with the master's
@@ -271,7 +221,7 @@ export function OperationsPage() {
         setComment((c) => ({ ...c, [row.id]: '' }));
         setReason((r) => ({ ...r, [row.id]: '' }));
       }
-      await reload();
+      await refresh();
     });
   }
 
@@ -298,7 +248,7 @@ export function OperationsPage() {
     if (!reason) return;
     void run(async () => {
       await shiftsApi.clarify(row.id, reason);
-      await reload();
+      await refresh();
     }, o.clarified);
   }
 
@@ -320,12 +270,11 @@ export function OperationsPage() {
         setStartFor('');
         setStartOpen(false);
       }
-      await reload();
+      await refresh();
     });
   }
 
-  const activeEmployees = employees.filter((e) => e.status === 'ACTIVE');
-  const counts = useMemo(() => {
+  const counts = (() => {
     const c: Record<StateGroup, number> = {
       ALL: rows.length,
       WORKING: 0,
@@ -338,12 +287,11 @@ export function OperationsPage() {
     };
     for (const row of rows) c[groupOf(row.state)] += 1;
     return c;
-  }, [rows]);
-  const visibleRows = useMemo(() => {
-    const filtered = group === 'ALL' ? rows : rows.filter((row) => groupOf(row.state) === group);
-    // Exceptions first: shifts flagged for review, then downtime, then the rest in list order.
-    return [...filtered].sort((a, b) => rank(a) - rank(b));
-  }, [rows, group]);
+  })();
+  // Exceptions first: shifts flagged for review, then downtime, then the rest in list order.
+  const visibleRows = [
+    ...(group === 'ALL' ? rows : rows.filter((row) => groupOf(row.state) === group)),
+  ].sort((a, b) => rank(a) - rank(b));
 
   const columns: Column<ActiveShiftView>[] = [
     {
@@ -645,7 +593,9 @@ export function OperationsPage() {
         ))}
       </ToggleGroup>
 
-      <Feedback error={error} />
+      {/* A failed read is as much a message as a failed action, and the master should not be left
+          looking at yesterday's list wondering why nothing moves. */}
+      <Feedback error={error ?? (shifts.error ? describeError(shifts.error) : null)} />
 
       <DataTable
         columns={columns}

@@ -32,7 +32,7 @@ import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
-import { setUiState, uiState, usePersistentState } from '@/lib/ui-store';
+import { usePersistentState } from '@/lib/ui-store';
 import { isUnchanged } from '@/lib/forms';
 import { validateWith, type FieldErrors } from '@/lib/validation';
 import { ApiError, checklistsApi } from '../api.ts';
@@ -108,17 +108,20 @@ export function ChecklistsTab({ org }: Props) {
   const { busy, error, run } = useAction();
   const { confirm, dialog } = useConfirm();
   const [openId, setOpenId] = usePersistentState<string | null>('checklists.open', null);
-  // "Create a checklist for this position" from an employee card: the tab opens the create dialog
-  // with that position ticked. Read once, at the first render, and spent there.
-  const [presetPositionId] = useState<string | null>(() => {
-    const id = uiState<string>(CREATE_FOR_KEY);
-    if (!id) return null;
-    setUiState({ [CREATE_FOR_KEY]: undefined });
-    return org.positions.some((p) => p.id === id) ? id : null;
-  });
-  const [editing, setEditing] = useState<ChecklistDefinitionView | 'new' | null>(
-    presetPositionId ? 'new' : null,
-  );
+  /**
+   * "Create a checklist for this position", handed over by an employee card: the tab opens the
+   * create dialog with that position ticked. Read during render and cleared when the dialog is
+   * closed — writing it away while rendering would be a side effect in the middle of a render, and
+   * React is free to run that twice.
+   */
+  const [preset, forgetPreset] = usePersistentState<string | null>(CREATE_FOR_KEY, null);
+  const presetPositionId = preset && org.positions.some((p) => p.id === preset) ? preset : null;
+  const [editing, setEditing] = useState<ChecklistDefinitionView | 'new' | null>(null);
+  const creating = editing === 'new' || presetPositionId !== null;
+  const closeCreate = () => {
+    setEditing(null);
+    if (preset !== null) forgetPreset(null);
+  };
 
   const reload = useCallback(async () => {
     setRows(await checklistsApi.list());
@@ -258,15 +261,15 @@ export function ChecklistsTab({ org }: Props) {
         actions={
           <ChecklistDialog
             key="new"
-            mode={editing === 'new' ? 'new' : null}
+            mode={creating ? 'new' : null}
             trigger={c.create}
             presetPositionId={presetPositionId}
             org={org}
             others={(rows ?? []).filter((r) => r.isActive)}
             onOpen={() => setEditing('new')}
-            onClose={() => setEditing(null)}
+            onClose={closeCreate}
             onSaved={async (saved) => {
-              setEditing(null);
+              closeCreate();
               await reload();
               setOpenId(saved.id);
             }}

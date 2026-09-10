@@ -109,8 +109,9 @@ describe('ChecklistsTab', () => {
     expect(box.getAttribute('aria-checked') ?? (box as HTMLInputElement).checked.toString()).toBe(
       'true',
     );
-    // Consumed on arrival: coming back to the tab must not reopen the dialog.
-    expect(uiState(CREATE_FOR_KEY)).toBeUndefined();
+    // Spent when the dialog is closed, not while it renders: coming back must not reopen it.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Отмена' }));
+    await waitFor(() => expect(uiState(CREATE_FOR_KEY)).toBeNull());
   });
 
   it('creates a checklist from the dialog: items in order, keys assigned by the server', async () => {

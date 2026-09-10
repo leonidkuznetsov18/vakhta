@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { ActiveShiftView, MeView } from '@vakhta/contracts';
 import type { StackedPerson } from '@/components/app/avatar-stack';
 import { employeesApi, handoversApi, incidentsApi, orgApi, requestsApi, shiftsApi } from '@/api';
@@ -71,102 +71,92 @@ function may(me: MeView, roles: readonly string[]): boolean {
  * right now, fetched for the queues the signed-in role may see, refreshed every minute.
  */
 export function useAttention(me: MeView, intervalMs = 60_000) {
-  const [data, setData] = useState<Attention>(EMPTY);
-  const [error, setError] = useState<unknown>(null);
-
-  const refresh = useCallback(async () => {
-    const [shifts, incidents, handovers, requests, overtime, employees, org] = await Promise.all([
-      may(me, OPS) ? shiftsApi.list({ scope: 'ALL' }).catch(() => null) : null,
-      may(me, OPS) ? incidentsApi.list({ scope: 'open' }).catch(() => null) : null,
-      may(me, HANDOVER) ? handoversApi.list({ scope: 'overdue' }).catch(() => null) : null,
-      may(me, REQUESTS) ? requestsApi.list({ scope: 'inbox' }).catch(() => null) : null,
-      may(me, OPS) ? requestsApi.overtime('pending').catch(() => null) : null,
-      may(me, EMPLOYEES) ? employeesApi.list().catch(() => null) : null,
-      orgApi.snapshot().catch(() => null),
-    ]);
-    const unscheduledPeople = (shifts ?? []).filter(
-      (s) => s.endedAt === null && s.assignmentId === null,
-    );
-    const person = (id: string, name: string, note?: string | null | undefined): StackedPerson => ({
-      id,
-      name,
-      seed: id,
-      ...(note ? { note } : {}),
-    });
-    const onShiftNow = (shifts ?? []).filter((s) => s.endedAt === null);
-    const noChecklist = (shifts ?? []).filter(
-      (s) => s.endedAt !== null && s.autoCloseReason === 'NO_CHECKLIST',
-    );
-    setData({
-      people: {
-        onShift: onShiftNow.map((s) => person(s.id, s.fullName, s.orgUnitName)),
-        unscheduled: unscheduledPeople.map((s) => person(s.id, s.fullName, s.orgUnitName)),
-        closedNoChecklist: noChecklist.map((s) => person(s.id, s.fullName, s.businessDate)),
-        inDowntime: onShiftNow
-          .filter((s) => s.state === 'DOWNTIME')
-          .map((s) => person(s.id, s.fullName, s.orgUnitName)),
-        overdueAcceptances: (handovers ?? []).map((h) =>
-          person(h.id, h.submittedByName, h.zoneName),
-        ),
-        requestsForMe: (requests ?? []).map((r) => person(r.id, r.employeeName)),
-        overdueRequests: (requests ?? [])
-          .filter((r) => r.overdue)
-          .map((r) => person(r.id, r.employeeName)),
-        overtimePending: (overtime ?? []).map((r) => person(r.shiftSessionId, r.employeeName)),
-        unlinkedEmployees: (employees ?? [])
-          .filter((e) => e.status === 'ACTIVE' && !e.telegramLinked)
-          .map((e) => person(e.id, e.fullName, e.personnelNumber)),
-      },
-      firstDate: {
-        onShift: onShiftNow[0]?.businessDate,
-        closedNoChecklist: noChecklist[0]?.businessDate,
-        inDowntime: onShiftNow.find((s) => s.state === 'DOWNTIME')?.businessDate,
-      },
-      firstId: {
-        onShift: onShiftNow[0]?.id,
-        closedNoChecklist: noChecklist[0]?.id,
-        inDowntime: onShiftNow.find((s) => s.state === 'DOWNTIME')?.id,
-        openIncidents: incidents?.[0]?.id,
-        slaBreached: incidents?.find((i) => i.slaBreached)?.id,
-        overdueAcceptances: handovers?.[0]?.id,
-        requestsForMe: requests?.[0]?.id,
-        overdueRequests: requests?.find((r) => r.overdue)?.id,
-        // The requests page reads one id for both its tables; an overtime row is addressed by the
-        // shift it belongs to.
-        overtimePending: overtime?.[0]?.shiftSessionId,
-      },
-      onShift: shifts ? onShiftNow.length : null,
-      unscheduled: unscheduledPeople.length > 0 || shifts ? unscheduledPeople.length : null,
-      unscheduledPeople,
-      closedNoChecklist: shifts ? noChecklist.length : null,
-      inDowntime: shifts ? onShiftNow.filter((s) => s.state === 'DOWNTIME').length : null,
-      openIncidents: incidents ? incidents.length : null,
-      slaBreached: incidents ? incidents.filter((i) => i.slaBreached).length : null,
-      overdueAcceptances: handovers ? handovers.length : null,
-      requestsForMe: requests ? requests.length : null,
-      overdueRequests: requests ? requests.filter((r) => r.overdue).length : null,
-      overtimePending: overtime ? overtime.length : null,
-      unlinkedEmployees: employees
-        ? employees.filter((e) => e.status === 'ACTIVE' && !e.telegramLinked).length
-        : null,
-      unpairedTerminals: org ? org.terminals.filter((t) => !t.paired).length : null,
-      refreshedAt: new Date(),
-    });
-  }, [me]);
-
-  useEffect(() => {
-    let alive = true;
-    const run = () =>
-      refresh().catch((e: unknown) => {
-        if (alive) setError(e);
+  const query = useQuery({
+    queryKey: ['attention', me.roles.map((g) => g.role).sort()],
+    refetchInterval: intervalMs,
+    queryFn: async (): Promise<Attention> => {
+      const [shifts, incidents, handovers, requests, overtime, employees, org] = await Promise.all([
+        may(me, OPS) ? shiftsApi.list({ scope: 'ALL' }).catch(() => null) : null,
+        may(me, OPS) ? incidentsApi.list({ scope: 'open' }).catch(() => null) : null,
+        may(me, HANDOVER) ? handoversApi.list({ scope: 'overdue' }).catch(() => null) : null,
+        may(me, REQUESTS) ? requestsApi.list({ scope: 'inbox' }).catch(() => null) : null,
+        may(me, OPS) ? requestsApi.overtime('pending').catch(() => null) : null,
+        may(me, EMPLOYEES) ? employeesApi.list().catch(() => null) : null,
+        orgApi.snapshot().catch(() => null),
+      ]);
+      const unscheduledPeople = (shifts ?? []).filter(
+        (s) => s.endedAt === null && s.assignmentId === null,
+      );
+      const person = (
+        id: string,
+        name: string,
+        note?: string | null | undefined,
+      ): StackedPerson => ({
+        id,
+        name,
+        seed: id,
+        ...(note ? { note } : {}),
       });
-    run();
-    const id = setInterval(run, intervalMs);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, [refresh, intervalMs]);
-
-  return { data, error, refresh };
+      const onShiftNow = (shifts ?? []).filter((s) => s.endedAt === null);
+      const noChecklist = (shifts ?? []).filter(
+        (s) => s.endedAt !== null && s.autoCloseReason === 'NO_CHECKLIST',
+      );
+      return {
+        people: {
+          onShift: onShiftNow.map((s) => person(s.id, s.fullName, s.orgUnitName)),
+          unscheduled: unscheduledPeople.map((s) => person(s.id, s.fullName, s.orgUnitName)),
+          closedNoChecklist: noChecklist.map((s) => person(s.id, s.fullName, s.businessDate)),
+          inDowntime: onShiftNow
+            .filter((s) => s.state === 'DOWNTIME')
+            .map((s) => person(s.id, s.fullName, s.orgUnitName)),
+          overdueAcceptances: (handovers ?? []).map((h) =>
+            person(h.id, h.submittedByName, h.zoneName),
+          ),
+          requestsForMe: (requests ?? []).map((r) => person(r.id, r.employeeName)),
+          overdueRequests: (requests ?? [])
+            .filter((r) => r.overdue)
+            .map((r) => person(r.id, r.employeeName)),
+          overtimePending: (overtime ?? []).map((r) => person(r.shiftSessionId, r.employeeName)),
+          unlinkedEmployees: (employees ?? [])
+            .filter((e) => e.status === 'ACTIVE' && !e.telegramLinked)
+            .map((e) => person(e.id, e.fullName, e.personnelNumber)),
+        },
+        firstDate: {
+          onShift: onShiftNow[0]?.businessDate,
+          closedNoChecklist: noChecklist[0]?.businessDate,
+          inDowntime: onShiftNow.find((s) => s.state === 'DOWNTIME')?.businessDate,
+        },
+        firstId: {
+          onShift: onShiftNow[0]?.id,
+          closedNoChecklist: noChecklist[0]?.id,
+          inDowntime: onShiftNow.find((s) => s.state === 'DOWNTIME')?.id,
+          openIncidents: incidents?.[0]?.id,
+          slaBreached: incidents?.find((i) => i.slaBreached)?.id,
+          overdueAcceptances: handovers?.[0]?.id,
+          requestsForMe: requests?.[0]?.id,
+          overdueRequests: requests?.find((r) => r.overdue)?.id,
+          // The requests page reads one id for both its tables; an overtime row is addressed by the
+          // shift it belongs to.
+          overtimePending: overtime?.[0]?.shiftSessionId,
+        },
+        onShift: shifts ? onShiftNow.length : null,
+        unscheduled: unscheduledPeople.length > 0 || shifts ? unscheduledPeople.length : null,
+        unscheduledPeople,
+        closedNoChecklist: shifts ? noChecklist.length : null,
+        inDowntime: shifts ? onShiftNow.filter((s) => s.state === 'DOWNTIME').length : null,
+        openIncidents: incidents ? incidents.length : null,
+        slaBreached: incidents ? incidents.filter((i) => i.slaBreached).length : null,
+        overdueAcceptances: handovers ? handovers.length : null,
+        requestsForMe: requests ? requests.length : null,
+        overdueRequests: requests ? requests.filter((r) => r.overdue).length : null,
+        overtimePending: overtime ? overtime.length : null,
+        unlinkedEmployees: employees
+          ? employees.filter((e) => e.status === 'ACTIVE' && !e.telegramLinked).length
+          : null,
+        unpairedTerminals: org ? org.terminals.filter((t) => !t.paired).length : null,
+        refreshedAt: new Date(),
+      };
+    },
+  });
+  return { data: query.data ?? EMPTY, error: query.error, refresh: query.refetch };
 }
