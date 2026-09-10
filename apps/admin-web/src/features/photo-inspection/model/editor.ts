@@ -1,3 +1,5 @@
+import { InspectionViewport, INSPECTION_ZOOM } from './viewport';
+export { INSPECTION_ZOOM } from './viewport';
 import { hasReviewChanges } from './review-changes';
 import { createStore } from 'zustand/vanilla';
 import { z } from 'zod';
@@ -15,8 +17,6 @@ import {
   type InspectionPrediction,
   type PhotoInspectionView,
 } from '@vakhta/contracts';
-
-export const INSPECTION_ZOOM = { min: 1, max: 5, step: 0.5 } as const;
 
 type Geometry = InspectionAnnotation['geometry'];
 export function toCanvas(
@@ -84,7 +84,7 @@ interface EditorState {
   version: number;
   savedReview: InspectionReview;
   selected: string | null;
-  tool: 'rectangle' | 'polygon' | 'select';
+  tool: 'rectangle' | 'polygon' | 'select' | 'pan';
   zoom: number;
   imageStatus: 'loading' | 'ready' | 'failed';
   invalidGeometry: boolean;
@@ -98,17 +98,24 @@ export class InspectionEditor {
   private analysis: { requestId: string; version: number; guidance: string } | null = null;
   private width = 1;
   private height = 1;
+  readonly viewport;
   constructor(readonly initial: PhotoInspectionView) {
     this.store = createStore<EditorState>(() => ({
       review: structuredClone(initial.review),
       version: initial.version,
       savedReview: structuredClone(initial.review),
       selected: null,
-      tool: 'select',
+      tool: initial.canEdit ? 'select' : 'pan',
       zoom: INSPECTION_ZOOM.min,
       imageStatus: 'loading',
       invalidGeometry: false,
     }));
+    this.viewport = new InspectionViewport({
+      scale: () => this.store.getState().zoom,
+      changeScale: (zoom) => this.store.setState({ zoom }),
+      ready: () => this.store.getState().imageStatus === 'ready',
+      canPan: () => this.store.getState().tool === 'pan',
+    });
   }
   readonly mount = (image: HTMLImageElement | null) => {
     if (!image) return;
@@ -217,17 +224,16 @@ export class InspectionEditor {
   }
   tool(tool: EditorState['tool']): void {
     this.canvas?.cancelDrawing();
-    this.canvas?.setDrawingEnabled(tool !== 'select');
-    if (tool !== 'select') {
+    const drawing = tool === 'rectangle' || tool === 'polygon';
+    this.canvas?.setDrawingEnabled(drawing && !this.locked && this.initial.canEdit);
+    if (drawing) {
       this.canvas?.setDrawingMode(tool === 'polygon' ? 'click' : 'drag');
       this.canvas?.setDrawingTool(tool);
     }
     this.store.setState({ tool });
   }
   zoom(delta: number): void {
-    this.store.setState((s) => ({
-      zoom: Math.max(INSPECTION_ZOOM.min, Math.min(INSPECTION_ZOOM.max, s.zoom + delta)),
-    }));
+    this.viewport.zoomTo(this.store.getState().zoom + delta);
   }
   accept(finding: InspectionPrediction['findings'][number], runId: string | null): void {
     if (!finding.geometry) return;
@@ -324,6 +330,7 @@ export function createInspectionSession(
     editor,
     store: editor.store,
     mount: editor.mount,
+    attachViewport: editor.viewport.attach,
     attachOwner(element: HTMLDivElement | null) {
       if (element) register(editor);
       return () => register(null);

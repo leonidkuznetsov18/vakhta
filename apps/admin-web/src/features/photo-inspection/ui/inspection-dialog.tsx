@@ -21,6 +21,7 @@ import {
   SaveIcon,
   XIcon,
   Trash2Icon,
+  HandIcon,
 } from 'lucide-react';
 import { IconButton } from '@/shared/ui/icon-button';
 import { HowItWorks } from '@/components/app/how-it-works';
@@ -187,7 +188,7 @@ function InspectionSession({
   register: (editor: InspectionEditor | null) => void;
   reload: () => void;
 }) {
-  const [{ editor, store, mount, attachOwner }] = useState(() =>
+  const [{ editor, store, mount, attachViewport, attachOwner }] = useState(() =>
     createInspectionSession(initial, register),
   );
   const state = useStore(store);
@@ -290,6 +291,16 @@ function InspectionSession({
         )}
         <IconButton
           size="sm"
+          variant={state.tool === 'pan' ? 'default' : 'outline'}
+          icon={HandIcon}
+          label={t.pan}
+          tooltip={t.hints.pan}
+          aria-pressed={state.tool === 'pan'}
+          disabled={state.imageStatus !== 'ready'}
+          onClick={() => editor.tool('pan')}
+        />
+        <IconButton
+          size="sm"
           variant="outline"
           icon={ZoomInIcon}
           label={t.zoomIn}
@@ -340,7 +351,9 @@ function InspectionSession({
           </IconButton>
         )}
       </div>
-      <p className="text-sm text-muted-foreground">{initial.canEdit ? t.drawHint : t.readOnly}</p>
+      <p className="text-sm text-muted-foreground">
+        {initial.canEdit ? t.drawHint : t.readOnly} {t.gestureHint}
+      </p>
       {error && (
         <div role="alert" className="rounded-md border border-destructive p-3 text-sm">
           {errorText(error)}
@@ -369,7 +382,7 @@ function InspectionSession({
               tabIndex={0}
               role="group"
               aria-label={initial.context.photoLabel}
-              className="max-h-[65dvh] overflow-auto rounded-md border bg-muted p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={`max-h-[65dvh] overflow-auto rounded-md border bg-muted p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring data-[panning=true]:cursor-grabbing ${state.tool === 'pan' ? 'touch-none cursor-grab [&_*]:cursor-inherit' : ''}`}
             >
               {state.imageStatus === 'loading' && <LoadingState />}
               {state.imageStatus === 'failed' && (
@@ -386,15 +399,13 @@ function InspectionSession({
                   </IconButton>
                 </p>
               )}
-              <div
-                className="origin-top-left motion-safe:transition-transform motion-safe:duration-200"
-                style={{ transform: `scale(${state.zoom})` }}
-              >
+              <div ref={attachViewport} className="origin-top-left">
                 <img
                   key={`${link.data.url}:${link.dataUpdatedAt}`}
                   ref={mount}
                   src={link.data.url}
                   alt={initial.context.photoLabel}
+                  draggable={false}
                   className="block h-auto w-full max-w-none"
                 />
               </div>

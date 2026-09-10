@@ -277,3 +277,26 @@ The original image is not tinted, and opening it uses the existing action.
 Four focused component tests (including mouse hover), panel type-check and focused lint passed. Desktop 1440px and mobile
 390px screenshots were captured and inspected; keyboard focus displays the description. Lean:
 proceed, removing the extra text block reduces gallery height while keeping saved work identifiable.
+
+## Image gestures — 2026-09-11
+
+Use an inspection-owned native Pointer Events/wheel adapter over the existing transformed plane and
+scroll viewport. No dependencies were added. The existing Panzoom integration belongs to the separate
+plain-image viewer; retaining native scrolling here preserves Annotorious geometry and makes event
+ownership explicit. Pan mode consumes pointer events in capture; drawing modes retain left-button
+events, with middle-button pan available as a shortcut. Two captured pointers provide midpoint-anchored
+pinch/pan. Pointer release/cancel and callback-ref cleanup release gesture ownership.
+
+The adapter exclusively writes the image/overlay transform and scroll offsets; the editor owns the
+scale value shared with existing zoom buttons. Wheel input normalizes pixel/line/page deltas and accepts
+trackpad pinch (Ctrl+wheel) only inside the image viewport. Browser keyboard zoom and outside scrolling
+remain native. Remove CSS transform transitions so direct gestures track the pointer without lag.
+React Compiler receives the stable mount callback from the session factory, matching the existing
+Annotorious mount pattern. No application React ref/state synchronization hooks were introduced.
+
+Verification: 28 focused model tests passed for scale/anchor math, wheel scope, pan/drawing separation,
+pinch, cancellation/cleanup, existing geometry and deletion. Desktop browser QA confirmed unchanged
+viewport and textarea rectangles at 100% and about 300%, a 90x50px drag with unchanged scale, and a saved
+rectangle drawn after zoom/pan with normalized geometry. Native two-touch browser input changed scale
+from 100% to 187.5%. Desktop/mobile screenshots were inspected. Lean: proceed; direct gestures reduce
+repeated zoom-button clicks while a dedicated pan tool avoids accidental annotations.

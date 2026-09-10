@@ -72,3 +72,11 @@ Select an annotation and use Backspace/Delete outside form fields, or select **D
 region** in the image toolbar. The existing per-region delete action remains available. Deletion
 changes the draft, clears selection and returns the outcome to Not reviewed; choose the outcome and
 save. Editing text, read-only access and pending operations do not permit shortcut deletion.
+
+## Photo navigation gestures
+
+In the inspection editor, the wheel zooms around the cursor (100–500%), including trackpad pinch
+wheel events. Pan photo enables left-button dragging and one-/two-finger pan and pinch. Middle-button
+dragging pans in any annotation mode. Drawing/selecting remains owned by the annotation tools; return
+to one of those tools to edit regions. Native scrollbars and keyboard scrolling remain available.
+Only the photo and its annotation overlay transform; other form controls keep their size and position.

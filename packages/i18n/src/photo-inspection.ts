@@ -19,7 +19,11 @@ export const inspectionUk = {
     regions: 'Областей',
     incomplete: 'Перевірку ще не завершено',
   },
+  pan: 'Перемістити фото',
+  gestureHint:
+    'Коліщатко змінює масштаб. Для переміщення та жестів двома пальцями оберіть «Перемістити фото». Середня кнопка миші переміщує фото в будь-якому режимі.',
   hints: {
+    pan: 'Перетягуйте фото мишею або одним пальцем; двома пальцями змінюйте масштаб.',
     close: 'Закрити перевірку фото. Для незбережених змін з’явиться підтвердження.',
     previous: 'Перейти до попереднього фото цього звіту.',
     next: 'Перейти до наступного фото цього звіту.',
@@ -134,7 +138,11 @@ export const inspectionEn = {
     regions: 'Regions',
     incomplete: 'Review not completed',
   },
+  pan: 'Pan photo',
+  gestureHint:
+    'Use the wheel to zoom. Choose Pan photo to drag or pinch with two fingers. The middle mouse button pans in any mode.',
   hints: {
+    pan: 'Drag with the mouse or one finger; pinch with two fingers to zoom.',
     close: 'Close photo inspection. Unsaved changes require confirmation.',
     previous: 'Open the previous photo in this report.',
     next: 'Open the next photo in this report.',
@@ -248,7 +256,11 @@ export const inspectionRu = {
     regions: 'Областей',
     incomplete: 'Проверка ещё не завершена',
   },
+  pan: 'Переместить фото',
+  gestureHint:
+    'Колёсико меняет масштаб. Для перемещения и жестов двумя пальцами выберите «Переместить фото». Средняя кнопка мыши перемещает фото в любом режиме.',
   hints: {
+    pan: 'Перетаскивайте фото мышью или одним пальцем; двумя пальцами изменяйте масштаб.',
     close: 'Закрыть проверку фото. Для несохранённых изменений появится подтверждение.',
     previous: 'Открыть предыдущее фото этого отчёта.',
     next: 'Открыть следующее фото этого отчёта.',

@@ -73,6 +73,10 @@ export const inspectionGuideUk: SectionGuide = {
       q: 'Як видалити область?',
       a: 'Виберіть область на фото або в списку. Натисніть «Видалити вибрану область» над фото або «Видалити область» у її картці. Також працюють Backspace і Delete, коли ви не вводите текст у полі. Видалення ще потрібно зберегти; після нього знову оберіть результат перевірки.',
     },
+    {
+      q: 'Як збільшувати й переміщувати фото?',
+      a: 'Коліщатко миші змінює масштаб навколо курсора від 100% до 500%. Оберіть «Перемістити фото», щоб тягнути його мишею або одним пальцем, а двома пальцями — змінювати масштаб. Середня кнопка миші переміщує фото в будь-якому режимі. Для розмітки поверніться до вибору області, прямокутника або багатокутника. Кнопки масштабу й прокручування з клавіатури залишаються доступними.',
+    },
   ],
   video: {
     url: '/guides/photo-inspection.uk.mp4',
@@ -155,6 +159,10 @@ export const inspectionGuideEn: SectionGuide = {
       q: 'How do I delete a region?',
       a: 'Select a region on the photo or in the list. Use Delete selected region above the photo or Delete region in its card. Backspace and Delete also work when you are not editing a field. Save the deletion and choose the review outcome again.',
     },
+    {
+      q: 'How do I zoom and pan the photo?',
+      a: 'The mouse wheel zooms around the cursor from 100% to 500%. Choose Pan photo to drag with the mouse or one finger, or pinch with two fingers. The middle mouse button pans in any mode. Return to Select region, Rectangle or Polygon to annotate. Zoom buttons and keyboard scrolling remain available.',
+    },
   ],
   video: {
     url: '/guides/photo-inspection.en.mp4',
@@ -236,6 +244,10 @@ export const inspectionGuideRu: SectionGuide = {
     {
       q: 'Как удалить область?',
       a: 'Выберите область на фото или в списке. Нажмите «Удалить выбранную область» над фото или «Удалить область» в её карточке. Backspace и Delete также работают, когда вы не вводите текст в поле. Удаление нужно сохранить; после него снова выберите результат проверки.',
+    },
+    {
+      q: 'Как увеличивать и перемещать фото?',
+      a: 'Колёсико мыши меняет масштаб вокруг курсора от 100% до 500%. Выберите «Переместить фото», чтобы тянуть его мышью или одним пальцем, а двумя пальцами — менять масштаб. Средняя кнопка мыши перемещает фото в любом режиме. Для разметки вернитесь к выбору области, прямоугольнику или многоугольнику. Кнопки масштаба и прокрутка с клавиатуры остаются доступны.',
     },
   ],
   video: {
