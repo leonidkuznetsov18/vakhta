@@ -264,3 +264,16 @@ Localized guides/FAQ were regenerated; animation work from a concurrent writer i
 Lean: proceed. Remove the unnecessary save before requesting help and prevent repeated inspection
 through a durable, explicit marker. The count explains the next save without requiring JSON reading.
 Observe whether masters reopen completed photos unnecessarily; no production time saving is claimed.
+
+## Compact photo marker — 2026-09-11
+
+Replace the below-photo status block with a blue frame and translucent thumbnail background using
+existing theme colors. InspectionPhoto owns the localized inspection meaning; PhotoThumb accepts a
+domain-independent highlight description and anchors the shared tooltip to its existing button.
+The tooltip and accessible name retain saved status, incomplete-review meaning and region count.
+Unreviewed/AI-only photos remain unhighlighted; saved clean reviews retain their saved-work marker.
+The original image is not tinted, and opening it uses the existing action.
+
+Four focused component tests (including mouse hover), panel type-check and focused lint passed. Desktop 1440px and mobile
+390px screenshots were captured and inspected; keyboard focus displays the description. Lean:
+proceed, removing the extra text block reduces gallery height while keeping saved work identifiable.

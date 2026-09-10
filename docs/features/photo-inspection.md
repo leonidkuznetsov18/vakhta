@@ -24,7 +24,9 @@ Gemma 4 analysis and explicitly copy individual suggestions into the human revie
   analysis never saves the human review. Suggestions still require explicit human acceptance.
 - Save changes shows the number of changed fields and regions compared with the last saved version,
   plus a readable summary. One edited region counts once; reverting edits removes them from the count.
-- Handover photo thumbnails identify persisted human work, including clean reviews without regions.
+- Handover photo thumbnails identify persisted human work with a highlighted border and translucent
+  background, including clean reviews without regions. Hover or focus shows the saved status and region
+  count in a tooltip; no extra status block appears below the photo.
   Unfinished drafts are labeled separately. AI-only runs and replacement photos remain unmarked.
 - Manual AI requests use Cloudflare Gemma 4, persist before dispatch, survive restarts and deduplicate
   retries. No automatic backlog analysis. Bounded request volume, image size, timeout and attempts.

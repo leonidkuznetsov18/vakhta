@@ -11,6 +11,7 @@ import { Muted } from '@/components/app/page';
 import { currentLocale } from '@/i18n';
 import { keys } from '@/lib/query';
 import { cn } from 'cn';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ZoomablePhoto } from '@/shared/ui/zoomable-photo';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -26,6 +27,7 @@ export function PhotoThumb({
   label,
   badge,
   showCaption = true,
+  highlightDescription,
   onOpen,
   className,
 }: {
@@ -34,6 +36,8 @@ export function PhotoThumb({
   readonly label: string;
   /** Short marker drawn over the image (quality, "after"). */
   readonly badge?: string;
+  /** Optional highlighted frame, with its meaning available on hover and keyboard focus. */
+  readonly highlightDescription?: string;
   /** Hide redundant visible metadata while retaining accessible and lightbox labels. */
   readonly showCaption?: boolean;
   readonly onOpen?: (url: string) => void;
@@ -57,24 +61,47 @@ export function PhotoThumb({
       </div>
     );
   }
-  return (
-    <figure className={cn('flex min-w-0 flex-col gap-1', className)}>
-      <button
-        type="button"
-        className="group relative w-full overflow-hidden rounded-md border bg-muted transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        onClick={() => onOpen?.(url)}
-        aria-label={label}
-      >
-        <img src={url} alt={label} className="aspect-[4/3] w-full object-cover" loading="lazy" />
-        {badge && (
-          <span className="absolute top-1.5 left-1.5 rounded-md bg-background/85 px-1.5 py-0.5 text-[11px] font-medium">
-            {badge}
-          </span>
-        )}
-        <span className="absolute right-1.5 bottom-1.5 rounded-md bg-background/80 p-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-          <ExpandIcon className="size-4" aria-hidden="true" />
+  const photoButton = (
+    <button
+      type="button"
+      className={cn(
+        'group relative w-full overflow-hidden rounded-md border bg-muted transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+        highlightDescription &&
+          'border-chart-1/60 bg-chart-1/10 ring-2 ring-chart-1/60 ring-offset-2 ring-offset-background',
+      )}
+      onClick={() => onOpen?.(url)}
+      aria-label={highlightDescription ? `${label}. ${highlightDescription}` : label}
+    >
+      <img src={url} alt={label} className="aspect-[4/3] w-full object-cover" loading="lazy" />
+      {badge && (
+        <span className="absolute top-1.5 left-1.5 rounded-md bg-background/85 px-1.5 py-0.5 text-[11px] font-medium">
+          {badge}
         </span>
-      </button>
+      )}
+      <span className="absolute right-1.5 bottom-1.5 rounded-md bg-background/80 p-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+        <ExpandIcon className="size-4" aria-hidden="true" />
+      </span>
+    </button>
+  );
+  return (
+    <figure
+      className={cn(
+        'flex min-w-0 flex-col gap-1',
+        highlightDescription && 'rounded-md bg-chart-1/10',
+        className,
+      )}
+    >
+      {highlightDescription ? (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>{photoButton}</TooltipTrigger>
+            <TooltipContent>{highlightDescription}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        photoButton
+      )}
+
       {showCaption && (
         <figcaption
           className="line-clamp-2 text-xs leading-snug text-muted-foreground"
