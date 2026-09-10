@@ -179,18 +179,9 @@ function services(testDb: TestDatabase) {
     new CorrectionsService(db, events, audit, shift),
     requestChanges,
   );
-  const bonus = new BonusService(
-    db,
-    events,
-    audit,
-    notifications,
-    shiftChanges,
-    handoverChanges,
-    incidentChanges,
-    requestChanges,
-    OPTIONS,
-    { appealWindowDays: 7 },
-  );
+  const bonus = new BonusService(db, events, audit, notifications, OPTIONS, {
+    appealWindowDays: 7,
+  });
   const bot = createBot('90001:test-token-never-sent', {
     employees: employeeService,
     activation: new ActivationService(db, store, events, audit, employeeService, {

@@ -222,7 +222,11 @@ const workers = [
   new Worker(
     QUEUES.bonus,
     async (job) => {
-      logger.info({ queue: QUEUES.bonus, jobId: job.id }, 'bonus: обробник зʼявиться у фазі 5');
+      logger.warn(
+        { queue: QUEUES.bonus, jobId: job.id },
+        'Legacy bonus job requires investigation; durable scoring belongs to the API',
+      );
+      throw new Error('Unsupported legacy bonus job; no work was completed');
     },
     { connection, concurrency: 2 },
   ),

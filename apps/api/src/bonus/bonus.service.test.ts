@@ -1,6 +1,12 @@
+import { setImmediate } from 'node:timers/promises';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  domainEvents,
+  presenceSessions,
+  createDatabase,
+  lockBonusMonthWithin,
   activityIntervals,
+  backgroundTasks,
   bonusAdjustments,
   bonusPointAwards,
   bonusMonthClosures,
@@ -26,12 +32,10 @@ import { DEFAULT_BONUS_RULES } from '@vakhta/domain';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor } from '../common/actor.js';
 import { AuditLog } from '../events/audit-log.js';
+import { dispatchBonusTasks } from './bonus-task-dispatcher.js';
 import { EventStore } from '../events/event-store.js';
-import { HandoverChanges } from '../handover/handover-changes.js';
-import { IncidentChanges } from '../incidents/incident-changes.js';
 import { TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
-import { RequestChanges } from '../requests/request-changes.js';
 import { ShiftChanges } from '../shift/shift-changes.js';
 import { ShiftService, type ShiftOptions } from '../shift/shift.service.js';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
@@ -88,7 +92,7 @@ describe('bonus: оцінка зміни, коригування, закритт
     await testDb.db.execute(sql`ALTER TABLE bonus_month_closures ENABLE TRIGGER USER`);
 
     await testDb.db.execute(
-      sql`TRUNCATE bonus_period_results, bonus_periods, bonus_adjustments, bonus_criteria_results, bonus_shift_scores, bonus_rule_versions, request_decisions, requests, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, employees, org_units, sites, reason_codes CASCADE`,
+      sql`TRUNCATE bonus_month_guards, background_tasks, bonus_period_results, bonus_periods, bonus_adjustments, bonus_criteria_results, bonus_shift_scores, bonus_rule_versions, request_decisions, requests, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, employees, org_units, sites, reason_codes CASCADE`,
     );
     const events = new EventStore();
     const audit = new AuditLog();
@@ -108,19 +112,9 @@ describe('bonus: оцінка зміни, коригування, закритт
       timers,
       SHIFT_OPTIONS,
     );
-    bonus = new BonusService(
-      testDb.db,
-      events,
-      audit,
-      notifications,
-      shiftChanges,
-      new HandoverChanges(),
-      new IncidentChanges(),
-      new RequestChanges(),
-      SHIFT_OPTIONS,
-      { appealWindowDays: 3 },
-    );
-    bonus.onModuleInit();
+    bonus = new BonusService(testDb.db, events, audit, notifications, SHIFT_OPTIONS, {
+      appealWindowDays: 3,
+    });
 
     const [site] = await testDb.db
       .insert(sites)
@@ -249,23 +243,8 @@ describe('bonus: оцінка зміни, коригування, закритт
       .update(shiftSummaries)
       .set({ earlyLeaveMinutes: 0, plannedMinutes: 720 })
       .where(eq(shiftSummaries.shiftSessionId, sessionId));
-    // Closing a shift also evaluates it in the background (ShiftChanges → evaluate, fire and
-    // forget). Wait for that write here, or it lands after the next test truncated its tables and
-    // shows up as an extra score in a period that should hold one.
-    await evaluationSettled(sessionId);
+    await dispatchBonusTasks(testDb.db, bonus, { batch: 100 });
     return sessionId;
-  }
-
-  async function evaluationSettled(sessionId: string): Promise<void> {
-    for (let attempt = 0; attempt < 100; attempt += 1) {
-      const rows = await testDb.db
-        .select()
-        .from(bonusShiftScores)
-        .where(eq(bonusShiftScores.shiftSessionId, sessionId));
-      if (rows.length > 0) return;
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    }
-    throw new Error('the background evaluation of the shift never landed');
   }
 
   it('does not penalize a zero-length projected downtime placeholder', async () => {
@@ -774,5 +753,416 @@ describe('bonus: оцінка зміни, коригування, закритт
     const view = await bonus.evaluate(sessionId);
     expect(view?.ruleLabel).not.toBe('pilot-v2');
     expect((await bonus.listRuleVersions()).map((v) => v.label)).toContain('pilot-v2');
+  });
+  it('includes an eligible closed shift whose pending invalidation has no score yet', async () => {
+    const sessionId = await fullShift();
+    await testDb.db.delete(bonusShiftScores).where(eq(bonusShiftScores.shiftSessionId, sessionId));
+    const result = await bonus.closePeriod(
+      siteId,
+      month,
+      { comment: 'Close from a complete snapshot' },
+      HEAD,
+    );
+    expect(result.employees).toHaveLength(1);
+    expect(result.employees[0]?.scores).toMatchObject([
+      { shiftSessionId: sessionId, status: 'CONFIRMED' },
+    ]);
+  });
+
+  it('keeps a terminal shift without its required summary retryable', async () => {
+    const sessionId = await fullShift();
+    await testDb.db.delete(shiftSummaries).where(eq(shiftSummaries.shiftSessionId, sessionId));
+    await expect(bonus.evaluate(sessionId)).rejects.toMatchObject({
+      code: 'BONUS_SUMMARY_MISSING',
+    });
+  });
+
+  it('changes the inputs hash when an existing adjustment value changes', async () => {
+    const sessionId = await fullShift();
+    const score = await bonus.evaluate(sessionId);
+    if (!score) throw new Error('Missing score');
+    const first = await bonus.adjust(
+      score.id,
+      { delta: -1, reasonCode: 'MASTER_REVIEW', comment: 'First adjustment' },
+      MASTER,
+    );
+    const adjustment = first.adjustments[0];
+    if (!adjustment) throw new Error('Missing adjustment');
+    const [before] = await testDb.db
+      .select()
+      .from(bonusShiftScores)
+      .where(eq(bonusShiftScores.id, score.id));
+    await bonus.updateAdjustment(
+      adjustment.id,
+      { delta: -2, comment: 'Changed adjustment' },
+      MASTER,
+    );
+    const [after] = await testDb.db
+      .select()
+      .from(bonusShiftScores)
+      .where(eq(bonusShiftScores.id, score.id));
+    expect(after?.inputsHash).not.toBe(before?.inputsHash);
+  });
+
+  it('freezes unassigned manual-review scores when an including period is closed', async () => {
+    const sessionId = await fullShift();
+    await testDb.db
+      .update(shiftSessions)
+      .set({ assignmentId: null, needsClarification: true })
+      .where(eq(shiftSessions.id, sessionId));
+    const score = await bonus.evaluate(sessionId);
+    if (!score) throw new Error('Missing score');
+    expect(score.status).toBe('MANUAL_REVIEW');
+    await bonus.closePeriod(siteId, month, { comment: 'Freeze unresolved score' }, HEAD);
+    const frozen = await bonus.score(score.id);
+    await expect(
+      bonus.review(score.id, { decision: 'SCORE', score: 50, comment: 'Late review' }, MASTER),
+    ).rejects.toMatchObject({ code: 'PERIOD_CLOSED' });
+    await testDb.db
+      .update(shiftSessions)
+      .set({ needsClarification: false })
+      .where(eq(shiftSessions.id, sessionId));
+    expect(await bonus.evaluate(sessionId)).toEqual(frozen);
+  });
+
+  it('commits score, criteria and durable completion together and recovers after an injected failure', async () => {
+    const sessionId = await fullShift();
+    await testDb.db.execute(sql`TRUNCATE background_tasks`);
+    const [before] = await testDb.db
+      .select()
+      .from(bonusShiftScores)
+      .where(eq(bonusShiftScores.shiftSessionId, sessionId));
+    await testDb.db.transaction(async (tx) => {
+      await tx
+        .update(shiftSessions)
+        .set({ needsClarification: true })
+        .where(eq(shiftSessions.id, sessionId));
+      await new EventStore().append(tx, {
+        type: 'SHIFT_FLAGGED_FOR_REVIEW',
+        source: 'SYSTEM',
+        actor: { type: 'SYSTEM', role: 'SYSTEM', id: null },
+        occurredAt: new Date('2026-01-01'),
+        shiftSessionId: sessionId,
+      });
+    });
+    await testDb.db.execute(
+      sql`CREATE FUNCTION reject_computed_score() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.type = 'BONUS_SCORE_COMPUTED' THEN RAISE EXCEPTION 'Injected score failure'; END IF; RETURN NEW; END $$`,
+    );
+    await testDb.db.execute(
+      sql`CREATE TRIGGER reject_computed_score BEFORE INSERT ON domain_events FOR EACH ROW EXECUTE FUNCTION reject_computed_score()`,
+    );
+    try {
+      expect(await dispatchBonusTasks(testDb.db, bonus)).toMatchObject({
+        claimed: 1,
+        retried: 1,
+        completed: 0,
+      });
+      const [after] = await testDb.db
+        .select()
+        .from(bonusShiftScores)
+        .where(eq(bonusShiftScores.shiftSessionId, sessionId));
+      expect(after).toEqual(before);
+      const [task] = await testDb.db.select().from(backgroundTasks);
+      expect(task).toMatchObject({ status: 'PENDING', attempts: 1, completedAt: null });
+    } finally {
+      await testDb.db.execute(sql`DROP TRIGGER reject_computed_score ON domain_events`);
+      await testDb.db.execute(sql`DROP FUNCTION reject_computed_score()`);
+    }
+    await testDb.db.execute(sql`UPDATE background_tasks SET available_at = due_at`);
+    expect(await dispatchBonusTasks(testDb.db, bonus)).toMatchObject({ claimed: 1, completed: 1 });
+    expect(await bonus.evaluate(sessionId)).toMatchObject({ status: 'PENDING' });
+    const [task] = await testDb.db.select().from(backgroundTasks);
+    expect(task).toMatchObject({ status: 'COMPLETED', attempts: 2 });
+  });
+
+  it('keeps a shared unassigned score frozen until every including closed period is reopened', async () => {
+    const sessionId = await fullShift();
+    await testDb.db
+      .update(shiftSessions)
+      .set({ assignmentId: null })
+      .where(eq(shiftSessions.id, sessionId));
+    const score = await bonus.evaluate(sessionId);
+    if (!score) throw new Error('Missing score');
+    await bonus.review(
+      score.id,
+      { decision: 'SCORE', score: 80, comment: 'Manual unassigned score' },
+      MASTER,
+    );
+    const [otherSite] = await testDb.db
+      .insert(sites)
+      .values({ code: 'other-close', name: 'Other Site', timezone: 'Europe/Kyiv' })
+      .returning();
+    if (!otherSite) throw new Error('Missing other site');
+    const first = await bonus.closePeriod(
+      siteId,
+      month,
+      { comment: 'First including period' },
+      HEAD,
+    );
+    const second = await bonus.closePeriod(
+      otherSite.id,
+      month,
+      { comment: 'Second including period' },
+      HEAD,
+    );
+    if (!first.id || !second.id) throw new Error('Missing periods');
+    await bonus.setBaseAmounts(
+      second.id,
+      { items: [{ employeeId: ivanov, baseAmount: 1000 }] },
+      HR,
+    );
+    await bonus.reopenPeriod(first.id, { comment: 'Only first period reopens' }, HEAD);
+    expect(await bonus.score(score.id)).toMatchObject({ status: 'CONFIRMED', score: 80 });
+    await expect(
+      bonus.adjust(
+        score.id,
+        { delta: -5, reasonCode: 'MASTER_REVIEW', comment: 'Still frozen by another site' },
+        MASTER,
+      ),
+    ).rejects.toMatchObject({ code: 'PERIOD_CLOSED' });
+    expect((await bonus.period(otherSite.id, month)).employees[0]).toMatchObject({
+      sMonth: 80,
+      bonusAmount: 800,
+    });
+    await bonus.reopenPeriod(second.id, { comment: 'Last including period reopens' }, HEAD);
+    expect(await bonus.score(score.id)).toMatchObject({ status: 'PRELIMINARY', score: 80 });
+    expect(
+      await bonus.adjust(
+        score.id,
+        { delta: -5, reasonCode: 'MASTER_REVIEW', comment: 'Both periods are open' },
+        MASTER,
+      ),
+    ).toMatchObject({ status: 'PRELIMINARY', score: 75 });
+  });
+
+  async function waitForDatabaseLock(fragment: string): Promise<void> {
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      const rows = await testDb.db.execute(
+        sql`select pid from pg_stat_activity where wait_event_type = 'Lock' and query ilike ${`%${fragment}%`}`,
+      );
+      if (rows.length) return;
+      await setImmediate();
+    }
+    throw new Error(`Expected blocked database statement: ${fragment}`);
+  }
+
+  it('retries the complete close after a concurrent same-month adjustment commits', async () => {
+    const sessionId = await fullShift();
+    const initial = await bonus.evaluate(sessionId);
+    if (!initial) throw new Error('Missing score');
+    const adjusted = await bonus.adjust(
+      initial.id,
+      { delta: -1, reasonCode: 'MASTER_REVIEW', comment: 'Original penalty' },
+      MASTER,
+    );
+    const adjustment = adjusted.adjustments[0];
+    if (!adjustment) throw new Error('Missing adjustment');
+    let release = () => {};
+    let signal = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const ready = new Promise<void>((resolve) => {
+      signal = resolve;
+    });
+    const writer = testDb.db.transaction(async (tx) => {
+      await lockBonusMonthWithin(tx, month);
+      await tx
+        .update(bonusAdjustments)
+        .set({ delta: -2 })
+        .where(eq(bonusAdjustments.id, adjustment.id));
+      signal();
+      await held;
+    });
+    await ready;
+    const closing = bonus.closePeriod(siteId, month, { comment: 'Waited close snapshot' }, HEAD);
+    try {
+      await waitForDatabaseLock('bonus_month_guards');
+      release();
+      await writer;
+      expect((await closing).employees[0]).toMatchObject({ sMonth: 98 });
+      expect(await bonus.score(initial.id)).toMatchObject({ status: 'CONFIRMED', score: 98 });
+    } finally {
+      release();
+      await Promise.allSettled([writer, closing]);
+    }
+  });
+
+  it('includes pre-snapshot approved inputs even when their durable task remains pending', async () => {
+    const sessionId = await fullShift();
+    const source = await testDb.db.transaction(async (tx) => {
+      const [request] = await tx
+        .insert(requests)
+        .values({
+          employeeId: ivanov,
+          type: 'VACATION',
+          status: 'APPROVED',
+          periodFrom: `${month}-01`,
+          periodTo: `${month}-28`,
+        })
+        .returning();
+      if (!request) throw new Error('Missing request');
+      return new EventStore().append(tx, {
+        type: 'REQUEST_DECIDED',
+        source: 'SYSTEM',
+        actor: { type: 'SYSTEM', id: null, role: 'SYSTEM' },
+        payload: { requestId: request.id },
+      });
+    });
+    const result = await bonus.closePeriod(
+      siteId,
+      month,
+      { comment: 'Read committed source directly' },
+      HEAD,
+    );
+    expect(result.employees[0]?.scores).toMatchObject([
+      {
+        shiftSessionId: sessionId,
+        status: 'NOT_EVALUATED',
+        excludedReason: 'ABSENCE_APPROVED:VACATION',
+      },
+    ]);
+    const [task] = await testDb.db
+      .select()
+      .from(backgroundTasks)
+      .where(eq(backgroundTasks.sourceEventId, source.id));
+    expect(task?.status).toBe('PENDING');
+  });
+
+  it('separates a post-snapshot request from the final score and preserves the saved export', async () => {
+    const sessionId = await fullShift();
+    let release = () => {};
+    let signal = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const ready = new Promise<void>((resolve) => {
+      signal = resolve;
+    });
+    const holder = testDb.db.transaction(async (tx) => {
+      await tx
+        .select()
+        .from(shiftSessions)
+        .where(eq(shiftSessions.id, sessionId))
+        .for('no key update');
+      signal();
+      await held;
+    });
+    await ready;
+    const closing = bonus.closePeriod(siteId, month, { comment: 'Freeze one RR snapshot' }, HEAD);
+    try {
+      await waitForDatabaseLock('shift_sessions');
+      await testDb.db.transaction(async (tx) => {
+        const [request] = await tx
+          .insert(requests)
+          .values({
+            employeeId: ivanov,
+            type: 'VACATION',
+            status: 'APPROVED',
+            periodFrom: `${month}-01`,
+            periodTo: `${month}-28`,
+          })
+          .returning();
+        if (!request) throw new Error('Missing late request');
+        await new EventStore().append(tx, {
+          type: 'REQUEST_DECIDED',
+          source: 'SYSTEM',
+          actor: { type: 'SYSTEM', id: null, role: 'SYSTEM' },
+          payload: { requestId: request.id },
+        });
+      });
+      release();
+      await holder;
+      const closed = await closing;
+      if (!closed.id) throw new Error('Missing period');
+      expect(closed.employees[0]).toMatchObject({ sMonth: 100, evaluatedShifts: 1 });
+      await dispatchBonusTasks(testDb.db, bonus, { batch: 100 });
+      expect((await bonus.period(siteId, month)).employees[0]).toMatchObject({
+        sMonth: 100,
+        evaluatedShifts: 1,
+      });
+      expect(await bonus.exportCsv(closed.id, HR)).toContain(';1;1;0;100;');
+    } finally {
+      release();
+      await Promise.allSettled([holder, closing]);
+    }
+  });
+
+  it('closes and reopens through a one-connection pool without nested root queries', async () => {
+    await fullShift();
+    const limited = createDatabase(testDb.url, { max: 1 });
+    const service = new BonusService(
+      limited.db,
+      new EventStore(),
+      new AuditLog(),
+      new NotificationsService(),
+      SHIFT_OPTIONS,
+      { appealWindowDays: 3 },
+    );
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const operation = (async () => {
+        const closed = await service.closePeriod(
+          siteId,
+          month,
+          { comment: 'One connection close' },
+          HEAD,
+        );
+        if (!closed.id) throw new Error('Missing closed period');
+        const reopened = await service.reopenPeriod(
+          closed.id,
+          { comment: 'One connection reopen' },
+          HEAD,
+        );
+        expect(reopened.status).toBe('OPEN');
+      })();
+      const deadline = new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error('Nested pool query deadlock')), 3000);
+      });
+      await Promise.race([operation, deadline]);
+    } finally {
+      if (timeout) clearTimeout(timeout);
+      await limited.client.end({ timeout: 1 });
+    }
+  });
+
+  it('invalidates a legacy unlinked shift when its consumed fallback presence departs', async () => {
+    const sessionId = await fullShift();
+    const [session] = await testDb.db
+      .select()
+      .from(shiftSessions)
+      .where(eq(shiftSessions.id, sessionId));
+    if (!session?.presenceId) throw new Error('Missing linked presence fixture');
+    await testDb.db
+      .update(presenceSessions)
+      .set({ status: 'OPEN', departedAt: null, arrivedAt: session.startedAt ?? session.createdAt })
+      .where(eq(presenceSessions.id, session.presenceId));
+    await testDb.db
+      .update(shiftSessions)
+      .set({ presenceId: null })
+      .where(eq(shiftSessions.id, sessionId));
+    await bonus.evaluate(sessionId);
+    const [before] = await testDb.db
+      .select()
+      .from(bonusShiftScores)
+      .where(eq(bonusShiftScores.shiftSessionId, sessionId));
+    await testDb.db.execute(sql`TRUNCATE background_tasks`);
+    const departure = await attendance.reserveCheckIn(
+      { employeeId: ivanov, action: 'DEPART', reasonCode: 'TERMINAL_DOWN' },
+      MASTER,
+    );
+    expect(departure.ok).toBe(true);
+    const tasks = await testDb.db
+      .select({ session: backgroundTasks.targetSessionId, source: domainEvents.type })
+      .from(backgroundTasks)
+      .innerJoin(domainEvents, eq(domainEvents.id, backgroundTasks.sourceEventId));
+    expect(tasks).toEqual([{ session: sessionId, source: 'PRESENCE_DEPARTED' }]);
+    expect(await dispatchBonusTasks(testDb.db, bonus)).toMatchObject({ completed: 1 });
+    const [after] = await testDb.db
+      .select()
+      .from(bonusShiftScores)
+      .where(eq(bonusShiftScores.shiftSessionId, sessionId));
+    expect(after?.inputsHash).not.toBe(before?.inputsHash);
   });
 });

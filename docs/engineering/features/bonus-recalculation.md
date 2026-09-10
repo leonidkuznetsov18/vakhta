@@ -2,21 +2,20 @@
 
 ## Outcome and scope
 
-Approved remaining critical risk #5 after durable media and timers. This document records the design;
-implementation and deployment are pending. Preserve existing scoring criteria, compatibility APIs,
+Approved remaining critical risk #5 after durable media and timers. The source implementation is complete;
+deployment verification is pending. Preserve existing scoring criteria, compatibility APIs,
 confirmed scores, period bases and immutable monthly nominations. The current product panel remains
 the read-only ledger described in [bonus points](../../features/09-bonus.md).
 
 ## Current behavior and ownership
 
-`BonusService.onModuleInit` depends on in-process change subscriptions; failed recalculation is only
-logged. Manual score changes also recalculate after committing. `EventStore` records source events,
-and the deployed background-task helpers already support source-event/target-session identities.
-Media processing now admits these intents, but the API consumer does not yet exist.
+`EventStore` now admits durable event-to-session intents within the source transaction. The API
+consumer evaluates and completes each task atomically; bounded recovery reconstructs missing pairs.
+Manual operations use the same guarded transaction. In-memory business subscriptions are removed.
 
-`closePeriod` and `reopenPeriod` currently call public `period()` through the root pool while holding
-their transaction. This reads outside the snapshot and can exhaust a small pool. The score collector
-and domain scoring functions remain the authority; no new criterion or frontend slice is needed.
+`closePeriod`, `reopenPeriod` and export use transaction-local readers. CLOSED results retain saved
+aggregates, and shared unassigned scores remain protected until every including period is reopened.
+The domain scoring functions and current membership rules remain the authority.
 
 ## Decisions and reuse
 
@@ -39,7 +38,8 @@ Keep UI/SSE change streams and remove only required business recalculation subsc
   or incident-image scoring. Timer escalation timestamps do not change current scoring inputs.
 - Requests resolve the union of direct session, assignment sessions and employee/date-range sessions.
   REQUEST_CANCELLED has no direct session and requires payload.requestId lookup. Preserve existing
-  incident invalidations through downtime-report links; presence changes resolve their linked shifts.
+  incident invalidations through downtime-report links; presence changes resolve linked shifts and the exact legacy fallback presence. Both the collector
+  and source mapping choose latest arrival at or before the shift anchor, then stable ID for ties.
 - Manual adjustment/update/cancel/review records a source in its transaction. Second approval needs
   an explicit BONUS_ADJUSTMENT_SECOND_DECIDED event. Reopening a period creates fresh invalidations;
   completed tasks from the closed period remain immutable.
@@ -109,15 +109,19 @@ There were no race sleeps; the isolated container was removed. Script:
 `/tmp/vakhta-bonus-month-guard-pg18.mjs`; results: `/tmp/vakhta-bonus-month-guard-pg18.log`.
 Source: [PostgreSQL repeatable read](https://www.postgresql.org/docs/current/transaction-iso.html#XACT-REPEATABLE-READ).
 
-Required implementation regressions: both guard races; same/different month and cross-site/null scope;
-evaluate/manual operations versus closure; pre-snapshot pending invalidation and missing score;
-post-snapshot input separation; source/task/finalization rollback; source admission while guard busy;
-max-one-connection close/reopen; real handover/request mappings; two distinct source identities;
-orphan recovery; stable recovery marker; confirmed preservation; reopen/base/export consistency;
-dispatcher restart/fencing and startup/shutdown. Then full build/check, independent review and
-authenticated desktop/mobile panel, paired kiosk and worker Telegram QA.
+Local PostgreSQL regressions cover source/task rollback, distinct identities, real parent mappings,
+anti-join recovery and stable markers; existing/absent guard races; source admission during a held
+guard; missing score/summary; manual hash changes; score/task rollback and retry; shared unassigned
+period membership; whole-service RR retry; pre/post-snapshot inputs; saved export; and max-one-pool
+close/reopen. Lifecycle tests cover immediate startup, non-overlap and draining shutdown. The legacy
+fallback-presence regression passes with a real departure and subsequent durable recomputation.
+API typecheck passes. Exact focused counts and review deltas accompany the implementation handoff.
+No full local check is required under the active risk-based verification policy; CI remains the full
+integration gate. Local tests are not production recovery evidence.
 
 ## Remaining work
 
-Implement this design with RED-first PostgreSQL regressions, then deploy and record evidence. Risks
-#1 and #4 remain separate required work. The nine-risk request is not complete.
+Deployment must verify migration 0028, pending bonus task drainage and missing resolved source pairs
+over repeated bounded recovery batches. Integration review reuses the valid preliminary core review
+and checks the fallback-presence delta. Risks #1 and #4 remain separate; the nine-risk request is not
+complete. No scoring criteria, monthly nomination rules or worker actions changed.

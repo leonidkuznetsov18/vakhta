@@ -18,8 +18,8 @@ Backend feature modules and the pure domain remain intact; frontend FSD is not a
 
 Media admission and the PostgreSQL media dispatcher are now integrated in a subsequent increment;
 see [media processing](media-processing.md). The next [timer increment](timer-recovery.md) integrates
-source admission, atomic handlers and bounded recovery. Legacy bonus recalculation still subscribes
-to business changes in memory; its consumer and remaining source invalidations are pending.
+source admission, atomic handlers and bounded recovery. The [bonus increment](bonus-recalculation.md) replaces business subscriptions with durable source
+admission, consumption and recovery; its deployment verification is pending.
 
 ## Decisions and reuse
 
@@ -146,16 +146,15 @@ tests are not production or browser verification. No production data was mutated
 
 Media admission, dispatch, atomic completion, legacy draining and bounded recovery are implemented in
 the subsequent media increment. Timer admission, typed dispatch, atomic effects and bounded recovery
-are covered in [timer recovery](timer-recovery.md). Remaining: durable bonus invalidations, the bonus
-consumer and session/period concurrency guards; monthly startup catch-up.
-The task table and media integration do not close risk #5.
-Preserve #2/#3 transaction guarantees and #8 persisted plans/deadlines during subsequent integration.
+are covered in [timer recovery](timer-recovery.md). Durable bonus invalidations, the API consumer,
+month guards, period snapshots and monthly startup catch-up are implemented in
+[bonus recalculation](bonus-recalculation.md). Its deployment evidence remains outstanding.
+Preserve #2/#3 transaction guarantees and #8 persisted plans/deadlines during rollout.
 
-Later producer integration must also cover BonusService's post-commit adjustment/review/second-approval
-recalculations, not only RxJS subscribers. Second approval currently needs an explicit durable source
-event. Historical acknowledgement recovery must check relevant pending business state: scanning all
-old published months would create notifications unrelated to current work. Preserve the original
-publication-derived deadline and existing notification deduplication keys.
+Manual adjustment/review/second-approval now shares its transaction with recalculation and durable
+admission; second approval records an explicit source event. Historical acknowledgement recovery
+retains relevant pending state, original deadlines and existing notification identities as described
+in the timer feature memory.
 
 ## Foundation deployment gate
 

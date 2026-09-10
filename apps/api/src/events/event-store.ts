@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { domainEvents, type DbOrTx, type eventSource } from '@vakhta/db';
+import {
+  domainEvents,
+  enqueueEventBonusRecalculations,
+  type Transaction,
+  type eventSource,
+} from '@vakhta/db';
 import type { Actor } from '../common/actor.js';
 
 export type EventSource = (typeof eventSource.enumValues)[number];
@@ -33,7 +38,10 @@ export interface AppendEventInput {
  */
 @Injectable()
 export class EventStore {
-  async append(tx: DbOrTx, input: AppendEventInput): Promise<{ id: string }> {
+  async append(
+    tx: Transaction,
+    input: AppendEventInput,
+  ): Promise<{ id: string; occurredAt: Date }> {
     const [row] = await tx
       .insert(domainEvents)
       .values({
@@ -58,8 +66,9 @@ export class EventStore {
         payload: input.payload ?? {},
         traceId: input.traceId ?? null,
       })
-      .returning({ id: domainEvents.id });
+      .returning({ id: domainEvents.id, occurredAt: domainEvents.occurredAt });
     if (!row) throw new Error('domain_events: insert не повернув рядок');
+    await enqueueEventBonusRecalculations(tx, row.id);
     return row;
   }
 }

@@ -15,6 +15,7 @@ import {
   shiftAssignments,
   type Database,
   type DbOrTx,
+  type Transaction,
 } from '@vakhta/db';
 import {
   isChallengeExpired,
@@ -95,7 +96,7 @@ export class AttendanceService {
 
   /** Caller owns employee and linked shift locks before this presence lock. */
   async markDepartureUnknownWithin(
-    tx: DbOrTx,
+    tx: Transaction,
     employeeId: string,
     presenceId: string,
     sessionId: string,
@@ -184,7 +185,7 @@ export class AttendanceService {
 
   /** Validate and record QR attendance in the transaction that owns the complete worker action. */
   async checkInByQrWithin(
-    tx: DbOrTx,
+    tx: Transaction,
     employeeId: string,
     token: string,
     action: CheckAction,
@@ -210,7 +211,7 @@ export class AttendanceService {
 
   /** Preserve security evidence for malformed challenges without changing attendance. */
   async rejectChallengeWithin(
-    tx: DbOrTx,
+    tx: Transaction,
     employeeId: string,
     action: CheckAction,
     reason: Extract<
@@ -283,7 +284,7 @@ export class AttendanceService {
     }));
   }
 
-  private async arrive(tx: DbOrTx, input: MarkInput): Promise<CheckInResult> {
+  private async arrive(tx: Transaction, input: MarkInput): Promise<CheckInResult> {
     const serverTime = input.now.toISOString();
     const fail = (reason: CheckInFailure): CheckInResult => ({
       ok: false,
@@ -374,7 +375,7 @@ export class AttendanceService {
     }
   }
 
-  private async depart(tx: DbOrTx, input: MarkInput): Promise<CheckInResult> {
+  private async depart(tx: Transaction, input: MarkInput): Promise<CheckInResult> {
     const serverTime = input.now.toISOString();
     const fail = (reason: CheckInFailure): CheckInResult => ({
       ok: false,

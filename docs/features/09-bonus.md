@@ -29,7 +29,7 @@ An aggregate request without a selected site is a live comparison, not a global 
 Final monthly nominations are separate from the older shift-score and manual-review APIs still
 present for compatibility; this change does not revise their scoring rules.
 
-The remaining reliability work preserves accepted inputs for those compatibility APIs and freezes a
+Durable recalculation preserves accepted inputs for those compatibility APIs and freezes a
 consistent calculation when a period closes. It adds no worker steps or manual scoring controls to
 the current panel. Implementation status, recovery and concurrency requirements are recorded in
 [durable bonus recalculation](../engineering/features/bonus-recalculation.md).

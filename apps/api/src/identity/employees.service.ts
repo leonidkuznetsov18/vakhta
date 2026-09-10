@@ -24,6 +24,7 @@ import {
   telegramAccounts,
   type Database,
   type DbOrTx,
+  type Transaction,
 } from '@vakhta/db';
 import type {
   ChangeEmployeeStatusCommand,
@@ -615,7 +616,7 @@ export class EmployeesService {
 
   /** Revokes the employee's active Telegram link, if any, and records why it went. */
   private async revokeTelegramLink(
-    tx: DbOrTx,
+    tx: Transaction,
     employeeId: string,
     actor: Actor,
     reason: string,

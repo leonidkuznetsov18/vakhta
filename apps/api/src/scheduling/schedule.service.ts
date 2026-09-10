@@ -365,7 +365,7 @@ export class ScheduleService {
 
   /** Validates and writes the whole month of a version; returns the number of assignments. */
   private async replaceAssignments(
-    tx: DbOrTx,
+    tx: Transaction,
     version: VersionRow,
     cmd: PutAssignmentsCommand,
     actor: Actor,

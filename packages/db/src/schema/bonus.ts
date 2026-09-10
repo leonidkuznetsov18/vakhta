@@ -1,4 +1,5 @@
 import {
+  bigint,
   boolean,
   check,
   index,
@@ -252,5 +253,18 @@ export const bonusMonthClosures = pgTable(
       sql`jsonb_typeof(${t.masters}) = 'array' and (${t.orgUnitId} is not null or ${t.masters} = '[]'::jsonb)`,
     ),
     check('bonus_month_closures_rule_version', sql`${t.ruleVersion} = 1`),
+  ],
+);
+
+/** Shared across sites because compatibility period membership also includes unassigned shifts. */
+export const bonusMonthGuards = pgTable(
+  'bonus_month_guards',
+  {
+    month: text('month').primaryKey(),
+    revision: bigint('revision', { mode: 'bigint' }).notNull().default(sql`1`),
+  },
+  (t) => [
+    check('bonus_month_guards_month_check', sql`${t.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
+    check('bonus_month_guards_revision_check', sql`${t.revision} > 0`),
   ],
 );

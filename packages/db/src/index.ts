@@ -11,3 +11,5 @@ export * from './media-tasks.js';
  */
 export * from 'drizzle-orm';
 export { migrate } from 'drizzle-orm/postgres-js/migrator';
+
+export * from './bonus-tasks.js';

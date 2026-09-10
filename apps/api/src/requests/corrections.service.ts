@@ -7,7 +7,7 @@ import {
   shiftSessions,
   sql,
   type Database,
-  type DbOrTx,
+  type Transaction,
 } from '@vakhta/db';
 import { applyCorrection, type CorrectionProposal } from '@vakhta/domain';
 import type {
@@ -47,7 +47,7 @@ export class CorrectionsService {
   }
 
   async applyWithin(
-    tx: DbOrTx,
+    tx: Transaction,
     sessionId: string,
     cmd: ApplyCorrectionCommand,
     actor: Actor,

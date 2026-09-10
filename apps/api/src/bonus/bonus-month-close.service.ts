@@ -1,4 +1,4 @@
-import { Injectable, type OnApplicationShutdown, type OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.js';
 import { createLogger } from '../logger.js';
@@ -14,13 +14,14 @@ const SCAN_MS = 60 * 60_000;
  * site/month decision; late approvals do not re-elect winners or issue another set of awards.
  */
 @Injectable()
-export class BonusMonthCloseService implements OnModuleInit, OnApplicationShutdown {
+export class BonusMonthCloseService implements OnModuleInit, OnModuleDestroy {
   private readonly logger;
   private timer: NodeJS.Timeout | null = null;
-  private busy = false;
+  private running: Promise<void> | null = null;
+  private stopped = false;
 
   constructor(
-    private readonly months: BonusMonthService,
+    @Inject(BonusMonthService) private readonly months: Pick<BonusMonthService, 'closeDueMonths'>,
     config: ConfigService<Env, true>,
   ) {
     this.logger = createLogger({
@@ -30,18 +31,27 @@ export class BonusMonthCloseService implements OnModuleInit, OnApplicationShutdo
   }
 
   onModuleInit(): void {
-    this.timer = setInterval(() => void this.tick(), SCAN_MS);
+    if (this.timer || this.stopped) return;
+    this.timer = setInterval(() => this.poll(), SCAN_MS);
     this.timer.unref?.();
+    this.poll();
   }
 
-  onApplicationShutdown(): void {
+  async onModuleDestroy(): Promise<void> {
+    this.stopped = true;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    await this.running;
+  }
+
+  private poll(): void {
+    if (this.stopped || this.running) return;
+    this.running = this.tick().finally(() => {
+      this.running = null;
+    });
   }
 
   private async tick(): Promise<void> {
-    if (this.busy) return;
-    this.busy = true;
     try {
       const outcomes = await this.months.closeDueMonths();
       for (const outcome of outcomes) {
@@ -50,8 +60,6 @@ export class BonusMonthCloseService implements OnModuleInit, OnApplicationShutdo
       }
     } catch (err) {
       this.logger.error({ err }, 'bonus month close failed');
-    } finally {
-      this.busy = false;
     }
   }
 }

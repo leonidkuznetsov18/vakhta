@@ -1118,7 +1118,7 @@ export class ShiftService {
   }
 
   /** Перерахунок підсумку після корекції (FR-COR-05): фактичні інтервали, той самий код. */
-  async recomputeSummary(tx: DbOrTx, sessionId: string, now: Date): Promise<ShiftSummaryView> {
+  async recomputeSummary(tx: Transaction, sessionId: string, now: Date): Promise<ShiftSummaryView> {
     const [session] = await tx
       .select()
       .from(shiftSessions)
@@ -1130,7 +1130,7 @@ export class ShiftService {
 
   /** Підсумок зміни (ТЗ 6.2) і повідомлення працівнику в аутбокс тією самою транзакцією. */
   private async finalize(
-    tx: DbOrTx,
+    tx: Transaction,
     session: SessionRow,
     now: Date,
     opts: { silent?: boolean } = {},
@@ -1514,7 +1514,7 @@ export class ShiftService {
   }
 
   private async flagPlanWithin(
-    tx: DbOrTx,
+    tx: Transaction,
     session: SessionRow,
     now: Date,
     anchor: Date | null,
@@ -1543,7 +1543,11 @@ export class ShiftService {
     return flagged;
   }
 
-  private async recoverPlanWithin(tx: DbOrTx, session: SessionRow, now: Date): Promise<SessionRow> {
+  private async recoverPlanWithin(
+    tx: Transaction,
+    session: SessionRow,
+    now: Date,
+  ): Promise<SessionRow> {
     const [first] = session.startedAt
       ? []
       : await tx
@@ -1626,7 +1630,7 @@ export class ShiftService {
   }
 
   private async reconcileClosedPresencesWithin(
-    tx: DbOrTx,
+    tx: Transaction,
     employeeId: string,
     now: Date,
   ): Promise<void> {

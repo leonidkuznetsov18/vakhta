@@ -1,8 +1,10 @@
 import { readMonthNominations } from './bonus-month-nominations.js';
 import { createHash } from 'node:crypto';
 import * as XLSX from 'xlsx';
-import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import {
+  bonusPresenceId,
+  lockBonusMonthWithin,
   activityIntervals,
   and,
   asc,
@@ -41,6 +43,7 @@ import {
   sql,
   type Database,
   type DbOrTx,
+  type Transaction,
 } from '@vakhta/db';
 import {
   BONUS_CRITERIA,
@@ -83,15 +86,12 @@ import type {
 } from '@vakhta/contracts';
 import { format, messages, type Locale } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
+import { isSerializationFailure } from '../common/pg-errors.js';
 import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
-import { HandoverChanges } from '../handover/handover-changes.js';
-import { IncidentChanges } from '../incidents/incident-changes.js';
 import { DATABASE } from '../infra/database.module.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
-import { RequestChanges } from '../requests/request-changes.js';
-import { ShiftChanges } from '../shift/shift-changes.js';
 import { SHIFT_OPTIONS, type ShiftOptions } from '../shift/shift.service.js';
 
 export interface BonusOptions {
@@ -110,41 +110,15 @@ const SYSTEM: Actor = { type: 'SYSTEM', id: null, role: 'SYSTEM' };
  * закриття зміни, рішення по передачі, інциденту, зверненню чи апеляції.
  */
 @Injectable()
-export class BonusService implements OnModuleInit {
-  private readonly logger = new Logger(BonusService.name);
-
+export class BonusService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly events: EventStore,
     private readonly audit: AuditLog,
     private readonly notifications: NotificationsService,
-    private readonly shiftChanges: ShiftChanges,
-    private readonly handoverChanges: HandoverChanges,
-    private readonly incidentChanges: IncidentChanges,
-    private readonly requestChanges: RequestChanges,
     @Inject(SHIFT_OPTIONS) private readonly shiftOptions: ShiftOptions,
     @Inject(BONUS_OPTIONS) private readonly options: BonusOptions,
   ) {}
-
-  /** Перерахунок за подіями інших модулів; помилки лише логуються, щоб не ламати транзакції джерела. */
-  onModuleInit(): void {
-    const safe = (fn: () => Promise<unknown>) => {
-      fn().catch((err: unknown) =>
-        this.logger.warn(`перерахунок бонусу: ${err instanceof Error ? err.message : String(err)}`),
-      );
-    };
-    this.shiftChanges.stream().subscribe((e) => {
-      if (e.state === 'SHIFT_CLOSED' || e.state === 'EMERGENCY_EXIT')
-        safe(() => this.evaluate(e.sessionId));
-    });
-    this.handoverChanges
-      .stream()
-      .subscribe((e) => safe(() => this.evaluateByHandover(e.handoverId)));
-    this.incidentChanges
-      .stream()
-      .subscribe((e) => safe(() => this.evaluateByIncident(e.incidentId)));
-    this.requestChanges.stream().subscribe((e) => safe(() => this.evaluateByRequest(e.requestId)));
-  }
 
   /* ------------------------------------------------------------------ */
   /* Правила                                                             */
@@ -252,176 +226,195 @@ export class BonusService implements OnModuleInit {
   /* ------------------------------------------------------------------ */
 
   async evaluate(sessionId: string, now: Date = new Date()): Promise<ShiftScoreView | null> {
-    const view = await this.db.transaction(async (tx) => {
-      const [session] = await tx
-        .select()
-        .from(shiftSessions)
-        .where(eq(shiftSessions.id, sessionId))
-        .limit(1);
-      if (!session || (session.state !== 'SHIFT_CLOSED' && session.state !== 'EMERGENCY_EXIT'))
-        return null;
-      const [summary] = await tx
-        .select()
-        .from(shiftSummaries)
-        .where(eq(shiftSummaries.shiftSessionId, sessionId))
-        .limit(1);
-      if (!summary) return null;
-      const place = session.assignmentId ? await this.placeOf(tx, session.assignmentId) : null;
-      const month = session.businessDate.slice(0, 7);
-      if (place && (await this.periodClosed(tx, place.siteId, month))) {
-        const [existing] = await tx
-          .select()
-          .from(bonusShiftScores)
-          .where(eq(bonusShiftScores.shiftSessionId, sessionId))
-          .limit(1);
-        return existing ? this.scoreView(tx, existing.id) : null;
-      }
-      const rule = await this.ruleVersionFor(place?.siteId ?? null, session.startedAt ?? now, tx);
-      const { inputs, excludedReason, appealed, plannedMinutes } = await this.collect(
-        tx,
-        session,
-        summary,
-        place,
-      );
+    return this.db.transaction((tx) => this.evaluateWithin(tx, sessionId, now));
+  }
 
+  /** Database-only evaluation: the caller owns the task transaction, if any. */
+  async evaluateWithin(
+    tx: Transaction,
+    sessionId: string,
+    now: Date = new Date(),
+  ): Promise<ShiftScoreView | null> {
+    const [target] = await tx
+      .select({ date: shiftSessions.businessDate })
+      .from(shiftSessions)
+      .where(eq(shiftSessions.id, sessionId));
+    if (!target) return null;
+    await lockBonusMonthWithin(tx, target.date.slice(0, 7));
+    const [session] = await tx
+      .select()
+      .from(shiftSessions)
+      .where(eq(shiftSessions.id, sessionId))
+      .for('no key update');
+    if (!session || (session.state !== 'SHIFT_CLOSED' && session.state !== 'EMERGENCY_EXIT'))
+      return null;
+    const [summary] = await tx
+      .select()
+      .from(shiftSummaries)
+      .where(eq(shiftSummaries.shiftSessionId, sessionId))
+      .limit(1);
+    if (!summary)
+      throw new DomainError('BONUS_SUMMARY_MISSING', 409, 'Terminal shift summary is missing');
+    const place = session.assignmentId ? await this.placeOf(tx, session.assignmentId) : null;
+    const month = session.businessDate.slice(0, 7);
+    if (await this.periodClosed(tx, place?.siteId ?? null, month)) {
       const [existing] = await tx
         .select()
         .from(bonusShiftScores)
         .where(eq(bonusShiftScores.shiftSessionId, sessionId))
         .limit(1);
-      if (existing?.status === 'CONFIRMED') return this.scoreView(tx, existing.id);
+      return existing ? this.scoreView(tx, existing.id) : null;
+    }
+    const rule = await this.ruleVersionFor(place?.siteId ?? null, session.startedAt ?? now, tx);
+    const { inputs, excludedReason, appealed, plannedMinutes } = await this.collect(
+      tx,
+      session,
+      summary,
+      place,
+    );
 
-      const adjustments = existing
-        ? await tx
-            .select()
-            .from(bonusAdjustments)
-            .where(
-              and(
-                eq(bonusAdjustments.scoreId, existing.id),
-                eq(bonusAdjustments.status, 'APPLIED'),
-              ),
-            )
-        : [];
-      let results: CriterionResult[] = excludedReason ? [] : evaluateShift(rule.rules, inputs);
-      const scoreLevel = adjustments.filter((a) => a.criterion === null).map((a) => a.delta);
-      if (!excludedReason) {
-        results = results.map((r) => {
-          const delta = adjustments
-            .filter((a) => a.criterion === r.criterion)
-            .reduce((s, a) => s + a.delta, 0);
-          if (delta === 0) return r;
-          const max = rule.rules.criteria[r.criterion].maxPoints;
-          const status =
-            r.status === 'not_applicable'
-              ? 'earned'
-              : r.status === 'pending'
-                ? r.status
-                : 'confirmed';
-          return {
-            ...r,
-            earnedPoints: Math.min(max, Math.max(0, r.earnedPoints + delta)),
-            status,
-            basis: [
-              ...r.basis,
-              ...adjustments
-                .filter((a) => a.criterion === r.criterion)
-                .map((a) => `ADJUSTMENT:${a.id}:${a.delta}`),
-            ],
-          };
-        });
-      }
-      const inputsHash = createHash('sha256')
-        .update(
-          JSON.stringify({
-            inputs,
-            adjustments: adjustments.map((a) => a.id),
-            rule: rule.id,
-            excludedReason,
-          }),
-        )
-        .digest('hex');
-      const score = excludedReason ? null : scoreShift(rule.rules, results);
-      // A manual review (spec 7.6) settles a shift the rules cannot score: the master's number
-      // stands in for the computed one, or the shift leaves the month.
-      const reviewed = score?.status === 'manual_review' ? existing : null;
-      const excludedByReview = reviewed?.reviewDecision === 'EXCLUDE';
-      const manualScore =
-        reviewed?.reviewDecision === 'SCORE' && reviewed.manualScore !== null
-          ? reviewed.manualScore
-          : null;
-      const computedScore = manualScore ?? score?.score ?? null;
-      const finalScore =
-        computedScore === null || scoreLevel.length === 0
-          ? computedScore
-          : withScoreAdjustments(computedScore, scoreLevel);
-      const status =
-        excludedReason || excludedByReview
-          ? 'NOT_EVALUATED'
-          : appealed
-            ? 'APPEALED'
-            : score?.status === 'manual_review' && manualScore === null
-              ? 'MANUAL_REVIEW'
-              : score?.status === 'preliminary'
-                ? 'PENDING'
-                : 'PRELIMINARY';
-      const values = {
-        shiftSessionId: sessionId,
+    const [existing] = await tx
+      .select()
+      .from(bonusShiftScores)
+      .where(eq(bonusShiftScores.shiftSessionId, sessionId))
+      .limit(1);
+    if (existing?.status === 'CONFIRMED') return this.scoreView(tx, existing.id);
+
+    const adjustments = existing
+      ? await tx
+          .select()
+          .from(bonusAdjustments)
+          .where(
+            and(eq(bonusAdjustments.scoreId, existing.id), eq(bonusAdjustments.status, 'APPLIED')),
+          )
+      : [];
+    let results: CriterionResult[] = excludedReason ? [] : evaluateShift(rule.rules, inputs);
+    const scoreLevel = adjustments.filter((a) => a.criterion === null).map((a) => a.delta);
+    if (!excludedReason) {
+      results = results.map((r) => {
+        const delta = adjustments
+          .filter((a) => a.criterion === r.criterion)
+          .reduce((s, a) => s + a.delta, 0);
+        if (delta === 0) return r;
+        const max = rule.rules.criteria[r.criterion].maxPoints;
+        const status =
+          r.status === 'not_applicable'
+            ? 'earned'
+            : r.status === 'pending'
+              ? r.status
+              : 'confirmed';
+        return {
+          ...r,
+          earnedPoints: Math.min(max, Math.max(0, r.earnedPoints + delta)),
+          status,
+          basis: [
+            ...r.basis,
+            ...adjustments
+              .filter((a) => a.criterion === r.criterion)
+              .map((a) => `ADJUSTMENT:${a.id}:${a.delta}`),
+          ],
+        };
+      });
+    }
+    const inputsHash = createHash('sha256')
+      .update(
+        JSON.stringify({
+          inputs,
+          adjustments: adjustments
+            .map((a) => ({ id: a.id, criterion: a.criterion, delta: a.delta, status: a.status }))
+            .sort((a, b) => a.id.localeCompare(b.id)),
+          review: existing
+            ? {
+                decision: existing.reviewDecision,
+                score: existing.manualScore,
+                comment: existing.reviewComment,
+              }
+            : null,
+          rule: rule.id,
+          excludedReason,
+        }),
+      )
+      .digest('hex');
+    const score = excludedReason ? null : scoreShift(rule.rules, results);
+    // A manual review (spec 7.6) settles a shift the rules cannot score: the master's number
+    // stands in for the computed one, or the shift leaves the month.
+    const reviewed = score?.status === 'manual_review' ? existing : null;
+    const excludedByReview = reviewed?.reviewDecision === 'EXCLUDE';
+    const manualScore =
+      reviewed?.reviewDecision === 'SCORE' && reviewed.manualScore !== null
+        ? reviewed.manualScore
+        : null;
+    const computedScore = manualScore ?? score?.score ?? null;
+    const finalScore =
+      computedScore === null || scoreLevel.length === 0
+        ? computedScore
+        : withScoreAdjustments(computedScore, scoreLevel);
+    const status =
+      excludedReason || excludedByReview
+        ? 'NOT_EVALUATED'
+        : appealed
+          ? 'APPEALED'
+          : score?.status === 'manual_review' && manualScore === null
+            ? 'MANUAL_REVIEW'
+            : score?.status === 'preliminary'
+              ? 'PENDING'
+              : 'PRELIMINARY';
+    const values = {
+      shiftSessionId: sessionId,
+      employeeId: session.employeeId,
+      businessDate: session.businessDate,
+      ruleVersionId: rule.id,
+      status,
+      score: status === 'NOT_EVALUATED' ? null : finalScore,
+      applicableMax: score?.applicableMaxPoints ?? 0,
+      earned: score?.earnedPoints ?? 0,
+      plannedMinutes,
+      inputsHash,
+      computedAt: now,
+      excludedReason:
+        excludedReason ??
+        (excludedByReview ? `MANUAL_REVIEW:${reviewed?.reviewComment ?? ''}` : null),
+    } as const;
+    const [row] = await tx
+      .insert(bonusShiftScores)
+      .values(values)
+      .onConflictDoUpdate({ target: bonusShiftScores.shiftSessionId, set: { ...values } })
+      .returning();
+    if (!row) throw new Error('bonus_shift_scores: upsert не повернув рядок');
+    await tx.delete(bonusCriteriaResults).where(eq(bonusCriteriaResults.scoreId, row.id));
+    if (results.length > 0) {
+      await tx.insert(bonusCriteriaResults).values(
+        results.map((r) => ({
+          scoreId: row.id,
+          criterion: r.criterion,
+          section: rule.rules.criteria[r.criterion].section,
+          maxPoints: rule.rules.criteria[r.criterion].maxPoints,
+          earnedPoints: r.earnedPoints,
+          status: r.status,
+          basis: [...r.basis],
+        })),
+      );
+    }
+    if (!existing || existing.inputsHash !== inputsHash) {
+      await this.events.append(tx, {
+        type: 'BONUS_SCORE_COMPUTED',
+        source: 'SYSTEM',
+        actor: SYSTEM,
+        occurredAt: now,
         employeeId: session.employeeId,
-        businessDate: session.businessDate,
-        ruleVersionId: rule.id,
-        status,
-        score: status === 'NOT_EVALUATED' ? null : finalScore,
-        applicableMax: score?.applicableMaxPoints ?? 0,
-        earned: score?.earnedPoints ?? 0,
-        plannedMinutes,
-        inputsHash,
-        computedAt: now,
-        excludedReason:
-          excludedReason ??
-          (excludedByReview ? `MANUAL_REVIEW:${reviewed?.reviewComment ?? ''}` : null),
-      } as const;
-      const [row] = await tx
-        .insert(bonusShiftScores)
-        .values(values)
-        .onConflictDoUpdate({ target: bonusShiftScores.shiftSessionId, set: { ...values } })
-        .returning();
-      if (!row) throw new Error('bonus_shift_scores: upsert не повернув рядок');
-      await tx.delete(bonusCriteriaResults).where(eq(bonusCriteriaResults.scoreId, row.id));
-      if (results.length > 0) {
-        await tx.insert(bonusCriteriaResults).values(
-          results.map((r) => ({
-            scoreId: row.id,
-            criterion: r.criterion,
-            section: rule.rules.criteria[r.criterion].section,
-            maxPoints: rule.rules.criteria[r.criterion].maxPoints,
-            earnedPoints: r.earnedPoints,
-            status: r.status,
-            basis: [...r.basis],
-          })),
-        );
-      }
-      if (!existing || existing.inputsHash !== inputsHash) {
-        await this.events.append(tx, {
-          type: 'BONUS_SCORE_COMPUTED',
-          source: 'SYSTEM',
-          actor: SYSTEM,
-          occurredAt: now,
-          employeeId: session.employeeId,
-          shiftSessionId: sessionId,
-          bonusRuleVersionId: rule.id,
-          payload: {
-            scoreId: row.id,
-            score: row.score,
-            status,
-            applicableMax: row.applicableMax,
-            earned: row.earned,
-            inputsHash,
-          },
-        });
-      }
-      return this.scoreView(tx, row.id);
-    });
-    return view;
+        shiftSessionId: sessionId,
+        bonusRuleVersionId: rule.id,
+        payload: {
+          scoreId: row.id,
+          score: row.score,
+          status,
+          applicableMax: row.applicableMax,
+          earned: row.earned,
+          inputsHash,
+        },
+      });
+    }
+    return this.scoreView(tx, row.id);
   }
 
   private async collect(
@@ -442,23 +435,20 @@ export class BonusService implements OnModuleInit {
       : 720;
     void place;
 
-    const [presence] = session.presenceId
-      ? await tx
-          .select()
-          .from(presenceSessions)
-          .where(eq(presenceSessions.id, session.presenceId))
-          .limit(1)
-      : await tx
-          .select()
-          .from(presenceSessions)
-          .where(
-            and(
-              eq(presenceSessions.employeeId, session.employeeId),
-              lte(presenceSessions.arrivedAt, session.startedAt ?? session.createdAt),
-            ),
-          )
-          .orderBy(desc(presenceSessions.arrivedAt))
-          .limit(1);
+    const [presence] = await tx
+      .select()
+      .from(presenceSessions)
+      .where(
+        eq(
+          presenceSessions.id,
+          bonusPresenceId(
+            sql`${session.presenceId}`,
+            sql`${session.employeeId}`,
+            sql`${(session.startedAt ?? session.createdAt).toISOString()}::timestamptz`,
+          ),
+        ),
+      )
+      .limit(1);
 
     const events = await tx
       .select({ type: domainEvents.type, source: domainEvents.source })
@@ -649,61 +639,6 @@ export class BonusService implements OnModuleInit {
     return { inputs, excludedReason, appealed: appeals.length > 0, plannedMinutes };
   }
 
-  private async evaluateByHandover(handoverId: string): Promise<void> {
-    const [row] = await this.db
-      .select({ sessionId: handoverRecords.shiftSessionId })
-      .from(handoverRecords)
-      .where(eq(handoverRecords.id, handoverId))
-      .limit(1);
-    if (row) await this.evaluate(row.sessionId);
-  }
-
-  private async evaluateByIncident(incidentId: string): Promise<void> {
-    const rows = await this.db
-      .selectDistinct({ sessionId: downtimeReports.shiftSessionId })
-      .from(downtimeReports)
-      .where(eq(downtimeReports.incidentId, incidentId));
-    for (const r of rows) if (r.sessionId) await this.evaluate(r.sessionId);
-  }
-
-  private async evaluateByRequest(requestId: string): Promise<void> {
-    const [row] = await this.db
-      .select({
-        sessionId: requests.shiftSessionId,
-        assignmentId: requests.assignmentId,
-        employeeId: requests.employeeId,
-        from: requests.periodFrom,
-        to: requests.periodTo,
-      })
-      .from(requests)
-      .where(eq(requests.id, requestId))
-      .limit(1);
-    if (!row) return;
-    const ids = new Set<string>();
-    if (row.sessionId) ids.add(row.sessionId);
-    if (row.assignmentId) {
-      const sessions = await this.db
-        .select({ id: shiftSessions.id })
-        .from(shiftSessions)
-        .where(eq(shiftSessions.assignmentId, row.assignmentId));
-      for (const s of sessions) ids.add(s.id);
-    }
-    if (row.from && row.to) {
-      const sessions = await this.db
-        .select({ id: shiftSessions.id })
-        .from(shiftSessions)
-        .where(
-          and(
-            eq(shiftSessions.employeeId, row.employeeId),
-            sql`${shiftSessions.businessDate} >= ${row.from}`,
-            sql`${shiftSessions.businessDate} <= ${row.to}`,
-          ),
-        );
-      for (const s of sessions) ids.add(s.id);
-    }
-    for (const id of ids) await this.evaluate(id);
-  }
-
   /* ------------------------------------------------------------------ */
   /* Коригування (ТЗ 7.7)                                                */
   /* ------------------------------------------------------------------ */
@@ -714,25 +649,21 @@ export class BonusService implements OnModuleInit {
     actor: Actor,
     now: Date = new Date(),
   ): Promise<ShiftScoreView> {
-    const [score] = await this.db
-      .select()
-      .from(bonusShiftScores)
-      .where(eq(bonusShiftScores.id, scoreId))
-      .limit(1);
-    if (!score) throw new DomainError('SCORE_NOT_FOUND', 404, 'Оцінку не знайдено');
-    const [rule] = await this.db
-      .select()
-      .from(bonusRuleVersions)
-      .where(eq(bonusRuleVersions.id, score.ruleVersionId))
-      .limit(1);
-    const threshold =
-      rule?.rules.secondApprovalThreshold ?? DEFAULT_BONUS_RULES.secondApprovalThreshold;
-    const needsSecond = cmd.delta < 0 && Math.abs(cmd.delta) > threshold;
-    if (score.status === 'CONFIRMED') {
-      throw new DomainError('PERIOD_CLOSED', 409, 'The period is closed; the score is confirmed');
-    }
-    const criterion = cmd.criterion ?? null;
-    await this.db.transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
+      const score = await this.requireMutableScoreWithin(tx, scoreId);
+      const [rule] = await tx
+        .select()
+        .from(bonusRuleVersions)
+        .where(eq(bonusRuleVersions.id, score.ruleVersionId))
+        .limit(1);
+      const threshold =
+        rule?.rules.secondApprovalThreshold ?? DEFAULT_BONUS_RULES.secondApprovalThreshold;
+      const needsSecond = cmd.delta < 0 && Math.abs(cmd.delta) > threshold;
+      if (score.status === 'CONFIRMED') {
+        throw new DomainError('PERIOD_CLOSED', 409, 'The period is closed; the score is confirmed');
+      }
+      const criterion = cmd.criterion ?? null;
+
       const [row] = await tx
         .insert(bonusAdjustments)
         .values({
@@ -786,10 +717,11 @@ export class BonusService implements OnModuleInit {
           dedupeKey: `bonus-adjusted:${row?.id}`,
         });
       }
+      return (
+        (await this.evaluateWithin(tx, score.shiftSessionId, now)) ??
+        (await this.scoreView(tx, scoreId))!
+      );
     });
-    return (
-      (await this.evaluate(score.shiftSessionId, now)) ?? (await this.scoreView(this.db, scoreId))!
-    );
   }
 
   /** Changes the points, reason or comment of an adjustment while the period is open. */
@@ -799,23 +731,24 @@ export class BonusService implements OnModuleInit {
     actor: Actor,
     now: Date = new Date(),
   ): Promise<ShiftScoreView> {
-    const { adjustment, score } = await this.requireOpenAdjustment(adjustmentId);
-    const patch = {
-      ...(cmd.delta !== undefined ? { delta: cmd.delta } : {}),
-      ...(cmd.reasonCode !== undefined ? { reasonCode: cmd.reasonCode } : {}),
-      ...(cmd.comment !== undefined ? { comment: cmd.comment } : {}),
-    };
-    if (Object.keys(patch).length === 0) return (await this.scoreView(this.db, score.id))!;
-    const [rule] = await this.db
-      .select()
-      .from(bonusRuleVersions)
-      .where(eq(bonusRuleVersions.id, score.ruleVersionId))
-      .limit(1);
-    const threshold =
-      rule?.rules.secondApprovalThreshold ?? DEFAULT_BONUS_RULES.secondApprovalThreshold;
-    const delta = cmd.delta ?? adjustment.delta;
-    const needsSecond = delta < 0 && Math.abs(delta) > threshold;
-    await this.db.transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
+      const { adjustment, score } = await this.requireOpenAdjustment(tx, adjustmentId);
+      const patch = {
+        ...(cmd.delta !== undefined ? { delta: cmd.delta } : {}),
+        ...(cmd.reasonCode !== undefined ? { reasonCode: cmd.reasonCode } : {}),
+        ...(cmd.comment !== undefined ? { comment: cmd.comment } : {}),
+      };
+      if (Object.keys(patch).length === 0) return (await this.scoreView(tx, score.id))!;
+      const [rule] = await tx
+        .select()
+        .from(bonusRuleVersions)
+        .where(eq(bonusRuleVersions.id, score.ruleVersionId))
+        .limit(1);
+      const threshold =
+        rule?.rules.secondApprovalThreshold ?? DEFAULT_BONUS_RULES.secondApprovalThreshold;
+      const delta = cmd.delta ?? adjustment.delta;
+      const needsSecond = delta < 0 && Math.abs(delta) > threshold;
+
       await tx
         .update(bonusAdjustments)
         .set({
@@ -846,10 +779,11 @@ export class BonusService implements OnModuleInit {
         },
         after: patch,
       });
+      return (
+        (await this.evaluateWithin(tx, score.shiftSessionId, now)) ??
+        (await this.scoreView(tx, score.id))!
+      );
     });
-    return (
-      (await this.evaluate(score.shiftSessionId, now)) ?? (await this.scoreView(this.db, score.id))!
-    );
   }
 
   /** Withdraws an adjustment; the row stays as history with the reason, the score is recomputed. */
@@ -859,8 +793,9 @@ export class BonusService implements OnModuleInit {
     actor: Actor,
     now: Date = new Date(),
   ): Promise<ShiftScoreView> {
-    const { adjustment, score } = await this.requireOpenAdjustment(adjustmentId);
-    await this.db.transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
+      const { adjustment, score } = await this.requireOpenAdjustment(tx, adjustmentId);
+
       await tx
         .update(bonusAdjustments)
         .set({ status: 'CANCELLED', decidedAt: now })
@@ -883,10 +818,11 @@ export class BonusService implements OnModuleInit {
         before: { delta: adjustment.delta, status: adjustment.status },
         reason: cmd.reason,
       });
+      return (
+        (await this.evaluateWithin(tx, score.shiftSessionId, now)) ??
+        (await this.scoreView(tx, score.id))!
+      );
     });
-    return (
-      (await this.evaluate(score.shiftSessionId, now)) ?? (await this.scoreView(this.db, score.id))!
-    );
   }
 
   /**
@@ -900,19 +836,15 @@ export class BonusService implements OnModuleInit {
     actor: Actor,
     now: Date = new Date(),
   ): Promise<ShiftScoreView> {
-    const [score] = await this.db
-      .select()
-      .from(bonusShiftScores)
-      .where(eq(bonusShiftScores.id, scoreId))
-      .limit(1);
-    if (!score) throw new DomainError('SCORE_NOT_FOUND', 404, 'Score not found');
-    if (score.status === 'CONFIRMED') {
-      throw new DomainError('PERIOD_CLOSED', 409, 'The period is closed; the score is confirmed');
-    }
-    if (score.status !== 'MANUAL_REVIEW' && score.reviewDecision === null) {
-      throw new DomainError('REVIEW_NOT_NEEDED', 409, 'The shift is scored by the rules');
-    }
-    await this.db.transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
+      const score = await this.requireMutableScoreWithin(tx, scoreId);
+      if (score.status === 'CONFIRMED') {
+        throw new DomainError('PERIOD_CLOSED', 409, 'The period is closed; the score is confirmed');
+      }
+      if (score.status !== 'MANUAL_REVIEW' && score.reviewDecision === null) {
+        throw new DomainError('REVIEW_NOT_NEEDED', 409, 'The shift is scored by the rules');
+      }
+
       await tx
         .update(bonusShiftScores)
         .set({
@@ -954,31 +886,54 @@ export class BonusService implements OnModuleInit {
         }),
         dedupeKey: `bonus-reviewed:${scoreId}:${now.getTime()}`,
       });
+      return (
+        (await this.evaluateWithin(tx, score.shiftSessionId, now)) ??
+        (await this.scoreView(tx, scoreId))!
+      );
     });
-    return (
-      (await this.evaluate(score.shiftSessionId, now)) ?? (await this.scoreView(this.db, scoreId))!
-    );
   }
 
-  private async requireOpenAdjustment(adjustmentId: string) {
-    const [adjustment] = await this.db
+  private async requireMutableScoreWithin(tx: Transaction, scoreId: string): Promise<ScoreRow> {
+    const [target] = await tx
+      .select({ sessionId: bonusShiftScores.shiftSessionId, date: bonusShiftScores.businessDate })
+      .from(bonusShiftScores)
+      .where(eq(bonusShiftScores.id, scoreId));
+    if (!target) throw new DomainError('SCORE_NOT_FOUND', 404, 'Score not found');
+    await lockBonusMonthWithin(tx, target.date.slice(0, 7));
+    const [session] = await tx
+      .select()
+      .from(shiftSessions)
+      .where(eq(shiftSessions.id, target.sessionId))
+      .for('no key update');
+    if (!session) throw new DomainError('SHIFT_NOT_FOUND', 404, 'Shift not found');
+    const place = session.assignmentId ? await this.placeOf(tx, session.assignmentId) : null;
+    const closed = await this.periodClosed(tx, place?.siteId ?? null, target.date.slice(0, 7));
+    const [score] = await tx
+      .select()
+      .from(bonusShiftScores)
+      .where(eq(bonusShiftScores.id, scoreId))
+      .for('no key update');
+    if (!score) throw new DomainError('SCORE_NOT_FOUND', 404, 'Score not found');
+    if (closed || score.status === 'CONFIRMED')
+      throw new DomainError('PERIOD_CLOSED', 409, 'The score belongs to a closed period');
+    return score;
+  }
+
+  private async requireOpenAdjustment(tx: Transaction, adjustmentId: string) {
+    const [target] = await tx
+      .select({ scoreId: bonusAdjustments.scoreId })
+      .from(bonusAdjustments)
+      .where(eq(bonusAdjustments.id, adjustmentId));
+    if (!target) throw new DomainError('ADJUSTMENT_NOT_FOUND', 404, 'Adjustment not found');
+    const score = await this.requireMutableScoreWithin(tx, target.scoreId);
+    const [adjustment] = await tx
       .select()
       .from(bonusAdjustments)
       .where(eq(bonusAdjustments.id, adjustmentId))
-      .limit(1);
+      .for('no key update');
     if (!adjustment) throw new DomainError('ADJUSTMENT_NOT_FOUND', 404, 'Adjustment not found');
-    if (adjustment.status === 'CANCELLED' || adjustment.status === 'REJECTED') {
+    if (adjustment.status === 'CANCELLED' || adjustment.status === 'REJECTED')
       throw new DomainError('ADJUSTMENT_DECIDED', 409, 'The adjustment is already withdrawn');
-    }
-    const [score] = await this.db
-      .select()
-      .from(bonusShiftScores)
-      .where(eq(bonusShiftScores.id, adjustment.scoreId))
-      .limit(1);
-    if (!score) throw new DomainError('SCORE_NOT_FOUND', 404, 'Score not found');
-    if (score.status === 'CONFIRMED') {
-      throw new DomainError('PERIOD_CLOSED', 409, 'The period is closed; the score is confirmed');
-    }
     return { adjustment, score };
   }
 
@@ -988,17 +943,13 @@ export class BonusService implements OnModuleInit {
     actor: Actor,
     now: Date = new Date(),
   ): Promise<ShiftScoreView> {
-    const [adjustment] = await this.db
-      .select()
-      .from(bonusAdjustments)
-      .where(eq(bonusAdjustments.id, adjustmentId))
-      .limit(1);
-    if (!adjustment) throw new DomainError('ADJUSTMENT_NOT_FOUND', 404, 'Коригування не знайдено');
-    if (adjustment.status !== 'PENDING_SECOND')
-      throw new DomainError('ADJUSTMENT_DECIDED', 409, 'Коригування вже вирішене');
-    if (adjustment.authorId && adjustment.authorId === actor.id)
-      throw new DomainError('SECOND_APPROVER_SAME', 403, 'Друге підтвердження дає інша особа');
-    await this.db.transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
+      const { adjustment, score } = await this.requireOpenAdjustment(tx, adjustmentId);
+      if (adjustment.status !== 'PENDING_SECOND')
+        throw new DomainError('ADJUSTMENT_DECIDED', 409, 'Коригування вже вирішене');
+      if (adjustment.authorId && adjustment.authorId === actor.id)
+        throw new DomainError('SECOND_APPROVER_SAME', 403, 'Друге підтвердження дає інша особа');
+
       await tx
         .update(bonusAdjustments)
         .set({
@@ -1014,16 +965,21 @@ export class BonusService implements OnModuleInit {
         objectId: adjustmentId,
         reason: cmd.comment,
       });
+      await this.events.append(tx, {
+        type: 'BONUS_ADJUSTMENT_SECOND_DECIDED',
+        source: 'WEB',
+        actor,
+        occurredAt: now,
+        employeeId: score.employeeId,
+        shiftSessionId: score.shiftSessionId,
+        payload: { adjustmentId, decision: cmd.decision },
+        comment: cmd.comment,
+      });
+      return (
+        (await this.evaluateWithin(tx, score.shiftSessionId, now)) ??
+        (await this.scoreView(tx, score.id))!
+      );
     });
-    const [score] = await this.db
-      .select()
-      .from(bonusShiftScores)
-      .where(eq(bonusShiftScores.id, adjustment.scoreId))
-      .limit(1);
-    if (!score) throw new DomainError('SCORE_NOT_FOUND', 404, 'Оцінку не знайдено');
-    return (
-      (await this.evaluate(score.shiftSessionId, now)) ?? (await this.scoreView(this.db, score.id))!
-    );
   }
 
   /* ------------------------------------------------------------------ */
@@ -1389,12 +1345,24 @@ export class BonusService implements OnModuleInit {
     employeeId?: string,
     now: Date = new Date(),
   ): Promise<BonusPeriodView> {
-    const [period] = await this.db
+    return this.db.transaction((tx) => this.periodWithin(tx, siteId, month, employeeId, now), {
+      isolationLevel: 'repeatable read',
+    });
+  }
+
+  async periodWithin(
+    tx: Transaction,
+    siteId: string,
+    month: string,
+    employeeId?: string,
+    now: Date = new Date(),
+  ): Promise<BonusPeriodView> {
+    const [period] = await tx
       .select()
       .from(bonusPeriods)
       .where(and(eq(bonusPeriods.siteId, siteId), eq(bonusPeriods.month, month)))
       .limit(1);
-    const scoreRows = await this.db
+    const scoreRows = await tx
       .select({
         s: bonusShiftScores,
         name: employees.fullName,
@@ -1414,10 +1382,7 @@ export class BonusService implements OnModuleInit {
       )
       .orderBy(asc(employees.fullName), asc(bonusShiftScores.businessDate));
     const results = period
-      ? await this.db
-          .select()
-          .from(bonusPeriodResults)
-          .where(eq(bonusPeriodResults.periodId, period.id))
+      ? await tx.select().from(bonusPeriodResults).where(eq(bonusPeriodResults.periodId, period.id))
       : [];
     const byEmployee = new Map<
       string,
@@ -1432,12 +1397,38 @@ export class BonusService implements OnModuleInit {
       e.scores.push(r.s);
       byEmployee.set(r.s.employeeId, e);
     }
+    if (period?.status === 'CLOSED') {
+      for (const result of results) {
+        if (byEmployee.has(result.employeeId) || (employeeId && employeeId !== result.employeeId))
+          continue;
+        const [employee] = await tx
+          .select()
+          .from(employees)
+          .where(eq(employees.id, result.employeeId));
+        if (employee)
+          byEmployee.set(employee.id, {
+            name: employee.fullName,
+            personnelNumber: employee.personnelNumber,
+            scores: [],
+          });
+      }
+    }
     const employeesView: EmployeeMonthView[] = [];
     for (const [id, e] of byEmployee) {
       const views = [];
-      for (const s of e.scores) views.push((await this.scoreView(this.db, s.id))!);
-      const agg = aggregate(e.scores);
+      for (const s of e.scores) views.push((await this.scoreView(tx, s.id))!);
       const stored = results.find((r) => r.employeeId === id);
+      if (period?.status === 'CLOSED' && !stored) continue;
+      const agg =
+        period?.status === 'CLOSED' && stored
+          ? {
+              shifts: stored.shifts,
+              evaluatedShifts: stored.evaluatedShifts,
+              pendingShifts: stored.pendingShifts,
+              sMonth: stored.sMonth === null ? null : Number(stored.sMonth),
+              weightSum: Number(stored.weightSum),
+            }
+          : aggregate(e.scores);
       employeesView.push({
         employeeId: id,
         employeeName: e.name,
@@ -1454,7 +1445,7 @@ export class BonusService implements OnModuleInit {
         scores: views,
       });
     }
-    const pendingRows = await this.db
+    const pendingRows = await tx
       .select({ a: bonusAdjustments, s: bonusShiftScores, name: employees.fullName })
       .from(bonusAdjustments)
       .innerJoin(bonusShiftScores, eq(bonusAdjustments.scoreId, bonusShiftScores.id))
@@ -1466,7 +1457,7 @@ export class BonusService implements OnModuleInit {
         ),
       );
     const [rule] = period?.ruleVersionId
-      ? await this.db
+      ? await tx
           .select()
           .from(bonusRuleVersions)
           .where(eq(bonusRuleVersions.id, period.ruleVersionId))
@@ -1500,110 +1491,137 @@ export class BonusService implements OnModuleInit {
     actor: Actor,
     now: Date = new Date(),
   ): Promise<BonusPeriodView> {
-    await this.db.transaction(async (tx) => {
-      const rule = await this.ruleVersionFor(siteId, new Date(`${month}-01T00:00:00Z`), tx);
-      const [existing] = await tx
-        .select()
-        .from(bonusPeriods)
-        .where(and(eq(bonusPeriods.siteId, siteId), eq(bonusPeriods.month, month)))
-        .for('update');
-      if (existing?.status === 'CLOSED')
-        throw new DomainError('PERIOD_CLOSED', 409, 'Період уже закритий');
-      const [period] = existing
-        ? await tx
-            .update(bonusPeriods)
-            .set({ status: 'CLOSED', ruleVersionId: rule.id, closedBy: actor.id, closedAt: now })
-            .where(eq(bonusPeriods.id, existing.id))
-            .returning()
-        : await tx
-            .insert(bonusPeriods)
-            .values({
-              siteId,
-              month,
-              status: 'CLOSED',
-              ruleVersionId: rule.id,
-              closedBy: actor.id,
-              closedAt: now,
-            })
-            .returning();
-      if (!period) throw new Error('bonus_periods: запис не створено');
-      const view = await this.period(siteId, month, undefined, now);
-      for (const e of view.employees) {
-        const scoreIds = e.scores
-          .filter((s) => s.status === 'PRELIMINARY' && s.score !== null)
-          .map((s) => s.id);
-        if (scoreIds.length > 0) {
-          await tx
-            .update(bonusShiftScores)
-            .set({ status: 'CONFIRMED', confirmedBy: actor.id, confirmedAt: now })
-            .where(inArray(bonusShiftScores.id, scoreIds));
-        }
-        const [stored] = await tx
-          .select()
-          .from(bonusPeriodResults)
-          .where(
-            and(
-              eq(bonusPeriodResults.periodId, period.id),
-              eq(bonusPeriodResults.employeeId, e.employeeId),
-            ),
-          )
-          .limit(1);
-        const base =
-          stored?.baseAmount !== null && stored?.baseAmount !== undefined
-            ? Number(stored.baseAmount)
-            : null;
-        const bonus = base !== null && e.sMonth !== null ? Math.round(base * e.sMonth) / 100 : null;
-        const values = {
-          periodId: period.id,
-          employeeId: e.employeeId,
-          shifts: e.shifts,
-          evaluatedShifts: e.evaluatedShifts,
-          pendingShifts: e.pendingShifts,
-          sMonth: e.sMonth === null ? null : String(e.sMonth),
-          weightSum: String(e.weightSum),
-          baseAmount: base === null ? null : String(base),
-          bonusAmount: bonus === null ? null : String(bonus),
-          updatedAt: now,
-        };
-        await tx
-          .insert(bonusPeriodResults)
-          .values(values)
-          .onConflictDoUpdate({
-            target: [bonusPeriodResults.periodId, bonusPeriodResults.employeeId],
-            set: values,
-          });
-        await this.notifications.enqueue(tx, {
-          recipientType: 'EMPLOYEE',
-          recipientId: e.employeeId,
-          template: 'BONUS_PERIOD_CLOSED',
-          payload: (t) => ({
-            text: format(t.bonus.periodClosed, {
-              month,
-              score: e.sMonth === null ? '—' : String(e.sMonth),
-            }),
-          }),
-          dedupeKey: `bonus-period-closed:${period.id}:${e.employeeId}`,
-        });
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await this.closePeriodOnce(siteId, month, cmd, actor, now);
+      } catch (error) {
+        if (!isSerializationFailure(error) || attempt >= 3) throw error;
       }
-      await this.events.append(tx, {
-        type: 'BONUS_PERIOD_CLOSED',
-        source: 'WEB',
-        actor,
-        occurredAt: now,
-        bonusRuleVersionId: rule.id,
-        comment: cmd.comment,
-        payload: { periodId: period.id, siteId, month, employees: view.employees.length },
-      });
-      await this.audit.record(tx, {
-        actor,
-        action: 'bonus.period.close',
-        objectType: 'bonus_period',
-        objectId: period.id,
-        after: { month, siteId, ruleVersionId: rule.id },
-        reason: cmd.comment,
-      });
-    });
-    return this.period(siteId, month, undefined, now);
+    }
+  }
+
+  private async closePeriodOnce(
+    siteId: string,
+    month: string,
+    cmd: ClosePeriodCommand,
+    actor: Actor,
+    now: Date = new Date(),
+  ): Promise<BonusPeriodView> {
+    return this.db.transaction(
+      async (tx) => {
+        await lockBonusMonthWithin(tx, month);
+        const sessions = await this.periodSessionsWithin(tx, siteId, month);
+        const rule = await this.ruleVersionFor(siteId, new Date(`${month}-01T00:00:00Z`), tx);
+        const [existing] = await tx
+          .select()
+          .from(bonusPeriods)
+          .where(and(eq(bonusPeriods.siteId, siteId), eq(bonusPeriods.month, month)))
+          .for('update');
+        if (existing?.status === 'CLOSED')
+          throw new DomainError('PERIOD_CLOSED', 409, 'Період уже закритий');
+        const [period] = existing
+          ? await tx
+              .update(bonusPeriods)
+              .set({ status: 'OPEN', ruleVersionId: rule.id })
+              .where(eq(bonusPeriods.id, existing.id))
+              .returning()
+          : await tx
+              .insert(bonusPeriods)
+              .values({
+                siteId,
+                month,
+                status: 'OPEN',
+                ruleVersionId: rule.id,
+                closedBy: actor.id,
+                closedAt: now,
+              })
+              .returning();
+        if (!period) throw new Error('bonus_periods: запис не створено');
+        for (const session of sessions) await this.evaluateWithin(tx, session.id, now);
+        const view = await this.periodWithin(tx, siteId, month, undefined, now);
+        for (const e of view.employees) {
+          const scoreIds = e.scores
+            .filter((s) => s.status === 'PRELIMINARY' && s.score !== null)
+            .map((s) => s.id);
+          if (scoreIds.length > 0) {
+            await tx
+              .update(bonusShiftScores)
+              .set({ status: 'CONFIRMED', confirmedBy: actor.id, confirmedAt: now })
+              .where(inArray(bonusShiftScores.id, scoreIds));
+          }
+          const [stored] = await tx
+            .select()
+            .from(bonusPeriodResults)
+            .where(
+              and(
+                eq(bonusPeriodResults.periodId, period.id),
+                eq(bonusPeriodResults.employeeId, e.employeeId),
+              ),
+            )
+            .limit(1);
+          const base =
+            stored?.baseAmount !== null && stored?.baseAmount !== undefined
+              ? Number(stored.baseAmount)
+              : null;
+          const bonus =
+            base !== null && e.sMonth !== null ? Math.round(base * e.sMonth) / 100 : null;
+          const values = {
+            periodId: period.id,
+            employeeId: e.employeeId,
+            shifts: e.shifts,
+            evaluatedShifts: e.evaluatedShifts,
+            pendingShifts: e.pendingShifts,
+            sMonth: e.sMonth === null ? null : String(e.sMonth),
+            weightSum: String(e.weightSum),
+            baseAmount: base === null ? null : String(base),
+            bonusAmount: bonus === null ? null : String(bonus),
+            updatedAt: now,
+          };
+          await tx
+            .insert(bonusPeriodResults)
+            .values(values)
+            .onConflictDoUpdate({
+              target: [bonusPeriodResults.periodId, bonusPeriodResults.employeeId],
+              set: values,
+            });
+          await this.notifications.enqueue(tx, {
+            recipientType: 'EMPLOYEE',
+            recipientId: e.employeeId,
+            template: 'BONUS_PERIOD_CLOSED',
+            payload: (t) => ({
+              text: format(t.bonus.periodClosed, {
+                month,
+                score: e.sMonth === null ? '—' : String(e.sMonth),
+              }),
+            }),
+            dedupeKey: `bonus-period-closed:${period.id}:${e.employeeId}`,
+          });
+        }
+        await tx
+          .update(bonusPeriods)
+          .set({ status: 'CLOSED', closedBy: actor.id, closedAt: now })
+          .where(eq(bonusPeriods.id, period.id));
+        await this.events.append(tx, {
+          type: 'BONUS_PERIOD_CLOSED',
+          source: 'WEB',
+          actor,
+          occurredAt: now,
+          bonusRuleVersionId: rule.id,
+          comment: cmd.comment,
+          payload: { periodId: period.id, siteId, month, employees: view.employees.length },
+        });
+        await this.audit.record(tx, {
+          actor,
+          action: 'bonus.period.close',
+          objectType: 'bonus_period',
+          objectId: period.id,
+          after: { month, siteId, ruleVersionId: rule.id },
+          reason: cmd.comment,
+        });
+        return this.periodWithin(tx, siteId, month, undefined, now);
+      },
+      { isolationLevel: 'repeatable read' },
+    );
   }
 
   /**
@@ -1616,7 +1634,11 @@ export class BonusService implements OnModuleInit {
     actor: Actor,
     now: Date = new Date(),
   ): Promise<BonusPeriodView> {
-    const period = await this.db.transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
+      const [target] = await tx.select().from(bonusPeriods).where(eq(bonusPeriods.id, periodId));
+      if (!target) throw new DomainError('PERIOD_NOT_FOUND', 404, 'Period not found');
+      await lockBonusMonthWithin(tx, target.month);
+      await this.periodSessionsWithin(tx, target.siteId, target.month);
       const [existing] = await tx
         .select()
         .from(bonusPeriods)
@@ -1629,10 +1651,19 @@ export class BonusService implements OnModuleInit {
         .update(bonusPeriods)
         .set({ status: 'OPEN', closedBy: null, closedAt: null })
         .where(eq(bonusPeriods.id, existing.id));
-      const view = await this.period(existing.siteId, existing.month, undefined, now);
-      const confirmed = view.employees.flatMap((e) =>
-        e.scores.filter((s) => s.status === 'CONFIRMED').map((s) => s.id),
-      );
+      const view = await this.periodWithin(tx, existing.siteId, existing.month, undefined, now);
+      const confirmed: string[] = [];
+      for (const score of view.employees.flatMap((employee) => employee.scores)) {
+        if (score.status !== 'CONFIRMED') continue;
+        const [session] = await tx
+          .select({ assignmentId: shiftSessions.assignmentId })
+          .from(shiftSessions)
+          .where(eq(shiftSessions.id, score.shiftSessionId));
+        if (!session) continue;
+        const place = session.assignmentId ? await this.placeOf(tx, session.assignmentId) : null;
+        if (!(await this.periodClosed(tx, place?.siteId ?? null, existing.month)))
+          confirmed.push(score.id);
+      }
       if (confirmed.length > 0) {
         await tx
           .update(bonusShiftScores)
@@ -1662,9 +1693,8 @@ export class BonusService implements OnModuleInit {
         after: { status: 'OPEN' },
         reason: cmd.comment,
       });
-      return existing;
+      return this.periodWithin(tx, existing.siteId, existing.month, undefined, now);
     });
-    return this.period(period.siteId, period.month, undefined, now);
   }
 
   /** Бонусну базу передає HR; сума рахується лише для закритих оцінок (ТЗ 7.6). */
@@ -1674,13 +1704,14 @@ export class BonusService implements OnModuleInit {
     actor: Actor,
     now: Date = new Date(),
   ): Promise<BonusPeriodView> {
-    const [period] = await this.db
-      .select()
-      .from(bonusPeriods)
-      .where(eq(bonusPeriods.id, periodId))
-      .limit(1);
-    if (!period) throw new DomainError('PERIOD_NOT_FOUND', 404, 'Період не знайдено');
-    await this.db.transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
+      const [period] = await tx
+        .select()
+        .from(bonusPeriods)
+        .where(eq(bonusPeriods.id, periodId))
+        .limit(1);
+      if (!period) throw new DomainError('PERIOD_NOT_FOUND', 404, 'Період не знайдено');
+      await lockBonusMonthWithin(tx, period.month);
       for (const item of cmd.items) {
         const [stored] = await tx
           .select()
@@ -1722,46 +1753,55 @@ export class BonusService implements OnModuleInit {
         objectId: periodId,
         after: { count: cmd.items.length },
       });
+      return this.periodWithin(tx, period.siteId, period.month, undefined, now);
     });
-    return this.period(period.siteId, period.month, undefined, now);
   }
 
   /** Вивантаження для бухгалтерії: лише підтверджені агрегати, кожне вивантаження в аудиті (FR-WEB-04/05). */
   async exportCsv(periodId: string, actor: Actor, now: Date = new Date()): Promise<string> {
-    const [period] = await this.db
-      .select()
-      .from(bonusPeriods)
-      .where(eq(bonusPeriods.id, periodId))
-      .limit(1);
-    if (!period) throw new DomainError('PERIOD_NOT_FOUND', 404, 'Період не знайдено');
-    if (period.status !== 'CLOSED')
-      throw new DomainError('PERIOD_OPEN', 409, 'Вивантаження доступне лише для закритого періоду');
-    const view = await this.period(period.siteId, period.month, undefined, now);
-    const lines = [
-      `# vakhta bonus export;period=${period.month};site=${period.siteId};rules=${view.ruleLabel ?? ''};generated=${now.toISOString()}`,
-      'employee_id;personnel_number;full_name;shifts;evaluated;pending;s_month;base_amount;bonus_amount',
-      ...view.employees.map((e) =>
-        [
-          e.employeeId,
-          e.personnelNumber,
-          csv(e.employeeName),
-          e.shifts,
-          e.evaluatedShifts,
-          e.pendingShifts,
-          e.sMonth ?? '',
-          e.baseAmount ?? '',
-          e.bonusAmount ?? '',
-        ].join(';'),
-      ),
-    ];
-    await this.audit.record(this.db, {
-      actor,
-      action: 'bonus.export',
-      objectType: 'bonus_period',
-      objectId: periodId,
-      after: { rows: view.employees.length, generatedAt: now.toISOString() },
-    });
-    return lines.join('\n');
+    return this.db.transaction(
+      async (tx) => {
+        const [period] = await tx
+          .select()
+          .from(bonusPeriods)
+          .where(eq(bonusPeriods.id, periodId))
+          .limit(1);
+        if (!period) throw new DomainError('PERIOD_NOT_FOUND', 404, 'Період не знайдено');
+        if (period.status !== 'CLOSED')
+          throw new DomainError(
+            'PERIOD_OPEN',
+            409,
+            'Вивантаження доступне лише для закритого періоду',
+          );
+        const view = await this.periodWithin(tx, period.siteId, period.month, undefined, now);
+        const lines = [
+          `# vakhta bonus export;period=${period.month};site=${period.siteId};rules=${view.ruleLabel ?? ''};generated=${now.toISOString()}`,
+          'employee_id;personnel_number;full_name;shifts;evaluated;pending;s_month;base_amount;bonus_amount',
+          ...view.employees.map((e) =>
+            [
+              e.employeeId,
+              e.personnelNumber,
+              csv(e.employeeName),
+              e.shifts,
+              e.evaluatedShifts,
+              e.pendingShifts,
+              e.sMonth ?? '',
+              e.baseAmount ?? '',
+              e.bonusAmount ?? '',
+            ].join(';'),
+          ),
+        ];
+        await this.audit.record(tx, {
+          actor,
+          action: 'bonus.export',
+          objectType: 'bonus_period',
+          objectId: periodId,
+          after: { rows: view.employees.length, generatedAt: now.toISOString() },
+        });
+        return lines.join('\n');
+      },
+      { isolationLevel: 'repeatable read' },
+    );
   }
 
   /* ------------------------------------------------------------------ */
@@ -1862,11 +1902,33 @@ export class BonusService implements OnModuleInit {
     return row ?? null;
   }
 
-  private async periodClosed(tx: DbOrTx, siteId: string, month: string): Promise<boolean> {
+  private periodSessionsWithin(tx: Transaction, siteId: string, month: string) {
+    return tx
+      .select({ id: shiftSessions.id })
+      .from(shiftSessions)
+      .where(
+        and(
+          inArray(shiftSessions.state, ['SHIFT_CLOSED', 'EMERGENCY_EXIT']),
+          sql`left(${shiftSessions.businessDate}::text, 7) = ${month}`,
+          sql`exists (select 1 from shift_sessions member left join shift_assignments a on a.id = member.assignment_id
+        left join org_units u on u.id = a.org_unit_id where member.id = ${shiftSessions.id} and (u.site_id = ${siteId} or u.site_id is null))`,
+        ),
+      )
+      .orderBy(asc(shiftSessions.id))
+      .for('no key update');
+  }
+
+  private async periodClosed(tx: DbOrTx, siteId: string | null, month: string): Promise<boolean> {
     const [row] = await tx
       .select({ status: bonusPeriods.status })
       .from(bonusPeriods)
-      .where(and(eq(bonusPeriods.siteId, siteId), eq(bonusPeriods.month, month)))
+      .where(
+        and(
+          siteId === null ? undefined : eq(bonusPeriods.siteId, siteId),
+          eq(bonusPeriods.month, month),
+          eq(bonusPeriods.status, 'CLOSED'),
+        ),
+      )
       .limit(1);
     return row?.status === 'CLOSED';
   }
