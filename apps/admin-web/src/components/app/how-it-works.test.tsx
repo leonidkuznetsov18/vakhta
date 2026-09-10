@@ -29,4 +29,17 @@ describe('HowItWorks and FaqButton', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Помощь: Терминалы' }));
     expect(within(screen.getByRole('dialog')).getByText(/Планшет показывает/)).toBeTruthy();
   });
+  it('opens photo-specific instructions and localized video from the editor help', () => {
+    render(<HowItWorks guide="photoInspection" compact />);
+    fireEvent.click(screen.getByRole('button', { name: 'Вопросы и ответы' }));
+    const sheet = within(screen.getByRole('dialog'));
+    expect(sheet.getByText('Помощь: Проверка фото')).toBeTruthy();
+    expect(sheet.getByText('Модель обучается после каждого сохранения?')).toBeTruthy();
+    expect(
+      sheet.getByRole('link', { name: 'Открыть полную инструкцию' }).getAttribute('href'),
+    ).toBe('/guides/photo-inspection.ru.html');
+    expect(sheet.getByRole('link', { name: /Видеообъяснение/ }).getAttribute('href')).toBe(
+      '/guides/photo-inspection.ru.mp4',
+    );
+  });
 });

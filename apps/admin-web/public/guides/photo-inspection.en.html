@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Photo inspection · Vakhta</title>
+    <style>
+      body {
+        font:
+          17px/1.65 system-ui,
+          sans-serif;
+        color: #18181b;
+        margin: 0;
+        background: #fafafa;
+      }
+      main {
+        max-width: 52rem;
+        margin: auto;
+        padding: 2rem 1.25rem;
+      }
+      h1,
+      h2 {
+        line-height: 1.25;
+      }
+      h1 {
+        font-size: 2rem;
+      }
+      h2 {
+        margin-top: 2.5rem;
+      }
+      h3 {
+        font-size: 1.05rem;
+        margin: 0 0 0.5rem;
+      }
+      p {
+        margin: 0.4rem 0 1rem;
+      }
+      li {
+        margin-bottom: 1rem;
+      }
+      section {
+        margin: 1.5rem 0;
+        padding: 1rem;
+        background: white;
+        border: 1px solid #e4e4e7;
+        border-radius: 0.75rem;
+      }
+      video {
+        display: block;
+        width: 100%;
+        border-radius: 0.75rem;
+        background: white;
+      }
+      a {
+        color: inherit;
+        text-underline-offset: 0.2em;
+      }
+      a:focus-visible {
+        outline: 3px solid #71717a;
+      }
+      nav {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      @media print {
+        body {
+          background: white;
+          font-size: 11pt;
+        }
+        main {
+          padding: 0;
+          max-width: none;
+        }
+        video,
+        nav {
+          display: none;
+        }
+        section {
+          break-inside: avoid;
+        }
+        h2,
+        h3 {
+          break-after: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="/#/handover">Cleanliness and handover</a
+        ><a href="photo-inspection.uk.html" lang="uk" hreflang="uk">Українська</a
+        ><a href="photo-inspection.en.html" lang="en" hreflang="en">English</a
+        ><a href="photo-inspection.ru.html" lang="ru" hreflang="ru">Русский</a>
+      </nav>
+      <h1>Photo inspection</h1>
+      <p>
+        Help the system understand how a workplace should look after a shift. Mark visible problems
+        and describe them. These verified examples support future automatic problem detection; a
+        person makes the final assessment today.
+      </p>
+      <h2>One-minute illustrated explanation (no sound)</h2>
+      <p>The explanations are also written in the FAQ. On a phone, use full screen.</p>
+      <video controls playsinline preload="metadata" poster="photo-inspection.en.webp">
+        <source src="photo-inspection.en.mp4" type="video/mp4" />
+      </video>
+      <p><a href="photo-inspection.en.mp4">One-minute illustrated explanation (no sound)</a></p>
+      <h2>How it works</h2>
+      <ol>
+        <li>
+          Open Cleanliness and handover, expand a report and select a photo. Inspect the whole
+          image; use Zoom in when needed.
+        </li>
+        <li>
+          Enter known rules in Workplace requirements, such as “The table must be clear after the
+          shift; tools belong on the panel.” Do not invent rules.
+        </li>
+        <li>
+          For a visible problem, choose Rectangle and drag around it, or choose Polygon, click its
+          corners and close the outline. Select a category and describe each region in What is
+          wrong, for example “Dirty rag left on the table.”
+        </li>
+        <li>
+          Choose the outcome: Problems found for marked issues; No problems found after inspecting
+          the visible area; Not assessable with an explanation of missing evidence. Leave Not
+          reviewed if your inspection is incomplete.
+        </li>
+        <li>
+          Select Save review. The original photo is unchanged; regions, descriptions and your
+          outcome are saved separately. Save before moving to another photo.
+        </li>
+        <li>
+          Optionally select Analyze with Gemma 4 after saving a comment, requirements or a described
+          region. Read its suggestions. Use Add to my annotations only for correct findings, correct
+          any inaccuracies and save the review again.
+        </li>
+      </ol>
+      <h2>Questions and answers</h2>
+      <section>
+        <h3>What is a photo annotation?</h3>
+        <p>
+          A region on a photo with a short description of what you see. For example, a box around a
+          rag and “Dirty rag on the table.” The original image stays unchanged.
+        </p>
+      </section>
+      <section>
+        <h3>Why spend time adding these marks?</h3>
+        <p>
+          An image alone does not explain your workplace rules. Human labels provide verified
+          examples. The goal is to train and evaluate a model that finds and describes problems
+          automatically and reduces manual review.
+        </p>
+      </section>
+      <section>
+        <h3>Does the model learn after every save?</h3>
+        <p>
+          No. We are collecting verified data; Gemma 4 currently provides suggestions as an existing
+          model. Selecting examples, training and measuring accuracy are separate future steps.
+          Uploading an image does not train the model by itself.
+        </p>
+      </section>
+      <section>
+        <h3>Should I outline an object or the whole image?</h3>
+        <p>
+          Mark the specific object or dirty area with as little unrelated background as possible.
+          Use separate regions for separate problems. A rectangle is usually enough; polygons help
+          with irregular dirty areas.
+        </p>
+      </section>
+      <section>
+        <h3>What makes a useful comment?</h3>
+        <p>
+          State what is visible and where: “Dust on the lower shelf” or “Wrench left in an area that
+          must stay clear.” Avoid only “bad” or “not cleaned,” and do not infer someone’s
+          intentions. Use Other problem when no category fits.
+        </p>
+      </section>
+      <section>
+        <h3>Is a visible tool always a problem?</h3>
+        <p>
+          No. The rule for that area matters. A tool may belong on its panel but violate a
+          clear-table rule. Describe the known rule in Workplace requirements.
+        </p>
+      </section>
+      <section>
+        <h3>What if the photo shows no problems?</h3>
+        <p>
+          Inspect the whole visible area, choose No problems found and save. No regions are needed.
+          Normal examples matter alongside problematic ones. Empty annotations marked Not reviewed
+          do not mean the workplace is clean.
+        </p>
+      </section>
+      <section>
+        <h3>What if the image is dark, blurred or equipment state is unclear?</h3>
+        <p>
+          Choose Not assessable and explain: “Floor not visible” or “Power indicator unreadable.” Do
+          not infer that equipment is off or safe just because no activity is visible. A better
+          image or another check may be needed.
+        </p>
+      </section>
+      <section>
+        <h3>Why is Analyze disabled?</h3>
+        <p>
+          Add and save at least a comment, requirements or a region description. Whitespace does not
+          count. The action is also unavailable while saving, while changes are unsaved or during an
+          active analysis. Hover over it for an explanation.
+        </p>
+      </section>
+      <section>
+        <h3>Can I trust AI without checking?</h3>
+        <p>
+          No. AI may miss a problem, flag an allowed object or locate a region poorly. Compare each
+          suggestion against the photo and rules. Do not copy false findings; correct useful ones
+          and save them yourself.
+        </p>
+      </section>
+      <section>
+        <h3>AI did not locate a region or analysis failed.</h3>
+        <p>
+          Mark the visible problem manually when coordinates are missing. Retry later after an
+          error; manual inspection remains available. Limits are 5 analyses per photo and 200 in
+          total per 24 hours. AI failure does not erase saved human descriptions.
+        </p>
+      </section>
+      <section>
+        <h3>Does saving annotations approve the handover or affect scores?</h3>
+        <p>
+          No. Dataset photo review is separate. Approve and Remark on the report remain separate
+          operational actions. Annotations do not send employee messages or change scores.
+        </p>
+      </section>
+      <section>
+        <h3>Must a master export files every day?</h3>
+        <p>
+          No. Save review already stores the data in the system. Export is for the person preparing
+          a training dataset; it supplies region descriptions and access to the original image.
+          Unreviewed photos do not automatically become training examples.
+        </p>
+      </section>
+      <section>
+        <h3>What if an image fails to load or another reviewer changes the review?</h3>
+        <p>
+          Use Refresh to get a new image link. On a conflict, your text remains in the form: copy it
+          if needed, load the latest review and apply your changes again. Do not close a form with
+          unsaved changes.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

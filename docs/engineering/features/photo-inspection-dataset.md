@@ -151,3 +151,24 @@ Seven component tests passed for empty/whitespace inputs, each supported input r
 protection and keyboard tooltip access. Real browser QA confirmed hover text, disabled-before-save
 and enabled-after-save behavior; desktop/mobile screenshots were inspected. Type-check and focused
 lint passed. Railway IaC preserves both already-configured AI variables without embedding credentials.
+
+## Owner refinement — beginner instructions and FAQ
+
+Reuse the shared HowItWorks/FAQ surface inside the editor, with optional localized titles, document
+links and video descriptions. Existing sections retain their default handbook links. The photo guide
+contains six steps and fourteen FAQ answers; the handover guide links the concepts and corrects its
+stale Russian next-shift acceptance explanation to the current master review flow.
+
+The i18n catalog is the source for both in-app help and generated printable HTML. A repository script
+produces three silent, 60-second H.264 videos from synthetic vector illustrations and localized FAQ
+text, plus posters. Each video is under 400 KB and loads only when requested. No employee media or
+external video dependency is involved. Full text, language navigation and mobile full-screen guidance
+remain available. Regeneration instructions are in `docs/user-guide/README.md`.
+
+Verification: shared help tests pass (3, including the photo-specific document/video route); panel
+TypeScript and focused lint pass. Browser QA opened the nested FAQ from the editor and inspected
+expanded answers. Desktop/mobile instruction and FAQ screenshots were captured and inspected;
+HTML stayed within 390 CSS pixels. Actual video playback advanced with duration 60 seconds and no
+media error. Representative Ukrainian and Russian video frames were visually inspected. Lean final
+recommendation: keep help collapsed until requested, keep human confirmation explicit, and teach
+normal/unassessable examples alongside problems. No operational decision behavior changes.

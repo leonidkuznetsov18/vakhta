@@ -43,3 +43,15 @@ including what belongs in a zone; the model must not invent workplace rules.
 
 Up to 50 photos/day initially. Keep human confirmation. Observe missed issues, false alarms and
 review time on held-out shifts/workplaces before deciding whether to automate any operational step.
+
+## First-time user guidance
+
+The editor includes the existing **How it works** and **Questions and answers** pattern. Six steps
+and fourteen FAQ answers explain annotation, its purpose, concrete comments, normal/unassessable
+photos, workplace rules, AI errors, analysis prerequisites and the separation from handover decisions.
+The handover page also directs users to this photo-specific help.
+
+A full, printable HTML guide and a silent 60-second illustrative video are available in Ukrainian,
+English and Russian at `/guides/photo-inspection.{uk,en,ru}.html`. The video explains concepts with
+synthetic workplace drawings; it is not a recording or an accuracy claim. Text remains available
+without video playback. Training is explicitly a future, separately evaluated stage.

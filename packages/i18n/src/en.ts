@@ -1,3 +1,4 @@
+import { inspectionGuideEn } from './photo-inspection-guide.js';
 import { inspectionEn } from './photo-inspection.js';
 import type { Messages } from './messages.js';
 
@@ -1706,6 +1707,7 @@ export const en: Messages = {
       chart: 'Chart',
     },
     guide: {
+      photoInspection: inspectionGuideEn,
       overview: {
         purpose:
           'The landing page: what needs attention right now across the sections, one click away.',
@@ -1826,8 +1828,13 @@ export const en: Messages = {
           'A row click expands the report: the checklist items, the note to the next shift and the photos.',
           'Two decisions: "Approve" — the employee is thanked in the bot and earns one point; "Remark" — write in the field what is wrong, the employee gets your text and no point.',
           "You see only your own unit's checklists; an admin and the production head see them all.",
+          'Open a photo to mark problems and collect examples for future AI. Its editor has its own How it works, FAQ and illustrated video.',
         ],
         faq: [
+          {
+            q: 'Why mark regions on a photo?',
+            a: 'This is a separate dataset review: a region, a factual description and an outcome. It does not approve the report or change scores. Open a photo and its Questions and answers for the step-by-step guide and video.',
+          },
           {
             q: 'Why is the report "No zone"?',
             a: 'The shift ran without a zone — opened by the arrival QR with no schedule, for instance. It changes nothing about the decision: the report still reaches the master.',
@@ -1838,7 +1845,7 @@ export const en: Messages = {
           },
           {
             q: 'Who else sees these checklists?',
-            a: 'A shift master sees only their own unit — the one named in their role. An admin, the production head and the cleanliness controller see every unit.',
+            a: 'Access follows the sites, units and zones granted to your role. Ask an administrator to check your scope if an expected report is missing.',
           },
           {
             q: 'How do I configure what is checked and photographed?',

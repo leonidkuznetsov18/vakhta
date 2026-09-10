@@ -14,7 +14,7 @@ function sectionTitle(guide: GuideKey): string {
   const t = messages(currentLocale()).admin;
   const sections = t.sections as Readonly<Record<string, string>>;
   const tabs = t.administration.tabs as Readonly<Record<string, string>>;
-  return sections[guide] ?? tabs[guide] ?? guide;
+  return messages(currentLocale()).ui.guide[guide].title ?? sections[guide] ?? tabs[guide] ?? guide;
 }
 
 /**
@@ -66,19 +66,7 @@ export function HowItWorks({
               <li key={step}>{step}</li>
             ))}
           </ol>
-          {/* Some sections rest on a method older than this panel; the explanation of the method
-              itself is better watched once than paraphrased in a hint. */}
-          {g.video && (
-            <a
-              href={g.video.url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex w-fit items-center gap-1.5 font-medium text-foreground underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-            >
-              <CirclePlayIcon className="size-4 shrink-0" aria-hidden="true" />
-              {g.video.label}
-            </a>
-          )}
+          {g.video && <GuideVideoLink video={g.video} />}
         </div>
       )}
       <FaqSheet guide={guide} open={faq} onOpenChange={setFaq} />
@@ -129,13 +117,14 @@ function FaqSheet({
       description={g.purpose}
       footer={
         <Button asChild variant="outline">
-          <a href={GUIDE_URL} target="_blank" rel="noreferrer">
+          <a href={g.document?.url ?? GUIDE_URL} target="_blank" rel="noreferrer">
             <BookOpenIcon aria-hidden="true" />
-            {t.ui.common.openGuide}
+            {g.document?.label ?? t.ui.common.openGuide}
           </a>
         </Button>
       }
     >
+      {g.video && <GuideVideoLink video={g.video} />}
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold">{t.ui.common.howItWorks}</h3>
         <ol className="flex list-decimal flex-col gap-1 pl-5 text-sm text-muted-foreground">
@@ -156,5 +145,26 @@ function FaqSheet({
         </div>
       </section>
     </DetailSheet>
+  );
+}
+
+function GuideVideoLink({
+  video,
+}: {
+  video: { readonly url: string; readonly label: string; readonly description?: string };
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <a
+        href={video.url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        <CirclePlayIcon className="size-4 shrink-0" aria-hidden="true" />
+        {video.label}
+      </a>
+      {video.description && <p className="text-xs text-muted-foreground">{video.description}</p>}
+    </div>
   );
 }

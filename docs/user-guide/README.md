@@ -29,3 +29,24 @@ Every label quoted in the guide comes from `packages/i18n/src/ru.ts`; the shift 
 bonus weights from `packages/domain/src/bonus/rules.ts`; reason codes from
 `packages/db/src/seed.ts`; timing defaults from `apps/api/src/config/env.ts` and
 `docs/parameters.md`. When any of those change, update the matching section and re-render.
+
+## Photo inspection onboarding
+
+The photo editor has its own **How it works** and **Questions and answers**, using the existing panel
+help component. Its full instructions and illustrative, silent one-minute videos are published at
+`/guides/photo-inspection.{uk,en,ru}.html` and `.mp4`; the pages support browser printing and provide
+text explanations alongside the video. These are synthetic illustrations, not recordings of employee
+photos or model-accuracy demonstrations. Video controls support pause, seeking and full screen.
+
+All instructions, FAQ answers and video text originate in
+`packages/i18n/src/photo-inspection-guide.ts`. Regenerate the static artifacts after editing the catalog:
+
+```sh
+pnpm --filter @vakhta/i18n build
+node scripts/docs/build-photo-inspection-guide.mjs
+```
+
+The authoring command uses the repository's Sharp/Prettier dependencies and an installed `ffmpeg`;
+production serves ordinary HTML, WebP and H.264 MP4 files and needs none of those authoring tools.
+Inspect rendered desktop/mobile pages and representative video frames, then commit the generated
+files under `apps/admin-web/public/guides/` together with the source changes.

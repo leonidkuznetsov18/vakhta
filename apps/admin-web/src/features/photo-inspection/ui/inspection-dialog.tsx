@@ -6,6 +6,7 @@ import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { ApiError } from '@/api';
 import { Button } from '@/components/ui/button';
+import { HowItWorks } from '@/components/app/how-it-works';
 import {
   Dialog,
   DialogContent,
@@ -104,6 +105,7 @@ export function PhotoInspectionDialog({
             </div>
           )}
         </DialogHeader>
+        <HowItWorks guide="photoInspection" compact />
         <QueryFeedback
           query={{ ...query, error: query.error ? new Error(errorText(query.error)) : null }}
         />

@@ -34,6 +34,7 @@ export type GuideKey =
   | 'schedule'
   | 'incidents'
   | 'handover'
+  | 'photoInspection'
   | 'requests'
   | 'bonus'
   | 'reports'
@@ -46,14 +47,16 @@ export type GuideKey =
   | 'checklists';
 
 export interface SectionGuide {
+  readonly title?: string;
+  readonly document?: { readonly url: string; readonly label: string };
   /** One sentence: what the section is for. */
   readonly purpose: string;
   /** Numbered steps of the normal use. */
   readonly steps: readonly string[];
   /** Questions people ask in the first week, with short answers naming the buttons. */
   readonly faq: readonly { readonly q: string; readonly a: string }[];
-  /** An outside explanation of the method the section is built on, when one exists. */
-  readonly video?: { readonly url: string; readonly label: string };
+  /** An optional video explaining the workflow or underlying method. */
+  readonly video?: { readonly url: string; readonly label: string; readonly description?: string };
 }
 
 export interface Messages {
