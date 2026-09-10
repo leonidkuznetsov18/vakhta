@@ -1,3 +1,9 @@
+## [0.73.9](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.8...v0.73.9) (2026-09-10)
+
+### Bug fixes
+
+* **notifications:** remind eligible employees 30 minutes before shifts ([d641ddc](https://github.com/leonidkuznetsov18/vakhta/commit/d641ddc03b10f64e79726d0257c4d4270ebaeb71))
+
 ## [0.73.8](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.7...v0.73.8) (2026-09-10)
 
 ### Bug fixes
