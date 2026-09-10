@@ -17,21 +17,27 @@ Use `.env.example` only for local configuration. Do not copy production secrets 
 1Password workflow is in `docs/runbooks/product-qa.md`. Cloud setup is in `.codex/setup.sh` and
 `docs/engineering/cloud-environment.md`.
 
-## Git and review
+## Git, review and delivery
 
-Use a `codex/<purpose>` branch and a separate worktree for every independent writer. Keep staged paths
-owned by one task. Do not stash, reset, amend or rebase a checkout another session is using. Review a
-fixed base/head pair; re-run affected verification after integration changes.
+The owner requires direct work and pushes on `master` in the current repository. Do not create pull
+requests, topic branches or worktrees. Use one writer and one Git-index owner at a time; reviewers may
+inspect read-only in parallel. Preserve other sessions' changes and stage only your own exact paths.
+Never stash, reset, amend or rebase someone else's work. Use normal pushes, never force pushes.
+Inspect remote divergence before integration and repeat affected checks when the integrated tree changes.
 
 Commit subjects follow `type(scope): outcome` in English. Existing types are `feat`, `fix`, `perf`,
 `refactor`, `config`, `infra`, `docs`, `ci`, `chore`, `test`, `style`, and conventional `build` where
 appropriate. `.releaserc.json` determines release behavior: feat is minor; fix/perf/refactor/config/infra
 are patch; docs/ci/chore/test/style do not release on their own. Breaking changes require an explicit
-compatibility decision and `!` / `BREAKING CHANGE:` as appropriate. There is no commitlint hook yet;
-this convention is documented and consumed by semantic-release, not mechanically enforced locally.
+compatibility decision and `!` / `BREAKING CHANGE:` as appropriate. There is no commitlint hook yet.
 
-Use the PR template. Lead with the problem and resulting behavior, link the spec, list evidence and
-material risks, and name what remains blocked. Keep refactors separate from behavior changes. Do not
-add reviewers, send notifications or publish a branch unless the task authorizes that external action.
-Never mark ready based solely on an AI review. Required checks and branch policy must be configured
-on GitHub separately; this documentation does not enable them.
+Use `docs/templates/change.md` for the handoff. Review a fixed diff before committing/pushing, link the
+spec, and record checks, risks and deployed revision separately. Keep refactors separate from behavior
+changes. `pnpm build` and `pnpm check` must pass; a direct push does not remove the review/test obligation.
+PR-only Automatic Reviews and PR-required branch rules are not the selected workflow. Do not enable
+rules that prevent the owner's direct-push workflow without a new explicit decision.
+
+A push can trigger GitHub CI, semantic-release, images and hosting. The existing announcement job sends
+newly published release notes to the private "Вахта Dev" group through "Вахта Changelog Bot". Check the
+release and announcement jobs separately from deployment completion. See the operations runbook; do
+not manually repost release notes or change notification destinations incidentally.

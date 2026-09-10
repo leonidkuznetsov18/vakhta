@@ -31,8 +31,8 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
    approved specification; do not repeatedly request approval for already-authorized work. Resolve
    material ambiguity before dependent implementation. Recon/setup tasks do not change business logic.
 3. **[P3]** Read `.codex/memory.md` and the affected feature memory. Use
-   `docs/engineering/agent-operating-model.md` for role scopes and handoffs. Give independent writers
-   separate worktrees; only the integration owner changes Git history or the shared index.
+   `docs/engineering/agent-operating-model.md` for role scopes and handoffs. Work only in the current repository on `master`. Do not create PRs, topic branches or worktrees.
+   Serialize writers and Git operations; never stage, overwrite or discard another session's changes.
 4. **[P4]** Preserve the existing Nest feature modules and pure domain architecture. Adopt frontend FSD
    incrementally by coherent slice. Do not invent empty layers, force frontend layers into the worker,
    or migrate Vite to Next.js/RSC as incidental cleanup. See the dated audit for the actual baseline.
@@ -104,13 +104,24 @@ A TypeScript annotation is not runtime validation. Preserve DB transaction bound
 queue work can fail independently. Verify recovery rather than assuming DB+Redis+Telegram atomicity.
 Never hide errors with empty catches or resolve work as successful when required side effects failed.
 
-## Commits and pull requests
+## Commits and delivery
 
-**[G1]** Use English Conventional Commits, matching `.releaserc.json`; `refactor`, `config` and `infra`
-can trigger a release. Keep one independently reviewable concern per PR. Use `codex/` branch names and
-`.github/PULL_REQUEST_TEMPLATE.md`. Follow `CONTRIBUTING.md`. Do not push to `master` as a shortcut:
-its pipeline can publish images, deploy, announce releases and run migrations. No force-push or rebase
-of another session's work. Setup does not authorize changing remote branch protection or Codex settings.
+**[G1]** The owner explicitly requires direct pushes to `master`, with no PRs and no worktrees.
+Work only in `/Users/leonidkuznetsov/Projects/Personal/vakhta`. Commit only task-owned paths after
+verification, then push normally to `origin master`; never force-push. Preserve other sessions' edits
+and coordinate a single writer/index owner. If the remote advanced, inspect and integrate without
+resetting or rebasing someone else's work. Use English Conventional Commits and `CONTRIBUTING.md`.
+Keep one reviewable concern per commit. `refactor`, `config` and `infra` can trigger a release.
+
+**[G2]** Understand the full operational path: GitHub CI/release, Cloudflare hosting/DNS/storage,
+Railway services/deployments/logs, and Namecheap domain/email administration. Use authenticated tools
+and `docs/runbooks/platform-operations.md`; record actual access gaps instead of assuming integration.
+Keep credentials in the existing CLI sessions or 1Password, never source or reports.
+
+**[G3]** The private Telegram group "Вахта Dev" receives release changelogs from "Вахта Changelog Bot".
+The existing `announce` job depends on `release` and runs only when a version is published; it does not
+wait for all image/deployment jobs. Preserve this existing notification path and verify its job outcome.
+Do not add duplicate announcements or send manual group messages without an explicit request.
 
 ## Code Review Rules
 

@@ -1,8 +1,9 @@
+import { setUiState, uiState } from '@/lib/ui-store';
+
 /**
  * What the overview hands to the schedule page when someone acts on "these people are working
- * without a schedule": the unit, the month and the people themselves. It travels through storage
- * rather than the URL because the panel routes by section, not by query, and it is consumed once —
- * a reload of the schedule page should not keep re-adding rows.
+ * without a schedule": the unit, the month and the people themselves. It travels through the
+ * screen-state store rather than the URL because the panel routes by section, not by query.
  *
  * The names travel with the ids on purpose: the master arrives having clicked a card and must see
  * whom this is for without holding three surnames in their head.
@@ -20,32 +21,31 @@ export interface SchedulePreset {
   readonly people: readonly SchedulePresetPerson[];
 }
 
-const KEY = 'vakhta.ui.schedule.preset';
+export const PRESET_KEY = 'schedule.preset';
+/** Which version request has already gone out for the preset, so a remount never sends another. */
+const ASKED_KEY = 'schedule.presetAsked';
 
+/** Sets the filters the people belong to and leaves the people themselves for the grid. */
 export function writeSchedulePreset(preset: SchedulePreset): void {
-  try {
-    sessionStorage.setItem(KEY, JSON.stringify(preset));
-  } catch {
-    // Storage disabled: the schedule page simply opens without the people prefilled.
-  }
+  setUiState({
+    [PRESET_KEY]: preset,
+    [ASKED_KEY]: null,
+    'schedule.month': preset.month,
+    ...(preset.orgUnitId ? { 'schedule.orgUnitId': preset.orgUnitId } : {}),
+  });
 }
 
-export function takeSchedulePreset(): SchedulePreset | null {
-  try {
-    const raw = sessionStorage.getItem(KEY);
-    sessionStorage.removeItem(KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : null;
-    if (typeof parsed !== 'object' || parsed === null) return null;
-    const preset = parsed as SchedulePreset;
-    const unit = typeof preset.orgUnitId === 'string' ? preset.orgUnitId : null;
-    if (!/^\d{4}-\d{2}$/.test(preset.month)) return null;
-    if (!Array.isArray(preset.people)) return null;
-    const people = preset.people.filter(
-      (p): p is SchedulePresetPerson =>
-        typeof p?.id === 'string' && typeof (p as SchedulePresetPerson).name === 'string',
-    );
-    return people.length > 0 ? { orgUnitId: unit, month: preset.month, people } : null;
-  } catch {
-    return null;
-  }
+/**
+ * True once, for the first caller asking for a version to hold these people. The claim lives in
+ * the store rather than in a ref, so the second run of a development remount sees it too.
+ */
+export function claimPresetVersion(token: string): boolean {
+  if (uiState<string | null>(ASKED_KEY) === token) return false;
+  setUiState({ [ASKED_KEY]: token });
+  return true;
+}
+
+/** The month has been written down: the people are planned and the preset has nothing left to say. */
+export function clearSchedulePreset(): void {
+  setUiState({ [PRESET_KEY]: null, [ASKED_KEY]: null });
 }

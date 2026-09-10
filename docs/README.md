@@ -11,6 +11,8 @@
 - [Feature engineering memory](engineering/features/README.md): decisions, evidence and remaining work.
 - [Feature memory template](templates/feature-memory.md)
 - [Product QA and 1Password](runbooks/product-qa.md)
+- [Platform access, logs and release delivery](runbooks/platform-operations.md)
+- [Direct-master change handoff](templates/change.md)
 - [Lean advisor](../.agents/skills/vakhta-lean-review/SKILL.md)
 - [Architecture decisions](adr/)
 

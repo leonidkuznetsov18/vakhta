@@ -3,6 +3,8 @@ import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/re
 import { render } from '../test-utils.tsx';
 import { SchedulePage } from './SchedulePage.tsx';
 import { useScheduleDrafts } from './store.ts';
+import { writeSchedulePreset } from './preset.ts';
+import { clearPersistentState } from '@/lib/ui-store';
 import { NavigationProvider } from '../navigation.tsx';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
@@ -199,8 +201,9 @@ describe('SchedulePage', () => {
   beforeEach(() => {
     vi.useRealTimers();
     vi.setSystemTime(new Date('2026-09-06T10:00:00Z'));
-    // The store lives in a module, so clearing storage between tests is not enough.
+    // The stores live in modules, so clearing storage between tests is not enough.
     useScheduleDrafts.setState({ drafts: {} });
+    clearPersistentState();
   });
   afterEach(() => {
     cleanup();
@@ -355,14 +358,11 @@ describe('SchedulePage', () => {
 
   it('arriving from the overview opens a draft with those people already in the grid', async () => {
     // What "Build a schedule" hands over: this unit, this month, these people by name.
-    sessionStorage.setItem(
-      'vakhta.ui.schedule.preset',
-      JSON.stringify({
-        orgUnitId: UNIT,
-        month: '2026-09',
-        people: [{ id: EMP2, name: 'Сидоров Пётр' }],
-      }),
-    );
+    writeSchedulePreset({
+      orgUnitId: UNIT,
+      month: '2026-09',
+      people: [{ id: EMP2, name: 'Сидоров Пётр' }],
+    });
     const state = { status: 'PUBLISHED' as string, created: false };
     const calls = mockApi(state);
     render(<SchedulePage />);
@@ -387,14 +387,11 @@ describe('SchedulePage', () => {
   });
 
   it('unsaved rows survive leaving the section and coming back', async () => {
-    sessionStorage.setItem(
-      'vakhta.ui.schedule.preset',
-      JSON.stringify({
-        orgUnitId: UNIT,
-        month: '2026-09',
-        people: [{ id: EMP2, name: 'Сидоров Пётр' }],
-      }),
-    );
+    writeSchedulePreset({
+      orgUnitId: UNIT,
+      month: '2026-09',
+      people: [{ id: EMP2, name: 'Сидоров Пётр' }],
+    });
     const state = { status: 'DRAFT' as string, created: false };
     const calls = mockApi(state);
     const first = render(<SchedulePage />);
@@ -414,14 +411,11 @@ describe('SchedulePage', () => {
   });
 
   it('arriving when the month already has a draft fills that draft instead of making another', async () => {
-    sessionStorage.setItem(
-      'vakhta.ui.schedule.preset',
-      JSON.stringify({
-        orgUnitId: UNIT,
-        month: '2026-09',
-        people: [{ id: EMP2, name: 'Сидоров Пётр' }],
-      }),
-    );
+    writeSchedulePreset({
+      orgUnitId: UNIT,
+      month: '2026-09',
+      people: [{ id: EMP2, name: 'Сидоров Пётр' }],
+    });
     const state = { status: 'DRAFT' as string, created: false };
     const calls = mockApi(state);
     render(<SchedulePage />);

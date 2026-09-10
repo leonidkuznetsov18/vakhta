@@ -1,11 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type {
-  EmployeeView,
-  OrgSnapshot,
-  ScheduleVersionDetail,
-  ScheduleVersionView,
-  ShiftTemplateView,
-} from '@vakhta/contracts';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { ScheduleVersionView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -15,10 +10,15 @@ import { MonthField } from '@/components/app/date-picker';
 import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { EmptyState, Muted, Toolbar } from '@/components/app/page';
-import { ApiError, employeesApi, orgApi, schedulesApi } from '../api.ts';
-import { describeError as describe } from '../errors.ts';
-import { takeSchedulePreset, type SchedulePreset } from './preset.ts';
-import { draftOf, useScheduleDrafts } from './store.ts';
+import { ApiError, schedulesApi } from '../api.ts';
+import { readError } from '../errors.ts';
+import {
+  claimPresetVersion,
+  clearSchedulePreset,
+  PRESET_KEY,
+  type SchedulePreset,
+} from './preset.ts';
+import { useScheduleDrafts } from './store.ts';
 import { ScheduleGrid } from './ScheduleGrid.tsx';
 import {
   addRow,
@@ -37,6 +37,8 @@ import {
 import { currentLocale } from '../i18n.tsx';
 import { useNavigation } from '../navigation.tsx';
 import { usePersistentState } from '@/lib/ui-store';
+import { useOrg, useEmployees } from '@/lib/org';
+import { keys } from '@/lib/query';
 import { notifySuccess } from '@/lib/toast';
 import { formatDate, formatMonth } from '@/lib/format';
 import { WandIcon } from 'lucide-react';
@@ -58,211 +60,249 @@ function currentMonth(): string {
  * DRAFT → IN_REVIEW → PUBLISHED, the assignment grid and validation results (spec 3.2, 9.1).
  */
 export function SchedulePage() {
-  const [org, setOrg] = useState<OrgSnapshot | null>(null);
-  const [employees, setEmployees] = useState<EmployeeView[]>([]);
-  const [siteId, setSiteId] = usePersistentState('schedule.siteId', '');
-  const [orgUnitId, setOrgUnitId] = usePersistentState('schedule.orgUnitId', '');
+  const { org, error: orgError } = useOrg();
+  const { employees, active: activeEmployees, error: employeesError } = useEmployees();
+  const [storedSite, setStoredSite] = usePersistentState('schedule.siteId', '');
+  const [storedUnit, setStoredUnit] = usePersistentState('schedule.orgUnitId', '');
   const [month, setMonth] = usePersistentState('schedule.month', currentMonth);
-  const [templates, setTemplates] = useState<ShiftTemplateView[]>([]);
-  const [versions, setVersions] = useState<ScheduleVersionView[]>([]);
-  /** The freshest list, readable inside an async handler that started before the state updated. */
-  const versionsRef = useRef<ScheduleVersionView[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<ScheduleVersionDetail | null>(null);
-  const [grid, setGrid] = useState<GridState>(EMPTY_GRID);
-  /** The version as loaded: "Publish changes" counts the shifts that differ from it. */
-  const baseline = useMemo(() => (detail ? gridFromDetail(detail) : EMPTY_GRID), [detail]);
-  const [dirty, setDirty] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { confirm, dialog } = useConfirm();
   const { go, roles } = useNavigation();
   const canPublish = roles.includes('ADMIN') || roles.includes('PRODUCTION_HEAD');
-  /** Who the overview sent us here for, kept on screen until their month is saved. */
-  const [preset, setPreset] = useState<SchedulePreset | null>(null);
-  /** Set once a version has been asked for on the preset's behalf, so it is never asked twice. */
-  const presetVersion = useRef(false);
-  /** The version whose grid already received the preset's people. */
-  const presetFilled = useRef<string | null>(null);
-  /** Which site/unit/month the loaded versions belong to; empty means "not read yet". */
-  const [versionsKey, setVersionsKey] = useState<string | null>(null);
-  const [patternFor, setPatternFor] = useState('');
-  const [pattern, setPattern] = useState<RotationPattern>('DAY_2_2');
-  const [patternStart, setPatternStart] = useState(() => `${currentMonth()}-01`);
-  const activeEmployees = useMemo(
-    () => employees.filter((e) => e.status === 'ACTIVE'),
-    [employees],
-  );
+  const client = useQueryClient();
 
-  const units = useMemo(
-    () => org?.orgUnits.filter((u) => u.siteId === siteId) ?? [],
-    [org, siteId],
-  );
-  const zones = useMemo(
-    () => org?.zones.filter((z) => z.orgUnitId === orgUnitId && z.isActive) ?? [],
-    [org, orgUnitId],
-  );
+  /**
+   * The unit is the choice that matters, and it decides the site: a unit picked on another screen
+   * — the overview sending us here — knows nothing about sites, and a remembered site that no
+   * longer exists should not leave the page with no filters at all.
+   */
+  const unit = org?.orgUnits.find((u) => u.id === storedUnit) ?? null;
+  const siteId =
+    unit?.siteId ?? (org?.sites.find((x) => x.id === storedSite) ?? org?.sites[0])?.id ?? '';
+  const units = org?.orgUnits.filter((u) => u.siteId === siteId) ?? [];
+  const orgUnitId = unit?.id ?? units[0]?.id ?? '';
+  const zones = org?.zones.filter((z) => z.orgUnitId === orgUnitId && z.isActive) ?? [];
 
-  useEffect(() => {
-    let alive = true;
-    Promise.all([orgApi.snapshot(), employeesApi.list()])
-      .then(([snapshot, list]) => {
-        if (!alive) return;
-        setOrg(snapshot);
-        setEmployees(list);
-        // Keep the remembered filters when they still exist, otherwise fall back to the first ones.
-        setSiteId((cur) => {
-          const site = snapshot.sites.find((x) => x.id === cur) ?? snapshot.sites[0];
-          if (!site) return '';
-          setOrgUnitId((unit) =>
-            snapshot.orgUnits.some((u) => u.id === unit && u.siteId === site.id)
-              ? unit
-              : (snapshot.orgUnits.find((u) => u.siteId === site.id)?.id ?? ''),
-          );
-          return site.id;
-        });
-      })
-      .catch((e: unknown) => alive && setError(describe(e)));
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!siteId) return;
-    let alive = true;
-    schedulesApi
-      .templates(siteId)
-      .then((list) => alive && setTemplates(list.filter((tpl) => tpl.isActive)))
-      .catch((e: unknown) => alive && setError(describe(e)));
-    return () => {
-      alive = false;
-    };
-  }, [siteId]);
-
-  const loadVersions = useCallback(
-    async (preferId?: string) => {
-      if (!siteId || !orgUnitId) return;
-      const list = await schedulesApi.list({ siteId, orgUnitId, periodMonth: month });
-      setVersions(list);
-      versionsRef.current = list;
-      setVersionsKey(`${siteId}|${orgUnitId}|${month}`);
-      const pick =
-        preferId && list.some((v) => v.id === preferId) ? preferId : (list[0]?.id ?? null);
-      setSelectedId(pick);
-    },
-    [siteId, orgUnitId, month],
-  );
-
-  // Arriving from the overview's "these people are working without a schedule": open their unit
-  // and their month, and remember whom we came for.
-  useEffect(() => {
-    if (!org) return;
-    const arrived = takeSchedulePreset();
-    if (!arrived) return;
-    const unit = org.orgUnits.find((u) => u.id === arrived.orgUnitId);
-    if (unit) {
-      setSiteId(unit.siteId);
-      setOrgUnitId(unit.id);
-    }
-    setMonth(arrived.month);
-    presetVersion.current = false;
-    setPreset(arrived);
-  }, [org, setSiteId, setOrgUnitId, setMonth]);
-
-  useEffect(() => {
-    setPatternStart(`${month}-01`);
-    setDetail(null);
-    setGrid(EMPTY_GRID);
-    setDirty(false);
-    loadVersions().catch((e: unknown) => setError(describe(e)));
-  }, [loadVersions]);
-
-  const loadDetail = useCallback(async (id: string) => {
-    const d = await schedulesApi.detail(id);
-    setDetail(d);
-    // Unsaved edits outlive the page: leaving for another section unmounts it, and the version
-    // read back from the server knows nothing about rows and shifts that were never saved.
-    const kept = d.version.status === 'DRAFT' ? draftOf(id) : undefined;
-    setGrid(kept ?? gridFromDetail(d));
-    setDirty(kept !== undefined);
-  }, []);
-
-  useEffect(() => {
-    if (!selectedId) {
-      setDetail(null);
-      setGrid(EMPTY_GRID);
-      return;
-    }
-    let alive = true;
-    loadDetail(selectedId).catch((e: unknown) => alive && setError(describe(e)));
-    return () => {
-      alive = false;
-    };
-  }, [selectedId, loadDetail]);
-
-  async function run(action: () => Promise<void>, done?: string) {
-    setBusy(true);
-    setError(null);
-    try {
-      await action();
-      if (done) notifySuccess(done);
-    } catch (e) {
-      setError(describe(e));
-    } finally {
-      setBusy(false);
-    }
+  function changeSite(id: string) {
+    setStoredSite(id);
+    setStoredUnit(org?.orgUnits.find((u) => u.siteId === id)?.id ?? '');
   }
 
-  const version = detail?.version ?? null;
-  // A published month is edited in place by those who can publish: saving makes a new version
-  // and publishes it at once (the old one becomes history, employees are notified).
-  const revising = version?.status === 'PUBLISHED' && canPublish;
-  const editable = version?.status === 'DRAFT' || revising;
+  const templatesQuery = useQuery({
+    queryKey: keys.templates(siteId),
+    queryFn: () => schedulesApi.templates(siteId),
+    enabled: siteId !== '',
+  });
+  const templates = (templatesQuery.data ?? []).filter((tpl) => tpl.isActive);
+
+  const listQuery = { siteId, orgUnitId, periodMonth: month };
+  const versionsQuery = useQuery({
+    queryKey: keys.schedules(listQuery),
+    queryFn: () => schedulesApi.list(listQuery),
+    enabled: siteId !== '' && orgUnitId !== '',
+  });
+  const versions = versionsQuery.data ?? [];
   const existingDraft = versions.find((v) => v.status === 'DRAFT') ?? null;
-  /**
-   * What a save would write differently from the version on the server. Everything the buttons and
-   * the "unsaved" notice say is this number: `dirty` only means the grid was touched, and touching
-   * it is not the same as changing it — a row added with no shifts writes nothing at all.
-   */
-  const changes = countChanges(baseline, grid);
+
+  /** Who the overview sent us here for, kept on screen until their month is saved. */
+  const [preset] = usePersistentState<SchedulePreset | null>(PRESET_KEY, null);
   /** The preset still speaks about what is on screen (the master has not moved on). */
   const presetHere =
     preset !== null &&
     preset.month === month &&
     (preset.orgUnitId === null || preset.orgUnitId === orgUnitId);
 
-  // The version the preset needs: the month's open draft, or a new one. Asked for exactly once —
-  // the effect that used to watch the version list re-created on every load of it, which is a loop.
-  useEffect(() => {
-    if (!presetHere || presetVersion.current || !preset?.orgUnitId) return;
-    if (versionsKey !== `${siteId}|${orgUnitId}|${month}`) return;
-    presetVersion.current = true;
-    if (existingDraft) setSelectedId(existingDraft.id);
-    else createVersion();
-  }, [presetHere, preset, versionsKey, siteId, orgUnitId, month, existingDraft]);
+  /**
+   * The version on screen: the one asked for by hand while it is still in the list, otherwise the
+   * draft the preset needs, otherwise the newest. Derived rather than remembered, so changing the
+   * month cannot leave a version of another month selected.
+   */
+  const [picked, setPicked] = useState<string | null>(null);
+  const selectedId =
+    (picked !== null && versions.some((v) => v.id === picked) ? picked : null) ??
+    (presetHere ? (existingDraft?.id ?? null) : null) ??
+    versions[0]?.id ??
+    null;
 
-  // Put the people we came for into the grid of that version. Once per version: a row the master
-  // deletes stays deleted, and the alert keeps naming them while the month is filled in.
-  useEffect(() => {
-    if (!preset || !detail || !editable) return;
-    if (presetFilled.current === detail.version.id) return;
-    presetFilled.current = detail.version.id;
-    setGrid((g) => preset.people.reduce((acc, person) => addRow(acc, person.id), g));
-    setDirty(true);
-  }, [preset, detail, editable]);
+  const detailQuery = useQuery({
+    queryKey: keys.schedule(selectedId),
+    queryFn: () => schedulesApi.detail(selectedId as string),
+    enabled: selectedId !== null,
+  });
+  const detail = detailQuery.data ?? null;
+  const version = detail?.version ?? null;
+  // A published month is edited in place by those who can publish: saving makes a new version
+  // and publishes it at once (the old one becomes history, employees are notified).
+  const revising = version?.status === 'PUBLISHED' && canPublish;
+  const editable = version?.status === 'DRAFT' || revising;
 
-  function changeSite(id: string) {
-    setSiteId(id);
-    const unit = org?.orgUnits.find((u) => u.siteId === id);
-    setOrgUnitId(unit?.id ?? '');
+  /**
+   * Three layers make the grid on screen, and only the last one is state: the version as the
+   * server holds it, the people the overview sent us for on top of it, and — once anything is
+   * touched — the unsaved month kept in the drafts store. Unsaved edits outlive the page: leaving
+   * for another section unmounts it, and the version read back knows nothing about them.
+   */
+  const baseline = detail ? gridFromDetail(detail) : EMPTY_GRID;
+  const withPreset =
+    editable && presetHere && preset
+      ? preset.people.reduce((g, person) => addRow(g, person.id), baseline)
+      : baseline;
+  const kept = useScheduleDrafts((st) => (version ? st.drafts[version.id] : undefined));
+  const grid = kept ?? withPreset;
+  /**
+   * What a save would write differently from the version on the server. Everything the buttons and
+   * the "unsaved" notice say is this number: touching the grid is not the same as changing it —
+   * a row added with no shifts writes nothing at all.
+   */
+  const changes = countChanges(baseline, grid);
+
+  function edit(next: (g: GridState) => GridState) {
+    if (version) useScheduleDrafts.getState().keep(version.id, next(grid));
   }
+
+  const reload = () => client.invalidateQueries({ queryKey: ['schedules'] });
 
   /**
    * A new draft for the month. Based on the given version (the one on screen, when the planner
    * wants to change a published schedule), otherwise on the published one, so the grid starts
    * from the current shifts instead of empty.
    */
+  const create = useMutation({
+    mutationFn: async (v: { basedOn?: ScheduleVersionView }) => {
+      const source = v.basedOn ?? versions.find((x) => x.status === 'PUBLISHED');
+      const created = await schedulesApi.create({
+        siteId,
+        orgUnitId,
+        periodMonth: month,
+        ...(source ? { basedOnVersionId: source.id } : {}),
+      });
+      // An answer without a version is broken, but the month may still have gained one — so read
+      // the list back before deciding. Whatever the server really has is what the page should show;
+      // only if nothing arrived is this a failure worth stopping on.
+      if (!created?.id || typeof created.versionNo !== 'number') {
+        const before = versions.map((x) => x.id);
+        const appeared = (await schedulesApi.list(listQuery)).find((x) => !before.includes(x.id));
+        if (!appeared) {
+          throw new Error(
+            `POST /admin/schedules answered without a version: ${JSON.stringify(created)}`,
+          );
+        }
+        return { created: appeared, from: undefined };
+      }
+      return { created, from: source };
+    },
+    onSuccess: async ({ created, from }) => {
+      setPicked(created.id);
+      notifySuccess(
+        from
+          ? format(s.versionCreatedFrom, { no: created.versionNo, from: from.versionNo })
+          : format(s.versionCreated, { no: created.versionNo }),
+      );
+      await reload();
+    },
+  });
+
+  /**
+   * The one effect on this page, and it is not a load: arriving from the overview is an
+   * instruction formed on another screen, and carrying it out means a POST no query can make.
+   * The claim lives in the store, so a remount never sends a second version request.
+   */
+  const token = `${siteId}|${orgUnitId}|${month}`;
+  const needsVersion =
+    presetHere && preset?.orgUnitId != null && versionsQuery.isSuccess && existingDraft === null;
+  const startVersion = create.mutate;
+  useEffect(() => {
+    if (needsVersion && claimPresetVersion(token)) startVersion({});
+  }, [needsVersion, token, startVersion]);
+
+  const save = useMutation({
+    mutationFn: (v: { id: string }) => schedulesApi.putAssignments(v.id, gridToItems(grid)),
+    onSuccess: async (d) => {
+      useScheduleDrafts.getState().drop(d.version.id);
+      clearSchedulePreset();
+      client.setQueryData(keys.schedule(d.version.id), d);
+      notifySuccess(s.saved);
+      await reload();
+    },
+  });
+
+  const submit = useMutation({
+    mutationFn: (v: { id: string }) => schedulesApi.submit(v.id),
+    onSuccess: async () => {
+      notifySuccess(s.submitted);
+      await reload();
+    },
+  });
+
+  const returnDraft = useMutation({
+    mutationFn: (v: { id: string; comment: string }) =>
+      schedulesApi.returnToDraft(v.id, v.comment),
+    onSuccess: async () => {
+      notifySuccess(s.returned);
+      await reload();
+    },
+  });
+
+  const publish = useMutation({
+    mutationFn: (v: { id: string; reason?: string | undefined }) =>
+      schedulesApi.publish(v.id, v.reason),
+    onSuccess: async () => {
+      notifySuccess(s.published);
+      await reload();
+    },
+  });
+
+  const revise = useMutation({
+    mutationFn: (v: { id: string; reason?: string | undefined }) =>
+      schedulesApi.revise(v.id, gridToItems(grid), v.reason),
+    onSuccess: async (created, v) => {
+      useScheduleDrafts.getState().drop(v.id);
+      setPicked(created.id);
+      notifySuccess(format(s.revised, { no: created.versionNo }));
+      await reload();
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: async (v: { id: string }) => {
+      try {
+        await schedulesApi.remove(v.id);
+      } catch (e) {
+        if (e instanceof ApiError && e.code === 'SCHEDULE_VERSION_IN_USE')
+          throw new Error(s.versionInUse);
+        throw e;
+      }
+    },
+    onSuccess: async (_r, v) => {
+      useScheduleDrafts.getState().drop(v.id);
+      setPicked(null);
+      notifySuccess(s.deleted);
+      await reload();
+    },
+  });
+
+  const busy =
+    create.isPending ||
+    save.isPending ||
+    submit.isPending ||
+    returnDraft.isPending ||
+    publish.isPending ||
+    revise.isPending ||
+    remove.isPending;
+  const error = readError(
+    orgError ??
+      employeesError ??
+      templatesQuery.error ??
+      versionsQuery.error ??
+      detailQuery.error ??
+      create.error ??
+      save.error ??
+      submit.error ??
+      returnDraft.error ??
+      publish.error ??
+      revise.error ??
+      remove.error,
+  );
+
   /**
    * The same version, asked for out loud. Nothing checks a month any more — not the rest between
    * shifts, not the hours, not a person standing in two units at once — so the one moment to say
@@ -278,73 +318,10 @@ export function SchedulePage() {
       confirmLabel: s.newVersionCreate,
     });
     if (ok === false) return;
-    createVersion(basedOn);
+    create.mutate(basedOn ? { basedOn } : {});
   }
 
-  function createVersion(basedOn?: ScheduleVersionView) {
-    const source = basedOn ?? versions.find((v) => v.status === 'PUBLISHED');
-    void run(async () => {
-      const created = await schedulesApi.create({
-        siteId,
-        orgUnitId,
-        periodMonth: month,
-        ...(source ? { basedOnVersionId: source.id } : {}),
-      });
-      // An answer without a version is broken, but the month may still have gained one — so read
-      // the list back before deciding. Whatever the server really has is what the page should show;
-      // only if nothing arrived is this a failure worth stopping on.
-      if (!created?.id || typeof created.versionNo !== 'number') {
-        const before = versions.map((v) => v.id);
-        await loadVersions();
-        const appeared = versionsRef.current.find((v) => !before.includes(v.id));
-        if (!appeared) {
-          throw new Error(
-            `POST /admin/schedules answered without a version: ${JSON.stringify(created)}`,
-          );
-        }
-        notifySuccess(format(s.versionCreated, { no: appeared.versionNo }));
-        return;
-      }
-      await loadVersions(created.id);
-      notifySuccess(
-        source
-          ? format(s.versionCreatedFrom, { no: created.versionNo, from: source.versionNo })
-          : format(s.versionCreated, { no: created.versionNo }),
-      );
-    });
-  }
-
-  // Synchronising with something outside React: the store is where an unsaved month waits out a
-  // trip to another section or a reload.
-  useEffect(() => {
-    if (!version) return;
-    const { keep, drop } = useScheduleDrafts.getState();
-    if (dirty) keep(version.id, grid);
-    else drop(version.id);
-  }, [version, grid, dirty]);
-
-  function save() {
-    if (!version) return;
-    void run(async () => {
-      const d = await schedulesApi.putAssignments(version.id, gridToItems(grid));
-      setDetail(d);
-      setGrid(gridFromDetail(d));
-      setDirty(false);
-      setPreset(null);
-      setVersions((list) => list.map((v) => (v.id === d.version.id ? d.version : v)));
-    }, s.saved);
-  }
-
-  function submit() {
-    if (!version) return;
-    void run(async () => {
-      await schedulesApi.submit(version.id);
-      await loadVersions(version.id);
-      await loadDetail(version.id);
-    }, s.submitted);
-  }
-
-  async function returnToDraft() {
+  async function askReturnToDraft() {
     if (!version) return;
     const comment = await confirm({
       title: s.returnToDraft,
@@ -354,24 +331,10 @@ export function SchedulePage() {
       commentRequired: true,
     });
     if (!comment) return;
-    void run(async () => {
-      await schedulesApi.returnToDraft(version.id, comment);
-      await loadVersions(version.id);
-      await loadDetail(version.id);
-    }, s.returned);
+    returnDraft.mutate({ id: version.id, comment });
   }
 
-  function fillPattern() {
-    const day = templates.find((tpl) => !tpl.isNight)?.id ?? '';
-    const night = templates.find((tpl) => tpl.isNight)?.id ?? '';
-    if (!patternFor || !day) return;
-    setGrid((g) =>
-      applyPattern(g, patternFor, monthDates(month), patternStart, pattern, { day, night }),
-    );
-    setDirty(true);
-  }
-
-  async function deleteVersion() {
+  async function askDelete() {
     if (!version) return;
     const ok = await confirm({
       title: s.deleteVersion,
@@ -383,21 +346,10 @@ export function SchedulePage() {
       destructive: true,
     });
     if (ok === false) return;
-    void run(async () => {
-      try {
-        await schedulesApi.remove(version.id);
-      } catch (e) {
-        if (e instanceof ApiError && e.code === 'SCHEDULE_VERSION_IN_USE')
-          throw new Error(s.versionInUse);
-        throw e;
-      }
-      useScheduleDrafts.getState().drop(version.id);
-      setSelectedId(null);
-      await loadVersions();
-    }, s.deleted);
+    remove.mutate({ id: version.id });
   }
 
-  async function publishChanges() {
+  async function askPublishChanges() {
     if (!version) return;
     const reason = await confirm({
       title: s.publishChanges,
@@ -406,16 +358,10 @@ export function SchedulePage() {
       commentLabel: s.publishReason,
     });
     if (reason === false) return;
-    void run(async () => {
-      const created = await schedulesApi.revise(version.id, gridToItems(grid), reason || undefined);
-      useScheduleDrafts.getState().drop(version.id);
-      setDirty(false);
-      await loadVersions(created.id);
-      notifySuccess(format(s.revised, { no: created.versionNo }));
-    });
+    revise.mutate({ id: version.id, reason: reason || undefined });
   }
 
-  async function publish() {
+  async function askPublish() {
     if (!version) return;
     const reason = await confirm({
       title: s.publish,
@@ -424,11 +370,23 @@ export function SchedulePage() {
       commentLabel: s.publishReason,
     });
     if (reason === false) return;
-    void run(async () => {
-      await schedulesApi.publish(version.id, reason || undefined);
-      await loadVersions(version.id);
-      await loadDetail(version.id);
-    }, s.published);
+    publish.mutate({ id: version.id, reason: reason || undefined });
+  }
+
+  /** The rotation filler: whom for, which pattern, from which day of the month on screen. */
+  const [patternFor, setPatternFor] = useState('');
+  const [pattern, setPattern] = useState<RotationPattern>('DAY_2_2');
+  const [startOverride, setStartOverride] = useState<{ month: string; date: string } | null>(null);
+  const patternStart = startOverride?.month === month ? startOverride.date : `${month}-01`;
+  const patternEmployee = grid.rows.some((r) => r.employeeId === patternFor) ? patternFor : '';
+
+  function fillPattern() {
+    const day = templates.find((tpl) => !tpl.isNight)?.id ?? '';
+    const night = templates.find((tpl) => tpl.isNight)?.id ?? '';
+    if (!patternEmployee || !day) return;
+    edit((g) =>
+      applyPattern(g, patternEmployee, monthDates(month), patternStart, pattern, { day, night }),
+    );
   }
 
   return (
@@ -446,7 +404,7 @@ export function SchedulePage() {
         <SelectField
           label={s.orgUnit}
           value={orgUnitId}
-          onChange={setOrgUnitId}
+          onChange={setStoredUnit}
           disabled={!org}
           options={units.map((u) => ({ value: u.id, label: u.name }))}
           className="w-56"
@@ -525,7 +483,7 @@ export function SchedulePage() {
             label={s.version}
             hint={hints.scheduleVersions}
             value={selectedId ?? ''}
-            onChange={(v) => v && setSelectedId(v)}
+            onChange={(v) => v && setPicked(v)}
             options={[...versions]
               .sort((x, y) => y.versionNo - x.versionNo)
               .map((v) => ({
@@ -560,7 +518,7 @@ export function SchedulePage() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setSelectedId(existingDraft.id)}
+                    onClick={() => setPicked(existingDraft.id)}
                   >
                     {format(s.openDraft, { no: existingDraft.versionNo })}
                   </Button>
@@ -582,7 +540,7 @@ export function SchedulePage() {
                     variant="destructive"
                     size="sm"
                     disabled={busy}
-                    onClick={() => void deleteVersion()}
+                    onClick={() => void askDelete()}
                   >
                     {s.deleteVersion}
                   </Button>
@@ -592,7 +550,7 @@ export function SchedulePage() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => setSelectedId(existingDraft.id)}
+                    onClick={() => setPicked(existingDraft.id)}
                   >
                     {format(s.openDraft, { no: existingDraft.versionNo })}
                   </Button>
@@ -615,7 +573,7 @@ export function SchedulePage() {
             <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/30 p-3">
               <SelectField
                 label={s.employee}
-                value={patternFor}
+                value={patternEmployee}
                 onChange={setPatternFor}
                 placeholder="…"
                 options={grid.rows.map((r) => ({
@@ -635,13 +593,13 @@ export function SchedulePage() {
               <DateField
                 label={s.patternStart}
                 value={patternStart}
-                onChange={setPatternStart}
+                onChange={(date) => setStartOverride({ month, date })}
                 className="w-44"
               />
               <Button
                 type="button"
                 variant="secondary"
-                disabled={busy || !patternFor}
+                disabled={busy || !patternEmployee}
                 onClick={fillPattern}
               >
                 <WandIcon aria-hidden="true" />
@@ -657,22 +615,10 @@ export function SchedulePage() {
             templates={templates}
             zones={zones}
             readOnly={!editable || busy}
-            onCell={(emp, date, tpl) => {
-              setGrid((g) => setCell(g, emp, date, tpl));
-              setDirty(true);
-            }}
-            onZone={(emp, zone) => {
-              setGrid((g) => setZone(g, emp, zone));
-              setDirty(true);
-            }}
-            onAdd={(emp) => {
-              setGrid((g) => addRow(g, emp));
-              setDirty(true);
-            }}
-            onRemove={(emp) => {
-              setGrid((g) => removeRow(g, emp));
-              setDirty(true);
-            }}
+            onCell={(emp, date, tpl) => edit((g) => setCell(g, emp, date, tpl))}
+            onZone={(emp, zone) => edit((g) => setZone(g, emp, zone))}
+            onAdd={(emp) => edit((g) => addRow(g, emp))}
+            onRemove={(emp) => edit((g) => removeRow(g, emp))}
           />
 
           <div className="flex flex-wrap items-center gap-2">
@@ -681,7 +627,7 @@ export function SchedulePage() {
                 <Button
                   type="button"
                   disabled={busy || changes === 0}
-                  onClick={() => void publishChanges()}
+                  onClick={() => void askPublishChanges()}
                 >
                   {s.publishChanges} ({changes})
                 </Button>
@@ -691,7 +637,7 @@ export function SchedulePage() {
                     type="button"
                     variant="outline"
                     disabled={busy}
-                    onClick={() => void loadDetail(version.id)}
+                    onClick={() => useScheduleDrafts.getState().drop(version.id)}
                   >
                     {s.discardChanges}
                   </Button>
@@ -703,7 +649,11 @@ export function SchedulePage() {
                 {/* What the button is about to write, not how big the month is: on a version that
                     already holds two hundred shifts, "Save (200)" for one edited cell counted the
                     month rather than the work — and with nothing to write it stays shut. */}
-                <Button type="button" disabled={busy || changes === 0} onClick={save}>
+                <Button
+                  type="button"
+                  disabled={busy || changes === 0}
+                  onClick={() => save.mutate({ id: version.id })}
+                >
                   {s.save} ({changes})
                 </Button>
                 {/* An empty month is refused by the server (SCHEDULE_EMPTY), so the button says
@@ -712,7 +662,7 @@ export function SchedulePage() {
                   type="button"
                   variant="secondary"
                   disabled={busy || changes > 0 || countShifts(grid) === 0}
-                  onClick={submit}
+                  onClick={() => submit.mutate({ id: version.id })}
                 >
                   {s.submit}
                 </Button>
@@ -721,7 +671,7 @@ export function SchedulePage() {
                   type="button"
                   variant="destructive"
                   disabled={busy}
-                  onClick={() => void deleteVersion()}
+                  onClick={() => void askDelete()}
                 >
                   {s.deleteVersion}
                 </Button>
@@ -730,7 +680,7 @@ export function SchedulePage() {
             )}
             {version.status === 'IN_REVIEW' && (
               <>
-                <Button type="button" disabled={busy} onClick={() => void publish()}>
+                <Button type="button" disabled={busy} onClick={() => void askPublish()}>
                   {s.publish}
                 </Button>
                 <InfoTip text={hints.schedulePublish} />
@@ -738,7 +688,7 @@ export function SchedulePage() {
                   type="button"
                   variant="outline"
                   disabled={busy}
-                  onClick={() => void returnToDraft()}
+                  onClick={() => void askReturnToDraft()}
                 >
                   {s.returnToDraft}
                 </Button>

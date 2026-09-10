@@ -1,5 +1,11 @@
 # Lean delivery bottleneck audit
 
+> Owner update, later on 2026-09-10: the direct-master/current-repository workflow in
+> [AGENTS.md](../../../AGENTS.md) supersedes this audit's PR, branch-protection and worktree proposals.
+> The audit worktree was removed after its commit was preserved in master. Historical measurements
+> remain valid for their recorded sample. Use [the current operating model](../../engineering/agent-operating-model.md).
+
+
 Date: 2026-09-10. Role: Lean/Process Expert. Baseline: `08979de`.
 Scope: the engineering delivery system, not business-code review or production operations.
 Recommendation: **Simplify and measure**, while adding the missing correctness gates first.

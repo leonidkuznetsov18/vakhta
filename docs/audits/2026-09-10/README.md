@@ -1,5 +1,11 @@
 # Vakhta onboarding: recon, audit and setup
 
+> Owner update, later on 2026-09-10: the direct-master/current-repository workflow in
+> [AGENTS.md](../../../AGENTS.md) supersedes this audit's PR, branch-protection and worktree proposals.
+> The audit worktree was removed after its commit was preserved in master. Historical measurements
+> remain valid for their recorded sample. Use [the current operating model](../../engineering/agent-operating-model.md).
+
+
 Date: 2026-09-10. Inspected baseline: `08979de0c9c9c72b79bd03f74c2b8b500cf438ad`.
 Prepared in isolated branch `codex/recon-audit-setup`; the other active checkout was left to its owner.
 This package contains findings and engineering setup, not a business implementation or rewrite.

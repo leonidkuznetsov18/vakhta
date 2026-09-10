@@ -1,3 +1,7 @@
+# Change handoff
+
+Use for a direct-master commit; this is not a request to open a PR.
+
 ## Problem and result
 
 <!-- Explain the concrete problem and final behavior. Link the spec or issue and acceptance criteria. -->
