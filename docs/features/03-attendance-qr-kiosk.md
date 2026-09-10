@@ -10,7 +10,9 @@
 - After "Я на работе" the bot opens the shift at once when one can start (a scheduled shift or
   a master-opened one): the employee sees the shift screen with "Принять зону" / "Начать работу"
   without any intermediate message. When no shift can start, the home screen shows "Вы на работе с
-  HH:MM" and the reason. Departure closes presence; the shift must be closed first.
+  HH:MM" and the reason. After checklist submission, departure validates the QR and closes the
+  shift and presence together. An expired QR leaves both unchanged; scan the current kiosk QR.
+  Scanning before submission reminds the employee to finish the checklist.
 
 ## Kiosk pairing (no tokens)
 

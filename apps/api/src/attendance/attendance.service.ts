@@ -31,6 +31,7 @@ import type {
   ReserveCheckInCommand,
 } from '@vakhta/contracts';
 import { employeeActor, type Actor } from '../common/actor.js';
+import { lockEmployee } from '../common/employee-lock.js';
 import { isUniqueViolation } from '../common/pg-errors.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
@@ -98,8 +99,12 @@ export class AttendanceService {
   }
 
   /** Перевірка QR без побічних ефектів, щоб показати назву терміналу перед підтвердженням. */
-  async previewChallenge(token: string, now: Date = new Date()): Promise<ChallengePreview> {
-    const [row] = await this.db
+  async previewChallenge(
+    token: string,
+    now: Date = new Date(),
+    tx: DbOrTx = this.db,
+  ): Promise<ChallengePreview> {
+    const [row] = await tx
       .select({ challenge: qrChallenges, terminal: qrTerminals })
       .from(qrChallenges)
       .innerJoin(qrTerminals, eq(qrChallenges.terminalId, qrTerminals.id))
@@ -119,12 +124,24 @@ export class AttendanceService {
     action: CheckAction,
     now: Date = new Date(),
   ): Promise<CheckInResult> {
+    return this.db.transaction((tx) => this.checkInByQrWithin(tx, employeeId, token, action, now));
+  }
+
+  /** Validate and record QR attendance in the transaction that owns the complete worker action. */
+  async checkInByQrWithin(
+    tx: DbOrTx,
+    employeeId: string,
+    token: string,
+    action: CheckAction,
+    now: Date,
+  ): Promise<CheckInResult> {
+    await lockEmployee(tx, employeeId);
     const actor = employeeActor(employeeId);
-    const preview = await this.previewChallenge(token, now);
+    const preview = await this.previewChallenge(token, now, tx);
     if (!preview.ok) {
       if (preview.reason === 'CHALLENGE_INVALID') {
         // T-05: підмінений токен є подією безпеки, не просто відмовою.
-        await this.events.append(this.db, {
+        await this.events.append(tx, {
           type: 'QR_CHALLENGE_REJECTED',
           source: 'TELEGRAM',
           actor,
@@ -145,9 +162,7 @@ export class AttendanceService {
       // as an unscheduled one when the employee is not in the published schedule (2026-09-08).
       requireAssignment: false,
     };
-    return this.db.transaction((tx) =>
-      action === 'ARRIVE' ? this.arrive(tx, input) : this.depart(tx, input),
-    );
+    return action === 'ARRIVE' ? this.arrive(tx, input) : this.depart(tx, input);
   }
 
   /** Резервна відмітка (FR-QR-06): спосіб, підстава і підтверджувач зберігаються. */
@@ -163,9 +178,10 @@ export class AttendanceService {
       reasonCode: cmd.reasonCode,
       ...(cmd.comment !== undefined ? { comment: cmd.comment } : {}),
     };
-    const result = await this.db.transaction((tx) =>
-      cmd.action === 'ARRIVE' ? this.arrive(tx, input) : this.depart(tx, input),
-    );
+    const result = await this.db.transaction(async (tx) => {
+      await lockEmployee(tx, cmd.employeeId);
+      return cmd.action === 'ARRIVE' ? this.arrive(tx, input) : this.depart(tx, input);
+    });
     if (result.ok) {
       await this.audit.record(this.db, {
         actor,

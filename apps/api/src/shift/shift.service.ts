@@ -62,9 +62,12 @@ import type {
   TransitionResponse,
 } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
+import { CheckInResult } from '@vakhta/contracts';
+import { hashChallengeToken } from '@vakhta/domain/node';
 import { summaryLines } from '../telegram/screens.js';
 import { AttendanceService } from '../attendance/attendance.service.js';
-import type { Actor } from '../common/actor.js';
+import { employeeActor, type Actor } from '../common/actor.js';
+import { lockEmployee } from '../common/employee-lock.js';
 import { DomainError } from '../common/domain-error.js';
 import { isUniqueViolation } from '../common/pg-errors.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -119,6 +122,10 @@ export interface CommandMeta {
 
 /** Робота з таймерами йде після коміту: BullMQ не бере участі в транзакції БД. */
 export type DeferredTimer = () => Promise<void>;
+
+export type QrDepartureResult =
+  | { readonly kind: 'CHECK_IN'; readonly result: CheckInResult }
+  | { readonly kind: 'SHIFT_NOT_READY' };
 
 const TERMINAL = [...TERMINAL_STATES];
 
@@ -361,6 +368,7 @@ export class ShiftService {
     const now = meta.now ?? new Date();
     const deferred: DeferredTimer[] = [];
     const response = await this.db.transaction(async (tx) => {
+      await lockEmployee(tx, employeeId);
       const replay = await this.replay(tx, employeeId, cmd.idempotencyKey);
       if (replay) return replay;
 
@@ -435,6 +443,97 @@ export class ShiftService {
     });
     await this.afterCommit(response, deferred, meta.source);
     return response;
+  }
+
+  /**
+   * Exit confirmation owns attendance, the FSM close and its replay response in one transaction.
+   * Locking the employee also excludes a concurrent start between presence and shift changes.
+   */
+  async departByQr(
+    employeeId: string,
+    token: string,
+    idempotencyKey: string,
+    now: Date = new Date(),
+  ): Promise<QrDepartureResult> {
+    const deferred: DeferredTimer[] = [];
+    const scope = `qr-departure:${employeeId}`;
+    const requestHash = hashChallengeToken(token);
+    const committed = await this.db.transaction(
+      async (
+        tx,
+      ): Promise<{
+        outcome: QrDepartureResult;
+        transition: TransitionResponse | null;
+      }> => {
+        await lockEmployee(tx, employeeId);
+        const [previous] = await tx
+          .select()
+          .from(idempotencyKeys)
+          .where(and(eq(idempotencyKeys.scope, scope), eq(idempotencyKeys.key, idempotencyKey)));
+        if (previous) {
+          if (previous.requestHash !== requestHash) {
+            throw new DomainError(
+              'IDEMPOTENCY_CONFLICT',
+              409,
+              'Departure key belongs to another QR',
+            );
+          }
+          const result = CheckInResult.parse(previous.response);
+          if (!result.ok) throw new Error('Stored departure result must be successful');
+          return {
+            outcome: { kind: 'CHECK_IN', result: { ...result, alreadyRecorded: true } },
+            transition: null,
+          };
+        }
+        const [session] = await tx
+          .select()
+          .from(shiftSessions)
+          .where(
+            and(
+              eq(shiftSessions.employeeId, employeeId),
+              notInArray(shiftSessions.state, TERMINAL),
+            ),
+          )
+          .for('update');
+        if (session && session.state !== 'READY_TO_CLOSE') {
+          return { outcome: { kind: 'SHIFT_NOT_READY' }, transition: null };
+        }
+        // A rejected QR makes no attendance writes. Any later failure rolls back attendance as well.
+        const result = await this.attendance.checkInByQrWithin(
+          tx,
+          employeeId,
+          token,
+          'DEPART',
+          now,
+        );
+        if (!result.ok) return { outcome: { kind: 'CHECK_IN', result }, transition: null };
+        const closed = session
+          ? await this.transitionWithin(
+              tx,
+              employeeId,
+              {
+                action: 'CLOSE_SHIFT',
+                expectedVersion: session.version,
+                idempotencyKey: `qr-exit:${idempotencyKey}`,
+              },
+              { actor: employeeActor(employeeId), source: 'TELEGRAM', now },
+              deferred,
+            )
+          : null;
+        if (closed && !closed.ok) {
+          throw new DomainError('SHIFT_DEPARTURE_CONFLICT', 409, 'Shift changed during departure');
+        }
+        await tx.insert(idempotencyKeys).values({
+          scope,
+          key: idempotencyKey,
+          requestHash,
+          response: { ...result },
+        });
+        return { outcome: { kind: 'CHECK_IN', result }, transition: closed };
+      },
+    );
+    if (committed.transition) await this.settle(committed.transition, deferred, 'TELEGRAM');
+    return committed.outcome;
   }
 
   /** Перехід від імені працівника: сесія визначається за ним (бот не носить id сесії). */

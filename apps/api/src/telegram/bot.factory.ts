@@ -434,40 +434,24 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       return;
     }
 
-    // Departure: the exit QR closes the shift only after the report is sent (state READY_TO_CLOSE).
-    // Scanning it earlier reminds the employee to finish the checklist; the shift and presence stay
-    // open, and the end-of-day job is the safety net. With no open shift it just closes presence.
-    const view = await deps.shift.screen(ctx.employee.id);
-    const state = view.session?.state;
-    if (state && state !== 'SHIFT_CLOSED' && state !== 'EMERGENCY_EXIT') {
-      if (state !== 'READY_TO_CLOSE') {
-        // The warning is the shift screen with the reminder on top, so the way to the checklist is
-        // one tap away instead of a dead end. The shift stays open and the QR is not spent.
-        await edit(
-          ctx,
-          shiftScreen(
-            ctx.t,
-            { ...view, timezone: deps.defaultTimezone },
-            ctx.t.attendance.finishChecklistFirst,
-          ),
-        );
-        return;
-      }
-      const closed = await deps.shift.transition(
-        ctx.employee.id,
-        {
-          action: 'CLOSE_SHIFT',
-          expectedVersion: view.session!.version,
-          idempotencyKey: `tg:${ctx.update.update_id}:close`,
-        },
-        { actor: employeeActor(ctx.employee.id), source: 'TELEGRAM' },
+    const departure = await deps.shift.departByQr(
+      ctx.employee.id,
+      token,
+      `tg:${ctx.update.update_id}:departure`,
+    );
+    if (departure.kind === 'SHIFT_NOT_READY') {
+      const view = await deps.shift.screen(ctx.employee.id);
+      await edit(
+        ctx,
+        shiftScreen(
+          ctx.t,
+          { ...view, timezone: deps.defaultTimezone },
+          ctx.t.attendance.finishChecklistFirst,
+        ),
       );
-      if (!closed.ok) {
-        await edit(ctx, await buildHome(ctx));
-        return;
-      }
+      return;
     }
-    const result = await deps.attendance.checkInByQr(ctx.employee.id, token, 'DEPART');
+    const result = departure.result;
     await edit(ctx, checkInResultScreen(ctx.t, result, deps.defaultTimezone));
     if (result.ok) await show(ctx, await buildHome(ctx));
   });
