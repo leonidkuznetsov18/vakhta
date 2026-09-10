@@ -1,3 +1,9 @@
+## [0.77.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.76.1...v0.77.0) (2026-09-10)
+
+### Features
+
+* **photo-inspection:** add beginner guides and illustrated videos ([457424c](https://github.com/leonidkuznetsov18/vakhta/commit/457424cdcdddbd4f118f41b0aafa2fd1a61e88a5))
+
 ## [0.76.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.76.0...v0.76.1) (2026-09-10)
 
 ### Bug fixes
