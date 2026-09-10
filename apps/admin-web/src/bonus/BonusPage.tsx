@@ -28,6 +28,8 @@ import { bonusApi, type BonusHistoryFilters } from '../api.ts';
 import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 
+import { nominationStatus } from './nomination-status.ts';
+
 const all = messages(currentLocale());
 const b = all.admin.bonus;
 
@@ -65,6 +67,7 @@ export function BonusPage() {
     enabled: site !== '',
   });
   const data = points.data ?? null;
+  const nominationsStatus = nominationStatus(data, currentLocale());
 
   const filters: BonusHistoryFilters = {
     from,
@@ -274,6 +277,7 @@ export function BonusPage() {
           <Toolbar>
             <MonthField label={b.month} value={month} onChange={setMonth} className="w-48" />
           </Toolbar>
+          {nominationsStatus && <Muted>{nominationsStatus}</Muted>}
           {(data?.employeeOfMonth || data?.unitOfMonth) && (
             <div className="grid gap-3 sm:grid-cols-3">
               <Winner label={b.employeeOfMonth} winner={data?.employeeOfMonth ?? null} icon="🏆" />

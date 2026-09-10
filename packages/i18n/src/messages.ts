@@ -758,6 +758,8 @@ export interface Messages {
       readonly unitLeaderboard: string;
       readonly tabPoints: string;
       readonly tabHistory: string;
+      readonly nominationsPreliminary: string;
+      readonly nominationsFinal: string;
       readonly employeeOfMonth: string;
       readonly unitOfMonth: string;
       readonly masterOfMonth: string;

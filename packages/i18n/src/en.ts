@@ -895,6 +895,10 @@ export const en: Messages = {
       unitLeaderboard: 'Units by points',
       tabPoints: 'Points',
       tabHistory: 'History',
+      nominationsPreliminary:
+        'Preliminary nominations. Winners may change until the month is finalized.',
+      nominationsFinal:
+        'Final nominations, recorded {at}. Later approvals do not change the winners.',
       employeeOfMonth: 'Employee of the month',
       unitOfMonth: 'Unit of the month',
       masterOfMonth: 'Master of the month',
@@ -927,7 +931,7 @@ export const en: Messages = {
       unitMasters: 'Shift master',
       noUnit: 'No unit',
       pointsHint:
-        'One point for every checklist the shift master approves. Read-only: points are earned in the bot and confirmed at the zone handover.',
+        'Live totals include checklist and monthly award points, grouped by current assignments. Department nominations count checklist points recorded in that department; final nominations remain unchanged.',
       evaluated: 'Evaluated',
       pending: 'Awaiting evaluation',
       sMonth: 'Month coefficient (S)',

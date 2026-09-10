@@ -183,6 +183,13 @@
       "when": 1788868245683,
       "tag": "0025_release_telegram_on_dismissal",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1789039767427,
+      "tag": "0026_bonus_month_closures",
+      "breakpoints": true
     }
   ]
 }

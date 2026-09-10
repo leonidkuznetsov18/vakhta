@@ -24,3 +24,8 @@ export function isExclusionViolation(error: unknown): boolean {
 export function isForeignKeyViolation(e: unknown): boolean {
   return pgCode(e) === '23503';
 }
+
+/** A complete transaction must restart with a fresh snapshot after serialization failure. */
+export function isSerializationFailure(error: unknown): boolean {
+  return pgCode(error) === '40001';
+}

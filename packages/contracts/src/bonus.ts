@@ -168,6 +168,21 @@ export const MonthWinnerView = z.object({
 });
 export type MonthWinnerView = z.infer<typeof MonthWinnerView>;
 
+/** Frozen master identity, not a lookup of the current role holder. */
+export const MonthMasterSnapshot = z.object({
+  userId: z.string().min(1),
+  name: z.string(),
+  employeeIds: z.array(Uuid),
+});
+export const MonthNominationsSnapshot = z.object({
+  employeeOfMonth: MonthWinnerView.extend({
+    id: Uuid,
+    points: z.number().int().positive(),
+  }).nullable(),
+  unitOfMonth: MonthWinnerView.extend({ id: Uuid, points: z.number().int().positive() }).nullable(),
+  masters: z.array(MonthMasterSnapshot),
+});
+
 export const BonusPointsView = z.object({
   siteId: Uuid.nullable(),
   month: z.string(),
@@ -177,6 +192,8 @@ export const BonusPointsView = z.object({
   employeeOfMonth: MonthWinnerView.nullable(),
   unitOfMonth: MonthWinnerView.nullable(),
   masterOfMonth: MonthWinnerView.nullable(),
+  /** Null means a live preview, never a global finalization without a site. */
+  finalizedAt: IsoDateTime.nullable(),
   serverTime: IsoDateTime,
 });
 

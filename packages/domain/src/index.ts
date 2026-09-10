@@ -26,3 +26,5 @@ export * from './media/quality.js';
 export * from './media/phash.js';
 export * from './requests/routes.js';
 export * from './shift-fsm/corrections.js';
+
+export * from './bonus/month-nominations.js';

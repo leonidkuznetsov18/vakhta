@@ -1,41 +1,30 @@
-# Bonus (spec 7, panel section "Бонус")
+# Bonus points and monthly nominations
 
-Every closed shift gets a score 0–100 from criteria (schedule start, no early leave, presence,
-sequence, breaks, no unresolved items, downtime paperwork, handover checklist, photos, remarks,
-acceptance). Criteria that do not apply (no plan, no zone, no checklist) are excluded and the
-score is the share of applicable points. S month is the weighted average of the month's shifts.
+The panel shows the checklist point ledger and its history. An approved checklist earns one point.
+Monthly nominations recognize Employee of the Month, Department of the Month, and Master of the
+Month. The current read-only panel does not offer manual scoring or period reopening.
 
-Statuses of a shift: preliminary (computed, may change), pending (a criterion waits for a photo
-check, an acceptance or an open request), manual review (fewer than 60 applicable points, e.g. a
-shift without a schedule and without a checklist), appealed, confirmed (period closed), not
-evaluated (excluded).
+Before finalization the panel labels nominations as preliminary. The scheduled close runs from the
+second day of the following month in the site's timezone. Each site and month receives one final
+result, including months without eligible winners. The panel shows when that decision was recorded.
 
-Panel "Бонус": the month summary with the period status explained, a "Как это работает" guide
-(four numbered steps for the administrator), "Лучшие за месяц" (chart and rating by S month), the
-second-approval queue, and the employees table. A row click expands the employee's month right
-under the row (no side panel): a header with S month, shifts, evaluated shifts and the two point
-actions, then one card per shift in a grid that uses the page width. Every card shows the status
-with a plain explanation, the score "N / 100" and an explicit action row:
+- Department of the Month has the most checklist points recorded against that department.
+- Its currently active assigned employees each receive the existing one-point department award.
+- All current shift masters scoped to that department share Master of the Month. Each active
+  employee record matched by the existing email rule receives the existing one-point master award.
+- Employee of the Month has the highest total ledger points, including the monthly awards.
+  A person's points across departments of the selected site are combined before selection.
+- Equal scores use name order and then stable identifier order. Only positive totals qualify.
 
-- "Ручная проверка" shows a "Что делать" box: why the rules could not score the shift (how many
-  points apply, which criteria do not) and three steps. The primary button is "Завершить проверку":
-  set a score (the default is the share of points earned) or exclude the shift, with a comment;
-  the employee is notified. A reviewed shift offers "Изменить решение проверки"; an excluded one
-  "Вернуть смену в расчёт".
-- Any other evaluated shift has "Начислить баллы" and "Снять баллы" (also in the footer of the
-  employee card and as "Начислить или снять баллы" in the ⋯ row menu). The dialog is preset to a
-  reward or a violation: the amount is limited by the room left (a shift at 80 accepts at most 20
-  more; a penalty at most the current score) and the form says so under the field; a reason from
-  the directory and a comment. "Начислить баллы" is not offered for a shift at 100 and "Снять
-  баллы" not for one at 0. "Дополнительно" binds the points to one criterion. A penalty above
-  the threshold (10 points) waits for a second manager's approval.
-- Adjustments are listed in the card with "Изменить" and "Удалить" buttons while the period is
-  open; a deleted one stays in the history as "Удалена" and the score is recomputed.
-- "Расшифровка" shows the criteria with their basis; "Пересчитать" recomputes.
+Finalization records the winners' identities, names and points, the full list of winning masters,
+monthly awards and Telegram cards together. Repeated execution returns that result without awarding
+or notifying again. The worker receives the existing localized card; no new action is required.
 
-"Закрыть период" confirms scores and notifies employees; HR then sets the bonus base, accounting
-exports the CSV. A closed period shows a "Период закрыт" banner: nothing can be reviewed, added or
-deleted. "Открыть период снова" (production head or administrator, comment required) returns the
-confirmed scores to "Предварительно" and keeps the bonus base; after the fix the period is closed
-again. The employee sees "Мои баллы" in the bot and can appeal within the appeal window.
-Reports → "Бонус" lists the best employees for any period.
+Later checklist approvals remain visible in the point ledger and history. They do not replace a
+final winner or award another department. Renaming people or departments, transferring employees,
+and changing master roles also leave the final nominations unchanged. The live totals below the
+nomination cards may therefore differ from the totals frozen on the cards.
+
+An aggregate request without a selected site is a live comparison, not a global final decision.
+Final monthly nominations are separate from the older shift-score and manual-review APIs still
+present for compatibility; this change does not revise their scoring rules.

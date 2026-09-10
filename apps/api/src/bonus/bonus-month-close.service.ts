@@ -10,8 +10,8 @@ const SCAN_MS = 60 * 60_000;
 /**
  * The month-end driver (2026-09-08): asks the bonus month service to close the previous month at
  * every site. Nothing happens for most of the month; when the site's local calendar has moved past
- * the close day, the unit of the month is awarded and the cards go into the outbox. Repeats are
- * harmless — awards conflict on their unique index and cards on their dedupe key.
+ * the close day, the unit of the month is awarded and the cards go into the outbox. Repeats read the immutable
+ * site/month decision; late approvals do not re-elect winners or issue another set of awards.
  */
 @Injectable()
 export class BonusMonthCloseService implements OnModuleInit, OnApplicationShutdown {

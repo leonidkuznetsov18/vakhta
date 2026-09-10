@@ -1,3 +1,4 @@
+import { readMonthNominations } from './bonus-month-nominations.js';
 import { createHash } from 'node:crypto';
 import * as XLSX from 'xlsx';
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
@@ -75,7 +76,6 @@ import type {
   BonusHistoryQuery,
   BonusHistoryView,
   EmployeePointsView,
-  MonthWinnerView,
   UnitPointsView,
   SecondApprovalCommand,
   SetBaseAmountsCommand,
@@ -1194,26 +1194,13 @@ export class BonusService implements OnModuleInit {
     const units = [...unitAgg.values()].sort(
       (a, b) => b.points - a.points || (a.orgUnitName ?? '').localeCompare(b.orgUnitName ?? ''),
     );
-    const topEmployee = employeesView.find((e) => e.points > 0) ?? null;
-    const topUnit = units.find((u) => u.points > 0 && u.orgUnitId !== null) ?? null;
-    const employeeOfMonth: MonthWinnerView | null = topEmployee
-      ? { name: topEmployee.employeeName, points: topEmployee.points, id: topEmployee.employeeId }
-      : null;
-    const unitOfMonth: MonthWinnerView | null = topUnit
-      ? { name: topUnit.orgUnitName ?? '', points: topUnit.points, id: topUnit.orgUnitId }
-      : null;
-    const masterOfMonth: MonthWinnerView | null =
-      topUnit && topUnit.masters.length > 0
-        ? { name: topUnit.masters.join(', '), points: topUnit.points, id: topUnit.orgUnitId }
-        : null;
+    const nominations = await readMonthNominations(this.db, siteId, month);
     return {
       siteId,
       month,
       employees: employeesView,
       units,
-      employeeOfMonth,
-      unitOfMonth,
-      masterOfMonth,
+      ...nominations,
       serverTime: now.toISOString(),
     };
   }

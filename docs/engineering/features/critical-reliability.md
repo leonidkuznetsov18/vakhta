@@ -82,6 +82,32 @@ and authenticated panel/kiosk/bot verification.
   v0.70.1. The green Pages job is not deployment evidence. Remaining access/recovery/report/month
   fixes are in progress; these focused checks are not evidence that all nine risks are resolved.
 
+### Subsequent report, delivery and nomination evidence
+
+- Report commit `7195396` fixes historical ownership, interval multiplication, consistent cutoff
+  arithmetic, truthful counts and explicit export limits (#6/#7). Integrated `pnpm build` and
+  `pnpm check` passed 388 tests; the independent retained-query-data regression also ensures a
+  failed refresh cannot leave a downloadable stale export. See `loss-reports.md`.
+- CI correction `a5ee2e5` and the approved dedicated Pages token restored both actual uploads in
+  run `34472618740`; panel and kiosk deployment history match that source. Authenticated panel
+  v0.70.5 loaded loss reports, cutoff metadata and matching export links. Mobile 390x844 controls
+  and cutoff text were readable. See the platform operations runbook for deployment IDs.
+- Fresh worker-bot `/help`, `/start` and `/requests` responses were verified through the owner's
+  authenticated Telegram Web session. No shift, attendance or request was created. The Back button
+  was clicked but a changed screen was not confirmed, so that interaction remains an open QA case.
+  The current home screen still shows an old open presence; a bounded read-only production query
+  found two OPEN presences linked only to terminal shifts. Preserve this historical inconsistency
+  for explicit unknown-departure reconciliation in #8 rather than inventing a departure timestamp.
+- Monthly nominations (#9) now use an immutable site/month snapshot, atomic awards/cards and full
+  transaction retries. Empty final months remain final. SQL also prevents the old closer from
+  writing during a rolling deployment. Independent SQL review found and fixed a temporary-table
+  shadowing bypass; its regression passed. Final build/check passed 406 tests (269 fresh, 137
+  cached); monthly tests passed 17/17 fresh. PostgreSQL 18 migration/posting/legacy-rejection smoke
+  passed. Independent SQL/core and UI/contracts/docs reviews have no remaining blockers. Production
+  migration preflight and post-deployment checks remain required; see `monthly-bonus-finalization.md`.
+- Access scope (#1), durable Telegram recovery (#4), durable background effects (#5) and the approved
+  automatic closure behavior (#8) remain implementation work. Do not report the nine-risk task complete.
+
 ## Technical references consulted
 
 - [PostgreSQL row locks](https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-ROWS)

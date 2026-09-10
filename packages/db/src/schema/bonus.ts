@@ -1,5 +1,6 @@
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -12,7 +13,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import type { BonusRules } from '@vakhta/domain';
+import type { BonusRules, MonthMaster } from '@vakhta/domain';
 import { date } from 'drizzle-orm/pg-core';
 import { employees } from './identity.js';
 import { orgUnits, sites } from './org.js';
@@ -213,5 +214,43 @@ export const bonusPointAwards = pgTable(
     uniqueIndex('bonus_point_awards_month_kind_uq')
       .on(t.employeeId, t.month, t.kind)
       .where(sql`${t.kind} <> 'CHECKLIST_APPROVED'`),
+  ],
+);
+
+/** Immutable final nominations for the points model; independent of legacy bonus_periods. */
+export const bonusMonthClosures = pgTable(
+  'bonus_month_closures',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    siteId: uuid('site_id')
+      .notNull()
+      .references(() => sites.id),
+    month: text('month').notNull(),
+    employeeId: uuid('employee_id').references(() => employees.id),
+    employeeName: text('employee_name'),
+    employeePoints: integer('employee_points'),
+    orgUnitId: uuid('org_unit_id').references(() => orgUnits.id),
+    orgUnitName: text('org_unit_name'),
+    orgUnitPoints: integer('org_unit_points'),
+    masters: jsonb('masters').$type<readonly MonthMaster[]>().notNull().default([]),
+    ruleVersion: integer('rule_version').notNull().default(1),
+    closedAt: timestamp('closed_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    uniqueIndex('bonus_month_closures_site_month_uq').on(t.siteId, t.month),
+    check('bonus_month_closures_month_valid', sql`${t.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
+    check(
+      'bonus_month_closures_employee_consistent',
+      sql`(${t.employeeId} is null and ${t.employeeName} is null and ${t.employeePoints} is null) or (${t.employeeId} is not null and ${t.employeeName} is not null and ${t.employeePoints} is not null and ${t.employeePoints} > 0)`,
+    ),
+    check(
+      'bonus_month_closures_unit_consistent',
+      sql`(${t.orgUnitId} is null and ${t.orgUnitName} is null and ${t.orgUnitPoints} is null) or (${t.orgUnitId} is not null and ${t.orgUnitName} is not null and ${t.orgUnitPoints} is not null and ${t.orgUnitPoints} > 0)`,
+    ),
+    check(
+      'bonus_month_closures_masters_array',
+      sql`jsonb_typeof(${t.masters}) = 'array' and (${t.orgUnitId} is not null or ${t.masters} = '[]'::jsonb)`,
+    ),
+    check('bonus_month_closures_rule_version', sql`${t.ruleVersion} = 1`),
   ],
 );

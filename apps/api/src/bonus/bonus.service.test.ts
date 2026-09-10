@@ -3,6 +3,7 @@ import {
   activityIntervals,
   bonusAdjustments,
   bonusPointAwards,
+  bonusMonthClosures,
   bonusShiftScores,
   employeePositions,
   employees,
@@ -34,6 +35,7 @@ import { RequestChanges } from '../requests/request-changes.js';
 import { ShiftChanges } from '../shift/shift-changes.js';
 import { ShiftService, type ShiftOptions } from '../shift/shift.service.js';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
+import { BonusMonthService } from './bonus-month.service.js';
 import { BonusService } from './bonus.service.js';
 
 const HEAD = {
@@ -80,6 +82,11 @@ describe('bonus: оцінка зміни, коригування, закритт
   });
 
   beforeEach(async () => {
+    // Only the isolated test database bypasses immutable history while resetting fixtures.
+    await testDb.db.execute(sql`ALTER TABLE bonus_month_closures DISABLE TRIGGER USER`);
+    await testDb.db.execute(sql`TRUNCATE bonus_month_closures`);
+    await testDb.db.execute(sql`ALTER TABLE bonus_month_closures ENABLE TRIGGER USER`);
+
     await testDb.db.execute(
       sql`TRUNCATE bonus_period_results, bonus_periods, bonus_adjustments, bonus_criteria_results, bonus_shift_scores, bonus_rule_versions, request_decisions, requests, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, employees, org_units, sites, reason_codes CASCADE`,
     );
@@ -157,6 +164,42 @@ describe('bonus: оцінка зміни, коригування, закритт
   });
 
   /** Повний день без зони: старт (із запізненням за замовчуванням 0), робота, закриття. */
+  it('serves final employee, department and master nominations after late ledger changes', async () => {
+    await fullShift();
+    const [unit] = await testDb.db.select().from(orgUnits).where(eq(orgUnits.siteId, siteId));
+    if (!unit) throw new Error('Expected fixture department');
+    await testDb.db.insert(bonusPointAwards).values({
+      employeeId: ivanov,
+      orgUnitId: unit.id,
+      month,
+      kind: 'CHECKLIST_APPROVED',
+      points: 1,
+    });
+    await new BonusMonthService(testDb.db, new NotificationsService()).closeMonth(
+      siteId,
+      month,
+      planStart,
+    );
+    const final = await bonus.points(siteId, month);
+    await testDb.db
+      .update(employees)
+      .set({ fullName: 'Changed name' })
+      .where(eq(employees.id, ivanov));
+    await testDb.db.insert(bonusPointAwards).values({
+      employeeId: ivanov,
+      orgUnitId: unit.id,
+      month,
+      kind: 'CHECKLIST_APPROVED',
+      points: 5,
+    });
+    const later = await bonus.points(siteId, month);
+    expect(later.finalizedAt).toBe(planStart.toISOString());
+    expect(later.employeeOfMonth).toEqual(final.employeeOfMonth);
+    expect(later.unitOfMonth).toEqual(final.unitOfMonth);
+    expect(later.masterOfMonth).toEqual(final.masterOfMonth);
+    expect(later.employees[0]?.points).toBeGreaterThan(final.employees[0]?.points ?? 0);
+  });
+
   async function fullShift(startOffsetMinutes = 0): Promise<string> {
     await attendance.reserveCheckIn(
       { employeeId: ivanov, action: 'ARRIVE', reasonCode: 'TERMINAL_DOWN' },
@@ -294,32 +337,46 @@ describe('bonus: оцінка зміни, коригування, закритт
       .from(orgUnits)
       .where(eq(orgUnits.siteId, siteId))
       .limit(1);
-    await testDb.db.insert(bonusPointAwards).values([
-      {
-        employeeId: ivanov,
-        orgUnitId: unit!.id,
+    await testDb.db.transaction(async (tx) => {
+      await tx.insert(bonusPointAwards).values([
+        {
+          employeeId: ivanov,
+          orgUnitId: unit!.id,
+          month: '2026-08',
+          businessDate: '2026-08-04',
+          kind: 'CHECKLIST_APPROVED',
+          points: 1,
+        },
+        {
+          employeeId: ivanov,
+          orgUnitId: unit!.id,
+          month: '2026-08',
+          businessDate: '2026-08-04',
+          kind: 'UNIT_OF_MONTH',
+          points: 1,
+        },
+        {
+          employeeId: ivanov,
+          orgUnitId: unit!.id,
+          month: '2026-09',
+          businessDate: '2026-09-02',
+          kind: 'CHECKLIST_APPROVED',
+          points: 1,
+        },
+      ]);
+      await tx.insert(bonusMonthClosures).values({
+        siteId,
         month: '2026-08',
-        businessDate: '2026-08-04',
-        kind: 'CHECKLIST_APPROVED',
-        points: 1,
-      },
-      {
+        closedAt: planStart,
         employeeId: ivanov,
+        employeeName: 'Иванов Иван',
+        employeePoints: 2,
         orgUnitId: unit!.id,
-        month: '2026-08',
-        businessDate: '2026-08-04',
-        kind: 'UNIT_OF_MONTH',
-        points: 1,
-      },
-      {
-        employeeId: ivanov,
-        orgUnitId: unit!.id,
-        month: '2026-09',
-        businessDate: '2026-09-02',
-        kind: 'CHECKLIST_APPROVED',
-        points: 1,
-      },
-    ]);
+        orgUnitName: unit!.name,
+        orgUnitPoints: 1,
+        masters: [],
+      });
+    });
     const range = { from: '2026-01-01', to: '2026-12-31', limit: 500 } as const;
 
     // Every grouping runs the same aggregate; a bound format pattern used to break the GROUP BY.

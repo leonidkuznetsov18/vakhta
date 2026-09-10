@@ -1,59 +1,43 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   and,
-  asc,
-  authUser,
+  bonusMonthClosures,
   bonusPointAwards,
   employeePositions,
   employees,
   eq,
   inArray,
   isNull,
-  orgUnits,
   shiftSessions,
   sites,
   sql,
-  webUserRoles,
   type Database,
   type DbOrTx,
 } from '@vakhta/db';
-import { businessDateOf, previousMonth } from '@vakhta/domain';
+import { businessDateOf, previousMonth, type MonthNominations } from '@vakhta/domain';
 import { format } from '@vakhta/i18n';
+import { DomainError } from '../common/domain-error.js';
+import { isSerializationFailure } from '../common/pg-errors.js';
 import { DATABASE } from '../infra/database.module.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import {
+  liveMonthNominations,
+  monthEmployeePoints,
+  type EmployeeMonthPoints,
+} from './bonus-month-nominations.js';
 
-/**
- * The previous month is only closed once the new one is this many days old: a checklist approved on
- * the first day of the new month still belongs to the old one, so awarding on the 1st could crown
- * the wrong unit.
- */
 const CLOSE_AFTER_DAY = 2;
+const CLOSE_ATTEMPTS = 3;
 
 export interface MonthCloseOutcome {
   readonly siteId: string;
   readonly month: string;
-  /** The unit with the most checklist points, or null when nobody scored at this site. */
   readonly unitOfMonth: string | null;
-  /** Month-end points inserted (unit of the month plus its shift master). */
   readonly awarded: number;
-  /** Monthly cards put into the outbox. */
   readonly cards: number;
 }
 
-interface EmployeeMonthTotals {
-  readonly employeeId: string;
-  readonly points: number;
-  readonly approved: number;
-  readonly orgUnitId: string | null;
-}
-
-/**
- * Month-end of the points model (2026-09-08): points reset with the month because every award row
- * carries its month, so nothing is deleted — the ledger is the history. At the turn of the month
- * this service picks the unit of the month, gives every one of its employees and its shift master an
- * extra point, and sends each employee a card in the bot with their score and a warm word. Every
- * step is idempotent: awards conflict on their unique index, cards on their dedupe key.
- */
+/** One immutable site/month decision owns all awards and already-localized notification cards. */
 @Injectable()
 export class BonusMonthService {
   constructor(
@@ -61,8 +45,7 @@ export class BonusMonthService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  /** Closes the previous month at every site whose local calendar has moved far enough past it. */
-  async closeDueMonths(now: Date = new Date()): Promise<MonthCloseOutcome[]> {
+  async closeDueMonths(now = new Date()): Promise<MonthCloseOutcome[]> {
     const rows = await this.db.select({ id: sites.id, timezone: sites.timezone }).from(sites);
     const outcomes: MonthCloseOutcome[] = [];
     for (const site of rows) {
@@ -73,63 +56,87 @@ export class BonusMonthService {
     return outcomes;
   }
 
-  /** Awards and cards for one site and one month; safe to call again, nothing is duplicated. */
-  async closeMonth(
-    siteId: string,
-    month: string,
-    now: Date = new Date(),
-  ): Promise<MonthCloseOutcome> {
-    return this.db.transaction(async (tx) => {
-      const winner = await this.unitOfMonth(tx, siteId, month);
-      let awarded = 0;
-      if (winner) {
-        awarded += await this.awardUnit(tx, winner.orgUnitId, month, now);
-        awarded += await this.awardMasters(tx, winner.orgUnitId, month, now);
+  async closeMonth(siteId: string, month: string, now = new Date()): Promise<MonthCloseOutcome> {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await this.closeOnce(siteId, month, now);
+      } catch (error) {
+        // A waiting repeatable-read closer can hold a snapshot older than the first commit.
+        // Retry the complete transaction, including the final-snapshot lookup; never just awards.
+        if (!isSerializationFailure(error) || attempt >= CLOSE_ATTEMPTS) throw error;
       }
-      const cards = await this.sendCards(tx, siteId, month, winner);
-      return { siteId, month, unitOfMonth: winner?.orgUnitId ?? null, awarded, cards };
-    });
+    }
   }
 
-  /**
-   * The unit with the most points from approved checklists. Month-end awards are excluded on
-   * purpose: they must not decide the winner they follow from, so a repeated close is stable.
-   */
-  private async unitOfMonth(
-    tx: DbOrTx,
-    siteId: string,
-    month: string,
-  ): Promise<{ orgUnitId: string; name: string; points: number } | null> {
-    const rows = await tx
-      .select({
-        orgUnitId: orgUnits.id,
-        name: orgUnits.name,
-        points: sql<number>`sum(${bonusPointAwards.points})::int`,
-      })
-      .from(bonusPointAwards)
-      .innerJoin(orgUnits, eq(bonusPointAwards.orgUnitId, orgUnits.id))
-      .where(
-        and(
-          eq(bonusPointAwards.month, month),
-          eq(bonusPointAwards.kind, 'CHECKLIST_APPROVED'),
-          eq(orgUnits.siteId, siteId),
-        ),
-      )
-      .groupBy(orgUnits.id, orgUnits.name)
-      .orderBy(sql`sum(${bonusPointAwards.points}) desc`, asc(orgUnits.name));
-    const top = rows[0];
-    return top && Number(top.points) > 0
-      ? { orgUnitId: top.orgUnitId, name: top.name, points: Number(top.points) }
-      : null;
+  private closeOnce(siteId: string, month: string, now: Date): Promise<MonthCloseOutcome> {
+    return this.db.transaction(
+      async (tx) => {
+        const [site] = await tx
+          .select({ id: sites.id })
+          .from(sites)
+          .where(eq(sites.id, siteId))
+          .for('no key update');
+        if (!site) throw new DomainError('SITE_NOT_FOUND', 404, 'Site not found');
+        const [closed] = await tx
+          .select()
+          .from(bonusMonthClosures)
+          .where(and(eq(bonusMonthClosures.siteId, siteId), eq(bonusMonthClosures.month, month)));
+        if (closed) return { siteId, month, unitOfMonth: closed.orgUnitId, awarded: 0, cards: 0 };
+
+        const initial = await liveMonthNominations(tx, siteId, month);
+        const unit = initial.unitOfMonth;
+        const unitMembers = unit ? await this.unitEmployeeIds(tx, unit.id) : [];
+        const masterIds = [...new Set(initial.masters.flatMap((master) => master.employeeIds))];
+        let awarded = 0;
+        if (unit) {
+          awarded += await this.insertAwards(tx, unitMembers, {
+            orgUnitId: unit.id,
+            month,
+            kind: 'UNIT_OF_MONTH',
+            now,
+          });
+          awarded += await this.insertAwards(tx, masterIds, {
+            orgUnitId: unit.id,
+            month,
+            kind: 'MASTER_OF_MONTH',
+            now,
+          });
+        }
+        // Preserve the existing employee nomination: all ledger points, including these final awards.
+        const nominations = await liveMonthNominations(tx, siteId, month);
+        const [snapshot] = await tx
+          .insert(bonusMonthClosures)
+          .values({
+            siteId,
+            month,
+            closedAt: now,
+            employeeId: nominations.employeeOfMonth?.id ?? null,
+            employeeName: nominations.employeeOfMonth?.name ?? null,
+            employeePoints: nominations.employeeOfMonth?.points ?? null,
+            orgUnitId: nominations.unitOfMonth?.id ?? null,
+            orgUnitName: nominations.unitOfMonth?.name ?? null,
+            orgUnitPoints: nominations.unitOfMonth?.points ?? null,
+            masters: nominations.masters,
+          })
+          .onConflictDoNothing()
+          .returning({ id: bonusMonthClosures.id });
+        if (!snapshot)
+          throw new Error('Month closure was not inserted while holding the site lock');
+        const totals = await monthEmployeePoints(tx, siteId, month);
+        const cards = await this.sendCards(
+          tx,
+          month,
+          nominations,
+          totals,
+          new Set([...unitMembers, ...masterIds]),
+        );
+        return { siteId, month, unitOfMonth: nominations.unitOfMonth?.id ?? null, awarded, cards };
+      },
+      { isolationLevel: 'repeatable read' },
+    );
   }
 
-  /** One extra point for every active employee currently assigned to the winning unit. */
-  private async awardUnit(
-    tx: DbOrTx,
-    orgUnitId: string,
-    month: string,
-    now: Date,
-  ): Promise<number> {
+  private async unitEmployeeIds(tx: DbOrTx, orgUnitId: string): Promise<string[]> {
     const rows = await tx
       .selectDistinct({ employeeId: employeePositions.employeeId })
       .from(employeePositions)
@@ -141,43 +148,7 @@ export class BonusMonthService {
           eq(employees.status, 'ACTIVE'),
         ),
       );
-    return this.insertAwards(
-      tx,
-      rows.map((r) => r.employeeId),
-      { orgUnitId, month, kind: 'UNIT_OF_MONTH', now },
-    );
-  }
-
-  /**
-   * The shift master of the winning unit gets a point too. Web users and employees are separate
-   * records, so the master is matched to their employee card by e-mail; without one there is no
-   * ledger to credit and no chat to write to, and the panel still names them.
-   */
-  private async awardMasters(
-    tx: DbOrTx,
-    orgUnitId: string,
-    month: string,
-    now: Date,
-  ): Promise<number> {
-    const ids = await this.masterEmployeeIds(tx, orgUnitId);
-    return this.insertAwards(tx, ids, { orgUnitId, month, kind: 'MASTER_OF_MONTH', now });
-  }
-
-  private async masterEmployeeIds(tx: DbOrTx, orgUnitId: string): Promise<string[]> {
-    const rows = await tx
-      .select({ employeeId: employees.id })
-      .from(webUserRoles)
-      .innerJoin(authUser, eq(webUserRoles.userId, authUser.id))
-      .innerJoin(employees, sql`lower(${employees.email}) = lower(${authUser.email})`)
-      .where(
-        and(
-          eq(webUserRoles.role, 'SHIFT_MASTER'),
-          eq(webUserRoles.scopeType, 'ORG_UNIT'),
-          eq(webUserRoles.scopeId, orgUnitId),
-          eq(employees.status, 'ACTIVE'),
-        ),
-      );
-    return [...new Set(rows.map((r) => r.employeeId))];
+    return rows.map((row) => row.employeeId);
   }
 
   private async insertAwards(
@@ -209,24 +180,19 @@ export class BonusMonthService {
     return inserted.length;
   }
 
-  /** A card for every employee who earned something this month at this site. */
   private async sendCards(
     tx: DbOrTx,
-    siteId: string,
     month: string,
-    winner: { orgUnitId: string; name: string } | null,
+    nominations: MonthNominations,
+    totals: readonly EmployeeMonthPoints[],
+    winningRecipients: ReadonlySet<string>,
   ): Promise<number> {
-    const totals = await this.totals(tx, siteId, month);
     if (totals.length === 0) return 0;
     const shifts = await this.shiftCounts(tx, month, totals);
-    const best = totals[0];
-    const masterIds = winner
-      ? new Set(await this.masterEmployeeIds(tx, winner.orgUnitId))
-      : new Set<string>();
+    const masterIds = new Set(nominations.masters.flatMap((master) => master.employeeIds));
+    const unit = nominations.unitOfMonth;
     let cards = 0;
     for (const row of totals) {
-      const isBest = best !== undefined && row.employeeId === best.employeeId && row.points > 0;
-      const inWinningUnit = winner !== null && row.orgUnitId === winner.orgUnitId;
       const sent = await this.notifications.enqueue(tx, {
         recipientType: 'EMPLOYEE',
         recipientId: row.employeeId,
@@ -240,16 +206,18 @@ export class BonusMonthService {
               approved: String(row.approved),
             }),
           ];
-          if (isBest) lines.push(t.bonus.monthCardEmployeeOfMonth);
-          if (inWinningUnit && winner)
+          if (nominations.employeeOfMonth?.id === row.employeeId)
+            lines.push(t.bonus.monthCardEmployeeOfMonth);
+          if (unit && winningRecipients.has(row.employeeId))
             lines.push(
               masterIds.has(row.employeeId)
-                ? format(t.bonus.monthCardMaster, { unit: winner.name })
-                : format(t.bonus.monthCardUnitOfMonth, { unit: winner.name }),
+                ? format(t.bonus.monthCardMaster, { unit: unit.name })
+                : format(t.bonus.monthCardUnitOfMonth, { unit: unit.name }),
             );
           lines.push(t.bonus.monthCardWish);
           return { text: lines.join('\n') };
         },
+        // Preserve the existing delivery key and avoid duplicate historical bot announcements.
         dedupeKey: `bonus-month-card:${month}:${row.employeeId}`,
       });
       if (sent) cards += 1;
@@ -257,51 +225,24 @@ export class BonusMonthService {
     return cards;
   }
 
-  /** Points and approved checklists per employee for the month, best first. */
-  private async totals(tx: DbOrTx, siteId: string, month: string): Promise<EmployeeMonthTotals[]> {
-    const rows = await tx
-      .select({
-        employeeId: bonusPointAwards.employeeId,
-        orgUnitId: bonusPointAwards.orgUnitId,
-        points: sql<number>`sum(${bonusPointAwards.points})::int`,
-        approved: sql<number>`sum(${bonusPointAwards.points}) filter (where ${bonusPointAwards.kind} = 'CHECKLIST_APPROVED')::int`,
-      })
-      .from(bonusPointAwards)
-      .innerJoin(orgUnits, eq(bonusPointAwards.orgUnitId, orgUnits.id))
-      .where(and(eq(bonusPointAwards.month, month), eq(orgUnits.siteId, siteId)))
-      .groupBy(bonusPointAwards.employeeId, bonusPointAwards.orgUnitId);
-    return rows
-      .map((r) => ({
-        employeeId: r.employeeId,
-        orgUnitId: r.orgUnitId,
-        points: Number(r.points ?? 0),
-        approved: Number(r.approved ?? 0),
-      }))
-      .sort((a, b) => b.points - a.points);
-  }
-
-  /** How many shifts each of them worked that month; the set is already scoped to the site. */
   private async shiftCounts(
     tx: DbOrTx,
     month: string,
-    totals: readonly EmployeeMonthTotals[],
+    totals: readonly EmployeeMonthPoints[],
   ): Promise<Map<string, number>> {
     const rows = await tx
-      .select({
-        employeeId: shiftSessions.employeeId,
-        shifts: sql<number>`count(*)::int`,
-      })
+      .select({ employeeId: shiftSessions.employeeId, shifts: sql<number>`count(*)::int` })
       .from(shiftSessions)
       .where(
         and(
           sql`${shiftSessions.businessDate}::text like ${`${month}-%`}`,
           inArray(
             shiftSessions.employeeId,
-            totals.map((t) => t.employeeId),
+            totals.map((row) => row.employeeId),
           ),
         ),
       )
       .groupBy(shiftSessions.employeeId);
-    return new Map(rows.map((r) => [r.employeeId, Number(r.shifts)]));
+    return new Map(rows.map((row) => [row.employeeId, row.shifts]));
   }
 }

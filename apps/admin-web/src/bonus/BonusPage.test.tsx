@@ -58,7 +58,7 @@ const points = {
   ],
 };
 
-function mockApi() {
+function mockApi(finalizedAt: string | null = null) {
   const json = (data: unknown) =>
     new Response(JSON.stringify(data), {
       status: 200,
@@ -69,7 +69,7 @@ function mockApi() {
     vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(String(input));
       if (url.pathname === '/admin/org') return json(org);
-      if (url.pathname === '/admin/bonus/points') return json(points);
+      if (url.pathname === '/admin/bonus/points') return json({ ...points, finalizedAt });
       return json([]);
     }),
   );
@@ -97,5 +97,22 @@ describe('BonusPage (read-only points)', () => {
     expect(
       screen.queryByRole('button', { name: /Close period|Закрыть период|Add points|Начислить/i }),
     ).toBeNull();
+  });
+  it('distinguishes final nominations even when the month has no winners', async () => {
+    mockApi('2026-10-02T06:00:00.000Z');
+    render(<BonusPage />);
+    expect(
+      await screen.findByText(/Окончательные номинации|Final nominations|Остаточні номінації/),
+    ).toBeTruthy();
+  });
+
+  it('labels live nominations as preliminary', async () => {
+    mockApi();
+    render(<BonusPage />);
+    expect(
+      await screen.findByText(
+        /Предварительные номинации|Preliminary nominations|Попередні номінації/,
+      ),
+    ).toBeTruthy();
   });
 });
