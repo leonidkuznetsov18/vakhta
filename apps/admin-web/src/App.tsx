@@ -352,7 +352,7 @@ export function App() {
                 />
               </div>
             </header>
-            <main className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
+            <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
               <MutationActivity />
               {active === 'profile' ? (
                 <ProfilePanel me={me} onChanged={() => void refresh()} />
@@ -361,7 +361,7 @@ export function App() {
               ) : Page ? (
                 <Page />
               ) : null}
-            </main>
+            </div>
           </SidebarInset>
         </MobileNavigation>
       </SidebarProvider>

@@ -210,6 +210,19 @@ describe('DataTable: total records', () => {
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'missing' } });
     expect(screen.getByText(count(0, 0, 0))).toBeTruthy();
   });
+  it('shows the known server total when only a capped subset is loaded', () => {
+    render(
+      <DataTable
+        rows={rows.slice(0, 10)}
+        columns={columns}
+        rowKey={(row) => row.id}
+        empty="Empty"
+        totalCount={186}
+        truncated
+      />,
+    );
+    expect(screen.getByText(count(1, 10, 186))).toBeTruthy();
+  });
   it('shows zero only after a successful empty result', () => {
     const view = render(
       <DataTable rows={[]} columns={columns} rowKey={(r: Row) => r.id} empty="Empty" loading />,
@@ -219,5 +232,155 @@ describe('DataTable: total records', () => {
       <DataTable rows={[]} columns={columns} rowKey={(r: Row) => r.id} empty="Empty" />,
     );
     expect(screen.getByText(count(0, 0, 0))).toBeTruthy();
+  });
+});
+
+describe('DataTable: common keyboard and mobile contract', () => {
+  beforeEach(clearPersistentState);
+  afterEach(() => {
+    cleanup();
+    vi.mocked(useIsMobile).mockReturnValue(false);
+  });
+  const sortable: Column<Row>[] = [{ ...columns[0]!, sortValue: (row) => row.name }];
+  it.each([false, true])(
+    'announces disclosure and restores focus after Escape (mobile=%s)',
+    (mobile) => {
+      vi.mocked(useIsMobile).mockReturnValue(mobile);
+      const toggle = vi.fn();
+      render(
+        <DataTable
+          rows={[rows[0]!]}
+          columns={sortable}
+          rowKey={(row) => row.id}
+          rowLabel={(row) => row.name}
+          empty="Empty"
+          onRowClick={toggle}
+          expanded={() => <input aria-label="Detail field" />}
+        />,
+      );
+      const trigger = screen.getByRole('button', { name: 'Подробности: Работник 1' });
+      expect(trigger.getAttribute('aria-expanded')).toBe('true');
+      expect(document.getElementById(trigger.getAttribute('aria-controls')!)).toBeTruthy();
+      fireEvent.keyDown(screen.getByLabelText('Detail field'), { key: 'Escape' });
+      expect(toggle).toHaveBeenCalledOnce();
+      expect(document.activeElement).toBe(trigger);
+    },
+  );
+  it.each([false, true])(
+    'labels visible-page mixed selection and keeps totals available (mobile=%s)',
+    (mobile) => {
+      vi.mocked(useIsMobile).mockReturnValue(mobile);
+      const select = vi.fn();
+      render(
+        <DataTable
+          rows={rows}
+          columns={sortable}
+          rowKey={(row) => row.id}
+          rowLabel={(row) => row.name}
+          empty="Empty"
+          selectedKeys={new Set(['r1'])}
+          onSelectionChange={select}
+          pageSize={10}
+          summary={[{ label: 'Downtime minutes', value: 300 }]}
+        />,
+      );
+      const all = screen.getByRole('checkbox', { name: 'Выбрать все строки на этой странице' });
+      expect(all.getAttribute('aria-checked')).toBe('mixed');
+      expect(screen.getByRole('checkbox', { name: 'Работник 1' })).toBeTruthy();
+      fireEvent.click(all);
+      expect(select.mock.calls[0]?.[0].size).toBe(10);
+      expect(screen.getByText('300')).toBeTruthy();
+      expect(screen.getByText('Downtime minutes')).toBeTruthy();
+    },
+  );
+  it('sorts numerically on desktop and offers the same order on mobile', () => {
+    const view = render(
+      <DataTable
+        rows={[rows[9]!, rows[1]!]}
+        columns={sortable}
+        rowKey={(row) => row.id}
+        empty="Empty"
+        storageKey="sort-test"
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Работник: Сортировать по возрастанию' }));
+    expect(screen.getAllByRole('cell').map((cell) => cell.textContent)).toEqual([
+      'Работник 2',
+      'Работник 10',
+    ]);
+    vi.mocked(useIsMobile).mockReturnValue(true);
+    view.rerender(
+      <DataTable
+        rows={[rows[9]!, rows[1]!]}
+        columns={sortable}
+        rowKey={(row) => row.id}
+        empty="Empty"
+        storageKey="sort-test"
+      />,
+    );
+    expect((screen.getByRole('combobox', { name: 'Сортировка' }) as HTMLSelectElement).value).toBe(
+      'name:asc',
+    );
+    fireEvent.change(screen.getByRole('combobox', { name: 'Сортировка' }), {
+      target: { value: 'name:desc' },
+    });
+    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Работник 10',
+      'Работник 2',
+    ]);
+  });
+  it('isolates unnamed sibling searches and resets pagination on external filters', () => {
+    const view = render(
+      <>
+        <DataTable
+          rows={rows}
+          columns={columns}
+          rowKey={(row) => row.id}
+          empty="Empty"
+          searchText={(row) => row.name}
+        />
+        <DataTable
+          rows={rows}
+          columns={columns}
+          rowKey={(row) => row.id}
+          empty="Empty"
+          searchText={(row) => row.name}
+        />
+      </>,
+    );
+    fireEvent.change(screen.getAllByRole('searchbox')[0]!, { target: { value: 'missing' } });
+    expect((screen.getAllByRole('searchbox')[1]! as HTMLInputElement).value).toBe('');
+    view.unmount();
+    const page = (resetKey: string) => (
+      <DataTable
+        rows={rows}
+        columns={columns}
+        rowKey={(row) => row.id}
+        empty="Empty"
+        resetKey={resetKey}
+      />
+    );
+    const next = render(page('site-a'));
+    fireEvent.click(screen.getByText(messages(currentLocale()).ui.pagination.next));
+    expect(screen.getByText('Работник 21')).toBeTruthy();
+    next.rerender(page('site-b'));
+    expect(screen.getByText('Работник 1')).toBeTruthy();
+    expect(screen.queryByText('Работник 21')).toBeNull();
+  });
+  it('discloses a capped response and blocks actions targeting hidden selections', () => {
+    render(
+      <DataTable
+        rows={[rows[0]!]}
+        columns={columns}
+        rowKey={(row) => row.id}
+        empty="Empty"
+        truncated
+        selectedKeys={new Set(['missing'])}
+        onSelectionChange={() => undefined}
+        selectionBar={<button>Bulk mutation</button>}
+      />,
+    );
+    expect(screen.queryByText('Bulk mutation')).toBeNull();
+    expect(screen.getByText(messages(currentLocale()).ui.common.loadedSubset)).toBeTruthy();
   });
 });

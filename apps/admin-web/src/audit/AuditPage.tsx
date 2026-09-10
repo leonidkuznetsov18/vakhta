@@ -2,7 +2,6 @@ import { DetailText, ScrollableText, TextPreview } from '@/components/app/row-de
 import { useQuery } from '@tanstack/react-query';
 import type { AuditEntryView, DomainEventView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
-import { EyeIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -24,7 +23,6 @@ import { currentLocale } from '../i18n.tsx';
 import { useRouteSub } from '@/lib/route';
 import { usePersistentState } from '@/lib/ui-store';
 import { keys } from '@/lib/query';
-import { DetailSheet } from '@/components/app/detail-sheet';
 import { HowItWorks } from '@/components/app/how-it-works';
 
 const all = messages(currentLocale());
@@ -81,7 +79,7 @@ function ChangesTable({ before, after }: { readonly before: unknown; readonly af
         </StatusPill>
       </div>
       <div className="overflow-x-auto rounded-md border">
-        <Table>
+        <Table aria-label={a.changes}>
           <TableHeader>
             <TableRow>
               <TableHead className="w-40">{a.field}</TableHead>
@@ -222,29 +220,13 @@ export function AuditPage() {
       header: a.reason,
       cell: (e) => <TextPreview text={e.reason ?? '—'} />,
     },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{all.ui.common.actions}</span>,
-      align: 'right',
-      hideOnCards: false,
-      cell: (e) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setOpen(open === e.id ? null : e.id)}
-        >
-          <EyeIcon aria-hidden="true" />
-          {a.details}
-        </Button>
-      ),
-    },
   ];
 
   const eventColumns: Column<DomainEventView>[] = [
     {
       key: 'at',
       header: a.at,
+      sortValue: (e) => e.occurredAt,
       cell: (e) => <span className="tabular-nums">{formatDateTimeSeconds(e.occurredAt)}</span>,
     },
     {
@@ -274,22 +256,6 @@ export function AuditPage() {
       header: a.reason,
       cell: (e) => (
         <TextPreview text={[e.reasonCode, e.comment].filter(Boolean).join(' · ') || '—'} />
-      ),
-    },
-    {
-      key: 'actions',
-      header: <span className="sr-only">{all.ui.common.actions}</span>,
-      align: 'right',
-      cell: (e) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setOpen(open === e.id ? null : e.id)}
-        >
-          <EyeIcon aria-hidden="true" />
-          {a.details}
-        </Button>
       ),
     },
   ];
@@ -355,6 +321,45 @@ export function AuditPage() {
           rowKey={(e) => e.id}
           empty={a.empty}
           storageKey="audit"
+          rowLabel={(row) => `${actionLabel(row.action)} · ${formatDateTimeSeconds(row.at)}`}
+          truncated={audit.length >= 200}
+          resetKey={`${action}:${objectType}`}
+          caption={a.tabs.audit}
+          expanded={(row) =>
+            row.id === open && openAudit ? (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2 rounded-lg border p-3">
+                  <IdRow label={a.actor} value={openAudit.actorId} />
+                  <IdRow label={a.objectId} value={openAudit.objectId} />
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">{a.action}:</span>
+                    <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
+                      {openAudit.action}
+                    </code>
+                  </div>
+                </div>
+                {openAudit.reason && (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">{a.reason}</span>
+                      <CopyButton value={openAudit.reason} />
+                    </div>
+                    <ScrollableText label={a.reason} text={openAudit.reason} />
+                  </div>
+                )}
+                <ChangesTable before={openAudit.before} after={openAudit.after} />
+                <details className="group">
+                  <summary className="cursor-pointer text-sm font-semibold select-none">
+                    {a.rawJson}
+                  </summary>
+                  <div className="mt-2 flex flex-col gap-3">
+                    <Json value={openAudit.before} label={a.before} />
+                    <Json value={openAudit.after} label={a.after} />
+                  </div>
+                </details>
+              </div>
+            ) : null
+          }
           onRowClick={(e) => setOpen(open === e.id ? null : e.id)}
           activeKey={open}
           searchText={(e) =>
@@ -370,105 +375,60 @@ export function AuditPage() {
           rowKey={(e) => e.id}
           empty={a.empty}
           storageKey="events"
+          rowLabel={(row) => `${row.type} · ${formatDateTimeSeconds(row.occurredAt)}`}
+          truncated={events.length >= 200}
+          resetKey={type}
+          caption={a.tabs.events}
+          expanded={(row) =>
+            row.id === open && openEvent ? (
+              <div className="space-y-4">
+                <div className="flex flex-col gap-2 rounded-lg border p-3">
+                  <IdRow label={a.objectId} value={openEvent.id} />
+                  {openEvent.correctsEventId && (
+                    <IdRow label={a.corrects} value={openEvent.correctsEventId} />
+                  )}
+                  {(openEvent.reasonCode || openEvent.comment) && (
+                    <DetailText
+                      label={a.reason}
+                      text={[openEvent.reasonCode, openEvent.comment].filter(Boolean).join(' · ')}
+                    />
+                  )}
+                </div>
+                {isRecord(openEvent.payload) && Object.keys(openEvent.payload).length > 0 && (
+                  <div className="overflow-x-auto rounded-md border">
+                    <Table aria-label={a.payload}>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-40">{a.field}</TableHead>
+                          <TableHead>{a.payload}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(openEvent.payload).map(([k, v]) => (
+                          <TableRow key={k}>
+                            <TableCell className="align-top font-mono text-xs">{k}</TableCell>
+                            <TableCell className="align-top text-xs break-all whitespace-pre-wrap">
+                              {scalar(v)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    <div className="p-2">
+                      <TableCount total={Object.keys(openEvent.payload).length} />
+                    </div>
+                  </div>
+                )}
+                <Json value={openEvent.payload} label={a.rawJson} />
+              </div>
+            ) : null
+          }
           onRowClick={(e) => setOpen(open === e.id ? null : e.id)}
           activeKey={open}
           searchText={(e) =>
             `${e.type} ${e.employeeName ?? ''} ${e.reasonCode ?? ''} ${e.comment ?? ''}`
           }
         />
-      )}
-      {tab === 'audit' && openAudit && (
-        <DetailSheet
-          open
-          onOpenChange={(o) => !o && setOpen(null)}
-          title={actionLabel(openAudit.action)}
-          description={`${formatDateTimeSeconds(openAudit.at)} · ${openAudit.actorName ?? actorTypeLabel(openAudit.actorType)}`}
-          wide
-        >
-          <div className="flex flex-col gap-2 rounded-lg border p-3">
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-muted-foreground">{a.actor}:</span>
-              <span>{openAudit.actorName ?? actorTypeLabel(openAudit.actorType)}</span>
-              <Muted>{actorTypeLabel(openAudit.actorType)}</Muted>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-muted-foreground">{a.object}:</span>
-              <span>{openAudit.objectType}</span>
-            </div>
-            <IdRow label={a.objectId} value={openAudit.objectId} />
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-muted-foreground">{a.action}:</span>
-              <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{openAudit.action}</code>
-            </div>
-          </div>
-          {openAudit.reason && (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold">{a.reason}</span>
-                <CopyButton value={openAudit.reason} />
-              </div>
-              <ScrollableText label={a.reason} text={openAudit.reason} />
-            </div>
-          )}
-          <ChangesTable before={openAudit.before} after={openAudit.after} />
-          <details className="group">
-            <summary className="cursor-pointer text-sm font-semibold select-none">
-              {a.rawJson}
-            </summary>
-            <div className="mt-2 flex flex-col gap-3">
-              <Json value={openAudit.before} label={a.before} />
-              <Json value={openAudit.after} label={a.after} />
-            </div>
-          </details>
-        </DetailSheet>
-      )}
-      {openEvent && (
-        <DetailSheet
-          open
-          onOpenChange={(o) => !o && setOpen(null)}
-          title={openEvent.type}
-          description={`${formatDateTimeSeconds(openEvent.occurredAt)} · ${openEvent.source}${openEvent.employeeName ? ` · ${openEvent.employeeName}` : ''}`}
-          wide
-        >
-          <div className="flex flex-col gap-2 rounded-lg border p-3">
-            <IdRow label={a.objectId} value={openEvent.id} />
-            {openEvent.correctsEventId && (
-              <IdRow label={a.corrects} value={openEvent.correctsEventId} />
-            )}
-            {(openEvent.reasonCode || openEvent.comment) && (
-              <DetailText
-                label={a.reason}
-                text={[openEvent.reasonCode, openEvent.comment].filter(Boolean).join(' · ')}
-              />
-            )}
-          </div>
-          {isRecord(openEvent.payload) && Object.keys(openEvent.payload).length > 0 && (
-            <div className="overflow-x-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-40">{a.field}</TableHead>
-                    <TableHead>{a.payload}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {Object.entries(openEvent.payload).map(([k, v]) => (
-                    <TableRow key={k}>
-                      <TableCell className="align-top font-mono text-xs">{k}</TableCell>
-                      <TableCell className="align-top text-xs break-all whitespace-pre-wrap">
-                        {scalar(v)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <div className="p-2">
-                <TableCount total={Object.keys(openEvent.payload).length} />
-              </div>
-            </div>
-          )}
-          <Json value={openEvent.payload} label={a.rawJson} />
-        </DetailSheet>
       )}
     </div>
   );

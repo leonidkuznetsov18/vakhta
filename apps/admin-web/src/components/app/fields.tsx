@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { InfoTip } from '@/components/app/info-tip';
 import { currentLocale } from '@/i18n';
 import { cn } from 'cn';
+import { FieldAccessibility } from '@/shared/ui/field-accessibility';
 
 interface FormFieldProps {
   readonly label: string;
@@ -42,9 +43,11 @@ export function FormField({ label, hint, error, optional, className, children }:
         </Label>
         {hint ? <InfoTip text={hint} /> : null}
       </div>
-      {children(id)}
+      <FieldAccessibility value={error ? { errorId: `${id}-error`, invalid: true } : {}}>
+        {children(id)}
+      </FieldAccessibility>
       {error ? (
-        <p role="alert" className="text-xs text-destructive">
+        <p id={`${id}-error`} role="alert" className="text-xs text-destructive">
           {error}
         </p>
       ) : null}
@@ -101,9 +104,17 @@ function ComboboxField({
 }: SelectFieldProps) {
   const t = messages(currentLocale()).ui.common;
   const [open, setOpen] = useState(false);
+  const [invalid, setInvalid] = useState(false);
+  const popupId = useId();
   const selected = options.find((o) => o.value === value) ?? null;
+  const validationError = error || (invalid && required && !selected ? t.required : undefined);
+  const choose = (next: string) => {
+    onChange(next);
+    setInvalid(false);
+    setOpen(false);
+  };
   return (
-    <FormField label={label} hint={hint} error={error} className={className}>
+    <FormField label={label} hint={hint} error={validationError} className={className}>
       {(id) => (
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
@@ -113,8 +124,17 @@ function ComboboxField({
               variant="outline"
               role="combobox"
               aria-expanded={open}
+              aria-controls={open ? popupId : undefined}
+              aria-haspopup="dialog"
               aria-required={required}
-              aria-invalid={error ? true : undefined}
+              aria-invalid={validationError ? true : undefined}
+              aria-describedby={validationError ? `${id}-error` : undefined}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  setOpen(true);
+                }
+              }}
               disabled={disabled}
               className={cn(
                 'w-full justify-between font-normal',
@@ -125,18 +145,45 @@ function ComboboxField({
               <ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" aria-hidden="true" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-(--radix-popover-trigger-width) min-w-64 p-0" align="start">
-            <Command>
-              <CommandInput placeholder={t.search} />
-              <CommandList>
+          {required && (
+            <select
+              aria-hidden="true"
+              tabIndex={-1}
+              className="sr-only"
+              required
+              disabled={disabled}
+              value={selected?.value ?? ''}
+              onChange={(event) => choose(event.target.value)}
+              onInvalid={(event) => {
+                event.preventDefault();
+                setInvalid(true);
+                document.getElementById(id)?.focus();
+              }}
+            >
+              <option value="" />
+              {options.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          )}
+          <PopoverContent
+            id={popupId}
+            aria-label={label}
+            className="w-(--radix-popover-trigger-width) min-w-64 p-0"
+            align="start"
+          >
+            <Command loop>
+              <CommandInput aria-label={`${label}: ${t.search}`} placeholder={t.search} />
+              <CommandList aria-label={label}>
                 <CommandEmpty>{t.noResults}</CommandEmpty>
                 <CommandGroup>
                   {placeholder !== undefined && value !== '' && (
                     <CommandItem
                       value={`__clear__ ${placeholder}`}
                       onSelect={() => {
-                        onChange('');
-                        setOpen(false);
+                        choose('');
                       }}
                     >
                       <XIcon className="size-4 opacity-60" aria-hidden="true" />
@@ -148,8 +195,7 @@ function ComboboxField({
                       key={o.value}
                       value={`${o.label} ${o.value}`}
                       onSelect={() => {
-                        onChange(o.value);
-                        setOpen(false);
+                        choose(o.value);
                       }}
                     >
                       <CheckIcon

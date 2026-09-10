@@ -1,5 +1,5 @@
 import { QueryFeedback } from '@/components/app/query-feedback';
-import { ScrollableText } from '@/components/app/row-detail';
+import { ScrollableText, TextPreview } from '@/components/app/row-detail';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { LossesQuery, LossesView } from '@vakhta/contracts';
@@ -70,6 +70,7 @@ function zoneOf(cumulative: number): Zone {
  * sits next to the totals rather than in a footnote.
  */
 export function ReportsPage() {
+  const [openInterval, setOpenInterval] = useState<string | null>(null);
   const { org, queryState: orgQuery } = useOrg();
   const [from, setFrom] = usePersistentState('losses.from', monthStart);
   const [to, setTo] = usePersistentState('losses.to', today);
@@ -85,6 +86,7 @@ export function ReportsPage() {
     ...(category ? { category } : {}),
   };
   const report = useQuery({
+    enabled: Boolean(from && to && from <= to),
     queryKey: keys.losses(query),
     queryFn: () => reportsApi.losses(query),
   });
@@ -197,7 +199,7 @@ export function ReportsPage() {
       header: r.lossComment,
       cell: (i) => (
         <>
-          {i.comment ? <ScrollableText label={r.lossComment} text={i.comment} /> : <Muted>—</Muted>}
+          {i.comment ? <TextPreview text={i.comment} /> : <Muted>—</Muted>}
           {i.estimatedEnd && (
             <p className="text-muted-foreground text-xs">{all.shift.estimatedClosure}</p>
           )}
@@ -213,8 +215,6 @@ export function ReportsPage() {
       <HowItWorks guide="reports" />
       <QueryFeedback query={orgQuery} />
       <Toolbar>
-        <DateField label={r.from} value={from} onChange={setFrom} className="w-44" />
-        <DateField label={r.to} value={to} onChange={setTo} className="w-44" />
         <SelectField
           label={r.site}
           value={siteId}
@@ -233,6 +233,15 @@ export function ReportsPage() {
           placeholder="—"
           options={units.map((u) => ({ value: u.id, label: u.name }))}
           className="w-52"
+        />
+        <DateField label={r.from} value={from} maxDate={to} onChange={setFrom} className="w-44" />
+        <DateField
+          label={r.to}
+          value={to}
+          minDate={from}
+          error={from > to ? all.ui.common.invalidValue : undefined}
+          onChange={setTo}
+          className="w-44"
         />
         <div className="flex items-end gap-1">
           <ExportButton query={presentation.exportQuery} format="csv" label={r.exportCsv} />
@@ -331,6 +340,8 @@ export function ReportsPage() {
               columns={barColumns}
               rows={bars}
               storageKey={category ? 'losses-reasons' : 'losses-categories'}
+              resetKey={`${siteId}:${orgUnitId}:${from}:${to}:${category}`}
+              searchText={(row) => row.label}
               rowKey={(b) => b.key}
               {...(category ? {} : { onRowClick: (b: Bar_) => setCategory(b.key) })}
               empty={r.lossEmpty}
@@ -350,6 +361,17 @@ export function ReportsPage() {
             columns={intervalColumns}
             rows={data?.intervals ?? []}
             storageKey="losses-intervals"
+            totalCount={data?.intervalsTotal}
+            truncated={(data?.intervalsTotal ?? 0) > (data?.intervals.length ?? 0)}
+            primaryKey="employee"
+            resetKey={`${siteId}:${orgUnitId}:${from}:${to}:${category}`}
+            rowLabel={(row) => `${row.employeeName} · ${row.businessDate}`}
+            onRowClick={(row) => setOpenInterval(openInterval === row.id ? null : row.id)}
+            expanded={(row) =>
+              openInterval === row.id ? (
+                <ScrollableText label={r.lossComment} text={row.comment || '—'} />
+              ) : null
+            }
             rowKey={(i) => i.id}
             searchText={(i) => `${i.employeeName} ${i.orgUnitName ?? ''} ${i.reasonLabel ?? ''}`}
             empty={r.lossEmpty}

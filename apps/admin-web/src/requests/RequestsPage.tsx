@@ -8,7 +8,7 @@ import { messages } from '@vakhta/i18n';
 import { ExternalLinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { StateFilter } from '@/shared/ui/state-filter';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
@@ -167,12 +167,14 @@ export function RequestsPage() {
   const columns: Column<RequestView>[] = [
     {
       key: 'submitted',
+      sortValue: (req) => req.submittedAt,
       header: r.submitted,
       cell: (req) => <span className="tabular-nums">{formatDateTime(req.submittedAt)}</span>,
     },
     { key: 'type', header: r.type, cell: (req) => all.requests.types[req.type] },
     {
       key: 'employee',
+      sortValue: (req) => req.employeeName,
       header: r.employee,
       cell: (req) => (
         <span>
@@ -195,6 +197,7 @@ export function RequestsPage() {
     },
     {
       key: 'status',
+      sortValue: (req) => all.requests.statuses[req.status],
       header: r.status,
       cell: (req) => (
         <StatusPill tone={STATUS_TONE[req.status]}>{all.requests.statuses[req.status]}</StatusPill>
@@ -202,6 +205,7 @@ export function RequestsPage() {
     },
     {
       key: 'step',
+      label: r.step,
       header: (
         <span className="inline-flex items-center gap-1">
           {r.step}
@@ -215,15 +219,32 @@ export function RequestsPage() {
     },
     {
       key: 'deadline',
+      sortValue: (req) => req.stepDeadlineAt,
       header: r.deadline,
       cell: (req) => <Deadline at={req.stepDeadlineAt} breached={req.overdue} />,
     },
   ];
 
   const overtimeColumns: Column<OvertimeView>[] = [
-    { key: 'employee', header: r.employee, cell: (row) => row.employeeName },
-    { key: 'date', header: all.admin.operations.plan, cell: (row) => row.businessDate },
-    { key: 'minutes', header: r.overtimeMinutes, align: 'right', cell: (row) => row.minutes },
+    {
+      key: 'employee',
+      header: r.employee,
+      cell: (row) => row.employeeName,
+      sortValue: (row) => row.employeeName,
+    },
+    {
+      key: 'date',
+      header: all.admin.operations.plan,
+      cell: (row) => row.businessDate,
+      sortValue: (row) => row.businessDate,
+    },
+    {
+      key: 'minutes',
+      header: r.overtimeMinutes,
+      align: 'right',
+      cell: (row) => row.minutes,
+      sortValue: (row) => row.minutes,
+    },
   ];
 
   /** The decision under the row it belongs to: a form squeezed into a cell had no room to be read. */
@@ -411,12 +432,15 @@ export function RequestsPage() {
       <HowItWorks guide="requests" />
       <Toolbar>
         <div className="flex items-center gap-1">
-          <Tabs value={scope} onValueChange={(v) => setScope(v as 'inbox' | 'all')}>
-            <TabsList>
-              <TabsTrigger value="inbox">{r.scopeInbox}</TabsTrigger>
-              <TabsTrigger value="all">{r.scopeAll}</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <StateFilter
+            value={scope}
+            onChange={setScope}
+            label={all.admin.sections.requests}
+            options={[
+              { value: 'inbox', label: r.scopeInbox },
+              { value: 'all', label: r.scopeAll },
+            ]}
+          />
           <InfoTip text={hints.requestsScope} />
         </div>
         <div className="ml-auto">
@@ -430,6 +454,13 @@ export function RequestsPage() {
         columns={columns}
         rows={rows}
         storageKey="requests"
+        primaryKey="employee"
+        rowLabel={(req) => `${req.employeeName} · ${all.requests.types[req.type]}`}
+        resetKey={scope}
+        truncated={scope === 'all' && rows.length >= 500}
+        searchText={(req) =>
+          `${req.employeeName} ${req.counterpartName ?? ''} ${all.requests.types[req.type]} ${all.requests.statuses[req.status]} ${req.comment ?? ''}`
+        }
         onRowClick={(row) => setOpenId(openId === row.id ? null : row.id)}
         rowActions={(row) => [
           {
@@ -449,6 +480,8 @@ export function RequestsPage() {
         <DataTable
           queryState={overtimeQuery}
           columns={overtimeColumns}
+          storageKey="requests-overtime"
+          searchText={(row) => `${row.employeeName} ${row.businessDate}`}
           rows={overtime}
           rowKey={(row) => row.shiftSessionId}
           onRowClick={(row) => setOpenId(openId === row.shiftSessionId ? null : row.shiftSessionId)}

@@ -138,6 +138,7 @@ export function ImportDialog({
                 {fileName} · {format(e.importSummary, { rows: valid.length, invalid })}
               </Muted>
               <DataTable
+                storageKey="employee-import-preview"
                 columns={columns}
                 rows={rows}
                 rowKey={(r) => String(r.line)}

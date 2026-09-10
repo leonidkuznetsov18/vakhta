@@ -1,8 +1,11 @@
 import { QueryFeedback, type QueryFeedbackState } from './query-feedback';
 import { RowDetail } from './row-detail';
-import { useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import { useId, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { format, messages } from '@vakhta/i18n';
 import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   ArrowDownIcon,
   ArrowUpDownIcon,
   ArrowUpIcon,
@@ -20,13 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
+import { Pagination, PaginationContent, PaginationItem } from '@/components/ui/pagination';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { LoadingState } from '@/shared/ui/loading-state';
 import {
@@ -42,6 +39,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { usePersistentState } from '@/lib/ui-store';
 import { currentLocale } from '@/i18n';
 import { cn } from 'cn';
+import { useTablePage, useTableRows } from '@/shared/lib/table-model';
 
 export interface Column<T> {
   readonly key: string;
@@ -55,6 +53,8 @@ export interface Column<T> {
   readonly label?: string;
   /** Drop the column from the card layout on narrow screens. */
   readonly hideOnCards?: boolean;
+  /** Minimum readable width on desktop; cards remain fluid. */
+  readonly minWidth?: string;
 }
 
 /** One entry of the per-row "⋯" menu. `separator` draws a line before the entry. */
@@ -94,9 +94,16 @@ interface DataTableProps<T> {
   readonly onRowClick?: (row: T) => void;
   /** Secondary actions in a "⋯" menu at the end of the row. */
   readonly rowActions?: (row: T) => readonly RowAction[];
-  readonly footer?: ReactNode;
+  readonly summary?: readonly { readonly label: string; readonly value: ReactNode }[];
+  readonly primaryKey?: string;
+  readonly rowLabel?: (row: T) => string;
+  /** External dataset filters, excluding background refreshes. */
+  readonly resetKey?: string;
+  /** A capped response cannot claim to be the full archive. */
+  readonly truncated?: boolean;
+  readonly totalCount?: number;
   readonly caption?: string;
-  /** Row currently highlighted (the one open in a side panel). */
+  /** Row currently highlighted (the one open inline). */
   readonly activeKey?: string | null;
   /** Checkboxes per row for bulk actions; the parent owns the selection. */
   readonly selectedKeys?: ReadonlySet<string>;
@@ -120,23 +127,34 @@ interface Sort {
  * holding it wins until the reader turns a page themselves, and the page is clamped as the list
  * shrinks, so nothing has to be corrected after the fact.
  */
-export function usePages(total: number, initialSize: number, storageKey?: string, anchor = -1) {
-  const [size, setSize] = usePersistentState(
-    storageKey ? `pageSize.${storageKey}` : `pageSize.__local.${initialSize}`,
+export function usePages(
+  total: number,
+  initialSize: number,
+  storageKey?: string,
+  anchor = -1,
+  resetKey = '',
+) {
+  const instanceId = useId();
+  const [storedSize, setSize] = usePersistentState(
+    storageKey ? `pageSize.${storageKey}` : `pageSize.${instanceId}`,
     initialSize,
   );
-  const [chosen, setChosen] = useState<{ readonly page: number; readonly anchor: number } | null>(
-    null,
-  );
+  const size = PAGE_SIZES.some((n) => n === storedSize) ? storedSize : DEFAULT_PAGE_SIZE;
+  const [chosen, setChosen] = useState<{
+    readonly page: number;
+    readonly anchor: number;
+    readonly scope: string;
+  } | null>(null);
   const pages = Math.max(1, Math.ceil(total / size));
+  const current = chosen?.scope === resetKey ? chosen : null;
   const wanted =
-    chosen?.anchor === anchor
-      ? chosen.page
+    current?.anchor === anchor
+      ? current.page
       : anchor >= 0
         ? Math.floor(anchor / size) + 1
-        : (chosen?.page ?? 1);
+        : (current?.page ?? 1);
   const page = Math.min(Math.max(1, wanted), pages);
-  const setPage = (next: number) => setChosen({ page: next, anchor });
+  const setPage = (next: number) => setChosen({ page: next, anchor, scope: resetKey });
   const from = total === 0 ? 0 : (page - 1) * size + 1;
   const to = Math.min(total, page * size);
   return { size, setSize, page, setPage, pages, from, to };
@@ -174,11 +192,19 @@ export function TableCount({
 }
 
 /** Always show the count; page controls are only needed for larger collections. */
-export function Paginator({ pages: p, total }: { readonly pages: Pages; readonly total: number }) {
+export function Paginator({
+  pages: p,
+  total,
+  totalCount = total,
+}: {
+  readonly pages: Pages;
+  readonly total: number;
+  readonly totalCount?: number;
+}) {
   const t = messages(currentLocale()).ui.pagination;
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-      <TableCount total={total} from={p.from} to={p.to} />
+      <TableCount total={totalCount} from={p.from} to={p.to} />
       {total > Math.min(PAGE_SIZES[0], p.size) && (
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2">
@@ -201,33 +227,31 @@ export function Paginator({ pages: p, total }: { readonly pages: Pages; readonly
           <Pagination className="mx-0 w-auto">
             <PaginationContent>
               <PaginationItem>
-                <PaginationPrevious
-                  text={t.previous}
+                <Button
+                  type="button"
+                  variant="ghost"
                   aria-label={t.previous}
-                  href="#"
-                  aria-disabled={p.page <= 1}
-                  className={cn(p.page <= 1 && 'pointer-events-none opacity-50')}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    p.setPage(Math.max(1, p.page - 1));
-                  }}
-                />
+                  disabled={p.page <= 1}
+                  onClick={() => p.setPage(p.page - 1)}
+                >
+                  <ChevronLeftIcon aria-hidden="true" />
+                  <span className="hidden sm:inline">{t.previous}</span>
+                </Button>
               </PaginationItem>
               <PaginationItem className="px-2 text-sm tabular-nums">
                 {format(t.page, { page: p.page, pages: p.pages })}
               </PaginationItem>
               <PaginationItem>
-                <PaginationNext
-                  text={t.next}
+                <Button
+                  type="button"
+                  variant="ghost"
                   aria-label={t.next}
-                  href="#"
-                  aria-disabled={p.page >= p.pages}
-                  className={cn(p.page >= p.pages && 'pointer-events-none opacity-50')}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    p.setPage(Math.min(p.pages, p.page + 1));
-                  }}
-                />
+                  disabled={p.page >= p.pages}
+                  onClick={() => p.setPage(p.page + 1)}
+                >
+                  <span className="hidden sm:inline">{t.next}</span>
+                  <ChevronRightIcon aria-hidden="true" />
+                </Button>
               </PaginationItem>
             </PaginationContent>
           </Pagination>
@@ -239,11 +263,13 @@ export function Paginator({ pages: p, total }: { readonly pages: Pages; readonly
 
 /** Plain textual cells wrap within a readable measure; structured controls keep their own layout. */
 function cellContent(content: ReactNode): ReactNode {
-  return typeof content === 'string' ? (
-    <span className="block max-w-xs whitespace-normal [overflow-wrap:anywhere]">{content}</span>
-  ) : (
-    content
+  return (
+    <div className="min-w-0 max-w-sm whitespace-normal [overflow-wrap:anywhere]">{content}</div>
   );
+}
+
+function columnLabel<T>(column: Column<T>): string {
+  return column.label ?? (typeof column.header === 'string' ? column.header : column.key);
 }
 
 /** A click on a control inside the row must not also fire the row's main action. */
@@ -291,21 +317,13 @@ export function RowMenu({
   );
 }
 
-function compare(a: unknown, b: unknown): number {
-  if (a === b) return 0;
-  if (a === null || a === undefined) return 1;
-  if (b === null || b === undefined) return -1;
-  if (typeof a === 'number' && typeof b === 'number') return a - b;
-  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
-}
-
 /**
  * Client-side paginated table. Every list in the panel goes through it so long lists never
  * render at once and the controls look and behave the same everywhere: a click on the row
  * runs its main action, the "⋯" menu holds the rest, headers sort, the search box filters,
  * and on narrow screens the rows become cards.
  */
-export function DataTable<T>({
+export function DataTable<T extends object>({
   columns,
   rows,
   rowKey,
@@ -323,7 +341,12 @@ export function DataTable<T>({
   expanded,
   onRowClick,
   rowActions,
-  footer,
+  summary,
+  primaryKey,
+  rowLabel,
+  resetKey = '',
+  truncated = false,
+  totalCount,
   caption,
   activeKey,
   selectedKeys,
@@ -332,33 +355,33 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   const t = messages(currentLocale()).ui.common;
   const isMobile = useIsMobile();
-  const [search, setSearch] = usePersistentState(
-    storageKey ? `search.${storageKey}` : '__local.search',
-    '',
-  );
-  const [sort, setSort] = usePersistentState<Sort | null>(
-    storageKey ? `sort.${storageKey}` : '__local.sort',
-    null,
-  );
+  const instanceId = useId();
+  const namespace = storageKey ?? instanceId;
+  const primary = columns.find((c) => c.key === primaryKey) ?? columns[0];
+  const labelFor = (row: T) =>
+    rowLabel?.(row) ??
+    String(
+      primary?.sortValue?.(row) ??
+        (typeof primary?.cell(row) === 'string' ? primary.cell(row) : rowKey(row)),
+    );
+  const tableName = caption ?? columns.map(columnLabel).join(', ');
+  const [search, setSearch] = usePersistentState(`search.${namespace}`, '');
+  const [storedSort, setSort] = usePersistentState<Sort | null>(`sort.${namespace}`, null);
 
-  const query = search.trim().toLowerCase();
-  const filtered =
-    query && searchText
-      ? rows.filter((row) => searchText(row).toLowerCase().includes(query))
-      : rows;
+  const sort =
+    storedSort &&
+    (storedSort.dir === 'asc' || storedSort.dir === 'desc') &&
+    columns.some((column) => column.key === storedSort.key && column.sortValue)
+      ? storedSort
+      : null;
 
-  const sortColumn = sort ? columns.find((c) => c.key === sort.key)?.sortValue : undefined;
-  const sorted = sortColumn
-    ? [...filtered].sort(
-        (a, b) => (sort?.dir === 'desc' ? -1 : 1) * compare(sortColumn(a), sortColumn(b)),
-      )
-    : filtered;
+  const sorted = useTableRows({ rows, columns, rowKey, search, sort, searchText });
 
   // Arriving on a row that is not on the first page, or below the fold, used to look like the link
   // had gone nowhere. The row's own page is the one shown, and the row brings itself into view.
   const activeIndex = activeKey ? sorted.findIndex((row) => rowKey(row) === activeKey) : -1;
-  const pages = usePages(sorted.length, pageSize, storageKey, activeIndex);
-  const visible = sorted.slice((pages.page - 1) * pages.size, pages.page * pages.size);
+  const pages = usePages(sorted.length, pageSize, namespace, activeIndex, `${resetKey}:${search}`);
+  const visible = useTablePage(sorted, rowKey, pages.page, pages.size);
 
   const selectable = selectedKeys !== undefined && onSelectionChange !== undefined;
   const span = columns.length + (rowActions ? 1 : 0) + (selectable ? 1 : 0);
@@ -371,6 +394,25 @@ export function DataTable<T>({
   };
   const allVisibleSelected =
     selectable && visible.length > 0 && visible.every((row) => selectedKeys.has(rowKey(row)));
+
+  const someVisibleSelected = selectable && visible.some((row) => selectedKeys.has(rowKey(row)));
+  const selectPage = (on: boolean) => {
+    const next = new Set(selectedKeys);
+    for (const row of visible) {
+      if (on) next.add(rowKey(row));
+      else next.delete(rowKey(row));
+    }
+    onSelectionChange?.(next);
+  };
+  const selectionInScope =
+    !selectedKeys || [...selectedKeys].every((key) => sorted.some((row) => rowKey(row) === key));
+  const selectAll = (
+    <Checkbox
+      aria-label={t.selectPage}
+      checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
+      onCheckedChange={(on) => selectPage(on === true)}
+    />
+  );
 
   if (rows.length === 0 && queryState?.isPending && queryState.fetchStatus === 'idle')
     return (
@@ -396,9 +438,31 @@ export function DataTable<T>({
     if (!onRowClick || isInteractive(ev.target)) return;
     onRowClick(row);
   };
-  const handleRowKey = (row: T) => (ev: KeyboardEvent<HTMLElement>) => {
-    if (onRowClick && ev.target === ev.currentTarget && ev.key === 'Enter') onRowClick(row);
+  const closeDetail = (row: T) => (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key !== 'Escape' || event.defaultPrevented || !onRowClick) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onRowClick(row);
+    document.getElementById(`${instanceId}-open-${rowKey(row)}`)?.focus({ preventScroll: true });
   };
+  const disclosure = (row: T, isOpen: boolean) =>
+    onRowClick ? (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        id={`${instanceId}-open-${rowKey(row)}`}
+        aria-label={`${t.details}: ${labelFor(row)}`}
+        aria-expanded={expanded ? isOpen : undefined}
+        aria-controls={isOpen ? `${instanceId}-detail-${rowKey(row)}` : undefined}
+        onClick={() => onRowClick(row)}
+      >
+        <ChevronDownIcon
+          aria-hidden="true"
+          className={cn('size-4 transition-transform', isOpen && 'rotate-180')}
+        />
+      </Button>
+    ) : null;
   const toggleSort = (key: string) => {
     setSort((cur) =>
       cur?.key === key ? (cur.dir === 'asc' ? { key, dir: 'desc' } : null) : { key, dir: 'asc' },
@@ -418,6 +482,7 @@ export function DataTable<T>({
         onChange={(e) => {
           setSearch(e.target.value);
           pages.setPage(1);
+          onSelectionChange?.(new Set());
         }}
         placeholder={searchPlaceholder ?? t.searchPlaceholder}
         aria-label={searchPlaceholder ?? t.searchPlaceholder}
@@ -432,30 +497,21 @@ export function DataTable<T>({
     ) : (
       <>
         {!isMobile && (
-          <div className="w-full min-w-0 max-w-full overflow-x-auto rounded-lg border">
+          <div
+            role="region"
+            aria-label={tableName}
+            tabIndex={0}
+            className="w-full min-w-0 max-w-full overflow-x-auto rounded-lg border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <Table>
-              {caption ? <caption className="sr-only">{caption}</caption> : null}
+              <caption className="sr-only">{tableName}</caption>
               <TableHeader>
                 <TableRow>
-                  {selectable ? (
-                    <TableHead className="w-8">
-                      <Checkbox
-                        aria-label={t.selectAll}
-                        checked={allVisibleSelected}
-                        onCheckedChange={(on) => {
-                          const next = new Set(selectedKeys);
-                          for (const row of visible) {
-                            if (on === true) next.add(rowKey(row));
-                            else next.delete(rowKey(row));
-                          }
-                          onSelectionChange?.(next);
-                        }}
-                      />
-                    </TableHead>
-                  ) : null}
+                  {selectable ? <TableHead className="w-8">{selectAll}</TableHead> : null}
                   {columns.map((c) => (
                     <TableHead
                       key={c.key}
+                      style={{ minWidth: c.minWidth ?? (c.align === 'right' ? '5rem' : '9rem') }}
                       className={cn(c.align === 'right' && 'text-right', c.className)}
                       aria-sort={
                         sort?.key === c.key
@@ -466,28 +522,28 @@ export function DataTable<T>({
                       }
                     >
                       {c.sortValue ? (
-                        <button
-                          type="button"
-                          className={cn(
-                            'inline-flex items-center gap-1 rounded-sm transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-                            c.align === 'right' && 'flex-row-reverse',
-                          )}
-                          onClick={() => toggleSort(c.key)}
-                          aria-label={
-                            sort?.key === c.key && sort.dir === 'asc' ? t.sortDesc : t.sortAsc
-                          }
-                        >
-                          {c.header}
-                          {sort?.key === c.key ? (
-                            sort.dir === 'asc' ? (
-                              <ArrowUpIcon className="size-3.5" aria-hidden="true" />
+                        <span className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            className={cn(
+                              'inline-flex min-h-8 min-w-8 items-center justify-center gap-1 rounded-sm transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                              c.align === 'right' && 'flex-row-reverse',
+                            )}
+                            onClick={() => toggleSort(c.key)}
+                            aria-label={`${columnLabel(c)}: ${sort?.key === c.key ? (sort.dir === 'asc' ? t.sortDesc : t.sortClear) : t.sortAsc}`}
+                          >
+                            {sort?.key === c.key ? (
+                              sort.dir === 'asc' ? (
+                                <ArrowUpIcon className="size-3.5" aria-hidden="true" />
+                              ) : (
+                                <ArrowDownIcon className="size-3.5" aria-hidden="true" />
+                              )
                             ) : (
-                              <ArrowDownIcon className="size-3.5" aria-hidden="true" />
-                            )
-                          ) : (
-                            <ArrowUpDownIcon className="size-3.5 opacity-40" aria-hidden="true" />
-                          )}
-                        </button>
+                              <ArrowUpDownIcon className="size-3.5 opacity-40" aria-hidden="true" />
+                            )}
+                          </button>
+                          {c.header}
+                        </span>
                       ) : (
                         c.header
                       )}
@@ -517,15 +573,13 @@ export function DataTable<T>({
                           activeKey === key && 'bg-accent/60 data-[state=selected]:bg-accent/60',
                           rowClassName?.(row),
                         )}
-                        data-state={activeKey === key ? 'selected' : undefined}
+                        data-state={selectedKeys?.has(key) ? 'selected' : undefined}
                         onClick={handleRowClick(row)}
-                        onKeyDown={handleRowKey(row)}
-                        tabIndex={onRowClick ? 0 : undefined}
                       >
                         {selectable ? (
                           <TableCell className="w-8">
                             <Checkbox
-                              aria-label={key}
+                              aria-label={labelFor(row)}
                               checked={selectedKeys.has(key)}
                               onCheckedChange={(on) => toggleKey(key, on === true)}
                             />
@@ -534,14 +588,25 @@ export function DataTable<T>({
                         {columns.map((c) => (
                           <TableCell
                             key={c.key}
+                            style={{
+                              minWidth: c.minWidth ?? (c.align === 'right' ? '5rem' : '9rem'),
+                            }}
                             className={cn(c.align === 'right' && 'text-right', c.className)}
                           >
-                            {cellContent(c.cell(row))}
+                            <div
+                              className={cn(
+                                'flex items-center gap-2',
+                                c.align === 'right' && 'justify-end',
+                              )}
+                            >
+                              {c === primary ? disclosure(row, Boolean(extra)) : null}
+                              {cellContent(c.cell(row))}
+                            </div>
                           </TableCell>
                         ))}
                         {rowActions ? (
                           <TableCell className="text-right">
-                            <RowMenu actions={actions} label={t.actions} />
+                            <RowMenu actions={actions} label={`${t.actions}: ${labelFor(row)}`} />
                           </TableCell>
                         ) : null}
                       </TableRow>
@@ -553,23 +618,25 @@ export function DataTable<T>({
                             colSpan={span}
                             className={cn('bg-muted/40 p-4', rowClassName?.(row))}
                           >
-                            <RowDetail>{extra}</RowDetail>
+                            <div id={`${instanceId}-detail-${key}`} onKeyDown={closeDetail(row)}>
+                              <RowDetail>{extra}</RowDetail>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ) : null}
                     </RowGroup>
                   );
                 })}
-                {footer}
               </TableBody>
             </Table>
           </div>
         )}
         {isMobile && (
-          <ul className="flex flex-col gap-2" aria-label={caption}>
+          <ul className="flex flex-col gap-2" aria-label={tableName}>
             {visible.map((row) => {
               const key = rowKey(row);
-              const [first, ...rest] = columns;
+              const first = primary;
+              const rest = columns.filter((column) => column !== first);
               const extra = expanded?.(row);
               const actions = rowActions?.(row) ?? [];
               return (
@@ -583,21 +650,22 @@ export function DataTable<T>({
                     rowClassName?.(row),
                   )}
                   onClick={handleRowClick(row)}
-                  onKeyDown={handleRowKey(row)}
-                  tabIndex={onRowClick ? 0 : undefined}
                 >
                   <div className="flex min-h-10 items-center justify-between gap-2">
                     {selectable ? (
                       <Checkbox
-                        aria-label={key}
+                        aria-label={labelFor(row)}
                         checked={selectedKeys.has(key)}
                         onCheckedChange={(on) => toggleKey(key, on === true)}
                       />
                     ) : null}
+                    {disclosure(row, Boolean(extra))}
                     <div className="min-w-0 flex-1 font-medium">
                       {first ? cellContent(first.cell(row)) : null}
                     </div>
-                    {rowActions ? <RowMenu actions={actions} label={t.actions} /> : null}
+                    {rowActions ? (
+                      <RowMenu actions={actions} label={`${t.actions}: ${labelFor(row)}`} />
+                    ) : null}
                   </div>
                   <dl className="mt-3 grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] gap-x-3 gap-y-2">
                     {rest
@@ -613,7 +681,9 @@ export function DataTable<T>({
                   </dl>
                   {extra ? (
                     <div className="mt-3 border-t pt-3">
-                      <RowDetail>{extra}</RowDetail>
+                      <div id={`${instanceId}-detail-${key}`} onKeyDown={closeDetail(row)}>
+                        <RowDetail>{extra}</RowDetail>
+                      </div>
                     </div>
                   ) : null}
                 </li>
@@ -628,10 +698,55 @@ export function DataTable<T>({
     <div className="flex flex-col gap-3" aria-busy={queryState?.isFetching || undefined}>
       {queryState && queryFeedback && <QueryFeedback query={queryState} />}
       {searchBox}
+      {isMobile && (selectable || columns.some((c) => c.sortValue)) ? (
+        <div className="flex flex-wrap items-center gap-3">
+          {selectable ? (
+            <label className="flex min-h-11 items-center gap-3">
+              {selectAll}
+              <span className="text-sm">{t.selectPage}</span>
+            </label>
+          ) : null}
+          {columns.some((c) => c.sortValue) ? (
+            <label className="flex min-w-0 items-center gap-2">
+              <span className="text-sm">{t.sort}</span>
+              <NativeSelect
+                aria-label={t.sort}
+                value={sort ? `${sort.key}:${sort.dir}` : ''}
+                onChange={(event) => {
+                  const option = event.target.selectedOptions[0];
+                  const key = option?.dataset.key;
+                  setSort(
+                    key
+                      ? { key, dir: option?.dataset.direction === 'desc' ? 'desc' : 'asc' }
+                      : null,
+                  );
+                  pages.setPage(1);
+                }}
+              >
+                <NativeSelectOption value="">{t.sortClear}</NativeSelectOption>
+                {columns
+                  .filter((c) => c.sortValue)
+                  .flatMap((c) =>
+                    ['asc', 'desc'].map((dir) => (
+                      <NativeSelectOption
+                        key={`${c.key}:${dir}`}
+                        value={`${c.key}:${dir}`}
+                        data-key={c.key}
+                        data-direction={dir}
+                      >
+                        {columnLabel(c)} · {dir === 'asc' ? t.sortAsc : t.sortDesc}
+                      </NativeSelectOption>
+                    )),
+                  )}
+              </NativeSelect>
+            </label>
+          ) : null}
+        </div>
+      ) : null}
       {selectable && selectedKeys.size > 0 ? (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
           <span className="tabular-nums">{format(t.selected, { n: selectedKeys.size })}</span>
-          {selectionBar}
+          {selectionInScope ? selectionBar : <span role="status">{t.selectionChanged}</span>}
           <Button
             type="button"
             variant="ghost"
@@ -644,7 +759,29 @@ export function DataTable<T>({
         </div>
       ) : null}
       {body}
-      <Paginator pages={pages} total={sorted.length} />
+      {summary ? (
+        <section className="space-y-2 rounded-lg border bg-muted/40 p-3">
+          <h3 className="text-sm font-semibold">{t.total}</h3>
+          <dl aria-label={t.total} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {summary.map((item) => (
+              <div key={item.label} className="min-w-0">
+                <dt className="text-sm text-muted-foreground">{item.label}</dt>
+                <dd className="font-medium tabular-nums">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ) : null}
+      {truncated ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          {t.loadedSubset}
+        </p>
+      ) : null}
+      <Paginator
+        pages={pages}
+        total={sorted.length}
+        totalCount={search.trim() ? sorted.length : totalCount}
+      />
     </div>
   );
 }

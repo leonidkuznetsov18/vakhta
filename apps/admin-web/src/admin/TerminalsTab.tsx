@@ -8,7 +8,6 @@ import {
   type TerminalView,
 } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
-import { DetailSheet } from '@/components/app/detail-sheet';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -31,7 +30,7 @@ import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { keys } from '@/lib/query';
 import { notifySuccess } from '@/lib/toast';
-import { usePersistentState } from '@/lib/ui-store';
+import { setUiState, usePersistentState } from '@/lib/ui-store';
 import { AddDialog } from '@/components/app/add-dialog';
 import { KeyRoundIcon, PencilIcon, PowerIcon, Trash2Icon } from 'lucide-react';
 import { validateWith, type FieldErrors } from '@/lib/validation';
@@ -72,6 +71,10 @@ export function TerminalsTab({ org }: Props) {
   const [openId, setOpenId] = usePersistentState<string | null>('terminals.openId', null);
   // A terminal registered a moment ago is shown from the response until the snapshot reloads.
   const [created, setCreated] = useState<TerminalView | null>(null);
+  const terminalRows =
+    created?.id === openId && !org.terminals.some((row) => row.id === created.id)
+      ? [...org.terminals, created]
+      : org.terminals;
   const openTerminal =
     org.terminals.find((x) => x.id === openId) ?? (created?.id === openId ? created : null);
   const [editing, setEditing] = useState<TerminalView | null>(null);
@@ -93,6 +96,7 @@ export function TerminalsTab({ org }: Props) {
       setPairing({ ...issued, name: term.name });
       setCreated({ ...term, status: 'ACTIVE', paired: false, lastSeenAt: null });
       setOpenId(term.id);
+      setUiState({ 'search.terminals': '' });
       await reload();
     },
   });
@@ -116,6 +120,8 @@ export function TerminalsTab({ org }: Props) {
       adminOrgApi.deleteTerminal(v.term.id, v.reason),
     onSuccess: async () => {
       notifySuccess(tr.deleted);
+      setCreated(null);
+      setOpenId(null);
       await reload();
     },
   });
@@ -164,7 +170,12 @@ export function TerminalsTab({ org }: Props) {
   }
 
   const columns: Column<TerminalView>[] = [
-    { key: 'name', header: t.common.name, cell: (term) => term.name },
+    {
+      key: 'name',
+      header: t.common.name,
+      sortValue: (term) => term.name,
+      cell: (term) => term.name,
+    },
     { key: 'site', header: t.common.site, cell: (term) => siteName(term.siteId) },
     { key: 'checkpoint', header: tr.checkpoint, cell: (term) => tr.checkpoints[term.checkpoint] },
     {
@@ -183,6 +194,7 @@ export function TerminalsTab({ org }: Props) {
     },
     {
       key: 'seen',
+      sortValue: (term) => term.lastSeenAt,
       header: tr.lastSeen,
       cell: (term) => (term.lastSeenAt ? formatDateTime(term.lastSeenAt) : tr.never),
     },
@@ -238,10 +250,67 @@ export function TerminalsTab({ org }: Props) {
       </Section>
       <DataTable
         columns={columns}
-        rows={org.terminals}
+        rows={terminalRows}
         rowKey={(term) => term.id}
         empty={t.common.empty}
         storageKey="terminals"
+        searchText={(term) => `${term.name} ${siteName(term.siteId)}`}
+        rowLabel={(term) => term.name}
+        expanded={(row) =>
+          row.id === openId && openTerminal ? (
+            <div>
+              <div className="flex flex-col gap-3 rounded-lg border p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="flex items-center gap-1 text-sm font-medium">
+                    <KeyRoundIcon className="size-4" aria-hidden="true" />
+                    {tr.connection}
+                    <InfoTip text={hints.terminalsPair} />
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="ml-auto"
+                    disabled={busy}
+                    onClick={() => issue(openTerminal)}
+                  >
+                    <KeyRoundIcon aria-hidden="true" />
+                    {tr.pair}
+                  </Button>
+                </div>
+                <ol className="flex list-decimal flex-col gap-0.5 pl-5 text-sm text-muted-foreground">
+                  {tr.pairSteps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+                {pairing && pairing.name === openTerminal.name && (
+                  <div className="flex flex-col gap-2 rounded-md border bg-muted/40 p-3">
+                    <p className="text-sm">
+                      {format(tr.pairIssued, {
+                        code: pairing.code,
+                        expires: formatDateTime(pairing.expiresAt),
+                      })}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <code className="rounded bg-background px-2 py-1 font-mono text-xl font-semibold tracking-widest">
+                        {pairing.code}
+                      </code>
+                      <CopyButton value={pairing.code} />
+                    </div>
+                    {link && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Muted>{tr.pairLink}:</Muted>
+                        <code className="rounded bg-background px-1.5 py-0.5 text-xs break-all">
+                          {link}
+                        </code>
+                        <CopyButton value={link} />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null
+        }
         emptyAction={
           <Button type="button" variant="outline" onClick={() => setCreating(true)}>
             {tr.register}
@@ -283,108 +352,7 @@ export function TerminalsTab({ org }: Props) {
           },
         ]}
       />
-      {openTerminal && (
-        <DetailSheet
-          open
-          onOpenChange={(open) => !open && setOpenId(null)}
-          title={
-            <>
-              {openTerminal.name}
-              <StatusPill tone={openTerminal.status === 'ACTIVE' ? 'success' : 'neutral'}>
-                {tr.statuses[openTerminal.status]}
-              </StatusPill>
-              <StatusPill tone={openTerminal.paired ? 'info' : 'warning'}>
-                {openTerminal.paired ? tr.paired : tr.notPaired}
-              </StatusPill>
-            </>
-          }
-          description={`${siteName(openTerminal.siteId)} · ${tr.checkpoints[openTerminal.checkpoint]} · ${tr.lastSeen}: ${openTerminal.lastSeenAt ? formatDateTime(openTerminal.lastSeenAt) : tr.never}`}
-          footer={
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={busy}
-                onClick={() => setEditing(openTerminal)}
-              >
-                <PencilIcon aria-hidden="true" />
-                {tr.edit}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={busy}
-                onClick={() => void toggle(openTerminal)}
-              >
-                <PowerIcon aria-hidden="true" />
-                {openTerminal.status === 'ACTIVE' ? tr.disable : tr.enable}
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                disabled={busy}
-                onClick={() => void remove(openTerminal)}
-              >
-                <Trash2Icon aria-hidden="true" />
-                {tr.delete}
-              </Button>
-            </>
-          }
-        >
-          <div className="flex flex-col gap-3 rounded-lg border p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="flex items-center gap-1 text-sm font-medium">
-                <KeyRoundIcon className="size-4" aria-hidden="true" />
-                {tr.connection}
-                <InfoTip text={hints.terminalsPair} />
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                className="ml-auto"
-                disabled={busy}
-                onClick={() => issue(openTerminal)}
-              >
-                <KeyRoundIcon aria-hidden="true" />
-                {tr.pair}
-              </Button>
-            </div>
-            <ol className="flex list-decimal flex-col gap-0.5 pl-5 text-sm text-muted-foreground">
-              {tr.pairSteps.map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ol>
-            {pairing && pairing.name === openTerminal.name && (
-              <div className="flex flex-col gap-2 rounded-md border bg-muted/40 p-3">
-                <p className="text-sm">
-                  {format(tr.pairIssued, {
-                    code: pairing.code,
-                    expires: formatDateTime(pairing.expiresAt),
-                  })}
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <code className="rounded bg-background px-2 py-1 font-mono text-xl font-semibold tracking-widest">
-                    {pairing.code}
-                  </code>
-                  <CopyButton value={pairing.code} />
-                </div>
-                {link && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Muted>{tr.pairLink}:</Muted>
-                    <code className="rounded bg-background px-1.5 py-0.5 text-xs break-all">
-                      {link}
-                    </code>
-                    <CopyButton value={link} />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </DetailSheet>
-      )}
+
       <EditTerminalDialog
         terminal={editing}
         org={org}

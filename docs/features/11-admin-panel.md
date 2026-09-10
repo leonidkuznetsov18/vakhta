@@ -80,3 +80,11 @@ language switch (🇺🇦 🇬🇧 РУ) and the theme switch: light, dark or "�
 All pending panel surfaces use one shared animated Spinner. Skeleton rows/cards are not used.
 Loading, refreshing and saving retain their specific labels; failures, offline states and empty
 results remain distinct.
+
+## Shared table interaction
+
+Tables and filters follow the [site-wide standard](../engineering/table-filter-standard.md).
+Record inspection opens inline; explicit actions initiate editing. Mobile cards preserve sorting,
+selection, totals and existing actions. Keyboard users can reach controls with Tab, open records
+with Enter/Space and close inline details with Escape. Counts describe the filtered dataset; capped
+archives disclose loaded-subset limits rather than claiming a complete archive count.

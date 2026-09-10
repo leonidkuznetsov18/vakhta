@@ -58,7 +58,7 @@ export function ScheduleGrid({
   const inGrid = new Set(grid.rows.map((r) => r.employeeId));
   const available = employees.filter((e) => e.status === 'ACTIVE' && !inGrid.has(e.id));
   const s = t.admin.schedule;
-  const pages = usePages(grid.rows.length, 25);
+  const pages = usePages(grid.rows.length, 20, 'schedule', -1, month);
   const visible = grid.rows.slice((pages.page - 1) * pages.size, pages.page * pages.size);
   const dayKind = t.schedule.dayKinds;
   const nightIds = new Set(templates.filter((tpl) => tpl.isNight).map((tpl) => tpl.id));
@@ -154,7 +154,7 @@ export function ScheduleGrid({
         )}
       </div>
       <div className="overflow-x-auto rounded-lg border">
-        <Table className="min-w-max">
+        <Table aria-label={`${t.admin.sections.schedule}: ${month}`} className="min-w-max">
           <TableHeader>
             <TableRow>
               <TableHead className="sticky left-0 z-10 bg-background">

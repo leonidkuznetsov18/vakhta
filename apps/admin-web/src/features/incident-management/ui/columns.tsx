@@ -52,11 +52,13 @@ export function incidentColumns(knowledge: boolean): Column<IncidentView>[] {
   const columns: Column<IncidentView>[] = [
     {
       key: 'opened',
+      sortValue: (row) => row.openedAt,
       header: i.opened,
       cell: (row) => <span className="tabular-nums">{formatTime(row.openedAt)}</span>,
     },
     {
       key: 'severity',
+      sortValue: (row) => all.incidents.severities[row.severity],
       header: i.severity,
       cell: (row) => (
         <StatusPill tone={SEVERITY_TONE[row.severity]}>
@@ -66,6 +68,8 @@ export function incidentColumns(knowledge: boolean): Column<IncidentView>[] {
     },
     {
       key: 'reason',
+      minWidth: '15rem',
+      sortValue: (row) => row.reasonLabel,
       header: i.problemType,
       cell: (row) => (
         <div>
@@ -84,11 +88,18 @@ export function incidentColumns(knowledge: boolean): Column<IncidentView>[] {
       cell: (row) => row.reportedBy ?? '—',
       sortValue: (row) => row.reportedBy ?? '',
     },
-    { key: 'zone', header: i.zone, cell: (row) => row.zoneName ?? '—' },
+    {
+      key: 'zone',
+      minWidth: '13rem',
+      sortValue: (row) => row.zoneName ?? '',
+      header: i.zone,
+      cell: (row) => row.zoneName ?? '—',
+    },
     { key: 'reports', header: i.reports, align: 'right', cell: (row) => row.reportsCount },
     { key: 'stopped', header: i.stoppedNow, align: 'right', cell: (row) => row.stoppedNow },
     {
       key: 'status',
+      sortValue: (row) => all.incidents.statuses[row.status],
       header: i.status,
       cell: (row) => (
         <StatusPill tone={STATUS_TONE[row.status]}>{all.incidents.statuses[row.status]}</StatusPill>
@@ -96,6 +107,7 @@ export function incidentColumns(knowledge: boolean): Column<IncidentView>[] {
     },
     {
       key: 'sla',
+      label: i.sla,
       header: (
         <span className="inline-flex items-center gap-1">
           {i.sla}

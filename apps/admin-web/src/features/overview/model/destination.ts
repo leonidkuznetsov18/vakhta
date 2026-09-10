@@ -31,6 +31,7 @@ export function attentionFilters(key: AttentionKey, data: Attention): Record<str
       return {
         'requests.scope': 'inbox',
         'search.requests': '',
+        'search.requests-overtime': '',
         'requests.openId': data.firstId[key] ?? null,
       };
     case 'onShift':

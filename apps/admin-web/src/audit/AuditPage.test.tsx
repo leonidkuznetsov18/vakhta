@@ -48,14 +48,18 @@ describe('AuditPage', () => {
     render(<AuditPage />);
     expect((await screen.findAllByText('admin@example.com')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Терминал изменён').length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Подробности' }));
-    const sheet = await screen.findByRole('dialog');
-    expect(within(sheet).getByText('Изменено полей: 1')).toBeTruthy();
-    const row = within(sheet).getByText('name').closest('tr')!;
+    fireEvent.click(screen.getByRole('button', { name: /^Подробности: Терминал изменён/ }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const detail = document.querySelector<HTMLElement>('[data-row-detail]')!;
+    expect(detail).toBeTruthy();
+    expect(within(detail).getByText('Изменено полей: 1')).toBeTruthy();
+    const row = within(detail).getByText('name').closest('tr')!;
     expect(within(row).getByText('Main')).toBeTruthy();
     expect(within(row).getByText('Main gate')).toBeTruthy();
     // The full identifier is visible and copyable, not clipped.
-    expect(within(sheet).getAllByText(TERMINAL).length).toBeGreaterThan(0);
-    expect(within(sheet).getAllByRole('button', { name: 'Скопировать' }).length).toBeGreaterThan(0);
+    expect(within(detail).getAllByText(TERMINAL).length).toBeGreaterThan(0);
+    expect(within(detail).getAllByRole('button', { name: 'Скопировать' }).length).toBeGreaterThan(
+      0,
+    );
   });
 });

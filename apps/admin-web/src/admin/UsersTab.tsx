@@ -359,6 +359,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
     { key: 'name', header: u.name, cell: (user) => user.name, sortValue: (user) => user.name },
     {
       key: '2fa',
+      label: u.twoFactor,
       header: (
         <span className="inline-flex items-center gap-1">
           {u.twoFactor}
@@ -374,6 +375,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
     },
     {
       key: 'roles',
+      label: u.roles,
       header: (
         <span className="inline-flex items-center gap-1">
           {u.roles}
@@ -492,6 +494,8 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
         columns={columns}
         rows={list}
         storageKey="users"
+        primaryKey="name"
+        rowLabel={(user) => `${user.name} · ${user.email}`}
         searchText={(user) => `${user.email} ${user.name}`}
         activeKey={grantFor}
         expanded={(user) => (user.id === grantFor ? renderCard(user) : null)}

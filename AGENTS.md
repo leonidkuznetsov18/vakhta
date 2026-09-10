@@ -78,6 +78,9 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 
 ## Admin panel UI
 
+- Tables, filters and keyboard interaction follow `docs/engineering/table-filter-standard.md`.
+  Reuse shared controls and documented task-based exceptions; do not add page-specific variants.
+
 - Use the shared calendar trigger/popover for period filters, consistent with Schedule. Do not hide
   the calendar behind an unrelated period dropdown. Reuse the same control across related pages.
 - Use `shared/ui/loading-state.tsx` (shadcn Spinner) for every loading animation. Do not add skeletons,

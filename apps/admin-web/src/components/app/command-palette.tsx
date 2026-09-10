@@ -123,6 +123,7 @@ export function CommandPalette({
           variant="outline"
           size="sm"
           className="text-muted-foreground"
+          aria-label={c.commandPalette}
           onClick={() => setOpen(true)}
         >
           <SearchIcon aria-hidden="true" />

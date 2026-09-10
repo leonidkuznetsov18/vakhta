@@ -46,7 +46,6 @@ import {
   KeyRoundIcon,
   PencilIcon,
   Trash2Icon,
-  XIcon,
   Link2Icon,
   UserCheckIcon,
   UserXIcon,
@@ -307,6 +306,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     },
     {
       key: 'position',
+      label: e.position,
       header: (
         <span className="inline-flex items-center gap-1">
           {e.position}
@@ -325,6 +325,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     },
     {
       key: 'checklist',
+      label: e.checklist,
       header: (
         <span className="inline-flex items-center gap-1">
           {e.checklist}
@@ -453,30 +454,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   function renderCard(emp: EmployeeView) {
     return (
       <div className="flex flex-col gap-3 py-1" data-testid="employee-card">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-semibold">{emp.fullName}</span>
-          <Muted>
-            {emp.personnelNumber} · {e.statuses[emp.status]}
-          </Muted>
-          <span className="ml-auto flex flex-wrap gap-1">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="text-destructive hover:text-destructive"
-              disabled={busy}
-              onClick={() => void deleteEmployee(emp)}
-            >
-              <Trash2Icon aria-hidden="true" />
-              {e.deleteEmployee}
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setOpenId(null)}>
-              <XIcon aria-hidden="true" />
-              {all.ui.common.close}
-            </Button>
-          </span>
-        </div>
-        <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+        <div className="grid min-w-0 items-start gap-6 lg:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-4">
             <EmployeeDetailsForm key={emp.id} employee={emp} onSaved={reload} />
             <ActivationPanel
@@ -655,7 +633,10 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           <SelectField
             label={e.statusFilter}
             value={statusFilter}
-            onChange={(v) => setStatusFilter(v as '' | EmployeeView['status'])}
+            onChange={(v) => {
+              setStatusFilter(v as '' | EmployeeView['status']);
+              setSelected(new Set());
+            }}
             placeholder="—"
             options={(['ACTIVE', 'BLOCKED', 'TERMINATED'] as const).map((st) => ({
               value: st,
@@ -666,7 +647,10 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           <SelectField
             label={e.telegramFilter}
             value={telegramFilter}
-            onChange={(v) => setTelegramFilter(v as '' | 'LINKED' | 'NOT_LINKED')}
+            onChange={(v) => {
+              setTelegramFilter(v as '' | 'LINKED' | 'NOT_LINKED');
+              setSelected(new Set());
+            }}
             placeholder="—"
             options={[
               { value: 'LINKED', label: e.linked },
@@ -690,6 +674,10 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         activeKey={openId}
         empty={t.common.empty}
         storageKey="employees"
+        caption={all.admin.sections.administration + ': ' + t.tabs.employees}
+        primaryKey="name"
+        rowLabel={(emp) => `${emp.fullName} · ${emp.personnelNumber}`}
+        resetKey={`${statusFilter}:${telegramFilter}`}
         selectedKeys={selected}
         onSelectionChange={setSelected}
         selectionBar={

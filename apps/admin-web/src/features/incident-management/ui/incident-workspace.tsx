@@ -1,6 +1,6 @@
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { messages } from '@vakhta/i18n';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { StateFilter } from '@/shared/ui/state-filter';
 import { DataTable } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
 import { CalendarPeriodField } from '@/shared/ui/calendar-period-field';
@@ -54,17 +54,6 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
           options={org?.sites.map((s) => ({ value: s.id, label: s.name })) ?? []}
           className="w-56"
         />
-        {!knowledge && (
-          <div className="flex items-center gap-1">
-            <Tabs value={scope} onValueChange={model.setScope}>
-              <TabsList>
-                <TabsTrigger value="open">{i.scopeOpen}</TabsTrigger>
-                <TabsTrigger value="all">{i.scopeAll}</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <InfoTip text={hints.incidentsScope} />
-          </div>
-        )}
         <CalendarPeriodField
           label={i.period}
           from={date}
@@ -76,6 +65,20 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
           onApply={model.applyPeriod}
           onClear={model.clearPeriod}
         />
+        {!knowledge && (
+          <div className="flex items-center gap-1">
+            <StateFilter
+              value={scope}
+              onChange={model.setScope}
+              label={all.admin.sections.incidents}
+              options={[
+                { value: 'open', label: i.scopeOpen },
+                { value: 'all', label: i.scopeAll },
+              ]}
+            />
+            <InfoTip text={hints.incidentsScope} />
+          </div>
+        )}
         <div className="ml-auto">
           <LiveBadge live={live} />
         </div>
@@ -87,6 +90,10 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
         columns={incidentColumns(knowledge)}
         rows={rows}
         storageKey={knowledge ? 'incidentKnowledge' : 'incidents'}
+        resetKey={`${siteId}:${scope}:${date}:${model.endDate}:${periodMode}`}
+        caption={knowledge ? all.admin.sections.incidentKnowledge : all.admin.sections.incidents}
+        primaryKey="reason"
+        rowLabel={(row) => `${row.reasonLabel} · ${row.reportedBy ?? row.zoneName ?? row.openedAt}`}
         searchText={model.searchText}
         searchPlaceholder={i.search}
         loading={model.loading}
@@ -110,8 +117,20 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
               <EmptyState text={all.ui.common.noResults} />
             ) : (
               <div className="grid gap-4 2xl:grid-cols-2">
-                <StatsTable title={i.byReason} rows={stats.byReason} totals={stats.totals} />
-                <StatsTable title={i.byZone} rows={stats.byZone} totals={stats.totals} />
+                <StatsTable
+                  resetKey={`${siteId}:${scope}:${date}:${model.endDate}:${periodMode}`}
+                  storageKey="incident-stats.reasons"
+                  title={i.byReason}
+                  rows={stats.byReason}
+                  totals={stats.totals}
+                />
+                <StatsTable
+                  resetKey={`${siteId}:${scope}:${date}:${model.endDate}:${periodMode}`}
+                  storageKey="incident-stats.zones"
+                  title={i.byZone}
+                  rows={stats.byZone}
+                  totals={stats.totals}
+                />
               </div>
             ))}
         </Section>

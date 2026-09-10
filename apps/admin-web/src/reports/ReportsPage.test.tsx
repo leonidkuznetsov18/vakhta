@@ -256,12 +256,12 @@ describe('ReportsPage and AuditPage', () => {
     // The action shows its label with the raw code beside it.
     expect((await screen.findAllByText('Выгрузка отчёта')).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('report.export')).toBeTruthy();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Подробности' })[0]!);
-    // The sheet lists the fields of the after-state; the raw JSON sits under a disclosure.
+    fireEvent.click(screen.getAllByRole('button', { name: /^Подробности:/ })[0]!);
+    // Inline details preserve after-state evidence and the raw JSON disclosure.
     const row = (await screen.findByText('format')).closest('tr')!;
     expect(row.textContent).toContain('csv');
-    // The details sheet hides the page from assistive tech until it is closed.
-    fireEvent.keyDown(document.body, { key: 'Escape' });
+    // Inline inspection leaves the page navigation available.
+    expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Журнал событий' }));
     // The type appears in the row and as an option of the type filter.
     expect((await screen.findAllByText('SHIFT_CORRECTED')).length).toBeGreaterThanOrEqual(1);

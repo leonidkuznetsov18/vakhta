@@ -325,6 +325,7 @@ export function OperationsPage() {
   const columns: Column<ActiveShiftView>[] = [
     {
       key: 'employee',
+      sortValue: (row) => row.fullName,
       header: o.employee,
       cell: (row) => (
         <div>
@@ -338,6 +339,7 @@ export function OperationsPage() {
     },
     {
       key: 'state',
+      sortValue: (row) => all.states[row.state],
       header: o.state,
       cell: (row) => (
         <div className="flex flex-wrap items-center gap-1">
@@ -348,6 +350,7 @@ export function OperationsPage() {
     },
     {
       key: 'since',
+      sortValue: (row) => row.stateSince,
       header: o.since,
       cell: (row) => (
         <span className="tabular-nums">
@@ -357,6 +360,7 @@ export function OperationsPage() {
     },
     {
       key: 'plan',
+      sortValue: (row) => row.planStartAt,
       header: o.plan,
       cell: (row) => (
         <span className="tabular-nums">
@@ -367,6 +371,7 @@ export function OperationsPage() {
     { key: 'zone', header: o.zone, cell: (row) => row.zoneName ?? '—' },
     {
       key: 'presence',
+      sortValue: (row) => row.presenceSince,
       header: o.presence,
       cell: (row) => <span className="tabular-nums">{formatTime(row.presenceSince)}</span>,
     },
@@ -524,20 +529,20 @@ export function OperationsPage() {
           options={units.map((u) => ({ value: u.id, label: u.name }))}
           className="w-56"
         />
-        <SelectField
-          label={o.scope}
-          value={scope}
-          onChange={(v) => setScope((v || 'OPEN') as ShiftScope)}
-          hint={hints.operationsScope}
-          options={SHIFT_SCOPES.map((s) => ({ value: s, label: o.scopes[s] }))}
-          className="w-44"
-        />
         {/* A day instead of the live picture: the same list, read from the records of that date. */}
         <DateField
           label={o.date}
           value={date}
           onChange={setDate}
           hint={hints.operationsDate}
+          className="w-44"
+        />
+        <SelectField
+          label={o.scope}
+          value={scope}
+          onChange={(v) => setScope((v || 'OPEN') as ShiftScope)}
+          hint={hints.operationsScope}
+          options={SHIFT_SCOPES.map((s) => ({ value: s, label: o.scopes[s] }))}
           className="w-44"
         />
         <div className="ml-auto flex items-center gap-2">
@@ -639,6 +644,11 @@ export function OperationsPage() {
         rows={visibleRows}
         loading={orgQuery.isPending && orgQuery.isFetching}
         storageKey="operations"
+        rowLabel={(row) => `${row.fullName} · ${row.personnelNumber}`}
+        resetKey={`${siteId}:${orgUnitId}:${scope}:${date}:${group}`}
+        searchText={(row) =>
+          `${row.fullName} ${row.personnelNumber} ${row.orgUnitName ?? ''} ${row.zoneName ?? ''} ${all.states[row.state]}`
+        }
         onRowClick={(row) => setOpenId(openId === row.id ? null : row.id)}
         rowActions={rowActions}
         rowKey={(row) => row.id}

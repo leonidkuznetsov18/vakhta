@@ -1686,6 +1686,13 @@ export const en: Messages = {
       commandChecklists: 'Checklists',
       commandTerminals: 'Terminals',
       selected: 'Selected: {n}',
+      selectPage: 'Select all rows on this page',
+      sort: 'Sort',
+      sortClear: 'Original order',
+      selectionChanged: 'The filters changed. Clear the selection before performing a bulk action.',
+      total: 'Total',
+      loadedSubset:
+        'Only the loaded records are shown and searched. Search counts cover this subset; without search, the server total is shown when available.',
       selectAll: 'Select all',
       clearSelection: 'Clear selection',
       print: 'Print',

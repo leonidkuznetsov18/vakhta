@@ -1382,6 +1382,12 @@ export interface Messages {
       readonly commandTerminals: string;
       /** Placeholder: {n} */
       readonly selected: string;
+      readonly selectPage: string;
+      readonly sort: string;
+      readonly sortClear: string;
+      readonly selectionChanged: string;
+      readonly total: string;
+      readonly loadedSubset: string;
       readonly selectAll: string;
       readonly clearSelection: string;
       readonly print: string;

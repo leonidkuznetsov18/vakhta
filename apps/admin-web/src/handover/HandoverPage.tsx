@@ -12,7 +12,7 @@ import {
 } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { StateFilter } from '@/shared/ui/state-filter';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
 import { DateField } from '@/components/app/date-picker';
@@ -151,13 +151,20 @@ export function HandoverPage() {
   const columns: Column<HandoverListItemView>[] = [
     {
       key: 'submitted',
+      sortValue: (row) => row.submittedAt,
       header: h.submitted,
       cell: (row) => <span className="tabular-nums">{formatDateTime(row.submittedAt)}</span>,
     },
     { key: 'zone', header: h.zone, cell: (row) => row.zoneName ?? <Muted>{h.noZone}</Muted> },
-    { key: 'submitter', header: h.submitter, cell: (row) => row.submittedByName },
+    {
+      key: 'submitter',
+      header: h.submitter,
+      cell: (row) => row.submittedByName,
+      sortValue: (row) => row.submittedByName,
+    },
     {
       key: 'status',
+      sortValue: (row) => all.handover.statuses[row.status],
       header: h.status,
       // One pill: a row is in one state, and "cleaning not finished" belongs with the report itself,
       // where the reason for it is written.
@@ -167,8 +174,20 @@ export function HandoverPage() {
         </StatusPill>
       ),
     },
-    { key: 'remarks', header: h.remarks, align: 'right', cell: (row) => row.remarks },
-    { key: 'photos', header: h.photos, align: 'right', cell: (row) => row.photos.length },
+    {
+      key: 'remarks',
+      header: h.remarks,
+      align: 'right',
+      cell: (row) => row.remarks,
+      sortValue: (row) => row.remarks,
+    },
+    {
+      key: 'photos',
+      header: h.photos,
+      align: 'right',
+      cell: (row) => row.photos.length,
+      sortValue: (row) => row.photos.length,
+    },
     {
       key: 'deadline',
       label: h.deadline,
@@ -343,16 +362,6 @@ export function HandoverPage() {
           options={org?.sites.map((s) => ({ value: s.id, label: s.name })) ?? []}
           className="w-56"
         />
-        <div className="flex items-center gap-1">
-          <Tabs value={scope} onValueChange={(v) => setScope(v as typeof scope)}>
-            <TabsList>
-              <TabsTrigger value="pending">{h.scopePending}</TabsTrigger>
-              <TabsTrigger value="overdue">{h.scopeOverdue}</TabsTrigger>
-              <TabsTrigger value="all">{h.scopeAll}</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <InfoTip text={hints.handoverScope} />
-        </div>
         {/* One day of reports, with a way back to all of them: a shift is looked up by its date. */}
         <div className="flex items-end gap-1">
           <DateField
@@ -375,6 +384,19 @@ export function HandoverPage() {
             </Button>
           )}
         </div>
+        <div className="flex items-center gap-1">
+          <StateFilter
+            value={scope}
+            onChange={setScope}
+            label={all.admin.sections.handover}
+            options={[
+              { value: 'pending', label: h.scopePending },
+              { value: 'overdue', label: h.scopeOverdue },
+              { value: 'all', label: h.scopeAll },
+            ]}
+          />
+          <InfoTip text={hints.handoverScope} />
+        </div>
         <div className="ml-auto">
           <LiveBadge live={live} />
         </div>
@@ -386,6 +408,12 @@ export function HandoverPage() {
         columns={columns}
         rows={rows}
         storageKey="handover"
+        primaryKey="submitter"
+        rowLabel={(row) => `${row.submittedByName} · ${row.zoneName ?? h.noZone}`}
+        resetKey={`${siteId}:${date}:${scope}`}
+        searchText={(row) =>
+          `${row.submittedByName} ${row.zoneName ?? ''} ${all.handover.statuses[row.status]}`
+        }
         onRowClick={(row) => setOpenId(openId === row.id ? null : row.id)}
         rowActions={(row) => [
           {

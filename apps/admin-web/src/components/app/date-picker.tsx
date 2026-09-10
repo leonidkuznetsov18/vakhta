@@ -15,19 +15,34 @@ interface FieldProps {
   readonly hint?: string;
   readonly className?: string;
   readonly disabled?: boolean;
+  readonly minDate?: string;
+  readonly maxDate?: string;
+  readonly error?: string;
 }
 
 /** Calendar date field: the trigger is a labelled button, the popover holds the shadcn calendar. */
-export function DateField({ label, value, onChange, hint, className, disabled }: FieldProps) {
+export function DateField({
+  label,
+  value,
+  onChange,
+  hint,
+  className,
+  disabled,
+  minDate,
+  maxDate,
+  error,
+}: FieldProps) {
   const [open, setOpen] = useState(false);
   const selected = fromIsoDate(value);
   return (
-    <FormField label={label} hint={hint} className={className}>
+    <FormField label={label} hint={hint} className={className} error={error}>
       {(id) => (
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button
               id={id}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? `${id}-error` : undefined}
               type="button"
               variant="outline"
               disabled={disabled}
@@ -40,6 +55,11 @@ export function DateField({ label, value, onChange, hint, className, disabled }:
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
+              autoFocus
+              disabled={(day) =>
+                (minDate ? toIsoDate(day) < minDate : false) ||
+                (maxDate ? toIsoDate(day) > maxDate : false)
+              }
               locale={dayPickerLocale()}
               captionLayout="dropdown"
               selected={selected}

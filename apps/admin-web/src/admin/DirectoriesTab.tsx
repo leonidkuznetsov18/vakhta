@@ -163,12 +163,12 @@ export function DirectoriesTab({ org }: Props) {
   }
 
   const siteColumns: Column<OrgSnapshot['sites'][number]>[] = [
-    { key: 'name', header: t.common.name, cell: (s) => s.name },
+    { key: 'name', header: t.common.name, cell: (s) => s.name, sortValue: (s) => s.name },
     { key: 'code', header: t.common.code, cell: (s) => <code className="text-xs">{s.code}</code> },
-    { key: 'tz', header: d.timezone, cell: (s) => s.timezone },
+    { key: 'tz', header: d.timezone, cell: (s) => s.timezone, sortValue: (s) => s.timezone },
   ];
   const unitColumns: Column<OrgSnapshot['orgUnits'][number]>[] = [
-    { key: 'name', header: t.common.name, cell: (u) => u.name },
+    { key: 'name', header: t.common.name, cell: (u) => u.name, sortValue: (u) => u.name },
     { key: 'site', header: t.common.site, cell: (u) => siteName(u.siteId) },
     { key: 'parent', header: d.parent, cell: (u) => unitName(u.parentId) },
     {
@@ -183,15 +183,15 @@ export function DirectoriesTab({ org }: Props) {
     },
   ];
   const teamColumns: Column<OrgSnapshot['teams'][number]>[] = [
-    { key: 'name', header: t.common.name, cell: (tm) => tm.name },
+    { key: 'name', header: t.common.name, cell: (tm) => tm.name, sortValue: (tm) => tm.name },
     { key: 'unit', header: t.common.orgUnit, cell: (tm) => unitName(tm.orgUnitId) },
   ];
   const positionColumns: Column<OrgSnapshot['positions'][number]>[] = [
-    { key: 'name', header: t.common.name, cell: (p) => p.name },
+    { key: 'name', header: t.common.name, cell: (p) => p.name, sortValue: (p) => p.name },
     { key: 'code', header: t.common.code, cell: (p) => <code className="text-xs">{p.code}</code> },
   ];
   const zoneColumns: Column<OrgSnapshot['zones'][number]>[] = [
-    { key: 'name', header: t.common.name, cell: (z) => z.name },
+    { key: 'name', header: t.common.name, cell: (z) => z.name, sortValue: (z) => z.name },
     { key: 'code', header: t.common.code, cell: (z) => <code className="text-xs">{z.code}</code> },
     { key: 'type', header: d.type, cell: (z) => d.zoneTypes[z.type] },
     { key: 'unit', header: t.common.orgUnit, cell: (z) => unitName(z.orgUnitId) },
@@ -288,7 +288,6 @@ export function DirectoriesTab({ org }: Props) {
       >
         <DataTable
           columns={siteColumns}
-          onRowClick={(s) => setEditing({ kind: 'sites', row: s })}
           rowActions={(s) => rowMenu('sites', s, { kind: 'sites', row: s })}
           searchText={(s) => s.name}
           rows={org.sites}
@@ -388,7 +387,6 @@ export function DirectoriesTab({ org }: Props) {
         )}
         <DataTable
           columns={unitColumns}
-          onRowClick={(u) => setEditing({ kind: 'orgUnits', row: u })}
           rowActions={(u) => rowMenu('orgUnits', u, { kind: 'orgUnits', row: u })}
           searchText={(u) => u.name}
           rows={org.orgUnits}
@@ -456,7 +454,6 @@ export function DirectoriesTab({ org }: Props) {
       >
         <DataTable
           columns={teamColumns}
-          onRowClick={(tm) => setEditing({ kind: 'teams', row: tm })}
           rowActions={(tm) => rowMenu('teams', tm, { kind: 'teams', row: tm })}
           searchText={(tm) => tm.name}
           rows={org.teams}
@@ -533,7 +530,6 @@ export function DirectoriesTab({ org }: Props) {
       >
         <DataTable
           columns={positionColumns}
-          onRowClick={(p) => setEditing({ kind: 'positions', row: p })}
           rowActions={(p) => rowMenu('positions', p, { kind: 'positions', row: p })}
           searchText={(p) => p.name}
           rows={org.positions}
@@ -641,7 +637,6 @@ export function DirectoriesTab({ org }: Props) {
       >
         <DataTable
           columns={zoneColumns}
-          onRowClick={(z) => setEditing({ kind: 'zones', row: z })}
           rowActions={(z) => rowMenu('zones', z, { kind: 'zones', row: z })}
           searchText={(z) => z.name}
           rows={org.zones}

@@ -80,7 +80,7 @@ export function BonusPage() {
   const historyQuery = useQuery({
     queryKey: keys.bonusHistory(filters),
     queryFn: () => bonusApi.history(filters),
-    enabled: tab === 'history',
+    enabled: tab === 'history' && Boolean(from && to && from <= to),
   });
   const history = historyQuery.data ?? null;
 
@@ -103,27 +103,31 @@ export function BonusPage() {
   }));
 
   const historyColumns: Column<BonusHistoryView['buckets'][number]>[] = [
-    { key: 'key', header: b.historyPeriod, cell: (r) => r.key },
+    { key: 'key', sortValue: (r) => r.key, header: b.historyPeriod, cell: (r) => r.key },
     {
       key: 'points',
+      sortValue: (r) => r.points,
       header: b.historyPoints,
       align: 'right',
       cell: (r) => <span className="font-semibold tabular-nums">{r.points}</span>,
     },
     {
       key: 'checklists',
+      sortValue: (r) => r.checklistPoints,
       header: b.historyChecklists,
       align: 'right',
       cell: (r) => <span className="tabular-nums">{r.checklistPoints}</span>,
     },
     {
       key: 'awards',
+      sortValue: (r) => r.awardPoints,
       header: b.historyAwards,
       align: 'right',
       cell: (r) => <span className="tabular-nums">{r.awardPoints}</span>,
     },
     {
       key: 'employees',
+      sortValue: (r) => r.employees,
       header: b.historyEmployees,
       align: 'right',
       cell: (r) => <span className="tabular-nums">{r.employees}</span>,
@@ -373,6 +377,7 @@ export function BonusPage() {
               columns={columns}
               rows={rows}
               storageKey="bonus-points"
+              resetKey={`${site}:${unitId}:${month}`}
               searchText={(r) => `${r.employeeName} ${r.personnelNumber}`}
               rowKey={(r) => r.employeeId}
               empty={b.empty}
@@ -382,8 +387,21 @@ export function BonusPage() {
         </TabsContent>
         <TabsContent value="history" className="flex flex-col gap-4">
           <Toolbar>
-            <DateField label={b.from} value={from} onChange={setFrom} className="w-44" />
-            <DateField label={b.to} value={to} onChange={setTo} className="w-44" />
+            <DateField
+              label={b.from}
+              value={from}
+              maxDate={to}
+              onChange={setFrom}
+              className="w-44"
+            />
+            <DateField
+              label={b.to}
+              value={to}
+              minDate={from}
+              error={from > to ? all.ui.common.invalidValue : undefined}
+              onChange={setTo}
+              className="w-44"
+            />
             <SelectField
               label={b.groupBy}
               searchable={false}
@@ -443,10 +461,8 @@ export function BonusPage() {
             </div>
           </Toolbar>
           <Section title={b.tabHistory}>
-            {(history?.buckets.length ?? 0) === 0 ? (
-              <Muted>{b.historyEmpty}</Muted>
-            ) : (
-              <>
+            <>
+              {(history?.buckets.length ?? 0) > 0 && (
                 <ChartContainer
                   config={{ points: { label: b.historyPoints, color: 'var(--chart-1)' } }}
                   className="mb-4 h-56 w-full"
@@ -465,16 +481,17 @@ export function BonusPage() {
                     <Bar dataKey="points" fill="var(--chart-1)" radius={4} maxBarSize={72} />
                   </BarChart>
                 </ChartContainer>
-                <DataTable
-                  queryState={historyQuery}
-                  columns={historyColumns}
-                  rows={history?.buckets ?? []}
-                  storageKey="bonus-history"
-                  rowKey={(r) => r.key}
-                  empty={b.historyEmpty}
-                />
-              </>
-            )}
+              )}
+              <DataTable
+                queryState={historyQuery}
+                columns={historyColumns}
+                rows={history?.buckets ?? []}
+                storageKey="bonus-history"
+                resetKey={JSON.stringify(filters)}
+                rowKey={(r) => r.key}
+                empty={b.historyEmpty}
+              />
+            </>
           </Section>
           <Section
             title={b.historyDetail}
@@ -492,6 +509,10 @@ export function BonusPage() {
               columns={entryColumns}
               rows={history?.entries ?? []}
               storageKey="bonus-history-entries"
+              primaryKey="employee"
+              resetKey={JSON.stringify(filters)}
+              truncated={(history?.total ?? 0) > (history?.entries.length ?? 0)}
+              totalCount={history?.total}
               rowKey={(r) => r.id}
               searchText={(r) => `${r.employeeName} ${r.personnelNumber} ${r.orgUnitName ?? ''}`}
               empty={b.historyDetailEmpty}

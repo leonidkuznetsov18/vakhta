@@ -84,7 +84,17 @@ const org = {
       isActive: true,
     },
   ],
-  terminals: [],
+  terminals: [
+    {
+      id: 'terminal-preview',
+      siteId: 's1',
+      name: 'Основний',
+      checkpoint: 'BOTH',
+      status: 'ACTIVE',
+      paired: true,
+      lastSeenAt: '2026-09-10T17:00:00.000Z',
+    },
+  ],
   reasonCodes: [],
   shiftTemplates: [],
 };
@@ -249,6 +259,24 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       },
     ]);
   }
+  if (path === '/admin/audit')
+    return json([
+      {
+        id: 'audit-preview',
+        at: '2026-09-10T12:00:00.000Z',
+        actorType: 'WEB_USER',
+        actorId: 'u-preview',
+        actorName: 'QA administrator',
+        action: 'qr_terminal.update',
+        objectType: 'qr_terminal',
+        objectId: 'terminal-preview',
+        before: { name: 'Main' },
+        after: { name: 'Основний' },
+        reason: 'Preview: verify the full audit evidence remains accessible inline.',
+      },
+    ]);
+  if (path === '/admin/audit/events') return json([]);
+  if (/^\/admin\/employees\/[^/]+\/positions$/.test(path)) return json([]);
   if (path === '/admin/employees') {
     return json(
       [
@@ -257,6 +285,12 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
         ['e3', '131', 'Панов Олег', false],
         ['e4', '132', 'Гринько Юлія', true],
         ['e5', '129', 'Калашнік Світлана', false],
+        ...Array.from({ length: 7 }, (_, index) => [
+          `employee-preview-${index}`,
+          `QA-${index}`,
+          `Тестовий працівник ${index + 1}`,
+          false,
+        ]),
       ].map(([id, personnelNumber, fullName, telegramLinked]) => ({
         id,
         personnelNumber,
@@ -699,9 +733,13 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     return json({
       from: '2026-09-01T00:00:00.000Z',
       to: '2026-09-08T00:00:00.000Z',
-      byReason: [],
-      byZone: [],
-      totals: zero,
+      byReason: [
+        { ...zero, key: 'SAFETY', label: 'Безпека', incidents: 1, reports: 1, downtimeMinutes: 12 },
+      ],
+      byZone: [
+        { ...zero, key: 'z1', label: 'Линия 1', incidents: 1, reports: 1, downtimeMinutes: 12 },
+      ],
+      totals: { ...zero, incidents: 1, reports: 1, downtimeMinutes: 12 },
     });
   }
   if (path.startsWith('/admin/schedules/templates')) return json(scheduleTemplates);

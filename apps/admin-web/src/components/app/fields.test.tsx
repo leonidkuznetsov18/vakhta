@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { render } from '../../test-utils.tsx';
-import { SelectField } from './fields.tsx';
+import { FormField, SelectField } from './fields.tsx';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 const many = Array.from({ length: 12 }, (_, i) => ({
   value: `e${i}`,
@@ -10,6 +13,79 @@ const many = Array.from({ length: 12 }, (_, i) => ({
 
 describe('SelectField', () => {
   afterEach(cleanup);
+
+  it('focuses the first form control rather than a heading tooltip in dialogs', async () => {
+    render(
+      <Dialog open>
+        <DialogContent>
+          <DialogTitle>
+            Editor <button data-info-tip>Help</button>
+          </DialogTitle>
+          <Input aria-label="First field" />
+          <button>Save</button>
+        </DialogContent>
+      </Dialog>,
+    );
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('First field')));
+  });
+
+  it('associates inline errors with their inputs', () => {
+    render(
+      <FormField label="Name" error="Name is required">
+        {(id) => <Input id={id} />}
+      </FormField>,
+    );
+    const input = screen.getByLabelText('Name');
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(document.getElementById(input.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
+      'Name is required',
+    );
+  });
+
+  it('validates a required searchable select and focuses its visible trigger', () => {
+    const submit = vi.fn((event: React.FormEvent) => event.preventDefault());
+    render(
+      <form onSubmit={submit}>
+        <SelectField label="Employee" value="" onChange={() => undefined} options={many} required />
+        <button type="submit">Save</button>
+      </form>,
+    );
+    fireEvent.click(screen.getByText('Save'));
+    expect(submit).not.toHaveBeenCalled();
+    const trigger = screen.getByRole('combobox', { name: 'Employee' });
+    expect(document.activeElement).toBe(trigger);
+    expect(trigger.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByRole('alert')).toBeTruthy();
+  });
+
+  it('opens the searchable select with ArrowDown', { timeout: 60_000 }, async () => {
+    render(<SelectField label="Employee" value="" onChange={() => undefined} options={many} />);
+    const trigger = screen.getByRole('combobox', { name: 'Employee' });
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    expect(await screen.findByPlaceholderText('Поиск')).toBeTruthy();
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('preserves Enter and submits with Ctrl+Enter only while the submitter is enabled', () => {
+    const submit = vi.fn((event: React.FormEvent) => event.preventDefault());
+    const view = (disabled: boolean) => (
+      <form onSubmit={submit}>
+        <Textarea aria-label="Comment" />
+        <button type="submit" disabled={disabled}>
+          Save
+        </button>
+      </form>
+    );
+    const { rerender } = render(view(false));
+    const input = screen.getByLabelText('Comment');
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(submit).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true });
+    expect(submit).toHaveBeenCalledTimes(1);
+    rerender(view(true));
+    fireEvent.keyDown(input, { key: 'Enter', metaKey: true });
+    expect(submit).toHaveBeenCalledTimes(1);
+  });
 
   it('stays a native select for short lists', () => {
     render(
