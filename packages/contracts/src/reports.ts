@@ -46,7 +46,11 @@ export const LossesQuery = ReportQuery.extend({
   /** A reason code inside the category. */
   reason: z.string().min(1).max(64).optional(),
   /** Ask for the intervals that carry no reason at all — the ones a code cannot name. */
-  noReason: z.coerce.boolean().optional(),
+  noReason: z
+    .union([z.boolean(), z.enum(['true', 'false']).transform((value) => value === 'true')])
+    .optional(),
+  /** Duration cutoff; later historical corrections can still change a subsequent execution. */
+  asOf: IsoDateTime.optional(),
 });
 export type LossesQuery = z.infer<typeof LossesQuery>;
 
@@ -98,6 +102,10 @@ export const LossesView = z.object({
   /** Level three: the intervals themselves, present once a category is chosen. */
   intervals: z.array(LossInterval),
   intervalsTotal: z.number().int().nonnegative(),
+  intervalsLimit: z.number().int().positive(),
+  intervalsTruncated: z.boolean(),
+  exportLimit: z.number().int().positive(),
+  asOf: IsoDateTime,
   generatedAt: IsoDateTime,
 });
 export type LossesView = z.infer<typeof LossesView>;

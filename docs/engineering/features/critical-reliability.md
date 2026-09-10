@@ -25,8 +25,11 @@ existing worker interactions, Nest module boundaries and the pure shift FSM.
    comments do not multiply an interval. Detail and aggregate arithmetic agree.
 7. Reports have a common cutoff and consistent database snapshot per execution, accurate total
    counts and explicit detail/export limits. A timestamp alone is not an immutable saved report.
-8. Owner clarification: day shifts run 08:00–20:00, night shifts 20:00–08:00. No auto-close grace.
-   Close at the scheduled end; delayed scanning must not inflate duration. Finish Shift opens the
+8. Latest owner clarification: day shifts run 08:00–20:00, night shifts 20:00–08:00, with two hours
+   allowed afterwards for checklist and QR departure (22:00 / 10:00). This supersedes the earlier
+   no-grace instruction. The owner confirmed that QR departure records actual time (including
+   21:33), while missing QR closes automatically at 22:00 / 10:00 with accounted end 20:00 / 08:00.
+   Actual departure remains unknown. Scanner delay must never inflate duration. Finish Shift opens the
    checklist, departure QR after submission closes the shift, and QR without submission reminds the
    employee. Missing report and departure auto-close with the existing NO_CHECKLIST marker.
    Preserve actual recorded history and distinguish automatic closure from a confirmed QR departure.
@@ -65,8 +68,19 @@ and authenticated panel/kiosk/bot verification.
 - `pnpm build` passed (8 tasks, 6 cached). `pnpm check` passed; API executed 25 files / 156 tests,
   other test packages were cache hits. The supplemental last-assignment removal test passed;
   the request suite now has eight passing tests, with API typecheck and changed-file lint passing.
-- No production deployment yet. Access/recovery/report/month fixes
-  remain in progress; these focused checks are not evidence that all nine risks are resolved.
+- Commits `d844490` and `e41915e` passed GitHub run `34469551770`; release `v0.70.3` and the existing
+  Telegram announcement succeeded. Railway API deployment `1e2ac6ee-d4d6-437b-a713-623aca9c1acc`
+  reports SUCCESS at `e41915e`. Public liveness returned ok. A bounded seven-record deployment log
+  sample contained no error-level records; the capped HTTP >=500 query since 11:16 UTC returned zero.
+  These bounded observations do not prove absence of all runtime errors.
+- Authenticated profile confirms `dev@vakhta.xyz`, enterprise administrator. Requests loaded and SSE
+  connected after API deployment. The 390x844 mobile empty state remained readable; no application
+  errors were captured (wallet-extension errors were excluded). Paired kiosk `Основний` showed its
+  renewal countdown. The actual worker bot menu/history was inspected without shift mutations;
+  fresh Telegram command execution was blocked by native automation input errors.
+- Pages uploads were skipped because GitHub's Cloudflare token is missing; the panel still displays
+  v0.70.1. The green Pages job is not deployment evidence. Remaining access/recovery/report/month
+  fixes are in progress; these focused checks are not evidence that all nine risks are resolved.
 
 ## Technical references consulted
 

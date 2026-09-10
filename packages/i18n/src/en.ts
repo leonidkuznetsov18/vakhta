@@ -1084,6 +1084,15 @@ export const en: Messages = {
       lossPickCategory:
         'Pick a category on the chart to see its reasons and the intervals behind them.',
       lossEmpty: 'No intervals in this period.',
+      lossCutoff: 'Calculation cutoff',
+      lossUnavailable:
+        'Unable to verify report completeness. Refresh the page or try again shortly.',
+      lossAsOf: 'Calculated through {at}. Later corrections can change the report.',
+      lossRowsShown: 'Showing {shown} of {total} intervals.',
+      lossTruncated:
+        'Only the first {limit} intervals are displayed. Export includes all matching intervals up to the export limit.',
+      lossExportTooLarge:
+        'Export is limited to {limit} intervals. Narrow the dates or unit filter.',
       exportCsv: 'CSV',
       exportXlsx: 'XLSX',
       preset: 'Period',

@@ -3,6 +3,17 @@ import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { render } from '../test-utils.tsx';
 import { ReportsPage } from './ReportsPage.tsx';
 import { AuditPage } from '../audit/AuditPage.tsx';
+import type { LossesView } from '@vakhta/contracts';
+import { useQueryClient } from '@tanstack/react-query';
+
+function RefreshReport() {
+  const client = useQueryClient();
+  return (
+    <button onClick={() => void client.invalidateQueries({ queryKey: ['reports', 'losses'] })}>
+      Refresh report
+    </button>
+  );
+}
 
 const org = {
   sites: [
@@ -21,7 +32,9 @@ const org = {
   reasonCodes: [],
 };
 
-function mockApi() {
+function mockApi(
+  metadata: Partial<Pick<LossesView, 'intervalsTotal' | 'intervalsTruncated'>> = {},
+) {
   const calls: string[] = [];
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
@@ -76,9 +89,9 @@ function mockApi() {
           intervals: category
             ? [
                 {
-                  id: 'i1',
+                  id: 'a0000000-0000-4000-8000-000000000010',
                   businessDate: '2026-10-05',
-                  employeeId: 'e1',
+                  employeeId: 'a0000000-0000-4000-8000-000000000011',
                   employeeName: 'Кузнецов Леонид',
                   orgUnitName: 'Цех',
                   zoneName: 'Линия 1',
@@ -93,7 +106,12 @@ function mockApi() {
               ]
             : [],
           intervalsTotal: category ? 1 : 0,
+          intervalsLimit: 500,
+          intervalsTruncated: false,
+          exportLimit: 20000,
+          asOf: '2026-10-05T10:00:00.000Z',
           generatedAt: '2026-10-05T10:00:00.000Z',
+          ...metadata,
         });
       }
       if (url.pathname === '/admin/audit')
@@ -171,9 +189,65 @@ describe('ReportsPage and AuditPage', () => {
 
     const csv = screen.getByRole('link', { name: 'CSV' });
     expect(csv.getAttribute('href')).toContain('/admin/reports/losses/export/csv?');
+    expect(new URL(csv.getAttribute('href') ?? '').searchParams.get('asOf')).toBe(
+      '2026-10-05T10:00:00.000Z',
+    );
     expect(screen.getByRole('link', { name: 'XLSX' }).getAttribute('href')).toContain(
       '/export/xlsx',
     );
+  });
+
+  it('makes limited detail and an oversized export explicit before downloading', async () => {
+    mockApi({ intervalsTotal: 20_001, intervalsTruncated: true });
+    render(<ReportsPage />);
+    expect(await screen.findByText(/Лимит экспорта — 20000/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'CSV' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: 'XLSX' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.queryByRole('link', { name: 'CSV' })).toBeNull();
+    fireEvent.click(screen.getByText('Передача'));
+    expect(await screen.findByText('Показано 1 из 20001 интервалов.')).toBeTruthy();
+    expect(screen.getByText(/Показаны только первые 500 интервалов/)).toBeTruthy();
+  });
+
+  it('keeps downloads disabled when the response cannot prove completeness', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(String(input));
+        return new Response(
+          JSON.stringify(url.pathname === '/admin/org' ? org : { intervalsTotal: 1 }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          },
+        );
+      }),
+    );
+    render(<ReportsPage />);
+    expect(await screen.findByText(/Не удалось проверить полноту отчёта/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'CSV' }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('disables downloads when a refetch invalidates previously complete report data', async () => {
+    mockApi();
+    render(
+      <>
+        <ReportsPage />
+        <RefreshReport />
+      </>,
+    );
+    expect(await screen.findByRole('link', { name: 'CSV' })).toBeTruthy();
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ intervalsTotal: 1 }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh report' }));
+    expect(await screen.findByText(/Не удалось проверить полноту отчёта/)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'CSV' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'CSV' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: 'XLSX' }).hasAttribute('disabled')).toBe(true);
   });
 
   it('audit shows actions with before/after and the event log with a link to the corrected event', async () => {

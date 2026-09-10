@@ -921,6 +921,12 @@ export interface Messages {
       readonly lossBack: string;
       readonly lossPickCategory: string;
       readonly lossEmpty: string;
+      readonly lossCutoff: string;
+      readonly lossUnavailable: string;
+      readonly lossAsOf: string;
+      readonly lossRowsShown: string;
+      readonly lossTruncated: string;
+      readonly lossExportTooLarge: string;
       readonly exportCsv: string;
       readonly exportXlsx: string;
       readonly preset: string;

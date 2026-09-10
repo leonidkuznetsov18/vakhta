@@ -6,6 +6,8 @@ import type {
   UpdateTerminalCommand,
 } from '@vakhta/contracts';
 import { currentLocale } from './i18n.tsx';
+import { messages } from '@vakhta/i18n';
+import { LossesView as LossesViewSchema } from '@vakhta/contracts';
 
 export const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
 
@@ -495,11 +497,23 @@ function lossQuery(q: LossesQuery): string {
     category: q.category,
     reason: q.reason,
     noReason: q.noReason ? 'true' : undefined,
+    asOf: q.asOf,
   });
 }
 
 export const reportsApi = {
-  losses: (q: LossesQuery) => apiFetch<LossesView>(`/admin/reports/losses${lossQuery(q)}`),
+  losses: async (q: LossesQuery): Promise<LossesView> => {
+    const result = LossesViewSchema.safeParse(
+      await apiFetch<unknown>(`/admin/reports/losses${lossQuery(q)}`),
+    );
+    if (!result.success)
+      throw new ApiError(
+        502,
+        'REPORT_RESPONSE_INVALID',
+        messages(currentLocale()).admin.reports.lossUnavailable,
+      );
+    return result.data;
+  },
   lossesExportUrl: (q: LossesQuery, format: 'csv' | 'xlsx') =>
     `${API_URL}/admin/reports/losses/export/${format}${lossQuery(q)}`,
   audit: (q: AuditQuery) =>

@@ -25,6 +25,7 @@ import { formatDateTime, formatDuration } from '@/lib/format';
 import { reportsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { reportPresentation } from './report-presentation';
 
 const all = messages(currentLocale());
 const r = all.admin.reports;
@@ -88,6 +89,7 @@ export function ReportsPage() {
     queryFn: () => reportsApi.losses(query),
   });
   const data: LossesView | null = report.data ?? null;
+  const presentation = reportPresentation(data, query, currentLocale(), report.isError);
 
   const bars = data?.bars ?? [];
   const chart = bars.map((b) => ({
@@ -221,21 +223,13 @@ export function ReportsPage() {
           className="w-52"
         />
         <div className="flex items-end gap-1">
-          <Button asChild variant="outline">
-            <a href={reportsApi.lossesExportUrl(query, 'csv')} target="_blank" rel="noreferrer">
-              <DownloadIcon aria-hidden="true" />
-              {r.exportCsv}
-            </a>
-          </Button>
-          <Button asChild variant="outline">
-            <a href={reportsApi.lossesExportUrl(query, 'xlsx')} target="_blank" rel="noreferrer">
-              <DownloadIcon aria-hidden="true" />
-              {r.exportXlsx}
-            </a>
-          </Button>
+          <ExportButton query={presentation.exportQuery} format="csv" label={r.exportCsv} />
+          <ExportButton query={presentation.exportQuery} format="xlsx" label={r.exportXlsx} />
         </div>
       </Toolbar>
       <Feedback error={report.error ? describeError(report.error) : null} />
+      {presentation.exportWarning && <p role="status">{presentation.exportWarning}</p>}
+      {presentation.asOf && <Muted>{presentation.asOf}</Muted>}
 
       <Section title={r.lossTitle} hint={r.lossPurpose}>
         {/* The way out of a category sits above everything the category changed, not under the
@@ -334,6 +328,8 @@ export function ReportsPage() {
 
       {category ? (
         <Section title={`${r.lossIntervals}: ${data?.categoryLabel ?? ''}`}>
+          <Muted>{presentation.count}</Muted>
+          {presentation.truncation && <p role="status">{presentation.truncation}</p>}
           <DataTable
             columns={intervalColumns}
             rows={data?.intervals ?? []}
@@ -347,6 +343,32 @@ export function ReportsPage() {
         <Muted>{r.lossPickCategory}</Muted>
       )}
     </div>
+  );
+}
+
+function ExportButton({
+  query,
+  format,
+  label,
+}: {
+  readonly query: LossesQuery | null;
+  readonly format: 'csv' | 'xlsx';
+  readonly label: string;
+}) {
+  if (!query)
+    return (
+      <Button variant="outline" disabled>
+        <DownloadIcon aria-hidden="true" />
+        {label}
+      </Button>
+    );
+  return (
+    <Button asChild variant="outline">
+      <a href={reportsApi.lossesExportUrl(query, format)} target="_blank" rel="noreferrer">
+        <DownloadIcon aria-hidden="true" />
+        {label}
+      </a>
+    </Button>
   );
 }
 
