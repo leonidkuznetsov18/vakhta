@@ -1,3 +1,9 @@
+## [0.70.4](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.3...v0.70.4) (2026-09-10)
+
+### Bug fixes
+
+* **reports:** preserve historical ownership and complete export counts ([7195396](https://github.com/leonidkuznetsov18/vakhta/commit/71953965b79692507607e89f6afa7fc055bd8864))
+
 ## [0.70.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.2...v0.70.3) (2026-09-10)
 
 ### Bug fixes
