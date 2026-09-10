@@ -485,10 +485,12 @@ export class RequestsService {
     if (q.status) conditions.push(eq(requests.status, q.status));
     if (q.type) conditions.push(eq(requests.type, q.type));
     if (q.employeeId) conditions.push(eq(requests.employeeId, q.employeeId));
-    const rows = await this.baseQuery()
+    const query = this.baseQuery()
       .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(desc(requests.submittedAt))
-      .limit(500);
+      .orderBy(desc(requests.submittedAt));
+    // The inbox is an actionable queue: a history cap before role filtering hid older pending
+    // requests and made overview counts incomplete. Keep the cap only on the historical view.
+    const rows = (q.scope ?? 'inbox') === 'inbox' ? await query : await query.limit(500);
     const hr = viewer.roles.includes('HR') || viewer.roles.includes('ADMIN');
     const views = rows.map((r) => this.toView(r, now, hr));
     if ((q.scope ?? 'inbox') !== 'inbox') return views;

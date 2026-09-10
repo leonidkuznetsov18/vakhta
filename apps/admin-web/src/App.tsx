@@ -123,7 +123,7 @@ function useBadges(me: MeView | null): Partial<Record<SectionKey, number>> {
   if (!me) return {};
   return {
     incidents: data.openIncidents ?? 0,
-    handover: data.overdueAcceptances ?? 0,
+    handover: data.pendingHandovers ?? 0,
     requests: data.requestsForMe ?? 0,
   };
 }

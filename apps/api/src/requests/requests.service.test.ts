@@ -10,6 +10,7 @@ import {
   orgUnits,
   positions,
   reasonCodes,
+  requests,
   scheduleVersions,
   shiftAssignments,
   shiftSessions,
@@ -498,6 +499,29 @@ describe('requests: маршрути, рішення, нова версія гр
       'CANCELLED',
       'REJECTED',
     ]);
+  });
+
+  it('keeps the entire role-filtered inbox when other roles have more than 500 newer requests', async () => {
+    const older = new Date('2026-09-01T08:00:00Z');
+    const newer = new Date('2026-09-02T08:00:00Z');
+    const [late] = await testDb.db
+      .insert(requests)
+      .values({
+        type: 'LATE',
+        employeeId: ivanov,
+        submittedAt: older,
+      })
+      .returning({ id: requests.id });
+    await testDb.db.insert(requests).values(
+      Array.from({ length: 501 }, () => ({
+        type: 'SICK' as const,
+        employeeId: petrova,
+        submittedAt: newer,
+      })),
+    );
+    expect((await service.list({ scope: 'inbox' }, MASTER)).map((r) => r.id)).toEqual([late!.id]);
+    expect(await service.list({ scope: 'inbox' }, HR)).toHaveLength(501);
+    expect(await service.list({ scope: 'all' }, HR)).toHaveLength(500);
   });
 
   it('LATE зі схваленими хвилинами зберігає допустиме відхилення (ТЗ 7.3); вхідні фільтруються за роллю', async () => {

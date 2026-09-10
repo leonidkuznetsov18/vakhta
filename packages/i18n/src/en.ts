@@ -568,7 +568,7 @@ export const en: Messages = {
       onShift: 'On shift now',
       inDowntime: 'In downtime',
       unscheduledShifts: 'Unscheduled shifts',
-      closedNoChecklist: 'Closed without a checklist',
+      closedNoChecklist: 'Closed without checklist in 24 h',
       unscheduledUnit: 'No schedule: {unit}',
       noUnit: 'No unit',
       open: 'Open',

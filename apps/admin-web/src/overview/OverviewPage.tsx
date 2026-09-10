@@ -1,4 +1,3 @@
-import { Button } from '@/components/ui/button';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import type { ActiveShiftView, MeView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
@@ -14,33 +13,22 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Feedback } from '@/components/app/feedback';
 import { InfoTip } from '@/components/app/info-tip';
 import { EmptyState, Muted, Section, type Tone } from '@/components/app/page';
 import { AvatarStack, type StackedPerson } from '@/components/app/avatar-stack';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { formatTime } from '@/lib/format';
 import { writeSchedulePreset } from '../schedule/preset.ts';
-import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { writeRoute } from '@/lib/route';
 import { setUiState } from '@/lib/ui-store';
 import { useNavigation, type SectionKey } from '../navigation.tsx';
 import { useAttention, type Attention } from './attention.ts';
+import { attentionFilters } from '@/features/overview';
 import { cn } from 'cn';
 
 const all = messages(currentLocale());
 const o = all.admin.overview;
-
-/**
- * The live-shift screen stands on a day and on a scope, so a tile that counts rows there hands over
- * both. Without the day the screen opens on today and the row the number stood for — a shift closed
- * last night, a night shift started yesterday — is not in the list at all.
- */
-function opsFilters(data: Attention, key: keyof Attention, scope: 'OPEN' | 'ALL'): void {
-  const day = data.firstDate[key];
-  setUiState({ 'operations.scope': scope, ...(day ? { 'operations.day': day } : {}) });
-}
 
 interface Tile {
   readonly key: keyof Omit<
@@ -50,7 +38,7 @@ interface Tile {
   readonly label: string;
   readonly icon: LucideIcon;
   readonly section: SectionKey;
-  /** Presets the destination (tab, filters) before the jump, so the list shows exactly the counted rows. */
+  /** Selects the destination tab after navigating to the section. */
   readonly prepare?: (data: Attention) => void;
   /** Tone when the count is above zero; neutral tiles are informational. */
   readonly tone: Tone;
@@ -72,11 +60,11 @@ const TILES: readonly Tile[] = [
     tone: 'warning',
   },
   {
-    key: 'overdueAcceptances',
+    key: 'pendingHandovers',
     label: o.overdueAcceptances,
     icon: ClipboardCheckIcon,
     section: 'handover',
-    tone: 'danger',
+    tone: 'warning',
   },
   {
     key: 'overdueRequests',
@@ -106,7 +94,6 @@ const TILES: readonly Tile[] = [
     section: 'administration',
     tone: 'warning',
     prepare: () => {
-      setUiState({ 'employees.status': 'ACTIVE', 'employees.telegram': 'NOT_LINKED' });
       writeRoute('administration', 'employees');
     },
   },
@@ -131,7 +118,6 @@ const TILES: readonly Tile[] = [
     icon: AlertTriangleIcon,
     section: 'operations',
     tone: 'danger',
-    prepare: (data) => opsFilters(data, 'closedNoChecklist', 'ALL'),
   },
   {
     key: 'inDowntime',
@@ -139,7 +125,6 @@ const TILES: readonly Tile[] = [
     icon: ActivityIcon,
     section: 'operations',
     tone: 'warning',
-    prepare: (data) => opsFilters(data, 'inDowntime', 'OPEN'),
   },
   {
     key: 'onShift',
@@ -147,7 +132,6 @@ const TILES: readonly Tile[] = [
     icon: ActivityIcon,
     section: 'operations',
     tone: 'neutral',
-    prepare: (data) => opsFilters(data, 'onShift', 'OPEN'),
   },
 ];
 
@@ -215,7 +199,7 @@ function TileCard({
             <div className={cn('text-2xl font-semibold tabular-nums', active && TONE_TEXT[tone])}>
               {value}
             </div>
-            <div className="truncate text-sm text-muted-foreground">{label}</div>
+            <div className="text-sm break-words text-muted-foreground">{label}</div>
           </div>
         </div>
         {/* Who is behind the number, without opening the section: the faces answer "who" and
@@ -235,7 +219,7 @@ function TileCard({
 
 /** "Overview": the queues waiting on the signed-in role, one tile each, with a shortcut. */
 export function OverviewPage({ me }: { readonly me: MeView }) {
-  const { data, error, queryState, incomplete, refresh } = useAttention(me);
+  const { data, queryState, incomplete } = useAttention(me);
   const { go } = useNavigation();
   const loading = data.refreshedAt === null;
 
@@ -266,13 +250,12 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
   }
 
   function open(t: Tile): void {
-    t.prepare?.(data);
-    // Open the row the number stood for, not just the list it lives in: the destination reads the
-    // id from the address, so writing it before the jump lands the reader on the thing itself.
-    // Sections whose sub-path names a tab (administration) keep whatever `prepare` put there.
-    const id = data.firstId[t.key];
-    if (id && t.section !== 'administration') writeRoute(t.section, id);
+    setUiState(attentionFilters(t.key, data));
     go(t.section);
+    t.prepare?.(data);
+    // Preserve the final row or tab after the section navigation resets the route.
+    const id = data.firstId[t.key];
+    if (t.section !== 'administration') writeRoute(t.section, id);
   }
 
   const tile = (t: Tile) => (
@@ -310,20 +293,6 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
     <div className="flex flex-col gap-4">
       <HowItWorks guide="overview" />
       <QueryFeedback query={queryState} />
-      {incomplete && (
-        <div className="space-y-2">
-          <Feedback error={messages(currentLocale()).ui.common.partialLoadError} />
-          <Button
-            type="button"
-            variant="outline"
-            disabled={queryState.isFetching}
-            onClick={() => void refresh()}
-          >
-            {messages(currentLocale()).ui.common.retry}
-          </Button>
-        </div>
-      )}
-      <Feedback error={error ? describeError(error) : null} />
       <Section
         title={o.title}
         hint={all.ui.hints.overview}
@@ -335,7 +304,7 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
           ) : null
         }
       >
-        {loading ? null : attention.length === 0 && !grouped ? (
+        {loading ? null : attention.length === 0 && !grouped && !incomplete ? (
           <EmptyState text={o.allClear} />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

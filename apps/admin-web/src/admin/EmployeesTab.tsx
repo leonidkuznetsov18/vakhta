@@ -78,7 +78,10 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const [fullName, setFullName] = usePersistentState('employees.fullName', '');
   const [email, setEmail] = usePersistentState('employees.email', '');
   const [phone, setPhone] = usePersistentState('employees.phone', '');
-  const [telegramUsername, setTelegramUsername] = usePersistentState('employees.telegram', '');
+  const [telegramUsername, setTelegramUsername] = usePersistentState(
+    'employees.telegramUsername',
+    '',
+  );
   const [newOrgUnitId, setNewOrgUnitId] = usePersistentState('employees.newOrgUnit', '');
   const [newPositionId, setNewPositionId] = usePersistentState('employees.newPosition', '');
   const [newTeamId, setNewTeamId] = usePersistentState('employees.newTeam', '');

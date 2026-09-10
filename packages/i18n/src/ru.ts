@@ -564,7 +564,7 @@ export const ru: Messages = {
       onShift: 'Сейчас на смене',
       inDowntime: 'В простое',
       unscheduledShifts: 'Внеплановые смены',
-      closedNoChecklist: 'Закрыты без чек-листа',
+      closedNoChecklist: 'Закрыты без чек-листа за 24 ч',
       unscheduledUnit: 'Без графика: {unit}',
       noUnit: 'Без подразделения',
       open: 'Открыть',

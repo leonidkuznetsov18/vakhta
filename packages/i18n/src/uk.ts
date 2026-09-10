@@ -567,7 +567,7 @@ export const uk: Messages = {
       onShift: 'Зараз на зміні',
       inDowntime: 'У простої',
       unscheduledShifts: 'Позапланові зміни',
-      closedNoChecklist: 'Закриті без чек-листа',
+      closedNoChecklist: 'Закриті без чек-листа за 24 год',
       unscheduledUnit: 'Без графіка: {unit}',
       noUnit: 'Без підрозділу',
       open: 'Відкрити',
