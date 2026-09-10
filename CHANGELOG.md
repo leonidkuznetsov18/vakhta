@@ -1,3 +1,13 @@
+## [0.70.9](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.8...v0.70.9) (2026-09-10)
+
+### Bug fixes
+
+* **infra:** add transactional background task storage ([f9a437c](https://github.com/leonidkuznetsov18/vakhta/commit/f9a437c5dc9d8df47c725f72219505f006cce561))
+
+### Documentation
+
+* **ops:** record closure and media production verification ([05a0416](https://github.com/leonidkuznetsov18/vakhta/commit/05a0416a900b4e08e6c4691139d697e6a7174276))
+
 ## [0.70.8](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.7...v0.70.8) (2026-09-10)
 
 ### Bug fixes
