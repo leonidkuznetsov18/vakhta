@@ -1,3 +1,9 @@
+## [0.75.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.74.1...v0.75.0) (2026-09-10)
+
+### Features
+
+* **admin-web:** add zoom and pan to shared photo viewer ([0900129](https://github.com/leonidkuznetsov18/vakhta/commit/09001292574958b22534b3e00bbcbdeecf9102dc))
+
 ## [0.74.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.74.0...v0.74.1) (2026-09-10)
 
 ### Bug fixes
