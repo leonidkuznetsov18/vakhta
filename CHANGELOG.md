@@ -1,3 +1,24 @@
+## [0.70.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.1...v0.70.2) (2026-09-10)
+
+### Refactoring
+
+* **admin-web:** checklists read one query, and a preset draft keys itself ([dedc4ef](https://github.com/leonidkuznetsov18/vakhta/commit/dedc4ef7d734246a6f690224d00a0ad3d49787be))
+* **admin-web:** shared components read the browser instead of copying it ([18b8db2](https://github.com/leonidkuznetsov18/vakhta/commit/18b8db2e302385a87ddf09dd121a3e5ff9efb870))
+* **admin-web:** sign-in, the session and the profile are queries and mutations ([30c7e19](https://github.com/leonidkuznetsov18/vakhta/commit/30c7e1941cbea8af92be6b88a2621bdb6eb344ca))
+* **admin-web:** the address bar is read, not mirrored ([b9c5eac](https://github.com/leonidkuznetsov18/vakhta/commit/b9c5eace61661cd6d374a82dc030e357726d7a1c))
+* **admin-web:** the administration tabs write through mutations ([332c683](https://github.com/leonidkuznetsov18/vakhta/commit/332c683655a269e691e8db3b2cc2b8d867689f36))
+* **admin-web:** the bonus and audit screens read through the query cache ([0da838b](https://github.com/leonidkuznetsov18/vakhta/commit/0da838bc55b43e2249626a467d303c10991a37a0))
+* **admin-web:** the employee card writes through mutations ([a5fd381](https://github.com/leonidkuznetsov18/vakhta/commit/a5fd38187b2dddeacf070ad68c2ee2cb381a57b2))
+* **admin-web:** the handover and requests screens read through the query cache ([1725bc3](https://github.com/leonidkuznetsov18/vakhta/commit/1725bc38bf7aa04a1b74b537d46b03a4b0788898))
+* **admin-web:** the incident queue reads through TanStack Query ([24b5657](https://github.com/leonidkuznetsov18/vakhta/commit/24b56573d7754dfb88f79a42181f533f1bbe9662))
+* **admin-web:** the rules of React are enforced, not remembered ([f9c4dea](https://github.com/leonidkuznetsov18/vakhta/commit/f9c4dea4e3dfa47a761a6e4b710fab380b8e4c80))
+* **admin-web:** the schedule reads through queries and derives its grid ([a901b3b](https://github.com/leonidkuznetsov18/vakhta/commit/a901b3b05e46cb1acfb9b018860d83df1d5fdbf9))
+* **admin-web:** the table derives its page, and the last hand-run action goes ([b484f4d](https://github.com/leonidkuznetsov18/vakhta/commit/b484f4dd44097310d2ff5e32127e8c70c2561735))
+
+### Documentation
+
+* record approved QA targets and worker bot verification ([08979de](https://github.com/leonidkuznetsov18/vakhta/commit/08979de0c9c9c72b79bd03f74c2b8b500cf438ad))
+
 ## [0.70.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.0...v0.70.1) (2026-09-10)
 
 ### Refactoring
