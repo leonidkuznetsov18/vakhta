@@ -1,3 +1,10 @@
+## [0.73.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.1...v0.73.2) (2026-09-10)
+
+### Bug fixes
+
+* **admin:** align card checkboxes and list controls ([3661f61](https://github.com/leonidkuznetsov18/vakhta/commit/3661f6166ef14ecce8dec9a64cff49969e0fcea1))
+* **admin:** expand checklist details inside table rows ([bedff14](https://github.com/leonidkuznetsov18/vakhta/commit/bedff14604a8189e6849d0f552f74c87f1d02521))
+
 ## [0.73.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.0...v0.73.1) (2026-09-10)
 
 ### Bug fixes
