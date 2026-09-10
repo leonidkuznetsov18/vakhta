@@ -6,14 +6,17 @@ import { FaqButton, HowItWorks } from './how-it-works.tsx';
 describe('HowItWorks and FaqButton', () => {
   afterEach(cleanup);
 
-  it('explains the section in steps and opens the questions', () => {
+  it('starts collapsed, expands on demand and opens the questions', () => {
     render(<HowItWorks guide="schedule" />);
     expect(screen.getByText('Как это работает')).toBeTruthy();
+    expect(screen.queryByText(/Выберите площадку, подразделение и месяц/)).toBeNull();
+    expect(
+      screen.getByRole('button', { name: /Как это работает/ }).getAttribute('aria-expanded'),
+    ).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: /Как это работает/ }));
     expect(screen.getByText(/Выберите площадку, подразделение и месяц/)).toBeTruthy();
-    // the block collapses and expands again
     fireEvent.click(screen.getByRole('button', { name: /Как это работает/ }));
     expect(screen.queryByText(/Выберите площадку, подразделение и месяц/)).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /Как это работает/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Вопросы и ответы' }));
     const sheet = screen.getByRole('dialog');
     expect(within(sheet).getByText('Помощь: График')).toBeTruthy();

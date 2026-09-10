@@ -39,7 +39,8 @@ Administration tabs:
   footer (a terminal with history is hidden and disabled, its records stay).
 - "Чек-листы": see the checklists doc.
 
-Every section (and every administration tab) opens with a collapsible "Как это работает" block:
+Every section (and every administration tab) has a "Как это работает" block, collapsed by default
+with explicit expand/collapse choices remembered per section:
 one sentence on what the section is for and the numbered steps of normal use; "Вопросы и ответы"
 in the block and the "?" button in the page header open a side panel with the same steps, the
 frequently asked questions of that section and a link to the printable guide. The texts live in

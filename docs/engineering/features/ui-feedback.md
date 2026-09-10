@@ -5,7 +5,7 @@ keep expanded rows readable on desktop/mobile, and visually inspect screenshots 
 
 ## Implementation
 
-- DataTable accepts the real Query state. Initial fetch shows a skeleton; offline/paused reads show
+- DataTable accepts the real Query state. Initial fetch shows the shared Spinner; offline/paused reads show
   a connection message; failures show a localized error and explicit retry. A successful empty read
   alone shows the empty message. Cached rows remain available during refresh or a failed refetch.
 - Handover, operations, requests/overtime, incidents/knowledge, reports, bonus, audit, users, employees
@@ -55,3 +55,11 @@ Actual shared components with synthetic pending requests were captured and visua
 390×844 and 1440×1000: page, table, photo, QR, refreshing and saving all use the same animated icon;
 no skeletons or horizontal page overflow. Production publication is checked separately.
 Lean: Proceed. Consistent feedback reduces visual noise and ambiguity without extra worker actions.
+
+## 2026-09-10 — Help collapsed by default
+
+The shared HowItWorks component now defaults to collapsed for both regular and compact layouts.
+Existing explicit per-section preferences remain remembered in the Zustand UI store; the toggle and
+FAQ entry points are unchanged. Two focused component tests passed. Actual component screenshots
+were inspected at 390x844 and 1440x1000, with expansion and collapse checked in the browser.
+Lean: proceed; keep the workspace visible on arrival and reveal instructions only when requested.

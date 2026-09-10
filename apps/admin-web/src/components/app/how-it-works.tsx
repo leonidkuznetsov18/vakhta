@@ -19,8 +19,8 @@ function sectionTitle(guide: GuideKey): string {
 
 /**
  * "How it works": the purpose of the section and the normal steps, collapsible and remembered per
- * section, with a button to the questions and answers. Meant for the first week of a new user;
- * an experienced one collapses it once.
+ * section, with a button to the questions and answers. Starts collapsed; explicit user choices
+ * remain remembered so help stays available without crowding the workspace.
  */
 export function HowItWorks({
   guide,
@@ -33,7 +33,7 @@ export function HowItWorks({
 }) {
   const t = messages(currentLocale());
   const g = t.ui.guide[guide];
-  const [open, setOpen] = usePersistentState(`guide.${guide}.open`, !compact);
+  const [open, setOpen] = usePersistentState(`guide.${guide}.open`, false);
   const [faq, setFaq] = useState(false);
   return (
     <div
