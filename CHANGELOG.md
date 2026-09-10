@@ -1,3 +1,9 @@
+## [0.73.4](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.3...v0.73.4) (2026-09-10)
+
+### Bug fixes
+
+* **admin:** replace skeletons with one shared spinner state ([a3e6ee1](https://github.com/leonidkuznetsov18/vakhta/commit/a3e6ee1b38d195ab0297ec5b44bad592e6a8474e))
+
 ## [0.73.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.2...v0.73.3) (2026-09-10)
 
 ### Bug fixes
