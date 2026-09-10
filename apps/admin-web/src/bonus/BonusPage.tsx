@@ -1,10 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import type {
-  BonusHistoryView,
-  BonusPointsView,
-  OrgSnapshot,
-  PointAwardKind,
-} from '@vakhta/contracts';
+import { useQuery } from '@tanstack/react-query';
+import type { BonusHistoryView, BonusPointsView, PointAwardKind } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
 import {
@@ -18,7 +13,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { DateField } from '@/components/app/date-picker';
-import { Feedback, useAction } from '@/components/app/feedback';
+import { Feedback } from '@/components/app/feedback';
 import { MonthField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
 import { Muted, Section, StatusPill, Toolbar } from '@/components/app/page';
@@ -27,8 +22,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DownloadIcon } from 'lucide-react';
 import { usePersistentState } from '@/lib/ui-store';
-import { bonusApi, orgApi, type BonusHistoryFilters } from '../api.ts';
-import { describeError } from '../errors.ts';
+import { useOrg } from '@/lib/org';
+import { keys } from '@/lib/query';
+import { bonusApi, type BonusHistoryFilters } from '../api.ts';
+import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 
 const all = messages(currentLocale());
@@ -46,11 +43,10 @@ type PointsRow = BonusPointsView['employees'][number];
  * scored, adjusted or closed here: points are earned in the bot and confirmed at the zone handover.
  */
 export function BonusPage() {
-  const [org, setOrg] = useState<OrgSnapshot | null>(null);
+  const { org } = useOrg();
   const [siteId, setSiteId] = usePersistentState('bonus.siteId', '');
   const [month, setMonth] = usePersistentState('bonus.month', currentMonth);
   const [unitId, setUnitId] = usePersistentState('bonus.unitId', '');
-  const [data, setData] = useState<BonusPointsView | null>(null);
   const [tab, setTab] = usePersistentState<'points' | 'history'>('bonus.tab', 'points');
   const [groupBy, setGroupBy] = usePersistentState<'day' | 'month' | 'year'>(
     'bonus.groupBy',
@@ -60,41 +56,31 @@ export function BonusPage() {
   const [to, setTo] = usePersistentState('bonus.to', new Date().toISOString().slice(0, 10));
   const [kind, setKind] = usePersistentState<'' | PointAwardKind>('bonus.kind', '');
   const [search, setSearch] = usePersistentState('bonus.search', '');
-  const [history, setHistory] = useState<BonusHistoryView | null>(null);
-  const { busy, error, run } = useAction();
 
-  useEffect(() => {
-    orgApi
-      .snapshot()
-      .then((snapshot) => {
-        setOrg(snapshot);
-        if (!siteId && snapshot.sites[0]) setSiteId(snapshot.sites[0].id);
-      })
-      .catch(() => undefined);
-  }, []);
+  // With one site there is nothing to choose: the page opens on it instead of on an empty filter.
+  const site = siteId || (org?.sites[0]?.id ?? '');
+  const points = useQuery({
+    queryKey: keys.bonusPoints({ site, month }),
+    queryFn: () => bonusApi.points(site, month),
+    enabled: site !== '',
+  });
+  const data = points.data ?? null;
 
-  useEffect(() => {
-    if (!siteId) return;
-    void run(async () => setData(await bonusApi.points(siteId, month)));
-  }, [siteId, month]);
-
-  const filters: BonusHistoryFilters = useMemo(
-    () => ({
-      from,
-      to,
-      groupBy,
-      ...(siteId ? { siteId } : {}),
-      ...(unitId ? { orgUnitId: unitId } : {}),
-      ...(kind ? { kind } : {}),
-      ...(search.trim() ? { search: search.trim() } : {}),
-    }),
-    [from, to, groupBy, siteId, unitId, kind, search],
-  );
-
-  useEffect(() => {
-    if (tab !== 'history') return;
-    void run(async () => setHistory(await bonusApi.history(filters)));
-  }, [tab, filters]);
+  const filters: BonusHistoryFilters = {
+    from,
+    to,
+    groupBy,
+    ...(site ? { siteId: site } : {}),
+    ...(unitId ? { orgUnitId: unitId } : {}),
+    ...(kind ? { kind } : {}),
+    ...(search.trim() ? { search: search.trim() } : {}),
+  };
+  const historyQuery = useQuery({
+    queryKey: keys.bonusHistory(filters),
+    queryFn: () => bonusApi.history(filters),
+    enabled: tab === 'history',
+  });
+  const history = historyQuery.data ?? null;
 
   const everyone = data?.employees ?? [];
   const rows = unitId ? everyone.filter((r) => r.orgUnitId === unitId) : everyone;
@@ -103,7 +89,7 @@ export function BonusPage() {
   const totalApproved = rows.reduce((s, r) => s + r.approved, 0);
   const totalRemarks = rows.reduce((s, r) => s + r.remarks, 0);
 
-  const top = useMemo(() => rows.filter((r) => r.points > 0).slice(0, 10), [rows]);
+  const top = rows.filter((r) => r.points > 0).slice(0, 10);
   const chartConfig: ChartConfig = { points: { label: b.points, color: 'var(--chart-1)' } };
   // A colour per unit, so the chart shows at a glance which unit a person belongs to.
   const unitColour = new Map<string, string>();
@@ -260,7 +246,7 @@ export function BonusPage() {
       <Toolbar>
         <SelectField
           label={b.site}
-          value={siteId}
+          value={site}
           onChange={setSiteId}
           options={org?.sites.map((s) => ({ value: s.id, label: s.name })) ?? []}
           className="w-56"
@@ -276,7 +262,7 @@ export function BonusPage() {
           className="w-56"
         />
       </Toolbar>
-      <Feedback error={error ? describeError(error) : null} />
+      <Feedback error={readError(points.error ?? historyQuery.error)} />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as 'points' | 'history')} className="gap-4">
         <TabsList>
@@ -386,7 +372,7 @@ export function BonusPage() {
               searchText={(r) => `${r.employeeName} ${r.personnelNumber}`}
               rowKey={(r) => r.employeeId}
               empty={b.empty}
-              loading={busy && rows.length === 0}
+              loading={points.isPending}
             />
           </Section>
         </TabsContent>
@@ -503,7 +489,7 @@ export function BonusPage() {
               rowKey={(r) => r.id}
               searchText={(r) => `${r.employeeName} ${r.personnelNumber} ${r.orgUnitName ?? ''}`}
               empty={b.historyDetailEmpty}
-              loading={busy && (history?.entries.length ?? 0) === 0}
+              loading={historyQuery.isPending}
             />
           </Section>
         </TabsContent>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { AuditEntryView, DomainEventView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { EyeIcon } from 'lucide-react';
@@ -20,10 +20,11 @@ import { InfoTip } from '@/components/app/info-tip';
 import { Muted, StatusPill, Toolbar } from '@/components/app/page';
 import { formatDateTimeSeconds } from '@/lib/format';
 import { reportsApi } from '../api.ts';
-import { describeError } from '../errors.ts';
+import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { useRouteSub } from '@/lib/route';
 import { usePersistentState } from '@/lib/ui-store';
+import { keys } from '@/lib/query';
 import { DetailSheet } from '@/components/app/detail-sheet';
 import { HowItWorks } from '@/components/app/how-it-works';
 
@@ -148,55 +149,41 @@ export function AuditPage() {
   const [action, setAction] = usePersistentState('audit.action', '');
   const [objectType, setObjectType] = usePersistentState('audit.objectType', '');
   const [type, setType] = usePersistentState('audit.type', '');
-  const [audit, setAudit] = useState<AuditEntryView[]>([]);
-  const [events, setEvents] = useState<DomainEventView[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = usePersistentState<string | null>('audit.open', null);
 
-  const [loading, setLoading] = useState(true);
+  // The last 200 entries per tab; the filters narrow them on the client, so the selects can list
+  // exactly the values that occur. The tab that is not open is not read at all.
+  const auditQuery = useQuery({
+    queryKey: keys.audit({ tab: 'audit', limit: 200 }),
+    queryFn: () => reportsApi.audit({ limit: 200 }),
+    enabled: tab === 'audit',
+  });
+  const eventsQuery = useQuery({
+    queryKey: keys.audit({ tab: 'events', limit: 200 }),
+    queryFn: () => reportsApi.events({ limit: 200 }),
+    enabled: tab === 'events',
+  });
+  const audit: readonly AuditEntryView[] = auditQuery.data ?? [];
+  const events: readonly DomainEventView[] = eventsQuery.data ?? [];
+  const loading = tab === 'audit' ? auditQuery.isPending : eventsQuery.isPending;
+  const error = readError(tab === 'audit' ? auditQuery.error : eventsQuery.error);
 
-  // The last 200 entries are loaded per tab; the filters narrow them on the client, so the
-  // selects can list exactly the values that occur.
-  function load() {
-    setError(null);
-    setLoading(true);
-    const p =
-      tab === 'audit'
-        ? reportsApi.audit({ limit: 200 }).then(setAudit)
-        : reportsApi.events({ limit: 200 }).then(setEvents);
-    p.catch((e: unknown) => setError(describeError(e))).finally(() => setLoading(false));
-  }
-
-  useEffect(() => {
-    load();
-  }, [tab]);
-
-  const actionOptions = useMemo(
-    () =>
-      [...new Set(audit.map((e) => e.action))]
-        .sort()
-        .map((v) => ({ value: v, label: actionLabel(v) })),
-    [audit],
-  );
-  const objectOptions = useMemo(
-    () => [...new Set(audit.map((e) => e.objectType))].sort().map((v) => ({ value: v, label: v })),
-    [audit],
-  );
-  const typeOptions = useMemo(
-    () => [...new Set(events.map((e) => e.type))].sort().map((v) => ({ value: v, label: v })),
-    [events],
-  );
-  const auditRows = useMemo(
-    () =>
-      audit.filter(
-        (e) => (!action || e.action === action) && (!objectType || e.objectType === objectType),
-      ),
-    [audit, action, objectType],
+  const actionOptions = [...new Set(audit.map((e) => e.action))]
+    .sort()
+    .map((v) => ({ value: v, label: actionLabel(v) }));
+  const objectOptions = [...new Set(audit.map((e) => e.objectType))]
+    .sort()
+    .map((v) => ({ value: v, label: v }));
+  const typeOptions = [...new Set(events.map((e) => e.type))]
+    .sort()
+    .map((v) => ({ value: v, label: v }));
+  const auditRows = audit.filter(
+    (e) => (!action || e.action === action) && (!objectType || e.objectType === objectType),
   );
   const openAudit = auditRows.find((e) => e.id === open) ?? null;
   const openEvent = tab === 'events' ? (events.find((e) => e.id === open) ?? null) : null;
 
-  const eventRows = useMemo(() => events.filter((e) => !type || e.type === type), [events, type]);
+  const eventRows = events.filter((e) => !type || e.type === type);
 
   const auditColumns: Column<AuditEntryView>[] = [
     {
@@ -348,7 +335,12 @@ export function AuditPage() {
             className="w-72"
           />
         )}
-        <Button type="button" variant="outline" onClick={load} disabled={loading}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void (tab === 'audit' ? auditQuery.refetch() : eventsQuery.refetch())}
+          disabled={loading}
+        >
           {a.apply}
         </Button>
       </Toolbar>

@@ -15,3 +15,8 @@ export function describeError(e: unknown): string {
   if (e instanceof TypeError) return t.admin.auth.networkError;
   return e instanceof Error ? e.message : String(e);
 }
+
+/** The text of a failed read, or nothing at all: `<Feedback>` takes one or the other. */
+export function readError(e: unknown): string | null {
+  return e ? describeError(e) : null;
+}
