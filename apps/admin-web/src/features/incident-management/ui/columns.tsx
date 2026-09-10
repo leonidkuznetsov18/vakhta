@@ -7,7 +7,7 @@ import { InfoTip } from '@/components/app/info-tip';
 import { Muted, StatusPill, type Tone } from '@/components/app/page';
 import { formatDateTime as formatTime } from '@/lib/format';
 import { currentLocale } from '@/i18n';
-import { Deadline } from '@/components/app/deadline';
+import { IncidentSlaCell } from './incident-sla';
 import {
   BanIcon,
   CheckIcon,
@@ -102,7 +102,7 @@ export function incidentColumns(knowledge: boolean): Column<IncidentView>[] {
           <InfoTip text={hints.incidentsSla} />
         </span>
       ),
-      cell: (row) => <Deadline at={row.slaDueAt} breached={row.slaBreached} />,
+      cell: (row) => <IncidentSlaCell incident={row} />,
     },
   ];
 

@@ -11,6 +11,7 @@ import { EmptyState, LiveBadge, ROW_DANGER, Section, Toolbar } from '@/component
 import { currentLocale } from '@/i18n';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { useIncidentWorkspace } from '../model/workspace';
+import { incidentNeedsReaction } from '../model/sla';
 import { IncidentDetail } from './incident-detail';
 import { StatsTable } from './stats-table';
 import { incidentColumns } from './columns';
@@ -93,7 +94,7 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
         rowActions={knowledge ? undefined : model.rowActions}
         rowKey={(row) => row.id}
         empty={i.empty}
-        rowClassName={(row) => (row.slaBreached ? ROW_DANGER : undefined)}
+        rowClassName={(row) => (incidentNeedsReaction(row) ? ROW_DANGER : undefined)}
         activeKey={openId}
         expanded={(row) => (row.id === openId ? <IncidentDetail row={row} model={model} /> : null)}
       />

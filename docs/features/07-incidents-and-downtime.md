@@ -32,3 +32,13 @@ Incidents and the incident knowledge base share a From/To filter. Day mode selec
 selects months without day cells, and year mode selects years. Choose both endpoints and press Apply;
 the last selected day/month/year is included completely, using the site's timezone. All time removes
 the date restriction. Selecting the same month or year twice creates a one-month or one-year range.
+
+### First-response SLA
+
+The deadline starts at incident registration and measures the master's first recorded response,
+not repair completion. Acknowledge, In progress or Resolved records that response; viewing a row
+or saving notes does not. Only unanswered open incidents have a live countdown. Afterwards the table
+shows On time with response duration, or a fixed response delay, and retains the original deadline.
+Safety uses Immediate response with its recorded response duration. Rejected/duplicate records
+without response have no active countdown; missing legacy response times remain explicitly unknown.
+Historical breaches remain in statistics; red row backgrounds indicate only outstanding response work.

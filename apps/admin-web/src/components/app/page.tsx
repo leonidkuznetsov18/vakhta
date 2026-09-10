@@ -160,12 +160,14 @@ const TONE: Record<Tone, string> = {
 export function StatusPill({
   tone = 'neutral',
   children,
+  className,
 }: {
   readonly tone?: Tone;
   readonly children: ReactNode;
+  readonly className?: string;
 }) {
   return (
-    <Badge variant="outline" className={cn('whitespace-nowrap', TONE[tone])}>
+    <Badge variant="outline" className={cn('whitespace-nowrap', TONE[tone], className)}>
       {children}
     </Badge>
   );

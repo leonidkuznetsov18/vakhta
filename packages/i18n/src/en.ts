@@ -772,6 +772,12 @@ export const en: Messages = {
       stoppedNow: 'In downtime now',
       status: 'Status',
       sla: 'SLA until',
+      slaOnTime: 'On time · response in {value}',
+      slaLate: 'Response late by {value}',
+      slaImmediate: 'Immediate response',
+      slaReaction: 'Response in {value}',
+      slaUnknown: 'Response time not recorded',
+      slaNotApplicable: 'Not applicable',
       slaBreached: 'SLA breached',
       assignee: 'Assignee',
       comment: 'Comment',
@@ -2113,7 +2119,7 @@ export const en: Messages = {
       incidentsScope:
         '"Open" is everything not yet resolved or closed; "All" includes closed ones and duplicates.',
       incidentsSla:
-        'Shift master reaction deadline by reason severity. A breach escalates automatically.',
+        'First response deadline from incident registration. Acknowledge, In progress or Resolved records the response and stops the clock. Viewing or saving a comment is not a response. Safety requires immediate response. Repair duration is measured separately.',
       incidentsDuplicate:
         'The report will be linked to the selected primary incident; the original reports are kept.',
       incidentsStats:

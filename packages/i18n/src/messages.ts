@@ -648,6 +648,12 @@ export interface Messages {
       readonly stoppedNow: string;
       readonly status: string;
       readonly sla: string;
+      readonly slaOnTime: string;
+      readonly slaLate: string;
+      readonly slaImmediate: string;
+      readonly slaReaction: string;
+      readonly slaUnknown: string;
+      readonly slaNotApplicable: string;
       readonly slaBreached: string;
       readonly assignee: string;
       readonly comment: string;

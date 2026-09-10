@@ -116,3 +116,29 @@ passed. Actual shared components were captured and inspected at 390px and 1440px
 no repeated photo caption, no horizontal page overflow, full decision text remains readable.
 Lean: Proceed. Reduce repeated reading while preserving evidence and complete prose; no extra worker
 input. Production verification is recorded separately after CI publication.
+
+## 2026-09-10 — Freeze SLA at the first recorded response
+
+The incident column previously passed only slaDueAt and slaBreached to the generic live Deadline.
+Deadline also marks any past date overdue, so even a timely resolved incident kept accumulating a
+false delay. Live evidence: the 13:35 report resolved at 14:04 showed more than six hours overdue
+although its normal one-hour SLA was met.
+
+The pure incident SLA model now uses acknowledgedAt, falling back to resolvedAt. Only unanswered
+open incidents render the shared live Deadline. Responded records show an immutable on-time response
+duration or delay relative to the original deadline, alongside the absolute deadline. Repair completion
+and reopening do not replace a recorded first response. Safety shows immediate response and, when
+available, the recorded response duration instead of a continuously overdue zero-minute countdown.
+Rejected/duplicate records without response show not applicable; legacy completed records without
+response timestamps show unknown. Red row backgrounds identify only outstanding response work.
+The existing backend policy, historical breach statistics, notifications and stored timestamps remain
+unchanged. Safety's zero-minute policy still contributes to backend statistics; this UI change does
+not silently redefine those metrics or claim that recorded response equals physical arrival.
+
+Reuse: existing Deadline, StatusPill, date/duration formatters and table/card layouts; no dependency or
+new clock. StatusPill accepts an optional className so SLA text can wrap within the mobile card.
+Verification: nine focused model regressions, panel typecheck and affected lint passed. Real-component
+screenshots inspected at 390x844 and 1440x1000 cover on-time, late, pending, safety and rejected states;
+a 24-hour delay wraps on mobile and document width remains 390px. Production verification follows CI.
+Lean recommendation: proceed; separate unanswered work from historical outcomes to remove false
+urgency. Masters should record taking ownership when responding, then enter diagnosis after repair.
