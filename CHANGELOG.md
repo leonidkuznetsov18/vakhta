@@ -1,3 +1,19 @@
+## [0.70.11](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.10...v0.70.11) (2026-09-10)
+
+### Bug fixes
+
+* **worker:** persist timer intents and recover delayed effects ([4383be6](https://github.com/leonidkuznetsov18/vakhta/commit/4383be6400e5c063775324e84d7a340f3708076f))
+
+### Documentation
+
+* define durable bonus recovery and period locking ([3f45ccc](https://github.com/leonidkuznetsov18/vakhta/commit/3f45ccc1ab7597ee77835f0ea83b670a947cdea0))
+* record durable task deployment evidence ([3824f13](https://github.com/leonidkuznetsov18/vakhta/commit/3824f13b66eef6716ed5b2ef1f4d3ae128088605))
+* record media deployment and release verification ([527f695](https://github.com/leonidkuznetsov18/vakhta/commit/527f6952b90ebd3f0f45897e55f4b1e9d972798e))
+
+### CI/CD
+
+* resolve rerun versions from their source commit ([1681a76](https://github.com/leonidkuznetsov18/vakhta/commit/1681a76e173bfffe675d18fc64333a1f7b6cbc2c))
+
 ## [0.70.10](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.9...v0.70.10) (2026-09-10)
 
 ### Bug fixes
