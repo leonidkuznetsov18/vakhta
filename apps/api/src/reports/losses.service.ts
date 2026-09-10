@@ -137,6 +137,7 @@ export class LossesService {
           r.lossComment,
           r.lossCutoff,
           r.generatedAt,
+          t.shift.estimatedEndLabel,
         ];
         const matrix = rows.map((i) => [
           i.businessDate,
@@ -151,6 +152,7 @@ export class LossesService {
           i.comment ?? '',
           asOf.toISOString(),
           now.toISOString(),
+          i.estimatedEnd ? t.shift.estimatedClosure : '',
         ]);
         const filename = `vakhta-losses-${q.from}-${q.to}.${format}`;
         let body: Buffer;
@@ -211,6 +213,7 @@ export class LossesService {
       gte(shiftSessions.businessDate, q.from),
       lte(shiftSessions.businessDate, q.to),
       lt(activityIntervals.startedAt, asOf),
+      sql`${end} > ${activityIntervals.startedAt}`,
     ];
     if (q.orgUnitId) scope.push(eq(employeePositions.orgUnitId, q.orgUnitId));
     if (q.siteId) scope.push(eq(orgUnits.siteId, q.siteId));
@@ -236,6 +239,9 @@ export class LossesService {
         from downtime_reports report where report.shift_session_id = ${shiftSessions.id}
         and report.reported_at >= ${activityIntervals.startedAt} and report.reported_at < ${end})`.as(
             'comment',
+          ),
+          estimatedEnd: sql<boolean>`${shiftSessions.autoCloseReason} is not null`.as(
+            'estimated_end',
           ),
           startedAt: activityIntervals.startedAt,
           endedAt:
@@ -324,6 +330,7 @@ export class LossesService {
       categoryLabel: label(row.category),
       reasonLabel: row.reasonLabel,
       comment: row.comment,
+      estimatedEnd: row.estimatedEnd,
       startedAt: row.startedAt.toISOString(),
       endedAt: row.endedAt?.toISOString() ?? null,
       minutes: row.minutes,

@@ -375,6 +375,12 @@ export function OperationsPage() {
       cell: (row) => (
         <div className="flex flex-wrap gap-1">
           {row.needsClarification && <StatusPill tone="danger">{o.needsClarification}</StatusPill>}
+          {row.autoCloseReason && (
+            <StatusPill tone="warning">
+              {all.shift.estimatedEndLabel}
+              <InfoTip text={all.shift.estimatedClosure} />
+            </StatusPill>
+          )}
           {row.autoCloseReason === 'NO_CHECKLIST' && (
             <StatusPill tone="danger">{o.closedNoChecklist}</StatusPill>
           )}

@@ -192,7 +192,18 @@ export function ReportsPage() {
       cell: (i) => <span className="font-semibold tabular-nums">{i.minutes}</span>,
       sortValue: (i) => i.minutes,
     },
-    { key: 'comment', header: r.lossComment, cell: (i) => i.comment ?? <Muted>—</Muted> },
+    {
+      key: 'comment',
+      header: r.lossComment,
+      cell: (i) => (
+        <>
+          {i.comment ?? <Muted>—</Muted>}
+          {i.estimatedEnd && (
+            <p className="text-muted-foreground text-xs">{all.shift.estimatedClosure}</p>
+          )}
+        </>
+      ),
+    },
   ];
 
   const units = org?.orgUnits.filter((u) => !siteId || u.siteId === siteId) ?? [];

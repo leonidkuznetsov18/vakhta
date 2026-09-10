@@ -7,7 +7,6 @@ import {
   formatLocal,
   maskFullName,
   maskPersonnelNumber,
-  type CheckAction,
   PHOTO_KEY_PREFIX,
   type ChecklistKey,
   type EmployeeAccess,
@@ -167,11 +166,9 @@ export function languageScreen(t: Messages, current: Locale): Screen {
 /** After scanning a QR: a single action matching the presence state (FR-UI-01). */
 export function checkInPromptScreen(
   t: Messages,
-  input: {
-    readonly action: CheckAction;
-    readonly terminalName: string;
-    readonly token: string;
-  },
+  input: { readonly terminalName: string; readonly token: string } & (
+    { readonly action: 'ARRIVE' } | { readonly action: 'DEPART'; readonly presenceId: string }
+  ),
 ): Screen {
   const arrive = input.action === 'ARRIVE';
   return {
@@ -180,7 +177,9 @@ export function checkInPromptScreen(
     }),
     keyboard: new InlineKeyboard().text(
       arrive ? t.attendance.arriveButton : t.attendance.departButton,
-      `${arrive ? CALLBACK.arrivePrefix : CALLBACK.departPrefix}${input.token}`,
+      input.action === 'ARRIVE'
+        ? `${CALLBACK.arrivePrefix}${input.token}`
+        : `${CALLBACK.departPrefix}${input.token}:${input.presenceId}`,
     ),
   };
 }
@@ -382,7 +381,14 @@ function shiftLines(t: Messages, view: ShiftScreenView): string[] {
     }
     case 'SHIFT_CLOSED':
     case 'EMERGENCY_EXIT': {
-      lines.push(s.state === 'SHIFT_CLOSED' ? t.shift.closedHeader : t.shift.emergencyHeader);
+      lines.push(
+        s.autoCloseReason
+          ? t.shift.estimatedEndLabel
+          : s.state === 'SHIFT_CLOSED'
+            ? t.shift.closedHeader
+            : t.shift.emergencyHeader,
+      );
+      if (s.autoCloseReason) lines.push(t.shift.estimatedClosure);
       if (s.needsClarification) lines.push(t.shift.flagged);
       break;
     }

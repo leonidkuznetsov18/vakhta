@@ -78,7 +78,7 @@ const OPTIONS = {
   defaultTimezone: 'Europe/Kyiv',
 };
 
-function departureUpdate(): Update {
+function departureUpdate(presenceId: string): Update {
   return {
     update_id: 70001,
     callback_query: {
@@ -90,7 +90,7 @@ function departureUpdate(): Update {
         language_code: 'en',
       },
       chat_instance: 'test-private-chat',
-      data: `dep:${TOKEN}`,
+      data: `dep:${TOKEN}:${presenceId}`,
       message: {
         message_id: 42,
         date: Math.floor(Date.now() / 1000),
@@ -359,7 +359,9 @@ describe('Telegram departure callback: QR and shift/presence consistency', () =>
     await issueChallenge(new Date(Date.now() - 60_000));
     const before = await recordedState();
 
-    await app.bot.handleUpdate(departureUpdate());
+    await app.bot.handleUpdate(
+      departureUpdate((await app.attendance.openPresence(employeeId))!.id),
+    );
 
     expect(vi.mocked(Api.prototype.editMessageText).mock.calls.map((call) => call[2])).toContain(
       messages('en').attendance.failures.CHALLENGE_EXPIRED,
@@ -494,12 +496,40 @@ describe('Telegram departure callback: QR and shift/presence consistency', () =>
   it('closes the ready shift and its presence after a valid departure confirmation', async () => {
     await issueChallenge(new Date(Date.now() + 60_000));
 
-    await app.bot.handleUpdate(departureUpdate());
+    await app.bot.handleUpdate(
+      departureUpdate((await app.attendance.openPresence(employeeId))!.id),
+    );
 
     const recorded = await recordedState();
     expect(recorded.session).toMatchObject({ state: 'SHIFT_CLOSED', endedAt: expect.any(Date) });
     expect(recorded.presence).toHaveLength(1);
     expect(recorded.presence[0]).toMatchObject({ status: 'CLOSED', departedAt: expect.any(Date) });
     expect(recorded.summaries).toHaveLength(1);
+  });
+  it('shows the actual automatic-closure screen when departure reaches the deadline', async () => {
+    const session = await app.shift.activeSession(employeeId);
+    const presence = await app.attendance.openPresence(employeeId);
+    if (!session?.planEndAt || !presence) throw new Error('Missing planned shift or presence');
+    const at = new Date(session.planEndAt.getTime() + 120 * 60_000);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(at);
+    try {
+      await issueChallenge(new Date(at.getTime() + 60_000));
+      await app.bot.handleUpdate(departureUpdate(presence.id));
+      const text = vi
+        .mocked(Api.prototype.editMessageText)
+        .mock.calls.map((call) => call[2])
+        .join('\n');
+      expect(text).toContain(messages('en').shift.estimatedClosure);
+      expect(text).not.toContain(messages('en').attendance.failures.NOT_ARRIVED);
+      const recorded = await recordedState();
+      expect(recorded.session).toMatchObject({ state: 'SHIFT_CLOSED', endedAt: session.planEndAt });
+      expect(recorded.presence[0]).toMatchObject({
+        status: 'NEEDS_CLARIFICATION',
+        departedAt: null,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

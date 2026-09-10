@@ -94,7 +94,7 @@ and authenticated panel/kiosk/bot verification.
   and cutoff text were readable. See the platform operations runbook for deployment IDs.
 - Fresh worker-bot `/help`, `/start` and `/requests` responses were verified through the owner's
   authenticated Telegram Web session. No shift, attendance or request was created. The Back button
-  was clicked but a changed screen was not confirmed, so that interaction remains an open QA case.
+  was verified after dismissing an unrelated Wallet popup; it returned to the current home screen.
   The current home screen still shows an old open presence; a bounded read-only production query
   found two OPEN presences linked only to terminal shifts. Preserve this historical inconsistency
   for explicit unknown-departure reconciliation in #8 rather than inventing a departure timestamp.
@@ -104,9 +104,20 @@ and authenticated panel/kiosk/bot verification.
   shadowing bypass; its regression passed. Final build/check passed 406 tests (269 fresh, 137
   cached); monthly tests passed 17/17 fresh. PostgreSQL 18 migration/posting/legacy-rejection smoke
   passed. Independent SQL/core and UI/contracts/docs reviews have no remaining blockers. Production
-  migration preflight and post-deployment checks remain required; see `monthly-bonus-finalization.md`.
-- Access scope (#1), durable Telegram recovery (#4), durable background effects (#5) and the approved
-  automatic closure behavior (#8) remain implementation work. Do not report the nine-risk task complete.
+  migration preflight found no legacy awards/cards. CI `34473900750`, release v0.70.6, Pages and
+  announcement succeeded; Railway API `8aa15dd2-d423-428a-bb3c-d51081b7a5c1` runs `bcb61de`.
+  Read-only production checks confirm the snapshot table and all four guards. Authenticated desktop
+  and 390x844 mobile views show three readable preliminary cards. No month was manually closed;
+  the first hourly closer tick remains pending. See `monthly-bonus-finalization.md`.
+- Automatic closure (#8) now preserves actual QR time, closes after the two-hour grace with planned
+  accounting time, and records unknown physical departure explicitly. Immutable compensation events
+  preserve pre-projection history. Startup recovery repairs only terminal-linked orphan presences.
+  Final build and full check passed 440 tests; independent core and UI/Lean reviews approved.
+  A read-only production preflight found six active shifts, no missing plans or overdue deadlines,
+  and two terminal-only orphan presences. Deployment verification remains pending. See
+  `estimated-shift-closure.md` for recovery, deadline, projection and full-bot regression evidence.
+- Access scope (#1), durable Telegram recovery (#4) and durable background effects (#5) remain
+  implementation work. Do not report the nine-risk task complete.
 
 ## Technical references consulted
 

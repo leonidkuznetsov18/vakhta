@@ -324,11 +324,11 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
 
     const preview = await deps.attendance.previewChallenge(qrToken);
     if (!preview.ok) return show(ctx, { text: ctx.t.attendance.failures[preview.reason] });
-    const action = await deps.attendance.intent(ctx.employee.id);
+    const presence = await deps.attendance.openPresence(ctx.employee.id);
     await show(
       ctx,
       checkInPromptScreen(ctx.t, {
-        action,
+        ...(presence ? { action: 'DEPART', presenceId: presence.id } : { action: 'ARRIVE' }),
         terminalName: preview.terminal.name,
         token: qrToken,
       }),
@@ -336,6 +336,8 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   }
 
   bot.command('start', async (ctx) => {
+    if (ctx.access === 'ALLOWED' && ctx.employee)
+      await deps.shift.reconcileEmployee(ctx.employee.id);
     const param = ctx.match.trim();
     if (isActivationDeepLink(param)) return startActivation(ctx, codeFromDeepLink(param) ?? '');
     if (param && isValidStartParam(param)) return startCheckIn(ctx, param);
@@ -404,7 +406,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   });
 
   // "I am at work" / "I have left" (FR-TIME-01, FR-TIME-05): result with server time (FR-UI-02).
-  bot.callbackQuery(/^(arr|dep):([A-Za-z0-9_-]{22})$/, async (ctx) => {
+  bot.callbackQuery(/^(arr|dep):([A-Za-z0-9_-]{22})(?::([0-9a-f-]{36}))?$/, async (ctx) => {
     if (ctx.access !== 'ALLOWED' || !ctx.employee) {
       await ctx.answerCallbackQuery({ text: ctx.t.bot.access.NOT_REGISTERED, show_alert: true });
       return;
@@ -434,10 +436,17 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       return;
     }
 
+    const expectedPresenceId = ctx.match[3];
+    if (!expectedPresenceId) {
+      await edit(ctx, { text: ctx.t.attendance.failures.CHALLENGE_EXPIRED });
+      return;
+    }
     const departure = await deps.shift.departByQr(
       ctx.employee.id,
       token,
       `tg:${ctx.update.update_id}:departure`,
+      new Date(),
+      expectedPresenceId,
     );
     if (departure.kind === 'SHIFT_NOT_READY') {
       const view = await deps.shift.screen(ctx.employee.id);
@@ -452,6 +461,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       return;
     }
     const result = departure.result;
+    if (!result.ok && result.reason === 'NOT_ARRIVED') {
+      await edit(ctx, await buildHome(ctx));
+      return;
+    }
     await edit(ctx, checkInResultScreen(ctx.t, result, deps.defaultTimezone));
     if (result.ok) await show(ctx, await buildHome(ctx));
   });

@@ -268,6 +268,28 @@ describe('bonus: оцінка зміни, коригування, закритт
     throw new Error('the background evaluation of the shift never landed');
   }
 
+  it('does not penalize a zero-length projected downtime placeholder', async () => {
+    const sessionId = await fullShift();
+    const before = await bonus.evaluate(sessionId);
+    const [session] = await testDb.db
+      .select()
+      .from(shiftSessions)
+      .where(eq(shiftSessions.id, sessionId));
+    if (!session?.endedAt) throw new Error('Missing closed shift');
+    await testDb.db.insert(activityIntervals).values({
+      shiftSessionId: sessionId,
+      state: 'DOWNTIME',
+      startedAt: session.endedAt,
+      endedAt: session.endedAt,
+      reasonCode: null,
+    });
+    const after = await bonus.evaluate(sessionId);
+    expect(after?.criteria.find((criterion) => criterion.criterion === 'DOWNTIME_PROCESS')).toEqual(
+      before?.criteria.find((criterion) => criterion.criterion === 'DOWNTIME_PROCESS'),
+    );
+    expect(after?.score).toBe(before?.score);
+  });
+
   it('закриття зміни через шину подій оцінює її: без зони максимум 70 застосовних балів, S = 100 (7.6)', async () => {
     const sessionId = await fullShift();
     const view = await bonus.evaluate(sessionId);

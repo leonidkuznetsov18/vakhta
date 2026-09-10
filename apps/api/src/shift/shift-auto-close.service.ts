@@ -7,8 +7,8 @@ import { ShiftService } from './shift.service.js';
 /**
  * The end-of-day driver (2026-09-08): every AUTO_CLOSE_SCAN_MINUTES it asks the shift service to
  * close shifts left open past their planned end, so a shift always ends even when the employee
- * forgot to scan the exit QR. Runs in the API process, which owns the shift state machine; a single
- * replica (the production service) means no double work, and the close is idempotent anyway.
+ * forgot to scan the exit QR. Runs on startup and periodically in the API process; the shared
+ * employee mutex and transaction recheck keep multiple replicas and concurrent commands safe.
  */
 @Injectable()
 export class ShiftAutoCloseService implements OnModuleInit, OnApplicationShutdown {
@@ -29,6 +29,7 @@ export class ShiftAutoCloseService implements OnModuleInit, OnApplicationShutdow
   }
 
   onModuleInit(): void {
+    void this.tick();
     this.timer = setInterval(() => void this.tick(), this.scanMs);
     this.timer.unref?.();
   }

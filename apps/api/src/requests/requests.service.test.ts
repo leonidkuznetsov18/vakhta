@@ -643,7 +643,11 @@ describe('requests: маршрути, рішення, нова версія гр
     const startedAt = new Date(Date.now() - 14 * 3_600_000);
     await testDb.db
       .update(shiftSessions)
-      .set({ startedAt })
+      .set({
+        startedAt,
+        planStartAt: startedAt,
+        planEndAt: new Date(startedAt.getTime() + 12 * 3_600_000),
+      })
       .where(eq(shiftSessions.id, started.session.id));
     await testDb.db
       .update(activityIntervals)
@@ -666,12 +670,7 @@ describe('requests: маршрути, рішення, нова версія гр
       .select()
       .from(shiftSummaries)
       .where(eq(shiftSummaries.shiftSessionId, started.session.id));
-    expect(summary?.overtimePending).toBe(false);
-    // без плану переробка не рахується; змоделюємо факт понад план вручну
-    await testDb.db
-      .update(shiftSummaries)
-      .set({ overtimePending: true, overtimeMinutes: 60 })
-      .where(eq(shiftSummaries.shiftSessionId, started.session.id));
+    expect(summary).toMatchObject({ overtimePending: true, overtimeMinutes: 60 });
     const pending = await service.overtime('pending');
     expect(pending).toHaveLength(1);
     expect(pending[0]).toMatchObject({

@@ -146,6 +146,8 @@ export interface Messages {
     readonly staleButton: string;
     readonly readyToCloseHint: string;
     readonly closedHeader: string;
+    readonly estimatedClosure: string;
+    readonly estimatedEndLabel: string;
     readonly emergencyHeader: string;
     /** Placeholders: {total}, {work}, {breaks}, {meal}, {downtime} */
     readonly summaryTotals: string;

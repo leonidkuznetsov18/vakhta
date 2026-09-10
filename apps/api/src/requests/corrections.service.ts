@@ -2,7 +2,6 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   activityIntervals,
   and,
-  asc,
   domainEvents,
   eq,
   shiftSessions,
@@ -17,10 +16,12 @@ import type {
   CorrectionResultView,
 } from '@vakhta/contracts';
 import type { Actor } from '../common/actor.js';
+import { lockEmployee } from '../common/employee-lock.js';
 import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
 import { DATABASE } from '../infra/database.module.js';
+import { orderedShiftIntervals } from '../shift/shift-intervals.js';
 import { ShiftService } from '../shift/shift.service.js';
 
 /**
@@ -54,17 +55,19 @@ export class CorrectionsService {
   ): Promise<CorrectionResultView> {
     if (!cmd.reasonCode)
       throw new DomainError('REASON_REQUIRED', 422, 'Корекція без причини заборонена');
+    const [target] = await tx
+      .select({ employeeId: shiftSessions.employeeId })
+      .from(shiftSessions)
+      .where(eq(shiftSessions.id, sessionId));
+    if (!target) throw new DomainError('SHIFT_NOT_FOUND', 404, 'Shift not found');
+    await lockEmployee(tx, target.employeeId);
     const [session] = await tx
       .select()
       .from(shiftSessions)
       .where(eq(shiftSessions.id, sessionId))
       .for('update');
     if (!session) throw new DomainError('SHIFT_NOT_FOUND', 404, 'Зміну не знайдено');
-    const rows = await tx
-      .select()
-      .from(activityIntervals)
-      .where(eq(activityIntervals.shiftSessionId, sessionId))
-      .orderBy(asc(activityIntervals.startedAt));
+    const rows = await orderedShiftIntervals(tx, sessionId);
     const intervals = rows.map((r) => ({
       id: r.id,
       state: r.state,
@@ -74,7 +77,7 @@ export class CorrectionsService {
     }));
     const proposal = toDomainProposal(cmd.proposal);
     const result = applyCorrection(intervals, proposal, {
-      startedAt: session.startedAt?.getTime() ?? now.getTime(),
+      startedAt: session.startedAt?.getTime() ?? intervals[0]?.startedAt ?? now.getTime(),
       endedAt: session.endedAt?.getTime() ?? null,
       now: now.getTime(),
     });

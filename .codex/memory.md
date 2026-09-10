@@ -26,3 +26,15 @@ owner appends after merging work; parallel agents return proposed entries instea
   announcement does not prove all deployments completed. Do not send duplicate/manual announcements.
 - Map and verify GitHub, Cloudflare, Railway and Namecheap access, logs and runtime ownership in
   `docs/runbooks/platform-operations.md`; report access gaps explicitly and use 1Password for secrets.
+
+## 2026-09-10 — Critical reliability behavior
+
+- Integration owner: Codex. Implemented #2/#3 atomic departure and request publication, #6/#7
+  consistent historical reports, and #9 immutable monthly nominations (latest base `bcb61de`).
+- Owner-approved #8: day 08:00–20:00/night 20:00–08:00, two-hour grace; QR time is actual, missing QR
+  accounts to planned end while physical departure stays unknown. Preserve immutable event history.
+  See `docs/engineering/features/estimated-shift-closure.md` and `critical-reliability.md`.
+- #1 scope enforcement, #4 durable Telegram admission/processing and #5 durable required effects
+  remain open. Pre-deadline durable admission must fence scanner closure when #4 is implemented.
+- Keep the user Cloudflare token and dedicated Pages token; there were no duplicate 1Password items
+  to remove. CI uses the dedicated Pages token. Do not revoke either token as cleanup.

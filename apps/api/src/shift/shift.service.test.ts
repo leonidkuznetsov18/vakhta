@@ -532,12 +532,19 @@ describe('shift: машина станів зміни в транзакції (�
 
   it('кінець дня: зміну, що лишилась відкритою після планового кінця, закриває система', async () => {
     await arrive(ivanov);
-    const started = await service.start(ivanov, { idempotencyKey: key() }, meta(ivanov));
+    const started = await service.start(
+      ivanov,
+      { idempotencyKey: key() },
+      { ...meta(ivanov), now: new Date(Date.now() - 18 * 3_600_000) },
+    );
     expect(started.ok).toBe(true);
     // Плановий кінець у минулому, поза пільговим вікном: система має закрити зміну.
     await testDb.db
       .update(shiftSessions)
-      .set({ planEndAt: new Date(Date.now() - 5 * 3_600_000) })
+      .set({
+        planStartAt: new Date(Date.now() - 18 * 3_600_000),
+        planEndAt: new Date(Date.now() - 6 * 3_600_000),
+      })
       .where(eq(shiftSessions.employeeId, ivanov));
     const closedCount = await service.autoCloseStale(new Date());
     expect(closedCount).toBe(1);

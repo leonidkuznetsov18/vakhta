@@ -28,3 +28,4 @@ export * from './requests/routes.js';
 export * from './shift-fsm/corrections.js';
 
 export * from './bonus/month-nominations.js';
+export * from './shift-fsm/estimated-closure.js';

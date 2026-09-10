@@ -79,6 +79,7 @@ export const LossInterval = z.object({
   categoryLabel: z.string(),
   reasonLabel: z.string().nullable(),
   comment: z.string().nullable(),
+  estimatedEnd: z.boolean().optional(),
   startedAt: IsoDateTime,
   endedAt: IsoDateTime.nullable(),
   minutes: z.number().int().nonnegative(),

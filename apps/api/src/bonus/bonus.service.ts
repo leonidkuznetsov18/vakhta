@@ -498,7 +498,7 @@ export class BonusService implements OnModuleInit {
       .where(eq(reasonCodes.kind, 'DOWNTIME'));
     const notifyRequired = new Map(reasons.map((r) => [r.code, r.notifyMaster]));
     const downtimeEvents = intervals
-      .filter((i) => i.state === 'DOWNTIME')
+      .filter((i) => i.state === 'DOWNTIME' && (i.endedAt === null || i.endedAt > i.startedAt))
       .map((i) => ({
         started: true,
         reasonGiven: i.reasonCode !== null,

@@ -152,6 +152,9 @@ export class IncidentsService {
     let photoId: string | null = null;
 
     const result = await this.db.transaction(async (tx): Promise<ReportProblemResult> => {
+      const current = await this.shift.commandSessionWithin(tx, employeeId, now);
+      if (current.id !== session.id)
+        throw new DomainError('NO_ACTIVE_SHIFT', 409, 'Shift changed while reporting');
       // Every report opens its own incident. Folding a second report into an open one with the
       // same reason and zone made one row stand for several breakdowns, and a master closing it
       // closed problems nobody had looked at. Two reports that really are one are merged by hand

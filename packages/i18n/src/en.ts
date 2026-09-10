@@ -159,6 +159,8 @@ export const en: Messages = {
     noReasons: 'The reason directory is empty. Contact the administrator.',
     staleButton: 'The button is outdated, the screen is refreshed.',
     readyToCloseHint: 'The report is sent. Scan the QR at the exit to close the shift.',
+    estimatedEndLabel: 'Automatic closure',
+    estimatedClosure: 'The shift was closed automatically. Actual departure is unknown.',
     closedHeader:
       '✅ YOU CLOSED THE SHIFT\n\nThank you for your work! See you tomorrow.\nThe report is sent.',
     emergencyHeader: 'Emergency exit recorded. The shift is handed to the shift master for review.',

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   activityIntervals,
   and,
@@ -9,11 +9,11 @@ import {
   employees,
   eq,
   gte,
+  gt,
   idempotencyKeys,
   inArray,
   isNull,
-  isNotNull,
-  lt,
+  lte,
   notInArray,
   or,
   orgUnits,
@@ -37,8 +37,10 @@ import {
   businessDateOf,
   computeShiftSummary,
   inferShiftFromArrival,
+  projectEstimatedClosure,
   downtimeEscalationJobId,
   isActive,
+  isTerminal,
   returnReminderJobId,
   transition,
   type ActivityInterval,
@@ -77,6 +79,7 @@ import { TIMER_SCHEDULER, type TimerScheduler } from '../infra/timers.queue.js';
 import { HandoverRepository } from '../handover/handover.repository.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ShiftChanges } from './shift-changes.js';
+import { orderedShiftIntervals } from './shift-intervals.js';
 
 export interface ShiftOptions {
   readonly breakMinutes: number;
@@ -118,6 +121,8 @@ export interface CommandMeta {
   /** Майстер оформив резервне рішення: guard-и присутності, зони й передачі пропускаються. */
   readonly masterOverride?: boolean;
   readonly now?: Date;
+  /** Accounting boundary; observed execution time remains `now`. System auto-close only. */
+  readonly effectiveEndedAt?: Date;
 }
 
 /** Робота з таймерами йде після коміту: BullMQ не бере участі в транзакції БД. */
@@ -136,6 +141,7 @@ const TERMINAL = [...TERMINAL_STATES];
  */
 @Injectable()
 export class ShiftService {
+  private readonly logger = new Logger(ShiftService.name);
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly events: EventStore,
@@ -367,13 +373,22 @@ export class ShiftService {
   ): Promise<TransitionResponse> {
     const now = meta.now ?? new Date();
     const deferred: DeferredTimer[] = [];
+    let closure: TransitionResponse | null = null;
     const response = await this.db.transaction(async (tx) => {
       await lockEmployee(tx, employeeId);
       const replay = await this.replay(tx, employeeId, cmd.idempotencyKey);
       if (replay) return replay;
 
-      const existing = await this.activeSession(employeeId, tx);
-      if (existing)
+      const [existing] = await tx
+        .select()
+        .from(shiftSessions)
+        .where(
+          and(eq(shiftSessions.employeeId, employeeId), notInArray(shiftSessions.state, TERMINAL)),
+        )
+        .for('update');
+      if (existing) closure = await this.closeDueWithin(tx, existing, now, deferred);
+      await this.reconcileClosedPresencesWithin(tx, employeeId, now);
+      if (existing && !closure)
         return this.fail('ALREADY_STARTED', await this.sessionView(tx, existing.id), now);
 
       const presence = await this.attendance.openPresence(employeeId, tx);
@@ -386,7 +401,7 @@ export class ShiftService {
       // No schedule is no longer a wall: the shift lives from QR to QR (customer change 2026-09-08),
       // and an unscheduled shift takes its planned window from the site's day/night templates so the
       // auto-close job still knows when it should end. The master start stays the reserve channel.
-      const plan = await this.planForStart(tx, presence, assignment, now);
+      const plan = await this.planForStart(tx, presence, assignment, now, employeeId);
 
       let session: SessionRow;
       try {
@@ -441,6 +456,7 @@ export class ShiftService {
       }
       return applied;
     });
+    if (closure) await this.afterCommit(closure, deferred.splice(0), 'SYSTEM');
     await this.afterCommit(response, deferred, meta.source);
     return response;
   }
@@ -454,10 +470,13 @@ export class ShiftService {
     token: string,
     idempotencyKey: string,
     now: Date = new Date(),
+    expectedPresenceId?: string,
   ): Promise<QrDepartureResult> {
     const deferred: DeferredTimer[] = [];
     const scope = `qr-departure:${employeeId}`;
-    const requestHash = hashChallengeToken(token);
+    const requestHash = hashChallengeToken(
+      expectedPresenceId ? `${token}:${expectedPresenceId}` : token,
+    );
     const committed = await this.db.transaction(
       async (
         tx,
@@ -495,6 +514,56 @@ export class ShiftService {
             ),
           )
           .for('update');
+        const openPresence = await this.attendance.openPresence(employeeId, tx);
+        if (
+          expectedPresenceId &&
+          (openPresence?.id !== expectedPresenceId ||
+            (session && session.presenceId !== expectedPresenceId))
+        ) {
+          return {
+            outcome: {
+              kind: 'CHECK_IN',
+              result: {
+                ok: false,
+                action: 'DEPART',
+                reason: 'NOT_ARRIVED',
+                serverTime: now.toISOString(),
+              },
+            },
+            transition: null,
+          };
+        }
+        const preview = await this.attendance.previewChallenge(token, now, tx);
+        if (!preview.ok)
+          return {
+            outcome: {
+              kind: 'CHECK_IN',
+              result: await this.attendance.rejectChallengeWithin(
+                tx,
+                employeeId,
+                'DEPART',
+                preview.reason,
+                now,
+              ),
+            },
+            transition: null,
+          };
+        if (session) {
+          const closure = await this.closeDueWithin(tx, session, now, deferred);
+          if (closure)
+            return {
+              outcome: {
+                kind: 'CHECK_IN',
+                result: {
+                  ok: false,
+                  action: 'DEPART',
+                  reason: 'NOT_ARRIVED',
+                  serverTime: now.toISOString(),
+                },
+              },
+              transition: closure,
+            };
+        }
         if (session && session.state !== 'READY_TO_CLOSE') {
           return { outcome: { kind: 'SHIFT_NOT_READY' }, transition: null };
         }
@@ -542,10 +611,26 @@ export class ShiftService {
     cmd: CommandInput,
     meta: CommandMeta,
   ): Promise<TransitionResponse> {
+    const now = meta.now ?? new Date();
     const deferred: DeferredTimer[] = [];
-    const response = await this.db.transaction((tx) =>
-      this.transitionWithin(tx, employeeId, cmd, meta, deferred),
-    );
+    let closure: TransitionResponse | null = null;
+    const response = await this.db.transaction(async (tx) => {
+      await lockEmployee(tx, employeeId);
+      const replay = await this.replay(tx, employeeId, cmd.idempotencyKey);
+      if (replay) return replay;
+      const [session] = await tx
+        .select()
+        .from(shiftSessions)
+        .where(
+          and(eq(shiftSessions.employeeId, employeeId), notInArray(shiftSessions.state, TERMINAL)),
+        )
+        .for('update');
+      if (session) closure = await this.closeDueWithin(tx, session, now, deferred);
+      if (closure)
+        return this.fail('NO_ACTIVE_SHIFT', await this.sessionView(tx, session!.id), now);
+      return this.transitionWithin(tx, employeeId, cmd, { ...meta, now }, deferred);
+    });
+    if (closure) await this.settle(closure, deferred.splice(0), 'SYSTEM');
     await this.settle(response, deferred, meta.source);
     return response;
   }
@@ -562,6 +647,7 @@ export class ShiftService {
     deferred: DeferredTimer[],
   ): Promise<TransitionResponse> {
     const now = meta.now ?? new Date();
+    await lockEmployee(tx, employeeId);
     const replay = await this.replay(tx, employeeId, cmd.idempotencyKey);
     if (replay) return replay;
     const [session] = await tx
@@ -572,7 +658,29 @@ export class ShiftService {
       )
       .for('update');
     if (!session) return this.fail('NO_ACTIVE_SHIFT', null, now);
-    return this.apply(tx, session, cmd, { ...meta, now }, deferred);
+    const planned = await this.recoverPlanWithin(tx, session, now);
+    // Enclosing incident/handover transactions may roll back; reject late commands without
+    // claiming that their transaction committed the independent scheduled closure.
+    if (cmd.action !== 'AUTO_CLOSE' && this.isPastDeadline(planned, now))
+      return this.fail('NO_ACTIVE_SHIFT', await this.sessionView(tx, session.id), now);
+    return this.apply(tx, planned, cmd, { ...meta, now }, deferred);
+  }
+
+  /** Nested workflow mutations share the employee -> shift lock order and deadline gate. */
+  async commandSessionWithin(tx: DbOrTx, employeeId: string, now: Date): Promise<SessionRow> {
+    await lockEmployee(tx, employeeId);
+    const [session] = await tx
+      .select()
+      .from(shiftSessions)
+      .where(
+        and(eq(shiftSessions.employeeId, employeeId), notInArray(shiftSessions.state, TERMINAL)),
+      )
+      .for('update');
+    if (!session) throw new DomainError('NO_ACTIVE_SHIFT', 409, 'No active shift');
+    const planned = await this.recoverPlanWithin(tx, session, now);
+    if (this.isPastDeadline(planned, now))
+      throw new DomainError('NO_ACTIVE_SHIFT', 409, 'Shift deadline has passed');
+    return planned;
   }
 
   /** Timers and change events after the commit; a replay does nothing. */
@@ -592,7 +700,10 @@ export class ShiftService {
     now: Date = new Date(),
   ): Promise<TransitionResponse> {
     const deferred: DeferredTimer[] = [];
+    let closure: TransitionResponse | null = null;
     const response = await this.db.transaction(async (tx) => {
+      const target = await this.requireSession(sessionId, tx);
+      await lockEmployee(tx, target.employeeId);
       const [session] = await tx
         .select()
         .from(shiftSessions)
@@ -601,6 +712,9 @@ export class ShiftService {
       if (!session) throw new DomainError('SHIFT_NOT_FOUND', 404, 'Зміну не знайдено');
       const replay = await this.replay(tx, session.employeeId, cmd.idempotencyKey);
       if (replay) return replay;
+      if (!isTerminal(session.state))
+        closure = await this.closeDueWithin(tx, session, now, deferred);
+      if (closure) return this.fail('NO_ACTIVE_SHIFT', await this.sessionView(tx, session.id), now);
       const result = await this.apply(
         tx,
         session,
@@ -621,6 +735,7 @@ export class ShiftService {
       }
       return result;
     });
+    if (closure) await this.afterCommit(closure, deferred.splice(0), 'SYSTEM');
     await this.afterCommit(response, deferred, 'WEB');
     return response;
   }
@@ -656,7 +771,9 @@ export class ShiftService {
     actor: Actor,
     now: Date = new Date(),
   ): Promise<ShiftSessionView> {
+    await this.reconcileEmployee(employeeId, now);
     return this.db.transaction(async (tx) => {
+      await lockEmployee(tx, employeeId);
       const [session] = await tx
         .select()
         .from(shiftSessions)
@@ -795,13 +912,62 @@ export class ShiftService {
     const result = transition(snapshot, cmd.action, ctx);
     if (!result.ok) return this.fail(result.error, await this.sessionView(tx, session.id), now);
 
-    const [closed] = await tx
-      .update(activityIntervals)
-      .set({ endedAt: now })
-      .where(
-        and(eq(activityIntervals.shiftSessionId, session.id), isNull(activityIntervals.endedAt)),
-      )
-      .returning();
+    const effectiveEnd = meta.effectiveEndedAt ?? now;
+    let closed: IntervalRow | undefined;
+    if (cmd.action === 'AUTO_CLOSE' && meta.effectiveEndedAt) {
+      const before = await this.intervals(tx, session.id);
+      closed = before.find((interval) => interval.endedAt === null);
+      const projected = projectEstimatedClosure(
+        before.map((interval) => ({ ...toDomainInterval(interval), id: interval.id })),
+        (session.startedAt ?? before[0]?.startedAt ?? session.createdAt).getTime(),
+        effectiveEnd.getTime(),
+      );
+      const changes = [];
+      for (let index = 0; index < before.length; index += 1) {
+        const original = before[index];
+        const next = projected[index];
+        if (!original || !next || next.endedAt === null)
+          throw new Error('Missing closure interval');
+        if (
+          original.startedAt.getTime() === next.startedAt &&
+          original.endedAt?.getTime() === next.endedAt
+        )
+          continue;
+        const after = { startedAt: new Date(next.startedAt), endedAt: new Date(next.endedAt) };
+        await tx.update(activityIntervals).set(after).where(eq(activityIntervals.id, original.id));
+        changes.push({
+          intervalId: original.id,
+          before: {
+            startedAt: original.startedAt.toISOString(),
+            endedAt: original.endedAt?.toISOString() ?? null,
+          },
+          after: { startedAt: after.startedAt.toISOString(), endedAt: after.endedAt.toISOString() },
+        });
+      }
+      await this.events.append(tx, {
+        type: 'SHIFT_AUTO_CLOSE_PROJECTED',
+        source: 'SYSTEM',
+        actor: meta.actor,
+        occurredAt: now,
+        employeeId: session.employeeId,
+        shiftSessionId: session.id,
+        payload: {
+          observedAt: now.toISOString(),
+          effectiveEndedAt: effectiveEnd.toISOString(),
+          actualDepartureKnown: false,
+          intervalOrder: before.map((interval) => interval.id),
+          changes,
+        },
+      });
+    } else {
+      [closed] = await tx
+        .update(activityIntervals)
+        .set({ endedAt: now })
+        .where(
+          and(eq(activityIntervals.shiftSessionId, session.id), isNull(activityIntervals.endedAt)),
+        )
+        .returning();
+    }
 
     let opened: IntervalRow | null = null;
     if (isActive(result.next.state)) {
@@ -819,7 +985,7 @@ export class ShiftService {
     }
 
     const terminal = !isActive(result.next.state);
-    const flagged = result.effects.includes('FLAG_FOR_REVIEW');
+    const flagged = result.effects.includes('FLAG_FOR_REVIEW') || cmd.action === 'AUTO_CLOSE';
     const [updated] = await tx
       .update(shiftSessions)
       .set({
@@ -828,7 +994,7 @@ export class ShiftService {
         version: session.version + 1,
         updatedAt: now,
         ...(cmd.action === 'START_SHIFT' ? { startedAt: now } : {}),
-        ...(terminal ? { endedAt: now } : {}),
+        ...(terminal ? { endedAt: effectiveEnd } : {}),
         ...(cmd.autoCloseReason ? { autoCloseReason: cmd.autoCloseReason } : {}),
         ...(flagged
           ? { needsClarification: true, clarificationReason: cmd.reasonCode ?? cmd.action }
@@ -859,8 +1025,26 @@ export class ShiftService {
         effects: result.effects,
         masterOverride: meta.masterOverride === true,
         version: updated.version,
+        ...(meta.effectiveEndedAt
+          ? {
+              observedAt: now.toISOString(),
+              effectiveEndedAt: effectiveEnd.toISOString(),
+              actualDepartureKnown: false,
+            }
+          : {}),
       },
     });
+
+    if (cmd.action === 'AUTO_CLOSE' && session.presenceId) {
+      await this.attendance.markDepartureUnknownWithin(
+        tx,
+        session.employeeId,
+        session.presenceId,
+        session.id,
+        now,
+        'SHIFT_AUTO_CLOSED',
+      );
+    }
 
     const summary = await this.runEffects(
       tx,
@@ -982,7 +1166,7 @@ export class ShiftService {
       .where(eq(shiftSessions.id, sessionId))
       .limit(1);
     if (!session) throw new DomainError('SHIFT_NOT_FOUND', 404, 'Зміну не знайдено');
-    return this.finalize(tx, session, session.endedAt ?? now, { silent: true });
+    return this.finalize(tx, session, now, { silent: true });
   }
 
   /** Підсумок зміни (ТЗ 6.2) і повідомлення працівнику в аутбокс тією самою транзакцією. */
@@ -996,9 +1180,13 @@ export class ShiftService {
     const plan = session.assignmentId ? await this.assignmentById(tx, session.assignmentId) : null;
     const computed = computeShiftSummary(
       intervals.map(toDomainInterval),
-      session.startedAt ?? now,
-      now,
-      plan ? { planStartAt: plan.planStartAt, planEndAt: plan.planEndAt } : null,
+      session.startedAt ?? intervals[0]?.startedAt ?? now,
+      session.endedAt ?? now,
+      session.planStartAt && session.planEndAt
+        ? { planStartAt: session.planStartAt, planEndAt: session.planEndAt }
+        : plan
+          ? { planStartAt: plan.planStartAt, planEndAt: plan.planEndAt }
+          : null,
       {
         graceMinutes: this.options.graceMinutes,
         earlyStartWindowMinutes: this.options.earlyStartWindowMinutes,
@@ -1028,6 +1216,7 @@ export class ShiftService {
       .onConflictDoUpdate({
         target: shiftSummaries.shiftSessionId,
         set: {
+          plannedMinutes: computed.plannedMinutes,
           totalMinutes: computed.totalMinutes,
           workMinutes: computed.workMinutes,
           preparationMinutes: computed.preparationMinutes,
@@ -1057,7 +1246,11 @@ export class ShiftService {
         recipientType: 'EMPLOYEE',
         recipientId: session.employeeId,
         template: 'SHIFT_SUMMARY',
-        payload: (t) => ({ text: summaryLines(t, view) }),
+        payload: (t) => ({
+          text: session.autoCloseReason
+            ? `${t.shift.estimatedClosure}${session.needsClarification ? `\n${t.shift.flagged}` : ''}\n\n${summaryLines(t, view)}`
+            : summaryLines(t, view),
+        }),
         dedupeKey: `shift-summary:${session.id}`,
       });
     }
@@ -1191,11 +1384,7 @@ export class ShiftService {
   }
 
   private async intervals(tx: DbOrTx, sessionId: string): Promise<IntervalRow[]> {
-    return tx
-      .select()
-      .from(activityIntervals)
-      .where(eq(activityIntervals.shiftSessionId, sessionId))
-      .orderBy(asc(activityIntervals.startedAt));
+    return orderedShiftIntervals(tx, sessionId);
   }
 
   private async summaryView(tx: DbOrTx, sessionId: string): Promise<ShiftSummaryView | null> {
@@ -1257,73 +1446,264 @@ export class ShiftService {
    * exit QR. Idempotent and safe to repeat.
    */
   async autoCloseStale(now: Date = new Date()): Promise<number> {
-    const grace = this.options.autoCloseGraceMinutes ?? 120;
-    const cutoff = new Date(now.getTime() - grace * 60_000);
+    const cutoff = new Date(now.getTime() - (this.options.autoCloseGraceMinutes ?? 120) * 60_000);
     const stale = await this.db
-      .select({ id: shiftSessions.id })
+      .select({ id: shiftSessions.id, employeeId: shiftSessions.employeeId })
       .from(shiftSessions)
       .where(
         and(
           notInArray(shiftSessions.state, TERMINAL),
-          isNotNull(shiftSessions.planEndAt),
-          lt(shiftSessions.planEndAt, cutoff),
+          or(isNull(shiftSessions.planEndAt), lte(shiftSessions.planEndAt, cutoff)),
         ),
       );
     let closed = 0;
-    for (const { id } of stale) {
-      if (await this.autoCloseOne(id, now)) closed += 1;
+    for (const row of stale) {
+      try {
+        if (await this.reconcileEmployee(row.employeeId, now, row.id)) closed += 1;
+      } catch (error) {
+        this.logger.error(
+          {
+            employeeId: row.employeeId,
+            sessionId: row.id,
+            errorType: error instanceof Error ? error.name : 'UnknownError',
+          },
+          'Scheduled shift reconciliation failed; continuing scan',
+        );
+      }
+    }
+    const orphans = await this.db
+      .selectDistinct({ employeeId: presenceSessions.employeeId })
+      .from(presenceSessions)
+      .innerJoin(shiftSessions, eq(shiftSessions.presenceId, presenceSessions.id))
+      .where(and(eq(presenceSessions.status, 'OPEN'), inArray(shiftSessions.state, TERMINAL)));
+    for (const row of orphans) {
+      try {
+        await this.reconcileEmployee(row.employeeId, now);
+      } catch (error) {
+        this.logger.error(
+          {
+            employeeId: row.employeeId,
+            errorType: error instanceof Error ? error.name : 'UnknownError',
+          },
+          'Historical presence reconciliation failed; continuing scan',
+        );
+      }
     }
     return closed;
   }
 
-  private async autoCloseOne(sessionId: string, now: Date): Promise<boolean> {
+  /** Catch up one employee under the shared command mutex. No physical departure is inferred. */
+  async reconcileEmployee(
+    employeeId: string,
+    now: Date = new Date(),
+    expectedSessionId?: string,
+  ): Promise<boolean> {
     const deferred: DeferredTimer[] = [];
-    const response = await this.db.transaction(async (tx) => {
+    const closed = await this.db.transaction(async (tx) => {
+      await lockEmployee(tx, employeeId);
       const [session] = await tx
         .select()
         .from(shiftSessions)
-        .where(eq(shiftSessions.id, sessionId))
+        .where(
+          and(eq(shiftSessions.employeeId, employeeId), notInArray(shiftSessions.state, TERMINAL)),
+        )
         .for('update');
-      if (!session || (TERMINAL as readonly string[]).includes(session.state)) return null;
-      const reportRequired = await this.handovers.reportRequired(tx, session);
-      const submitted = await this.handovers.hasSubmitted(tx, session.id);
-      const reason = reportRequired && !submitted ? 'NO_CHECKLIST' : 'LEFT_OPEN';
-      return this.apply(
-        tx,
-        session,
-        {
-          action: 'AUTO_CLOSE',
-          expectedVersion: session.version,
-          idempotencyKey: `auto-close:${sessionId}`,
-          autoCloseReason: reason,
-        },
-        {
-          actor: { type: 'SYSTEM', id: null, role: 'SYSTEM' },
-          source: 'SYSTEM',
-          masterOverride: true,
-          now,
-        },
-        deferred,
-      );
+      const response =
+        session && (!expectedSessionId || session.id === expectedSessionId)
+          ? await this.closeDueWithin(tx, session, now, deferred)
+          : null;
+      await this.reconcileClosedPresencesWithin(tx, employeeId, now);
+      return response;
     });
-    if (response?.ok && !response.replayed) {
-      for (const run of deferred) await run();
-      this.changes.publish({
-        sessionId: response.session.id,
-        employeeId: response.session.employeeId,
-        state: response.session.state,
-        version: response.session.version,
-        at: response.serverTime,
+    if (closed) await this.afterCommit(closed, deferred, 'SYSTEM');
+    return closed?.ok === true;
+  }
+
+  private async closeDueWithin(
+    tx: DbOrTx,
+    original: SessionRow,
+    now: Date,
+    deferred: DeferredTimer[],
+  ): Promise<TransitionResponse | null> {
+    const session = await this.recoverPlanWithin(tx, original, now);
+    if (
+      session.clarificationReason === 'INVALID_PLAN' ||
+      session.clarificationReason === 'UNRECOVERABLE_PLAN' ||
+      !this.isPastDeadline(session, now)
+    )
+      return null;
+    const reportRequired = await this.handovers.reportRequired(tx, session);
+    const submitted = await this.handovers.hasSubmitted(tx, session.id);
+    return this.apply(
+      tx,
+      session,
+      {
+        action: 'AUTO_CLOSE',
+        expectedVersion: session.version,
+        idempotencyKey: `auto-close:${session.id}`,
+        autoCloseReason: reportRequired && !submitted ? 'NO_CHECKLIST' : 'LEFT_OPEN',
+      },
+      {
+        actor: { type: 'SYSTEM', id: null, role: 'SYSTEM' },
         source: 'SYSTEM',
-      });
-    }
-    return response?.ok === true;
+        masterOverride: true,
+        now,
+        ...(session.planEndAt ? { effectiveEndedAt: session.planEndAt } : {}),
+      },
+      deferred,
+    );
+  }
+
+  private isPastDeadline(session: SessionRow, now: Date): boolean {
+    return (
+      session.planEndAt !== null &&
+      now.getTime() >=
+        session.planEndAt.getTime() + (this.options.autoCloseGraceMinutes ?? 120) * 60_000
+    );
+  }
+
+  private async flagPlanWithin(
+    tx: DbOrTx,
+    session: SessionRow,
+    now: Date,
+    anchor: Date | null,
+    reason: 'INVALID_PLAN' | 'UNRECOVERABLE_PLAN',
+  ): Promise<SessionRow> {
+    if (session.clarificationReason === reason) return session;
+    const [flagged] = await tx
+      .update(shiftSessions)
+      .set({ needsClarification: true, clarificationReason: reason, updatedAt: now })
+      .where(eq(shiftSessions.id, session.id))
+      .returning();
+    await this.events.append(tx, {
+      type: reason === 'INVALID_PLAN' ? 'SHIFT_PLAN_INVALID' : 'SHIFT_PLAN_UNRECOVERABLE',
+      source: 'SYSTEM',
+      actor: { type: 'SYSTEM', id: null, role: 'SYSTEM' },
+      occurredAt: now,
+      employeeId: session.employeeId,
+      shiftSessionId: session.id,
+      payload: {
+        anchor: anchor?.toISOString() ?? null,
+        planStartAt: session.planStartAt?.toISOString() ?? null,
+        planEndAt: session.planEndAt?.toISOString() ?? null,
+      },
+    });
+    if (!flagged) throw new Error('Shift disappeared while flagging its plan');
+    return flagged;
+  }
+
+  private async recoverPlanWithin(tx: DbOrTx, session: SessionRow, now: Date): Promise<SessionRow> {
+    const [first] = session.startedAt
+      ? []
+      : await tx
+          .select({ startedAt: activityIntervals.startedAt })
+          .from(activityIntervals)
+          .where(eq(activityIntervals.shiftSessionId, session.id))
+          .orderBy(asc(activityIntervals.startedAt))
+          .limit(1);
+    const anchor = session.startedAt ?? first?.startedAt;
+    if (!anchor) return this.flagPlanWithin(tx, session, now, null, 'UNRECOVERABLE_PLAN');
+    if (
+      session.planEndAt &&
+      (session.planEndAt < anchor ||
+        (session.planStartAt && session.planStartAt > session.planEndAt))
+    )
+      return this.flagPlanWithin(tx, session, now, anchor, 'INVALID_PLAN');
+    if (session.planStartAt && session.planEndAt) return session;
+    const [presence] = session.presenceId
+      ? await tx.select().from(presenceSessions).where(eq(presenceSessions.id, session.presenceId))
+      : [];
+    const assignment = session.assignmentId
+      ? await this.assignmentById(tx, session.assignmentId)
+      : null;
+    const validAssignment = assignment && assignment.planEndAt >= anchor ? assignment : null;
+    const knownSiteId = await this.siteForPresence(
+      tx,
+      presence ?? null,
+      session.employeeId,
+      anchor,
+      true,
+    );
+    const uniqueSites = knownSiteId ? [] : await tx.select({ id: sites.id }).from(sites).limit(2);
+    const uniqueSiteId = uniqueSites.length === 1 ? uniqueSites[0]?.id : undefined;
+    const siteId = knownSiteId ?? uniqueSiteId;
+    if (!validAssignment && !siteId)
+      return this.flagPlanWithin(tx, session, now, anchor, 'UNRECOVERABLE_PLAN');
+    // Presence identifies the site only: a same-day stale arrival must not replace the recorded start.
+    const inferred = await this.planForStart(
+      tx,
+      null,
+      validAssignment,
+      anchor,
+      session.employeeId,
+      siteId,
+    );
+    const plan = {
+      planStartAt: session.planStartAt ?? inferred.planStartAt ?? anchor,
+      planEndAt: session.planEndAt ?? inferred.planEndAt,
+    };
+    if (!plan.planEndAt || plan.planEndAt < anchor || plan.planStartAt > plan.planEndAt)
+      return this.flagPlanWithin(tx, session, now, anchor, 'UNRECOVERABLE_PLAN');
+    const [updated] = await tx
+      .update(shiftSessions)
+      .set(plan)
+      .where(eq(shiftSessions.id, session.id))
+      .returning();
+    if (!updated) throw new Error('Shift disappeared during plan recovery');
+    await this.events.append(tx, {
+      type: 'SHIFT_PLAN_RECOVERED',
+      source: 'SYSTEM',
+      actor: { type: 'SYSTEM', id: null, role: 'SYSTEM' },
+      occurredAt: now,
+      employeeId: session.employeeId,
+      shiftSessionId: session.id,
+      payload: {
+        anchor: anchor.toISOString(),
+        siteId: siteId ?? null,
+        inferredFromUniqueSite: !validAssignment && !knownSiteId && !!uniqueSiteId,
+        before: {
+          planStartAt: session.planStartAt?.toISOString() ?? null,
+          planEndAt: session.planEndAt?.toISOString() ?? null,
+        },
+        after: {
+          planStartAt: plan.planStartAt.toISOString(),
+          planEndAt: plan.planEndAt.toISOString(),
+        },
+      },
+    });
+    return updated;
+  }
+
+  private async reconcileClosedPresencesWithin(
+    tx: DbOrTx,
+    employeeId: string,
+    now: Date,
+  ): Promise<void> {
+    const open = await this.attendance.openPresence(employeeId, tx);
+    if (!open) return;
+    const linked = await tx
+      .select()
+      .from(shiftSessions)
+      .where(eq(shiftSessions.presenceId, open.id))
+      .orderBy(asc(shiftSessions.id))
+      .for('update');
+    if (linked.length === 0 || linked.some((session) => !isTerminal(session.state))) return;
+    const session = linked[0];
+    if (session)
+      await this.attendance.markDepartureUnknownWithin(
+        tx,
+        employeeId,
+        open.id,
+        session.id,
+        now,
+        'TERMINAL_SHIFT_OPEN_PRESENCE',
+      );
   }
 
   /**
    * The planned window a starting shift gets: from the assignment when scheduled, otherwise
    * inferred from the site's active day/night templates by the arrival time (unscheduled shift).
-   * With no templates the window is left open and the auto-close job falls back to a fixed length.
+   * Missing templates use the agreed local 08:00–20:00 / 20:00–08:00 windows.
    */
   private async planForStart(
     tx: DbOrTx,
@@ -1335,6 +1715,8 @@ export class ShiftService {
       zoneId: string | null;
     } | null,
     now: Date,
+    employeeId?: string,
+    knownSiteId?: string,
   ): Promise<{
     businessDate: string;
     planStartAt: Date | null;
@@ -1349,18 +1731,29 @@ export class ShiftService {
         zoneId: assignment.zoneId ?? null,
       };
     }
-    const siteId = await this.siteForPresence(tx, presence);
+    const siteId = knownSiteId ?? (await this.siteForPresence(tx, presence, employeeId, now));
     const templates = siteId ? await this.activeTemplates(tx, siteId) : [];
+    const [site] = siteId
+      ? await tx.select({ timezone: sites.timezone }).from(sites).where(eq(sites.id, siteId))
+      : [];
+    const timezone = site?.timezone ?? this.options.defaultTimezone;
     // A presence left open from an earlier day says nothing about the shift starting now. Taking
     // its arrival gave the shift yesterday's business date and yesterday's planned window — one
     // already in the past — and the end-of-day job closed the shift a minute after it opened.
     const arrival =
-      presence &&
-      businessDateOf(presence.arrivedAt, this.options.defaultTimezone) ===
-        businessDateOf(now, this.options.defaultTimezone)
+      presence && businessDateOf(presence.arrivedAt, timezone) === businessDateOf(now, timezone)
         ? presence.arrivedAt
         : now;
-    const inferred = inferShiftFromArrival(templates, arrival, this.options.defaultTimezone);
+    const inferred = inferShiftFromArrival(
+      templates.length
+        ? templates
+        : [
+            { id: 'fallback-day', localStart: '08:00', localEnd: '20:00', isNight: false },
+            { id: 'fallback-night', localStart: '20:00', localEnd: '08:00', isNight: true },
+          ],
+      arrival,
+      timezone,
+    );
     if (inferred) {
       return {
         businessDate: inferred.plan.businessDate,
@@ -1380,6 +1773,9 @@ export class ShiftService {
   private async siteForPresence(
     tx: DbOrTx,
     presence: { arrivalTerminalId: string | null } | null,
+    employeeId?: string,
+    anchor?: Date,
+    requireRecordedSite = false,
   ): Promise<string | null> {
     if (presence?.arrivalTerminalId) {
       const [row] = await tx
@@ -1389,6 +1785,23 @@ export class ShiftService {
         .limit(1);
       if (row) return row.siteId;
     }
+    if (employeeId && anchor) {
+      const [historical] = await tx
+        .select({ siteId: orgUnits.siteId })
+        .from(employeePositions)
+        .innerJoin(orgUnits, eq(orgUnits.id, employeePositions.orgUnitId))
+        .where(
+          and(
+            eq(employeePositions.employeeId, employeeId),
+            lte(employeePositions.validFrom, anchor),
+            or(isNull(employeePositions.validTo), gt(employeePositions.validTo, anchor)),
+          ),
+        )
+        .orderBy(desc(employeePositions.validFrom), desc(employeePositions.id))
+        .limit(1);
+      if (historical) return historical.siteId;
+    }
+    if (requireRecordedSite) return null;
     const [site] = await tx
       .select({ id: sites.id })
       .from(sites)

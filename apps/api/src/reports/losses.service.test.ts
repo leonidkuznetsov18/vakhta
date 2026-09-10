@@ -109,6 +109,22 @@ describe('LossesService report integrity', () => {
     );
   }
 
+  it('excludes estimated zero placeholders from counts but keeps positive sub-minute observations', async () => {
+    await interval(START, START);
+    await interval(START, new Date(START.getTime() + 10_000));
+    await fixture.db
+      .update(shiftSessions)
+      .set({ autoCloseReason: 'LEFT_OPEN' })
+      .where(eq(shiftSessions.id, sessionId));
+    const report = await service.overview(QUERY, 'en', CUTOFF);
+    expect(report.intervalsTotal).toBe(1);
+    expect(report.intervals).toHaveLength(1);
+    expect(report.intervals[0]).toMatchObject({ minutes: 0, estimatedEnd: true });
+    expect(report.bars[0]?.intervals).toBe(1);
+    const file = await service.export(QUERY, 'csv', ACTOR, 'en', CUTOFF);
+    expect(file.body.toString('utf8')).toContain('Actual departure is unknown');
+  });
+
   it('keeps historical minutes with the unit held when the shift started', async () => {
     await interval();
     const original = await service.overview({ ...QUERY, orgUnitId: originalUnit }, 'en', CUTOFF);

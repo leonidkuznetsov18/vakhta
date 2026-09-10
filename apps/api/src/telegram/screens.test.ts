@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ShiftScreenView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { USER_SHIFT_ACTIONS } from '@vakhta/domain';
-import { reasonPickerScreen, shiftScreen } from './screens.js';
+import { checkInPromptScreen, reasonPickerScreen, shiftScreen } from './screens.js';
 
 const t = messages('ru');
 
@@ -394,3 +394,53 @@ describe('language of the bot screens', () => {
     expect(screen.text).toContain('There are no upcoming shifts');
   });
 });
+
+it('binds departure confirmation to its presence within Telegram callback limits', () => {
+  const presenceId = 'b0000000-0000-4000-8000-000000000001';
+  const screen = checkInPromptScreen(t, {
+    action: 'DEPART',
+    presenceId,
+    terminalName: 'Main',
+    token: 'A'.repeat(22),
+  });
+  const data = buttons(screen).flat()[0];
+  expect(data).toBe(`dep:${'A'.repeat(22)}:${presenceId}`);
+  expect(Buffer.byteLength(data ?? '')).toBe(63);
+});
+
+it.each(['uk', 'en', 'ru'] as const)(
+  'describes estimated closure truthfully in %s, including missing checklists and reviewed corrections',
+  (locale) => {
+    const catalog = messages(locale);
+    for (const autoCloseReason of ['NO_CHECKLIST', 'LEFT_OPEN']) {
+      const session = view().session;
+      if (!session) throw new Error('Missing session fixture');
+      const screen = shiftScreen(
+        catalog,
+        view({
+          session: { ...session, state: 'SHIFT_CLOSED', autoCloseReason, needsClarification: true },
+          allowedActions: [],
+        }),
+        'Test worker',
+      );
+      expect(screen.text).toContain(catalog.shift.estimatedClosure);
+      expect(screen.text).toContain(catalog.shift.flagged);
+      expect(screen.text).not.toContain(catalog.shift.closedHeader);
+      const corrected = shiftScreen(
+        catalog,
+        view({
+          session: {
+            ...session,
+            state: 'SHIFT_CLOSED',
+            autoCloseReason,
+            needsClarification: false,
+          },
+          allowedActions: [],
+        }),
+        'Test worker',
+      );
+      expect(corrected.text).toContain(catalog.shift.estimatedClosure);
+      expect(corrected.text).not.toContain(catalog.shift.flagged);
+    }
+  },
+);

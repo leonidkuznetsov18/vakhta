@@ -936,7 +936,7 @@ export class HandoverService {
     now: Date,
     allowSubmitted = false,
   ): Promise<RecordRow> {
-    const session = await this.shift.activeSession(employeeId, tx);
+    const session = await this.shift.commandSessionWithin(tx, employeeId, now);
     if (!session) throw new DomainError('NO_ACTIVE_SHIFT', 409, 'No active shift');
     if (session.state !== 'HANDOVER' && !(allowSubmitted && session.state === 'READY_TO_CLOSE')) {
       throw new DomainError('HANDOVER_NOT_OPEN', 409, 'The shift is not in the handover state');

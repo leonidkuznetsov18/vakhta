@@ -93,6 +93,61 @@ export class AttendanceService {
     return row ?? null;
   }
 
+  /** Caller owns employee and linked shift locks before this presence lock. */
+  async markDepartureUnknownWithin(
+    tx: DbOrTx,
+    employeeId: string,
+    presenceId: string,
+    sessionId: string,
+    observedAt: Date,
+    reason: string,
+  ): Promise<void> {
+    const [presence] = await tx
+      .select()
+      .from(presenceSessions)
+      .where(and(eq(presenceSessions.id, presenceId), eq(presenceSessions.employeeId, employeeId)))
+      .for('update');
+    if (!presence || presence.status !== 'OPEN') return;
+    await tx
+      .update(presenceSessions)
+      .set({
+        status: 'NEEDS_CLARIFICATION',
+        departedAt: null,
+        departureMethod: null,
+        departureTerminalId: null,
+      })
+      .where(eq(presenceSessions.id, presenceId));
+    const actor = { type: 'SYSTEM', id: null, role: 'SYSTEM' } satisfies Actor;
+    await this.events.append(tx, {
+      type: 'PRESENCE_DEPARTURE_UNKNOWN',
+      source: 'SYSTEM',
+      actor,
+      occurredAt: observedAt,
+      employeeId,
+      shiftSessionId: sessionId,
+      payload: {
+        presenceId,
+        reason,
+        observedAt: observedAt.toISOString(),
+        actualDepartureKnown: false,
+      },
+    });
+    await this.audit.record(tx, {
+      actor,
+      action: 'presence.reconcile_unknown_departure',
+      objectType: 'presence_session',
+      objectId: presenceId,
+      before: { status: presence.status, departedAt: presence.departedAt?.toISOString() ?? null },
+      after: {
+        status: 'NEEDS_CLARIFICATION',
+        departedAt: null,
+        shiftSessionId: sessionId,
+        observedAt: observedAt.toISOString(),
+      },
+      reason,
+    });
+  }
+
   /** Що запропонувати після сканування: відкрита присутність означає відхід. */
   async intent(employeeId: string): Promise<CheckAction> {
     return (await this.openPresence(employeeId)) ? 'DEPART' : 'ARRIVE';
@@ -138,19 +193,7 @@ export class AttendanceService {
     await lockEmployee(tx, employeeId);
     const actor = employeeActor(employeeId);
     const preview = await this.previewChallenge(token, now, tx);
-    if (!preview.ok) {
-      if (preview.reason === 'CHALLENGE_INVALID') {
-        // T-05: підмінений токен є подією безпеки, не просто відмовою.
-        await this.events.append(tx, {
-          type: 'QR_CHALLENGE_REJECTED',
-          source: 'TELEGRAM',
-          actor,
-          employeeId,
-          payload: { reason: 'INVALID', action },
-        });
-      }
-      return { ok: false, action, reason: preview.reason, serverTime: now.toISOString() };
-    }
+    if (!preview.ok) return this.rejectChallengeWithin(tx, employeeId, action, preview.reason, now);
     const input: MarkInput = {
       employeeId,
       now,
@@ -163,6 +206,29 @@ export class AttendanceService {
       requireAssignment: false,
     };
     return action === 'ARRIVE' ? this.arrive(tx, input) : this.depart(tx, input);
+  }
+
+  /** Preserve security evidence for malformed challenges without changing attendance. */
+  async rejectChallengeWithin(
+    tx: DbOrTx,
+    employeeId: string,
+    action: CheckAction,
+    reason: Extract<
+      CheckInFailure,
+      'CHALLENGE_INVALID' | 'CHALLENGE_EXPIRED' | 'TERMINAL_DISABLED'
+    >,
+    now: Date,
+  ): Promise<CheckInResult> {
+    if (reason === 'CHALLENGE_INVALID')
+      await this.events.append(tx, {
+        type: 'QR_CHALLENGE_REJECTED',
+        source: 'TELEGRAM',
+        actor: employeeActor(employeeId),
+        employeeId,
+        occurredAt: now,
+        payload: { reason: 'INVALID', action },
+      });
+    return { ok: false, action, reason, serverTime: now.toISOString() };
   }
 
   /** Резервна відмітка (FR-QR-06): спосіб, підстава і підтверджувач зберігаються. */
