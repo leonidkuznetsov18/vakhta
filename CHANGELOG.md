@@ -1,3 +1,9 @@
+## [0.79.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.79.0...v0.79.1) (2026-09-10)
+
+### Bug fixes
+
+* **photo-inspection:** highlight saved photos with frame and tooltip ([ba8e6a2](https://github.com/leonidkuznetsov18/vakhta/commit/ba8e6a2a327b06407fa7010590b8b3e3413c3b87))
+
 ## [0.79.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.78.0...v0.79.0) (2026-09-10)
 
 ### Features
