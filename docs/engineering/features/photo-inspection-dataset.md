@@ -333,3 +333,18 @@ photos or operational records were changed.
 Lean: proceed. Prevent duplicate work and keep restoration reversible; clarify optional input without
 adding a mandatory step. Observe duplicate-region creation and requests for help during the pilot;
 no measured production time saving is claimed.
+
+## Default image panning — 2026-09-11
+
+Remove the separate Pan photo toolbar action and mode. Selection mode now pans unmarked image areas
+by default and supports two-finger pinch. Annotation shapes and resize handles retain their pointer
+events; a drag suppresses its follow-up click, while ordinary selection clicks remain available.
+Rectangle/polygon drawing retains left-button ownership and returns to selection/panning after
+creation. Middle-button panning remains available while drawing. Update all localized hints and FAQ.
+
+Verification: 18 focused viewport/editor tests, panel type-check and focused lint passed. In the real
+browser, default dragging moved scroll offsets by 100x50px without activation; dragging a resize handle
+changed the annotation bounds while image scroll remained fixed. Native two-touch pinch changed only
+the image from 100% to 200%, with browser page scale remaining 1. Desktop 1440x1000 and mobile 390x844
+screenshots were captured and visually inspected. Lean: proceed; removes an unnecessary activation
+step while preserving annotation editing. Automatic-review groundwork remains a separate pending task.

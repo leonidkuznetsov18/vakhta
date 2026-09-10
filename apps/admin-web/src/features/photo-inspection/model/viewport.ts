@@ -51,6 +51,7 @@ export class InspectionViewport {
     this.viewport = viewport;
     plane.style.transform = `scale(${this.owner.scale()})`;
     const points = new Map<number, Point>();
+    let dragged = false;
     const consume = (event: Event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -71,12 +72,17 @@ export class InspectionViewport {
       });
     };
     const down = (event: PointerEvent) => {
+      if (!points.size) dragged = false;
       if (
         !this.owner.ready() ||
         (!this.owner.canPan() && event.button !== 1) ||
         (event.button !== 0 && event.button !== 1) ||
         !(event.target instanceof Node) ||
-        !plane.contains(event.target)
+        !plane.contains(event.target) ||
+        (event.button === 0 &&
+          points.size === 0 &&
+          event.target instanceof Element &&
+          event.target.closest('.a9s-annotation, .a9s-selection, .a9s-handle'))
       )
         return;
       consume(event);
@@ -90,6 +96,7 @@ export class InspectionViewport {
       const previous = points.get(event.pointerId);
       if (!previous) return;
       consume(event);
+      if (event.clientX !== previous.x || event.clientY !== previous.y) dragged = true;
       const before = [...points.values()];
       const next = { x: event.clientX, y: event.clientY };
       points.set(event.pointerId, next);
@@ -115,7 +122,8 @@ export class InspectionViewport {
       if (!points.size) delete viewport.dataset.panning;
     };
     const click = (event: MouseEvent) => {
-      if (this.owner.canPan()) consume(event);
+      if (dragged) consume(event);
+      dragged = false;
     };
     const drag = (event: DragEvent) => event.preventDefault();
     viewport.addEventListener('wheel', wheel, { passive: false });

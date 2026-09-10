@@ -114,6 +114,31 @@ describe('inspection image gestures', () => {
     expect(pointer(view.plane, 'pointerdown', 2, 100, 100, 1).defaultPrevented).toBe(true);
     expect(annotationDown).toHaveBeenCalledOnce();
   });
+  it('keeps annotation selection and resize handles interactive while background pan is enabled', () => {
+    const view = setup();
+    for (const name of ['a9s-annotation', 'a9s-selection', 'a9s-handle']) {
+      const region = view.plane.appendChild(document.createElement('div'));
+      region.className = name;
+      const handle = region.appendChild(document.createElement('span'));
+      const down = vi.fn();
+      handle.addEventListener('pointerdown', down);
+      expect(pointer(handle, 'pointerdown', 1, 100, 100).defaultPrevented).toBe(false);
+      expect(down).toHaveBeenCalledOnce();
+      const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+      handle.dispatchEvent(click);
+      expect(click.defaultPrevented).toBe(false);
+      region.remove();
+    }
+    pointer(view.plane, 'pointerdown', 2, 100, 100);
+    pointer(view.viewport, 'pointermove', 2, 80, 90);
+    pointer(view.viewport, 'pointerup', 2, 80, 90);
+    const afterDrag = new MouseEvent('click', { bubbles: true, cancelable: true });
+    view.viewport.dispatchEvent(afterDrag);
+    expect(afterDrag.defaultPrevented).toBe(true);
+    const tap = new MouseEvent('click', { bubbles: true, cancelable: true });
+    view.plane.dispatchEvent(tap);
+    expect(tap.defaultPrevented).toBe(false);
+  });
   it('pinches around the moving midpoint and resumes one-finger panning after release', () => {
     const view = setup();
     pointer(view.plane, 'pointerdown', 1, 100, 100);

@@ -86,7 +86,7 @@ interface EditorState {
   version: number;
   savedReview: InspectionReview;
   selected: string | null;
-  tool: 'rectangle' | 'polygon' | 'select' | 'pan';
+  tool: 'rectangle' | 'polygon' | 'select';
   zoom: number;
   imageStatus: 'loading' | 'ready' | 'failed';
   invalidGeometry: boolean;
@@ -107,7 +107,7 @@ export class InspectionEditor {
       version: initial.version,
       savedReview: linkLegacySuggestions(initial.review, initial.runs),
       selected: null,
-      tool: initial.canEdit ? 'select' : 'pan',
+      tool: 'select',
       zoom: INSPECTION_ZOOM.min,
       imageStatus: 'loading',
       invalidGeometry: false,
@@ -116,7 +116,7 @@ export class InspectionEditor {
       scale: () => this.store.getState().zoom,
       changeScale: (zoom) => this.store.setState({ zoom }),
       ready: () => this.store.getState().imageStatus === 'ready',
-      canPan: () => this.store.getState().tool === 'pan',
+      canPan: () => this.store.getState().tool === 'select',
     });
   }
   readonly mount = (image: HTMLImageElement | null) => {

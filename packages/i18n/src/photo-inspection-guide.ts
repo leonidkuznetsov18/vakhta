@@ -75,7 +75,7 @@ export const inspectionGuideUk: SectionGuide = {
     },
     {
       q: 'Як збільшувати й переміщувати фото?',
-      a: 'Коліщатко миші змінює масштаб навколо курсора від 100% до 500%. Оберіть «Перемістити фото», щоб тягнути його мишею або одним пальцем, а двома пальцями — змінювати масштаб. Середня кнопка миші переміщує фото в будь-якому режимі. Для розмітки поверніться до вибору області, прямокутника або багатокутника. Кнопки масштабу й прокручування з клавіатури залишаються доступними.',
+      a: 'Коліщатко миші змінює масштаб навколо курсора від 100% до 500%. Переміщення доступне одразу: тягніть вільну від областей ділянку фото мишею або одним пальцем, а двома пальцями змінюйте масштаб. Середня кнопка миші переміщує фото в будь-якому режимі. Клацніть область для редагування. Прямокутник і багатокутник вмикають малювання; після створення області переміщення знову доступне. Кнопки масштабу й прокручування з клавіатури залишаються доступними.',
     },
     {
       q: 'Чому додана пропозиція AI зникла?',
@@ -173,7 +173,7 @@ export const inspectionGuideEn: SectionGuide = {
     },
     {
       q: 'How do I zoom and pan the photo?',
-      a: 'The mouse wheel zooms around the cursor from 100% to 500%. Choose Pan photo to drag with the mouse or one finger, or pinch with two fingers. The middle mouse button pans in any mode. Return to Select region, Rectangle or Polygon to annotate. Zoom buttons and keyboard scrolling remain available.',
+      a: 'The mouse wheel zooms around the cursor from 100% to 500%. Panning is available immediately: drag an unmarked part of the photo with the mouse or one finger, or pinch with two fingers. The middle mouse button pans in any mode. Click a region to edit it. Rectangle and Polygon enable drawing; panning resumes after creating a region. Zoom buttons and keyboard scrolling remain available.',
     },
     {
       q: 'Why did an AI suggestion disappear after adding it?',
@@ -271,7 +271,7 @@ export const inspectionGuideRu: SectionGuide = {
     },
     {
       q: 'Как увеличивать и перемещать фото?',
-      a: 'Колёсико мыши меняет масштаб вокруг курсора от 100% до 500%. Выберите «Переместить фото», чтобы тянуть его мышью или одним пальцем, а двумя пальцами — менять масштаб. Средняя кнопка мыши перемещает фото в любом режиме. Для разметки вернитесь к выбору области, прямоугольнику или многоугольнику. Кнопки масштаба и прокрутка с клавиатуры остаются доступны.',
+      a: 'Колёсико мыши меняет масштаб вокруг курсора от 100% до 500%. Перемещение доступно сразу: тяните свободный от областей участок фото мышью или одним пальцем, а двумя пальцами меняйте масштаб. Средняя кнопка мыши перемещает фото в любом режиме. Нажмите на область для редактирования. Прямоугольник и многоугольник включают рисование; после создания области перемещение снова доступно. Кнопки масштаба и прокрутка с клавиатуры остаются доступны.',
     },
     {
       q: 'Почему добавленное предложение AI исчезло?',

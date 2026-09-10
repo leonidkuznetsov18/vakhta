@@ -21,7 +21,6 @@ import {
   SaveIcon,
   XIcon,
   Trash2Icon,
-  HandIcon,
 } from 'lucide-react';
 import { IconButton } from '@/shared/ui/icon-button';
 import { HowItWorks } from '@/components/app/how-it-works';
@@ -302,16 +301,6 @@ function InspectionSession({
         )}
         <IconButton
           size="sm"
-          variant={state.tool === 'pan' ? 'default' : 'outline'}
-          icon={HandIcon}
-          label={t.pan}
-          tooltip={t.hints.pan}
-          aria-pressed={state.tool === 'pan'}
-          disabled={state.imageStatus !== 'ready'}
-          onClick={() => editor.tool('pan')}
-        />
-        <IconButton
-          size="sm"
           variant="outline"
           icon={ZoomInIcon}
           label={t.zoomIn}
@@ -393,7 +382,7 @@ function InspectionSession({
               tabIndex={0}
               role="group"
               aria-label={initial.context.photoLabel}
-              className={`max-h-[65dvh] overflow-auto rounded-md border bg-muted p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring data-[panning=true]:cursor-grabbing ${state.tool === 'pan' ? 'touch-none cursor-grab [&_*]:cursor-inherit' : ''}`}
+              className={`max-h-[65dvh] overflow-auto rounded-md border bg-muted p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring data-[panning=true]:cursor-grabbing ${state.tool === 'select' ? 'touch-none cursor-grab' : ''}`}
             >
               {state.imageStatus === 'loading' && <LoadingState />}
               {state.imageStatus === 'failed' && (
