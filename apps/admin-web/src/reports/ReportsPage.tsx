@@ -17,7 +17,7 @@ import { SelectField } from '@/components/app/fields';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill, Toolbar } from '@/components/app/page';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 import { formatDateTime, formatDuration } from '@/lib/format';
 import { reportsApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';

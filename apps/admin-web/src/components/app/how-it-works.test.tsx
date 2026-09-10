@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, within } from '@testing-library/react';
+import { render } from '../../test-utils.tsx';
 import { FaqButton, HowItWorks } from './how-it-works.tsx';
 
 describe('HowItWorks and FaqButton', () => {

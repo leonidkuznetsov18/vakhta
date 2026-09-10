@@ -36,7 +36,7 @@ import {
 } from './grid.ts';
 import { currentLocale } from '../i18n.tsx';
 import { useNavigation } from '../navigation.tsx';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 import { notifySuccess } from '@/lib/toast';
 import { formatDate, formatMonth } from '@/lib/format';
 import { WandIcon } from 'lucide-react';

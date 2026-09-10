@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { render } from '../../test-utils.tsx';
 import { SettingsIcon, LayoutDashboardIcon } from 'lucide-react';
 import { CommandPalette } from './command-palette.tsx';
 

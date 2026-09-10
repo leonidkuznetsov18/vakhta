@@ -32,7 +32,7 @@ import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
-import { usePersistentState } from '@/lib/persistent-state';
+import { setUiState, uiState, usePersistentState } from '@/lib/ui-store';
 import { isUnchanged } from '@/lib/forms';
 import { validateWith, type FieldErrors } from '@/lib/validation';
 import { ApiError, checklistsApi } from '../api.ts';
@@ -99,8 +99,8 @@ function zoneTypeLabel(zoneType: string | null): string {
  * Checklists of the zone handover (spec 5.6, FR-CLN-03): admins build them here per position and
  * zone type; the bot walks the employee through the items and demands the photos.
  */
-/** localStorage key (with the `vakhta.ui.` prefix) written by the employee card. */
-export const CREATE_FOR_KEY = 'vakhta.ui.checklists.createFor';
+/** Screen-state key written by the employee card and consumed once when this tab opens. */
+export const CREATE_FOR_KEY = 'checklists.createFor';
 
 export function ChecklistsTab({ org }: Props) {
   const [rows, setRows] = useState<ChecklistDefinitionView[] | null>(null);
@@ -108,24 +108,17 @@ export function ChecklistsTab({ org }: Props) {
   const { busy, error, run } = useAction();
   const { confirm, dialog } = useConfirm();
   const [openId, setOpenId] = usePersistentState<string | null>('checklists.open', null);
-  const [editing, setEditing] = useState<ChecklistDefinitionView | 'new' | null>(null);
-  // "Create a checklist for this position" from an employee card: the tab opens the create
-  // dialog with that position ticked (the key is consumed once).
-  const [presetPositionId, setPresetPositionId] = useState<string | null>(null);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(CREATE_FOR_KEY);
-      if (!raw) return;
-      localStorage.removeItem(CREATE_FOR_KEY);
-      const id = JSON.parse(raw) as string;
-      if (org.positions.some((p) => p.id === id)) {
-        setPresetPositionId(id);
-        setEditing('new');
-      }
-    } catch {
-      // Storage unavailable: the tab opens without a preset.
-    }
-  }, [org.positions]);
+  // "Create a checklist for this position" from an employee card: the tab opens the create dialog
+  // with that position ticked. Read once, at the first render, and spent there.
+  const [presetPositionId] = useState<string | null>(() => {
+    const id = uiState<string>(CREATE_FOR_KEY);
+    if (!id) return null;
+    setUiState({ [CREATE_FOR_KEY]: undefined });
+    return org.positions.some((p) => p.id === id) ? id : null;
+  });
+  const [editing, setEditing] = useState<ChecklistDefinitionView | 'new' | null>(
+    presetPositionId ? 'new' : null,
+  );
 
   const reload = useCallback(async () => {
     setRows(await checklistsApi.list());

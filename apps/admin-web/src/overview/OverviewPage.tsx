@@ -24,23 +24,13 @@ import { writeSchedulePreset } from '../schedule/preset.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { writeRoute } from '@/lib/route';
+import { setUiState } from '@/lib/ui-store';
 import { useNavigation, type SectionKey } from '../navigation.tsx';
 import { useAttention, type Attention } from './attention.ts';
 import { cn } from 'cn';
 
 const all = messages(currentLocale());
 const o = all.admin.overview;
-
-/** Filters of the destination page live in `vakhta.ui.*`; the page reads them when it mounts. */
-function presetStorage(values: Record<string, string>): void {
-  try {
-    for (const [key, value] of Object.entries(values)) {
-      localStorage.setItem(`vakhta.ui.${key}`, JSON.stringify(value));
-    }
-  } catch {
-    // Storage unavailable: the section still opens, without the filter.
-  }
-}
 
 /**
  * The live-shift screen stands on a day and on a scope, so a tile that counts rows there hands over
@@ -49,7 +39,7 @@ function presetStorage(values: Record<string, string>): void {
  */
 function opsFilters(data: Attention, key: keyof Attention, scope: 'OPEN' | 'ALL'): void {
   const day = data.firstDate[key];
-  presetStorage({ 'operations.scope': scope, ...(day ? { 'operations.day': day } : {}) });
+  setUiState({ 'operations.scope': scope, ...(day ? { 'operations.day': day } : {}) });
 }
 
 interface Tile {
@@ -116,7 +106,7 @@ const TILES: readonly Tile[] = [
     section: 'administration',
     tone: 'warning',
     prepare: () => {
-      presetStorage({ 'employees.status': 'ACTIVE', 'employees.telegram': 'NOT_LINKED' });
+      setUiState({ 'employees.status': 'ACTIVE', 'employees.telegram': 'NOT_LINKED' });
       writeRoute('administration', 'employees');
     },
   },

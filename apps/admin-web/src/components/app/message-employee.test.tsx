@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { render } from '../../test-utils.tsx';
 import { MessageEmployeeDialog } from './message-employee.tsx';
 
 const LINKED = 'b0000000-0000-4000-8000-000000000001';

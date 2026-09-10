@@ -14,7 +14,7 @@ import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
 import { ApiError, usersApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 import { AddDialog } from '@/components/app/add-dialog';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { useNavigation } from '../navigation.tsx';

@@ -1,6 +1,6 @@
 import { configure } from '@testing-library/react';
 import { beforeEach, vi } from 'vitest';
-import { clearPersistentState } from './lib/persistent-state.ts';
+import { clearPersistentState } from './lib/ui-store.ts';
 import { installZodLocale } from './lib/validation.ts';
 
 installZodLocale();

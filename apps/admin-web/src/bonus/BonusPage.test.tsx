@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
+import { render } from '../test-utils.tsx';
 import { BonusPage } from './BonusPage.tsx';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';

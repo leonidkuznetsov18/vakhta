@@ -1,8 +1,11 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { queryClient } from '@/lib/query';
+import { setUiState } from '@/lib/ui-store';
 import { applyStoredAppearance } from '@/lib/theme';
 import { installZodLocale } from '@/lib/validation';
 import './index.css';
@@ -738,10 +741,10 @@ if (params.get('avatar') === '1') {
 }
 try {
   localStorage.setItem('vakhta.locale', params.get('lang') ?? 'uk');
-  localStorage.setItem('vakhta.ui.theme', JSON.stringify(params.get('theme') ?? 'light'));
 } catch {
   // preview only
 }
+setUiState({ theme: params.get('theme') ?? 'light' });
 installZodLocale();
 applyStoredAppearance();
 // Nothing here reaches a server: `fetch` is stubbed above and every answer is a fixture. Without
@@ -757,10 +760,12 @@ applyStoredAppearance();
 }
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <TooltipProvider delayDuration={200}>
-      <App />
-      <Toaster richColors position="bottom-right" closeButton />
-    </TooltipProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider delayDuration={200}>
+        <App />
+        <Toaster richColors position="bottom-right" closeButton />
+      </TooltipProvider>
+    </QueryClientProvider>
   </StrictMode>,
 );
 // `?collapsed=1` shows the icon rail: press the sidebar trigger once the shell has mounted.

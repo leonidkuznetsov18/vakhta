@@ -28,7 +28,7 @@ import { formatTime, todayIso } from '@/lib/format';
 import { employeesApi, orgApi, shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 import { isBlank } from '@/lib/forms';
 import { notifySuccess } from '@/lib/toast';
 import { cn } from 'cn';

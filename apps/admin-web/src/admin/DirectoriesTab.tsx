@@ -12,7 +12,7 @@ import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
 import { adminOrgApi, usersApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 import { isBlank } from '@/lib/forms';
 import { AddDialog } from '@/components/app/add-dialog';
 import { DialogFooter } from '@/components/ui/dialog';

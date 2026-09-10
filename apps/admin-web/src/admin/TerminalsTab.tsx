@@ -27,7 +27,7 @@ import { Muted, Section, StatusPill } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
 import { adminOrgApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 import { AddDialog } from '@/components/app/add-dialog';
 import { KeyRoundIcon, PencilIcon, PowerIcon, Trash2Icon } from 'lucide-react';
 import { validateWith, type FieldErrors } from '@/lib/validation';

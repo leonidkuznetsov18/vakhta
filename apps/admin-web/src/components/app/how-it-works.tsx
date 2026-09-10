@@ -3,7 +3,7 @@ import { BookOpenIcon, CircleHelpIcon, CirclePlayIcon, ClipboardListIcon } from 
 import { format, messages, type GuideKey } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { DetailSheet } from '@/components/app/detail-sheet';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 import { currentLocale } from '@/i18n';
 import { cn } from 'cn';
 

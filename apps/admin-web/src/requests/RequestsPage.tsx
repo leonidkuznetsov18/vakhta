@@ -28,7 +28,7 @@ import { formatDateTime } from '@/lib/format';
 import { requestsApi, shiftsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
 import { Textarea } from '@/components/ui/textarea';

@@ -1,4 +1,4 @@
-import { usePersistentState } from '@/lib/persistent-state';
+import { uiState, usePersistentState } from '@/lib/ui-store';
 
 export type Theme = 'system' | 'light' | 'dark';
 
@@ -18,12 +18,7 @@ export function applyAppearance(theme: Theme): void {
 
 /** Reads the stored theme before React renders, so the first paint is already right. */
 export function applyStoredAppearance(): void {
-  try {
-    const theme = JSON.parse(localStorage.getItem(`vakhta.ui.${THEME_KEY}`) ?? '"system"') as Theme;
-    applyAppearance(theme);
-  } catch {
-    applyAppearance('system');
-  }
+  applyAppearance(uiState<Theme>(THEME_KEY) ?? 'system');
 }
 
 export function useAppearance() {

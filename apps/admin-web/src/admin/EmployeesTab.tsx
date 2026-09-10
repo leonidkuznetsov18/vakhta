@@ -31,7 +31,7 @@ import { formatDateTime } from '@/lib/format';
 import { ApiError, adminEmployeesApi, checklistsApi, employeesApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
-import { usePersistentState } from '@/lib/persistent-state';
+import { setUiState, usePersistentState } from '@/lib/ui-store';
 import { cn } from 'cn';
 import { AddDialog } from '@/components/app/add-dialog';
 import {
@@ -1203,7 +1203,7 @@ function EmployeeDetailsForm({
 /** Opens the checklists tab with the create dialog and this position ticked (hash change switches the tab). */
 function createChecklistFor(positionId: string): void {
   try {
-    localStorage.setItem(CREATE_FOR_KEY, JSON.stringify(positionId));
+    setUiState({ [CREATE_FOR_KEY]: positionId });
   } catch {
     // Storage unavailable: the tab still opens, without the preset.
   }

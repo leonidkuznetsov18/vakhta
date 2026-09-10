@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { render } from '../test-utils.tsx';
 import { SchedulePage } from './SchedulePage.tsx';
 import { useScheduleDrafts } from './store.ts';
 import { NavigationProvider } from '../navigation.tsx';

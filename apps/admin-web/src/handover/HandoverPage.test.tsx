@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { HandoverPage } from './HandoverPage.tsx';
-import { clickRowAction } from '../test-utils.ts';
+import { clickRowAction, render } from '../test-utils.tsx';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const HV = 'c0000000-0000-4000-8000-000000000001';

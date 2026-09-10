@@ -62,6 +62,7 @@ import { CompactLanguageSwitcher, LanguageSwitcher, currentLocale } from './i18n
 import { useAppearance, type Theme } from '@/lib/theme';
 import { NavigationProvider, type SectionKey } from './navigation.tsx';
 import { readRoute, writeRoute } from '@/lib/route';
+import { setUiState } from '@/lib/ui-store';
 import { useEffect } from 'react';
 import { CommandPalette } from '@/components/app/command-palette';
 import { FaqButton } from '@/components/app/how-it-works';
@@ -318,25 +319,14 @@ export function App() {
                 canAdminister={me.roles.some((g) => g.role === 'ADMIN')}
                 onTarget={(target) => {
                   if (target.openKey && target.openId) {
-                    try {
-                      localStorage.setItem(
-                        `vakhta.ui.${target.openKey}`,
-                        JSON.stringify(target.openId),
-                      );
-                    } catch {
-                      // Storage unavailable: the section still opens.
-                    }
+                    setUiState({ [target.openKey]: target.openId });
                   }
                   writeRoute(target.section, target.sub);
                   setActive(target.section);
                 }}
                 onEmployee={(emp) => {
-                  // The employees tab reads its open row from storage, so the card opens on arrival.
-                  try {
-                    localStorage.setItem('vakhta.ui.employees.openId', JSON.stringify(emp.id));
-                  } catch {
-                    // Storage unavailable: the section still opens.
-                  }
+                  // The employees tab reads its open row from the store, so the card opens on arrival.
+                  setUiState({ 'employees.openId': emp.id });
                   writeRoute('administration', 'employees');
                   setActive('administration');
                 }}

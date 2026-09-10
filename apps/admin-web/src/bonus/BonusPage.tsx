@@ -26,7 +26,7 @@ import { HowItWorks } from '@/components/app/how-it-works';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DownloadIcon } from 'lucide-react';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 import { bonusApi, orgApi, type BonusHistoryFilters } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';

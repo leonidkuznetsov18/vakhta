@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 
 /**
  * The panel has no router; the address bar still carries `#/<section>/<sub>` so a reload or a

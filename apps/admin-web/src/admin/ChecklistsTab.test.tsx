@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { ChecklistDefinitionView, OrgSnapshot } from '@vakhta/contracts';
-import { ChecklistsTab } from './ChecklistsTab.tsx';
-import { clickRowAction } from '../test-utils.ts';
+import { CREATE_FOR_KEY, ChecklistsTab } from './ChecklistsTab.tsx';
+import { setUiState, uiState } from '@/lib/ui-store';
+import { clickRowAction, render } from '../test-utils.tsx';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const POS = 'a0000000-0000-4000-8000-000000000004';
@@ -101,14 +102,15 @@ describe('ChecklistsTab', () => {
 
   it('arriving from an employee card opens the create dialog with that position ticked', async () => {
     mockApi([]);
-    localStorage.setItem('vakhta.ui.checklists.createFor', JSON.stringify(POS));
+    setUiState({ [CREATE_FOR_KEY]: POS });
     render(<ChecklistsTab org={org} />);
     const dialog = await screen.findByRole('dialog');
     const box = within(dialog).getByRole('checkbox', { name: /Оператор линии/ });
     expect(box.getAttribute('aria-checked') ?? (box as HTMLInputElement).checked.toString()).toBe(
       'true',
     );
-    expect(localStorage.getItem('vakhta.ui.checklists.createFor')).toBeNull();
+    // Consumed on arrival: coming back to the tab must not reopen the dialog.
+    expect(uiState(CREATE_FOR_KEY)).toBeUndefined();
   });
 
   it('creates a checklist from the dialog: items in order, keys assigned by the server', async () => {

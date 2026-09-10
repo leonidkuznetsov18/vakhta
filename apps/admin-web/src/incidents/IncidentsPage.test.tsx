@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { IncidentsPage } from './IncidentsPage.tsx';
-import { clickRowAction } from '../test-utils.ts';
+import { clickRowAction, render } from '../test-utils.tsx';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const INC = 'c0000000-0000-4000-8000-000000000001';

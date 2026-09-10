@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { render } from '../../test-utils.tsx';
 import { SelectField } from './fields.tsx';
 
 const many = Array.from({ length: 12 }, (_, i) => ({

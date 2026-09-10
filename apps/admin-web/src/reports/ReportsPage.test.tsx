@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { render } from '../test-utils.tsx';
 import { ReportsPage } from './ReportsPage.tsx';
 import { AuditPage } from '../audit/AuditPage.tsx';
 

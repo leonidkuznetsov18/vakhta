@@ -26,7 +26,7 @@ import { formatDateTime } from '@/lib/format';
 import { handoversApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
 import { CheckIcon, EyeIcon, TriangleAlertIcon, XIcon } from 'lucide-react';

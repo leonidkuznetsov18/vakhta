@@ -23,7 +23,7 @@ import { reportsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { useRouteSub } from '@/lib/route';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 import { DetailSheet } from '@/components/app/detail-sheet';
 import { HowItWorks } from '@/components/app/how-it-works';
 

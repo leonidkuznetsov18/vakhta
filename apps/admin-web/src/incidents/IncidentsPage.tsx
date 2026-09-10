@@ -34,7 +34,7 @@ import { formatTime } from '@/lib/format';
 import { incidentsApi, orgApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
 import { EyeIcon } from 'lucide-react';

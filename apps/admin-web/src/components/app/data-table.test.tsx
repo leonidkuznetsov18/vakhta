@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
+import { render } from '../../test-utils.tsx';
 import { DataTable, type Column } from './data-table.tsx';
 
 interface Row {

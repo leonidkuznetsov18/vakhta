@@ -45,7 +45,7 @@ import {
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/app/page';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { usePersistentState } from '@/lib/persistent-state';
+import { usePersistentState } from '@/lib/ui-store';
 import { currentLocale } from '@/i18n';
 import { cn } from 'cn';
 
