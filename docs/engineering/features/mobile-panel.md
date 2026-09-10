@@ -18,8 +18,8 @@ remain an incremental boundary exception; no unrelated migration or forbidden ho
 | Schedule matrix                                                                                 | Dense day selects; sticky totals and long employee names consume the phone viewport; hover-only actions | 40 px/16 px day selectors, wrapped 112 px employee name, totals stick only on desktop, row actions visible on touch                                                                     |
 | Async surfaces                                                                                  | Prior delivery already distinguishes pending/refresh/error/offline/saving                               | Preserve Query feedback and retry; no additional fetching or production mutation                                                                                                        |
 
-Opening swipes are deliberately limited to the header and ignore controls; closing swipes use free
-sidebar space. Form interaction, vertical scrolling, pinch zoom, the browser's edge navigation and
+The initial opening swipe was limited to free header space; the full-height edge revision below
+supersedes that limitation. Closing swipes use free sidebar space. Form interaction, vertical scrolling, pinch zoom, the browser's edge navigation and
 horizontal schedule scrolling must remain available. A gesture requires 64 px of primarily horizontal
 movement within 700 ms; cancellations, secondary pointers and vertical drags do not navigate. The
 existing menu button, Escape and shadcn focus handling remain primary accessible alternatives.
@@ -75,3 +75,29 @@ Verification: inspected 390px/1440px screenshots of actual shared controls with 
 Mobile checkbox/title/menu centers match exactly; desktop number/input/action centers match. No page
 horizontal overflow. Production verification follows publication. Lean: Proceed;
 consistent alignment reduces visual searching without adding controls or changing worker tasks.
+
+## 2026-09-10 — Full-height 60px opening gesture
+
+Before-change reproduction on production v0.73.2 in Chrome touch emulation (390×844): rightward drags
+starting at x=30, y=100/420/780 did not open navigation; free header space at x=110, y=28 did.
+The owner requested a 60px region across the full viewport height.
+
+A native touch listener attached through a React 19 callback ref now recognizes opening gestures
+starting at x=0..60. It does not overlay controls. The first intentional horizontal movement is claimed
+through a non-passive touchmove listener; taps, long presses, vertical movement, multi-touch and canceled
+scrolls remain native. An established vertical scroll cannot later become a navigation gesture.
+The existing pure recognizer determines completion. Listener cleanup occurs on unmount, desktop
+breakpoint or opening the sidebar. Existing header/closing pointer gestures and shadcn focus handling
+remain. No new forbidden hooks, dependencies or production mutations.
+
+Verification: focused gesture tests, panel typecheck and feature lint. Actual shared components in
+Chrome touch emulation opened at y=28/420/780, including x=60 after scrolling. A swipe beginning on a
+button opened navigation without clicking it; a tap clicked once. A swipe at x=90 did not open it.
+Vertical scrolling at x=30 and horizontal table scrolling outside the edge worked; a leftward sidebar
+swipe closed it. Mobile/desktop screenshots were captured and inspected. Real iPhone Safari hardware
+is not connected here; browser-native edge/back gestures remain subject to the browser's own handling.
+
+Sources: [React callback-ref cleanup](https://react.dev/reference/react-dom/components/common#ref-callback),
+[Touch events](https://developer.mozilla.org/en-US/docs/Web/API/Element/touchmove_event).
+Lean: Proceed. A larger consistent touch target removes precision effort while preserving ordinary
+control taps and scrolling. No extra worker actions or data entry.

@@ -5,6 +5,8 @@ import { currentLocale } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { createNavigationGesture } from '../model/gesture';
+import { NAVIGATION_EDGE_WIDTH } from '../model/edge-swipe';
+import { bindEdgeSwipe } from './bind-edge-swipe';
 
 /** Extend the existing shadcn shell; gestures are optional alongside keyboard and menu buttons. */
 export function MobileNavigation({ children }: { children: ReactNode }) {
@@ -14,6 +16,7 @@ export function MobileNavigation({ children }: { children: ReactNode }) {
     const target = event.target;
     if (!isMobile || event.pointerType !== 'touch' || !(target instanceof Element)) return;
     if (!event.isPrimary) return gesture.cancel();
+    if (!openMobile && event.clientX <= NAVIGATION_EDGE_WIDTH) return;
     if (
       !target.closest('[data-navigation-swipe]') ||
       target.closest(
@@ -42,6 +45,9 @@ export function MobileNavigation({ children }: { children: ReactNode }) {
   return (
     <div
       className="flex min-h-svh w-full min-w-0"
+      ref={(node) => {
+        if (node && isMobile && !openMobile) return bindEdgeSwipe(node, () => setOpenMobile(true));
+      }}
       onPointerDownCapture={start}
       onPointerUpCapture={finish}
       onPointerCancelCapture={() => gesture.cancel()}
