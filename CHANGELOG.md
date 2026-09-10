@@ -1,3 +1,10 @@
+## [0.70.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.2...v0.70.3) (2026-09-10)
+
+### Bug fixes
+
+* **attendance:** make QR departure atomic and replayable ([d844490](https://github.com/leonidkuznetsov18/vakhta/commit/d844490b20cba521f08e874f5ee101f174b8ee36))
+* **requests:** publish schedule revisions in the approval transaction ([e41915e](https://github.com/leonidkuznetsov18/vakhta/commit/e41915ebaf1fd667088603c9d5a967ff339fcd77))
+
 ## [0.70.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.1...v0.70.2) (2026-09-10)
 
 ### Refactoring
