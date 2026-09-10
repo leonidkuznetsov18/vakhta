@@ -35,6 +35,35 @@ const view: PhotoInspectionView = {
   },
 };
 describe('photo inspection form and geometry', () => {
+  it('removes only the selected region and leaves a draft requiring a human outcome', () => {
+    const editor = new InspectionEditor(view);
+    editor.addBox();
+    editor.addBox();
+    const selected = editor.store.getState().selected;
+    expect(editor.removeSelected()).toBe(true);
+    expect(editor.store.getState().review.annotations).toHaveLength(1);
+    expect(editor.store.getState().review.annotations.some((a) => a.id === selected)).toBe(false);
+    expect(editor.store.getState().selected).toBeNull();
+    expect(editor.store.getState().dirty).toBe(true);
+    expect(editor.store.getState().review.status).toBe('UNREVIEWED');
+    expect(editor.removeSelected()).toBe(false);
+  });
+  it('protects locked and read-only reviews from deletion', () => {
+    const editor = new InspectionEditor(view);
+    editor.addBox();
+    editor.lock();
+    expect(editor.removeSelected()).toBe(false);
+    const readOnly = new InspectionEditor({
+      ...view,
+      canEdit: false,
+      review: editor.store.getState().review,
+    });
+    const annotation = readOnly.store.getState().review.annotations[0];
+    if (!annotation) throw new Error('Expected annotation');
+    readOnly.select(annotation.id);
+    expect(readOnly.removeSelected()).toBe(false);
+    expect(readOnly.store.getState().review.annotations).toHaveLength(1);
+  });
   it('bounds image zoom between 100 and 500 percent without changing the review', () => {
     const editor = new InspectionEditor(view);
     editor.zoom(100);

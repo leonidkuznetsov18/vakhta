@@ -60,3 +60,8 @@ Every photo-editor action includes an icon, its existing label and a short expla
 Disabled actions still expose their explanation to keyboard users. Information icons beside fields
 explain the expected input, including rectangle coordinates; on a phone, tap the information icon.
 The Ukrainian interface uses Ukrainian explanations, with equivalent English and Russian catalogs.
+
+Select an annotation and use Backspace/Delete outside form fields, or select **Delete selected
+region** in the image toolbar. The existing per-region delete action remains available. Deletion
+changes the draft, clears selection and returns the outcome to Not reviewed; choose the outcome and
+save. Editing text, read-only access and pending operations do not permit shortcut deletion.

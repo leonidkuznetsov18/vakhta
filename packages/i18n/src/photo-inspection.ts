@@ -1,4 +1,9 @@
 export const inspectionUk = {
+  removeSelected: 'Видалити вибрану область',
+  deleteShortcutHint:
+    'Видалити вибрану область: Backspace або Delete поза текстовими полями. Потім збережіть перевірку.',
+  selectToDeleteHint: 'Спочатку виберіть область на фото або в списку.',
+
   hints: {
     close: 'Закрити перевірку фото. Для незбережених змін з’явиться підтвердження.',
     previous: 'Перейти до попереднього фото цього звіту.',
@@ -96,6 +101,11 @@ export const inspectionUk = {
   },
 };
 export const inspectionEn = {
+  removeSelected: 'Delete selected region',
+  deleteShortcutHint:
+    'Delete the selected region with Backspace or Delete outside text fields. Save the review afterwards.',
+  selectToDeleteHint: 'Select a region on the photo or in the list first.',
+
   hints: {
     close: 'Close photo inspection. Unsaved changes require confirmation.',
     previous: 'Open the previous photo in this report.',
@@ -192,6 +202,11 @@ export const inspectionEn = {
   },
 };
 export const inspectionRu = {
+  removeSelected: 'Удалить выбранную область',
+  deleteShortcutHint:
+    'Удалить выбранную область: Backspace или Delete вне текстовых полей. Затем сохраните проверку.',
+  selectToDeleteHint: 'Сначала выберите область на фото или в списке.',
+
   hints: {
     close: 'Закрыть проверку фото. Для несохранённых изменений появится подтверждение.',
     previous: 'Открыть предыдущее фото этого отчёта.',

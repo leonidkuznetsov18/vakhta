@@ -195,13 +195,24 @@ export class InspectionEditor {
     this.canvas?.setSelected(id, this.initial.canEdit);
     this.store.setState({ selected: id });
   }
-  remove(id: string): void {
+  removeSelected(): boolean {
+    const selected = this.store.getState().selected;
+    return selected !== null && this.remove(selected);
+  }
+  remove(id: string): boolean {
+    if (
+      this.locked ||
+      !this.initial.canEdit ||
+      !this.store.getState().review.annotations.some((a) => a.id === id)
+    )
+      return false;
     this.canvas?.removeAnnotation(id);
     this.change({
       annotations: this.store.getState().review.annotations.filter((a) => a.id !== id),
       status: 'UNREVIEWED',
     });
     this.store.setState({ selected: null });
+    return true;
   }
   tool(tool: EditorState['tool']): void {
     this.canvas?.cancelDrawing();

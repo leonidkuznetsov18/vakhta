@@ -19,6 +19,7 @@ import {
   RefreshCwIcon,
   SaveIcon,
   XIcon,
+  Trash2Icon,
 } from 'lucide-react';
 import { IconButton } from '@/shared/ui/icon-button';
 import { HowItWorks } from '@/components/app/how-it-works';
@@ -46,6 +47,7 @@ import {
 } from '../model/editor';
 import { EditableReview, ReadOnlyReview } from './review-fields';
 import { PredictionPanel } from './prediction-panel';
+import { deleteSelectedOnKeyDown } from '../model/delete-shortcut';
 import { AnalyzeButton } from './analyze-button';
 import '@annotorious/annotorious/annotorious.css';
 
@@ -231,7 +233,12 @@ function InspectionSession({
     resetSession();
   };
   return (
-    <div ref={attachOwner} className="flex min-w-0 flex-col gap-4" data-testid="photo-inspection">
+    <div
+      ref={attachOwner}
+      className="flex min-w-0 flex-col gap-4"
+      data-testid="photo-inspection"
+      onKeyDownCapture={(event) => deleteSelectedOnKeyDown(event.nativeEvent, editor, busy)}
+    >
       <div className="flex flex-wrap gap-2">
         {initial.canEdit && (
           <>
@@ -262,6 +269,16 @@ function InspectionSession({
             >
               {t.addBox}
             </IconButton>
+            <IconButton
+              icon={Trash2Icon}
+              label={t.removeSelected}
+              tooltip={state.selected ? t.deleteShortcutHint : t.selectToDeleteHint}
+              size="sm"
+              variant="outline"
+              disabled={busy || state.imageStatus !== 'ready' || !state.selected}
+              aria-keyshortcuts="Backspace Delete"
+              onClick={() => editor.removeSelected()}
+            />
           </>
         )}
         <IconButton

@@ -69,6 +69,10 @@ export const inspectionGuideUk: SectionGuide = {
       q: 'Що робити, якщо фото не завантажується або перевірку змінив колега?',
       a: 'Для фото натисніть «Оновити», щоб отримати нове посилання. При конфлікті ваш текст залишається у формі: за потреби скопіюйте його, завантажте останню версію й внесіть зміни повторно. Не закривайте форму з незбереженими змінами.',
     },
+    {
+      q: 'Як видалити область?',
+      a: 'Виберіть область на фото або в списку. Натисніть «Видалити вибрану область» над фото або «Видалити область» у її картці. Також працюють Backspace і Delete, коли ви не вводите текст у полі. Видалення ще потрібно зберегти; після нього знову оберіть результат перевірки.',
+    },
   ],
   video: {
     url: '/guides/photo-inspection.uk.mp4',
@@ -147,6 +151,10 @@ export const inspectionGuideEn: SectionGuide = {
       q: 'What if an image fails to load or another reviewer changes the review?',
       a: 'Use Refresh to get a new image link. On a conflict, your text remains in the form: copy it if needed, load the latest review and apply your changes again. Do not close a form with unsaved changes.',
     },
+    {
+      q: 'How do I delete a region?',
+      a: 'Select a region on the photo or in the list. Use Delete selected region above the photo or Delete region in its card. Backspace and Delete also work when you are not editing a field. Save the deletion and choose the review outcome again.',
+    },
   ],
   video: {
     url: '/guides/photo-inspection.en.mp4',
@@ -224,6 +232,10 @@ export const inspectionGuideRu: SectionGuide = {
     {
       q: 'Что делать, если фото не загружается или проверку изменил коллега?',
       a: 'Для фото нажмите «Обновить», чтобы получить новую ссылку. При конфликте ваш текст остаётся в форме: при необходимости скопируйте его, загрузите последнюю версию и внесите изменения повторно. Не закрывайте форму с несохранёнными изменениями.',
+    },
+    {
+      q: 'Как удалить область?',
+      a: 'Выберите область на фото или в списке. Нажмите «Удалить выбранную область» над фото или «Удалить область» в её карточке. Backspace и Delete также работают, когда вы не вводите текст в поле. Удаление нужно сохранить; после него снова выберите результат проверки.',
     },
   ],
   video: {

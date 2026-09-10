@@ -218,3 +218,19 @@ For a future drag/pinch interaction, prefer the already installed TypeScript-nat
 `@panzoom/panzoom` over another React dependency. Bind it to the image-plus-annotation subtree,
 never the dialog; define gesture ownership separately from annotation drawing before enabling
 pointer dragging. This fix provides native scrolling, not a newly introduced drag gesture.
+
+## Selected-region deletion
+
+Add a labeled IconButton in the image toolbar; retain per-card deletion. Backspace/Delete are scoped
+to the inspection session and handled in capture so Annotorious cannot interpret an area-deletion
+command as polygon-vertex editing. Whole-region deletion is the explicit shortcut in this editor.
+Ignore text/select/contenteditable controls, modifiers, IME composition, repeated events and busy
+operations. Model deletion also rejects locked/read-only reviews and missing IDs. Both entry points
+use the existing deletion semantics: remove from the draft, clear selection, set UNREVIEWED, then
+require the reviewer to choose an outcome and save. No operational records are deleted.
+
+Twenty focused tests pass for selection, model guards, keys, field editing and existing geometry
+rules. Panel type-check and focused lint pass. Browser QA verified Delete and Backspace deletion,
+Backspace text editing without region loss, and the toolbar action. Desktop/mobile screenshots were
+captured and inspected. Localized FAQ and generated HTML now include deletion usage. Lean: proceed;
+the nearby action and familiar keys remove the need to search inside a long annotation list.
