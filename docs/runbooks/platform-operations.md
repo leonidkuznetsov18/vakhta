@@ -197,5 +197,16 @@ before release/Pages to prevent the source-version fallback regression described
 with Wait for CI enabled; duplicate deployments were subsequently removed. No gate setting or
 production business record was changed as a workaround. The dispatch duplication cause is unproven.
 
-Consumer source `e17b431` requires separate deployment and recovery verification; foundation success
-alone is not evidence that media jobs or other required background effects are being consumed.
+## Durable media and CI resolver deployment, 2026-09-10
+
+Consumer `e17b431` passed CI `34482489884`, release v0.70.10, API
+`d25dcba8-9344-40e7-9a9e-b05e636ba3e7` and worker `d75f8487-0c66-49e8-b464-e517eecb2888`.
+Startup recovered 39 bonus intents; they remain pending until the bonus consumer exists. One organic
+durable media task subsequently completed in one attempt with matching storage projection and event.
+Authenticated panel desktop/mobile gallery, fresh Telegram help and paired Main kiosk were checked.
+Exact counts, times and bounded log checks are in the media processing engineering memory.
+
+Resolver `1681a76` passed CI `34483329441` at `3824f13`: no new release, Pages version 0.70.10,
+announcement skipped, API/worker images unchanged. It does not alter the Railway CI gate. See the
+release delivery engineering memory for the distinction between deployed fallback and synthetic rerun
+regression coverage. Timer rollout and broader bonus recovery remain separate verification gates.

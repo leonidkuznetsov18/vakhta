@@ -129,9 +129,15 @@ and authenticated panel/kiosk/bot verification.
   `e7c513f2-c0d7-446c-9310-35e11be8aa68` succeeded. Production schema, constraints and immutable-intent
   trigger were verified before enabling consumers. Media integration `e17b431` then passed 483 tests,
   build/check and two independent reviews: source-transaction admission, bounded I/O, fenced atomic
-  finalization and repeating recovery. Consumer deployment verification is pending in this record;
-  timer delivery and the bonus consumer remain separate work. See `background-effects.md` and
-  `media-processing.md`.
+  finalization and repeating recovery. CI `34482489884`/v0.70.10 and both Railway deployments succeeded;
+  authenticated desktop/mobile panel, paired kiosk and fresh Telegram help were verified. Startup
+  admitted 39 missing bonus targets, still pending the future consumer. One later organic media task
+  completed with its projection and event in one attempt. See `media-processing.md`.
+- Timer increment `4383be6` persists source intents and shares atomic handlers between PG and legacy jobs,
+  with bounded recovery and post-lock deadline checks. Final build/check passed 508 package tests
+  (API 223 and worker 80 fresh, 205 cached) plus six fresh release tests; both reviewers approved.
+  Timer production rollout is pending. Bonus invalidation/consumption and monthly startup catch-up
+  remain separate work; see `timer-recovery.md` and `background-effects.md`.
 - Access scope (#1), durable Telegram recovery (#4) and the remaining durable background effects (#5) remain
   implementation work. Do not report the nine-risk task complete.
 

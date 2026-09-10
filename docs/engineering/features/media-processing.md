@@ -126,6 +126,21 @@ Both independent read-only reviewers approved the frozen production
 sources with no blockers: one reviewed I/O, leases, atomic finalization and recovery, the other API
 admission, actual bonus input mapping and documentation. No new dependency or migration was needed.
 
-Consumer deployment QA is pending. The integration owner verified the task schema before deployment;
-see [foundation gate](background-effects.md#foundation-deployment-gate). No production photo or worker
-record was fabricated during local verification. Worker menus, private access and retention remain.
+## Durable consumer deployment
+
+CI `34482489884` succeeded for `e17b431`, publishing v0.70.10. Railway API
+`d25dcba8-9344-40e7-9a9e-b05e636ba3e7` and worker `d75f8487-0c66-49e8-b464-e517eecb2888`
+reported SUCCESS at that source. API health was good at 13:38:20 UTC on 2026-09-10. Capped ten-record
+API and worker error-level queries since 13:35 UTC returned no rows; this is bounded evidence.
+
+Startup recovery admitted 39 missing media-event/target bonus intents, leaving zero missing targets.
+Those tasks remained PENDING with zero attempts because the bonus consumer is a later increment.
+All 57 media records then had completed projections and completion events. Subsequent organic traffic
+created one durable media task at 13:48:51.969 UTC and completed it at 13:48:53.401 UTC in one attempt;
+read-only joins matched its media record, processed storage projection and one completion event.
+
+Authenticated panel v0.70.10 loaded handovers and an existing photo gallery on desktop and at
+390 by 844 pixels. A fresh worker-bot `/help` at 16:36 local time returned the help text, PDF and
+button; its narrow layout was readable. The paired kiosk showed terminal Main (Основний), advancing
+connection time and QR countdown. Device emulation was cleared and the owned kiosk tab closed.
+No production photo, shift, checklist or employee record was fabricated for these checks.

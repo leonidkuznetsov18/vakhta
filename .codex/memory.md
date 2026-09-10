@@ -46,8 +46,11 @@ owner appends after merging work; parallel agents return proposed entries instea
 - Foundation `f9a437c` deployed migration 0027; the production task table and guards were verified
   before media consumer integration `e17b431`. Media passed 483 tests and independent reviews;
   deployment verification is recorded separately in `media-processing.md`.
-- #5 remains open for timers, bonus invalidation/consumption and monthly startup catch-up. Modern
+- Timer integration `4383be6` passed 508 package tests plus six release tests and independent review; deployment
+  is the next gate. Media v0.70.10 deployment and organic task completion are verified in its feature
+  memory. #5 remains open for bonus invalidation/consumption and monthly startup catch-up. Modern
   handover submission immediately escalates to the master; HANDOVER_TIMEOUT recovery is legacy only.
   Old schedule months must not generate new acknowledgement reminders. #1/#4 remain open.
 - A duplicate GitHub dispatch exposed source-version fallback risk; it was canceled before Pages.
   Bind rerun version resolution to the requested source, not the current branch or latest release.
+  Resolver `1681a76` passed deployed CI `34483329441`, retaining v0.70.10 without a new release.

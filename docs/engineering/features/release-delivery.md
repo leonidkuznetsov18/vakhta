@@ -44,7 +44,12 @@ Sources: [Git describe](https://git-scm.com/docs/git-describe) and
   six release regressions executed fresh, the 483 application/package tests were cache evidence,
   and typecheck, lint and formatting passed. `pnpm test:release` runs before Turbo in `pnpm test`.
 - Against Vakhta's actual Git history, source `f9a437c` resolved to 0.70.9 after its child release
-  tag was fetched. Deployed workflow verification remains pending after the direct push.
+  tag was fetched.
+- CI `34483329441` succeeded at `3824f13` with resolver change `1681a76`. The release step reported
+  no relevant changes and published no release; the Pages build used `VITE_APP_VERSION: 0.70.10`.
+  Announcement was correctly skipped. API and worker images were unchanged at `e17b431`. This verifies
+  the deployed no-release fallback; the release-child rerun branch is covered by real-Git tests and
+  the source-history probe, not a claim that a production rerun was performed.
 
 ## Lean recommendation
 
