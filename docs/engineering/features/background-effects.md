@@ -17,8 +17,9 @@ The [product document](../../features/background-effects.md) describes the inten
 Backend feature modules and the pure domain remain intact; frontend FSD is not applicable here.
 
 Media admission and the PostgreSQL media dispatcher are now integrated in a subsequent increment;
-see [media processing](media-processing.md). Timer producers still enqueue BullMQ work after commit,
-and legacy bonus recalculation still subscribes to business changes in memory. These gaps remain.
+see [media processing](media-processing.md). The next [timer increment](timer-recovery.md) integrates
+source admission, atomic handlers and bounded recovery. Legacy bonus recalculation still subscribes
+to business changes in memory; its consumer and remaining source invalidations are pending.
 
 ## Decisions and reuse
 
@@ -144,9 +145,9 @@ tests are not production or browser verification. No production data was mutated
 ## Remaining work
 
 Media admission, dispatch, atomic completion, legacy draining and bounded recovery are implemented in
-the subsequent media increment. Remaining: timer source-transaction producers and typed dispatchers;
-atomic timer effects and task completion; bounded deadline-based recovery; remaining durable bonus
-invalidations, the bonus consumer and session/period concurrency guards; monthly startup catch-up.
+the subsequent media increment. Timer admission, typed dispatch, atomic effects and bounded recovery
+are covered in [timer recovery](timer-recovery.md). Remaining: durable bonus invalidations, the bonus
+consumer and session/period concurrency guards; monthly startup catch-up.
 The task table and media integration do not close risk #5.
 Preserve #2/#3 transaction guarantees and #8 persisted plans/deadlines during subsequent integration.
 

@@ -1,5 +1,6 @@
 import { afterEach, vi, afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  backgroundTasks,
   activityIntervals,
   domainEvents,
   employeePositions,
@@ -25,7 +26,7 @@ import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
 import { MediaService } from '../handover/media.service.js';
 import { InMemoryObjectStorage } from '../infra/object-storage.js';
-import { InMemoryTimerScheduler } from '../infra/timers.queue.js';
+import { TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { OrgService } from '../org/org.service.js';
 import { ScheduleService } from '../scheduling/schedule.service.js';
@@ -65,7 +66,7 @@ describe('requests: маршрути, рішення, нова версія гр
   let shift: ShiftService;
   let attendance: AttendanceService;
   let corrections: CorrectionsService;
-  let timers: InMemoryTimerScheduler;
+  let timers: TimerScheduler;
   let ivanov: string;
   let petrova: string;
   let siteId: string;
@@ -73,6 +74,13 @@ describe('requests: маршрути, рішення, нова версія гр
   let dayTpl: string;
   let ivanovShift: string;
   let petrovaShift: string;
+
+  async function timerJobs() {
+    const rows = await testDb.db.select().from(backgroundTasks);
+    return rows
+      .filter((row) => row.kind !== 'MEDIA_PROCESS' && row.kind !== 'BONUS_RECALCULATE')
+      .map((row) => ({ jobId: row.dedupeKey, fireAt: row.dueAt }));
+  }
 
   beforeAll(async () => {
     testDb = await startTestDatabase();
@@ -90,7 +98,7 @@ describe('requests: маршрути, рішення, нова версія гр
     await testDb.db.execute(
       sql`TRUNCATE request_decisions, requests, overtime_approvals, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, assignment_acknowledgements, shift_assignments, schedule_versions, shift_templates, employee_positions, positions, responsibility_zones, media_objects, employees, org_units, sites, reason_codes CASCADE`,
     );
-    timers = new InMemoryTimerScheduler();
+    timers = new TimerScheduler();
     const events = new EventStore();
     const audit = new AuditLog();
     const notifications = new NotificationsService();
@@ -329,7 +337,7 @@ describe('requests: маршрути, рішення, нова версія гр
       .select()
       .from(shiftAssignments)
       .orderBy(shiftAssignments.id);
-    const beforeTimers = [...timers.scheduled];
+    const beforeTimers = [...(await timerJobs())];
     const append = EventStore.prototype.append;
     const fault = vi.spyOn(EventStore.prototype, 'append').mockImplementation(async function (
       this: EventStore,
@@ -350,7 +358,7 @@ describe('requests: маршрути, рішення, нова версія гр
     expect
       .soft(await testDb.db.select().from(shiftAssignments).orderBy(shiftAssignments.id))
       .toEqual(beforeAssignments);
-    expect.soft(timers.scheduled).toEqual(beforeTimers);
+    expect.soft(await timerJobs()).toEqual(beforeTimers);
     const detail = await service.detail(created.id, HR);
     expect.soft(detail.request.status).toBe('IN_REVIEW');
     expect.soft(detail.decisions).toHaveLength(1);

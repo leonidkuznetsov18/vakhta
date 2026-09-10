@@ -333,6 +333,8 @@ export const uk: Messages = {
     remarkNotification: '⚠️ Зауваження до чек-листа зони «{zone}»: {comment}',
     remarkNotificationNoZone: '⚠️ Зауваження до вашого чек-листа: {comment}',
     resolvedNotificationNoZone: 'Рішення майстра щодо вашого звіту передачі: {decision}.',
+    timeoutNotificationNoZone:
+      'Ваш звіт передачі передано майстру, оскільки строк перевірки минув. Це не впливає на ваші бали.',
     timeoutNotification:
       'Приймання зони «{zone}» передано майстру: приймаючий не відповів. Це не впливає на ваші бали.',
   },

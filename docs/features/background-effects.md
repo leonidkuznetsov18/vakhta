@@ -10,8 +10,9 @@ failure. Background processing must preserve shift history, confirmed scores and
 
 The foundation adds PostgreSQL task storage and transactional lease helpers. The next increment
 integrates durable media admission, processing and recovery while existing BullMQ media jobs drain.
-It persists checklist-photo bonus invalidations; the API consumer, remaining timer producers and
-broader bonus recovery still require integration. This work does not yet resolve every effect gap.
+It persists checklist-photo bonus invalidations. The [timer increment](timer-recovery.md) adds durable
+reminders, atomic escalations and recovery. The API bonus consumer and broader bonus recovery still
+require integration. This work does not yet resolve every effect gap.
 
 The media projection and its processing event already commit atomically; see
 [media processing](../engineering/features/media-processing.md).

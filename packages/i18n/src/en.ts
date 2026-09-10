@@ -333,6 +333,8 @@ export const en: Messages = {
     remarkNotification: '⚠️ Remark on the checklist for zone "{zone}": {comment}',
     remarkNotificationNoZone: '⚠️ Remark on your checklist: {comment}',
     resolvedNotificationNoZone: 'Master decision on your handover report: {decision}.',
+    timeoutNotificationNoZone:
+      'Your handover report was passed to the shift master because the review deadline elapsed. This does not affect your score.',
     timeoutNotification:
       'Acceptance of zone "{zone}" was passed to the shift master: the receiver did not respond. This does not affect your score.',
   },

@@ -29,12 +29,12 @@ import {
   sql,
   type Database,
   type DbOrTx,
+  type Transaction,
 } from '@vakhta/db';
 import {
   acceptDeadline,
   canReview,
   canTransitionHandover,
-  handoverTimeoutJobId,
   itemKind,
   reviewableUnitIds,
   validateHandoverDraft,
@@ -67,9 +67,8 @@ import { AuditLog } from '../events/audit-log.js';
 import { EventStore, type EventSource } from '../events/event-store.js';
 import { IncidentsService } from '../incidents/incidents.service.js';
 import { DATABASE } from '../infra/database.module.js';
-import { TIMER_SCHEDULER, type TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
-import { ShiftService, type DeferredTimer } from '../shift/shift.service.js';
+import { ShiftService } from '../shift/shift.service.js';
 import { HandoverChanges } from './handover-changes.js';
 import { HandoverRepository } from './handover.repository.js';
 import { MediaService } from './media.service.js';
@@ -104,7 +103,6 @@ export class HandoverService {
     private readonly media: MediaService,
     private readonly repository: HandoverRepository,
     private readonly changes: HandoverChanges,
-    @Inject(TIMER_SCHEDULER) private readonly timers: TimerScheduler,
     @Inject(HANDOVER_OPTIONS) private readonly options: HandoverOptions,
   ) {}
 
@@ -287,7 +285,6 @@ export class HandoverService {
     source: EventSource = 'TELEGRAM',
     now: Date = new Date(),
   ): Promise<SubmitResult> {
-    const deferred: DeferredTimer[] = [];
     const result = await this.db.transaction(async (tx): Promise<SubmitResult> => {
       const draft = await this.requireDraft(tx, employeeId, now, true);
       const view = await this.view(tx, draft.id);
@@ -353,7 +350,6 @@ export class HandoverService {
           idempotencyKey: `${cmd.idempotencyKey}:submit`,
         },
         { actor, source, now },
-        deferred,
       );
       if (!transition.ok) {
         throw new DomainError(
@@ -366,7 +362,7 @@ export class HandoverService {
       return { ok: true, handover: await this.view(tx, draft.id), transition };
     });
     if (result.ok) {
-      await this.shift.settle(result.transition, deferred, source);
+      await this.shift.settle(result.transition, source);
       this.changes.publish({
         handoverId: result.handover.id,
         status: result.handover.status,
@@ -610,7 +606,6 @@ export class HandoverService {
       });
       return this.view(tx, handoverId);
     });
-    await this.timers.cancel(handoverTimeoutJobId(handoverId));
     this.changes.publish({ handoverId, status: view.status, at: now.toISOString() });
     return view;
   }
@@ -745,7 +740,6 @@ export class HandoverService {
       });
       return this.view(tx, handoverId);
     });
-    await this.timers.cancel(handoverTimeoutJobId(handoverId));
     this.changes.publish({ handoverId, status: view.status, at: now.toISOString() });
     return view;
   }
@@ -926,7 +920,7 @@ export class HandoverService {
   }
 
   private async requireDraft(
-    tx: DbOrTx,
+    tx: Transaction,
     employeeId: string,
     now: Date,
     allowSubmitted = false,

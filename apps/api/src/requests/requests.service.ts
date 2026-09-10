@@ -25,6 +25,7 @@ import {
   sql,
   type Database,
   type DbOrTx,
+  type Transaction,
 } from '@vakhta/db';
 import {
   PERIOD_TYPES,
@@ -240,7 +241,6 @@ export class RequestsService {
     decider: Decider,
     now: Date = new Date(),
   ): Promise<RequestView> {
-    const deferred: Array<() => Promise<void>> = [];
     const outcome = await this.db.transaction(async (tx) => {
       const [row] = await tx.select().from(requests).where(eq(requests.id, id)).for('update');
       if (!row) throw new DomainError('REQUEST_NOT_FOUND', 404, 'Звернення не знайдено');
@@ -298,7 +298,7 @@ export class RequestsService {
 
       if (finalApproved) {
         if (SCHEDULE_AFFECTING.includes(row.type)) {
-          const versionId = await this.applyScheduleEffect(tx, row, decider, now, deferred);
+          const versionId = await this.applyScheduleEffect(tx, row, decider, now);
           patch.resultVersionId = versionId;
         }
         if (row.type === 'CORRECTION') {
@@ -375,7 +375,6 @@ export class RequestsService {
       }
       return progress.status;
     });
-    for (const run of deferred) await run();
     this.changes.publish({ requestId: id, status: outcome, at: now.toISOString() });
     return this.view(id);
   }
@@ -713,11 +712,10 @@ export class RequestsService {
    * зміни періоду, обмін міняє працівників місцями, додаткова зміна додає призначення.
    */
   private async applyScheduleEffect(
-    tx: DbOrTx,
+    tx: Transaction,
     row: RequestRow,
     decider: Decider,
     now: Date,
-    deferred: Array<() => Promise<void>>,
   ): Promise<string | null> {
     const affected = await this.affectedAssignments(row, tx);
     let versionId: string | null = null;
@@ -830,7 +828,6 @@ export class RequestsService {
         },
         decider,
         now,
-        deferred,
       );
       versionId = versionId ?? published.id;
     }

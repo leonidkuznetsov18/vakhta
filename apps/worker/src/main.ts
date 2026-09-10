@@ -1,4 +1,4 @@
-import { Worker, type Job } from 'bullmq';
+import { Queue, Worker, type Job } from 'bullmq';
 import { Redis } from 'ioredis';
 import { pino } from 'pino';
 import {
@@ -21,6 +21,8 @@ import { handleAckReminder, handleShiftReminder } from './timers/reminders.js';
 import { S3MediaStore, TelegramFileFetcher } from './media/adapters.js';
 import { processMedia } from './media/process.js';
 import { MediaTaskRunner } from './media/runner.js';
+import { TimerTaskRunner } from './timers/runner.js';
+import { TimerRecoveryOptions } from './timers/recovery.js';
 import { handleCleaningReminder, handleHandoverTimeout } from './timers/handover-timers.js';
 import { handleIncidentSla } from './timers/incident-sla.js';
 import { handleDowntimeEscalation, handleReturnReminder } from './timers/shift-timers.js';
@@ -106,6 +108,46 @@ const mediaRunner = new MediaTaskRunner(db, mediaDeps, {
 });
 mediaRunner.start();
 
+// Optional legacy evidence reads only. Canonical PostgreSQL admission never depends on Redis.
+const legacyTimers = new Queue(QUEUES.timers, { connection });
+const timerRunner = new TimerTaskRunner(
+  db,
+  TimerRecoveryOptions.parse({
+    shiftReminderMinutes: env.SHIFT_REMINDER_MINUTES,
+    ackReminderHours: env.ACK_REMINDER_HOURS,
+    breakMinutes: env.BREAK_MINUTES,
+    mealMinutes: env.MEAL_MINUTES,
+    serviceTimeMinutes: env.SERVICE_TIME_MINUTES,
+    downtimeEscalationMinutes: env.DOWNTIME_ESCALATION_MINUTES,
+    cleaningReminderMinutes: env.CLEANING_REMINDER_MINUTES,
+    autoCloseGraceMinutes: env.AUTO_CLOSE_GRACE_MINUTES,
+  }),
+  {
+    dispatched(result) {
+      if (result.claimed) logger.info(result, 'durable timer batch');
+    },
+    recovered(result) {
+      if (result.admitted || result.legacyUnavailable) logger.info(result, 'timer recovery');
+      if (result.failed) logger.error({ count: result.failed }, 'timer recovery admission failed');
+    },
+    failed(stage) {
+      logger.error({ stage }, 'durable timer processing failed');
+      reportJobFailure(
+        'durable-timers',
+        undefined,
+        new Error(`Timer ${stage.toLowerCase()} failed`),
+      );
+    },
+  },
+  {
+    async read(key) {
+      const job = await legacyTimers.getJob(key);
+      return job?.data ?? null;
+    },
+  },
+);
+timerRunner.start();
+
 /* ------------------------------------------------------------------ */
 /* Черги                                                               */
 /* ------------------------------------------------------------------ */
@@ -123,12 +165,22 @@ async function processTimer(job: Job): Promise<void> {
       return;
     }
     case TIMER_JOBS.returnReminder: {
-      const outcome = await handleReturnReminder(db, ReturnReminderJob.parse(job.data));
+      const outcome = await handleReturnReminder(
+        db,
+        ReturnReminderJob.parse(job.data),
+        undefined,
+        env.AUTO_CLOSE_GRACE_MINUTES,
+      );
       logger.info({ job: job.name, jobId: job.id, outcome }, 'timer');
       return;
     }
     case TIMER_JOBS.downtimeEscalation: {
-      const outcome = await handleDowntimeEscalation(db, DowntimeEscalationJob.parse(job.data));
+      const outcome = await handleDowntimeEscalation(
+        db,
+        DowntimeEscalationJob.parse(job.data),
+        undefined,
+        env.AUTO_CLOSE_GRACE_MINUTES,
+      );
       logger.info({ job: job.name, jobId: job.id, outcome }, 'timer');
       return;
     }
@@ -195,7 +247,8 @@ logger.info(
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'зупинка worker');
   if (relayTimer) clearInterval(relayTimer);
-  await Promise.all([mediaRunner.stop(), ...workers.map((w) => w.close())]);
+  await Promise.all([mediaRunner.stop(), timerRunner.stop(), ...workers.map((w) => w.close())]);
+  await legacyTimers.close();
   await connection.quit();
   await client.end({ timeout: 5 });
   await Sentry.flush(2000);

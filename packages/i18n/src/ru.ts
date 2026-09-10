@@ -329,6 +329,8 @@ export const ru: Messages = {
     remarkNotification: '⚠️ Замечание к чек-листу зоны «{zone}»: {comment}',
     remarkNotificationNoZone: '⚠️ Замечание к вашему чек-листу: {comment}',
     resolvedNotificationNoZone: 'Решение мастера по вашему отчёту передачи: {decision}.',
+    timeoutNotificationNoZone:
+      'Ваш отчёт передачи передан мастеру, поскольку срок проверки истёк. Это не влияет на ваши баллы.',
     timeoutNotification:
       'Приёмка зоны «{zone}» передана мастеру: принимающий не ответил. Это не влияет на ваши баллы.',
   },

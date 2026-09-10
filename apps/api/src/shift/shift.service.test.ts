@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  backgroundTasks,
   activityIntervals,
   and,
   domainEvents,
@@ -28,7 +29,7 @@ import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor } from '../common/actor.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
-import { InMemoryTimerScheduler } from '../infra/timers.queue.js';
+import { TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
 import { ShiftChanges } from './shift-changes.js';
@@ -54,7 +55,7 @@ describe('shift: машина станів зміни в транзакції (�
   let testDb: TestDatabase;
   let service: ShiftService;
   let attendance: AttendanceService;
-  let timers: InMemoryTimerScheduler;
+  let timers: TimerScheduler;
   let changes: ShiftChanges;
   let published: ShiftChangedEvent[];
   let ivanov: string;
@@ -62,6 +63,13 @@ describe('shift: машина станів зміни в транзакції (�
   let zoneId: string;
   let planStart: Date;
   let planEnd: Date;
+
+  async function timerJobs() {
+    const rows = await testDb.db.select().from(backgroundTasks);
+    return rows
+      .filter((row) => row.kind !== 'MEDIA_PROCESS' && row.kind !== 'BONUS_RECALCULATE')
+      .map((row) => ({ jobId: row.dedupeKey, fireAt: row.dueAt }));
+  }
 
   beforeAll(async () => {
     testDb = await startTestDatabase();
@@ -75,7 +83,7 @@ describe('shift: машина станів зміни в транзакції (�
     await testDb.db.execute(
       sql`TRUNCATE handover_records, checklist_definition_positions, checklist_definitions, employee_positions, positions, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, responsibility_zones, employees, org_units, sites, reason_codes CASCADE`,
     );
-    timers = new InMemoryTimerScheduler();
+    timers = new TimerScheduler();
     changes = new ShiftChanges();
     published = [];
     changes.stream().subscribe((e) => published.push(e));
@@ -259,8 +267,8 @@ describe('shift: машина станів зміни в транзакції (�
       ok: true,
       session: { state: 'BREAK', resumeState: 'WORKING' },
     });
-    expect(timers.scheduled.map((s) => s.jobId.split('.')[0])).toEqual(['return-reminder']);
-    const breakJob = timers.scheduled[0]!;
+    expect((await timerJobs()).map((s) => s.jobId.split('.')[0])).toEqual(['return-reminder']);
+    const breakJob = (await timerJobs())[0]!;
     expect(breakJob.fireAt.getTime() - Date.now()).toBeGreaterThan(14 * 60_000);
 
     // друга тимчасова дія з перерви заборонена (T-08)
@@ -273,7 +281,7 @@ describe('shift: машина станів зміни в транзакції (�
       ok: true,
       session: { state: 'WORKING', resumeState: null },
     });
-    expect(timers.scheduled).toHaveLength(0);
+    expect(await timerJobs()).toHaveLength(1);
 
     expect(await act(petrova, 'START_CLEANING')).toMatchObject({
       ok: true,
@@ -398,23 +406,30 @@ describe('shift: машина станів зміни в транзакції (�
       ok: true,
       session: { state: 'DOWNTIME', resumeState: 'WORKING' },
     });
-    expect(timers.scheduled.map((s) => s.jobId.split('.')[0])).toEqual(['downtime-escalation']);
+    expect((await timerJobs()).map((s) => s.jobId.split('.')[0])).toEqual(['downtime-escalation']);
 
     const meal = await act(petrova, 'START_MEAL');
     expect(meal).toMatchObject({ ok: true, session: { state: 'MEAL', resumeState: 'WORKING' } });
-    // ескалацію за старим інтервалом скасовано, нагадування про обід заплановано
-    expect(timers.scheduled.map((s) => s.jobId.split('.')[0])).toEqual(['return-reminder']);
+    // Closed interval intents remain durable; their handlers reject stale interval state.
+    expect((await timerJobs()).map((s) => s.jobId.split('.')[0])).toEqual([
+      'downtime-escalation',
+      'return-reminder',
+    ]);
 
     const back = await act(petrova, 'RESUME', { resumeIntoDowntime: true });
     expect(back).toMatchObject({
       ok: true,
       session: { state: 'DOWNTIME', resumeState: 'WORKING' },
     });
-    expect(timers.scheduled.map((s) => s.jobId.split('.')[0])).toEqual(['downtime-escalation']);
+    expect((await timerJobs()).map((s) => s.jobId.split('.')[0])).toEqual([
+      'downtime-escalation',
+      'return-reminder',
+      'downtime-escalation',
+    ]);
 
     const resumed = await act(petrova, 'RESUME');
     expect(resumed).toMatchObject({ ok: true, session: { state: 'WORKING', resumeState: null } });
-    expect(timers.scheduled).toHaveLength(0);
+    expect(await timerJobs()).toHaveLength(3);
   });
 
   it('екстрений вихід закриває зміну з підсумком і позначає «потрібна перевірка»', async () => {
@@ -622,5 +637,41 @@ describe('shift: машина станів зміни в транзакції (�
     expect(
       (await service.listActive({ orgUnitId: unit!.id })).some((v) => v.id === listed!.id),
     ).toBe(true);
+  });
+  it('rolls back interval and shift transition when its durable reminder cannot be admitted', async () => {
+    await arrive(petrova);
+    await service.start(petrova, { idempotencyKey: key() }, meta(petrova));
+    await act(petrova, 'START_WORK');
+    const before = await service.activeSession(petrova);
+    if (!before) throw new Error('Expected active fixture');
+    const intervalsBefore = await testDb.db
+      .select()
+      .from(activityIntervals)
+      .where(eq(activityIntervals.shiftSessionId, before.id));
+    await testDb.db.execute(
+      sql`CREATE FUNCTION reject_return_intent() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.kind = 'RETURN_REMINDER' THEN RAISE EXCEPTION 'Injected timer admission failure'; END IF; RETURN NEW; END $$`,
+    );
+    await testDb.db.execute(
+      sql`CREATE TRIGGER reject_return_intent BEFORE INSERT ON background_tasks FOR EACH ROW EXECUTE FUNCTION reject_return_intent()`,
+    );
+    try {
+      await expect(act(petrova, 'START_BREAK')).rejects.toThrow();
+      expect(await service.activeSession(petrova)).toEqual(before);
+      expect(
+        await testDb.db
+          .select()
+          .from(activityIntervals)
+          .where(eq(activityIntervals.shiftSessionId, before.id)),
+      ).toEqual(intervalsBefore);
+      expect(await testDb.db.select().from(backgroundTasks)).toHaveLength(0);
+    } finally {
+      await testDb.db.execute(sql`DROP TRIGGER reject_return_intent ON background_tasks`);
+      await testDb.db.execute(sql`DROP FUNCTION reject_return_intent()`);
+    }
+    expect(await act(petrova, 'START_BREAK')).toMatchObject({
+      ok: true,
+      session: { state: 'BREAK' },
+    });
+    expect(await testDb.db.select().from(backgroundTasks)).toHaveLength(1);
   });
 });

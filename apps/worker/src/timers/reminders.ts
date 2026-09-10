@@ -1,8 +1,10 @@
+import { timerNow } from './time.js';
 import {
   and,
   assignmentAcknowledgements,
   eq,
   isNull,
+  gt,
   notificationOutbox,
   responsibilityZones,
   scheduleVersions,
@@ -11,6 +13,7 @@ import {
   sites,
   employeeLocale,
   type Database,
+  type Transaction,
 } from '@vakhta/db';
 import { formatLocal } from '@vakhta/domain';
 import type { AckReminderJob, ShiftReminderJob } from '@vakhta/contracts';
@@ -22,11 +25,29 @@ export type ReminderOutcome = 'queued' | 'duplicate' | 'stale';
  * "Shift soon" reminder (spec 10). The timer only reads state: if the shift was cancelled,
  * the version replaced or the time has passed, it does nothing (ADR-8).
  */
-export async function handleShiftReminder(
-  db: Database,
+export async function handleShiftReminderWithin(
+  db: Transaction,
   data: ShiftReminderJob,
-  now: Date = new Date(),
+  testTime?: Date,
 ): Promise<ReminderOutcome> {
+  const [target] = await db
+    .select({ versionId: shiftAssignments.scheduleVersionId })
+    .from(shiftAssignments)
+    .where(eq(shiftAssignments.id, data.assignmentId));
+  if (!target) return 'stale';
+  await db
+    .select({ id: scheduleVersions.id })
+    .from(scheduleVersions)
+    .where(eq(scheduleVersions.id, target.versionId))
+    .for('no key update');
+  await db
+    .select({ id: shiftAssignments.id })
+    .from(shiftAssignments)
+    .where(eq(shiftAssignments.id, data.assignmentId))
+    .for('no key update');
+  const now = await timerNow(db, testTime);
+  if (new Date(data.fireAt) > now) return 'stale';
+
   const [row] = await db
     .select({
       a: shiftAssignments,
@@ -71,10 +92,11 @@ export async function handleShiftReminder(
   return inserted.length > 0 ? 'queued' : 'duplicate';
 }
 
-/** Repeated acknowledgement reminder while at least one shift of the version is unconfirmed. */
-export async function handleAckReminder(
-  db: Database,
+/** One acknowledgement reminder while a future shift of this version remains unconfirmed. */
+export async function handleAckReminderWithin(
+  db: Transaction,
   data: AckReminderJob,
+  testTime?: Date,
 ): Promise<ReminderOutcome> {
   const [version] = await db
     .select({
@@ -84,8 +106,9 @@ export async function handleAckReminder(
     })
     .from(scheduleVersions)
     .where(eq(scheduleVersions.id, data.versionId))
-    .limit(1);
-  if (!version || version.status !== 'PUBLISHED') return 'stale';
+    .for('no key update');
+  const now = await timerNow(db, testTime);
+  if (!version || version.status !== 'PUBLISHED' || new Date(data.fireAt) > now) return 'stale';
 
   const [pending] = await db
     .select({ id: shiftAssignments.id })
@@ -98,6 +121,7 @@ export async function handleAckReminder(
       and(
         eq(shiftAssignments.scheduleVersionId, data.versionId),
         eq(shiftAssignments.employeeId, data.employeeId),
+        gt(shiftAssignments.planStartAt, now),
         eq(shiftAssignments.status, 'PLANNED'),
         isNull(assignmentAcknowledgements.id),
       ),
@@ -126,4 +150,19 @@ export async function handleAckReminder(
     .onConflictDoNothing({ target: notificationOutbox.dedupeKey })
     .returning({ id: notificationOutbox.id });
   return inserted.length > 0 ? 'queued' : 'duplicate';
+}
+
+export function handleShiftReminder(
+  db: Database,
+  data: ShiftReminderJob,
+  testTime?: Date,
+): Promise<ReminderOutcome> {
+  return db.transaction((tx) => handleShiftReminderWithin(tx, data, testTime));
+}
+export function handleAckReminder(
+  db: Database,
+  data: AckReminderJob,
+  testTime?: Date,
+): Promise<ReminderOutcome> {
+  return db.transaction((tx) => handleAckReminderWithin(tx, data, testTime));
 }

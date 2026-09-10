@@ -1,40 +1,59 @@
+import { timerNow } from './time.js';
 import {
-  and,
   domainEvents,
   downtimeIncidents,
   eq,
-  inArray,
-  isNull,
   sql,
   type Database,
+  type Transaction,
 } from '@vakhta/db';
 import { OPEN_INCIDENT_STATUSES } from '@vakhta/domain';
 import type { IncidentSlaJob } from '@vakhta/contracts';
 import type { ReminderOutcome } from './reminders.js';
 
-/**
- * SLA інциденту (FR-DWN-03): якщо майстер не відреагував до строку, інцидент позначається
- * ескальованим і в журнал пише INCIDENT_SLA_BREACHED. Закриті або підтверджені інциденти пропускаються.
- */
-export async function handleIncidentSla(
+export function handleIncidentSla(
   db: Database,
   data: IncidentSlaJob,
-  now: Date = new Date(),
+  testTime?: Date,
 ): Promise<ReminderOutcome> {
-  const [incident] = await db
+  return db.transaction((tx) => handleIncidentSlaWithin(tx, data, testTime));
+}
+
+/** The event and projection commit together; old event-only failures retain their original time. */
+export async function handleIncidentSlaWithin(
+  tx: Transaction,
+  data: IncidentSlaJob,
+  testTime: Date | undefined,
+): Promise<ReminderOutcome> {
+  const [incident] = await tx
     .select()
     .from(downtimeIncidents)
-    .where(
-      and(
-        eq(downtimeIncidents.id, data.incidentId),
-        inArray(downtimeIncidents.status, [...OPEN_INCIDENT_STATUSES]),
-        isNull(downtimeIncidents.acknowledgedAt),
-      ),
-    )
-    .limit(1);
-  if (!incident || incident.slaDueAt.getTime() > now.getTime()) return 'stale';
-
-  const inserted = await db
+    .where(eq(downtimeIncidents.id, data.incidentId))
+    .for('no key update');
+  if (!incident) return 'stale';
+  const now = await timerNow(tx, testTime);
+  const [previous] = await tx
+    .select({ occurredAt: domainEvents.occurredAt, type: domainEvents.type })
+    .from(domainEvents)
+    .where(eq(domainEvents.idempotencyKey, `incident-sla:${incident.id}`));
+  if (previous && previous.type !== 'INCIDENT_SLA_BREACHED')
+    throw new Error('Timer event identity mismatch');
+  if (previous) {
+    if (!incident.escalatedAt)
+      await tx
+        .update(downtimeIncidents)
+        .set({ escalatedAt: previous.occurredAt })
+        .where(eq(downtimeIncidents.id, incident.id));
+    return 'duplicate';
+  }
+  if (
+    !OPEN_INCIDENT_STATUSES.some((status) => status === incident.status) ||
+    incident.acknowledgedAt ||
+    incident.slaDueAt > now ||
+    incident.slaDueAt.toISOString() !== data.fireAt
+  )
+    return 'stale';
+  await tx
     .insert(domainEvents)
     .values({
       type: 'INCIDENT_SLA_BREACHED',
@@ -54,11 +73,8 @@ export async function handleIncidentSla(
     .onConflictDoNothing({
       target: domainEvents.idempotencyKey,
       where: sql`${domainEvents.idempotencyKey} IS NOT NULL`,
-    })
-    .returning({ id: domainEvents.id });
-  if (inserted.length === 0) return 'duplicate';
-
-  await db
+    });
+  await tx
     .update(downtimeIncidents)
     .set({ escalatedAt: incident.escalatedAt ?? now, updatedAt: now })
     .where(eq(downtimeIncidents.id, incident.id));

@@ -39,7 +39,7 @@ describe('worker: SLA інциденту (FR-DWN-03)', () => {
 
   it('прострочений без реакції інцидент позначається ескальованим один раз', async () => {
     const row = await incident();
-    const job = { incidentId: row.id, fireAt: new Date().toISOString() };
+    const job = { incidentId: row.id, fireAt: row.slaDueAt.toISOString() };
     expect(await handleIncidentSla(testDb.db, job)).toBe('queued');
     expect(await handleIncidentSla(testDb.db, job)).toBe('duplicate');
     const [after] = await testDb.db
@@ -75,5 +75,49 @@ describe('worker: SLA інциденту (FR-DWN-03)', () => {
       .from(domainEvents)
       .where(inArray(domainEvents.incidentId, [acked.id, fresh.id]));
     expect(events).toHaveLength(0);
+  });
+  it('rolls back the SLA event when the projection fails, then retries atomically', async () => {
+    const row = await incident();
+    const job = { incidentId: row.id, fireAt: row.slaDueAt.toISOString() };
+    await testDb.db.execute(
+      sql`CREATE FUNCTION reject_sla_projection() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Injected SLA projection failure'; END $$`,
+    );
+    await testDb.db.execute(
+      sql`CREATE TRIGGER reject_sla_projection BEFORE UPDATE ON downtime_incidents FOR EACH ROW EXECUTE FUNCTION reject_sla_projection()`,
+    );
+    try {
+      await expect(handleIncidentSla(testDb.db, job)).rejects.toThrow();
+      expect(
+        await testDb.db.select().from(domainEvents).where(eq(domainEvents.incidentId, row.id)),
+      ).toHaveLength(0);
+    } finally {
+      await testDb.db.execute(sql`DROP TRIGGER reject_sla_projection ON downtime_incidents`);
+      await testDb.db.execute(sql`DROP FUNCTION reject_sla_projection()`);
+    }
+    expect(await handleIncidentSla(testDb.db, job)).toBe('queued');
+  });
+
+  it('repairs legacy event-only escalation at its original time without changing acknowledgement', async () => {
+    const row = await incident({ status: 'CLOSED', acknowledgedAt: new Date() });
+    const occurredAt = new Date(Date.now() - 20 * 60_000);
+    await testDb.db.insert(domainEvents).values({
+      type: 'INCIDENT_SLA_BREACHED',
+      source: 'SYSTEM',
+      actingRole: 'SYSTEM',
+      incidentId: row.id,
+      occurredAt,
+      idempotencyKey: `incident-sla:${row.id}`,
+    });
+    await handleIncidentSla(testDb.db, { incidentId: row.id, fireAt: row.slaDueAt.toISOString() });
+    const [after] = await testDb.db
+      .select()
+      .from(downtimeIncidents)
+      .where(eq(downtimeIncidents.id, row.id));
+    expect(after?.escalatedAt).toEqual(occurredAt);
+    expect(after?.status).toBe('CLOSED');
+    expect(after?.acknowledgedAt).toEqual(row.acknowledgedAt);
+    expect(
+      await testDb.db.select().from(domainEvents).where(eq(domainEvents.incidentId, row.id)),
+    ).toHaveLength(1);
   });
 });

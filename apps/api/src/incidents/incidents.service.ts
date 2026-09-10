@@ -1,3 +1,4 @@
+import type { TransitionResponse } from '@vakhta/contracts';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   activityIntervals,
@@ -22,13 +23,12 @@ import {
   shiftSessions,
   sql,
   type Database,
-  type DbOrTx,
+  type Transaction,
 } from '@vakhta/db';
 import {
   OPEN_INCIDENT_STATUSES,
   canTransitionIncident,
   escalatesImmediately,
-  incidentSlaJobId,
   isOpenIncident,
   slaBreached,
   slaDueAt,
@@ -60,7 +60,7 @@ import { EventStore, type EventSource } from '../events/event-store.js';
 import { DATABASE } from '../infra/database.module.js';
 import { TIMER_SCHEDULER, type TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
-import { ShiftService, type DeferredTimer } from '../shift/shift.service.js';
+import { ShiftService } from '../shift/shift.service.js';
 import { IncidentChanges } from './incident-changes.js';
 
 export interface IncidentOptions {
@@ -146,8 +146,7 @@ export class IncidentsService {
       );
 
     const place = session.assignmentId ? await this.placeOf(session.assignmentId) : null;
-    const deferred: DeferredTimer[] = [];
-    let scheduleSla: { id: string; dueAt: Date } | null = null;
+    let committedTransition: TransitionResponse | null = null;
     /** Registered inside the transaction, fetched from Telegram after it commits. */
 
     const result = await this.db.transaction(async (tx): Promise<ReportProblemResult> => {
@@ -188,7 +187,8 @@ export class IncidentsService {
         at: now,
         comment: cmd.comment ?? null,
       });
-      if (!escalatesImmediately(severity)) scheduleSla = { id: incident.id, dueAt };
+      if (!escalatesImmediately(severity))
+        await this.timers.scheduleIncidentSla(tx, incident.id, dueAt);
 
       // A photo of a problem becomes a media object like a checklist photo does: registered here,
       // pulled out of Telegram by the worker, and shown in the panel afterwards. Without this the
@@ -271,11 +271,10 @@ export class IncidentsService {
             ...(cmd.comment !== undefined ? { comment: cmd.comment } : {}),
           },
           { actor, source, now },
-          deferred,
         );
         downtimeStarted = transition.ok;
         downtimeError = transition.ok ? null : transition.error;
-        if (transition.ok) deferred.push(() => this.shift.settle(transition, [], source));
+        if (transition.ok) committedTransition = transition;
       }
 
       const response: ReportProblemResult = {
@@ -294,11 +293,7 @@ export class IncidentsService {
       return response;
     });
 
-    for (const run of deferred) await run();
-    if (scheduleSla) {
-      const { id, dueAt } = scheduleSla;
-      await this.timers.scheduleIncidentSla(id, dueAt);
-    }
+    if (committedTransition) await this.shift.settle(committedTransition, source);
     this.changes.publish({
       incidentId: result.incidentId,
       status: 'REPORTED',
@@ -425,7 +420,6 @@ export class IncidentsService {
       return row;
     });
 
-    if (!isOpenIncident(updated.status)) await this.timers.cancel(incidentSlaJobId(id));
     this.changes.publish({
       incidentId: id,
       status: updated.status,
@@ -440,7 +434,7 @@ export class IncidentsService {
    * Викликається всередині транзакції передачі; SSE публікується викликачем після коміту.
    */
   async openFromReview(
-    tx: DbOrTx,
+    tx: Transaction,
     input: {
       employeeId: string;
       shiftSessionId: string;
@@ -506,6 +500,8 @@ export class IncidentsService {
       comment: input.comment,
       payload: { origin: 'HANDOVER_REVIEW', severity: input.severity },
     });
+    if (!escalatesImmediately(input.severity))
+      await this.timers.scheduleIncidentSla(tx, incident.id, incident.slaDueAt);
     return incident.id;
   }
 

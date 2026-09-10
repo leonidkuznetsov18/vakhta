@@ -36,7 +36,7 @@ import { EventStore } from '../events/event-store.js';
 import { IncidentChanges } from '../incidents/incident-changes.js';
 import { IncidentsService } from '../incidents/incidents.service.js';
 import { InMemoryObjectStorage } from '../infra/object-storage.js';
-import { InMemoryTimerScheduler } from '../infra/timers.queue.js';
+import { TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ShiftChanges } from '../shift/shift-changes.js';
 import { ShiftService } from '../shift/shift.service.js';
@@ -56,12 +56,19 @@ describe('handover: прибирання, чек-лист, фото, перед�
   let shift: ShiftService;
   let attendance: AttendanceService;
   let handover: HandoverService;
-  let timers: InMemoryTimerScheduler;
+  let timers: TimerScheduler;
   let dayEmployee: string;
   let nightEmployee: string;
   let zoneId: string;
   let operatorId: string;
   let planEnd: Date;
+
+  async function timerJobs() {
+    const rows = await testDb.db.select().from(backgroundTasks);
+    return rows
+      .filter((row) => row.kind !== 'MEDIA_PROCESS' && row.kind !== 'BONUS_RECALCULATE')
+      .map((row) => ({ jobId: row.dedupeKey, fireAt: row.dueAt }));
+  }
 
   beforeAll(async () => {
     testDb = await startTestDatabase();
@@ -75,7 +82,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
     await testDb.db.execute(
       sql`TRUNCATE background_tasks, handover_resolutions, handover_reviews, handover_media, checklist_answers, handover_records, media_objects, checklist_definitions, incident_status_history, downtime_reports, downtime_incidents, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, responsibility_zones, employee_positions, positions, employees, org_units, sites, reason_codes CASCADE`,
     );
-    timers = new InMemoryTimerScheduler();
+    timers = new TimerScheduler();
     const events = new EventStore();
     const audit = new AuditLog();
     const notifications = new NotificationsService();
@@ -133,7 +140,6 @@ describe('handover: прибирання, чек-лист, фото, перед�
       media,
       repository,
       new HandoverChanges(),
-      timers,
       { reviewWindowMinutes: 30 },
     );
 
@@ -304,8 +310,8 @@ describe('handover: прибирання, чек-лист, фото, перед�
 
   it('FR-CLN-01/02: старт планує нагадування про прибирання; CLEANING_DONE відкриває чернетку з чек-листом посади', async () => {
     await toHandover(dayEmployee);
-    expect(timers.scheduled.map((s) => s.jobId.split('.')[0])).toContain('cleaning-reminder');
-    const cleaning = timers.scheduled.find((s) => s.jobId.startsWith('cleaning-reminder'))!;
+    expect((await timerJobs()).map((s) => s.jobId.split('.')[0])).toContain('cleaning-reminder');
+    const cleaning = (await timerJobs()).find((s) => s.jobId.startsWith('cleaning-reminder'))!;
     expect(planEnd.getTime() - cleaning.fireAt.getTime()).toBe(30 * 60_000);
 
     const draft = await handover.current(dayEmployee);
@@ -359,7 +365,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
     expect(submitted.transition.session?.state).toBe('READY_TO_CLOSE');
     // nobody accepts it: no acceptance timeout, the day employee sees nothing to review
     expect(
-      timers.scheduled.some((s) => s.jobId === `handover-timeout.${submitted.handover.id}`),
+      (await timerJobs()).some((s) => s.jobId === `handover-timeout.${submitted.handover.id}`),
     ).toBe(false);
     await toHandover(dayEmployee);
     expect(await handover.pendingForReceiver(dayEmployee)).toEqual([]);
@@ -587,7 +593,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
     const [record] = await testDb.db.select().from(handoverRecords);
     expect(record!.escalatedToMasterAt).not.toBeNull();
     expect(
-      timers.scheduled.some((t) => t.jobId === `handover-timeout.${submitted.handover.id}`),
+      (await timerJobs()).some((t) => t.jobId === `handover-timeout.${submitted.handover.id}`),
     ).toBe(false);
     const pendingNotices = await testDb.db
       .select()
@@ -651,6 +657,15 @@ describe('handover: прибирання, чек-лист, фото, перед�
     const incidents = await testDb.db.select().from(downtimeIncidents);
     expect(incidents).toHaveLength(1);
     expect(incidents[0]).toMatchObject({ reasonCode: 'DAMAGE', severity: 'CRITICAL', zoneId });
+    const slaTasks = await testDb.db
+      .select()
+      .from(backgroundTasks)
+      .where(eq(backgroundTasks.kind, 'INCIDENT_SLA'));
+    expect(slaTasks).toHaveLength(1);
+    expect(slaTasks[0]?.payload).toEqual({
+      incidentId: incidents[0]?.id,
+      fireAt: incidents[0]?.slaDueAt.toISOString(),
+    });
     const detail = await handover.detail(id);
     expect(detail.reviews[0]).toMatchObject({
       decision: 'ISSUE',
@@ -734,5 +749,30 @@ describe('handover: прибирання, чек-лист, фото, перед�
     const list = await handover.list({ scope: 'pending' });
     expect(list).toHaveLength(1);
     expect(list[0]).toMatchObject({ status: 'SUBMITTED', overdue: false, remarks: 0 });
+  });
+  it('rolls back shift start when its cleaning reminder cannot be admitted', async () => {
+    await testDb.db.execute(
+      sql`CREATE FUNCTION reject_cleaning_intent() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.kind = 'CLEANING_REMINDER' THEN RAISE EXCEPTION 'Injected cleaning admission failure'; END IF; RETURN NEW; END $$`,
+    );
+    await testDb.db.execute(
+      sql`CREATE TRIGGER reject_cleaning_intent BEFORE INSERT ON background_tasks FOR EACH ROW EXECUTE FUNCTION reject_cleaning_intent()`,
+    );
+    try {
+      await expect(openShift(dayEmployee)).rejects.toThrow();
+      expect(await shift.activeSession(dayEmployee)).toBeNull();
+      expect(await testDb.db.select().from(backgroundTasks)).toHaveLength(0);
+    } finally {
+      await testDb.db.execute(sql`DROP TRIGGER reject_cleaning_intent ON background_tasks`);
+      await testDb.db.execute(sql`DROP FUNCTION reject_cleaning_intent()`);
+    }
+    const started = await shift.start(
+      dayEmployee,
+      { idempotencyKey: key() },
+      { actor: employeeActor(dayEmployee), source: 'TELEGRAM' },
+    );
+    expect(started.ok).toBe(true);
+    expect((await timerJobs()).map((row) => row.jobId.split('.')[0])).toEqual([
+      'cleaning-reminder',
+    ]);
   });
 });

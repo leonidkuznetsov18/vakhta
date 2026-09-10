@@ -24,7 +24,7 @@ import { employeeActor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
-import { InMemoryTimerScheduler } from '../infra/timers.queue.js';
+import { TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ShiftChanges } from '../shift/shift-changes.js';
 import { ShiftService } from '../shift/shift.service.js';
@@ -41,11 +41,18 @@ describe('incidents: повідомлення про проблему, дубл�
   let testDb: TestDatabase;
   let incidents: IncidentsService;
   let shift: ShiftService;
-  let timers: InMemoryTimerScheduler;
+  let timers: TimerScheduler;
   let ivanov: string;
   let petrova: string;
   let sidorov: string;
   let zoneA: string;
+
+  async function timerJobs() {
+    const rows = await testDb.db.select().from(backgroundTasks);
+    return rows
+      .filter((row) => row.kind !== 'MEDIA_PROCESS' && row.kind !== 'BONUS_RECALCULATE')
+      .map((row) => ({ jobId: row.dedupeKey, fireAt: row.dueAt }));
+  }
 
   beforeAll(async () => {
     testDb = await startTestDatabase();
@@ -59,7 +66,7 @@ describe('incidents: повідомлення про проблему, дубл�
     await testDb.db.execute(
       sql`TRUNCATE background_tasks, incident_status_history, downtime_reports, downtime_incidents, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, responsibility_zones, employees, org_units, sites, reason_codes CASCADE`,
     );
-    timers = new InMemoryTimerScheduler();
+    timers = new TimerScheduler();
     const attendance = new AttendanceService(testDb.db, new EventStore(), new AuditLog(), {
       window: DEFAULT_ATTENDANCE_WINDOW,
     });
@@ -189,7 +196,7 @@ describe('incidents: повідомлення про проблему, дубл�
       );
       expect(work.ok).toBe(true);
     }
-    timers.scheduled.length = 0;
+    await testDb.db.delete(backgroundTasks);
   });
 
   it('AC-08: проблема без зупинки створює інцидент, але не простій; SLA планується', async () => {
@@ -205,7 +212,7 @@ describe('incidents: повідомлення про проблему, дубл�
     });
     const session = await shift.activeSession(ivanov);
     expect(session?.state).toBe('WORKING');
-    expect(timers.scheduled.map((s) => s.jobId)).toEqual([`incident-sla.${result.incidentId}`]);
+    expect((await timerJobs()).map((s) => s.jobId)).toEqual([`incident-sla.${result.incidentId}`]);
     const [incident] = await testDb.db.select().from(downtimeIncidents);
     expect(incident).toMatchObject({
       status: 'REPORTED',
@@ -283,7 +290,7 @@ describe('incidents: повідомлення про проблему, дубл�
     expect(result.downtimeStarted).toBe(true);
     const session = await shift.activeSession(ivanov);
     expect(session).toMatchObject({ state: 'DOWNTIME', resumeState: 'WORKING' });
-    expect(timers.scheduled.map((s) => s.jobId.split('.')[0]).sort()).toEqual([
+    expect((await timerJobs()).map((s) => s.jobId.split('.')[0]).sort()).toEqual([
       'downtime-escalation',
       'incident-sla',
     ]);
@@ -317,7 +324,7 @@ describe('incidents: повідомлення про проблему, дубл�
     expect(detail.reports.map((r) => r.fullName)).toEqual(['Иванов Иван']);
     expect(await testDb.db.select().from(downtimeIncidents)).toHaveLength(2);
     // Each one carries its own deadline, so neither hides behind the other's.
-    expect(timers.scheduled.filter((s) => s.jobId.startsWith('incident-sla')).length).toBe(2);
+    expect((await timerJobs()).filter((s) => s.jobId.startsWith('incident-sla')).length).toBe(2);
     const events = await testDb.db
       .select({ type: domainEvents.type, incidentId: domainEvents.incidentId })
       .from(domainEvents);
@@ -343,7 +350,7 @@ describe('incidents: повідомлення про проблему, дубл�
     expect(safety.severity).toBe('SAFETY');
     const [incident] = await testDb.db.select().from(downtimeIncidents);
     expect(incident?.escalatedAt).not.toBeNull();
-    expect(timers.scheduled).toHaveLength(0);
+    expect(await timerJobs()).toHaveLength(0);
     const events = await testDb.db
       .select({ type: domainEvents.type })
       .from(domainEvents)
@@ -384,7 +391,7 @@ describe('incidents: повідомлення про проблему, дубл�
     const ack = await incidents.transition(id, { to: 'ACKNOWLEDGED' }, MASTER);
     expect(ack.status).toBe('ACKNOWLEDGED');
     expect(ack.acknowledgedAt).not.toBeNull();
-    expect(timers.scheduled.some((s) => s.jobId.startsWith('incident-sla'))).toBe(true);
+    expect((await timerJobs()).some((s) => s.jobId.startsWith('incident-sla'))).toBe(true);
 
     const resolved = await incidents.transition(
       id,
@@ -392,7 +399,8 @@ describe('incidents: повідомлення про проблему, дубл�
       MASTER,
     );
     expect(resolved.status).toBe('RESOLVED');
-    expect(timers.scheduled.some((s) => s.jobId.startsWith('incident-sla'))).toBe(false);
+    // The durable intent remains; the worker rechecks acknowledgement/status before acting.
+    expect((await timerJobs()).some((s) => s.jobId.startsWith('incident-sla'))).toBe(true);
     const notices = await testDb.db
       .select()
       .from(notificationOutbox)
@@ -474,5 +482,30 @@ describe('incidents: повідомлення про проблему, дубл�
     expect(breakdown?.incidents).toBe(1);
     expect(stats.byZone.find((z) => z.label === 'Линия A')?.incidents).toBe(1);
     expect(stats.byZone.find((z) => z.label === 'Линия B')?.incidents).toBe(1);
+  });
+  it('rolls back the incident and its report when SLA admission fails', async () => {
+    await testDb.db.execute(
+      sql`CREATE FUNCTION reject_sla_intent() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.kind = 'INCIDENT_SLA' THEN RAISE EXCEPTION 'Injected SLA admission failure'; END IF; RETURN NEW; END $$`,
+    );
+    await testDb.db.execute(
+      sql`CREATE TRIGGER reject_sla_intent BEFORE INSERT ON background_tasks FOR EACH ROW EXECUTE FUNCTION reject_sla_intent()`,
+    );
+    try {
+      await expect(
+        incidents.report(
+          ivanov,
+          { reasonCode: 'BREAKDOWN', stoppedWork: false, idempotencyKey: key() },
+          employeeActor(ivanov),
+        ),
+      ).rejects.toThrow();
+      expect(await testDb.db.select().from(downtimeIncidents)).toHaveLength(0);
+      expect(await testDb.db.select().from(downtimeReports)).toHaveLength(0);
+      expect(
+        (await timerJobs()).filter((row) => row.jobId.startsWith('incident-sla.')),
+      ).toHaveLength(0);
+    } finally {
+      await testDb.db.execute(sql`DROP TRIGGER reject_sla_intent ON background_tasks`);
+      await testDb.db.execute(sql`DROP FUNCTION reject_sla_intent()`);
+    }
   });
 });

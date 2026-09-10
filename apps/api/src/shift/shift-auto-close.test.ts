@@ -28,7 +28,7 @@ import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor } from '../common/actor.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
-import { InMemoryTimerScheduler } from '../infra/timers.queue.js';
+import { TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ShiftChanges } from './shift-changes.js';
 import { ShiftService } from './shift.service.js';
@@ -80,7 +80,7 @@ describe('Estimated closure preserves observed history without scanner-delay min
       new NotificationsService(),
       attendance,
       new ShiftChanges(),
-      new InMemoryTimerScheduler(),
+      new TimerScheduler(),
       OPTIONS,
     );
     await testDb.db.insert(sites).values({ code: 'main', name: 'Main', timezone: 'Europe/Kyiv' });

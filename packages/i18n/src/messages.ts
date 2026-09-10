@@ -274,6 +274,7 @@ export interface Messages {
     /** Placeholder: {decision}; the report of a shift without a zone. */
     readonly resolvedNotificationNoZone: string;
     readonly timeoutNotification: string;
+    readonly timeoutNotificationNoZone: string;
   };
   readonly requests: {
     readonly types: Readonly<Record<RequestType, string>>;

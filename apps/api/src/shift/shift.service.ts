@@ -29,6 +29,7 @@ import {
   sql,
   type Database,
   type DbOrTx,
+  type Transaction,
 } from '@vakhta/db';
 import {
   ACTION_EVENT_TYPE,
@@ -38,10 +39,8 @@ import {
   computeShiftSummary,
   inferShiftFromArrival,
   projectEstimatedClosure,
-  downtimeEscalationJobId,
   isActive,
   isTerminal,
-  returnReminderJobId,
   transition,
   type ActivityInterval,
   type CommandErrorCode,
@@ -126,7 +125,6 @@ export interface CommandMeta {
 }
 
 /** Робота з таймерами йде після коміту: BullMQ не бере участі в транзакції БД. */
-export type DeferredTimer = () => Promise<void>;
 
 export type QrDepartureResult =
   | { readonly kind: 'CHECK_IN'; readonly result: CheckInResult }
@@ -372,7 +370,6 @@ export class ShiftService {
     meta: CommandMeta,
   ): Promise<TransitionResponse> {
     const now = meta.now ?? new Date();
-    const deferred: DeferredTimer[] = [];
     let closure: TransitionResponse | null = null;
     const response = await this.db.transaction(async (tx) => {
       await lockEmployee(tx, employeeId);
@@ -386,7 +383,7 @@ export class ShiftService {
           and(eq(shiftSessions.employeeId, employeeId), notInArray(shiftSessions.state, TERMINAL)),
         )
         .for('update');
-      if (existing) closure = await this.closeDueWithin(tx, existing, now, deferred);
+      if (existing) closure = await this.closeDueWithin(tx, existing, now);
       await this.reconcileClosedPresencesWithin(tx, employeeId, now);
       if (existing && !closure)
         return this.fail('ALREADY_STARTED', await this.sessionView(tx, existing.id), now);
@@ -445,19 +442,18 @@ export class ShiftService {
           comment: cmd.comment,
         },
         { ...meta, now },
-        deferred,
       );
       // FR-CLN-01: нагадування про прибирання за N хвилин до планового кінця (і для позапланової).
       if (applied.ok && plan.planEndAt && this.options.cleaningReminderMinutes) {
         const fireAt = new Date(
           plan.planEndAt.getTime() - this.options.cleaningReminderMinutes * 60_000,
         );
-        deferred.push(() => this.timers.scheduleCleaningReminder(session.id, fireAt));
+        await this.timers.scheduleCleaningReminder(tx, session.id, fireAt);
       }
       return applied;
     });
-    if (closure) await this.afterCommit(closure, deferred.splice(0), 'SYSTEM');
-    await this.afterCommit(response, deferred, meta.source);
+    if (closure) await this.afterCommit(closure, 'SYSTEM');
+    await this.afterCommit(response, meta.source);
     return response;
   }
 
@@ -472,7 +468,6 @@ export class ShiftService {
     now: Date = new Date(),
     expectedPresenceId?: string,
   ): Promise<QrDepartureResult> {
-    const deferred: DeferredTimer[] = [];
     const scope = `qr-departure:${employeeId}`;
     const requestHash = hashChallengeToken(
       expectedPresenceId ? `${token}:${expectedPresenceId}` : token,
@@ -549,7 +544,7 @@ export class ShiftService {
             transition: null,
           };
         if (session) {
-          const closure = await this.closeDueWithin(tx, session, now, deferred);
+          const closure = await this.closeDueWithin(tx, session, now);
           if (closure)
             return {
               outcome: {
@@ -586,7 +581,6 @@ export class ShiftService {
                 idempotencyKey: `qr-exit:${idempotencyKey}`,
               },
               { actor: employeeActor(employeeId), source: 'TELEGRAM', now },
-              deferred,
             )
           : null;
         if (closed && !closed.ok) {
@@ -601,7 +595,7 @@ export class ShiftService {
         return { outcome: { kind: 'CHECK_IN', result }, transition: closed };
       },
     );
-    if (committed.transition) await this.settle(committed.transition, deferred, 'TELEGRAM');
+    if (committed.transition) await this.settle(committed.transition, 'TELEGRAM');
     return committed.outcome;
   }
 
@@ -612,7 +606,6 @@ export class ShiftService {
     meta: CommandMeta,
   ): Promise<TransitionResponse> {
     const now = meta.now ?? new Date();
-    const deferred: DeferredTimer[] = [];
     let closure: TransitionResponse | null = null;
     const response = await this.db.transaction(async (tx) => {
       await lockEmployee(tx, employeeId);
@@ -625,26 +618,25 @@ export class ShiftService {
           and(eq(shiftSessions.employeeId, employeeId), notInArray(shiftSessions.state, TERMINAL)),
         )
         .for('update');
-      if (session) closure = await this.closeDueWithin(tx, session, now, deferred);
+      if (session) closure = await this.closeDueWithin(tx, session, now);
       if (closure)
         return this.fail('NO_ACTIVE_SHIFT', await this.sessionView(tx, session!.id), now);
-      return this.transitionWithin(tx, employeeId, cmd, { ...meta, now }, deferred);
+      return this.transitionWithin(tx, employeeId, cmd, { ...meta, now });
     });
-    if (closure) await this.settle(closure, deferred.splice(0), 'SYSTEM');
-    await this.settle(response, deferred, meta.source);
+    if (closure) await this.settle(closure, 'SYSTEM');
+    await this.settle(response, meta.source);
     return response;
   }
 
   /**
    * Той самий перехід усередині чужої транзакції (інцидент + простій атомарно, ТЗ 5.5).
-   * Викликач після коміту зобовʼязаний викликати settle() з тим самим deferred.
+   * The caller publishes the resulting view through settle() after its source transaction commits.
    */
   async transitionWithin(
-    tx: DbOrTx,
+    tx: Transaction,
     employeeId: string,
     cmd: CommandInput,
     meta: CommandMeta,
-    deferred: DeferredTimer[],
   ): Promise<TransitionResponse> {
     const now = meta.now ?? new Date();
     await lockEmployee(tx, employeeId);
@@ -663,11 +655,11 @@ export class ShiftService {
     // claiming that their transaction committed the independent scheduled closure.
     if (cmd.action !== 'AUTO_CLOSE' && this.isPastDeadline(planned, now))
       return this.fail('NO_ACTIVE_SHIFT', await this.sessionView(tx, session.id), now);
-    return this.apply(tx, planned, cmd, { ...meta, now }, deferred);
+    return this.apply(tx, planned, cmd, { ...meta, now });
   }
 
   /** Nested workflow mutations share the employee -> shift lock order and deadline gate. */
-  async commandSessionWithin(tx: DbOrTx, employeeId: string, now: Date): Promise<SessionRow> {
+  async commandSessionWithin(tx: Transaction, employeeId: string, now: Date): Promise<SessionRow> {
     await lockEmployee(tx, employeeId);
     const [session] = await tx
       .select()
@@ -684,12 +676,8 @@ export class ShiftService {
   }
 
   /** Timers and change events after the commit; a replay does nothing. */
-  async settle(
-    response: TransitionResponse,
-    deferred: DeferredTimer[],
-    source: EventSource,
-  ): Promise<void> {
-    return this.afterCommit(response, deferred, source);
+  async settle(response: TransitionResponse, source: EventSource): Promise<void> {
+    return this.afterCommit(response, source);
   }
 
   /** Дія майстра з панелі по конкретній сесії; guard-и пропускаються, аудит обовʼязковий. */
@@ -699,7 +687,6 @@ export class ShiftService {
     actor: Actor,
     now: Date = new Date(),
   ): Promise<TransitionResponse> {
-    const deferred: DeferredTimer[] = [];
     let closure: TransitionResponse | null = null;
     const response = await this.db.transaction(async (tx) => {
       const target = await this.requireSession(sessionId, tx);
@@ -712,16 +699,14 @@ export class ShiftService {
       if (!session) throw new DomainError('SHIFT_NOT_FOUND', 404, 'Зміну не знайдено');
       const replay = await this.replay(tx, session.employeeId, cmd.idempotencyKey);
       if (replay) return replay;
-      if (!isTerminal(session.state))
-        closure = await this.closeDueWithin(tx, session, now, deferred);
+      if (!isTerminal(session.state)) closure = await this.closeDueWithin(tx, session, now);
       if (closure) return this.fail('NO_ACTIVE_SHIFT', await this.sessionView(tx, session.id), now);
-      const result = await this.apply(
-        tx,
-        session,
-        cmd,
-        { actor, source: 'WEB', masterOverride: true, now },
-        deferred,
-      );
+      const result = await this.apply(tx, session, cmd, {
+        actor,
+        source: 'WEB',
+        masterOverride: true,
+        now,
+      });
       if (result.ok) {
         await this.audit.record(tx, {
           actor,
@@ -735,8 +720,8 @@ export class ShiftService {
       }
       return result;
     });
-    if (closure) await this.afterCommit(closure, deferred.splice(0), 'SYSTEM');
-    await this.afterCommit(response, deferred, 'WEB');
+    if (closure) await this.afterCommit(closure, 'SYSTEM');
+    await this.afterCommit(response, 'WEB');
     return response;
   }
 
@@ -897,11 +882,10 @@ export class ShiftService {
   /* ------------------------------------------------------------------ */
 
   private async apply(
-    tx: DbOrTx,
+    tx: Transaction,
     session: SessionRow,
     cmd: CommandInput,
     meta: CommandMeta & { now: Date },
-    deferred: DeferredTimer[],
   ): Promise<TransitionResponse> {
     const { now } = meta;
     if (cmd.expectedVersion !== session.version) {
@@ -1046,15 +1030,7 @@ export class ShiftService {
       );
     }
 
-    const summary = await this.runEffects(
-      tx,
-      updated,
-      result.effects,
-      closed ?? null,
-      opened,
-      deferred,
-      now,
-    );
+    const summary = await this.runEffects(tx, updated, result.effects, opened, now);
 
     const response: TransitionResponse = {
       ok: true,
@@ -1073,28 +1049,13 @@ export class ShiftService {
   }
 
   private async runEffects(
-    tx: DbOrTx,
+    tx: Transaction,
     session: SessionRow,
     effects: readonly TransitionEffect[],
-    closed: IntervalRow | null,
     opened: IntervalRow | null,
-    deferred: DeferredTimer[],
     now: Date,
   ): Promise<ShiftSummaryView | null> {
     let summary: ShiftSummaryView | null = null;
-
-    // Вихід із тимчасового стану: нагадування й ескалація за старим інтервалом більше не потрібні.
-    if (
-      closed &&
-      (closed.state === 'BREAK' || closed.state === 'MEAL' || closed.state === 'SERVICE_TIME')
-    ) {
-      const jobId = returnReminderJobId(session.id, closed.id);
-      deferred.push(() => this.timers.cancel(jobId));
-    }
-    if (closed && closed.state === 'DOWNTIME') {
-      const jobId = downtimeEscalationJobId(session.id, closed.id);
-      deferred.push(() => this.timers.cancel(jobId));
-    }
 
     for (const effect of effects) {
       switch (effect) {
@@ -1112,11 +1073,10 @@ export class ShiftService {
                 ? this.options.mealMinutes
                 : this.options.serviceTimeMinutes;
           const fireAt = new Date(now.getTime() + limit * 60_000);
-          deferred.push(() =>
-            this.timers.scheduleReturnReminder(
-              { sessionId: session.id, intervalId: opened.id, state, limitMinutes: limit },
-              fireAt,
-            ),
+          await this.timers.scheduleReturnReminder(
+            tx,
+            { sessionId: session.id, intervalId: opened.id, state, limitMinutes: limit },
+            fireAt,
           );
           break;
         }
@@ -1124,11 +1084,10 @@ export class ShiftService {
           if (!opened) break;
           const threshold = this.options.downtimeEscalationMinutes;
           const fireAt = new Date(now.getTime() + threshold * 60_000);
-          deferred.push(() =>
-            this.timers.scheduleDowntimeEscalation(
-              { sessionId: session.id, intervalId: opened.id, thresholdMinutes: threshold },
-              fireAt,
-            ),
+          await this.timers.scheduleDowntimeEscalation(
+            tx,
+            { sessionId: session.id, intervalId: opened.id, thresholdMinutes: threshold },
+            fireAt,
           );
           break;
         }
@@ -1150,7 +1109,7 @@ export class ShiftService {
         case 'CANCEL_RETURN_REMINDER':
         case 'REQUIRE_DOWNTIME_REPORT':
         case 'MARK_HANDOVER_SUBMITTED':
-          // Скасування зроблено вище за закритим інтервалом; звіт про простій — інциденти; подання — HandoverService.
+          // Retained timers reject closed intervals; reports belong to incidents and handover modules.
           break;
       }
     }
@@ -1296,13 +1255,8 @@ export class ShiftService {
     };
   }
 
-  private async afterCommit(
-    response: TransitionResponse,
-    deferred: DeferredTimer[],
-    source: EventSource,
-  ): Promise<void> {
+  private async afterCommit(response: TransitionResponse, source: EventSource): Promise<void> {
     if (!response.ok || response.replayed) return;
-    for (const run of deferred) await run();
     this.changes.publish({
       sessionId: response.session.id,
       employeeId: response.session.employeeId,
@@ -1498,7 +1452,6 @@ export class ShiftService {
     now: Date = new Date(),
     expectedSessionId?: string,
   ): Promise<boolean> {
-    const deferred: DeferredTimer[] = [];
     const closed = await this.db.transaction(async (tx) => {
       await lockEmployee(tx, employeeId);
       const [session] = await tx
@@ -1510,20 +1463,19 @@ export class ShiftService {
         .for('update');
       const response =
         session && (!expectedSessionId || session.id === expectedSessionId)
-          ? await this.closeDueWithin(tx, session, now, deferred)
+          ? await this.closeDueWithin(tx, session, now)
           : null;
       await this.reconcileClosedPresencesWithin(tx, employeeId, now);
       return response;
     });
-    if (closed) await this.afterCommit(closed, deferred, 'SYSTEM');
+    if (closed) await this.afterCommit(closed, 'SYSTEM');
     return closed?.ok === true;
   }
 
   private async closeDueWithin(
-    tx: DbOrTx,
+    tx: Transaction,
     original: SessionRow,
     now: Date,
-    deferred: DeferredTimer[],
   ): Promise<TransitionResponse | null> {
     const session = await this.recoverPlanWithin(tx, original, now);
     if (
@@ -1550,7 +1502,6 @@ export class ShiftService {
         now,
         ...(session.planEndAt ? { effectiveEndedAt: session.planEndAt } : {}),
       },
-      deferred,
     );
   }
 

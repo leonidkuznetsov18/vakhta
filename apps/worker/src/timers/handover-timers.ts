@@ -1,10 +1,8 @@
+import { timerNow } from './time.js';
 import {
-  and,
   domainEvents,
   eq,
   handoverRecords,
-  isNull,
-  lte,
   notificationOutbox,
   responsibilityZones,
   shiftAssignments,
@@ -12,102 +10,146 @@ import {
   sql,
   employeeLocale,
   type Database,
+  type Transaction,
 } from '@vakhta/db';
 import type { CleaningReminderJob, HandoverTimeoutJob } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import type { ReminderOutcome } from './reminders.js';
 
-/**
- * Acceptance timeout (FR-HND-06): if the receiver has not responded by the deadline, the zone
- * goes to the shift master; the handing employee is told this does not affect their score.
- */
-export async function handleHandoverTimeout(
+export function handleHandoverTimeout(
   db: Database,
   data: HandoverTimeoutJob,
-  now: Date = new Date(),
+  testTime?: Date,
 ): Promise<ReminderOutcome> {
-  const [row] = await db
-    .select({ r: handoverRecords, zoneName: responsibilityZones.name })
+  return db.transaction((tx) => handleHandoverTimeoutWithin(tx, data, testTime));
+}
+
+/** Legacy acceptance only. Modern reports already escalate in their submit transaction. */
+export async function handleHandoverTimeoutWithin(
+  tx: Transaction,
+  data: HandoverTimeoutJob,
+  testTime: Date | undefined,
+): Promise<ReminderOutcome> {
+  const [row] = await tx
+    .select()
     .from(handoverRecords)
-    .innerJoin(responsibilityZones, eq(handoverRecords.zoneId, responsibilityZones.id))
-    .where(
-      and(
-        eq(handoverRecords.id, data.handoverId),
-        eq(handoverRecords.status, 'SUBMITTED'),
-        isNull(handoverRecords.escalatedToMasterAt),
-        lte(handoverRecords.acceptDeadlineAt, now),
-      ),
-    )
-    .limit(1);
+    .where(eq(handoverRecords.id, data.handoverId))
+    .for('no key update');
   if (!row) return 'stale';
-
-  const inserted = await db
-    .insert(domainEvents)
-    .values({
-      type: 'HANDOVER_TIMEOUT',
-      occurredAt: now,
-      source: 'SYSTEM',
-      actingRole: 'SYSTEM',
-      employeeId: row.r.submittedBy,
-      shiftSessionId: row.r.shiftSessionId,
-      zoneId: row.r.zoneId,
-      idempotencyKey: `handover-timeout:${row.r.id}`,
-      payload: {
-        handoverId: row.r.id,
-        acceptDeadlineAt: row.r.acceptDeadlineAt?.toISOString() ?? null,
-      },
-    })
-    .onConflictDoNothing({
-      target: domainEvents.idempotencyKey,
-      where: sql`${domainEvents.idempotencyKey} IS NOT NULL`,
-    })
-    .returning({ id: domainEvents.id });
-  if (inserted.length === 0) return 'duplicate';
-
-  await db
-    .update(handoverRecords)
-    .set({ escalatedToMasterAt: now, updatedAt: now })
-    .where(eq(handoverRecords.id, row.r.id));
-  const t = messages(await employeeLocale(db, row.r.submittedBy));
-  await db
+  const now = await timerNow(tx, testTime);
+  const [previous] = await tx
+    .select({ occurredAt: domainEvents.occurredAt, type: domainEvents.type })
+    .from(domainEvents)
+    .where(eq(domainEvents.idempotencyKey, `handover-timeout:${row.id}`));
+  if (previous && previous.type !== 'HANDOVER_TIMEOUT')
+    throw new Error('Timer event identity mismatch');
+  if (previous && !row.escalatedToMasterAt)
+    await tx
+      .update(handoverRecords)
+      .set({ escalatedToMasterAt: previous.occurredAt })
+      .where(eq(handoverRecords.id, row.id));
+  if (row.status !== 'SUBMITTED') return 'stale';
+  if (
+    !previous &&
+    (row.escalatedToMasterAt ||
+      !row.acceptDeadlineAt ||
+      row.acceptDeadlineAt > now ||
+      row.acceptDeadlineAt.toISOString() !== data.fireAt)
+  )
+    return 'stale';
+  if (!previous) {
+    await tx
+      .insert(domainEvents)
+      .values({
+        type: 'HANDOVER_TIMEOUT',
+        occurredAt: now,
+        source: 'SYSTEM',
+        actingRole: 'SYSTEM',
+        employeeId: row.submittedBy,
+        shiftSessionId: row.shiftSessionId,
+        zoneId: row.zoneId,
+        idempotencyKey: `handover-timeout:${row.id}`,
+        payload: {
+          handoverId: row.id,
+          acceptDeadlineAt: row.acceptDeadlineAt?.toISOString() ?? null,
+        },
+      })
+      .onConflictDoNothing({
+        target: domainEvents.idempotencyKey,
+        where: sql`${domainEvents.idempotencyKey} IS NOT NULL`,
+      });
+    await tx
+      .update(handoverRecords)
+      .set({ escalatedToMasterAt: now, updatedAt: now })
+      .where(eq(handoverRecords.id, row.id));
+  }
+  const [zone] = row.zoneId
+    ? await tx
+        .select({ name: responsibilityZones.name })
+        .from(responsibilityZones)
+        .where(eq(responsibilityZones.id, row.zoneId))
+    : [];
+  const t = messages(await employeeLocale(tx, row.submittedBy));
+  const inserted = await tx
     .insert(notificationOutbox)
     .values({
       recipientType: 'EMPLOYEE',
-      recipientId: row.r.submittedBy,
+      recipientId: row.submittedBy,
       template: 'HANDOVER_PENDING',
-      payload: { text: format(t.handover.timeoutNotification, { zone: row.zoneName }) },
-      dedupeKey: `handover-timeout:${row.r.id}`,
+      payload: {
+        text: zone
+          ? format(t.handover.timeoutNotification, { zone: zone.name })
+          : t.handover.timeoutNotificationNoZone,
+      },
+      dedupeKey: `handover-timeout:${row.id}`,
     })
-    .onConflictDoNothing({ target: notificationOutbox.dedupeKey });
-  return 'queued';
+    .onConflictDoNothing({ target: notificationOutbox.dedupeKey })
+    .returning({ id: notificationOutbox.id });
+  return inserted.length ? 'queued' : 'duplicate';
 }
 
-/** Cleaning reminder N minutes before the planned end (FR-CLN-01). Silent if cleaning is already underway. */
-export async function handleCleaningReminder(
+export function handleCleaningReminder(
   db: Database,
   data: CleaningReminderJob,
-  now: Date = new Date(),
+  testTime?: Date,
 ): Promise<ReminderOutcome> {
-  const [row] = await db
-    .select({ s: shiftSessions, planEndAt: shiftAssignments.planEndAt })
-    .from(shiftSessions)
-    .leftJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
-    .where(eq(shiftSessions.id, data.sessionId))
-    .limit(1);
-  if (!row) return 'stale';
-  const s = row.s;
-  const active = ['PREPARATION', 'WORKING', 'BREAK', 'MEAL', 'SERVICE_TIME', 'DOWNTIME'];
-  if (!active.includes(s.state)) return 'stale';
+  return db.transaction((tx) => handleCleaningReminderWithin(tx, data, testTime));
+}
 
-  const minutes = row.planEndAt
-    ? Math.max(0, Math.round((row.planEndAt.getTime() - now.getTime()) / 60_000))
-    : 0;
-  const t = messages(await employeeLocale(db, s.employeeId));
+/** Prefer the shift's frozen plan. An overdue reminder never asks a worker to clean retroactively. */
+export async function handleCleaningReminderWithin(
+  tx: Transaction,
+  data: CleaningReminderJob,
+  testTime: Date | undefined,
+): Promise<ReminderOutcome> {
+  const [s] = await tx
+    .select()
+    .from(shiftSessions)
+    .where(eq(shiftSessions.id, data.sessionId))
+    .for('no key update');
+  const now = await timerNow(tx, testTime);
+  if (
+    !s ||
+    !['PREPARATION', 'WORKING', 'BREAK', 'MEAL', 'SERVICE_TIME', 'DOWNTIME'].includes(s.state) ||
+    new Date(data.fireAt) > now
+  )
+    return 'stale';
+  const [assignment] =
+    !s.planEndAt && s.assignmentId
+      ? await tx
+          .select({ planEndAt: shiftAssignments.planEndAt })
+          .from(shiftAssignments)
+          .where(eq(shiftAssignments.id, s.assignmentId))
+      : [];
+  const planEndAt = s.planEndAt ?? assignment?.planEndAt;
+  if (!planEndAt || planEndAt <= now) return 'stale';
+  const minutes = Math.round((planEndAt.getTime() - now.getTime()) / 60_000);
+  const t = messages(await employeeLocale(tx, s.employeeId));
   const buttons =
     s.state === 'WORKING'
       ? [[{ text: t.actions.START_CLEANING, callbackData: `sh:START_CLEANING:${s.version}` }]]
       : undefined;
-  const inserted = await db
+  const inserted = await tx
     .insert(notificationOutbox)
     .values({
       recipientType: 'EMPLOYEE',
@@ -121,5 +163,5 @@ export async function handleCleaningReminder(
     })
     .onConflictDoNothing({ target: notificationOutbox.dedupeKey })
     .returning({ id: notificationOutbox.id });
-  return inserted.length > 0 ? 'queued' : 'duplicate';
+  return inserted.length ? 'queued' : 'duplicate';
 }

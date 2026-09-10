@@ -61,6 +61,7 @@ describe('worker: тайм-аут приймання і нагадування �
         version: 5,
         startedAt: new Date(Date.now() - 3_600_000),
         zoneId,
+        planEndAt: new Date(Date.now() + 30 * 60_000),
       })
       .returning();
     sessionId = session!.id;
@@ -84,9 +85,9 @@ describe('worker: тайм-аут приймання і нагадування �
         acceptDeadlineAt: new Date(Date.now() - 60_000),
       })
       .returning();
-    const job = { handoverId: record!.id, fireAt: new Date().toISOString() };
+    const job = { handoverId: record!.id, fireAt: record!.acceptDeadlineAt!.toISOString() };
     expect(await handleHandoverTimeout(testDb.db, job)).toBe('queued');
-    expect(await handleHandoverTimeout(testDb.db, job)).toBe('stale');
+    expect(await handleHandoverTimeout(testDb.db, job)).toBe('duplicate');
     const [after] = await testDb.db
       .select()
       .from(handoverRecords)

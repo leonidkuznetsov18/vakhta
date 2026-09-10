@@ -20,6 +20,7 @@ import {
   telegramAccounts,
   type Database,
   type DbOrTx,
+  type Transaction,
 } from '@vakhta/db';
 import {
   buildMonthPlan,
@@ -504,7 +505,6 @@ export class ScheduleService {
   ): Promise<ScheduleVersionView> {
     const now = new Date();
     const result = await this.db.transaction((tx) => this.publishWithin(tx, id, cmd, actor, now));
-    await this.armTimers(result, now);
     return this.toVersionView(result.updated, result.nextShifts.length);
   }
 
@@ -514,22 +514,19 @@ export class ScheduleService {
    * notified of the difference. Validation errors roll everything back, so no draft is left.
    */
   async revise(id: string, cmd: ReviseScheduleCommand, actor: Actor): Promise<ScheduleVersionView> {
-    const deferred: Array<() => Promise<void>> = [];
     const result = await this.db.transaction((tx) =>
-      this.reviseWithin(tx, id, cmd, actor, new Date(), deferred),
+      this.reviseWithin(tx, id, cmd, actor, new Date()),
     );
-    for (const run of deferred) await run();
     return result;
   }
 
-  /** Revise a published schedule inside an owning workflow transaction; dispatch only after commit. */
+  /** Revise a published schedule and admit reminders in the owning workflow transaction. */
   async reviseWithin(
-    tx: DbOrTx,
+    tx: Transaction,
     id: string,
     cmd: ReviseScheduleCommand,
     actor: Actor,
     now: Date,
-    deferred: Array<() => Promise<void>>,
   ): Promise<ScheduleVersionView> {
     const [current] = await tx
       .select()
@@ -598,12 +595,11 @@ export class ScheduleService {
       now,
     );
 
-    deferred.push(() => this.armTimers(result, now));
     return this.toVersionView(result.updated, result.nextShifts.length);
   }
 
   private async publishWithin(
-    tx: DbOrTx,
+    tx: Transaction,
     id: string,
     cmd: PublishScheduleCommand,
     actor: Actor,
@@ -730,21 +726,27 @@ export class ScheduleService {
       after: { status: 'PUBLISHED', supersedes: previous?.id ?? null },
       reason: cmd.changeReason ?? null,
     });
+    await this.armTimers(tx, { updated, nextShifts }, now);
     return { updated, nextShifts };
   }
 
-  /** Reminders live in Redis outside the transaction; the worker re-checks them when they fire. */
+  /** Reminder intents commit with publication; delayed dispatch rechecks current business state. */
   private async armTimers(
+    tx: Transaction,
     result: { updated: VersionRow; nextShifts: PlannedShift[] },
     now: Date,
   ): Promise<void> {
     const reminderMs = this.options.shiftReminderMinutes * 60_000;
     for (const s of result.nextShifts) {
-      await this.timers.scheduleShiftReminder(s.id, new Date(s.planStartAt.getTime() - reminderMs));
+      await this.timers.scheduleShiftReminder(
+        tx,
+        s.id,
+        new Date(s.planStartAt.getTime() - reminderMs),
+      );
     }
     const ackAt = new Date(now.getTime() + this.options.ackReminderHours * 3_600_000);
     for (const employeeId of new Set(result.nextShifts.map((s) => s.employeeId))) {
-      await this.timers.scheduleAckReminder(result.updated.id, employeeId, ackAt);
+      await this.timers.scheduleAckReminder(tx, result.updated.id, employeeId, ackAt);
     }
   }
 
@@ -818,8 +820,12 @@ export class ScheduleService {
     source: 'TELEGRAM' | 'WEB',
   ): Promise<{ acknowledged: number; total: number }> {
     return this.db.transaction(async (tx) => {
-      const version = await this.requireVersion(versionId, tx);
-      if (version.status !== 'PUBLISHED') {
+      const [version] = await tx
+        .select()
+        .from(scheduleVersions)
+        .where(eq(scheduleVersions.id, versionId))
+        .for('no key update');
+      if (!version || version.status !== 'PUBLISHED') {
         throw new DomainError(
           'SCHEDULE_NOT_PUBLISHED',
           409,

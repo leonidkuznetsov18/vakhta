@@ -12,6 +12,15 @@ export const WorkerEnvSchema = z.object({
   OUTBOX_POLL_MS: z.coerce.number().int().min(200).default(1000),
   OUTBOX_BATCH: z.coerce.number().int().min(1).max(200).default(20),
   OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().min(1).default(10),
+  /** Legacy recovery fallback only; new timer payloads retain the source configuration. */
+  SHIFT_REMINDER_MINUTES: z.coerce.number().int().positive().default(120),
+  ACK_REMINDER_HOURS: z.coerce.number().int().positive().default(24),
+  BREAK_MINUTES: z.coerce.number().int().positive().default(15),
+  MEAL_MINUTES: z.coerce.number().int().positive().default(60),
+  SERVICE_TIME_MINUTES: z.coerce.number().int().positive().default(30),
+  DOWNTIME_ESCALATION_MINUTES: z.coerce.number().int().positive().default(15),
+  CLEANING_REMINDER_MINUTES: z.coerce.number().int().positive().default(30),
+  AUTO_CLOSE_GRACE_MINUTES: z.coerce.number().int().positive().default(120),
   /** Приватне сховище фото (ADR-0006); без S3_BUCKET фото лишаються PENDING. */
   S3_ENDPOINT: z.preprocess(emptyToUndefined, z.string().url().optional()),
   S3_REGION: z.string().default('us-east-1'),

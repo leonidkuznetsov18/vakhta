@@ -1,10 +1,11 @@
+import { backgroundTasks } from '@vakhta/db';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq, notificationOutbox, scheduleVersions, sql, telegramAccounts } from '@vakhta/db';
 import { addMonths, businessDateOf } from '@vakhta/domain';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
 import { EmployeesService } from '../identity/employees.service.js';
-import { InMemoryTimerScheduler } from '../infra/timers.queue.js';
+import { TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { OrgService } from '../org/org.service.js';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
@@ -23,7 +24,7 @@ describe('scheduling: версії, валідація, публікація, о
   let org: OrgService;
   let templates: TemplatesService;
   let employeesService: EmployeesService;
-  let timers: InMemoryTimerScheduler;
+  let timers: TimerScheduler;
   let schedule: ScheduleService;
 
   let siteId: string;
@@ -35,6 +36,13 @@ describe('scheduling: версії, валідація, публікація, о
   let ivanov: string;
   let petrova: string;
 
+  async function timerJobs() {
+    const rows = await testDb.db.select().from(backgroundTasks);
+    return rows
+      .filter((row) => row.kind !== 'MEDIA_PROCESS' && row.kind !== 'BONUS_RECALCULATE')
+      .map((row) => ({ jobId: row.dedupeKey, fireAt: row.dueAt }));
+  }
+
   beforeAll(async () => {
     testDb = await startTestDatabase();
     const events = new EventStore();
@@ -42,7 +50,7 @@ describe('scheduling: версії, валідація, публікація, о
     org = new OrgService(testDb.db, events, audit);
     templates = new TemplatesService(testDb.db, events, audit, org);
     employeesService = new EmployeesService(testDb.db, events, audit, new NotificationsService());
-    timers = new InMemoryTimerScheduler();
+    timers = new TimerScheduler();
     schedule = new ScheduleService(
       testDb.db,
       events,
@@ -67,7 +75,7 @@ describe('scheduling: версії, валідація, публікація, о
     await testDb.db.execute(
       sql`TRUNCATE notification_outbox, assignment_acknowledgements, shift_assignments, schedule_versions, shift_templates, telegram_accounts, employees, responsibility_zones, teams, org_units, sites CASCADE`,
     );
-    timers.scheduled.length = 0;
+    await testDb.db.delete(backgroundTasks);
     const site = await org.createSite(
       { code: 'main', name: 'Основная', timezone: 'Europe/Kyiv' },
       PLANNER,
@@ -187,7 +195,7 @@ describe('scheduling: версії, валідація, публікація, о
     expect(outbox[0]?.payload.buttons?.[0]?.[0]?.callbackData).toBe(`ack:${v1.id}`);
 
     // Таймери: нагадування на 4 зміни + ознайомлення для 2 працівників.
-    const jobs = timers.scheduled.map((s) => s.jobId);
+    const jobs = (await timerJobs()).map((s) => s.jobId);
     expect(jobs.filter((j) => j.startsWith('shift-reminder.'))).toHaveLength(4);
     expect(jobs.filter((j) => j.startsWith('ack-reminder.'))).toHaveLength(2);
 

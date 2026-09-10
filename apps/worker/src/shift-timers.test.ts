@@ -51,6 +51,7 @@ describe('worker: таймери зміни (FR-BRK-01, FR-DWN-04)', () => {
         state,
         resumeState: state === 'WORKING' ? null : 'WORKING',
         version: 4,
+        planEndAt: new Date(Date.now() + 60 * 60_000),
         startedAt: new Date(startedAt.getTime() - 3_600_000),
       })
       .returning();

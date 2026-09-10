@@ -1,65 +1,56 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
-import { Queue } from 'bullmq';
-import { Redis } from 'ioredis';
-import type { ConfigService } from '@nestjs/config';
-import { QUEUES } from '@vakhta/contracts';
-import { ackReminderJobId, shiftReminderJobId } from '@vakhta/domain';
-import type { Env } from '../config/env.js';
-import { ensureDockerHost } from '../../test/docker.js';
-import { TimersQueue } from './timers.queue.js';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { backgroundTasks, employees, eq, sql } from '@vakhta/db';
+import { startTestDatabase, type TestDatabase } from '../../test/db.js';
+import { TimerScheduler } from './timers.queue.js';
 
 const ASSIGNMENT = '11111111-1111-4111-8111-111111111111';
 const VERSION = '22222222-2222-4222-8222-222222222222';
 const EMPLOYEE = '33333333-3333-4333-8333-333333333333';
 
-/** Реальний Redis: BullMQ валідує jobId і опції лише при додаванні job-а. */
-describe('TimersQueue на реальному Redis (ADR-8)', () => {
-  let container: StartedTestContainer;
-  let url: string;
-  let timers: TimersQueue;
-  let inspector: Queue;
-  let connection: Redis;
-
+describe('durable timer source admission', () => {
+  let testDb: TestDatabase;
+  const timers = new TimerScheduler();
   beforeAll(async () => {
-    ensureDockerHost();
-    container = await new GenericContainer('redis:7-alpine').withExposedPorts(6379).start();
-    url = `redis://${container.getHost()}:${container.getMappedPort(6379)}`;
-    const config = { get: () => url } as unknown as ConfigService<Env, true>;
-    timers = new TimersQueue(config);
-    connection = new Redis(url, { maxRetriesPerRequest: null });
-    inspector = new Queue(QUEUES.timers, { connection });
+    testDb = await startTestDatabase();
   }, 180_000);
-
   afterAll(async () => {
-    await inspector?.close();
-    await connection?.quit();
-    await timers?.onApplicationShutdown();
-    await container?.stop();
+    await testDb?.stop();
+  });
+  beforeEach(async () => {
+    await testDb.db.execute(sql`TRUNCATE background_tasks, employees CASCADE`);
   });
 
-  it('ставить відкладені job-и з детермінованими id і не дублює їх', async () => {
-    const fireAt = new Date(Date.now() + 3_600_000);
-    await timers.scheduleShiftReminder(ASSIGNMENT, fireAt);
-    await timers.scheduleShiftReminder(ASSIGNMENT, fireAt);
-    await timers.scheduleAckReminder(VERSION, EMPLOYEE, fireAt);
-    expect(await inspector.getDelayedCount()).toBe(2);
-
-    const job = await inspector.getJob(shiftReminderJobId(ASSIGNMENT));
-    expect(job?.data).toMatchObject({ assignmentId: ASSIGNMENT });
-    expect(await inspector.getJob(ackReminderJobId(VERSION, EMPLOYEE))).not.toBeNull();
+  it('retains original overdue intent and deduplicates replay without Redis', async () => {
+    const fireAt = new Date(Date.now() - 60_000);
+    await testDb.db.transaction(async (tx) => {
+      await timers.scheduleShiftReminder(tx, ASSIGNMENT, fireAt);
+      await timers.scheduleShiftReminder(tx, ASSIGNMENT, fireAt);
+      await timers.scheduleAckReminder(tx, VERSION, EMPLOYEE, fireAt);
+    });
+    const rows = await testDb.db.select().from(backgroundTasks);
+    expect(rows).toHaveLength(2);
+    expect(
+      rows.every((row) => row.status === 'PENDING' && row.dueAt.getTime() === fireAt.getTime()),
+    ).toBe(true);
+    expect(rows.find((row) => row.kind === 'SHIFT_REMINDER')?.payload).toEqual({
+      assignmentId: ASSIGNMENT,
+      fireAt: fireAt.toISOString(),
+    });
   });
 
-  it('минулий час не ставиться, скасування прибирає job', async () => {
-    await timers.scheduleShiftReminder(
-      '44444444-4444-4444-8444-444444444444',
-      new Date(Date.now() - 1000),
+  it('rolls back source and every timer together after admission failure', async () => {
+    await expect(
+      testDb.db.transaction(async (tx) => {
+        await tx
+          .insert(employees)
+          .values({ id: EMPLOYEE, personnelNumber: 'timer-source', fullName: 'Timer Source' });
+        await timers.scheduleAckReminder(tx, VERSION, EMPLOYEE, new Date());
+        throw new Error('Injected source failure');
+      }),
+    ).rejects.toThrow('Injected source failure');
+    expect(await testDb.db.select().from(backgroundTasks)).toHaveLength(0);
+    expect(await testDb.db.select().from(employees).where(eq(employees.id, EMPLOYEE))).toHaveLength(
+      0,
     );
-    expect(await inspector.getDelayedCount()).toBe(2);
-
-    await timers.cancel(shiftReminderJobId(ASSIGNMENT));
-    expect(await inspector.getDelayedCount()).toBe(1);
-    await timers.cancel('no-such-job');
-    expect(await inspector.getDelayedCount()).toBe(1);
   });
 });

@@ -36,7 +36,7 @@ import { EmployeesService } from '../identity/employees.service.js';
 import { IncidentChanges } from '../incidents/incident-changes.js';
 import { IncidentsService } from '../incidents/incidents.service.js';
 import { InMemoryShortTermStore } from '../infra/short-term-store.js';
-import { InMemoryTimerScheduler } from '../infra/timers.queue.js';
+import { TimerScheduler } from '../infra/timers.queue.js';
 import { createLogger } from '../logger.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { OrgService } from '../org/org.service.js';
@@ -108,7 +108,7 @@ function services(testDb: TestDatabase) {
   const events = new EventStore();
   const audit = new AuditLog();
   const notifications = new NotificationsService();
-  const timers = new InMemoryTimerScheduler();
+  const timers = new TimerScheduler();
   const store = new InMemoryShortTermStore();
   const shiftChanges = new ShiftChanges();
   const handoverChanges = new HandoverChanges();
@@ -167,7 +167,6 @@ function services(testDb: TestDatabase) {
     media,
     new HandoverRepository(),
     handoverChanges,
-    timers,
     { reviewWindowMinutes: 30 },
   );
   const requests = new RequestsService(

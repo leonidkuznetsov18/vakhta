@@ -1,204 +1,75 @@
-import { Global, Inject, Injectable, Module, type OnApplicationShutdown } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Queue } from 'bullmq';
-import { Redis } from 'ioredis';
+import { Global, Injectable, Module } from '@nestjs/common';
 import {
-  QUEUES,
-  type AckReminderJob,
-  type CleaningReminderJob,
-  type HandoverTimeoutJob,
+  timerTaskIntent,
   type DowntimeEscalationJob,
-  type IncidentSlaJob,
   type ReturnReminderJob,
-  type ShiftReminderJob,
+  type TimerTask,
 } from '@vakhta/contracts';
-import {
-  TIMER_JOBS,
-  ackReminderJobId,
-  cleaningReminderJobId,
-  downtimeEscalationJobId,
-  handoverTimeoutJobId,
-  incidentSlaJobId,
-  returnReminderJobId,
-  shiftReminderJobId,
-} from '@vakhta/domain';
-import type { Env } from '../config/env.js';
-
-/** Порт для сервісів: у тестах підмінюється памʼяттю. */
-export interface TimerScheduler {
-  scheduleShiftReminder(assignmentId: string, fireAt: Date): Promise<void>;
-  scheduleAckReminder(versionId: string, employeeId: string, fireAt: Date): Promise<void>;
-  scheduleReturnReminder(job: Omit<ReturnReminderJob, 'fireAt'>, fireAt: Date): Promise<void>;
-  scheduleDowntimeEscalation(
-    job: Omit<DowntimeEscalationJob, 'fireAt'>,
-    fireAt: Date,
-  ): Promise<void>;
-  scheduleIncidentSla(incidentId: string, fireAt: Date): Promise<void>;
-  scheduleHandoverTimeout(handoverId: string, fireAt: Date): Promise<void>;
-  scheduleCleaningReminder(sessionId: string, fireAt: Date): Promise<void>;
-  cancel(jobId: string): Promise<void>;
-}
+import { enqueueBackgroundTask, type Transaction } from '@vakhta/db';
 
 export const TIMER_SCHEDULER = Symbol('TIMER_SCHEDULER');
 
-/**
- * Відкладені job-и BullMQ з детермінованими jobId (ADR-8). Воркер при спрацюванні перечитує
- * стан і виходить, якщо нагадування вже не актуальне; тому скасування є оптимізацією.
- */
+/** Source-owned PostgreSQL admission. Stale tasks are harmless; never cancel under business locks. */
 @Injectable()
-export class TimersQueue implements TimerScheduler, OnApplicationShutdown {
-  private readonly connection: Redis;
-  private readonly queue: Queue;
-
-  constructor(@Inject(ConfigService) config: ConfigService<Env, true>) {
-    this.connection = new Redis(config.get('REDIS_URL', { infer: true }), {
-      maxRetriesPerRequest: null,
-    });
-    this.queue = new Queue(QUEUES.timers, { connection: this.connection });
+export class TimerScheduler {
+  private async enqueue(tx: Transaction, task: TimerTask): Promise<void> {
+    await enqueueBackgroundTask(tx, timerTaskIntent(task));
   }
 
-  async scheduleShiftReminder(assignmentId: string, fireAt: Date): Promise<void> {
-    const delay = fireAt.getTime() - Date.now();
-    if (delay <= 0) return;
-    const data: ShiftReminderJob = { assignmentId, fireAt: fireAt.toISOString() };
-    await this.queue.add(TIMER_JOBS.shiftReminder, data, {
-      jobId: shiftReminderJobId(assignmentId),
-      delay,
-      removeOnComplete: true,
-      removeOnFail: 200,
+  scheduleShiftReminder(tx: Transaction, assignmentId: string, fireAt: Date): Promise<void> {
+    return this.enqueue(tx, {
+      kind: 'SHIFT_REMINDER',
+      payload: { assignmentId, fireAt: fireAt.toISOString() },
     });
   }
-
-  async scheduleAckReminder(versionId: string, employeeId: string, fireAt: Date): Promise<void> {
-    const delay = fireAt.getTime() - Date.now();
-    if (delay <= 0) return;
-    const data: AckReminderJob = { versionId, employeeId, fireAt: fireAt.toISOString() };
-    await this.queue.add(TIMER_JOBS.ackReminder, data, {
-      jobId: ackReminderJobId(versionId, employeeId),
-      delay,
-      removeOnComplete: true,
-      removeOnFail: 200,
+  scheduleAckReminder(
+    tx: Transaction,
+    versionId: string,
+    employeeId: string,
+    fireAt: Date,
+  ): Promise<void> {
+    return this.enqueue(tx, {
+      kind: 'ACK_REMINDER',
+      payload: { versionId, employeeId, fireAt: fireAt.toISOString() },
     });
   }
-
-  async scheduleReturnReminder(
+  scheduleReturnReminder(
+    tx: Transaction,
     job: Omit<ReturnReminderJob, 'fireAt'>,
     fireAt: Date,
   ): Promise<void> {
-    const delay = fireAt.getTime() - Date.now();
-    const data: ReturnReminderJob = { ...job, fireAt: fireAt.toISOString() };
-    await this.queue.add(TIMER_JOBS.returnReminder, data, {
-      jobId: returnReminderJobId(job.sessionId, job.intervalId),
-      delay: Math.max(0, delay),
-      removeOnComplete: true,
-      removeOnFail: 200,
+    return this.enqueue(tx, {
+      kind: 'RETURN_REMINDER',
+      payload: { ...job, fireAt: fireAt.toISOString() },
     });
   }
-
-  async scheduleDowntimeEscalation(
+  scheduleDowntimeEscalation(
+    tx: Transaction,
     job: Omit<DowntimeEscalationJob, 'fireAt'>,
     fireAt: Date,
   ): Promise<void> {
-    const delay = fireAt.getTime() - Date.now();
-    const data: DowntimeEscalationJob = { ...job, fireAt: fireAt.toISOString() };
-    await this.queue.add(TIMER_JOBS.downtimeEscalation, data, {
-      jobId: downtimeEscalationJobId(job.sessionId, job.intervalId),
-      delay: Math.max(0, delay),
-      removeOnComplete: true,
-      removeOnFail: 200,
+    return this.enqueue(tx, {
+      kind: 'DOWNTIME_ESCALATION',
+      payload: { ...job, fireAt: fireAt.toISOString() },
     });
   }
-
-  async scheduleIncidentSla(incidentId: string, fireAt: Date): Promise<void> {
-    const data: IncidentSlaJob = { incidentId, fireAt: fireAt.toISOString() };
-    await this.queue.add(TIMER_JOBS.incidentSla, data, {
-      jobId: incidentSlaJobId(incidentId),
-      delay: Math.max(0, fireAt.getTime() - Date.now()),
-      removeOnComplete: true,
-      removeOnFail: 200,
+  scheduleIncidentSla(tx: Transaction, incidentId: string, fireAt: Date): Promise<void> {
+    return this.enqueue(tx, {
+      kind: 'INCIDENT_SLA',
+      payload: { incidentId, fireAt: fireAt.toISOString() },
     });
   }
-
-  async scheduleHandoverTimeout(handoverId: string, fireAt: Date): Promise<void> {
-    const data: HandoverTimeoutJob = { handoverId, fireAt: fireAt.toISOString() };
-    await this.queue.add(TIMER_JOBS.handoverTimeout, data, {
-      jobId: handoverTimeoutJobId(handoverId),
-      delay: Math.max(0, fireAt.getTime() - Date.now()),
-      removeOnComplete: true,
-      removeOnFail: 200,
+  scheduleCleaningReminder(tx: Transaction, sessionId: string, fireAt: Date): Promise<void> {
+    return this.enqueue(tx, {
+      kind: 'CLEANING_REMINDER',
+      payload: { sessionId, fireAt: fireAt.toISOString() },
     });
-  }
-
-  async scheduleCleaningReminder(sessionId: string, fireAt: Date): Promise<void> {
-    const delay = fireAt.getTime() - Date.now();
-    if (delay <= 0) return;
-    const data: CleaningReminderJob = { sessionId, fireAt: fireAt.toISOString() };
-    await this.queue.add(TIMER_JOBS.cleaningReminder, data, {
-      jobId: cleaningReminderJobId(sessionId),
-      delay,
-      removeOnComplete: true,
-      removeOnFail: 200,
-    });
-  }
-
-  async cancel(jobId: string): Promise<void> {
-    const job = await this.queue.getJob(jobId);
-    if (job) await job.remove().catch(() => undefined);
-  }
-
-  async onApplicationShutdown(): Promise<void> {
-    await this.queue.close();
-    await this.connection.quit();
-  }
-}
-
-/** Лише в тестах: памʼятає, що було заплановано. */
-export class InMemoryTimerScheduler implements TimerScheduler {
-  readonly scheduled: { jobId: string; fireAt: Date }[] = [];
-
-  async scheduleShiftReminder(assignmentId: string, fireAt: Date): Promise<void> {
-    this.scheduled.push({ jobId: shiftReminderJobId(assignmentId), fireAt });
-  }
-
-  async scheduleAckReminder(versionId: string, employeeId: string, fireAt: Date): Promise<void> {
-    this.scheduled.push({ jobId: ackReminderJobId(versionId, employeeId), fireAt });
-  }
-
-  async scheduleReturnReminder(
-    job: Omit<ReturnReminderJob, 'fireAt'>,
-    fireAt: Date,
-  ): Promise<void> {
-    this.scheduled.push({ jobId: returnReminderJobId(job.sessionId, job.intervalId), fireAt });
-  }
-
-  async scheduleDowntimeEscalation(
-    job: Omit<DowntimeEscalationJob, 'fireAt'>,
-    fireAt: Date,
-  ): Promise<void> {
-    this.scheduled.push({ jobId: downtimeEscalationJobId(job.sessionId, job.intervalId), fireAt });
-  }
-
-  async scheduleIncidentSla(incidentId: string, fireAt: Date): Promise<void> {
-    this.scheduled.push({ jobId: incidentSlaJobId(incidentId), fireAt });
-  }
-
-  async scheduleHandoverTimeout(handoverId: string, fireAt: Date): Promise<void> {
-    this.scheduled.push({ jobId: handoverTimeoutJobId(handoverId), fireAt });
-  }
-
-  async scheduleCleaningReminder(sessionId: string, fireAt: Date): Promise<void> {
-    this.scheduled.push({ jobId: cleaningReminderJobId(sessionId), fireAt });
-  }
-
-  async cancel(jobId: string): Promise<void> {
-    const i = this.scheduled.findIndex((s) => s.jobId === jobId);
-    if (i >= 0) this.scheduled.splice(i, 1);
   }
 }
 
 @Global()
 @Module({
-  providers: [{ provide: TIMER_SCHEDULER, useClass: TimersQueue }],
+  providers: [{ provide: TIMER_SCHEDULER, useClass: TimerScheduler }],
   exports: [TIMER_SCHEDULER],
 })
 export class QueueModule {}

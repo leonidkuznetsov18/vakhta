@@ -29,7 +29,7 @@ import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
 import { HandoverChanges } from '../handover/handover-changes.js';
 import { IncidentChanges } from '../incidents/incident-changes.js';
-import { InMemoryTimerScheduler } from '../infra/timers.queue.js';
+import { TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { RequestChanges } from '../requests/request-changes.js';
 import { ShiftChanges } from '../shift/shift-changes.js';
@@ -93,7 +93,7 @@ describe('bonus: оцінка зміни, коригування, закритт
     const events = new EventStore();
     const audit = new AuditLog();
     const notifications = new NotificationsService();
-    const timers = new InMemoryTimerScheduler();
+    const timers = new TimerScheduler();
     shiftChanges = new ShiftChanges();
     attendance = new AttendanceService(testDb.db, events, audit, {
       window: DEFAULT_ATTENDANCE_WINDOW,

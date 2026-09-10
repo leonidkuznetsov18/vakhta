@@ -16,7 +16,7 @@ import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor } from '../common/actor.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
-import { InMemoryTimerScheduler } from '../infra/timers.queue.js';
+import { TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ShiftChanges } from '../shift/shift-changes.js';
 import { ShiftService } from '../shift/shift.service.js';
@@ -73,7 +73,7 @@ describe('load: одночасний старт зміни', () => {
       new NotificationsService(),
       attendance,
       new ShiftChanges(),
-      new InMemoryTimerScheduler(),
+      new TimerScheduler(),
       {
         breakMinutes: 15,
         mealMinutes: 30,
