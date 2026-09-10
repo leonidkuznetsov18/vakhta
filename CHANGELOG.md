@@ -1,3 +1,9 @@
+## [0.73.7](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.6...v0.73.7) (2026-09-10)
+
+### Bug fixes
+
+* **overview:** count pending decisions and preserve actionable queues ([4e5a5f2](https://github.com/leonidkuznetsov18/vakhta/commit/4e5a5f230b88ea14bfa17311b95ace703f14f8b6))
+
 ## [0.73.6](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.5...v0.73.6) (2026-09-10)
 
 ### Bug fixes
