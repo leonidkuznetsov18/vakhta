@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import type { ImportEmployeesResult } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { DownloadIcon } from 'lucide-react';
@@ -14,12 +15,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { DataTable, type Column } from '@/components/app/data-table';
-import { Feedback, useAction } from '@/components/app/feedback';
+import { Feedback } from '@/components/app/feedback';
 import { FormField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, ROW_DANGER, StatusPill } from '@/components/app/page';
 import { employeesFromCsv, type EmployeeRow } from '@/lib/csv';
 import { adminEmployeesApi } from '../api.ts';
+import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 
 const all = messages(currentLocale());
@@ -41,8 +43,7 @@ export function ImportDialog({
   const [rows, setRows] = useState<EmployeeRow[]>([]);
   const [fileName, setFileName] = useState('');
   const [result, setResult] = useState<ImportEmployeesResult | null>(null);
-  const { busy, error, run } = useAction();
-  const valid = useMemo(() => rows.filter((r) => r.error === null), [rows]);
+  const valid = rows.filter((r) => r.error === null);
   const invalid = rows.length - valid.length;
 
   async function pick(file: File | undefined) {
@@ -56,17 +57,20 @@ export function ImportDialog({
     setRows(employeesFromCsv(await file.text(), e.importReasons.INVALID));
   }
 
-  function runImport() {
-    // The report below is the feedback; no toast needed.
-    void run(async () => {
-      const res = await adminEmployeesApi.importMany({
+  // The report below is the feedback; no toast needed.
+  const send = useMutation({
+    mutationFn: () =>
+      adminEmployeesApi.importMany({
         items: valid.map((r) => ({ personnelNumber: r.personnelNumber, fullName: r.fullName })),
-      });
+      }),
+    onSuccess: async (res) => {
       setResult(res);
       setRows([]);
       await onImported();
-    });
-  }
+    },
+  });
+  const busy = send.isPending;
+  const error = readError(send.error);
 
   function reset(next: boolean) {
     if (!next) {
@@ -170,7 +174,7 @@ export function ImportDialog({
           <Button type="button" variant="outline" onClick={() => reset(false)}>
             {all.ui.common.close}
           </Button>
-          <Button type="button" disabled={busy || valid.length === 0} onClick={runImport}>
+          <Button type="button" disabled={busy || valid.length === 0} onClick={() => send.mutate()}>
             {e.importRun} ({valid.length})
           </Button>
         </DialogFooter>

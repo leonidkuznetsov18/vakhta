@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { isBlank, isUnchanged } from '@/lib/forms';
 import {
   RegisterTerminalCommand,
@@ -20,13 +21,16 @@ import { Input } from '@/components/ui/input';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { CopyButton } from '@/components/app/copy-button';
 import { DataTable, type Column } from '@/components/app/data-table';
-import { Feedback, useAction } from '@/components/app/feedback';
+import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
 import { adminOrgApi } from '../api.ts';
+import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { keys } from '@/lib/query';
+import { notifySuccess } from '@/lib/toast';
 import { usePersistentState } from '@/lib/ui-store';
 import { AddDialog } from '@/components/app/add-dialog';
 import { KeyRoundIcon, PencilIcon, PowerIcon, Trash2Icon } from 'lucide-react';
@@ -42,7 +46,6 @@ const KIOSK_URL = import.meta.env['VITE_KIOSK_URL'];
 
 interface Props {
   readonly org: OrgSnapshot;
-  readonly onChanged: () => Promise<void>;
 }
 
 function pairingLink(code: string): string | null {
@@ -54,9 +57,11 @@ function pairingLink(code: string): string | null {
  * QR terminals (spec 4.2, ADR-0006): registration creates the record, a pairing code connects
  * the tablet without anyone handling a device token.
  */
-export function TerminalsTab({ org, onChanged }: Props) {
-  const { busy, error, run } = useAction();
+export function TerminalsTab({ org }: Props) {
   const { confirm, dialog } = useConfirm();
+  const client = useQueryClient();
+  /** Terminals are part of the directory snapshot, so a change re-reads that one thing. */
+  const reload = () => client.invalidateQueries({ queryKey: keys.org });
   const [siteId, setSiteId] = usePersistentState('terminals.siteId', org.sites[0]?.id ?? '');
   const [name, setName] = usePersistentState('terminals.name', '');
   const [checkpoint, setCheckpoint] = usePersistentState<(typeof CHECKPOINTS)[number]>(
@@ -75,29 +80,59 @@ export function TerminalsTab({ org, onChanged }: Props) {
 
   const siteName = (id: string) => org.sites.find((s) => s.id === id)?.name ?? id;
 
-  function register(ev: FormEvent) {
+  /** Registering also issues the first pairing code: a terminal nobody can pair is not set up. */
+  const register = useMutation({
+    mutationFn: async (cmd: RegisterTerminalCommand) => {
+      const term = await adminOrgApi.registerTerminal(cmd);
+      return { term, issued: await adminOrgApi.issuePairing(term.id) };
+    },
+    onSuccess: async ({ term, issued }) => {
+      notifySuccess(tr.registered);
+      setName('');
+      setCreating(false);
+      setPairing({ ...issued, name: term.name });
+      setCreated({ ...term, status: 'ACTIVE', paired: false, lastSeenAt: null });
+      setOpenId(term.id);
+      await reload();
+    },
+  });
+
+  const pair = useMutation({
+    mutationFn: (term: TerminalView) => adminOrgApi.issuePairing(term.id),
+    onSuccess: (issued, term) => setPairing({ ...issued, name: term.name }),
+  });
+
+  const setStatus = useMutation({
+    mutationFn: (v: { term: TerminalView; status: 'ACTIVE' | 'DISABLED'; reason: string }) =>
+      adminOrgApi.setTerminalStatus(v.term.id, { status: v.status, reason: v.reason }),
+    onSuccess: async () => {
+      notifySuccess(tr.statusChanged);
+      await reload();
+    },
+  });
+
+  const drop = useMutation({
+    mutationFn: (v: { term: TerminalView; reason: string }) =>
+      adminOrgApi.deleteTerminal(v.term.id, v.reason),
+    onSuccess: async () => {
+      notifySuccess(tr.deleted);
+      await reload();
+    },
+  });
+
+  const busy = register.isPending || pair.isPending || setStatus.isPending || drop.isPending;
+  const error = readError(register.error ?? pair.error ?? setStatus.error ?? drop.error);
+
+  function submitRegister(ev: FormEvent) {
     ev.preventDefault();
     const checked = validateWith(RegisterTerminalCommand, { siteId, name, checkpoint });
     setFieldErrors(checked.errors);
-    if (!checked.ok) return;
-    void run(async () => {
-      const created = await adminOrgApi.registerTerminal(checked.data);
-      setName('');
-      setCreating(false);
-      await onChanged();
-      const issued = await adminOrgApi.issuePairing(created.id);
-      setPairing({ ...issued, name: created.name });
-      setCreated({ ...created, status: 'ACTIVE', paired: false, lastSeenAt: null });
-      setOpenId(created.id);
-    }, tr.registered);
+    if (checked.ok) register.mutate(checked.data);
   }
 
   function issue(term: TerminalView) {
     setOpenId(term.id);
-    void run(async () => {
-      const issued = await adminOrgApi.issuePairing(term.id);
-      setPairing({ ...issued, name: term.name });
-    });
+    pair.mutate(term);
   }
 
   async function toggle(term: TerminalView) {
@@ -112,10 +147,7 @@ export function TerminalsTab({ org, onChanged }: Props) {
       destructive: status === 'DISABLED',
     });
     if (!reason) return;
-    void run(async () => {
-      await adminOrgApi.setTerminalStatus(term.id, { status, reason });
-      await onChanged();
-    }, tr.statusChanged);
+    setStatus.mutate({ term, status, reason });
   }
 
   async function remove(term: TerminalView) {
@@ -128,10 +160,7 @@ export function TerminalsTab({ org, onChanged }: Props) {
       destructive: true,
     });
     if (!reason) return;
-    void run(async () => {
-      await adminOrgApi.deleteTerminal(term.id, reason);
-      await onChanged();
-    }, tr.deleted);
+    drop.mutate({ term, reason });
   }
 
   const columns: Column<TerminalView>[] = [
@@ -174,7 +203,7 @@ export function TerminalsTab({ org, onChanged }: Props) {
             open={creating}
             onOpenChange={setCreating}
           >
-            <form className="flex flex-col gap-4" onSubmit={register} noValidate>
+            <form className="flex flex-col gap-4" onSubmit={submitRegister} noValidate>
               <SelectField
                 label={t.common.site}
                 error={fieldErrors.siteId}
@@ -360,9 +389,9 @@ export function TerminalsTab({ org, onChanged }: Props) {
         terminal={editing}
         org={org}
         onClose={() => setEditing(null)}
-        onSaved={async () => {
+        onSaved={() => {
           setEditing(null);
-          await onChanged();
+          void reload();
         }}
       />
       {dialog}
@@ -370,98 +399,115 @@ export function TerminalsTab({ org, onChanged }: Props) {
   );
 }
 
-/** Name, site and checkpoint of an existing terminal; pairing and status have their own actions. */
+/**
+ * Name, site and checkpoint of an existing terminal; pairing and status have their own actions.
+ * The form is mounted under the terminal's own key, so opening another one starts a fresh draft.
+ */
 function EditTerminalDialog({
+  terminal,
+  ...rest
+}: {
+  readonly terminal: TerminalView | null;
+  readonly org: OrgSnapshot;
+  readonly onClose: () => void;
+  readonly onSaved: () => void;
+}) {
+  return (
+    <Dialog open={terminal !== null} onOpenChange={(open) => !open && rest.onClose()}>
+      <DialogContent>
+        {terminal && <EditTerminalForm key={terminal.id} terminal={terminal} {...rest} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditTerminalForm({
   terminal,
   org,
   onClose,
   onSaved,
 }: {
-  readonly terminal: TerminalView | null;
+  readonly terminal: TerminalView;
   readonly org: OrgSnapshot;
   readonly onClose: () => void;
-  readonly onSaved: () => Promise<void>;
+  readonly onSaved: () => void;
 }) {
-  const [name, setName] = useState('');
-  const [siteId, setSiteId] = useState('');
-  const [checkpoint, setCheckpoint] = useState<(typeof CHECKPOINTS)[number]>('BOTH');
-  const { busy, error, run } = useAction();
+  const [name, setName] = useState(terminal.name);
+  const [siteId, setSiteId] = useState(terminal.siteId);
+  const [checkpoint, setCheckpoint] = useState<(typeof CHECKPOINTS)[number]>(terminal.checkpoint);
 
-  useEffect(() => {
-    if (!terminal) return;
-    setName(terminal.name);
-    setSiteId(terminal.siteId);
-    setCheckpoint(terminal.checkpoint);
-  }, [terminal]);
+  const save = useMutation({
+    mutationFn: () =>
+      adminOrgApi.updateTerminal(terminal.id, { name: name.trim(), siteId, checkpoint }),
+    onSuccess: () => {
+      notifySuccess(tr.updated);
+      onSaved();
+    },
+  });
+  const busy = save.isPending;
+  const error = readError(save.error);
 
   function submit(ev: FormEvent) {
     ev.preventDefault();
-    if (!terminal || name.trim().length === 0) return;
-    void run(async () => {
-      await adminOrgApi.updateTerminal(terminal.id, { name: name.trim(), siteId, checkpoint });
-      await onSaved();
-    }, tr.updated);
+    if (name.trim().length > 0) save.mutate();
   }
 
   return (
-    <Dialog open={terminal !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {tr.edit}: {terminal?.name}
-          </DialogTitle>
-        </DialogHeader>
-        <form className="flex flex-col gap-4" onSubmit={submit}>
-          <FormField label={t.common.name}>
-            {(id) => (
-              <Input
-                id={id}
-                value={name}
-                onChange={(ev) => setName(ev.target.value)}
-                required
-                maxLength={200}
-              />
-            )}
-          </FormField>
-          <SelectField
-            label={t.common.site}
-            value={siteId}
-            onChange={setSiteId}
-            options={org.sites.map((s) => ({ value: s.id, label: s.name }))}
-          />
-          <SelectField
-            label={tr.checkpoint}
-            value={checkpoint}
-            onChange={(v) => setCheckpoint(v as (typeof CHECKPOINTS)[number])}
-            options={CHECKPOINTS.map((c) => ({ value: c, label: tr.checkpoints[c] }))}
-            hint={hints.terminalsCheckpoint}
-          />
-          <Feedback error={error} />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t.common.cancel}
-            </Button>
-            <Button
-              type="submit"
-              disabled={
-                busy ||
-                isBlank(name) ||
-                (terminal !== null &&
-                  isUnchanged(
-                    { name: name.trim(), siteId, checkpoint },
-                    {
-                      name: terminal.name,
-                      siteId: terminal.siteId,
-                      checkpoint: terminal.checkpoint,
-                    },
-                  ))
-              }
-            >
-              {all.ui.common.save}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          {tr.edit}: {terminal.name}
+        </DialogTitle>
+      </DialogHeader>
+      <form className="flex flex-col gap-4" onSubmit={submit}>
+        <FormField label={t.common.name}>
+          {(id) => (
+            <Input
+              id={id}
+              value={name}
+              onChange={(ev) => setName(ev.target.value)}
+              required
+              maxLength={200}
+            />
+          )}
+        </FormField>
+        <SelectField
+          label={t.common.site}
+          value={siteId}
+          onChange={setSiteId}
+          options={org.sites.map((s) => ({ value: s.id, label: s.name }))}
+        />
+        <SelectField
+          label={tr.checkpoint}
+          value={checkpoint}
+          onChange={(v) => setCheckpoint(v as (typeof CHECKPOINTS)[number])}
+          options={CHECKPOINTS.map((c) => ({ value: c, label: tr.checkpoints[c] }))}
+          hint={hints.terminalsCheckpoint}
+        />
+        <Feedback error={error} />
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {t.common.cancel}
+          </Button>
+          <Button
+            type="submit"
+            disabled={
+              busy ||
+              isBlank(name) ||
+              isUnchanged(
+                { name: name.trim(), siteId, checkpoint },
+                {
+                  name: terminal.name,
+                  siteId: terminal.siteId,
+                  checkpoint: terminal.checkpoint,
+                },
+              )
+            }
+          >
+            {all.ui.common.save}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
   );
 }

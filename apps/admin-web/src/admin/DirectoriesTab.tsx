@@ -1,17 +1,21 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import type { OrgSnapshot, WebUserView } from '@vakhta/contracts';
+import { useState, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { OrgSnapshot } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DataTable, type Column } from '@/components/app/data-table';
-import { Feedback, useAction } from '@/components/app/feedback';
+import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
 import { adminOrgApi, usersApi } from '../api.ts';
+import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { keys } from '@/lib/query';
+import { notifySuccess } from '@/lib/toast';
 import { usePersistentState } from '@/lib/ui-store';
 import { isBlank } from '@/lib/forms';
 import { AddDialog } from '@/components/app/add-dialog';
@@ -38,24 +42,52 @@ type ZoneType = (typeof ZONE_TYPES)[number];
 
 interface Props {
   readonly org: OrgSnapshot;
-  readonly onChanged: () => Promise<void>;
 }
 
 /** Enterprise directories: sites, units, teams, positions, zones (spec 9.1). */
-export function DirectoriesTab({ org, onChanged }: Props) {
-  const { busy, error, run } = useAction();
+export function DirectoriesTab({ org }: Props) {
   const [dlg, setDlg] = useState<'sites' | 'orgUnits' | 'teams' | 'positions' | 'zones' | null>(
     null,
   );
   const [editing, setEditing] = useState<DirectoryEdit | null>(null);
-  const [users, setUsers] = useState<WebUserView[]>([]);
-  useEffect(() => {
-    usersApi
-      .list()
-      .then(setUsers)
-      .catch(() => undefined);
-  }, []);
+  const users = useQuery({ queryKey: keys.users, queryFn: () => usersApi.list() }).data ?? [];
   const { confirm, dialog } = useConfirm();
+  const client = useQueryClient();
+  /** Every directory on this page lives in one snapshot, so every change re-reads that one thing. */
+  const reload = () => client.invalidateQueries({ queryKey: keys.org });
+
+  const drop = useMutation({
+    mutationFn: async (v: { kind: DirectoryEdit['kind']; id: string; reason: string }) => {
+      try {
+        await adminOrgApi.deleteDirectoryRow(KIND_PATH[v.kind], v.id, v.reason);
+      } catch (e) {
+        if (e instanceof ApiError && e.code === 'DIRECTORY_ROW_IN_USE') throw new Error(d.inUse);
+        throw e;
+      }
+    },
+    onSuccess: async () => {
+      notifySuccess(d.deleted);
+      await reload();
+    },
+  });
+
+  /**
+   * `what` names the thing that was created — "Запис додано" over a list that looks unchanged says
+   * nothing about which of the six directories on this page just gained a row.
+   */
+  const add = useMutation({
+    mutationFn: (v: { action: () => Promise<unknown>; reset: () => void; what: string }) =>
+      v.action(),
+    onSuccess: async (_result, v) => {
+      notifySuccess(format(t.common.addedNamed, { what: v.what }));
+      v.reset();
+      setDlg(null);
+      await reload();
+    },
+  });
+
+  const busy = drop.isPending || add.isPending;
+  const error = readError(drop.error ?? add.error);
 
   async function remove(kind: DirectoryEdit['kind'], id: string, name: string) {
     const reason = await confirm({
@@ -67,15 +99,7 @@ export function DirectoriesTab({ org, onChanged }: Props) {
       destructive: true,
     });
     if (!reason) return;
-    void run(async () => {
-      try {
-        await adminOrgApi.deleteDirectoryRow(KIND_PATH[kind], id, reason);
-      } catch (e) {
-        if (e instanceof ApiError && e.code === 'DIRECTORY_ROW_IN_USE') throw new Error(d.inUse);
-        throw e;
-      }
-      await onChanged();
-    }, d.deleted);
+    drop.mutate({ kind, id, reason });
   }
 
   const rowMenu = (
@@ -131,21 +155,9 @@ export function DirectoriesTab({ org, onChanged }: Props) {
   const unitName = (id: string | null) =>
     id ? (org.orgUnits.find((u) => u.id === id)?.name ?? id) : '—';
 
-  /**
-   * `what` names the thing that was created — "Запис додано" over a list that looks unchanged says
-   * nothing about which of the six directories on this page just gained a row.
-   */
   function submit(ev: FormEvent, action: () => Promise<unknown>, reset: () => void, what: string) {
     ev.preventDefault();
-    void run(
-      async () => {
-        await action();
-        await onChanged();
-        reset();
-        setDlg(null);
-      },
-      format(t.common.addedNamed, { what }),
-    );
+    add.mutate({ action, reset, what });
   }
 
   const siteColumns: Column<OrgSnapshot['sites'][number]>[] = [
@@ -647,9 +659,9 @@ export function DirectoriesTab({ org, onChanged }: Props) {
         org={org}
         users={users}
         onClose={() => setEditing(null)}
-        onSaved={async () => {
+        onSaved={() => {
           setEditing(null);
-          await onChanged();
+          void reload();
         }}
       />
       {dialog}

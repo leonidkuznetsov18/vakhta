@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isBlank } from '@/lib/forms';
 import type { OrgSnapshot, WebUserView } from '@vakhta/contracts';
 import { SCOPE_TYPES, WEB_ROLES, type ScopeType, type WebRole } from '@vakhta/domain';
@@ -8,12 +9,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DataTable, type Column } from '@/components/app/data-table';
-import { Feedback, useAction } from '@/components/app/feedback';
+import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
 import { ApiError, usersApi } from '../api.ts';
+import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { keys } from '@/lib/query';
+import { notifySuccess } from '@/lib/toast';
 import { usePersistentState } from '@/lib/ui-store';
 import { AddDialog } from '@/components/app/add-dialog';
 import { useConfirm } from '@/components/app/confirm-dialog';
@@ -52,7 +56,6 @@ function scopeOptions(
 
 /** Panel accounts and scoped roles (spec 2: the administrator manages permissions). */
 export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
-  const [list, setList] = useState<WebUserView[]>([]);
   const [email, setEmail] = usePersistentState('users.email', '');
   const [name, setName] = usePersistentState('users.name', '');
   const [password, setPassword] = useState('');
@@ -63,66 +66,108 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
   const [role, setRole] = useState<WebRole>('SHIFT_MASTER');
   const [scopeType, setScopeType] = useState<ScopeType>('ENTERPRISE');
   const [scopeId, setScopeId] = useState('');
-  const { busy, error, run } = useAction();
-
-  useEffect(() => {
-    void run(async () => setList(await usersApi.list()));
-  }, [run]);
-
-  function replace(updated: WebUserView) {
-    setList((l) => l.map((x) => (x.id === updated.id ? updated : x)));
-  }
-
-  function create(ev: FormEvent) {
-    ev.preventDefault();
-    const checked = validateWith(CreateWebUserCommand, { email, name, password, roles: [] });
-    setFieldErrors(checked.errors);
-    if (!checked.ok) return;
-    void run(async () => {
-      const created = await usersApi.create(checked.data);
-      setList((l) => [created, ...l]);
-      setIssued({ email: created.email, password });
-      setEmail('');
-      setName('');
-      setPassword('');
-      setCreating(false);
-    }, t.common.added);
-  }
-
-  function grant(ev: FormEvent, user: WebUserView) {
-    ev.preventDefault();
-    const old = replacing;
-    void run(
-      async () => {
-        const g = await usersApi.grant(user.id, {
-          role,
-          scopeType,
-          ...(scopeType === 'ENTERPRISE' ? {} : { scopeId }),
-        });
-        let roles = [...user.roles, g];
-        if (old) {
-          await usersApi.revoke(user.id, old);
-          roles = roles.filter((x) => x.id !== old);
-        }
-        replace({ ...user, roles });
-        setReplacing(null);
-      },
-      old ? u.roleReplaced : u.granted,
-    );
-  }
-
-  function revoke(user: WebUserView, grantId: string) {
-    void run(async () => {
-      await usersApi.revoke(user.id, grantId);
-      replace({ ...user, roles: user.roles.filter((g) => g.id !== grantId) });
-    }, u.revoked);
-  }
-
   /** "Replace" on a role: the grant form is prefilled; submitting grants the new one and revokes the old. */
   const [replacing, setReplacing] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
   const { roles: myRoles } = useNavigation();
   const { confirm, dialog } = useConfirm();
+
+  const client = useQueryClient();
+  const users = useQuery({ queryKey: keys.users, queryFn: () => usersApi.list() });
+  const list = users.data ?? [];
+  /** Accounts and their grants are one list on the server; every change re-reads it. */
+  const reload = () => client.invalidateQueries({ queryKey: keys.users });
+
+  const add = useMutation({
+    mutationFn: (cmd: CreateWebUserCommand) => usersApi.create(cmd),
+    onSuccess: async (created) => {
+      notifySuccess(t.common.added);
+      setIssued({ email: created.email, password });
+      setEmail('');
+      setName('');
+      setPassword('');
+      setCreating(false);
+      await reload();
+    },
+  });
+
+  /** Replacing a role is granting the new one and revoking the old, in that order: never nothing. */
+  const grantRole = useMutation({
+    mutationFn: async (v: { user: WebUserView; replaces: string | null }) => {
+      await usersApi.grant(v.user.id, {
+        role,
+        scopeType,
+        ...(scopeType === 'ENTERPRISE' ? {} : { scopeId }),
+      });
+      if (v.replaces) await usersApi.revoke(v.user.id, v.replaces);
+    },
+    onSuccess: async (_result, v) => {
+      notifySuccess(v.replaces ? u.roleReplaced : u.granted);
+      setReplacing(null);
+      await reload();
+    },
+  });
+
+  const revokeRole = useMutation({
+    mutationFn: (v: { user: WebUserView; grantId: string }) =>
+      usersApi.revoke(v.user.id, v.grantId),
+    onSuccess: async () => {
+      notifySuccess(u.revoked);
+      await reload();
+    },
+  });
+
+  const rename = useMutation({
+    mutationFn: (v: { user: WebUserView; cmd: UpdateWebUserCommand }) =>
+      usersApi.update(v.user.id, v.cmd),
+    onSuccess: async () => {
+      notifySuccess(u.nameSaved);
+      await reload();
+    },
+  });
+
+  const drop = useMutation({
+    mutationFn: async (user: WebUserView) => {
+      try {
+        await usersApi.remove(user.id);
+      } catch (err) {
+        if (err instanceof ApiError && err.code === 'SELF_DELETE') throw new Error(u.selfDelete);
+        if (err instanceof ApiError && err.code === 'LAST_ADMIN') throw new Error(u.lastAdmin);
+        throw err;
+      }
+    },
+    onSuccess: async () => {
+      notifySuccess(u.deleted);
+      setGrantFor(null);
+      await reload();
+    },
+  });
+
+  const busy =
+    add.isPending ||
+    grantRole.isPending ||
+    revokeRole.isPending ||
+    rename.isPending ||
+    drop.isPending;
+  const error = readError(
+    users.error ?? add.error ?? grantRole.error ?? revokeRole.error ?? rename.error ?? drop.error,
+  );
+
+  function create(ev: FormEvent) {
+    ev.preventDefault();
+    const checked = validateWith(CreateWebUserCommand, { email, name, password, roles: [] });
+    setFieldErrors(checked.errors);
+    if (checked.ok) add.mutate(checked.data);
+  }
+
+  function grant(ev: FormEvent, user: WebUserView) {
+    ev.preventDefault();
+    grantRole.mutate({ user, replaces: replacing });
+  }
+
+  function revoke(user: WebUserView, grantId: string) {
+    revokeRole.mutate({ user, grantId });
+  }
 
   function startReplace(user: WebUserView, grantId: string) {
     const g = user.roles.find((x) => x.id === grantId);
@@ -138,8 +183,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
     ev.preventDefault();
     const checked = validateWith(UpdateWebUserCommand, { name: draftName });
     setFieldErrors(checked.errors);
-    if (!checked.ok) return;
-    void run(async () => replace(await usersApi.update(user.id, checked.data)), u.nameSaved);
+    if (checked.ok) rename.mutate({ user, cmd: checked.data });
   }
 
   async function removeUser(user: WebUserView) {
@@ -150,17 +194,7 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
       destructive: true,
     });
     if (ok === false) return;
-    void run(async () => {
-      try {
-        await usersApi.remove(user.id);
-      } catch (err) {
-        if (err instanceof ApiError && err.code === 'SELF_DELETE') throw new Error(u.selfDelete);
-        if (err instanceof ApiError && err.code === 'LAST_ADMIN') throw new Error(u.lastAdmin);
-        throw err;
-      }
-      setList((l) => l.filter((x) => x.id !== user.id));
-      setGrantFor(null);
-    }, u.deleted);
+    drop.mutate(user);
   }
 
   const scopeName = (type: ScopeType, id: string | null) =>

@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { isBlank, isUnchanged } from '@/lib/forms';
 import type { OrgSnapshot, WebUserView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
@@ -13,10 +14,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Feedback, useAction } from '@/components/app/feedback';
+import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { adminOrgApi } from '../api.ts';
+import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
+import { notifySuccess } from '@/lib/toast';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
@@ -30,49 +33,56 @@ export type DirectoryEdit =
   | { kind: 'positions'; row: OrgSnapshot['positions'][number] }
   | { kind: 'zones'; row: OrgSnapshot['zones'][number] };
 
-/** One dialog for the five directories: the fields depend on the kind of row being edited. */
+interface FormProps {
+  readonly edit: DirectoryEdit;
+  readonly org: OrgSnapshot;
+  readonly users: readonly WebUserView[];
+  readonly onClose: () => void;
+  readonly onSaved: () => void;
+}
+
+/**
+ * One dialog for the five directories: the fields depend on the kind of row being edited. The
+ * form is mounted under the row's own key, so opening another row starts a form of its own
+ * instead of a stale draft being written over field by field.
+ */
 export function EditDirectoryDialog({
   edit,
-  org,
-  users,
-  onClose,
-  onSaved,
+  ...rest
 }: {
   readonly edit: DirectoryEdit | null;
   readonly org: OrgSnapshot;
   readonly users: readonly WebUserView[];
   readonly onClose: () => void;
-  readonly onSaved: () => Promise<void>;
+  readonly onSaved: () => void;
 }) {
-  const { busy, error, run } = useAction();
-  const [name, setName] = useState('');
-  const [timezone, setTimezone] = useState('');
-  const [parentId, setParentId] = useState('');
-  const [masterUserId, setMasterUserId] = useState('');
-  const [orgUnitId, setOrgUnitId] = useState('');
-  const [type, setType] = useState<(typeof ZONE_TYPES)[number]>('AREA');
-  const [isShared, setIsShared] = useState(false);
-  const [isActive, setIsActive] = useState(true);
+  return (
+    <Dialog open={edit !== null} onOpenChange={(open) => !open && rest.onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        {edit && <DirectoryForm key={`${edit.kind}:${edit.row.id}`} edit={edit} {...rest} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-  useEffect(() => {
-    if (!edit) return;
-    setName(edit.row.name);
-    if (edit.kind === 'sites') setTimezone(edit.row.timezone);
-    if (edit.kind === 'orgUnits') {
-      setParentId(edit.row.parentId ?? '');
-      setMasterUserId(edit.row.masters[0]?.id ?? '');
-    }
-    if (edit.kind === 'teams') setOrgUnitId(edit.row.orgUnitId);
-    if (edit.kind === 'zones') {
-      setType(edit.row.type);
-      setIsShared(edit.row.isShared);
-      setIsActive(edit.row.isActive);
-    }
-  }, [edit]);
+function DirectoryForm({ edit, org, users, onClose, onSaved }: FormProps) {
+  const [name, setName] = useState(edit.row.name);
+  const [timezone, setTimezone] = useState(edit.kind === 'sites' ? edit.row.timezone : '');
+  const [parentId, setParentId] = useState(
+    edit.kind === 'orgUnits' ? (edit.row.parentId ?? '') : '',
+  );
+  const [masterUserId, setMasterUserId] = useState(
+    edit.kind === 'orgUnits' ? (edit.row.masters[0]?.id ?? '') : '',
+  );
+  const [orgUnitId, setOrgUnitId] = useState(edit.kind === 'teams' ? edit.row.orgUnitId : '');
+  const [type, setType] = useState<(typeof ZONE_TYPES)[number]>(
+    edit.kind === 'zones' ? edit.row.type : 'AREA',
+  );
+  const [isShared, setIsShared] = useState(edit.kind === 'zones' ? edit.row.isShared : false);
+  const [isActive, setIsActive] = useState(edit.kind === 'zones' ? edit.row.isActive : true);
 
   /** The draft equals the record on screen: nothing to save. */
   const unchanged = (() => {
-    if (!edit) return true;
     if (isBlank(name)) return true;
     switch (edit.kind) {
       case 'sites':
@@ -109,145 +119,144 @@ export function EditDirectoryDialog({
     }
   })();
 
-  function submit(ev: FormEvent) {
-    ev.preventDefault();
-    if (!edit) return;
-    void run(async () => {
+  const save = useMutation({
+    mutationFn: async () => {
       switch (edit.kind) {
         case 'sites':
-          await adminOrgApi.updateSite(edit.row.id, { name, timezone });
-          break;
+          return adminOrgApi.updateSite(edit.row.id, { name, timezone });
         case 'orgUnits':
-          await adminOrgApi.updateOrgUnit(edit.row.id, {
+          return adminOrgApi.updateOrgUnit(edit.row.id, {
             name,
             parentId: parentId || null,
             masterUserId: masterUserId || null,
           });
-          break;
         case 'teams':
-          await adminOrgApi.updateTeam(edit.row.id, { name, orgUnitId });
-          break;
+          return adminOrgApi.updateTeam(edit.row.id, { name, orgUnitId });
         case 'positions':
-          await adminOrgApi.updatePosition(edit.row.id, { name });
-          break;
+          return adminOrgApi.updatePosition(edit.row.id, { name });
         case 'zones':
-          await adminOrgApi.updateZone(edit.row.id, { name, type, isShared, isActive });
-          break;
+          return adminOrgApi.updateZone(edit.row.id, { name, type, isShared, isActive });
       }
-      await onSaved();
-    }, d.updated);
+    },
+    onSuccess: () => {
+      notifySuccess(d.updated);
+      onSaved();
+    },
+  });
+  const busy = save.isPending;
+  const error = readError(save.error);
+
+  function submit(ev: FormEvent) {
+    ev.preventDefault();
+    save.mutate();
   }
 
-  const title = edit
-    ? {
-        sites: d.sites,
-        orgUnits: d.orgUnits,
-        teams: d.teams,
-        positions: d.positions,
-        zones: d.zones,
-      }[edit.kind]
-    : '';
+  const title = {
+    sites: d.sites,
+    orgUnits: d.orgUnits,
+    teams: d.teams,
+    positions: d.positions,
+    zones: d.zones,
+  }[edit.kind];
 
   return (
-    <Dialog open={edit !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {d.edit}: {title} · {edit?.row.name}
-          </DialogTitle>
-        </DialogHeader>
-        <form className="flex flex-col gap-4" onSubmit={submit}>
-          <FormField label={t.common.name}>
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          {d.edit}: {title} · {edit.row.name}
+        </DialogTitle>
+      </DialogHeader>
+      <form className="flex flex-col gap-4" onSubmit={submit}>
+        <FormField label={t.common.name}>
+          {(id) => (
+            <Input
+              id={id}
+              value={name}
+              onChange={(ev) => setName(ev.target.value)}
+              required
+              maxLength={200}
+            />
+          )}
+        </FormField>
+        {edit.kind === 'sites' && (
+          <FormField label={d.timezone} hint={all.ui.hints.directoriesTimezone}>
             {(id) => (
               <Input
                 id={id}
-                value={name}
-                onChange={(ev) => setName(ev.target.value)}
+                value={timezone}
+                onChange={(ev) => setTimezone(ev.target.value)}
                 required
-                maxLength={200}
               />
             )}
           </FormField>
-          {edit?.kind === 'sites' && (
-            <FormField label={d.timezone} hint={all.ui.hints.directoriesTimezone}>
-              {(id) => (
-                <Input
-                  id={id}
-                  value={timezone}
-                  onChange={(ev) => setTimezone(ev.target.value)}
-                  required
-                />
-              )}
-            </FormField>
-          )}
-          {edit?.kind === 'orgUnits' && (
-            <>
-              <SelectField
-                label={d.parent}
-                value={parentId}
-                onChange={setParentId}
-                placeholder={t.common.none}
-                options={org.orgUnits
-                  .filter((u) => u.siteId === edit.row.siteId && u.id !== edit.row.id)
-                  .map((u) => ({ value: u.id, label: u.name }))}
-              />
-              <SelectField
-                label={d.unitMaster}
-                hint={d.noMasterNotice}
-                value={masterUserId}
-                onChange={setMasterUserId}
-                placeholder={t.common.none}
-                options={users.map((u) => ({ value: u.id, label: u.name || u.email }))}
-              />
-            </>
-          )}
-          {edit?.kind === 'teams' && (
+        )}
+        {edit.kind === 'orgUnits' && (
+          <>
             <SelectField
-              label={t.common.orgUnit}
-              value={orgUnitId}
-              onChange={setOrgUnitId}
-              required
-              options={org.orgUnits.map((u) => ({ value: u.id, label: u.name }))}
+              label={d.parent}
+              value={parentId}
+              onChange={setParentId}
+              placeholder={t.common.none}
+              options={org.orgUnits
+                .filter((u) => u.siteId === edit.row.siteId && u.id !== edit.row.id)
+                .map((u) => ({ value: u.id, label: u.name }))}
             />
-          )}
-          {edit?.kind === 'zones' && (
-            <>
-              <SelectField
-                label={d.type}
-                value={type}
-                onChange={(v) => setType(v as (typeof ZONE_TYPES)[number])}
-                options={ZONE_TYPES.map((zt) => ({ value: zt, label: d.zoneTypes[zt] }))}
-                hint={all.ui.hints.directoriesZoneType}
+            <SelectField
+              label={d.unitMaster}
+              hint={d.noMasterNotice}
+              value={masterUserId}
+              onChange={setMasterUserId}
+              placeholder={t.common.none}
+              options={users.map((u) => ({ value: u.id, label: u.name || u.email }))}
+            />
+          </>
+        )}
+        {edit.kind === 'teams' && (
+          <SelectField
+            label={t.common.orgUnit}
+            value={orgUnitId}
+            onChange={setOrgUnitId}
+            required
+            options={org.orgUnits.map((u) => ({ value: u.id, label: u.name }))}
+          />
+        )}
+        {edit.kind === 'zones' && (
+          <>
+            <SelectField
+              label={d.type}
+              value={type}
+              onChange={(v) => setType(v as (typeof ZONE_TYPES)[number])}
+              options={ZONE_TYPES.map((zt) => ({ value: zt, label: d.zoneTypes[zt] }))}
+              hint={all.ui.hints.directoriesZoneType}
+            />
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="edit-zone-shared"
+                checked={isShared}
+                onCheckedChange={(v) => setIsShared(v === true)}
               />
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="edit-zone-shared"
-                  checked={isShared}
-                  onCheckedChange={(v) => setIsShared(v === true)}
-                />
-                <Label htmlFor="edit-zone-shared">{d.shared}</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="edit-zone-active"
-                  checked={isActive}
-                  onCheckedChange={(v) => setIsActive(v === true)}
-                />
-                <Label htmlFor="edit-zone-active">{d.active}</Label>
-              </div>
-            </>
-          )}
-          <Feedback error={error} />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              {t.common.cancel}
-            </Button>
-            <Button type="submit" disabled={busy || unchanged}>
-              {all.ui.common.save}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+              <Label htmlFor="edit-zone-shared">{d.shared}</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="edit-zone-active"
+                checked={isActive}
+                onCheckedChange={(v) => setIsActive(v === true)}
+              />
+              <Label htmlFor="edit-zone-active">{d.active}</Label>
+            </div>
+          </>
+        )}
+        <Feedback error={error} />
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {t.common.cancel}
+          </Button>
+          <Button type="submit" disabled={busy || unchanged}>
+            {all.ui.common.save}
+          </Button>
+        </DialogFooter>
+      </form>
+    </>
   );
 }
