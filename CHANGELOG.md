@@ -1,3 +1,9 @@
+## [0.70.5](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.4...v0.70.5) (2026-09-10)
+
+### Bug fixes
+
+* **ci:** deploy Pages with an isolated pinned Wrangler CLI ([a5ee2e5](https://github.com/leonidkuznetsov18/vakhta/commit/a5ee2e59378ee2e518965de366e05377512d49a4))
+
 ## [0.70.4](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.3...v0.70.4) (2026-09-10)
 
 ### Bug fixes
