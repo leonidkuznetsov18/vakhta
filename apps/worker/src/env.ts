@@ -1,3 +1,4 @@
+import { SHIFT_REMINDER_LEAD_MINUTES } from '@vakhta/domain';
 import { z } from 'zod';
 
 const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
@@ -13,7 +14,7 @@ export const WorkerEnvSchema = z.object({
   OUTBOX_BATCH: z.coerce.number().int().min(1).max(200).default(20),
   OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().min(1).default(10),
   /** Legacy recovery fallback only; new timer payloads retain the source configuration. */
-  SHIFT_REMINDER_MINUTES: z.coerce.number().int().positive().default(120),
+  SHIFT_REMINDER_MINUTES: z.coerce.number().int().positive().default(SHIFT_REMINDER_LEAD_MINUTES),
   ACK_REMINDER_HOURS: z.coerce.number().int().positive().default(24),
   BREAK_MINUTES: z.coerce.number().int().positive().default(15),
   MEAL_MINUTES: z.coerce.number().int().positive().default(60),

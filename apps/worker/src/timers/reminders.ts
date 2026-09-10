@@ -1,3 +1,4 @@
+import { readShiftReminder } from './shift-reminder-policy.js';
 import { timerNow } from './time.js';
 import {
   and,
@@ -6,16 +7,12 @@ import {
   isNull,
   gt,
   notificationOutbox,
-  responsibilityZones,
   scheduleVersions,
   shiftAssignments,
-  shiftTemplates,
-  sites,
   employeeLocale,
   type Database,
   type Transaction,
 } from '@vakhta/db';
-import { formatLocal } from '@vakhta/domain';
 import type { AckReminderJob, ShiftReminderJob } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 
@@ -48,44 +45,18 @@ export async function handleShiftReminderWithin(
   const now = await timerNow(db, testTime);
   if (new Date(data.fireAt) > now) return 'stale';
 
-  const [row] = await db
-    .select({
-      a: shiftAssignments,
-      isNight: shiftTemplates.isNight,
-      timezone: sites.timezone,
-      zoneName: responsibilityZones.name,
-    })
-    .from(shiftAssignments)
-    .innerJoin(scheduleVersions, eq(shiftAssignments.scheduleVersionId, scheduleVersions.id))
-    .innerJoin(shiftTemplates, eq(shiftAssignments.templateId, shiftTemplates.id))
-    .innerJoin(sites, eq(scheduleVersions.siteId, sites.id))
-    .leftJoin(responsibilityZones, eq(shiftAssignments.zoneId, responsibilityZones.id))
-    .where(
-      and(
-        eq(shiftAssignments.id, data.assignmentId),
-        eq(shiftAssignments.status, 'PLANNED'),
-        eq(scheduleVersions.status, 'PUBLISHED'),
-      ),
-    )
-    .limit(1);
-  if (!row || row.a.planStartAt.getTime() <= now.getTime()) return 'stale';
+  const reminder = await readShiftReminder(db, data.assignmentId, now);
+  if (!reminder) return 'stale';
 
-  const local = formatLocal(row.a.planStartAt, row.timezone).local;
-  const t = messages(await employeeLocale(db, row.a.employeeId));
-  const text = format(t.schedule.shiftReminder, {
-    kind: t.schedule.kindNames[row.isNight ? 'NIGHT' : 'DAY'],
-    date: `${local.slice(8, 10)}.${local.slice(5, 7)}`,
-    start: local.slice(11, 16),
-    zone: row.zoneName ? ` · ${row.zoneName}` : '',
-  });
   const inserted = await db
     .insert(notificationOutbox)
     .values({
       recipientType: 'EMPLOYEE',
-      recipientId: row.a.employeeId,
+      recipientId: reminder.employeeId,
       template: 'SHIFT_REMINDER',
-      payload: { text },
-      dedupeKey: `shift-reminder:${row.a.id}`,
+      payload: reminder.payload,
+      nextAttemptAt: new Date(Math.max(now.getTime(), reminder.sendAt.getTime())),
+      dedupeKey: `shift-reminder:${data.assignmentId}`,
     })
     .onConflictDoNothing({ target: notificationOutbox.dedupeKey })
     .returning({ id: notificationOutbox.id });

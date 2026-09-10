@@ -18,6 +18,9 @@ export type ShiftKind = (typeof SHIFT_KINDS)[number];
 export const ASSIGNMENT_STATUSES = ['PLANNED', 'CANCELLED', 'REPLACED'] as const;
 export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number];
 
+/** Worker-facing shift reminders must not disturb employees earlier than this window. */
+export const SHIFT_REMINDER_LEAD_MINUTES = 30;
+
 /** Мінімум, який потрібен правилам валідації і календарю. */
 export interface PlannedShift {
   readonly id: string;

@@ -55,7 +55,7 @@ if (sender) {
     relayBusy = true;
     relayOnce(db, sender, { batch: env.OUTBOX_BATCH, maxAttempts: env.OUTBOX_MAX_ATTEMPTS })
       .then((r) => {
-        if (r.sent || r.skipped || r.failed || r.retried) logger.info(r, 'outbox');
+        if (r.sent || r.skipped || r.failed || r.retried || r.deferred) logger.info(r, 'outbox');
       })
       .catch((err: unknown) => {
         logger.error({ err }, 'outbox relay');

@@ -10,6 +10,9 @@ import {
   type Database,
 } from '@vakhta/db';
 import type { NotificationPayload } from '@vakhta/domain';
+import { ShiftReminderJob } from '@vakhta/contracts';
+import { readShiftReminder } from '../timers/shift-reminder-policy.js';
+import { timerNow } from '../timers/time.js';
 
 /** Помилка доставки з рішенням: повторити пізніше або відкласти назавжди. */
 export class SendError extends Error {
@@ -78,6 +81,7 @@ export interface RelayResult {
   skipped: number;
   failed: number;
   retried: number;
+  deferred: number;
 }
 
 /** Експоненційна затримка: 30 с, 60 с, 120 с … не більше години. */
@@ -99,7 +103,7 @@ export async function relayOnce(
   const now = options.now ?? (() => new Date());
   // Без явного годинника «зараз» береться з бази: годинники застосунку і Postgres можуть розходитись.
   const dueBefore = options.now ? now() : sql`now()`;
-  const result: RelayResult = { sent: 0, skipped: 0, failed: 0, retried: 0 };
+  const result: RelayResult = { sent: 0, skipped: 0, failed: 0, retried: 0, deferred: 0 };
 
   await db.transaction(async (tx) => {
     const rows = await tx
@@ -143,8 +147,32 @@ export async function relayOnce(
         continue;
       }
 
+      let payload = row.payload;
+      if (row.template === 'SHIFT_REMINDER') {
+        const prefix = 'shift-reminder:';
+        const id = ShiftReminderJob.shape.assignmentId.safeParse(
+          row.dedupeKey.startsWith(prefix) ? row.dedupeKey.slice(prefix.length) : null,
+        );
+        const deliveryTime = await timerNow(tx, options.now?.());
+        const reminder = id.success ? await readShiftReminder(tx, id.data, deliveryTime) : null;
+        if (!reminder || reminder.employeeId !== row.recipientId) {
+          await skip('Shift reminder is no longer applicable');
+          continue;
+        }
+        // Old timers/outbox entries may predate the 30-minute policy. Defer without using a retry.
+        if (reminder.sendAt > deliveryTime) {
+          await tx
+            .update(notificationOutbox)
+            .set({ nextAttemptAt: reminder.sendAt })
+            .where(eq(notificationOutbox.id, row.id));
+          result.deferred += 1;
+          continue;
+        }
+        payload = reminder.payload;
+      }
+
       try {
-        const { messageId } = await sender.send(link.telegramUserId, row.payload);
+        const { messageId } = await sender.send(link.telegramUserId, payload);
         await tx
           .update(notificationOutbox)
           .set({
@@ -153,6 +181,7 @@ export async function relayOnce(
             telegramMessageId: messageId,
             attempts: row.attempts + 1,
             lastError: null,
+            payload,
           })
           .where(eq(notificationOutbox.id, row.id));
         result.sent += 1;

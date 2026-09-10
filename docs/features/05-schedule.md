@@ -36,4 +36,12 @@ of versions next to it, so a month with dozens of versions stays readable.
 - "Проверка" lists validation issues with their details labelled in the interface language (for
   example "отдых, мин: 300").
 
-Employees see their plan in the bot under "Мой план" and get reminders before a shift.
+Employees see their plan in the bot under "Мой план". Shift reminders are scheduled 30 minutes before
+the published assignment starts, in the site's timezone (06:30 start → 06:00 reminder). Delivery
+rechecks the current plan and approved absences: vacation, sick leave and day off covering the shift's
+business date suppress the reminder. Pending/rejected absence requests do not suppress it. Cancelled
+or replaced assignments, superseded schedules, inactive employees and already started shifts do not
+receive a start reminder. This does not change schedule-publication or acknowledgement messages.
+
+See [shift reminder delivery](../engineering/features/shift-reminders.md) for queued-message handling
+and verification evidence.

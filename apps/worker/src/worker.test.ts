@@ -90,7 +90,7 @@ describe('worker: релей аутбоксу і нагадування (ADR-8, 
     await enqueue(unlinkedEmployeeId, 'n2');
     const sender = new FakeSender();
     const result = await relayOnce(testDb.db, sender);
-    expect(result).toEqual({ sent: 1, skipped: 1, failed: 0, retried: 0 });
+    expect(result).toEqual({ sent: 1, skipped: 1, failed: 0, retried: 0, deferred: 0 });
     expect(sender.sent[0]?.chatId).toBe(777);
     expect(sender.sent[0]?.payload.buttons?.[0]?.[0]?.callbackData).toBe('ack:x');
 
@@ -108,6 +108,7 @@ describe('worker: релей аутбоксу і нагадування (ADR-8, 
       skipped: 0,
       failed: 0,
       retried: 0,
+      deferred: 0,
     });
   });
 
@@ -129,6 +130,7 @@ describe('worker: релей аутбоксу і нагадування (ADR-8, 
     // До настання nextAttemptAt рядок не береться.
     expect(await relayOnce(testDb.db, sender, { maxAttempts: 2, now: () => t0 })).toMatchObject({
       retried: 0,
+      deferred: 0,
     });
     const later = new Date(t0.getTime() + 3600_000);
     expect(await relayOnce(testDb.db, sender, { maxAttempts: 2, now: () => later })).toMatchObject({

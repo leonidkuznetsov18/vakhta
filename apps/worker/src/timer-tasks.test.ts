@@ -332,8 +332,13 @@ describe('durable timers and legacy recovery', () => {
       .from(backgroundTasks)
       .where(eq(backgroundTasks.kind, 'ACK_REMINDER'));
     expect(ack?.dueAt.getTime()).toBe(publishedAt.getTime() + 24 * 3_600_000);
-    expect((await dispatchTimerTasks(testDb.db)).completed).toBe(2);
-    expect(await testDb.db.select().from(notificationOutbox)).toHaveLength(2);
+    const [shift] = await testDb.db
+      .select()
+      .from(backgroundTasks)
+      .where(eq(backgroundTasks.kind, 'SHIFT_REMINDER'));
+    expect(shift?.dueAt.getTime()).toBeGreaterThan(Date.now() + 29 * 60_000);
+    expect((await dispatchTimerTasks(testDb.db)).completed).toBe(1);
+    expect(await testDb.db.select().from(notificationOutbox)).toHaveLength(1);
   });
 
   it('repairs null-zone legacy timeout and leaves an existing sent notice unchanged', async () => {

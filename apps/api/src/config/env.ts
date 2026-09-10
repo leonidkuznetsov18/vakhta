@@ -1,3 +1,4 @@
+import { SHIFT_REMINDER_LEAD_MINUTES } from '@vakhta/domain';
 import { z } from 'zod';
 
 const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
@@ -53,8 +54,8 @@ export const EnvSchema = z.object({
   ACTIVATION_PEPPER: z.string().min(16),
   ACTIVATION_TTL_HOURS: z.coerce.number().int().positive().default(72),
   ACTIVATION_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
-  /** Нагадування «зміна скоро» (ТЗ 10): за 2 години. */
-  SHIFT_REMINDER_MINUTES: z.coerce.number().int().positive().default(120),
+  /** Schedule reminders 30 minutes before the planned start. */
+  SHIFT_REMINDER_MINUTES: z.coerce.number().int().positive().default(SHIFT_REMINDER_LEAD_MINUTES),
   /** Повторне нагадування про ознайомлення (ТЗ 10). */
   ACK_REMINDER_HOURS: z.coerce.number().int().positive().default(24),
   /** Вікна приходу і відходу відносно планової зміни (ТЗ 18 п. 4). */

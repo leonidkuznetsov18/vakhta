@@ -25,11 +25,11 @@ import {
   type Database,
   type SQL,
 } from '@vakhta/db';
-import { OPEN_INCIDENT_STATUSES } from '@vakhta/domain';
+import { OPEN_INCIDENT_STATUSES, SHIFT_REMINDER_LEAD_MINUTES } from '@vakhta/domain';
 
 export const TimerRecoveryOptions = z.object({
   limit: z.number().int().min(1).max(100).default(100),
-  shiftReminderMinutes: z.number().int().positive().default(120),
+  shiftReminderMinutes: z.number().int().positive().default(SHIFT_REMINDER_LEAD_MINUTES),
   ackReminderHours: z.number().int().positive().default(24),
   breakMinutes: z.number().int().positive().default(15),
   mealMinutes: z.number().int().positive().default(60),

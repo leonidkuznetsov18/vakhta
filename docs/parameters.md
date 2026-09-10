@@ -64,7 +64,7 @@
 
 Команда затверджує від імені замовника такі артефакти. Кожен має версію або seed, тож зміна після фідбеку буде явною.
 
-- Правила графіка: відпочинок між змінами 660 хв, до 200 годин на місяць, до 4 змін поспіль, нагадування про зміну за 120 хв, нагадування про ознайомлення через 24 год. Ключі `SCHEDULE_*`, `SHIFT_REMINDER_MINUTES`, `ACK_REMINDER_HOURS`.
+- Schedule rules: 660 minutes of rest, 200 monthly hours, up to 4 consecutive shifts. Shift reminders default to 30 minutes before start and suppress approved absences; acknowledgement reminders remain at 24 hours. Keys: `SCHEDULE_*`, `SHIFT_REMINDER_MINUTES`, `ACK_REMINDER_HOURS`.
 - Зони і посади: seed, п. 6.
 - Чек-лист передачі: 8 пунктів ТЗ 5.6 (поверхні, залишки, сміття, інструмент, підлога, проходи, течі й пошкодження, повідомлення наступній зміні), версія 1 у `checklist_definitions`.
 - Причини: довідник `reason_codes` із seed для простоїв, екстрених ситуацій, корекцій, зауважень передачі й коригувань бонусу.
