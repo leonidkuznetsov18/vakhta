@@ -183,7 +183,7 @@ export function ScheduleGrid({
               {/* The month is wider than any screen, so what a planner needs at all times — the
                   totals and the row's own actions — rides along the right edge instead of waiting
                   at the end of a horizontal scroll. */}
-              <TableHead className="sticky right-0 z-20 bg-background/85 text-right backdrop-blur-sm">
+              <TableHead className="md:sticky right-0 z-20 bg-background/85 text-right backdrop-blur-sm">
                 <span className="inline-flex items-center gap-1 whitespace-nowrap">
                   {s.shifts} / {s.hours}
                   <InfoTip text={t.ui.hints.scheduleKeyboard} />
@@ -203,7 +203,9 @@ export function ScheduleGrid({
               return (
                 <TableRow key={row.employeeId} className="group/row">
                   <TableCell className="sticky left-0 z-10 bg-background">
-                    <div className="font-medium">{emp?.fullName ?? row.employeeId}</div>
+                    <div className="max-md:w-28 max-md:whitespace-normal max-md:[overflow-wrap:anywhere] font-medium">
+                      {emp?.fullName ?? row.employeeId}
+                    </div>
                     <Muted>{emp?.personnelNumber}</Muted>
                   </TableCell>
                   <TableCell>
@@ -248,7 +250,7 @@ export function ScheduleGrid({
                           aria-label={`${emp?.fullName ?? ''} ${d}`}
                           data-cell={`${rowIndex}:${dayIndex}`}
                           onKeyDown={(ev) => onCellKey(ev, rowIndex, dayIndex)}
-                          className="h-7 w-9 rounded-md border border-transparent bg-transparent text-center text-sm text-inherit transition-colors hover:border-border focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-70"
+                          className="max-md:h-10 max-md:w-10 max-md:text-base h-7 w-9 rounded-md border border-transparent bg-transparent text-center text-sm text-inherit transition-colors hover:border-border focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-70"
                         >
                           <option value="">{dayKind.OFF}</option>
                           {templates.map((tpl2) => (
@@ -264,7 +266,7 @@ export function ScheduleGrid({
                       </TableCell>
                     );
                   })}
-                  <TableCell className="sticky right-0 z-20 bg-background/85 p-0 backdrop-blur-sm">
+                  <TableCell className="md:sticky right-0 z-20 bg-background/85 p-0 backdrop-blur-sm">
                     <div className="flex items-center justify-end gap-2 border-l py-1 pr-2 pl-3">
                       <span className="tabular-nums">{count}</span>
                       <span className="text-muted-foreground">/</span>
@@ -272,7 +274,7 @@ export function ScheduleGrid({
                       {/* Kept out of sight until the row is pointed at or focused: the menu is
                           for the one row in hand, and a column of them reads as clutter. */}
                       {!readOnly && (
-                        <span className="opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
+                        <span className="opacity-100 md:opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
                           <RowMenu
                             label={`${t.ui.common.actions}: ${emp?.fullName ?? ''}`}
                             actions={[
@@ -309,7 +311,7 @@ export function ScheduleGrid({
                     </span>
                   </TableCell>
                 ))}
-                <TableCell className="sticky right-0 z-20 bg-muted/40 text-right text-xs tabular-nums backdrop-blur-sm">
+                <TableCell className="md:sticky right-0 z-20 bg-muted/40 text-right text-xs tabular-nums backdrop-blur-sm">
                   {grid.rows.reduce((n, r) => n + Object.values(r.cells).filter(Boolean).length, 0)}
                 </TableCell>
               </TableRow>

@@ -554,7 +554,7 @@ export function DataTable<T>({
                   key={key}
                   ref={activeKey === key ? showActiveRow : undefined}
                   className={cn(
-                    'rounded-lg border bg-card p-3 text-sm',
+                    'rounded-xl border bg-card p-4 text-base leading-relaxed',
                     onRowClick && 'cursor-pointer',
                     activeKey === key && 'ring-2 ring-ring',
                     rowClassName?.(row),
@@ -576,13 +576,13 @@ export function DataTable<T>({
                     </div>
                     {rowActions ? <RowMenu actions={actions} label={t.actions} /> : null}
                   </div>
-                  <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                  <dl className="mt-3 grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] gap-x-3 gap-y-2">
                     {rest
                       .filter((c) => !c.hideOnCards)
                       .map((c) => (
                         <RowGroup key={c.key}>
-                          <dt className="text-xs text-muted-foreground">
-                            {c.label ?? (typeof c.header === 'string' ? c.header : '')}
+                          <dt className="text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                            {c.label ?? c.header}
                           </dt>
                           <dd className="min-w-0">{cellContent(c.cell(row))}</dd>
                         </RowGroup>

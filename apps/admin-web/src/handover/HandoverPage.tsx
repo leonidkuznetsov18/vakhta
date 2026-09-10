@@ -171,6 +171,7 @@ export function HandoverPage() {
     { key: 'photos', header: h.photos, align: 'right', cell: (row) => row.photos.length },
     {
       key: 'deadline',
+      label: h.deadline,
       header: (
         <span className="inline-flex items-center gap-1">
           {h.deadline}
