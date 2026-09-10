@@ -11,6 +11,7 @@ import { Muted } from '@/components/app/page';
 import { currentLocale } from '@/i18n';
 import { keys } from '@/lib/query';
 import { cn } from 'cn';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type LinkLoader = (mediaId: string) => Promise<{ url: string }>;
 
@@ -108,6 +109,7 @@ export function Lightbox({
   readonly start?: number;
 }) {
   const t = messages(currentLocale());
+  const isMobile = useIsMobile();
   // Which of these images is on screen. Remembered against the set it belongs to, so a new set —
   // another row's photos — opens at its own starting image instead of the previous one's index.
   const [chosen, setChosen] = useState<{
@@ -157,33 +159,37 @@ export function Lightbox({
               type="button"
               variant="outline"
               size="sm"
+              className="max-md:h-auto max-md:min-w-0 max-md:flex-1 max-md:whitespace-normal max-md:py-2"
               onClick={() => step(-1)}
               aria-label={t.admin.handover.prevPhoto}
             >
               <ChevronLeftIcon aria-hidden="true" />
               {t.admin.handover.prevPhoto}
             </Button>
-            <div className="flex min-w-0 flex-1 flex-wrap justify-center gap-1">
-              {images.map((img, i) => (
-                <button
-                  key={img.url}
-                  type="button"
-                  className={cn(
-                    'size-12 overflow-hidden rounded border transition-opacity hover:opacity-100',
-                    i === index ? 'ring-2 ring-ring' : 'opacity-60',
-                  )}
-                  onClick={() => setIndex(i)}
-                  aria-label={img.label}
-                  aria-current={i === index}
-                >
-                  <img src={img.url} alt="" className="size-full object-cover" />
-                </button>
-              ))}
-            </div>
+            {!isMobile && (
+              <div className="flex min-w-0 flex-1 flex-wrap justify-center gap-1">
+                {images.map((img, i) => (
+                  <button
+                    key={img.url}
+                    type="button"
+                    className={cn(
+                      'size-12 overflow-hidden rounded border transition-opacity hover:opacity-100',
+                      i === index ? 'ring-2 ring-ring' : 'opacity-60',
+                    )}
+                    onClick={() => setIndex(i)}
+                    aria-label={img.label}
+                    aria-current={i === index}
+                  >
+                    <img src={img.url} alt="" className="size-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className="max-md:h-auto max-md:min-w-0 max-md:flex-1 max-md:whitespace-normal max-md:py-2"
               onClick={() => step(1)}
               aria-label={t.admin.handover.nextPhoto}
             >

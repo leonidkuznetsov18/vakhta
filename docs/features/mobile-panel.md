@@ -14,3 +14,6 @@ scrolling outside that zone remains available.
 The schedule remains an employee-by-day matrix. Scroll its days horizontally; the employee name stays
 visible. Mobile day selectors and row actions are touch-friendly. Desktop layout and all business
 rules remain unchanged. Engineering evidence and device limits: [mobile panel](../engineering/features/mobile-panel.md).
+
+Mobile photo galleries show the current photo and previous/next buttons without a thumbnail strip.
+The counter and keyboard navigation remain available; desktop galleries retain thumbnails.

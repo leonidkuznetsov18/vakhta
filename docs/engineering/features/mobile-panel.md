@@ -101,3 +101,17 @@ Sources: [React callback-ref cleanup](https://react.dev/reference/react-dom/comp
 [Touch events](https://developer.mozilla.org/en-US/docs/Web/API/Element/touchmove_event).
 Lean: Proceed. A larger consistent touch target removes precision effort while preserving ordinary
 control taps and scrolling. No extra worker actions or data entry.
+
+## 2026-09-10 — Compact mobile lightbox navigation
+
+The owner reported gallery thumbnails stacking between previous/next controls on phones. The shared
+Lightbox now omits the thumbnail strip below the existing 768px breakpoint rather than hiding mounted
+images with CSS. Previous/next controls share the available width and allow label wrapping. The active
+photo, counter, keyboard arrows, close controls and desktop thumbnails retain their behavior.
+
+Lean: Simplify. Removing the mobile strip keeps navigation independent of the photo count and avoids
+extra scrolling without adding a worker action or losing access to evidence. Focused regressions cover
+a 100-photo mobile gallery, wraparound/keyboard navigation and retained desktop thumbnail selection.
+Both focused tests passed. Screenshots at 320px, 390px and 1440px were captured and inspected using
+synthetic photos: mobile navigation fits without page overflow, Enter advances the photo, and desktop
+thumbnails remain visible. Changed-file lint passed; physical-device coverage is not claimed.
