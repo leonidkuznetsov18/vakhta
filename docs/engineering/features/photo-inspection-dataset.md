@@ -370,7 +370,9 @@ No schema migration or data duplication is needed. The existing editor invalidat
 on save; replaced photos remain available read-only without transferring labels to their replacement.
 
 Verification: 12 API integration tests and 19 focused UI/table tests passed; API build, panel type-check,
-contracts/i18n build and focused lint passed. Independent access review found no actionable defects.
+contracts/i18n build and focused lint passed. CI caught a test-only spread of an unknown JSON
+context; the fixture now parses it through InspectionContext. API type-check and all 12 integration
+tests passed after correction. Independent access review found no actionable defects.
 Real-browser isolated PostgreSQL QA verified table → existing annotation → edit → save → search by
 updated text. Desktop 1440x1000 and mobile 390x844 screenshots were captured and visually inspected;
 mobile cards and the annotation editor remain usable. Production employee data was not modified.

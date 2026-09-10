@@ -20,7 +20,7 @@ import {
   sites,
   sql,
 } from '@vakhta/db';
-import { PhotoLibraryQuery, type InspectionReview } from '@vakhta/contracts';
+import { InspectionContext, PhotoLibraryQuery, type InspectionReview } from '@vakhta/contracts';
 import { PhotoLibraryService } from './photo-library.service.js';
 import type { WebUser } from '../auth/web-auth.guard.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -370,7 +370,7 @@ describe('photo inspection persistence and access', () => {
         handoverId: id.handoverId,
         mediaId: id.mediaId,
         itemKey: `archived-${index}`,
-        context: { ...source.context, itemKey: `archived-${index}` },
+        context: { ...InspectionContext.parse(source.context), itemKey: `archived-${index}` },
         version: 1,
         review: { ...clean, status: 'UNREVIEWED', comment: `Archive ${index}` },
         updatedAt: new Date(),
