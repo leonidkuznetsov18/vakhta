@@ -1,3 +1,9 @@
+## [0.73.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.2...v0.73.3) (2026-09-10)
+
+### Bug fixes
+
+* **admin:** open mobile navigation from full-height left edge ([03e6a60](https://github.com/leonidkuznetsov18/vakhta/commit/03e6a6018049ee2140dd262b7c3041dda6c9c57c))
+
 ## [0.73.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.1...v0.73.2) (2026-09-10)
 
 ### Bug fixes
