@@ -1,9 +1,11 @@
+import { photoLibraryRu, libraryGuideRu } from './photo-library.js';
 import { inspectionGuideRu } from './photo-inspection-guide.js';
 import { inspectionRu } from './photo-inspection.js';
 import type { Messages } from './messages.js';
 
 /** Base interface language (NFR-08). Button and state wording follows the spec, sections 4.3-4.4 and 5.1. */
 export const ru: Messages = {
+  photoLibrary: photoLibraryRu,
   photoInspection: inspectionRu,
   language: {
     menuButton: '🌐 Язык',
@@ -541,6 +543,7 @@ export const ru: Messages = {
       overview: 'Обзор',
       operations: 'Оперативная смена',
       schedule: 'График',
+      photoLibrary: photoLibraryRu.title,
       incidentKnowledge: 'База знаний инцидентов',
       incidents: 'Простои и инциденты',
       handover: 'Чистота и передача',
@@ -1712,6 +1715,7 @@ export const ru: Messages = {
       chart: 'Диаграмма',
     },
     guide: {
+      photoLibrary: libraryGuideRu,
       photoInspection: inspectionGuideRu,
       overview: {
         purpose:

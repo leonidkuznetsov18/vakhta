@@ -1,9 +1,11 @@
+import { photoLibraryEn, libraryGuideEn } from './photo-library.js';
 import { inspectionGuideEn } from './photo-inspection-guide.js';
 import { inspectionEn } from './photo-inspection.js';
 import type { Messages } from './messages.js';
 
 /** English catalog. Same keys and placeholders as `ru`; verified by catalogs.test.ts. */
 export const en: Messages = {
+  photoLibrary: photoLibraryEn,
   photoInspection: inspectionEn,
   language: {
     menuButton: '🌐 Language',
@@ -545,6 +547,7 @@ export const en: Messages = {
       overview: 'Overview',
       operations: 'Live shift',
       schedule: 'Schedule',
+      photoLibrary: photoLibraryEn.title,
       incidentKnowledge: 'Incident knowledge base',
       incidents: 'Downtime and incidents',
       handover: 'Cleanliness and handover',
@@ -1711,6 +1714,7 @@ export const en: Messages = {
       chart: 'Chart',
     },
     guide: {
+      photoLibrary: libraryGuideEn,
       photoInspection: inspectionGuideEn,
       overview: {
         purpose:

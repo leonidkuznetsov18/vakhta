@@ -6,6 +6,8 @@ import {
   enqueueBackgroundTask,
   eq,
   gte,
+  or,
+  isNotNull,
   handoverMedia,
   handoverRecords,
   checklistDefinitions,
@@ -69,6 +71,8 @@ export class PhotoInspectionService {
     const [source] = await db
       .select({
         media: mediaObjects,
+        attachmentId: handoverMedia.id,
+        savedContext: photoInspections.context,
         report: handoverRecords,
         definition: checklistDefinitions,
         zone: responsibilityZones,
@@ -76,9 +80,24 @@ export class PhotoInspectionService {
         assignmentUnit: orgUnits,
         businessDate: shiftSessions.businessDate,
       })
-      .from(handoverMedia)
-      .innerJoin(handoverRecords, eq(handoverRecords.id, handoverMedia.handoverId))
-      .innerJoin(mediaObjects, eq(mediaObjects.id, handoverMedia.mediaObjectId))
+      .from(handoverRecords)
+      .innerJoin(mediaObjects, eq(mediaObjects.id, id.mediaId))
+      .leftJoin(
+        handoverMedia,
+        and(
+          eq(handoverMedia.handoverId, handoverRecords.id),
+          eq(handoverMedia.mediaObjectId, id.mediaId),
+          eq(handoverMedia.itemKey, id.itemKey),
+        ),
+      )
+      .leftJoin(
+        photoInspections,
+        and(
+          eq(photoInspections.handoverId, handoverRecords.id),
+          eq(photoInspections.mediaId, id.mediaId),
+          eq(photoInspections.itemKey, id.itemKey),
+        ),
+      )
       .innerJoin(
         checklistDefinitions,
         eq(checklistDefinitions.id, handoverRecords.checklistDefinitionId),
@@ -89,9 +108,11 @@ export class PhotoInspectionService {
       .leftJoin(orgUnits, eq(orgUnits.id, shiftAssignments.orgUnitId))
       .where(
         and(
-          eq(handoverMedia.handoverId, id.handoverId),
-          eq(handoverMedia.mediaObjectId, id.mediaId),
-          eq(handoverMedia.itemKey, id.itemKey),
+          eq(handoverRecords.id, id.handoverId),
+          or(
+            isNotNull(handoverMedia.id),
+            and(isNotNull(photoInspections.id), gte(photoInspections.version, 1)),
+          ),
         ),
       );
     if (!source) throw new DomainError('INSPECTION_NOT_FOUND', 404, 'Photo attachment not found');
@@ -116,29 +137,36 @@ export class PhotoInspectionService {
     const item = source.definition.items.find(
       (item) => item.key === id.itemKey && item.kind === 'PHOTO',
     );
-    if (!item) throw new DomainError('INSPECTION_NOT_FOUND', 404, 'Checklist photo item not found');
+    if (!item && !source.savedContext)
+      throw new DomainError('INSPECTION_NOT_FOUND', 404, 'Checklist photo item not found');
     return {
-      context: InspectionContext.parse({
-        schemaVersion: 1,
-        ...id,
-        checklistDefinitionId: source.definition.id,
-        checklistVersion: source.definition.version,
-        photoLabel: item.label,
-        checklist: source.definition.items
-          .filter((item) => item.kind === 'CHECK')
-          .map(({ key, label }) => ({ key, label })),
-        zoneId: source.report.zoneId,
-        zoneName: source.zone?.name ?? null,
-        shiftSessionId: source.report.shiftSessionId,
-        businessDate: source.businessDate,
-        sha256: source.media.sha256,
-        encodedWidth: source.media.width,
-        encodedHeight: source.media.height,
-        contentType: source.media.contentType ?? 'application/octet-stream',
-        orientationPolicy: 'EXIF_AUTO_ORIENT',
-      }),
+      context: InspectionContext.parse(
+        !source.attachmentId && source.savedContext
+          ? source.savedContext
+          : {
+              schemaVersion: 1,
+              ...id,
+              checklistDefinitionId: source.definition.id,
+              checklistVersion: source.definition.version,
+              photoLabel: item?.label ?? InspectionContext.parse(source.savedContext).photoLabel,
+              checklist: source.definition.items
+                .filter((item) => item.kind === 'CHECK')
+                .map(({ key, label }) => ({ key, label })),
+              zoneId: source.report.zoneId,
+              zoneName: source.zone?.name ?? null,
+              shiftSessionId: source.report.shiftSessionId,
+              businessDate: source.businessDate,
+              sha256: source.media.sha256,
+              encodedWidth: source.media.width,
+              encodedHeight: source.media.height,
+              contentType: source.media.contentType ?? 'application/octet-stream',
+              orientationPolicy: 'EXIF_AUTO_ORIENT',
+            },
+      ),
       canEdit:
-        source.report.status !== 'DRAFT' && canActOn(user.grants, HANDOVER_REVIEW_ROLES, target),
+        source.attachmentId !== null &&
+        source.report.status !== 'DRAFT' &&
+        canActOn(user.grants, HANDOVER_REVIEW_ROLES, target),
       status: source.report.status,
     };
   }
@@ -183,7 +211,11 @@ export class PhotoInspectionService {
       .for('update');
     const source = await this.source(db, id, user, true);
     if (!source.canEdit)
-      throw new DomainError('INSPECTION_READ_ONLY', 409, 'Draft handover is still being prepared');
+      throw new DomainError(
+        'INSPECTION_READ_ONLY',
+        409,
+        'Draft or replaced photo cannot be edited',
+      );
     await db
       .insert(photoInspections)
       .values({ ...id, context: source.context, review: EMPTY_REVIEW })

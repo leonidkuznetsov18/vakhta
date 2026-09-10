@@ -17,3 +17,5 @@ export * from './bonus.js';
 export * from './reports.js';
 export * from './timer-tasks.js';
 export * from './photo-inspection.js';
+
+export * from './photo-library.js';

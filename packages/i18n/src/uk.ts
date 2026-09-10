@@ -1,9 +1,11 @@
+import { photoLibraryUk, libraryGuideUk } from './photo-library.js';
 import { inspectionGuideUk } from './photo-inspection-guide.js';
 import { inspectionUk } from './photo-inspection.js';
 import type { Messages } from './messages.js';
 
 /** Ukrainian catalog. Same keys and placeholders as `ru`; verified by catalogs.test.ts. */
 export const uk: Messages = {
+  photoLibrary: photoLibraryUk,
   photoInspection: inspectionUk,
   language: {
     menuButton: '🌐 Мова',
@@ -544,6 +546,7 @@ export const uk: Messages = {
       overview: 'Огляд',
       operations: 'Оперативна зміна',
       schedule: 'Графік',
+      photoLibrary: photoLibraryUk.title,
       incidentKnowledge: 'База знань інцидентів',
       incidents: 'Простої та інциденти',
       handover: 'Чистота і передача',
@@ -1714,6 +1717,7 @@ export const uk: Messages = {
       chart: 'Діаграма',
     },
     guide: {
+      photoLibrary: libraryGuideUk,
       photoInspection: inspectionGuideUk,
       overview: {
         purpose:

@@ -211,6 +211,7 @@ function InspectionSession({
       editor.saved(view);
       client.setQueryData(inspectionKey(id), view);
       void client.invalidateQueries({ queryKey: ['handovers'] });
+      void client.invalidateQueries({ queryKey: ['photo-library'] });
       notifySuccess(t.saved);
     },
   });

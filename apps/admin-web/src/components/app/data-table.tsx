@@ -102,6 +102,8 @@ interface DataTableProps<T> {
   /** A capped response cannot claim to be the full archive. */
   readonly truncated?: boolean;
   readonly totalCount?: number;
+  /** Server-owned pages: rows already contain exactly the requested page. */
+  readonly pagination?: Pages;
   readonly caption?: string;
   /** Row currently highlighted (the one open inline). */
   readonly activeKey?: string | null;
@@ -347,6 +349,7 @@ export function DataTable<T extends object>({
   resetKey = '',
   truncated = false,
   totalCount,
+  pagination,
   caption,
   activeKey,
   selectedKeys,
@@ -380,8 +383,16 @@ export function DataTable<T extends object>({
   // Arriving on a row that is not on the first page, or below the fold, used to look like the link
   // had gone nowhere. The row's own page is the one shown, and the row brings itself into view.
   const activeIndex = activeKey ? sorted.findIndex((row) => rowKey(row) === activeKey) : -1;
-  const pages = usePages(sorted.length, pageSize, namespace, activeIndex, `${resetKey}:${search}`);
-  const visible = useTablePage(sorted, rowKey, pages.page, pages.size);
+  const localPages = usePages(
+    sorted.length,
+    pageSize,
+    namespace,
+    activeIndex,
+    `${resetKey}:${search}`,
+  );
+  const pages = pagination ?? localPages;
+  const localVisible = useTablePage(sorted, rowKey, pages.page, pages.size);
+  const visible = pagination ? sorted : localVisible;
 
   const selectable = selectedKeys !== undefined && onSelectionChange !== undefined;
   const span = columns.length + (rowActions ? 1 : 0) + (selectable ? 1 : 0);
@@ -779,7 +790,7 @@ export function DataTable<T extends object>({
       ) : null}
       <Paginator
         pages={pages}
-        total={sorted.length}
+        total={pagination ? (totalCount ?? sorted.length) : sorted.length}
         totalCount={search.trim() ? sorted.length : totalCount}
       />
     </div>

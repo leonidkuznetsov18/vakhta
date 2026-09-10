@@ -20,7 +20,8 @@ import {
   sites,
   sql,
 } from '@vakhta/db';
-import type { InspectionReview } from '@vakhta/contracts';
+import { PhotoLibraryQuery, type InspectionReview } from '@vakhta/contracts';
+import { PhotoLibraryService } from './photo-library.service.js';
 import type { WebUser } from '../auth/web-auth.guard.js';
 import { AuditLog } from '../events/audit-log.js';
 import { MediaService } from '../handover/media.service.js';
@@ -295,6 +296,9 @@ describe('photo inspection persistence and access', () => {
       grants: [{ role: 'SHIFT_MASTER', scopeType: 'ORG_UNIT', scopeId: unit.id }],
     };
     expect((await service.save(id, { version: 0, review: clean }, scoped)).version).toBe(1);
+    expect(
+      (await new PhotoLibraryService(db).list(PhotoLibraryQuery.parse({}), scoped)).total,
+    ).toBe(1);
     await expect(
       service.get(id, {
         ...master,
@@ -334,10 +338,101 @@ describe('photo inspection persistence and access', () => {
       .update(handoverMedia)
       .set({ mediaObjectId: replacement })
       .where(eq(handoverMedia.handoverId, id.handoverId));
-    await expect(service.get(id, master)).rejects.toMatchObject({ code: 'INSPECTION_NOT_FOUND' });
+    expect(await service.get(id, master)).toMatchObject({ canEdit: false, review: clean });
+    await expect(service.save(id, { version: 1, review: clean }, master)).rejects.toMatchObject({
+      code: 'INSPECTION_READ_ONLY',
+    });
+    const library = await new PhotoLibraryService(fixture.db).list(
+      PhotoLibraryQuery.parse({}),
+      master,
+    );
+    expect(library.rows[0]).toMatchObject({ archived: true, photo: { media: { id: id.mediaId } } });
     expect((await service.get({ ...id, mediaId: replacement }, master)).review.status).toBe(
       'UNREVIEWED',
     );
     expect(await fixture.db.select().from(photoInspectionRevisions)).toHaveLength(1);
+  });
+  it('lists only saved human work, filters the whole collection and clamps server pages', async () => {
+    const library = new PhotoLibraryService(fixture.db);
+    const list = (input: unknown = {}) => library.list(PhotoLibraryQuery.parse(input), master);
+    await service.analyze(id, { version: 0, requestId: randomUUID() }, master);
+    expect((await list()).total).toBe(0);
+    await service.save(
+      id,
+      { version: 0, review: { ...clean, comment: 'Specific review note' } },
+      master,
+    );
+    const [source] = await fixture.db.select().from(photoInspections);
+    if (!source) throw new Error('Expected inspection');
+    // Distinct historical item identities exercise database pagination independently of live attachments.
+    for (let index = 0; index < 4; index++) {
+      await fixture.db.insert(photoInspections).values({
+        handoverId: id.handoverId,
+        mediaId: id.mediaId,
+        itemKey: `archived-${index}`,
+        context: { ...source.context, itemKey: `archived-${index}` },
+        version: 1,
+        review: { ...clean, status: 'UNREVIEWED', comment: `Archive ${index}` },
+        updatedAt: new Date(),
+        updatedBy: master.id,
+      });
+    }
+    const first = await list({ pageSize: 2 });
+    const second = await list({ pageSize: 2, page: 2 });
+    expect(first.total).toBe(5);
+    expect(second.rows).toHaveLength(2);
+    expect(second.rows.some((row) => first.rows.some((other) => row.id === other.id))).toBe(false);
+    expect(await list({ pageSize: 2, page: 99 })).toMatchObject({ page: 3, total: 5 });
+    expect((await list({ search: 'specific' })).rows).toHaveLength(1);
+    expect((await list({ search: 'Test worker' })).total).toBe(5);
+    expect((await list({ search: 'Table' })).total).toBe(5);
+    expect((await list({ search: '%' })).total).toBe(0);
+    expect((await list({ status: 'COMPLIANT' })).total).toBe(1);
+    expect((await list({ from: '2026-09-10', to: '2026-09-10' })).total).toBe(5);
+    expect((await list({ from: '2026-09-11' })).total).toBe(0);
+    expect((await list({ to: '2026-09-09' })).total).toBe(0);
+    const row = (await list({ status: 'COMPLIANT' })).rows[0];
+    expect(row).toMatchObject({
+      employee: 'Test worker',
+      zone: 'Table',
+      annotationCount: 0,
+      remarks: ['Specific review note'],
+      archived: false,
+    });
+    expect(row?.photo.media).not.toHaveProperty('storageKey');
+    await service.save(id, { version: 1, review: { ...clean, comment: 'Updated note' } }, master);
+    expect((await list({ search: 'Updated note' })).rows).toHaveLength(1);
+    expect((await list({ search: 'Specific review note' })).rows).toHaveLength(0);
+  });
+  it('filters counts and rows by exact role scopes without combining unrelated grants', async () => {
+    await service.save(id, { version: 0, review: clean }, master);
+    const library = new PhotoLibraryService(fixture.db);
+    const [zone] = await fixture.db.select().from(responsibilityZones);
+    if (!zone) throw new Error('Expected zone');
+    for (const grant of [
+      { role: 'AUDITOR' as const, scopeType: 'SITE' as const, scopeId: siteId },
+      { role: 'SHIFT_MASTER' as const, scopeType: 'ORG_UNIT' as const, scopeId: zone.orgUnitId },
+      { role: 'HR' as const, scopeType: 'ZONE' as const, scopeId: zone.id },
+    ]) {
+      expect(
+        (await library.list(PhotoLibraryQuery.parse({}), { ...master, grants: [grant] })).total,
+      ).toBe(1);
+    }
+    for (const grants of [
+      [],
+      [{ role: 'PLANNER' as const, scopeType: 'ENTERPRISE' as const, scopeId: null }],
+      [{ role: 'SHIFT_MASTER' as const, scopeType: 'SITE' as const, scopeId: randomUUID() }],
+      [{ role: 'SHIFT_MASTER' as const, scopeType: 'TEAM' as const, scopeId: randomUUID() }],
+      [{ role: 'SHIFT_MASTER' as const, scopeType: 'SITE' as const, scopeId: null }],
+      [
+        { role: 'SHIFT_MASTER' as const, scopeType: 'ZONE' as const, scopeId: randomUUID() },
+        { role: 'PLANNER' as const, scopeType: 'ENTERPRISE' as const, scopeId: null },
+      ],
+    ]) {
+      expect(await library.list(PhotoLibraryQuery.parse({}), { ...master, grants })).toMatchObject({
+        rows: [],
+        total: 0,
+      });
+    }
   });
 });

@@ -1,3 +1,4 @@
+import type { PhotoLibraryMessages } from './photo-library.js';
 import type { PhotoInspectionMessages } from './photo-inspection.js';
 import type {
   BonusCriterion,
@@ -35,6 +36,7 @@ export type GuideKey =
   | 'incidents'
   | 'handover'
   | 'photoInspection'
+  | 'photoLibrary'
   | 'requests'
   | 'bonus'
   | 'reports'
@@ -61,6 +63,7 @@ export interface SectionGuide {
 
 export interface Messages {
   photoInspection: PhotoInspectionMessages;
+  photoLibrary: PhotoLibraryMessages;
   readonly language: {
     /** Button on the home screen that opens the language picker. */
     readonly menuButton: string;
@@ -404,6 +407,7 @@ export interface Messages {
         | 'schedule'
         | 'incidents'
         | 'incidentKnowledge'
+        | 'photoLibrary'
         | 'handover'
         | 'requests'
         | 'bonus'

@@ -93,3 +93,22 @@ options are copied, the panel explains that deletion restores them. Separate run
 Workplace requirements are optional for analysis and require no prior save. The general photo note
 explains the overall human review, is optional except for Not assessable, and is not an AI instruction.
 Its inline help and example distinguish it from each region's What is wrong description.
+
+## Saved photo library
+
+The panel's Annotated photos page collects every human-saved inspection (`version > 0`), including
+unfinished reviews and explicit clean examples without regions. AI-only runs and unsaved changes do
+not enter the library. Each row identifies the photo, review result, shift date, zone, reporting worker,
+region count, remarks and last-save time. Search covers worker, zone, photo label and human remarks;
+status and inclusive shift-date filters apply before server pagination. The footer reports the full
+filtered count. Narrow screens use the shared table's card layout.
+
+Open photo launches the same annotation editor as the handover page. Save changes updates the same
+review and append-only revision history, then refreshes the table. The original image, operational
+handover decision and employee scores remain unchanged. Authorized reviewers retain their existing
+scope; HR and auditors can read. A replaced attachment retains its saved inspection in the library,
+with an explicit read-only marker. Annotations never move to its replacement.
+
+How it works and FAQ in Ukrainian, English and Russian explain inclusion, editing, read-only history,
+conflict recovery and the later evaluation/training use of saved examples. No separate upload, copy,
+AI training job or new approval process is introduced by this page.

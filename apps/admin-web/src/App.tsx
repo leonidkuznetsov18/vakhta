@@ -1,3 +1,4 @@
+import { PhotoLibraryPage } from '@/pages/photo-library';
 import { MobileNavigation, MobileNavigationClose } from '@/features/mobile-navigation';
 import { MutationActivity } from '@/components/app/query-feedback';
 import { useState } from 'react';
@@ -9,6 +10,7 @@ import {
   ClipboardCheckIcon,
   CoinsIcon,
   InboxIcon,
+  ImagesIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   MonitorIcon,
@@ -81,6 +83,7 @@ const SECTIONS: readonly { key: SectionKey; icon: typeof ActivityIcon }[] = [
   { key: 'incidents', icon: AlertTriangleIcon },
   { key: 'incidentKnowledge', icon: ScrollTextIcon },
   { key: 'handover', icon: ClipboardCheckIcon },
+  { key: 'photoLibrary', icon: ImagesIcon },
   { key: 'requests', icon: InboxIcon },
   { key: 'bonus', icon: CoinsIcon },
   { key: 'reports', icon: BarChart3Icon },
@@ -106,6 +109,7 @@ const PAGES: Partial<Record<SectionKey, () => React.ReactElement>> = {
   incidents: IncidentsPage,
   incidentKnowledge: IncidentKnowledgePage,
   handover: HandoverPage,
+  photoLibrary: PhotoLibraryPage,
   requests: RequestsPage,
   bonus: BonusPage,
   reports: ReportsPage,
@@ -177,6 +181,20 @@ export function App() {
   }
 
   const { me } = state;
+  const visibleSections = SECTIONS.filter(
+    ({ key }) =>
+      key !== 'photoLibrary' ||
+      me.roles.some(({ role }) =>
+        [
+          'ADMIN',
+          'PRODUCTION_HEAD',
+          'SHIFT_MASTER',
+          'CLEANLINESS_CONTROLLER',
+          'HR',
+          'AUDITOR',
+        ].includes(role),
+      ),
+  );
   const primaryRole = ROLE_ORDER.find((r) => me.roles.some((g) => g.role === r)) ?? null;
   const title = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];
   const version = import.meta.env['VITE_APP_VERSION'];
@@ -228,7 +246,7 @@ export function App() {
                     </SidebarMenu>
                     <SidebarSeparator className="my-2" />
                     <SidebarMenu aria-label={t.ui.common.menu}>
-                      {SECTIONS.map(({ key, icon: Icon }) => (
+                      {visibleSections.map(({ key, icon: Icon }) => (
                         <SidebarMenuItem key={key}>
                           <SidebarMenuButton
                             isActive={key === active}
@@ -330,7 +348,7 @@ export function App() {
                   <FaqButton guide={active === 'incidentKnowledge' ? 'incidents' : active} />
                 )}
                 <CommandPalette
-                  sections={SECTIONS}
+                  sections={visibleSections}
                   onSection={(key) => setActive(key)}
                   canSeeEmployees={me.roles.some((g) =>
                     ['ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER'].includes(g.role),

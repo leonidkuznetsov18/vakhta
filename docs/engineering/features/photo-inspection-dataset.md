@@ -358,3 +358,25 @@ cancellation; no annotation data or persistence behavior changes. Twelve focused
 type-check and focused lint passed. Desktop/mobile screenshots were visually inspected, and browser
 interaction confirmed the active drawing tool toggles back to neutral. Lean: proceed; fewer controls,
 with a retained exit from drawing so removal does not create a dead end.
+
+## Saved photo library — 2026-09-11
+
+Add the FSD `pages/photo-library` composition and scoped `GET /admin/photo-inspections`. The library
+contains human-saved versions, including clean and unfinished reviews, with preview, result, shift date,
+zone, reporting employee, region count, remarks and last-save time. Explicit search/status/date filters
+run before pagination; counts and rows share a read-only repeatable-read snapshot. The list uses the
+same zone-first/assignment-fallback access rules as the editor. DTO validation excludes storage keys.
+No schema migration or data duplication is needed. The existing editor invalidates both list surfaces
+on save; replaced photos remain available read-only without transferring labels to their replacement.
+
+Verification: 12 API integration tests and 19 focused UI/table tests passed; API build, panel type-check,
+contracts/i18n build and focused lint passed. Independent access review found no actionable defects.
+Real-browser isolated PostgreSQL QA verified table → existing annotation → edit → save → search by
+updated text. Desktop 1440x1000 and mobile 390x844 screenshots were captured and visually inspected;
+mobile cards and the annotation editor remain usable. Production employee data was not modified.
+
+Lean: proceed. One searchable list removes repeated navigation through handover reports; reuse of the
+editor avoids duplicate data entry. Save and close is the explicit endpoint. In-app How-to/FAQ covers
+scope, historical read-only photos, conflicts and later dataset use in all three languages. Measure
+reviewer time to find and correct a saved example; do not equate region count with worker performance.
+Automatic-review groundwork remains separate and uncommitted.
