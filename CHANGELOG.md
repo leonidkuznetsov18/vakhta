@@ -1,3 +1,19 @@
+## [0.71.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.11...v0.71.0) (2026-09-10)
+
+### Features
+
+* **incidents:** record causes and solutions with searchable history ([be9d7de](https://github.com/leonidkuznetsov18/vakhta/commit/be9d7de2b019dd1aad80fb222633868257b18207))
+
+### Bug fixes
+
+* **admin-web:** hide editing controls for completed records ([a3f54d8](https://github.com/leonidkuznetsov18/vakhta/commit/a3f54d82538b88aed8a63b39de4c120c1c6f8969))
+* **bonus:** persist recalculation tasks and guard monthly closure ([03fc987](https://github.com/leonidkuznetsov18/vakhta/commit/03fc98704d0c4ff92baf4b749c851bb769a30e6b))
+
+### Documentation
+
+* **engineering:** require only risk-based verification ([e5d3058](https://github.com/leonidkuznetsov18/vakhta/commit/e5d30588aa9f996b855359de303795c390eed074))
+* **handover:** record master remark display and delivery ([632759c](https://github.com/leonidkuznetsov18/vakhta/commit/632759cb500b1f5a7ab532ce82a3bbfdc09ec34d))
+
 ## [0.70.11](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.10...v0.70.11) (2026-09-10)
 
 ### Bug fixes
