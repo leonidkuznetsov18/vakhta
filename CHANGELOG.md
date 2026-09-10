@@ -1,3 +1,15 @@
+## [0.80.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.79.1...v0.80.0) (2026-09-10)
+
+### Features
+
+* **admin-web:** a burst of sparks, thrown from wherever it is placed ([76682b3](https://github.com/leonidkuznetsov18/vakhta/commit/76682b3b7367048ddbfeb9c803d17704e644934c))
+* **photo-inspection:** add wheel zoom and pointer pan gestures ([1f2ea4a](https://github.com/leonidkuznetsov18/vakhta/commit/1f2ea4aef88f58af8c83a78ef88a5e296576f4f0))
+* **photo-inspection:** the wand throws sparks when the answer comes back ([6ca47f6](https://github.com/leonidkuznetsov18/vakhta/commit/6ca47f61cccd193a3171610493ec330476db3dda))
+
+### Bug fixes
+
+* **photo-inspection:** prevent duplicate AI suggestion copies ([bd29fef](https://github.com/leonidkuznetsov18/vakhta/commit/bd29fef6a5135f246c31a03e20401ddd6f4ff3e8))
+
 ## [0.79.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.79.0...v0.79.1) (2026-09-10)
 
 ### Bug fixes
