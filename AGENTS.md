@@ -18,22 +18,38 @@ Architecture and plan: `docs/architecture-and-plan.md`. Decisions: `docs/adr/`.
 ## Stack
 
 pnpm workspaces + Turborepo. TypeScript, ESM everywhere (`"type": "module"`).
-API and worker: NestJS 11 on Fastify. Bot: grammY. Database: PostgreSQL 16 + Drizzle. Queues: Redis + BullMQ.
+API: NestJS 11 on Fastify. Worker: standalone TypeScript with BullMQ. Bot: grammY. Database: Drizzle; local/test PostgreSQL 16. The backup workflow targets PostgreSQL 18; verify the live engine before compatibility changes. Queues: Redis + BullMQ.
 Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testcontainers.
+
+## Decision priority and scope
+
+1. **[P1]** Correctness > clear specification > architecture > maintainability > type safety >
+   testability > performance > delivery speed. Safety, access boundaries and recorded shift history
+   are correctness requirements.
+2. **[P2]** Non-trivial work follows RECON → SPEC → DESIGN → IMPLEMENT → VERIFY → HARDEN → REPORT.
+   Use `docs/templates/spec.md`. An authorized request with explicit acceptance criteria can be the
+   approved specification; do not repeatedly request approval for already-authorized work. Resolve
+   material ambiguity before dependent implementation. Recon/setup tasks do not change business logic.
+3. **[P3]** Read `.codex/memory.md` and the affected feature memory. Use
+   `docs/engineering/agent-operating-model.md` for role scopes and handoffs. Give independent writers
+   separate worktrees; only the integration owner changes Git history or the shared index.
+4. **[P4]** Preserve the existing Nest feature modules and pure domain architecture. Adopt frontend FSD
+   incrementally by coherent slice. Do not invent empty layers, force frontend layers into the worker,
+   or migrate Vite to Next.js/RSC as incidental cleanup. See the dated audit for the actual baseline.
 
 ## Code rules
 
-- Node packages compile with `tsc` into `dist/`; `exports` point at `dist`. Relative imports in node code carry the `.js` extension.
-- `packages/domain` never imports NestJS, Drizzle, grammY or anything with I/O. Pure functions and types only. Tests are mandatory there.
-- Every state change goes through `packages/domain/shift-fsm`; nobody writes to `activity_intervals` outside the transition transaction.
-- An employee never ends a shift with a button. «ЗАВЕРШИТИ ЗМІНУ» is only the label of `START_CLEANING`: it walks the
+- **[C1]** Node packages compile with `tsc` into `dist/`; `exports` point at `dist`. Relative imports in node code carry the `.js` extension.
+- **[C2]** `packages/domain` never imports NestJS, Drizzle, grammY or anything with I/O. Pure functions and types only. Tests are mandatory there.
+- **[C3]** Every state change goes through `packages/domain/shift-fsm`; nobody writes to `activity_intervals` outside the transition transaction.
+- **[C4]** An employee never ends a shift with a button. «ЗАВЕРШИТИ ЗМІНУ» is only the label of `START_CLEANING`: it walks the
   shift to the checklist and, when the position carries none, to `READY_TO_CLOSE`. The shift closes when the exit QR is
   scanned after the report has gone (`CLOSE_SHIFT` from `READY_TO_CLOSE`), by the master with a comment from the
   operations screen, or by the end-of-day job. No bot screen may draw a close button; a test asserts that.
-- New tables: `snake_case`, `timestamptz` for instants, `uuid` for identifiers, invariants enforced in SQL, not only in code.
-- `domain_events` and `audit_log` are append-only. A migration that adds UPDATE/DELETE on them does not pass review.
+- **[C5]** New tables: `snake_case`, `timestamptz` for instants, `uuid` for identifiers, invariants enforced in SQL, not only in code.
+- **[C6]** `domain_events` and `audit_log` are append-only. A migration that adds UPDATE/DELETE on them does not pass review.
 - Codes of states, actions, reasons and statuses: `UPPER_SNAKE_CASE`, as in the spec.
-- Never log the bot token, QR tokens, presigned URLs or the content of medical documents.
+- **[C7]** Never log the bot token, QR tokens, presigned URLs or the content of medical documents.
 - TypeScript, React and NestJS best practices.
 
 ## Required engineering workflow
@@ -76,7 +92,35 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 ## Commands
 
 `pnpm build`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm check`. Local infrastructure: `pnpm infra:up`.
-Before handing over changes `pnpm check` must be green.
+**[V1] Definition of Done:** acceptance criteria have evidence; affected contracts and docs agree;
+regression tests cover changed behavior; `pnpm build` and `pnpm check` pass; an independent review has
+no unresolved blocking finding; the handoff names remaining risks and blocked runtime checks. A
+cached run is cache evidence, not a fresh execution. Never claim a coverage percentage without a
+coverage report. Product changes follow the live QA runbook; docs/setup work records applicable checks
+without manufacturing changes to employee records. See `docs/engineering/testing-baseline.md`.
+
+**[A1] Async flows:** model ownership of cancellation, stale results, retries and idempotency explicitly.
+A TypeScript annotation is not runtime validation. Preserve DB transaction boundaries; after-commit
+queue work can fail independently. Verify recovery rather than assuming DB+Redis+Telegram atomicity.
+Never hide errors with empty catches or resolve work as successful when required side effects failed.
+
+## Commits and pull requests
+
+**[G1]** Use English Conventional Commits, matching `.releaserc.json`; `refactor`, `config` and `infra`
+can trigger a release. Keep one independently reviewable concern per PR. Use `codex/` branch names and
+`.github/PULL_REQUEST_TEMPLATE.md`. Follow `CONTRIBUTING.md`. Do not push to `master` as a shortcut:
+its pipeline can publish images, deploy, announce releases and run migrations. No force-push or rebase
+of another session's work. Setup does not authorize changing remote branch protection or Codex settings.
+
+## Code Review Rules
+
+- **[R1]** Check acceptance criteria, domain invariants, RBAC scope and async recovery before style.
+  Cite concrete changed lines and distinguish demonstrated defects from reproduction hypotheses.
+- **[R2]** Check FSD dependency direction where a slice exists, deliberate public `index.ts` exports,
+  TypeScript boundary validation, query/client-state ownership, hook policy and mobile accessibility.
+  Do not approve an unchanged root dependency or a forwarding class merely because logic left JSX.
+- **[R3]** Validate regression evidence and local vs deployed revision. Automated Codex review is
+  supplemental and does not replace required deterministic checks or domain review.
 
 ## Out of MVP scope
 
