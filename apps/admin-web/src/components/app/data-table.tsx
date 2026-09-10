@@ -156,65 +156,83 @@ function showActiveRow(el: HTMLElement | null): void {
 
 export type Pages = ReturnType<typeof usePages>;
 
-/** Footer with the visible range, page size and previous/next; hidden while everything fits. */
+/** The complete filtered count, independent of the number of rows on the current page. */
+export function TableCount({
+  total,
+  from = total ? 1 : 0,
+  to = total,
+}: {
+  readonly total: number;
+  readonly from?: number;
+  readonly to?: number;
+}) {
+  return (
+    <span className="text-sm tabular-nums text-muted-foreground">
+      {format(messages(currentLocale()).ui.pagination.showing, { from, to, total })}
+    </span>
+  );
+}
+
+/** Always show the count; page controls are only needed for larger collections. */
 export function Paginator({ pages: p, total }: { readonly pages: Pages; readonly total: number }) {
   const t = messages(currentLocale()).ui.pagination;
-  if (total <= PAGE_SIZES[0]) return null;
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-      <span>{format(t.showing, { from: p.from, to: p.to, total })}</span>
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2">
-          <span>{t.pageSize}</span>
-          <NativeSelect
-            size="sm"
-            value={p.size}
-            onChange={(e) => {
-              p.setSize(Number(e.target.value));
-              p.setPage(1);
-            }}
-          >
-            {PAGE_SIZES.map((n) => (
-              <NativeSelectOption key={n} value={n}>
-                {n}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
-        </label>
-        <Pagination className="mx-0 w-auto">
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                href="#"
-                aria-disabled={p.page <= 1}
-                className={cn(p.page <= 1 && 'pointer-events-none opacity-50')}
-                onClick={(e) => {
-                  e.preventDefault();
-                  p.setPage(Math.max(1, p.page - 1));
-                }}
-              >
-                {t.previous}
-              </PaginationPrevious>
-            </PaginationItem>
-            <PaginationItem className="px-2 text-sm tabular-nums">
-              {format(t.page, { page: p.page, pages: p.pages })}
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationNext
-                href="#"
-                aria-disabled={p.page >= p.pages}
-                className={cn(p.page >= p.pages && 'pointer-events-none opacity-50')}
-                onClick={(e) => {
-                  e.preventDefault();
-                  p.setPage(Math.min(p.pages, p.page + 1));
-                }}
-              >
-                {t.next}
-              </PaginationNext>
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      </div>
+      <TableCount total={total} from={p.from} to={p.to} />
+      {total > Math.min(PAGE_SIZES[0], p.size) && (
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2">
+            <span>{t.pageSize}</span>
+            <NativeSelect
+              size="sm"
+              value={p.size}
+              onChange={(e) => {
+                p.setSize(Number(e.target.value));
+                p.setPage(1);
+              }}
+            >
+              {PAGE_SIZES.map((n) => (
+                <NativeSelectOption key={n} value={n}>
+                  {n}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </label>
+          <Pagination className="mx-0 w-auto">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  text={t.previous}
+                  aria-label={t.previous}
+                  href="#"
+                  aria-disabled={p.page <= 1}
+                  className={cn(p.page <= 1 && 'pointer-events-none opacity-50')}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    p.setPage(Math.max(1, p.page - 1));
+                  }}
+                />
+              </PaginationItem>
+              <PaginationItem className="px-2 text-sm tabular-nums">
+                {format(t.page, { page: p.page, pages: p.pages })}
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationNext
+                  text={t.next}
+                  aria-label={t.next}
+                  href="#"
+                  aria-disabled={p.page >= p.pages}
+                  className={cn(p.page >= p.pages && 'pointer-events-none opacity-50')}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    p.setPage(Math.min(p.pages, p.page + 1));
+                  }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 }
@@ -367,7 +385,12 @@ export function DataTable<T>({
   if (rows.length === 0 && (queryState ? queryState.isPending && queryState.isFetching : loading))
     return <LoadingState label={t.loading_rows} className="w-full py-8" />;
   if (rows.length === 0)
-    return <EmptyState text={empty} description={emptyDescription} action={emptyAction} />;
+    return (
+      <div className="flex flex-col gap-3">
+        <EmptyState text={empty} description={emptyDescription} action={emptyAction} />
+        <TableCount total={0} />
+      </div>
+    );
 
   const handleRowClick = (row: T) => (ev: MouseEvent<HTMLElement>) => {
     if (!onRowClick || isInteractive(ev.target)) return;

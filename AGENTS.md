@@ -102,6 +102,9 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 
 - Every component, color, size and spacing comes from shadcn/ui (https://ui.shadcn.com); components are copied into
   `apps/admin-web/src/components/ui`. No bespoke CSS where a shadcn primitive exists.
+- Every table shows its complete filtered record count below the rows, including small and empty
+  successful results. Pagination must retain the total collection count, not just the current page
+  length; use the shared TableCount/Paginator. Loading or failed requests must not invent a zero.
 - Long lists and tables are paginated. Forms validate input with the zod contracts and show inline errors.
 - Every non-obvious control has an information tooltip; tooltip texts live in `@vakhta/i18n` in all three languages.
 - Every interactive element has visible hover, active and focus states. The interface must be usable without a manual.

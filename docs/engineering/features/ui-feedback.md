@@ -63,3 +63,27 @@ Existing explicit per-section preferences remain remembered in the Zustand UI st
 FAQ entry points are unchanged. Two focused component tests passed. Actual component screenshots
 were inspected at 390x844 and 1440x1000, with expansion and collapse checked in the browser.
 Lean: proceed; keep the workspace visible on arrival and reveal instructions only when requested.
+
+## 2026-09-10 — Always-visible table totals
+
+Owner request: show the collection length below every table, including a six-row handover list and
+paginated collections such as 186 records with ten visible at once. The shared Paginator previously
+returned null for ten or fewer records, hiding its existing total.
+
+A shared TableCount now renders the localized visible range and complete filtered total. DataTable
+and ScheduleGrid use it through Paginator; audit field/payload tables reuse it directly. Successful
+empty collections show zero; initial loading, failures without cached data and unselected parameters
+continue to show their actual query feedback instead of an invented zero. Client search changes the
+filtered total; page changes, page size and expanded details do not change the underlying count.
+No server-total contract was invented: these tables paginate their supplied collections locally;
+existing history API caps still bound those collections.
+
+Small lists display only their count. Larger lists retain page-size and navigation controls, which
+wrap on mobile. Pagination uses the primitive's text prop and localized accessible labels (children
+were previously ignored and showed English defaults). Existing UI strings are reused in all locales.
+
+Verification: nine focused DataTable tests pass, including small desktop/mobile totals, 186 records
+across page/size changes, filtered seven/zero results, and loading versus successful-empty behavior.
+Real components captured and inspected at 1440x1000 and 390x844: six-row total visible, paginated total
+186 retained, mobile document width 390px with controls wrapping below the count.
+Lean: proceed; show queue size without manual counting or changing page size. No additional input.

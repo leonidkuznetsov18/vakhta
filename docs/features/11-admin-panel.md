@@ -52,7 +52,9 @@ frequently asked questions of that section and a link to the printable guide. Th
 `packages/i18n` under `ui.guide` in the three languages, so the support bot, the guide and the
 panel say the same thing.
 
-Panel conventions: every table is paginated (10/20/50/100), searchable and sortable; a row click
+Panel conventions: every table is paginated (10/20/50/100), searchable and sortable. Below the rows,
+the visible range and total filtered count remain visible even for small or empty successful lists;
+changing pages does not change that total; a row click
 opens the details on the right, the ⋯ menu holds the row actions; forms validate inline and the
 save button stays disabled until something changed; ⓘ icons carry hints (tap on a phone); every
 clickable element shows a pointer cursor and a hover state; filters, tabs and drafts survive a page

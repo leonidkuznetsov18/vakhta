@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { CopyButton } from '@/components/app/copy-button';
-import { DataTable, type Column } from '@/components/app/data-table';
+import { DataTable, TableCount, type Column } from '@/components/app/data-table';
 import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, StatusPill, Toolbar } from '@/components/app/page';
@@ -111,6 +111,7 @@ function ChangesTable({ before, after }: { readonly before: unknown; readonly af
           </TableBody>
         </Table>
       </div>
+      <TableCount total={keys.length} />
     </div>
   );
 }
@@ -461,6 +462,9 @@ export function AuditPage() {
                   ))}
                 </TableBody>
               </Table>
+              <div className="p-2">
+                <TableCount total={Object.keys(openEvent.payload).length} />
+              </div>
             </div>
           )}
           <Json value={openEvent.payload} label={a.rawJson} />
