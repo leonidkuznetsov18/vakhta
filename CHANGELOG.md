@@ -1,3 +1,13 @@
+## [0.71.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.71.1...v0.71.2) (2026-09-10)
+
+### Bug fixes
+
+* **admin:** explain when query filters are required ([30c9f66](https://github.com/leonidkuznetsov18/vakhta/commit/30c9f6618f9873f94febfd5982bc4d83667e14f9))
+
+### CI/CD
+
+* **release:** publish every change with correct semantic precedence ([a4d1a0a](https://github.com/leonidkuznetsov18/vakhta/commit/a4d1a0afb8ddfdb7e1546a7b06b160bd909d29e9))
+
 ## [0.71.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.71.0...v0.71.1) (2026-09-10)
 
 ### Bug fixes
