@@ -1,10 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type {
-  IncidentDetailView,
-  IncidentStatsView,
-  IncidentView,
-  OrgSnapshot,
-} from '@vakhta/contracts';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { IncidentStatsView, IncidentTransitionCommand, IncidentView } from '@vakhta/contracts';
 import {
   allowedIncidentTransitions,
   type IncidentSeverity,
@@ -31,10 +27,13 @@ import {
   Toolbar,
 } from '@/components/app/page';
 import { formatTime } from '@/lib/format';
-import { incidentsApi, orgApi } from '../api.ts';
-import { describeError } from '../errors.ts';
+import { incidentsApi } from '../api.ts';
+import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/ui-store';
+import { useLiveUpdates } from '@/lib/live';
+import { useOrg } from '@/lib/org';
+import { keys } from '@/lib/query';
 import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
 import { EyeIcon } from 'lucide-react';
@@ -90,111 +89,100 @@ function dayStart(d: Date): string {
 
 /** "Downtime and incidents" (spec 9.1): the master queue with SSE, actions per the transition table, statistics. */
 export function IncidentsPage() {
-  const [org, setOrg] = useState<OrgSnapshot | null>(null);
+  const { org } = useOrg();
   const [siteId, setSiteId] = usePersistentState('incidents.siteId', '');
   const [scope, setScope] = usePersistentState<'open' | 'all'>('incidents.scope', 'open');
-  const [rows, setRows] = useState<IncidentView[]>([]);
-  const [live, setLive] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const { confirm, dialog } = useConfirm();
   const [openId, setOpenId] = useDeepLinkedId('incidents', 'incidents.openId');
-  const [detail, setDetail] = useState<IncidentDetailView | null>(null);
   const [target, setTarget] = useState<Record<string, IncidentStatus | ''>>({});
   const [comment, setComment] = useState<Record<string, string>>({});
   const [duplicateOf, setDuplicateOf] = useState<Record<string, string>>({});
-  const [stats, setStats] = useState<IncidentStatsView | null>(null);
   const [from, setFrom] = usePersistentState('incidents.from', () =>
     dayStart(new Date(Date.now() - 6 * 86_400_000)).slice(0, 10),
   );
   const [to, setTo] = usePersistentState('incidents.to', () =>
     new Date().toISOString().slice(0, 10),
   );
-  const reloadRef = useRef<() => void>(() => undefined);
   /** The photo of a report, opened full size; the link is signed and every view is audited. */
   const [lightbox, setLightbox] = useState<LightboxImage[]>([]);
-  const trackedLink = useCallback((mediaId: string) => incidentsApi.mediaLink(mediaId), []);
+  const trackedLink = (mediaId: string) => incidentsApi.mediaLink(mediaId);
+  const client = useQueryClient();
 
-  useEffect(() => {
-    orgApi
-      .snapshot()
-      .then(setOrg)
-      .catch((e: unknown) => setError(describeError(e)));
-  }, []);
+  const query = { ...(siteId ? { siteId } : {}), scope };
+  const list = useQuery({
+    queryKey: keys.incidents(query),
+    queryFn: () => incidentsApi.list(query),
+  });
+  const rows = list.data ?? [];
+  const live = useLiveUpdates(incidentsApi.streamUrl(), 'incident', ['incidents']);
 
-  const reload = useCallback(async () => {
-    setRows(await incidentsApi.list({ ...(siteId ? { siteId } : {}), scope }));
-  }, [siteId, scope]);
+  const detail =
+    useQuery({
+      queryKey: keys.incident(openId),
+      queryFn: () => incidentsApi.detail(openId!),
+      enabled: openId !== null,
+    }).data ?? null;
 
-  useEffect(() => {
-    reloadRef.current = () => {
-      reload().catch((e: unknown) => setError(describeError(e)));
-    };
-    reloadRef.current();
-  }, [reload]);
+  // The statistics are of the same incidents, so they go stale with them and share the key root.
+  const statsRange = { from, to, siteId };
+  const stats =
+    useQuery({
+      queryKey: keys.incidentStats(statsRange),
+      queryFn: () => {
+        const toExclusive = new Date(`${to}T00:00:00`);
+        toExclusive.setDate(toExclusive.getDate() + 1);
+        return incidentsApi.stats(
+          new Date(`${from}T00:00:00`).toISOString(),
+          toExclusive.toISOString(),
+          siteId || undefined,
+        );
+      },
+    }).data ?? null;
 
-  useEffect(() => {
-    if (typeof EventSource === 'undefined') return;
-    const source = new EventSource(incidentsApi.streamUrl(), { withCredentials: true });
-    source.onopen = () => setLive(true);
-    source.onerror = () => setLive(false);
-    source.addEventListener('incident', () => reloadRef.current());
-    return () => source.close();
-  }, []);
+  const move = useMutation({
+    mutationFn: (v: { id: string; body: IncidentTransitionCommand }) =>
+      incidentsApi.transition(v.id, v.body),
+    onSuccess: async (_r, v) => {
+      notifySuccess(i.applied);
+      setComment((c) => ({ ...c, [v.id]: '' }));
+      setTarget((t) => ({ ...t, [v.id]: '' }));
+      await client.invalidateQueries({ queryKey: ['incidents'] });
+    },
+  });
+  /** Several incidents closed with one decision; the list is read back once, not once per row. */
+  const closeMany = useMutation({
+    mutationFn: async (v: { rows: readonly IncidentView[]; comment?: string | undefined }) => {
+      for (const row of v.rows) {
+        await incidentsApi.transition(row.id, {
+          to: 'CLOSED',
+          ...(v.comment ? { comment: v.comment } : {}),
+        });
+      }
+      return v.rows.length;
+    },
+    onSuccess: async (n) => {
+      notifySuccess(format(i.bulkClosed, { n }));
+      setSelected(new Set());
+      await client.invalidateQueries({ queryKey: ['incidents'] });
+    },
+  });
 
-  useEffect(() => {
-    if (!openId) {
-      setDetail(null);
-      return;
-    }
-    let alive = true;
-    incidentsApi
-      .detail(openId)
-      .then((d) => alive && setDetail(d))
-      .catch((e: unknown) => alive && setError(describeError(e)));
-    return () => {
-      alive = false;
-    };
-  }, [openId, rows]);
-
-  const loadStats = useCallback(() => {
-    const toExclusive = new Date(`${to}T00:00:00`);
-    toExclusive.setDate(toExclusive.getDate() + 1);
-    incidentsApi
-      .stats(
-        new Date(`${from}T00:00:00`).toISOString(),
-        toExclusive.toISOString(),
-        siteId || undefined,
-      )
-      .then(setStats)
-      .catch((e: unknown) => setError(describeError(e)));
-  }, [from, to, siteId]);
-
-  useEffect(() => {
-    loadStats();
-  }, [loadStats, rows]);
+  const busy = move.isPending || closeMany.isPending;
+  const error = readError(list.error ?? move.error ?? closeMany.error);
 
   function apply(row: IncidentView) {
     const to = target[row.id];
     if (!to) return;
     const text = (comment[row.id] ?? '').trim();
     const dup = duplicateOf[row.id];
-    setBusy(true);
-    setError(null);
-    incidentsApi
-      .transition(row.id, {
+    move.mutate({
+      id: row.id,
+      body: {
         to,
         ...(text ? { comment: text } : {}),
         ...(to === 'DUPLICATE' && dup ? { duplicateOfId: dup } : {}),
-      })
-      .then(async () => {
-        notifySuccess(i.applied);
-        setComment((c) => ({ ...c, [row.id]: '' }));
-        setTarget((t) => ({ ...t, [row.id]: '' }));
-        await reload();
-      })
-      .catch((e: unknown) => setError(describeError(e)))
-      .finally(() => setBusy(false));
+      },
+    });
   }
 
   async function quickTransition(row: IncidentView, to: IncidentStatus) {
@@ -207,16 +195,7 @@ export function IncidentsPage() {
       destructive: to === 'REJECTED',
     });
     if (text === false) return;
-    setBusy(true);
-    setError(null);
-    incidentsApi
-      .transition(row.id, { to, ...(text ? { comment: text } : {}) })
-      .then(async () => {
-        notifySuccess(i.applied);
-        await reload();
-      })
-      .catch((e: unknown) => setError(describeError(e)))
-      .finally(() => setBusy(false));
+    move.mutate({ id: row.id, body: { to, ...(text ? { comment: text } : {}) } });
   }
 
   const others = (row: IncidentView) =>
@@ -234,20 +213,7 @@ export function IncidentsPage() {
       commentLabel: i.comment,
     });
     if (text === false) return;
-    setBusy(true);
-    setError(null);
-    try {
-      for (const row of closable) {
-        await incidentsApi.transition(row.id, { to: 'CLOSED', ...(text ? { comment: text } : {}) });
-      }
-      notifySuccess(format(i.bulkClosed, { n: closable.length }));
-      setSelected(new Set());
-      await reload();
-    } catch (e) {
-      setError(describeError(e));
-    } finally {
-      setBusy(false);
-    }
+    closeMany.mutate({ rows: closable, comment: text || undefined });
   }
 
   const columns: Column<IncidentView>[] = [

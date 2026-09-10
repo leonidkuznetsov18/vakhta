@@ -161,9 +161,9 @@ describe('IncidentsPage', () => {
     expect(await screen.findAllByText('Итого')).toHaveLength(2);
 
     await clickRowAction('Подробности');
+    expect(await screen.findByText(/работа остановлена · фото · Заклинило/)).toBeTruthy();
     // The name is in the row's own column and again in the report under it.
-    expect((await screen.findAllByText('Кузнецов Леонид')).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText(/работа остановлена · фото · Заклинило/)).toBeTruthy();
+    expect(screen.getAllByText('Кузнецов Леонид').length).toBeGreaterThanOrEqual(2);
 
     fireEvent.change(screen.getByLabelText('Статус'), { target: { value: 'ACKNOWLEDGED' } });
     fireEvent.change(screen.getByLabelText('Комментарий'), { target: { value: 'Иду смотреть' } });
