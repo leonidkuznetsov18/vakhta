@@ -1,12 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type MouseEvent,
-  type ReactNode,
-} from 'react';
+import { useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { format, messages } from '@vakhta/i18n';
 import {
   ArrowDownIcon,
@@ -116,20 +108,45 @@ interface Sort {
   readonly dir: 'asc' | 'desc';
 }
 
-/** Page state shared by DataTable and other paginated views (the schedule grid). */
-export function usePages(total: number, initialSize: number, storageKey?: string) {
+/**
+ * Page state shared by DataTable and other paginated views (the schedule grid).
+ *
+ * `anchor` is the index of a row that must be on screen — the one the address points at. The page
+ * holding it wins until the reader turns a page themselves, and the page is clamped as the list
+ * shrinks, so nothing has to be corrected after the fact.
+ */
+export function usePages(total: number, initialSize: number, storageKey?: string, anchor = -1) {
   const [size, setSize] = usePersistentState(
     storageKey ? `pageSize.${storageKey}` : `pageSize.__local.${initialSize}`,
     initialSize,
   );
-  const [page, setPage] = useState(1);
+  const [chosen, setChosen] = useState<{ readonly page: number; readonly anchor: number } | null>(
+    null,
+  );
   const pages = Math.max(1, Math.ceil(total / size));
-  useEffect(() => {
-    if (page > pages) setPage(pages);
-  }, [page, pages]);
+  const wanted =
+    chosen?.anchor === anchor
+      ? chosen.page
+      : anchor >= 0
+        ? Math.floor(anchor / size) + 1
+        : (chosen?.page ?? 1);
+  const page = Math.min(Math.max(1, wanted), pages);
+  const setPage = (next: number) => setChosen({ page: next, anchor });
   const from = total === 0 ? 0 : (page - 1) * size + 1;
   const to = Math.min(total, page * size);
   return { size, setSize, page, setPage, pages, from, to };
+}
+
+/**
+ * Brings the row the address points at into view as it mounts. "nearest" scrolls the least it can
+ * and does nothing at all when the row is already on screen, which is the whole intent: no page
+ * moves under anyone. Defined once, so React attaches it when the active row changes and at no
+ * other time — a live screen must not fight the reader for the scroll on every refresh.
+ */
+function showActiveRow(el: HTMLElement | null): void {
+  if (!el) return;
+  const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  el.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
 }
 
 export type Pages = ReturnType<typeof usePages>;
@@ -290,55 +307,24 @@ export function DataTable<T>({
     null,
   );
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q || !searchText) return rows;
-    return rows.filter((row) => searchText(row).toLowerCase().includes(q));
-  }, [rows, search, searchText]);
+  const query = search.trim().toLowerCase();
+  const filtered =
+    query && searchText
+      ? rows.filter((row) => searchText(row).toLowerCase().includes(query))
+      : rows;
 
-  const sorted = useMemo(() => {
-    if (!sort) return filtered;
-    const col = columns.find((c) => c.key === sort.key);
-    const value = col?.sortValue;
-    if (!value) return filtered;
-    const dir = sort.dir === 'asc' ? 1 : -1;
-    return [...filtered].sort((a, b) => dir * compare(value(a), value(b)));
-  }, [filtered, sort, columns]);
+  const sortColumn = sort ? columns.find((c) => c.key === sort.key)?.sortValue : undefined;
+  const sorted = sortColumn
+    ? [...filtered].sort(
+        (a, b) => (sort?.dir === 'desc' ? -1 : 1) * compare(sortColumn(a), sortColumn(b)),
+      )
+    : filtered;
 
-  const pages = usePages(sorted.length, pageSize, storageKey);
-  /** The row the address points at, so it can be scrolled to once it has rendered. */
-  const activeRow = useRef<HTMLElement | null>(null);
-  const holdActive = (el: HTMLElement | null) => {
-    activeRow.current = el;
-  };
-  const scrolledFor = useRef<string | null>(null);
-  const visible = useMemo(
-    () => sorted.slice((pages.page - 1) * pages.size, pages.page * pages.size),
-    [sorted, pages.page, pages.size],
-  );
-  // Arriving on a row that is not on the first page, or below the fold, used to look like the
-  // link had gone nowhere. The page holding it is turned to, and the row is brought into view once
-  // per key — not on every reload, which on a live screen would fight the reader for the scroll.
+  // Arriving on a row that is not on the first page, or below the fold, used to look like the link
+  // had gone nowhere. The row's own page is the one shown, and the row brings itself into view.
   const activeIndex = activeKey ? sorted.findIndex((row) => rowKey(row) === activeKey) : -1;
-  useEffect(() => {
-    if (activeIndex < 0) return;
-    const page = Math.floor(activeIndex / pages.size) + 1;
-    if (page !== pages.page) pages.setPage(page);
-  }, [activeIndex, pages]);
-  useEffect(() => {
-    if (!activeKey) {
-      scrolledFor.current = null;
-      return;
-    }
-    if (scrolledFor.current === activeKey) return;
-    const el = activeRow.current;
-    if (!el) return;
-    scrolledFor.current = activeKey;
-    // "nearest" scrolls the least it can and does nothing at all when the row is already on
-    // screen, which is the whole intent: bring it into view without moving the page under anyone.
-    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    el.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
-  });
+  const pages = usePages(sorted.length, pageSize, storageKey, activeIndex);
+  const visible = sorted.slice((pages.page - 1) * pages.size, pages.page * pages.size);
 
   const selectable = selectedKeys !== undefined && onSelectionChange !== undefined;
   const span = columns.length + (rowActions ? 1 : 0) + (selectable ? 1 : 0);
@@ -472,7 +458,7 @@ export function DataTable<T>({
                   return (
                     <RowGroup key={key}>
                       <TableRow
-                        ref={activeKey === key ? holdActive : undefined}
+                        ref={activeKey === key ? showActiveRow : undefined}
                         className={cn(
                           onRowClick && 'cursor-pointer',
                           // Repeated under the selected variant so a row that carries its own
@@ -539,7 +525,7 @@ export function DataTable<T>({
               return (
                 <li
                   key={key}
-                  ref={activeKey === key ? holdActive : undefined}
+                  ref={activeKey === key ? showActiveRow : undefined}
                   className={cn(
                     'rounded-lg border bg-card p-3 text-sm',
                     onRowClick && 'cursor-pointer',

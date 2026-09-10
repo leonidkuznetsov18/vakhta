@@ -1,17 +1,18 @@
 import { useState, type FormEvent } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   SHIFT_SCOPES,
   type ActiveShiftView,
   type ShiftDetailView,
   type ShiftScope,
+  type MasterStartShiftCommand,
 } from '@vakhta/contracts';
 import { allowedActions, type ShiftState, type UserShiftAction } from '@vakhta/domain';
 import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { DataTable, type Column, type RowAction } from '@/components/app/data-table';
-import { Feedback, useAction } from '@/components/app/feedback';
+import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { DateField } from '@/components/app/date-picker';
 import { InfoTip } from '@/components/app/info-tip';
@@ -25,7 +26,7 @@ import {
 } from '@/components/app/page';
 import { formatTime, todayIso } from '@/lib/format';
 import { shiftsApi } from '../api.ts';
-import { describeError } from '../errors.ts';
+import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/ui-store';
 import { useLiveUpdates } from '@/lib/live';
@@ -129,7 +130,6 @@ export function OperationsPage() {
   const [comment, setComment] = useState<Record<string, string>>({});
   const [reason, setReason] = useState<Record<string, string>>({});
   const { confirm, dialog } = useConfirm();
-  const { busy, error, run, setError } = useAction();
 
   const units = org?.orgUnits.filter((u) => u.siteId === siteId) ?? [];
 
@@ -193,48 +193,91 @@ export function OperationsPage() {
       .map((r) => ({ value: r.code, label: r.label }));
   }
 
+  /**
+   * A refused transition is not a failed request: the server answers with the reason, so it is
+   * read from the answer rather than thrown, and the list is re-read either way — a refusal
+   * usually means the row on screen is out of date.
+   */
+  const apply = useMutation({
+    mutationFn: (v: { row: ActiveShiftView; act: UserShiftAction; text: string; why: string }) =>
+      shiftsApi.transition(v.row.id, {
+        action: v.act,
+        expectedVersion: v.row.version,
+        idempotencyKey: newKey(),
+        comment: v.text,
+        ...(v.why ? { reasonCode: v.why } : {}),
+      }),
+    onSuccess: async (result, v) => {
+      if (result.ok) {
+        // Say what happened and to whom: "Дію виконано" left the master guessing which one landed.
+        notifySuccess(
+          format(o.applied, {
+            employee: v.row.fullName,
+            action: o.masterActionLabels[v.act],
+            state: all.states[result.session.state],
+          }),
+        );
+        setComment((c) => ({ ...c, [v.row.id]: '' }));
+        setReason((r) => ({ ...r, [v.row.id]: '' }));
+      }
+      await refresh();
+    },
+  });
+  const refused = apply.data?.ok === false ? apply.data.error : null;
+
+  /** The comment as a message to the employee's bot: available on a closed shift too, which is
+      exactly when a master needs to ask why the checklist never came. */
+  const message = useMutation({
+    mutationFn: (v: { row: ActiveShiftView; text: string }) =>
+      shiftsApi.message(v.row.id, v.text),
+    onSuccess: (_result, v) => {
+      notifySuccess(format(o.messageSent, { employee: v.row.fullName }));
+      setComment((c) => ({ ...c, [v.row.id]: '' }));
+    },
+  });
+
+  const ask = useMutation({
+    mutationFn: (v: { row: ActiveShiftView; reason: string }) =>
+      shiftsApi.clarify(v.row.id, v.reason),
+    onSuccess: async () => {
+      notifySuccess(o.clarified);
+      await refresh();
+    },
+  });
+
+  const begin = useMutation({
+    mutationFn: (cmd: MasterStartShiftCommand) => shiftsApi.start(cmd),
+    onSuccess: async (result) => {
+      if (result.ok) {
+        notifySuccess(o.started);
+        setStartComment('');
+        setStartZone('');
+        setStartFor('');
+        setStartOpen(false);
+      }
+      await refresh();
+    },
+  });
+  const refusedStart = begin.data?.ok === false ? begin.data.error : null;
+
+  const busy = apply.isPending || message.isPending || ask.isPending || begin.isPending;
+  const error =
+    readError(apply.error ?? message.error ?? ask.error ?? begin.error ?? shifts.error) ??
+    (refused ? (refused === 'VERSION_CONFLICT' ? o.stale : all.errors[refused]) : null) ??
+    (refusedStart ? all.errors[refusedStart] : null);
+
   function applyAction(row: ActiveShiftView) {
     const act = action[row.id];
     const text = (comment[row.id] ?? '').trim();
     const why = reason[row.id] ?? '';
     if (!act || text.length < 3) return;
     if (reasonKindFor(act) && !why) return;
-    void run(async () => {
-      const result = await shiftsApi.transition(row.id, {
-        action: act,
-        expectedVersion: row.version,
-        idempotencyKey: newKey(),
-        comment: text,
-        ...(why ? { reasonCode: why } : {}),
-      });
-      if (!result.ok) {
-        setError(result.error === 'VERSION_CONFLICT' ? o.stale : all.errors[result.error]);
-      } else {
-        // Say what happened and to whom: "Дію виконано" left the master guessing which one landed.
-        notifySuccess(
-          format(o.applied, {
-            employee: row.fullName,
-            action: o.masterActionLabels[act],
-            state: all.states[result.session.state],
-          }),
-        );
-        setComment((c) => ({ ...c, [row.id]: '' }));
-        setReason((r) => ({ ...r, [row.id]: '' }));
-      }
-      await refresh();
-    });
+    apply.mutate({ row, act, text, why });
   }
 
-  /** The comment as a message to the employee's bot: available on a closed shift too, which is
-      exactly when a master needs to ask why the checklist never came. */
   function sendMessage(row: ActiveShiftView) {
     const text = (comment[row.id] ?? '').trim();
-    if (text.length < 3) return;
-    void run(async () => {
-      await shiftsApi.message(row.id, text);
-      notifySuccess(format(o.messageSent, { employee: row.fullName }));
-      setComment((c) => ({ ...c, [row.id]: '' }));
-    });
+    if (text.length >= 3) message.mutate({ row, text });
   }
 
   async function clarify(row: ActiveShiftView) {
@@ -246,31 +289,17 @@ export function OperationsPage() {
       commentRequired: true,
     });
     if (!reason) return;
-    void run(async () => {
-      await shiftsApi.clarify(row.id, reason);
-      await refresh();
-    }, o.clarified);
+    ask.mutate({ row, reason });
   }
 
   function startShift(ev: FormEvent) {
     ev.preventDefault();
     if (!startFor || startComment.trim().length < 3) return;
-    void run(async () => {
-      const result = await shiftsApi.start({
-        employeeId: startFor,
-        idempotencyKey: newKey(),
-        comment: startComment.trim(),
-        ...(startZone ? { zoneId: startZone } : {}),
-      });
-      if (!result.ok) setError(all.errors[result.error]);
-      else {
-        notifySuccess(o.started);
-        setStartComment('');
-        setStartZone('');
-        setStartFor('');
-        setStartOpen(false);
-      }
-      await refresh();
+    begin.mutate({
+      employeeId: startFor,
+      idempotencyKey: newKey(),
+      comment: startComment.trim(),
+      ...(startZone ? { zoneId: startZone } : {}),
     });
   }
 
@@ -595,7 +624,7 @@ export function OperationsPage() {
 
       {/* A failed read is as much a message as a failed action, and the master should not be left
           looking at yesterday's list wondering why nothing moves. */}
-      <Feedback error={error ?? (shifts.error ? describeError(shifts.error) : null)} />
+      <Feedback error={error} />
 
       <DataTable
         columns={columns}
