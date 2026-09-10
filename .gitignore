@@ -11,3 +11,9 @@ coverage/
 .idea/
 .vscode/
 infra/compose/.data/
+
+# QA secret references and generated session artifacts
+!.env.e2e.example
+.auth/
+test-results/
+playwright-report/

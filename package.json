@@ -22,7 +22,8 @@
     "db:generate": "pnpm --filter @vakhta/db generate",
     "db:migrate": "pnpm --filter @vakhta/db migrate",
     "db:seed": "pnpm --filter @vakhta/db... build && pnpm --filter @vakhta/db seed",
-    "db:migrate:js": "pnpm --filter @vakhta/db... build && pnpm --filter @vakhta/db migrate:js"
+    "db:migrate:js": "pnpm --filter @vakhta/db... build && pnpm --filter @vakhta/db migrate:js",
+    "qa:with-secrets": "op run --env-file=.env.e2e --"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",

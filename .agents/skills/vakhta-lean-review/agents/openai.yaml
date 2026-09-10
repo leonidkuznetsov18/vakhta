@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Vakhta Lean Advisor'
+  short_description: 'Review worker flows and reduce production waste'
+  default_prompt: 'Use $vakhta-lean-review to assess this feature and recommend the smallest useful improvement.'
