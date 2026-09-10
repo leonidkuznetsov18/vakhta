@@ -1631,6 +1631,7 @@ export const en: Messages = {
       partialLoadError: 'Some data could not be loaded. Unavailable metrics do not mean zero.',
       retry: 'Try again',
       refreshing: 'Refreshing data…',
+      chooseParameters: 'Choose the required filters to load data.',
       waitingConnection: 'Offline. Waiting for the connection to return.',
       saving: 'Saving…',
       noResults: 'Nothing found.',

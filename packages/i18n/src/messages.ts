@@ -1323,6 +1323,7 @@ export interface Messages {
       readonly refreshing: string;
       readonly partialLoadError: string;
       readonly waitingConnection: string;
+      readonly chooseParameters: string;
       readonly saving: string;
       readonly noResults: string;
       readonly details: string;

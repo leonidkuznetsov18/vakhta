@@ -91,6 +91,9 @@ describe('DataTable: the row the address points at', () => {
     const view = render(emptyTable(state));
     expect(screen.queryByText('No records')).toBeNull();
     expect(screen.getByRole('status')).toBeTruthy();
+    view.rerender(emptyTable({ ...state, isFetching: false, fetchStatus: 'idle' }));
+    expect(screen.queryByText('No records')).toBeNull();
+    expect(screen.getByRole('status')).toBeTruthy();
     view.rerender(emptyTable({ ...state, isFetching: false, fetchStatus: 'paused' }));
     expect(screen.getByText(/Нет соединения/)).toBeTruthy();
     expect(screen.queryByText('No records')).toBeNull();

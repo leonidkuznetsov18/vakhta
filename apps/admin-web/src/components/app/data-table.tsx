@@ -354,6 +354,12 @@ export function DataTable<T>({
   const allVisibleSelected =
     selectable && visible.length > 0 && visible.every((row) => selectedKeys.has(rowKey(row)));
 
+  if (rows.length === 0 && queryState?.isPending && queryState.fetchStatus === 'idle')
+    return (
+      <p role="status" className="text-sm text-muted-foreground">
+        {t.chooseParameters}
+      </p>
+    );
   if (rows.length === 0 && queryState?.isError)
     return queryFeedback ? <QueryFeedback query={queryState} /> : null;
   if (rows.length === 0 && queryState?.fetchStatus === 'paused')
