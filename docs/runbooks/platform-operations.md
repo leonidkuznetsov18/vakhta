@@ -180,3 +180,22 @@ retained as a downloadable log. [Cloudflare logging scope](https://developers.cl
 The [product QA runbook](product-qa.md) defines dev identity, terminal and credential handling. The
 [architecture audit](../audits/2026-09-10/architecture-audit.md) maps source boundaries; its historical
 PR/worktree proposals are superseded by the owner's direct-master decision.
+
+## Durable-task foundation deployment, 2026-09-10
+
+Source `f9a437c` passed CI `34479700951`, publishing v0.70.9. Railway API
+`670ddf9c-ccb3-4ab0-8fb0-dc49650db362` and worker `e7c513f2-c0d7-446c-9310-35e11be8aa68`
+reported SUCCESS at that source. Before consumer deployment, a read-only PostgreSQL check confirmed
+`background_tasks`, all validated constraints and enabled `background_tasks_intent_immutable` trigger;
+the table contained zero tasks. API health returned ok at 13:11:19 UTC. A capped ten-record API
+error-level query since 13:10 UTC returned zero records. Authenticated panel v0.70.9 loaded the
+handover list and live updates. These observations do not establish absence of all runtime failures.
+
+GitHub showed one matching PushEvent but two workflow runs. Duplicate `34479701736` was canceled
+before release/Pages to prevent the source-version fallback regression described in
+[release delivery](../engineering/features/release-delivery.md). Railway continued automatically
+with Wait for CI enabled; duplicate deployments were subsequently removed. No gate setting or
+production business record was changed as a workaround. The dispatch duplication cause is unproven.
+
+Consumer source `e17b431` requires separate deployment and recovery verification; foundation success
+alone is not evidence that media jobs or other required background effects are being consumed.

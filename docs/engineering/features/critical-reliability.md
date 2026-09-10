@@ -124,7 +124,15 @@ and authenticated panel/kiosk/bot verification.
   regressions passed; full check passed 444 tests. CI `34477914924`, release v0.70.8 and worker
   `dabc6453-849f-4bb3-a389-35d8925995b5` succeeded. Production has 57 media rows, zero pending and
   zero missing completion events. See `media-processing.md`; durable task admission is separate.
-- Access scope (#1), durable Telegram recovery (#4) and durable background effects (#5) remain
+- Durable-task foundation `f9a437c` passed 469 tests and the PostgreSQL 18 smoke check. CI
+  `34479700951` published v0.70.9; API `670ddf9c-ccb3-4ab0-8fb0-dc49650db362` and worker
+  `e7c513f2-c0d7-446c-9310-35e11be8aa68` succeeded. Production schema, constraints and immutable-intent
+  trigger were verified before enabling consumers. Media integration `e17b431` then passed 483 tests,
+  build/check and two independent reviews: source-transaction admission, bounded I/O, fenced atomic
+  finalization and repeating recovery. Consumer deployment verification is pending in this record;
+  timer delivery and the bonus consumer remain separate work. See `background-effects.md` and
+  `media-processing.md`.
+- Access scope (#1), durable Telegram recovery (#4) and the remaining durable background effects (#5) remain
   implementation work. Do not report the nine-risk task complete.
 
 ## Technical references consulted

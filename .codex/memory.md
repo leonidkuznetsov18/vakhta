@@ -38,3 +38,16 @@ owner appends after merging work; parallel agents return proposed entries instea
   remain open. Pre-deadline durable admission must fence scanner closure when #4 is implemented.
 - Keep the user Cloudflare token and dedicated Pages token; there were no duplicate 1Password items
   to remove. CI uses the dedicated Pages token. Do not revoke either token as cleanup.
+
+## 2026-09-10 — Automatic closure and durable media
+
+- Integration owner: Codex. Automatic closure #8 (`a9be981`) is deployed and verified, including
+  audited unknown-departure reconciliation; see `estimated-shift-closure.md` for exact evidence.
+- Foundation `f9a437c` deployed migration 0027; the production task table and guards were verified
+  before media consumer integration `e17b431`. Media passed 483 tests and independent reviews;
+  deployment verification is recorded separately in `media-processing.md`.
+- #5 remains open for timers, bonus invalidation/consumption and monthly startup catch-up. Modern
+  handover submission immediately escalates to the master; HANDOVER_TIMEOUT recovery is legacy only.
+  Old schedule months must not generate new acknowledgement reminders. #1/#4 remain open.
+- A duplicate GitHub dispatch exposed source-version fallback risk; it was canceled before Pages.
+  Bind rerun version resolution to the requested source, not the current branch or latest release.
