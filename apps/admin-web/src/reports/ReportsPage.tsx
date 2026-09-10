@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { LossesQuery, LossesView, OrgSnapshot } from '@vakhta/contracts';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import type { LossesQuery, LossesView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { Bar, CartesianGrid, Cell, ComposedChart, Line, XAxis, YAxis } from 'recharts';
 import { ArrowLeftIcon, DownloadIcon } from 'lucide-react';
@@ -12,14 +13,16 @@ import {
 } from '@/components/ui/chart';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { DateField } from '@/components/app/date-picker';
-import { Feedback, useAction } from '@/components/app/feedback';
+import { Feedback } from '@/components/app/feedback';
 import { SelectField } from '@/components/app/fields';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill, Toolbar } from '@/components/app/page';
 import { usePersistentState } from '@/lib/ui-store';
+import { useOrg } from '@/lib/org';
+import { keys } from '@/lib/query';
 import { formatDateTime, formatDuration } from '@/lib/format';
-import { reportsApi, orgApi } from '../api.ts';
+import { reportsApi } from '../api.ts';
 import { describeError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 
@@ -66,36 +69,25 @@ function zoneOf(cumulative: number): Zone {
  * sits next to the totals rather than in a footnote.
  */
 export function ReportsPage() {
-  const [org, setOrg] = useState<OrgSnapshot | null>(null);
+  const { org } = useOrg();
   const [from, setFrom] = usePersistentState('losses.from', monthStart);
   const [to, setTo] = usePersistentState('losses.to', today);
   const [siteId, setSiteId] = usePersistentState('losses.siteId', '');
   const [orgUnitId, setOrgUnitId] = usePersistentState('losses.orgUnitId', '');
   const [category, setCategory] = useState<string | null>(null);
-  const [data, setData] = useState<LossesView | null>(null);
-  const { busy, error, run } = useAction();
 
-  useEffect(() => {
-    orgApi
-      .snapshot()
-      .then(setOrg)
-      .catch(() => undefined);
-  }, []);
-
-  const query: LossesQuery = useMemo(
-    () => ({
-      from,
-      to,
-      ...(siteId ? { siteId } : {}),
-      ...(orgUnitId ? { orgUnitId } : {}),
-      ...(category ? { category } : {}),
-    }),
-    [from, to, siteId, orgUnitId, category],
-  );
-
-  useEffect(() => {
-    void run(async () => setData(await reportsApi.losses(query)));
-  }, [query]);
+  const query: LossesQuery = {
+    from,
+    to,
+    ...(siteId ? { siteId } : {}),
+    ...(orgUnitId ? { orgUnitId } : {}),
+    ...(category ? { category } : {}),
+  };
+  const report = useQuery({
+    queryKey: keys.losses(query),
+    queryFn: () => reportsApi.losses(query),
+  });
+  const data: LossesView | null = report.data ?? null;
 
   const bars = data?.bars ?? [];
   const chart = bars.map((b) => ({
@@ -243,7 +235,7 @@ export function ReportsPage() {
           </Button>
         </div>
       </Toolbar>
-      <Feedback error={error ? describeError(error) : null} />
+      <Feedback error={report.error ? describeError(report.error) : null} />
 
       <Section title={r.lossTitle} hint={r.lossPurpose}>
         {/* The way out of a category sits above everything the category changed, not under the
@@ -334,7 +326,7 @@ export function ReportsPage() {
               rowKey={(b) => b.key}
               {...(category ? {} : { onRowClick: (b: Bar_) => setCategory(b.key) })}
               empty={r.lossEmpty}
-              loading={busy && bars.length === 0}
+              loading={report.isPending}
             />
           </>
         )}
