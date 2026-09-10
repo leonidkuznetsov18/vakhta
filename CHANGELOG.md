@@ -1,3 +1,13 @@
+## [0.71.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.71.0...v0.71.1) (2026-09-10)
+
+### Bug fixes
+
+* **admin:** bound long text previews and full record content ([2cb0c1b](https://github.com/leonidkuznetsov18/vakhta/commit/2cb0c1b5e9fddd687e1bfc0920a5e738e23b2012))
+* **admin:** distinguish loading errors empty data and saving ([42bf30d](https://github.com/leonidkuznetsov18/vakhta/commit/42bf30da57d24fe0a7aa4550f98f897a338960b7))
+* **admin:** keep expanded mobile details open while reading ([8a79355](https://github.com/leonidkuznetsov18/vakhta/commit/8a793550862ff0d2e3e37675ddad4b7b0b11efb6))
+* **admin:** unify calendars and readable responsive row details ([106a413](https://github.com/leonidkuznetsov18/vakhta/commit/106a4130ca1a3142844526b50879860c5c0ba91a))
+* **handover:** anchor review deadlines to scheduled shift end ([7990eff](https://github.com/leonidkuznetsov18/vakhta/commit/7990eff5a0273f5548dc2adf998e1a5b37900715))
+
 ## [0.71.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.70.11...v0.71.0) (2026-09-10)
 
 ### Features
