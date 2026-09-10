@@ -1,3 +1,9 @@
+## [0.74.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.74.0...v0.74.1) (2026-09-10)
+
+### Bug fixes
+
+* **admin-web:** omit gallery thumbnails on mobile ([ede3fe4](https://github.com/leonidkuznetsov18/vakhta/commit/ede3fe48ed72d4d8c5693b5360e6c208fc1547c7))
+
 ## [0.74.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.9...v0.74.0) (2026-09-10)
 
 ### Features
