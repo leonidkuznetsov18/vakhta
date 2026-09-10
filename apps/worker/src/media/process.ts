@@ -7,10 +7,13 @@ import {
   eq,
   gte,
   isNotNull,
+  isNull,
   mediaObjects,
   ne,
+  or,
   sql,
   type Database,
+  type DbOrTx,
 } from '@vakhta/db';
 import {
   PHASH_SIZE,
@@ -22,12 +25,12 @@ import {
 } from '@vakhta/domain';
 import type { MediaJob } from '@vakhta/contracts';
 
-/** Порт до Telegram: getFile + завантаження за file_path. */
+/** Telegram download port: getFile followed by the private file download. */
 export interface FileFetcher {
   fetch(fileId: string): Promise<{ buffer: Buffer; contentType: string | null }>;
 }
 
-/** Порт до приватного сховища (S3-сумісного). */
+/** Private S3-compatible object storage port. */
 export interface MediaStore {
   put(key: string, body: Buffer, contentType: string): Promise<void>;
 }
@@ -41,7 +44,7 @@ export interface ProcessOptions {
 
 export type ProcessOutcome = 'processed' | 'stale' | 'missing';
 
-/** Метрики зображення через sharp: розміри, середня яскравість, pHash з 32×32 сірого. */
+/** Image dimensions, average brightness and perceptual hash from a 32x32 grayscale sample. */
 export async function analyseImage(buffer: Buffer): Promise<{
   width: number;
   height: number;
@@ -51,7 +54,7 @@ export async function analyseImage(buffer: Buffer): Promise<{
 }> {
   const image = sharp(buffer, { failOn: 'error' });
   const meta = await image.metadata();
-  if (!meta.width || !meta.height) throw new Error('зображення без розмірів');
+  if (!meta.width || !meta.height) throw new Error('Image has no dimensions');
   const gray = await image
     .clone()
     .rotate()
@@ -72,8 +75,8 @@ export async function analyseImage(buffer: Buffer): Promise<{
 }
 
 /**
- * Перенесення фото з Telegram у приватне сховище і технічна перевірка (ADR-0006, FR-PHO-02/03).
- * Підозра на повтор або низька якість позначають фото, але не карають (T-25, T-26).
+ * Download and assess evidence without penalizing suspected duplicates or low quality.
+ * Network I/O is retryable; the completed projection and its event commit atomically.
  */
 export async function processMedia(
   db: Database,
@@ -87,7 +90,18 @@ export async function processMedia(
     .where(eq(mediaObjects.id, job.mediaObjectId))
     .limit(1);
   if (!row) return 'missing';
-  if (row.processedAt && row.storageKey) return 'stale';
+  if (row.processedAt && row.storageKey) {
+    return db.transaction(async (tx) => {
+      const [current] = await tx
+        .select()
+        .from(mediaObjects)
+        .where(eq(mediaObjects.id, row.id))
+        .for('no key update');
+      if (!current) return 'missing';
+      await ensureProcessedEvent(tx, current);
+      return 'stale';
+    });
+  }
 
   try {
     const { buffer, contentType: fetchedType } = await deps.fetcher.fetch(row.telegramFileId);
@@ -136,67 +150,95 @@ export async function processMedia(
         duplicateOfId = verdict.ofId;
         notes =
           verdict.kind === 'EXACT'
-            ? 'точний повтор за SHA-256'
-            : `схоже на ${verdict.ofId} (відстань ${verdict.distance})`;
+            ? 'Exact SHA-256 duplicate'
+            : `Similar to ${verdict.ofId} (distance ${verdict.distance})`;
       }
     }
 
     const contentType = analysed?.contentType ?? fetchedType ?? 'application/octet-stream';
     const ext = contentType === 'image/png' ? 'png' : 'jpg';
-    const key = `${row.purpose}/${now.toISOString().slice(0, 7)}/${row.id}.${ext}`;
+    const key = `${row.purpose}/${row.receivedAt.toISOString().slice(0, 7)}/${row.id}.${ext}`;
     await deps.store.put(key, buffer, contentType);
 
-    await db
-      .update(mediaObjects)
-      .set({
-        storageKey: key,
-        contentType,
-        sizeBytes: buffer.length,
-        width: analysed?.width ?? row.width,
-        height: analysed?.height ?? row.height,
-        sha256,
-        phash: analysed?.phash ?? null,
-        brightness: analysed?.brightness ?? null,
-        quality,
-        qualityNotes: notes,
-        duplicateOfId,
-        processedAt: now,
-        attempts: row.attempts + 1,
-        lastError: null,
-        retentionUntil: new Date(now.getTime() + deps.options.retentionDays * 86_400_000),
-      })
-      .where(eq(mediaObjects.id, row.id));
-
-    await db
-      .insert(domainEvents)
-      .values({
-        type: 'MEDIA_PROCESSED',
-        occurredAt: now,
-        source: 'SYSTEM',
-        actingRole: 'SYSTEM',
-        employeeId: row.uploadedBy,
-        idempotencyKey: `media-processed:${row.id}`,
-        payload: {
-          mediaObjectId: row.id,
+    return await db.transaction(async (tx) => {
+      // Lock only after I/O: another attempt may already have completed this object.
+      const [current] = await tx
+        .select()
+        .from(mediaObjects)
+        .where(eq(mediaObjects.id, row.id))
+        .for('no key update');
+      if (!current) return 'missing';
+      if (current.processedAt && current.storageKey) {
+        await ensureProcessedEvent(tx, current);
+        return 'stale';
+      }
+      const [completed] = await tx
+        .update(mediaObjects)
+        .set({
+          storageKey: key,
+          contentType,
+          sizeBytes: buffer.length,
+          width: analysed?.width ?? current.width,
+          height: analysed?.height ?? current.height,
+          sha256,
+          phash: analysed?.phash ?? null,
+          brightness: analysed?.brightness ?? null,
           quality,
+          qualityNotes: notes,
           duplicateOfId,
-          width: analysed?.width ?? null,
-          height: analysed?.height ?? null,
-        },
-      })
-      .onConflictDoNothing({
-        target: domainEvents.idempotencyKey,
-        where: sql`${domainEvents.idempotencyKey} IS NOT NULL`,
-      });
-    return 'processed';
+          processedAt: now,
+          attempts: sql`${mediaObjects.attempts} + 1`,
+          lastError: null,
+          retentionUntil: new Date(now.getTime() + deps.options.retentionDays * 86_400_000),
+        })
+        .where(eq(mediaObjects.id, row.id))
+        .returning();
+      if (!completed) throw new Error('Media completion did not return a row');
+      await ensureProcessedEvent(tx, completed);
+      return 'processed';
+    });
   } catch (error) {
     await db
       .update(mediaObjects)
       .set({
-        attempts: row.attempts + 1,
+        attempts: sql`${mediaObjects.attempts} + 1`,
         lastError: error instanceof Error ? error.message : String(error),
       })
-      .where(eq(mediaObjects.id, row.id));
+      .where(
+        and(
+          eq(mediaObjects.id, row.id),
+          or(isNull(mediaObjects.processedAt), isNull(mediaObjects.storageKey)),
+        ),
+      );
     throw error;
   }
+}
+
+/** Repair a legacy event gap from the locked projection, preserving its original processing time. */
+async function ensureProcessedEvent(
+  tx: DbOrTx,
+  row: typeof mediaObjects.$inferSelect,
+): Promise<void> {
+  if (!row.processedAt || !row.storageKey) throw new Error('Media projection is not complete');
+  await tx
+    .insert(domainEvents)
+    .values({
+      type: 'MEDIA_PROCESSED',
+      occurredAt: row.processedAt,
+      source: 'SYSTEM',
+      actingRole: 'SYSTEM',
+      employeeId: row.uploadedBy,
+      idempotencyKey: `media-processed:${row.id}`,
+      payload: {
+        mediaObjectId: row.id,
+        quality: row.quality,
+        duplicateOfId: row.duplicateOfId,
+        width: row.width,
+        height: row.height,
+      },
+    })
+    .onConflictDoNothing({
+      target: domainEvents.idempotencyKey,
+      where: sql`${domainEvents.idempotencyKey} IS NOT NULL`,
+    });
 }
