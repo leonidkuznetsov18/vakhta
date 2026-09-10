@@ -1,3 +1,15 @@
+## [0.78.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.77.0...v0.78.0) (2026-09-10)
+
+### Features
+
+* **photo-inspection:** delete selected regions from keyboard ([81c334d](https://github.com/leonidkuznetsov18/vakhta/commit/81c334d6b866c4405fbdafee90d0e0fd733e01a1))
+* **photo-inspection:** unify action icons and field help ([6d4c2b6](https://github.com/leonidkuznetsov18/vakhta/commit/6d4c2b66d0db354351a1d4ef3736f3af24cf65c4))
+
+### Bug fixes
+
+* **photo-inspection:** align spacing between annotation fields ([c1ddb05](https://github.com/leonidkuznetsov18/vakhta/commit/c1ddb05ce8e777d416368c935824b5553bf96871))
+* **photo-inspection:** isolate image zoom from form layout ([552e88a](https://github.com/leonidkuznetsov18/vakhta/commit/552e88a63badfc22c279c136bb67e14f4b8a9293))
+
 ## [0.77.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.76.1...v0.77.0) (2026-09-10)
 
 ### Features
