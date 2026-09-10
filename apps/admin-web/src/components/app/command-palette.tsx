@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react';
-import type {
-  ChecklistDefinitionView,
-  EmployeeView,
-  OrgSnapshot,
-  TerminalView,
-} from '@vakhta/contracts';
+import { useQuery } from '@tanstack/react-query';
+import type { EmployeeView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import {
   ClipboardListIcon,
@@ -26,8 +22,10 @@ import {
   CommandShortcut,
 } from '@/components/ui/command';
 import { InfoTip } from '@/components/app/info-tip';
-import { checklistsApi, employeesApi, orgApi } from '@/api';
+import { checklistsApi } from '@/api';
 import { currentLocale } from '@/i18n';
+import { useEmployees, useOrg } from '@/lib/org';
+import { keys } from '@/lib/query';
 import type { SectionKey } from '@/navigation';
 
 /** A place the palette can jump to: a section, its tab and, optionally, the row to open. */
@@ -48,12 +46,6 @@ interface Props {
   readonly canAdminister: boolean;
 }
 
-interface Index {
-  readonly employees: EmployeeView[];
-  readonly checklists: ChecklistDefinitionView[];
-  readonly terminals: TerminalView[];
-}
-
 /**
  * ⌘K / Ctrl+K palette in the spirit of documentation sites: type a few letters and jump to a
  * section, a quick action, an employee, a checklist or a terminal. The index is fetched on the
@@ -71,8 +63,8 @@ export function CommandPalette({
   const c = t.ui.common;
   const a = t.admin.administration;
   const [open, setOpen] = useState(false);
-  const [index, setIndex] = useState<Index | null>(null);
 
+  // The shortcut belongs to the window, not to this component: an effect is the only way to hear it.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -84,23 +76,16 @@ export function CommandPalette({
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  useEffect(() => {
-    if (!open || index !== null) return;
-    const empty: Index = { employees: [], checklists: [], terminals: [] };
-    Promise.all([
-      canSeeEmployees ? employeesApi.list().catch(() => []) : Promise.resolve([]),
-      canAdminister ? checklistsApi.list().catch(() => []) : Promise.resolve([]),
-      canAdminister ? orgApi.snapshot().catch(() => null) : Promise.resolve(null),
-    ])
-      .then(([employees, checklists, org]) =>
-        setIndex({
-          employees,
-          checklists,
-          terminals: (org as OrgSnapshot | null)?.terminals ?? [],
-        }),
-      )
-      .catch(() => setIndex(empty));
-  }, [open, index, canSeeEmployees, canAdminister]);
+  // The index is read on the first open and shared with the sections that already have it: a
+  // panel nobody searches in pays nothing, and one that is searched twice asks once.
+  const { employees } = useEmployees(open && canSeeEmployees);
+  const checklists =
+    useQuery({
+      queryKey: keys.checklists,
+      queryFn: () => checklistsApi.list(),
+      enabled: open && canAdminister,
+    }).data ?? [];
+  const terminals = useOrg(open && canAdminister).orgOrEmpty.terminals;
 
   const go = (fn: () => void) => {
     setOpen(false);
@@ -180,11 +165,11 @@ export function CommandPalette({
               </CommandGroup>
             </>
           )}
-          {index && index.employees.length > 0 && (
+          {employees.length > 0 && (
             <>
               <CommandSeparator />
               <CommandGroup heading={c.commandEmployees}>
-                {index.employees.map((emp) => (
+                {employees.map((emp) => (
                   <CommandItem
                     key={emp.id}
                     value={`${emp.fullName} ${emp.personnelNumber}`}
@@ -200,11 +185,11 @@ export function CommandPalette({
               </CommandGroup>
             </>
           )}
-          {index && index.checklists.length > 0 && (
+          {checklists.length > 0 && (
             <>
               <CommandSeparator />
               <CommandGroup heading={c.commandChecklists}>
-                {index.checklists.map((cl) => (
+                {checklists.map((cl) => (
                   <CommandItem
                     key={cl.id}
                     value={`${cl.name} ${cl.positions.map((p) => p.name).join(' ')}`}
@@ -227,11 +212,11 @@ export function CommandPalette({
               </CommandGroup>
             </>
           )}
-          {index && index.terminals.length > 0 && (
+          {terminals.length > 0 && (
             <>
               <CommandSeparator />
               <CommandGroup heading={c.commandTerminals}>
-                {index.terminals.map((term) => (
+                {terminals.map((term) => (
                   <CommandItem
                     key={term.id}
                     value={`${term.name} terminal`}

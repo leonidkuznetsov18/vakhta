@@ -109,9 +109,11 @@ logs may contain employee details, request parameters or third-party errors. Kee
  dig +short NS vakhta.xyz
 ```
 
-In the bounded deployment-log sample, API returned seven records, worker four, Postgres 60 and Redis 60. Log reads succeeded; this small sample is not an all-time error audit. HTTP/build commands above
-are supported by installed `railway logs --help`; those specific modes were not exercised in this pass.
-For an incident, bind the time window, deployment and request ID before examining more data.
+In the bounded deployment-log sample, API returned seven records, worker four, Postgres 60 and Redis 60. Log reads succeeded; this small sample is not an all-time error audit. An additional API HTTP query
+for status >=500 over the preceding hour, capped at 30 records, succeeded and returned zero records.
+This is a bounded provider query, not proof that no client or application errors occurred. Build-log
+mode is supported by installed `railway logs --help` but was not exercised in this pass. For an
+incident, bind the time window, deployment and request ID before examining more data.
 
 Pages Function tails are for deployed Functions; they do not replace browser JavaScript errors or
 historical static-asset request analytics. No Pages Functions runtime was identified in these Vite

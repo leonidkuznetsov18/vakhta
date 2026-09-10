@@ -61,9 +61,9 @@ import { useNewBuild } from '@/lib/build-check';
 import { CompactLanguageSwitcher, LanguageSwitcher, currentLocale } from './i18n.tsx';
 import { useAppearance, type Theme } from '@/lib/theme';
 import { NavigationProvider, type SectionKey } from './navigation.tsx';
-import { readRoute, writeRoute } from '@/lib/route';
+import { useRoute, writeRoute } from '@/lib/route';
 import { setUiState } from '@/lib/ui-store';
-import { useEffect } from 'react';
+import { useDocumentTitle } from '@/lib/title';
 import { CommandPalette } from '@/components/app/command-palette';
 import { FaqButton } from '@/components/app/how-it-works';
 
@@ -137,31 +137,24 @@ export function App() {
   const badges = useBadges(state.status === 'authenticated' ? state.me : null);
   /** The "write to an employee" dialog, reachable from every section. */
   const [writing, setWriting] = useState(false);
-  const [active, setActive] = useState<ActiveKey>(() => {
-    const { section } = readRoute();
-    return section in PAGES || section === 'profile' || section === 'overview'
+  /**
+   * The section on screen is the address bar, read rather than copied: a link, the back button and
+   * a click in the sidebar all say the same thing, so none of them needs to be kept in step with
+   * the others. Only the section is written here; pages with tabs append their own sub-path.
+   */
+  const { section } = useRoute();
+  const active: ActiveKey =
+    section in PAGES || section === 'profile' || section === 'overview'
       ? (section as ActiveKey)
       : 'overview';
-  });
-  useEffect(() => {
-    if (state.status !== 'authenticated') return;
-    // Only the section is written here; pages with tabs append their own sub-path.
-    const { section, sub } = readRoute();
-    writeRoute(active, section === active ? sub : undefined);
-    const onChange = () => {
-      const next = readRoute().section;
-      if (next in PAGES || next === 'profile' || next === 'overview') setActive(next as ActiveKey);
-    };
-    window.addEventListener('hashchange', onChange);
-    return () => window.removeEventListener('hashchange', onChange);
-  }, [active, state.status]);
+  const setActive = (key: ActiveKey) => writeRoute(key);
   // Hooks stay above the early returns (React keeps their order between renders). The tab title
   // names the section once signed in; the login screen sets its own.
-  useEffect(() => {
-    if (state.status !== 'authenticated') return;
-    const sectionTitle = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];
-    document.title = `${sectionTitle} · ${t.admin.productName}`;
-  }, [active, state.status]);
+  useDocumentTitle(
+    state.status === 'authenticated'
+      ? `${active === 'profile' ? t.admin.auth.profile : t.admin.sections[active]} · ${t.admin.productName}`
+      : null,
+  );
 
   // Every hook lives above the early returns: React keeps their order between renders, and a hook
   // placed after them once crashed the panel on sign-in.

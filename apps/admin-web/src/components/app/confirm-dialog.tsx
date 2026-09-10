@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { messages } from '@vakhta/i18n';
 import {
   AlertDialog,
@@ -33,22 +33,23 @@ type Resolver = (value: string | false) => void;
  * the comment (or '' when no comment is requested) on confirmation and to false on cancel.
  */
 export function useConfirm() {
-  const [options, setOptions] = useState<ConfirmOptions | null>(null);
+  // The question and the promise waiting on its answer are one thing, so they are one piece of
+  // state: an open dialog always has someone to answer to, and settling it clears both at once.
+  const [asked, setAsked] = useState<{
+    readonly options: ConfirmOptions;
+    readonly resolve: Resolver;
+  } | null>(null);
   const [comment, setComment] = useState('');
-  const resolver = useRef<Resolver | null>(null);
+  const options = asked?.options ?? null;
 
-  const confirm = useCallback((opts: ConfirmOptions): Promise<string | false> => {
-    setOptions(opts);
+  const confirm = (opts: ConfirmOptions): Promise<string | false> => {
     setComment('');
-    return new Promise<string | false>((resolve) => {
-      resolver.current = resolve;
-    });
-  }, []);
+    return new Promise<string | false>((resolve) => setAsked({ options: opts, resolve }));
+  };
 
   const settle = (value: string | false) => {
-    resolver.current?.(value);
-    resolver.current = null;
-    setOptions(null);
+    asked?.resolve(value);
+    setAsked(null);
   };
 
   const t = messages(currentLocale()).ui.common;
