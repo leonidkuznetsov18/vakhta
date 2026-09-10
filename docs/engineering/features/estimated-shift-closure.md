@@ -101,10 +101,32 @@ production mutations were used by this implementation agent.
 
 ## Remaining work
 
-Deploy and complete live verification; deploy and verify
-real worker flow without manufacturing historical attendance. Integrate durable inbox and effects
-under their separately approved risks. Monitor audited unknown-departure reconciliation in production.
+Integrate durable inbox and effects under their separately approved risks. Monitor audited
+unknown-departure reconciliation in production. Live arrival/checklist/departure mutation needs an
+isolated employee/terminal fixture; no real attendance was manufactured for QA.
 
 Legacy bonus scoring still derives plan/weight from its existing mutable assignment path; this patch
 only excludes zero-length projection placeholders. Persisted-plan summary behavior is covered
 separately. Changing the remaining bonus weighting policy requires its own scoring decision.
+
+## Production verification
+
+2026-09-10: commit `a9be981`, CI `34477355497` all successful, release v0.70.7. Pages uploads,
+images and the existing Telegram announcement succeeded. Railway API deployment
+`4b3da8c2-ea40-4239-b63e-5226b6fbaee2` reports SUCCESS at that source.
+
+Read-only preflight found six active shifts, zero missing plans/overdue deadlines and two OPEN
+presences linked only to terminal shifts. After deployment: six active shifts, zero overdue shifts,
+zero terminal-only OPEN presences, two reconciliation events and two linked NEEDS_CLARIFICATION
+presences with null physical departure fields. Startup recovery produced these audited changes;
+no manual production shift or attendance command was issued.
+
+Authenticated panel `dev@vakhta.xyz`, v0.70.7: current-day operations, filters and cards were readable
+on desktop and 390x844 mobile. No automatically closed example existed on that day's view; the new
+estimated-status rendering is covered by local regression evidence. Paired kiosk Основний retained
+pairing, updated connectivity and showed its renewal countdown. No QR attendance scan was performed.
+A fresh `/start` in the authorized `@cryptoleonid` Telegram session showed the idle QR guidance,
+without the old stale open presence. Mobile text/buttons were readable; viewport overrides were reset.
+
+Public API health returned ok. Capped deployment error logs and HTTP >=500 samples since 12:43 UTC
+returned zero records; these bounded checks do not establish an all-time absence of errors.

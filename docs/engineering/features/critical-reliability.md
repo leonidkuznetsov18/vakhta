@@ -114,8 +114,16 @@ and authenticated panel/kiosk/bot verification.
   preserve pre-projection history. Startup recovery repairs only terminal-linked orphan presences.
   Final build and full check passed 440 tests; independent core and UI/Lean reviews approved.
   A read-only production preflight found six active shifts, no missing plans or overdue deadlines,
-  and two terminal-only orphan presences. Deployment verification remains pending. See
+  and two terminal-only orphan presences. CI `34477355497`/release v0.70.7 and Railway API
+  `4b3da8c2-ea40-4239-b63e-5226b6fbaee2` succeeded at `a9be981`. After deployment, zero orphan OPEN
+  presences remained; exactly two audited reconciliations preserved null physical departure. Fresh
+  Telegram home no longer showed stale presence. Desktop/mobile panel and paired kiosk checks passed. See
   `estimated-shift-closure.md` for recovery, deadline, projection and full-bot regression evidence.
+- Media processor slice of #5 (`2bb08b9`) atomically persists projection/completion event, repairs
+  legacy event gaps and reuses received-month storage keys. Independent RED/GREEN and concurrency
+  regressions passed; full check passed 444 tests. CI `34477914924`, release v0.70.8 and worker
+  `dabc6453-849f-4bb3-a389-35d8925995b5` succeeded. Production has 57 media rows, zero pending and
+  zero missing completion events. See `media-processing.md`; durable task admission is separate.
 - Access scope (#1), durable Telegram recovery (#4) and durable background effects (#5) remain
   implementation work. Do not report the nine-risk task complete.
 

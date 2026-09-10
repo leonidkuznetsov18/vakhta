@@ -49,7 +49,17 @@ concurrency regression checks a delayed failing attempt against an already compl
 All eight media regressions passed freshly, including the delayed losing attempt. `pnpm build`
 passed (2 fresh / 6 cached tasks); `pnpm check` passed 444 tests (23 worker tests fresh, 421 cached),
 typecheck, lint and formatting. Independent final-diff review approved with no blocking findings.
-Deployment verification remains pending; no real worker record was changed for this check.
+Deployment verification: CI `34477914924` and release v0.70.8 succeeded, including images, actual
+Pages uploads and the existing announcement. Railway worker deployment
+`dabc6453-849f-4bb3-a389-35d8925995b5` reports SUCCESS at `2bb08b9`. A read-only database check found
+57 media rows, zero pending rows and zero processed rows missing their completion event. A capped
+ten-record error-level worker-log query since 12:49 UTC returned no records.
+
+Authenticated panel v0.70.8 loaded the handover list and existing photo counts on desktop and 390x844
+mobile. The API's current bot home and paired kiosk had just passed verification at `a9be981`; this
+worker-only change did not redeploy the API. No real worker record or photo was created for QA.
+Failure/retry uploads used isolated PostgreSQL and fake I/O fixtures; existing production rows alone
+do not demonstrate the new failure path. Viewport overrides were reset.
 
 ## Remaining work
 
