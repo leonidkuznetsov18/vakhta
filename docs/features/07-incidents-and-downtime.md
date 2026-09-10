@@ -25,3 +25,10 @@ archive for future assistance, without an LLM integration. See
 [engineering memory](../engineering/features/incident-knowledge.md).
 
 Resolved and closed records show only read-only information, photos and history.
+
+### Period ranges
+
+Incidents and the incident knowledge base share a From/To filter. Day mode selects dates, month mode
+selects months without day cells, and year mode selects years. Choose both endpoints and press Apply;
+the last selected day/month/year is included completely, using the site's timezone. All time removes
+the date restriction. Selecting the same month or year twice creates a one-month or one-year range.

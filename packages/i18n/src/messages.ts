@@ -1324,6 +1324,8 @@ export interface Messages {
       readonly partialLoadError: string;
       readonly waitingConnection: string;
       readonly chooseParameters: string;
+      readonly rangeFrom: string;
+      readonly rangeTo: string;
       readonly saving: string;
       readonly noResults: string;
       readonly details: string;

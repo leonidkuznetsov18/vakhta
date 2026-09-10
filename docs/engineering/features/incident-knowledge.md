@@ -67,3 +67,32 @@ Operations, handovers, requests, employees and users reuse the same detail bound
 have bounded widths and narrow layouts stack vertically. Business permissions and mutations are unchanged.
 Lean: proceed; consistent controls and grouping reduce searching and re-reading without extra worker input.
 Visual acceptance requires actual desktop/mobile screenshots; no production records are created for QA.
+
+## 2026-09-10 — Inclusive From/To period ranges
+
+The owner refined the calendar requirement: day mode selects a date range; month mode renders only
+12 months with year navigation; year mode renders only years with page navigation. All modes show
+From/To and retain All time. A draft is applied explicitly after both endpoints are selected; canceling
+or changing units does not fetch partial results. Selecting the same month/year twice selects one unit.
+
+Shared UI now lives in `shared/ui/calendar-period-field.tsx`, with isolated Zustand draft state and
+reused local-calendar conversion helpers in `shared/lib`. Existing shadcn primitives are retained;
+DayPicker provides native range selection for days. Month/year grids reuse shadcn buttons because the
+installed DayPicker does not provide those selection surfaces. Legacy shared primitives remain in
+`components`; this is an incremental FSD move, not a wholesale UI migration.
+
+Incident and knowledge workspaces persist both endpoints independently and apply the mode/endpoints
+in one UI-store update. Existing single-date preferences fall back to that same date as the end.
+Queries include the full final selected unit: start of the first unit through the exclusive start of
+the unit after the last, in the selected site's timezone. All time sends no date constraints. Existing
+list/statistics APIs and permissions are unchanged.
+
+Verification: 15 focused model and incident regressions passed, including DST, leap February, reverse
+selection, cross-year ranges, all-time and list/statistics query boundaries; panel typecheck and changed
+code lint passed. Real-browser synthetic fixture verified 10–12 January, July–September, 2025–2028
+across year pages, Apply and All time. Desktop light and mobile dark screenshots were captured and
+inspected; month/year modes contained no day grid. Production publication is checked separately.
+
+Source: [DayPicker range selection](https://daypicker.dev/docs/selection-modes/).
+Lean: Proceed. The selection surface now matches the requested unit; applying once avoids unnecessary
+requests while selecting endpoints. No production activity or worker messages were created for QA.

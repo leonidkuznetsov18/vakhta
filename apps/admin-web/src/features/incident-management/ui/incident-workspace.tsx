@@ -3,7 +3,7 @@ import { messages } from '@vakhta/i18n';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DataTable } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
-import { CalendarPeriodField } from '@/components/app/date-picker';
+import { CalendarPeriodField } from '@/shared/ui/calendar-period-field';
 import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Lightbox } from '@/components/app/photo';
@@ -66,13 +66,13 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
         )}
         <CalendarPeriodField
           label={i.period}
-          value={date}
+          from={date}
+          to={model.endDate}
           mode={periodMode}
           labels={{ day: i.day, month: i.month, year: i.year, all: i.allDates }}
           open={model.calendarOpen}
           onOpenChange={model.setCalendarOpen}
-          onModeChange={model.setPeriodMode}
-          onSelect={model.selectDate}
+          onApply={model.applyPeriod}
           onClear={model.clearPeriod}
         />
         <div className="ml-auto">

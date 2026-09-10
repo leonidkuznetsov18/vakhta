@@ -1,3 +1,4 @@
+import type { CalendarRange } from '@/shared/lib/calendar-range';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
@@ -12,7 +13,7 @@ import { messages } from '@vakhta/i18n';
 import { incidentsApi } from '@/api';
 import { readError } from '@/errors';
 import { currentLocale } from '@/i18n';
-import { usePersistentState, useUiStore } from '@/lib/ui-store';
+import { usePersistentState, useUiStore, setUiState } from '@/lib/ui-store';
 import { useDeepLinkedId } from '@/lib/route';
 import { useLiveUpdates } from '@/lib/live';
 import { useOrg } from '@/lib/org';
@@ -59,12 +60,13 @@ export function useIncidentWorkspace(knowledge: boolean) {
     `${prefix}.period`,
     'all',
   );
-  const [date, setDate] = usePersistentState(`${prefix}.date`, todayIso);
+  const [date] = usePersistentState(`${prefix}.date`, todayIso);
+  const [endDate] = usePersistentState(`${prefix}.endDate`, date);
   const [openId, setOpenId] = useDeepLinkedId(prefix, `${prefix}.openId`);
   const { drafts, lightbox, calendarOpen } = useWorkspaceState(useShallow((state) => state));
   const client = useQueryClient();
   const timezone = org?.sites.find((site) => site.id === siteId)?.timezone ?? 'Europe/Kyiv';
-  const range = incidentPeriod(periodMode, date, timezone);
+  const range = incidentPeriod(periodMode, date, timezone, endDate);
   const query = {
     ...(siteId ? { siteId } : {}),
     scope: knowledge ? ('all' as const) : scope,
@@ -181,6 +183,7 @@ export function useIncidentWorkspace(knowledge: boolean) {
     calendarOpen,
     setCalendarOpen: (open: boolean) => useWorkspaceState.setState({ calendarOpen: open }),
     date,
+    endDate,
     live,
     rows,
     openId,
@@ -197,13 +200,12 @@ export function useIncidentWorkspace(knowledge: boolean) {
     setScope: (value: string) => {
       if (value === 'all' || value === 'open') setScopeValue(value);
     },
-    setPeriodMode: (value: string) => {
-      if (value === 'all' || value === 'day' || value === 'month' || value === 'year')
-        setPeriodModeValue(value);
-    },
-    selectDate: (value: string) => {
-      setDate(value);
-      if (periodMode === 'all') setPeriodModeValue('month');
+    applyPeriod: (range: CalendarRange) => {
+      setUiState({
+        [`${prefix}.period`]: range.mode,
+        [`${prefix}.date`]: range.from,
+        [`${prefix}.endDate`]: range.to,
+      });
       useWorkspaceState.setState({ calendarOpen: false });
     },
     clearPeriod: () => {

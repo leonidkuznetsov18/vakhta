@@ -274,13 +274,14 @@ describe('IncidentsPage', () => {
       expect(new URLSearchParams(stats?.search).get('to')).toBe('2026-10-25T22:00:00.000Z');
     });
     // Browser QA covers the calendar interaction; this test checks the shared filter/API boundary.
-    act(() => setUiState({ 'incidents.period': 'year' }));
+    act(() => setUiState({ 'incidents.period': 'year', 'incidents.endDate': '2028-01-01' }));
     await waitFor(() =>
       expect(
         calls.some(
           (call) =>
             call.path === '/admin/incidents' &&
-            new URLSearchParams(call.search).get('from') === '2025-12-31T22:00:00.000Z',
+            new URLSearchParams(call.search).get('from') === '2025-12-31T22:00:00.000Z' &&
+            new URLSearchParams(call.search).get('to') === '2028-12-31T22:00:00.000Z',
         ),
       ).toBe(true),
     );
