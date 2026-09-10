@@ -1,3 +1,9 @@
+## [0.73.5](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.4...v0.73.5) (2026-09-10)
+
+### Bug fixes
+
+* **admin:** collapse help sections by default ([3004844](https://github.com/leonidkuznetsov18/vakhta/commit/3004844b93156f5a27e02e5592fa8314001965e6))
+
 ## [0.73.4](https://github.com/leonidkuznetsov18/vakhta/compare/v0.73.3...v0.73.4) (2026-09-10)
 
 ### Bug fixes
