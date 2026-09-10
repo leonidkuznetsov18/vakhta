@@ -1,7 +1,9 @@
+import { inspectionRu } from './photo-inspection.js';
 import type { Messages } from './messages.js';
 
 /** Base interface language (NFR-08). Button and state wording follows the spec, sections 4.3-4.4 and 5.1. */
 export const ru: Messages = {
+  photoInspection: inspectionRu,
   language: {
     menuButton: '🌐 Язык',
     choose: 'Выберите язык интерфейса:',

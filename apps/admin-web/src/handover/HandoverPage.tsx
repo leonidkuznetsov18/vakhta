@@ -2,7 +2,7 @@ import { QueryFeedback } from '@/components/app/query-feedback';
 import { DetailText } from '@/components/app/row-detail';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { HandoverListItemView, MediaLinkView } from '@vakhta/contracts';
+import type { HandoverListItemView, HandoverPhotoView } from '@vakhta/contracts';
 import {
   HANDOVER_RESOLUTIONS,
   canTransitionHandover,
@@ -38,7 +38,8 @@ import { notifySuccess } from '@/lib/toast';
 import { Deadline } from '@/components/app/deadline';
 import { CheckIcon, EyeIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { Lightbox, PhotoThumb, type LightboxImage } from '@/components/app/photo';
+import { PhotoThumb } from '@/components/app/photo';
+import { PhotoInspectionDialog } from '@/features/photo-inspection';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { useDeepLinkedId } from '@/lib/route';
 
@@ -137,16 +138,11 @@ export function HandoverPage() {
     });
   }
 
-  const [lightbox, setLightbox] = useState<{ images: LightboxImage[]; start: number }>({
-    images: [],
-    start: 0,
-  });
-  /**
-   * Each thumbnail signs its own link and leaves it in the cache under the media id; the gallery
-   * needs every photo of the report, not only the one that was clicked, so it reads them from
-   * there rather than asking the server a second time for what is already on screen.
-   */
-  const linkOf = (mediaId: string) => client.getQueryData<MediaLinkView>(keys.media(mediaId))?.url;
+  const [inspection, setInspection] = useState<{
+    handoverId: string;
+    photo: HandoverPhotoView;
+    photos: HandoverPhotoView[];
+  } | null>(null);
 
   const columns: Column<HandoverListItemView>[] = [
     {
@@ -271,16 +267,13 @@ export function HandoverPage() {
                     loadLink={handoversApi.mediaLink}
                     label={p.label}
                     badge={all.handover.quality[p.media.quality]}
-                    onOpen={() => {
-                      const loaded = detail.handover.photos.filter((x) => linkOf(x.media.id));
-                      setLightbox({
-                        images: loaded.map((x) => ({
-                          url: linkOf(x.media.id)!,
-                          label: `${h.photoBefore}: ${x.label}`,
-                        })),
-                        start: loaded.findIndex((x) => x.itemKey === p.itemKey),
-                      });
-                    }}
+                    onOpen={() =>
+                      setInspection({
+                        handoverId: detail.handover.id,
+                        photo: p,
+                        photos: detail.handover.photos,
+                      })
+                    }
                   />
                 ))}
               </div>
@@ -429,12 +422,16 @@ export function HandoverPage() {
         activeKey={openId}
         expanded={(row) => (row.id === openId ? renderDetail(row) : null)}
       />
-      <Lightbox
-        images={lightbox.images}
-        start={lightbox.start}
-        onClose={() => setLightbox({ images: [], start: 0 })}
-        title={h.photos}
-      />
+      {inspection && (
+        <PhotoInspectionDialog
+          key={`${inspection.handoverId}:${inspection.photo.media.id}:${inspection.photo.itemKey}`}
+          handoverId={inspection.handoverId}
+          photo={inspection.photo}
+          photos={inspection.photos}
+          onPhotoChange={(photo) => setInspection({ ...inspection, photo })}
+          onClose={() => setInspection(null)}
+        />
+      )}
     </div>
   );
 }

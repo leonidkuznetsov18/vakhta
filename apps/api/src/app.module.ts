@@ -1,3 +1,4 @@
+import { PhotoInspectionModule } from './photo-inspection/photo-inspection.module.js';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AttendanceModule } from './attendance/attendance.module.js';
@@ -45,6 +46,7 @@ import { SupportModule } from './support/support.module.js';
     ShiftModule,
     IncidentsModule,
     HandoverModule,
+    PhotoInspectionModule,
     RequestsModule,
     BonusModule,
     ReportsModule,

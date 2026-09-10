@@ -218,6 +218,13 @@
       "when": 1789054879898,
       "tag": "0030_handover_review_deadline",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1789072090406,
+      "tag": "0031_photo_inspection",
+      "breakpoints": true
     }
   ]
 }

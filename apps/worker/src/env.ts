@@ -5,6 +5,14 @@ const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === 
 
 export const WorkerEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  CLOUDFLARE_AI_ACCOUNT_ID: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(/^[a-f0-9]{32}$/)
+      .optional(),
+  ),
+  CLOUDFLARE_AI_TOKEN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('info'),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),

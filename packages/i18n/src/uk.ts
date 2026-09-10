@@ -1,7 +1,9 @@
+import { inspectionUk } from './photo-inspection.js';
 import type { Messages } from './messages.js';
 
 /** Ukrainian catalog. Same keys and placeholders as `ru`; verified by catalogs.test.ts. */
 export const uk: Messages = {
+  photoInspection: inspectionUk,
   language: {
     menuButton: '🌐 Мова',
     choose: 'Оберіть мову інтерфейсу:',

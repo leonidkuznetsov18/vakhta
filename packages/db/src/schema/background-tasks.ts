@@ -15,6 +15,7 @@ import { shiftSessions } from './shift.js';
 
 export const BACKGROUND_TASK_KINDS = [
   'MEDIA_PROCESS',
+  'PHOTO_INSPECT',
   'SHIFT_REMINDER',
   'ACK_REMINDER',
   'RETURN_REMINDER',
@@ -74,7 +75,7 @@ export const backgroundTasks = pgTable(
       .where(sql`${t.status} = 'RUNNING'`),
     check(
       'background_tasks_kind_valid',
-      sql`${t.kind} IN ('MEDIA_PROCESS', 'SHIFT_REMINDER', 'ACK_REMINDER', 'RETURN_REMINDER', 'DOWNTIME_ESCALATION', 'INCIDENT_SLA', 'HANDOVER_TIMEOUT', 'CLEANING_REMINDER', 'BONUS_RECALCULATE')`,
+      sql`${t.kind} IN ('PHOTO_INSPECT', 'MEDIA_PROCESS', 'SHIFT_REMINDER', 'ACK_REMINDER', 'RETURN_REMINDER', 'DOWNTIME_ESCALATION', 'INCIDENT_SLA', 'HANDOVER_TIMEOUT', 'CLEANING_REMINDER', 'BONUS_RECALCULATE')`,
     ),
     check('background_tasks_payload_version_valid', sql`${t.payloadVersion} > 0`),
     check('background_tasks_payload_object', sql`jsonb_typeof(${t.payload}) = 'object'`),

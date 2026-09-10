@@ -12,3 +12,4 @@ export * from './notifications.js';
 export * from './events.js';
 export * from './system.js';
 export * from './background-tasks.js';
+export * from './photo-inspection.js';

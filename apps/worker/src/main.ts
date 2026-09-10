@@ -1,3 +1,5 @@
+import { CloudflareInspectionAnalyzer } from './photo-inspection/gemma.js';
+import { InspectionTaskRunner } from './photo-inspection/runner.js';
 import { Queue, Worker, type Job } from 'bullmq';
 import { Redis } from 'ioredis';
 import { pino } from 'pino';
@@ -107,6 +109,14 @@ const mediaRunner = new MediaTaskRunner(db, mediaDeps, {
   },
 });
 mediaRunner.start();
+const inspectionRunner = new InspectionTaskRunner(
+  db,
+  CloudflareInspectionAnalyzer.fromEnv(env),
+  () => {
+    logger.error('Photo inspection task processing failed');
+  },
+);
+inspectionRunner.start();
 
 // Optional legacy evidence reads only. Canonical PostgreSQL admission never depends on Redis.
 const legacyTimers = new Queue(QUEUES.timers, { connection });
@@ -251,7 +261,12 @@ logger.info(
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'зупинка worker');
   if (relayTimer) clearInterval(relayTimer);
-  await Promise.all([mediaRunner.stop(), timerRunner.stop(), ...workers.map((w) => w.close())]);
+  await Promise.all([
+    mediaRunner.stop(),
+    timerRunner.stop(),
+    inspectionRunner.stop(),
+    ...workers.map((w) => w.close()),
+  ]);
   await legacyTimers.close();
   await connection.quit();
   await client.end({ timeout: 5 });

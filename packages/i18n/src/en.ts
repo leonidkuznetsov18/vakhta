@@ -1,7 +1,9 @@
+import { inspectionEn } from './photo-inspection.js';
 import type { Messages } from './messages.js';
 
 /** English catalog. Same keys and placeholders as `ru`; verified by catalogs.test.ts. */
 export const en: Messages = {
+  photoInspection: inspectionEn,
   language: {
     menuButton: '🌐 Language',
     choose: 'Choose the interface language:',

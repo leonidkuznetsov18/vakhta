@@ -1,0 +1,135 @@
+# Photo inspection and dataset preparation
+
+## Outcome and scope
+
+Owner authorized implementation on 2026-09-10 with Cloudflare Gemma 4 and an initial maximum of
+50 photos/day. [Product specification](../../features/photo-inspection.md) defines the delivered
+scope: masters inspect checklist photos on Cleanliness and handover, mark visible problems and
+save explicit human reviews. Model training and automatic operational decisions are future work.
+The earlier incident-page proposal is superseded for this pilot.
+
+## Current behavior and ownership
+
+- `features/photo-inspection` owns the panel editor, API boundary and unsaved Zustand draft.
+  The existing handover page composes its public API; unrelated legacy page architecture is retained.
+- The Nest `PhotoInspectionModule` owns scope authorization, versioned review saves, analysis admission
+  and export. Contracts validate external input. Existing grants apply to zones or historical shift
+  assignments; unknown ownership admits enterprise scope only. Draft handovers remain read-only.
+- PostgreSQL stores `photo_inspections`, append-only `photo_inspection_revisions`, immutable analysis
+  intent/results in `photo_inspection_runs`, and durable `PHOTO_INSPECT` tasks. Migration 0031 adds
+  constraints and immutability triggers. Review, revision and audit writes share one transaction;
+  analysis admission, task intent and audit writes share another.
+- Completed handovers permit independent dataset annotations. This cannot change operational review,
+  shift history, bonus, employee notifications or original media. Replacing an attachment cannot
+  inherit its previous media identity's annotations.
+- The worker claims existing PostgreSQL leases, runs external I/O outside transactions, and publishes
+  results only with a valid lease. It never writes human labels.
+
+## Decisions and reuse
+
+Use [Annotorious 3.8.10](https://annotorious.dev/) core through a React 19 callback ref with explicit
+cleanup; no application lifecycle hooks are introduced. Rectangles and polygons support selection,
+editing, deletion, descriptions and zoom. Rectangle coordinate fields provide a keyboard alternative.
+The editor returns to selection after drawing. Shared shadcn controls and loading/error feedback,
+TanStack Query and Ukrainian/English/Russian catalogs serve the existing panel conventions.
+
+Human review statuses are UNREVIEWED, COMPLIANT, PROBLEMS and NOT_ASSESSABLE. Empty annotations do not
+imply compliance. Every problem needs a description; unassessable reviews need an explanation.
+Initial categories: dirt/dust, rag, misplaced tool, obstruction, equipment state and other.
+Requirements are saved per photo review and supplied alongside its checklist context. A versioned
+workplace rule library and per-rule assessment matrix remain future capabilities.
+
+Geometry uses coordinates normalized to [0,1] **after EXIF auto-orientation**. Stored `encodedWidth`
+and `encodedHeight` describe the received file, not necessarily its upright dimensions. Export
+consumers decode and auto-orient the image before converting normalized coordinates to pixels.
+SHA-256, immutable media ID, checklist definition/version, item, zone and shift retain provenance;
+presigned URLs are temporary transport only. The original means the best received file, not a
+claim that Telegram preserved original camera quality.
+
+Exports contain one saved human review plus metadata as schema-versioned JSON, with a separate
+authorized source-image link. Source extension follows actual MIME type. UNREVIEWED is excluded.
+AI-only output is never ground truth; copied findings retain their source run ID. Group future
+train/development/test splits by shift and duplicate family to prevent leakage. COCO/YOLO/VLM
+conversion and bulk archives are separate consumers of this canonical representation.
+
+[Gemma 4 26B A4B](https://developers.cloudflare.com/workers-ai/models/gemma-4-26b-a4b-it/) runs through
+Cloudflare's chat-completions API, model `@cf/google/gemma-4-26b-a4b-it`, prompt `workplace-v1`.
+Only the worker reads `CLOUDFLARE_AI_ACCOUNT_ID` and `CLOUDFLARE_AI_TOKEN`; the token is stored in
+1Password **Vakhta Workers AI** and configured in Railway worker production variables.
+Image instructions and user guidance are untrusted data. The prompt requests factual Ukrainian
+observations, uncertainty and evidence regions; it prohibits employee blame and inferred hidden
+power state. JSON output is runtime-validated, including consistency of findings and outcome.
+
+Limits: manual requests, five runs per photo, 200 globally per rolling 24 hours, at most three
+external attempts, 90-second attempt timeout and 120-second task lease. A stable request UUID
+supports retries after an ambiguous response. Another pending request returns an explicit conflict.
+Input is bounded to 20 MB/40 megapixels, auto-oriented and resized within 1600 pixels for inference.
+These limits bound work; they do not guarantee an exact monetary budget. Model output tokens are
+capped at 3000. Failed runs remain visible and require another explicit request after terminal failure.
+
+## Lean review
+
+**Proceed.** The smallest useful workflow is open photo → mark regions and describe observations →
+save. Metadata is automatic; AI assistance is optional. No new employee tasks or duplicate reports.
+Keyboard rectangle creation, post-drawing selection and protection of unsaved edits reduce rework.
+Measure review time, missed issues and false alarms before expanding automation. A tool's presence
+is a violation only when a known workplace rule establishes that it should not be there. A photo
+cannot prove electrical isolation or that an employee did not clean.
+
+Final design review retained human confirmation and separate AI evidence. Rollback can remove the
+optional UI/worker consumer while preserving review history; never delete the additive dataset tables
+or rewrite historical records as an operational rollback.
+
+## Verification
+
+Local verification on 2026-09-10/11, isolated PostgreSQL 16 testcontainers and synthetic images:
+
+- API: 8 integration tests cover scope, read-only roles, stale save conflicts, immutable revisions,
+  transactional audit rollback, replacement media, durable/idempotent admission, pending-request
+  conflict, historical assignment scope and MIME/orientation export metadata.
+- Worker: 7 tests cover concurrent dispatch, visible configuration failures, bounded retries,
+  expired-lease recovery, timeout ignoring cancellation, malformed/truncated output and rejection
+  of partially assigned results when boundary validation fails.
+- Editor: 3 tests cover normalized rectangle/polygon round trips, mandatory descriptions and explicit
+  negative labeling. Contracts: 6 passing tests including two new inspection tests.
+- Independent backend review resolved three findings: encoded/oriented dimensions and MIME filename,
+  pending-request identity, and zone-less historical scope. Reviewer confirmed no remaining scoped
+  backend blockers; this review excluded frontend code.
+- Real browser QA used a disposable local database and actual inspection API with a deterministic
+  synthetic AI response. Drawing rectangles and polygons, descriptions/categories, save/reopen,
+  zoom and explicit copying of an AI finding all worked. Desktop 1366×900 and mobile 390×844
+  screenshots were captured and visually inspected. No production employee records were fabricated.
+- Actual authenticated Cloudflare requests returned HTTP 200 for text JSON, a synthetic color image,
+  and the production inspection prompt with a synthetic table image. The latter returned a valid
+  prediction and 605 input/210 output tokens. This is protocol evidence, not a quality benchmark.
+- Panel production build and focused ESLint passed. API/worker/panel type checks and final formatting passed. Existing CI supplies the full workspace integration gate.
+
+Deployment verification is pending the feature push. Check CI/release/announcement, Pages source,
+Railway API/worker source and a read-only authenticated photo opening before reporting delivery.
+Kiosk and Telegram user flows are unchanged and do not need redundant smoke tests.
+
+## Dataset pilot and remaining work
+
+1. Select two or three representative zones; write concrete visible requirements, examples and
+   exceptions. Define when a criterion is unassessable. These are starting suggestions, not a
+   guaranteed sufficient training set.
+2. Sample normal, problematic, borderline and unassessable photographs across shifts, lighting and
+   viewpoints. Keep a naturally distributed evaluation set separate from rare-problem enrichment.
+   Existing accepted handovers are candidates, not automatically verified negative labels.
+3. Review consistently: draw around the object or affected area, describe visible evidence, and use
+   OTHER for new findings. A dataset steward resolves category ambiguity and reviewer disagreements.
+   Save partially inspected photos as UNREVIEWED; export only completed review decisions.
+4. Audit duplicates, image quality, retention and coverage before mass labeling. Hold out entire
+   shifts/duplicate families and, where feasible, workplaces. Freeze dataset and guideline versions.
+5. Measure per-category misses, false positives, localization, abstention and review time on the
+   holdout. Evaluate actual production-image quality before changing the manual-review requirement.
+6. Train only when the measured baseline shows a tractable gap and enough curated examples exist.
+   [TRL](https://huggingface.co/docs/trl/sft_trainer) and [PEFT](https://huggingface.co/docs/peft/index)
+   are future options; [Cloudflare LoRA support](https://developers.cloudflare.com/workers-ai/features/fine-tunes/loras/)
+   does not imply custom Gemma vision adapters are supported. Fine-tuning/hosting needs separate
+   measured GPU and provider decisions; uploading annotations does not train this API automatically.
+
+Known limits: rough regions are not pixel-accurate segmentation labels; no bulk dataset release,
+per-rule completeness matrix, double-review adjudication or trained custom checkpoint exists yet.
+Retention must be aligned with any future frozen dataset. Current saved human reviews and model
+suggestions provide the collection foundation, not evidence that autonomous inspection is reliable.

@@ -1,3 +1,4 @@
+import type { PhotoInspectionMessages } from './photo-inspection.js';
 import type {
   BonusCriterion,
   BonusSection,
@@ -56,6 +57,7 @@ export interface SectionGuide {
 }
 
 export interface Messages {
+  photoInspection: PhotoInspectionMessages;
   readonly language: {
     /** Button on the home screen that opens the language picker. */
     readonly menuButton: string;
