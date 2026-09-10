@@ -1,3 +1,9 @@
+## [0.76.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.75.0...v0.76.0) (2026-09-10)
+
+### Features
+
+* **photo-inspection:** add annotated reviews and Gemma analysis ([56f9f37](https://github.com/leonidkuznetsov18/vakhta/commit/56f9f3785ca3da3eff38d5a15e6d071b75647abc))
+
 ## [0.75.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.74.1...v0.75.0) (2026-09-10)
 
 ### Features
