@@ -38,9 +38,10 @@ export function EditableReview({ editor, busy }: { editor: InspectionEditor; bus
         {state.review.annotations.map((annotation, index) => (
           <div
             key={annotation.id}
-            className={`min-w-0 rounded-md border p-3 ${state.selected === annotation.id ? 'border-primary' : ''}`}
+            className={`flex min-w-0 flex-col gap-3 rounded-md border p-3 ${state.selected === annotation.id ? 'border-primary' : ''}`}
           >
             <IconButton
+              className="self-start"
               icon={FocusIcon}
               label={`${index + 1}. ${t.categories[annotation.category]}`}
               tooltip={t.hints.selectRegion}
@@ -78,7 +79,7 @@ export function EditableReview({ editor, busy }: { editor: InspectionEditor; bus
               )}
             </FormField>
             {annotation.geometry.type === 'RECTANGLE' && (
-              <details className="mt-2">
+              <details>
                 <summary className="cursor-pointer text-xs">{t.coordinates}</summary>
                 <fieldset className="grid grid-cols-2 gap-2">
                   {(['x', 'y', 'width', 'height'] as const).map((field) => (
@@ -111,6 +112,7 @@ export function EditableReview({ editor, busy }: { editor: InspectionEditor; bus
             )}
             {
               <IconButton
+                className="self-start"
                 icon={Trash2Icon}
                 label={t.remove}
                 tooltip={t.hints.remove}

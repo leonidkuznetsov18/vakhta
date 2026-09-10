@@ -194,3 +194,8 @@ field explanations open on touch and all fields retain accessible labels. Synthe
 and saving remain functional. Lean recommendation: proceed with icon-plus-text actions and optional
 help; avoid forcing workers to identify an action by an unfamiliar symbol. Actual reduction in
 training time has not been measured.
+
+Spacing refinement: annotation cards use the same 12px vertical gap as the surrounding form, with
+content-width actions and no additional coordinate-section margin. Desktop 1440px and mobile 390px
+screenshots were inspected; the category-to-description gap measured 12px in both. Formatting and
+`git diff --check` passed. This is a presentation-only change; no additional tests were needed.
