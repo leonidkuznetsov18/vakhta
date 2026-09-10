@@ -161,16 +161,6 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     },
   });
 
-  const busy =
-    add.isPending ||
-    drop.isPending ||
-    issue.isPending ||
-    setStatus.isPending ||
-    issueMany.isPending;
-  const error = readError(
-    roster.error ?? add.error ?? drop.error ?? issue.error ?? setStatus.error ?? issueMany.error,
-  );
-
   const unitName = (id: string) => org.orgUnits.find((u) => u.id === id)?.name ?? id;
   const positionName = (id: string) => org.positions.find((p) => p.id === id)?.name ?? id;
 
@@ -249,35 +239,51 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   }
 
   /** Delete every selected card: no history deletes it, history terminates it; the toast shows both counts. */
-  function deleteSelected() {
+  const dropMany = useMutation({
+    mutationFn: (v: { ids: readonly string[]; reason: string }) =>
+      notifyPromise(adminEmployeesApi.bulkDelete([...v.ids], v.reason), {
+        loading: format(e.deletingSelected, { n: v.ids.length }),
+        success: (r) =>
+          format(e.deleteSelectedResult, { deleted: r.deleted, terminated: r.terminated }),
+        error: (err) => describeError(err),
+      }),
+    onSuccess: async (result, v) => {
+      setSelected(new Set());
+      if (openId && v.ids.includes(openId)) setOpenId(null);
+      if (result.deleted > 0 || result.terminated > 0) await reload();
+    },
+  });
+
+  async function deleteSelected() {
     const ids = [...selected];
     if (ids.length === 0) return;
-    void (async () => {
-      const reason = await confirm({
-        title: e.deleteSelected,
-        description: format(e.deleteSelectedConfirm, { n: ids.length }),
-        confirmLabel: e.deleteSelected,
-        commentLabel: t.common.reason,
-        commentRequired: true,
-        destructive: true,
-      });
-      if (!reason) return;
-      try {
-        const result = await notifyPromise(adminEmployeesApi.bulkDelete(ids, reason), {
-          loading: format(e.deletingSelected, { n: ids.length }),
-          success: (r) =>
-            format(e.deleteSelectedResult, { deleted: r.deleted, terminated: r.terminated }),
-          error: (err) => describeError(err),
-        });
-        const removed = new Set(ids);
-        if (result.deleted > 0 || result.terminated > 0) await reload();
-        setSelected(new Set());
-        if (openId && removed.has(openId)) setOpenId(null);
-      } catch {
-        // the toast already reported the failure
-      }
-    })();
+    const reason = await confirm({
+      title: e.deleteSelected,
+      description: format(e.deleteSelectedConfirm, { n: ids.length }),
+      confirmLabel: e.deleteSelected,
+      commentLabel: t.common.reason,
+      commentRequired: true,
+      destructive: true,
+    });
+    if (reason) dropMany.mutate({ ids, reason });
   }
+  const busy =
+    add.isPending ||
+    drop.isPending ||
+    issue.isPending ||
+    setStatus.isPending ||
+    issueMany.isPending ||
+    dropMany.isPending;
+  const error = readError(
+    roster.error ??
+      add.error ??
+      drop.error ??
+      issue.error ??
+      setStatus.error ??
+      issueMany.error ??
+      dropMany.error,
+  );
+
   const [telegramFilter, setTelegramFilter] = usePersistentState<'' | 'LINKED' | 'NOT_LINKED'>(
     'employees.telegram',
     '',

@@ -91,7 +91,8 @@ export function ProfilePanel({ me, onChanged }: Props) {
   });
   /** A picture too big to send never reaches the server, so its refusal is not the mutation's. */
   const choosePhoto = useMutation({
-    mutationFn: async (file: File) => saveProfile.mutateAsync({ image: await photoToDataUrl(file) }),
+    mutationFn: async (file: File) =>
+      saveProfile.mutateAsync({ image: await photoToDataUrl(file) }),
     onSettled: () => {
       if (fileInput.current) fileInput.current.value = '';
     },

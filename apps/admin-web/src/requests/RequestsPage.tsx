@@ -22,7 +22,7 @@ import {
 } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
 import { requestsApi, shiftsApi } from '../api.ts';
-import { describeError, readError } from '../errors.ts';
+import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { usePersistentState } from '@/lib/ui-store';
 import { useLiveUpdates } from '@/lib/live';
@@ -445,8 +445,10 @@ export function RequestsPage() {
 
 /** The document opens for HR only; for others the server answers 403 and writes an audit row (FR-REQ-02). */
 function MedicalLink({ request }: { readonly request: RequestView }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
+  // Asked for by name, never in passing: every signing of this link is an audit row.
+  const open = useMutation({ mutationFn: () => requestsApi.medicalLink(request.id) });
+  const url = open.data?.url ?? null;
+  const failed = readError(open.error);
   if (!request.medicalMediaId)
     return <p className="text-sm text-muted-foreground">{r.medical}: ✓</p>;
   if (url) {
@@ -467,12 +469,8 @@ function MedicalLink({ request }: { readonly request: RequestView }) {
         type="button"
         variant="link"
         size="sm"
-        onClick={() => {
-          requestsApi
-            .medicalLink(request.id)
-            .then((l) => setUrl(l.url))
-            .catch((e: unknown) => setFailed(describeError(e)));
-        }}
+        disabled={open.isPending}
+        onClick={() => open.mutate()}
       >
         {failed ?? r.openMedical}
       </Button>

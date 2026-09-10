@@ -228,8 +228,7 @@ export function OperationsPage() {
   /** The comment as a message to the employee's bot: available on a closed shift too, which is
       exactly when a master needs to ask why the checklist never came. */
   const message = useMutation({
-    mutationFn: (v: { row: ActiveShiftView; text: string }) =>
-      shiftsApi.message(v.row.id, v.text),
+    mutationFn: (v: { row: ActiveShiftView; text: string }) => shiftsApi.message(v.row.id, v.text),
     onSuccess: (_result, v) => {
       notifySuccess(format(o.messageSent, { employee: v.row.fullName }));
       setComment((c) => ({ ...c, [v.row.id]: '' }));
