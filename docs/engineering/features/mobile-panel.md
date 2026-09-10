@@ -52,3 +52,12 @@ Proceed. Shared touch targets and readable records reduce precision tapping and 
 Gestures add no mandatory step; buttons remain visible. Preserve production decisions and observe
 mis-taps, navigation retries and time to find/complete a record on actual phones before claiming
 measured time savings. Do not turn the dense month matrix into a different planning workflow here.
+
+### Follow-up: sidebar alignment
+
+The owner reported a raised incident counter on the phone. The original shadcn badge/action offsets
+were sized for 32 px rows, while mobile menu entries now have 44 px minimum height. Mobile badges
+and trailing actions are vertically centered; button text reserves space for badges to avoid overlap.
+Desktop offsets remain unchanged. Dark-theme screenshots at 390×844 and 1440×1000 were inspected;
+DOM measurements confirmed identical row/indicator centers for single/double-digit counters and actions.
+This presentation-only correction needs no new behavior tests. Diff/format and the existing CI apply.
