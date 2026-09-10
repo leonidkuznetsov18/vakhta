@@ -102,7 +102,6 @@ export class RequestsService {
   ): Promise<RequestView> {
     const replay = await this.replay(`request:${employeeId}`, cmd.idempotencyKey);
     if (replay) return this.view(replay);
-    let mediaId: string | null = null;
     const id = await this.db.transaction(async (tx) => {
       const base = await this.validate(tx, employeeId, cmd, now);
       let medicalMediaId: string | null = null;
@@ -115,7 +114,6 @@ export class RequestsService {
           now,
         });
         medicalMediaId = media.id;
-        mediaId = media.id;
       }
       const steps = routeFor(cmd.type);
       const [row] = await tx
@@ -176,7 +174,6 @@ export class RequestsService {
       });
       return row.id;
     });
-    if (mediaId) await this.media.enqueue(mediaId);
     this.changes.publish({ requestId: id, status: 'SUBMITTED', at: now.toISOString() });
     return this.view(id);
   }

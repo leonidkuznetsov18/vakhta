@@ -4,6 +4,7 @@ import {
   and,
   desc,
   domainEvents,
+  enqueueMediaBonusRecalculations,
   eq,
   gte,
   isNotNull,
@@ -13,7 +14,7 @@ import {
   or,
   sql,
   type Database,
-  type DbOrTx,
+  type Transaction,
 } from '@vakhta/db';
 import {
   PHASH_SIZE,
@@ -27,12 +28,15 @@ import type { MediaJob } from '@vakhta/contracts';
 
 /** Telegram download port: getFile followed by the private file download. */
 export interface FileFetcher {
-  fetch(fileId: string): Promise<{ buffer: Buffer; contentType: string | null }>;
+  fetch(
+    fileId: string,
+    signal?: AbortSignal,
+  ): Promise<{ buffer: Buffer; contentType: string | null }>;
 }
 
 /** Private S3-compatible object storage port. */
 export interface MediaStore {
-  put(key: string, body: Buffer, contentType: string): Promise<void>;
+  put(key: string, body: Buffer, contentType: string, signal?: AbortSignal): Promise<void>;
 }
 
 export interface ProcessOptions {
@@ -74,139 +78,216 @@ export async function analyseImage(buffer: Buffer): Promise<{
   };
 }
 
-/**
- * Download and assess evidence without penalizing suspected duplicates or low quality.
- * Network I/O is retryable; the completed projection and its event commit atomically.
- */
-export async function processMedia(
+export interface MediaDependencies {
+  readonly fetcher: FileFetcher;
+  readonly store: MediaStore;
+  readonly options: ProcessOptions;
+}
+
+type MediaRow = typeof mediaObjects.$inferSelect;
+type CompletedMediaValues = Pick<
+  MediaRow,
+  | 'storageKey'
+  | 'contentType'
+  | 'sizeBytes'
+  | 'width'
+  | 'height'
+  | 'sha256'
+  | 'phash'
+  | 'brightness'
+  | 'quality'
+  | 'qualityNotes'
+  | 'duplicateOfId'
+  | 'processedAt'
+  | 'retentionUntil'
+>;
+export type MediaPreparation =
+  | { readonly kind: 'missing' | 'complete'; readonly mediaObjectId: string }
+  | {
+      readonly kind: 'prepared';
+      readonly mediaObjectId: string;
+      readonly values: CompletedMediaValues;
+    };
+
+export class MediaDependencyUnavailableError extends Error {
+  constructor() {
+    super('Media processing dependencies are unavailable');
+  }
+}
+
+/** Reads and external I/O only. A late result cannot write a projection by itself. */
+export async function prepareMedia(
   db: Database,
-  deps: { fetcher: FileFetcher; store: MediaStore; options: ProcessOptions },
+  deps: MediaDependencies | null,
   job: MediaJob,
-): Promise<ProcessOutcome> {
-  const now = deps.options.now?.() ?? new Date();
+  signal?: AbortSignal,
+): Promise<MediaPreparation> {
+  const now = deps?.options.now?.() ?? new Date();
   const [row] = await db
     .select()
     .from(mediaObjects)
     .where(eq(mediaObjects.id, job.mediaObjectId))
     .limit(1);
-  if (!row) return 'missing';
-  if (row.processedAt && row.storageKey) {
-    return db.transaction(async (tx) => {
-      const [current] = await tx
-        .select()
-        .from(mediaObjects)
-        .where(eq(mediaObjects.id, row.id))
-        .for('no key update');
-      if (!current) return 'missing';
-      await ensureProcessedEvent(tx, current);
-      return 'stale';
-    });
+  if (!row) return { kind: 'missing', mediaObjectId: job.mediaObjectId };
+  if (row.processedAt && row.storageKey) return { kind: 'complete', mediaObjectId: row.id };
+  if (!deps) throw new MediaDependencyUnavailableError();
+  signal?.throwIfAborted();
+  const { buffer, contentType: fetchedType } = await deps.fetcher.fetch(row.telegramFileId, signal);
+  signal?.throwIfAborted();
+  const sha256 = createHash('sha256').update(buffer).digest('hex');
+  let analysed: Awaited<ReturnType<typeof analyseImage>> | null = null;
+  try {
+    analysed = await analyseImage(buffer);
+  } catch {
+    analysed = null;
+  }
+  signal?.throwIfAborted();
+  const metrics = analysed
+    ? {
+        width: analysed.width,
+        height: analysed.height,
+        brightness: analysed.brightness,
+        sizeBytes: buffer.length,
+      }
+    : null;
+  let quality: MediaQualityStatus = assessQuality(metrics, deps.options.thresholds);
+  let duplicateOfId: string | null = null;
+  let notes: string | null = null;
+
+  if (analysed && quality === 'OK') {
+    const since = new Date(now.getTime() - (deps.options.duplicateLookbackDays ?? 30) * 86_400_000);
+    const others = await db
+      .select({ id: mediaObjects.id, sha256: mediaObjects.sha256, phash: mediaObjects.phash })
+      .from(mediaObjects)
+      .where(
+        and(
+          ne(mediaObjects.id, row.id),
+          isNotNull(mediaObjects.processedAt),
+          gte(mediaObjects.receivedAt, since),
+        ),
+      )
+      .orderBy(desc(mediaObjects.receivedAt))
+      .limit(500);
+    const verdict = findDuplicate(
+      { sha256, phash: analysed.phash },
+      others,
+      deps.options.thresholds,
+    );
+    if (verdict.kind !== 'NONE') {
+      quality = 'DUPLICATE_SUSPECT';
+      duplicateOfId = verdict.ofId;
+      notes =
+        verdict.kind === 'EXACT'
+          ? 'Exact SHA-256 duplicate'
+          : `Similar to ${verdict.ofId} (distance ${verdict.distance})`;
+    }
   }
 
+  const contentType = analysed?.contentType ?? fetchedType ?? 'application/octet-stream';
+  const ext = contentType === 'image/png' ? 'png' : 'jpg';
+  const key = `${row.purpose}/${row.receivedAt.toISOString().slice(0, 7)}/${row.id}.${ext}`;
+  signal?.throwIfAborted();
+  await deps.store.put(key, buffer, contentType, signal);
+  signal?.throwIfAborted();
+
+  return {
+    kind: 'prepared',
+    mediaObjectId: row.id,
+    values: {
+      storageKey: key,
+      contentType,
+      sizeBytes: buffer.length,
+      width: analysed?.width ?? row.width,
+      height: analysed?.height ?? row.height,
+      sha256,
+      phash: analysed?.phash ?? null,
+      brightness: analysed?.brightness ?? null,
+      quality,
+      qualityNotes: notes,
+      duplicateOfId,
+      processedAt: now,
+      retentionUntil: new Date(now.getTime() + deps.options.retentionDays * 86_400_000),
+    },
+  };
+}
+
+/** Bound the complete preparation path, including adapters that are slow to observe cancellation. */
+export async function prepareMediaWithTimeout(
+  db: Database,
+  deps: MediaDependencies | null,
+  job: MediaJob,
+  timeoutMs: number,
+): Promise<MediaPreparation> {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120_000) {
+    throw new Error('Invalid media I/O timeout');
+  }
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<never>((_resolve, reject) => {
+    timeout = setTimeout(() => {
+      const error = new Error('Media processing timed out');
+      controller.abort(error);
+      reject(error);
+    }, timeoutMs);
+  });
   try {
-    const { buffer, contentType: fetchedType } = await deps.fetcher.fetch(row.telegramFileId);
-    const sha256 = createHash('sha256').update(buffer).digest('hex');
-    let analysed: Awaited<ReturnType<typeof analyseImage>> | null = null;
-    try {
-      analysed = await analyseImage(buffer);
-    } catch {
-      analysed = null;
-    }
-    const metrics = analysed
-      ? {
-          width: analysed.width,
-          height: analysed.height,
-          brightness: analysed.brightness,
-          sizeBytes: buffer.length,
-        }
-      : null;
-    let quality: MediaQualityStatus = assessQuality(metrics, deps.options.thresholds);
-    let duplicateOfId: string | null = null;
-    let notes: string | null = null;
+    return await Promise.race([prepareMedia(db, deps, job, controller.signal), expired]);
+  } finally {
+    clearTimeout(timeout);
+    controller.abort();
+  }
+}
 
-    if (analysed && quality === 'OK') {
-      const since = new Date(
-        now.getTime() - (deps.options.duplicateLookbackDays ?? 30) * 86_400_000,
-      );
-      const others = await db
-        .select({ id: mediaObjects.id, sha256: mediaObjects.sha256, phash: mediaObjects.phash })
-        .from(mediaObjects)
-        .where(
-          and(
-            ne(mediaObjects.id, row.id),
-            isNotNull(mediaObjects.processedAt),
-            gte(mediaObjects.receivedAt, since),
-          ),
-        )
-        .orderBy(desc(mediaObjects.receivedAt))
-        .limit(500);
-      const verdict = findDuplicate(
-        { sha256, phash: analysed.phash },
-        others,
-        deps.options.thresholds,
-      );
-      if (verdict.kind !== 'NONE') {
-        quality = 'DUPLICATE_SUSPECT';
-        duplicateOfId = verdict.ofId;
-        notes =
-          verdict.kind === 'EXACT'
-            ? 'Exact SHA-256 duplicate'
-            : `Similar to ${verdict.ofId} (distance ${verdict.distance})`;
-      }
-    }
+/** Caller owns the transaction; durable execution includes task completion in this same boundary. */
+export async function finalizeMediaWithin(
+  tx: Transaction,
+  prepared: MediaPreparation,
+): Promise<ProcessOutcome> {
+  if (prepared.kind === 'missing') return 'missing';
+  const [current] = await tx
+    .select()
+    .from(mediaObjects)
+    .where(eq(mediaObjects.id, prepared.mediaObjectId))
+    .for('no key update');
+  if (!current) return 'missing';
+  if (current.processedAt && current.storageKey) {
+    await ensureProcessedEvent(tx, current);
+    return 'stale';
+  }
+  if (prepared.kind !== 'prepared') throw new Error('Completed media projection disappeared');
+  const [completed] = await tx
+    .update(mediaObjects)
+    .set({
+      ...prepared.values,
+      attempts: sql`${mediaObjects.attempts} + 1`,
+      lastError: null,
+    })
+    .where(eq(mediaObjects.id, current.id))
+    .returning();
+  if (!completed) throw new Error('Media completion did not return a row');
+  await ensureProcessedEvent(tx, completed);
+  return 'processed';
+}
 
-    const contentType = analysed?.contentType ?? fetchedType ?? 'application/octet-stream';
-    const ext = contentType === 'image/png' ? 'png' : 'jpg';
-    const key = `${row.purpose}/${row.receivedAt.toISOString().slice(0, 7)}/${row.id}.${ext}`;
-    await deps.store.put(key, buffer, contentType);
-
-    return await db.transaction(async (tx) => {
-      // Lock only after I/O: another attempt may already have completed this object.
-      const [current] = await tx
-        .select()
-        .from(mediaObjects)
-        .where(eq(mediaObjects.id, row.id))
-        .for('no key update');
-      if (!current) return 'missing';
-      if (current.processedAt && current.storageKey) {
-        await ensureProcessedEvent(tx, current);
-        return 'stale';
-      }
-      const [completed] = await tx
-        .update(mediaObjects)
-        .set({
-          storageKey: key,
-          contentType,
-          sizeBytes: buffer.length,
-          width: analysed?.width ?? current.width,
-          height: analysed?.height ?? current.height,
-          sha256,
-          phash: analysed?.phash ?? null,
-          brightness: analysed?.brightness ?? null,
-          quality,
-          qualityNotes: notes,
-          duplicateOfId,
-          processedAt: now,
-          attempts: sql`${mediaObjects.attempts} + 1`,
-          lastError: null,
-          retentionUntil: new Date(now.getTime() + deps.options.retentionDays * 86_400_000),
-        })
-        .where(eq(mediaObjects.id, row.id))
-        .returning();
-      if (!completed) throw new Error('Media completion did not return a row');
-      await ensureProcessedEvent(tx, completed);
-      return 'processed';
-    });
+/** Legacy BullMQ drain shares the same bounded preparation and atomic finalizer. */
+export async function processMedia(
+  db: Database,
+  deps: MediaDependencies | null,
+  job: MediaJob,
+): Promise<ProcessOutcome> {
+  try {
+    const prepared = await prepareMediaWithTimeout(db, deps, job, 60_000);
+    return await db.transaction((tx) => finalizeMediaWithin(tx, prepared));
   } catch (error) {
     await db
       .update(mediaObjects)
       .set({
         attempts: sql`${mediaObjects.attempts} + 1`,
-        lastError: error instanceof Error ? error.message : String(error),
+        lastError: 'EXECUTION_FAILED',
       })
       .where(
         and(
-          eq(mediaObjects.id, row.id),
+          eq(mediaObjects.id, job.mediaObjectId),
           or(isNull(mediaObjects.processedAt), isNull(mediaObjects.storageKey)),
         ),
       );
@@ -216,11 +297,11 @@ export async function processMedia(
 
 /** Repair a legacy event gap from the locked projection, preserving its original processing time. */
 async function ensureProcessedEvent(
-  tx: DbOrTx,
+  tx: Transaction,
   row: typeof mediaObjects.$inferSelect,
 ): Promise<void> {
   if (!row.processedAt || !row.storageKey) throw new Error('Media projection is not complete');
-  await tx
+  const [inserted] = await tx
     .insert(domainEvents)
     .values({
       type: 'MEDIA_PROCESSED',
@@ -240,5 +321,21 @@ async function ensureProcessedEvent(
     .onConflictDoNothing({
       target: domainEvents.idempotencyKey,
       where: sql`${domainEvents.idempotencyKey} IS NOT NULL`,
-    });
+    })
+    .returning({ id: domainEvents.id, occurredAt: domainEvents.occurredAt });
+  const event =
+    inserted ??
+    (
+      await tx
+        .select({ id: domainEvents.id, occurredAt: domainEvents.occurredAt })
+        .from(domainEvents)
+        .where(
+          and(
+            eq(domainEvents.idempotencyKey, `media-processed:${row.id}`),
+            eq(domainEvents.type, 'MEDIA_PROCESSED'),
+          ),
+        )
+    )[0];
+  if (!event) throw new Error('Media completion event is missing');
+  await enqueueMediaBonusRecalculations(tx, row.id, event);
 }

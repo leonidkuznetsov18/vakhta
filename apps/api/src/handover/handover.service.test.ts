@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  backgroundTasks,
   checklistDefinitionPositions,
   checklistDefinitions,
   domainEvents,
@@ -72,7 +73,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
 
   beforeEach(async () => {
     await testDb.db.execute(
-      sql`TRUNCATE handover_resolutions, handover_reviews, handover_media, checklist_answers, handover_records, media_objects, checklist_definitions, incident_status_history, downtime_reports, downtime_incidents, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, responsibility_zones, employee_positions, positions, employees, org_units, sites, reason_codes CASCADE`,
+      sql`TRUNCATE background_tasks, handover_resolutions, handover_reviews, handover_media, checklist_answers, handover_records, media_objects, checklist_definitions, incident_status_history, downtime_reports, downtime_incidents, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, responsibility_zones, employee_positions, positions, employees, org_units, sites, reason_codes CASCADE`,
     );
     timers = new InMemoryTimerScheduler();
     const events = new EventStore();
@@ -106,7 +107,6 @@ describe('handover: прибирання, чек-лист, фото, перед�
     const media = new MediaService(
       testDb.db,
       audit,
-      timers,
       { linkTtlSeconds: 300 },
       new InMemoryObjectStorage(),
     );
@@ -552,7 +552,12 @@ describe('handover: прибирання, чек-лист, фото, перед�
     view = await handover.current(dayEmployee);
     expect(view?.photos).toHaveLength(1);
     expect(await testDb.db.select().from(mediaObjects)).toHaveLength(2);
-    expect(timers.media).toHaveLength(2);
+    expect(
+      await testDb.db
+        .select()
+        .from(backgroundTasks)
+        .where(eq(backgroundTasks.kind, 'MEDIA_PROCESS')),
+    ).toHaveLength(2);
     // повторна відправка того самого файлу не створює нового обʼєкта (FR-PHO-05)
     await handover.attachPhoto(
       dayEmployee,

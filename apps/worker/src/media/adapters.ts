@@ -7,14 +7,23 @@ export class TelegramFileFetcher implements FileFetcher {
   private readonly api: Api;
 
   constructor(private readonly token: string) {
-    this.api = new Api(token);
+    this.api = new Api(token, { timeoutSeconds: 60 });
   }
 
-  async fetch(fileId: string): Promise<{ buffer: Buffer; contentType: string | null }> {
+  async fetch(
+    fileId: string,
+    signal?: AbortSignal,
+  ): Promise<{ buffer: Buffer; contentType: string | null }> {
+    signal?.throwIfAborted();
+    // grammY's Node adapter has a polyfill AbortSignal type; its own timeout bounds getFile.
+    // The outer preparation deadline prevents any later download after cancellation.
     const file = await this.api.getFile(fileId);
-    if (!file.file_path) throw new Error('Telegram не повернув file_path');
-    const res = await fetch(`https://api.telegram.org/file/bot${this.token}/${file.file_path}`);
-    if (!res.ok) throw new Error(`завантаження файлу: HTTP ${res.status}`);
+    signal?.throwIfAborted();
+    if (!file.file_path) throw new Error('Telegram did not return a file path');
+    const res = await fetch(`https://api.telegram.org/file/bot${this.token}/${file.file_path}`, {
+      signal: signal ?? null,
+    });
+    if (!res.ok) throw new Error(`File download failed: HTTP ${res.status}`);
     return {
       buffer: Buffer.from(await res.arrayBuffer()),
       contentType: res.headers.get('content-type'),
@@ -46,9 +55,10 @@ export class S3MediaStore implements MediaStore {
     return new S3MediaStore(client, env.S3_BUCKET);
   }
 
-  async put(key: string, body: Buffer, contentType: string): Promise<void> {
+  async put(key: string, body: Buffer, contentType: string, signal?: AbortSignal): Promise<void> {
     await this.client.send(
       new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: contentType }),
+      signal ? { abortSignal: signal } : {},
     );
   }
 }

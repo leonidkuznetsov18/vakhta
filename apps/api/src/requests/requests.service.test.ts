@@ -135,7 +135,6 @@ describe('requests: маршрути, рішення, нова версія гр
     const media = new MediaService(
       testDb.db,
       audit,
-      timers,
       { linkTtlSeconds: 300 },
       new InMemoryObjectStorage(),
     );

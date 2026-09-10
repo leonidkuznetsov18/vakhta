@@ -3,9 +3,10 @@
 ## Outcome and scope
 
 Approved risk #5 in [critical reliability](critical-reliability.md): persist required effects with
-source state and recover after process or Redis failure. The foundation increment is additive schema,
-DB helpers and PostgreSQL regression coverage only. Baseline: `2bb08b9`. No producer, dispatcher,
-legacy BullMQ job or product interaction is changed in this increment.
+source state and recover after process or Redis failure. The initial foundation increment added
+schema, DB helpers and PostgreSQL regression coverage at baseline `2bb08b9`, without changing producers
+or consumers. The subsequent media increment integrates durable admission, processing and recovery;
+its detailed contract and evidence live in [media processing](media-processing.md).
 
 ## Current behavior and ownership
 
@@ -15,8 +16,9 @@ The [product document](../../features/background-effects.md) describes the inten
 `apps/worker/src/background-tasks.test.ts` and use the existing PostgreSQL 16 container fixture.
 Backend feature modules and the pure domain remain intact; frontend FSD is not applicable here.
 
-The existing API still enqueues BullMQ work after commit and subscribes to business changes in memory.
-The existing worker remains its consumer. These integration gaps are explicitly pending.
+Media admission and the PostgreSQL media dispatcher are now integrated in a subsequent increment;
+see [media processing](media-processing.md). Timer producers still enqueue BullMQ work after commit,
+and legacy bonus recalculation still subscribes to business changes in memory. These gaps remain.
 
 ## Decisions and reuse
 
@@ -29,7 +31,8 @@ The envelope has an explicit positive `payloadVersion`, a named kind and a JSON 
 This storage-level envelope is not runtime validation of a media/timer/bonus command. A future
 producer and consumer must reuse the concrete Zod job contracts in `packages/contracts/src/queues.ts`
 and explicitly handle supported versions before invoking a handler. Unknown versions must not be
-acknowledged as successful. No consumer or speculative duplicate payload contract ships here.
+acknowledged as successful. The media dispatcher now validates version 1 with `MediaJob` and matches
+its media ID to the canonical task key; other kind-specific dispatchers remain pending.
 
 ### Immutable intent
 
@@ -134,15 +137,17 @@ Do not introduce new bot steps or dashboards as part of this reliability correct
   Reviewed migration SHA-256:
   `28a9b680adedadeced64bc0d8d9067bb96110bf1528902fb0601f4c07e3b62ea`.
 
-This increment has no UI, kiosk, bot handler, production producer or production consumer change.
+The foundation increment had no UI, kiosk, bot handler, production producer or consumer change.
 Authenticated deployment checks are performed by the integration owner after rollout; local database
 tests are not production or browser verification. No production data was mutated during implementation.
 
 ## Remaining work
 
-Integrate source-transaction producers; typed/versioned dispatchers; atomic handler effects and task
-completion; legacy BullMQ draining; bounded deadline-based recovery; durable bonus invalidations and
-session/period concurrency guards; monthly startup catch-up. The task table alone does not close risk #5.
+Media admission, dispatch, atomic completion, legacy draining and bounded recovery are implemented in
+the subsequent media increment. Remaining: timer source-transaction producers and typed dispatchers;
+atomic timer effects and task completion; bounded deadline-based recovery; remaining durable bonus
+invalidations, the bonus consumer and session/period concurrency guards; monthly startup catch-up.
+The task table and media integration do not close risk #5.
 Preserve #2/#3 transaction guarantees and #8 persisted plans/deadlines during subsequent integration.
 
 Later producer integration must also cover BonusService's post-commit adjustment/review/second-approval
@@ -150,3 +155,14 @@ recalculations, not only RxJS subscribers. Second approval currently needs an ex
 event. Historical acknowledgement recovery must check relevant pending business state: scanning all
 old published months would create notifications unrelated to current work. Preserve the original
 publication-derived deadline and existing notification deduplication keys.
+
+## Foundation deployment gate
+
+The integration owner verified foundation CI `34479700951`, release v0.70.9, API deployment
+`670ddf9c-ccb3-4ab0-8fb0-dc49650db362` and worker deployment
+`e7c513f2-c0d7-446c-9310-35e11be8aa68` at `f9a437c`. At 13:11:19 UTC on 2026-09-10, production
+contained the task table, validated constraints and enabled immutable-intent guard, with zero tasks
+before consumer rollout. API health was good. A bounded ten-record API error query since 13:10 UTC
+returned no rows. Authenticated panel v0.70.9 handover list and SSE loaded. These checks verify the
+schema gate, not the subsequently implemented media consumer. Duplicate CI `34479701736` was canceled
+before release/Pages; the duplicate Railway deployment was removed automatically.

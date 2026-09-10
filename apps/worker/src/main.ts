@@ -20,6 +20,7 @@ import { TelegramSender, relayOnce } from './outbox/relay.js';
 import { handleAckReminder, handleShiftReminder } from './timers/reminders.js';
 import { S3MediaStore, TelegramFileFetcher } from './media/adapters.js';
 import { processMedia } from './media/process.js';
+import { MediaTaskRunner } from './media/runner.js';
 import { handleCleaningReminder, handleHandoverTimeout } from './timers/handover-timers.js';
 import { handleIncidentSla } from './timers/incident-sla.js';
 import { handleDowntimeEscalation, handleReturnReminder } from './timers/shift-timers.js';
@@ -87,7 +88,23 @@ const mediaDeps =
         },
       }
     : null;
-if (!mediaDeps) logger.warn('фото-пайплайн вимкнений: потрібні S3_* і TELEGRAM_BOT_TOKEN');
+if (!mediaDeps) logger.warn('Media dependencies unavailable: durable tasks remain retryable');
+
+const mediaRunner = new MediaTaskRunner(db, mediaDeps, {
+  completed(result) {
+    if (result.claimed) logger.info(result, 'durable media batch');
+  },
+  recovered(result) {
+    if (result.admitted || result.bonusQueued) logger.info(result, 'media recovery');
+    if (result.inconsistent)
+      logger.error({ count: result.inconsistent }, 'completed media task invariant violated');
+  },
+  failed(stage) {
+    logger.error({ stage }, 'durable media processing failed');
+    reportJobFailure('durable-media', undefined, new Error(`Media ${stage.toLowerCase()} failed`));
+  },
+});
+mediaRunner.start();
 
 /* ------------------------------------------------------------------ */
 /* Черги                                                               */
@@ -140,15 +157,13 @@ const workers = [
   new Worker(
     QUEUES.media,
     async (job) => {
-      if (!mediaDeps) {
-        logger.warn(
-          { jobId: job.id },
-          'media: S3 або токен бота не налаштовано, фото лишається PENDING',
-        );
-        return;
+      try {
+        const outcome = await processMedia(db, mediaDeps, MediaJob.parse(job.data));
+        logger.info({ queue: QUEUES.media, jobId: job.id, outcome }, 'legacy media');
+      } catch {
+        // BullMQ retries the failure; retain no Telegram download URL or raw database parameters.
+        throw new Error('Legacy media processing failed');
       }
-      const outcome = await processMedia(db, mediaDeps, MediaJob.parse(job.data));
-      logger.info({ queue: QUEUES.media, jobId: job.id, outcome }, 'media');
     },
     { connection, concurrency: 2 },
   ),
@@ -180,7 +195,7 @@ logger.info(
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'зупинка worker');
   if (relayTimer) clearInterval(relayTimer);
-  await Promise.all(workers.map((w) => w.close()));
+  await Promise.all([mediaRunner.stop(), ...workers.map((w) => w.close())]);
   await connection.quit();
   await client.end({ timeout: 5 });
   await Sentry.flush(2000);

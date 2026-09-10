@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  backgroundTasks,
   domainEvents,
   downtimeIncidents,
   downtimeReports,
@@ -56,7 +57,7 @@ describe('incidents: повідомлення про проблему, дубл�
 
   beforeEach(async () => {
     await testDb.db.execute(
-      sql`TRUNCATE incident_status_history, downtime_reports, downtime_incidents, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, responsibility_zones, employees, org_units, sites, reason_codes CASCADE`,
+      sql`TRUNCATE background_tasks, incident_status_history, downtime_reports, downtime_incidents, shift_summaries, activity_intervals, shift_sessions, idempotency_keys, notification_outbox, presence_sessions, shift_assignments, schedule_versions, shift_templates, responsibility_zones, employees, org_units, sites, reason_codes CASCADE`,
     );
     timers = new InMemoryTimerScheduler();
     const attendance = new AttendanceService(testDb.db, new EventStore(), new AuditLog(), {
@@ -88,7 +89,7 @@ describe('incidents: повідомлення про проблему, дубл�
       new NotificationsService(),
       shift,
       new IncidentChanges(),
-      new MediaService(testDb.db, new AuditLog(), timers, { linkTtlSeconds: 300 }),
+      new MediaService(testDb.db, new AuditLog(), { linkTtlSeconds: 300 }),
       timers,
       {
         sla: { normalMinutes: 60, criticalMinutes: 30, safetyMinutes: 0 },
@@ -243,7 +244,11 @@ describe('incidents: повідомлення про проблему, дубл�
       width: 1280,
       height: 960,
     });
-    expect(timers.media).toEqual([media!.id]);
+    const tasks = await testDb.db
+      .select()
+      .from(backgroundTasks)
+      .where(eq(backgroundTasks.kind, 'MEDIA_PROCESS'));
+    expect(tasks.map((task) => task.payload)).toEqual([{ mediaObjectId: media?.id }]);
 
     const [report] = await testDb.db.select().from(downtimeReports);
     expect(report!.mediaObjectId).toBe(media!.id);

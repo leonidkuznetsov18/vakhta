@@ -157,7 +157,7 @@ describe('worker: фото-пайплайн (ADR-0006, FR-PHO-02/03, T-24..T-26)
     await expect(processMedia(testDb.db, deps, { mediaObjectId: id })).rejects.toThrow();
     const [row] = await testDb.db.select().from(mediaObjects).where(eq(mediaObjects.id, id));
     expect(row?.attempts).toBe(1);
-    expect(row?.lastError).toContain('missing-file');
+    expect(row?.lastError).toBe('EXECUTION_FAILED');
     expect(row?.processedAt).toBeNull();
   });
 

@@ -183,7 +183,7 @@ export class HandoverService {
     actor: Actor,
     now: Date = new Date(),
   ): Promise<HandoverView> {
-    const { view, mediaId } = await this.db.transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
       const draft = await this.requireDraft(tx, employeeId, now);
       const definition = await this.definition(tx, draft.checklistDefinitionId);
       const item = definition.items.find((i) => i.key === cmd.itemKey);
@@ -224,10 +224,8 @@ export class HandoverService {
         payload: { handoverId: draft.id, itemKey: cmd.itemKey, mediaObjectId: media.id },
       });
       await this.touch(tx, draft.id, now);
-      return { view: await this.view(tx, draft.id), mediaId: media.id };
+      return this.view(tx, draft.id);
     });
-    await this.media.enqueue(mediaId);
-    return view;
   }
 
   /** FR-CLN-05: причина, з якою прибирання не завершене; подання дозволяється з наявним. */
@@ -443,7 +441,6 @@ export class HandoverService {
     actor: Actor,
     now: Date = new Date(),
   ): Promise<HandoverView> {
-    let mediaId: string | null = null;
     let incidentId: string | null = null;
     const view = await this.db.transaction(async (tx) => {
       const replay = await this.replay(tx, `handover-review:${employeeId}`, cmd.idempotencyKey);
@@ -511,7 +508,6 @@ export class HandoverService {
           purpose: 'handover-review',
           now,
         });
-        mediaId = media.id;
         if (reason.severity !== 'NORMAL') {
           const place = await this.placeOf(tx, session.assignmentId);
           incidentId = await this.incidents.openFromReview(tx, {
@@ -614,7 +610,6 @@ export class HandoverService {
       });
       return this.view(tx, handoverId);
     });
-    if (mediaId) await this.media.enqueue(mediaId);
     await this.timers.cancel(handoverTimeoutJobId(handoverId));
     this.changes.publish({ handoverId, status: view.status, at: now.toISOString() });
     return view;

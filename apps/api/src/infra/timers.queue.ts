@@ -7,7 +7,6 @@ import {
   type AckReminderJob,
   type CleaningReminderJob,
   type HandoverTimeoutJob,
-  type MediaJob,
   type DowntimeEscalationJob,
   type IncidentSlaJob,
   type ReturnReminderJob,
@@ -37,8 +36,6 @@ export interface TimerScheduler {
   scheduleIncidentSla(incidentId: string, fireAt: Date): Promise<void>;
   scheduleHandoverTimeout(handoverId: string, fireAt: Date): Promise<void>;
   scheduleCleaningReminder(sessionId: string, fireAt: Date): Promise<void>;
-  /** Черга media: перенесення фото у сховище і перевірка (ADR-0006). */
-  enqueueMedia(mediaObjectId: string): Promise<void>;
   cancel(jobId: string): Promise<void>;
 }
 
@@ -52,14 +49,12 @@ export const TIMER_SCHEDULER = Symbol('TIMER_SCHEDULER');
 export class TimersQueue implements TimerScheduler, OnApplicationShutdown {
   private readonly connection: Redis;
   private readonly queue: Queue;
-  private readonly media: Queue;
 
   constructor(@Inject(ConfigService) config: ConfigService<Env, true>) {
     this.connection = new Redis(config.get('REDIS_URL', { infer: true }), {
       maxRetriesPerRequest: null,
     });
     this.queue = new Queue(QUEUES.timers, { connection: this.connection });
-    this.media = new Queue(QUEUES.media, { connection: this.connection });
   }
 
   async scheduleShiftReminder(assignmentId: string, fireAt: Date): Promise<void> {
@@ -146,17 +141,6 @@ export class TimersQueue implements TimerScheduler, OnApplicationShutdown {
     });
   }
 
-  async enqueueMedia(mediaObjectId: string): Promise<void> {
-    const data: MediaJob = { mediaObjectId };
-    await this.media.add('process', data, {
-      jobId: `media.${mediaObjectId}`,
-      attempts: 5,
-      backoff: { type: 'exponential', delay: 5_000 },
-      removeOnComplete: true,
-      removeOnFail: 500,
-    });
-  }
-
   async cancel(jobId: string): Promise<void> {
     const job = await this.queue.getJob(jobId);
     if (job) await job.remove().catch(() => undefined);
@@ -164,7 +148,6 @@ export class TimersQueue implements TimerScheduler, OnApplicationShutdown {
 
   async onApplicationShutdown(): Promise<void> {
     await this.queue.close();
-    await this.media.close();
     await this.connection.quit();
   }
 }
@@ -205,12 +188,6 @@ export class InMemoryTimerScheduler implements TimerScheduler {
 
   async scheduleCleaningReminder(sessionId: string, fireAt: Date): Promise<void> {
     this.scheduled.push({ jobId: cleaningReminderJobId(sessionId), fireAt });
-  }
-
-  readonly media: string[] = [];
-
-  async enqueueMedia(mediaObjectId: string): Promise<void> {
-    this.media.push(mediaObjectId);
   }
 
   async cancel(jobId: string): Promise<void> {

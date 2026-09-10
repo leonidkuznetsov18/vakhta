@@ -143,7 +143,7 @@ function services(testDb: TestDatabase) {
       defaultTimezone: OPTIONS.defaultTimezone,
     },
   );
-  const media = new MediaService(db, audit, timers, { linkTtlSeconds: 300 });
+  const media = new MediaService(db, audit, { linkTtlSeconds: 300 });
   const incidents = new IncidentsService(
     db,
     events,

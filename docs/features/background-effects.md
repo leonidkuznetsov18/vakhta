@@ -8,14 +8,15 @@ failure. Background processing must preserve shift history, confirmed scores and
 
 ## Delivery status
 
-The first increment adds PostgreSQL task storage and transactional lease helpers. It does not switch
-existing producers or start a task dispatcher. Existing BullMQ jobs and notification delivery continue
-to operate. This foundation alone does not resolve every required-effect recovery gap.
+The foundation adds PostgreSQL task storage and transactional lease helpers. The next increment
+integrates durable media admission, processing and recovery while existing BullMQ media jobs drain.
+It persists checklist-photo bonus invalidations; the API consumer, remaining timer producers and
+broader bonus recovery still require integration. This work does not yet resolve every effect gap.
 
 The media projection and its processing event already commit atomically; see
 [media processing](../engineering/features/media-processing.md).
-The next increments will persist required tasks with the source transaction, execute them through the
-existing worker handlers, and recover historical gaps from recorded business deadlines.
+Subsequent increments apply the same transaction/retry boundary to the remaining business effects
+and recover historical gaps from recorded business deadlines.
 
 ## Expected behavior after integration
 

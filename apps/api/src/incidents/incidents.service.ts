@@ -149,7 +149,6 @@ export class IncidentsService {
     const deferred: DeferredTimer[] = [];
     let scheduleSla: { id: string; dueAt: Date } | null = null;
     /** Registered inside the transaction, fetched from Telegram after it commits. */
-    let photoId: string | null = null;
 
     const result = await this.db.transaction(async (tx): Promise<ReportProblemResult> => {
       const current = await this.shift.commandSessionWithin(tx, employeeId, now);
@@ -207,7 +206,6 @@ export class IncidentsService {
               now,
             })
           : null;
-      photoId = photo?.id ?? null;
 
       const [report] = await tx
         .insert(downtimeReports)
@@ -296,7 +294,6 @@ export class IncidentsService {
       return response;
     });
 
-    if (photoId) await this.media.enqueue(photoId);
     for (const run of deferred) await run();
     if (scheduleSla) {
       const { id, dueAt } = scheduleSla;
