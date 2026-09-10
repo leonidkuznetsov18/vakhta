@@ -35,6 +35,15 @@ const view: PhotoInspectionView = {
   },
 };
 describe('photo inspection form and geometry', () => {
+  it('bounds image zoom between 100 and 500 percent without changing the review', () => {
+    const editor = new InspectionEditor(view);
+    editor.zoom(100);
+    expect(editor.store.getState().zoom).toBe(5);
+    editor.zoom(-100);
+    expect(editor.store.getState().zoom).toBe(1);
+    expect(editor.store.getState().review).toEqual(view.review);
+    expect(editor.store.getState().dirty).toBe(false);
+  });
   it('round trips normalized rectangles and polygons independent of display size', () => {
     const shapes: InspectionAnnotation['geometry'][] = [
       { type: 'RECTANGLE', x: 0.25, y: 0.25, width: 0.5, height: 0.5 },

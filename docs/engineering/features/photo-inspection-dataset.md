@@ -199,3 +199,22 @@ Spacing refinement: annotation cards use the same 12px vertical gap as the surro
 content-width actions and no additional coordinate-section margin. Desktop 1440px and mobile 390px
 screenshots were inspected; the category-to-description gap measured 12px in both. Formatting and
 `git diff --check` passed. This is a presentation-only change; no additional tests were needed.
+
+## Image-only zoom refinement
+
+The editor previously changed image-wrapper width from 100% to 400%, increasing its normal-flow
+height and moving the auto-sized dialog. Replace that width change with a top-left CSS transform on
+only the image/Annotorious subtree. Its original layout box remains stable; the existing scroll
+viewport contains scaled overflow in both axes. Motion uses a short transition only when reduced
+motion is not requested. The viewport is keyboard focusable. Centralized bounds are 1–5 (100–500%).
+
+Four editor tests pass, including zoom bounds and unchanged review data; panel type-check and
+focused lint pass. At 100% and 500%, desktop browser measurements showed identical dialog, comment
+field and viewport rectangles, while the image dimensions grew exactly fivefold. Both scroll axes
+were exercised. Drawing a 100px square at 500% produced the expected 2.49% width / 3.83% height on the
+rendered synthetic image. Mobile screenshot and overflow checks cover the same isolated viewport.
+
+For a future drag/pinch interaction, prefer the already installed TypeScript-native
+`@panzoom/panzoom` over another React dependency. Bind it to the image-plus-annotation subtree,
+never the dialog; define gesture ownership separately from annotation drawing before enabling
+pointer dragging. This fix provides native scrolling, not a newly introduced drag gesture.

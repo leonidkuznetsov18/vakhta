@@ -15,6 +15,8 @@ import {
   type PhotoInspectionView,
 } from '@vakhta/contracts';
 
+export const INSPECTION_ZOOM = { min: 1, max: 5, step: 0.5 } as const;
+
 type Geometry = InspectionAnnotation['geometry'];
 export function toCanvas(
   annotation: InspectionAnnotation,
@@ -102,7 +104,7 @@ export class InspectionEditor {
       dirty: false,
       selected: null,
       tool: 'select',
-      zoom: 1,
+      zoom: INSPECTION_ZOOM.min,
       imageStatus: 'loading',
       invalidGeometry: false,
     }));
@@ -211,7 +213,9 @@ export class InspectionEditor {
     this.store.setState({ tool });
   }
   zoom(delta: number): void {
-    this.store.setState((s) => ({ zoom: Math.max(1, Math.min(4, s.zoom + delta)) }));
+    this.store.setState((s) => ({
+      zoom: Math.max(INSPECTION_ZOOM.min, Math.min(INSPECTION_ZOOM.max, s.zoom + delta)),
+    }));
   }
   accept(finding: InspectionPrediction['findings'][number], runId: string | null): void {
     if (!finding.geometry) return;

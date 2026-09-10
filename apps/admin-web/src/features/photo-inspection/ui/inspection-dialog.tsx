@@ -38,7 +38,12 @@ import {
   inspectionKey,
   type InspectionIdentity,
 } from '../api/inspection-api';
-import { type InspectionEditor, createInspectionSession, reviewIsValid } from '../model/editor';
+import {
+  type InspectionEditor,
+  createInspectionSession,
+  reviewIsValid,
+  INSPECTION_ZOOM,
+} from '../model/editor';
 import { EditableReview, ReadOnlyReview } from './review-fields';
 import { PredictionPanel } from './prediction-panel';
 import { AnalyzeButton } from './analyze-button';
@@ -265,8 +270,8 @@ function InspectionSession({
           icon={ZoomInIcon}
           label={t.zoomIn}
           tooltip={t.hints.zoomIn}
-          disabled={state.zoom >= 4}
-          onClick={() => editor.zoom(0.5)}
+          disabled={state.zoom >= INSPECTION_ZOOM.max}
+          onClick={() => editor.zoom(INSPECTION_ZOOM.step)}
         >
           {t.zoomIn}
         </IconButton>
@@ -276,8 +281,8 @@ function InspectionSession({
           icon={ZoomOutIcon}
           label={t.zoomOut}
           tooltip={t.hints.zoomOut}
-          disabled={state.zoom <= 1}
-          onClick={() => editor.zoom(-0.5)}
+          disabled={state.zoom <= INSPECTION_ZOOM.min}
+          onClick={() => editor.zoom(-INSPECTION_ZOOM.step)}
         >
           {t.zoomOut}
         </IconButton>
@@ -331,7 +336,13 @@ function InspectionSession({
             query={{ ...link, error: link.error ? new Error(errorText(link.error)) : null }}
           />
           {link.data && (
-            <div className="max-h-[65dvh] overflow-auto rounded-md border bg-muted p-2">
+            <div
+              data-testid="inspection-image-viewport"
+              tabIndex={0}
+              role="group"
+              aria-label={initial.context.photoLabel}
+              className="max-h-[65dvh] overflow-auto rounded-md border bg-muted p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               {state.imageStatus === 'loading' && <LoadingState />}
               {state.imageStatus === 'failed' && (
                 <p role="alert">
@@ -347,7 +358,10 @@ function InspectionSession({
                   </IconButton>
                 </p>
               )}
-              <div style={{ width: `${state.zoom * 100}%` }}>
+              <div
+                className="origin-top-left motion-safe:transition-transform motion-safe:duration-200"
+                style={{ transform: `scale(${state.zoom})` }}
+              >
                 <img
                   key={`${link.data.url}:${link.dataUpdatedAt}`}
                   ref={mount}
