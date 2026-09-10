@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { ShiftScreenView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { USER_SHIFT_ACTIONS } from '@vakhta/domain';
-import { checkInPromptScreen, reasonPickerScreen, shiftScreen } from './screens.js';
+import {
+  checkInPromptScreen,
+  reasonPickerScreen,
+  shiftScreen,
+  incidentPhotoScreen,
+} from './screens.js';
 
 const t = messages('ru');
 
@@ -444,3 +449,12 @@ it.each(['uk', 'en', 'ru'] as const)(
     }
   },
 );
+
+it('requires a breakdown photo in all locales without a skip action', () => {
+  for (const locale of ['uk', 'en', 'ru'] as const) {
+    const required = incidentPhotoScreen(messages(locale), true);
+    expect(required.text).toBe(messages(locale).incidents.askRequiredPhoto);
+    expect(buttons(required).flat()).toEqual(['inc:cancel']);
+    expect(buttons(incidentPhotoScreen(messages(locale))).flat()).toContain('inc:skip');
+  }
+});

@@ -11,3 +11,15 @@
 - Reports "Простои" and "Структура времени" show downtime minutes per employee, reason and zone.
 
 Downtime never reduces the bonus score by itself; only missing paperwork does (spec 7.4).
+
+## Diagnosis and reusable solutions
+
+Breakdown reports require a photo; the worker may add a caption. The master sees the evidence and
+records **Cause** and **How was it resolved?** instead of a generic comment. Drafts may be saved;
+both fields are required when marking an incident resolved. Every edit stays in history, including
+previous comments. Resolving an incident does not itself end the worker's downtime.
+
+The **Incident knowledge base** page shows historical incidents, photos, causes and solutions with
+search. Both incident pages support day, month, year and all-time calendar filters. This is a knowledge
+archive for future assistance, without an LLM integration. See
+[engineering memory](../engineering/features/incident-knowledge.md).

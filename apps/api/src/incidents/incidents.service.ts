@@ -134,8 +134,14 @@ export class IncidentsService {
 
     const reason = await this.reason(cmd.reasonCode);
     if (!reason) throw new DomainError('REASON_UNKNOWN', 422, 'Невідома причина простою');
-    if (reason.requiresComment && !cmd.comment?.trim()) {
+    if (reason.code !== 'BREAKDOWN' && reason.requiresComment && !cmd.comment?.trim()) {
       throw new DomainError('COMMENT_REQUIRED', 422, 'Для цієї причини потрібен коментар');
+    }
+    if (
+      (reason.requiresPhoto || reason.code === 'BREAKDOWN') &&
+      (!cmd.photoFileId || !cmd.photoFileUniqueId)
+    ) {
+      throw new DomainError('INCIDENT_PHOTO_REQUIRED', 422, 'A photo is required for this problem');
     }
     const session = await this.shift.activeSession(employeeId);
     if (!session)
@@ -310,10 +316,6 @@ export class IncidentsService {
     actor: Actor,
     now: Date = new Date(),
   ): Promise<IncidentView> {
-    const needsComment = cmd.to === 'REJECTED' || cmd.to === 'RESOLVED';
-    if (needsComment && !(cmd.comment && cmd.comment.trim().length >= 3)) {
-      throw new DomainError('COMMENT_REQUIRED', 422, 'Для цієї дії потрібен коментар');
-    }
     const updated = await this.db.transaction(async (tx) => {
       const [incident] = await tx
         .select()
@@ -321,6 +323,30 @@ export class IncidentsService {
         .where(eq(downtimeIncidents.id, id))
         .for('update');
       if (!incident) throw new DomainError('INCIDENT_NOT_FOUND', 404, 'Інцидент не знайдено');
+      const rootCause = cmd.rootCause?.trim() ?? incident.rootCause;
+      const resolution = cmd.resolution?.trim() ?? incident.resolution;
+      if (
+        (cmd.to === 'RESOLVED' ||
+          (cmd.to === 'CLOSED' && (cmd.rootCause !== undefined || cmd.resolution !== undefined))) &&
+        (!rootCause || rootCause.length < 3 || !resolution || resolution.length < 3)
+      ) {
+        throw new DomainError(
+          'INCIDENT_RESOLUTION_REQUIRED',
+          422,
+          'Provide the cause and how the problem was resolved',
+        );
+      }
+      if (
+        cmd.to === 'REJECTED' &&
+        (rootCause?.length ?? 0) < 3 &&
+        (cmd.comment?.trim().length ?? 0) < 3
+      ) {
+        throw new DomainError(
+          'INCIDENT_CAUSE_REQUIRED',
+          422,
+          'Explain why this incident is rejected',
+        );
+      }
       if (!canTransitionIncident(incident.status, cmd.to)) {
         throw new DomainError(
           'INCIDENT_TRANSITION_NOT_ALLOWED',
@@ -349,6 +375,8 @@ export class IncidentsService {
       }
 
       const patch: Partial<IncidentRow> = { status: cmd.to, updatedAt: now };
+      if (cmd.rootCause !== undefined) patch.rootCause = rootCause || null;
+      if (cmd.resolution !== undefined) patch.resolution = resolution || null;
       if (cmd.comment) patch.lastComment = cmd.comment;
       if (cmd.to === 'ACKNOWLEDGED' || cmd.to === 'IN_PROGRESS') {
         if (!incident.acknowledgedAt) patch.acknowledgedAt = now;
@@ -378,6 +406,8 @@ export class IncidentsService {
         actorId: actor.id,
         at: now,
         comment: cmd.comment ?? null,
+        rootCause: row.rootCause,
+        resolution: row.resolution,
       });
       await this.events.append(tx, {
         type: 'INCIDENT_STATUS_CHANGED',
@@ -388,15 +418,30 @@ export class IncidentsService {
         zoneId: incident.zoneId,
         reasonCode: incident.reasonCode,
         comment: cmd.comment ?? null,
-        payload: { from: incident.status, to: cmd.to, duplicateOfId },
+        payload: {
+          from: incident.status,
+          to: cmd.to,
+          duplicateOfId,
+          rootCause: row.rootCause,
+          resolution: row.resolution,
+        },
       });
       await this.audit.record(tx, {
         actor,
         action: `incident.${cmd.to.toLowerCase()}`,
         objectType: 'downtime_incident',
         objectId: id,
-        before: { status: incident.status },
-        after: { status: cmd.to, duplicateOfId },
+        before: {
+          status: incident.status,
+          rootCause: incident.rootCause,
+          resolution: incident.resolution,
+        },
+        after: {
+          status: cmd.to,
+          duplicateOfId,
+          rootCause: row.rootCause,
+          resolution: row.resolution,
+        },
         reason: cmd.comment ?? null,
       });
 
@@ -522,15 +567,43 @@ export class IncidentsService {
         .where(eq(downtimeIncidents.id, id))
         .for('update');
       if (!incident) throw new DomainError('INCIDENT_NOT_FOUND', 404, 'Інцидент не знайдено');
+      const rootCause =
+        cmd.rootCause === undefined ? incident.rootCause : cmd.rootCause.trim() || null;
+      const resolution =
+        cmd.resolution === undefined ? incident.resolution : cmd.resolution.trim() || null;
+      if (
+        (incident.status === 'RESOLVED' || incident.status === 'CLOSED') &&
+        (cmd.rootCause !== undefined || cmd.resolution !== undefined) &&
+        (!rootCause || rootCause.length < 3 || !resolution || resolution.length < 3)
+      ) {
+        throw new DomainError(
+          'INCIDENT_RESOLUTION_REQUIRED',
+          422,
+          'Provide the cause and how the problem was resolved',
+        );
+      }
       await tx
         .update(downtimeIncidents)
         .set({
           ...(reason ? { reasonCode: reason.code, severity: reason.severity } : {}),
           ...(cmd.assigneeId !== undefined ? { assigneeId: cmd.assigneeId } : {}),
-          lastComment: cmd.comment,
+          ...(cmd.comment !== undefined ? { lastComment: cmd.comment } : {}),
+          ...(cmd.rootCause !== undefined ? { rootCause: cmd.rootCause.trim() || null } : {}),
+          ...(cmd.resolution !== undefined ? { resolution: cmd.resolution.trim() || null } : {}),
           updatedAt: now,
         })
         .where(eq(downtimeIncidents.id, id));
+      await tx.insert(incidentStatusHistory).values({
+        incidentId: id,
+        fromStatus: incident.status,
+        toStatus: incident.status,
+        actorType: actor.type,
+        actorId: actor.id,
+        at: now,
+        comment: cmd.comment ?? null,
+        rootCause: rootCause,
+        resolution: resolution,
+      });
       await this.events.append(tx, {
         type: 'INCIDENT_UPDATED',
         source: 'WEB',
@@ -538,10 +611,12 @@ export class IncidentsService {
         occurredAt: now,
         incidentId: id,
         reasonCode: reason?.code ?? incident.reasonCode,
-        comment: cmd.comment,
+        comment: cmd.comment ?? null,
         payload: {
           reasonCode: { from: incident.reasonCode, to: reason?.code ?? incident.reasonCode },
           assigneeId: cmd.assigneeId ?? incident.assigneeId,
+          rootCause: rootCause,
+          resolution: resolution,
         },
       });
       await this.audit.record(tx, {
@@ -549,12 +624,19 @@ export class IncidentsService {
         action: 'incident.update',
         objectType: 'downtime_incident',
         objectId: id,
-        before: { reasonCode: incident.reasonCode, assigneeId: incident.assigneeId },
+        before: {
+          reasonCode: incident.reasonCode,
+          assigneeId: incident.assigneeId,
+          rootCause: incident.rootCause,
+          resolution: incident.resolution,
+        },
         after: {
           reasonCode: reason?.code ?? incident.reasonCode,
           assigneeId: cmd.assigneeId ?? incident.assigneeId,
+          rootCause: rootCause,
+          resolution: resolution,
         },
-        reason: cmd.comment,
+        reason: cmd.comment ?? null,
       });
     });
     const view = (await this.view(id, now)) as IncidentView;
@@ -576,6 +658,8 @@ export class IncidentsService {
     if ((q.scope ?? 'open') === 'open') conditions.push(inArray(downtimeIncidents.status, OPEN));
     if (q.siteId) conditions.push(eq(downtimeIncidents.siteId, q.siteId));
     if (q.zoneId) conditions.push(eq(downtimeIncidents.zoneId, q.zoneId));
+    if (q.from) conditions.push(sql`${downtimeIncidents.openedAt} >= ${q.from}::timestamptz`);
+    if (q.to) conditions.push(sql`${downtimeIncidents.openedAt} < ${q.to}::timestamptz`);
     const rows = await this.baseQuery()
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(downtimeIncidents.openedAt));
@@ -627,6 +711,8 @@ export class IncidentsService {
         actorId: h.actorId,
         at: h.at.toISOString(),
         comment: h.comment,
+        rootCause: h.rootCause,
+        resolution: h.resolution,
       })),
       duplicates: duplicateRows.map((r) => this.toView(r, now)),
       serverTime: now.toISOString(),
@@ -853,6 +939,8 @@ export class IncidentsService {
       reportsCount: i.reportsCount,
       stoppedNow: row.stoppedNow,
       lastComment: i.lastComment,
+      rootCause: i.rootCause,
+      resolution: i.resolution,
     };
   }
 

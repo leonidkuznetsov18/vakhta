@@ -171,6 +171,7 @@ export interface Messages {
     readonly reportButton: string;
     readonly chooseReason: string;
     readonly askComment: string;
+    readonly askRequiredPhoto: string;
     readonly askPhoto: string;
     readonly skipPhoto: string;
     readonly askStopped: string;
@@ -397,6 +398,7 @@ export interface Messages {
         | 'operations'
         | 'schedule'
         | 'incidents'
+        | 'incidentKnowledge'
         | 'handover'
         | 'requests'
         | 'bonus'
@@ -617,6 +619,23 @@ export interface Messages {
       >;
     };
     readonly incidents: {
+      readonly rootCause: string;
+      readonly resolution: string;
+      readonly save: string;
+      readonly saved: string;
+      readonly problemType: string;
+      readonly knowledgeHint: string;
+      readonly search: string;
+      readonly missingSolution: string;
+      readonly legacyComment: string;
+      readonly period: string;
+      readonly allDates: string;
+      readonly day: string;
+      readonly month: string;
+      readonly year: string;
+      readonly date: string;
+      readonly requiredSolution: string;
+      readonly requiredCause: string;
       readonly site: string;
       readonly scopeOpen: string;
       readonly scopeAll: string;

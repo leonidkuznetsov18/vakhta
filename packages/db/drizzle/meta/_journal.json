@@ -204,6 +204,13 @@
       "when": 1789050200000,
       "tag": "0028_bonus_month_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1789052519695,
+      "tag": "0029_incident_solutions",
+      "breakpoints": true
     }
   ]
 }

@@ -204,7 +204,7 @@ function services(testDb: TestDatabase) {
     defaultTimezone: OPTIONS.defaultTimezone,
     logger: createLogger({ LOG_LEVEL: 'error', NODE_ENV: 'test' }),
   });
-  return { attendance, shift, bot };
+  return { attendance, shift, bot, store, incidents };
 }
 
 describe('Telegram departure callback: QR and shift/presence consistency', () => {
@@ -522,4 +522,67 @@ describe('Telegram departure callback: QR and shift/presence consistency', () =>
       vi.useRealTimers();
     }
   });
+  it.each([undefined, 'Belt is stuck'])(
+    'requires the incident photo and keeps optional caption %s',
+    async (caption) => {
+      const pendingKey = `incident:pending:${TELEGRAM_USER_ID}`;
+      await app.store.set(
+        pendingKey,
+        JSON.stringify({
+          reasonCode: 'BREAKDOWN',
+          reasonLabel: 'Breakdown',
+          requiresPhoto: true,
+          step: 'photo',
+        }),
+        300,
+      );
+      const report = vi.spyOn(app.incidents, 'report').mockResolvedValue({
+        incidentId: 'test-incident',
+        severity: 'NORMAL',
+        downtimeStarted: false,
+        downtimeError: null,
+        serverTime: new Date().toISOString(),
+      });
+      const callback = async (data: string, updateId: number) => {
+        const update = departureUpdate('unused');
+        if (!update.callback_query) throw new Error('Missing callback fixture');
+        await app.bot.handleUpdate({
+          ...update,
+          update_id: updateId,
+          callback_query: { ...update.callback_query, data },
+        });
+      };
+      await callback('inc:skip', 80001);
+      expect(report).not.toHaveBeenCalled();
+      expect(JSON.parse((await app.store.get(pendingKey)) ?? '{}').step).toBe('photo');
+      await callback('inc:stop:0', 80002);
+      expect(report).not.toHaveBeenCalled();
+      expect(JSON.parse((await app.store.get(pendingKey)) ?? '{}').step).toBe('photo');
+      await app.bot.handleUpdate({
+        update_id: 80003,
+        message: {
+          message_id: 77,
+          date: Math.floor(Date.now() / 1000),
+          from: { id: TELEGRAM_USER_ID, is_bot: false, first_name: 'Test employee' },
+          chat: { id: TELEGRAM_USER_ID, type: 'private', first_name: 'Test employee' },
+          photo: [
+            { file_id: 'test-photo', file_unique_id: 'test-unique', width: 1280, height: 960 },
+          ],
+          ...(caption ? { caption } : {}),
+        },
+      });
+      await callback('inc:stop:0', 80004);
+      expect(report).toHaveBeenCalledWith(
+        employeeId,
+        expect.objectContaining({
+          photoFileId: 'test-photo',
+          photoFileUniqueId: 'test-unique',
+          ...(caption ? { comment: caption } : {}),
+        }),
+        expect.anything(),
+      );
+      expect(report.mock.calls[0]?.[1].comment).toBe(caption);
+      expect(await app.store.get(pendingKey)).toBeNull();
+    },
+  );
 });

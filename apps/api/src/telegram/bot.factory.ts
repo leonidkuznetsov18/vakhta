@@ -517,7 +517,8 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   async function nextStep(ctx: BotContext, pending: PendingReport): Promise<void> {
     await writePending(ctx, pending);
     if (pending.step === 'comment') return show(ctx, incidentCommentScreen(ctx.t));
-    if (pending.step === 'photo') return show(ctx, incidentPhotoScreen(ctx.t));
+    if (pending.step === 'photo')
+      return show(ctx, incidentPhotoScreen(ctx.t, pending.requiresPhoto));
     return show(ctx, incidentStoppedScreen(ctx.t, pending.reasonLabel));
   }
 
@@ -538,8 +539,15 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await nextStep(ctx, {
       reasonCode: reason.code,
       reasonLabel: reason.label,
-      requiresPhoto: reason.requiresPhoto,
-      step: reason.requiresComment ? 'comment' : reason.requiresPhoto ? 'photo' : 'stop',
+      requiresPhoto: reason.requiresPhoto || reason.code === 'BREAKDOWN',
+      step:
+        reason.code === 'BREAKDOWN'
+          ? 'photo'
+          : reason.requiresComment
+            ? 'comment'
+            : reason.requiresPhoto
+              ? 'photo'
+              : 'stop',
     });
   });
 
@@ -547,6 +555,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     await ctx.answerCallbackQuery();
     const pending = await readPending(ctx);
     if (!pending) return edit(ctx, { text: ctx.t.incidents.expired });
+    if (pending.requiresPhoto) return edit(ctx, incidentPhotoScreen(ctx.t, true));
     await ctx.editMessageReplyMarkup().catch(() => undefined);
     await nextStep(ctx, { ...pending, step: 'stop' });
   });
@@ -564,6 +573,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     if (!pending) {
       await ctx.answerCallbackQuery();
       return edit(ctx, { text: ctx.t.incidents.expired });
+    }
+    if (pending.requiresPhoto && (!pending.photoFileId || !pending.photoFileUniqueId)) {
+      await ctx.answerCallbackQuery();
+      return nextStep(ctx, { ...pending, step: 'photo' });
     }
     try {
       const result = await deps.incidents.report(
@@ -1310,6 +1323,9 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     if (pending?.step === 'photo') {
       return nextStep(ctx, {
         ...pending,
+        ...(ctx.message.caption?.trim()
+          ? { comment: ctx.message.caption.trim().slice(0, 2000) }
+          : {}),
         ...(largest
           ? {
               photoFileId: largest.file_id,

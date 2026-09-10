@@ -1,0 +1,286 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
+import {
+  IncidentStatusSchema,
+  type IncidentView,
+  type IncidentTransitionCommand,
+  type IncidentUpdateCommand,
+} from '@vakhta/contracts';
+import { allowedIncidentTransitions } from '@vakhta/domain';
+import { format, messages } from '@vakhta/i18n';
+import { incidentsApi } from '@/api';
+import { readError } from '@/errors';
+import { currentLocale } from '@/i18n';
+import { usePersistentState, useUiStore } from '@/lib/ui-store';
+import { useDeepLinkedId } from '@/lib/route';
+import { useLiveUpdates } from '@/lib/live';
+import { useOrg } from '@/lib/org';
+import { keys } from '@/lib/query';
+import { notifySuccess } from '@/lib/toast';
+import { todayIso, formatDateTime } from '@/lib/format';
+import { useConfirm } from '@/components/app/confirm-dialog';
+import type { LightboxImage } from '@/components/app/photo';
+import { EyeIcon, CheckIcon } from 'lucide-react';
+import { incidentPeriod, type PeriodMode } from './period';
+
+const i = messages(currentLocale()).admin.incidents;
+type Draft = {
+  target: string;
+  rootCause: string;
+  resolution: string;
+  duplicateOf: string;
+  error: string | null;
+};
+interface WorkspaceState {
+  drafts: Record<string, Partial<Draft>>;
+  selected: Set<string>;
+  lightbox: LightboxImage[];
+}
+const initialState = (): WorkspaceState => ({ drafts: {}, selected: new Set(), lightbox: [] });
+const useWorkspaceState = create<WorkspaceState>(() => initialState());
+// Sign-out clears shared filters and also drops transient incident notes and signed photo URLs.
+useUiStore.subscribe((state, previous) => {
+  if (state.values !== previous.values && Object.keys(state.values).length === 0)
+    useWorkspaceState.setState(initialState());
+});
+function setField(id: string, key: keyof Draft, value: string) {
+  useWorkspaceState.setState((state) => ({
+    drafts: { ...state.drafts, [id]: { ...state.drafts[id], [key]: value, error: null } },
+  }));
+}
+
+/** Query owns records; Zustand owns only filters, selection and unsaved decisions. */
+export function useIncidentWorkspace(knowledge: boolean) {
+  const prefix = knowledge ? 'incidentKnowledge' : 'incidents';
+  const { org } = useOrg();
+  const [siteId, setSiteId] = usePersistentState(`${prefix}.siteId`, '');
+  const [scope, setScopeValue] = usePersistentState<'open' | 'all'>(`${prefix}.scope`, 'open');
+  const [periodMode, setPeriodModeValue] = usePersistentState<PeriodMode>(
+    `${prefix}.period`,
+    'all',
+  );
+  const [date, setDate] = usePersistentState(`${prefix}.date`, todayIso);
+  const [openId, setOpenId] = useDeepLinkedId(prefix, `${prefix}.openId`);
+  const { drafts, selected, lightbox } = useWorkspaceState(useShallow((state) => state));
+  const { confirm, dialog } = useConfirm();
+  const client = useQueryClient();
+  const timezone = org?.sites.find((site) => site.id === siteId)?.timezone ?? 'Europe/Kyiv';
+  const range = incidentPeriod(periodMode, date, timezone);
+  const query = {
+    ...(siteId ? { siteId } : {}),
+    scope: knowledge ? ('all' as const) : scope,
+    ...range,
+  };
+  const list = useQuery({
+    queryKey: keys.incidents(query),
+    queryFn: () => incidentsApi.list(query),
+  });
+  const rows = list.data ?? [];
+  const live = useLiveUpdates(incidentsApi.streamUrl(), 'incident', ['incidents']);
+  const detailQuery = useQuery({
+    queryKey: keys.incident(openId),
+    queryFn: () => incidentsApi.detail(openId ?? ''),
+    enabled: openId !== null,
+  });
+  const statsRange = {
+    from: range.from ?? '1970-01-01T00:00:00.000Z',
+    to: range.to ?? new Date().toISOString(),
+    siteId,
+  };
+  const statsQuery = useQuery({
+    queryKey: keys.incidentStats({ ...statsRange, to: range.to ?? 'now' }),
+    queryFn: () => incidentsApi.stats(statsRange.from, statsRange.to, siteId || undefined),
+    enabled: !knowledge && list.isSuccess,
+  });
+  function form(row: IncidentView) {
+    const draft = drafts[row.id];
+    const target = draft?.target ?? '';
+    return {
+      target,
+      rootCause: draft?.rootCause ?? row.rootCause ?? '',
+      resolution: draft?.resolution ?? row.resolution ?? '',
+      duplicateOf: draft?.duplicateOf ?? '',
+      error: draft?.error ?? null,
+      requiresCause: target === 'RESOLVED' || target === 'REJECTED',
+      requiresSolution: target === 'RESOLVED',
+    };
+  }
+  const save = useMutation({
+    mutationFn: (input: {
+      id: string;
+      command: IncidentUpdateCommand;
+      transition?: IncidentTransitionCommand;
+    }) =>
+      input.transition
+        ? incidentsApi.transition(input.id, input.transition)
+        : incidentsApi.update(input.id, input.command),
+    onSuccess: async (_result, input) => {
+      useWorkspaceState.setState((state) => {
+        const next = { ...state.drafts };
+        delete next[input.id];
+        return { drafts: next };
+      });
+      notifySuccess(input.transition ? i.applied : i.saved);
+      await client.invalidateQueries({ queryKey: ['incidents'] });
+    },
+  });
+  const closeMany = useMutation({
+    mutationFn: async (items: IncidentView[]) => {
+      for (const row of items) await incidentsApi.transition(row.id, { to: 'CLOSED' });
+      return items.length;
+    },
+    onSuccess: (count) => {
+      notifySuccess(format(i.bulkClosed, { n: count }));
+      useWorkspaceState.setState({ selected: new Set() });
+    },
+    // Partial success also needs fresh rows before a retry.
+    onSettled: () => client.invalidateQueries({ queryKey: ['incidents'] }),
+  });
+  function apply(row: IncidentView) {
+    const draft = form(row);
+    const rootCause = draft.rootCause.trim();
+    const resolution = draft.resolution.trim();
+    const error =
+      draft.requiresSolution && (rootCause.length < 3 || resolution.length < 3)
+        ? i.requiredSolution
+        : draft.requiresCause && rootCause.length < 3
+          ? i.requiredCause
+          : null;
+    if (error) {
+      useWorkspaceState.setState((state) => ({
+        drafts: { ...state.drafts, [row.id]: { ...state.drafts[row.id], error } },
+      }));
+      return;
+    }
+    const command = {
+      ...(rootCause !== (row.rootCause ?? '') ? { rootCause } : {}),
+      ...(resolution !== (row.resolution ?? '') ? { resolution } : {}),
+    };
+    const target = IncidentStatusSchema.safeParse(draft.target);
+    if (!target.success && !Object.keys(command).length) return;
+    save.mutate({
+      id: row.id,
+      command,
+      ...(target.success
+        ? {
+            transition: {
+              ...command,
+              to: target.data,
+              ...(target.data === 'DUPLICATE' && draft.duplicateOf
+                ? { duplicateOfId: draft.duplicateOf }
+                : {}),
+            },
+          }
+        : {}),
+    });
+  }
+  const closable = rows.filter((row) => selected.has(row.id) && row.status === 'RESOLVED');
+  async function closeSelected() {
+    if (!closable.length) return;
+    if (
+      (await confirm({
+        title: `${i.closeSelected} (${closable.length})`,
+        confirmLabel: i.transitions.CLOSED,
+      })) !== false
+    )
+      closeMany.mutate(closable);
+  }
+  const busy = save.isPending || closeMany.isPending;
+  const toggleRow = (row: IncidentView) => setOpenId(openId === row.id ? null : row.id);
+  const setLightbox = (images: LightboxImage[]) => useWorkspaceState.setState({ lightbox: images });
+  const year = Number(date.slice(0, 4));
+  const currentYear = new Date().getFullYear();
+  return {
+    knowledge,
+    org,
+    siteId,
+    setSiteId,
+    scope,
+    periodMode,
+    date,
+    live,
+    rows,
+    openId,
+    busy,
+    closable,
+    selected,
+    lightbox,
+    dialog,
+    form,
+    setField,
+    apply,
+    toggleRow,
+    closeSelected,
+    detail: detailQuery.data ?? null,
+    stats: statsQuery.data ?? null,
+    loading: list.isPending,
+    error: readError(
+      list.error ?? detailQuery.error ?? save.error ?? closeMany.error ?? statsQuery.error,
+    ),
+    setScope: (value: string) => {
+      if (value === 'all' || value === 'open') setScopeValue(value);
+    },
+    setPeriodMode: (value: string) => {
+      if (value === 'all' || value === 'day' || value === 'month' || value === 'year')
+        setPeriodModeValue(value);
+    },
+    setDate,
+    setMonth: (value: string) => setDate(`${value}-01`),
+    setYear: (value: string) => setDate(`${value}-01-01`),
+    periodOptions: [
+      { value: 'all', label: i.allDates },
+      { value: 'day', label: i.day },
+      { value: 'month', label: i.month },
+      { value: 'year', label: i.year },
+    ],
+    yearOptions: Array.from(
+      { length: Math.max(currentYear + 1, year) - Math.min(2020, year) + 1 },
+      (_, index) => {
+        const value = String(Math.max(currentYear + 1, year) - index);
+        return { value, label: value };
+      },
+    ),
+    others: (row: IncidentView) =>
+      rows
+        .filter((item) => item.id !== row.id && item.status !== 'DUPLICATE')
+        .map((item) => ({
+          value: item.id,
+          label: `${formatDateTime(item.openedAt)} · ${item.reasonLabel} · ${item.zoneName ?? '—'}`,
+        })),
+    transitions: (row: IncidentView) =>
+      allowedIncidentTransitions(row.status).map((status) => ({
+        value: status,
+        label: i.transitions[status],
+      })),
+    rowActions: (row: IncidentView) => [
+      { key: 'detail', label: i.detail, icon: EyeIcon, onSelect: () => toggleRow(row) },
+      ...allowedIncidentTransitions(row.status).map((status) => ({
+        key: `to-${status}`,
+        label: i.transitions[status],
+        icon: CheckIcon,
+        disabled: busy,
+        onSelect: () => {
+          setField(row.id, 'target', status);
+          setOpenId(row.id);
+        },
+      })),
+    ],
+    setSelected: (value: Set<string>) => useWorkspaceState.setState({ selected: value }),
+    trackedLink: incidentsApi.mediaLink,
+    setLightbox,
+    closeLightbox: () => setLightbox([]),
+    searchText: (row: IncidentView) =>
+      [
+        row.reasonLabel,
+        row.rootCause,
+        row.resolution,
+        row.lastComment,
+        row.reportedBy,
+        row.zoneName,
+      ]
+        .filter(Boolean)
+        .join(' '),
+  };
+}
+export type IncidentWorkspaceModel = ReturnType<typeof useIncidentWorkspace>;

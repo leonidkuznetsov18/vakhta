@@ -135,3 +135,21 @@ export function formatLocal(instant: Date, timezone: string): { local: string; o
   const dt = DateTime.fromJSDate(instant, { zone: timezone });
   return { local: dt.toFormat('yyyy-LL-dd HH:mm'), offset: dt.toFormat('ZZ') };
 }
+
+/** Inclusive/exclusive calendar range in the site's timezone, preserving DST boundaries. */
+export function calendarPeriod(
+  date: string,
+  unit: 'day' | 'month' | 'year',
+  timezone: string,
+): { from: string; to: string } {
+  assertValidTimezone(timezone);
+  const start = DateTime.fromISO(date, { zone: timezone }).startOf(unit);
+  if (!start.isValid) throw new RangeError('Invalid calendar date');
+  return {
+    from: start.toUTC().toISO() as string,
+    to: start
+      .plus({ [unit]: 1 })
+      .toUTC()
+      .toISO() as string,
+  };
+}

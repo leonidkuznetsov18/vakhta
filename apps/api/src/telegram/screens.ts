@@ -591,13 +591,12 @@ export function incidentCommentScreen(t: Messages): Screen {
   };
 }
 
-export function incidentPhotoScreen(t: Messages): Screen {
+export function incidentPhotoScreen(t: Messages, required = false): Screen {
+  const keyboard = new InlineKeyboard();
+  if (!required) keyboard.text(t.incidents.skipPhoto, INCIDENT_CALLBACK.skipPhoto).row();
   return {
-    text: t.incidents.askPhoto,
-    keyboard: new InlineKeyboard()
-      .text(t.incidents.skipPhoto, INCIDENT_CALLBACK.skipPhoto)
-      .row()
-      .text(t.incidents.cancel, INCIDENT_CALLBACK.cancel),
+    text: required ? t.incidents.askRequiredPhoto : t.incidents.askPhoto,
+    keyboard: keyboard.text(t.incidents.cancel, INCIDENT_CALLBACK.cancel),
   };
 }
 

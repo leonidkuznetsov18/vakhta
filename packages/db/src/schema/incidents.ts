@@ -52,6 +52,9 @@ export const downtimeIncidents = pgTable(
     escalatedAt: timestamp('escalated_at', { withTimezone: true }),
     reportsCount: integer('reports_count').notNull().default(0),
     lastComment: text('last_comment'),
+    /** Master's structured diagnosis and solution; legacy comments remain intact. */
+    rootCause: text('root_cause'),
+    resolution: text('resolution'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -104,6 +107,8 @@ export const incidentStatusHistory = pgTable(
     actorId: text('actor_id'),
     at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
     comment: text('comment'),
+    rootCause: text('root_cause'),
+    resolution: text('resolution'),
   },
   (t) => [index('incident_status_history_incident_idx').on(t.incidentId, t.at)],
 );

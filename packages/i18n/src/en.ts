@@ -184,6 +184,8 @@ export const en: Messages = {
     reportButton: 'Report a problem',
     chooseReason: 'What happened? Choose a reason:',
     askComment: 'Describe the problem in one message (required for this reason).',
+    askRequiredPhoto:
+      'Send a photo of the breakdown. You may add a description in the photo caption.',
     askPhoto: 'Send a photo of the problem or press "Skip".',
     skipPhoto: 'Skip',
     askStopped: 'Is work stopped?',
@@ -540,6 +542,7 @@ export const en: Messages = {
       overview: 'Overview',
       operations: 'Live shift',
       schedule: 'Schedule',
+      incidentKnowledge: 'Incident knowledge base',
       incidents: 'Downtime and incidents',
       handover: 'Cleanliness and handover',
       requests: 'Requests',
@@ -739,6 +742,24 @@ export const en: Messages = {
       },
     },
     incidents: {
+      rootCause: 'Cause',
+      resolution: 'How was it resolved?',
+      save: 'Save',
+      saved: 'Incident saved.',
+      problemType: 'Problem type',
+      knowledgeHint:
+        'Problem history, photos and solutions recorded by masters. Find a similar case before repeating diagnosis.',
+      search: 'Search problem, cause, solution or employee',
+      missingSolution: 'Solution not recorded yet',
+      legacyComment: 'Previous comment',
+      period: 'Period',
+      allDates: 'All time',
+      day: 'Day',
+      month: 'Month',
+      year: 'Year',
+      date: 'Date',
+      requiredSolution: 'To resolve, provide the cause and solution (at least 3 characters each).',
+      requiredCause: 'Provide the reason for rejection.',
       site: 'Site',
       scopeOpen: 'Open',
       scopeAll: 'All',
@@ -1745,10 +1766,10 @@ export const en: Messages = {
         purpose:
           'Downtime and problems reported by employees or opened by the system: reasons, SLA, owners and closing with a decision.',
         steps: [
-          'Filters: site, status (open or all), reason. Rows past their SLA are highlighted.',
-          'A row click expands the incident: who reported it, photos, history, related shifts.',
-          'Assign an owner, add a comment, close it with a decision. Several incidents close at once through row selection.',
-          'Closing an incident returns the employee from downtime to work when they are still in downtime.',
+          'Choose the site and period: day, month, year or all time. Switch from open incidents to all when needed.',
+          'Open a row to see photos, the employee description and action history.',
+          'Record the cause and how it was resolved. Save drafts at any time; both fields are required for Resolved.',
+          'Find previous solutions in the Incident knowledge base. The employee returns from downtime to work themselves.',
         ],
         faq: [
           {
@@ -1765,7 +1786,7 @@ export const en: Messages = {
           },
           {
             q: 'Can the reason be changed?',
-            a: 'Yes, in the incident details: "Edit" with a comment; the change goes to the audit.',
+            a: 'Record the cause and how it was resolved. Save drafts at any time; both fields are required for Resolved.',
           },
         ],
       },

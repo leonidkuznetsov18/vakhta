@@ -47,6 +47,7 @@ import { AuditPage } from './audit/AuditPage.tsx';
 import { ReportsPage } from './reports/ReportsPage.tsx';
 import { BonusPage } from './bonus/BonusPage.tsx';
 import { HandoverPage } from './handover/HandoverPage.tsx';
+import { IncidentKnowledgePage } from '@/pages/incident-knowledge';
 import { IncidentsPage } from './incidents/IncidentsPage.tsx';
 import { OperationsPage } from './operations/OperationsPage.tsx';
 import { OverviewPage } from './overview/OverviewPage.tsx';
@@ -76,6 +77,7 @@ const SECTIONS: readonly { key: SectionKey; icon: typeof ActivityIcon }[] = [
   { key: 'operations', icon: ActivityIcon },
   { key: 'schedule', icon: CalendarDaysIcon },
   { key: 'incidents', icon: AlertTriangleIcon },
+  { key: 'incidentKnowledge', icon: ScrollTextIcon },
   { key: 'handover', icon: ClipboardCheckIcon },
   { key: 'requests', icon: InboxIcon },
   { key: 'bonus', icon: CoinsIcon },
@@ -100,6 +102,7 @@ const PAGES: Partial<Record<SectionKey, () => React.ReactElement>> = {
   operations: OperationsPage,
   schedule: SchedulePage,
   incidents: IncidentsPage,
+  incidentKnowledge: IncidentKnowledgePage,
   handover: HandoverPage,
   requests: RequestsPage,
   bonus: BonusPage,
@@ -302,7 +305,9 @@ export function App() {
             <SidebarTrigger aria-label={t.ui.common.menu} />
             <h1 className="text-lg font-semibold">{title}</h1>
             <div className="ml-auto flex items-center gap-2">
-              {active !== 'profile' && <FaqButton guide={active} />}
+              {active !== 'profile' && (
+                <FaqButton guide={active === 'incidentKnowledge' ? 'incidents' : active} />
+              )}
               <CommandPalette
                 sections={SECTIONS}
                 onSection={(key) => setActive(key)}

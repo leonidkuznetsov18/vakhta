@@ -341,6 +341,7 @@ import type {
   IncidentDetailView,
   IncidentStatsView,
   IncidentTransitionCommand,
+  IncidentUpdateCommand,
   IncidentView,
   IncidentsQuery,
 } from '@vakhta/contracts';
@@ -348,11 +349,13 @@ import type {
 export const incidentsApi = {
   list: (q: IncidentsQuery) =>
     apiFetch<IncidentView[]>(
-      `/admin/incidents${query({ siteId: q.siteId, zoneId: q.zoneId, scope: q.scope })}`,
+      `/admin/incidents${query({ siteId: q.siteId, zoneId: q.zoneId, scope: q.scope, from: q.from, to: q.to })}`,
     ),
   detail: (id: string) => apiFetch<IncidentDetailView>(`/admin/incidents/${id}`),
   transition: (id: string, cmd: IncidentTransitionCommand) =>
     post<IncidentView>(`/admin/incidents/${id}/transition`, cmd),
+  update: (id: string, cmd: IncidentUpdateCommand) =>
+    post<IncidentView>(`/admin/incidents/${id}/update`, cmd),
   stats: (from: string, to: string, siteId?: string) =>
     apiFetch<IncidentStatsView>(`/admin/incidents/stats${query({ from, to, siteId })}`),
   mediaLink: (mediaId: string) => apiFetch<MediaLinkView>(`/admin/incidents/media/${mediaId}/link`),

@@ -64,6 +64,8 @@ export const IncidentView = z.object({
   /** Скільки працівників зараз у DOWNTIME за цим інцидентом. */
   stoppedNow: z.number().int().nonnegative(),
   lastComment: z.string().nullable(),
+  rootCause: z.string().nullable(),
+  resolution: z.string().nullable(),
 });
 export type IncidentView = z.infer<typeof IncidentView>;
 
@@ -75,6 +77,8 @@ export const IncidentHistoryView = z.object({
   actorId: z.string().nullable(),
   at: IsoDateTime,
   comment: z.string().nullable(),
+  rootCause: z.string().nullable(),
+  resolution: z.string().nullable(),
 });
 export type IncidentHistoryView = z.infer<typeof IncidentHistoryView>;
 
@@ -97,28 +101,45 @@ export const ReportProblemResult = z.object({
 });
 export type ReportProblemResult = z.infer<typeof ReportProblemResult>;
 
-export const IncidentsQuery = z.object({
-  siteId: Uuid.optional(),
-  zoneId: Uuid.optional(),
-  /** open (типово) або all. */
-  scope: z.enum(['open', 'all']).optional(),
-});
+export const IncidentsQuery = z
+  .object({
+    siteId: Uuid.optional(),
+    zoneId: Uuid.optional(),
+    /** open (типово) або all. */
+    scope: z.enum(['open', 'all']).optional(),
+    /** Opened-at range, inclusive start and exclusive end. */
+    from: IsoDateTime.optional(),
+    to: IsoDateTime.optional(),
+  })
+  .refine((q) => !q.from || !q.to || Date.parse(q.from) < Date.parse(q.to), {
+    message: 'End must follow start',
+    path: ['to'],
+  });
 export type IncidentsQuery = z.infer<typeof IncidentsQuery>;
 
-/** Дії майстра (FR-DWN-05). Коментар обовʼязковий для відхилення й рішення. */
+/** Master's decision; resolving requires a persisted cause and solution. */
 export const IncidentTransitionCommand = z.object({
   to: IncidentStatusSchema,
   comment: Comment.optional(),
+  rootCause: Comment.optional(),
+  resolution: Comment.optional(),
   /** Для DUPLICATE: до якого інциденту приєднати. */
   duplicateOfId: Uuid.optional(),
 });
 export type IncidentTransitionCommand = z.infer<typeof IncidentTransitionCommand>;
 
-export const IncidentUpdateCommand = z.object({
-  reasonCode: ReasonCode.optional(),
-  assigneeId: z.string().min(1).nullable().optional(),
-  comment: z.string().trim().min(3).max(2000),
-});
+export const IncidentUpdateCommand = z
+  .object({
+    reasonCode: ReasonCode.optional(),
+    assigneeId: z.string().min(1).nullable().optional(),
+    /** Retained for old clients and historical change explanations. */
+    comment: z.string().trim().min(3).max(2000).optional(),
+    rootCause: Comment.optional(),
+    resolution: Comment.optional(),
+  })
+  .refine((cmd) => Object.values(cmd).some((value) => value !== undefined), {
+    message: 'Provide a change',
+  });
 export type IncidentUpdateCommand = z.infer<typeof IncidentUpdateCommand>;
 
 export const IncidentStatsQuery = z.object({

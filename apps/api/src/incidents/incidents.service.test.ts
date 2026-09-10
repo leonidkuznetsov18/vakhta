@@ -202,7 +202,13 @@ describe('incidents: повідомлення про проблему, дубл�
   it('AC-08: проблема без зупинки створює інцидент, але не простій; SLA планується', async () => {
     const result = await incidents.report(
       ivanov,
-      { reasonCode: 'BREAKDOWN', stoppedWork: false, idempotencyKey: key() },
+      {
+        reasonCode: 'BREAKDOWN',
+        photoFileId: 'test-photo',
+        photoFileUniqueId: 'test-photo-unique',
+        stoppedWork: false,
+        idempotencyKey: key(),
+      },
       employeeActor(ivanov),
     );
     expect(result).toMatchObject({
@@ -268,7 +274,11 @@ describe('incidents: повідомлення про проблему, дубл�
   it('a report without a photo carries none', async () => {
     const result = await incidents.report(
       ivanov,
-      { reasonCode: 'BREAKDOWN', stoppedWork: false, idempotencyKey: key() },
+      {
+        reasonCode: 'SAFETY',
+        stoppedWork: false,
+        idempotencyKey: key(),
+      },
       employeeActor(ivanov),
     );
     const detail = await incidents.detail(result.incidentId);
@@ -281,6 +291,8 @@ describe('incidents: повідомлення про проблему, дубл�
       ivanov,
       {
         reasonCode: 'BREAKDOWN',
+        photoFileId: 'test-photo',
+        photoFileUniqueId: 'test-photo-unique',
         stoppedWork: true,
         idempotencyKey: key(),
         comment: 'Заклинило ленту',
@@ -307,12 +319,24 @@ describe('incidents: повідомлення про проблему, дубл�
   it('every report opens its own incident, even with the same reason in the same zone', async () => {
     const first = await incidents.report(
       ivanov,
-      { reasonCode: 'BREAKDOWN', stoppedWork: true, idempotencyKey: key() },
+      {
+        reasonCode: 'BREAKDOWN',
+        photoFileId: 'test-photo',
+        photoFileUniqueId: 'test-photo-unique',
+        stoppedWork: true,
+        idempotencyKey: key(),
+      },
       employeeActor(ivanov),
     );
     const second = await incidents.report(
       petrova,
-      { reasonCode: 'BREAKDOWN', stoppedWork: true, idempotencyKey: key() },
+      {
+        reasonCode: 'BREAKDOWN',
+        photoFileId: 'test-photo',
+        photoFileUniqueId: 'test-photo-unique',
+        stoppedWork: true,
+        idempotencyKey: key(),
+      },
       employeeActor(petrova),
     );
     // Reports used to fold into an open incident of the same reason and zone, so one row stood
@@ -362,12 +386,24 @@ describe('incidents: повідомлення про проблему, дубл�
     const k = key();
     const a = await incidents.report(
       ivanov,
-      { reasonCode: 'BREAKDOWN', stoppedWork: true, idempotencyKey: k },
+      {
+        reasonCode: 'BREAKDOWN',
+        photoFileId: 'test-photo',
+        photoFileUniqueId: 'test-photo-unique',
+        stoppedWork: true,
+        idempotencyKey: k,
+      },
       employeeActor(ivanov),
     );
     const b = await incidents.report(
       ivanov,
-      { reasonCode: 'BREAKDOWN', stoppedWork: true, idempotencyKey: k },
+      {
+        reasonCode: 'BREAKDOWN',
+        photoFileId: 'test-photo',
+        photoFileUniqueId: 'test-photo-unique',
+        stoppedWork: true,
+        idempotencyKey: k,
+      },
       employeeActor(ivanov),
     );
     expect(b.incidentId).toBe(a.incidentId);
@@ -377,7 +413,13 @@ describe('incidents: повідомлення про проблему, дубл�
   it('FR-DWN-05/06: майстер підтверджує, вирішує й закриває; історія зберігається, простій працівника не закривається', async () => {
     const reported = await incidents.report(
       ivanov,
-      { reasonCode: 'BREAKDOWN', stoppedWork: true, idempotencyKey: key() },
+      {
+        reasonCode: 'BREAKDOWN',
+        photoFileId: 'test-photo',
+        photoFileUniqueId: 'test-photo-unique',
+        stoppedWork: true,
+        idempotencyKey: key(),
+      },
       employeeActor(ivanov),
     );
     const id = reported.incidentId;
@@ -385,7 +427,7 @@ describe('incidents: повідомлення про проблему, дубл�
       code: 'INCIDENT_TRANSITION_NOT_ALLOWED',
     });
     await expect(incidents.transition(id, { to: 'REJECTED' }, MASTER)).rejects.toMatchObject({
-      code: 'COMMENT_REQUIRED',
+      code: 'INCIDENT_CAUSE_REQUIRED',
     });
 
     const ack = await incidents.transition(id, { to: 'ACKNOWLEDGED' }, MASTER);
@@ -395,7 +437,12 @@ describe('incidents: повідомлення про проблему, дубл�
 
     const resolved = await incidents.transition(
       id,
-      { to: 'RESOLVED', comment: 'Ленту заменили' },
+      {
+        to: 'RESOLVED',
+        rootCause: 'Worn belt',
+        resolution: 'Replaced the belt',
+        comment: 'Ленту заменили',
+      },
       MASTER,
     );
     expect(resolved.status).toBe('RESOLVED');
@@ -425,12 +472,24 @@ describe('incidents: повідомлення про проблему, дубл�
   it('FR-DWN-05: злиття дублів зберігає вихідні записи; деталі первинного показують усі повідомлення', async () => {
     const a = await incidents.report(
       ivanov,
-      { reasonCode: 'BREAKDOWN', stoppedWork: false, idempotencyKey: key() },
+      {
+        reasonCode: 'BREAKDOWN',
+        photoFileId: 'test-photo',
+        photoFileUniqueId: 'test-photo-unique',
+        stoppedWork: false,
+        idempotencyKey: key(),
+      },
       employeeActor(ivanov),
     );
     const b = await incidents.report(
       sidorov,
-      { reasonCode: 'BREAKDOWN', stoppedWork: false, idempotencyKey: key() },
+      {
+        reasonCode: 'BREAKDOWN',
+        photoFileId: 'test-photo',
+        photoFileUniqueId: 'test-photo-unique',
+        stoppedWork: false,
+        idempotencyKey: key(),
+      },
       employeeActor(sidorov),
     );
     expect(a.incidentId).not.toBe(b.incidentId);
@@ -458,7 +517,13 @@ describe('incidents: повідомлення про проблему, дубл�
   it('статистика по причинах і зонах: кількість, хвилини простою, порушення SLA', async () => {
     const a = await incidents.report(
       ivanov,
-      { reasonCode: 'BREAKDOWN', stoppedWork: true, idempotencyKey: key() },
+      {
+        reasonCode: 'BREAKDOWN',
+        photoFileId: 'test-photo',
+        photoFileUniqueId: 'test-photo-unique',
+        stoppedWork: true,
+        idempotencyKey: key(),
+      },
       employeeActor(ivanov),
     );
     await incidents.report(
@@ -494,7 +559,13 @@ describe('incidents: повідомлення про проблему, дубл�
       await expect(
         incidents.report(
           ivanov,
-          { reasonCode: 'BREAKDOWN', stoppedWork: false, idempotencyKey: key() },
+          {
+            reasonCode: 'BREAKDOWN',
+            photoFileId: 'test-photo',
+            photoFileUniqueId: 'test-photo-unique',
+            stoppedWork: false,
+            idempotencyKey: key(),
+          },
           employeeActor(ivanov),
         ),
       ).rejects.toThrow();
@@ -507,5 +578,65 @@ describe('incidents: повідомлення про проблему, дубл�
       await testDb.db.execute(sql`DROP TRIGGER reject_sla_intent ON background_tasks`);
       await testDb.db.execute(sql`DROP FUNCTION reject_sla_intent()`);
     }
+  });
+  it('requires a breakdown photo and leaves no report on failure', async () => {
+    await expect(
+      incidents.report(
+        ivanov,
+        { reasonCode: 'BREAKDOWN', stoppedWork: false, idempotencyKey: key() },
+        employeeActor(ivanov),
+      ),
+    ).rejects.toMatchObject({ code: 'INCIDENT_PHOTO_REQUIRED' });
+    expect(await testDb.db.select().from(downtimeReports)).toHaveLength(0);
+  });
+
+  it('saves diagnosis drafts, validates resolution, and preserves every note revision', async () => {
+    const { incidentId } = await incidents.report(
+      ivanov,
+      {
+        reasonCode: 'BREAKDOWN',
+        photoFileId: 'photo',
+        photoFileUniqueId: 'unique',
+        stoppedWork: false,
+        idempotencyKey: key(),
+        comment: 'Worker description',
+      },
+      employeeActor(ivanov),
+    );
+    await incidents.transition(incidentId, { to: 'IN_PROGRESS' }, MASTER);
+    await expect(
+      incidents.transition(incidentId, { to: 'RESOLVED', rootCause: 'Worn belt' }, MASTER),
+    ).rejects.toMatchObject({ code: 'INCIDENT_RESOLUTION_REQUIRED' });
+    expect((await incidents.detail(incidentId)).incident.rootCause).toBeNull();
+    await incidents.update(incidentId, { rootCause: 'First diagnosis' }, MASTER);
+    await incidents.update(incidentId, { rootCause: '' }, MASTER);
+    expect((await incidents.detail(incidentId)).history.at(-1)?.rootCause).toBeNull();
+    await incidents.update(
+      incidentId,
+      { rootCause: 'Worn belt', resolution: 'Replaced belt' },
+      MASTER,
+    );
+    const resolved = await incidents.transition(incidentId, { to: 'RESOLVED' }, MASTER);
+    expect(resolved).toMatchObject({
+      rootCause: 'Worn belt',
+      resolution: 'Replaced belt',
+      lastComment: 'Worker description',
+    });
+    await expect(incidents.update(incidentId, { resolution: ' ' }, MASTER)).rejects.toMatchObject({
+      code: 'INCIDENT_RESOLUTION_REQUIRED',
+    });
+    await expect(
+      incidents.transition(incidentId, { to: 'CLOSED', rootCause: '', resolution: '' }, MASTER),
+    ).rejects.toMatchObject({ code: 'INCIDENT_RESOLUTION_REQUIRED' });
+    await incidents.update(incidentId, { resolution: 'Replaced belt and checked tension' }, MASTER);
+    const detail = await incidents.detail(incidentId);
+    expect(detail.history.some((entry) => entry.rootCause === 'First diagnosis')).toBe(true);
+    expect(detail.history.at(-2)?.resolution).toBe('Replaced belt');
+    expect(detail.history.at(-1)?.resolution).toBe('Replaced belt and checked tension');
+    const opened = detail.incident.openedAt;
+    const after = new Date(Date.parse(opened) + 1).toISOString();
+    expect(await incidents.list({ scope: 'all', from: opened, to: after })).toHaveLength(1);
+    expect(await incidents.list({ scope: 'all', to: opened })).toHaveLength(0);
+    expect(await incidents.list({ scope: 'all', from: after })).toHaveLength(0);
   });
 });

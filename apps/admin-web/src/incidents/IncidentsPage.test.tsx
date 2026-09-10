@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { setUiState } from '@/lib/ui-store';
+import { IncidentKnowledgePage } from '@/pages/incident-knowledge';
 import { IncidentsPage } from './IncidentsPage.tsx';
 import { clickRowAction, render } from '../test-utils.tsx';
 
@@ -41,6 +43,8 @@ function incident(id: string, status: string, over: Record<string, unknown> = {}
     reportsCount: 2,
     stoppedNow: 1,
     lastComment: 'Заклинило',
+    rootCause: null,
+    resolution: null,
     ...over,
   };
 }
@@ -63,7 +67,7 @@ class FakeEventSource {
 }
 
 function mockApi(state: { rows: ReturnType<typeof incident>[]; media?: unknown }) {
-  const calls: { method: string; path: string; body: unknown }[] = [];
+  const calls: { method: string; path: string; search: string; body: unknown }[] = [];
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
   vi.stubGlobal(
@@ -72,7 +76,7 @@ function mockApi(state: { rows: ReturnType<typeof incident>[]; media?: unknown }
       const url = new URL(String(input));
       const method = init?.method ?? 'GET';
       const body = init?.body ? JSON.parse(String(init.body)) : null;
-      calls.push({ method, path: url.pathname, body });
+      calls.push({ method, path: url.pathname, search: url.search, body });
       if (url.pathname === '/admin/org') return json(org);
       if (url.pathname === '/admin/incidents') return json(state.rows);
       if (url.pathname === '/admin/incidents/stats') {
@@ -156,7 +160,7 @@ describe('IncidentsPage', () => {
     };
     const calls = mockApi(state);
     render(<IncidentsPage />);
-    expect(await screen.findAllByText('Поломка')).toHaveLength(3);
+    await waitFor(() => expect(screen.getAllByText('Поломка').length).toBeGreaterThanOrEqual(3));
     expect(screen.getAllByText('Сообщено')).toHaveLength(2);
     expect(await screen.findAllByText('Итого')).toHaveLength(2);
 
@@ -166,12 +170,12 @@ describe('IncidentsPage', () => {
     expect(screen.getAllByText('Кузнецов Леонид').length).toBeGreaterThanOrEqual(2);
 
     fireEvent.change(screen.getByLabelText('Статус'), { target: { value: 'ACKNOWLEDGED' } });
-    fireEvent.change(screen.getByLabelText('Комментарий'), { target: { value: 'Иду смотреть' } });
+    fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Иду смотреть' } });
     fireEvent.click(screen.getByRole('button', { name: 'Выполнить' }));
     await screen.findByText('Статус изменён.');
     expect(calls.find((c) => c.path.endsWith('/transition'))?.body).toEqual({
       to: 'ACKNOWLEDGED',
-      comment: 'Иду смотреть',
+      rootCause: 'Иду смотреть',
     });
     expect((await screen.findAllByText('Подтверждён')).length).toBeGreaterThanOrEqual(1);
   });
@@ -222,6 +226,62 @@ describe('IncidentsPage', () => {
     FakeEventSource.instances[0]!.emit('incident');
     await waitFor(() =>
       expect(calls.filter((c) => c.path === '/admin/incidents').length).toBe(before + 1),
+    );
+  });
+  it('requires both solution fields before resolving and submits structured notes', async () => {
+    const calls = mockApi({ rows: [incident(INC, 'IN_PROGRESS')] });
+    render(<IncidentsPage />);
+    await clickRowAction('Решено');
+    const cause = await screen.findByLabelText('Причина');
+    fireEvent.change(cause, { target: { value: 'Worn belt' } });
+    fireEvent.submit(cause.closest('form')!);
+    expect((await screen.findByRole('alert')).textContent).toContain('Для решения');
+    expect(calls.filter((call) => call.method === 'POST')).toHaveLength(0);
+    fireEvent.change(screen.getByLabelText('Как решили?'), {
+      target: { value: 'Replaced the belt' },
+    });
+    fireEvent.submit(cause.closest('form')!);
+    await waitFor(() =>
+      expect(calls.find((call) => call.path.endsWith('/transition'))?.body).toEqual({
+        to: 'RESOLVED',
+        rootCause: 'Worn belt',
+        resolution: 'Replaced the belt',
+      }),
+    );
+  });
+
+  it('shows historical solutions in the knowledge base without an editing form', async () => {
+    mockApi({
+      rows: [
+        incident(INC, 'CLOSED', { rootCause: 'Worn belt', resolution: 'Replace and tension' }),
+      ],
+    });
+    render(<IncidentKnowledgePage />);
+    expect(await screen.findByText('Replace and tension')).toBeTruthy();
+    fireEvent.click(screen.getByText('Worn belt'));
+    expect(await screen.findByText('Сообщения сотрудников')).toBeTruthy();
+    expect(screen.queryByRole('textbox', { name: 'Причина' })).toBeNull();
+    expect(screen.getAllByText('Replace and tension').length).toBeGreaterThan(1);
+  });
+  it('applies the selected calendar period to the incident list and statistics', async () => {
+    setUiState({ 'incidents.date': '2026-10-25', 'incidents.period': 'day' });
+    const calls = mockApi({ rows: [incident(INC, 'REPORTED')] });
+    render(<IncidentsPage />);
+    await waitFor(() => {
+      const list = calls.find((call) => call.path === '/admin/incidents');
+      expect(new URLSearchParams(list?.search).get('from')).toBe('2026-10-24T21:00:00.000Z');
+      const stats = calls.find((call) => call.path.endsWith('/stats'));
+      expect(new URLSearchParams(stats?.search).get('to')).toBe('2026-10-25T22:00:00.000Z');
+    });
+    fireEvent.change(screen.getByLabelText('Период'), { target: { value: 'year' } });
+    await waitFor(() =>
+      expect(
+        calls.some(
+          (call) =>
+            call.path === '/admin/incidents' &&
+            new URLSearchParams(call.search).get('from') === '2025-12-31T22:00:00.000Z',
+        ),
+      ).toBe(true),
     );
   });
 });
