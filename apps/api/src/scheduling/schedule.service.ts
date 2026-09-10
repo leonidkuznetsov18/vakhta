@@ -514,76 +514,91 @@ export class ScheduleService {
    * notified of the difference. Validation errors roll everything back, so no draft is left.
    */
   async revise(id: string, cmd: ReviseScheduleCommand, actor: Actor): Promise<ScheduleVersionView> {
-    const now = new Date();
-    const result = await this.db.transaction(async (tx) => {
-      const [current] = await tx
-        .select()
-        .from(scheduleVersions)
-        .where(eq(scheduleVersions.id, id))
-        .for('update');
-      if (!current)
-        throw new DomainError('SCHEDULE_VERSION_NOT_FOUND', 404, `Version ${id} not found`);
-      if (current.status !== 'PUBLISHED') {
-        throw new DomainError(
-          'SCHEDULE_NOT_PUBLISHED',
-          409,
-          `Only a published version can be revised in place; version ${id} is ${current.status}`,
-        );
-      }
-      const [agg] = await tx
-        .select({ maxNo: max(scheduleVersions.versionNo) })
-        .from(scheduleVersions)
-        .where(
-          and(
-            eq(scheduleVersions.siteId, current.siteId),
-            eq(scheduleVersions.orgUnitId, current.orgUnitId),
-            eq(scheduleVersions.periodMonth, current.periodMonth),
-          ),
-        );
-      const versionNo = (agg?.maxNo ?? 0) + 1;
-      const [row] = await tx
-        .insert(scheduleVersions)
-        .values({
-          siteId: current.siteId,
-          orgUnitId: current.orgUnitId,
-          periodMonth: current.periodMonth,
-          versionNo,
-          status: 'IN_REVIEW',
-          submittedAt: now,
-          createdBy: actor.id,
-        })
-        .returning();
-      if (!row) throw new Error('schedule_versions: insert returned no row');
-      await this.events.append(tx, {
-        type: 'SCHEDULE_VERSION_CREATED',
-        source: 'WEB',
-        actor,
-        scheduleVersionId: row.id,
-        payload: {
-          periodMonth: current.periodMonth,
-          versionNo,
-          basedOn: current.id,
-          copied: 0,
-          revision: true,
-        },
-      });
-      await this.audit.record(tx, {
-        actor,
-        action: 'schedule.version.create',
-        objectType: 'schedule_version',
-        objectId: row.id,
-        after: { periodMonth: current.periodMonth, versionNo, basedOn: current.id, revision: true },
-      });
-      await this.replaceAssignments(tx, row, { items: cmd.items }, actor);
-      return this.publishWithin(
-        tx,
-        row.id,
-        cmd.changeReason ? { changeReason: cmd.changeReason } : {},
-        actor,
-        now,
+    const deferred: Array<() => Promise<void>> = [];
+    const result = await this.db.transaction((tx) =>
+      this.reviseWithin(tx, id, cmd, actor, new Date(), deferred),
+    );
+    for (const run of deferred) await run();
+    return result;
+  }
+
+  /** Revise a published schedule inside an owning workflow transaction; dispatch only after commit. */
+  async reviseWithin(
+    tx: DbOrTx,
+    id: string,
+    cmd: ReviseScheduleCommand,
+    actor: Actor,
+    now: Date,
+    deferred: Array<() => Promise<void>>,
+  ): Promise<ScheduleVersionView> {
+    const [current] = await tx
+      .select()
+      .from(scheduleVersions)
+      .where(eq(scheduleVersions.id, id))
+      .for('update');
+    if (!current)
+      throw new DomainError('SCHEDULE_VERSION_NOT_FOUND', 404, `Version ${id} not found`);
+    if (current.status !== 'PUBLISHED') {
+      throw new DomainError(
+        'SCHEDULE_NOT_PUBLISHED',
+        409,
+        `Only a published version can be revised in place; version ${id} is ${current.status}`,
       );
+    }
+    const [agg] = await tx
+      .select({ maxNo: max(scheduleVersions.versionNo) })
+      .from(scheduleVersions)
+      .where(
+        and(
+          eq(scheduleVersions.siteId, current.siteId),
+          eq(scheduleVersions.orgUnitId, current.orgUnitId),
+          eq(scheduleVersions.periodMonth, current.periodMonth),
+        ),
+      );
+    const versionNo = (agg?.maxNo ?? 0) + 1;
+    const [row] = await tx
+      .insert(scheduleVersions)
+      .values({
+        siteId: current.siteId,
+        orgUnitId: current.orgUnitId,
+        periodMonth: current.periodMonth,
+        versionNo,
+        status: 'IN_REVIEW',
+        submittedAt: now,
+        createdBy: actor.id,
+      })
+      .returning();
+    if (!row) throw new Error('schedule_versions: insert returned no row');
+    await this.events.append(tx, {
+      type: 'SCHEDULE_VERSION_CREATED',
+      source: 'WEB',
+      actor,
+      scheduleVersionId: row.id,
+      payload: {
+        periodMonth: current.periodMonth,
+        versionNo,
+        basedOn: current.id,
+        copied: 0,
+        revision: true,
+      },
     });
-    await this.armTimers(result, now);
+    await this.audit.record(tx, {
+      actor,
+      action: 'schedule.version.create',
+      objectType: 'schedule_version',
+      objectId: row.id,
+      after: { periodMonth: current.periodMonth, versionNo, basedOn: current.id, revision: true },
+    });
+    await this.replaceAssignments(tx, row, { items: cmd.items }, actor);
+    const result = await this.publishWithin(
+      tx,
+      row.id,
+      cmd.changeReason ? { changeReason: cmd.changeReason } : {},
+      actor,
+      now,
+    );
+
+    deferred.push(() => this.armTimers(result, now));
     return this.toVersionView(result.updated, result.nextShifts.length);
   }
 

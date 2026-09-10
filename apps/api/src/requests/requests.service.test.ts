@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, vi, afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   activityIntervals,
   domainEvents,
@@ -80,6 +80,10 @@ describe('requests: маршрути, рішення, нова версія гр
 
   afterAll(async () => {
     await testDb?.stop();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   beforeEach(async () => {
@@ -274,6 +278,122 @@ describe('requests: маршрути, рішення, нова версія гр
     expect(notices).toHaveLength(1);
     const detail = await service.detail(created.id, HR);
     expect(detail.decisions.map((d) => d.stepKey)).toEqual(['HEAD', 'HR']);
+  });
+
+  it('rolls back all schedule months when the final request decision fails after publication', async () => {
+    const nextMonth = new Date(`${month()}-01T00:00:00Z`);
+    nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
+    const secondMonth = nextMonth.toISOString().slice(0, 7);
+    const second = await schedule.createVersion(
+      { siteId, orgUnitId: unitId, periodMonth: secondMonth },
+      HEAD,
+    );
+    await schedule.putAssignments(
+      second.id,
+      {
+        items: [
+          {
+            employeeId: ivanov,
+            templateId: dayTpl,
+            businessDate: `${secondMonth}-05`,
+            kind: 'REGULAR',
+          },
+          {
+            employeeId: petrova,
+            templateId: dayTpl,
+            businessDate: `${secondMonth}-07`,
+            kind: 'REGULAR',
+          },
+        ],
+      },
+      HEAD,
+    );
+    await schedule.submit(second.id, HEAD);
+    await schedule.publish(second.id, {}, HEAD);
+    const created = await service.create(
+      ivanov,
+      {
+        type: 'VACATION',
+        periodFrom: `${month()}-04`,
+        periodTo: `${secondMonth}-06`,
+        comment: 'Leave across two months',
+        idempotencyKey: key(),
+      },
+      employeeActor(ivanov),
+    );
+    await service.decide(created.id, { decision: 'APPROVED', comment: 'Approved by head' }, HEAD);
+    const beforeVersions = await testDb.db
+      .select()
+      .from(scheduleVersions)
+      .orderBy(scheduleVersions.id);
+    const beforeAssignments = await testDb.db
+      .select()
+      .from(shiftAssignments)
+      .orderBy(shiftAssignments.id);
+    const beforeTimers = [...timers.scheduled];
+    const append = EventStore.prototype.append;
+    const fault = vi.spyOn(EventStore.prototype, 'append').mockImplementation(async function (
+      this: EventStore,
+      tx,
+      input,
+    ) {
+      if (input.type === 'REQUEST_DECIDED') throw new Error('Injected decision failure');
+      return append.call(this, tx, input);
+    });
+
+    await expect(
+      service.decide(created.id, { decision: 'APPROVED', comment: 'Final approval' }, HR),
+    ).rejects.toThrow('Injected decision failure');
+
+    expect
+      .soft(await testDb.db.select().from(scheduleVersions).orderBy(scheduleVersions.id))
+      .toEqual(beforeVersions);
+    expect
+      .soft(await testDb.db.select().from(shiftAssignments).orderBy(shiftAssignments.id))
+      .toEqual(beforeAssignments);
+    expect.soft(timers.scheduled).toEqual(beforeTimers);
+    const detail = await service.detail(created.id, HR);
+    expect.soft(detail.request.status).toBe('IN_REVIEW');
+    expect.soft(detail.decisions).toHaveLength(1);
+    fault.mockRestore();
+    expect(
+      await service.decide(created.id, { decision: 'APPROVED', comment: 'Retry approval' }, HR),
+    ).toMatchObject({ status: 'APPROVED' });
+  });
+
+  it('approves leave that removes the last assignment from a published month', async () => {
+    await testDb.db.delete(shiftAssignments).where(sql`${shiftAssignments.id} <> ${ivanovShift}`);
+    const created = await service.create(
+      ivanov,
+      {
+        type: 'VACATION',
+        periodFrom: `${month()}-04`,
+        periodTo: `${month()}-06`,
+        comment: 'Last scheduled employee is on leave',
+        idempotencyKey: key(),
+      },
+      employeeActor(ivanov),
+    );
+    await service.decide(created.id, { decision: 'APPROVED', comment: 'Approved by head' }, HEAD);
+    const result = await service.decide(
+      created.id,
+      { decision: 'APPROVED', comment: 'Final approval' },
+      HR,
+    );
+    expect(result.status).toBe('APPROVED');
+    if (!result.resultVersionId) throw new Error('Expected a published replacement');
+    expect(
+      await testDb.db
+        .select()
+        .from(shiftAssignments)
+        .where(eq(shiftAssignments.scheduleVersionId, result.resultVersionId)),
+    ).toEqual([]);
+    expect(
+      await testDb.db
+        .select()
+        .from(scheduleVersions)
+        .where(eq(scheduleVersions.id, result.resultVersionId)),
+    ).toEqual([expect.objectContaining({ status: 'PUBLISHED' })]);
   });
 
   it('обмін змінами: згода другого працівника, потім майстер і керівник; версія міняє працівників місцями', async () => {

@@ -243,6 +243,7 @@ export class RequestsService {
     decider: Decider,
     now: Date = new Date(),
   ): Promise<RequestView> {
+    const deferred: Array<() => Promise<void>> = [];
     const outcome = await this.db.transaction(async (tx) => {
       const [row] = await tx.select().from(requests).where(eq(requests.id, id)).for('update');
       if (!row) throw new DomainError('REQUEST_NOT_FOUND', 404, 'Звернення не знайдено');
@@ -300,7 +301,7 @@ export class RequestsService {
 
       if (finalApproved) {
         if (SCHEDULE_AFFECTING.includes(row.type)) {
-          const versionId = await this.applyScheduleEffect(tx, row, decider, now);
+          const versionId = await this.applyScheduleEffect(tx, row, decider, now, deferred);
           patch.resultVersionId = versionId;
         }
         if (row.type === 'CORRECTION') {
@@ -377,6 +378,7 @@ export class RequestsService {
       }
       return progress.status;
     });
+    for (const run of deferred) await run();
     this.changes.publish({ requestId: id, status: outcome, at: now.toISOString() });
     return this.view(id);
   }
@@ -717,10 +719,10 @@ export class RequestsService {
     tx: DbOrTx,
     row: RequestRow,
     decider: Decider,
-    _now: Date,
+    now: Date,
+    deferred: Array<() => Promise<void>>,
   ): Promise<string | null> {
-    void tx;
-    const affected = await this.affectedAssignments(row);
+    const affected = await this.affectedAssignments(row, tx);
     let versionId: string | null = null;
     const groups = new Map<
       string,
@@ -728,11 +730,11 @@ export class RequestsService {
     >();
     for (const a of affected) groups.set(a.publishedId, a);
     if (row.type === 'EXTRA_SHIFT' && row.periodFrom) {
-      const place = await this.placeForEmployee(row.employeeId);
+      const place = await this.placeForEmployee(row.employeeId, tx);
       if (!place)
         throw new DomainError('POSITION_REQUIRED', 422, 'У працівника немає чинної посади');
       const month = row.periodFrom.slice(0, 7);
-      const [published] = await this.db
+      const [published] = await tx
         .select()
         .from(scheduleVersions)
         .where(
@@ -757,8 +759,10 @@ export class RequestsService {
         publishedId: published.id,
       });
     }
-    for (const group of groups.values()) {
-      const current = await this.db
+    for (const group of [...groups.values()].sort((a, b) =>
+      a.publishedId.localeCompare(b.publishedId),
+    )) {
+      const current = await tx
         .select()
         .from(shiftAssignments)
         .where(
@@ -820,21 +824,16 @@ export class RequestsService {
         default:
           break;
       }
-      const draft = await this.schedule.createVersion(
+      const published = await this.schedule.reviseWithin(
+        tx,
+        group.publishedId,
         {
-          siteId: group.siteId,
-          orgUnitId: group.orgUnitId,
-          periodMonth: group.periodMonth,
-          basedOnVersionId: group.publishedId,
+          items,
+          changeReason: `${messages().requests.types[row.type]}: ${row.comment ?? ''}`.trim(),
         },
         decider,
-      );
-      await this.schedule.putAssignments(draft.id, { items }, decider);
-      await this.schedule.submit(draft.id, decider);
-      const published = await this.schedule.publish(
-        draft.id,
-        { changeReason: `${messages().requests.types[row.type]}: ${row.comment ?? ''}`.trim() },
-        decider,
+        now,
+        deferred,
       );
       versionId = versionId ?? published.id;
     }
@@ -843,6 +842,7 @@ export class RequestsService {
 
   private async affectedAssignments(
     row: RequestRow,
+    tx: DbOrTx,
   ): Promise<{ siteId: string; orgUnitId: string; periodMonth: string; publishedId: string }[]> {
     const ids: string[] = [];
     if (row.assignmentId) ids.push(row.assignmentId);
@@ -857,7 +857,7 @@ export class RequestsService {
         lte(shiftAssignments.businessDate, row.periodTo),
       );
     } else return [];
-    const rows = await this.db
+    const rows = await tx
       .selectDistinct({
         siteId: scheduleVersions.siteId,
         orgUnitId: scheduleVersions.orgUnitId,
@@ -872,8 +872,9 @@ export class RequestsService {
 
   private async placeForEmployee(
     employeeId: string,
+    tx: DbOrTx = this.db,
   ): Promise<{ siteId: string; orgUnitId: string } | null> {
-    const [row] = await this.db
+    const [row] = await tx
       .select({
         orgUnitId: employeePositions.orgUnitId,
         siteId: sql<string>`(SELECT site_id FROM org_units WHERE org_units.id = ${employeePositions.orgUnitId})`,

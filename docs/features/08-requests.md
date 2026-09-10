@@ -9,5 +9,9 @@ Panel "Обращения": inbox of pending requests, details, decision with a 
 corrections rewrite intervals through a correction event, an approved swap creates a new schedule
 version. Potential overtime waits for approval in the same section.
 
+Approval and all affected schedule months are saved together. If saving fails, the request and
+schedule stay unchanged, so the decision can be retried. Approved leave may remove the last
+assignment from a month; its published replacement then contains no shifts.
+
 The employee gets a bot message with the decision. Open requests keep the bonus criterion
 "no unresolved items" pending until decided.
