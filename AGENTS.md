@@ -70,9 +70,9 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
   remaining work in `docs/engineering/features/`. Use `docs/templates/feature-memory.md`.
 - Unit and integration tests protect domain and state behavior; E2E tests protect complete user journeys.
   Validate desktop and mobile layouts and the Telegram worker bot's messages and keyboards.
-- Always include authenticated verification of `panel.vakhta.xyz`, the kiosk flow at
-  `kiosk.vakhta.xyz`, and the relevant Telegram flow when delivering product changes. Use
-  `dev@vakhta.xyz` and 1Password, following `docs/runbooks/product-qa.md`. Report blocked checks honestly.
+- Verify only the product surfaces and journeys affected by the change. Do not repeat panel, kiosk
+  and Telegram smoke checks for an internal change or documentation edit. For relevant live QA use
+  `dev@vakhta.xyz`, 1Password and `docs/runbooks/product-qa.md`. Report blocked checks honestly.
 - Ask when material requirements, domain meaning or a necessary exception are uncertain. First inspect
   the existing code and documentation so the question is concrete.
 
@@ -93,11 +93,20 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 
 `pnpm build`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm check`. Local infrastructure: `pnpm infra:up`.
 **[V1] Definition of Done:** acceptance criteria have evidence; affected contracts and docs agree;
-regression tests cover changed behavior; `pnpm build` and `pnpm check` pass; an independent review has
-no unresolved blocking finding; the handoff names remaining risks and blocked runtime checks. A
-cached run is cache evidence, not a fresh execution. Never claim a coverage percentage without a
-coverage report. Product changes follow the live QA runbook; docs/setup work records applicable checks
-without manufacturing changes to employee records. See `docs/engineering/testing-baseline.md`.
+the risk-based mandatory checks in `docs/engineering/testing-baseline.md` pass. Simple edits need no
+new tests, full build/check or independent review. Behavior changes need focused regression checks;
+money, access, attendance, transactions, migrations and recovery need relevant invariant tests and
+one independent review. Existing CI remains the full integration gate; do not duplicate it locally
+by default. Repeat checks only for changed inputs, a failure or a concrete unresolved risk. Reviewers
+and the integration owner reuse the writer's valid results. Record remaining risks and blocked checks;
+never manufacture production employee actions or describe cached results as fresh execution.
+
+**[V2] Owner decision, 2026-09-10 — minimize development overhead:** choose the smallest sufficient
+check before running it. No ceremonial research, repeated reading of unchanged files, duplicate
+reviews, tests of obvious presentation edits, or new test infrastructure for a small fix. Stop checking
+when the acceptance criteria and required evidence are satisfied. Batch related changes into a coherent
+delivery; do not create separate pushes/deployments for intermediate documentation. Keep feature
+memory concise and update the existing document rather than duplicating the same report in many files.
 
 **[A1] Async flows:** model ownership of cancellation, stale results, retries and idempotency explicitly.
 A TypeScript annotation is not runtime validation. Preserve DB transaction boundaries; after-commit

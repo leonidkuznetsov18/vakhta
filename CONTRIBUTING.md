@@ -33,7 +33,9 @@ compatibility decision and `!` / `BREAKING CHANGE:` as appropriate. There is no 
 
 Use `docs/templates/change.md` for the handoff. Review a fixed diff before committing/pushing, link the
 spec, and record checks, risks and deployed revision separately. Keep refactors separate from behavior
-changes. `pnpm build` and `pnpm check` must pass; a direct push does not remove the review/test obligation.
+changes. Follow the risk-based checks in `docs/engineering/testing-baseline.md`: focused local checks,
+one independent review for high-risk code, and the existing full CI gate. Do not duplicate the full
+suite locally or rerun successful checks on unchanged code by default.
 PR-only Automatic Reviews and PR-required branch rules are not the selected workflow. Do not enable
 rules that prevent the owner's direct-push workflow without a new explicit decision.
 

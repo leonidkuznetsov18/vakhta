@@ -1,4 +1,33 @@
-# Testing baseline and regression proposal
+# Required verification and historical testing baseline
+
+## Active policy — owner decision, 2026-09-10
+
+Use only the minimum checks justified by the actual change. This policy supersedes earlier blanket
+requirements for full local builds/tests, independent review and all-surface live QA on every edit.
+
+| Change                                                                              | Required checks                                                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Documentation, comments, copy or simple presentation                                | Inspect the diff; check formatting or syntax when relevant. Visually inspect the changed UI if layout/readability could change. No new unit/E2E tests, full build/check or separate reviewer.                         |
+| Ordinary application behavior                                                       | Run the affected existing tests and add a regression for a demonstrated behavioral bug. Run affected type/lint checks; build only when compilation, exports or bundling are affected. Check the changed user journey. |
+| Money, authorization, attendance/time, transactions, migrations or failure recovery | Focused invariant tests using the real database where atomicity/concurrency matters; relevant failure/retry cases; one independent review of the changed boundary. Verify the affected deployed behavior.             |
+
+- Existing CI is the full integration gate. Do not run the same complete suite locally by default.
+  A local full build/check is justified only by a concrete integration risk not covered by focused
+  checks, unavailable CI before deployment, or diagnosis of a failure. Run it once per coherent batch.
+- Do not delete useful tests, weaken assertions or bypass a failed required CI check to save time.
+- After a successful check, rerun only what later edits can affect. A prose change cannot invalidate
+  business tests. The reviewer and integration owner reuse valid results rather than rerunning them.
+- One reviewer is enough for high-risk code; split independent boundaries only when it saves work.
+  Review fixes as a delta. No repeated full reviews of unchanged code or documentation-only handoffs.
+- Live QA covers changed surfaces only. A backend recovery change does not require another /help,
+  kiosk countdown and unrelated panel visit. Verify its actual recovery outcome instead. Exercise
+  the complete panel/kiosk/bot journey only when the change crosses those boundaries.
+- Reuse existing fixtures, tools, source research and feature memory. No new framework, broad audit,
+  speculative edge-case expansion or mandatory RED ritual for a simple reversible edit.
+- Stop when the acceptance criteria and these checks pass. Report exact evidence briefly. Batch
+  related commits into one delivery instead of repeated pushes and documentation-only CI cycles.
+
+## Historical audit baseline
 
 Baseline: `08979de`, inspected 2026-09-10. This is a proposal; it installs no new test framework,
 coverage gate or browser runner. See the [architecture audit](../audits/2026-09-10/architecture-audit.md)
@@ -22,7 +51,7 @@ API tests named E2E exercise HTTP/services; they do not constitute a real browse
 Panel tests mock media queries and some overlays, so passing them does not establish mobile focus or
 layout correctness. CI exercises integration tests with disposable containers, not production data.
 
-## Required test types
+## Test types available for relevant changes
 
 - **Unit/property:** retain fast pure FSM/time/scope tests. Add view-model and state-store tests when
   extracting behavior; test observable rules rather than internal hook calls or component structure.

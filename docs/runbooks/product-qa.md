@@ -47,9 +47,11 @@ in ignored `.auth/`; test output belongs in ignored `test-results/` or `playwrig
 
 ## Required product verification
 
-For product changes, always inspect authenticated panel and kiosk behavior and the relevant worker
-bot journey. Test the changed behavior locally, then inspect the deployed environment separately;
-a production screenshot does not demonstrate an undeployed local change.
+Follow `../engineering/testing-baseline.md`: inspect only the surfaces and journeys affected by the
+change. Do not repeat panel, kiosk and Telegram smoke checks for every backend or documentation edit.
+For an internal backend fix, focused integration evidence plus its relevant deployed health/task
+outcome is sufficient. Test a complete cross-surface journey when that journey changes. A production
+screenshot does not demonstrate an undeployed local change.
 
 - Panel: confirm the development identity and role; inspect the changed screen, loading/empty/error
   states, keyboard navigation, narrow mobile layout and long localized text. Check browser errors.
@@ -64,7 +66,7 @@ a production screenshot does not demonstrate an undeployed local change.
 - Verify the existing shift FSM, cleaning checklist and permitted closure paths. Measure confusing
   choices and unnecessary interactions; ensure failures explain how to recover without stress.
 
-Run suitable unit/integration/E2E tests and `pnpm check`. Record date, commit, environment, viewport,
+Run only the suitable focused checks required by the verification policy. Record date, commit, environment, viewport,
 identity/role, steps, actual outcome and limitations in the relevant engineering feature document.
 When access, pairing or a Telegram test identity is unavailable, finish independent checks and state
 exactly what is blocked. Never report a login screen or API response as authenticated end-to-end proof.

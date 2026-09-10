@@ -14,12 +14,11 @@ Use for a direct-master commit; this is not a request to open a PR.
 
 <!-- Commands and results, tested commit/environment, relevant regression cases. Distinguish cached and fresh runs. -->
 
-- [ ] `pnpm build`
-- [ ] `pnpm check`
+- [ ] Risk-based mandatory checks passed (`docs/engineering/testing-baseline.md`)
 - [ ] Acceptance criteria and affected documentation verified
-- [ ] Independent review completed; no unresolved blocking findings
+- [ ] One independent review for high-risk code; otherwise not required
 
-<!-- For product changes: desktop/mobile panel, kiosk and worker bot results. State blocked checks explicitly. -->
+<!-- Record only affected runtime journeys. Reuse valid prior checks; do not repeat full suites or unrelated live QA. -->
 
 ## Rollout and remaining work
 

@@ -77,9 +77,10 @@ do not make tooltips the only way to understand an essential control.
 Test business rules, state transitions, query invalidation, permissions and error recovery at the
 appropriate unit/integration level. E2E covers authentication and complete critical journeys across
 panel, kiosk and bot, including failures and retries. Avoid tests that merely mirror implementation.
-A changed journey is not done without its documentation and runtime evidence. Run `pnpm check`;
-record precisely which additional browser/bot scenarios ran and which were blocked. Existing API
-E2E tests are not evidence of browser or Telegram visual coverage.
+A changed journey needs proportionate documentation and evidence. Follow the risk-based mandatory
+checks in `testing-baseline.md`; do not run a full local `pnpm check` or all-surface live QA by default.
+Record only relevant browser/bot scenarios and blocked checks. Existing API E2E tests are not
+evidence of browser or Telegram visual coverage.
 
 ## Sources
 

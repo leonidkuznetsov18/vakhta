@@ -21,8 +21,10 @@ worker value and UX; the delivery Lean expert examines how engineering work move
 ## Session boundaries
 
 Architect and Implementer may be successive explicitly scoped phases of one session when the spec is
-small and context is healthy; the Architect phase must finish before code starts. Independent QA and
-review use a fresh-context subagent or separate task after a fixed implementation revision exists.
+small and context is healthy; the Architect phase must finish before code starts. Simple changes need
+no separate roles or review cycle. High-risk changes use one independent fresh-context reviewer after
+a fixed implementation revision exists, following `testing-baseline.md`. Separate QA is needed only
+for a concrete evidence gap; it is not a mandatory extra stage for every change.
 The Lean expert uses a separate scoped context because its evidence and responsibilities differ.
 Parallel read-only discovery is useful. All writes occur sequentially in the current repository on
 `master`; no PRs, additional worktrees or topic branches. Explicitly hand over owned files and the index
@@ -52,8 +54,10 @@ The owner selected direct pushes to `master` on 2026-09-10, superseding the audi
 Review the task-owned fixed diff in a fresh context before committing/pushing; use read-only scoped
 reviewers and sequential QA writes in this same checkout. Codex PR Automatic Reviews are not part of
 this workflow. Do not create a PR or enable PR-required branch rules to obtain automated review.
-Deterministic local checks and post-push CI remain required. Preserve existing semantic-release and
-Telegram changelog delivery; record release and deployment outcomes separately.
+Focused local checks and post-push CI remain required as specified in `testing-baseline.md`. Reuse
+the implementer's valid results; do not repeat a full suite or review at each handoff. Batch related
+commits into a coherent push, with no extra delivery for intermediate documentation. Preserve existing
+semantic-release and Telegram changelog delivery; record deployment evidence once in the feature memory.
 
 ## Lean cadence
 

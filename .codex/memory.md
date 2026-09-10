@@ -6,6 +6,16 @@ At the cap, archive the whole file unchanged under `docs/engineering/handoffs/`,
 file linking the archive and current decisions, and preserve all historical entries. One integration
 owner appends after merging work; parallel agents return proposed entries instead of editing this file.
 
+## 2026-09-10 — Owner requires minimal verification overhead
+
+- Owner: project owner; integration owner: Codex. Remove redundant checks and retain only the
+  risk-based mandatory checks in `docs/engineering/testing-baseline.md`. This supersedes blanket
+  full local build/check, repeated independent reviews and panel/kiosk/bot QA for every edit.
+- Simple edits: diff and relevant format/visual check. Behavior: focused regressions. Money, access,
+  time, transactions, migrations and recovery: relevant invariant tests and one independent review.
+- Reuse valid results; existing CI supplies the full integration gate. No repeated reading/testing
+  of unchanged code, speculative audits or intermediate documentation pushes. Batch coherent delivery.
+
 ## 2026-09-10 — Recon and setup
 
 - Baseline `08979de`; setup owner: Architect/Planner. Scope is audit/configuration only.
