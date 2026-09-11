@@ -1,3 +1,13 @@
+## [0.91.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.90.0...v0.91.0) (2026-09-11)
+
+### Features
+
+* **photo-inspection:** catalog object colors, singular names and pinned editor actions ([426f4f7](https://github.com/leonidkuznetsov18/vakhta/commit/426f4f70ea6315d95f20d5895b4aff4a98a45e44))
+
+### Bug fixes
+
+* **photo-inspection:** vote single-object rounds for stable AI findings ([3184c10](https://github.com/leonidkuznetsov18/vakhta/commit/3184c1086678616ba7ee53ca58d912f43931f9e3))
+
 ## [0.90.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.89.0...v0.90.0) (2026-09-11)
 
 ### Features
