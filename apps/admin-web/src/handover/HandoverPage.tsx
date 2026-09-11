@@ -1,4 +1,5 @@
 import { ChecklistPhotoRules } from '@/features/checklist-photo-rules';
+import { confirmLeave } from '@/lib/unsaved';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { DetailText } from '@/components/app/row-detail';
 import { useState } from 'react';
@@ -410,13 +411,17 @@ export function HandoverPage() {
         searchText={(row) =>
           `${row.submittedByName} ${row.zoneName ?? ''} ${all.handover.statuses[row.status]}`
         }
-        onRowClick={(row) => setOpenId(openId === row.id ? null : row.id)}
+        onRowClick={(row) => {
+          if (confirmLeave()) setOpenId(openId === row.id ? null : row.id);
+        }}
         rowActions={(row) => [
           {
             key: 'detail',
             label: h.detail,
             icon: EyeIcon,
-            onSelect: () => setOpenId(openId === row.id ? null : row.id),
+            onSelect: () => {
+              if (confirmLeave()) setOpenId(openId === row.id ? null : row.id);
+            },
           },
         ]}
         rowKey={(row) => row.id}

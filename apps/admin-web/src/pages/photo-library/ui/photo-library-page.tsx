@@ -114,13 +114,14 @@ export function PhotoLibraryPage() {
               icon={SearchIcon}
               label={t.searchAction}
               tooltip={t.searchHint}
-              disabled={!model.valid}
+              disabled={!model.canApply}
             />
             <IconButton
               icon={XIcon}
               label={t.reset}
               tooltip={t.resetHint}
               variant="outline"
+              disabled={!model.canReset}
               onClick={model.reset}
             />
           </div>

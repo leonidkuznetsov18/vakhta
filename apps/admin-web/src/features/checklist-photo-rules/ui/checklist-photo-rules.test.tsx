@@ -37,13 +37,16 @@ it('selects catalog objects for a checklist and keeps edits after a failed save'
   render(<ChecklistPhotoRules definitionId="definition" />);
   await screen.findByText(t.empty);
   fireEvent.click(screen.getByRole('button', { name: 'Ганчірки' }));
+  expect(screen.getByRole('status').textContent).toBe(`${t.dirty}: 1`);
   fireEvent.click(screen.getByRole('button', { name: t.note }));
   fireEvent.change(screen.getByLabelText(`${t.note}: Ганчірки`), { target: { value: 'на столі' } });
   fireEvent.click(screen.getByRole('button', { name: t.save }));
   await screen.findByText('Offline');
   expect(screen.getByDisplayValue('на столі')).toBeTruthy();
+  expect(screen.getByRole('status').textContent).toBe(`${t.dirty}: 1`);
   fireEvent.click(screen.getByRole('button', { name: t.save }));
   await screen.findByText(t.saved);
+  expect(screen.queryByText(new RegExp(`^${t.dirty}`))).toBeNull();
   expect(rulesApi.save).toHaveBeenLastCalledWith('definition', {
     version: 0,
     rules: [{ objectId: RAG, note: 'на столі' }],

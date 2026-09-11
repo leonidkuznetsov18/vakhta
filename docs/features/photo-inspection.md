@@ -127,7 +127,9 @@ any reviewer from the checklist form. **Objects that must not appear in the phot
 checklist family, shown as saved the moment the checklist is expanded, with no zone to choose. Each
 object may carry a note for the master and the model (appearance, placement, allowed cases; up to
 300 characters). Rules survive a new checklist version and keep optimistic version checks and an
-audit trail. Up to 30 objects per checklist.
+audit trail. Up to 30 objects per checklist. The selected list scrolls within a bounded height so
+Save stays in reach, an unsaved-changes counter shows how many objects were added, removed or
+re-noted, and collapsing the row, switching sections or closing the tab asks before discarding edits.
 
 There is no automatic analysis stage and no Master Review status: a submitted report goes to the
 master as before, and the report decision never waits for photo reviews. AI runs only when a reviewer

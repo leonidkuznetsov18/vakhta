@@ -13,10 +13,17 @@ import { currentLocale } from '@/i18n';
 import { ApiError } from '@/api';
 import { readError } from '@/errors';
 import { photoObjectsKey, rulesApi, rulesKey } from '../api/rules-api';
+import { registerUnsaved } from '@/lib/unsaved';
 import { catalogChoices, rulesDraft, rulesDraftState, toggleRule } from '../model/rules-draft';
 import { RuleField } from './rule-field';
 
 const t = messages(currentLocale()).checklistPhotoRules;
+/**
+ * Attached only while the draft differs from what is saved: collapsing the row, switching sections
+ * or closing the tab then asks first. Detaching (a save or a revert) withdraws the question.
+ */
+const guardUnsaved = (element: HTMLDivElement | null) =>
+  element ? registerUnsaved(() => true, t.discard) : undefined;
 /** One object list per checklist; it is shown as saved the moment the checklist is expanded. */
 export function ChecklistPhotoRules({ definitionId }: { definitionId: string }) {
   return (
@@ -68,7 +75,7 @@ function RulesEditor({
   const [draft, setDraft] = useState(() => rulesDraft(initial));
   const [newName, setNewName] = useState('');
   const client = useQueryClient();
-  const { payload, valid, dirty } = rulesDraftState(draft, saved);
+  const { payload, valid, dirty, changes } = rulesDraftState(draft, saved);
   const choices = catalogChoices(objects, draft);
   const nameOf = (objectId: string) =>
     objects.find((object) => object.id === objectId)?.name ??
@@ -113,7 +120,7 @@ function RulesEditor({
       </ul>
     );
   return (
-    <div className="flex flex-col gap-3">
+    <div ref={dirty ? guardUnsaved : undefined} className="flex flex-col gap-3">
       <div className="flex flex-col gap-2">
         <span className="flex items-center gap-2 text-sm text-muted-foreground">
           {t.catalog}
@@ -176,21 +183,28 @@ function RulesEditor({
         )}
       </div>
       {draft.length > 0 && <p className="text-sm text-muted-foreground">{t.selected}</p>}
-      {draft.map((rule) => (
-        <RuleField
-          key={rule.objectId}
-          rule={rule}
-          name={nameOf(rule.objectId)}
-          busy={busy}
-          change={(objectId, note) =>
-            setDraft((current) =>
-              current.map((item) => (item.objectId === objectId ? { ...item, note } : item)),
-            )
-          }
-          remove={(objectId) => setDraft((current) => toggleRule(current, objectId))}
-        />
-      ))}
+      <div className="flex max-h-[45dvh] flex-col gap-3 overflow-y-auto">
+        {draft.map((rule) => (
+          <RuleField
+            key={rule.objectId}
+            rule={rule}
+            name={nameOf(rule.objectId)}
+            busy={busy}
+            change={(objectId, note) =>
+              setDraft((current) =>
+                current.map((item) => (item.objectId === objectId ? { ...item, note } : item)),
+              )
+            }
+            remove={(objectId) => setDraft((current) => toggleRule(current, objectId))}
+          />
+        ))}
+      </div>
       {!draft.length && <p className="text-sm text-muted-foreground">{t.empty}</p>}
+      {dirty && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {t.dirty}: {changes}
+        </p>
+      )}
       {!valid && (
         <p role="alert" className="text-sm text-destructive">
           {t.invalid}

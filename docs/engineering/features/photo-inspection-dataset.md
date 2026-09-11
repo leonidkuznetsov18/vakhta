@@ -714,3 +714,10 @@ Verification: API photo-inspection and checklist suites 25 (catalog service 2, f
 dataset test), panel 79 across inspection, rules, handover and admin, worker 9, i18n 10; typecheck
 and focused lint; guides regenerated. Local stand: rules form without a zone selector, colored boxes,
 feedback buttons and the stacked editor were inspected at 1365 px and 375 px.
+
+Rules form follow-up: `lib/unsaved.ts` keeps a registry of dirty checks with one `beforeunload`
+listener; `writeRoute` and the checklist and handover row toggles call `confirmLeave` first. The rules
+form registers through a callback ref attached only while the draft differs from the saved list
+(React Compiler forbids mutating a holder during render), shows "Unsaved changes: N" from
+`countRuleChanges`, and scrolls the selected list within 45dvh. 3 rules-form, 1 draft and 1 guard
+tests pass alongside the panel suite (220).

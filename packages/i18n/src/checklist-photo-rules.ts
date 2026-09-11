@@ -1,4 +1,7 @@
 export const photoRulesEn = {
+  dirty: 'Unsaved changes',
+  discard: 'Discard unsaved changes to the object list?',
+
   title: 'Objects that must not appear in the photo',
   hint: 'Choose the objects from the shared catalog. One list per checklist, shared by all its versions; AI analysis in the photo editor searches only for these objects.',
   catalog: 'Catalog objects',
@@ -24,6 +27,9 @@ export const photoRulesEn = {
 };
 export type ChecklistPhotoRulesMessages = typeof photoRulesEn;
 export const photoRulesUk: ChecklistPhotoRulesMessages = {
+  dirty: 'Є незбережені зміни',
+  discard: 'Відкинути незбережені зміни списку обʼєктів?',
+
   title: 'Обʼєкти, яких не повинно бути на фото',
   hint: 'Оберіть обʼєкти зі спільного каталогу. Один список на чекліст, спільний для всіх його версій; аналіз з AI у редакторі фото шукає лише ці обʼєкти.',
   catalog: 'Обʼєкти каталогу',
@@ -48,6 +54,9 @@ export const photoRulesUk: ChecklistPhotoRulesMessages = {
     'Правила вже змінив інший користувач. Скопіюйте свої незбережені правки й відкрийте чекліст знову, щоб завантажити актуальні правила.',
 };
 export const photoRulesRu: ChecklistPhotoRulesMessages = {
+  dirty: 'Есть несохранённые изменения',
+  discard: 'Отменить несохранённые изменения списка объектов?',
+
   title: 'Объекты, которых не должно быть на фото',
   hint: 'Выберите объекты из общего каталога. Один список на чек-лист, общий для всех его версий; анализ с AI в редакторе фото ищет только эти объекты.',
   catalog: 'Объекты каталога',

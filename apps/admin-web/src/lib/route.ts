@@ -1,5 +1,6 @@
 import { useSyncExternalStore, type Dispatch, type SetStateAction } from 'react';
 import { setUiState, usePersistentState } from '@/lib/ui-store';
+import { confirmLeave } from '@/lib/unsaved';
 
 /**
  * The panel has no router; the address bar still carries `#/<section>/<sub>` so a reload or a
@@ -52,6 +53,8 @@ function subscribe(onChange: () => void): () => void {
 export function writeRoute(section: string, sub?: string): void {
   const next = `#/${section}${sub ? `/${sub}` : ''}`;
   if (location.hash === next) return;
+  // A section or tab change unmounts whatever form is open; unsaved edits get a say first.
+  if (!confirmLeave()) return;
   history.replaceState(null, '', next);
   restoreLegacyRoute();
   for (const listener of listeners) listener();

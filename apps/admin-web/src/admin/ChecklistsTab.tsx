@@ -1,4 +1,5 @@
 import { ChecklistPhotoRules } from '@/features/checklist-photo-rules';
+import { confirmLeave } from '@/lib/unsaved';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -308,7 +309,9 @@ export function ChecklistsTab({ org }: Props) {
           </Button>
         }
         activeKey={openId}
-        onRowClick={(r) => setOpenId(openId === r.id ? null : r.id)}
+        onRowClick={(r) => {
+          if (confirmLeave()) setOpenId(openId === r.id ? null : r.id);
+        }}
         expanded={(row) =>
           row.id === openId ? (
             <div className="flex max-w-6xl flex-col gap-4" data-testid="checklist-detail">
