@@ -114,6 +114,11 @@ Preserve and propagate it; this audit does not report it as a defect on those pa
 - **F8 — Clear behavior:** reuse existing clear/reset controls. Clearing a date removes that filter,
   not organization scope. A page tab selects a workflow; a status tab filters records. Neither implies
   a server mutation. Expose the effective filter value; do not rely on a tooltip alone.
+- **F9 — Action availability:** disable reset when both draft and applied filters are at their
+  defaults, including on later pages. Enable it for unapplied edits or still-applied filters even
+  when the visible draft has been cleared. Disable apply/search when normalized filters equal
+  the applied values or validation fails; guard submission as well as the button. Pagination alone
+  is not a filter edit. Keep explicit request retry/refresh available for recovery.
 
 ### Rows, details and responsive presentation
 

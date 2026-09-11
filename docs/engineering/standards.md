@@ -76,6 +76,12 @@ self-evident lines of code. Do not weaken type or lint settings to make a check 
 
 ## Interface and verification
 
+Disable actions that would make no change. Save/apply require a meaningful difference from the
+saved/applied baseline; reset/clear require something to restore in the draft or applied state.
+Returning to the baseline disables the action again. Derive availability in the owning model,
+use native `disabled` and guard the handler, including keyboard submission. Compare normalized
+values where submission normalizes them. Explicit refresh and retry remain separate useful actions.
+
 Use Tailwind and shadcn/ui, existing design tokens and localization catalogs. Preserve keyboard and
 screen-reader access. Mobile is a primary workflow: check narrow viewports, touch controls, readable
 status, inline errors, the on-screen keyboard and long translated text. Keep the primary action obvious;

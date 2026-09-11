@@ -62,6 +62,23 @@ if normal inspection, registration or authorized actions regress.
 - Native browser emulation was used, not physical iPhone hardware. No VoiceOver/NVDA certification,
   exhaustive WCAG audit or production mutation campaign is claimed. Existing CI is the broad gate.
 
+## No-op filter actions — 2026-09-11
+
+Owner requirement: disable actions when they would make no change. The annotated-photo library
+previously always enabled Reset, and enabled Search for unchanged valid inputs. Its existing page
+model now derives `canReset` from draft and applied filters, and `canApply` from normalized query
+values compared with applied filters. Both handlers are guarded. Pagination alone enables neither
+action; invalid inputs remain clearable; explicit query retry is unchanged. Existing shared buttons
+provide native disabled styling and tooltip access; no new components or dependencies are needed.
+
+Lean recommendation: **Proceed**. Remove misleading clicks without adding worker steps. Acceptance:
+empty defaults disable both buttons; changing any filter enables useful actions; restoring defaults
+disables Reset; clearing a draft while a filter remains applied still enables Reset. Whitespace-only
+search differences do not enable Search. Rules are recorded in AGENTS.md and engineering standards.
+
+Verification: nine focused library model/component tests, panel TypeScript, affected-file ESLint and
+Prettier passed. Browser and deployment verification is reported with the delivery.
+
 ## Remaining work
 
 Audit/request capped endpoints still need server count/search/pagination for complete archive browsing;

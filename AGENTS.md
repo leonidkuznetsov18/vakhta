@@ -78,6 +78,12 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 
 ## Admin panel UI
 
+- Actions that would make no change must be disabled. Save/apply compare the current draft with
+  the saved/applied baseline; reset/clear compare both draft and applied values with the defaults.
+  Reverting edits disables the action again. Derive availability from actual state, use native
+  `disabled`, and guard submission handlers too. Explicit refresh/retry actions remain available
+  when useful even if inputs have not changed.
+
 - Tables, filters and keyboard interaction follow `docs/engineering/table-filter-standard.md`.
   Reuse shared controls and documented task-based exceptions; do not add page-specific variants.
 
