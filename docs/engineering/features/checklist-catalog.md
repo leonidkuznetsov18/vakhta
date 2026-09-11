@@ -16,3 +16,10 @@ no horizontal overflow, full item text and wrapping action buttons. Live publica
 
 Lean: Proceed. Keep the reader in context, remove duplicate metadata and avoid opening another surface
 just to read checklist items. No additional employee steps or production records are introduced.
+
+## Photo-rule help — 2026-09-11
+
+Remove the repeated instruction paragraph from the photo-rule card; retain its existing localized
+InfoTip. Desktop hover and mobile tap screenshots were captured and visually inspected with an
+isolated component fixture. No data, validation or request behavior changes. Lean: proceed; show
+explanations on demand without repeating them in the form. Formatting and diff checks passed.

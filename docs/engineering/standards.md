@@ -73,6 +73,8 @@ Use Tailwind and shadcn/ui, existing design tokens and localization catalogs. Pr
 screen-reader access. Mobile is a primary workflow: check narrow viewports, touch controls, readable
 status, inline errors, the on-screen keyboard and long translated text. Keep the primary action obvious;
 do not make tooltips the only way to understand an essential control.
+Do not duplicate explanatory text in both a tooltip and its surrounding card or form. Keep the
+explanation in the tooltip; retain concise field labels and distinct actionable validation messages.
 
 Test business rules, state transitions, query invalidation, permissions and error recovery at the
 appropriate unit/integration level. E2E covers authentication and complete critical journeys across
