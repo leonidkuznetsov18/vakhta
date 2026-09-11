@@ -1,3 +1,9 @@
+## [0.83.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.82.0...v0.83.0) (2026-09-11)
+
+### Features
+
+* **photo-inspection:** simplify numbered region review ([1291966](https://github.com/leonidkuznetsov18/vakhta/commit/129196647d87493c525ee4c9bbe101cd31473350))
+
 ## [0.82.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.81.0...v0.82.0) (2026-09-11)
 
 ### Features
