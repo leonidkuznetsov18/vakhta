@@ -917,15 +917,13 @@ describe('handover: прибирання, чек-лист, фото, перед�
       .from(checklistDefinitions)
       .where(eq(checklistDefinitions.id, report.checklistDefinitionId));
     if (!definition || !report.zoneId) throw new Error('Missing zone/checklist');
-    await testDb.db
-      .insert(checklistPhotoRules)
-      .values({
-        definitionId: definition.id,
-        familyId: definition.familyId,
-        zoneId: report.zoneId,
-        items: ['Cups'],
-        updatedBy: MASTER_ID,
-      });
+    await testDb.db.insert(checklistPhotoRules).values({
+      definitionId: definition.id,
+      familyId: definition.familyId,
+      zoneId: report.zoneId,
+      items: ['Cups'],
+      updatedBy: MASTER_ID,
+    });
     expect((await handover.detail(report.id)).handover.automaticAnalysisPending).toBe(true);
     await expect(
       handover.resolve(report.id, { decision: 'RESOLVED_ACCEPTED', comment: 'Checked' }, MASTER),
