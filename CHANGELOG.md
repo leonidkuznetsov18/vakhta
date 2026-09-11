@@ -1,3 +1,9 @@
+## [0.92.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.92.1...v0.92.2) (2026-09-11)
+
+### Bug fixes
+
+* **photo-inspection:** toggle region cards from their header ([4afe52d](https://github.com/leonidkuznetsov18/vakhta/commit/4afe52dca8650c3d250964b6985a82c048dade08))
+
 ## [0.92.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.92.0...v0.92.1) (2026-09-11)
 
 ### Bug fixes
