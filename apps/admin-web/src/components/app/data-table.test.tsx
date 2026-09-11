@@ -140,7 +140,7 @@ describe('DataTable: the row the address points at', () => {
     );
     const view = render(cached(state));
     expect(screen.getByText('Работник 1')).toBeTruthy();
-    expect(screen.getByText('Обновляем данные…')).toBeTruthy();
+    expect(screen.queryByText('Обновляем данные…')).toBeNull();
     view.rerender(
       cached({
         ...state,
@@ -153,6 +153,46 @@ describe('DataTable: the row the address points at', () => {
     expect(screen.getByText('Работник 1')).toBeTruthy();
     expect(screen.getByRole('alert')).toBeTruthy();
   });
+
+  it.each([false, true])(
+    'preserves the reader and draft through repeated background refreshes (mobile=%s)',
+    (mobile) => {
+      vi.mocked(useIsMobile).mockReturnValue(mobile);
+      const scrollIntoView = vi.fn();
+      Element.prototype.scrollIntoView = scrollIntoView;
+      const content = (isFetching: boolean) => (
+        <DataTable
+          columns={columns}
+          rows={rows}
+          rowKey={(row) => row.id}
+          empty="No records"
+          activeKey="r41"
+          expanded={(row) => (row.id === 'r41' ? <input aria-label="Draft" /> : null)}
+          queryState={{
+            isPending: false,
+            isFetching,
+            isError: false,
+            fetchStatus: isFetching ? 'fetching' : 'idle',
+            error: null,
+            refetch: async () => undefined,
+          }}
+        />
+      );
+      const view = render(content(false));
+      const draft = screen.getByRole('textbox', { name: 'Draft' });
+      fireEvent.change(draft, { target: { value: 'Unsubmitted note' } });
+      draft.focus();
+      for (const fetching of [true, false, true, false]) {
+        view.rerender(content(fetching));
+        expect(screen.getByRole('textbox', { name: 'Draft' })).toBe(draft);
+        expect(screen.getByDisplayValue('Unsubmitted note')).toBe(draft);
+        expect(document.activeElement).toBe(draft);
+        expect(screen.queryByText('Работник 1')).toBeNull();
+        expect(screen.queryByRole('status')).toBeNull();
+      }
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('scrolls once per row, not on every render', () => {
     const scrollIntoView = vi.fn();

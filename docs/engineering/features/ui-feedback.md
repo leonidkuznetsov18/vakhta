@@ -87,3 +87,36 @@ across page/size changes, filtered seven/zero results, and loading versus succes
 Real components captured and inspected at 1440x1000 and 390x844: six-row total visible, paginated total
 186 retained, mobile document width 390px with controls wrapping below the count.
 Lean: proceed; show queue size without manual counting or changing page size. No additional input.
+
+## 2026-09-11 — Stable background refresh
+
+Accepted [specification](../../features/ui-feedback.md), baseline `a7517ab`. Production handover on
+v0.83.0 reproduced a 32 px jump (table y=277/309) over a 12-second sample; the lower position coincided
+with inline refreshing feedback. Shared QueryFeedback now reserves local feedback for initial fetch,
+errors and offline state. One `shared/ui/QueryActivity` uses active successful fetching queries and a
+permanent 16 px header slot. Concurrent reads share one Spinner, with an accessible localized label.
+The request detail grid no longer adds a wrapper during successful refetches; it also shows paused
+feedback. Existing queries, minute ticker, cached rows, mutations and business rules are unchanged.
+Uses the documented [TanStack Query background indicator](https://tanstack.com/query/latest/docs/framework/react/guides/background-fetching-indicators)
+API; no custom request subscription, timer or dependency was needed.
+
+Evidence: the revised inline-feedback regression failed before the fix. All 23 focused DataTable,
+QueryActivity and RequestsPage tests pass after it. Repeated-refresh tests retain pagination, the
+expanded input node, its draft and focus, and scroll only once; concurrent-query tests retain one
+header slot and exclude initial loading/error retries from the global indicator.
+
+Actual shared components with synthetic records were captured and visually inspected in Chrome at
+1440x1000 and 390x844. Polling every two seconds with 600 ms reads retained desktop table y=173 and
+header height=56; mobile input y=362, header height=57 and document width=viewport=390. Both fetching
+and idle were observed. Mobile measurement also crossed a real minute-clock update (relative deadline
+text changed); focus, draft, node identity and scroll position stayed unchanged. Breakpoint changes
+are separate from polling; no production data was edited. Live publication evidence is separate.
+
+Lean: Proceed. Removes repeated loss of reading position and interrupted input without extra actions
+or stale operational data. The small shared indicator preserves refresh feedback; actionable failures
+remain local. Scope covers fetch-status jumps, not suppressing genuine changes to records.
+
+Affected ESLint passed. The initial full panel typecheck was blocked only by another task's temporary
+untracked `src/inspection-qa.tsx` (`media.quality` widened to string). The panel typecheck passed using
+a temporary config that excluded that QA fixture alone; no production source or compiler rule was
+excluded or weakened. The concurrent photo-inspection changes are outside this commit.

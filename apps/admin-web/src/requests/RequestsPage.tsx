@@ -298,7 +298,7 @@ export function RequestsPage() {
         className="grid min-w-0 items-start gap-6 py-1 lg:grid-cols-2"
         data-testid="request-detail"
       >
-        {(detailQuery.isFetching || detailQuery.isError) && (
+        {(detailQuery.isError || detailQuery.fetchStatus === 'paused') && (
           <div className="lg:col-span-2">
             <QueryFeedback query={detailQuery} />
           </div>

@@ -45,8 +45,9 @@ export function QueryFeedback({ query }: { query: QueryFeedbackState }) {
         {t.waitingConnection}
       </p>
     );
-  if (!query.isFetching) return null;
-  return <LoadingState label={query.isPending ? t.loading : t.refreshing} />;
+  // Background activity belongs to the fixed-size header slot, never between page content.
+  if (!query.isPending || !query.isFetching) return null;
+  return <LoadingState label={t.loading} />;
 }
 
 /** Shared mutation feedback also covers dialogs and forms outside a table. */

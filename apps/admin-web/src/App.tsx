@@ -1,3 +1,4 @@
+import { QueryActivity } from '@/shared/ui/query-activity';
 import { PhotoLibraryPage } from '@/pages/photo-library';
 import { MobileNavigation, MobileNavigationClose } from '@/features/mobile-navigation';
 import { MutationActivity } from '@/components/app/query-feedback';
@@ -343,7 +344,8 @@ export function App() {
               <h1 className="min-w-0 text-lg font-semibold max-md:text-base max-md:leading-snug">
                 {title}
               </h1>
-              <div className="ml-auto flex items-center gap-2">
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                <QueryActivity />
                 {active !== 'profile' && (
                   <FaqButton guide={active === 'incidentKnowledge' ? 'incidents' : active} />
                 )}
