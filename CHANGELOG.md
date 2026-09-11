@@ -1,3 +1,9 @@
+## [0.88.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.87.0...v0.88.0) (2026-09-11)
+
+### Features
+
+* **photo-inspection:** usefulness rating, one object list per checklist, stable runs ([40be7de](https://github.com/leonidkuznetsov18/vakhta/commit/40be7de3179a46dbd0c37d59df2e2cf4cfeed747))
+
 ## [0.87.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.86.0...v0.87.0) (2026-09-11)
 
 ### Features
