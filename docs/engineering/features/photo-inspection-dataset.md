@@ -804,8 +804,9 @@ column's height and the plane carries the photo's aspect ratio (natural size rec
 editor store on load) with `max-h-full max-w-full`, so the whole photo is visible at 100% and zoom
 scrolls inside its frame as before; the right column is the single scroll container and the
 inner `max-h` limits on the region list, suggestion list and rules list are gone; the sticky
-action bar stays. Region cards fold to one line (color, number, name, verdict) unless selected or
-unnamed; choosing an object selects the region so the card stays open while it is edited. The
+action bar stays. Region cards fold to one line (color, number, name, verdict, or a name-required note) unless
+selected; the header is a toggle (open on one click, fold on the next, chevron shows the state)
+and choosing an object selects the region so the card stays open while it is edited. The
 `ChecklistPhotoRules` form is removed from the handover row detail (it remains in checklist
 administration) and the checklist answers block is single-column above the photos. Mobile keeps
 the stacked layout with the dialog scrolling.

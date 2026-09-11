@@ -282,6 +282,12 @@ describe('photo inspection form and geometry', () => {
     editor.toggleDrawingTool('polygon');
     expect(editor.store.getState().tool).toBe('polygon');
     expect(editor.store.getState().selected).toBeNull();
+    // The card header toggles: open on the first click, fold on the second.
+    const region = editor.store.getState().review.annotations[0]!;
+    editor.toggleSelect(region.id);
+    expect(editor.store.getState().selected).toBe(region.id);
+    editor.toggleSelect(region.id);
+    expect(editor.store.getState().selected).toBeNull();
   });
   it('detects changes against the saved review and forgets reverted ones', () => {
     const editor = new InspectionEditor({

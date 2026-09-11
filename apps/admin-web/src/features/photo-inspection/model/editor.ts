@@ -275,6 +275,15 @@ export class InspectionEditor {
     this.canvas?.setSelected(id, this.initial.canEdit);
     this.store.setState({ selected: id });
   }
+  deselect(): void {
+    this.canvas?.cancelSelected();
+    this.store.setState({ selected: null });
+  }
+  /** The region card header: one click opens the region, a second click folds it again. */
+  toggleSelect(id: string): void {
+    if (this.store.getState().selected === id) this.deselect();
+    else this.select(id);
+  }
   removeSelected(): boolean {
     const selected = this.store.getState().selected;
     return selected !== null && this.remove(selected);

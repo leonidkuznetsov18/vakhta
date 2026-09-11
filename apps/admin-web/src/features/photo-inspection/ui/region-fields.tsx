@@ -7,7 +7,7 @@ import {
   type PhotoObjectView,
 } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
-import { ChevronDownIcon, FocusIcon, Trash2Icon, XIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronRightIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { currentLocale } from '@/i18n';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
@@ -57,8 +57,8 @@ export function RegionFields({
   const otherSelected = !annotation.objectId && annotation.objectName !== undefined;
   const fromAi = annotation.sourceRunId !== null && annotation.sourceFindingIndex !== undefined;
   // Only the selected region shows its full form; the others fold to one line, so a photo with
-  // many regions stays one short list. A region without a name stays open until it gets one.
-  const expanded = selected || unnamed;
+  // many regions stays one short list. The header toggles: a click opens, another click folds.
+  const expanded = selected;
   const displayName =
     (annotation.objectId &&
       (rules.find((r) => r.objectId === annotation.objectId)?.name ??
@@ -82,14 +82,16 @@ export function RegionFields({
     >
       <div className="flex items-center justify-between gap-2">
         <IconButton
-          icon={FocusIcon}
-          label={`${index + 1}. ${t.region}`}
+          icon={expanded ? ChevronDownIcon : ChevronRightIcon}
+          label={`${index + 1}. ${displayName || t.region}`}
           tooltip={t.hints.selectRegion}
           aria-pressed={selected}
+          aria-expanded={expanded}
           variant="ghost"
           size="sm"
+          className="min-w-0"
           disabled={busy}
-          onClick={() => editor.select(annotation.id)}
+          onClick={() => editor.toggleSelect(annotation.id)}
         >
           <ObjectSwatch
             objectId={annotation.objectId}
@@ -97,11 +99,13 @@ export function RegionFields({
             colors={colors}
           />
           <span className="min-w-0 truncate">
-            {index + 1}. {expanded || !displayName ? t.region : displayName}
+            {index + 1}. {displayName || t.region}
           </span>
           {!expanded && (
-            <span className="truncate font-normal text-muted-foreground">
-              · {t.verdicts[annotation.verdict]}
+            <span
+              className={`truncate font-normal ${unnamed ? 'text-destructive' : 'text-muted-foreground'}`}
+            >
+              · {unnamed ? t.nameRequired : t.verdicts[annotation.verdict]}
             </span>
           )}
         </IconButton>
