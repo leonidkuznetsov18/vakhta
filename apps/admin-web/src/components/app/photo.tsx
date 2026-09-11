@@ -28,6 +28,7 @@ export function PhotoThumb({
   badge,
   showCaption = true,
   highlightDescription,
+  highlightIcon,
   onOpen,
   className,
 }: {
@@ -38,6 +39,8 @@ export function PhotoThumb({
   readonly badge?: string;
   /** Optional highlighted frame, with its meaning available on hover and keyboard focus. */
   readonly highlightDescription?: string;
+  /** Optional visual marker in the top-right corner; describe it with highlightDescription. */
+  readonly highlightIcon?: ReactNode;
   /** Hide redundant visible metadata while retaining accessible and lightbox labels. */
   readonly showCaption?: boolean;
   readonly onOpen?: (url: string) => void;
@@ -76,6 +79,14 @@ export function PhotoThumb({
       {badge && (
         <span className="absolute top-1.5 left-1.5 rounded-md bg-background/85 px-1.5 py-0.5 text-[11px] font-medium">
           {badge}
+        </span>
+      )}
+      {highlightIcon && (
+        <span
+          className="absolute top-1.5 right-1.5 rounded-md bg-background/95 p-1 text-chart-1 shadow-sm"
+          aria-hidden="true"
+        >
+          {highlightIcon}
         </span>
       )}
       <span className="absolute right-1.5 bottom-1.5 rounded-md bg-background/80 p-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">

@@ -274,6 +274,15 @@ The tooltip and accessible name retain saved status, incomplete-review meaning a
 Unreviewed/AI-only photos remain unhighlighted; saved clean reviews retain their saved-work marker.
 The original image is not tinted, and opening it uses the existing action.
 
+The owner-requested top-right square-pen icon is shown only when the persisted annotation count is
+positive. PhotoThumb accepts a generic icon slot; InspectionPhoto owns the condition. Existing blue
+highlighting, quality badge, tooltip and accessible description remain. Lean: proceed; the persistent
+shape makes saved annotations identifiable without relying on color or hovering, with no extra action.
+Seven existing photo/inspection component tests and focused ESLint passed. Local fixture screenshots
+at 1440×900 and 390×844 were captured and visually inspected for annotated, reviewed-without-regions
+and untouched photos; the icon stays clear of the quality badge. This is component visual QA, not a
+production save-journey test.
+
 Four focused component tests (including mouse hover), panel type-check and focused lint passed. Desktop 1440px and mobile
 390px screenshots were captured and inspected; keyboard focus displays the description. Lean:
 proceed, removing the extra text block reduces gallery height while keeping saved work identifiable.

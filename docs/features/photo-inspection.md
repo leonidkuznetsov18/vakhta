@@ -27,7 +27,8 @@ Gemma 4 analysis and explicitly copy individual suggestions into the human revie
   photo notes count separately. Reverting all saved-data changes removes the indicator.
 - Handover photo thumbnails identify persisted human work with a highlighted border and translucent
   background, including clean reviews without regions. Hover or focus shows the saved status and region
-  count in a tooltip; no extra status block appears below the photo.
+  count in a tooltip; saved annotations also show a persistent square-pen icon in the top-right
+  corner. Reviews without regions have no annotation icon. No extra status block appears below the photo.
   Unfinished drafts are labeled separately. AI-only runs and replacement photos remain unmarked.
 - Manual AI requests use Cloudflare Gemma 4, persist before dispatch, survive restarts and deduplicate
   retries. Automatic analysis admits submitted, unresolved reports with nonempty checklist/zone rules. Completed reports are excluded. Bounded request volume, image size, timeout and attempts.
