@@ -1,3 +1,10 @@
+## [0.84.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.84.0...v0.84.1) (2026-09-11)
+
+### Bug fixes
+
+* **incidents:** show separate from and to date filters ([b6462bf](https://github.com/leonidkuznetsov18/vakhta/commit/b6462bf027d7c772935dabbda47034732d9f7823))
+* **photo-library:** open photos from table rows ([2f69850](https://github.com/leonidkuznetsov18/vakhta/commit/2f69850c2b3e895ed82ea40ac58a420b8e29adfc))
+
 ## [0.84.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.83.1...v0.84.0) (2026-09-11)
 
 ### Features
