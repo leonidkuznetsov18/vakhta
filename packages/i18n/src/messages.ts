@@ -1350,6 +1350,8 @@ export interface Messages {
       readonly rangeTo: string;
       readonly saving: string;
       readonly noResults: string;
+      /** Generic label for adding what a creatable list lacks. */
+      readonly create: string;
       readonly details: string;
       readonly hide: string;
       readonly yes: string;

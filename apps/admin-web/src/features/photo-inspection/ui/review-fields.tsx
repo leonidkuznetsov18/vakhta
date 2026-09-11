@@ -18,11 +18,14 @@ export function EditableReview({
   busy,
   rules = [],
   objects = [],
+  onCreateObject,
 }: {
   editor: InspectionEditor;
   busy: boolean;
   rules?: readonly ChecklistPhotoRuleView[];
   objects?: readonly PhotoObjectView[];
+  /** Adds a catalog object typed into a region's list and resolves with the stored entry. */
+  onCreateObject?: (name: string) => Promise<PhotoObjectView>;
 }) {
   const [attachList] = useState(() => editor.attachRegionList);
   const state = useStore(editor.store);
@@ -61,7 +64,7 @@ export function EditableReview({
       {review.annotations.length === 0 && (
         <p className="text-sm text-muted-foreground">{t.empty}</p>
       )}
-      <div ref={attachList} className="flex flex-col gap-3">
+      <div ref={attachList} className="flex max-h-[55dvh] flex-col gap-3 overflow-y-auto pr-1">
         {review.annotations.map((annotation, index) => (
           <RegionFields
             key={annotation.id}
@@ -72,6 +75,7 @@ export function EditableReview({
             busy={busy}
             rules={rules}
             objects={objects}
+            onCreateObject={onCreateObject}
           />
         ))}
       </div>
@@ -97,7 +101,7 @@ export function ReadOnlyReview({
       {review.notAssessableReason && <p>{t.reasons[review.notAssessableReason]}</p>}
       {review.isReference && <p>{t.reference}</p>}
       <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words">{review.comment}</p>
-      <div ref={attachList} className="flex flex-col gap-3">
+      <div ref={attachList} className="flex max-h-[55dvh] flex-col gap-3 overflow-y-auto pr-1">
         {review.annotations.map((a, index) => (
           <div
             key={a.id}

@@ -1659,6 +1659,7 @@ export const uk: Messages = {
       waitingConnection: 'Немає з’єднання. Очікуємо відновлення мережі.',
       saving: 'Зберігаємо…',
       noResults: 'Нічого не знайдено.',
+      create: 'Додати',
       details: 'Подробиці',
       hide: 'Сховати',
       yes: 'Так',

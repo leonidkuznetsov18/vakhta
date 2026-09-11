@@ -1657,6 +1657,7 @@ export const ru: Messages = {
       waitingConnection: 'Нет соединения. Ожидаем восстановления сети.',
       saving: 'Сохраняем…',
       noResults: 'Ничего не найдено.',
+      create: 'Добавить',
       details: 'Подробности',
       hide: 'Скрыть',
       yes: 'Да',

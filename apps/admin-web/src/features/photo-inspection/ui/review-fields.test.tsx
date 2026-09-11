@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { messages } from '@vakhta/i18n';
 import { PhotoInspectionView } from '@vakhta/contracts';
@@ -94,6 +94,33 @@ it('offers catalog objects outside the checklist list and a free-text other obje
     objectId: null,
     objectName: 'Broom',
   });
+});
+it('creates a missing catalog object from the region list and names the region with it', async () => {
+  const editor = new InspectionEditor(view);
+  editor.addBox();
+  const created = { id: '40000000-0000-4000-8000-000000000009', name: 'Пляшка', active: true };
+  const onCreateObject = vi.fn().mockResolvedValue(created);
+  render(
+    <EditableReview
+      editor={editor}
+      busy={false}
+      rules={rules}
+      objects={objects}
+      onCreateObject={onCreateObject}
+    />,
+  );
+  fireEvent.click(screen.getByRole('combobox', { name: t.objectCatalog }));
+  fireEvent.change(await screen.findByPlaceholderText(messages('en').ui.common.search), {
+    target: { value: 'Пляшка' },
+  });
+  fireEvent.click(await screen.findByText(`${t.objectCreate}: «Пляшка»`));
+  expect(onCreateObject).toHaveBeenCalledWith('Пляшка');
+  await waitFor(() =>
+    expect(editor.store.getState().review.annotations[0]).toMatchObject({
+      objectId: created.id,
+      objectName: 'Пляшка',
+    }),
+  );
 });
 it('switches to not assessable with a reason and keeps the note when switching back', () => {
   const editor = new InspectionEditor(view);

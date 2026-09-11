@@ -1656,6 +1656,7 @@ export const en: Messages = {
       waitingConnection: 'Offline. Waiting for the connection to return.',
       saving: 'Saving…',
       noResults: 'Nothing found.',
+      create: 'Add',
       details: 'Details',
       hide: 'Hide',
       yes: 'Yes',

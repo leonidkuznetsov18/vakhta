@@ -37,6 +37,7 @@ export function RegionFields({
   busy,
   rules,
   objects,
+  onCreateObject,
 }: {
   annotation: InspectionAnnotation;
   index: number;
@@ -45,6 +46,7 @@ export function RegionFields({
   busy: boolean;
   rules: readonly ChecklistPhotoRuleView[];
   objects: readonly PhotoObjectView[];
+  onCreateObject?: ((name: string) => Promise<PhotoObjectView>) | undefined;
 }) {
   const [touched, setTouched] = useState(false);
   const unnamed =
@@ -163,6 +165,20 @@ export function RegionFields({
           ]}
           placeholder="—"
           error={touched && unnamed ? t.nameRequired : undefined}
+          createLabel={t.objectCreate}
+          onCreate={
+            onCreateObject
+              ? (name) => {
+                  // The region keeps the stored name even before the catalog list refreshes.
+                  void onCreateObject(name).then((object) =>
+                    editor.editAnnotation(annotation.id, {
+                      objectId: object.id,
+                      objectName: object.name,
+                    }),
+                  );
+                }
+              : undefined
+          }
         />
         {otherSelected && (
           <FormField label={t.objectOther}>

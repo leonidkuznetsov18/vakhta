@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from 'react';
-import { CheckIcon, ChevronsUpDownIcon, XIcon } from 'lucide-react';
+import { CheckIcon, ChevronsUpDownIcon, PlusIcon, XIcon } from 'lucide-react';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import {
@@ -76,6 +76,12 @@ interface SelectFieldProps {
    * force one or the other.
    */
   readonly searchable?: boolean;
+  /**
+   * Lets the person add what the list lacks: when the search text matches no option, one more
+   * item offers to create it. Forces the searchable form.
+   */
+  readonly onCreate?: (name: string) => void;
+  readonly createLabel?: string;
 }
 
 /** Above this many options a plain select is slower to use than typing a few letters. */
@@ -86,7 +92,8 @@ const SEARCHABLE_FROM = 8;
  * a searchable combobox for long ones, so an employee among a hundred is found by typing.
  */
 export function SelectField(props: SelectFieldProps) {
-  const searchable = props.searchable ?? props.options.length > SEARCHABLE_FROM;
+  const searchable =
+    props.onCreate !== undefined || (props.searchable ?? props.options.length > SEARCHABLE_FROM);
   return searchable ? <ComboboxField {...props} /> : <NativeSelectField {...props} />;
 }
 
@@ -101,11 +108,18 @@ function ComboboxField({
   required,
   disabled,
   className,
+  onCreate,
+  createLabel,
 }: SelectFieldProps) {
   const t = messages(currentLocale()).ui.common;
   const [open, setOpen] = useState(false);
   const [invalid, setInvalid] = useState(false);
+  const [query, setQuery] = useState('');
   const popupId = useId();
+  const creatable =
+    onCreate !== undefined &&
+    query.trim().length > 0 &&
+    !options.some((o) => o.label.trim().toLocaleLowerCase() === query.trim().toLocaleLowerCase());
   const selected = options.find((o) => o.value === value) ?? null;
   const validationError = error || (invalid && required && !selected ? t.required : undefined);
   const choose = (next: string) => {
@@ -175,9 +189,33 @@ function ComboboxField({
             align="start"
           >
             <Command loop>
-              <CommandInput aria-label={`${label}: ${t.search}`} placeholder={t.search} />
+              <CommandInput
+                aria-label={`${label}: ${t.search}`}
+                placeholder={t.search}
+                value={query}
+                onValueChange={setQuery}
+              />
               <CommandList aria-label={label}>
                 <CommandEmpty>{t.noResults}</CommandEmpty>
+                {creatable && (
+                  // Its own always-mounted group: cmdk hides a group whose items matched nothing.
+                  <CommandGroup forceMount>
+                    <CommandItem
+                      forceMount
+                      value={query.trim()}
+                      onSelect={() => {
+                        onCreate(query.trim());
+                        setQuery('');
+                        setOpen(false);
+                      }}
+                    >
+                      <PlusIcon className="size-4 opacity-60" aria-hidden="true" />
+                      <span className="truncate">
+                        {createLabel ?? t.create}: «{query.trim()}»
+                      </span>
+                    </CommandItem>
+                  </CommandGroup>
+                )}
                 <CommandGroup>
                   {placeholder !== undefined && value !== '' && (
                     <CommandItem

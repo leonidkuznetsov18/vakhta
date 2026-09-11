@@ -721,3 +721,10 @@ form registers through a callback ref attached only while the draft differs from
 (React Compiler forbids mutating a holder during render), shows "Unsaved changes: N" from
 `countRuleChanges`, and scrolls the selected list within 45dvh. 3 rules-form, 1 draft and 1 guard
 tests pass alongside the panel suite (220).
+
+Editor follow-up: the two-column layout returned after the owner tried the stacked one; the
+region and suggestion lists scroll within 55dvh/40dvh, the photo fits its viewport height and is
+centered in its plane. The shared `SelectField` accepts `onCreate`/`createLabel` and renders a
+force-mounted "Add: «name»" command item when the search matches nothing; the region select uses it
+to create a catalog object from inside the editor (`POST /admin/photo-objects`, then the region takes
+the stored id and name). 73 inspection-feature and field tests pass.

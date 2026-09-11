@@ -268,6 +268,13 @@ function InspectionSession({
     requestedRunId !== null && newestRun?.id === requestedRunId && newestRun.status === 'SUCCEEDED'
       ? newestRun.id
       : null;
+  const createObject = useMutation({
+    mutationFn: (name: string) => inspectionApi.createObject({ name }),
+    retry: false,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: photoObjectsKey });
+    },
+  });
   const rate = useMutation({
     mutationFn: ({ runId, rating }: { runId: string; rating: AiFeedbackRating }) =>
       inspectionApi.rateRun(id, runId, { rating }),
@@ -283,7 +290,8 @@ function InspectionSession({
   const paused = save.isPaused || analyze.isPaused || exportReview.isPaused;
   const pending = latest.runs.some((r) => r.status === 'PENDING');
   const feedback = reviewFeedback(state.review, state.invalidGeometry);
-  const error = save.error ?? analyze.error ?? exportReview.error ?? rate.error;
+  const error =
+    save.error ?? analyze.error ?? exportReview.error ?? rate.error ?? createObject.error;
   const reload = async () => {
     if (hasReviewChanges(state) && !window.confirm(t.discard)) return;
     await client.invalidateQueries({ queryKey: inspectionKey(id) });
@@ -411,7 +419,7 @@ function InspectionSession({
           )}
         </div>
       )}
-      <div className="flex min-w-0 flex-col gap-4">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
         <div className="min-w-0">
           <QueryFeedback
             query={{ ...link, error: link.error ? new Error(errorText(link.error)) : null }}
@@ -439,14 +447,14 @@ function InspectionSession({
                   </IconButton>
                 </p>
               )}
-              <div ref={attachViewport} className="relative mx-auto w-fit origin-top-left">
+              <div ref={attachViewport} className="relative origin-top-left">
                 <img
                   key={`${link.data.url}:${link.dataUpdatedAt}`}
                   ref={mount}
                   src={link.data.url}
                   alt={initial.context.photoLabel}
                   draggable={false}
-                  className="block h-auto max-h-[62dvh] w-auto max-w-full"
+                  className="block h-auto w-full max-w-none"
                 />
                 <RegionNumbers editor={editor} />
               </div>
@@ -460,6 +468,7 @@ function InspectionSession({
               busy={busy}
               rules={latest.rules}
               objects={objects.data?.objects ?? []}
+              onCreateObject={(name) => createObject.mutateAsync(name)}
             />
           ) : (
             <ReadOnlyReview editor={editor} objects={objects.data?.objects ?? []} />

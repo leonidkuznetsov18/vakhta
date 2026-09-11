@@ -100,81 +100,83 @@ export function PredictionPanel({
       {run.prediction.findings.length > 0 && suggestions.length === 0 && (
         <p role="status">{t.allSuggestionsAdded}</p>
       )}
-      {suggestions.map(({ finding, index, key }) => (
-        <div key={key} className="rounded-md border p-2">
-          <p className="flex max-h-32 items-start gap-2 overflow-y-auto whitespace-pre-wrap break-words">
-            <ObjectSwatch
-              objectId={finding.objectId}
-              objectName={finding.objectName}
-              rules={latest.rules}
-            />
-            {label(finding)}
-          </p>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {finding.geometry ? (
-              <IconButton
-                icon={CopyPlusIcon}
-                label={t.accept}
-                tooltip={t.hints.accept}
-                size="sm"
-                variant="outline"
-                disabled={disabled}
-                onClick={() => editor.acceptSuggestion(run, index)}
-              >
-                {t.accept}
-              </IconButton>
-            ) : (
-              <p>{t.noGeometry}</p>
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+      <div className="flex max-h-[40dvh] flex-col gap-2 overflow-y-auto pr-1">
+        {suggestions.map(({ finding, index, key }) => (
+          <div key={key} className="rounded-md border p-2">
+            <p className="flex max-h-32 items-start gap-2 overflow-y-auto whitespace-pre-wrap break-words">
+              <ObjectSwatch
+                objectId={finding.objectId}
+                objectName={finding.objectName}
+                rules={latest.rules}
+              />
+              {label(finding)}
+            </p>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {finding.geometry ? (
                 <IconButton
-                  icon={XIcon}
-                  label={t.reject}
-                  tooltip={t.hints.reject}
+                  icon={CopyPlusIcon}
+                  label={t.accept}
+                  tooltip={t.hints.accept}
                   size="sm"
-                  variant="ghost"
+                  variant="outline"
                   disabled={disabled}
+                  onClick={() => editor.acceptSuggestion(run, index)}
                 >
-                  {t.reject}
+                  {t.accept}
                 </IconButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                {RejectionReason.options.map((reason) => (
-                  <DropdownMenuItem
-                    key={reason}
-                    onSelect={() => editor.rejectSuggestion(run, index, reason)}
+              ) : (
+                <p>{t.noGeometry}</p>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <IconButton
+                    icon={XIcon}
+                    label={t.reject}
+                    tooltip={t.hints.reject}
+                    size="sm"
+                    variant="ghost"
+                    disabled={disabled}
                   >
-                    {t.rejectReasons[reason]}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    {t.reject}
+                  </IconButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {RejectionReason.options.map((reason) => (
+                    <DropdownMenuItem
+                      key={reason}
+                      onSelect={() => editor.rejectSuggestion(run, index, reason)}
+                    >
+                      {t.rejectReasons[reason]}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-        </div>
-      ))}
-      {rejected.map(({ finding, index, reason }) => (
-        <div
-          key={`rejected:${index}`}
-          className="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-2 text-muted-foreground"
-        >
-          <span className="min-w-0 flex-1 break-words line-through">{label(finding)}</span>
-          <span>
-            {t.rejected}: {t.rejectReasons[reason]}
-          </span>
-          <IconButton
-            icon={Undo2Icon}
-            label={t.restore}
-            tooltip={t.hints.restore}
-            size="sm"
-            variant="ghost"
-            disabled={disabled}
-            onClick={() => editor.restoreSuggestion(run, index)}
+        ))}
+        {rejected.map(({ finding, index, reason }) => (
+          <div
+            key={`rejected:${index}`}
+            className="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-2 text-muted-foreground"
           >
-            {t.restore}
-          </IconButton>
-        </div>
-      ))}
+            <span className="min-w-0 flex-1 break-words line-through">{label(finding)}</span>
+            <span>
+              {t.rejected}: {t.rejectReasons[reason]}
+            </span>
+            <IconButton
+              icon={Undo2Icon}
+              label={t.restore}
+              tooltip={t.hints.restore}
+              size="sm"
+              variant="ghost"
+              disabled={disabled}
+              onClick={() => editor.restoreSuggestion(run, index)}
+            >
+              {t.restore}
+            </IconButton>
+          </div>
+        ))}
+      </div>
       <RunFeedback run={run} disabled={disabled} onRate={onRate} />
     </section>
   );

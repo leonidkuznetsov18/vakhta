@@ -1,6 +1,8 @@
 import {
+  CreatePhotoObject,
   PhotoAnalysisLimits,
   PhotoInspectionView,
+  PhotoObjectView,
   PhotoObjectsView,
   MediaLinkView,
   type SaveInspection,
@@ -40,6 +42,14 @@ export const inspectionApi = {
   },
   async objects(signal: AbortSignal) {
     return PhotoObjectsView.parse(await apiFetch('/admin/photo-objects', { signal }));
+  },
+  async createObject(input: CreatePhotoObject) {
+    return PhotoObjectView.parse(
+      await apiFetch('/admin/photo-objects', {
+        method: 'POST',
+        body: JSON.stringify(CreatePhotoObject.parse(input)),
+      }),
+    );
   },
   async save(id: InspectionIdentity, data: SaveInspection) {
     return PhotoInspectionView.parse(

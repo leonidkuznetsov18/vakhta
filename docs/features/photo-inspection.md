@@ -169,6 +169,13 @@ found**; an unsure region keeps it **Not reviewed**. The reviewer never picks th
 obstructed, wrong workplace, other with an explanation). A clean photo can be marked as the
 **reference** for its photo point. Rectangles are the only drawing tool; stored polygons stay readable.
 
+## Editor layout
+
+The photo sits in the left column and the review controls in the right one on wide screens;
+phones stack them. The region list and the AI suggestion list scroll inside a bounded height so
+Save and Analyze stay in reach. The catalog select inside a region offers to add a missing object
+to the catalog by typing its name; the new entry is stored and selected for that region at once.
+
 ## AI boxes appear on the photo, colors per object
 
 When the answer to this session's analysis arrives, every located finding is drawn on the photo at

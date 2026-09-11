@@ -113,4 +113,25 @@ describe('SelectField', () => {
     fireEvent.click(await screen.findByText('Кузнецов Леонид · 0004'));
     expect(onChange).toHaveBeenCalledWith('e3');
   });
+  it('offers to create what the search does not find when a creator is supplied', async () => {
+    const onCreate = vi.fn();
+    render(
+      <SelectField
+        label="Объект"
+        value=""
+        onChange={vi.fn()}
+        options={[{ value: 'a', label: 'Ганчірка' }]}
+        placeholder="…"
+        createLabel="Добавить"
+        onCreate={onCreate}
+      />,
+    );
+    fireEvent.click(screen.getByRole('combobox', { name: 'Объект' }));
+    const search = await screen.findByPlaceholderText('Поиск');
+    fireEvent.change(search, { target: { value: 'ганчірка' } });
+    expect(screen.queryByText(/Добавить/)).toBeNull();
+    fireEvent.change(search, { target: { value: ' Пляшка ' } });
+    fireEvent.click(await screen.findByText('Добавить: «Пляшка»'));
+    expect(onCreate).toHaveBeenCalledWith('Пляшка');
+  });
 });
