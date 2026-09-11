@@ -1,3 +1,9 @@
+## [0.92.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.91.0...v0.92.0) (2026-09-11)
+
+### Features
+
+* **photo-inspection:** one-scroll editor, folded region cards, no rules form in reports ([f4f6ca1](https://github.com/leonidkuznetsov18/vakhta/commit/f4f6ca1df2f16f869370fc255fe6748a287d699b))
+
 ## [0.91.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.90.0...v0.91.0) (2026-09-11)
 
 ### Features
