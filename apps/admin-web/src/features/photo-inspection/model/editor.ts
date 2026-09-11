@@ -1,3 +1,4 @@
+import { RegionNumberPositions } from './region-number-positions';
 import { attachRegionList } from './region-navigation';
 import { availableSuggestions, linkLegacySuggestions } from './suggestions';
 import { InspectionViewport, INSPECTION_ZOOM } from './viewport';
@@ -98,6 +99,7 @@ interface EditorState {
 /** Owns the third-party canvas lifecycle and the unsaved form, never the server query cache. */
 export class InspectionEditor {
   readonly store;
+  readonly numberPositions = new RegionNumberPositions();
   private canvas: ImageAnnotator | null = null;
   private locked = false;
   private analysis: { requestId: string; version: number; guidance: string } | null = null;
@@ -127,6 +129,7 @@ export class InspectionEditor {
   readonly mount = (image: HTMLImageElement | null) => {
     if (!image) return;
     this.store.setState({ imageStatus: 'loading' });
+    let disconnectNumbers: (() => void) | undefined;
     const loaded = () => {
       if (this.canvas) return;
       this.width = image.naturalWidth;
@@ -144,6 +147,11 @@ export class InspectionEditor {
       });
       this.canvas.setAnnotations(
         this.store.getState().review.annotations.map((a) => toCanvas(a, this.width, this.height)),
+      );
+      disconnectNumbers = this.numberPositions.connect(
+        this.canvas.state.store,
+        this.width,
+        this.height,
       );
       this.canvas.on('createAnnotation', this.geometryChanged);
       this.canvas.on('updateAnnotation', this.geometryChanged);
@@ -168,6 +176,7 @@ export class InspectionEditor {
       window.removeEventListener('beforeunload', preventLoss);
       image.removeEventListener('load', loaded);
       image.removeEventListener('error', failed);
+      disconnectNumbers?.();
       this.canvas?.destroy();
       this.canvas = null;
     };

@@ -461,3 +461,18 @@ free-text fields and configured object list. Browser writes used an isolated Pos
 Production rule configuration for Оператор СТ вторая стенка / Вторая стенка стаканы was saved and
 read back with Ганчірки, Стаканчики, Інструменти, version 1, after v0.82.0 API deployment succeeded.
 No employee report was finalized for QA. The previously recorded Gemma accuracy limitation remains.
+
+## Live region number anchoring — 2026-09-11
+
+Numbers now subscribe to the Annotorious geometry store rather than waiting for saved-review
+lifecycle events. A callback-ref adapter owns badge coordinates and removes its subscription on
+canvas teardown. Annotorious 3.8.10 rectangle editing calculates bounds from the previous frame;
+derive anchors from current rectangle coordinates/rotation or polygon vertices instead. No library
+patch, DOM polling, additional render loop or persistence change is needed.
+
+Verification: 16 focused tests passed, including stale-bounds movement/resizing, polygon bounds,
+ref reattachment and cleanup. Desktop browser dragging and corner resizing with the mouse held
+kept the number within 0.03 CSS pixels of the region corner before release. Zoom retained 24px
+badges. Desktop and mobile screenshots were captured and visually inspected using isolated QA data.
+Physical touch dragging was not tested. Lean: proceed; remove visual lag without another control
+or reviewer action. The acceptance measure is same-frame number/region alignment.
