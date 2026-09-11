@@ -288,7 +288,9 @@ export class CloudflareInspectionAnalyzer implements InspectionAnalyzer {
           model: '@cf/google/gemma-4-26b-a4b-it',
           stream: false,
           max_completion_tokens: 3000,
-          temperature: 0.1,
+          // Greedy decoding with a fixed seed: the same photo and rules should answer the same way.
+          temperature: 0,
+          seed: 7,
           response_format: { type: 'json_object' },
           chat_template_kwargs: { enable_thinking: false },
           messages: [
@@ -320,8 +322,10 @@ export class CloudflareInspectionAnalyzer implements InspectionAnalyzer {
     }
   }
   /**
-   * Pass one asks every tile for the whole list. Object types nobody reported get a second,
-   * single-object pass per tile: the model finds edge and small instances it skips in a crowd.
+   * Two passes over the four quadrants, then the union of everything seen: the whole list at once
+   * finds the obvious objects, one object type at a time finds the ones the model skips in a crowd.
+   * Asking for every type in both passes (not only the missing ones) keeps runs alike: a box that
+   * one pass misses the other still contributes, so a second analysis rarely disagrees with the first.
    */
   async analyze(input: InspectionInput, signal: AbortSignal): Promise<InspectionResult> {
     if (input.model !== '@cf/google/gemma-4-26b-a4b-it')
@@ -340,16 +344,21 @@ export class CloudflareInspectionAnalyzer implements InspectionAnalyzer {
     const usage = { prompt: 0, completion: 0, calls: 0 };
     const detections: Detection[] = [];
     let unreadable = 0;
+    // The four tiles of one pass are independent requests; the passes run one after another.
     const run = async (ruleIndexes: number[]) => {
-      for (const { tile, jpeg } of tiles) {
-        signal.throwIfAborted();
-        const subset = ruleIndexes.map((index) => input.rules[index]!);
-        const outcome = parseTileCompletion(
-          await this.complete(jpeg, inspectionPrompt(subset), signal),
-          tile,
-          image,
-          ruleIndexes,
-        );
+      const subset = ruleIndexes.map((index) => input.rules[index]!);
+      const outcomes = await Promise.all(
+        tiles.map(async ({ tile, jpeg }) => {
+          signal.throwIfAborted();
+          return parseTileCompletion(
+            await this.complete(jpeg, inspectionPrompt(subset), signal),
+            tile,
+            image,
+            ruleIndexes,
+          );
+        }),
+      );
+      for (const outcome of outcomes) {
         usage.prompt += outcome.usage.prompt;
         usage.completion += outcome.usage.completion;
         usage.calls++;
@@ -359,11 +368,15 @@ export class CloudflareInspectionAnalyzer implements InspectionAnalyzer {
     };
     const all = input.rules.map((_rule, index) => index);
     await run(all);
-    const found = new Set(detections.map((detection) => detection.rule));
-    for (const index of all.filter((index) => !found.has(index))) await run([index]);
+    for (const index of all) await run([index]);
     return {
       prediction: toPrediction(mergeDetections(detections), input.rules, unreadable, tiles.length),
-      usage: { ...usage, tiles: tiles.length, promptVersion: 'workplace-v3' },
+      usage: {
+        ...usage,
+        tiles: tiles.length,
+        passes: 1 + all.length,
+        promptVersion: 'workplace-v3',
+      },
     };
   }
 }

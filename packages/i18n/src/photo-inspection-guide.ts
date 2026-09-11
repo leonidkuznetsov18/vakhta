@@ -6,11 +6,11 @@ export const inspectionGuideUk: SectionGuide = {
     'Допоможіть системі зрозуміти, як має виглядати робоче місце після зміни. Ви позначаєте на фото видимі проблеми та описуєте їх. Так ми збираємо перевірені приклади для майбутнього автоматичного пошуку проблем; зараз остаточну оцінку дає людина.',
   steps: [
     'Відкрийте «Чистота і передача», розгорніть звіт і натисніть на фото. Перегляньте його повністю; за потреби натисніть «Збільшити».',
-    'За потреби розгорніть «Правила перевірки»: це обʼєкти з чекліста для цієї зони та уточнення до них. Саме їх шукає AI.',
+    'За потреби розгорніть «Правила перевірки»: це обʼєкти з чекліста та уточнення до них. Саме їх шукає AI.',
     'Якщо бачите обʼєкт, оберіть «Прямокутник» і обведіть його. У «Що позначено» оберіть обʼєкт з чекліста або з каталогу. Одна область — один предмет. Потім оберіть значення: «Порушення», «Дозволено тут» або «Не впевнений». «Додати деталі» потрібне лише для додаткового пояснення.',
     'Результат перевірки визначається сам: є порушення — «Є проблеми», лише дозволені області або жодної — «Проблем не знайдено». Якщо фото не дає змоги оцінити робоче місце, увімкніть «Фото не можна оцінити» й оберіть причину.',
     'Натисніть «Зберегти зміни». Фото не змінюється: окремо зберігаються області, їхнє значення та результат. Чисте фото без областей теж зберігайте: такі приклади потрібні нарівні з проблемними. Чисте фото можна позначити як еталон для цієї точки зйомки.',
-    'За бажанням натисніть «Аналізувати з AI»: він шукає лише обʼєкти зі списку чекліста для цієї зони і сам малює знайдені рамки на фото кольором відповідного обʼєкта. Правильні лишіть або виправте, хибні відхиліть із причиною кнопкою «Відхилити» в картці області: так вимірюється точність моделі. Потім збережіть перевірку.',
+    'За бажанням натисніть «Аналізувати з AI»: він шукає лише обʼєкти зі списку чекліста і сам малює знайдені рамки на фото кольором відповідного обʼєкта. Правильні лишіть або виправте, хибні відхиліть із причиною кнопкою «Відхилити» в картці області: так вимірюється точність моделі. Потім збережіть перевірку.',
   ],
   faq: [
     {
@@ -39,7 +39,7 @@ export const inspectionGuideUk: SectionGuide = {
     },
     {
       q: 'Інструмент на фото — це завжди проблема?',
-      a: 'Ні. Важливе правило для цієї зони. На робочій панелі інструмент може бути на своєму місці, а на столі, який має бути порожнім, — порушувати вимогу. Перевірте список заборонених предметів для цієї зони в чеклісті.',
+      a: 'Ні. Важливе правило для цієї зони. На робочій панелі інструмент може бути на своєму місці, а на столі, який має бути порожнім, — порушувати вимогу. Перевірте список обʼєктів у чеклісті.',
     },
     {
       q: 'Що робити з чистим фото без проблем?',
@@ -51,7 +51,7 @@ export const inspectionGuideUk: SectionGuide = {
     },
     {
       q: 'Чому кнопка аналізу вимкнена?',
-      a: 'AI доступний без попереднього збереження. Він шукає лише обʼєкти, задані в чеклісті для цієї зони; якщо список порожній, кнопка недоступна, поки майстер не заповнить його. Кнопка також тимчасово недоступна під час збереження або вже запущеного аналізу.',
+      a: 'AI доступний без попереднього збереження. Він шукає лише обʼєкти, задані в чеклісті; якщо список порожній, кнопка недоступна, поки майстер не заповнить його. Кнопка також тимчасово недоступна під час збереження або вже запущеного аналізу.',
     },
     {
       q: 'Чи можна довіряти висновку AI без перевірки?',
@@ -91,7 +91,7 @@ export const inspectionGuideUk: SectionGuide = {
     },
     {
       q: 'Де змінити список предметів для AI?',
-      a: 'У налаштуваннях чекліста виберіть потрібну зону та збережіть список предметів. У редакторі фото він показується для довідки. Ручний аналіз не потребує попереднього збереження розмітки.',
+      a: 'У налаштуваннях чекліста розгорніть його: список обʼєктів показується одразу, оберіть обʼєкти з каталогу і збережіть. У редакторі фото він показується для довідки. Ручний аналіз не потребує попереднього збереження розмітки.',
     },
     {
       q: 'Як зіставити область з описом?',
@@ -112,11 +112,11 @@ export const inspectionGuideEn: SectionGuide = {
     'Help the system understand how a workplace should look after a shift. Mark visible problems and describe them. These verified examples support future automatic problem detection; a person makes the final assessment today.',
   steps: [
     'Open Cleanliness and handover, expand a report and select a photo. Inspect the whole image; use Zoom in when needed.',
-    'Open Inspection rules when needed to see the checklist objects for this zone and their notes. AI searches only for these.',
+    'Open Inspection rules when needed to see the checklist objects and their notes. AI searches only for these.',
     'For a visible object, choose Rectangle and drag around it. In What is marked, choose the object from the checklist or the catalog. One object per region. Then choose its meaning: Violation, Allowed here or Unsure. Use Add details only for extra context.',
     'The review outcome follows on its own: any violation means Problems found; only allowed regions or none means No problems found. If the photo does not show the workplace well enough, switch on The photo cannot be assessed and choose a reason.',
     'Select Save changes. The original photo is unchanged; regions, their meaning and the outcome are saved separately. Save clean photos without regions too: such examples matter as much as problems. A clean photo can be marked as the reference for this photo point.',
-    'Optionally select Analyze with AI: it searches only for the objects listed in the checklist for this zone and draws the boxes it finds on the photo in the color of each object. Keep or correct the right ones and reject wrong ones with a reason using Reject on the region card; that is how model precision is measured. Then save the review.',
+    'Optionally select Analyze with AI: it searches only for the objects listed in the checklist and draws the boxes it finds on the photo in the color of each object. Keep or correct the right ones and reject wrong ones with a reason using Reject on the region card; that is how model precision is measured. Then save the review.',
   ],
   faq: [
     {
@@ -145,7 +145,7 @@ export const inspectionGuideEn: SectionGuide = {
     },
     {
       q: 'Is a visible tool always a problem?',
-      a: 'No. The rule for that area matters. A tool may belong on its panel but violate a clear-table rule. Check the prohibited-item list for this zone in the checklist.',
+      a: 'No. The rule for that area matters. A tool may belong on its panel but violate a clear-table rule. Check the object list in the checklist.',
     },
     {
       q: 'What if the photo shows no problems?',
@@ -157,7 +157,7 @@ export const inspectionGuideEn: SectionGuide = {
     },
     {
       q: 'Why is Analyze disabled?',
-      a: 'AI is available before saving. It searches only for the objects configured in the checklist for this zone; with an empty list the button stays unavailable until the master fills it in. The button is also unavailable while saving or while an analysis is already running.',
+      a: 'AI is available before saving. It searches only for the objects configured in the checklist; with an empty list the button stays unavailable until the master fills it in. The button is also unavailable while saving or while an analysis is already running.',
     },
     {
       q: 'Can I trust AI without checking?',
@@ -197,7 +197,7 @@ export const inspectionGuideEn: SectionGuide = {
     },
     {
       q: 'Where can I change the object list for AI?',
-      a: 'In checklist settings, select the zone and save its object list. The photo editor displays that list for reference. Manual analysis does not require saving annotations first.',
+      a: 'In checklist settings, expand the checklist: its object list is shown at once; choose objects from the catalog and save. The photo editor displays that list for reference. Manual analysis does not require saving annotations first.',
     },
     {
       q: 'How do I match a region to its description?',
@@ -218,11 +218,11 @@ export const inspectionGuideRu: SectionGuide = {
     'Помогите системе понять, как должно выглядеть рабочее место после смены. Отмечайте видимые проблемы и описывайте их. Так мы собираем проверенные примеры для будущего автоматического поиска проблем; сейчас окончательную оценку даёт человек.',
   steps: [
     'Откройте «Чистота и передача», разверните отчёт и нажмите на фото. Просмотрите его целиком; при необходимости нажмите «Увеличить».',
-    'При необходимости раскройте «Правила проверки»: это объекты из чек-листа для этой зоны и уточнения к ним. Именно их ищет AI.',
+    'При необходимости раскройте «Правила проверки»: это объекты из чек-листа и уточнения к ним. Именно их ищет AI.',
     'Если видите объект, выберите «Прямоугольник» и обведите его. В «Что отмечено» выберите объект из чек-листа или из каталога. Одна область — один предмет. Затем выберите значение: «Нарушение», «Разрешено здесь» или «Не уверен». «Добавить детали» нужно только для дополнительного пояснения.',
     'Результат проверки определяется сам: есть нарушение — «Есть проблемы», только разрешённые области или ни одной — «Проблем не найдено». Если фото не позволяет оценить рабочее место, включите «Фото нельзя оценить» и выберите причину.',
     'Нажмите «Сохранить изменения». Фото не меняется: отдельно сохраняются области, их значение и результат. Чистое фото без областей тоже сохраняйте: такие примеры нужны наравне с проблемными. Чистое фото можно отметить как эталон для этой точки съёмки.',
-    'При желании нажмите «Анализировать с AI»: он ищет только объекты из списка чек-листа для этой зоны и сам рисует найденные рамки на фото цветом соответствующего объекта. Правильные оставьте или исправьте, ошибочные отклоните с причиной кнопкой «Отклонить» в карточке области: так измеряется точность модели. Затем сохраните проверку.',
+    'При желании нажмите «Анализировать с AI»: он ищет только объекты из списка чек-листа и сам рисует найденные рамки на фото цветом соответствующего объекта. Правильные оставьте или исправьте, ошибочные отклоните с причиной кнопкой «Отклонить» в карточке области: так измеряется точность модели. Затем сохраните проверку.',
   ],
   faq: [
     {
@@ -251,7 +251,7 @@ export const inspectionGuideRu: SectionGuide = {
     },
     {
       q: 'Инструмент на фото — всегда проблема?',
-      a: 'Нет. Важно правило этой зоны. На панели инструмент может быть на своём месте, а на столе, который должен быть пустым, — нарушать требование. Проверьте список запрещённых предметов для этой зоны в чек-листе.',
+      a: 'Нет. Важно правило этой зоны. На панели инструмент может быть на своём месте, а на столе, который должен быть пустым, — нарушать требование. Проверьте список объектов в чек-листе.',
     },
     {
       q: 'Что делать с чистым фото без проблем?',
@@ -263,7 +263,7 @@ export const inspectionGuideRu: SectionGuide = {
     },
     {
       q: 'Почему кнопка анализа выключена?',
-      a: 'AI доступен до сохранения. Он ищет только объекты, заданные в чек-листе для этой зоны; если список пуст, кнопка недоступна, пока мастер не заполнит его. Кнопка также временно недоступна во время сохранения или уже запущенного анализа.',
+      a: 'AI доступен до сохранения. Он ищет только объекты, заданные в чек-листе; если список пуст, кнопка недоступна, пока мастер не заполнит его. Кнопка также временно недоступна во время сохранения или уже запущенного анализа.',
     },
     {
       q: 'Можно ли доверять AI без проверки?',
@@ -303,7 +303,7 @@ export const inspectionGuideRu: SectionGuide = {
     },
     {
       q: 'Где изменить список предметов для AI?',
-      a: 'В настройках чек-листа выберите зону и сохраните список предметов. В редакторе фото он показан для справки. Ручной анализ не требует предварительного сохранения разметки.',
+      a: 'В настройках чек-листа раскройте его: список объектов показан сразу, выберите объекты из каталога и сохраните. В редакторе фото он показан для справки. Ручной анализ не требует предварительного сохранения разметки.',
     },
     {
       q: 'Как сопоставить область с описанием?',

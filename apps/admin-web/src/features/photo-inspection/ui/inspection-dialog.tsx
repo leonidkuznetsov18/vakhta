@@ -4,7 +4,11 @@ import { hasReviewChanges, reviewChanges } from '../model/review-changes';
 import { useState } from 'react';
 import { useStore } from 'zustand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { type HandoverPhotoView, type PhotoInspectionView } from '@vakhta/contracts';
+import {
+  type AiFeedbackRating,
+  type HandoverPhotoView,
+  type PhotoInspectionView,
+} from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { ApiError } from '@/api';
@@ -264,6 +268,12 @@ function InspectionSession({
     requestedRunId !== null && newestRun?.id === requestedRunId && newestRun.status === 'SUCCEEDED'
       ? newestRun.id
       : null;
+  const rate = useMutation({
+    mutationFn: ({ runId, rating }: { runId: string; rating: AiFeedbackRating }) =>
+      inspectionApi.rateRun(id, runId, { rating }),
+    retry: false,
+    onSuccess: (view) => client.setQueryData(inspectionKey(id), view),
+  });
   const exportReview = useMutation({
     mutationFn: () => inspectionApi.export(id),
     retry: false,
@@ -273,7 +283,7 @@ function InspectionSession({
   const paused = save.isPaused || analyze.isPaused || exportReview.isPaused;
   const pending = latest.runs.some((r) => r.status === 'PENDING');
   const feedback = reviewFeedback(state.review, state.invalidGeometry);
-  const error = save.error ?? analyze.error ?? exportReview.error;
+  const error = save.error ?? analyze.error ?? exportReview.error ?? rate.error;
   const reload = async () => {
     if (hasReviewChanges(state) && !window.confirm(t.discard)) return;
     await client.invalidateQueries({ queryKey: inspectionKey(id) });
@@ -401,7 +411,7 @@ function InspectionSession({
           )}
         </div>
       )}
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
+      <div className="flex min-w-0 flex-col gap-4">
         <div className="min-w-0">
           <QueryFeedback
             query={{ ...link, error: link.error ? new Error(errorText(link.error)) : null }}
@@ -429,14 +439,14 @@ function InspectionSession({
                   </IconButton>
                 </p>
               )}
-              <div ref={attachViewport} className="relative origin-top-left">
+              <div ref={attachViewport} className="relative mx-auto w-fit origin-top-left">
                 <img
                   key={`${link.data.url}:${link.dataUpdatedAt}`}
                   ref={mount}
                   src={link.data.url}
                   alt={initial.context.photoLabel}
                   draggable={false}
-                  className="block h-auto w-full max-w-none"
+                  className="block h-auto max-h-[62dvh] w-auto max-w-full"
                 />
                 <RegionNumbers editor={editor} />
               </div>
@@ -500,6 +510,7 @@ function InspectionSession({
           <PredictionPanel
             latest={latest}
             editor={editor}
+            onRate={(runId, rating) => rate.mutate({ runId, rating })}
             disabled={busy || !initial.canEdit || state.imageStatus !== 'ready'}
           />
         </div>

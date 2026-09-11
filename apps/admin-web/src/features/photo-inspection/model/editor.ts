@@ -198,7 +198,7 @@ export class InspectionEditor {
     state?: { selected?: boolean },
   ): DrawingStyle => {
     const region = this.store.getState().review.annotations.find((a) => a.id === annotation.id);
-    const color = objectColor(region?.objectId, region?.objectName);
+    const color = objectColor(region?.objectId, region?.objectName, this.initial.rules);
     return {
       stroke: state?.selected ? SELECTED_COLOR : color,
       strokeWidth: state?.selected ? 4 : 3,

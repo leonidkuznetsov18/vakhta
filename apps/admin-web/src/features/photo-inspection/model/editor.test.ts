@@ -67,6 +67,7 @@ const run: InspectionRunView = {
   completedAt: '2026-09-11T00:01:00Z',
   errorCode: null,
   reviewVersion: 0,
+  feedback: null,
   prediction: {
     status: 'PROBLEMS',
     summary: 'Ганчірки: 2',
@@ -201,12 +202,18 @@ describe('photo inspection form and geometry', () => {
     editor.setNotAssessable(true);
     expect(reviewChanges(editor.store.getState()).fields).toContain('status');
   });
-  it('gives every object type a stable color and leaves unnamed regions white', () => {
-    expect(objectColor(RAG)).toBe(objectColor(RAG));
-    expect(objectColor(null, 'Broom')).toBe(objectColor(null, ' broom '));
-    expect(objectColor(null)).toBe(UNNAMED_COLOR);
-    expect(objectColor(RAG)).not.toBe(UNNAMED_COLOR);
+  it('gives every checklist object its own color, others a stable fallback, unnamed regions white', () => {
+    const rules = ['a', 'b', 'c'].map((n) => ({
+      objectId: `40000000-0000-4000-8000-00000000000${n}`,
+    }));
+    const colors = rules.map((rule) => objectColor(rule.objectId, undefined, rules));
+    expect(new Set(colors).size).toBe(3);
+    expect(objectColor(RAG, undefined, view.rules)).toBe(objectColor(RAG, undefined, view.rules));
+    expect(objectColor(null, 'Broom', rules)).toBe(objectColor(null, ' broom ', rules));
+    expect(colors).not.toContain(objectColor(null, 'Broom', rules));
+    expect(objectColor(null, undefined, rules)).toBe(UNNAMED_COLOR);
   });
+
   it('records rejected findings with a reason, hides them from the list and restores them', () => {
     const editor = new InspectionEditor({ ...view, runs: [run] });
     editor.rejectSuggestion(run, 1, 'NOT_PRESENT');

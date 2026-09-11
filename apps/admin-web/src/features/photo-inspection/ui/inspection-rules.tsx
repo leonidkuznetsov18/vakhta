@@ -28,7 +28,7 @@ export function InspectionRules({ rules }: { rules: readonly ChecklistPhotoRuleV
             {rules.map((rule) => (
               <li key={rule.objectId}>
                 <strong className="inline-flex items-center gap-2">
-                  <ObjectSwatch objectId={rule.objectId} />
+                  <ObjectSwatch objectId={rule.objectId} rules={rules} />
                   {rule.name}
                 </strong>
                 {rule.note && (

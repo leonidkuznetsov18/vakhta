@@ -1,6 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { asc, eq, photoObjects, sql, type Database, type DbOrTx } from '@vakhta/db';
-import { CreatePhotoObject, PhotoObjectsView, PhotoObjectView } from '@vakhta/contracts';
+import {
+  CreatePhotoObject,
+  PhotoObjectsView,
+  PhotoObjectView,
+  photoObjectKey,
+} from '@vakhta/contracts';
 import { HANDOVER_REVIEW_ROLES } from '@vakhta/domain';
 import { DATABASE } from '../infra/database.module.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -34,10 +39,9 @@ export class PhotoObjectsService {
     if (!canEditPhotoObjects(user))
       throw new DomainError('INSPECTION_FORBIDDEN', 403, 'Only reviewers can add objects');
     return this.db.transaction(async (tx) => {
-      const [existing] = await tx
-        .select()
-        .from(photoObjects)
-        .where(sql`lower(${photoObjects.name}) = lower(${name})`);
+      const existing = (await tx.select().from(photoObjects)).find(
+        (object) => photoObjectKey(object.name) === photoObjectKey(name),
+      );
       if (existing) {
         if (!existing.active)
           await tx

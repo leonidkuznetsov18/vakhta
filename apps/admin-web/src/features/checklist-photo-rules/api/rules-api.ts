@@ -6,21 +6,16 @@ import {
   SaveChecklistPhotoRules,
 } from '@vakhta/contracts';
 import { apiFetch } from '@/api';
-export const rulesKey = (definitionId: string, zoneId: string) => [
-  'checklist-photo-rules',
-  definitionId,
-  zoneId,
-];
+export const rulesKey = (definitionId: string) => ['checklist-photo-rules', definitionId];
 export const photoObjectsKey = ['photo-objects'];
-const path = (definitionId: string, zoneId: string) =>
-  `/admin/checklists/${definitionId}/zones/${zoneId}/photo-rules`;
+const path = (definitionId: string) => `/admin/checklists/${definitionId}/photo-rules`;
 export const rulesApi = {
-  async get(definitionId: string, zoneId: string, signal: AbortSignal) {
-    return ChecklistPhotoRulesView.parse(await apiFetch(path(definitionId, zoneId), { signal }));
+  async get(definitionId: string, signal: AbortSignal) {
+    return ChecklistPhotoRulesView.parse(await apiFetch(path(definitionId), { signal }));
   },
-  async save(definitionId: string, zoneId: string, input: SaveChecklistPhotoRules) {
+  async save(definitionId: string, input: SaveChecklistPhotoRules) {
     return ChecklistPhotoRulesView.parse(
-      await apiFetch(path(definitionId, zoneId), {
+      await apiFetch(path(definitionId), {
         method: 'PUT',
         body: JSON.stringify(SaveChecklistPhotoRules.parse(input)),
       }),

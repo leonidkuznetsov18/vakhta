@@ -14,6 +14,7 @@ import {
   checklistDefinitions,
   mediaObjects,
   photoInspections,
+  photoInspectionFeedback,
   photoInspectionRevisions,
   photoInspectionRuns,
   responsibilityZones,
@@ -33,6 +34,7 @@ import {
   InspectionReviewInput,
   InspectionRules,
   PhotoInspectionView,
+  SaveRunFeedback,
   type RequestInspectionAnalysis,
   type SaveInspection,
 } from '@vakhta/contracts';
@@ -184,15 +186,26 @@ export class PhotoInspectionService {
     const [row] = await this.db.select().from(photoInspections).where(identityWhere(id));
     const runs = row
       ? await this.db
-          .select()
+          .select({
+            run: photoInspectionRuns,
+            feedback: {
+              rating: photoInspectionFeedback.rating,
+              comment: photoInspectionFeedback.comment,
+            },
+          })
           .from(photoInspectionRuns)
+          .leftJoin(
+            photoInspectionFeedback,
+            and(
+              eq(photoInspectionFeedback.runId, photoInspectionRuns.id),
+              eq(photoInspectionFeedback.actorId, user.id),
+            ),
+          )
           .where(eq(photoInspectionRuns.inspectionId, row.id))
           .orderBy(desc(photoInspectionRuns.requestedAt))
           .limit(10)
       : [];
-    const rules = source.context.zoneId
-      ? (await loadPhotoRules(this.db, source.familyId, source.context.zoneId)).rules
-      : [];
+    const rules = (await loadPhotoRules(this.db, source.familyId)).rules;
     return PhotoInspectionView.parse({
       rules,
       context: row?.context ?? source.context,
@@ -201,10 +214,11 @@ export class PhotoInspectionService {
       review: row?.review ?? EMPTY_REVIEW,
       updatedBy: row?.updatedBy ?? null,
       updatedAt: row?.updatedAt?.toISOString() ?? null,
-      runs: runs.map((run) => ({
+      runs: runs.map(({ run, feedback }) => ({
         ...run,
         requestedAt: run.requestedAt.toISOString(),
         completedAt: run.completedAt?.toISOString() ?? null,
+        feedback: feedback?.rating ? { rating: feedback.rating, comment: feedback.comment } : null,
       })),
     });
   }
@@ -364,11 +378,8 @@ export class PhotoInspectionService {
         );
       if (pending)
         throw new DomainError('INSPECTION_PENDING', 409, 'Another analysis is already pending');
-      // The model only ever searches for what the checklist form names for this zone.
-      const context = InspectionContext.parse(row.context);
-      const rules = context.zoneId
-        ? (await loadPhotoRules(tx, familyId, context.zoneId)).rules
-        : [];
+      // The model only ever searches for what the checklist form names.
+      const rules = (await loadPhotoRules(tx, familyId)).rules;
       const snapshot = InspectionRules.safeParse(rules);
       if (!snapshot.success)
         throw new DomainError(
@@ -406,6 +417,57 @@ export class PhotoInspectionService {
         objectType: 'photo_inspection',
         objectId: row.id,
         after: { runId: input.requestId, model: INSPECTION_MODEL },
+      });
+    });
+    return this.get(id, user);
+  }
+
+  /** One rating per reviewer and run; a second opinion replaces the first. Never touches the review. */
+  async rateRun(
+    id: InspectionIdentity,
+    runId: string,
+    input: SaveRunFeedback,
+    user: WebUser,
+  ): Promise<PhotoInspectionView> {
+    const feedback = SaveRunFeedback.parse(input);
+    await this.db.transaction(async (tx) => {
+      await this.source(tx, id, user, true);
+      const [row] = await tx
+        .select({ id: photoInspections.id })
+        .from(photoInspections)
+        .where(identityWhere(id));
+      const [run] = row
+        ? await tx
+            .select({ id: photoInspectionRuns.id, status: photoInspectionRuns.status })
+            .from(photoInspectionRuns)
+            .where(
+              and(eq(photoInspectionRuns.id, runId), eq(photoInspectionRuns.inspectionId, row.id)),
+            )
+        : [];
+      if (!run || run.status === 'PENDING')
+        throw new DomainError(
+          'INSPECTION_INVALID_SOURCE',
+          422,
+          'Rate a finished run of this photo',
+        );
+      const values = {
+        rating: feedback.rating,
+        comment: feedback.comment || null,
+        updatedAt: new Date(),
+      };
+      await tx
+        .insert(photoInspectionFeedback)
+        .values({ runId, actorId: user.id, ...values })
+        .onConflictDoUpdate({
+          target: [photoInspectionFeedback.runId, photoInspectionFeedback.actorId],
+          set: values,
+        });
+      await this.audit.record(tx, {
+        actor: webUserActor(user),
+        action: 'photo_inspection.rate_run',
+        objectType: 'photo_inspection_run',
+        objectId: runId,
+        after: { rating: feedback.rating },
       });
     });
     return this.get(id, user);

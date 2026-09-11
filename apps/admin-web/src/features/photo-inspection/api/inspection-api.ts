@@ -4,6 +4,7 @@ import {
   PhotoObjectsView,
   MediaLinkView,
   type SaveInspection,
+  type SaveRunFeedback,
   type RequestInspectionAnalysis,
 } from '@vakhta/contracts';
 import { apiFetch } from '@/api';
@@ -48,6 +49,14 @@ export const inspectionApi = {
   async analyze(id: InspectionIdentity, data: RequestInspectionAnalysis) {
     return PhotoInspectionView.parse(
       await apiFetch(`${path(id)}/analyze`, { method: 'POST', body: JSON.stringify(data) }),
+    );
+  },
+  async rateRun(id: InspectionIdentity, runId: string, data: SaveRunFeedback) {
+    return PhotoInspectionView.parse(
+      await apiFetch(`${path(id)}/runs/${runId}/feedback`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     );
   },
   export(id: InspectionIdentity) {

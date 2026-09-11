@@ -253,6 +253,27 @@
       "when": 1789123069905,
       "tag": "0035_photo_object_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1789127732098,
+      "tag": "0036_photo_inspection_feedback",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1789127893773,
+      "tag": "0037_photo_object_spelling_families",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1789128079273,
+      "tag": "0038_checklist_photo_rules_per_checklist",
+      "breakpoints": true
     }
   ]
 }

@@ -24,21 +24,24 @@ export function AnalyzeButton({
 }) {
   const t = messages(currentLocale()).photoInspection;
   return (
-    <IconButton
-      icon={WandSparklesIcon}
-      label={t.analyze}
-      tooltip={loading ? t.aiPending : (disabledReason ?? t.analyzeHint)}
-      variant="outline"
-      className="relative"
-      disabled={disabled || loading || disabledReason !== null}
-      aria-busy={loading}
-      onClick={onAnalyze}
-    >
-      {loading ? <LoadingState label={t.aiPending} /> : t.analyze}
+    // The burst lives beside the button, not inside it: a button that turns disabled (while a save
+    // runs) is re-mounted by IconButton, and a burst inside it would play again for no reason.
+    <span className="relative inline-flex">
+      <IconButton
+        icon={WandSparklesIcon}
+        label={t.analyze}
+        tooltip={loading ? t.aiPending : (disabledReason ?? t.analyzeHint)}
+        variant="outline"
+        disabled={disabled || loading || disabledReason !== null}
+        aria-busy={loading}
+        onClick={onAnalyze}
+      >
+        {loading ? <LoadingState label={t.aiPending} /> : t.analyze}
+      </IconButton>
       {/* The wand's own tip: the icon sits at the button's start, and the sparks leave from there. */}
       {finished !== null && !loading && (
         <SparkleBurst key={finished} className="top-[10px] left-[24px]" />
       )}
-    </IconButton>
+    </span>
   );
 }

@@ -5,7 +5,6 @@ import { messages } from '@vakhta/i18n';
 import { PlusIcon, SaveIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { InfoTip } from '@/components/app/info-tip';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { IconButton } from '@/shared/ui/icon-button';
@@ -18,50 +17,22 @@ import { catalogChoices, rulesDraft, rulesDraftState, toggleRule } from '../mode
 import { RuleField } from './rule-field';
 
 const t = messages(currentLocale()).checklistPhotoRules;
-interface Zone {
-  id: string;
-  name: string;
-}
-export function ChecklistPhotoRules({
-  definitionId,
-  zones,
-}: {
-  definitionId: string;
-  zones: readonly Zone[];
-}) {
-  const [selected, setSelected] = useState('');
-  const zoneId = zones.length === 1 ? (zones[0]?.id ?? '') : selected;
+/** One object list per checklist; it is shown as saved the moment the checklist is expanded. */
+export function ChecklistPhotoRules({ definitionId }: { definitionId: string }) {
   return (
     <section className="flex min-w-0 flex-col gap-3 rounded-md border p-3">
       <h3 className="flex items-center gap-2 text-sm font-semibold">
         {t.title}
         <InfoTip text={t.hint} />
       </h3>
-      <label className="flex flex-col gap-2 text-sm">
-        {t.zone}
-        <NativeSelect
-          value={zoneId}
-          onChange={(e) => setSelected(e.target.value)}
-          disabled={zones.length === 1}
-        >
-          <NativeSelectOption value="">{t.choose}</NativeSelectOption>
-          {zones.map((zone) => (
-            <NativeSelectOption key={zone.id} value={zone.id}>
-              {zone.name}
-            </NativeSelectOption>
-          ))}
-        </NativeSelect>
-      </label>
-      {zoneId && (
-        <RulesQuery key={`${definitionId}:${zoneId}`} definitionId={definitionId} zoneId={zoneId} />
-      )}
+      <RulesQuery definitionId={definitionId} />
     </section>
   );
 }
-function RulesQuery({ definitionId, zoneId }: { definitionId: string; zoneId: string }) {
+function RulesQuery({ definitionId }: { definitionId: string }) {
   const query = useQuery({
-    queryKey: rulesKey(definitionId, zoneId),
-    queryFn: ({ signal }) => rulesApi.get(definitionId, zoneId, signal),
+    queryKey: rulesKey(definitionId),
+    queryFn: ({ signal }) => rulesApi.get(definitionId, signal),
   });
   const objects = useQuery({
     queryKey: photoObjectsKey,
@@ -74,7 +45,6 @@ function RulesQuery({ definitionId, zoneId }: { definitionId: string; zoneId: st
       {query.data && objects.data && (
         <RulesEditor
           definitionId={definitionId}
-          zoneId={zoneId}
           initial={query.data}
           objects={objects.data.objects}
           canCreate={objects.data.canEdit}
@@ -85,13 +55,11 @@ function RulesQuery({ definitionId, zoneId }: { definitionId: string; zoneId: st
 }
 function RulesEditor({
   definitionId,
-  zoneId,
   initial,
   objects,
   canCreate,
 }: {
   definitionId: string;
-  zoneId: string;
   initial: ChecklistPhotoRulesView;
   objects: readonly PhotoObjectView[];
   canCreate: boolean;
@@ -111,11 +79,11 @@ function RulesEditor({
     setDraft(rulesDraft(view));
   };
   const mutation = useMutation({
-    mutationFn: () => rulesApi.save(definitionId, zoneId, { version: saved.version, ...payload }),
+    mutationFn: () => rulesApi.save(definitionId, { version: saved.version, ...payload }),
     retry: false,
     onSuccess: (view) => {
       apply(view);
-      client.setQueryData(rulesKey(definitionId, zoneId), view);
+      client.setQueryData(rulesKey(definitionId), view);
     },
   });
   const create = useMutation({

@@ -11,7 +11,6 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { responsibilityZones } from './org.js';
 import { checklistDefinitions, handoverRecords, mediaObjects } from './handover.js';
 
 export const photoInspections = pgTable(
@@ -107,12 +106,15 @@ export const photoObjects = pgTable(
     updatedBy: text('updated_by').notNull(),
   },
   (t) => [
-    uniqueIndex('photo_objects_name_uq').on(sql`lower(${t.name})`),
+    // Mirrors photoObjectKey in @vakhta/contracts: one entry per spelling family.
+    uniqueIndex('photo_objects_key_uq')
+      .on(sql`regexp_replace(lower(trim(${t.name})), '[аяиіыуюеє]$', '')`)
+      .where(sql`${t.active}`),
     check('photo_objects_name_valid', sql`length(trim(${t.name})) BETWEEN 1 AND 100`),
   ],
 );
 
-/** Zone-specific rules shared by versions of one checklist; each AI run snapshots its instructions. */
+/** The object list of one checklist family, shared by all its versions and zones; each AI run snapshots it. */
 export const checklistPhotoRules = pgTable(
   'checklist_photo_rules',
   {
@@ -121,9 +123,6 @@ export const checklistPhotoRules = pgTable(
     definitionId: uuid('definition_id')
       .notNull()
       .references(() => checklistDefinitions.id, { onDelete: 'cascade' }),
-    zoneId: uuid('zone_id')
-      .notNull()
-      .references(() => responsibilityZones.id),
     /** PhotoRule[]: catalog object ids with optional notes. */
     rules: jsonb('rules').$type<unknown>().notNull().default([]),
     version: integer('version').notNull().default(1),
@@ -131,11 +130,38 @@ export const checklistPhotoRules = pgTable(
     updatedBy: text('updated_by').notNull(),
   },
   (t) => [
-    uniqueIndex('checklist_photo_rules_family_zone_uq').on(t.familyId, t.zoneId),
+    uniqueIndex('checklist_photo_rules_family_uq').on(t.familyId),
     check('checklist_photo_rules_version_valid', sql`${t.version} > 0`),
     check(
       'checklist_photo_rules_rules_valid',
       sql`jsonb_typeof(${t.rules}) = 'array' and jsonb_array_length(${t.rules}) <= 30`,
+    ),
+  ],
+);
+
+/** One reviewer's verdict on whether an analysis run helped: the usefulness signal per run and zone. */
+export const photoInspectionFeedback = pgTable(
+  'photo_inspection_feedback',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => photoInspectionRuns.id),
+    actorId: text('actor_id').notNull(),
+    rating: text('rating', { enum: ['HELPFUL', 'PARTIAL', 'NOT_HELPFUL'] }).notNull(),
+    comment: text('comment'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('photo_inspection_feedback_run_actor_uq').on(t.runId, t.actorId),
+    check(
+      'photo_inspection_feedback_rating_valid',
+      sql`${t.rating} IN ('HELPFUL', 'PARTIAL', 'NOT_HELPFUL')`,
+    ),
+    check(
+      'photo_inspection_feedback_comment_valid',
+      sql`${t.comment} IS NULL OR length(${t.comment}) <= 500`,
     ),
   ],
 );

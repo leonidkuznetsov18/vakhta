@@ -118,7 +118,6 @@ describe('photo inspection persistence and access', () => {
     await db.insert(checklistPhotoRules).values({
       definitionId,
       familyId,
-      zoneId,
       rules: [{ objectId: RAG_ID, note: '' }],
       updatedBy: 'test',
     });
@@ -503,27 +502,17 @@ describe('photo inspection persistence and access', () => {
       });
     }
   });
-  it('isolates checklist rules by zone, enforces scope, catalog identity and optimistic concurrency', async () => {
+  it('keeps one object list per checklist family, enforces roles, catalog identity and optimistic concurrency', async () => {
     const db = fixture.db;
     const rules = new ChecklistPhotoRulesService(db, new AuditLog());
     const [report] = await db.select().from(handoverRecords);
-    const [zone] = await db.select().from(responsibilityZones);
-    if (!report || !zone) throw new Error('Missing fixture');
-    const otherZoneId = randomUUID();
-    await db.insert(responsibilityZones).values({
-      id: otherZoneId,
-      siteId: zone.siteId,
-      orgUnitId: zone.orgUnitId,
-      code: 'other',
-      name: 'Other',
-    });
+    if (!report) throw new Error('Missing fixture');
     const scoped: WebUser = {
       ...master,
-      grants: [{ role: 'SHIFT_MASTER', scopeType: 'ZONE', scopeId: zone.id }],
+      grants: [{ role: 'SHIFT_MASTER', scopeType: 'ZONE', scopeId: randomUUID() }],
     };
     const saved = await rules.save(
       report.checklistDefinitionId,
-      zone.id,
       {
         version: 1,
         rules: [
@@ -541,22 +530,25 @@ describe('photo inspection persistence and access', () => {
         { objectId: CUP_ID, name: 'Стаканчики', note: 'Стаканчики у гніздах машини є продукцією' },
       ],
     });
-    expect((await service.get(id, scoped)).rules).toEqual(saved.rules);
-    expect((await rules.get(report.checklistDefinitionId, otherZoneId, master)).rules).toEqual([]);
+    expect((await service.get(id, master)).rules).toEqual(saved.rules);
+    const viewer: WebUser = {
+      ...master,
+      grants: [{ role: 'HR', scopeType: 'ENTERPRISE', scopeId: null }],
+    };
+    expect((await rules.get(report.checklistDefinitionId, viewer)).canEdit).toBe(false);
     const cup = { objectId: CUP_ID, note: '' };
     await expect(
-      rules.save(report.checklistDefinitionId, otherZoneId, { version: 0, rules: [cup] }, scoped),
+      rules.save(report.checklistDefinitionId, { version: 2, rules: [cup] }, viewer),
     ).rejects.toMatchObject({ code: 'INSPECTION_FORBIDDEN' });
     await expect(
-      rules.save(report.checklistDefinitionId, zone.id, { version: 0, rules: [cup] }, scoped),
+      rules.save(report.checklistDefinitionId, { version: 0, rules: [cup] }, scoped),
     ).rejects.toMatchObject({ code: 'INSPECTION_CONFLICT' });
     await expect(
-      rules.save(report.checklistDefinitionId, zone.id, { version: 2, rules: [cup, cup] }, scoped),
+      rules.save(report.checklistDefinitionId, { version: 2, rules: [cup, cup] }, scoped),
     ).rejects.toThrow();
     await expect(
       rules.save(
         report.checklistDefinitionId,
-        zone.id,
         { version: 2, rules: [{ objectId: randomUUID(), note: '' }] },
         scoped,
       ),
@@ -622,6 +614,25 @@ describe('photo inspection persistence and access', () => {
     ).rejects.toMatchObject({ code: 'INSPECTION_INVALID_SOURCE' });
     const saved = await service.save(id, { version: 0, review, durationMs: 4200 }, master);
     expect(saved.review).toEqual(review);
+    // The usefulness verdict is per reviewer and run; a second answer replaces the first.
+    await expect(
+      service.rateRun(id, randomUUID(), { rating: 'HELPFUL' }, master),
+    ).rejects.toMatchObject({ code: 'INSPECTION_INVALID_SOURCE' });
+    expect(
+      (await service.rateRun(id, run.id, { rating: 'PARTIAL' }, master)).runs[0]?.feedback,
+    ).toEqual({
+      rating: 'PARTIAL',
+      comment: null,
+    });
+    const rated = await service.rateRun(
+      id,
+      run.id,
+      { rating: 'HELPFUL', comment: 'Missed the cup' },
+      master,
+    );
+    expect(rated.runs[0]?.feedback).toEqual({ rating: 'HELPFUL', comment: 'Missed the cup' });
+    expect((await service.get(id, { ...master, id: randomUUID() })).runs[0]?.feedback).toBeNull();
+    expect(rated.review).toEqual(review);
     expect((await fixture.db.select().from(photoInspectionRevisions))[0]?.durationMs).toBe(4200);
     expect(await fixture.db.select().from(photoInspectionRevisions)).toHaveLength(1);
   });

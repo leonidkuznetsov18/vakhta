@@ -67,7 +67,8 @@ const view = PhotoInspectionView.parse({
 });
 it('accepts, rejects with a reason and restores suggestions while announcing completion', () => {
   const editor = new InspectionEditor(view);
-  render(<PredictionPanel latest={view} editor={editor} disabled={false} />);
+  const onRate = vi.fn();
+  render(<PredictionPanel latest={view} editor={editor} disabled={false} onRate={onRate} />);
   expect(screen.getByText(`${t.aiSummary}: 2 (Rags: 2)`)).toBeTruthy();
   fireEvent.click(screen.getAllByRole('button', { name: t.accept })[0] ?? fail());
   expect(screen.queryByText('Rags — rag left')).toBeNull();
@@ -90,6 +91,37 @@ it('accepts, rejects with a reason and restores suggestions while announcing com
   });
   expect(screen.getAllByRole('button', { name: t.accept })).toHaveLength(2);
 });
+it('asks whether AI helped and reports the chosen rating for this run', () => {
+  const onRate = vi.fn();
+  render(
+    <PredictionPanel
+      latest={view}
+      editor={new InspectionEditor(view)}
+      disabled={false}
+      onRate={onRate}
+    />,
+  );
+  fireEvent.click(screen.getByRole('radio', { name: t.feedbackRatings.PARTIAL }));
+  expect(onRate).toHaveBeenCalledWith(view.runs[0]!.id, 'PARTIAL');
+  expect(screen.queryByText(t.feedbackSaved)).toBeNull();
+  const rated = {
+    ...view,
+    runs: [{ ...view.runs[0]!, feedback: { rating: 'HELPFUL' as const, comment: null } }],
+  };
+  cleanup();
+  render(
+    <PredictionPanel
+      latest={rated}
+      editor={new InspectionEditor(rated)}
+      disabled={false}
+      onRate={onRate}
+    />,
+  );
+  expect(
+    screen.getByRole('radio', { name: t.feedbackRatings.HELPFUL }).getAttribute('aria-checked'),
+  ).toBe('true');
+  expect(screen.getByText(t.feedbackSaved)).toBeTruthy();
+});
 it('explains a missing object list instead of a generic failure', () => {
   const failed = {
     ...view,
@@ -98,7 +130,12 @@ it('explains a missing object list instead of a generic failure', () => {
     ],
   };
   render(
-    <PredictionPanel latest={failed} editor={new InspectionEditor(failed)} disabled={false} />,
+    <PredictionPanel
+      latest={failed}
+      editor={new InspectionEditor(failed)}
+      disabled={false}
+      onRate={vi.fn()}
+    />,
   );
   expect(screen.getByRole('alert').textContent).toBe(t.aiRulesMissing);
 });

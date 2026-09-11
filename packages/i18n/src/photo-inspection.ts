@@ -59,9 +59,9 @@ export const inspectionEn = {
   rulesReference: 'Inspection rules',
   ruleNote: 'Note',
   noProhibitedItems:
-    'No objects have been configured for this checklist and zone. Set them in the checklist to enable AI analysis.',
+    'No objects have been configured for this checklist. Set them in the checklist to enable AI analysis.',
   prohibitedItemsHint:
-    'This list is configured in the checklist for this zone. AI searches only for these objects.',
+    'This list is configured in the checklist. AI searches only for these objects.',
   validation: {
     geometry: 'Correct the region boundary on the photo.',
     names: 'Choose or name the object for regions:',
@@ -104,12 +104,17 @@ export const inspectionEn = {
   discard: 'Discard unsaved changes?',
   analyze: 'Analyze with AI',
   analyzeHint:
-    'Search the photo for the objects listed in the checklist for this zone and draw the boxes it finds. No save is needed; keep, correct or reject each box.',
+    'Search the photo for the objects listed in the checklist and draw the boxes it finds. No save is needed; keep, correct or reject each box.',
+  feedbackQuestion: 'Did AI help with this photo?',
+  feedbackHint:
+    'Your answer is stored with this analysis so we can measure how useful AI is per zone and object type. It does not change the review or any scores.',
+  feedbackRatings: { HELPFUL: 'Yes, found the objects', PARTIAL: 'Partly', NOT_HELPFUL: 'No' },
+  feedbackSaved: 'Thank you, your rating is saved.',
   aiTitle: 'AI suggestions — verify independently',
   aiPending: 'AI is analyzing the photo',
   aiFailed: 'AI did not complete the analysis. Retry or mark objects manually.',
   aiRulesMissing:
-    'AI analysis needs the object list for this checklist and zone. Configure it in the checklist settings.',
+    'AI analysis needs the object list of this checklist. Configure it in the checklist settings.',
   aiSummary: 'Objects found',
   aiNone:
     'AI found none of the listed objects. Inspect the photo yourself before saving it as clean.',
@@ -204,8 +209,8 @@ export const inspectionUk: PhotoInspectionMessages = {
   rulesReference: 'Правила перевірки',
   ruleNote: 'Уточнення',
   noProhibitedItems:
-    'Для цього чекліста й зони обʼєкти ще не налаштовані. Задайте їх у чеклісті, щоб увімкнути аналіз з AI.',
-  prohibitedItemsHint: 'Список налаштований у чеклісті для цієї зони. AI шукає лише ці обʼєкти.',
+    'Для цього чекліста обʼєкти ще не налаштовані. Задайте їх у чеклісті, щоб увімкнути аналіз з AI.',
+  prohibitedItemsHint: 'Список налаштований у чеклісті. AI шукає лише ці обʼєкти.',
   validation: {
     geometry: 'Виправте межі області на фото.',
     names: 'Оберіть або назвіть обʼєкт для областей:',
@@ -248,12 +253,17 @@ export const inspectionUk: PhotoInspectionMessages = {
   discard: 'Відкинути незбережені зміни?',
   analyze: 'Аналізувати з AI',
   analyzeHint:
-    'Знайти на фото обʼєкти зі списку чекліста для цієї зони й одразу намалювати знайдені рамки. Збереження не потрібне; лишіть, виправте або відхиліть кожну рамку.',
+    'Знайти на фото обʼєкти зі списку чекліста й одразу намалювати знайдені рамки. Збереження не потрібне; лишіть, виправте або відхиліть кожну рамку.',
+  feedbackQuestion: 'Чи допоміг AI із цим фото?',
+  feedbackHint:
+    'Відповідь зберігається разом із цим аналізом, щоб міряти користь AI по зонах і типах обʼєктів. Вона не змінює перевірку і бали.',
+  feedbackRatings: { HELPFUL: 'Так, знайшов обʼєкти', PARTIAL: 'Частково', NOT_HELPFUL: 'Ні' },
+  feedbackSaved: 'Дякуємо, оцінку збережено.',
   aiTitle: 'Припущення AI — перевірте самостійно',
   aiPending: 'AI аналізує фото',
   aiFailed: 'AI не завершив аналіз. Спробуйте ще раз або позначте предмети вручну.',
   aiRulesMissing:
-    'Для аналізу з AI потрібен список обʼєктів цього чекліста й зони. Налаштуйте його в чеклісті.',
+    'Для аналізу з AI потрібен список обʼєктів цього чекліста. Налаштуйте його в чеклісті.',
   aiSummary: 'Знайдено обʼєктів',
   aiNone:
     'AI не знайшов жодного обʼєкта зі списку. Огляньте фото самі, перш ніж зберегти його як чисте.',
@@ -348,8 +358,8 @@ export const inspectionRu: PhotoInspectionMessages = {
   rulesReference: 'Правила проверки',
   ruleNote: 'Уточнение',
   noProhibitedItems:
-    'Для этого чек-листа и зоны объекты ещё не настроены. Задайте их в чек-листе, чтобы включить анализ с AI.',
-  prohibitedItemsHint: 'Список настроен в чек-листе для этой зоны. AI ищет только эти объекты.',
+    'Для этого чек-листа объекты ещё не настроены. Задайте их в чек-листе, чтобы включить анализ с AI.',
+  prohibitedItemsHint: 'Список настроен в чек-листе. AI ищет только эти объекты.',
   validation: {
     geometry: 'Исправьте границы области на фото.',
     names: 'Выберите или назовите объект для областей:',
@@ -394,12 +404,17 @@ export const inspectionRu: PhotoInspectionMessages = {
   discard: 'Отменить несохранённые изменения?',
   analyze: 'Анализировать с AI',
   analyzeHint:
-    'Найти на фото объекты из списка чек-листа для этой зоны и сразу нарисовать найденные рамки. Сохранение не требуется; оставьте, исправьте или отклоните каждую рамку.',
+    'Найти на фото объекты из списка чек-листа и сразу нарисовать найденные рамки. Сохранение не требуется; оставьте, исправьте или отклоните каждую рамку.',
+  feedbackQuestion: 'Помог ли AI с этим фото?',
+  feedbackHint:
+    'Ответ сохраняется вместе с этим анализом, чтобы измерять пользу AI по зонам и типам объектов. Он не меняет проверку и баллы.',
+  feedbackRatings: { HELPFUL: 'Да, нашёл объекты', PARTIAL: 'Частично', NOT_HELPFUL: 'Нет' },
+  feedbackSaved: 'Спасибо, оценка сохранена.',
   aiTitle: 'Предположения AI — проверьте самостоятельно',
   aiPending: 'AI анализирует фото',
   aiFailed: 'AI не завершил анализ. Попробуйте ещё раз или отметьте предметы вручную.',
   aiRulesMissing:
-    'Для анализа с AI нужен список объектов этого чек-листа и зоны. Настройте его в чек-листе.',
+    'Для анализа с AI нужен список объектов этого чек-листа. Настройте его в чек-листе.',
   aiSummary: 'Найдено объектов',
   aiNone:
     'AI не нашёл ни одного объекта из списка. Осмотрите фото сами, прежде чем сохранить его как чистое.',

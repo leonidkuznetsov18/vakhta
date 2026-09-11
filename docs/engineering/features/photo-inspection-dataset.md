@@ -691,3 +691,26 @@ reasons and notes are meant to capture. Guides regenerated in three languages.
 Follow-ups the same afternoon: Save changes is enabled only when the draft differs from the saved
 review (a never-saved photo needs at least one reviewer action before it can be stored), and the
 per-region coordinate fields are hidden; boxes are adjusted on the photo. 63 focused panel tests pass.
+
+## Usefulness rating, spelling families, checklist-level rules, stable runs — 2026-09-11
+
+Owner requests after using v0.87.0. (1) `photo_inspection_feedback` (migration 0036) stores one
+HELPFUL / PARTIAL / NOT_HELPFUL answer per run and reviewer through `POST …/inspection/runs/:runId/
+feedback`; the run view carries the current reviewer's rating and the AI panel shows three toggle
+buttons. (2) Catalog names that differ only by case, spaces or a final vowel are one spelling family:
+`photoObjectKey` in contracts and the partial unique index `photo_objects_key_uq` enforce the same
+rule; migration 0037 merges existing duplicates, preferring the spelling without a plural ending,
+remaps rules and current reviews and deactivates the rest. Verified on seeded duplicates in a
+throwaway database. (3) Rules belong to the checklist family only (migration 0038 merges the zone
+rows of a family, drops `zone_id`); the form shows the saved list as soon as the checklist expands
+and no longer asks for a zone; any reviewer role maintains it. (4) The analyzer now runs every
+object type in the second pass, not only the missing ones, with temperature 0 and a fixed seed;
+three consecutive runs on the reference photo agreed on both rags and both cups, one run added the
+grey cloth (14–30 s, 16 calls). (5) Object colors follow list position in the checklist rules, so no
+two checklist objects share a color; the burst animation moved beside the Analyze button so a save
+no longer replays it; the verdict toggle wraps on phones.
+
+Verification: API photo-inspection and checklist suites 25 (catalog service 2, feedback in the
+dataset test), panel 79 across inspection, rules, handover and admin, worker 9, i18n 10; typecheck
+and focused lint; guides regenerated. Local stand: rules form without a zone selector, colored boxes,
+feedback buttons and the stacked editor were inspected at 1365 px and 375 px.

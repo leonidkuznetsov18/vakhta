@@ -6,7 +6,6 @@ import {
   eq,
   inArray,
   photoObjects,
-  responsibilityZones,
   sql,
   type Database,
   type DbOrTx,
@@ -18,23 +17,23 @@ import {
   type ChecklistPhotoRuleView,
 } from '@vakhta/contracts';
 import { z } from 'zod';
-import { canActOn, HANDOVER_REVIEW_ROLES } from '@vakhta/domain';
+import { HANDOVER_REVIEW_ROLES } from '@vakhta/domain';
 import { DATABASE } from '../infra/database.module.js';
 import { AuditLog } from '../events/audit-log.js';
 import { type WebUser, webUserActor } from '../auth/web-auth.guard.js';
 import { DomainError } from '../common/domain-error.js';
 
 const StoredRules = z.array(PhotoRule);
-/** Current rules of one checklist family in one zone, with catalog names resolved. */
+const VIEWER_ROLES = [...HANDOVER_REVIEW_ROLES, 'AUDITOR', 'HR'] as const;
+/** Current rules of one checklist family, with catalog names resolved. */
 export async function loadPhotoRules(
   db: DbOrTx,
   familyId: string,
-  zoneId: string,
 ): Promise<{ version: number; rules: ChecklistPhotoRuleView[] }> {
   const [row] = await db
     .select()
     .from(checklistPhotoRules)
-    .where(and(eq(checklistPhotoRules.familyId, familyId), eq(checklistPhotoRules.zoneId, zoneId)));
+    .where(eq(checklistPhotoRules.familyId, familyId));
   const stored = StoredRules.parse(row?.rules ?? []);
   const objects = stored.length
     ? await db
@@ -57,51 +56,42 @@ export async function loadPhotoRules(
   };
 }
 
+/** A checklist is not bound to one site or zone; any reviewer role may maintain its object list. */
 @Injectable()
 export class ChecklistPhotoRulesService {
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     private readonly audit: AuditLog,
   ) {}
-  private async source(definitionId: string, zoneId: string, user: WebUser, write = false) {
+  private async source(definitionId: string, user: WebUser, write = false) {
     const [definition] = await this.db
       .select()
       .from(checklistDefinitions)
       .where(eq(checklistDefinitions.id, definitionId));
-    const [zone] = await this.db
-      .select()
-      .from(responsibilityZones)
-      .where(eq(responsibilityZones.id, zoneId));
-    if (!definition || !zone)
-      throw new DomainError('NOT_FOUND', 404, 'Checklist or zone not found');
-    const target = { siteId: zone.siteId, orgUnitId: zone.orgUnitId, zoneId };
-    if (
-      !canActOn(
-        user.grants,
-        write ? HANDOVER_REVIEW_ROLES : [...HANDOVER_REVIEW_ROLES, 'AUDITOR', 'HR'],
-        target,
-      )
-    )
-      throw new DomainError('INSPECTION_FORBIDDEN', 403, 'Zone is outside your scope');
-    return { definition, canEdit: canActOn(user.grants, HANDOVER_REVIEW_ROLES, target) };
+    if (!definition) throw new DomainError('NOT_FOUND', 404, 'Checklist not found');
+    const canEdit = user.grants.some((grant) => HANDOVER_REVIEW_ROLES.includes(grant.role));
+    const canView = user.grants.some((grant) => VIEWER_ROLES.includes(grant.role));
+    if (write ? !canEdit : !canView)
+      throw new DomainError('INSPECTION_FORBIDDEN', 403, 'Checklist rules are outside your role');
+    return { definition, canEdit };
   }
-  async get(definitionId: string, zoneId: string, user: WebUser): Promise<ChecklistPhotoRulesView> {
-    const source = await this.source(definitionId, zoneId, user);
-    const loaded = await loadPhotoRules(this.db, source.definition.familyId, zoneId);
+  async get(definitionId: string, user: WebUser): Promise<ChecklistPhotoRulesView> {
+    const source = await this.source(definitionId, user);
+    const loaded = await loadPhotoRules(this.db, source.definition.familyId);
     return ChecklistPhotoRulesView.parse({ ...loaded, canEdit: source.canEdit });
   }
-  async save(definitionId: string, zoneId: string, input: SaveChecklistPhotoRules, user: WebUser) {
+  async save(definitionId: string, input: SaveChecklistPhotoRules, user: WebUser) {
     input = SaveChecklistPhotoRules.parse(input);
-    const source = await this.source(definitionId, zoneId, user, true);
+    const source = await this.source(definitionId, user, true);
     await this.db.transaction(async (tx) => {
       await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtextextended(${source.definition.familyId + ':' + zoneId}, 0))`,
+        sql`select pg_advisory_xact_lock(hashtextextended(${source.definition.familyId}, 0))`,
       );
-      const condition = and(
-        eq(checklistPhotoRules.familyId, source.definition.familyId),
-        eq(checklistPhotoRules.zoneId, zoneId),
-      );
-      const [row] = await tx.select().from(checklistPhotoRules).where(condition).for('update');
+      const [row] = await tx
+        .select()
+        .from(checklistPhotoRules)
+        .where(eq(checklistPhotoRules.familyId, source.definition.familyId))
+        .for('update');
       if ((row?.version ?? 0) !== input.version)
         throw new DomainError('INSPECTION_CONFLICT', 409, 'Rules changed; reload before saving');
       const known = input.rules.length
@@ -131,16 +121,16 @@ export class ChecklistPhotoRulesService {
       else
         await tx
           .insert(checklistPhotoRules)
-          .values({ ...values, definitionId, familyId: source.definition.familyId, zoneId });
+          .values({ ...values, definitionId, familyId: source.definition.familyId });
       await this.audit.record(tx, {
         actor: webUserActor(user),
         action: 'checklist.photo_rules.save',
         objectType: 'checklist',
         objectId: definitionId,
-        before: row ? { zoneId, rules: row.rules, version: row.version } : null,
-        after: { zoneId, ...values },
+        before: row ? { rules: row.rules, version: row.version } : null,
+        after: values,
       });
     });
-    return this.get(definitionId, zoneId, user);
+    return this.get(definitionId, user);
   }
 }

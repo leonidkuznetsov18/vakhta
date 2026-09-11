@@ -8,7 +8,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { RequestInspectionAnalysis, SaveInspection } from '@vakhta/contracts';
+import { RequestInspectionAnalysis, SaveInspection, SaveRunFeedback } from '@vakhta/contracts';
 import { CurrentUser, Roles, WebAuthGuard, type WebUser } from '../auth/web-auth.guard.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { PhotoInspectionService } from './photo-inspection.service.js';
@@ -65,6 +65,19 @@ export class PhotoInspectionController {
     @CurrentUser() user: WebUser,
   ) {
     return this.inspections.save({ handoverId, mediaId, itemKey }, body, user);
+  }
+  @Post('runs/:runId/feedback')
+  @HttpCode(200)
+  @Roles('ADMIN', 'PRODUCTION_HEAD', 'SHIFT_MASTER', 'CLEANLINESS_CONTROLLER')
+  rateRun(
+    @Param('handoverId', ParseUUIDPipe) handoverId: string,
+    @Param('mediaId', ParseUUIDPipe) mediaId: string,
+    @Param('itemKey') itemKey: string,
+    @Param('runId', ParseUUIDPipe) runId: string,
+    @Body(new ZodValidationPipe(SaveRunFeedback)) body: SaveRunFeedback,
+    @CurrentUser() user: WebUser,
+  ) {
+    return this.inspections.rateRun({ handoverId, mediaId, itemKey }, runId, body, user);
   }
   @Post('analyze')
   @HttpCode(200)

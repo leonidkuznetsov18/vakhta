@@ -199,7 +199,7 @@ describe('durable photo analysis', () => {
   });
   it('fails visibly when a run carries no checklist rules instead of guessing objects', async () => {
     // Run intent is immutable, so the fixture run is replaced by one admitted without rules.
-    await fixture.db.execute(sql`TRUNCATE photo_inspection_runs, background_tasks`);
+    await fixture.db.execute(sql`TRUNCATE photo_inspection_runs, background_tasks CASCADE`);
     const [inspection] = await fixture.db.select().from(photoInspections);
     const emptyRun = randomUUID();
     await fixture.db.insert(photoInspectionRuns).values({

@@ -121,21 +121,30 @@ AI training job or new approval process is introduced by this page.
 
 ## Checklist object rules and manual AI analysis
 
-Object types live in one shared catalog (`photo_objects`): one stable identity per spelling family,
-created inline by any reviewer from the checklist form. **Objects that must not appear in the photo**
-selects catalog objects for one checklist family and zone, with an optional note per object for the
-master and the model (appearance, placement, allowed cases; up to 300 characters). Rules survive a
-new checklist version, do not affect another zone, and keep scoped permissions, optimistic version
-checks and an audit trail. Up to 30 objects per zone.
+Object types live in one shared catalog (`photo_objects`): one entry per spelling family (case,
+spaces and a final vowel are ignored, so "Ганчірка" and "Ганчірки" are one entry), created inline by
+any reviewer from the checklist form. **Objects that must not appear in the photo** is one list per
+checklist family, shown as saved the moment the checklist is expanded, with no zone to choose. Each
+object may carry a note for the master and the model (appearance, placement, allowed cases; up to
+300 characters). Rules survive a new checklist version and keep optimistic version checks and an
+audit trail. Up to 30 objects per checklist.
 
 There is no automatic analysis stage and no Master Review status: a submitted report goes to the
 master as before, and the report decision never waits for photo reviews. AI runs only when a reviewer
 selects **Analyze with AI** in the photo editor. The request snapshots the current rules on the server;
 an empty list makes the button unavailable and the request fails with a clear message. The worker
 sends four overlapping quadrants of the upright photo to Gemma with a fixed instruction template plus
-the rule list as data, then asks again per object type nobody reported, merges duplicate boxes and
-returns one finding per instance with the matched catalog object. Findings remain unconfirmed
-suggestions; nothing is saved without the reviewer.
+the rule list as data, first with the whole list and then once per object type, with greedy decoding
+and a fixed seed, merges duplicate boxes across passes and tiles and returns one finding per instance
+with the matched catalog object. Findings remain unconfirmed suggestions; nothing is saved without
+the reviewer.
+
+## Was AI useful
+
+Under the AI suggestions the reviewer answers **Did AI help with this photo?** with one of three
+ratings: yes, partly, no. The answer is stored per run and reviewer (`photo_inspection_feedback`),
+never changes the review or any scores, and can be replaced by a later answer. It is the usefulness
+number the pilot is judged by, alongside rejected findings.
 
 ## Numbered region review
 
@@ -163,7 +172,7 @@ obstructed, wrong workplace, other with an explanation). A clean photo can be ma
 When the answer to this session's analysis arrives, every located finding is drawn on the photo at
 once as a region with its catalog object and the verdict Violation; the reviewer keeps, corrects or
 rejects boxes instead of adding them one by one. Suggestions from an earlier run remain in the AI
-panel for manual adding. Every object type has a stable color derived from its catalog id, used for
+panel for manual adding. Every object of the checklist list has its own vivid color by list position, used for
 the box, the number badge, the chip, the rule legend and the AI panel; unnamed regions are white and
 the selected region is outlined green.
 

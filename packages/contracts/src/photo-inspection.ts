@@ -208,6 +208,19 @@ export const InspectionPrediction = z
     'Compliant result cannot contain findings',
   );
 export type InspectionPrediction = z.infer<typeof InspectionPrediction>;
+/** Did this run help the reviewer? Recorded per run so usefulness can be read per zone and model version. */
+export const AiFeedbackRating = z.enum(['HELPFUL', 'PARTIAL', 'NOT_HELPFUL']);
+export type AiFeedbackRating = z.infer<typeof AiFeedbackRating>;
+export const SaveRunFeedback = z.object({
+  rating: AiFeedbackRating,
+  comment: z.string().trim().max(500).optional(),
+});
+export type SaveRunFeedback = z.infer<typeof SaveRunFeedback>;
+export const RunFeedbackView = z.object({
+  rating: AiFeedbackRating,
+  comment: z.string().nullable(),
+});
+export type RunFeedbackView = z.infer<typeof RunFeedbackView>;
 export const InspectionRunView = z.object({
   id: Uuid,
   status: z.enum(['PENDING', 'SUCCEEDED', 'FAILED']),
@@ -218,6 +231,8 @@ export const InspectionRunView = z.object({
   errorCode: z.string().nullable(),
   prediction: InspectionPrediction.nullable(),
   reviewVersion: z.number().int().nonnegative(),
+  /** The current reviewer's rating of this run, when given. */
+  feedback: RunFeedbackView.nullable().default(null),
 });
 export type InspectionRunView = z.infer<typeof InspectionRunView>;
 export const PhotoInspectionView = z.object({

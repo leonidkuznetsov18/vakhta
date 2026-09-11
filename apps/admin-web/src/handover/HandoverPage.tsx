@@ -239,11 +239,8 @@ export function HandoverPage() {
                 </p>
               )}
             </div>
-            {detail.handover.zoneId && isHandoverPending(detail.handover.status) && (
-              <ChecklistPhotoRules
-                definitionId={detail.handover.checklistDefinitionId}
-                zones={[{ id: detail.handover.zoneId, name: detail.handover.zoneName ?? '' }]}
-              />
+            {isHandoverPending(detail.handover.status) && (
+              <ChecklistPhotoRules definitionId={detail.handover.checklistDefinitionId} />
             )}
           </div>
           {detail.handover.items.some((item) => item.kind === 'NOTE' && item.answered) && (

@@ -76,7 +76,11 @@ export function RegionFields({
           disabled={busy}
           onClick={() => editor.select(annotation.id)}
         >
-          <ObjectSwatch objectId={annotation.objectId} objectName={annotation.objectName} />
+          <ObjectSwatch
+            objectId={annotation.objectId}
+            objectName={annotation.objectName}
+            rules={rules}
+          />
           {index + 1}. {t.region}
         </IconButton>
         <div className="flex items-center gap-1">
@@ -136,7 +140,7 @@ export function RegionFields({
                 aria-pressed={annotation.objectId === rule.objectId}
                 onClick={() => chooseObject(rule.objectId)}
               >
-                <ObjectSwatch objectId={rule.objectId} />
+                <ObjectSwatch objectId={rule.objectId} rules={rules} />
                 {rule.name}
               </Button>
             ))}
@@ -186,6 +190,7 @@ export function RegionFields({
           type="single"
           variant="outline"
           size="sm"
+          className="max-w-full flex-wrap"
           value={annotation.verdict}
           aria-label={t.verdict}
           onValueChange={(value) => {

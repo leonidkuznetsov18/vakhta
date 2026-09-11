@@ -10,7 +10,7 @@ export function RegionNumbers({ editor }: { editor: InspectionEditor }) {
         const selected = state.selected === annotation.id;
         const color = selected
           ? SELECTED_COLOR
-          : objectColor(annotation.objectId, annotation.objectName);
+          : objectColor(annotation.objectId, annotation.objectName, editor.initial.rules);
         return (
           <span
             key={annotation.id}

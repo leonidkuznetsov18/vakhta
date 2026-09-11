@@ -323,7 +323,7 @@ export function ChecklistsTab({ org }: Props) {
                     kind: item.kind,
                   }))}
                 />
-                <ChecklistPhotoRules definitionId={row.id} zones={org.zones} />
+                <ChecklistPhotoRules definitionId={row.id} />
               </div>
               <div className="flex flex-wrap gap-2 border-t pt-4">
                 {actions(row).map((action) => (

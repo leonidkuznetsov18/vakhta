@@ -70,6 +70,18 @@ it('scrolls the selected card inside its list and unsubscribes on unmount', () =
   vi.spyOn(list, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 100, 300, 100));
   vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 350, 300, 80));
   list.scrollTo = vi.fn();
+  card.scrollIntoView = vi.fn();
+  // Laid out in the page flow: the card asks its scrolling ancestor for the nearest position.
+  const flow = editor.attachRegionList(list);
+  editor.select('selected');
+  vi.runAllTimers();
+  expect(card.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', behavior: 'instant' });
+  expect(list.scrollTo).not.toHaveBeenCalled();
+  flow?.();
+  editor.select('other');
+  // A list that scrolls on its own moves only itself.
+  Object.defineProperty(list, 'scrollHeight', { value: 500 });
+  Object.defineProperty(list, 'clientHeight', { value: 100 });
   const cleanup = editor.attachRegionList(list);
   editor.select('selected');
   vi.runAllTimers();

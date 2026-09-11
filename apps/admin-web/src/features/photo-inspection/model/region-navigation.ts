@@ -11,7 +11,10 @@ export function regionAnchor(geometry: InspectionAnnotation['geometry']) {
       };
 }
 
-/** Scroll only the region list; keep the photo and the page in place. */
+/**
+ * Bring the selected card into view. A list that scrolls on its own moves only itself; a list laid
+ * out in the page flow (below the photo) asks the nearest scrolling ancestor for the minimum move.
+ */
 export function attachRegionList(editor: InspectionEditor, list: HTMLDivElement | null) {
   if (!list) return;
   let frame = 0;
@@ -24,10 +27,12 @@ export function attachRegionList(editor: InspectionEditor, list: HTMLDivElement 
         (child) => child instanceof HTMLElement && child.dataset.regionId === selected,
       );
       if (!(card instanceof HTMLElement)) return;
-      const bounds = list.getBoundingClientRect();
-      const target = card.getBoundingClientRect();
-      if (target.top < bounds.top || target.bottom > bounds.bottom)
-        list.scrollTo({ top: list.scrollTop + target.top - bounds.top, behavior: 'instant' });
+      if (list.scrollHeight > list.clientHeight) {
+        const bounds = list.getBoundingClientRect();
+        const target = card.getBoundingClientRect();
+        if (target.top < bounds.top || target.bottom > bounds.bottom)
+          list.scrollTo({ top: list.scrollTop + target.top - bounds.top, behavior: 'instant' });
+      } else card.scrollIntoView({ block: 'nearest', behavior: 'instant' });
     });
   });
   return () => {

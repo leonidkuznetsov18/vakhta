@@ -164,7 +164,6 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
     await testDb.db.insert(checklistPhotoRules).values({
       definitionId: free.id,
       familyId: free.familyId,
-      zoneId: rulesZone.id,
       rules: [],
       updatedBy: admin.id,
     });

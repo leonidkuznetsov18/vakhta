@@ -7,7 +7,7 @@ import { rulesApi } from '../api/rules-api';
 import { ChecklistPhotoRules } from './checklist-photo-rules';
 vi.mock('../api/rules-api', () => ({
   rulesApi: { get: vi.fn(), save: vi.fn(), objects: vi.fn(), createObject: vi.fn() },
-  rulesKey: (d: string, z: string) => ['rules', d, z],
+  rulesKey: (d: string) => ['rules', d],
   photoObjectsKey: ['photo-objects'],
 }));
 const t = messages(currentLocale()).checklistPhotoRules;
@@ -24,7 +24,7 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
-it('selects catalog objects for a zone and keeps edits after a failed save', async () => {
+it('selects catalog objects for a checklist and keeps edits after a failed save', async () => {
   vi.mocked(rulesApi.objects).mockResolvedValue(catalog);
   vi.mocked(rulesApi.get).mockResolvedValue({ version: 0, rules: [], canEdit: true });
   vi.mocked(rulesApi.save)
@@ -34,9 +34,7 @@ it('selects catalog objects for a zone and keeps edits after a failed save', asy
       rules: [{ objectId: RAG, name: 'Ганчірки', note: 'на столі' }],
       canEdit: true,
     });
-  render(
-    <ChecklistPhotoRules definitionId="definition" zones={[{ id: 'zone-a', name: 'Zone A' }]} />,
-  );
+  render(<ChecklistPhotoRules definitionId="definition" />);
   await screen.findByText(t.empty);
   fireEvent.click(screen.getByRole('button', { name: 'Ганчірки' }));
   fireEvent.click(screen.getByRole('button', { name: t.note }));
@@ -46,7 +44,7 @@ it('selects catalog objects for a zone and keeps edits after a failed save', asy
   expect(screen.getByDisplayValue('на столі')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: t.save }));
   await screen.findByText(t.saved);
-  expect(rulesApi.save).toHaveBeenLastCalledWith('definition', 'zone-a', {
+  expect(rulesApi.save).toHaveBeenLastCalledWith('definition', {
     version: 0,
     rules: [{ objectId: RAG, note: 'на столі' }],
   });
@@ -56,13 +54,11 @@ it('selects catalog objects for a zone and keeps edits after a failed save', asy
     'false',
   );
 });
-it('creates a catalog object once and adds it to the zone list', async () => {
+it('creates a catalog object once and adds it to the checklist list', async () => {
   vi.mocked(rulesApi.objects).mockResolvedValue({ objects: [], canEdit: true });
   vi.mocked(rulesApi.get).mockResolvedValue({ version: 0, rules: [], canEdit: true });
   vi.mocked(rulesApi.createObject).mockResolvedValue({ id: CUP, name: 'Піддони', active: true });
-  render(
-    <ChecklistPhotoRules definitionId="definition" zones={[{ id: 'zone-a', name: 'Zone A' }]} />,
-  );
+  render(<ChecklistPhotoRules definitionId="definition" />);
   await screen.findByText(t.catalogEmpty);
   expect(screen.getByRole('button', { name: t.createObject }).hasAttribute('disabled')).toBe(true);
   fireEvent.change(screen.getByRole('textbox', { name: t.newObject }), {
@@ -81,9 +77,7 @@ it('shows a read-only list for viewers', async () => {
     rules: [{ objectId: CUP, name: 'Стаканчики', note: 'крім гнізд машини' }],
     canEdit: false,
   });
-  render(
-    <ChecklistPhotoRules definitionId="definition" zones={[{ id: 'zone-a', name: 'Zone A' }]} />,
-  );
+  render(<ChecklistPhotoRules definitionId="definition" />);
   expect((await screen.findByText('Стаканчики — крім гнізд машини')).tagName).toBe('LI');
   expect(screen.queryByRole('button', { name: t.save })).toBeNull();
 });
