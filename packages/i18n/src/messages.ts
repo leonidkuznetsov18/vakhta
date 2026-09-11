@@ -1469,6 +1469,8 @@ export interface Messages {
       readonly usersPassword: string;
       readonly usersScope: string;
       readonly usersTwoFactor: string;
+      readonly orgUnit: string;
+      readonly zone: string;
       readonly directoriesShared: string;
       readonly directoriesZoneType: string;
       readonly directoriesTimezone: string;

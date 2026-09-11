@@ -151,7 +151,7 @@ export const en: Messages = {
     stateLine: 'State: {state} since {since}.',
     resumeLine: 'After return: {resume}.',
     planLine: 'Planned shift: {start}–{end}.',
-    zoneLine: 'Control zone: {zone}.',
+    zoneLine: 'Zone: {zone}.',
     zoneNotAccepted: "Accept the previous shift's zone. Inspect the workplace.",
     acceptZone: "✅ Accept the previous shift's zone",
     zoneAccepted: 'Zone accepted. You can start working.',
@@ -729,7 +729,7 @@ export const en: Messages = {
       clarify: 'Needs review',
       clarified: 'The shift is flagged for review.',
       startFor: 'Open a shift for the employee',
-      startZone: 'Responsibility zone',
+      startZone: 'Zone',
       startZoneNone: 'No zone',
       start: 'Open shift',
       started: 'Shift opened.',
@@ -977,7 +977,7 @@ export const en: Messages = {
       unitMasters: 'Shift master',
       noUnit: 'No unit',
       pointsHint:
-        'Live totals include checklist and monthly award points, grouped by current assignments. Department nominations count checklist points recorded in that department; final nominations remain unchanged.',
+        'Live totals include checklist and monthly award points, grouped by current assignments. Unit nominations count checklist points recorded in that unit; final nominations remain unchanged.',
       evaluated: 'Evaluated',
       pending: 'Awaiting evaluation',
       sMonth: 'Month coefficient (S)',
@@ -2055,6 +2055,10 @@ export const en: Messages = {
         ],
         faq: [
           {
+            q: 'How does a unit differ from a zone?',
+            a: 'A unit groups employees and schedules. A zone is a place of responsibility within that unit; one unit can contain several zones. For example, a workshop is a unit and a workplace within it is a zone. Photo inspection rules apply to a checklist and a specific zone.',
+          },
+          {
             q: 'Can a position or a zone be deleted?',
             a: 'While nothing references it (employees, shifts, reports). Otherwise disable it: it stops being offered and the history stays.',
           },
@@ -2105,7 +2109,7 @@ export const en: Messages = {
             a: 'The position has no active checklist, or the shift has not reached the handover yet ("Cleaning done"). Bind a checklist to the position.',
           },
           {
-            q: 'How do I make different checklists per workshop?',
+            q: 'How do I make different checklists for positions and zone types?',
             a: 'Create one checklist per position; the zone type gives a separate variant for another zone type of the same position.',
           },
           {
@@ -2209,6 +2213,9 @@ export const en: Messages = {
         '12+ characters. Tell the user in person; they enable two-factor protection in the profile.',
       usersScope: 'The role applies only within the scope: site, unit, team or zone.',
       usersTwoFactor: 'Whether the user has two-factor protection enabled.',
+      orgUnit:
+        'A unit is an organizational group with employees and a schedule. It can contain several zones.',
+      zone: 'A zone is a specific place of responsibility within a unit. Workplace handover and photo inspection refer to a zone.',
       directoriesShared:
         'A shared zone is handed over by whoever is assigned to it in the schedule for the shift.',
       directoriesZoneType: 'The zone type selects the handover checklist template.',

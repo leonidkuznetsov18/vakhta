@@ -305,6 +305,7 @@ export function DirectoriesTab({ org }: Props) {
 
       <Section
         title={d.orgUnits}
+        hint={hints.orgUnit}
         actions={
           <AddDialog
             title={d.orgUnits}
@@ -424,6 +425,7 @@ export function DirectoriesTab({ org }: Props) {
             >
               <SelectField
                 label={t.common.orgUnit}
+                hint={hints.orgUnit}
                 value={team.orgUnitId}
                 onChange={(v) => setTeam({ ...team, orgUnitId: v })}
                 required
@@ -547,7 +549,7 @@ export function DirectoriesTab({ org }: Props) {
 
       <Section
         title={d.zones}
-        hint={hints.directoriesZoneType}
+        hint={hints.zone}
         actions={
           <AddDialog
             title={d.zones}
@@ -578,6 +580,7 @@ export function DirectoriesTab({ org }: Props) {
             >
               <SelectField
                 label={t.common.orgUnit}
+                hint={hints.orgUnit}
                 value={zone.orgUnitId}
                 onChange={(v) => setZone({ ...zone, orgUnitId: v })}
                 required

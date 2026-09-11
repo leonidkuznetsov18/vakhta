@@ -9,6 +9,13 @@ production time loss. Optimize for an understandable, dependable workflow under 
 conditions. Activity records alone do not prove equipment downtime, low productivity or employee fault.
 Preserve the MVP boundaries and shift invariants in `AGENTS.md`.
 
+## Organization terminology
+
+Use the terms in [the product glossary](../../CONTEXT.md). `orgUnitId` / `orgUnitName` refer to a
+unit (Ukrainian: "Підрозділ"); `zoneId` / `zoneName` refer to a zone ("Зона"). Match each field,
+column, filter, tooltip, notification and export to its actual data source. A unit can contain several
+zones; never use these terms interchangeably or rename stored record names as translation cleanup.
+
 ## React and presentation
 
 Use the installed React 19 capabilities where they solve a concrete need: React Compiler, Suspense
