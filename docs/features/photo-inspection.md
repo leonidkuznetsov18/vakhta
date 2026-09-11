@@ -182,8 +182,14 @@ obstructed, wrong workplace, other with an explanation). A clean photo can be ma
 
 The photo sits in the left column and the review controls in the right one on wide screens;
 phones stack them. The region list and the AI suggestion list scroll inside a bounded height so
-Save and Analyze stay in reach. The catalog select inside a region offers to add a missing object
-to the catalog by typing its name; the new entry is stored and selected for that region at once.
+Save and Analyze stay in reach. On wide screens the dialog takes a fixed height: the photo fits
+that height at 100% zoom (zooming pans inside its own frame) and the form is the one scrolling
+column, with Save and Analyze pinned at its bottom; no list scrolls inside another list. Only the
+selected region shows its full form; every other region folds to one line with its color, name
+and verdict, and a region without a name stays open until it gets one. The catalog select inside
+a region offers to add a missing object to the catalog by typing its name; the new entry is stored
+and selected for that region at once. The object list for AI is edited only in checklist
+administration; the handover report shows the checklist answers and photos without that form.
 
 ## AI boxes appear on the photo, colors per object
 

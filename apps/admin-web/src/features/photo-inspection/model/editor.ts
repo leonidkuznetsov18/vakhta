@@ -94,6 +94,8 @@ interface EditorState extends ReviewChangeState {
   tool: 'rectangle' | 'select';
   zoom: number;
   imageStatus: 'loading' | 'ready' | 'failed';
+  /** Natural size of the upright photo once loaded; the viewport fits it by aspect ratio. */
+  imageSize: { width: number; height: number } | null;
   invalidGeometry: boolean;
 }
 /** The outcome is never chosen by hand: it follows the regions and the "not assessable" switch. */
@@ -133,6 +135,7 @@ export class InspectionEditor {
       tool: 'select',
       zoom: INSPECTION_ZOOM.min,
       imageStatus: 'loading',
+      imageSize: null,
       invalidGeometry: false,
     }));
     this.viewport = new InspectionViewport({
@@ -171,7 +174,10 @@ export class InspectionEditor {
         this.store.setState({ selected: annotations[0]?.id ?? null }),
       );
       this.tool(this.store.getState().tool);
-      this.store.setState({ imageStatus: 'ready' });
+      this.store.setState({
+        imageStatus: 'ready',
+        imageSize: { width: image.naturalWidth, height: image.naturalHeight },
+      });
     };
     const failed = () => this.store.setState({ imageStatus: 'failed' });
     const preventLoss = (event: BeforeUnloadEvent) => {

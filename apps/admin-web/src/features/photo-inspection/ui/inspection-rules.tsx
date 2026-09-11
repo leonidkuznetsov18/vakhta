@@ -24,7 +24,7 @@ export function InspectionRules({ rules }: { rules: readonly ChecklistPhotoRuleV
       <CollapsibleContent className="space-y-2 p-2">
         <p className="text-xs text-muted-foreground">{t.prohibitedItemsHint}</p>
         {rules.length ? (
-          <ul className="max-h-48 space-y-2 overflow-y-auto break-words">
+          <ul className="space-y-2 break-words">
             {rules.map((rule) => (
               <li key={rule.objectId}>
                 <strong className="inline-flex items-center gap-2">

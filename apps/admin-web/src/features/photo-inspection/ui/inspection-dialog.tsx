@@ -137,7 +137,7 @@ export function PhotoInspectionDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="flex max-h-[95dvh] w-[96vw] flex-col overflow-y-auto sm:max-w-7xl"
+        className="flex max-h-[95dvh] w-[96vw] flex-col overflow-y-auto sm:max-w-7xl lg:h-[95dvh] lg:overflow-hidden"
       >
         <div className="absolute top-2 right-2">
           <IconButton
@@ -319,7 +319,7 @@ function InspectionSession({
   return (
     <div
       ref={attachOwner}
-      className="flex min-w-0 flex-col gap-4"
+      className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:flex-1"
       data-testid="photo-inspection"
       onKeyDownCapture={(event) => deleteSelectedOnKeyDown(event.nativeEvent, editor, busy)}
     >
@@ -437,8 +437,10 @@ function InspectionSession({
           )}
         </div>
       )}
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
-        <div className="min-w-0">
+      {/* Wide screens: the photo and the form share the dialog's remaining height. The photo fits
+          that height at 100% zoom and the form is the single scrolling column; no scroll nests. */}
+      <div className="grid min-w-0 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(22rem,1fr)] lg:grid-rows-[minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col lg:min-h-0">
           <QueryFeedback
             query={{ ...link, error: link.error ? new Error(errorText(link.error)) : null }}
           />
@@ -448,7 +450,7 @@ function InspectionSession({
               tabIndex={0}
               role="group"
               aria-label={initial.context.photoLabel}
-              className={`max-h-[65dvh] overflow-auto rounded-md border bg-muted p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring data-[panning=true]:cursor-grabbing ${state.tool === 'select' ? 'touch-none cursor-grab' : ''}`}
+              className={`max-h-[65dvh] overflow-auto rounded-md border bg-muted p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring data-[panning=true]:cursor-grabbing lg:max-h-none lg:min-h-0 lg:flex-1 ${state.tool === 'select' ? 'touch-none cursor-grab' : ''}`}
             >
               {state.imageStatus === 'loading' && <LoadingState />}
               {state.imageStatus === 'failed' && (
@@ -465,14 +467,22 @@ function InspectionSession({
                   </IconButton>
                 </p>
               )}
-              <div ref={attachViewport} className="relative origin-top-left">
+              <div
+                ref={attachViewport}
+                className="relative origin-top-left lg:mx-auto lg:max-h-full lg:max-w-full"
+                style={
+                  state.imageSize
+                    ? { aspectRatio: `${state.imageSize.width} / ${state.imageSize.height}` }
+                    : undefined
+                }
+              >
                 <img
                   key={`${link.data.url}:${link.dataUpdatedAt}`}
                   ref={mount}
                   src={link.data.url}
                   alt={initial.context.photoLabel}
                   draggable={false}
-                  className="block h-auto w-full max-w-none"
+                  className="block h-auto w-full max-w-none lg:h-full"
                 />
                 <RegionNumbers editor={editor} colors={colors} />
               </div>
@@ -481,7 +491,7 @@ function InspectionSession({
         </div>
         {/* On wide screens the form column is as tall as the photo viewport and scrolls inside;
             the save and analyze actions stay pinned at its bottom, so nothing hides below the photo. */}
-        <div className="flex min-w-0 flex-col gap-4 lg:max-h-[65dvh] lg:overflow-y-auto lg:pr-1">
+        <div className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
           {initial.canEdit ? (
             <EditableReview
               editor={editor}

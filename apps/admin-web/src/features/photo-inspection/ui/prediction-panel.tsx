@@ -120,7 +120,7 @@ export function PredictionPanel({
       {run.prediction.findings.length > 0 && suggestions.length === 0 && (
         <p role="status">{t.allSuggestionsAdded}</p>
       )}
-      <div className="flex max-h-[40dvh] flex-col gap-2 overflow-y-auto pr-1">
+      <div className="flex flex-col gap-2">
         {suggestions.map(({ finding, index, key }) => (
           <div key={key} className="rounded-md border p-2">
             <p className="flex max-h-32 items-start gap-2 overflow-y-auto whitespace-pre-wrap break-words">

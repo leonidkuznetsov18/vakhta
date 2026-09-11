@@ -1,4 +1,3 @@
-import { ChecklistPhotoRules } from '@/features/checklist-photo-rules';
 import { confirmLeave } from '@/lib/unsaved';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { DetailText } from '@/components/app/row-detail';
@@ -207,7 +206,9 @@ export function HandoverPage() {
       <div className="flex min-w-0 flex-col gap-6 py-1" data-testid="handover-detail">
         <QueryFeedback query={detailQuery} />
         <div className="flex min-w-0 flex-col gap-6">
-          <div className="grid max-w-6xl items-start gap-4 lg:grid-cols-2">
+          {/* The object list for AI lives in checklist administration; the report shows the
+              checklist answers only, so the photos stay right below them. */}
+          <div className="max-w-3xl">
             <div className="min-w-0 rounded-md border p-3">
               <h3 className="mb-2 text-sm font-semibold">
                 {detail.handover.checklistName || h.checklist}
@@ -240,9 +241,6 @@ export function HandoverPage() {
                 </p>
               )}
             </div>
-            {isHandoverPending(detail.handover.status) && (
-              <ChecklistPhotoRules definitionId={detail.handover.checklistDefinitionId} />
-            )}
           </div>
           {detail.handover.items.some((item) => item.kind === 'NOTE' && item.answered) && (
             <div>

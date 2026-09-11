@@ -56,7 +56,17 @@ export function RegionFields({
   const colors = colorSources(rules, objects);
   const otherSelected = !annotation.objectId && annotation.objectName !== undefined;
   const fromAi = annotation.sourceRunId !== null && annotation.sourceFindingIndex !== undefined;
-  const chooseObject = (objectId: string | null) =>
+  // Only the selected region shows its full form; the others fold to one line, so a photo with
+  // many regions stays one short list. A region without a name stays open until it gets one.
+  const expanded = selected || unnamed;
+  const displayName =
+    (annotation.objectId &&
+      (rules.find((r) => r.objectId === annotation.objectId)?.name ??
+        objects.find((o) => o.id === annotation.objectId)?.name)) ||
+    annotation.objectName?.trim() ||
+    '';
+  const chooseObject = (objectId: string | null) => {
+    editor.select(annotation.id);
     editor.editAnnotation(annotation.id, {
       objectId,
       objectName: objectId
@@ -64,6 +74,7 @@ export function RegionFields({
           objects.find((o) => o.id === objectId)?.name)
         : (annotation.objectName ?? ''),
     });
+  };
   return (
     <div
       data-region-id={annotation.id}
@@ -85,7 +96,14 @@ export function RegionFields({
             objectName={annotation.objectName}
             colors={colors}
           />
-          {index + 1}. {t.region}
+          <span className="min-w-0 truncate">
+            {index + 1}. {expanded || !displayName ? t.region : displayName}
+          </span>
+          {!expanded && (
+            <span className="truncate font-normal text-muted-foreground">
+              · {t.verdicts[annotation.verdict]}
+            </span>
+          )}
         </IconButton>
         <div className="flex items-center gap-1">
           {fromAi && (
@@ -127,131 +145,136 @@ export function RegionFields({
           </IconButton>
         </div>
       </div>
-      <div className="flex min-w-0 flex-col gap-1.5">
-        <span className="flex items-center gap-1 text-sm font-medium">
-          {t.objectName}
-          <InfoTip text={t.objectHint} />
-        </span>
-        {rules.length > 0 && (
-          <div className="flex flex-wrap gap-1" role="group" aria-label={t.objectSuggestions}>
-            {rules.map((rule) => (
-              <Button
-                key={rule.objectId}
-                type="button"
-                variant={annotation.objectId === rule.objectId ? 'secondary' : 'outline'}
-                size="sm"
-                className="h-auto min-h-8 max-w-full whitespace-normal break-words"
-                aria-pressed={annotation.objectId === rule.objectId}
-                onClick={() => chooseObject(rule.objectId)}
-              >
-                <ObjectSwatch objectId={rule.objectId} colors={colors} />
-                {rule.name}
-              </Button>
-            ))}
+      {expanded && (
+        <>
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <span className="flex items-center gap-1 text-sm font-medium">
+              {t.objectName}
+              <InfoTip text={t.objectHint} />
+            </span>
+            {rules.length > 0 && (
+              <div className="flex flex-wrap gap-1" role="group" aria-label={t.objectSuggestions}>
+                {rules.map((rule) => (
+                  <Button
+                    key={rule.objectId}
+                    type="button"
+                    variant={annotation.objectId === rule.objectId ? 'secondary' : 'outline'}
+                    size="sm"
+                    className="h-auto min-h-8 max-w-full whitespace-normal break-words"
+                    aria-pressed={annotation.objectId === rule.objectId}
+                    onClick={() => chooseObject(rule.objectId)}
+                  >
+                    <ObjectSwatch objectId={rule.objectId} colors={colors} />
+                    {rule.name}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <SelectField
+              label={t.objectCatalog}
+              value={otherSelected ? OTHER : (annotation.objectId ?? '')}
+              onChange={(value) => {
+                if (value === OTHER)
+                  editor.editAnnotation(annotation.id, {
+                    objectId: null,
+                    objectName: annotation.objectName ?? '',
+                  });
+                else chooseObject(value || null);
+              }}
+              options={[
+                ...others.map((object) => ({ value: object.id, label: object.name })),
+                { value: OTHER, label: t.objectOther },
+              ]}
+              placeholder="—"
+              error={touched && unnamed ? t.nameRequired : undefined}
+              createLabel={t.objectCreate}
+              onCreate={
+                onCreateObject
+                  ? (name) => {
+                      // The region keeps the stored name even before the catalog list refreshes.
+                      void onCreateObject(name).then((object) =>
+                        editor.editAnnotation(annotation.id, {
+                          objectId: object.id,
+                          objectName: object.name,
+                        }),
+                      );
+                    }
+                  : undefined
+              }
+            />
+            {otherSelected && (
+              <FormField label={t.objectOther}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    value={annotation.objectName ?? ''}
+                    maxLength={100}
+                    placeholder={t.objectOtherPlaceholder}
+                    onBlur={() => setTouched(true)}
+                    onChange={(event) =>
+                      editor.editAnnotation(annotation.id, { objectName: event.target.value })
+                    }
+                  />
+                )}
+              </FormField>
+            )}
           </div>
-        )}
-        <SelectField
-          label={t.objectCatalog}
-          value={otherSelected ? OTHER : (annotation.objectId ?? '')}
-          onChange={(value) => {
-            if (value === OTHER)
-              editor.editAnnotation(annotation.id, {
-                objectId: null,
-                objectName: annotation.objectName ?? '',
-              });
-            else chooseObject(value || null);
-          }}
-          options={[
-            ...others.map((object) => ({ value: object.id, label: object.name })),
-            { value: OTHER, label: t.objectOther },
-          ]}
-          placeholder="—"
-          error={touched && unnamed ? t.nameRequired : undefined}
-          createLabel={t.objectCreate}
-          onCreate={
-            onCreateObject
-              ? (name) => {
-                  // The region keeps the stored name even before the catalog list refreshes.
-                  void onCreateObject(name).then((object) =>
-                    editor.editAnnotation(annotation.id, {
-                      objectId: object.id,
-                      objectName: object.name,
-                    }),
-                  );
-                }
-              : undefined
-          }
-        />
-        {otherSelected && (
-          <FormField label={t.objectOther}>
-            {(id) => (
-              <Input
-                id={id}
-                value={annotation.objectName ?? ''}
-                maxLength={100}
-                placeholder={t.objectOtherPlaceholder}
-                onBlur={() => setTouched(true)}
-                onChange={(event) =>
-                  editor.editAnnotation(annotation.id, { objectName: event.target.value })
-                }
-              />
-            )}
-          </FormField>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-col gap-1.5">
-        <span className="flex items-center gap-1 text-sm font-medium">
-          {t.verdict}
-          <InfoTip text={t.verdictHint} />
-        </span>
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          size="sm"
-          className="max-w-full flex-wrap"
-          value={annotation.verdict}
-          aria-label={t.verdict}
-          onValueChange={(value) => {
-            const verdict = RegionVerdict.safeParse(value);
-            if (verdict.success) editor.editAnnotation(annotation.id, { verdict: verdict.data });
-          }}
-        >
-          {RegionVerdict.options.map((verdict) => (
-            <ToggleGroupItem key={verdict} value={verdict} disabled={busy}>
-              {t.verdicts[verdict]}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </div>
-      <Collapsible defaultOpen={Boolean(annotation.comment)}>
-        <CollapsibleTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="max-w-full whitespace-normal text-left"
-          >
-            <ChevronDownIcon aria-hidden="true" />
-            {annotation.comment ? t.detailsAdded : t.addDetails}
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="pt-2">
-          <FormField label={t.regionDetails} hint={t.regionDetailsHint} optional>
-            {(id) => (
-              <Textarea
-                id={id}
-                value={annotation.comment}
-                maxLength={2000}
-                rows={2}
-                placeholder={t.regionDetailsPlaceholder}
-                onChange={(event) =>
-                  editor.editAnnotation(annotation.id, { comment: event.target.value })
-                }
-              />
-            )}
-          </FormField>
-        </CollapsibleContent>
-      </Collapsible>
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <span className="flex items-center gap-1 text-sm font-medium">
+              {t.verdict}
+              <InfoTip text={t.verdictHint} />
+            </span>
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              size="sm"
+              className="max-w-full flex-wrap"
+              value={annotation.verdict}
+              aria-label={t.verdict}
+              onValueChange={(value) => {
+                const verdict = RegionVerdict.safeParse(value);
+                if (verdict.success)
+                  editor.editAnnotation(annotation.id, { verdict: verdict.data });
+              }}
+            >
+              {RegionVerdict.options.map((verdict) => (
+                <ToggleGroupItem key={verdict} value={verdict} disabled={busy}>
+                  {t.verdicts[verdict]}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+          <Collapsible defaultOpen={Boolean(annotation.comment)}>
+            <CollapsibleTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="max-w-full whitespace-normal text-left"
+              >
+                <ChevronDownIcon aria-hidden="true" />
+                {annotation.comment ? t.detailsAdded : t.addDetails}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-2">
+              <FormField label={t.regionDetails} hint={t.regionDetailsHint} optional>
+                {(id) => (
+                  <Textarea
+                    id={id}
+                    value={annotation.comment}
+                    maxLength={2000}
+                    rows={2}
+                    placeholder={t.regionDetailsPlaceholder}
+                    onChange={(event) =>
+                      editor.editAnnotation(annotation.id, { comment: event.target.value })
+                    }
+                  />
+                )}
+              </FormField>
+            </CollapsibleContent>
+          </Collapsible>
+        </>
+      )}
     </div>
   );
 }

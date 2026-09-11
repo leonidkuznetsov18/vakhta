@@ -792,3 +792,27 @@ Verification: contracts (11), API photo-inspection integration tests (19, includ
 service and colored rule snapshots), panel photo-inspection and rules tests (69), worker unit
 tests (11); panel, API and worker type checks and focused lint. Migration applied to the local QA
 database and inspected in the browser.
+
+## One-scroll editor and compact regions — 2026-09-11
+
+Owner report: scrolls nested three deep (dialog, form column, region list, suggestion list) made
+the editor hard to use with many regions, and the object-list form inside the handover report
+pushed the photos below the fold.
+
+Decision: on `lg` and up the dialog is a fixed 95dvh box; the photo viewport fills the left
+column's height and the plane carries the photo's aspect ratio (natural size recorded in the
+editor store on load) with `max-h-full max-w-full`, so the whole photo is visible at 100% and zoom
+scrolls inside its frame as before; the right column is the single scroll container and the
+inner `max-h` limits on the region list, suggestion list and rules list are gone; the sticky
+action bar stays. Region cards fold to one line (color, number, name, verdict) unless selected or
+unnamed; choosing an object selects the region so the card stays open while it is edited. The
+`ChecklistPhotoRules` form is removed from the handover row detail (it remains in checklist
+administration) and the checklist answers block is single-column above the photos. Mobile keeps
+the stacked layout with the dialog scrolling.
+
+Lean: proceed; every control is reachable with one scroll, a photo with twenty regions is a
+short list instead of twenty forms, and the report page no longer repeats an administration form.
+
+Verification: panel photo-inspection and handover tests (69), panel type-check and focused lint;
+layout measured on the local stand (column height equals the dialog's remaining height, region
+list has no own scroll) and inspected in production after deploy.
