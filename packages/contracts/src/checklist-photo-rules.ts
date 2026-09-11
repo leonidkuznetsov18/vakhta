@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Uuid } from './common.js';
+import { PhotoObjectColor } from './photo-objects.js';
 
 export const MAX_PHOTO_RULES = 30;
 export const MAX_PHOTO_RULE_NOTE = 300;
@@ -17,7 +18,11 @@ export const SaveChecklistPhotoRules = z.object({
   rules: z.array(PhotoRule).max(MAX_PHOTO_RULES).refine(uniqueObjects, 'Duplicate objects'),
 });
 export type SaveChecklistPhotoRules = z.infer<typeof SaveChecklistPhotoRules>;
-export const ChecklistPhotoRuleView = PhotoRule.extend({ name: z.string() });
+/** Color is the catalog object's own; snapshots stored before colors existed carry none. */
+export const ChecklistPhotoRuleView = PhotoRule.extend({
+  name: z.string(),
+  color: PhotoObjectColor.optional(),
+});
 export type ChecklistPhotoRuleView = z.infer<typeof ChecklistPhotoRuleView>;
 export const ChecklistPhotoRulesView = z.object({
   version: z.number().int().nonnegative(),

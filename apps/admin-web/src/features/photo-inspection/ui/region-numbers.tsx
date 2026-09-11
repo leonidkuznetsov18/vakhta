@@ -1,8 +1,19 @@
 import { useStore } from 'zustand';
 import type { InspectionEditor } from '../model/editor';
-import { objectColor, SELECTED_COLOR, UNNAMED_COLOR } from '../model/object-colors';
+import {
+  type ColorSource,
+  objectColor,
+  SELECTED_COLOR,
+  UNNAMED_COLOR,
+} from '../model/object-colors';
 
-export function RegionNumbers({ editor }: { editor: InspectionEditor }) {
+export function RegionNumbers({
+  editor,
+  colors,
+}: {
+  editor: InspectionEditor;
+  colors: readonly ColorSource[];
+}) {
   const state = useStore(editor.store);
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0">
@@ -10,7 +21,7 @@ export function RegionNumbers({ editor }: { editor: InspectionEditor }) {
         const selected = state.selected === annotation.id;
         const color = selected
           ? SELECTED_COLOR
-          : objectColor(annotation.objectId, annotation.objectName, editor.initial.rules);
+          : objectColor(annotation.objectId, annotation.objectName, colors);
         return (
           <span
             key={annotation.id}

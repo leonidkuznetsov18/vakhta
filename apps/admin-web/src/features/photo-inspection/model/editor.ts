@@ -4,7 +4,7 @@ import { availableSuggestions, linkLegacySuggestions } from './suggestions';
 import { InspectionViewport, INSPECTION_ZOOM } from './viewport';
 export { INSPECTION_ZOOM } from './viewport';
 import { hasReviewChanges, type ReviewChangeState } from './review-changes';
-import { objectColor, SELECTED_COLOR } from './object-colors';
+import { type ColorSource, objectColor, SELECTED_COLOR } from './object-colors';
 import { createStore } from 'zustand/vanilla';
 import { z } from 'zod';
 import {
@@ -121,6 +121,7 @@ export class InspectionEditor {
   private readonly openedAt = Date.now();
   readonly viewport;
   constructor(readonly initial: PhotoInspectionView) {
+    this.colors = initial.rules;
     const loaded = linkLegacySuggestions(initial.review, initial.runs);
     // A photo nobody saved yet starts from its computed outcome, so a clean photo is one save away.
     const review = initial.version === 0 ? withOutcome(loaded) : loaded;
@@ -192,13 +193,20 @@ export class InspectionEditor {
       this.canvas = null;
     };
   };
+  /** Where box colors come from: the checklist rules, then the catalog once it is loaded. */
+  colors: readonly ColorSource[];
+  /** Fresh rules or catalog entries recolor every box at once, so boxes always match the chips. */
+  useColors(sources: readonly ColorSource[]): void {
+    this.colors = sources;
+    this.canvas?.setStyle(this.style);
+  }
   /** Boxes take the color of their object type; the selected one is outlined in the selection color. */
   private readonly style = (
     annotation: ImageAnnotation,
     state?: { selected?: boolean },
   ): DrawingStyle => {
     const region = this.store.getState().review.annotations.find((a) => a.id === annotation.id);
-    const color = objectColor(region?.objectId, region?.objectName, this.initial.rules);
+    const color = objectColor(region?.objectId, region?.objectName, this.colors);
     return {
       stroke: state?.selected ? SELECTED_COLOR : color,
       strokeWidth: state?.selected ? 4 : 3,

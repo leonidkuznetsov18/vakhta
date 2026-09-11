@@ -15,6 +15,21 @@ import {
 import { ObjectSwatch } from './object-swatch';
 import { InfoTip } from '@/components/app/info-tip';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+
+/** The three answers read at a glance: a colored mark before the label, a tinted pressed state. */
+const RATING_EMOJI: Record<AiFeedbackRating, string> = {
+  HELPFUL: '✅',
+  PARTIAL: '🟡',
+  NOT_HELPFUL: '❌',
+};
+const RATING_STYLE: Record<AiFeedbackRating, string> = {
+  HELPFUL:
+    'data-[state=on]:border-emerald-500 data-[state=on]:bg-emerald-100 data-[state=on]:text-emerald-950 dark:data-[state=on]:bg-emerald-900 dark:data-[state=on]:text-emerald-50',
+  PARTIAL:
+    'data-[state=on]:border-amber-500 data-[state=on]:bg-amber-100 data-[state=on]:text-amber-950 dark:data-[state=on]:bg-amber-900 dark:data-[state=on]:text-amber-50',
+  NOT_HELPFUL:
+    'data-[state=on]:border-red-500 data-[state=on]:bg-red-100 data-[state=on]:text-red-950 dark:data-[state=on]:bg-red-900 dark:data-[state=on]:text-red-50',
+};
 const t = messages(currentLocale()).photoInspection;
 
 /** The reviewer's verdict on the run itself: the usefulness number the pilot is judged by. */
@@ -36,7 +51,6 @@ function RunFeedback({
       <ToggleGroup
         type="single"
         variant="outline"
-        size="sm"
         className="max-w-full flex-wrap"
         value={run.feedback?.rating ?? ''}
         aria-label={t.feedbackQuestion}
@@ -46,7 +60,13 @@ function RunFeedback({
         }}
       >
         {AiFeedbackRating.options.map((rating) => (
-          <ToggleGroupItem key={rating} value={rating} disabled={disabled}>
+          <ToggleGroupItem
+            key={rating}
+            value={rating}
+            disabled={disabled}
+            className={`gap-1.5 px-3 font-medium ${RATING_STYLE[rating]}`}
+          >
+            <span aria-hidden="true">{RATING_EMOJI[rating]}</span>
             {t.feedbackRatings[rating]}
           </ToggleGroupItem>
         ))}
@@ -107,7 +127,7 @@ export function PredictionPanel({
               <ObjectSwatch
                 objectId={finding.objectId}
                 objectName={finding.objectName}
-                rules={latest.rules}
+                colors={latest.rules}
               />
               {label(finding)}
             </p>

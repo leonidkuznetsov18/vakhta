@@ -15,8 +15,8 @@ const RAG = '40000000-0000-4000-8000-000000000001';
 const CUP = '40000000-0000-4000-8000-000000000002';
 const catalog = {
   objects: [
-    { id: RAG, name: 'Ганчірки', active: true },
-    { id: CUP, name: 'Стаканчики', active: true },
+    { id: RAG, name: 'Ганчірки', active: true, color: '#0a84ff' },
+    { id: CUP, name: 'Стаканчики', active: true, color: '#0a84ff' },
   ],
   canEdit: true,
 };
@@ -60,7 +60,12 @@ it('selects catalog objects for a checklist and keeps edits after a failed save'
 it('creates a catalog object once and adds it to the checklist list', async () => {
   vi.mocked(rulesApi.objects).mockResolvedValue({ objects: [], canEdit: true });
   vi.mocked(rulesApi.get).mockResolvedValue({ version: 0, rules: [], canEdit: true });
-  vi.mocked(rulesApi.createObject).mockResolvedValue({ id: CUP, name: 'Піддони', active: true });
+  vi.mocked(rulesApi.createObject).mockResolvedValue({
+    id: CUP,
+    name: 'Піддони',
+    active: true,
+    color: '#0a84ff',
+  });
   render(<ChecklistPhotoRules definitionId="definition" />);
   await screen.findByText(t.catalogEmpty);
   expect(screen.getByRole('button', { name: t.createObject }).hasAttribute('disabled')).toBe(true);

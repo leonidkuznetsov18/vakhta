@@ -37,7 +37,7 @@ export async function loadPhotoRules(
   const stored = StoredRules.parse(row?.rules ?? []);
   const objects = stored.length
     ? await db
-        .select({ id: photoObjects.id, name: photoObjects.name })
+        .select({ id: photoObjects.id, name: photoObjects.name, color: photoObjects.color })
         .from(photoObjects)
         .where(
           inArray(
@@ -46,12 +46,12 @@ export async function loadPhotoRules(
           ),
         )
     : [];
-  const names = new Map(objects.map((object) => [object.id, object.name]));
+  const known = new Map(objects.map((object) => [object.id, object]));
   return {
     version: row?.version ?? 0,
     rules: stored.flatMap((rule) => {
-      const name = names.get(rule.objectId);
-      return name === undefined ? [] : [{ ...rule, name }];
+      const object = known.get(rule.objectId);
+      return object === undefined ? [] : [{ ...rule, name: object.name, color: object.color }];
     }),
   };
 }

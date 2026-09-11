@@ -123,7 +123,14 @@ AI training job or new approval process is introduced by this page.
 
 Object types live in one shared catalog (`photo_objects`): one entry per spelling family (case,
 spaces and a final vowel are ignored, so "Ганчірка" and "Ганчірки" are one entry), created inline by
-any reviewer from the checklist form. **Objects that must not appear in the photo** is one list per
+any reviewer from the checklist form. Names are written in the singular ("Стаканчик", "Провід"):
+the model searches for every instance regardless of number, and a second entry for the same object
+("Провід" next to "Провода") makes the same item get boxed twice. The tooltips of the rules form,
+the region select and the help FAQ state this rule; the production catalog was normalized on
+2026-09-11 (plural duplicates deactivated, their rules moved to the singular entry). Every catalog
+object owns one color, assigned on creation as the least used hue of a twelve-color palette and
+stored with the object, so a rule chip, a region card, a suggestion and the box on the photo show
+the same color on every screen and stay the same when the rule list changes. **Objects that must not appear in the photo** is one list per
 checklist family, shown as saved the moment the checklist is expanded, with no zone to choose. Each
 object may carry a note for the master and the model (appearance, placement, allowed cases; up to
 300 characters). Rules survive a new checklist version and keep optimistic version checks and an
@@ -136,9 +143,11 @@ master as before, and the report decision never waits for photo reviews. AI runs
 selects **Analyze with AI** in the photo editor. The request snapshots the current rules on the server;
 an empty list makes the button unavailable and the request fails with a clear message. The worker
 sends four overlapping quadrants of the upright photo to Gemma with a fixed instruction template plus
-the rule list as data, first with the whole list and then once per object type, with greedy decoding
-and a fixed seed, merges duplicate boxes across passes and tiles and returns one finding per instance
-with the matched catalog object. Findings remain unconfirmed suggestions; nothing is saved without
+one object type as data per request, with greedy decoding and a fixed seed, repeats every request in
+three independent rounds, keeps an instance only when at least two rounds located it, gives a box
+claimed by two object types to the type located more often, merges duplicate boxes across rounds and
+tiles and returns one finding per instance with the matched catalog object. Requests run up to eight
+at a time and a throttled or failed request is retried before the photo is given up. Findings remain unconfirmed suggestions; nothing is saved without
 the reviewer.
 
 ## Was AI useful

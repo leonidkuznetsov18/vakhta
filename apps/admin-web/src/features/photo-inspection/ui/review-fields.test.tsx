@@ -18,8 +18,8 @@ const id = '10000000-0000-4000-8000-000000000001';
 const RAG = '40000000-0000-4000-8000-000000000001';
 const PALLET = '40000000-0000-4000-8000-000000000002';
 const objects = [
-  { id: RAG, name: 'Rags', active: true },
-  { id: PALLET, name: 'Pallets', active: true },
+  { id: RAG, name: 'Rags', active: true, color: '#0a84ff' },
+  { id: PALLET, name: 'Pallets', active: true, color: '#0a84ff' },
 ];
 const rules = [{ objectId: RAG, name: 'Rags', note: 'On the table' }];
 const view = PhotoInspectionView.parse({
@@ -98,7 +98,12 @@ it('offers catalog objects outside the checklist list and a free-text other obje
 it('creates a missing catalog object from the region list and names the region with it', async () => {
   const editor = new InspectionEditor(view);
   editor.addBox();
-  const created = { id: '40000000-0000-4000-8000-000000000009', name: 'Пляшка', active: true };
+  const created = {
+    id: '40000000-0000-4000-8000-000000000009',
+    name: 'Пляшка',
+    active: true,
+    color: '#0a84ff',
+  };
   const onCreateObject = vi.fn().mockResolvedValue(created);
   render(
     <EditableReview

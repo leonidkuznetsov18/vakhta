@@ -102,10 +102,13 @@ export const photoObjects = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
     active: boolean('active').notNull().default(true),
+    /** The object's own color everywhere it is shown: chips, boxes, badges. Assigned on creation. */
+    color: text('color').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedBy: text('updated_by').notNull(),
   },
   (t) => [
+    check('photo_objects_color_hex', sql`${t.color} ~ '^#[0-9a-f]{6}$'`),
     // Mirrors photoObjectKey in @vakhta/contracts: one entry per spelling family.
     uniqueIndex('photo_objects_key_uq')
       .on(sql`regexp_replace(lower(trim(${t.name})), '[аяиіыуюеє]$', '')`)

@@ -32,6 +32,7 @@ export function AnalyzeButton({
         label={t.analyze}
         tooltip={loading ? t.aiPending : (disabledReason ?? t.analyzeHint)}
         variant="outline"
+        className="border-amber-400 bg-amber-300 text-amber-950 hover:bg-amber-400 hover:text-amber-950 focus-visible:ring-amber-500 dark:border-amber-500 dark:bg-amber-400 dark:text-amber-950 dark:hover:bg-amber-300"
         disabled={disabled || loading || disabledReason !== null}
         aria-busy={loading}
         onClick={onAnalyze}

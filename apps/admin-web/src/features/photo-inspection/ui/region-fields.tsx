@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ObjectSwatch } from './object-swatch';
+import { colorSources } from '../model/object-colors';
 import type { InspectionEditor } from '../model/editor';
 
 const t = messages(currentLocale()).photoInspection;
@@ -52,6 +53,7 @@ export function RegionFields({
   const unnamed =
     !annotation.objectId && !annotation.objectName?.trim() && !annotation.comment.trim();
   const others = objects.filter((object) => !rules.some((rule) => rule.objectId === object.id));
+  const colors = colorSources(rules, objects);
   const otherSelected = !annotation.objectId && annotation.objectName !== undefined;
   const fromAi = annotation.sourceRunId !== null && annotation.sourceFindingIndex !== undefined;
   const chooseObject = (objectId: string | null) =>
@@ -81,7 +83,7 @@ export function RegionFields({
           <ObjectSwatch
             objectId={annotation.objectId}
             objectName={annotation.objectName}
-            rules={rules}
+            colors={colors}
           />
           {index + 1}. {t.region}
         </IconButton>
@@ -142,7 +144,7 @@ export function RegionFields({
                 aria-pressed={annotation.objectId === rule.objectId}
                 onClick={() => chooseObject(rule.objectId)}
               >
-                <ObjectSwatch objectId={rule.objectId} rules={rules} />
+                <ObjectSwatch objectId={rule.objectId} colors={colors} />
                 {rule.name}
               </Button>
             ))}

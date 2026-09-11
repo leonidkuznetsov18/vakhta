@@ -3,13 +3,13 @@ export const photoRulesEn = {
   discard: 'Discard unsaved changes to the object list?',
 
   title: 'Objects that must not appear in the photo',
-  hint: 'Choose the objects from the shared catalog. One list per checklist, shared by all its versions; AI analysis in the photo editor searches only for these objects.',
+  hint: 'Choose the objects from the shared catalog. One list per checklist, shared by all its versions; AI analysis in the photo editor searches only for these objects. Name every object in the singular ("Cup", not "Cups"): AI looks for every instance anyway, and a plural next to a singular makes the same object get boxed twice.',
   catalog: 'Catalog objects',
   catalogHint:
-    'One entry per object type, shared by all checklists. Choose a spelling that everyone recognizes; the same type must not be added twice.',
+    'One entry per object type, shared by all checklists, always in the singular: "Cup", "Wire", "Pallet". Choose a spelling that everyone recognizes; the same type must not be added twice, neither as a plural nor as a synonym. Describe variants in the note.',
   selected: 'Selected for this checklist',
   newObject: 'New object',
-  newObjectPlaceholder: 'For example: pallets',
+  newObjectPlaceholder: 'For example: pallet',
   createObject: 'Add to catalog',
   note: 'Note (optional)',
   noteHint:
@@ -31,13 +31,13 @@ export const photoRulesUk: ChecklistPhotoRulesMessages = {
   discard: 'Відкинути незбережені зміни списку обʼєктів?',
 
   title: 'Обʼєкти, яких не повинно бути на фото',
-  hint: 'Оберіть обʼєкти зі спільного каталогу. Один список на чекліст, спільний для всіх його версій; аналіз з AI у редакторі фото шукає лише ці обʼєкти.',
+  hint: 'Оберіть обʼєкти зі спільного каталогу. Один список на чекліст, спільний для всіх його версій; аналіз з AI у редакторі фото шукає лише ці обʼєкти. Назви пишіть в однині («Стаканчик», а не «Стаканчики»): AI і так шукає всі екземпляри, а множина поряд з одниною дає подвійні рамки на тому самому предметі.',
   catalog: 'Обʼєкти каталогу',
   catalogHint:
-    'Один запис на тип обʼєкта, спільний для всіх чеклістів. Обирайте написання, яке всі впізнають; один тип не додають двічі.',
+    'Один запис на тип обʼєкта, спільний для всіх чеклістів, завжди в однині: «Стаканчик», «Провід», «Піддон». Обирайте написання, яке всі впізнають; один тип не додають двічі ні множиною, ні синонімом. Варіанти описуйте в уточненні.',
   selected: 'Обрано для цього чекліста',
   newObject: 'Новий обʼєкт',
-  newObjectPlaceholder: 'Наприклад: піддони',
+  newObjectPlaceholder: 'Наприклад: піддон',
   createObject: 'Додати в каталог',
   note: 'Уточнення (необовʼязково)',
   noteHint:
@@ -58,13 +58,13 @@ export const photoRulesRu: ChecklistPhotoRulesMessages = {
   discard: 'Отменить несохранённые изменения списка объектов?',
 
   title: 'Объекты, которых не должно быть на фото',
-  hint: 'Выберите объекты из общего каталога. Один список на чек-лист, общий для всех его версий; анализ с AI в редакторе фото ищет только эти объекты.',
+  hint: 'Выберите объекты из общего каталога. Один список на чек-лист, общий для всех его версий; анализ с AI в редакторе фото ищет только эти объекты. Названия пишите в единственном числе («Стаканчик», а не «Стаканчики»): AI и так ищет все экземпляры, а множественное число рядом с единственным даёт двойные рамки на одном предмете.',
   catalog: 'Объекты каталога',
   catalogHint:
-    'Одна запись на тип объекта, общая для всех чек-листов. Выбирайте написание, которое все узнают; один тип не добавляют дважды.',
+    'Одна запись на тип объекта, общая для всех чек-листов, всегда в единственном числе: «Стаканчик», «Провод», «Поддон». Выбирайте написание, которое все узнают; один тип не добавляют дважды ни во множественном числе, ни синонимом. Варианты описывайте в уточнении.',
   selected: 'Выбрано для этого чек-листа',
   newObject: 'Новый объект',
-  newObjectPlaceholder: 'Например: поддоны',
+  newObjectPlaceholder: 'Например: поддон',
   createObject: 'Добавить в каталог',
   note: 'Уточнение (необязательно)',
   noteHint:

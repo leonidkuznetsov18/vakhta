@@ -728,3 +728,67 @@ centered in its plane. The shared `SelectField` accepts `onCreate`/`createLabel`
 force-mounted "Add: «name»" command item when the search matches nothing; the region select uses it
 to create a catalog object from inside the editor (`POST /admin/photo-objects`, then the region takes
 the stored id and name). 73 inspection-feature and field tests pass.
+
+## Stable detection and singular catalog — 2026-09-11
+
+Owner report: the same photo analysed twice gave "Провід: 3" then "Провід: 2". Investigation on the
+owner's second production photo (720×1280, seven rules from the saved "Чек-ліст Вибиральника" form)
+with the pipeline split into its two request kinds, three repetitions each:
+
+- The request that lists every object at once answered differently every time (8, 6 and 7 boxes),
+  never located the wires that the single-object requests found in all three repetitions, and added
+  near-duplicate boxes for small cups that the IoU/containment merge did not fold (this produced
+  "Стаканчики: 7" versus "6" in production). The extra third wire was "провід, що звисає зверху", a
+  fixed ceiling cable found once by that request only.
+- Single-object requests agreed in two of three repetitions; the third called four paper cups
+  "Пляшка" in the bottle request. Cloudflare does not answer identically at temperature 0 and a
+  fixed seed, so determinism cannot be assumed from the request.
+
+Decision (`workplace-v4`): drop the whole-list request; send one object type per request over the
+four tiles; repeat all requests in three independent rounds with at most eight in flight; keep an
+instance when at least two rounds located it; when two object types claim one box, the type located
+in more rounds wins and a tie keeps both; treat two small boxes holding each other's center as one
+instance; retry a 429/5xx answer up to three times with a short pause. Cost per photo rises from
+about 1+N to 3N requests (seven rules: 84 requests, about $0.007, 50–55 s with the concurrency cap).
+
+Evidence: two runs of the production analyzer class on each owner photo. Photo 1 (three rules):
+identical output twice, the earlier false "Інструменти" box is gone. Photo 2: identical for glove,
+bag, pallets, wires and the four highest-agreement cups; the bottle request still labels two to
+three paper cups as bottles in different runs, which the one-label-per-instance rule now removes when
+the cup request wins the vote and otherwise leaves for the reviewer. The remaining ambiguity is a
+catalog matter (a note on "Пляшка" such as "not paper cups"), not a pipeline one.
+
+Catalog: production had "Провода" next to "Провід" and "Стаканчики" as the only plural. Moved the
+rules of "Провода" to "Провід" (duplicate entries dropped per checklist), deactivated "Провода",
+renamed "Стаканчики" to "Стаканчик" (same spelling family, same id, regions untouched). Applied with
+a transactional SQL script through the Railway TCP proxy; rule rows bumped their version so open
+forms see a conflict instead of overwriting. Tooltips, region select hint and help FAQ now state the
+singular rule in all three languages; placeholders use singular examples.
+
+Verification: worker unit tests (11, including voting, tie and center-merge cases), i18n catalog
+tests (10), panel photo-inspection tests (65), worker/panel type checks and focused lint. Live
+validation script and probes live in the session scratchpad, not the repository.
+
+## Catalog colors and editor layout — 2026-09-11
+
+Owner report after the catalog cleanup: "Провід" showed purple in the region chips but its box on
+the photo was orange. Colors were derived from the object's position in the checklist rule list,
+so the same object changed color whenever the list changed, and boxes styled from the initially
+loaded rules diverged from chips rendered from refetched rules.
+
+Decision: the color is a property of the catalog object (`photo_objects.color`, migration 0039,
+lower-case hex enforced by a check constraint). A new object takes the least used hue of the
+twelve-color palette among active objects; existing objects were backfilled in creation order.
+Rule views and catalog views carry the color; the panel resolves a color from the rules and the
+catalog (`colorSources`), falls back to a stable palette hash only for legacy name-only regions,
+and the editor recolors every box whenever fresh rules or catalog entries arrive. Rule snapshots
+stored on earlier runs carry no color, so the rule view keeps the field optional.
+
+Same delivery: the review column on wide screens is capped at the photo viewport height and
+scrolls inside, with Save and Analyze pinned at its bottom; Save is green and Analyze amber; the
+"Was AI useful" answers carry colored marks (✅ / 🟡 / ❌) and a tinted pressed state.
+
+Verification: contracts (11), API photo-inspection integration tests (19, including the catalog
+service and colored rule snapshots), panel photo-inspection and rules tests (69), worker unit
+tests (11); panel, API and worker type checks and focused lint. Migration applied to the local QA
+database and inspected in the browser.

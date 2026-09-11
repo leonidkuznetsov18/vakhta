@@ -111,8 +111,8 @@ describe('photo inspection persistence and access', () => {
       .returning();
     familyId = definition!.familyId;
     await db.insert(photoObjects).values([
-      { id: RAG_ID, name: 'Ганчірки', updatedBy: 'test' },
-      { id: CUP_ID, name: 'Стаканчики', updatedBy: 'test' },
+      { id: RAG_ID, name: 'Ганчірки', color: '#ff2d55', updatedBy: 'test' },
+      { id: CUP_ID, name: 'Стаканчики', color: '#0a84ff', updatedBy: 'test' },
     ]);
     // Analysis needs the checklist object list for this zone; most tests start from one rule.
     await db.insert(checklistPhotoRules).values({
@@ -245,7 +245,9 @@ describe('photo inspection persistence and access', () => {
     const result = await service.analyze(id, request, master);
     expect(result.version).toBe(0);
     expect(result.review).toMatchObject({ status: 'UNREVIEWED', annotations: [] });
-    expect(result.rules).toEqual([{ objectId: RAG_ID, name: 'Ганчірки', note: '' }]);
+    expect(result.rules).toEqual([
+      { objectId: RAG_ID, name: 'Ганчірки', note: '', color: '#ff2d55' },
+    ]);
     expect(await fixture.db.select().from(photoInspectionRevisions)).toHaveLength(0);
     const [run] = await fixture.db.select().from(photoInspectionRuns);
     expect(run?.promptVersion).toBe(INSPECTION_PROMPT_VERSION);

@@ -38,7 +38,9 @@ describe('photo object catalog', () => {
     expect(list.objects.map((object) => object.name)).toEqual(['Ганчірка']);
     // The database refuses a second active spelling of the same family from any writer.
     await expect(
-      fixture.db.insert(photoObjects).values({ name: 'Ганчірки', updatedBy: 'other' }),
+      fixture.db
+        .insert(photoObjects)
+        .values({ name: 'Ганчірки', color: '#ffd60a', updatedBy: 'other' }),
     ).rejects.toThrow();
   });
   it('refuses creation without a reviewer role and reactivates a retired entry on reuse', async () => {

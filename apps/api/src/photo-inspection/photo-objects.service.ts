@@ -4,6 +4,7 @@ import {
   CreatePhotoObject,
   PhotoObjectsView,
   PhotoObjectView,
+  nextPhotoObjectColor,
   photoObjectKey,
 } from '@vakhta/contracts';
 import { HANDOVER_REVIEW_ROLES } from '@vakhta/domain';
@@ -39,7 +40,8 @@ export class PhotoObjectsService {
     if (!canEditPhotoObjects(user))
       throw new DomainError('INSPECTION_FORBIDDEN', 403, 'Only reviewers can add objects');
     return this.db.transaction(async (tx) => {
-      const existing = (await tx.select().from(photoObjects)).find(
+      const catalog = await tx.select().from(photoObjects);
+      const existing = catalog.find(
         (object) => photoObjectKey(object.name) === photoObjectKey(name),
       );
       if (existing) {
@@ -50,9 +52,14 @@ export class PhotoObjectsService {
             .where(eq(photoObjects.id, existing.id));
         return PhotoObjectView.parse({ ...existing, active: true });
       }
+      // The new object takes the color used least among active objects, so it stands apart from
+      // the ones reviewers see most often.
+      const color = nextPhotoObjectColor(
+        catalog.filter((object) => object.active).map((object) => object.color),
+      );
       const [created] = await tx
         .insert(photoObjects)
-        .values({ name, updatedBy: user.id })
+        .values({ name, color, updatedBy: user.id })
         .returning();
       if (!created) throw new Error('Photo object insert returned no row');
       await this.audit.record(tx, {

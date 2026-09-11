@@ -202,16 +202,20 @@ describe('photo inspection form and geometry', () => {
     editor.setNotAssessable(true);
     expect(reviewChanges(editor.store.getState()).fields).toContain('status');
   });
-  it('gives every checklist object its own color, others a stable fallback, unnamed regions white', () => {
-    const rules = ['a', 'b', 'c'].map((n) => ({
-      objectId: `40000000-0000-4000-8000-00000000000${n}`,
-    }));
-    const colors = rules.map((rule) => objectColor(rule.objectId, undefined, rules));
-    expect(new Set(colors).size).toBe(3);
-    expect(objectColor(RAG, undefined, view.rules)).toBe(objectColor(RAG, undefined, view.rules));
-    expect(objectColor(null, 'Broom', rules)).toBe(objectColor(null, ' broom ', rules));
-    expect(colors).not.toContain(objectColor(null, 'Broom', rules));
-    expect(objectColor(null, undefined, rules)).toBe(UNNAMED_COLOR);
+  it('colors a region by its catalog object, falls back by name and recolors boxes on new sources', () => {
+    const sources = [
+      { objectId: RAG, color: '#0a84ff' },
+      { objectId: '40000000-0000-4000-8000-00000000000b', color: '#ffd60a' },
+    ];
+    expect(objectColor(RAG, undefined, sources)).toBe('#0a84ff');
+    // The same object keeps its color whatever the list order or length.
+    expect(objectColor(RAG, undefined, [...sources].reverse())).toBe('#0a84ff');
+    expect(objectColor(null, 'Broom', sources)).toBe(objectColor(null, ' broom ', sources));
+    expect(objectColor(null, undefined, sources)).toBe(UNNAMED_COLOR);
+    const editor = new InspectionEditor(view);
+    expect(editor.colors).toBe(view.rules);
+    editor.useColors(sources);
+    expect(editor.colors).toBe(sources);
   });
 
   it('records rejected findings with a reason, hides them from the list and restores them', () => {

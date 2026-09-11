@@ -94,6 +94,10 @@ export const inspectionGuideUk: SectionGuide = {
       a: 'У налаштуваннях чекліста розгорніть його: список обʼєктів показується одразу, оберіть обʼєкти з каталогу і збережіть. У редакторі фото він показується для довідки. Ручний аналіз не потребує попереднього збереження розмітки.',
     },
     {
+      q: 'Однина чи множина в назвах обʼєктів?',
+      a: 'Завжди однина: «Стаканчик», «Провід», «Піддон». AI шукає всі екземпляри типу незалежно від числа, а два записи на один предмет («Провід» і «Провода») дають подвійні рамки на тому самому обʼєкті. Один запис на тип, варіанти вигляду описуйте в уточненні до правила.',
+    },
+    {
       q: 'Як зіставити область з описом?',
       a: 'Номер на фото відповідає номеру у списку. Натисніть область або її номер у списку: обидва виділяться зеленим, а список прокрутиться до опису. Назви кнопок над фото показуються при наведенні або фокусі з клавіатури.',
     },
@@ -200,6 +204,10 @@ export const inspectionGuideEn: SectionGuide = {
       a: 'In checklist settings, expand the checklist: its object list is shown at once; choose objects from the catalog and save. The photo editor displays that list for reference. Manual analysis does not require saving annotations first.',
     },
     {
+      q: 'Singular or plural in object names?',
+      a: 'Always singular: "Cup", "Wire", "Pallet". AI searches for every instance of a type regardless of the number, while two entries for one object ("Wire" and "Wires") box the same item twice. One entry per type; describe variants in the rule note.',
+    },
+    {
       q: 'How do I match a region to its description?',
       a: 'The photo number matches the list number. Select a region or its numbered list entry: both turn green and the list scrolls to the description. Toolbar names appear on hover or keyboard focus.',
     },
@@ -304,6 +312,10 @@ export const inspectionGuideRu: SectionGuide = {
     {
       q: 'Где изменить список предметов для AI?',
       a: 'В настройках чек-листа раскройте его: список объектов показан сразу, выберите объекты из каталога и сохраните. В редакторе фото он показан для справки. Ручной анализ не требует предварительного сохранения разметки.',
+    },
+    {
+      q: 'Единственное или множественное число в названиях объектов?',
+      a: 'Всегда единственное: «Стаканчик», «Провод», «Поддон». AI ищет все экземпляры типа независимо от числа, а две записи на один предмет («Провод» и «Провода») дают двойные рамки на одном объекте. Одна запись на тип; варианты вида описывайте в уточнении к правилу.',
     },
     {
       q: 'Как сопоставить область с описанием?',

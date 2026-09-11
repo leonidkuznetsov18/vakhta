@@ -1,19 +1,21 @@
+import { PHOTO_OBJECT_PALETTE, type PhotoObjectView } from '@vakhta/contracts';
+
 export type HexColor = `#${string}`;
-/** Vivid, clearly different hues in an order where neighbours never look alike. */
-export const OBJECT_PALETTE: readonly HexColor[] = [
-  '#ff2d55', // red
-  '#0a84ff', // blue
-  '#ffd60a', // yellow
-  '#30d158', // green
-  '#bf5af2', // purple
-  '#ff9f0a', // orange
-  '#64d2ff', // cyan
-  '#ff375f', // pink
-  '#a3e635', // lime
-  '#ffffff', // white as the last resort
-];
 export const SELECTED_COLOR: HexColor = '#059669';
 export const UNNAMED_COLOR: HexColor = '#ffffff';
+
+/** Anything that knows an object's color: a checklist rule or a catalog entry. */
+export interface ColorSource {
+  objectId: string;
+  color?: string | undefined;
+}
+/** Rules first (they are the checklist's own list), then the rest of the catalog. */
+export function colorSources(
+  rules: readonly ColorSource[],
+  objects: readonly PhotoObjectView[] = [],
+): ColorSource[] {
+  return [...rules, ...objects.map((object) => ({ objectId: object.id, color: object.color }))];
+}
 
 function hash(key: string): number {
   let value = 2166136261;
@@ -24,19 +26,22 @@ function hash(key: string): number {
   return value;
 }
 /**
- * Objects of the checklist list take the palette in list order, so every object type in the
- * editor has its own color. Any other object gets a color from the rest of the palette by name.
+ * The color belongs to the catalog object and is the same on every screen: chips, boxes and
+ * badges read it from the rules or the catalog. A region whose object is unknown here (a name
+ * typed before the catalog existed) gets a stable palette color by that name; an unnamed region
+ * stays white.
  */
 export function objectColor(
   objectId: string | null | undefined,
   objectName: string | undefined,
-  rules: readonly { objectId: string }[] = [],
+  sources: readonly ColorSource[] = [],
 ): HexColor {
-  const distinct = OBJECT_PALETTE.length - 1;
-  const index = objectId ? rules.findIndex((rule) => rule.objectId === objectId) : -1;
-  if (index >= 0) return OBJECT_PALETTE[index % distinct] ?? UNNAMED_COLOR;
+  const known = objectId
+    ? sources.find((source) => source.objectId === objectId)?.color
+    : undefined;
+  if (known) return known as HexColor;
   const key = objectId ?? objectName?.trim().toLocaleLowerCase() ?? '';
   if (!key) return UNNAMED_COLOR;
-  const free = Math.max(1, distinct - Math.min(rules.length, distinct));
-  return OBJECT_PALETTE[Math.min(rules.length, distinct - 1) + (hash(key) % free)] ?? UNNAMED_COLOR;
+  return (PHOTO_OBJECT_PALETTE[hash(key) % PHOTO_OBJECT_PALETTE.length] ??
+    UNNAMED_COLOR) as HexColor;
 }

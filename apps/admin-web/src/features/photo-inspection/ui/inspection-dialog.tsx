@@ -3,11 +3,13 @@ import { analysisLimitsView } from '../model/analysis-limits';
 import { hasReviewChanges, reviewChanges } from '../model/review-changes';
 import { useState } from 'react';
 import { useStore } from 'zustand';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   type AiFeedbackRating,
   type HandoverPhotoView,
   type PhotoInspectionView,
+  type PhotoObjectsView,
+  type PhotoObjectView,
 } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -57,6 +59,12 @@ import { EditableReview, ReadOnlyReview } from './review-fields';
 import { PredictionPanel } from './prediction-panel';
 import { deleteSelectedOnKeyDown } from '../model/delete-shortcut';
 import { RegionNumbers } from './region-numbers';
+import { colorSources } from '../model/object-colors';
+
+/** The catalog as last fetched, for box colors of objects outside the checklist list. */
+function cachedObjects(client: QueryClient): PhotoObjectView[] {
+  return client.getQueryData<PhotoObjectsView>(photoObjectsKey)?.objects ?? [];
+}
 import { AnalyzeButton } from './analyze-button';
 import { InspectionRules } from './inspection-rules';
 import { reviewFeedback } from '../model/review-feedback';
@@ -88,12 +96,15 @@ export function PhotoInspectionDialog({
   onPhotoChange?: (photo: HandoverPhotoView) => void;
 }) {
   const id = { handoverId, mediaId: photo.media.id, itemKey: photo.itemKey };
+  const client = useQueryClient();
   const query = useQuery({
     queryKey: inspectionKey(id),
     queryFn: async ({ signal }) => {
       const view = await inspectionApi.get(id, signal);
-      // The answer to this session's analysis lands in the draft as soon as it is fetched.
+      // The answer to this session's analysis lands in the draft as soon as it is fetched, and
+      // fresh rules recolor the boxes so they keep matching the chips.
       editor?.analysisResolved(view);
+      editor?.useColors(colorSources(view.rules, cachedObjects(client)));
       return view;
     },
     refetchInterval: (query) =>
@@ -203,12 +214,14 @@ function InspectionSession({
   register: (editor: InspectionEditor | null) => void;
   reload: () => void;
 }) {
-  const [{ editor, store, mount, attachViewport, attachOwner }] = useState(() =>
-    createInspectionSession(initial, register),
-  );
+  const client = useQueryClient();
+  const [{ editor, store, mount, attachViewport, attachOwner }] = useState(() => {
+    const session = createInspectionSession(initial, register);
+    session.editor.useColors(colorSources(initial.rules, cachedObjects(client)));
+    return session;
+  });
   const state = useStore(store);
   const changes = reviewChanges(state);
-  const client = useQueryClient();
   const link = useQuery({
     queryKey: [...inspectionKey(id), 'link'],
     queryFn: ({ signal }) => inspectionApi.link(id, signal),
@@ -224,9 +237,14 @@ function InspectionSession({
   const quota = analysisLimitsView(limits, t);
   const objects = useQuery({
     queryKey: photoObjectsKey,
-    queryFn: ({ signal }) => inspectionApi.objects(signal),
+    queryFn: async ({ signal }) => {
+      const view = await inspectionApi.objects(signal);
+      editor.useColors(colorSources(latest.rules, view.objects));
+      return view;
+    },
     staleTime: 60_000,
   });
+  const colors = colorSources(latest.rules, objects.data?.objects ?? []);
   const save = useMutation({
     mutationFn: () =>
       inspectionApi.save(id, {
@@ -456,12 +474,14 @@ function InspectionSession({
                   draggable={false}
                   className="block h-auto w-full max-w-none"
                 />
-                <RegionNumbers editor={editor} />
+                <RegionNumbers editor={editor} colors={colors} />
               </div>
             </div>
           )}
         </div>
-        <div className="flex min-w-0 flex-col gap-4">
+        {/* On wide screens the form column is as tall as the photo viewport and scrolls inside;
+            the save and analyze actions stay pinned at its bottom, so nothing hides below the photo. */}
+        <div className="flex min-w-0 flex-col gap-4 lg:max-h-[65dvh] lg:overflow-y-auto lg:pr-1">
           {initial.canEdit ? (
             <EditableReview
               editor={editor}
@@ -492,12 +512,13 @@ function InspectionSession({
             }}
           />
           {initial.canEdit && (
-            <div className="flex flex-wrap gap-2">
+            <div className="sticky bottom-0 z-10 -mb-4 flex flex-wrap gap-2 border-t bg-background py-3 lg:-mx-1 lg:px-1">
               <IconButton
                 disabled={busy || !canSaveReview(state)}
                 icon={SaveIcon}
                 label={t.save}
                 tooltip={t.hints.save}
+                className="bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-400 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                 onClick={() => save.mutate()}
               >
                 {save.isPending && !save.isPaused ? <LoadingState label={t.save} /> : t.save}

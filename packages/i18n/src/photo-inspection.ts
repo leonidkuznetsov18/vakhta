@@ -4,7 +4,7 @@ export const inspectionEn = {
   region: 'Region',
   objectName: 'What is marked',
   objectHint:
-    'Choose the object from the checklist list or the catalog. Mark one object per region: five cups are five regions.',
+    'Choose the object from the checklist list or the catalog. Mark one object per region: five cups are five regions. A new catalog entry is named in the singular ("Cup", not "Cups").',
   objectSuggestions: 'Checklist objects',
   objectCatalog: 'Other catalog objects',
   objectCreate: 'Add to catalog',
@@ -157,7 +157,7 @@ export const inspectionUk: PhotoInspectionMessages = {
   region: 'Область',
   objectName: 'Що позначено',
   objectHint:
-    'Оберіть обʼєкт зі списку чекліста або з каталогу. Одна область — один предмет: пʼять стаканчиків це пʼять областей.',
+    'Оберіть обʼєкт зі списку чекліста або з каталогу. Одна область — один предмет: пʼять стаканчиків це пʼять областей. Новий запис у каталозі називайте в однині («Стаканчик», а не «Стаканчики»).',
   objectSuggestions: 'Обʼєкти з чекліста',
   objectCatalog: 'Інші обʼєкти каталогу',
   objectCreate: 'Додати в каталог',
@@ -306,7 +306,7 @@ export const inspectionRu: PhotoInspectionMessages = {
   region: 'Область',
   objectName: 'Что отмечено',
   objectHint:
-    'Выберите объект из списка чек-листа или из каталога. Одна область — один предмет: пять стаканчиков это пять областей.',
+    'Выберите объект из списка чек-листа или из каталога. Одна область — один предмет: пять стаканчиков это пять областей. Новую запись в каталоге называйте в единственном числе («Стаканчик», а не «Стаканчики»).',
   objectSuggestions: 'Объекты из чек-листа',
   objectCatalog: 'Другие объекты каталога',
   objectCreate: 'Добавить в каталог',
