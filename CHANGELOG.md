@@ -1,3 +1,11 @@
+## [0.83.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.83.0...v0.83.1) (2026-09-11)
+
+### Bug fixes
+
+* **admin-web:** prevent layout jumps during background refresh ([5811a7f](https://github.com/leonidkuznetsov18/vakhta/commit/5811a7febfc28d2ab8d56aff2be4c503fdec5ba2))
+* **checklists:** remove duplicated photo rule help ([5515cf7](https://github.com/leonidkuznetsov18/vakhta/commit/5515cf776ce087545cea830aa6b99a566d17aac4))
+* **photo-inspection:** anchor region numbers during dragging ([68776e2](https://github.com/leonidkuznetsov18/vakhta/commit/68776e2ffff849b9537efb811acf4738fedea552))
+
 ## [0.83.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.82.0...v0.83.0) (2026-09-11)
 
 ### Features
