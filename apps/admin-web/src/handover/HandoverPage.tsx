@@ -292,7 +292,7 @@ export function HandoverPage() {
                     photo={p}
                     loadLink={handoversApi.mediaLink}
                     badge={
-                      p.automaticReviewPending
+                      p.automaticReviewPending && !detail.handover.automaticAnalysisPending
                         ? all.handover.statuses.MASTER_REVIEW
                         : all.handover.quality[p.media.quality]
                     }
