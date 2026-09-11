@@ -334,6 +334,61 @@ Lean: proceed. Prevent duplicate work and keep restoration reversible; clarify o
 adding a mandatory step. Observe duplicate-region creation and requests for help during the pilot;
 no measured production time saving is claimed.
 
+## Automatic submitted-photo review — 2026-09-11
+
+Owner clarified that prohibited items belong to each checklist/zone pair. `checklist_photo_rules`
+uses family + zone uniqueness, versioned writes and zone-scoped master permissions. Empty lists turn
+admission off. The source definition anchors history; deleting an unused checklist family cascades
+its configuration, while existing report references still protect used definitions. The new frontend
+feature exposes its public component to legacy admin/handover composition; existing Nest modules stay
+in place. No new dependency or broad architecture migration.
+
+The worker scans SUBMITTED reports, locks report/attachment/inspection rows, snapshots the first
+automatic instruction across the report and atomically writes run + durable task + audit. A unique
+partial index admits one automatic run per inspection. Manual and automatic requests share 5/photo
+and 200/global rolling daily limits. Media readiness, failures and restarts use existing durable task
+recovery; terminal model failures lead to manual review instead of a clean result or endless retry.
+Completed/superseded reports never reopen. Corrupt-only attachments move directly to manual review.
+
+`MASTER_REVIEW` is an operational report state, pending and preliminary for bonus evaluation. The
+migration's partial open-report index excludes existing terminal enum values, so PostgreSQL does not
+use the new enum literal within the same migration transaction. API/photo views expose outstanding
+AI acknowledgement. Final resolution is blocked until attached automatic photos are reviewed/saved.
+The report lock serializes admission and resolution. AI predictions and stable source finding IDs
+are separate from human revisions; only explicit review save writes the dataset and acknowledges AI.
+The editor never replaces a live unsaved draft when a background analysis finishes; it offers reload.
+
+Lean: Proceed with one checklist/zone object list and the existing photo review/decision flow. This
+removes repeated AI clicks and copies while retaining the human decision. Do not turn model guesses
+into employee penalties. Measure missed objects, false detections and master review time on held-out
+shifts; no measured shop-floor saving is claimed.
+
+Verification: PostgreSQL 16 migration/integration tests cover rule scope/versioning, one-run
+admission under concurrency, delayed media, immutable report instructions, corrupt-only fallback,
+terminal failure, no reopening, preserved human data and explicit photo acknowledgements. API photo
+inspection: 14 tests; worker admission: 11; existing task recovery: 7; handover service: 15 (the final
+new guard was rerun alone); checklist service: 6; domain handover/bonus: 20; editor: 14; rules UI: 1.
+The rules UI regression preserves input after a failed save and rejects duplicate names. Independent
+review caught and resolved corrupt-only completion, unused checklist deletion, acknowledgement and
+pre-admission finalization gaps. NOT_ASSESSABLE with a comment can be saved without a decoded image.
+
+Browser QA: captured and inspected the real rules form and inspection editor at 1365/1440 px desktop
+and 390 px mobile using an isolated PostgreSQL fixture. Verified proposed boxes, deletion restoring
+the option, explicit outcome/save, disappearance of awaiting-review guidance, and disabled clean save.
+No production employee report was finalized during testing.
+
+Live model pilot: analyzed the owner-selected R2 photo using current Railway credentials, without
+changing its operational history. Two non-thinking probes found only one purported tool and missed
+obvious cloth/cup objects; a reasoning probe incorrectly returned no prohibited objects. Visual
+inspection did not validate the predicted tool. Reasoning did not improve this example, so the
+existing non-thinking setting remains. This is **not** evidence of useful detection accuracy. The
+pilot must keep full human inspection, including empty AI results. Saved corrections support later
+held-out evaluation; they do not train the hosted API. Cloudflare's current model documentation
+confirms vision and the OpenAI-compatible interface, but provides no guarantee of bounding-box
+accuracy: https://developers.cloudflare.com/workers-ai/models/gemma-4-26b-a4b-it/.
+
+API/worker/panel type checks, focused lint, i18n catalogs (10 tests) and panel production build passed. Production configuration and final deployment evidence are reported with the release.
+
 ## Default image panning — 2026-09-11
 
 Remove the separate Pan photo toolbar action and mode. Selection mode now pans unmarked image areas

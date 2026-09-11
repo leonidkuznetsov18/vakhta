@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { AUTOMATIC_INSPECTION_ACTOR } from '@vakhta/contracts';
 import { readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -6,6 +8,7 @@ import {
   shiftSessions,
   checklistDefinitionPositions,
   checklistDefinitions,
+  checklistPhotoRules,
   domainEvents,
   downtimeIncidents,
   employeePositions,
@@ -14,6 +17,7 @@ import {
   handoverRecords,
   mediaObjects,
   photoInspections,
+  photoInspectionRuns,
   notificationOutbox,
   orgUnits,
   positions,
@@ -895,5 +899,93 @@ describe('handover: прибирання, чек-лист, фото, перед�
     expect(
       audits.filter((entry) => entry.action === 'handover.review_deadline_migrated'),
     ).toHaveLength(1);
+  });
+  it('requires explicit photo review before resolving an automatic report', async () => {
+    await toHandover(dayEmployee);
+    await fillAll(dayEmployee);
+    const submitted = await handover.submit(
+      dayEmployee,
+      { idempotencyKey: key() },
+      employeeActor(dayEmployee),
+    );
+    if (!submitted.ok) throw new Error('Submission failed');
+    const report = submitted.handover;
+    const photo = report.photos[0];
+    if (!photo) throw new Error('Missing photo');
+    const [definition] = await testDb.db
+      .select()
+      .from(checklistDefinitions)
+      .where(eq(checklistDefinitions.id, report.checklistDefinitionId));
+    if (!definition || !report.zoneId) throw new Error('Missing zone/checklist');
+    await testDb.db
+      .insert(checklistPhotoRules)
+      .values({
+        definitionId: definition.id,
+        familyId: definition.familyId,
+        zoneId: report.zoneId,
+        items: ['Cups'],
+        updatedBy: MASTER_ID,
+      });
+    expect((await handover.detail(report.id)).handover.automaticAnalysisPending).toBe(true);
+    await expect(
+      handover.resolve(report.id, { decision: 'RESOLVED_ACCEPTED', comment: 'Checked' }, MASTER),
+    ).rejects.toMatchObject({ code: 'HANDOVER_PHOTO_ANALYSIS_PENDING' });
+    const inspectionId = randomUUID(),
+      runId = randomUUID();
+    await testDb.db.insert(photoInspections).values({
+      id: inspectionId,
+      handoverId: report.id,
+      mediaId: photo.media.id,
+      itemKey: photo.itemKey,
+      context: {},
+      review: { status: 'UNREVIEWED', comment: '', guidance: '', annotations: [] },
+    });
+    await testDb.db.insert(photoInspectionRuns).values({
+      id: runId,
+      inspectionId,
+      reviewVersion: 0,
+      context: {},
+      guidance: 'Cups',
+      model: 'test',
+      promptVersion: 'test',
+      requestedBy: AUTOMATIC_INSPECTION_ACTOR,
+      status: 'SUCCEEDED',
+      completedAt: new Date(),
+      prediction: {
+        status: 'COMPLIANT',
+        summary: 'No items found',
+        limitations: '',
+        findings: [],
+      },
+    });
+    await testDb.db
+      .update(handoverRecords)
+      .set({ status: 'MASTER_REVIEW' })
+      .where(eq(handoverRecords.id, report.id));
+    expect((await handover.detail(report.id)).handover.photos[0]?.automaticReviewPending).toBe(
+      true,
+    );
+    await expect(
+      handover.resolve(report.id, { decision: 'RESOLVED_ACCEPTED', comment: 'Checked' }, MASTER),
+    ).rejects.toMatchObject({ code: 'HANDOVER_PHOTO_REVIEW_REQUIRED' });
+    expect((await handover.detail(report.id)).handover.status).toBe('MASTER_REVIEW');
+    // Photo save has its own integration coverage; emulate its persisted acknowledgement here.
+    await testDb.db
+      .update(photoInspections)
+      .set({
+        version: 1,
+        review: { status: 'COMPLIANT', comment: '', guidance: '', annotations: [] },
+        reviewedAutomaticRunId: runId,
+      })
+      .where(eq(photoInspections.id, inspectionId));
+    expect(
+      (
+        await handover.resolve(
+          report.id,
+          { decision: 'RESOLVED_ACCEPTED', comment: 'Checked' },
+          MASTER,
+        )
+      ).status,
+    ).toBe('RESOLVED_ACCEPTED');
   });
 });

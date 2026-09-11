@@ -1,4 +1,6 @@
 export const inspectionUk = {
+  automaticReview:
+    'AI підготував припущення. Перевірте кожну рамку: виправте або видаліть хибні, додайте пропущені предмети. Оберіть результат перевірки й збережіть — це підтвердить ваш огляд фото.',
   removeSelected: 'Видалити вибрану область',
   deleteShortcutHint:
     'Видалити вибрану область: Backspace або Delete поза текстовими полями. Потім збережіть перевірку.',
@@ -121,6 +123,8 @@ export const inspectionUk = {
   },
 };
 export const inspectionEn = {
+  automaticReview:
+    'AI prepared suggestions. Review every box: correct or delete mistakes and add missed objects. Choose the review outcome and save to confirm your inspection of this photo.',
   removeSelected: 'Delete selected region',
   deleteShortcutHint:
     'Delete the selected region with Backspace or Delete outside text fields. Save the review afterwards.',
@@ -241,6 +245,8 @@ export const inspectionEn = {
   },
 };
 export const inspectionRu = {
+  automaticReview:
+    'AI подготовил предположения. Проверьте каждую рамку: исправьте или удалите ошибочные, добавьте пропущенные предметы. Выберите результат проверки и сохраните — это подтвердит ваш осмотр фото.',
   removeSelected: 'Удалить выбранную область',
   deleteShortcutHint:
     'Удалить выбранную область: Backspace или Delete вне текстовых полей. Затем сохраните проверку.',

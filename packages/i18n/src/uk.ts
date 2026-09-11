@@ -1,3 +1,4 @@
+import { photoRulesUk } from './checklist-photo-rules.js';
 import { photoLibraryUk, libraryGuideUk } from './photo-library.js';
 import { inspectionGuideUk } from './photo-inspection-guide.js';
 import { inspectionUk } from './photo-inspection.js';
@@ -5,6 +6,7 @@ import type { Messages } from './messages.js';
 
 /** Ukrainian catalog. Same keys and placeholders as `ru`; verified by catalogs.test.ts. */
 export const uk: Messages = {
+  checklistPhotoRules: photoRulesUk,
   photoLibrary: photoLibraryUk,
   photoInspection: inspectionUk,
   language: {
@@ -252,6 +254,7 @@ export const uk: Messages = {
     },
     statuses: {
       DRAFT: 'Чернетка',
+      MASTER_REVIEW: 'Master Review',
       SUBMITTED: 'Звіт надіслано',
       ACCEPTED: 'Зону прийнято',
       DISPUTED: 'Є зауваження приймаючого',
@@ -851,6 +854,7 @@ export const uk: Messages = {
       approveChecklist: 'Схвалити',
       addRemark: 'Зауваження',
       shown: {
+        MASTER_REVIEW: 'Master Review',
         DRAFT: 'Чернетка',
         SUBMITTED: 'Звіт надіслано',
         APPROVED: 'Схвалено',

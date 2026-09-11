@@ -84,6 +84,7 @@ export function fromCanvas(annotation: ImageAnnotation, width: number, height: n
 interface EditorState {
   review: InspectionReview;
   version: number;
+  automaticRunId: string | null;
   savedReview: InspectionReview;
   selected: string | null;
   tool: 'rectangle' | 'polygon' | 'select';
@@ -103,8 +104,9 @@ export class InspectionEditor {
   readonly viewport;
   constructor(readonly initial: PhotoInspectionView) {
     this.store = createStore<EditorState>(() => ({
-      review: linkLegacySuggestions(initial.review, initial.runs),
+      review: initial.automaticReview ?? linkLegacySuggestions(initial.review, initial.runs),
       version: initial.version,
+      automaticRunId: initial.automaticRunId ?? null,
       savedReview: linkLegacySuggestions(initial.review, initial.runs),
       selected: null,
       tool: 'select',
@@ -329,6 +331,7 @@ export class InspectionEditor {
     this.analysis = null;
     this.store.setState({
       version: view.version,
+      automaticRunId: view.automaticRunId ?? null,
       review: structuredClone(view.review),
       savedReview: structuredClone(view.review),
     });
@@ -354,4 +357,13 @@ export function createInspectionSession(
       return () => register(null);
     },
   };
+}
+
+export function canSaveReview(state: EditorState): boolean {
+  return (
+    (hasReviewChanges(state) || Boolean(state.automaticRunId)) &&
+    reviewIsValid(state) &&
+    (!state.automaticRunId || state.review.status !== 'UNREVIEWED') &&
+    (state.imageStatus === 'ready' || state.review.status === 'NOT_ASSESSABLE')
+  );
 }

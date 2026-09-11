@@ -14,6 +14,10 @@ export const inspectionGuideUk: SectionGuide = {
   ],
   faq: [
     {
+      q: 'Як працює автоматична перевірка та Master Review?',
+      a: 'Майстер задає список заборонених предметів для чекліста й зони. Після надсилання звіту AI перевіряє фото та готує рамки. У Master Review перевірте кожне фото, виправте або видаліть хибні знахідки, оберіть результат і збережіть. Тоді можна завершити перевірку звіту. Навіть якщо AI нічого не знайшов або сталася помилка, потрібен огляд людини.',
+    },
+    {
       q: 'Що таке розмітка або анотація фото?',
       a: 'Це область на фото плюс короткий опис того, що ви бачите. Наприклад, рамка навколо ганчірки та текст «Брудна ганчірка на столі». Оригінал фото залишається незмінним.',
     },
@@ -112,6 +116,10 @@ export const inspectionGuideEn: SectionGuide = {
   ],
   faq: [
     {
+      q: 'How do automatic analysis and Master Review work?',
+      a: 'The master configures prohibited objects for a checklist and zone. After submission AI inspects the photos and proposes boxes. In Master Review, inspect each photo, correct or delete mistaken findings, choose an outcome and save. Then finish the report review. A person must review even when AI finds nothing or fails.',
+    },
+    {
       q: 'What is a photo annotation?',
       a: 'A region on a photo with a short description of what you see. For example, a box around a rag and “Dirty rag on the table.” The original image stays unchanged.',
     },
@@ -209,6 +217,10 @@ export const inspectionGuideRu: SectionGuide = {
     'При желании нажмите «Анализировать с AI» даже до сохранения или заполнения полей. Прочитайте предположения AI. Только верные добавьте кнопкой «Добавить в мою разметку», исправьте неточности и сохраните проверку ещё раз.',
   ],
   faq: [
+    {
+      q: 'Как работают автоматическая проверка и Master Review?',
+      a: 'Мастер задаёт запрещённые предметы для чек-листа и зоны. После отправки отчёта AI проверяет фото и предлагает рамки. В Master Review проверьте каждое фото, исправьте или удалите ошибочные находки, выберите результат и сохраните. Затем завершите проверку отчёта. Осмотр человека нужен даже при пустом результате или ошибке AI.',
+    },
     {
       q: 'Что такое разметка или аннотация фото?',
       a: 'Это область на фото и короткое описание того, что вы видите. Например, рамка вокруг тряпки и текст «Грязная тряпка на столе». Исходное фото остаётся неизменным.',

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   backgroundTasks,
   checklistDefinitions,
+  checklistPhotoRules,
   employees,
   eq,
   handoverMedia,
@@ -20,7 +21,13 @@ import {
   sites,
   sql,
 } from '@vakhta/db';
-import { InspectionContext, PhotoLibraryQuery, type InspectionReview } from '@vakhta/contracts';
+import {
+  AUTOMATIC_INSPECTION_ACTOR,
+  InspectionContext,
+  PhotoLibraryQuery,
+  type InspectionReview,
+} from '@vakhta/contracts';
+import { ChecklistPhotoRulesService } from './checklist-photo-rules.service.js';
 import { PhotoLibraryService } from './photo-library.service.js';
 import type { WebUser } from '../auth/web-auth.guard.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -434,5 +441,106 @@ describe('photo inspection persistence and access', () => {
         total: 0,
       });
     }
+  });
+  it('isolates checklist rules by zone, enforces scope and optimistic concurrency', async () => {
+    const db = fixture.db;
+    const rules = new ChecklistPhotoRulesService(db, new AuditLog());
+    const [report] = await db.select().from(handoverRecords);
+    const [zone] = await db.select().from(responsibilityZones);
+    if (!report || !zone) throw new Error('Missing fixture');
+    const otherZoneId = randomUUID();
+    await db.insert(responsibilityZones).values({
+      id: otherZoneId,
+      siteId: zone.siteId,
+      orgUnitId: zone.orgUnitId,
+      code: 'other',
+      name: 'Other',
+    });
+    const scoped: WebUser = {
+      ...master,
+      grants: [{ role: 'SHIFT_MASTER', scopeType: 'ZONE', scopeId: zone.id }],
+    };
+    const saved = await rules.save(
+      report.checklistDefinitionId,
+      zone.id,
+      { version: 0, items: ['Ганчірки', 'Стаканчики', 'Інструменти'] },
+      scoped,
+    );
+    expect(saved).toMatchObject({
+      version: 1,
+      canEdit: true,
+      items: ['Ганчірки', 'Стаканчики', 'Інструменти'],
+    });
+    expect((await rules.get(report.checklistDefinitionId, otherZoneId, master)).items).toEqual([]);
+    await expect(
+      rules.save(report.checklistDefinitionId, otherZoneId, { version: 0, items: ['Cup'] }, scoped),
+    ).rejects.toMatchObject({ code: 'INSPECTION_FORBIDDEN' });
+    await expect(
+      rules.save(report.checklistDefinitionId, zone.id, { version: 0, items: ['Cup'] }, scoped),
+    ).rejects.toMatchObject({ code: 'INSPECTION_CONFLICT' });
+    await expect(
+      rules.save(
+        report.checklistDefinitionId,
+        zone.id,
+        { version: 1, items: ['Cup', ' cup '] },
+        scoped,
+      ),
+    ).rejects.toThrow();
+    expect(await db.select().from(checklistPhotoRules)).toHaveLength(1);
+  });
+  it('exposes automatic boxes as an unconfirmed draft and acknowledges only an explicit human save', async () => {
+    const baseline = await service.save(id, { version: 0, review: clean }, master);
+    const [inspection] = await fixture.db.select().from(photoInspections);
+    if (!inspection) throw new Error('Missing inspection');
+    const runId = randomUUID();
+    await fixture.db.insert(photoInspectionRuns).values({
+      id: runId,
+      inspectionId: inspection.id,
+      reviewVersion: 1,
+      context: baseline.context,
+      guidance: 'Cups',
+      model: 'test',
+      promptVersion: 'workplace-prohibited-v1',
+      requestedBy: AUTOMATIC_INSPECTION_ACTOR,
+      status: 'SUCCEEDED',
+      completedAt: new Date(),
+      prediction: {
+        status: 'PROBLEMS',
+        summary: 'Cup',
+        limitations: '',
+        findings: [
+          {
+            category: 'OTHER',
+            comment: 'Cup on table',
+            geometry: { type: 'RECTANGLE', x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+          },
+        ],
+      },
+    });
+    const view = await service.get(id, master);
+    expect(view.review).toEqual(clean);
+    expect(view.automaticRunId).toBe(runId);
+    expect(view.automaticReview).toMatchObject({
+      status: 'UNREVIEWED',
+      annotations: [{ sourceRunId: runId, sourceFindingIndex: 0, comment: 'Cup on table' }],
+    });
+    expect((await service.get(id, master)).automaticReview).toEqual(view.automaticReview);
+    await expect(
+      service.save(
+        id,
+        { version: 1, review: { ...clean, status: 'UNREVIEWED' }, automaticRunId: runId },
+        master,
+      ),
+    ).rejects.toMatchObject({ code: 'INSPECTION_INVALID_SOURCE' });
+    // Rejecting all suggestions is a valid human decision; the original prediction stays recorded.
+    const saved = await service.save(
+      id,
+      { version: 1, review: clean, automaticRunId: runId },
+      master,
+    );
+    expect(saved.automaticRunId).toBeNull();
+    expect(saved.review).toEqual(clean);
+    expect(saved.runs[0]?.prediction?.findings).toHaveLength(1);
+    expect(await fixture.db.select().from(photoInspectionRevisions)).toHaveLength(2);
   });
 });

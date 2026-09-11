@@ -19,3 +19,4 @@ export * from './timer-tasks.js';
 export * from './photo-inspection.js';
 
 export * from './photo-library.js';
+export * from './checklist-photo-rules.js';

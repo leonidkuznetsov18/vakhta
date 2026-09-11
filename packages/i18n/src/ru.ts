@@ -1,3 +1,4 @@
+import { photoRulesRu } from './checklist-photo-rules.js';
 import { photoLibraryRu, libraryGuideRu } from './photo-library.js';
 import { inspectionGuideRu } from './photo-inspection-guide.js';
 import { inspectionRu } from './photo-inspection.js';
@@ -5,6 +6,7 @@ import type { Messages } from './messages.js';
 
 /** Base interface language (NFR-08). Button and state wording follows the spec, sections 4.3-4.4 and 5.1. */
 export const ru: Messages = {
+  checklistPhotoRules: photoRulesRu,
   photoLibrary: photoLibraryRu,
   photoInspection: inspectionRu,
   language: {
@@ -249,6 +251,7 @@ export const ru: Messages = {
     needs: { MASTER: 'Нужен мастер', CLEANING: 'Нужна уборка', REPAIR: 'Нужен ремонт' },
     statuses: {
       DRAFT: 'Черновик',
+      MASTER_REVIEW: 'Master Review',
       SUBMITTED: 'Отчёт отправлен',
       ACCEPTED: 'Зона принята',
       DISPUTED: 'Есть замечание принимающего',
@@ -848,6 +851,7 @@ export const ru: Messages = {
       approveChecklist: 'Одобрить',
       addRemark: 'Замечание',
       shown: {
+        MASTER_REVIEW: 'Master Review',
         DRAFT: 'Черновик',
         SUBMITTED: 'Отчёт отправлен',
         APPROVED: 'Одобрено',

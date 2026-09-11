@@ -1,3 +1,4 @@
+import type { ChecklistPhotoRulesMessages } from './checklist-photo-rules.js';
 import type { PhotoLibraryMessages } from './photo-library.js';
 import type { PhotoInspectionMessages } from './photo-inspection.js';
 import type {
@@ -63,6 +64,7 @@ export interface SectionGuide {
 
 export interface Messages {
   photoInspection: PhotoInspectionMessages;
+  checklistPhotoRules: ChecklistPhotoRulesMessages;
   photoLibrary: PhotoLibraryMessages;
   readonly language: {
     /** Button on the home screen that opens the language picker. */

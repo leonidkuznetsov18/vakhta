@@ -1,3 +1,4 @@
+import { ChecklistPhotoRules } from '@/features/checklist-photo-rules';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { DetailText } from '@/components/app/row-detail';
 import { useState } from 'react';
@@ -53,10 +54,11 @@ const hints = all.ui.hints;
  */
 const SHOWN_AS: Record<
   HandoverStatus,
-  'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REMARK' | 'SUPERSEDED'
+  'DRAFT' | 'SUBMITTED' | 'MASTER_REVIEW' | 'APPROVED' | 'REMARK' | 'SUPERSEDED'
 > = {
   DRAFT: 'DRAFT',
   SUBMITTED: 'SUBMITTED',
+  MASTER_REVIEW: 'MASTER_REVIEW',
   // Raised by the next shift, still waiting on the master: for the reader it is simply waiting.
   DISPUTED: 'SUBMITTED',
   // Accepted by the next shift, or by the master, or found to be nobody's fault: all approved.
@@ -70,6 +72,7 @@ const SHOWN_AS: Record<
 const STATUS_TONE: Record<(typeof SHOWN_AS)[HandoverStatus], Tone> = {
   DRAFT: 'neutral',
   SUBMITTED: 'info',
+  MASTER_REVIEW: 'warning',
   APPROVED: 'success',
   REMARK: 'danger',
   SUPERSEDED: 'neutral',
@@ -98,6 +101,7 @@ export function HandoverPage() {
   const list = useQuery({
     queryKey: keys.handovers(query),
     queryFn: () => handoversApi.list(query),
+    refetchInterval: 10_000,
   });
   const rows = list.data ?? [];
   const live = useLiveUpdates(handoversApi.streamUrl(), 'handover', ['handovers']);
@@ -106,6 +110,7 @@ export function HandoverPage() {
     queryKey: keys.handover(openId),
     queryFn: () => handoversApi.detail(openId!),
     enabled: openId !== null,
+    refetchInterval: 10_000,
   });
   const detail = detailQuery.data ?? null;
 
@@ -210,34 +215,56 @@ export function HandoverPage() {
       <div className="flex min-w-0 flex-col gap-6 py-1" data-testid="handover-detail">
         <QueryFeedback query={detailQuery} />
         <div className="flex min-w-0 flex-col gap-6">
-          <div className="max-w-prose rounded-md border p-3">
-            <h3 className="mb-2 text-sm font-semibold">{h.checklist}</h3>
-            <ul className="flex flex-col gap-1 text-sm">
-              {detail.handover.items
-                .filter((item) => item.kind === 'CHECK')
-                .map((item) => (
-                  <li key={item.key} className="flex gap-2">
-                    <span aria-hidden="true">{!item.answered ? '▫️' : item.ok ? '✅' : '⚠️'}</span>
-                    <span className="min-w-0">
-                      {item.label}
-                      {item.answered && !item.ok && (
-                        <Muted>
-                          {` · ${item.remarkCategory} · ${item.remarkText} · ${item.safeToWork ? h.safe : h.unsafe}${item.needs.length > 0 ? ` · ${item.needs.map((n) => all.handover.needs[n]).join(', ')}` : ''}`}
-                        </Muted>
-                      )}
-                    </span>
-                  </li>
-                ))}
-            </ul>
-            {detail.handover.cannotCompleteReason && (
-              <p className="mt-2 text-sm text-muted-foreground">
-                {h.cannotComplete}: {detail.handover.cannotCompleteReason}
-                {detail.handover.cannotCompleteComment
-                  ? ` · ${detail.handover.cannotCompleteComment}`
-                  : ''}
-              </p>
+          <div className="grid max-w-6xl items-start gap-4 lg:grid-cols-2">
+            <div className="min-w-0 rounded-md border p-3">
+              <h3 className="mb-2 text-sm font-semibold">
+                {detail.handover.checklistName || h.checklist}
+              </h3>
+              <ul className="flex flex-col gap-1 text-sm">
+                {detail.handover.items
+                  .filter((item) => item.kind === 'CHECK')
+                  .map((item) => (
+                    <li key={item.key} className="flex gap-2">
+                      <span aria-hidden="true">
+                        {!item.answered ? '▫️' : item.ok ? '✅' : '⚠️'}
+                      </span>
+                      <span className="min-w-0">
+                        {item.label}
+                        {item.answered && !item.ok && (
+                          <Muted>
+                            {` · ${item.remarkCategory} · ${item.remarkText} · ${item.safeToWork ? h.safe : h.unsafe}${item.needs.length > 0 ? ` · ${item.needs.map((n) => all.handover.needs[n]).join(', ')}` : ''}`}
+                          </Muted>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+              {detail.handover.cannotCompleteReason && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {h.cannotComplete}: {detail.handover.cannotCompleteReason}
+                  {detail.handover.cannotCompleteComment
+                    ? ` · ${detail.handover.cannotCompleteComment}`
+                    : ''}
+                </p>
+              )}
+            </div>
+            {detail.handover.zoneId && isHandoverPending(detail.handover.status) && (
+              <ChecklistPhotoRules
+                definitionId={detail.handover.checklistDefinitionId}
+                zones={[{ id: detail.handover.zoneId, name: detail.handover.zoneName ?? '' }]}
+              />
             )}
           </div>
+          {detail.handover.automaticAnalysisPending && (
+            <p role="status" className="text-sm">
+              {all.checklistPhotoRules.pending}
+            </p>
+          )}
+          {detail.handover.status === 'MASTER_REVIEW' && (
+            <p role="status" className="rounded-md border bg-muted/40 p-3 text-sm">
+              {all.checklistPhotoRules.review}
+            </p>
+          )}
           {detail.handover.items.some((item) => item.kind === 'NOTE' && item.answered) && (
             <div>
               <h3 className="mb-2 text-sm font-semibold">{h.notes}</h3>
@@ -264,7 +291,11 @@ export function HandoverPage() {
                     key={p.itemKey}
                     photo={p}
                     loadLink={handoversApi.mediaLink}
-                    badge={all.handover.quality[p.media.quality]}
+                    badge={
+                      p.automaticReviewPending
+                        ? all.handover.statuses.MASTER_REVIEW
+                        : all.handover.quality[p.media.quality]
+                    }
                     onOpen={() =>
                       setInspection({
                         handoverId: detail.handover.id,
@@ -298,6 +329,11 @@ export function HandoverPage() {
               <p className="max-w-3xl text-sm whitespace-normal text-muted-foreground">
                 {h.reviewHint}
               </p>
+              {detail.handover.photos.some((p) => p.automaticReviewPending) && (
+                <p role="status" className="text-sm">
+                  {all.checklistPhotoRules.review}
+                </p>
+              )}
               <FormField label={h.remarkComment}>
                 {(id) => (
                   <Textarea
@@ -313,7 +349,12 @@ export function HandoverPage() {
                 <Button
                   type="button"
                   variant="success"
-                  disabled={busy || !canTransitionHandover(row.status, 'RESOLVED_ACCEPTED')}
+                  disabled={
+                    busy ||
+                    detail.handover.automaticAnalysisPending ||
+                    detail.handover.photos.some((p) => p.automaticReviewPending) ||
+                    !canTransitionHandover(row.status, 'RESOLVED_ACCEPTED')
+                  }
                   onClick={() => resolve(row, 'RESOLVED_ACCEPTED')}
                 >
                   <CheckIcon aria-hidden="true" />
@@ -324,6 +365,8 @@ export function HandoverPage() {
                   variant="destructive"
                   disabled={
                     busy ||
+                    detail.handover.automaticAnalysisPending ||
+                    detail.handover.photos.some((p) => p.automaticReviewPending) ||
                     (comments[row.id] ?? '').trim().length < 3 ||
                     !canTransitionHandover(row.status, 'RESOLVED_ISSUE_CONFIRMED')
                   }

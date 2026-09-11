@@ -5,6 +5,7 @@ import {
   canReview,
   canTransitionHandover,
   handoverBonusEffect,
+  isHandoverPending,
 } from './lifecycle.js';
 import {
   DEFAULT_CHECKLIST_KEYS,
@@ -194,4 +195,13 @@ describe('життєвий цикл передачі (ТЗ 5.9, FR-HND-*)', () =
       ).toISOString(),
     ).toBe('2026-09-11T07:00:00.000Z');
   });
+});
+
+it('keeps AI master review pending and preliminary until a human resolves the report', () => {
+  expect(canTransitionHandover('SUBMITTED', 'MASTER_REVIEW')).toBe(true);
+  expect(isHandoverPending('MASTER_REVIEW')).toBe(true);
+  expect(handoverBonusEffect('MASTER_REVIEW')).toBe('PRELIMINARY');
+  expect(canTransitionHandover('MASTER_REVIEW', 'RESOLVED_ISSUE_CONFIRMED')).toBe(true);
+  expect(canTransitionHandover('MASTER_REVIEW', 'RESOLVED_ACCEPTED')).toBe(true);
+  expect(canTransitionHandover('MASTER_REVIEW', 'DRAFT')).toBe(false);
 });

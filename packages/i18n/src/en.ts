@@ -1,3 +1,4 @@
+import { photoRulesEn } from './checklist-photo-rules.js';
 import { photoLibraryEn, libraryGuideEn } from './photo-library.js';
 import { inspectionGuideEn } from './photo-inspection-guide.js';
 import { inspectionEn } from './photo-inspection.js';
@@ -5,6 +6,7 @@ import type { Messages } from './messages.js';
 
 /** English catalog. Same keys and placeholders as `ru`; verified by catalogs.test.ts. */
 export const en: Messages = {
+  checklistPhotoRules: photoRulesEn,
   photoLibrary: photoLibraryEn,
   photoInspection: inspectionEn,
   language: {
@@ -253,6 +255,7 @@ export const en: Messages = {
     needs: { MASTER: 'Shift master needed', CLEANING: 'Cleaning needed', REPAIR: 'Repair needed' },
     statuses: {
       DRAFT: 'Draft',
+      MASTER_REVIEW: 'Master Review',
       SUBMITTED: 'Report submitted',
       ACCEPTED: 'Zone accepted',
       DISPUTED: 'Receiver raised an issue',
@@ -851,6 +854,7 @@ export const en: Messages = {
       approveChecklist: 'Approve',
       addRemark: 'Add a remark',
       shown: {
+        MASTER_REVIEW: 'Master Review',
         DRAFT: 'Draft',
         SUBMITTED: 'Report sent',
         APPROVED: 'Approved',

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   checklistDefinitionPositions,
   checklistDefinitions,
+  checklistPhotoRules,
   employees,
   handoverRecords,
   orgUnits,
@@ -144,7 +145,31 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
     );
     await service.update(free.id, { name: 'Свободный 2', positionIds: [positionId], items }, admin);
     const current = (await service.list()).find((c) => c.familyId === free.familyId)!;
+    const [rulesSite] = await testDb.db
+      .insert(sites)
+      .values({ code: 'rules', name: 'Rules site', timezone: 'Europe/Kyiv' })
+      .returning();
+    if (!rulesSite) throw new Error('Missing site');
+    const [rulesUnit] = await testDb.db
+      .insert(orgUnits)
+      .values({ siteId: rulesSite.id, name: 'Rules unit' })
+      .returning();
+    if (!rulesUnit) throw new Error('Missing unit');
+    const [rulesZone] = await testDb.db
+      .insert(responsibilityZones)
+      .values({ siteId: rulesSite.id, orgUnitId: rulesUnit.id, code: 'rules', name: 'Rules zone' })
+      .returning();
+    if (!rulesZone) throw new Error('Missing zone');
+    if (!admin.id) throw new Error('Missing admin identity');
+    await testDb.db.insert(checklistPhotoRules).values({
+      definitionId: free.id,
+      familyId: free.familyId,
+      zoneId: rulesZone.id,
+      items: [],
+      updatedBy: admin.id,
+    });
     await service.delete(current.id, 'Ошибочно создан', admin);
+    expect(await testDb.db.select().from(checklistPhotoRules)).toHaveLength(0);
     expect(await testDb.db.select().from(checklistDefinitions)).toHaveLength(0);
 
     const used = await service.create(

@@ -29,7 +29,7 @@ Gemma 4 analysis and explicitly copy individual suggestions into the human revie
   count in a tooltip; no extra status block appears below the photo.
   Unfinished drafts are labeled separately. AI-only runs and replacement photos remain unmarked.
 - Manual AI requests use Cloudflare Gemma 4, persist before dispatch, survive restarts and deduplicate
-  retries. No automatic backlog analysis. Bounded request volume, image size, timeout and attempts.
+  retries. Automatic analysis admits submitted, unresolved reports with nonempty checklist/zone rules. Completed reports are excluded. Bounded request volume, image size, timeout and attempts.
 - Predictions retain model/prompt/context version separately from human truth. Unsupported equipment
   state and hidden surfaces are not assessable; a visual opinion cannot establish electrical safety.
 - Export includes reviewed human labels and source metadata as JSON, with an authorized original
@@ -112,3 +112,35 @@ with an explicit read-only marker. Annotations never move to its replacement.
 How it works and FAQ in Ukrainian, English and Russian explain inclusion, editing, read-only history,
 conflict recovery and the later evaluation/training use of saved examples. No separate upload, copy,
 AI training job or new approval process is introduced by this page.
+
+## Automatic checklist photo review
+
+A master configures **Specify what must not appear in the photo** next to a checklist, selecting its
+zone and entering one object per field. Rules belong to the checklist family and zone, survive a new
+checklist version, and do not affect another zone. An empty list disables automatic analysis for that
+pair. Up to 30 unique names of 100 characters each are accepted. Rules have scoped permissions,
+optimistic version checks and an audit trail.
+
+When an employee submits the report, the worker admits its processed photos without opening a panel
+page. The first admitted photo snapshots the instruction for all photos in that report. Changing the
+list later affects subsequently admitted reports, not a report already being analyzed. Existing
+submitted unresolved reports are eligible; no completed history is re-analyzed automatically.
+
+Every model finding needs a bounding rectangle and an explanation. These remain unconfirmed AI
+predictions. When all attached readable photos reach a terminal AI result (including failure), the
+report becomes **Master Review**. A report containing only corrupt photos also goes to the master;
+it is never labeled clean automatically. Processing delays or daily limits can delay admission.
+
+Open every marked photo. Automatic regions appear in a separate unreviewed draft, preserving saved
+human data. Correct boxes and descriptions, delete false findings or add missed objects. Choose a
+review outcome, then save. Deleting a proposed region restores its option in the AI list. Saving an
+explicit final photo review acknowledges that automatic run and creates the human dataset revision.
+An AI result with no findings still requires a human outcome. Failed analysis leaves manual review
+available, including **Not assessable** with an explanation when the image cannot be inspected.
+
+The report's approval/remark actions remain unavailable while an attached automatic photo review is
+unacknowledged. Once the photos are reviewed, the master makes the existing final report decision.
+Only this human decision affects operational remarks and employee points. AI never confirms a
+violation, awards/deducts points, or trains itself merely by receiving corrected examples.
+
+The manual **Analyze with AI** helper stays available independently of the automatic flow.

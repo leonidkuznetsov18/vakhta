@@ -43,6 +43,7 @@ import {
   type InspectionEditor,
   createInspectionSession,
   reviewIsValid,
+  canSaveReview,
   INSPECTION_ZOOM,
 } from '../model/editor';
 import { EditableReview, ReadOnlyReview } from './review-fields';
@@ -203,6 +204,9 @@ function InspectionSession({
       inspectionApi.save(id, {
         version: editor.store.getState().version,
         review: editor.store.getState().review,
+        ...(editor.store.getState().automaticRunId
+          ? { automaticRunId: editor.store.getState().automaticRunId ?? undefined }
+          : {}),
       }),
     retry: false,
     onMutate: () => editor.lock(),
@@ -413,6 +417,19 @@ function InspectionSession({
           )}
         </div>
         <div className="flex min-w-0 flex-col gap-4">
+          {state.automaticRunId && (
+            <p role="status" className="rounded-md border bg-muted/40 p-3 text-sm">
+              {t.automaticReview}
+            </p>
+          )}
+          {latest.automaticRunId && latest.automaticRunId !== state.automaticRunId && (
+            <IconButton
+              icon={RefreshCwIcon}
+              label={t.reload}
+              tooltip={t.automaticReview}
+              onClick={reload}
+            />
+          )}
           {initial.canEdit ? (
             <EditableReview editor={editor} busy={busy} />
           ) : (
@@ -439,9 +456,7 @@ function InspectionSession({
           {initial.canEdit && (
             <div className="flex flex-wrap gap-2">
               <IconButton
-                disabled={
-                  busy || !hasReviewChanges(state) || !valid || state.imageStatus !== 'ready'
-                }
+                disabled={busy || !canSaveReview(state)}
                 icon={SaveIcon}
                 label={`${t.save} (${changes.total})`}
                 tooltip={t.hints.save}

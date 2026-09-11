@@ -38,7 +38,7 @@ export class HandoverRepository {
       .where(
         and(
           eq(handoverRecords.shiftSessionId, sessionId),
-          inArray(handoverRecords.status, ['DRAFT', 'SUBMITTED', 'DISPUTED']),
+          inArray(handoverRecords.status, ['DRAFT', 'SUBMITTED', 'MASTER_REVIEW', 'DISPUTED']),
         ),
       )
       .limit(1);

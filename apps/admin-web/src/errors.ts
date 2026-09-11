@@ -9,6 +9,8 @@ export function describeError(e: unknown): string {
   if (e instanceof ApiError) {
     if (e.status === 403) return t.admin.schedule.forbidden;
     if (e.status === 0) return t.admin.auth.networkError;
+    if (e.code === 'HANDOVER_PHOTO_ANALYSIS_PENDING') return t.checklistPhotoRules.pending;
+    if (e.code === 'HANDOVER_PHOTO_REVIEW_REQUIRED') return t.checklistPhotoRules.review;
     if (e.code === 'INCIDENT_RESOLUTION_REQUIRED') return t.admin.incidents.requiredSolution;
     if (e.code === 'INCIDENT_CAUSE_REQUIRED') return t.admin.incidents.requiredCause;
     const known = (t.errors as Record<string, string>)[e.code ?? ''];

@@ -10,7 +10,8 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { handoverRecords, mediaObjects } from './handover.js';
+import { responsibilityZones } from './org.js';
+import { checklistDefinitions, handoverRecords, mediaObjects } from './handover.js';
 
 export const photoInspections = pgTable(
   'photo_inspections',
@@ -26,6 +27,7 @@ export const photoInspections = pgTable(
     context: jsonb('context').$type<unknown>().notNull(),
     version: integer('version').notNull().default(0),
     review: jsonb('review').$type<unknown>().notNull(),
+    reviewedAutomaticRunId: uuid('reviewed_automatic_run_id'),
     updatedBy: text('updated_by'),
     updatedAt: timestamp('updated_at', { withTimezone: true }),
   },
@@ -80,9 +82,39 @@ export const photoInspectionRuns = pgTable(
       .on(t.inspectionId)
       .where(sql`${t.status} = 'PENDING'`),
     index('photo_inspection_runs_requested_idx').on(t.requestedAt),
+    uniqueIndex('photo_inspection_runs_automatic_uq')
+      .on(t.inspectionId)
+      .where(sql`${t.requestedBy} = 'SYSTEM_AUTO_INSPECTION'`),
     check(
       'photo_inspection_runs_state_valid',
       sql`(${t.status} = 'PENDING' AND ${t.completedAt} IS NULL AND ${t.prediction} IS NULL AND ${t.errorCode} IS NULL) OR (${t.status} = 'SUCCEEDED' AND ${t.completedAt} IS NOT NULL AND ${t.prediction} IS NOT NULL AND ${t.errorCode} IS NULL) OR (${t.status} = 'FAILED' AND ${t.completedAt} IS NOT NULL AND ${t.prediction} IS NULL AND ${t.errorCode} IS NOT NULL)`,
+    ),
+  ],
+);
+
+/** Zone-specific rules shared by versions of one checklist; each AI run snapshots its instructions. */
+export const checklistPhotoRules = pgTable(
+  'checklist_photo_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    familyId: uuid('family_id').notNull(),
+    definitionId: uuid('definition_id')
+      .notNull()
+      .references(() => checklistDefinitions.id, { onDelete: 'cascade' }),
+    zoneId: uuid('zone_id')
+      .notNull()
+      .references(() => responsibilityZones.id),
+    items: jsonb('items').$type<string[]>().notNull().default([]),
+    version: integer('version').notNull().default(1),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: text('updated_by').notNull(),
+  },
+  (t) => [
+    uniqueIndex('checklist_photo_rules_family_zone_uq').on(t.familyId, t.zoneId),
+    check('checklist_photo_rules_version_valid', sql`${t.version} > 0`),
+    check(
+      'checklist_photo_rules_items_valid',
+      sql`jsonb_typeof(${t.items}) = 'array' and jsonb_array_length(${t.items}) <= 30`,
     ),
   ],
 );

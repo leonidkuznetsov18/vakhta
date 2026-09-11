@@ -1,3 +1,5 @@
+import { admitSubmittedPhotoInspections } from './admission.js';
+import { advanceCompletedPhotoReviews } from './review-stage.js';
 import type { Database } from '@vakhta/db';
 import type { InspectionAnalyzer } from './gemma.js';
 import { dispatchInspectionTasks } from './tasks.js';
@@ -20,7 +22,9 @@ export class InspectionTaskRunner {
   }
   private poll(): void {
     if (this.running || this.stopped) return;
-    this.running = dispatchInspectionTasks(this.db, this.analyzer)
+    this.running = admitSubmittedPhotoInspections(this.db)
+      .then(() => dispatchInspectionTasks(this.db, this.analyzer))
+      .then(() => advanceCompletedPhotoReviews(this.db))
       .then(() => undefined)
       .catch(() => this.failed())
       .finally(() => {

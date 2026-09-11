@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "photo_inspection_runs_automatic_uq" ON "photo_inspection_runs" USING btree ("inspection_id") WHERE "photo_inspection_runs"."requested_by" = 'SYSTEM_AUTO_INSPECTION';

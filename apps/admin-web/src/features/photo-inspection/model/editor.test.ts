@@ -6,7 +6,7 @@ vi.mock('@annotorious/annotorious', () => ({
   ShapeType: { RECTANGLE: 'RECTANGLE', POLYGON: 'POLYGON' },
   UserSelectAction: { EDIT: 'EDIT', SELECT: 'SELECT' },
 }));
-import { fromCanvas, InspectionEditor, reviewIsValid, toCanvas } from './editor';
+import { canSaveReview, fromCanvas, InspectionEditor, reviewIsValid, toCanvas } from './editor';
 import type {
   InspectionAnnotation,
   InspectionRunView,
@@ -265,4 +265,38 @@ describe('photo inspection form and geometry', () => {
     editor.remove(annotation.id);
     expect(editor.store.getState().review.status).toBe('UNREVIEWED');
   });
+});
+
+it('opens automatic regions as a draft without altering the saved baseline and restores rejected options', () => {
+  const annotation = {
+    id: crypto.randomUUID(),
+    ...finding,
+    sourceRunId: run.id,
+    sourceFindingIndex: 0,
+  };
+  const editor = new InspectionEditor({
+    ...view,
+    runs: [run],
+    automaticRunId: run.id,
+    automaticReview: { ...view.review, annotations: [annotation] },
+  });
+  expect(editor.store.getState().savedReview.annotations).toHaveLength(0);
+  expect(editor.store.getState().review.annotations).toHaveLength(1);
+  expect(editor.store.getState().review.status).toBe('UNREVIEWED');
+  expect(availableSuggestions(run, editor.store.getState().review).map((s) => s.index)).toEqual([
+    1,
+  ]);
+  editor.remove(annotation.id);
+  expect(availableSuggestions(run, editor.store.getState().review)).toHaveLength(2);
+  expect(editor.store.getState().automaticRunId).toBe(run.id);
+  editor.saved({ ...view, version: 1, automaticRunId: null });
+  expect(editor.store.getState().automaticRunId).toBeNull();
+});
+
+it('allows an explained unassessable review when an automatic photo cannot load', () => {
+  const editor = new InspectionEditor({ ...view, automaticRunId: run.id });
+  editor.store.setState({ imageStatus: 'failed' });
+  expect(canSaveReview(editor.store.getState())).toBe(false);
+  editor.change({ status: 'NOT_ASSESSABLE', comment: 'Photo is unreadable' });
+  expect(canSaveReview(editor.store.getState())).toBe(true);
 });

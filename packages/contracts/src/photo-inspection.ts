@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const INSPECTION_MODEL = '@cf/google/gemma-4-26b-a4b-it';
 export const INSPECTION_PROMPT_VERSION = 'workplace-v1';
+export const AUTOMATIC_INSPECTION_PROMPT_VERSION = 'workplace-prohibited-v1';
+export const AUTOMATIC_INSPECTION_ACTOR = 'SYSTEM_AUTO_INSPECTION';
 const coordinate = z.number().finite().min(0).max(1);
 export const InspectionGeometry = z.discriminatedUnion('type', [
   z
@@ -87,6 +89,7 @@ export type InspectionReview = z.infer<typeof InspectionReview>;
 export const SaveInspection = z.object({
   version: z.number().int().nonnegative(),
   review: InspectionReview,
+  automaticRunId: z.uuid().optional(),
 });
 export type SaveInspection = z.infer<typeof SaveInspection>;
 export const InspectionContext = z.object({
@@ -150,6 +153,8 @@ export const PhotoInspectionView = z.object({
   updatedBy: z.string().nullable(),
   canEdit: z.boolean(),
   runs: z.array(InspectionRunView),
+  automaticRunId: z.uuid().nullable().optional(),
+  automaticReview: InspectionReview.nullable().optional(),
 });
 export type PhotoInspectionView = z.infer<typeof PhotoInspectionView>;
 export const RequestInspectionAnalysis = z.object({

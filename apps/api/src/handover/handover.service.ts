@@ -4,6 +4,7 @@ import {
   asc,
   checklistAnswers,
   checklistDefinitions,
+  checklistPhotoRules,
   desc,
   employees,
   eq,
@@ -20,6 +21,7 @@ import {
   lte,
   mediaObjects,
   photoInspections,
+  photoInspectionRuns,
   ne,
   orgUnits,
   reasonCodes,
@@ -62,7 +64,7 @@ import type {
   SubmitHandoverCommand,
   TransitionResponse,
 } from '@vakhta/contracts';
-import { InspectionReview } from '@vakhta/contracts';
+import { AUTOMATIC_INSPECTION_ACTOR, InspectionReview } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
@@ -618,6 +620,61 @@ export class HandoverService {
   /* ------------------------------------------------------------------ */
 
   /** Формалізоване рішення (FR-HND-05/06): спір або прострочена приймання. */
+  private async automaticAnalysisPending(
+    db: DbOrTx,
+    report: typeof handoverRecords.$inferSelect,
+  ): Promise<boolean> {
+    if (report.status !== 'SUBMITTED') return false;
+    const [configured] = await db
+      .select({ id: checklistDefinitions.id })
+      .from(checklistDefinitions)
+      .leftJoin(
+        checklistPhotoRules,
+        and(
+          eq(checklistPhotoRules.familyId, checklistDefinitions.familyId),
+          sql`${checklistPhotoRules.zoneId} = ${report.zoneId}`,
+        ),
+      )
+      .where(
+        and(
+          eq(checklistDefinitions.id, report.checklistDefinitionId),
+          sql`exists (select 1 from handover_media hm where hm.handover_id = ${report.id})`,
+          sql`(jsonb_array_length(${checklistPhotoRules.items}) > 0 or exists (
+          select 1 from photo_inspections pi join photo_inspection_runs pr on pr.inspection_id = pi.id
+          where pi.handover_id = ${report.id} and pr.requested_by = ${AUTOMATIC_INSPECTION_ACTOR}
+        ))`,
+        ),
+      );
+    return Boolean(configured);
+  }
+
+  private pendingAutomaticReviews(db: DbOrTx, handoverId: string) {
+    return db
+      .select({ mediaId: photoInspections.mediaId, itemKey: photoInspections.itemKey })
+      .from(photoInspections)
+      .innerJoin(
+        handoverMedia,
+        and(
+          eq(handoverMedia.handoverId, photoInspections.handoverId),
+          eq(handoverMedia.mediaObjectId, photoInspections.mediaId),
+          eq(handoverMedia.itemKey, photoInspections.itemKey),
+        ),
+      )
+      .innerJoin(
+        photoInspectionRuns,
+        and(
+          eq(photoInspectionRuns.inspectionId, photoInspections.id),
+          eq(photoInspectionRuns.requestedBy, AUTOMATIC_INSPECTION_ACTOR),
+        ),
+      )
+      .where(
+        and(
+          eq(photoInspections.handoverId, handoverId),
+          sql`${photoInspections.reviewedAutomaticRunId} is distinct from ${photoInspectionRuns.id}`,
+        ),
+      );
+  }
+
   async resolve(
     handoverId: string,
     cmd: ResolveHandoverCommand,
@@ -641,6 +698,18 @@ export class HandoverService {
           `Перехід ${record.status} → ${cmd.decision} не дозволений`,
         );
       }
+      if (await this.automaticAnalysisPending(tx, record))
+        throw new DomainError(
+          'HANDOVER_PHOTO_ANALYSIS_PENDING',
+          409,
+          'Wait for automatic photo analysis before resolving the report',
+        );
+      if ((await this.pendingAutomaticReviews(tx, handoverId)).length)
+        throw new DomainError(
+          'HANDOVER_PHOTO_REVIEW_REQUIRED',
+          409,
+          'Review and save each automatic photo inspection before resolving the report',
+        );
       await tx.insert(handoverResolutions).values({
         handoverId,
         resolvedBy: actor.id,
@@ -755,10 +824,10 @@ export class HandoverService {
     const scope = q.scope ?? 'pending';
     const conditions = [];
     if (scope === 'pending')
-      conditions.push(inArray(handoverRecords.status, ['SUBMITTED', 'DISPUTED']));
+      conditions.push(inArray(handoverRecords.status, ['SUBMITTED', 'MASTER_REVIEW', 'DISPUTED']));
     if (scope === 'overdue')
       conditions.push(
-        inArray(handoverRecords.status, ['SUBMITTED', 'DISPUTED']),
+        inArray(handoverRecords.status, ['SUBMITTED', 'MASTER_REVIEW', 'DISPUTED']),
         lt(handoverRecords.acceptDeadlineAt, now),
       );
     if (scope === 'all') conditions.push(ne(handoverRecords.status, 'DRAFT'));
@@ -792,7 +861,9 @@ export class HandoverService {
         ...rest,
         remarks: items.filter((i) => i.answered && i.ok === false).length,
         overdue:
-          (base.status === 'SUBMITTED' || base.status === 'DISPUTED') &&
+          (base.status === 'SUBMITTED' ||
+            base.status === 'MASTER_REVIEW' ||
+            base.status === 'DISPUTED') &&
           base.acceptDeadlineAt !== null &&
           new Date(base.acceptDeadlineAt).getTime() < now.getTime(),
         reviewDecision: review[0]?.decision ?? null,
@@ -865,7 +936,8 @@ export class HandoverService {
       .where(eq(handoverRecords.id, handoverId))
       .limit(1);
     if (!row) throw new DomainError('HANDOVER_NOT_FOUND', 404, 'Handover report not found');
-    const [answers, photos] = await Promise.all([
+    const [pendingAutomatic, answers, photos] = await Promise.all([
+      this.pendingAutomaticReviews(tx, handoverId),
       tx.select().from(checklistAnswers).where(eq(checklistAnswers.handoverId, handoverId)),
       tx
         .select({
@@ -913,10 +985,15 @@ export class HandoverService {
       submittedByName: row.submitterName,
       checklistDefinitionId: r.checklistDefinitionId,
       checklistVersion: row.definition.version,
+      checklistName: row.definition.name,
+      automaticAnalysisPending: await this.automaticAnalysisPending(tx, r),
       status: r.status,
       version: r.version,
       items,
       photos: photos.map((p): HandoverPhotoView => ({
+        automaticReviewPending: pendingAutomatic.some(
+          (item) => item.mediaId === p.media.id && item.itemKey === p.itemKey,
+        ),
         itemKey: p.itemKey,
         label: row.definition.items.find((i) => i.key === p.itemKey)?.label ?? p.itemKey,
         media: this.media.toView(p.media),

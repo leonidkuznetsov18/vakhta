@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  AUTOMATIC_INSPECTION_PROMPT_VERSION,
   INSPECTION_MODEL,
   INSPECTION_PROMPT_VERSION,
   InspectionContext,
@@ -52,7 +53,12 @@ export async function dispatchInspectionTasks(
       try {
         if (task.attempts > 3) throw new InspectionFailure('AI_RETRY_EXHAUSTED');
         if (!analyzer) throw new InspectionFailure('AI_NOT_CONFIGURED');
-        if (run.model !== INSPECTION_MODEL || run.promptVersion !== INSPECTION_PROMPT_VERSION)
+        if (
+          run.model !== INSPECTION_MODEL ||
+          ![INSPECTION_PROMPT_VERSION, AUTOMATIC_INSPECTION_PROMPT_VERSION].includes(
+            run.promptVersion,
+          )
+        )
           throw new InspectionFailure('UNSUPPORTED_VERSION');
         const context = InspectionContext.parse(run.context);
         const [media] = await db
@@ -66,7 +72,13 @@ export async function dispatchInspectionTasks(
         try {
           result = await Promise.race([
             analyzer.analyze(
-              { context, guidance: run.guidance, model: run.model, storageKey: media.storageKey },
+              {
+                context,
+                guidance: run.guidance,
+                model: run.model,
+                storageKey: media.storageKey,
+                promptVersion: run.promptVersion,
+              },
               abort.signal,
             ),
             new Promise<never>((_resolve, reject) => {
@@ -77,6 +89,11 @@ export async function dispatchInspectionTasks(
             }),
           ]);
           result.prediction = InspectionPrediction.parse(result.prediction);
+          if (
+            run.promptVersion === AUTOMATIC_INSPECTION_PROMPT_VERSION &&
+            result.prediction.findings.some((finding) => finding.geometry?.type !== 'RECTANGLE')
+          )
+            throw new InspectionFailure('INVALID_RESPONSE', true);
         } finally {
           if (timer) clearTimeout(timer);
           abort.abort();

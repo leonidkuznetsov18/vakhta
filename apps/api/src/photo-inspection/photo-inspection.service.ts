@@ -1,3 +1,4 @@
+import { automaticReviewDraft } from './automatic-review.js';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   and,
@@ -24,6 +25,7 @@ import {
   type DbOrTx,
 } from '@vakhta/db';
 import {
+  AUTOMATIC_INSPECTION_ACTOR,
   INSPECTION_MODEL,
   INSPECTION_PROMPT_VERSION,
   InspectionContext,
@@ -182,7 +184,26 @@ export class PhotoInspectionService {
           .orderBy(desc(photoInspectionRuns.requestedAt))
           .limit(10)
       : [];
+    const [automatic] = row
+      ? await this.db
+          .select()
+          .from(photoInspectionRuns)
+          .where(
+            and(
+              eq(photoInspectionRuns.inspectionId, row.id),
+              eq(photoInspectionRuns.requestedBy, AUTOMATIC_INSPECTION_ACTOR),
+            ),
+          )
+          .limit(1)
+      : [];
+    const awaiting =
+      automatic && automatic.status !== 'PENDING' && automatic.id !== row?.reviewedAutomaticRunId;
+    const review = InspectionReview.parse(row?.review ?? EMPTY_REVIEW);
     return PhotoInspectionView.parse({
+      automaticRunId: awaiting ? automatic.id : null,
+      automaticReview: awaiting
+        ? automaticReviewDraft(review, automatic.id, automatic.prediction)
+        : null,
       context: row?.context ?? source.context,
       canEdit: source.canEdit,
       version: row?.version ?? 0,
@@ -269,10 +290,34 @@ export class PhotoInspectionService {
             );
         }
       }
+      if (input.automaticRunId) {
+        const [automatic] = await tx
+          .select()
+          .from(photoInspectionRuns)
+          .where(
+            and(
+              eq(photoInspectionRuns.id, input.automaticRunId),
+              eq(photoInspectionRuns.inspectionId, row.id),
+              eq(photoInspectionRuns.requestedBy, AUTOMATIC_INSPECTION_ACTOR),
+            ),
+          );
+        if (!automatic || automatic.status === 'PENDING' || review.status === 'UNREVIEWED')
+          throw new DomainError(
+            'INSPECTION_INVALID_SOURCE',
+            422,
+            'Complete the human review before acknowledging AI',
+          );
+      }
       const version = row.version + 1;
       await tx
         .update(photoInspections)
-        .set({ review, version, updatedBy: user.id, updatedAt: new Date() })
+        .set({
+          review,
+          version,
+          updatedBy: user.id,
+          updatedAt: new Date(),
+          ...(input.automaticRunId ? { reviewedAutomaticRunId: input.automaticRunId } : {}),
+        })
         .where(eq(photoInspections.id, row.id));
       await tx
         .insert(photoInspectionRevisions)

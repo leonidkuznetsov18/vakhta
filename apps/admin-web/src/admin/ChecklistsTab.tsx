@@ -1,3 +1,4 @@
+import { ChecklistPhotoRules } from '@/features/checklist-photo-rules';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -310,17 +311,20 @@ export function ChecklistsTab({ org }: Props) {
         onRowClick={(r) => setOpenId(openId === r.id ? null : r.id)}
         expanded={(row) =>
           row.id === openId ? (
-            <div className="flex max-w-3xl flex-col gap-4" data-testid="checklist-detail">
+            <div className="flex max-w-6xl flex-col gap-4" data-testid="checklist-detail">
               <Muted>
                 <time dateTime={row.validFrom}>{formatDateTime(row.validFrom)}</time>
               </Muted>
-              <BotPreview
-                items={row.items.map((item, index) => ({
-                  id: index,
-                  label: item.label,
-                  kind: item.kind,
-                }))}
-              />
+              <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
+                <BotPreview
+                  items={row.items.map((item, index) => ({
+                    id: index,
+                    label: item.label,
+                    kind: item.kind,
+                  }))}
+                />
+                <ChecklistPhotoRules definitionId={row.id} zones={org.zones} />
+              </div>
               <div className="flex flex-wrap gap-2 border-t pt-4">
                 {actions(row).map((action) => (
                   <Button

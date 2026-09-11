@@ -43,6 +43,7 @@ export type MediaObjectView = z.infer<typeof MediaObjectView>;
 
 /** A photo attached to one PHOTO item of the checklist. */
 export const HandoverPhotoView = z.object({
+  automaticReviewPending: z.boolean().optional(),
   itemKey: z.string(),
   label: z.string(),
   media: MediaObjectView,
@@ -79,6 +80,8 @@ export const HandoverView = z.object({
   submittedByName: z.string(),
   checklistDefinitionId: Uuid,
   checklistVersion: z.number().int().positive(),
+  checklistName: z.string().default(''),
+  automaticAnalysisPending: z.boolean().optional(),
   status: HandoverStatusSchema,
   version: z.number().int().nonnegative(),
   items: z.array(ChecklistItemView),

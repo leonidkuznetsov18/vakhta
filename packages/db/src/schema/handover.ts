@@ -28,6 +28,7 @@ import { shiftSessions } from './shift.js';
 const HANDOVER_STATUS_VALUES = [
   'DRAFT',
   'SUBMITTED',
+  'MASTER_REVIEW',
   'ACCEPTED',
   'DISPUTED',
   'RESOLVED_ACCEPTED',
@@ -167,7 +168,9 @@ export const handoverRecords = pgTable(
   (t) => [
     uniqueIndex('handover_records_open_uq')
       .on(t.shiftSessionId)
-      .where(sql`${t.status} IN ('DRAFT', 'SUBMITTED', 'DISPUTED')`),
+      .where(
+        sql`${t.status} NOT IN ('ACCEPTED', 'RESOLVED_ACCEPTED', 'RESOLVED_ISSUE_CONFIRMED', 'RESOLVED_NO_FAULT', 'SUPERSEDED')`,
+      ),
     index('handover_records_zone_status_idx').on(t.zoneId, t.status),
     index('handover_records_status_deadline_idx').on(t.status, t.acceptDeadlineAt),
   ],
