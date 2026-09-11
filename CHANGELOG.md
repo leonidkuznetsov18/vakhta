@@ -1,3 +1,9 @@
+## [0.87.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.86.0...v0.87.0) (2026-09-11)
+
+### Features
+
+* **photo-inspection:** draw AI findings at once, color boxes per object ([54a5f25](https://github.com/leonidkuznetsov18/vakhta/commit/54a5f257c5fb3d2075f271389775d92402cd4e9e))
+
 ## [0.86.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.85.2...v0.86.0) (2026-09-11)
 
 ### Features
