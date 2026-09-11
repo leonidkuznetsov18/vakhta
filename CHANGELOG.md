@@ -1,3 +1,9 @@
+## [0.93.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.0...v0.93.1) (2026-09-11)
+
+### Tests
+
+* **photo-inspection:** cover the quota-exceeded message ([4558a7f](https://github.com/leonidkuznetsov18/vakhta/commit/4558a7f898bec9779b1392bdbb3349a571557872))
+
 ## [0.93.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.92.2...v0.93.0) (2026-09-11)
 
 ### Features
