@@ -1,3 +1,13 @@
+## [0.93.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.92.2...v0.93.0) (2026-09-11)
+
+### Features
+
+* **photo-inspection:** rename and retire catalog objects from the rules form ([9156ef8](https://github.com/leonidkuznetsov18/vakhta/commit/9156ef898b48d7c686e072eb0d73311c168d8302))
+
+### Bug fixes
+
+* **photo-inspection:** report an exhausted Cloudflare allocation instead of retrying ([3ad6dd0](https://github.com/leonidkuznetsov18/vakhta/commit/3ad6dd0c03fc0ad718bd2dc314fd20cb9de22afd))
+
 ## [0.92.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.92.1...v0.92.2) (2026-09-11)
 
 ### Bug fixes
