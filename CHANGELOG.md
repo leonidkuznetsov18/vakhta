@@ -1,3 +1,9 @@
+## [0.93.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.1...v0.93.2) (2026-09-11)
+
+### Refactoring
+
+* **core:** remove unused helpers and record code review ([ae3c8f3](https://github.com/leonidkuznetsov18/vakhta/commit/ae3c8f3b540232927403c3e20076233463fc4a66))
+
 ## [0.93.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.0...v0.93.1) (2026-09-11)
 
 ### Tests
