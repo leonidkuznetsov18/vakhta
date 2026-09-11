@@ -1,3 +1,10 @@
+## [0.85.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.85.0...v0.85.1) (2026-09-11)
+
+### Bug fixes
+
+* **handover:** remove misleading remark count column ([80f3fa6](https://github.com/leonidkuznetsov18/vakhta/commit/80f3fa6200b548b11c18a61eb49ef9a0eeff1596))
+* **photo-inspection:** mark annotated photos with an icon ([79f59c4](https://github.com/leonidkuznetsov18/vakhta/commit/79f59c4494650a84ab78943f3b810032ca780be2))
+
 ## [0.85.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.84.1...v0.85.0) (2026-09-11)
 
 ### Features
