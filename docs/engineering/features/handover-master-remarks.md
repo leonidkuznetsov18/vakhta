@@ -21,6 +21,20 @@ exact stored comment. No production report, employee message or decision was fab
 Lean: keep the decision beside the original evidence; record once, reuse for the employee message.
 Avoid repeat entry and misleading controls after the master has handled the report.
 
+## Remove the misleading count column — 2026-09-11
+
+Owner request: show whether a report has a master remark, without a count column. The list's
+`remarks` API field counts negative employee checklist answers, while the Remark status represents
+`RESOLVED_ISSUE_CONFIRMED`. A master remark can therefore correctly coexist with a zero checklist
+count, but the adjacent labels suggested contradictory information.
+
+Remove the column from the existing handover page; retain the status pill, expanded evidence and API
+contract. This is a presentation-only deletion within the legacy page, requiring no new FSD slice.
+Acceptance: the desktop table and mobile cards omit the count and retain the existing status.
+Verification: inspect the diff and formatting, then visually check the affected desktop/mobile list.
+Lean recommendation: Simplify. One existing status communicates the decision without a competing
+number or additional worker input; stored checklist answers and master comments remain accessible.
+
 ## Review deadline correction
 
 Owner decision: day shift review ends at 22:00, night shift at 10:00 next day in site time.

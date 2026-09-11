@@ -175,13 +175,6 @@ export function HandoverPage() {
       ),
     },
     {
-      key: 'remarks',
-      header: h.remarks,
-      align: 'right',
-      cell: (row) => row.remarks,
-      sortValue: (row) => row.remarks,
-    },
-    {
       key: 'photos',
       header: h.photos,
       align: 'right',

@@ -54,6 +54,8 @@ A master must enter a comment before selecting **Remark**. The same text is stor
 resolution and delivered through the existing Telegram outbox to the employee who submitted the
 report. Opening the table row shows the saved decision, timestamp and comment beside the checklist
 and photos. Completed reports show read-only information without decision fields or submit buttons.
+The list identifies master remarks through the existing **Remark** status; it has no remark-count
+column. Employee checklist answers and the master's comment remain available in the expanded row.
 
 ### Master review deadline
 
