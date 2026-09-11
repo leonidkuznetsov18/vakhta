@@ -1,3 +1,9 @@
+## [0.90.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.89.0...v0.90.0) (2026-09-11)
+
+### Features
+
+* **photo-inspection:** restore side editor and create catalog objects inline ([14b1265](https://github.com/leonidkuznetsov18/vakhta/commit/14b126568f173bc94f6f903f7b1159a7a384c701))
+
 ## [0.89.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.88.0...v0.89.0) (2026-09-11)
 
 ### Features
