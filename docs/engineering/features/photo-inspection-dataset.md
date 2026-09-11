@@ -558,3 +558,19 @@ production reports. Localized help text and its illustrative videos were regener
 Earlier rule clarification delivery was verified on source 04d9df9 / v0.84.0: API beaba30d and worker
 c2dc4911 deployed successfully, API health was OK, worker startup was recorded, and a read-only
 production schema query confirmed details jsonb NOT NULL plus its validation constraint.
+
+## Annotation change count — 2026-09-11
+
+Reported defect reproduced by a failing regression: creating one region counted two changes because
+PROBLEMS was set automatically. The editor now records whether the latest status write came from
+an annotation action or an explicit reviewer choice. Counting groups an automatic status with changed
+regions; manual choices and photo-level notes remain separate. Origin is transient draft metadata,
+not part of stored reviews. A status difference with no remaining region changes still counts, so
+undoing a temporary region cannot silently discard an outcome change. Save resets the baseline.
+
+Lean: simplify; keep one accurate counter below the form, without repeating it on Save or listing
+internal fields. Focused editor/form tests passed (20), including one/two regions, repeated edits,
+removal, manual outcomes and full reversion; panel typecheck and changed-file lint passed. Desktop
+1365x1000 and mobile390x844 screenshots were captured and inspected: adding/naming one region shows
+1, saving removes the indicator and deleting the saved region shows1. Browser writes used synthetic
+local fixtures only. No backend or migration change is required for this counter correction.

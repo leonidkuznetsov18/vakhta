@@ -142,7 +142,7 @@ describe('photo inspection form and geometry', () => {
     const editor = new InspectionEditor(view);
     editor.change({ comment: 'A draft', guidance: 'Keep clear' });
     let state = editor.store.getState();
-    expect(reviewChanges(state.review, state.savedReview).total).toBe(2);
+    expect(reviewChanges(state).total).toBe(2);
     editor.change({ comment: '', guidance: '' });
     expect(hasReviewChanges(editor.store.getState())).toBe(false);
     editor.addBox();
@@ -150,22 +150,65 @@ describe('photo inspection form and geometry', () => {
     if (!region) throw new Error('Expected region');
     editor.editAnnotation(region.id, { comment: 'Dust' });
     state = editor.store.getState();
-    expect(reviewChanges(state.review, state.savedReview)).toMatchObject({
+    expect(reviewChanges(state)).toMatchObject({
       added: 1,
       edited: 0,
-      total: 2,
+      total: 1,
     });
     editor.saved({ ...view, version: 1, review: state.review });
     expect(hasReviewChanges(editor.store.getState())).toBe(false);
     editor.editAnnotation(region.id, { comment: 'Dust on table', category: 'DIRT' });
     state = editor.store.getState();
-    expect(reviewChanges(state.review, state.savedReview)).toMatchObject({ edited: 1, total: 1 });
+    expect(reviewChanges(state)).toMatchObject({ edited: 1, total: 1 });
     editor.remove(region.id);
     state = editor.store.getState();
-    expect(reviewChanges(state.review, state.savedReview)).toMatchObject({
+    expect(reviewChanges(state)).toMatchObject({
       removed: 1,
       edited: 0,
+      total: 1,
+    });
+  });
+  it('counts explicit outcome choices separately and never hides a remaining status change', () => {
+    const editor = new InspectionEditor(view);
+    editor.addBox();
+    expect(reviewChanges(editor.store.getState()).total).toBe(1);
+    editor.change({ status: 'NOT_ASSESSABLE', comment: 'Far side is hidden' });
+    expect(reviewChanges(editor.store.getState())).toMatchObject({
+      total: 3,
+      fields: ['status', 'comment'],
+    });
+    editor.change({ comment: '', status: 'PROBLEMS' });
+    expect(reviewChanges(editor.store.getState())).toMatchObject({ total: 2, fields: ['status'] });
+    const region = editor.store.getState().review.annotations[0];
+    if (!region) throw new Error('Expected region');
+    editor.remove(region.id);
+    expect(reviewChanges(editor.store.getState()).total).toBe(0);
+    expect(hasReviewChanges(editor.store.getState())).toBe(false);
+
+    const clean = new InspectionEditor({
+      ...view,
+      review: { ...view.review, status: 'COMPLIANT' },
+    });
+    clean.addBox();
+    expect(reviewChanges(clean.store.getState()).total).toBe(1);
+    clean.removeSelected();
+    expect(reviewChanges(clean.store.getState())).toMatchObject({ total: 1, fields: ['status'] });
+    expect(hasReviewChanges(clean.store.getState())).toBe(true);
+    clean.change({ status: 'COMPLIANT' });
+    expect(hasReviewChanges(clean.store.getState())).toBe(false);
+  });
+  it('counts multiple new regions once each and their text/geometry edits do not add changes', () => {
+    const editor = new InspectionEditor(view);
+    editor.addBox();
+    editor.addBox();
+    const region = editor.store.getState().review.annotations[0];
+    if (!region) throw new Error('Expected region');
+    editor.editAnnotation(region.id, { objectName: 'Rags', comment: 'Under equipment' });
+    editor.coordinates(region.id, 'x', 0.1);
+    expect(reviewChanges(editor.store.getState())).toMatchObject({
       total: 2,
+      added: 2,
+      fields: [],
     });
   });
   it('snapshots checklist objects for AI without changing legacy review data', () => {

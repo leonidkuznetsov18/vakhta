@@ -1,7 +1,13 @@
 import type { InspectionReview } from '@vakhta/contracts';
 
-/** Counts changed fields and regions, not edits or individual region properties. */
-export function reviewChanges(review: InspectionReview, saved: InspectionReview) {
+export interface ReviewChangeState {
+  review: InspectionReview;
+  savedReview: InspectionReview;
+  statusOrigin: 'REVIEWER' | 'ANNOTATION';
+}
+
+/** Counts each changed region once, including its automatic outcome update. */
+export function reviewChanges({ review, savedReview: saved, statusOrigin }: ReviewChangeState) {
   const previous = new Map(saved.annotations.map((region) => [region.id, region]));
   const current = new Set(review.annotations.map((region) => region.id));
   const added = review.annotations.filter((region) => !previous.has(region.id)).length;
@@ -18,15 +24,15 @@ export function reviewChanges(review: InspectionReview, saved: InspectionReview)
     );
   }).length;
   const removed = saved.annotations.filter((region) => !current.has(region.id)).length;
+  const regionChanges = added + edited + removed;
   const fields = (['status', 'comment', 'guidance'] as const).filter(
-    (field) => review[field].trim() !== saved[field].trim(),
+    (field) =>
+      review[field].trim() !== saved[field].trim() &&
+      !(field === 'status' && statusOrigin === 'ANNOTATION' && regionChanges > 0),
   );
-  return { added, edited, removed, fields, total: added + edited + removed + fields.length };
+  return { added, edited, removed, fields, total: regionChanges + fields.length };
 }
 
-export function hasReviewChanges(state: {
-  review: InspectionReview;
-  savedReview: InspectionReview;
-}) {
-  return reviewChanges(state.review, state.savedReview).total > 0;
+export function hasReviewChanges(state: ReviewChangeState) {
+  return reviewChanges(state).total > 0;
 }

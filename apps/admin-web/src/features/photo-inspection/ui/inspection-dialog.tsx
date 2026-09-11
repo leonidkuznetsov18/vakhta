@@ -1,4 +1,4 @@
-import { hasReviewChanges } from '../model/review-changes';
+import { hasReviewChanges, reviewChanges } from '../model/review-changes';
 import { useState } from 'react';
 import { useStore } from 'zustand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -194,6 +194,7 @@ function InspectionSession({
     createInspectionSession(initial, register),
   );
   const state = useStore(store);
+  const changes = reviewChanges(state);
   const client = useQueryClient();
   const link = useQuery({
     queryKey: [...inspectionKey(id), 'link'],
@@ -451,7 +452,7 @@ function InspectionSession({
           />
           {hasReviewChanges(state) && (
             <p role="status" className="text-sm text-muted-foreground">
-              {t.dirty}
+              {t.dirty}: {changes.total}
             </p>
           )}
           {feedback && initial.canEdit && (

@@ -3,7 +3,7 @@ import { attachRegionList } from './region-navigation';
 import { availableSuggestions, linkLegacySuggestions } from './suggestions';
 import { InspectionViewport, INSPECTION_ZOOM } from './viewport';
 export { INSPECTION_ZOOM } from './viewport';
-import { hasReviewChanges } from './review-changes';
+import { hasReviewChanges, type ReviewChangeState } from './review-changes';
 import { createStore } from 'zustand/vanilla';
 import { z } from 'zod';
 import {
@@ -86,6 +86,7 @@ export function fromCanvas(annotation: ImageAnnotation, width: number, height: n
   });
 }
 interface EditorState {
+  statusOrigin: ReviewChangeState['statusOrigin'];
   review: InspectionReview;
   version: number;
   automaticRunId: string | null;
@@ -109,6 +110,7 @@ export class InspectionEditor {
   readonly viewport;
   constructor(readonly initial: PhotoInspectionView) {
     this.store = createStore<EditorState>(() => ({
+      statusOrigin: 'REVIEWER',
       review: initial.automaticReview ?? linkLegacySuggestions(initial.review, initial.runs),
       version: initial.version,
       automaticRunId: initial.automaticRunId ?? null,
@@ -197,7 +199,7 @@ export class InspectionEditor {
             comment: '',
             sourceRunId: null,
           };
-      this.change({
+      this.changeAnnotations({
         annotations: previous
           ? state.review.annotations.map((a) => (a.id === next.id ? next : a))
           : [...state.review.annotations, next],
@@ -210,7 +212,16 @@ export class InspectionEditor {
     }
   };
   change(patch: Partial<InspectionReview>): void {
-    this.store.setState((state) => ({ review: { ...state.review, ...patch } }));
+    this.store.setState((state) => ({
+      review: { ...state.review, ...patch },
+      statusOrigin: patch.status === undefined ? state.statusOrigin : 'REVIEWER',
+    }));
+  }
+  private changeAnnotations(patch: Pick<InspectionReview, 'annotations' | 'status'>): void {
+    this.store.setState((state) => ({
+      review: { ...state.review, ...patch },
+      statusOrigin: 'ANNOTATION',
+    }));
   }
   editAnnotation(
     id: string,
@@ -238,7 +249,7 @@ export class InspectionEditor {
     )
       return false;
     this.canvas?.removeAnnotation(id);
-    this.change({
+    this.changeAnnotations({
       annotations: this.store.getState().review.annotations.filter((a) => a.id !== id),
       status: 'UNREVIEWED',
     });
@@ -283,7 +294,7 @@ export class InspectionEditor {
       ...(sourceFindingIndex === undefined ? {} : { sourceFindingIndex }),
     };
     this.canvas?.addAnnotation(toCanvas(annotation, this.width, this.height));
-    this.change({
+    this.changeAnnotations({
       annotations: [
         ...this.store.getState().review.annotations.filter((a) => a.id !== annotation.id),
         annotation,
@@ -352,6 +363,7 @@ export class InspectionEditor {
   saved(view: PhotoInspectionView): void {
     this.analysis = null;
     this.store.setState({
+      statusOrigin: 'REVIEWER',
       version: view.version,
       automaticRunId: view.automaticRunId ?? null,
       review: structuredClone(view.review),

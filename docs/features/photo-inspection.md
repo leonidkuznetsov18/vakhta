@@ -22,7 +22,9 @@ Gemma 4 analysis and explicitly copy individual suggestions into the human revie
 - Analyze with AI is an optional helper, available with empty or unsaved form fields. Only saving or
   a running analysis temporarily disables it. The displayed checklist/zone object list is snapshotted for a manual run;
   analysis never saves the human review. Suggestions still require explicit human acceptance.
-- Save changes has a stable label and one unsaved-work indicator. Reverting all edits removes the indicator.
+- Save changes has a stable label; a single counter appears below the form. Each changed region
+  counts once, including its automatically updated outcome. Explicit reviewer outcome changes and
+  photo notes count separately. Reverting all saved-data changes removes the indicator.
 - Handover photo thumbnails identify persisted human work with a highlighted border and translucent
   background, including clean reviews without regions. Hover or focus shows the saved status and region
   count in a tooltip; no extra status block appears below the photo.
