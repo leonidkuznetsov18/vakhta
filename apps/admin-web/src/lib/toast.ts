@@ -5,10 +5,6 @@ export function notifySuccess(text: string): void {
   toast.success(text);
 }
 
-export function notifyError(text: string): void {
-  toast.error(text);
-}
-
 /** A pending action that resolves to a message: shows a spinner, then the result or the error. */
 export function notifyPromise<T>(
   promise: Promise<T>,

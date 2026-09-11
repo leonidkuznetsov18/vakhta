@@ -19,7 +19,6 @@ import type {
   HandoverView,
   MyPlanView,
   MyScoresView,
-  PendingHandoverView,
   ReasonOption,
   ReportProblemResult,
   RequestView,
@@ -814,44 +813,6 @@ export function cannotCompleteReasonScreen(t: Messages, reasons: readonly Reason
     keyboard.text(r.label, `${HANDOVER_CALLBACK.cannotReason}${r.code}`).row();
   keyboard.text(t.handover.cancel, HANDOVER_CALLBACK.cancel);
   return { text: t.handover.cannotCompleteReason, keyboard };
-}
-
-/** Receiving shift: handovers waiting for a zone check (FR-HND-03). */
-export function pendingHandoverScreen(
-  t: Messages,
-  pending: readonly PendingHandoverView[],
-  timezone: string,
-): Screen {
-  const lines = [t.handover.pendingHeader, ''];
-  const keyboard = new InlineKeyboard();
-  for (const p of pending) {
-    lines.push(
-      format(t.handover.pendingLine, {
-        zone: p.zoneName,
-        name: p.submittedByName,
-        time: localTime(new Date(p.submittedAt), timezone),
-      }),
-    );
-    if (p.remarks > 0) lines.push(format(t.handover.pendingRemarks, { count: p.remarks }));
-    if (p.cannotComplete) lines.push(t.admin.handover.cannotComplete);
-    for (const note of p.notes) lines.push(format(t.handover.pendingNotes, { note }));
-    lines.push('');
-    keyboard
-      .text(t.handover.acceptButton, `${HANDOVER_CALLBACK.reviewAccept}${p.id}`)
-      .row()
-      .text(t.handover.issueButton, `${HANDOVER_CALLBACK.reviewIssue}${p.id}`)
-      .row();
-  }
-  keyboard.text(t.shift.backToShift, SHIFT_CALLBACK.back);
-  return { text: lines.join('\n').trim(), keyboard };
-}
-
-export function reviewCategoryScreen(t: Messages, reasons: readonly ReasonOption[]): Screen {
-  const keyboard = new InlineKeyboard();
-  for (const r of reasons)
-    keyboard.text(r.label, `${HANDOVER_CALLBACK.reviewCategory}${r.code}`).row();
-  keyboard.text(t.handover.cancel, HANDOVER_CALLBACK.cancel);
-  return { text: t.handover.reviewCategory, keyboard };
 }
 
 /* -------------------------------------------------------------------- */

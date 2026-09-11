@@ -172,7 +172,3 @@ export function StatusPill({
     </Badge>
   );
 }
-
-export function EmptyDescriptionText({ children }: { readonly children: ReactNode }) {
-  return <EmptyDescription>{children}</EmptyDescription>;
-}
