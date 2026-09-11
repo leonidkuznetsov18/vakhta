@@ -1,3 +1,9 @@
+## [0.86.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.85.2...v0.86.0) (2026-09-11)
+
+### Features
+
+* **photo-inspection:** object catalog, region verdicts and rule-driven AI search ([b4ebb54](https://github.com/leonidkuznetsov18/vakhta/commit/b4ebb54ad9e26acbe5bbc03770ae18d494c51e76))
+
 ## [0.85.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.85.1...v0.85.2) (2026-09-11)
 
 ### Bug fixes
