@@ -1,3 +1,13 @@
+## [0.89.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.88.0...v0.89.0) (2026-09-11)
+
+### Features
+
+* **checklist-photo-rules:** unsaved-change guard, change counter, bounded list ([f6489f6](https://github.com/leonidkuznetsov18/vakhta/commit/f6489f6a869ee61af47611aee193b3067b648d61))
+
+### Bug fixes
+
+* **photo-library:** enforce disabled actions for unchanged filters ([7e8aaf7](https://github.com/leonidkuznetsov18/vakhta/commit/7e8aaf71a38d2cf01ed241eb5c691ad779913404))
+
 ## [0.88.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.87.0...v0.88.0) (2026-09-11)
 
 ### Features
