@@ -60,7 +60,7 @@ Image instructions and user guidance are untrusted data. The prompt requests fac
 observations, uncertainty and evidence regions; it prohibits employee blame and inferred hidden
 power state. JSON output is runtime-validated, including consistency of findings and outcome.
 
-Limits: manual requests, five runs per photo, 200 globally per rolling 24 hours, at most three
+Limits: manual requests use the API photo-analysis configuration (see Daily analysis capacity below), at most three
 external attempts, 90-second attempt timeout and 120-second task lease. A stable request UUID
 supports retries after an ambiguous response. Another pending request returns an explicit conflict.
 Input is bounded to 20 MB/40 megapixels, auto-oriented and resized within 1600 pixels for inference.
@@ -343,7 +343,7 @@ Lean: proceed. Prevent duplicate work and keep restoration reversible; clarify o
 adding a mandatory step. Observe duplicate-region creation and requests for help during the pilot;
 no measured production time saving is claimed.
 
-## Automatic submitted-photo review — 2026-09-11
+## Automatic submitted-photo review — 2026-09-11 (superseded, removed the same day)
 
 Owner clarified that prohibited items belong to each checklist/zone pair. `checklist_photo_rules`
 uses family + zone uniqueness, versioned writes and zone-scoped master permissions. Empty lists turn
@@ -584,3 +584,87 @@ removal, manual outcomes and full reversion; panel typecheck and changed-file li
 1365x1000 and mobile390x844 screenshots were captured and inspected: adding/naming one region shows
 1, saving removes the indicator and deleting the saved region shows1. Browser writes used synthetic
 local fixtures only. No backend or migration change is required for this counter correction.
+
+## Daily analysis capacity — 2026-09-11
+
+Owner-approved scope: show current per-photo and shared usage beside Analyze with AI, block exhausted
+quotas with the precise tooltip reason, and use one configurable source for all numeric limits.
+The initial defaults are five per photo, 1000 globally, and a rolling 24-hour window. They are defined
+only in `apps/api/src/config/photo-analysis.ts`. API environment overrides:
+`PHOTO_INSPECTION_PER_PHOTO_LIMIT`, `PHOTO_INSPECTION_GLOBAL_LIMIT`, `PHOTO_INSPECTION_WINDOW_HOURS`.
+Positive integers are validated on startup; `.env.example` documents the optional overrides.
+
+`GET .../inspection/limits` checks existing photo scope, then returns usage and effective settings.
+One aggregate query and the same loader serve display and transactional admission. Pending/failed
+runs count; admission retains its advisory transaction lock and immutable request replay behavior.
+The panel validates the response, polls every 30 seconds and cancels/refetches quota queries after
+analysis settles. It blocks while usage is unknown, unavailable or offline; cached counts remain
+visible on refresh failure. Per-photo, global or both exhausted limits have exact keyboard-accessible
+tooltips. Counts/window are interpolated in all locales; static guides direct readers to live usage.
+No new frontend state store, dependency, migration or operational employee action is introduced.
+
+Verification: 12 focused panel tests and 10 config/environment tests passed; the existing 15 API tests
+passed after the fixture included the concurrently added catalog in cleanup. Two added real-PostgreSQL
+quota tests passed for custom thresholds, pending/failed counts, exact boundaries, scoped reads,
+idempotent replay and reopening after expiry. Focused lint and API typecheck passed. Independent
+quota-boundary review found no actionable issues. Local actual-component fixtures were captured and
+visually inspected at 1365x900 and 390x844, including keyboard tooltips and non-default limits.
+Full editor/type verification and deployment remain blocked by another active AI refactor in the same
+checkout; its removed automatic-review contracts are still referenced by the panel. No commit/push by
+this task. The concurrent worker-admission removal is owned by that refactor and is not restored here.
+
+Lean: Proceed. Visible capacity and precise disabled reasons remove avoidable retries without adding
+worker steps. Human review remains required; increased capacity does not establish model accuracy.
+
+## Manual-only AI, object catalog and region verdicts — 2026-09-11
+
+Owner decision after the architecture review: remove the automatic review stage and the
+`MASTER_REVIEW` status entirely, keep manual **Analyze with AI** and **Save changes**, and reshape
+both forms so saved reviews become training labels. Migration 0035 adds `photo_objects`, turns
+`checklist_photo_rules.items/details` into `rules` (catalog ids with one note; existing names became
+catalog entries, clarification and exceptions folded into the note), adds `duration_ms` to revisions,
+drops the automatic run index and acknowledgement column, and rebuilds `handover_status` without
+`MASTER_REVIEW` (open-report indexes dropped and recreated around the type swap; no such reports existed).
+
+Contracts: annotations carry `objectId`, `verdict` and an optional `objectName` for other objects;
+reviews carry `notAssessableReason`, `isReference` and `rejectedFindings`; `InspectionReviewInput`
+enforces that the saved outcome equals `reviewOutcome(annotations, notAssessable)`. Stored legacy
+reviews still parse. The analysis request no longer sends guidance: the API snapshots the current
+rules as JSON into the run (`workplace-v3`) and refuses with `INSPECTION_RULES_MISSING` when the zone
+has none. The handover service lost both photo-review guards and the pending-review view fields.
+
+Worker: the tiled analyzer builds one fixed English instruction with the rule list embedded as JSON
+data (names and notes are never interpolated as instructions), asks the model to describe each object
+type before searching, requests boxes on a 0-1000 grid, runs the four 20%-overlap quadrants with the
+full list, then re-asks per object type that nobody reported, maps boxes back to the upright image and
+merges the same instance across tiles (IoU over 0.4 or containment over 0.7). Findings keep the
+matched `objectId`; a run without rules fails visibly as `RULES_MISSING`. Timeout 240 s, lease 300 s.
+
+Probe evidence on the owner-selected production photo (960x1280, rules Ганчірки/Стаканчики/Інструменти
+with no notes): one full-frame call found nothing in every coordinate format; four quadrants found both
+rags; the self-description step or the single-object pass found the cup; the two-pass recipe found all
+three objects in three consecutive runs with boxes within a few pixels of each other. Real end-to-end
+run in the local panel (fresh `vakhta_qa` database, the same photo in local MinIO, rules entered through
+the checklist form, Cloudflare credentials from 1Password): 8 calls, 6 findings — two rags, a third
+plausible cloth by the pneumatic block, the cup and the wrench beside it — plus one duplicate of the
+striped rag clipped by a tile edge, which the containment merge now folds. All six were added and the
+review saved as **Problems found** with six violation regions. One photo is not accuracy evidence;
+the evaluation script over saved reviews remains the next step.
+
+Panel: the editor shows the computed outcome, the not-assessable switch with reason, the reference
+checkbox, per-region checklist chips, catalog select and other-object input, a verdict toggle group,
+and Accept/Reject-with-reason plus Restore in the AI panel. The rules form selects catalog chips,
+creates catalog objects inline and keeps one collapsed note per object. Polygon drawing is removed.
+The concurrent Codex session's visible-limits work (limits endpoint, panel summary, 1000 daily cap)
+is included as it stood in the working tree.
+
+Verification: contracts 11, domain 139, worker photo-inspection 9, API photo-inspection/checklists/
+handover 37, panel inspection/rules/library/handover 70 tests; workspace typecheck (12 tasks), focused
+ESLint and Prettier; guides regenerated in three languages. Browser QA on the local stand covered the
+rules form (catalog creation, selection, save), the editor (analysis, accepting six suggestions,
+numbered boxes, save) at 1365 px. Mobile layout of the new region fields was not re-inspected.
+
+Lean: proceed. The master's report decision no longer waits for photo work, a clean photo is one save,
+and every rejected suggestion is a measured false positive. Remaining work: the evaluation script
+(recall/precision per object and zone from revisions and rejections), reference-photo comparison in
+the prompt, and a per-zone policy for auto-approving clean photos once the measured miss rate allows it.

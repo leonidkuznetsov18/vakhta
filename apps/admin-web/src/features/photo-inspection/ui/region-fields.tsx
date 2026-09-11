@@ -1,17 +1,25 @@
 import { useState } from 'react';
-import type { InspectionAnnotation } from '@vakhta/contracts';
+import {
+  RegionVerdict,
+  type ChecklistPhotoRuleView,
+  type InspectionAnnotation,
+  type PhotoObjectView,
+} from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { ChevronDownIcon, FocusIcon, Trash2Icon } from 'lucide-react';
 import { currentLocale } from '@/i18n';
-import { FormField } from '@/components/app/fields';
+import { FormField, SelectField } from '@/components/app/fields';
+import { InfoTip } from '@/components/app/info-tip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { IconButton } from '@/shared/ui/icon-button';
 import type { InspectionEditor } from '../model/editor';
 
 const t = messages(currentLocale()).photoInspection;
+const OTHER = '__other__';
 
 export function RegionFields({
   annotation,
@@ -19,19 +27,30 @@ export function RegionFields({
   selected,
   editor,
   busy,
-  items,
+  rules,
+  objects,
 }: {
   annotation: InspectionAnnotation;
   index: number;
   selected: boolean;
   editor: InspectionEditor;
   busy: boolean;
-  items: string[];
+  rules: readonly ChecklistPhotoRuleView[];
+  objects: readonly PhotoObjectView[];
 }) {
   const [touched, setTouched] = useState(false);
-  const unnamed = !annotation.objectName?.trim() && !annotation.comment.trim();
-  const name = (value: string) =>
-    editor.editAnnotation(annotation.id, { objectName: value || undefined });
+  const unnamed =
+    !annotation.objectId && !annotation.objectName?.trim() && !annotation.comment.trim();
+  const others = objects.filter((object) => !rules.some((rule) => rule.objectId === object.id));
+  const otherSelected = !annotation.objectId && annotation.objectName !== undefined;
+  const chooseObject = (objectId: string | null) =>
+    editor.editAnnotation(annotation.id, {
+      objectId,
+      objectName: objectId
+        ? (rules.find((r) => r.objectId === objectId)?.name ??
+          objects.find((o) => o.id === objectId)?.name)
+        : (annotation.objectName ?? ''),
+    });
   return (
     <div
       data-region-id={annotation.id}
@@ -62,46 +81,86 @@ export function RegionFields({
           <span className="sr-only">{t.remove}</span>
         </IconButton>
       </div>
-      <FormField
-        label={t.objectName}
-        hint={t.objectNameHint}
-        error={touched && unnamed ? t.nameRequired : null}
-      >
-        {(id) => (
-          <Input
-            id={id}
-            value={annotation.objectName ?? ''}
-            maxLength={100}
-            placeholder={t.objectNamePlaceholder}
-            onBlur={() => {
-              name(annotation.objectName?.trim() ?? '');
-              setTouched(true);
-            }}
-            onChange={(event) => name(event.target.value)}
-          />
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <span className="flex items-center gap-1 text-sm font-medium">
+          {t.objectName}
+          <InfoTip text={t.objectHint} />
+        </span>
+        {rules.length > 0 && (
+          <div className="flex flex-wrap gap-1" role="group" aria-label={t.objectSuggestions}>
+            {rules.map((rule) => (
+              <Button
+                key={rule.objectId}
+                type="button"
+                variant={annotation.objectId === rule.objectId ? 'secondary' : 'outline'}
+                size="sm"
+                className="h-auto min-h-8 max-w-full whitespace-normal break-words"
+                aria-pressed={annotation.objectId === rule.objectId}
+                onClick={() => chooseObject(rule.objectId)}
+              >
+                {rule.name}
+              </Button>
+            ))}
+          </div>
         )}
-      </FormField>
-      {items.length > 0 && (
-        <div
-          className="flex max-h-28 flex-wrap gap-1 overflow-y-auto"
-          role="group"
-          aria-label={t.objectSuggestions}
+        <SelectField
+          label={t.objectCatalog}
+          value={otherSelected ? OTHER : (annotation.objectId ?? '')}
+          onChange={(value) => {
+            if (value === OTHER)
+              editor.editAnnotation(annotation.id, {
+                objectId: null,
+                objectName: annotation.objectName ?? '',
+              });
+            else chooseObject(value || null);
+          }}
+          options={[
+            ...others.map((object) => ({ value: object.id, label: object.name })),
+            { value: OTHER, label: t.objectOther },
+          ]}
+          placeholder="—"
+          error={touched && unnamed ? t.nameRequired : undefined}
+        />
+        {otherSelected && (
+          <FormField label={t.objectOther}>
+            {(id) => (
+              <Input
+                id={id}
+                value={annotation.objectName ?? ''}
+                maxLength={100}
+                placeholder={t.objectOtherPlaceholder}
+                onBlur={() => setTouched(true)}
+                onChange={(event) =>
+                  editor.editAnnotation(annotation.id, { objectName: event.target.value })
+                }
+              />
+            )}
+          </FormField>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <span className="flex items-center gap-1 text-sm font-medium">
+          {t.verdict}
+          <InfoTip text={t.verdictHint} />
+        </span>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={annotation.verdict}
+          aria-label={t.verdict}
+          onValueChange={(value) => {
+            const verdict = RegionVerdict.safeParse(value);
+            if (verdict.success) editor.editAnnotation(annotation.id, { verdict: verdict.data });
+          }}
         >
-          {items.map((item) => (
-            <Button
-              key={item}
-              type="button"
-              variant={annotation.objectName === item ? 'secondary' : 'outline'}
-              size="sm"
-              className="h-auto min-h-8 max-w-full whitespace-normal break-words"
-              aria-pressed={annotation.objectName === item}
-              onClick={() => name(item)}
-            >
-              {item}
-            </Button>
+          {RegionVerdict.options.map((verdict) => (
+            <ToggleGroupItem key={verdict} value={verdict} disabled={busy}>
+              {t.verdicts[verdict]}
+            </ToggleGroupItem>
           ))}
-        </div>
-      )}
+        </ToggleGroup>
+      </div>
       <Collapsible defaultOpen={Boolean(annotation.comment)}>
         <CollapsibleTrigger asChild>
           <Button

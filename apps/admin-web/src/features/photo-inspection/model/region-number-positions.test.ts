@@ -7,6 +7,8 @@ import { toCanvas } from './editor';
 const region: InspectionAnnotation = {
   id: '10000000-0000-4000-8000-000000000001',
   category: 'OTHER',
+  objectId: null,
+  verdict: 'VIOLATION',
   comment: 'Visible object',
   sourceRunId: null,
   geometry: { type: 'RECTANGLE', x: 0.1, y: 0.2, width: 0.2, height: 0.2 },

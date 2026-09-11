@@ -13,6 +13,22 @@ describe('AI helper', () => {
     fireEvent.click(screen.getByRole('button', { name: t.analyze }));
     expect(analyze).toHaveBeenCalledOnce();
   });
+  it('disables exhausted analysis and exposes the exact quota reason to keyboard users', async () => {
+    const analyze = vi.fn();
+    const reason = 'This photo has reached its limit of 7 analyses over the last 8 h.';
+    const { rerender } = render(
+      <AnalyzeButton disabled={false} disabledReason={reason} onAnalyze={analyze} />,
+    );
+    const button = screen.getByRole('button');
+    expect(button.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(button);
+    expect(analyze).not.toHaveBeenCalled();
+    fireEvent.focus(screen.getByLabelText(t.analyze));
+    expect((await screen.findByRole('tooltip')).textContent).toContain(reason);
+    rerender(<AnalyzeButton disabled={false} disabledReason={null} onAnalyze={analyze} />);
+    fireEvent.click(screen.getByRole('button'));
+    expect(analyze).toHaveBeenCalledOnce();
+  });
   it('blocks duplicate analysis while loading and announces progress', () => {
     const analyze = vi.fn();
     render(<AnalyzeButton disabled={false} loading onAnalyze={analyze} />);

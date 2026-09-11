@@ -1,5 +1,6 @@
+import { PhotoAnalysisConfigSchema } from '../config/photo-analysis.js';
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   backgroundTasks,
   checklistDefinitions,
@@ -13,6 +14,7 @@ import {
   photoInspectionRevisions,
   photoInspectionRuns,
   photoInspections,
+  photoObjects,
   responsibilityZones,
   shiftAssignments,
   shiftTemplates,
@@ -22,7 +24,7 @@ import {
   sql,
 } from '@vakhta/db';
 import {
-  AUTOMATIC_INSPECTION_ACTOR,
+  INSPECTION_PROMPT_VERSION,
   InspectionContext,
   PhotoLibraryQuery,
   type InspectionReview,
@@ -48,13 +50,19 @@ const clean: InspectionReview = {
   comment: '',
   guidance: 'The table must be empty.',
   annotations: [],
+  isReference: false,
+  rejectedFindings: [],
 };
+const RAG_ID = '40000000-0000-4000-8000-000000000001';
+const CUP_ID = '40000000-0000-4000-8000-000000000002';
 describe('photo inspection persistence and access', () => {
   let fixture: TestDatabase;
   let service: PhotoInspectionService;
   let id: InspectionIdentity;
   let siteId: string;
   let employeeId: string;
+  let familyId: string;
+  let zoneId: string;
   beforeAll(async () => {
     fixture = await startTestDatabase();
     const audit = new AuditLog();
@@ -62,6 +70,7 @@ describe('photo inspection persistence and access', () => {
       fixture.db,
       audit,
       new MediaService(fixture.db, audit, { linkTtlSeconds: 300 }, new InMemoryObjectStorage()),
+      PhotoAnalysisConfigSchema.parse({}),
     );
   });
   afterAll(async () => {
@@ -69,12 +78,12 @@ describe('photo inspection persistence and access', () => {
   });
   beforeEach(async () => {
     await fixture.db.execute(
-      sql`TRUNCATE sites, employees, checklist_definitions, media_objects, background_tasks CASCADE`,
+      sql`TRUNCATE sites, employees, checklist_definitions, media_objects, background_tasks, photo_objects CASCADE`,
     );
     const db = fixture.db;
     siteId = randomUUID();
     const unitId = randomUUID();
-    const zoneId = randomUUID();
+    zoneId = randomUUID();
     employeeId = randomUUID();
     const shiftId = randomUUID();
     const definitionId = randomUUID();
@@ -92,10 +101,26 @@ describe('photo inspection persistence and access', () => {
     await db
       .insert(shiftSessions)
       .values({ id: shiftId, employeeId, businessDate: '2026-09-10', state: 'SHIFT_CLOSED' });
-    await db.insert(checklistDefinitions).values({
-      id: definitionId,
-      version: 1,
-      items: [{ key: 'workplace', label: 'Workplace', kind: 'PHOTO' }],
+    const [definition] = await db
+      .insert(checklistDefinitions)
+      .values({
+        id: definitionId,
+        version: 1,
+        items: [{ key: 'workplace', label: 'Workplace', kind: 'PHOTO' }],
+      })
+      .returning();
+    familyId = definition!.familyId;
+    await db.insert(photoObjects).values([
+      { id: RAG_ID, name: 'Ганчірки', updatedBy: 'test' },
+      { id: CUP_ID, name: 'Стаканчики', updatedBy: 'test' },
+    ]);
+    // Analysis needs the checklist object list for this zone; most tests start from one rule.
+    await db.insert(checklistPhotoRules).values({
+      definitionId,
+      familyId,
+      zoneId,
+      rules: [{ objectId: RAG_ID, note: '' }],
+      updatedBy: 'test',
     });
     await db.insert(handoverRecords).values({
       id: id.handoverId,
@@ -194,6 +219,8 @@ describe('photo inspection persistence and access', () => {
       sourceFindingIndex: 0,
       geometry,
       category: 'OTHER' as const,
+      objectId: RAG_ID,
+      verdict: 'VIOLATION' as const,
       comment: 'Corrected by master',
     };
     const review: InspectionReview = { ...clean, status: 'PROBLEMS', annotations: [annotation] };
@@ -214,19 +241,27 @@ describe('photo inspection persistence and access', () => {
     expect((await service.get(id, master)).version).toBe(1);
     expect(await fixture.db.select().from(photoInspectionRevisions)).toHaveLength(1);
   });
-  it('uses unsaved guidance without saving a human review and rejects changed request replays', async () => {
-    const request = { requestId: randomUUID(), version: 0, guidance: 'Keep this surface clear' };
+  it('snapshots the current checklist rules at request time and refuses analysis without rules', async () => {
+    const request = { requestId: randomUUID(), version: 0 };
     const result = await service.analyze(id, request, master);
     expect(result.version).toBe(0);
-    expect(result.review).toMatchObject({ status: 'UNREVIEWED', guidance: '', annotations: [] });
+    expect(result.review).toMatchObject({ status: 'UNREVIEWED', annotations: [] });
+    expect(result.rules).toEqual([{ objectId: RAG_ID, name: 'Ганчірки', note: '' }]);
     expect(await fixture.db.select().from(photoInspectionRevisions)).toHaveLength(0);
-    expect((await fixture.db.select().from(photoInspectionRuns))[0]?.guidance).toBe(
-      request.guidance,
-    );
+    const [run] = await fixture.db.select().from(photoInspectionRuns);
+    expect(run?.promptVersion).toBe(INSPECTION_PROMPT_VERSION);
+    expect(JSON.parse(run?.guidance ?? '')).toEqual(result.rules);
     await service.analyze(id, request, master);
+    await expect(service.analyze(id, { ...request, version: 3 }, master)).rejects.toMatchObject({
+      code: 'INSPECTION_CONFLICT',
+    });
+    await fixture.db.update(checklistPhotoRules).set({ rules: [] });
+    await fixture.db
+      .update(photoInspectionRuns)
+      .set({ status: 'FAILED', errorCode: 'X', completedAt: new Date() });
     await expect(
-      service.analyze(id, { ...request, guidance: 'Different rules' }, master),
-    ).rejects.toMatchObject({ code: 'INSPECTION_CONFLICT' });
+      service.analyze(id, { requestId: randomUUID(), version: 0 }, master),
+    ).rejects.toMatchObject({ code: 'INSPECTION_RULES_MISSING' });
   });
   it('admits one durable run for simultaneous requests and immutable request replays', async () => {
     const request = { requestId: randomUUID(), version: 0 };
@@ -253,6 +288,7 @@ describe('photo inspection persistence and access', () => {
       fixture.db,
       audit,
       new MediaService(fixture.db, audit, { linkTtlSeconds: 300 }),
+      PhotoAnalysisConfigSchema.parse({}),
     );
     await expect(broken.save(id, { version: 0, review: clean }, master)).rejects.toThrow(
       'Audit unavailable',
@@ -414,7 +450,9 @@ describe('photo inspection persistence and access', () => {
   it('retains named regions without duplicate comments in saved reviews, export and library search', async () => {
     const annotation = {
       id: randomUUID(),
+      objectId: null,
       objectName: 'Disposable cups',
+      verdict: 'VIOLATION' as const,
       comment: '',
       category: 'OTHER' as const,
       sourceRunId: null,
@@ -465,7 +503,7 @@ describe('photo inspection persistence and access', () => {
       });
     }
   });
-  it('isolates checklist rules by zone, enforces scope and optimistic concurrency', async () => {
+  it('isolates checklist rules by zone, enforces scope, catalog identity and optimistic concurrency', async () => {
     const db = fixture.db;
     const rules = new ChecklistPhotoRulesService(db, new AuditLog());
     const [report] = await db.select().from(handoverRecords);
@@ -487,110 +525,163 @@ describe('photo inspection persistence and access', () => {
       report.checklistDefinitionId,
       zone.id,
       {
-        version: 0,
-        items: ['Ганчірки', 'Стаканчики', 'Інструменти'],
-        details: [{ item: 'Інструменти', clarification: 'Loose tools', exceptions: 'Fixed blade' }],
+        version: 1,
+        rules: [
+          { objectId: RAG_ID, note: '' },
+          { objectId: CUP_ID, note: 'Стаканчики у гніздах машини є продукцією' },
+        ],
       },
       scoped,
     );
     expect(saved).toMatchObject({
-      version: 1,
+      version: 2,
       canEdit: true,
-      items: ['Ганчірки', 'Стаканчики', 'Інструменти'],
+      rules: [
+        { objectId: RAG_ID, name: 'Ганчірки', note: '' },
+        { objectId: CUP_ID, name: 'Стаканчики', note: 'Стаканчики у гніздах машини є продукцією' },
+      ],
     });
-    expect((await service.get(id, scoped)).prohibitedItems).toEqual(saved.items);
-    expect((await service.get(id, scoped)).prohibitedItemDetails).toEqual(saved.details);
-    expect((await rules.get(report.checklistDefinitionId, zone.id, scoped)).details).toEqual(
-      saved.details,
-    );
-    expect((await rules.get(report.checklistDefinitionId, otherZoneId, master)).items).toEqual([]);
+    expect((await service.get(id, scoped)).rules).toEqual(saved.rules);
+    expect((await rules.get(report.checklistDefinitionId, otherZoneId, master)).rules).toEqual([]);
+    const cup = { objectId: CUP_ID, note: '' };
     await expect(
-      rules.save(report.checklistDefinitionId, otherZoneId, { version: 0, items: ['Cup'] }, scoped),
+      rules.save(report.checklistDefinitionId, otherZoneId, { version: 0, rules: [cup] }, scoped),
     ).rejects.toMatchObject({ code: 'INSPECTION_FORBIDDEN' });
     await expect(
-      rules.save(report.checklistDefinitionId, zone.id, { version: 0, items: ['Cup'] }, scoped),
+      rules.save(report.checklistDefinitionId, zone.id, { version: 0, rules: [cup] }, scoped),
     ).rejects.toMatchObject({ code: 'INSPECTION_CONFLICT' });
+    await expect(
+      rules.save(report.checklistDefinitionId, zone.id, { version: 2, rules: [cup, cup] }, scoped),
+    ).rejects.toThrow();
     await expect(
       rules.save(
         report.checklistDefinitionId,
         zone.id,
-        { version: 1, items: ['Cup', ' cup '] },
+        { version: 2, rules: [{ objectId: randomUUID(), note: '' }] },
         scoped,
       ),
-    ).rejects.toThrow();
+    ).rejects.toMatchObject({ code: 'PHOTO_OBJECT_NOT_FOUND' });
     expect(await db.select().from(checklistPhotoRules)).toHaveLength(1);
-    // An older client cannot silently erase details when saving the same names.
-    const legacy = await rules.save(
-      report.checklistDefinitionId,
-      zone.id,
-      { version: 1, items: saved.items },
-      scoped,
-    );
-    expect(legacy.details).toEqual(saved.details);
-    const cleared = await rules.save(
-      report.checklistDefinitionId,
-      zone.id,
-      { version: 2, items: saved.items, details: [] },
-      scoped,
-    );
-    expect(cleared.details).toEqual([]);
     await expect(
-      db.execute(sql`update checklist_photo_rules set details = '{}'::jsonb`),
+      db.execute(sql`update checklist_photo_rules set rules = '{}'::jsonb`),
     ).rejects.toThrow();
   });
-  it('exposes automatic boxes as an unconfirmed draft and acknowledges only an explicit human save', async () => {
-    const baseline = await service.save(id, { version: 0, review: clean }, master);
-    const [inspection] = await fixture.db.select().from(photoInspections);
-    if (!inspection) throw new Error('Missing inspection');
-    const runId = randomUUID();
-    await fixture.db.insert(photoInspectionRuns).values({
-      id: runId,
-      inspectionId: inspection.id,
-      reviewVersion: 1,
-      context: baseline.context,
-      guidance: 'Cups',
-      model: 'test',
-      promptVersion: 'workplace-prohibited-v1',
-      requestedBy: AUTOMATIC_INSPECTION_ACTOR,
-      status: 'SUCCEEDED',
-      completedAt: new Date(),
-      prediction: {
-        status: 'PROBLEMS',
-        summary: 'Cup',
-        limitations: '',
-        findings: [
-          {
-            category: 'OTHER',
-            comment: 'Cup on table',
-            geometry: { type: 'RECTANGLE', x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
-          },
-        ],
-      },
-    });
-    const view = await service.get(id, master);
-    expect(view.review).toEqual(clean);
-    expect(view.automaticRunId).toBe(runId);
-    expect(view.automaticReview).toMatchObject({
-      status: 'UNREVIEWED',
-      annotations: [{ sourceRunId: runId, sourceFindingIndex: 0, comment: 'Cup on table' }],
-    });
-    expect((await service.get(id, master)).automaticReview).toEqual(view.automaticReview);
+  it('records rejected findings, verdict-driven outcomes and review time as dataset evidence', async () => {
+    const pending = await service.analyze(id, { requestId: randomUUID(), version: 0 }, master);
+    const run = pending.runs[0];
+    if (!run) throw new Error('Expected run');
+    const geometry = { type: 'RECTANGLE' as const, x: 0.1, y: 0.1, width: 0.2, height: 0.2 };
+    await fixture.db
+      .update(photoInspectionRuns)
+      .set({
+        status: 'SUCCEEDED',
+        completedAt: new Date(),
+        prediction: {
+          status: 'PROBLEMS',
+          summary: 'Ганчірки: 2',
+          limitations: '',
+          findings: [
+            { objectId: RAG_ID, objectName: 'Ганчірки', comment: 'ганчірка зліва', geometry },
+            { objectId: RAG_ID, objectName: 'Ганчірки', comment: 'ганчірка справа', geometry },
+          ],
+        },
+      })
+      .where(eq(photoInspectionRuns.id, run.id));
+    const allowed = {
+      id: randomUUID(),
+      sourceRunId: run.id,
+      sourceFindingIndex: 0,
+      geometry,
+      category: 'OTHER' as const,
+      objectId: RAG_ID,
+      verdict: 'ALLOWED' as const,
+      comment: 'На гачку, дозволено',
+    };
+    const review: InspectionReview = {
+      ...clean,
+      status: 'COMPLIANT',
+      annotations: [allowed],
+      isReference: true,
+      rejectedFindings: [{ runId: run.id, index: 1, reason: 'NOT_PRESENT' }],
+    };
+    await expect(
+      service.save(id, { version: 0, review: { ...review, status: 'PROBLEMS' } }, master),
+    ).rejects.toThrow();
     await expect(
       service.save(
         id,
-        { version: 1, review: { ...clean, status: 'UNREVIEWED' }, automaticRunId: runId },
+        {
+          version: 0,
+          review: {
+            ...review,
+            rejectedFindings: [{ runId: run.id, index: 5, reason: 'NOT_PRESENT' }],
+          },
+        },
         master,
       ),
     ).rejects.toMatchObject({ code: 'INSPECTION_INVALID_SOURCE' });
-    // Rejecting all suggestions is a valid human decision; the original prediction stays recorded.
-    const saved = await service.save(
-      id,
-      { version: 1, review: clean, automaticRunId: runId },
-      master,
-    );
-    expect(saved.automaticRunId).toBeNull();
-    expect(saved.review).toEqual(clean);
-    expect(saved.runs[0]?.prediction?.findings).toHaveLength(1);
-    expect(await fixture.db.select().from(photoInspectionRevisions)).toHaveLength(2);
+    const saved = await service.save(id, { version: 0, review, durationMs: 4200 }, master);
+    expect(saved.review).toEqual(review);
+    expect((await fixture.db.select().from(photoInspectionRevisions))[0]?.durationMs).toBe(4200);
+    expect(await fixture.db.select().from(photoInspectionRevisions)).toHaveLength(1);
   });
+  it.each([
+    { perPhoto: 2, global: 20 },
+    { perPhoto: 20, global: 2 },
+  ])(
+    'displays and enforces configured quotas $perPhoto/$global, then recovers after expiry',
+    async (limits) => {
+      const audit = new AuditLog();
+      const limited = new PhotoInspectionService(
+        fixture.db,
+        audit,
+        new MediaService(fixture.db, audit, { linkTtlSeconds: 300 }, new InMemoryObjectStorage()),
+        PhotoAnalysisConfigSchema.parse({
+          PHOTO_INSPECTION_PER_PHOTO_LIMIT: limits.perPhoto,
+          PHOTO_INSPECTION_GLOBAL_LIMIT: limits.global,
+          PHOTO_INSPECTION_WINDOW_HOURS: 8,
+        }),
+      );
+      expect(await limited.analysisLimits(id, master)).toEqual({
+        windowHours: 8,
+        perPhoto: { used: 0, limit: limits.perPhoto },
+        global: { used: 0, limit: limits.global },
+      });
+      await expect(limited.analysisLimits(id, { ...master, grants: [] })).rejects.toMatchObject({
+        status: 403,
+      });
+      const firstRequest = { version: 0, requestId: randomUUID() };
+      await limited.analyze(id, firstRequest, master);
+      expect((await limited.analysisLimits(id, master)).perPhoto.used).toBe(1);
+      await fixture.db
+        .update(photoInspectionRuns)
+        .set({ status: 'FAILED', errorCode: 'TEST_FAILURE', completedAt: new Date() })
+        .where(eq(photoInspectionRuns.status, 'PENDING'));
+      const secondRequest = { version: 0, requestId: randomUUID() };
+      await limited.analyze(id, secondRequest, master);
+      await fixture.db
+        .update(photoInspectionRuns)
+        .set({ status: 'FAILED', errorCode: 'TEST_FAILURE', completedAt: new Date() })
+        .where(eq(photoInspectionRuns.status, 'PENDING'));
+      expect(await limited.analysisLimits(id, master)).toEqual({
+        windowHours: 8,
+        perPhoto: { used: 2, limit: limits.perPhoto },
+        global: { used: 2, limit: limits.global },
+      });
+      await expect(
+        limited.analyze(id, { version: 0, requestId: randomUUID() }, master),
+      ).rejects.toMatchObject({ code: 'INSPECTION_LIMIT' });
+      await limited.analyze(id, secondRequest, master);
+      expect(await fixture.db.select().from(photoInspectionRuns)).toHaveLength(2);
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        vi.setSystemTime(new Date(Date.now() + 9 * 60 * 60 * 1000));
+        expect((await limited.analysisLimits(id, master)).global.used).toBe(0);
+        await limited.analyze(id, { version: 0, requestId: randomUUID() }, master);
+        expect((await limited.analysisLimits(id, master)).global.used).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
 });

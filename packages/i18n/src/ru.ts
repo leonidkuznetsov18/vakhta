@@ -251,7 +251,6 @@ export const ru: Messages = {
     needs: { MASTER: 'Нужен мастер', CLEANING: 'Нужна уборка', REPAIR: 'Нужен ремонт' },
     statuses: {
       DRAFT: 'Черновик',
-      MASTER_REVIEW: 'Master Review',
       SUBMITTED: 'Отчёт отправлен',
       ACCEPTED: 'Зона принята',
       DISPUTED: 'Есть замечание принимающего',
@@ -851,7 +850,6 @@ export const ru: Messages = {
       approveChecklist: 'Одобрить',
       addRemark: 'Замечание',
       shown: {
-        MASTER_REVIEW: 'Master Review',
         DRAFT: 'Черновик',
         SUBMITTED: 'Отчёт отправлен',
         APPROVED: 'Одобрено',

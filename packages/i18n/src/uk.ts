@@ -254,7 +254,6 @@ export const uk: Messages = {
     },
     statuses: {
       DRAFT: 'Чернетка',
-      MASTER_REVIEW: 'Master Review',
       SUBMITTED: 'Звіт надіслано',
       ACCEPTED: 'Зону прийнято',
       DISPUTED: 'Є зауваження приймаючого',
@@ -854,7 +853,6 @@ export const uk: Messages = {
       approveChecklist: 'Схвалити',
       addRemark: 'Зауваження',
       shown: {
-        MASTER_REVIEW: 'Master Review',
         DRAFT: 'Чернетка',
         SUBMITTED: 'Звіт надіслано',
         APPROVED: 'Схвалено',

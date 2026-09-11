@@ -113,39 +113,38 @@
           image; use Zoom in when needed.
         </li>
         <li>
-          Open Inspection rules when needed to see checklist names, clarifications and allowed
-          exceptions.
+          Open Inspection rules when needed to see the checklist objects for this zone and their
+          notes. AI searches only for these.
         </li>
         <li>
-          For a visible problem, choose Rectangle and drag around it, or choose Polygon, click its
-          corners and close the outline. In What is marked, choose a checklist name or enter your
-          own. Mark one object or one consistent problem per region. Use Add details only for extra
-          context.
+          For a visible object, choose Rectangle and drag around it. In What is marked, choose the
+          object from the checklist or the catalog. One object per region. Then choose its meaning:
+          Violation, Allowed here or Unsure. Use Add details only for extra context.
         </li>
         <li>
-          Choose the outcome: Problems found for marked issues; No problems found after inspecting
-          the visible area; Not assessable with an explanation of missing evidence. Leave Not
-          reviewed if your inspection is incomplete.
+          The review outcome follows on its own: any violation means Problems found; only allowed
+          regions or none means No problems found. If the photo does not show the workplace well
+          enough, switch on The photo cannot be assessed and choose a reason.
         </li>
         <li>
-          Select Save changes. The original photo is unchanged; regions, descriptions and your
-          outcome are saved separately. Save before moving to another photo. A marker beside the
-          photo shows saved work and distinguishes an unfinished review.
+          Select Save changes. The original photo is unchanged; regions, their meaning and the
+          outcome are saved separately. Save clean photos without regions too: such examples matter
+          as much as problems. A clean photo can be marked as the reference for this photo point.
         </li>
         <li>
-          Optionally select Analyze with AI even before saving or filling in fields. Read its
-          suggestions. Use Add to my annotations only for correct findings, correct any inaccuracies
-          and save the review again.
+          Optionally select Analyze with AI: it searches only for the objects listed in the
+          checklist for this zone. Add correct suggestions with Add to my annotations and reject
+          wrong ones with a reason; that is how model precision is measured. Then save the review.
         </li>
       </ol>
       <h2>Questions and answers</h2>
       <section>
-        <h3>How do automatic analysis and Master Review work?</h3>
+        <h3>What do the region meanings violation, allowed and unsure mean?</h3>
         <p>
-          The master configures prohibited objects for a checklist and zone. After submission AI
-          inspects the photos and proposes boxes. In Master Review, inspect each photo, correct or
-          delete mistaken findings, choose an outcome and save. Then finish the report review. A
-          person must review even when AI finds nothing or fails.
+          Violation: the object must not be here. Allowed here: the object is present but permitted,
+          for example a rag on its hook; such examples teach the model to tell an exception from a
+          violation. Unsure: the decision is left to a colleague and the photo stays unreviewed. The
+          photo outcome follows from these meanings automatically.
         </p>
       </section>
       <section>
@@ -198,25 +197,27 @@
       <section>
         <h3>What if the photo shows no problems?</h3>
         <p>
-          Inspect the whole visible area, choose No problems found and save. No regions are needed.
-          Normal examples matter alongside problematic ones. Empty annotations marked Not reviewed
-          do not mean the workplace is clean.
+          Inspect the whole visible area and select Save changes: without regions the photo is saved
+          as No problems found. Such examples matter as much as problems. Optionally mark it as the
+          reference for this photo point.
         </p>
       </section>
       <section>
         <h3>What if the image is dark, blurred or equipment state is unclear?</h3>
         <p>
-          Choose Not assessable and explain: “Floor not visible” or “Power indicator unreadable.” Do
-          not infer that equipment is off or safe just because no activity is visible. A better
-          image or another check may be needed.
+          Switch on The photo cannot be assessed and choose a reason: blurred, too dark, wrong
+          angle, view obstructed, wrong workplace. Do not conclude a machine is off or safe just
+          because no signs of operation are visible. The employee needs a better photo; this is not
+          a violation.
         </p>
       </section>
       <section>
         <h3>Why is Analyze disabled?</h3>
         <p>
-          AI is available before saving and with empty fields. It uses the checklist object list for
-          this zone and does not automatically save your review. The button is temporarily
-          unavailable while saving or while an analysis is running.
+          AI is available before saving. It searches only for the objects configured in the
+          checklist for this zone; with an empty list the button stays unavailable until the master
+          fills it in. The button is also unavailable while saving or while an analysis is already
+          running.
         </p>
       </section>
       <section>
@@ -231,8 +232,9 @@
         <h3>AI did not locate a region or analysis failed.</h3>
         <p>
           Mark the visible problem manually when coordinates are missing. Retry later after an
-          error; manual inspection remains available. Limits are 5 analyses per photo and 200 in
-          total per 24 hours. AI failure does not erase saved human descriptions.
+          error; manual inspection remains available. Current limits and usage appear beside Analyze
+          with AI. When the button is disabled, its tooltip explains why. AI failure does not erase
+          saved human descriptions.
         </p>
       </section>
       <section>

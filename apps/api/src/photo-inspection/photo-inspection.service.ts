@@ -1,8 +1,8 @@
-import { automaticReviewDraft } from './automatic-review.js';
+import { PHOTO_ANALYSIS_CONFIG, type PhotoAnalysisConfig } from '../config/photo-analysis.js';
+import { analysisLimitReached, loadAnalysisLimits } from './analysis-limits.js';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   and,
-  count,
   desc,
   enqueueBackgroundTask,
   eq,
@@ -12,7 +12,6 @@ import {
   handoverMedia,
   handoverRecords,
   checklistDefinitions,
-  checklistPhotoRules,
   mediaObjects,
   photoInspections,
   photoInspectionRevisions,
@@ -26,12 +25,13 @@ import {
   type DbOrTx,
 } from '@vakhta/db';
 import {
-  AUTOMATIC_INSPECTION_ACTOR,
   INSPECTION_MODEL,
   INSPECTION_PROMPT_VERSION,
   InspectionContext,
   InspectionPrediction,
   InspectionReview,
+  InspectionReviewInput,
+  InspectionRules,
   PhotoInspectionView,
   type RequestInspectionAnalysis,
   type SaveInspection,
@@ -42,6 +42,7 @@ import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
 import { DATABASE } from '../infra/database.module.js';
 import { MediaService } from '../handover/media.service.js';
+import { loadPhotoRules } from './checklist-photo-rules.service.js';
 
 export interface InspectionIdentity {
   handoverId: string;
@@ -54,6 +55,8 @@ const EMPTY_REVIEW: InspectionReview = {
   annotations: [],
   comment: '',
   guidance: '',
+  isReference: false,
+  rejectedFindings: [],
 };
 const identityWhere = (id: InspectionIdentity) =>
   and(
@@ -68,6 +71,7 @@ export class PhotoInspectionService {
     @Inject(DATABASE) private readonly db: Database,
     private readonly audit: AuditLog,
     private readonly media: MediaService,
+    @Inject(PHOTO_ANALYSIS_CONFIG) private readonly analysisConfig: PhotoAnalysisConfig,
   ) {}
 
   private async source(db: DbOrTx, id: InspectionIdentity, user: WebUser, write = false) {
@@ -171,6 +175,7 @@ export class PhotoInspectionService {
         source.report.status !== 'DRAFT' &&
         canActOn(user.grants, HANDOVER_REVIEW_ROLES, target),
       status: source.report.status,
+      familyId: source.definition.familyId,
     };
   }
 
@@ -185,44 +190,11 @@ export class PhotoInspectionService {
           .orderBy(desc(photoInspectionRuns.requestedAt))
           .limit(10)
       : [];
-    const [automatic] = row
-      ? await this.db
-          .select()
-          .from(photoInspectionRuns)
-          .where(
-            and(
-              eq(photoInspectionRuns.inspectionId, row.id),
-              eq(photoInspectionRuns.requestedBy, AUTOMATIC_INSPECTION_ACTOR),
-            ),
-          )
-          .limit(1)
+    const rules = source.context.zoneId
+      ? (await loadPhotoRules(this.db, source.familyId, source.context.zoneId)).rules
       : [];
-    const awaiting =
-      automatic && automatic.status !== 'PENDING' && automatic.id !== row?.reviewedAutomaticRunId;
-    const [rules] = source.context.zoneId
-      ? await this.db
-          .select({ items: checklistPhotoRules.items, details: checklistPhotoRules.details })
-          .from(checklistPhotoRules)
-          .innerJoin(
-            checklistDefinitions,
-            eq(checklistDefinitions.familyId, checklistPhotoRules.familyId),
-          )
-          .where(
-            and(
-              eq(checklistDefinitions.id, source.context.checklistDefinitionId),
-              eq(checklistPhotoRules.zoneId, source.context.zoneId),
-            ),
-          )
-          .limit(1)
-      : [];
-    const review = InspectionReview.parse(row?.review ?? EMPTY_REVIEW);
     return PhotoInspectionView.parse({
-      prohibitedItems: rules?.items ?? [],
-      prohibitedItemDetails: rules?.details ?? [],
-      automaticRunId: awaiting ? automatic.id : null,
-      automaticReview: awaiting
-        ? automaticReviewDraft(review, automatic.id, automatic.prediction)
-        : null,
+      rules,
       context: row?.context ?? source.context,
       canEdit: source.canEdit,
       version: row?.version ?? 0,
@@ -235,6 +207,15 @@ export class PhotoInspectionService {
         completedAt: run.completedAt?.toISOString() ?? null,
       })),
     });
+  }
+
+  async analysisLimits(id: InspectionIdentity, user: WebUser) {
+    await this.source(this.db, id, user);
+    const [row] = await this.db
+      .select({ id: photoInspections.id })
+      .from(photoInspections)
+      .where(identityWhere(id));
+    return loadAnalysisLimits(this.db, row?.id ?? null, this.analysisConfig);
   }
 
   private async editable(db: DbOrTx, id: InspectionIdentity, user: WebUser) {
@@ -264,7 +245,7 @@ export class PhotoInspectionService {
     if (!row) throw new Error('Inspection insert returned no row');
     if (InspectionContext.parse(row.context).sha256 !== source.context.sha256)
       throw new DomainError('INSPECTION_SOURCE_CHANGED', 409, 'Photo source changed');
-    return row;
+    return { row, familyId: source.familyId };
   }
 
   async save(
@@ -272,14 +253,15 @@ export class PhotoInspectionService {
     input: SaveInspection,
     user: WebUser,
   ): Promise<PhotoInspectionView> {
-    const review = InspectionReview.parse(input.review);
+    const review = InspectionReviewInput.parse(input.review);
     await this.db.transaction(async (tx) => {
-      const row = await this.editable(tx, id, user);
+      const { row } = await this.editable(tx, id, user);
       if (row.version !== input.version)
         throw new DomainError('INSPECTION_CONFLICT', 409, 'Review changed; reload before saving');
-      const runIds = new Set(
-        review.annotations.flatMap((a) => (a.sourceRunId ? [a.sourceRunId] : [])),
-      );
+      const runIds = new Set([
+        ...review.annotations.flatMap((a) => (a.sourceRunId ? [a.sourceRunId] : [])),
+        ...review.rejectedFindings.map((r) => r.runId),
+      ]);
       for (const runId of runIds) {
         const [run] = await tx
           .select({ id: photoInspectionRuns.id, prediction: photoInspectionRuns.prediction })
@@ -308,45 +290,38 @@ export class PhotoInspectionService {
               'Source finding must exist and have geometry',
             );
         }
-      }
-      if (input.automaticRunId) {
-        const [automatic] = await tx
-          .select()
-          .from(photoInspectionRuns)
-          .where(
-            and(
-              eq(photoInspectionRuns.id, input.automaticRunId),
-              eq(photoInspectionRuns.inspectionId, row.id),
-              eq(photoInspectionRuns.requestedBy, AUTOMATIC_INSPECTION_ACTOR),
-            ),
-          );
-        if (!automatic || automatic.status === 'PENDING' || review.status === 'UNREVIEWED')
-          throw new DomainError(
-            'INSPECTION_INVALID_SOURCE',
-            422,
-            'Complete the human review before acknowledging AI',
-          );
+        for (const rejected of review.rejectedFindings) {
+          if (rejected.runId === runId && !findings[rejected.index])
+            throw new DomainError(
+              'INSPECTION_INVALID_SOURCE',
+              422,
+              'Rejected finding must exist in its run',
+            );
+        }
       }
       const version = row.version + 1;
       await tx
         .update(photoInspections)
-        .set({
-          review,
-          version,
-          updatedBy: user.id,
-          updatedAt: new Date(),
-          ...(input.automaticRunId ? { reviewedAutomaticRunId: input.automaticRunId } : {}),
-        })
+        .set({ review, version, updatedBy: user.id, updatedAt: new Date() })
         .where(eq(photoInspections.id, row.id));
-      await tx
-        .insert(photoInspectionRevisions)
-        .values({ inspectionId: row.id, version, review, actorId: user.id });
+      await tx.insert(photoInspectionRevisions).values({
+        inspectionId: row.id,
+        version,
+        review,
+        actorId: user.id,
+        durationMs: input.durationMs ?? null,
+      });
       await this.audit.record(tx, {
         actor: webUserActor(user),
         action: 'photo_inspection.save',
         objectType: 'photo_inspection',
         objectId: row.id,
-        after: { version, status: review.status, count: review.annotations.length },
+        after: {
+          version,
+          status: review.status,
+          count: review.annotations.length,
+          rejected: review.rejectedFindings.length,
+        },
       });
     });
     return this.get(id, user);
@@ -358,17 +333,13 @@ export class PhotoInspectionService {
     user: WebUser,
   ): Promise<PhotoInspectionView> {
     await this.db.transaction(async (tx) => {
-      const row = await this.editable(tx, id, user);
+      const { row, familyId } = await this.editable(tx, id, user);
       const [replay] = await tx
         .select()
         .from(photoInspectionRuns)
         .where(eq(photoInspectionRuns.id, input.requestId));
       if (replay) {
-        if (
-          replay.inspectionId !== row.id ||
-          replay.reviewVersion !== input.version ||
-          (input.guidance !== undefined && replay.guidance !== input.guidance)
-        )
+        if (replay.inspectionId !== row.id || replay.reviewVersion !== input.version)
           throw new DomainError(
             'INSPECTION_CONFLICT',
             409,
@@ -393,23 +364,22 @@ export class PhotoInspectionService {
         );
       if (pending)
         throw new DomainError('INSPECTION_PENDING', 409, 'Another analysis is already pending');
+      // The model only ever searches for what the checklist form names for this zone.
+      const context = InspectionContext.parse(row.context);
+      const rules = context.zoneId
+        ? (await loadPhotoRules(tx, familyId, context.zoneId)).rules
+        : [];
+      const snapshot = InspectionRules.safeParse(rules);
+      if (!snapshot.success)
+        throw new DomainError(
+          'INSPECTION_RULES_MISSING',
+          409,
+          'Configure the checklist object list for this zone before analysis',
+        );
       // Serializes admission across photos and API replicas; limits include pending and failed runs.
       await tx.execute(sql`SELECT pg_advisory_xact_lock(174923, 1)`);
-      const since = new Date(Date.now() - 86_400_000);
-      const [total] = await tx
-        .select({ value: count() })
-        .from(photoInspectionRuns)
-        .where(gte(photoInspectionRuns.requestedAt, since));
-      const [perPhoto] = await tx
-        .select({ value: count() })
-        .from(photoInspectionRuns)
-        .where(
-          and(
-            eq(photoInspectionRuns.inspectionId, row.id),
-            gte(photoInspectionRuns.requestedAt, since),
-          ),
-        );
-      if ((total?.value ?? 0) >= 200 || (perPhoto?.value ?? 0) >= 5)
+      const limits = await loadAnalysisLimits(tx, row.id, this.analysisConfig);
+      if (analysisLimitReached(limits))
         throw new DomainError('INSPECTION_LIMIT', 409, 'Daily photo analysis limit reached');
       const now = new Date();
       await tx.insert(photoInspectionRuns).values({
@@ -417,7 +387,7 @@ export class PhotoInspectionService {
         inspectionId: row.id,
         reviewVersion: row.version,
         context: row.context,
-        guidance: input.guidance ?? InspectionReview.parse(row.review).guidance,
+        guidance: JSON.stringify(snapshot.data),
         model: INSPECTION_MODEL,
         promptVersion: INSPECTION_PROMPT_VERSION,
         requestedBy: user.id,

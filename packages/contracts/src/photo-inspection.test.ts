@@ -4,71 +4,146 @@ import {
   InspectionGeometry,
   InspectionPrediction,
   InspectionReview,
+  InspectionReviewInput,
+  reviewOutcome,
 } from './photo-inspection.js';
 const empty = { status: 'UNREVIEWED', comment: '', guidance: '', annotations: [] };
+const region = {
+  id: '10000000-0000-4000-8000-000000000001',
+  geometry: { type: 'RECTANGLE', x: 0, y: 0, width: 0.2, height: 0.2 },
+  objectId: '40000000-0000-4000-8000-000000000001',
+};
 describe('photo inspection training labels', () => {
-  it('stores an object name without forcing duplicate prose and preserves legacy descriptions', () => {
-    const region = {
-      id: '10000000-0000-4000-8000-000000000001',
-      geometry: { type: 'RECTANGLE', x: 0, y: 0, width: 0.2, height: 0.2 },
+  it('identifies the marked object by catalog id, accepts legacy names and descriptions, and rejects empty regions', () => {
+    expect(InspectionAnnotation.parse(region)).toMatchObject({
+      verdict: 'VIOLATION',
       category: 'OTHER',
+      comment: '',
       sourceRunId: null,
-      comment: '',
-    };
-    expect(InspectionAnnotation.parse({ ...region, objectName: '  Rags  ' })).toMatchObject({
-      objectName: 'Rags',
-      comment: '',
     });
-    expect(InspectionAnnotation.parse({ ...region, comment: 'Old description' })).toEqual({
-      ...region,
-      comment: 'Old description',
-    });
-    expect(InspectionAnnotation.safeParse(region).success).toBe(false);
-    expect(InspectionAnnotation.safeParse({ ...region, objectName: '  ' }).success).toBe(false);
-    expect(InspectionAnnotation.safeParse({ ...region, objectName: 'x'.repeat(101) }).success).toBe(
-      false,
-    );
-  });
-  it('preserves source identity, accepts legacy annotations and rejects repeated or invalid finding references', () => {
-    const annotation = {
-      id: '10000000-0000-4000-8000-000000000001',
-      sourceRunId: '20000000-0000-4000-8000-000000000001',
-      sourceFindingIndex: 0,
-      geometry: { type: 'RECTANGLE', x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
-      category: 'RAG',
-      comment: 'Rag',
-    };
-    const review = { ...empty, status: 'PROBLEMS', annotations: [annotation] };
-    expect(InspectionReview.parse(review).annotations[0]?.sourceFindingIndex).toBe(0);
     expect(
-      InspectionReview.safeParse({
-        ...review,
-        annotations: [{ ...annotation, sourceFindingIndex: undefined }],
+      InspectionAnnotation.parse({ ...region, objectId: null, objectName: '  Rags  ' }).objectName,
+    ).toBe('Rags');
+    expect(
+      InspectionAnnotation.parse({ ...region, objectId: null, comment: 'Old description' }).comment,
+    ).toBe('Old description');
+    expect(InspectionAnnotation.safeParse({ ...region, objectId: null }).success).toBe(false);
+    expect(
+      InspectionAnnotation.safeParse({ ...region, objectId: null, objectName: '  ' }).success,
+    ).toBe(false);
+  });
+  it('derives the photo outcome from region verdicts', () => {
+    expect(reviewOutcome([], false)).toBe('COMPLIANT');
+    expect(reviewOutcome([{ verdict: 'ALLOWED' }], false)).toBe('COMPLIANT');
+    expect(reviewOutcome([{ verdict: 'ALLOWED' }, { verdict: 'UNSURE' }], false)).toBe(
+      'UNREVIEWED',
+    );
+    expect(reviewOutcome([{ verdict: 'UNSURE' }, { verdict: 'VIOLATION' }], false)).toBe(
+      'PROBLEMS',
+    );
+    expect(reviewOutcome([{ verdict: 'VIOLATION' }], true)).toBe('NOT_ASSESSABLE');
+  });
+  it('accepts stored legacy reviews but requires a consistent outcome and reasons when saving', () => {
+    const legacy = {
+      ...empty,
+      status: 'UNREVIEWED',
+      annotations: [{ ...region, objectId: null, comment: 'x' }],
+    };
+    expect(InspectionReview.safeParse(legacy).success).toBe(true);
+    expect(InspectionReviewInput.safeParse(legacy).success).toBe(false);
+    expect(InspectionReviewInput.safeParse({ ...empty, status: 'COMPLIANT' }).success).toBe(true);
+    expect(
+      InspectionReviewInput.safeParse({ ...empty, status: 'PROBLEMS', annotations: [region] })
+        .success,
+    ).toBe(true);
+    expect(
+      InspectionReviewInput.safeParse({
+        ...empty,
+        status: 'COMPLIANT',
+        annotations: [{ ...region, verdict: 'ALLOWED' }],
+        isReference: true,
       }).success,
     ).toBe(true);
+    expect(
+      InspectionReviewInput.safeParse({ ...empty, status: 'COMPLIANT', annotations: [region] })
+        .success,
+    ).toBe(false);
+    expect(
+      InspectionReviewInput.safeParse({
+        ...empty,
+        status: 'PROBLEMS',
+        isReference: true,
+        annotations: [region],
+      }).success,
+    ).toBe(false);
+    expect(InspectionReviewInput.safeParse({ ...empty, status: 'NOT_ASSESSABLE' }).success).toBe(
+      false,
+    );
+    expect(
+      InspectionReviewInput.safeParse({
+        ...empty,
+        status: 'NOT_ASSESSABLE',
+        notAssessableReason: 'DARK',
+      }).success,
+    ).toBe(true);
+    expect(
+      InspectionReviewInput.safeParse({
+        ...empty,
+        status: 'NOT_ASSESSABLE',
+        notAssessableReason: 'OTHER',
+      }).success,
+    ).toBe(false);
+    expect(
+      InspectionReviewInput.safeParse({
+        ...empty,
+        status: 'NOT_ASSESSABLE',
+        notAssessableReason: 'OTHER',
+        comment: 'Wrong machine',
+      }).success,
+    ).toBe(true);
+  });
+  it('keeps source identity unique across accepted and rejected findings', () => {
+    const runId = '20000000-0000-4000-8000-000000000001';
+    const accepted = { ...region, sourceRunId: runId, sourceFindingIndex: 0 };
+    const review = { ...empty, status: 'PROBLEMS', annotations: [accepted] };
+    expect(InspectionReview.parse(review).annotations[0]?.sourceFindingIndex).toBe(0);
     for (const patch of [
       { sourceRunId: null },
       { sourceFindingIndex: -1 },
       { sourceFindingIndex: 30 },
     ])
       expect(
-        InspectionReview.safeParse({ ...review, annotations: [{ ...annotation, ...patch }] })
-          .success,
+        InspectionReview.safeParse({ ...review, annotations: [{ ...accepted, ...patch }] }).success,
       ).toBe(false);
     expect(
       InspectionReview.safeParse({
         ...review,
-        annotations: [annotation, { ...annotation, id: '30000000-0000-4000-8000-000000000001' }],
+        annotations: [accepted, { ...accepted, id: '30000000-0000-4000-8000-000000000001' }],
       }).success,
     ).toBe(false);
+    expect(
+      InspectionReview.safeParse({
+        ...review,
+        rejectedFindings: [{ runId, index: 0, reason: 'NOT_PRESENT' }],
+      }).success,
+    ).toBe(false);
+    expect(
+      InspectionReview.safeParse({
+        ...review,
+        rejectedFindings: [
+          { runId, index: 1, reason: 'NOT_PRESENT' },
+          { runId, index: 1, reason: 'ALLOWED' },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      InspectionReview.parse({
+        ...review,
+        rejectedFindings: [{ runId, index: 1, reason: 'ALLOWED' }],
+      }).rejectedFindings,
+    ).toHaveLength(1);
   });
-  it('distinguishes unreviewed from a confirmed negative and unassessable image', () => {
-    expect(InspectionReview.parse(empty).status).toBe('UNREVIEWED');
-    expect(InspectionReview.safeParse({ ...empty, status: 'COMPLIANT' }).success).toBe(true);
-    expect(InspectionReview.safeParse({ ...empty, status: 'PROBLEMS' }).success).toBe(false);
-    expect(InspectionReview.safeParse({ ...empty, status: 'NOT_ASSESSABLE' }).success).toBe(false);
-  });
-  it('rejects regions outside the image and incomplete model output', () => {
+  it('rejects regions outside the image and inconsistent model output', () => {
     expect(
       InspectionGeometry.safeParse({ type: 'RECTANGLE', x: 0.9, y: 0, width: 0.2, height: 0.1 })
         .success,
@@ -82,13 +157,21 @@ describe('photo inspection training labels', () => {
         ],
       }).success,
     ).toBe(false);
+    expect(InspectionPrediction.safeParse({ status: 'PROBLEMS', findings: [] }).success).toBe(
+      false,
+    );
     expect(
-      InspectionPrediction.safeParse({
+      InspectionPrediction.parse({
         status: 'PROBLEMS',
-        summary: 'dirt',
-        limitations: '',
-        findings: [],
-      }).success,
-    ).toBe(false);
+        findings: [
+          {
+            objectId: region.objectId,
+            objectName: 'Rags',
+            comment: 'rag',
+            geometry: region.geometry,
+          },
+        ],
+      }).summary,
+    ).toBe('');
   });
 });

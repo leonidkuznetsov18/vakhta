@@ -1,3 +1,4 @@
+import { PhotoAnalysisConfigSchema } from './photo-analysis.js';
 import { SHIFT_REMINDER_LEAD_MINUTES } from '@vakhta/domain';
 import { z } from 'zod';
 
@@ -15,6 +16,7 @@ const commaList = z.preprocess(
 );
 
 export const EnvSchema = z.object({
+  ...PhotoAnalysisConfigSchema.shape,
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('info'),
   API_PORT: z.coerce.number().int().positive().default(3000),

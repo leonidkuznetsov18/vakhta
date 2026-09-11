@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import {
-  AUTOMATIC_INSPECTION_PROMPT_VERSION,
   INSPECTION_MODEL,
   INSPECTION_PROMPT_VERSION,
   InspectionContext,
   InspectionPrediction,
+  InspectionRules,
 } from '@vakhta/contracts';
 import {
   BackgroundTaskLeaseLostError,
@@ -18,16 +18,20 @@ import {
 } from '@vakhta/db';
 import { InspectionFailure, type InspectionAnalyzer, type InspectionResult } from './gemma.js';
 
+/** Twelve model calls at most per run, each a few seconds; the lease outlives the timeout. */
+export const INSPECTION_TIMEOUT_MS = 240_000;
+export const INSPECTION_LEASE_MS = 300_000;
+
 export async function dispatchInspectionTasks(
   db: Database,
   analyzer: InspectionAnalyzer | null,
   options: { timeoutMs?: number; leaseMs?: number; retryMs?: number } = {},
 ): Promise<number> {
-  const timeoutMs = options.timeoutMs ?? 90_000;
+  const timeoutMs = options.timeoutMs ?? INSPECTION_TIMEOUT_MS;
   const tasks = await claimBackgroundTasks(db, {
     kinds: ['PHOTO_INSPECT'],
     limit: 1,
-    leaseMs: options.leaseMs ?? 120_000,
+    leaseMs: options.leaseMs ?? INSPECTION_LEASE_MS,
   });
   for (const task of tasks) {
     const payload = z.object({ runId: z.uuid() }).safeParse(task.payload);
@@ -53,14 +57,11 @@ export async function dispatchInspectionTasks(
       try {
         if (task.attempts > 3) throw new InspectionFailure('AI_RETRY_EXHAUSTED');
         if (!analyzer) throw new InspectionFailure('AI_NOT_CONFIGURED');
-        if (
-          run.model !== INSPECTION_MODEL ||
-          ![INSPECTION_PROMPT_VERSION, AUTOMATIC_INSPECTION_PROMPT_VERSION].includes(
-            run.promptVersion,
-          )
-        )
+        if (run.model !== INSPECTION_MODEL || run.promptVersion !== INSPECTION_PROMPT_VERSION)
           throw new InspectionFailure('UNSUPPORTED_VERSION');
         const context = InspectionContext.parse(run.context);
+        const rules = InspectionRules.safeParse(JSON.parse(run.guidance));
+        if (!rules.success) throw new InspectionFailure('RULES_MISSING');
         const [media] = await db
           .select()
           .from(mediaObjects)
@@ -72,13 +73,7 @@ export async function dispatchInspectionTasks(
         try {
           result = await Promise.race([
             analyzer.analyze(
-              {
-                context,
-                guidance: run.guidance,
-                model: run.model,
-                storageKey: media.storageKey,
-                promptVersion: run.promptVersion,
-              },
+              { context, rules: rules.data, model: run.model, storageKey: media.storageKey },
               abort.signal,
             ),
             new Promise<never>((_resolve, reject) => {
@@ -89,11 +84,6 @@ export async function dispatchInspectionTasks(
             }),
           ]);
           result.prediction = InspectionPrediction.parse(result.prediction);
-          if (
-            run.promptVersion === AUTOMATIC_INSPECTION_PROMPT_VERSION &&
-            result.prediction.findings.some((finding) => finding.geometry?.type !== 'RECTANGLE')
-          )
-            throw new InspectionFailure('INVALID_RESPONSE', true);
         } finally {
           if (timer) clearTimeout(timer);
           abort.abort();

@@ -4,10 +4,12 @@ Status: implemented, initial release v0.76.0, 2026-09-11.
 
 ## Outcome
 
-On Cleanliness and handover, a master opens a checklist photo, marks visible problems with rectangles
-or polygons and names each marked object or problem, with optional details. A separate review records unreviewed, compliant,
-problems or not assessable. Empty annotations alone never mean compliant. The master can request
-Gemma 4 analysis and explicitly copy individual suggestions into the human review before saving.
+On Cleanliness and handover, a master opens a checklist photo, draws a rectangle around each object,
+chooses the object from the shared catalog and states what it means for this workplace: a violation,
+allowed here, or unsure. The photo outcome follows from those verdicts; the master only decides
+separately that a photo cannot be assessed, with a reason. Saving a photo without regions records a
+clean example. The master can request Gemma 4 analysis, which searches only for the objects configured
+in the checklist for this zone, and then adds each suggestion to the review or rejects it with a reason.
 
 ## Scope and acceptance criteria
 
@@ -31,7 +33,7 @@ Gemma 4 analysis and explicitly copy individual suggestions into the human revie
   corner. Reviews without regions have no annotation icon. No extra status block appears below the photo.
   Unfinished drafts are labeled separately. AI-only runs and replacement photos remain unmarked.
 - Manual AI requests use Cloudflare Gemma 4, persist before dispatch, survive restarts and deduplicate
-  retries. Automatic analysis admits submitted, unresolved reports with nonempty checklist/zone rules. Completed reports are excluded. Bounded request volume, image size, timeout and attempts.
+  retries. Automatic analysis admits submitted, unresolved reports with nonempty checklist/zone rules. Completed reports are excluded. Analysis limits and the rolling window come from API configuration and include pending and failed runs. Image size, timeout and attempts remain bounded.
 - Predictions retain model/prompt/context version separately from human truth. Unsupported equipment
   state and hidden surfaces are not assessable; a visual opinion cannot establish electrical safety.
 - Export includes reviewed human labels and source metadata as JSON, with an authorized original
@@ -43,10 +45,10 @@ Gemma 4 analysis and explicitly copy individual suggestions into the human revie
 
 ## Operator flow
 
-Open photo → mark each object and choose its name → choose review outcome → save.
-Read the checklist/zone object list, then request AI → inspect suggestions → copy useful
-findings and correct them → save the human review. The object list describes the visible requirements,
-including what belongs in a zone; the model must not invent workplace rules.
+Open photo → draw a rectangle per object → choose the catalog object and its verdict → save.
+The outcome is displayed, not chosen. Request AI when the checklist object list exists → add correct
+suggestions, reject wrong ones with a reason → save the human review. The object list is the only
+thing the model searches for; it must not invent workplace rules.
 
 ## Pilot
 
@@ -116,37 +118,23 @@ How it works and FAQ in Ukrainian, English and Russian explain inclusion, editin
 conflict recovery and the later evaluation/training use of saved examples. No separate upload, copy,
 AI training job or new approval process is introduced by this page.
 
-## Automatic checklist photo review
+## Checklist object rules and manual AI analysis
 
-A master configures **Specify what must not appear in the photo** next to a checklist, selecting its
-zone and entering one object per field. Rules belong to the checklist family and zone, survive a new
-checklist version, and do not affect another zone. An empty list disables automatic analysis for that
-pair. Up to 30 unique names of 100 characters each are accepted. Rules have scoped permissions,
-optimistic version checks and an audit trail.
+Object types live in one shared catalog (`photo_objects`): one stable identity per spelling family,
+created inline by any reviewer from the checklist form. **Objects that must not appear in the photo**
+selects catalog objects for one checklist family and zone, with an optional note per object for the
+master and the model (appearance, placement, allowed cases; up to 300 characters). Rules survive a
+new checklist version, do not affect another zone, and keep scoped permissions, optimistic version
+checks and an audit trail. Up to 30 objects per zone.
 
-When an employee submits the report, the worker admits its processed photos without opening a panel
-page. The first admitted photo snapshots the instruction for all photos in that report. Changing the
-list later affects subsequently admitted reports, not a report already being analyzed. Existing
-submitted unresolved reports are eligible; no completed history is re-analyzed automatically.
-
-Every model finding needs a bounding rectangle and an explanation. These remain unconfirmed AI
-predictions. When all attached readable photos reach a terminal AI result (including failure), the
-report becomes **Master Review**. A report containing only corrupt photos also goes to the master;
-it is never labeled clean automatically. Processing delays or daily limits can delay admission.
-
-Open every marked photo. Automatic regions appear in a separate unreviewed draft, preserving saved
-human data. Correct boxes and descriptions, delete false findings or add missed objects. Choose a
-review outcome, then save. Deleting a proposed region restores its option in the AI list. Saving an
-explicit final photo review acknowledges that automatic run and creates the human dataset revision.
-An AI result with no findings still requires a human outcome. Failed analysis leaves manual review
-available, including **Not assessable** with an explanation when the image cannot be inspected.
-
-The report's approval/remark actions remain unavailable while an attached automatic photo review is
-unacknowledged. Once the photos are reviewed, the master makes the existing final report decision.
-Only this human decision affects operational remarks and employee points. AI never confirms a
-violation, awards/deducts points, or trains itself merely by receiving corrected examples.
-
-The manual **Analyze with AI** helper stays available independently of the automatic flow.
+There is no automatic analysis stage and no Master Review status: a submitted report goes to the
+master as before, and the report decision never waits for photo reviews. AI runs only when a reviewer
+selects **Analyze with AI** in the photo editor. The request snapshots the current rules on the server;
+an empty list makes the button unavailable and the request fails with a clear message. The worker
+sends four overlapping quadrants of the upright photo to Gemma with a fixed instruction template plus
+the rule list as data, then asks again per object type nobody reported, merges duplicate boxes and
+returns one finding per instance with the matched catalog object. Findings remain unconfirmed
+suggestions; nothing is saved without the reviewer.
 
 ## Numbered region review
 
@@ -159,16 +147,22 @@ and stored revisions. New manual regions retain the existing OTHER category inte
 The image toolbar uses larger icon-only controls with localized hover/focus tooltips and accessible
 names. Save/Analyze remain labeled primary actions.
 
-## Optional rule clarification
+## Region verdicts and computed outcome
 
-An object name remains sufficient. Quick-add buttons insert common object names only; they never
-invent exceptions or enable rules until saved. Each object's collapsed Clarify rule section accepts
-optional clarification and allowed exceptions, up to 300 characters each. A saved-detail indicator
-makes existing context discoverable without opening every section. Rules continue to apply to all
-photos in the selected checklist/zone; selecting individual photo points is outside this increment.
-The system snapshots this context for automatic and manual analysis. The model is instructed to
-respect supplied exceptions and explain uncertainty; suggestions still require human verification.
-Add/remove/save controls are accessible icon buttons; there is no separate Load saved rules action.
+Every region names a catalog object (checklist objects first, then the rest of the catalog, or a
+free-text other object) and carries a verdict: **Violation**, **Allowed here** or **Unsure**. Any
+violation makes the photo **Problems found**; only allowed regions or none make it **No problems
+found**; an unsure region keeps it **Not reviewed**. The reviewer never picks the outcome by hand.
+**The photo cannot be assessed** is a switch with a reason (blurred, too dark, wrong angle, view
+obstructed, wrong workplace, other with an explanation). A clean photo can be marked as the
+**reference** for its photo point. Rectangles are the only drawing tool; stored polygons stay readable.
+
+## Rejected AI findings and review time
+
+Each AI suggestion can be added once or rejected with a reason: object is not there, different
+object, allowed here, box is misplaced. Rejections are stored with the human review and restore the
+suggestion when undone, so model precision can be measured from what reviewers actually refused.
+Every saved revision records how long the editor had been open.
 
 ## Named regions with optional details
 
@@ -187,3 +181,15 @@ independently confirmed object class.
 Inspection rules are a collapsed reference with clarifications and exceptions. Missing names,
 missing assessment reasons and contradictory outcomes show specific next actions. An empty
 annotation list still never implies that the photo was reviewed or found compliant.
+
+## Visible AI limits
+
+The photo editor shows current usage and effective limits for this photo and the shared analysis
+quota. These values come from the API, including the rolling time window; localized text contains
+no fixed thresholds. Analyze with AI is disabled when either limit is reached, and its tooltip names
+the exhausted limit (or both). The explanation is available by keyboard focus as well as pointer.
+
+Usage refreshes after every analysis request and periodically while the editor is open. When quota
+data is unavailable, analysis is blocked with an explanation and retry; failed refreshes preserve
+cached usage. Once older runs leave the rolling window, a fresh response re-enables the action.
+The API enforces the same configured limits immediately, including concurrent users' requests.

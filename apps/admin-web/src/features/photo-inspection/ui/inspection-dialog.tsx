@@ -1,3 +1,5 @@
+import { AnalysisLimits } from './analysis-limits';
+import { analysisLimitsView } from '../model/analysis-limits';
 import { hasReviewChanges, reviewChanges } from '../model/review-changes';
 import { useState } from 'react';
 import { useStore } from 'zustand';
@@ -10,7 +12,6 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   SquareIcon,
-  PentagonIcon,
   SquarePlusIcon,
   ZoomInIcon,
   ZoomOutIcon,
@@ -38,6 +39,8 @@ import {
   downloadJson,
   inspectionApi,
   inspectionKey,
+  analysisLimitsKey,
+  photoObjectsKey,
   type InspectionIdentity,
 } from '../api/inspection-api';
 import {
@@ -56,7 +59,6 @@ import { reviewFeedback } from '../model/review-feedback';
 import '@annotorious/annotorious/annotorious.css';
 
 const t = messages(currentLocale()).photoInspection;
-const toolIcons = { rectangle: SquareIcon, polygon: PentagonIcon };
 const errorText = (error: unknown) =>
   error instanceof ApiError && error.code === 'INSPECTION_CONFLICT'
     ? t.conflict
@@ -64,7 +66,9 @@ const errorText = (error: unknown) =>
       ? t.limit
       : error instanceof ApiError && error.code === 'INSPECTION_PENDING'
         ? t.aiPending
-        : t.error;
+        : error instanceof ApiError && error.code === 'INSPECTION_RULES_MISSING'
+          ? t.aiRulesMissing
+          : t.error;
 
 export function PhotoInspectionDialog({
   handoverId,
@@ -202,14 +206,24 @@ function InspectionSession({
     staleTime: 0,
     gcTime: 0,
   });
+  const limits = useQuery({
+    queryKey: analysisLimitsKey(id),
+    queryFn: ({ signal }) => inspectionApi.limits(id, signal),
+    refetchInterval: 30_000,
+    retry: false,
+  });
+  const quota = analysisLimitsView(limits, t);
+  const objects = useQuery({
+    queryKey: photoObjectsKey,
+    queryFn: ({ signal }) => inspectionApi.objects(signal),
+    staleTime: 60_000,
+  });
   const save = useMutation({
     mutationFn: () =>
       inspectionApi.save(id, {
         version: editor.store.getState().version,
         review: editor.store.getState().review,
-        ...(editor.store.getState().automaticRunId
-          ? { automaticRunId: editor.store.getState().automaticRunId ?? undefined }
-          : {}),
+        durationMs: editor.durationMs(),
       }),
     retry: false,
     onMutate: () => editor.lock(),
@@ -223,12 +237,12 @@ function InspectionSession({
     },
   });
   const analyze = useMutation({
-    mutationFn: () =>
-      inspectionApi.analyze(
-        id,
-        editor.analysisRequest(latest.prohibitedItems ?? [], latest.prohibitedItemDetails ?? []),
-      ),
+    mutationFn: () => inspectionApi.analyze(id, editor.analysisRequest()),
     retry: false,
+    onSettled: async () => {
+      await client.cancelQueries({ queryKey: ['photo-analysis-limits'] });
+      await client.invalidateQueries({ queryKey: ['photo-analysis-limits'] });
+    },
     onSuccess: (view) => {
       editor.analysisReceived();
       client.setQueryData(inspectionKey(id), view);
@@ -271,21 +285,18 @@ function InspectionSession({
       <div className="flex flex-wrap gap-2">
         {initial.canEdit && (
           <>
-            {(['rectangle', 'polygon'] as const).map((tool) => (
-              <IconButton
-                icon={toolIcons[tool]}
-                label={t[tool]}
-                tooltip={`${t[tool]}. ${t.hints[tool]}`}
-                key={tool}
-                size="icon-lg"
-                variant={state.tool === tool ? 'default' : 'outline'}
-                disabled={busy || state.imageStatus !== 'ready'}
-                aria-pressed={state.tool === tool}
-                onClick={() => editor.toggleDrawingTool(tool)}
-              >
-                <span className="sr-only">{t[tool]}</span>
-              </IconButton>
-            ))}
+            <IconButton
+              icon={SquareIcon}
+              label={t.rectangle}
+              tooltip={`${t.rectangle}. ${t.hints.rectangle}`}
+              size="icon-lg"
+              variant={state.tool === 'rectangle' ? 'default' : 'outline'}
+              disabled={busy || state.imageStatus !== 'ready'}
+              aria-pressed={state.tool === 'rectangle'}
+              onClick={() => editor.toggleDrawingTool('rectangle')}
+            >
+              <span className="sr-only">{t.rectangle}</span>
+            </IconButton>
             <IconButton
               size="icon-lg"
               variant="outline"
@@ -428,28 +439,17 @@ function InspectionSession({
           )}
         </div>
         <div className="flex min-w-0 flex-col gap-4">
-          {state.automaticRunId && (
-            <p role="status" className="rounded-md border bg-muted/40 p-3 text-sm">
-              {t.automaticReview}
-            </p>
-          )}
-          {latest.automaticRunId && latest.automaticRunId !== state.automaticRunId && (
-            <IconButton
-              icon={RefreshCwIcon}
-              label={t.reload}
-              tooltip={t.automaticReview}
-              onClick={reload}
-            />
-          )}
           {initial.canEdit ? (
-            <EditableReview editor={editor} busy={busy} items={latest.prohibitedItems ?? []} />
+            <EditableReview
+              editor={editor}
+              busy={busy}
+              rules={latest.rules}
+              objects={objects.data?.objects ?? []}
+            />
           ) : (
-            <ReadOnlyReview editor={editor} />
+            <ReadOnlyReview editor={editor} objects={objects.data?.objects ?? []} />
           )}
-          <InspectionRules
-            items={latest.prohibitedItems ?? []}
-            details={latest.prohibitedItemDetails ?? []}
-          />
+          <InspectionRules rules={latest.rules} />
           {hasReviewChanges(state) && (
             <p role="status" className="text-sm text-muted-foreground">
               {t.dirty}: {changes.total}
@@ -461,6 +461,12 @@ function InspectionSession({
               {feedback.regions.length ? ` ${feedback.regions.join(', ')}` : ''}
             </p>
           )}
+          <AnalysisLimits
+            view={quota}
+            retry={() => {
+              void limits.refetch();
+            }}
+          />
           {initial.canEdit && (
             <div className="flex flex-wrap gap-2">
               <IconButton
@@ -473,7 +479,8 @@ function InspectionSession({
                 {save.isPending && !save.isPaused ? <LoadingState label={t.save} /> : t.save}
               </IconButton>
               <AnalyzeButton
-                disabled={busy || pending}
+                disabled={busy || pending || latest.rules.length === 0}
+                disabledReason={quota.disabledReason ?? (save.isPending ? t.analysisSaving : null)}
                 loading={(analyze.isPending && !analyze.isPaused) || pending}
                 finished={finishedRunId}
                 onAnalyze={() => analyze.mutate()}

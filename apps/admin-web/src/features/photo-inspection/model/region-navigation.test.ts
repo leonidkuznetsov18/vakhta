@@ -53,7 +53,15 @@ it('scrolls the selected card inside its list and unsubscribes on unmount', () =
     version: 0,
     canEdit: true,
     runs: [],
-    review: { status: 'UNREVIEWED', annotations: [], comment: '', guidance: '' },
+    rules: [],
+    review: {
+      status: 'UNREVIEWED',
+      annotations: [],
+      comment: '',
+      guidance: '',
+      isReference: false,
+      rejectedFindings: [],
+    },
   });
   const list = document.createElement('div');
   const card = document.createElement('div');

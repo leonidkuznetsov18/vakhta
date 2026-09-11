@@ -165,7 +165,7 @@ describe('checklists the admin builds (spec 5.6, FR-CLN-03)', () => {
       definitionId: free.id,
       familyId: free.familyId,
       zoneId: rulesZone.id,
-      items: [],
+      rules: [],
       updatedBy: admin.id,
     });
     await service.delete(current.id, 'Ошибочно создан', admin);

@@ -4,20 +4,58 @@ import {
   checklistDefinitions,
   checklistPhotoRules,
   eq,
+  inArray,
+  photoObjects,
   responsibilityZones,
   sql,
   type Database,
+  type DbOrTx,
 } from '@vakhta/db';
 import {
   ChecklistPhotoRulesView,
-  PhotoRuleDetails,
+  PhotoRule,
   SaveChecklistPhotoRules,
+  type ChecklistPhotoRuleView,
 } from '@vakhta/contracts';
+import { z } from 'zod';
 import { canActOn, HANDOVER_REVIEW_ROLES } from '@vakhta/domain';
 import { DATABASE } from '../infra/database.module.js';
 import { AuditLog } from '../events/audit-log.js';
 import { type WebUser, webUserActor } from '../auth/web-auth.guard.js';
 import { DomainError } from '../common/domain-error.js';
+
+const StoredRules = z.array(PhotoRule);
+/** Current rules of one checklist family in one zone, with catalog names resolved. */
+export async function loadPhotoRules(
+  db: DbOrTx,
+  familyId: string,
+  zoneId: string,
+): Promise<{ version: number; rules: ChecklistPhotoRuleView[] }> {
+  const [row] = await db
+    .select()
+    .from(checklistPhotoRules)
+    .where(and(eq(checklistPhotoRules.familyId, familyId), eq(checklistPhotoRules.zoneId, zoneId)));
+  const stored = StoredRules.parse(row?.rules ?? []);
+  const objects = stored.length
+    ? await db
+        .select({ id: photoObjects.id, name: photoObjects.name })
+        .from(photoObjects)
+        .where(
+          inArray(
+            photoObjects.id,
+            stored.map((rule) => rule.objectId),
+          ),
+        )
+    : [];
+  const names = new Map(objects.map((object) => [object.id, object.name]));
+  return {
+    version: row?.version ?? 0,
+    rules: stored.flatMap((rule) => {
+      const name = names.get(rule.objectId);
+      return name === undefined ? [] : [{ ...rule, name }];
+    }),
+  };
+}
 
 @Injectable()
 export class ChecklistPhotoRulesService {
@@ -49,21 +87,8 @@ export class ChecklistPhotoRulesService {
   }
   async get(definitionId: string, zoneId: string, user: WebUser): Promise<ChecklistPhotoRulesView> {
     const source = await this.source(definitionId, zoneId, user);
-    const [row] = await this.db
-      .select()
-      .from(checklistPhotoRules)
-      .where(
-        and(
-          eq(checklistPhotoRules.familyId, source.definition.familyId),
-          eq(checklistPhotoRules.zoneId, zoneId),
-        ),
-      );
-    return ChecklistPhotoRulesView.parse({
-      items: row?.items ?? [],
-      details: row?.details ?? [],
-      version: row?.version ?? 0,
-      canEdit: source.canEdit,
-    });
+    const loaded = await loadPhotoRules(this.db, source.definition.familyId, zoneId);
+    return ChecklistPhotoRulesView.parse({ ...loaded, canEdit: source.canEdit });
   }
   async save(definitionId: string, zoneId: string, input: SaveChecklistPhotoRules, user: WebUser) {
     input = SaveChecklistPhotoRules.parse(input);
@@ -79,13 +104,24 @@ export class ChecklistPhotoRulesService {
       const [row] = await tx.select().from(checklistPhotoRules).where(condition).for('update');
       if ((row?.version ?? 0) !== input.version)
         throw new DomainError('INSPECTION_CONFLICT', 409, 'Rules changed; reload before saving');
+      const known = input.rules.length
+        ? await tx
+            .select({ id: photoObjects.id })
+            .from(photoObjects)
+            .where(
+              and(
+                inArray(
+                  photoObjects.id,
+                  input.rules.map((rule) => rule.objectId),
+                ),
+                eq(photoObjects.active, true),
+              ),
+            )
+        : [];
+      if (known.length !== input.rules.length)
+        throw new DomainError('PHOTO_OBJECT_NOT_FOUND', 422, 'Unknown or inactive object');
       const values = {
-        items: input.items,
-        details:
-          input.details ??
-          PhotoRuleDetails.parse(row?.details ?? []).filter((detail) =>
-            input.items.includes(detail.item),
-          ),
+        rules: input.rules,
         version: input.version + 1,
         updatedBy: user.id,
         updatedAt: new Date(),
@@ -101,7 +137,7 @@ export class ChecklistPhotoRulesService {
         action: 'checklist.photo_rules.save',
         objectType: 'checklist',
         objectId: definitionId,
-        before: row ? { zoneId, items: row.items, version: row.version } : null,
+        before: row ? { zoneId, rules: row.rules, version: row.version } : null,
         after: { zoneId, ...values },
       });
     });

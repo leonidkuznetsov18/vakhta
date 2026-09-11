@@ -1,5 +1,7 @@
 import {
+  PhotoAnalysisLimits,
   PhotoInspectionView,
+  PhotoObjectsView,
   MediaLinkView,
   type SaveInspection,
   type RequestInspectionAnalysis,
@@ -18,12 +20,25 @@ export const inspectionKey = (id: InspectionIdentity) => [
   id.mediaId,
   id.itemKey,
 ];
+export const photoObjectsKey = ['photo-objects'];
+export const analysisLimitsKey = (id: InspectionIdentity) => [
+  'photo-analysis-limits',
+  id.handoverId,
+  id.mediaId,
+  id.itemKey,
+];
 export const inspectionApi = {
+  async limits(id: InspectionIdentity, signal: AbortSignal) {
+    return PhotoAnalysisLimits.parse(await apiFetch(`${path(id)}/limits`, { signal }));
+  },
   async get(id: InspectionIdentity, signal: AbortSignal) {
     return PhotoInspectionView.parse(await apiFetch(path(id), { signal }));
   },
   async link(id: InspectionIdentity, signal: AbortSignal) {
     return MediaLinkView.parse(await apiFetch(`${path(id)}/link`, { signal }));
+  },
+  async objects(signal: AbortSignal) {
+    return PhotoObjectsView.parse(await apiFetch('/admin/photo-objects', { signal }));
   },
   async save(id: InspectionIdentity, data: SaveInspection) {
     return PhotoInspectionView.parse(

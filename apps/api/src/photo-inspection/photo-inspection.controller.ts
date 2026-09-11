@@ -27,6 +27,15 @@ export class PhotoInspectionController {
   ) {
     return this.inspections.get({ handoverId, mediaId, itemKey }, user);
   }
+  @Get('limits')
+  limits(
+    @Param('handoverId', ParseUUIDPipe) handoverId: string,
+    @Param('mediaId', ParseUUIDPipe) mediaId: string,
+    @Param('itemKey') itemKey: string,
+    @CurrentUser() user: WebUser,
+  ) {
+    return this.inspections.analysisLimits({ handoverId, mediaId, itemKey }, user);
+  }
   @Get('link')
   link(
     @Param('handoverId', ParseUUIDPipe) handoverId: string,

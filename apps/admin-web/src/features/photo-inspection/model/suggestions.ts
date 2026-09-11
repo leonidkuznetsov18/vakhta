@@ -9,8 +9,16 @@ export function availableSuggestions(run: InspectionRunView, review: InspectionR
         !review.annotations.some(
           (annotation) =>
             annotation.sourceRunId === run.id && annotation.sourceFindingIndex === index,
-        ),
+        ) && !review.rejectedFindings.some((r) => r.runId === run.id && r.index === index),
     );
+}
+export function rejectedSuggestions(run: InspectionRunView, review: InspectionReview) {
+  return review.rejectedFindings
+    .filter((r) => r.runId === run.id)
+    .flatMap((rejection) => {
+      const finding = run.prediction?.findings[rejection.index];
+      return finding ? [{ finding, index: rejection.index, reason: rejection.reason }] : [];
+    });
 }
 
 /** Link older, unchanged copies when their origin can be established exactly. */
@@ -22,7 +30,6 @@ export function linkLegacySuggestions(review: InspectionReview, runs: Inspection
     if (!run) continue;
     const match = availableSuggestions(run, linked).find(
       ({ finding }) =>
-        finding.category === annotation.category &&
         finding.comment === annotation.comment &&
         JSON.stringify(finding.geometry) === JSON.stringify(annotation.geometry),
     );

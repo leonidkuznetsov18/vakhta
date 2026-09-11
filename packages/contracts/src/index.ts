@@ -20,3 +20,5 @@ export * from './photo-inspection.js';
 
 export * from './photo-library.js';
 export * from './checklist-photo-rules.js';
+export * from './photo-objects.js';
+export * from './photo-analysis-limits.js';

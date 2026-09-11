@@ -255,7 +255,6 @@ export const en: Messages = {
     needs: { MASTER: 'Shift master needed', CLEANING: 'Cleaning needed', REPAIR: 'Repair needed' },
     statuses: {
       DRAFT: 'Draft',
-      MASTER_REVIEW: 'Master Review',
       SUBMITTED: 'Report submitted',
       ACCEPTED: 'Zone accepted',
       DISPUTED: 'Receiver raised an issue',
@@ -854,7 +853,6 @@ export const en: Messages = {
       approveChecklist: 'Approve',
       addRemark: 'Add a remark',
       shown: {
-        MASTER_REVIEW: 'Master Review',
         DRAFT: 'Draft',
         SUBMITTED: 'Report sent',
         APPROVED: 'Approved',

@@ -259,7 +259,7 @@ export function evaluateShift(rules: BonusRules, inputs: ShiftBonusInputs): Crit
       ),
     );
 
-    if (h.status === 'DISPUTED' || h.status === 'SUBMITTED' || h.status === 'MASTER_REVIEW') {
+    if (h.status === 'DISPUTED' || h.status === 'SUBMITTED') {
       results.push(result('HANDOVER_ACCEPTANCE', 'pending', 0, [`STATUS:${h.status}`]));
     } else if (h.decision === null) {
       results.push(

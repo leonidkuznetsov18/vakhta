@@ -2,7 +2,6 @@
 export const HANDOVER_STATUSES = [
   'DRAFT',
   'SUBMITTED',
-  'MASTER_REVIEW',
   'ACCEPTED',
   'DISPUTED',
   'RESOLVED_ACCEPTED',
@@ -26,14 +25,7 @@ const TRANSITIONS: Readonly<Record<HandoverStatus, readonly HandoverStatus[]>> =
    * reachable only from a dispute, because the next shift raised it — since the next shift stopped
    * reviewing (2026-09-08) the master raises it themselves, straight from the submitted report.
    */
-  MASTER_REVIEW: [
-    'RESOLVED_ACCEPTED',
-    'RESOLVED_ISSUE_CONFIRMED',
-    'RESOLVED_NO_FAULT',
-    'SUPERSEDED',
-  ],
   SUBMITTED: [
-    'MASTER_REVIEW',
     'ACCEPTED',
     'DISPUTED',
     'RESOLVED_ACCEPTED',
@@ -55,7 +47,7 @@ export function canTransitionHandover(from: HandoverStatus, to: HandoverStatus):
 
 /** Статуси, за яких звіт ще чекає на рішення: показуються в черзі приймання і майстра. */
 export function isHandoverPending(status: HandoverStatus): boolean {
-  return status === 'SUBMITTED' || status === 'MASTER_REVIEW' || status === 'DISPUTED';
+  return status === 'SUBMITTED' || status === 'DISPUTED';
 }
 
 /** Вплив на бонус (ТЗ 5.9): попередній до рішення, підтверджений, або без зниження. */
@@ -68,7 +60,6 @@ export function handoverBonusEffect(status: HandoverStatus): HandoverBonusEffect
     case 'SUPERSEDED':
       return 'NOT_COMPUTED';
     case 'SUBMITTED':
-    case 'MASTER_REVIEW':
       return 'PRELIMINARY';
     case 'ACCEPTED':
     case 'RESOLVED_ACCEPTED':

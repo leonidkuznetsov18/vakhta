@@ -14,14 +14,15 @@ import {
   type ImageAnnotator,
 } from '@annotorious/annotorious';
 import {
-  prohibitedPhotoInstruction,
-  type PhotoRuleDetail,
   InspectionGeometry,
-  InspectionReview,
+  InspectionReviewInput,
+  reviewOutcome,
   type InspectionAnnotation,
-  type InspectionPrediction,
+  type InspectionFinding,
+  type InspectionReview,
   type InspectionRunView,
   type PhotoInspectionView,
+  type RejectionReason,
 } from '@vakhta/contracts';
 
 type Geometry = InspectionAnnotation['geometry'];
@@ -85,17 +86,23 @@ export function fromCanvas(annotation: ImageAnnotation, width: number, height: n
     points: g.points.map(([x, y]) => [x / width, y / height]),
   });
 }
-interface EditorState {
-  statusOrigin: ReviewChangeState['statusOrigin'];
-  review: InspectionReview;
+interface EditorState extends ReviewChangeState {
   version: number;
-  automaticRunId: string | null;
-  savedReview: InspectionReview;
   selected: string | null;
-  tool: 'rectangle' | 'polygon' | 'select';
+  tool: 'rectangle' | 'select';
   zoom: number;
   imageStatus: 'loading' | 'ready' | 'failed';
   invalidGeometry: boolean;
+}
+/** The outcome is never chosen by hand: it follows the regions and the "not assessable" switch. */
+function withOutcome(review: InspectionReview): InspectionReview {
+  const status = reviewOutcome(review.annotations, review.status === 'NOT_ASSESSABLE');
+  return {
+    ...review,
+    status,
+    isReference: status === 'COMPLIANT' && review.isReference,
+    ...(status === 'NOT_ASSESSABLE' ? {} : { notAssessableReason: undefined }),
+  };
 }
 
 /** Owns the third-party canvas lifecycle and the unsaved form, never the server query cache. */
@@ -104,17 +111,19 @@ export class InspectionEditor {
   readonly numberPositions = new RegionNumberPositions();
   private canvas: ImageAnnotator | null = null;
   private locked = false;
-  private analysis: { requestId: string; version: number; guidance: string } | null = null;
+  private analysis: { requestId: string; version: number } | null = null;
   private width = 1;
   private height = 1;
+  private readonly openedAt = Date.now();
   readonly viewport;
   constructor(readonly initial: PhotoInspectionView) {
+    const loaded = linkLegacySuggestions(initial.review, initial.runs);
+    // A photo nobody saved yet starts from its computed outcome, so a clean photo is one save away.
+    const review = initial.version === 0 ? withOutcome(loaded) : loaded;
     this.store = createStore<EditorState>(() => ({
-      statusOrigin: 'REVIEWER',
-      review: initial.automaticReview ?? linkLegacySuggestions(initial.review, initial.runs),
+      review,
       version: initial.version,
-      automaticRunId: initial.automaticRunId ?? null,
-      savedReview: linkLegacySuggestions(initial.review, initial.runs),
+      savedReview: structuredClone(review),
       selected: null,
       tool: 'select',
       zoom: INSPECTION_ZOOM.min,
@@ -196,14 +205,15 @@ export class InspectionEditor {
             id: annotation.id,
             geometry,
             category: 'OTHER',
+            objectId: null,
+            verdict: 'VIOLATION',
             comment: '',
             sourceRunId: null,
           };
-      this.changeAnnotations({
+      this.commit({
         annotations: previous
           ? state.review.annotations.map((a) => (a.id === next.id ? next : a))
           : [...state.review.annotations, next],
-        status: 'PROBLEMS',
       });
       this.store.setState({ selected: next.id, invalidGeometry: false });
       if (!previous) this.tool('select');
@@ -211,23 +221,22 @@ export class InspectionEditor {
       this.store.setState({ invalidGeometry: true });
     }
   };
-  change(patch: Partial<InspectionReview>): void {
-    this.store.setState((state) => ({
-      review: { ...state.review, ...patch },
-      statusOrigin: patch.status === undefined ? state.statusOrigin : 'REVIEWER',
-    }));
+  private commit(patch: Partial<InspectionReview>): void {
+    this.store.setState((state) => ({ review: withOutcome({ ...state.review, ...patch }) }));
   }
-  private changeAnnotations(patch: Pick<InspectionReview, 'annotations' | 'status'>): void {
-    this.store.setState((state) => ({
-      review: { ...state.review, ...patch },
-      statusOrigin: state.review.status === patch.status ? state.statusOrigin : 'ANNOTATION',
-    }));
+  change(
+    patch: Partial<Pick<InspectionReview, 'comment' | 'isReference' | 'notAssessableReason'>>,
+  ) {
+    this.commit(patch);
+  }
+  setNotAssessable(flag: boolean): void {
+    this.commit({ status: flag ? 'NOT_ASSESSABLE' : 'UNREVIEWED' });
   }
   editAnnotation(
     id: string,
-    patch: Partial<Pick<InspectionAnnotation, 'comment' | 'category' | 'objectName'>>,
+    patch: Partial<Pick<InspectionAnnotation, 'comment' | 'objectId' | 'objectName' | 'verdict'>>,
   ): void {
-    this.change({
+    this.commit({
       annotations: this.store
         .getState()
         .review.annotations.map((a) => (a.id === id ? { ...a, ...patch } : a)),
@@ -249,24 +258,23 @@ export class InspectionEditor {
     )
       return false;
     this.canvas?.removeAnnotation(id);
-    this.changeAnnotations({
+    this.commit({
       annotations: this.store.getState().review.annotations.filter((a) => a.id !== id),
-      status: 'UNREVIEWED',
     });
     this.store.setState({ selected: null });
     return true;
   }
-  toggleDrawingTool(tool: 'rectangle' | 'polygon'): void {
+  toggleDrawingTool(tool: 'rectangle'): void {
     if (this.locked || !this.initial.canEdit) return;
     this.tool(this.store.getState().tool === tool ? 'select' : tool);
   }
   tool(tool: EditorState['tool']): void {
     this.canvas?.cancelDrawing();
-    const drawing = tool === 'rectangle' || tool === 'polygon';
+    const drawing = tool === 'rectangle';
     this.canvas?.setDrawingEnabled(drawing && !this.locked && this.initial.canEdit);
     if (drawing) {
-      this.canvas?.setDrawingMode(tool === 'polygon' ? 'click' : 'drag');
-      this.canvas?.setDrawingTool(tool);
+      this.canvas?.setDrawingMode('drag');
+      this.canvas?.setDrawingTool('rectangle');
     }
     this.store.setState({ tool });
   }
@@ -280,26 +288,42 @@ export class InspectionEditor {
     );
     if (suggestion) this.accept(suggestion.finding, run.id, index);
   }
-  private accept(
-    finding: InspectionPrediction['findings'][number],
-    runId: string | null,
-    sourceFindingIndex?: number,
-  ): void {
+  /** A rejection is a recorded false positive: the finding leaves the list but stays attributable. */
+  rejectSuggestion(run: InspectionRunView, index: number, reason: RejectionReason): void {
+    if (this.locked || !this.initial.canEdit || run.status !== 'SUCCEEDED') return;
+    const review = this.store.getState().review;
+    if (!availableSuggestions(run, review).some((item) => item.index === index)) return;
+    this.commit({
+      rejectedFindings: [...review.rejectedFindings, { runId: run.id, index, reason }],
+    });
+  }
+  restoreSuggestion(run: InspectionRunView, index: number): void {
+    if (this.locked || !this.initial.canEdit) return;
+    this.commit({
+      rejectedFindings: this.store
+        .getState()
+        .review.rejectedFindings.filter((r) => !(r.runId === run.id && r.index === index)),
+    });
+  }
+  private accept(finding: InspectionFinding, runId: string | null, sourceFindingIndex?: number) {
     if (this.locked || !this.initial.canEdit || !finding.geometry) return;
     const annotation: InspectionAnnotation = {
       id: crypto.randomUUID(),
-      ...finding,
       geometry: finding.geometry,
+      category: finding.category,
+      objectId: finding.objectId,
+      ...(finding.objectName ? { objectName: finding.objectName } : {}),
+      verdict: 'VIOLATION',
+      comment: finding.objectId ? '' : finding.comment,
       sourceRunId: runId,
       ...(sourceFindingIndex === undefined ? {} : { sourceFindingIndex }),
     };
     this.canvas?.addAnnotation(toCanvas(annotation, this.width, this.height));
-    this.changeAnnotations({
+    this.commit({
       annotations: [
         ...this.store.getState().review.annotations.filter((a) => a.id !== annotation.id),
         annotation,
       ],
-      status: 'PROBLEMS',
     });
     this.select(annotation.id);
   }
@@ -307,6 +331,7 @@ export class InspectionEditor {
     this.accept(
       {
         category: 'OTHER',
+        objectId: null,
         comment: '',
         geometry: { type: 'RECTANGLE', x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
       },
@@ -323,28 +348,24 @@ export class InspectionEditor {
     }
     const next = { ...annotation, geometry: parsed.data };
     this.canvas?.updateAnnotation(toCanvas(next, this.width, this.height));
-    this.change({
+    this.commit({
       annotations: this.store.getState().review.annotations.map((a) => (a.id === id ? next : a)),
     });
     this.store.setState({ invalidGeometry: false });
   }
-  analysisRequest(
-    items = this.initial.prohibitedItems ?? [],
-    details: readonly PhotoRuleDetail[] = this.initial.prohibitedItemDetails ?? [],
-  ) {
+  /** One request identity per review version, so a retry after a lost response is not a second run. */
+  analysisRequest() {
     const { version } = this.store.getState();
-    const guidance = items.length ? prohibitedPhotoInstruction(items, details) : '';
-    if (
-      !this.analysis ||
-      this.analysis.version !== version ||
-      this.analysis.guidance !== guidance
-    ) {
-      this.analysis = { requestId: crypto.randomUUID(), version, guidance };
-    }
+    if (!this.analysis || this.analysis.version !== version)
+      this.analysis = { requestId: crypto.randomUUID(), version };
     return this.analysis;
   }
   analysisReceived(): void {
     this.analysis = null;
+  }
+  /** Milliseconds this editor has been open: review-time evidence stored with the revision. */
+  durationMs(): number {
+    return Math.max(0, Date.now() - this.openedAt);
   }
   lock(): void {
     this.canvas?.cancelDrawing();
@@ -363,9 +384,7 @@ export class InspectionEditor {
   saved(view: PhotoInspectionView): void {
     this.analysis = null;
     this.store.setState({
-      statusOrigin: 'REVIEWER',
       version: view.version,
-      automaticRunId: view.automaticRunId ?? null,
       review: structuredClone(view.review),
       savedReview: structuredClone(view.review),
     });
@@ -373,7 +392,7 @@ export class InspectionEditor {
 }
 
 export function reviewIsValid(state: EditorState): boolean {
-  return !state.invalidGeometry && InspectionReview.safeParse(state.review).success;
+  return !state.invalidGeometry && InspectionReviewInput.safeParse(state.review).success;
 }
 
 export function createInspectionSession(
@@ -393,11 +412,11 @@ export function createInspectionSession(
   };
 }
 
+/** A never-saved photo may be saved as it stands; a saved one needs a change. */
 export function canSaveReview(state: EditorState): boolean {
   return (
-    (hasReviewChanges(state) || Boolean(state.automaticRunId)) &&
+    (hasReviewChanges(state) || state.version === 0) &&
     reviewIsValid(state) &&
-    (!state.automaticRunId || state.review.status !== 'UNREVIEWED') &&
     (state.imageStatus === 'ready' || state.review.status === 'NOT_ASSESSABLE')
   );
 }

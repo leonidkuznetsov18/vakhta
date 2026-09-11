@@ -10,6 +10,7 @@ import {
   or,
   sql,
   photoInspections,
+  photoObjects,
   handoverRecords,
   handoverMedia,
   mediaObjects,
@@ -73,7 +74,9 @@ export class PhotoLibraryService {
             sql`${photoInspections.context}->>'zoneName' ilike ${search}`,
             sql`${photoInspections.context}->>'photoLabel' ilike ${search}`,
             sql`${photoInspections.review}->>'comment' ilike ${search}`,
-            sql`exists (select 1 from jsonb_array_elements(${photoInspections.review}->'annotations') a where a->>'comment' ilike ${search} or a->>'objectName' ilike ${search})`,
+            sql`exists (select 1 from jsonb_array_elements(${photoInspections.review}->'annotations') a
+              left join ${photoObjects} o on o.id::text = a->>'objectId'
+              where a->>'comment' ilike ${search} or a->>'objectName' ilike ${search} or o.name ilike ${search})`,
           )
         : undefined,
     );
@@ -111,6 +114,11 @@ export class PhotoLibraryService {
           .orderBy(desc(photoInspections.updatedAt), desc(photoInspections.id))
           .limit(input.pageSize)
           .offset((page - 1) * input.pageSize);
+        const objectNames = new Map(
+          (
+            await tx.select({ id: photoObjects.id, name: photoObjects.name }).from(photoObjects)
+          ).map((object) => [object.id, object.name]),
+        );
         return PhotoLibraryView.parse({
           total,
           page,
@@ -136,7 +144,9 @@ export class PhotoLibraryService {
               remarks: [
                 ...(review.comment ? [review.comment] : []),
                 ...review.annotations.map((a) =>
-                  [a.objectName, a.comment].filter(Boolean).join(' — '),
+                  [(a.objectId && objectNames.get(a.objectId)) || a.objectName, a.comment]
+                    .filter(Boolean)
+                    .join(' — '),
                 ),
               ],
               updatedAt: row.inspection.updatedAt?.toISOString() ?? null,

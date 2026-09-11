@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useStore } from 'zustand';
-import { InspectionReview } from '@vakhta/contracts';
+import type { ChecklistPhotoRuleView, PhotoObjectView } from '@vakhta/contracts';
 import type { InspectionEditor } from '../model/editor';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { FocusIcon } from 'lucide-react';
 import { IconButton } from '@/shared/ui/icon-button';
-import { SelectField } from '@/components/app/fields';
+import { InfoTip } from '@/components/app/info-tip';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { RegionFields } from './region-fields';
 import { PhotoNote } from './photo-note';
 const t = messages(currentLocale()).photoInspection;
@@ -14,29 +16,53 @@ const t = messages(currentLocale()).photoInspection;
 export function EditableReview({
   editor,
   busy,
-  items = [],
+  rules = [],
+  objects = [],
 }: {
   editor: InspectionEditor;
   busy: boolean;
-  items?: string[];
+  rules?: readonly ChecklistPhotoRuleView[];
+  objects?: readonly PhotoObjectView[];
 }) {
   const [attachList] = useState(() => editor.attachRegionList);
   const state = useStore(editor.store);
+  const review = state.review;
+  const notAssessable = review.status === 'NOT_ASSESSABLE';
   return (
     <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
-      <SelectField
-        label={t.status}
-        hint={t.hints.status}
-        value={state.review.status}
-        onChange={(value) => editor.change({ status: InspectionReview.shape.status.parse(value) })}
-        options={Object.entries(t.statuses).map(([value, label]) => ({ value, label }))}
-      />
+      <p className="flex items-center gap-1 text-sm">
+        <span className="text-muted-foreground">{t.outcome}:</span>
+        <strong role="status" data-testid="review-outcome">
+          {t.statuses[review.status]}
+        </strong>
+        <InfoTip text={t.outcomeHint} />
+      </p>
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="not-assessable"
+          checked={notAssessable}
+          onCheckedChange={(checked) => editor.setNotAssessable(checked === true)}
+        />
+        <Label htmlFor="not-assessable">{t.notAssessable}</Label>
+        <InfoTip text={t.notAssessableHint} />
+      </div>
+      {review.status === 'COMPLIANT' && (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="reference-photo"
+            checked={review.isReference}
+            onCheckedChange={(checked) => editor.change({ isReference: checked === true })}
+          />
+          <Label htmlFor="reference-photo">{t.reference}</Label>
+          <InfoTip text={t.referenceHint} />
+        </div>
+      )}
       <PhotoNote editor={editor} busy={busy} />
-      {state.review.annotations.length === 0 && (
+      {review.annotations.length === 0 && (
         <p className="text-sm text-muted-foreground">{t.empty}</p>
       )}
       <div ref={attachList} className="flex max-h-[50dvh] flex-col gap-3 overflow-y-auto">
-        {state.review.annotations.map((annotation, index) => (
+        {review.annotations.map((annotation, index) => (
           <RegionFields
             key={annotation.id}
             annotation={annotation}
@@ -44,7 +70,8 @@ export function EditableReview({
             selected={state.selected === annotation.id}
             editor={editor}
             busy={busy}
-            items={items}
+            rules={rules}
+            objects={objects}
           />
         ))}
       </div>
@@ -52,13 +79,23 @@ export function EditableReview({
   );
 }
 
-export function ReadOnlyReview({ editor }: { editor: InspectionEditor }) {
+export function ReadOnlyReview({
+  editor,
+  objects = [],
+}: {
+  editor: InspectionEditor;
+  objects?: readonly PhotoObjectView[];
+}) {
   const [attachList] = useState(() => editor.attachRegionList);
   const state = useStore(editor.store);
   const review = state.review;
+  const name = (a: (typeof review.annotations)[number]) =>
+    (a.objectId && objects.find((o) => o.id === a.objectId)?.name) || a.objectName;
   return (
     <div className="flex min-w-0 flex-col gap-3 text-sm">
       <strong>{t.statuses[review.status]}</strong>
+      {review.notAssessableReason && <p>{t.reasons[review.notAssessableReason]}</p>}
+      {review.isReference && <p>{t.reference}</p>}
       <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words">{review.comment}</p>
       <div ref={attachList} className="flex max-h-[50dvh] flex-col gap-3 overflow-y-auto">
         {review.annotations.map((a, index) => (
@@ -78,7 +115,8 @@ export function ReadOnlyReview({ editor }: { editor: InspectionEditor }) {
             >
               {index + 1}. {t.region}
             </IconButton>
-            {a.objectName && <p className="break-words font-medium">{a.objectName}</p>}
+            {name(a) && <p className="break-words font-medium">{name(a)}</p>}
+            <p className="text-muted-foreground">{t.verdicts[a.verdict]}</p>
             {a.comment && (
               <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words">
                 {a.comment}

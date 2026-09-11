@@ -1,9 +1,8 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { messages } from '@vakhta/i18n';
 import { PhotoInspectionView } from '@vakhta/contracts';
 import { InspectionEditor, reviewIsValid } from '../model/editor';
-import { hasReviewChanges } from '../model/review-changes';
 import { reviewFeedback } from '../model/review-feedback';
 import { EditableReview, ReadOnlyReview } from './review-fields';
 import { InspectionRules } from './inspection-rules';
@@ -16,11 +15,19 @@ vi.mock('@annotorious/annotorious', () => ({
 afterEach(cleanup);
 const t = messages('en').photoInspection;
 const id = '10000000-0000-4000-8000-000000000001';
+const RAG = '40000000-0000-4000-8000-000000000001';
+const PALLET = '40000000-0000-4000-8000-000000000002';
+const objects = [
+  { id: RAG, name: 'Rags', active: true },
+  { id: PALLET, name: 'Pallets', active: true },
+];
+const rules = [{ objectId: RAG, name: 'Rags', note: 'On the table' }];
 const view = PhotoInspectionView.parse({
   version: 0,
   canEdit: true,
   updatedAt: null,
   updatedBy: null,
+  rules,
   context: {
     schemaVersion: 1,
     handoverId: id,
@@ -41,102 +48,86 @@ const view = PhotoInspectionView.parse({
     orientationPolicy: 'EXIF_AUTO_ORIENT',
   },
   review: { status: 'UNREVIEWED', comment: '', guidance: '', annotations: [] },
-  runs: [
-    {
-      id,
-      status: 'SUCCEEDED',
-      model: 'test',
-      promptVersion: 'test',
-      requestedAt: '',
-      completedAt: '',
-      reviewVersion: 0,
-      errorCode: null,
-      prediction: {
-        status: 'PROBLEMS',
-        summary: 'Possible issues',
-        limitations: '',
-        findings: ['Rag', 'Tool'].map((comment) => ({
-          comment,
-          category: 'OTHER',
-          geometry: { type: 'RECTANGLE', x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
-        })),
-      },
-    },
-  ],
+  runs: [],
 });
 
-it('names a region from checklist presets without duplicate prose and tracks name-only edits', () => {
+it('names a region from checklist objects, sets its verdict and shows the computed outcome', () => {
   const editor = new InspectionEditor(view);
   editor.addBox();
-  render(<EditableReview editor={editor} busy={false} items={['Rags', 'Cups']} />);
-  expect(screen.queryByRole('textbox', { name: new RegExp(t.regionDetails) })).toBeNull();
-  expect(screen.queryByRole('textbox', { name: new RegExp(t.reviewComment) })).toBeNull();
+  render(<EditableReview editor={editor} busy={false} rules={rules} objects={objects} />);
+  expect(screen.getByTestId('review-outcome').textContent).toBe(t.statuses.PROBLEMS);
   expect(reviewFeedback(editor.store.getState().review, false)).toEqual({
     key: 'names',
     regions: [1],
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Cups' }));
-  expect(editor.store.getState().review.annotations[0]).toMatchObject({
-    objectName: 'Cups',
-    comment: '',
-    sourceRunId: null,
-  });
-  expect(reviewIsValid(editor.store.getState())).toBe(true);
-  act(() =>
-    editor.saved({ ...view, version: 1, review: structuredClone(editor.store.getState().review) }),
-  );
-  expect(hasReviewChanges(editor.store.getState())).toBe(false);
-  fireEvent.change(screen.getByRole('textbox', { name: t.objectName }), {
-    target: { value: 'Tools' },
-  });
-  expect(hasReviewChanges(editor.store.getState())).toBe(true);
-});
-it('keeps existing descriptions visible and retains them when a reviewer adds a name', () => {
-  const editor = new InspectionEditor(view);
-  const run = view.runs[0];
-  if (!run) throw new Error('Expected run');
-  editor.acceptSuggestion(run, 0);
-  render(<EditableReview editor={editor} busy={false} items={['Rags']} />);
-  expect(screen.getByRole('textbox', { name: new RegExp(t.regionDetails) })).toBe(
-    screen.getByDisplayValue('Rag'),
-  );
   fireEvent.click(screen.getByRole('button', { name: 'Rags' }));
   expect(editor.store.getState().review.annotations[0]).toMatchObject({
+    objectId: RAG,
     objectName: 'Rags',
-    comment: 'Rag',
-    sourceRunId: run.id,
-    sourceFindingIndex: 0,
-  });
-});
-it('opens the reason when assessment is impossible without discarding notes after status changes', () => {
-  const editor = new InspectionEditor(view);
-  render(<EditableReview editor={editor} busy={false} />);
-  fireEvent.change(screen.getByRole('combobox', { name: t.status }), {
-    target: { value: 'NOT_ASSESSABLE' },
-  });
-  expect(reviewFeedback(editor.store.getState().review, false)?.key).toBe('reason');
-  fireEvent.change(screen.getByRole('textbox', { name: t.assessmentReason }), {
-    target: { value: 'Dark image' },
+    verdict: 'VIOLATION',
   });
   expect(reviewIsValid(editor.store.getState())).toBe(true);
-  fireEvent.change(screen.getByRole('combobox', { name: t.status }), {
-    target: { value: 'UNREVIEWED' },
-  });
-  expect(screen.getByRole('textbox', { name: new RegExp(t.reviewComment) })).toBe(
-    screen.getByDisplayValue('Dark image'),
-  );
+  fireEvent.click(screen.getByRole('radio', { name: t.verdicts.ALLOWED }));
+  expect(editor.store.getState().review.annotations[0]?.verdict).toBe('ALLOWED');
+  expect(screen.getByTestId('review-outcome').textContent).toBe(t.statuses.COMPLIANT);
+  fireEvent.click(screen.getByRole('checkbox', { name: t.reference }));
+  expect(editor.store.getState().review.isReference).toBe(true);
 });
-it('shows stored names read-only and keeps full rules behind a disclosure', () => {
+it('offers catalog objects outside the checklist list and a free-text other object', () => {
+  const editor = new InspectionEditor(view);
+  editor.addBox();
+  render(<EditableReview editor={editor} busy={false} rules={rules} objects={objects} />);
+  fireEvent.change(screen.getByRole('combobox', { name: t.objectCatalog }), {
+    target: { value: PALLET },
+  });
+  expect(editor.store.getState().review.annotations[0]).toMatchObject({
+    objectId: PALLET,
+    objectName: 'Pallets',
+  });
+  fireEvent.change(screen.getByRole('combobox', { name: t.objectCatalog }), {
+    target: { value: '__other__' },
+  });
+  fireEvent.change(screen.getByRole('textbox', { name: t.objectOther }), {
+    target: { value: 'Broom' },
+  });
+  expect(editor.store.getState().review.annotations[0]).toMatchObject({
+    objectId: null,
+    objectName: 'Broom',
+  });
+});
+it('switches to not assessable with a reason and keeps the note when switching back', () => {
+  const editor = new InspectionEditor(view);
+  render(<EditableReview editor={editor} busy={false} />);
+  fireEvent.click(screen.getByRole('checkbox', { name: t.notAssessable }));
+  expect(screen.getByTestId('review-outcome').textContent).toBe(t.statuses.NOT_ASSESSABLE);
+  expect(reviewFeedback(editor.store.getState().review, false)?.key).toBe('reason');
+  fireEvent.change(screen.getByRole('combobox', { name: t.notAssessableReason }), {
+    target: { value: 'OTHER' },
+  });
+  expect(reviewIsValid(editor.store.getState())).toBe(false);
+  fireEvent.change(screen.getByRole('textbox', { name: new RegExp(t.assessmentReason) }), {
+    target: { value: 'Wrong machine' },
+  });
+  expect(reviewIsValid(editor.store.getState())).toBe(true);
+  fireEvent.click(screen.getByRole('checkbox', { name: t.notAssessable }));
+  expect(editor.store.getState().review).toMatchObject({
+    status: 'COMPLIANT',
+    comment: 'Wrong machine',
+  });
+});
+it('shows stored objects and verdicts read-only and keeps rules behind a disclosure', () => {
   const editor = new InspectionEditor({
     ...view,
     canEdit: false,
+    version: 1,
     review: {
       ...view.review,
-      status: 'PROBLEMS',
+      status: 'COMPLIANT',
       annotations: [
         {
           id,
-          objectName: 'Cups',
+          objectId: RAG,
+          verdict: 'ALLOWED',
           comment: '',
           category: 'OTHER',
           sourceRunId: null,
@@ -147,19 +138,14 @@ it('shows stored names read-only and keeps full rules behind a disclosure', () =
   });
   render(
     <>
-      <ReadOnlyReview editor={editor} />
-      <InspectionRules
-        items={['Rags']}
-        details={[
-          { item: 'Rags', clarification: 'On the table', exceptions: 'Allowed in a holder' },
-        ]}
-      />
+      <ReadOnlyReview editor={editor} objects={objects} />
+      <InspectionRules rules={rules} />
     </>,
   );
-  expect(screen.getByText('Cups')).toBeTruthy();
+  expect(screen.getByText('Rags')).toBeTruthy();
+  expect(screen.getByText(t.verdicts.ALLOWED)).toBeTruthy();
   expect(screen.queryByRole('textbox')).toBeNull();
-  expect(screen.queryByText('On the table')).toBeNull();
+  expect(screen.queryByText(`${t.ruleNote}: On the table`)).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: `${t.rulesReference} (1)` }));
-  expect(screen.getByText('On the table')).toBeTruthy();
-  expect(screen.getByText(`${t.ruleExceptions}: Allowed in a holder`)).toBeTruthy();
+  expect(screen.getByText(`${t.ruleNote}: On the table`)).toBeTruthy();
 });

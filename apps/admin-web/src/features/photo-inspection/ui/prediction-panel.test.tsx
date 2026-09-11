@@ -13,11 +13,13 @@ vi.mock('@annotorious/annotorious', () => ({
 afterEach(cleanup);
 const t = messages('en').photoInspection;
 const id = '10000000-0000-4000-8000-000000000001';
+const RAG = '40000000-0000-4000-8000-000000000001';
 const view = PhotoInspectionView.parse({
   version: 0,
   canEdit: true,
   updatedAt: null,
   updatedBy: null,
+  rules: [{ objectId: RAG, name: 'Rags', note: '' }],
   context: {
     schemaVersion: 1,
     handoverId: id,
@@ -50,10 +52,12 @@ const view = PhotoInspectionView.parse({
       errorCode: null,
       prediction: {
         status: 'PROBLEMS',
-        summary: 'Possible issues',
+        summary: 'Rags: 2',
         limitations: '',
-        findings: ['Rag', 'Tool'].map((comment) => ({
+        findings: ['rag left', 'rag right'].map((comment) => ({
           comment,
+          objectId: RAG,
+          objectName: 'Rags',
           category: 'OTHER',
           geometry: { type: 'RECTANGLE', x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
         })),
@@ -61,23 +65,42 @@ const view = PhotoInspectionView.parse({
     },
   ],
 });
-it('removes accepted options, announces completion and restores a deleted option in source order', () => {
+it('accepts, rejects with a reason and restores suggestions while announcing completion', () => {
   const editor = new InspectionEditor(view);
   render(<PredictionPanel latest={view} editor={editor} disabled={false} />);
+  expect(screen.getByText(`${t.aiSummary}: 2 (Rags: 2)`)).toBeTruthy();
   fireEvent.click(screen.getAllByRole('button', { name: t.accept })[0] ?? fail());
-  expect(screen.queryByText('Rag')).toBeNull();
-  expect(screen.getByText('Tool')).toBeTruthy();
-  const region = editor.store.getState().review.annotations[0];
-  if (!region) throw new Error('Expected region');
-  fireEvent.click(screen.getByRole('button', { name: t.accept }));
+  expect(screen.queryByText('Rags — rag left')).toBeNull();
+  expect(editor.store.getState().review.annotations[0]).toMatchObject({
+    objectId: RAG,
+    comment: '',
+  });
+  act(() => {
+    editor.rejectSuggestion(view.runs[0]!, 1, 'NOT_PRESENT');
+  });
   expect(screen.queryByRole('button', { name: t.accept })).toBeNull();
   expect(screen.getByRole('status').textContent).toBe(t.allSuggestionsAdded);
+  expect(screen.getByText(`${t.rejected}: ${t.rejectReasons.NOT_PRESENT}`)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: t.restore }));
+  expect(screen.getByText('Rags — rag right')).toBeTruthy();
+  const region = editor.store.getState().review.annotations[0];
+  if (!region) throw new Error('Expected region');
   act(() => {
     editor.remove(region.id);
   });
-  expect(screen.getByText('Rag')).toBeTruthy();
-  expect(screen.queryByText('Tool')).toBeNull();
-  expect(screen.getAllByRole('button', { name: t.accept })).toHaveLength(1);
+  expect(screen.getAllByRole('button', { name: t.accept })).toHaveLength(2);
+});
+it('explains a missing object list instead of a generic failure', () => {
+  const failed = {
+    ...view,
+    runs: [
+      { ...view.runs[0]!, status: 'FAILED' as const, prediction: null, errorCode: 'RULES_MISSING' },
+    ],
+  };
+  render(
+    <PredictionPanel latest={failed} editor={new InspectionEditor(failed)} disabled={false} />,
+  );
+  expect(screen.getByRole('alert').textContent).toBe(t.aiRulesMissing);
 });
 function fail(): never {
   throw new Error('Expected suggestion');

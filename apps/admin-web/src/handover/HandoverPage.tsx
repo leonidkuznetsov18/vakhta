@@ -54,11 +54,10 @@ const hints = all.ui.hints;
  */
 const SHOWN_AS: Record<
   HandoverStatus,
-  'DRAFT' | 'SUBMITTED' | 'MASTER_REVIEW' | 'APPROVED' | 'REMARK' | 'SUPERSEDED'
+  'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REMARK' | 'SUPERSEDED'
 > = {
   DRAFT: 'DRAFT',
   SUBMITTED: 'SUBMITTED',
-  MASTER_REVIEW: 'MASTER_REVIEW',
   // Raised by the next shift, still waiting on the master: for the reader it is simply waiting.
   DISPUTED: 'SUBMITTED',
   // Accepted by the next shift, or by the master, or found to be nobody's fault: all approved.
@@ -72,7 +71,6 @@ const SHOWN_AS: Record<
 const STATUS_TONE: Record<(typeof SHOWN_AS)[HandoverStatus], Tone> = {
   DRAFT: 'neutral',
   SUBMITTED: 'info',
-  MASTER_REVIEW: 'warning',
   APPROVED: 'success',
   REMARK: 'danger',
   SUPERSEDED: 'neutral',
@@ -248,16 +246,6 @@ export function HandoverPage() {
               />
             )}
           </div>
-          {detail.handover.automaticAnalysisPending && (
-            <p role="status" className="text-sm">
-              {all.checklistPhotoRules.pending}
-            </p>
-          )}
-          {detail.handover.status === 'MASTER_REVIEW' && (
-            <p role="status" className="rounded-md border bg-muted/40 p-3 text-sm">
-              {all.checklistPhotoRules.review}
-            </p>
-          )}
           {detail.handover.items.some((item) => item.kind === 'NOTE' && item.answered) && (
             <div>
               <h3 className="mb-2 text-sm font-semibold">{h.notes}</h3>
@@ -284,11 +272,7 @@ export function HandoverPage() {
                     key={p.itemKey}
                     photo={p}
                     loadLink={handoversApi.mediaLink}
-                    badge={
-                      p.automaticReviewPending && !detail.handover.automaticAnalysisPending
-                        ? all.handover.statuses.MASTER_REVIEW
-                        : all.handover.quality[p.media.quality]
-                    }
+                    badge={all.handover.quality[p.media.quality]}
                     onOpen={() =>
                       setInspection({
                         handoverId: detail.handover.id,
@@ -322,11 +306,6 @@ export function HandoverPage() {
               <p className="max-w-3xl text-sm whitespace-normal text-muted-foreground">
                 {h.reviewHint}
               </p>
-              {detail.handover.photos.some((p) => p.automaticReviewPending) && (
-                <p role="status" className="text-sm">
-                  {all.checklistPhotoRules.review}
-                </p>
-              )}
               <FormField label={h.remarkComment}>
                 {(id) => (
                   <Textarea
@@ -342,12 +321,7 @@ export function HandoverPage() {
                 <Button
                   type="button"
                   variant="success"
-                  disabled={
-                    busy ||
-                    detail.handover.automaticAnalysisPending ||
-                    detail.handover.photos.some((p) => p.automaticReviewPending) ||
-                    !canTransitionHandover(row.status, 'RESOLVED_ACCEPTED')
-                  }
+                  disabled={busy || !canTransitionHandover(row.status, 'RESOLVED_ACCEPTED')}
                   onClick={() => resolve(row, 'RESOLVED_ACCEPTED')}
                 >
                   <CheckIcon aria-hidden="true" />
@@ -358,8 +332,6 @@ export function HandoverPage() {
                   variant="destructive"
                   disabled={
                     busy ||
-                    detail.handover.automaticAnalysisPending ||
-                    detail.handover.photos.some((p) => p.automaticReviewPending) ||
                     (comments[row.id] ?? '').trim().length < 3 ||
                     !canTransitionHandover(row.status, 'RESOLVED_ISSUE_CONFIRMED')
                   }

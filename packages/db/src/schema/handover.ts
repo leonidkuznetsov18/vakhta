@@ -28,7 +28,6 @@ import { shiftSessions } from './shift.js';
 const HANDOVER_STATUS_VALUES = [
   'DRAFT',
   'SUBMITTED',
-  'MASTER_REVIEW',
   'ACCEPTED',
   'DISPUTED',
   'RESOLVED_ACCEPTED',

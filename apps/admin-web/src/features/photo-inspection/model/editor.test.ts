@@ -1,5 +1,5 @@
-import { availableSuggestions } from './suggestions';
-import { hasReviewChanges, reviewChanges } from './review-changes';
+import { availableSuggestions, rejectedSuggestions } from './suggestions';
+import { hasReviewChanges } from './review-changes';
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('@annotorious/annotorious', () => ({
   createImageAnnotator: vi.fn(),
@@ -9,17 +9,27 @@ vi.mock('@annotorious/annotorious', () => ({
 import { canSaveReview, fromCanvas, InspectionEditor, reviewIsValid, toCanvas } from './editor';
 import type {
   InspectionAnnotation,
+  InspectionFinding,
   InspectionRunView,
   PhotoInspectionView,
 } from '@vakhta/contracts';
 const id = '10000000-0000-4000-8000-000000000001';
+const RAG = '40000000-0000-4000-8000-000000000001';
 const view: PhotoInspectionView = {
   version: 0,
   canEdit: true,
   updatedAt: null,
   updatedBy: null,
   runs: [],
-  review: { status: 'UNREVIEWED', annotations: [], comment: '', guidance: '' },
+  rules: [{ objectId: RAG, name: 'Ганчірки', note: '' }],
+  review: {
+    status: 'UNREVIEWED',
+    annotations: [],
+    comment: '',
+    guidance: '',
+    isReference: false,
+    rejectedFindings: [],
+  },
   context: {
     schemaVersion: 1,
     handoverId: id,
@@ -40,11 +50,13 @@ const view: PhotoInspectionView = {
     orientationPolicy: 'EXIF_AUTO_ORIENT',
   },
 };
-const finding = {
-  category: 'RAG',
-  comment: 'Rag on the table',
+const finding: InspectionFinding = {
+  category: 'OTHER',
+  objectId: RAG,
+  objectName: 'Ганчірки',
+  comment: 'ганчірка зліва',
   geometry: { type: 'RECTANGLE', x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
-} satisfies NonNullable<InspectionRunView['prediction']>['findings'][number];
+};
 const run: InspectionRunView = {
   id,
   status: 'SUCCEEDED',
@@ -56,23 +68,71 @@ const run: InspectionRunView = {
   reviewVersion: 0,
   prediction: {
     status: 'PROBLEMS',
-    summary: 'Possible rag',
+    summary: 'Ганчірки: 2',
     limitations: '',
     findings: [finding, finding],
   },
 };
 describe('photo inspection form and geometry', () => {
-  it('adds each source finding once, retains identity after edits and reopening, and restores deleted options', () => {
+  it('starts a never-saved photo from its computed clean outcome, savable in one step', () => {
+    const editor = new InspectionEditor(view);
+    expect(editor.store.getState().review.status).toBe('COMPLIANT');
+    expect(hasReviewChanges(editor.store.getState())).toBe(false);
+    editor.store.setState({ imageStatus: 'ready' });
+    expect(canSaveReview(editor.store.getState())).toBe(true);
+    const saved = new InspectionEditor({
+      ...view,
+      version: 1,
+      review: { ...view.review, status: 'COMPLIANT' },
+    });
+    saved.store.setState({ imageStatus: 'ready' });
+    expect(canSaveReview(saved.store.getState())).toBe(false);
+  });
+  it('derives the outcome from region verdicts and the not-assessable switch', () => {
+    const editor = new InspectionEditor(view);
+    editor.addBox();
+    const region = editor.store.getState().review.annotations[0];
+    if (!region) throw new Error('Expected region');
+    expect(editor.store.getState().review.status).toBe('PROBLEMS');
+    editor.editAnnotation(region.id, { verdict: 'ALLOWED', objectId: RAG });
+    expect(editor.store.getState().review.status).toBe('COMPLIANT');
+    editor.change({ isReference: true });
+    expect(editor.store.getState().review.isReference).toBe(true);
+    editor.editAnnotation(region.id, { verdict: 'UNSURE' });
+    expect(editor.store.getState().review.status).toBe('UNREVIEWED');
+    expect(editor.store.getState().review.isReference).toBe(false);
+    editor.setNotAssessable(true);
+    expect(editor.store.getState().review.status).toBe('NOT_ASSESSABLE');
+    expect(reviewIsValid(editor.store.getState())).toBe(false);
+    editor.change({ notAssessableReason: 'DARK' });
+    expect(reviewIsValid(editor.store.getState())).toBe(true);
+    editor.store.setState({ imageStatus: 'failed' });
+    expect(canSaveReview(editor.store.getState())).toBe(true);
+    editor.setNotAssessable(false);
+    expect(editor.store.getState().review.status).toBe('UNREVIEWED');
+    expect(editor.store.getState().review.notAssessableReason).toBeUndefined();
+    editor.remove(region.id);
+    expect(editor.store.getState().review.status).toBe('COMPLIANT');
+  });
+  it('adds each source finding once with its catalog object, retains identity after edits and restores deleted options', () => {
     const editor = new InspectionEditor({ ...view, runs: [run] });
     editor.acceptSuggestion(run, 0);
     editor.acceptSuggestion(run, 0);
     expect(editor.store.getState().review.annotations).toHaveLength(1);
+    expect(editor.store.getState().review.annotations[0]).toMatchObject({
+      objectId: RAG,
+      objectName: 'Ганчірки',
+      verdict: 'VIOLATION',
+      comment: '',
+      sourceRunId: run.id,
+      sourceFindingIndex: 0,
+    });
     expect(availableSuggestions(run, editor.store.getState().review).map((s) => s.index)).toEqual([
       1,
     ]);
     const region = editor.store.getState().review.annotations[0];
     if (!region) throw new Error('Expected region');
-    editor.editAnnotation(region.id, { category: 'OTHER', comment: 'Corrected description' });
+    editor.editAnnotation(region.id, { comment: 'Corrected description', verdict: 'ALLOWED' });
     editor.coordinates(region.id, 'x', 0.3);
     const saved = { ...view, version: 1, review: editor.store.getState().review, runs: [run] };
     editor.saved(saved);
@@ -85,21 +145,29 @@ describe('photo inspection form and geometry', () => {
     expect(availableSuggestions(run, reopened.store.getState().review).map((s) => s.index)).toEqual(
       [0],
     );
-    reopened.acceptSuggestion(run, 0);
-    expect(reopened.store.getState().review.annotations).toHaveLength(2);
-    expect(reopened.store.getState().review.annotations[1]?.comment).toBe(finding.comment);
   });
-  it('links an unchanged legacy copy without discarding or modifying its content', () => {
-    const legacy = { ...finding, id: crypto.randomUUID(), sourceRunId: run.id };
-    const editor = new InspectionEditor({
-      ...view,
-      runs: [run],
-      review: { ...view.review, annotations: [legacy] },
-    });
-    editor.editAnnotation(legacy.id, { comment: 'Edited old copy' });
-    editor.acceptSuggestion(run, 0);
-    expect(editor.store.getState().review.annotations).toHaveLength(1);
-    expect(editor.store.getState().review.annotations[0]?.sourceFindingIndex).toBe(0);
+  it('records rejected findings with a reason, hides them from the list and restores them', () => {
+    const editor = new InspectionEditor({ ...view, runs: [run] });
+    editor.rejectSuggestion(run, 1, 'NOT_PRESENT');
+    editor.rejectSuggestion(run, 1, 'ALLOWED');
+    expect(editor.store.getState().review.rejectedFindings).toEqual([
+      { runId: run.id, index: 1, reason: 'NOT_PRESENT' },
+    ]);
+    expect(availableSuggestions(run, editor.store.getState().review).map((s) => s.index)).toEqual([
+      0,
+    ]);
+    expect(rejectedSuggestions(run, editor.store.getState().review)).toMatchObject([
+      { index: 1, reason: 'NOT_PRESENT' },
+    ]);
+    expect(editor.store.getState().review.status).toBe('COMPLIANT');
+    expect(hasReviewChanges(editor.store.getState())).toBe(true);
+    editor.acceptSuggestion(run, 1);
+    expect(editor.store.getState().review.annotations).toHaveLength(0);
+    editor.restoreSuggestion(run, 1);
+    expect(editor.store.getState().review.rejectedFindings).toEqual([]);
+    editor.lock();
+    editor.rejectSuggestion(run, 0, 'WRONG_OBJECT');
+    expect(editor.store.getState().review.rejectedFindings).toEqual([]);
   });
   it('ignores read-only, locked, missing and unlocatable suggestions', () => {
     const editor = new InspectionEditor(view);
@@ -112,7 +180,7 @@ describe('photo inspection form and geometry', () => {
         ...run,
         prediction: {
           status: 'PROBLEMS',
-          summary: 'Rag',
+          summary: '',
           limitations: '',
           findings: [{ ...finding, geometry: null }],
         },
@@ -124,123 +192,50 @@ describe('photo inspection form and geometry', () => {
     reader.acceptSuggestion(run, 0);
     expect(reader.store.getState().review.annotations).toHaveLength(0);
   });
-  it('returns to default selection by toggling the active drawing tool without changing review data', () => {
+  it('returns to default selection by toggling the drawing tool without changing review data', () => {
     const editor = new InspectionEditor(view);
     expect(editor.store.getState().tool).toBe('select');
     editor.toggleDrawingTool('rectangle');
     expect(editor.store.getState().tool).toBe('rectangle');
-    editor.toggleDrawingTool('polygon');
-    expect(editor.store.getState().tool).toBe('polygon');
-    editor.toggleDrawingTool('polygon');
+    editor.toggleDrawingTool('rectangle');
     expect(editor.store.getState().tool).toBe('select');
     editor.lock();
     editor.toggleDrawingTool('rectangle');
     expect(editor.store.getState().tool).toBe('select');
     expect(hasReviewChanges(editor.store.getState())).toBe(false);
   });
-  it('counts changes relative to the saved review and removes reverted changes', () => {
-    const editor = new InspectionEditor(view);
-    editor.change({ comment: 'A draft', guidance: 'Keep clear' });
-    let state = editor.store.getState();
-    expect(reviewChanges(state).total).toBe(2);
-    editor.change({ comment: '', guidance: '' });
-    expect(hasReviewChanges(editor.store.getState())).toBe(false);
-    editor.addBox();
-    const region = editor.store.getState().review.annotations[0];
-    if (!region) throw new Error('Expected region');
-    editor.editAnnotation(region.id, { comment: 'Dust' });
-    state = editor.store.getState();
-    expect(reviewChanges(state)).toMatchObject({
-      added: 1,
-      edited: 0,
-      total: 1,
-    });
-    editor.saved({ ...view, version: 1, review: state.review });
-    expect(hasReviewChanges(editor.store.getState())).toBe(false);
-    editor.editAnnotation(region.id, { comment: 'Dust on table', category: 'DIRT' });
-    state = editor.store.getState();
-    expect(reviewChanges(state)).toMatchObject({ edited: 1, total: 1 });
-    editor.remove(region.id);
-    state = editor.store.getState();
-    expect(reviewChanges(state)).toMatchObject({
-      removed: 1,
-      edited: 0,
-      total: 1,
-    });
-  });
-  it('counts explicit outcome choices separately and never hides a remaining status change', () => {
-    const manualFirst = new InspectionEditor(view);
-    manualFirst.change({ status: 'PROBLEMS' });
-    manualFirst.addBox();
-    expect(reviewChanges(manualFirst.store.getState())).toMatchObject({
-      total: 2,
-      fields: ['status'],
-    });
-    const editor = new InspectionEditor(view);
-    editor.addBox();
-    expect(reviewChanges(editor.store.getState()).total).toBe(1);
-    editor.change({ status: 'NOT_ASSESSABLE', comment: 'Far side is hidden' });
-    expect(reviewChanges(editor.store.getState())).toMatchObject({
-      total: 3,
-      fields: ['status', 'comment'],
-    });
-    editor.change({ comment: '', status: 'PROBLEMS' });
-    expect(reviewChanges(editor.store.getState())).toMatchObject({ total: 2, fields: ['status'] });
-    const region = editor.store.getState().review.annotations[0];
-    if (!region) throw new Error('Expected region');
-    editor.remove(region.id);
-    expect(reviewChanges(editor.store.getState()).total).toBe(0);
-    expect(hasReviewChanges(editor.store.getState())).toBe(false);
-
-    const clean = new InspectionEditor({
-      ...view,
-      review: { ...view.review, status: 'COMPLIANT' },
-    });
-    clean.addBox();
-    expect(reviewChanges(clean.store.getState()).total).toBe(1);
-    clean.removeSelected();
-    expect(reviewChanges(clean.store.getState())).toMatchObject({ total: 1, fields: ['status'] });
-    expect(hasReviewChanges(clean.store.getState())).toBe(true);
-    clean.change({ status: 'COMPLIANT' });
-    expect(hasReviewChanges(clean.store.getState())).toBe(false);
-  });
-  it('counts multiple new regions once each and their text/geometry edits do not add changes', () => {
-    const editor = new InspectionEditor(view);
-    editor.addBox();
-    editor.addBox();
-    const region = editor.store.getState().review.annotations[0];
-    if (!region) throw new Error('Expected region');
-    editor.editAnnotation(region.id, { objectName: 'Rags', comment: 'Under equipment' });
-    editor.coordinates(region.id, 'x', 0.1);
-    expect(reviewChanges(editor.store.getState())).toMatchObject({
-      total: 2,
-      added: 2,
-      fields: [],
-    });
-  });
-  it('snapshots checklist objects for AI without changing legacy review data', () => {
+  it('detects changes against the saved review and forgets reverted ones', () => {
     const editor = new InspectionEditor({
       ...view,
-      prohibitedItems: ['Cup', 'Rag'],
-      prohibitedItemDetails: [
-        { item: 'Cup', clarification: 'Disposable cups', exceptions: 'Fixed molds' },
-      ],
+      version: 1,
+      review: { ...view.review, status: 'COMPLIANT' },
     });
-    editor.change({ guidance: 'Legacy saved requirements' });
+    editor.change({ comment: 'A draft' });
+    expect(hasReviewChanges(editor.store.getState())).toBe(true);
+    editor.change({ comment: '' });
+    expect(hasReviewChanges(editor.store.getState())).toBe(false);
+    editor.addBox();
+    const region = editor.store.getState().review.annotations[0];
+    if (!region) throw new Error('Expected region');
+    editor.editAnnotation(region.id, { objectId: RAG, objectName: 'Ганчірки' });
+    expect(hasReviewChanges(editor.store.getState())).toBe(true);
+    editor.saved({ ...view, version: 2, review: editor.store.getState().review });
+    expect(hasReviewChanges(editor.store.getState())).toBe(false);
+    editor.remove(region.id);
+    expect(hasReviewChanges(editor.store.getState())).toBe(true);
+  });
+  it('keeps one analysis request identity per review version', () => {
+    const editor = new InspectionEditor(view);
     const request = editor.analysisRequest();
-    expect(request.guidance).toContain('"item":"Cup"');
-    expect(request.guidance).toContain('"item":"Rag"');
-    expect(request.guidance).toContain('"exceptions":"Fixed molds"');
-    expect(request.guidance).not.toContain('Legacy');
+    expect(request).toEqual({ requestId: expect.any(String), version: 0 });
     expect(editor.analysisRequest()).toEqual(request);
-    expect(editor.store.getState().review.guidance).toBe('Legacy saved requirements');
-    expect(editor.analysisRequest(['Tool']).requestId).not.toBe(request.requestId);
-    expect(editor.analysisRequest([]).guidance).toBe('');
     editor.analysisReceived();
     expect(editor.analysisRequest().requestId).not.toBe(request.requestId);
+    editor.saved({ ...view, version: 1 });
+    expect(editor.analysisRequest().version).toBe(1);
+    expect(editor.durationMs()).toBeGreaterThanOrEqual(0);
   });
-
-  it('removes only the selected region and leaves a draft requiring a human outcome', () => {
+  it('removes only the selected region', () => {
     const editor = new InspectionEditor(view);
     editor.addBox();
     editor.addBox();
@@ -249,8 +244,6 @@ describe('photo inspection form and geometry', () => {
     expect(editor.store.getState().review.annotations).toHaveLength(1);
     expect(editor.store.getState().review.annotations.some((a) => a.id === selected)).toBe(false);
     expect(editor.store.getState().selected).toBeNull();
-    expect(hasReviewChanges(editor.store.getState())).toBe(true);
-    expect(editor.store.getState().review.status).toBe('UNREVIEWED');
     expect(editor.removeSelected()).toBe(false);
   });
   it('protects locked and read-only reviews from deletion', () => {
@@ -275,10 +268,9 @@ describe('photo inspection form and geometry', () => {
     expect(editor.store.getState().zoom).toBe(5);
     editor.zoom(-100);
     expect(editor.store.getState().zoom).toBe(1);
-    expect(editor.store.getState().review).toEqual(view.review);
     expect(hasReviewChanges(editor.store.getState())).toBe(false);
   });
-  it('round trips normalized rectangles and polygons independent of display size', () => {
+  it('round trips normalized rectangles and legacy polygons independent of display size', () => {
     const shapes: InspectionAnnotation['geometry'][] = [
       { type: 'RECTANGLE', x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
       {
@@ -291,70 +283,28 @@ describe('photo inspection form and geometry', () => {
       },
     ];
     for (const geometry of shapes) {
-      const annotation = {
+      const annotation: InspectionAnnotation = {
         id,
         geometry,
-        category: 'DIRT',
+        category: 'OTHER',
+        objectId: null,
+        verdict: 'VIOLATION',
         comment: 'Dust',
         sourceRunId: null,
-      } satisfies InspectionAnnotation;
+      };
       expect(fromCanvas(toCanvas(annotation, 1200, 800), 1200, 800)).toEqual(geometry);
       expect(fromCanvas(toCanvas(annotation, 600, 400), 600, 400)).toEqual(geometry);
     }
   });
-  it('requires a human description before a newly drawn region can be saved', () => {
+  it('requires a named object before a newly drawn region can be saved', () => {
     const editor = new InspectionEditor(view);
     editor.addBox();
     expect(reviewIsValid(editor.store.getState())).toBe(false);
     const annotation = editor.store.getState().review.annotations[0];
     if (!annotation) throw new Error('Expected region');
-    editor.editAnnotation(annotation.id, { comment: 'Dust on the surface' });
+    editor.editAnnotation(annotation.id, { objectName: 'Піддон' });
     expect(reviewIsValid(editor.store.getState())).toBe(true);
-    expect(hasReviewChanges(editor.store.getState())).toBe(true);
     editor.saved({ ...view, version: 1, review: editor.store.getState().review });
     expect(editor.store.getState().version).toBe(1);
-    expect(editor.store.getState().review.annotations).toHaveLength(1);
   });
-  it('does not label an emptied annotation list as compliant automatically', () => {
-    const editor = new InspectionEditor(view);
-    editor.addBox();
-    const annotation = editor.store.getState().review.annotations[0];
-    if (!annotation) throw new Error('Expected region');
-    editor.remove(annotation.id);
-    expect(editor.store.getState().review.status).toBe('UNREVIEWED');
-  });
-});
-
-it('opens automatic regions as a draft without altering the saved baseline and restores rejected options', () => {
-  const annotation = {
-    id: crypto.randomUUID(),
-    ...finding,
-    sourceRunId: run.id,
-    sourceFindingIndex: 0,
-  };
-  const editor = new InspectionEditor({
-    ...view,
-    runs: [run],
-    automaticRunId: run.id,
-    automaticReview: { ...view.review, annotations: [annotation] },
-  });
-  expect(editor.store.getState().savedReview.annotations).toHaveLength(0);
-  expect(editor.store.getState().review.annotations).toHaveLength(1);
-  expect(editor.store.getState().review.status).toBe('UNREVIEWED');
-  expect(availableSuggestions(run, editor.store.getState().review).map((s) => s.index)).toEqual([
-    1,
-  ]);
-  editor.remove(annotation.id);
-  expect(availableSuggestions(run, editor.store.getState().review)).toHaveLength(2);
-  expect(editor.store.getState().automaticRunId).toBe(run.id);
-  editor.saved({ ...view, version: 1, automaticRunId: null });
-  expect(editor.store.getState().automaticRunId).toBeNull();
-});
-
-it('allows an explained unassessable review when an automatic photo cannot load', () => {
-  const editor = new InspectionEditor({ ...view, automaticRunId: run.id });
-  editor.store.setState({ imageStatus: 'failed' });
-  expect(canSaveReview(editor.store.getState())).toBe(false);
-  editor.change({ status: 'NOT_ASSESSABLE', comment: 'Photo is unreadable' });
-  expect(canSaveReview(editor.store.getState())).toBe(true);
 });

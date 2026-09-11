@@ -1,64 +1,40 @@
-import { SaveChecklistPhotoRules, type ChecklistPhotoRulesView } from '@vakhta/contracts';
+import {
+  MAX_PHOTO_RULE_NOTE,
+  MAX_PHOTO_RULES,
+  SaveChecklistPhotoRules,
+  type ChecklistPhotoRulesView,
+  type PhotoObjectView,
+} from '@vakhta/contracts';
 
-export interface RuleField {
-  id: string;
-  value: string;
-  clarification: string;
-  exceptions: string;
+export interface RuleDraft {
+  objectId: string;
+  note: string;
 }
-export function ruleFields(view: Pick<ChecklistPhotoRulesView, 'items' | 'details'>): RuleField[] {
-  return view.items.map((value) => {
-    const detail = view.details?.find((detail) => detail.item === value);
-    return {
-      id: crypto.randomUUID(),
-      value,
-      clarification: detail?.clarification ?? '',
-      exceptions: detail?.exceptions ?? '',
-    };
-  });
+export function rulesDraft(view: Pick<ChecklistPhotoRulesView, 'rules'>): RuleDraft[] {
+  return view.rules.map(({ objectId, note }) => ({ objectId, note }));
 }
-export function rulePayload(draft: readonly RuleField[]) {
-  return {
-    items: draft.map((field) => field.value.trim()),
-    details: draft
-      .filter((field) => field.clarification.trim() || field.exceptions.trim())
-      .map((field) => ({
-        item: field.value.trim(),
-        clarification: field.clarification.trim(),
-        exceptions: field.exceptions.trim(),
-      })),
+export function toggleRule(draft: readonly RuleDraft[], objectId: string): RuleDraft[] {
+  return draft.some((rule) => rule.objectId === objectId)
+    ? draft.filter((rule) => rule.objectId !== objectId)
+    : draft.length >= MAX_PHOTO_RULES
+      ? [...draft]
+      : [...draft, { objectId, note: '' }];
+}
+export function rulesDraftState(draft: readonly RuleDraft[], saved: ChecklistPhotoRulesView) {
+  const payload = {
+    rules: draft.map((rule) => ({ objectId: rule.objectId, note: rule.note.trim() })),
   };
-}
-export function rulesDraftState(draft: readonly RuleField[], saved: ChecklistPhotoRulesView) {
-  const payload = rulePayload(draft);
-  const parsed = SaveChecklistPhotoRules.safeParse({ ...payload, version: saved.version });
   return {
     payload,
-    valid: parsed.success,
-    dirty:
-      JSON.stringify(payload) !==
-      JSON.stringify({
-        items: saved.items,
-        details: saved.items.flatMap((item) => {
-          const detail = saved.details?.find((detail) => detail.item === item);
-          return detail && (detail.clarification || detail.exceptions) ? [detail] : [];
-        }),
-      }),
-    invalidNames: draft.map(
-      (field) =>
-        !field.value.trim() ||
-        field.value.length > 100 ||
-        draft.some(
-          (other) =>
-            other.id !== field.id &&
-            other.value.trim().toLocaleLowerCase() === field.value.trim().toLocaleLowerCase(),
-        ),
-    ),
+    valid:
+      SaveChecklistPhotoRules.safeParse({ ...payload, version: saved.version }).success &&
+      draft.every((rule) => rule.note.length <= MAX_PHOTO_RULE_NOTE),
+    dirty: JSON.stringify(payload.rules) !== JSON.stringify(rulesDraft(saved)),
   };
 }
-export function availableSuggestions(draft: readonly RuleField[], suggestions: readonly string[]) {
-  return suggestions.filter(
-    (value) =>
-      !draft.some((field) => field.value.trim().toLocaleLowerCase() === value.toLocaleLowerCase()),
-  );
+/** Catalog entries ordered by name, with the ones already chosen for this zone flagged. */
+export function catalogChoices(objects: readonly PhotoObjectView[], draft: readonly RuleDraft[]) {
+  return objects
+    .filter((object) => object.active || draft.some((rule) => rule.objectId === object.id))
+    .map((object) => ({ ...object, selected: draft.some((rule) => rule.objectId === object.id) }));
 }

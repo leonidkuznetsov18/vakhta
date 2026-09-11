@@ -7,11 +7,13 @@ import { SparkleBurst } from '@/shared/ui/sparkle-burst';
 
 export function AnalyzeButton({
   disabled,
+  disabledReason = null,
   loading = false,
   finished = null,
   onAnalyze,
 }: {
   disabled: boolean;
+  disabledReason?: string | null;
   loading?: boolean;
   /**
    * The analysis this session asked for, once it has come back. A different value is a different
@@ -25,10 +27,10 @@ export function AnalyzeButton({
     <IconButton
       icon={WandSparklesIcon}
       label={t.analyze}
-      tooltip={t.analyzeHint}
+      tooltip={loading ? t.aiPending : (disabledReason ?? t.analyzeHint)}
       variant="outline"
       className="relative"
-      disabled={disabled || loading}
+      disabled={disabled || loading || disabledReason !== null}
       aria-busy={loading}
       onClick={onAnalyze}
     >

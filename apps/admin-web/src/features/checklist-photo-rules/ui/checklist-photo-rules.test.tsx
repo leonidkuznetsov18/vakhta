@@ -6,101 +6,84 @@ import { render } from '@/test-utils';
 import { rulesApi } from '../api/rules-api';
 import { ChecklistPhotoRules } from './checklist-photo-rules';
 vi.mock('../api/rules-api', () => ({
-  rulesApi: { get: vi.fn(), save: vi.fn() },
+  rulesApi: { get: vi.fn(), save: vi.fn(), objects: vi.fn(), createObject: vi.fn() },
   rulesKey: (d: string, z: string) => ['rules', d, z],
+  photoObjectsKey: ['photo-objects'],
 }));
 const t = messages(currentLocale()).checklistPhotoRules;
+const RAG = '40000000-0000-4000-8000-000000000001';
+const CUP = '40000000-0000-4000-8000-000000000002';
+const catalog = {
+  objects: [
+    { id: RAG, name: 'Ганчірки', active: true },
+    { id: CUP, name: 'Стаканчики', active: true },
+  ],
+  canEdit: true,
+};
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
-it('saves simple per-zone objects and keeps edits after a failed save', async () => {
-  vi.mocked(rulesApi.get).mockResolvedValue({ version: 0, items: [], canEdit: true });
+it('selects catalog objects for a zone and keeps edits after a failed save', async () => {
+  vi.mocked(rulesApi.objects).mockResolvedValue(catalog);
+  vi.mocked(rulesApi.get).mockResolvedValue({ version: 0, rules: [], canEdit: true });
   vi.mocked(rulesApi.save)
     .mockRejectedValueOnce(new Error('Offline'))
-    .mockResolvedValue({ version: 1, items: ['Ганчірки'], canEdit: true });
+    .mockResolvedValue({
+      version: 1,
+      rules: [{ objectId: RAG, name: 'Ганчірки', note: 'на столі' }],
+      canEdit: true,
+    });
   render(
     <ChecklistPhotoRules definitionId="definition" zones={[{ id: 'zone-a', name: 'Zone A' }]} />,
   );
   await screen.findByText(t.empty);
-  fireEvent.click(screen.getByRole('button', { name: t.add }));
-  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Ганчірки' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Ганчірки' }));
+  fireEvent.click(screen.getByRole('button', { name: t.note }));
+  fireEvent.change(screen.getByLabelText(`${t.note}: Ганчірки`), { target: { value: 'на столі' } });
   fireEvent.click(screen.getByRole('button', { name: t.save }));
   await screen.findByText('Offline');
-  expect(screen.getByDisplayValue('Ганчірки')).toBeTruthy();
+  expect(screen.getByDisplayValue('на столі')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: t.save }));
   await screen.findByText(t.saved);
   expect(rulesApi.save).toHaveBeenLastCalledWith('definition', 'zone-a', {
     version: 0,
-    items: ['Ганчірки'],
-    details: [],
+    rules: [{ objectId: RAG, note: 'на столі' }],
   });
-  fireEvent.click(screen.getByRole('button', { name: t.add }));
-  const duplicate = screen.getAllByRole('textbox')[1];
-  if (!duplicate) throw new Error('Missing second input');
-  fireEvent.change(duplicate, { target: { value: ' ганчірки ' } });
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(true),
+  fireEvent.click(screen.getByRole('button', { name: `${t.remove}: Ганчірки` }));
+  await waitFor(() => expect(screen.getByText(t.empty)).toBeTruthy());
+  expect(screen.getByRole('button', { name: 'Ганчірки' }).getAttribute('aria-pressed')).toBe(
+    'false',
   );
-  expect(screen.getByRole('alert').textContent).toBe(t.invalid);
 });
-
-it('adds a suggestion once and saves optional clarification and exceptions without losing them on failure', async () => {
-  vi.mocked(rulesApi.get).mockResolvedValue({ version: 0, items: [], canEdit: true });
-  vi.mocked(rulesApi.save).mockRejectedValue(new Error('Offline'));
+it('creates a catalog object once and adds it to the zone list', async () => {
+  vi.mocked(rulesApi.objects).mockResolvedValue({ objects: [], canEdit: true });
+  vi.mocked(rulesApi.get).mockResolvedValue({ version: 0, rules: [], canEdit: true });
+  vi.mocked(rulesApi.createObject).mockResolvedValue({ id: CUP, name: 'Піддони', active: true });
   render(
     <ChecklistPhotoRules definitionId="definition" zones={[{ id: 'zone-a', name: 'Zone A' }]} />,
   );
-  const name = t.suggestions[2];
-  if (!name) throw new Error('Missing suggestion');
-  fireEvent.click(await screen.findByRole('button', { name }));
-  expect(screen.queryByRole('button', { name })).toBeNull();
-  expect(screen.queryByLabelText(t.clarification)).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: t.details }));
-  fireEvent.change(screen.getByLabelText(t.clarification), {
-    target: { value: 'Loose hand tools' },
+  await screen.findByText(t.catalogEmpty);
+  expect(screen.getByRole('button', { name: t.createObject }).hasAttribute('disabled')).toBe(true);
+  fireEvent.change(screen.getByRole('textbox', { name: t.newObject }), {
+    target: { value: 'Піддони' },
   });
-  fireEvent.change(screen.getByLabelText(t.exceptions), {
-    target: { value: 'Fixed equipment parts' },
-  });
-  fireEvent.click(screen.getByRole('button', { name: t.save }));
-  await screen.findByText('Offline');
-  expect(screen.getByDisplayValue('Fixed equipment parts')).toBeTruthy();
-  expect(rulesApi.save).toHaveBeenCalledWith('definition', 'zone-a', {
-    version: 0,
-    items: [name],
-    details: [
-      { item: name, clarification: 'Loose hand tools', exceptions: 'Fixed equipment parts' },
-    ],
-  });
-  fireEvent.click(screen.getByRole('button', { name: t.remove }));
-  expect(screen.getByRole('button', { name })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: t.createObject }));
+  await waitFor(() => expect(rulesApi.createObject).toHaveBeenCalledWith({ name: 'Піддони' }));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(false),
+  );
 });
-
-it('reopens saved details collapsed and explicitly saves their removal', async () => {
+it('shows a read-only list for viewers', async () => {
+  vi.mocked(rulesApi.objects).mockResolvedValue({ ...catalog, canEdit: false });
   vi.mocked(rulesApi.get).mockResolvedValue({
     version: 2,
-    items: ['Tools'],
-    details: [{ item: 'Tools', clarification: '', exceptions: 'Fixed blade' }],
-    canEdit: true,
-  });
-  vi.mocked(rulesApi.save).mockResolvedValue({
-    version: 3,
-    items: ['Tools'],
-    details: [],
-    canEdit: true,
+    rules: [{ objectId: CUP, name: 'Стаканчики', note: 'крім гнізд машини' }],
+    canEdit: false,
   });
   render(
     <ChecklistPhotoRules definitionId="definition" zones={[{ id: 'zone-a', name: 'Zone A' }]} />,
   );
-  fireEvent.click(await screen.findByRole('button', { name: t.detailsAdded }));
-  expect(screen.getByDisplayValue('Fixed blade')).toBeTruthy();
-  fireEvent.change(screen.getByLabelText(t.exceptions), { target: { value: '' } });
-  fireEvent.click(screen.getByRole('button', { name: t.save }));
-  await screen.findByText(t.saved);
-  expect(rulesApi.save).toHaveBeenCalledWith('definition', 'zone-a', {
-    version: 2,
-    items: ['Tools'],
-    details: [],
-  });
+  expect((await screen.findByText('Стаканчики — крім гнізд машини')).tagName).toBe('LI');
+  expect(screen.queryByRole('button', { name: t.save })).toBeNull();
 });
