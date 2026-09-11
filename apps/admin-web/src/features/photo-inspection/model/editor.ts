@@ -220,7 +220,7 @@ export class InspectionEditor {
   private changeAnnotations(patch: Pick<InspectionReview, 'annotations' | 'status'>): void {
     this.store.setState((state) => ({
       review: { ...state.review, ...patch },
-      statusOrigin: 'ANNOTATION',
+      statusOrigin: state.review.status === patch.status ? state.statusOrigin : 'ANNOTATION',
     }));
   }
   editAnnotation(

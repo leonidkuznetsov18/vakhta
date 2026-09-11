@@ -169,6 +169,13 @@ describe('photo inspection form and geometry', () => {
     });
   });
   it('counts explicit outcome choices separately and never hides a remaining status change', () => {
+    const manualFirst = new InspectionEditor(view);
+    manualFirst.change({ status: 'PROBLEMS' });
+    manualFirst.addBox();
+    expect(reviewChanges(manualFirst.store.getState())).toMatchObject({
+      total: 2,
+      fields: ['status'],
+    });
     const editor = new InspectionEditor(view);
     editor.addBox();
     expect(reviewChanges(editor.store.getState()).total).toBe(1);

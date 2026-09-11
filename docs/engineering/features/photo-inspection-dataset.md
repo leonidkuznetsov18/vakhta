@@ -562,8 +562,9 @@ production schema query confirmed details jsonb NOT NULL plus its validation con
 ## Annotation change count — 2026-09-11
 
 Reported defect reproduced by a failing regression: creating one region counted two changes because
-PROBLEMS was set automatically. The editor now records whether the latest status write came from
-an annotation action or an explicit reviewer choice. Counting groups an automatic status with changed
+PROBLEMS was set automatically. The editor records whether the current status value came from
+an annotation action or an explicit reviewer choice. Writing the same value retains that origin,
+including when a reviewer chooses an outcome before drawing the first region. Counting groups an automatic status with changed
 regions; manual choices and photo-level notes remain separate. Origin is transient draft metadata,
 not part of stored reviews. A status difference with no remaining region changes still counts, so
 undoing a temporary region cannot silently discard an outcome change. Save resets the baseline.
