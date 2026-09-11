@@ -1,5 +1,6 @@
 import { availableSuggestions, rejectedSuggestions } from './suggestions';
-import { hasReviewChanges } from './review-changes';
+import { hasReviewChanges, reviewChanges } from './review-changes';
+import { objectColor, UNNAMED_COLOR } from './object-colors';
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('@annotorious/annotorious', () => ({
   createImageAnnotator: vi.fn(),
@@ -74,12 +75,16 @@ const run: InspectionRunView = {
   },
 };
 describe('photo inspection form and geometry', () => {
-  it('starts a never-saved photo from its computed clean outcome, savable in one step', () => {
+  it('starts a never-saved photo from its computed clean outcome and enables saving only after a change', () => {
     const editor = new InspectionEditor(view);
     expect(editor.store.getState().review.status).toBe('COMPLIANT');
     expect(hasReviewChanges(editor.store.getState())).toBe(false);
     editor.store.setState({ imageStatus: 'ready' });
+    expect(canSaveReview(editor.store.getState())).toBe(false);
+    editor.change({ isReference: true });
     expect(canSaveReview(editor.store.getState())).toBe(true);
+    editor.change({ isReference: false });
+    expect(canSaveReview(editor.store.getState())).toBe(false);
     const saved = new InspectionEditor({
       ...view,
       version: 1,
@@ -145,6 +150,62 @@ describe('photo inspection form and geometry', () => {
     expect(availableSuggestions(run, reopened.store.getState().review).map((s) => s.index)).toEqual(
       [0],
     );
+  });
+  it("applies the answer to this session's analysis to the draft once, and only for that run", () => {
+    const editor = new InspectionEditor(view);
+    const pendingView = {
+      ...view,
+      runs: [{ ...run, status: 'PENDING' as const, prediction: null }],
+    };
+    expect(editor.analysisResolved({ ...view, runs: [run] })).toBe(false);
+    editor.analysisReceived(pendingView);
+    expect(editor.analysisResolved(pendingView)).toBe(false);
+    expect(editor.analysisResolved({ ...view, runs: [run] })).toBe(true);
+    expect(editor.store.getState().review.annotations).toHaveLength(2);
+    expect(editor.store.getState().review.status).toBe('PROBLEMS');
+    expect(editor.analysisResolved({ ...view, runs: [run] })).toBe(false);
+    expect(editor.store.getState().review.annotations).toHaveLength(2);
+    const failed = new InspectionEditor(view);
+    failed.analysisReceived(pendingView);
+    expect(
+      failed.analysisResolved({
+        ...view,
+        runs: [{ ...run, status: 'FAILED', prediction: null, errorCode: 'AI_TIMEOUT' }],
+      }),
+    ).toBe(false);
+    expect(failed.store.getState().review.annotations).toHaveLength(0);
+  });
+  it('rejects an AI-drawn region from its card with a reason and counts regions, not the derived outcome', () => {
+    const editor = new InspectionEditor({
+      ...view,
+      version: 1,
+      review: { ...view.review, status: 'COMPLIANT' },
+    });
+    editor.acceptSuggestion(run, 0);
+    editor.acceptSuggestion(run, 1);
+    expect(reviewChanges(editor.store.getState())).toMatchObject({
+      added: 2,
+      fields: [],
+      total: 2,
+    });
+    const [first] = editor.store.getState().review.annotations;
+    expect(editor.rejectRegion(first!.id, 'WRONG_OBJECT')).toBe(true);
+    expect(editor.store.getState().review).toMatchObject({
+      annotations: [{ sourceFindingIndex: 1 }],
+      rejectedFindings: [{ runId: run.id, index: 0, reason: 'WRONG_OBJECT' }],
+    });
+    expect(availableSuggestions(run, editor.store.getState().review)).toHaveLength(0);
+    editor.addBox();
+    const manual = editor.store.getState().review.annotations.at(-1);
+    expect(editor.rejectRegion(manual!.id, 'NOT_PRESENT')).toBe(false);
+    editor.setNotAssessable(true);
+    expect(reviewChanges(editor.store.getState()).fields).toContain('status');
+  });
+  it('gives every object type a stable color and leaves unnamed regions white', () => {
+    expect(objectColor(RAG)).toBe(objectColor(RAG));
+    expect(objectColor(null, 'Broom')).toBe(objectColor(null, ' broom '));
+    expect(objectColor(null)).toBe(UNNAMED_COLOR);
+    expect(objectColor(RAG)).not.toBe(UNNAMED_COLOR);
   });
   it('records rejected findings with a reason, hides them from the list and restores them', () => {
     const editor = new InspectionEditor({ ...view, runs: [run] });

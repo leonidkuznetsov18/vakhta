@@ -133,8 +133,9 @@
         </li>
         <li>
           Optionally select Analyze with AI: it searches only for the objects listed in the
-          checklist for this zone. Add correct suggestions with Add to my annotations and reject
-          wrong ones with a reason; that is how model precision is measured. Then save the review.
+          checklist for this zone and draws the boxes it finds on the photo in the color of each
+          object. Keep or correct the right ones and reject wrong ones with a reason using Reject on
+          the region card; that is how model precision is measured. Then save the review.
         </li>
       </ol>
       <h2>Questions and answers</h2>
@@ -223,9 +224,10 @@
       <section>
         <h3>Can I trust AI without checking?</h3>
         <p>
-          No. AI may miss a problem, flag an allowed object or locate a region poorly. Compare each
-          suggestion against the photo and rules. Do not copy false findings; correct useful ones
-          and save them yourself.
+          No. AI can miss an object, call a normal item a violation or draw an imprecise box.
+          Compare each drawn box with the photo. Keep the correct ones and reject the wrong ones
+          with a reason: object is not there, different object, allowed here or box is misplaced.
+          That is how model precision accumulates.
         </p>
       </section>
       <section>

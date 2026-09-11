@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ObjectSwatch } from './object-swatch';
 const t = messages(currentLocale()).photoInspection;
 
 export function PredictionPanel({
@@ -53,7 +54,8 @@ export function PredictionPanel({
       )}
       {suggestions.map(({ finding, index, key }) => (
         <div key={key} className="rounded-md border p-2">
-          <p className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words">
+          <p className="flex max-h-32 items-start gap-2 overflow-y-auto whitespace-pre-wrap break-words">
+            <ObjectSwatch objectId={finding.objectId} objectName={finding.objectName} />
             {label(finding)}
           </p>
           <div className="mt-1 flex flex-wrap gap-2">

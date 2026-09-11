@@ -86,7 +86,12 @@ export function PhotoInspectionDialog({
   const id = { handoverId, mediaId: photo.media.id, itemKey: photo.itemKey };
   const query = useQuery({
     queryKey: inspectionKey(id),
-    queryFn: ({ signal }) => inspectionApi.get(id, signal),
+    queryFn: async ({ signal }) => {
+      const view = await inspectionApi.get(id, signal);
+      // The answer to this session's analysis lands in the draft as soon as it is fetched.
+      editor?.analysisResolved(view);
+      return view;
+    },
     refetchInterval: (query) =>
       query.state.data?.runs.some((r) => r.status === 'PENDING') ? 2000 : false,
   });
@@ -244,7 +249,7 @@ function InspectionSession({
       await client.invalidateQueries({ queryKey: ['photo-analysis-limits'] });
     },
     onSuccess: (view) => {
-      editor.analysisReceived();
+      editor.analysisReceived(view);
       client.setQueryData(inspectionKey(id), view);
     },
   });

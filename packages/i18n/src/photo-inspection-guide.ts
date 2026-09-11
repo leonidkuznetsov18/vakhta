@@ -10,7 +10,7 @@ export const inspectionGuideUk: SectionGuide = {
     'Якщо бачите обʼєкт, оберіть «Прямокутник» і обведіть його. У «Що позначено» оберіть обʼєкт з чекліста або з каталогу. Одна область — один предмет. Потім оберіть значення: «Порушення», «Дозволено тут» або «Не впевнений». «Додати деталі» потрібне лише для додаткового пояснення.',
     'Результат перевірки визначається сам: є порушення — «Є проблеми», лише дозволені області або жодної — «Проблем не знайдено». Якщо фото не дає змоги оцінити робоче місце, увімкніть «Фото не можна оцінити» й оберіть причину.',
     'Натисніть «Зберегти зміни». Фото не змінюється: окремо зберігаються області, їхнє значення та результат. Чисте фото без областей теж зберігайте: такі приклади потрібні нарівні з проблемними. Чисте фото можна позначити як еталон для цієї точки зйомки.',
-    'За бажанням натисніть «Аналізувати з AI»: він шукає лише обʼєкти зі списку чекліста для цієї зони. Правильні підказки додайте кнопкою «Додати до моєї розмітки», хибні відхиліть із причиною: так вимірюється точність моделі. Потім збережіть перевірку.',
+    'За бажанням натисніть «Аналізувати з AI»: він шукає лише обʼєкти зі списку чекліста для цієї зони і сам малює знайдені рамки на фото кольором відповідного обʼєкта. Правильні лишіть або виправте, хибні відхиліть із причиною кнопкою «Відхилити» в картці області: так вимірюється точність моделі. Потім збережіть перевірку.',
   ],
   faq: [
     {
@@ -55,7 +55,7 @@ export const inspectionGuideUk: SectionGuide = {
     },
     {
       q: 'Чи можна довіряти висновку AI без перевірки?',
-      a: 'Ні. AI може пропустити обʼєкт, помилково назвати нормальний предмет порушенням або неточно обвести область. Зіставте кожну підказку з фото. Правильні додайте, хибні відхиліть із причиною: «обʼєкта немає», «інший обʼєкт», «дозволено тут» або «рамка не там». Так накопичується оцінка точності моделі.',
+      a: 'Ні. AI може пропустити обʼєкт, помилково назвати нормальний предмет порушенням або неточно обвести область. Зіставте кожну намальовану рамку з фото. Правильні лишіть, хибні відхиліть із причиною: «обʼєкта немає», «інший обʼєкт», «дозволено тут» або «рамка не там». Так накопичується оцінка точності моделі.',
     },
     {
       q: 'AI не намалював область або аналіз не завершився.',
@@ -116,7 +116,7 @@ export const inspectionGuideEn: SectionGuide = {
     'For a visible object, choose Rectangle and drag around it. In What is marked, choose the object from the checklist or the catalog. One object per region. Then choose its meaning: Violation, Allowed here or Unsure. Use Add details only for extra context.',
     'The review outcome follows on its own: any violation means Problems found; only allowed regions or none means No problems found. If the photo does not show the workplace well enough, switch on The photo cannot be assessed and choose a reason.',
     'Select Save changes. The original photo is unchanged; regions, their meaning and the outcome are saved separately. Save clean photos without regions too: such examples matter as much as problems. A clean photo can be marked as the reference for this photo point.',
-    'Optionally select Analyze with AI: it searches only for the objects listed in the checklist for this zone. Add correct suggestions with Add to my annotations and reject wrong ones with a reason; that is how model precision is measured. Then save the review.',
+    'Optionally select Analyze with AI: it searches only for the objects listed in the checklist for this zone and draws the boxes it finds on the photo in the color of each object. Keep or correct the right ones and reject wrong ones with a reason using Reject on the region card; that is how model precision is measured. Then save the review.',
   ],
   faq: [
     {
@@ -161,7 +161,7 @@ export const inspectionGuideEn: SectionGuide = {
     },
     {
       q: 'Can I trust AI without checking?',
-      a: 'No. AI may miss a problem, flag an allowed object or locate a region poorly. Compare each suggestion against the photo and rules. Do not copy false findings; correct useful ones and save them yourself.',
+      a: 'No. AI can miss an object, call a normal item a violation or draw an imprecise box. Compare each drawn box with the photo. Keep the correct ones and reject the wrong ones with a reason: object is not there, different object, allowed here or box is misplaced. That is how model precision accumulates.',
     },
     {
       q: 'AI did not locate a region or analysis failed.',
@@ -222,7 +222,7 @@ export const inspectionGuideRu: SectionGuide = {
     'Если видите объект, выберите «Прямоугольник» и обведите его. В «Что отмечено» выберите объект из чек-листа или из каталога. Одна область — один предмет. Затем выберите значение: «Нарушение», «Разрешено здесь» или «Не уверен». «Добавить детали» нужно только для дополнительного пояснения.',
     'Результат проверки определяется сам: есть нарушение — «Есть проблемы», только разрешённые области или ни одной — «Проблем не найдено». Если фото не позволяет оценить рабочее место, включите «Фото нельзя оценить» и выберите причину.',
     'Нажмите «Сохранить изменения». Фото не меняется: отдельно сохраняются области, их значение и результат. Чистое фото без областей тоже сохраняйте: такие примеры нужны наравне с проблемными. Чистое фото можно отметить как эталон для этой точки съёмки.',
-    'При желании нажмите «Анализировать с AI»: он ищет только объекты из списка чек-листа для этой зоны. Правильные подсказки добавьте кнопкой «Добавить в мою разметку», ошибочные отклоните с причиной: так измеряется точность модели. Затем сохраните проверку.',
+    'При желании нажмите «Анализировать с AI»: он ищет только объекты из списка чек-листа для этой зоны и сам рисует найденные рамки на фото цветом соответствующего объекта. Правильные оставьте или исправьте, ошибочные отклоните с причиной кнопкой «Отклонить» в карточке области: так измеряется точность модели. Затем сохраните проверку.',
   ],
   faq: [
     {
@@ -267,7 +267,7 @@ export const inspectionGuideRu: SectionGuide = {
     },
     {
       q: 'Можно ли доверять AI без проверки?',
-      a: 'Нет. AI может пропустить объект, ошибочно назвать нормальный предмет нарушением или неточно обвести область. Сопоставьте каждую подсказку с фото. Правильные добавьте, ошибочные отклоните с причиной: «объекта нет», «другой объект», «разрешено здесь» или «рамка не там». Так накапливается оценка точности модели.',
+      a: 'Нет. AI может пропустить объект, ошибочно назвать нормальный предмет нарушением или неточно обвести область. Сопоставьте каждую нарисованную рамку с фото. Правильные оставьте, ошибочные отклоните с причиной: «объекта нет», «другой объект», «разрешено здесь» или «рамка не там». Так накапливается оценка точности модели.',
     },
     {
       q: 'AI не выделил область или анализ не завершился.',

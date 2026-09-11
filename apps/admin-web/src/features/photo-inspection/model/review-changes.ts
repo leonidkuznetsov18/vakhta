@@ -48,9 +48,11 @@ export function reviewChanges({ review, savedReview: saved }: ReviewChangeState)
     return before !== undefined && before !== canon(region);
   }).length;
   const removed = saved.annotations.filter((region) => !current.has(region.id)).length;
+  // The outcome follows from the regions, so it only counts when the reviewer flipped the switch.
+  const notAssessable = (r: InspectionReview) => r.status === 'NOT_ASSESSABLE';
   const fields = (
     [
-      ['status', review.status !== saved.status],
+      ['status', notAssessable(review) !== notAssessable(saved)],
       ['comment', review.comment.trim() !== saved.comment.trim()],
       [
         'notAssessableReason',

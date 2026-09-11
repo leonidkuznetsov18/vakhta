@@ -94,12 +94,6 @@ export const inspectionEn = {
     restore: 'Return this suggestion to the list.',
     selectRegion: 'Highlight this region on the photo.',
     remove: 'Remove this region from the annotations. Save the review to apply the change.',
-    coordinates: {
-      x: 'Distance from the left edge to the region, as a percentage of photo width.',
-      y: 'Distance from the top edge to the region, as a percentage of photo height.',
-      width: 'Region width as a percentage of photo width.',
-      height: 'Region height as a percentage of photo height.',
-    },
   },
   rectangle: 'Rectangle',
   zoomIn: 'Zoom in',
@@ -110,7 +104,7 @@ export const inspectionEn = {
   discard: 'Discard unsaved changes?',
   analyze: 'Analyze with AI',
   analyzeHint:
-    'Search the photo for the objects listed in the checklist for this zone. No save is needed; check every suggestion and add or reject it.',
+    'Search the photo for the objects listed in the checklist for this zone and draw the boxes it finds. No save is needed; keep, correct or reject each box.',
   aiTitle: 'AI suggestions — verify independently',
   aiPending: 'AI is analyzing the photo',
   aiFailed: 'AI did not complete the analysis. Retry or mark objects manually.',
@@ -148,11 +142,8 @@ export const inspectionEn = {
   next: 'Next photo',
   previous: 'Previous photo',
   ...analysisLimitsEn,
-  drawKeyboard:
-    'To mark a region with the keyboard, add a centered rectangle and edit its coordinates.',
+  drawKeyboard: 'Adds a centered rectangle; drag its edges on the photo to fit the object.',
   addBox: 'Add rectangle',
-  coordinates: 'Adjust region precisely',
-  coordinateLabels: { x: 'Left offset', y: 'Top offset', width: 'Width', height: 'Height' },
 };
 export type PhotoInspectionMessages = typeof inspectionEn;
 export const inspectionUk: PhotoInspectionMessages = {
@@ -247,12 +238,6 @@ export const inspectionUk: PhotoInspectionMessages = {
     restore: 'Повернути цю підказку до списку.',
     selectRegion: 'Виділити цю область на фото.',
     remove: 'Прибрати цю область із розмітки. Збережіть перевірку, щоб застосувати зміну.',
-    coordinates: {
-      x: 'Відстань від лівого краю фото до області, у відсотках ширини фото.',
-      y: 'Відстань від верхнього краю фото до області, у відсотках висоти фото.',
-      width: 'Ширина області у відсотках ширини фото.',
-      height: 'Висота області у відсотках висоти фото.',
-    },
   },
   rectangle: 'Прямокутник',
   zoomIn: 'Збільшити',
@@ -263,7 +248,7 @@ export const inspectionUk: PhotoInspectionMessages = {
   discard: 'Відкинути незбережені зміни?',
   analyze: 'Аналізувати з AI',
   analyzeHint:
-    'Знайти на фото обʼєкти зі списку чекліста для цієї зони. Збереження не потрібне; перевірте кожну підказку й додайте або відхиліть її.',
+    'Знайти на фото обʼєкти зі списку чекліста для цієї зони й одразу намалювати знайдені рамки. Збереження не потрібне; лишіть, виправте або відхиліть кожну рамку.',
   aiTitle: 'Припущення AI — перевірте самостійно',
   aiPending: 'AI аналізує фото',
   aiFailed: 'AI не завершив аналіз. Спробуйте ще раз або позначте предмети вручну.',
@@ -301,11 +286,8 @@ export const inspectionUk: PhotoInspectionMessages = {
   next: 'Наступне фото',
   previous: 'Попереднє фото',
   ...analysisLimitsUk,
-  drawKeyboard:
-    'Для позначення області з клавіатури додайте центральний прямокутник і відредагуйте координати.',
+  drawKeyboard: 'Додає прямокутник у центрі фото; потягніть його краї, щоб обвести предмет.',
   addBox: 'Додати прямокутник',
-  coordinates: 'Точне налаштування області',
-  coordinateLabels: { x: 'Відступ зліва', y: 'Відступ згори', width: 'Ширина', height: 'Висота' },
 };
 export const inspectionRu: PhotoInspectionMessages = {
   title: 'Проверка фото',
@@ -402,12 +384,6 @@ export const inspectionRu: PhotoInspectionMessages = {
     restore: 'Вернуть эту подсказку в список.',
     selectRegion: 'Выделить эту область на фото.',
     remove: 'Убрать эту область из разметки. Сохраните проверку, чтобы применить изменение.',
-    coordinates: {
-      x: 'Расстояние от левого края фото до области, в процентах ширины фото.',
-      y: 'Расстояние от верхнего края фото до области, в процентах высоты фото.',
-      width: 'Ширина области в процентах ширины фото.',
-      height: 'Высота области в процентах высоты фото.',
-    },
   },
   rectangle: 'Прямоугольник',
   zoomIn: 'Увеличить',
@@ -418,7 +394,7 @@ export const inspectionRu: PhotoInspectionMessages = {
   discard: 'Отменить несохранённые изменения?',
   analyze: 'Анализировать с AI',
   analyzeHint:
-    'Найти на фото объекты из списка чек-листа для этой зоны. Сохранение не требуется; проверьте каждую подсказку и добавьте или отклоните её.',
+    'Найти на фото объекты из списка чек-листа для этой зоны и сразу нарисовать найденные рамки. Сохранение не требуется; оставьте, исправьте или отклоните каждую рамку.',
   aiTitle: 'Предположения AI — проверьте самостоятельно',
   aiPending: 'AI анализирует фото',
   aiFailed: 'AI не завершил анализ. Попробуйте ещё раз или отметьте предметы вручную.',
@@ -456,9 +432,6 @@ export const inspectionRu: PhotoInspectionMessages = {
   next: 'Следующее фото',
   previous: 'Предыдущее фото',
   ...analysisLimitsRu,
-  drawKeyboard:
-    'Для разметки с клавиатуры добавьте центральный прямоугольник и измените координаты.',
+  drawKeyboard: 'Добавляет прямоугольник в центре фото; потяните его края, чтобы обвести предмет.',
   addBox: 'Добавить прямоугольник',
-  coordinates: 'Точная настройка области',
-  coordinateLabels: { x: 'Отступ слева', y: 'Отступ сверху', width: 'Ширина', height: 'Высота' },
 };

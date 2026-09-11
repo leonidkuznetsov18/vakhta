@@ -4,6 +4,7 @@ import { ChevronDownIcon } from 'lucide-react';
 import { currentLocale } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ObjectSwatch } from './object-swatch';
 
 const t = messages(currentLocale()).photoInspection;
 export function InspectionRules({ rules }: { rules: readonly ChecklistPhotoRuleView[] }) {
@@ -26,7 +27,10 @@ export function InspectionRules({ rules }: { rules: readonly ChecklistPhotoRuleV
           <ul className="max-h-48 space-y-2 overflow-y-auto break-words">
             {rules.map((rule) => (
               <li key={rule.objectId}>
-                <strong>{rule.name}</strong>
+                <strong className="inline-flex items-center gap-2">
+                  <ObjectSwatch objectId={rule.objectId} />
+                  {rule.name}
+                </strong>
                 {rule.note && (
                   <p className="whitespace-pre-wrap text-muted-foreground">
                     {t.ruleNote}: {rule.note}

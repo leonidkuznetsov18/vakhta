@@ -4,12 +4,14 @@ import { availableSuggestions, linkLegacySuggestions } from './suggestions';
 import { InspectionViewport, INSPECTION_ZOOM } from './viewport';
 export { INSPECTION_ZOOM } from './viewport';
 import { hasReviewChanges, type ReviewChangeState } from './review-changes';
+import { objectColor, SELECTED_COLOR } from './object-colors';
 import { createStore } from 'zustand/vanilla';
 import { z } from 'zod';
 import {
   createImageAnnotator,
   ShapeType,
   UserSelectAction,
+  type DrawingStyle,
   type ImageAnnotation,
   type ImageAnnotator,
 } from '@annotorious/annotorious';
@@ -112,6 +114,8 @@ export class InspectionEditor {
   private canvas: ImageAnnotator | null = null;
   private locked = false;
   private analysis: { requestId: string; version: number } | null = null;
+  /** The run this session asked for; its findings are applied to the draft when the answer lands. */
+  private awaitedRunId: string | null = null;
   private width = 1;
   private height = 1;
   private readonly openedAt = Date.now();
@@ -148,12 +152,7 @@ export class InspectionEditor {
       this.height = image.naturalHeight;
       this.canvas = createImageAnnotator(image, {
         autoSave: true,
-        style: (_annotation, state) => ({
-          stroke: state?.selected ? '#059669' : '#ffffff',
-          strokeWidth: state?.selected ? 3 : 2,
-          fill: state?.selected ? '#059669' : '#ffffff',
-          fillOpacity: state?.selected ? 0.18 : 0.08,
-        }),
+        style: this.style,
         drawingEnabled: false,
         userSelectAction: this.initial.canEdit ? UserSelectAction.EDIT : UserSelectAction.SELECT,
       });
@@ -193,6 +192,20 @@ export class InspectionEditor {
       this.canvas = null;
     };
   };
+  /** Boxes take the color of their object type; the selected one is outlined in the selection color. */
+  private readonly style = (
+    annotation: ImageAnnotation,
+    state?: { selected?: boolean },
+  ): DrawingStyle => {
+    const region = this.store.getState().review.annotations.find((a) => a.id === annotation.id);
+    const color = objectColor(region?.objectId, region?.objectName);
+    return {
+      stroke: state?.selected ? SELECTED_COLOR : color,
+      strokeWidth: state?.selected ? 4 : 3,
+      fill: color,
+      fillOpacity: state?.selected ? 0.22 : 0.12,
+    };
+  };
   private readonly geometryChanged = (annotation: ImageAnnotation) => {
     if (!this.initial.canEdit || this.locked) return;
     try {
@@ -223,6 +236,8 @@ export class InspectionEditor {
   };
   private commit(patch: Partial<InspectionReview>): void {
     this.store.setState((state) => ({ review: withOutcome({ ...state.review, ...patch }) }));
+    // Object choices change colors; the canvas only re-reads the style when it is set again.
+    if (patch.annotations) this.canvas?.setStyle(this.style);
   }
   change(
     patch: Partial<Pick<InspectionReview, 'comment' | 'isReference' | 'notAssessableReason'>>,
@@ -297,6 +312,20 @@ export class InspectionEditor {
       rejectedFindings: [...review.rejectedFindings, { runId: run.id, index, reason }],
     });
   }
+  /** Drops an AI-drawn region and records why: the rejection outlives the region. */
+  rejectRegion(id: string, reason: RejectionReason): boolean {
+    const region = this.store.getState().review.annotations.find((a) => a.id === id);
+    if (!region?.sourceRunId || region.sourceFindingIndex === undefined || !this.remove(id))
+      return false;
+    const { sourceRunId: runId, sourceFindingIndex: index } = region;
+    this.commit({
+      rejectedFindings: [
+        ...this.store.getState().review.rejectedFindings,
+        { runId, index, reason },
+      ],
+    });
+    return true;
+  }
   restoreSuggestion(run: InspectionRunView, index: number): void {
     if (this.locked || !this.initial.canEdit) return;
     this.commit({
@@ -360,8 +389,28 @@ export class InspectionEditor {
       this.analysis = { requestId: crypto.randomUUID(), version };
     return this.analysis;
   }
-  analysisReceived(): void {
+  /** Admission succeeded: remember the pending run so its answer is applied when it arrives. */
+  analysisReceived(view?: PhotoInspectionView): void {
     this.analysis = null;
+    this.awaitedRunId = view?.runs.find((run) => run.status === 'PENDING')?.id ?? null;
+  }
+  /**
+   * The answer to this session's request draws every located finding on the photo at once; the
+   * reviewer then keeps, corrects or rejects boxes instead of adding them one by one.
+   */
+  analysisResolved(view: PhotoInspectionView): boolean {
+    if (!this.awaitedRunId) return false;
+    const run = view.runs.find((item) => item.id === this.awaitedRunId);
+    if (!run || run.status === 'PENDING') return false;
+    this.awaitedRunId = null;
+    if (run.status !== 'SUCCEEDED' || !this.initial.canEdit) return false;
+    let applied = false;
+    for (const { finding, index } of availableSuggestions(run, this.store.getState().review)) {
+      if (!finding.geometry) continue;
+      this.accept(finding, run.id, index);
+      applied = true;
+    }
+    return applied;
   }
   /** Milliseconds this editor has been open: review-time evidence stored with the revision. */
   durationMs(): number {
@@ -412,10 +461,10 @@ export function createInspectionSession(
   };
 }
 
-/** A never-saved photo may be saved as it stands; a saved one needs a change. */
+/** Saving needs a change: the button never offers to store what is already stored. */
 export function canSaveReview(state: EditorState): boolean {
   return (
-    (hasReviewChanges(state) || state.version === 0) &&
+    hasReviewChanges(state) &&
     reviewIsValid(state) &&
     (state.imageStatus === 'ready' || state.review.status === 'NOT_ASSESSABLE')
   );

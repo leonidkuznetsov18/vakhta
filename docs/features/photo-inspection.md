@@ -7,8 +7,8 @@ Status: implemented, initial release v0.76.0, 2026-09-11.
 On Cleanliness and handover, a master opens a checklist photo, draws a rectangle around each object,
 chooses the object from the shared catalog and states what it means for this workplace: a violation,
 allowed here, or unsure. The photo outcome follows from those verdicts; the master only decides
-separately that a photo cannot be assessed, with a reason. Saving a photo without regions records a
-clean example. The master can request Gemma 4 analysis, which searches only for the objects configured
+separately that a photo cannot be assessed, with a reason. Saving needs a change; a photo without regions is
+stored as a clean example. The master can request Gemma 4 analysis, which searches only for the objects configured
 in the checklist for this zone, and then adds each suggestion to the review or rejects it with a reason.
 
 ## Scope and acceptance criteria
@@ -69,7 +69,8 @@ without video playback. Training is explicitly a future, separately evaluated st
 
 Every photo-editor action includes an icon, its existing label and a short explanatory tooltip.
 Disabled actions still expose their explanation to keyboard users. Information icons beside fields
-explain the expected input, including rectangle coordinates; on a phone, tap the information icon.
+explain the expected input; on a phone, tap the information icon. The precise coordinate fields were
+removed: boxes are adjusted by dragging on the photo.
 The Ukrainian interface uses Ukrainian explanations, with equivalent English and Russian catalogs.
 
 Select an annotation and use Backspace/Delete outside form fields, or select **Delete selected
@@ -157,12 +158,23 @@ found**; an unsure region keeps it **Not reviewed**. The reviewer never picks th
 obstructed, wrong workplace, other with an explanation). A clean photo can be marked as the
 **reference** for its photo point. Rectangles are the only drawing tool; stored polygons stay readable.
 
+## AI boxes appear on the photo, colors per object
+
+When the answer to this session's analysis arrives, every located finding is drawn on the photo at
+once as a region with its catalog object and the verdict Violation; the reviewer keeps, corrects or
+rejects boxes instead of adding them one by one. Suggestions from an earlier run remain in the AI
+panel for manual adding. Every object type has a stable color derived from its catalog id, used for
+the box, the number badge, the chip, the rule legend and the AI panel; unnamed regions are white and
+the selected region is outlined green.
+
 ## Rejected AI findings and review time
 
-Each AI suggestion can be added once or rejected with a reason: object is not there, different
-object, allowed here, box is misplaced. Rejections are stored with the human review and restore the
-suggestion when undone, so model precision can be measured from what reviewers actually refused.
-Every saved revision records how long the editor had been open.
+An AI-drawn region has a Reject action with a reason: object is not there, different object, allowed
+here, box is misplaced. Rejecting removes the region and records the refusal with the human review;
+undoing it restores the suggestion. Model precision is measured from what reviewers actually
+refused. The unsaved-changes counter counts regions and reviewer choices only; the outcome that
+follows from the regions is not a separate change. Every saved revision records how long the editor
+had been open.
 
 ## Named regions with optional details
 

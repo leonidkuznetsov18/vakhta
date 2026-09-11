@@ -668,3 +668,26 @@ Lean: proceed. The master's report decision no longer waits for photo work, a cl
 and every rejected suggestion is a measured false positive. Remaining work: the evaluation script
 (recall/precision per object and zone from revisions and rejections), reference-photo comparison in
 the prompt, and a per-zone policy for auto-approving clean photos once the measured miss rate allows it.
+
+## Auto-drawn AI boxes, object colors and honest change counts — 2026-09-11
+
+Owner requests after the first production use: draw AI findings without a per-finding click, keep
+distinct colors per object type in the editor (only the rendered evidence image had them), and stop
+counting the derived outcome as a change. The editor remembers the pending run admitted by this
+session; the inspection query's `queryFn` hands each fetched view to `analysisResolved`, which
+accepts every located finding of that run exactly once (a failed run or a run from another session
+applies nothing). Colors come from a pure `objectColor(objectId | name)` hash into an eight-color
+palette; Annotorious re-reads the style through `setStyle` whenever annotations change. AI-drawn
+regions get a Reject dropdown on their card that removes the region and records the reason.
+`reviewChanges` counts the status only when the not-assessable switch flipped.
+
+Verification: 63 focused panel tests (auto-apply once per run, rejection from the card, color
+stability, region-only counts), typecheck and focused lint. Local stand QA on the same photo: after
+Analyze with AI four boxes appeared on their own in object colors with matching badges and chips, and
+the counter read 4 for four regions. This run found both rags and the cup but not the wrench or the
+grey cloth, and boxed the product cup inside the machine mold: run-to-run variation the rejection
+reasons and notes are meant to capture. Guides regenerated in three languages.
+
+Follow-ups the same afternoon: Save changes is enabled only when the draft differs from the saved
+review (a never-saved photo needs at least one reviewer action before it can be stored), and the
+per-region coordinate fields are hidden; boxes are adjusted on the photo. 63 focused panel tests pass.

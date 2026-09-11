@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import {
   RegionVerdict,
+  RejectionReason,
   type ChecklistPhotoRuleView,
   type InspectionAnnotation,
   type PhotoObjectView,
 } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
-import { ChevronDownIcon, FocusIcon, Trash2Icon } from 'lucide-react';
+import { ChevronDownIcon, FocusIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { currentLocale } from '@/i18n';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
@@ -16,6 +17,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { IconButton } from '@/shared/ui/icon-button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ObjectSwatch } from './object-swatch';
 import type { InspectionEditor } from '../model/editor';
 
 const t = messages(currentLocale()).photoInspection;
@@ -43,6 +51,7 @@ export function RegionFields({
     !annotation.objectId && !annotation.objectName?.trim() && !annotation.comment.trim();
   const others = objects.filter((object) => !rules.some((rule) => rule.objectId === object.id));
   const otherSelected = !annotation.objectId && annotation.objectName !== undefined;
+  const fromAi = annotation.sourceRunId !== null && annotation.sourceFindingIndex !== undefined;
   const chooseObject = (objectId: string | null) =>
     editor.editAnnotation(annotation.id, {
       objectId,
@@ -67,19 +76,48 @@ export function RegionFields({
           disabled={busy}
           onClick={() => editor.select(annotation.id)}
         >
+          <ObjectSwatch objectId={annotation.objectId} objectName={annotation.objectName} />
           {index + 1}. {t.region}
         </IconButton>
-        <IconButton
-          icon={Trash2Icon}
-          label={t.remove}
-          tooltip={t.hints.remove}
-          variant="ghost"
-          size="icon-sm"
-          disabled={busy}
-          onClick={() => editor.remove(annotation.id)}
-        >
-          <span className="sr-only">{t.remove}</span>
-        </IconButton>
+        <div className="flex items-center gap-1">
+          {fromAi && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <IconButton
+                  icon={XIcon}
+                  label={t.reject}
+                  tooltip={t.hints.reject}
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                >
+                  {t.reject}
+                </IconButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {RejectionReason.options.map((reason) => (
+                  <DropdownMenuItem
+                    key={reason}
+                    onSelect={() => editor.rejectRegion(annotation.id, reason)}
+                  >
+                    {t.rejectReasons[reason]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          <IconButton
+            icon={Trash2Icon}
+            label={t.remove}
+            tooltip={t.hints.remove}
+            variant="ghost"
+            size="icon-sm"
+            disabled={busy}
+            onClick={() => editor.remove(annotation.id)}
+          >
+            <span className="sr-only">{t.remove}</span>
+          </IconButton>
+        </div>
       </div>
       <div className="flex min-w-0 flex-col gap-1.5">
         <span className="flex items-center gap-1 text-sm font-medium">
@@ -98,6 +136,7 @@ export function RegionFields({
                 aria-pressed={annotation.objectId === rule.objectId}
                 onClick={() => chooseObject(rule.objectId)}
               >
+                <ObjectSwatch objectId={rule.objectId} />
                 {rule.name}
               </Button>
             ))}
@@ -190,38 +229,6 @@ export function RegionFields({
           </FormField>
         </CollapsibleContent>
       </Collapsible>
-      {annotation.geometry.type === 'RECTANGLE' && (
-        <details>
-          <summary className="cursor-pointer text-xs">{t.coordinates}</summary>
-          <fieldset className="grid grid-cols-2 gap-2">
-            {(['x', 'y', 'width', 'height'] as const).map((field) => (
-              <FormField
-                key={field}
-                label={t.coordinateLabels[field]}
-                hint={t.hints.coordinates[field]}
-              >
-                {(id) => (
-                  <Input
-                    id={id}
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={
-                      annotation.geometry.type === 'RECTANGLE'
-                        ? Number((annotation.geometry[field] * 100).toFixed(2))
-                        : 0
-                    }
-                    onChange={(event) =>
-                      editor.coordinates(annotation.id, field, event.target.valueAsNumber / 100)
-                    }
-                  />
-                )}
-              </FormField>
-            ))}
-          </fieldset>
-        </details>
-      )}
     </div>
   );
 }
