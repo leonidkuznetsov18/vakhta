@@ -1,3 +1,17 @@
+## [0.82.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.81.0...v0.82.0) (2026-09-11)
+
+### Features
+
+* **photo-inspection:** automate zone-specific checklist review ([b8c7830](https://github.com/leonidkuznetsov18/vakhta/commit/b8c783038854c95d55b4ca75ad25ca6c20bd61ff))
+
+### Bug fixes
+
+* **handover:** show photo review badge after analysis completes ([ffc4426](https://github.com/leonidkuznetsov18/vakhta/commit/ffc44266b4024c57de5e4895da8ea50c1539fc9e))
+
+### Styles
+
+* **handover:** normalize photo review regression formatting ([c56895e](https://github.com/leonidkuznetsov18/vakhta/commit/c56895e3290a1e7c2966ce78bae5b3f123728eaf))
+
 ## [0.81.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.80.1...v0.81.0) (2026-09-10)
 
 ### Features
