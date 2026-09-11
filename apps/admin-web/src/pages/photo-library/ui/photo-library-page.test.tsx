@@ -70,7 +70,23 @@ describe('saved photo library', () => {
       ),
     );
     await screen.findByText('Photo 1');
-    fireEvent.click(screen.getByRole('button', { name: t.open }));
+    expect(screen.queryByRole('columnheader', { name: t.actions })).toBeNull();
+    fireEvent.click(screen.getByText('Zone A'));
+    expect(screen.getByRole('dialog').textContent).toBe('item-1');
+  });
+  it('keeps a native keyboard-accessible control for opening the photo', async () => {
+    vi.mocked(libraryApi.list).mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      total: 1,
+      rows: [row(1)],
+    });
+    render(<PhotoLibraryPage />);
+    const open = await screen.findByRole('button', { name: /Photo 1/ });
+    open.focus();
+    expect(document.activeElement).toBe(open);
+    expect(open.tagName).toBe('BUTTON');
+    fireEvent.click(open);
     expect(screen.getByRole('dialog').textContent).toBe('item-1');
   });
   it('does not claim an empty library when the request fails', async () => {

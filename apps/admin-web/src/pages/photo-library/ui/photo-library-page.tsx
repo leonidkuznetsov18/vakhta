@@ -1,4 +1,4 @@
-import { EyeIcon, SearchIcon, XIcon } from 'lucide-react';
+import { SearchIcon, XIcon } from 'lucide-react';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { PhotoInspectionDialog, InspectionPhoto } from '@/features/photo-inspection';
@@ -61,20 +61,6 @@ export function PhotoLibraryPage() {
       ),
     },
     { key: 'updated', header: t.updated, cell: (row) => formatDateTime(row.updatedAt) },
-    {
-      key: 'open',
-      header: t.actions,
-      cell: (row) => (
-        <IconButton
-          icon={EyeIcon}
-          label={t.open}
-          tooltip={row.archived ? t.archivedHint : t.openHint}
-          variant="outline"
-          size="sm"
-          onClick={() => model.select(row)}
-        />
-      ),
-    },
   ];
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -146,6 +132,7 @@ export function PhotoLibraryPage() {
             rows={model.query.data.rows}
             rowKey={(row) => row.id}
             rowLabel={(row) => row.photo.label}
+            onRowClick={model.select}
             caption={t.title}
             empty={t.empty}
             emptyDescription={t.emptyHint}

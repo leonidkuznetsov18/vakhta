@@ -512,3 +512,13 @@ collapsed the detail section. Screenshots at 1280px and 390px iframe viewports w
 visually inspected; mobile wrapping and keyboard-triggered information tips worked. Database and
 worker behavior was verified separately by the integration tests above. No model accuracy benchmark
 was run. Deployment evidence remains distinct from this local verification.
+
+## Photo library row navigation — 2026-09-11
+
+Removed the redundant Actions column; clicking a non-interactive part of the row now opens the
+existing inspection dialog. The shared table's native detail button and the thumbnail retain
+keyboard access. Filters, pagination, stored reviews and archived-photo behavior are unchanged.
+Lean: simplify the row by removing a duplicate action without adding another interaction mode.
+Three focused library tests passed, as did panel typecheck and focused ESLint. Desktop (1365px)
+and mobile (390px) screenshots of the real page with isolated synthetic data were captured and
+visually inspected; the mobile card retains its metadata and total count without an Actions field.
