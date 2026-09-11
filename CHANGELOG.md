@@ -1,3 +1,18 @@
+## [0.85.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.84.1...v0.85.0) (2026-09-11)
+
+### Features
+
+* **photo-inspection:** simplify annotation entry ([74a3396](https://github.com/leonidkuznetsov18/vakhta/commit/74a3396c213794a604ea79042dd6b2d6914afeb6))
+
+### Bug fixes
+
+* **photo-inspection:** count annotation changes once ([639e4e9](https://github.com/leonidkuznetsov18/vakhta/commit/639e4e92aa6b1a508e17afec79e7c85e87e7ef3d))
+* **photo-inspection:** retain explicit outcome change origin ([119d0c4](https://github.com/leonidkuznetsov18/vakhta/commit/119d0c40c5fba70c5eed40b759fd4e82f66186cc))
+
+### Maintenance
+
+* **release:** integrate v0.84.1 metadata ([3df1b35](https://github.com/leonidkuznetsov18/vakhta/commit/3df1b353a85b95037d97bbcabb2be8f424b19b4e))
+
 ## [0.84.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.84.0...v0.84.1) (2026-09-11)
 
 ### Bug fixes
