@@ -393,13 +393,17 @@ export class CloudflareInspectionAnalyzer implements InspectionAnalyzer {
         }),
       },
     );
-    if (!response.ok)
+    const body = await response.text();
+    if (!response.ok) {
+      // Cloudflare's daily free allocation is a plan limit, not a hiccup: retrying only burns time.
+      if (response.status === 429 && /daily free allocation|neurons/i.test(body))
+        throw new InspectionFailure('AI_QUOTA_EXCEEDED', false, body.slice(0, 200));
       throw new InspectionFailure(
         response.status === 401 || response.status === 403 ? 'AI_AUTH_FAILED' : 'AI_UNAVAILABLE',
         response.status === 429 || response.status >= 500,
-        `HTTP ${response.status}`,
+        `HTTP ${response.status} ${body.slice(0, 200)}`,
       );
-    const body = await response.text();
+    }
     if (body.length > 100_000) throw new InspectionFailure('INVALID_RESPONSE', true);
     try {
       return JSON.parse(body);

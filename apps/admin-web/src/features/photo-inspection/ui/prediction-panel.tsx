@@ -97,7 +97,13 @@ export function PredictionPanel({
   if (run.status === 'FAILED')
     return (
       <section className="flex min-w-0 flex-col gap-2 rounded-md border p-3 text-sm">
-        <p role="alert">{run.errorCode === 'RULES_MISSING' ? t.aiRulesMissing : t.aiFailed}</p>
+        <p role="alert">
+          {run.errorCode === 'RULES_MISSING'
+            ? t.aiRulesMissing
+            : run.errorCode === 'AI_QUOTA_EXCEEDED'
+              ? t.aiQuotaExceeded
+              : t.aiFailed}
+        </p>
         <RunFeedback run={run} disabled={disabled} onRate={onRate} />
       </section>
     );

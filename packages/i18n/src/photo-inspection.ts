@@ -117,6 +117,8 @@ export const inspectionEn = {
   aiTitle: 'AI suggestions — verify independently',
   aiPending: 'AI is analyzing the photo',
   aiFailed: 'AI did not complete the analysis. Retry or mark objects manually.',
+  aiQuotaExceeded:
+    'The AI provider refused the request: the daily free allocation of Cloudflare Workers AI is used up. Analysis resumes after the daily reset or once the Workers Paid plan is enabled; mark objects manually meanwhile.',
   aiRulesMissing:
     'AI analysis needs the object list of this checklist. Configure it in the checklist settings.',
   aiSummary: 'Objects found',
@@ -270,6 +272,8 @@ export const inspectionUk: PhotoInspectionMessages = {
   aiTitle: 'Припущення AI — перевірте самостійно',
   aiPending: 'AI аналізує фото',
   aiFailed: 'AI не завершив аналіз. Спробуйте ще раз або позначте предмети вручну.',
+  aiQuotaExceeded:
+    'Провайдер AI відхилив запит: денний безкоштовний ліміт Cloudflare Workers AI вичерпано. Аналіз відновиться після добового скидання або після переходу на план Workers Paid; поки що позначте предмети вручну.',
   aiRulesMissing:
     'Для аналізу з AI потрібен список обʼєктів цього чекліста. Налаштуйте його в чеклісті.',
   aiSummary: 'Знайдено обʼєктів',
@@ -425,6 +429,8 @@ export const inspectionRu: PhotoInspectionMessages = {
   aiTitle: 'Предположения AI — проверьте самостоятельно',
   aiPending: 'AI анализирует фото',
   aiFailed: 'AI не завершил анализ. Попробуйте ещё раз или отметьте предметы вручную.',
+  aiQuotaExceeded:
+    'Провайдер AI отклонил запрос: дневной бесплатный лимит Cloudflare Workers AI исчерпан. Анализ возобновится после суточного сброса или после перехода на план Workers Paid; пока отметьте предметы вручную.',
   aiRulesMissing:
     'Для анализа с AI нужен список объектов этого чек-листа. Настройте его в чек-листе.',
   aiSummary: 'Найдено объектов',

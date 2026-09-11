@@ -831,3 +831,18 @@ draws. Tooltips, guide step and help pages name both tools in the three language
 
 Verification: editor unit tests including the new deselect-on-tool case, panel type-check and
 focused lint.
+
+## Cloudflare free allocation exhausted — 2026-09-11
+
+Owner report: three analyses in a row ended with "AI did not complete the analysis". The runs
+failed with `AI_UNAVAILABLE` exactly 90 s after the request (four attempts at HTTP 429 plus the
+retry pauses); a direct probe answered `429 … you have used up your daily free allocation of
+10,000 neurons, please upgrade to Cloudflare's Workers Paid plan`. The account is on the Workers
+Free plan; the day's experiments plus the three-round pipeline (about 380 neurons per photo with
+four rules, so roughly 26 photos per free day) used the allocation up.
+
+Decision: the worker now recognises that answer as `AI_QUOTA_EXCEEDED`, a non-retryable failure
+stored on the run, and the panel explains it (daily reset or Workers Paid plan) instead of the
+generic retry message. Other 429/5xx answers keep the short retry. Whether to enable Workers Paid
+(USD 5 per month plus usage beyond the free allocation, about USD 0.004 per photo at seven rules)
+is the owner's decision; the code path does not change with the plan.
