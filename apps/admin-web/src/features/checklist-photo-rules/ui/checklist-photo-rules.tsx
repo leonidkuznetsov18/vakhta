@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ProhibitedPhotoItems, type ChecklistPhotoRulesView } from '@vakhta/contracts';
+import { type ChecklistPhotoRulesView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
-import { PlusIcon, Trash2Icon, SaveIcon, RefreshCwIcon } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { PlusIcon, SaveIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { InfoTip } from '@/components/app/info-tip';
 import { QueryFeedback } from '@/components/app/query-feedback';
@@ -13,6 +13,13 @@ import { currentLocale } from '@/i18n';
 import { ApiError } from '@/api';
 import { readError } from '@/errors';
 import { rulesApi, rulesKey } from '../api/rules-api';
+import {
+  availableSuggestions,
+  ruleFields,
+  rulesDraftState,
+  type RuleField as Field,
+} from '../model/rules-draft';
+import { RuleField } from './rule-field';
 
 const t = messages(currentLocale()).checklistPhotoRules;
 interface Zone {
@@ -64,45 +71,45 @@ function RulesQuery({ definitionId, zoneId }: { definitionId: string; zoneId: st
     <>
       <QueryFeedback query={query} />
       {query.data && (
-        <RulesEditor
-          definitionId={definitionId}
-          zoneId={zoneId}
-          initial={query.data}
-          reload={async () => (await query.refetch()).data}
-        />
+        <RulesEditor definitionId={definitionId} zoneId={zoneId} initial={query.data} />
       )}
     </>
   );
 }
-const fields = (items: readonly string[]) =>
-  items.map((value) => ({ id: crypto.randomUUID(), value }));
 function RulesEditor({
   definitionId,
   zoneId,
   initial,
-  reload,
 }: {
   definitionId: string;
   zoneId: string;
   initial: ChecklistPhotoRulesView;
-  reload: () => Promise<ChecklistPhotoRulesView | undefined>;
 }) {
   const [saved, setSaved] = useState(initial);
-  const [draft, setDraft] = useState(() => fields(initial.items));
-  const [reloading, setReloading] = useState(false);
+  const [draft, setDraft] = useState(() => ruleFields(initial));
   const client = useQueryClient();
-  const parsed = ProhibitedPhotoItems.safeParse(draft.map((field) => field.value));
-  const dirty =
-    JSON.stringify(draft.map((field) => field.value.trim())) !== JSON.stringify(saved.items);
+  const { payload, valid, dirty, invalidNames } = rulesDraftState(draft, saved);
+  const suggestions = availableSuggestions(draft, t.suggestions);
+  const changeField = (
+    id: string,
+    patch: Partial<Pick<Field, 'value' | 'clarification' | 'exceptions'>>,
+  ) =>
+    setDraft((current) =>
+      current.map((field) => (field.id === id ? { ...field, ...patch } : field)),
+    );
+  const removeField = (id: string) =>
+    setDraft((current) => current.filter((field) => field.id !== id));
+  const addField = (value: string) =>
+    setDraft((current) => [...current, ...ruleFields({ items: [value] })]);
   const apply = (view: ChecklistPhotoRulesView) => {
     setSaved(view);
-    setDraft(fields(view.items));
+    setDraft(ruleFields(view));
   };
   const mutation = useMutation({
     mutationFn: () =>
       rulesApi.save(definitionId, zoneId, {
         version: saved.version,
-        items: draft.map((field) => field.value),
+        ...payload,
       }),
     retry: false,
     onSuccess: (view) => {
@@ -110,7 +117,7 @@ function RulesEditor({
       client.setQueryData(rulesKey(definitionId, zoneId), view);
     },
   });
-  const busy = mutation.isPending || reloading;
+  const busy = mutation.isPending;
   if (!initial.canEdit)
     return (
       <ul className="text-sm">
@@ -122,79 +129,69 @@ function RulesEditor({
     );
   return (
     <div className="flex flex-col gap-3">
-      {draft.map((field) => (
-        <div key={field.id} className="flex items-end gap-2">
-          <label htmlFor={field.id} className="flex min-w-0 flex-1 flex-col gap-2 text-sm">
-            <span className="flex items-center gap-2">
-              {t.item}
-              <InfoTip text={t.invalid} />
-            </span>
-            <Input
-              id={field.id}
-              value={field.value}
-              maxLength={100}
-              disabled={busy}
-              aria-invalid={!parsed.success}
-              onChange={(e) =>
-                setDraft(
-                  draft.map((item) =>
-                    item.id === field.id ? { ...item, value: e.target.value } : item,
-                  ),
-                )
-              }
-            />
-          </label>
-          <IconButton
-            icon={Trash2Icon}
-            label={t.remove}
-            tooltip={t.remove}
-            variant="outline"
-            disabled={busy}
-            onClick={() => setDraft(draft.filter((item) => item.id !== field.id))}
-          />
+      <p className="text-sm text-muted-foreground">{t.simpleHint}</p>
+      {suggestions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">{t.quickAdd}</span>
+          {suggestions.map((value) => (
+            <Button
+              key={value}
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={busy || draft.length >= 30}
+              onClick={() => addField(value)}
+            >
+              <PlusIcon aria-hidden="true" />
+              {value}
+            </Button>
+          ))}
         </div>
+      )}
+      {draft.map((field, index) => (
+        <RuleField
+          key={field.id}
+          field={field}
+          busy={busy}
+          invalid={invalidNames[index] ?? false}
+          change={changeField}
+          remove={removeField}
+        />
       ))}
       {!draft.length && <p className="text-sm text-muted-foreground">{t.empty}</p>}
-      {!parsed.success && (
+      {!valid && (
         <p role="alert" className="text-sm text-destructive">
           {t.invalid}
         </p>
       )}
       <div className="flex flex-wrap gap-2">
         <IconButton
+          size="icon-lg"
           icon={PlusIcon}
           label={t.add}
           tooltip={t.add}
           variant="outline"
           disabled={busy || draft.length >= 30}
-          onClick={() => setDraft([...draft, ...fields([''])])}
-        />
-        <IconButton
-          icon={SaveIcon}
-          label={t.save}
-          tooltip={t.hint}
-          disabled={busy || !dirty || !parsed.success}
-          onClick={() => mutation.mutate()}
+          onClick={() => addField('')}
         >
-          {mutation.isPending && !mutation.isPaused ? <LoadingState label={t.save} /> : t.save}
+          <span className="sr-only">{t.add}</span>
         </IconButton>
         <IconButton
-          icon={RefreshCwIcon}
-          label={t.reload}
-          tooltip={t.reload}
-          variant="outline"
-          disabled={busy}
-          onClick={async () => {
-            if (dirty && !window.confirm(t.discard)) return;
-            setReloading(true);
-            try {
-              const view = await reload();
-              if (view) apply(view);
-            } finally {
-              setReloading(false);
-            }
-          }}
-        />
+          size="icon-lg"
+          aria-label={t.save}
+          className={mutation.isPending && !mutation.isPaused ? '[&>svg]:hidden' : undefined}
+          icon={SaveIcon}
+          label={t.save}
+          tooltip={t.save}
+          disabled={busy || !dirty || !valid}
+          onClick={() => mutation.mutate()}
+        >
+          {mutation.isPending && !mutation.isPaused ? (
+            <LoadingState />
+          ) : (
+            <span className="sr-only">{t.save}</span>
+          )}
+        </IconButton>
       </div>
       {mutation.isPaused && (
         <p role="status">{messages(currentLocale()).ui.common.waitingConnection}</p>

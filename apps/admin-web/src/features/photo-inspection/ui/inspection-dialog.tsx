@@ -222,7 +222,10 @@ function InspectionSession({
   });
   const analyze = useMutation({
     mutationFn: () =>
-      inspectionApi.analyze(id, editor.analysisRequest(latest.prohibitedItems ?? [])),
+      inspectionApi.analyze(
+        id,
+        editor.analysisRequest(latest.prohibitedItems ?? [], latest.prohibitedItemDetails ?? []),
+      ),
     retry: false,
     onSuccess: (view) => {
       editor.analysisReceived();

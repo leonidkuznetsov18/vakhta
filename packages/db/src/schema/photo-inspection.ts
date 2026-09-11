@@ -105,6 +105,7 @@ export const checklistPhotoRules = pgTable(
       .notNull()
       .references(() => responsibilityZones.id),
     items: jsonb('items').$type<string[]>().notNull().default([]),
+    details: jsonb('details').$type<unknown>().notNull().default([]),
     version: integer('version').notNull().default(1),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     updatedBy: text('updated_by').notNull(),
@@ -112,6 +113,10 @@ export const checklistPhotoRules = pgTable(
   (t) => [
     uniqueIndex('checklist_photo_rules_family_zone_uq').on(t.familyId, t.zoneId),
     check('checklist_photo_rules_version_valid', sql`${t.version} > 0`),
+    check(
+      'checklist_photo_rules_details_valid',
+      sql`jsonb_typeof(${t.details}) = 'array' and jsonb_array_length(${t.details}) <= 30`,
+    ),
     check(
       'checklist_photo_rules_items_valid',
       sql`jsonb_typeof(${t.items}) = 'array' and jsonb_array_length(${t.items}) <= 30`,

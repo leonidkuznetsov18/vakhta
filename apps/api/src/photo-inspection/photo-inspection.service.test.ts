@@ -463,7 +463,11 @@ describe('photo inspection persistence and access', () => {
     const saved = await rules.save(
       report.checklistDefinitionId,
       zone.id,
-      { version: 0, items: ['Ганчірки', 'Стаканчики', 'Інструменти'] },
+      {
+        version: 0,
+        items: ['Ганчірки', 'Стаканчики', 'Інструменти'],
+        details: [{ item: 'Інструменти', clarification: 'Loose tools', exceptions: 'Fixed blade' }],
+      },
       scoped,
     );
     expect(saved).toMatchObject({
@@ -472,6 +476,10 @@ describe('photo inspection persistence and access', () => {
       items: ['Ганчірки', 'Стаканчики', 'Інструменти'],
     });
     expect((await service.get(id, scoped)).prohibitedItems).toEqual(saved.items);
+    expect((await service.get(id, scoped)).prohibitedItemDetails).toEqual(saved.details);
+    expect((await rules.get(report.checklistDefinitionId, zone.id, scoped)).details).toEqual(
+      saved.details,
+    );
     expect((await rules.get(report.checklistDefinitionId, otherZoneId, master)).items).toEqual([]);
     await expect(
       rules.save(report.checklistDefinitionId, otherZoneId, { version: 0, items: ['Cup'] }, scoped),
@@ -488,6 +496,24 @@ describe('photo inspection persistence and access', () => {
       ),
     ).rejects.toThrow();
     expect(await db.select().from(checklistPhotoRules)).toHaveLength(1);
+    // An older client cannot silently erase details when saving the same names.
+    const legacy = await rules.save(
+      report.checklistDefinitionId,
+      zone.id,
+      { version: 1, items: saved.items },
+      scoped,
+    );
+    expect(legacy.details).toEqual(saved.details);
+    const cleared = await rules.save(
+      report.checklistDefinitionId,
+      zone.id,
+      { version: 2, items: saved.items, details: [] },
+      scoped,
+    );
+    expect(cleared.details).toEqual([]);
+    await expect(
+      db.execute(sql`update checklist_photo_rules set details = '{}'::jsonb`),
+    ).rejects.toThrow();
   });
   it('exposes automatic boxes as an unconfirmed draft and acknowledges only an explicit human save', async () => {
     const baseline = await service.save(id, { version: 0, review: clean }, master);

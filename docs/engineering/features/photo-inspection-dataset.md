@@ -476,3 +476,39 @@ kept the number within 0.03 CSS pixels of the region corner before release. Zoom
 badges. Desktop and mobile screenshots were captured and visually inspected using isolated QA data.
 Physical touch dragging was not tested. Lean: proceed; remove visual lag without another control
 or reviewer action. The acceptance measure is same-frame number/region alignment.
+
+## Simple rule clarification — 2026-09-11
+
+Owner request: improve checklist AI instructions while keeping setup easy for each checklist.
+Acceptance: names alone still save; common names can be added once per draft; optional clarification
+and exceptions stay collapsed and survive save/reopen or failure; both analysis routes receive the
+same structured rule data; existing names, reviews, scope and immutable run snapshots remain valid.
+No new model/provider, per-photo-point selector, automatic examples, training or operational decisions.
+
+Keep the FSD checklist-photo-rules feature, existing query mutations and shadcn Collapsible/Input/
+Textarea primitives (https://ui.shadcn.com/docs/components/radix/collapsible). Pure draft preparation
+belongs to its model segment. Additive migration 0034 retains the existing items array and adds a
+bounded JSON details array keyed by exact item name. API validation rejects duplicate/orphan details.
+Old clients preserve details for retained names; explicit empty details clears them. Both manual and
+automatic consumers use the shared instruction builder; prompt v2 respects supplied exceptions and
+retains legacy automatic-run detection. Input serialization has a bounded worst-case escaped size.
+
+Lean: Simplify. One required name, optional disclosure and suggested names reduce typing without
+inventing workplace policy. Existing icon-only controls and removal of the reload action are included
+from the coordinated annotation task. Observe setup time and model false alarms; no accuracy or
+shop-floor time improvement has been measured. Model evaluation remains separate follow-up work.
+
+Verification: 14 API PostgreSQL integration tests passed, including detail round-trip, unchanged-name
+legacy saves, explicit detail clearing, invalid JSON shape and existing scope/conflict checks. Worker
+admission/recovery tests passed (18); after removing conflicting hardcoded category defaults, the
+focused prompt regression passed. Contracts passed (5); editor/model tests passed (14), rules UI
+passed (3), covering failure retention, quick-add deduplication and clearing saved details. API,
+worker and panel type checks plus focused ESLint passed. Independent backend/migration review found
+one prompt conflict, corrected and confirmed resolved.
+
+Chrome QA used the real feature with isolated in-memory transport and persisted synthetic fixtures;
+no production rules or employee records were changed. Save/reopen retained both optional fields and
+collapsed the detail section. Screenshots at 1280px and 390px iframe viewports were captured and
+visually inspected; mobile wrapping and keyboard-triggered information tips worked. Database and
+worker behavior was verified separately by the integration tests above. No model accuracy benchmark
+was run. Deployment evidence remains distinct from this local verification.

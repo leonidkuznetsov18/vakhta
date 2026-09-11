@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   AUTOMATIC_INSPECTION_ACTOR,
   prohibitedPhotoInstruction,
+  PhotoRuleDetails,
   AUTOMATIC_INSPECTION_PROMPT_VERSION,
   INSPECTION_MODEL,
   InspectionContext,
@@ -82,6 +83,7 @@ export async function admitSubmittedPhotoInspections(db: Database): Promise<numb
           media: mediaObjects,
           definition: checklistDefinitions,
           prohibitedItems: checklistPhotoRules.items,
+          ruleDetails: checklistPhotoRules.details,
           zoneName: responsibilityZones.name,
           businessDate: shiftSessions.businessDate,
         })
@@ -122,7 +124,12 @@ export async function admitSubmittedPhotoInspections(db: Database): Promise<numb
           ),
         )
         .limit(1);
-      const guidance = prior?.guidance ?? prohibitedPhotoInstruction(source.prohibitedItems ?? []);
+      const guidance =
+        prior?.guidance ??
+        prohibitedPhotoInstruction(
+          source.prohibitedItems ?? [],
+          PhotoRuleDetails.parse(source.ruleDetails ?? []),
+        );
       const item = definition.items.find(
         (item) => item.key === attachment.itemKey && item.kind === 'PHOTO',
       );

@@ -201,7 +201,7 @@ export class PhotoInspectionService {
       automatic && automatic.status !== 'PENDING' && automatic.id !== row?.reviewedAutomaticRunId;
     const [rules] = source.context.zoneId
       ? await this.db
-          .select({ items: checklistPhotoRules.items })
+          .select({ items: checklistPhotoRules.items, details: checklistPhotoRules.details })
           .from(checklistPhotoRules)
           .innerJoin(
             checklistDefinitions,
@@ -218,6 +218,7 @@ export class PhotoInspectionService {
     const review = InspectionReview.parse(row?.review ?? EMPTY_REVIEW);
     return PhotoInspectionView.parse({
       prohibitedItems: rules?.items ?? [],
+      prohibitedItemDetails: rules?.details ?? [],
       automaticRunId: awaiting ? automatic.id : null,
       automaticReview: awaiting
         ? automaticReviewDraft(review, automatic.id, automatic.prediction)

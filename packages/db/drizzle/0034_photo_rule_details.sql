@@ -1,0 +1,2 @@
+ALTER TABLE "checklist_photo_rules" ADD COLUMN "details" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "checklist_photo_rules" ADD CONSTRAINT "checklist_photo_rules_details_valid" CHECK (jsonb_typeof("checklist_photo_rules"."details") = 'array' and jsonb_array_length("checklist_photo_rules"."details") <= 30);

@@ -8,7 +8,11 @@ import {
   sql,
   type Database,
 } from '@vakhta/db';
-import { ChecklistPhotoRulesView, SaveChecklistPhotoRules } from '@vakhta/contracts';
+import {
+  ChecklistPhotoRulesView,
+  PhotoRuleDetails,
+  SaveChecklistPhotoRules,
+} from '@vakhta/contracts';
 import { canActOn, HANDOVER_REVIEW_ROLES } from '@vakhta/domain';
 import { DATABASE } from '../infra/database.module.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -56,6 +60,7 @@ export class ChecklistPhotoRulesService {
       );
     return ChecklistPhotoRulesView.parse({
       items: row?.items ?? [],
+      details: row?.details ?? [],
       version: row?.version ?? 0,
       canEdit: source.canEdit,
     });
@@ -76,6 +81,11 @@ export class ChecklistPhotoRulesService {
         throw new DomainError('INSPECTION_CONFLICT', 409, 'Rules changed; reload before saving');
       const values = {
         items: input.items,
+        details:
+          input.details ??
+          PhotoRuleDetails.parse(row?.details ?? []).filter((detail) =>
+            input.items.includes(detail.item),
+          ),
         version: input.version + 1,
         updatedBy: user.id,
         updatedAt: new Date(),

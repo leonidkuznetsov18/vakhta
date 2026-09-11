@@ -1,9 +1,13 @@
 import { z } from 'zod';
-import { ProhibitedPhotoItems } from './checklist-photo-rules.js';
+import {
+  MAX_PHOTO_RULE_GUIDANCE,
+  PhotoRuleDetails,
+  ProhibitedPhotoItems,
+} from './checklist-photo-rules.js';
 
 export const INSPECTION_MODEL = '@cf/google/gemma-4-26b-a4b-it';
-export const INSPECTION_PROMPT_VERSION = 'workplace-v1';
-export const AUTOMATIC_INSPECTION_PROMPT_VERSION = 'workplace-prohibited-v1';
+export const INSPECTION_PROMPT_VERSION = 'workplace-v2';
+export const AUTOMATIC_INSPECTION_PROMPT_VERSION = 'workplace-prohibited-v2';
 export const AUTOMATIC_INSPECTION_ACTOR = 'SYSTEM_AUTO_INSPECTION';
 const coordinate = z.number().finite().min(0).max(1);
 export const InspectionGeometry = z.discriminatedUnion('type', [
@@ -148,6 +152,7 @@ export const InspectionRunView = z.object({
 export type InspectionRunView = z.infer<typeof InspectionRunView>;
 export const PhotoInspectionView = z.object({
   prohibitedItems: ProhibitedPhotoItems.optional(),
+  prohibitedItemDetails: PhotoRuleDetails.optional(),
   context: InspectionContext,
   version: z.number().int().nonnegative(),
   review: InspectionReview,
@@ -160,7 +165,7 @@ export const PhotoInspectionView = z.object({
 });
 export type PhotoInspectionView = z.infer<typeof PhotoInspectionView>;
 export const RequestInspectionAnalysis = z.object({
-  guidance: z.string().trim().max(4000).optional(),
+  guidance: z.string().trim().max(MAX_PHOTO_RULE_GUIDANCE).optional(),
   requestId: z.uuid(),
   version: z.number().int().nonnegative(),
 });

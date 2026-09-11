@@ -155,3 +155,14 @@ category selector is removed, while existing category/guidance data remains pres
 and stored revisions. New manual regions retain the existing OTHER category internally.
 The image toolbar uses larger icon-only controls with localized hover/focus tooltips and accessible
 names. Save/Analyze remain labeled primary actions.
+
+## Optional rule clarification
+
+An object name remains sufficient. Quick-add buttons insert common object names only; they never
+invent exceptions or enable rules until saved. Each object's collapsed Clarify rule section accepts
+optional clarification and allowed exceptions, up to 300 characters each. A saved-detail indicator
+makes existing context discoverable without opening every section. Rules continue to apply to all
+photos in the selected checklist/zone; selecting individual photo points is outside this increment.
+The system snapshots this context for automatic and manual analysis. The model is instructed to
+respect supplied exceptions and explain uncertainty; suggestions still require human verification.
+Add/remove/save controls are accessible icon buttons; there is no separate Load saved rules action.

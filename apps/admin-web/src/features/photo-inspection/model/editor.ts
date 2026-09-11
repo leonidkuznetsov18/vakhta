@@ -15,6 +15,7 @@ import {
 } from '@annotorious/annotorious';
 import {
   prohibitedPhotoInstruction,
+  type PhotoRuleDetail,
   InspectionGeometry,
   InspectionReview,
   type InspectionAnnotation,
@@ -316,9 +317,12 @@ export class InspectionEditor {
     });
     this.store.setState({ invalidGeometry: false });
   }
-  analysisRequest(items = this.initial.prohibitedItems ?? []) {
+  analysisRequest(
+    items = this.initial.prohibitedItems ?? [],
+    details: readonly PhotoRuleDetail[] = this.initial.prohibitedItemDetails ?? [],
+  ) {
     const { version } = this.store.getState();
-    const guidance = items.length ? prohibitedPhotoInstruction(items) : '';
+    const guidance = items.length ? prohibitedPhotoInstruction(items, details) : '';
     if (
       !this.analysis ||
       this.analysis.version !== version ||

@@ -169,10 +169,18 @@ describe('photo inspection form and geometry', () => {
     });
   });
   it('snapshots checklist objects for AI without changing legacy review data', () => {
-    const editor = new InspectionEditor({ ...view, prohibitedItems: ['Cup', 'Rag'] });
+    const editor = new InspectionEditor({
+      ...view,
+      prohibitedItems: ['Cup', 'Rag'],
+      prohibitedItemDetails: [
+        { item: 'Cup', clarification: 'Disposable cups', exceptions: 'Fixed molds' },
+      ],
+    });
     editor.change({ guidance: 'Legacy saved requirements' });
     const request = editor.analysisRequest();
-    expect(request.guidance).toContain('["Cup","Rag"]');
+    expect(request.guidance).toContain('"item":"Cup"');
+    expect(request.guidance).toContain('"item":"Rag"');
+    expect(request.guidance).toContain('"exceptions":"Fixed molds"');
     expect(request.guidance).not.toContain('Legacy');
     expect(editor.analysisRequest()).toEqual(request);
     expect(editor.store.getState().review.guidance).toBe('Legacy saved requirements');

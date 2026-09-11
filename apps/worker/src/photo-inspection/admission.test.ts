@@ -21,6 +21,7 @@ import {
 import {
   AUTOMATIC_INSPECTION_ACTOR,
   prohibitedPhotoInstruction,
+  InspectionContext,
   AUTOMATIC_INSPECTION_PROMPT_VERSION,
 } from '@vakhta/contracts';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
@@ -101,13 +102,27 @@ describe('automatic admission from submitted checklist photos', () => {
     await fixture.db.update(mediaObjects).set({ processedAt: null });
     expect(await admitSubmittedPhotoInspections(fixture.db)).toBe(0);
     await fixture.db.update(mediaObjects).set({ processedAt: new Date() });
+    const details = [
+      { item: 'Інструменти', clarification: 'Loose hand tools', exceptions: 'Fixed machine parts' },
+    ];
+    await fixture.db.update(checklistPhotoRules).set({ details });
     expect(await admitSubmittedPhotoInspections(fixture.db)).toBe(1);
     const [run] = await fixture.db.select().from(photoInspectionRuns);
     expect(run).toMatchObject({
       requestedBy: AUTOMATIC_INSPECTION_ACTOR,
-      guidance: prohibitedPhotoInstruction(['Ганчірки', 'Стаканчики', 'Інструменти']),
+      guidance: prohibitedPhotoInstruction(['Ганчірки', 'Стаканчики', 'Інструменти'], details),
       promptVersion: AUTOMATIC_INSPECTION_PROMPT_VERSION,
     });
+    if (!run) throw new Error('Missing run');
+    const prompt = inspectionPrompt({
+      context: InspectionContext.parse(run.context),
+      guidance: run.guidance,
+      model: run.model,
+      storageKey: 'qa.jpg',
+      promptVersion: run.promptVersion,
+    });
+    expect(prompt).toContain('clarification and exceptions take precedence');
+    expect(prompt).not.toContain('include disposable drinking cups and product cups');
     expect(run?.context).toMatchObject({
       handoverId,
       mediaId,
