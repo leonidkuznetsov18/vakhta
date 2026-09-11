@@ -1,3 +1,9 @@
+## [0.92.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.92.0...v0.92.1) (2026-09-11)
+
+### Bug fixes
+
+* **photo-inspection:** restore the polygon tool and start drawing on the first click ([917a822](https://github.com/leonidkuznetsov18/vakhta/commit/917a8227be64eb1c361d49c9336f2351e9fecf5b))
+
 ## [0.92.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.91.0...v0.92.0) (2026-09-11)
 
 ### Features
