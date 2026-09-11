@@ -522,3 +522,39 @@ Lean: simplify the row by removing a duplicate action without adding another int
 Three focused library tests passed, as did panel typecheck and focused ESLint. Desktop (1365px)
 and mobile (390px) screenshots of the real page with isolated synthetic data were captured and
 visually inspected; the mobile card retains its metadata and total count without an Actions field.
+
+## Named annotation form — 2026-09-11
+
+Owner request: make annotation useful for future data preparation without duplicate explanations.
+Acceptance: a reviewer can select a checklist object name and save a region without typing prose;
+custom names work; optional region details and photo notes retain existing text; Not assessable
+opens a required reason; rule reference includes clarification/exceptions; named regions survive
+save/reopen/export/library search; original media, source finding identity and review permissions
+remain unchanged. No new taxonomy service, automatic relabeling, training or operational decisions.
+
+Keep the existing FSD inspection feature and editor-owned draft. Add optional objectName to the
+validated annotation JSON; require a name or legacy description. No migration/backfill is needed.
+The human object name is separate from retained legacy category and immutable AI predictions;
+dataset preparation must normalize names and resolve conflicts rather than treating both fields
+as independently confirmed classes. The library searches names and includes them in previews.
+
+Lean: simplify. Checklist presets remove repeated typing; additional context stays behind a
+collapsible control. Geometry already captures location, so it need not be repeated in prose.
+Existing notes open visibly, and changing assessment status never clears them. One unsaved-work
+indicator replaces duplicated field/region counters. Validation points to the next missing action.
+Measure time to label a photo, inconsistent naming and correction rate on real examples; no model
+accuracy or worker-time improvement has been measured in this change.
+
+Verification: contracts 4 tests, API PostgreSQL integration 15 tests, editor 14 tests, prediction UI
+1 test and new form UI 4 tests passed. The API regression covers name-only save/read/export/search;
+UI tests cover preset selection, name-only dirty tracking, retained source identity/descriptions,
+conditional reasons and read-only labels. API/panel typecheck, panel production build, 10 catalog
+tests and changed-file ESLint passed.
+Chrome screenshots at 1365x1000 and 390x844 were captured and inspected. The real dialog with
+isolated synthetic image/transport saved and reopened names without comments, retained optional
+notes/details after status changes and displayed rule exceptions. Browser QA did not modify
+production reports. Localized help text and its illustrative videos were regenerated.
+
+Earlier rule clarification delivery was verified on source 04d9df9 / v0.84.0: API beaba30d and worker
+c2dc4911 deployed successfully, API health was OK, worker startup was recorded, and a read-only
+production schema query confirmed details jsonb NOT NULL plus its validation constraint.

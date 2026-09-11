@@ -411,6 +411,29 @@ describe('photo inspection persistence and access', () => {
     expect((await list({ search: 'Updated note' })).rows).toHaveLength(1);
     expect((await list({ search: 'Specific review note' })).rows).toHaveLength(0);
   });
+  it('retains named regions without duplicate comments in saved reviews, export and library search', async () => {
+    const annotation = {
+      id: randomUUID(),
+      objectName: 'Disposable cups',
+      comment: '',
+      category: 'OTHER' as const,
+      sourceRunId: null,
+      geometry: { type: 'RECTANGLE' as const, x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+    };
+    await service.save(
+      id,
+      { version: 0, review: { ...clean, status: 'PROBLEMS', annotations: [annotation] } },
+      master,
+    );
+    expect((await service.get(id, master)).review.annotations).toEqual([annotation]);
+    expect((await service.export(id, master)).review.annotations).toEqual([annotation]);
+    const library = await new PhotoLibraryService(fixture.db).list(
+      PhotoLibraryQuery.parse({ search: 'disposable' }),
+      master,
+    );
+    expect(library.total).toBe(1);
+    expect(library.rows[0]?.remarks).toEqual(['Disposable cups']);
+  });
   it('filters counts and rows by exact role scopes without combining unrelated grants', async () => {
     await service.save(id, { version: 0, review: clean }, master);
     const library = new PhotoLibraryService(fixture.db);

@@ -1,4 +1,4 @@
-import { hasReviewChanges, reviewChanges } from '../model/review-changes';
+import { hasReviewChanges } from '../model/review-changes';
 import { useState } from 'react';
 import { useStore } from 'zustand';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { IconButton } from '@/shared/ui/icon-button';
 import { HowItWorks } from '@/components/app/how-it-works';
+import { InfoTip } from '@/components/app/info-tip';
 import {
   Dialog,
   DialogContent,
@@ -42,7 +43,6 @@ import {
 import {
   type InspectionEditor,
   createInspectionSession,
-  reviewIsValid,
   canSaveReview,
   INSPECTION_ZOOM,
 } from '../model/editor';
@@ -51,6 +51,8 @@ import { PredictionPanel } from './prediction-panel';
 import { deleteSelectedOnKeyDown } from '../model/delete-shortcut';
 import { RegionNumbers } from './region-numbers';
 import { AnalyzeButton } from './analyze-button';
+import { InspectionRules } from './inspection-rules';
+import { reviewFeedback } from '../model/review-feedback';
 import '@annotorious/annotorious/annotorious.css';
 
 const t = messages(currentLocale()).photoInspection;
@@ -192,7 +194,6 @@ function InspectionSession({
     createInspectionSession(initial, register),
   );
   const state = useStore(store);
-  const changes = reviewChanges(state.review, state.savedReview);
   const client = useQueryClient();
   const link = useQuery({
     queryKey: [...inspectionKey(id), 'link'],
@@ -251,7 +252,7 @@ function InspectionSession({
   const busy = save.isPending || analyze.isPending;
   const paused = save.isPaused || analyze.isPaused || exportReview.isPaused;
   const pending = latest.runs.some((r) => r.status === 'PENDING');
-  const valid = reviewIsValid(state);
+  const feedback = reviewFeedback(state.review, state.invalidGeometry);
   const error = save.error ?? analyze.error ?? exportReview.error;
   const reload = async () => {
     if (hasReviewChanges(state) && !window.confirm(t.discard)) return;
@@ -362,9 +363,10 @@ function InspectionSession({
           </IconButton>
         )}
       </div>
-      <p className="text-sm text-muted-foreground">
-        {initial.canEdit ? t.drawHint : t.readOnly} {t.gestureHint}
-      </p>
+      <div className="flex items-start gap-2 text-sm text-muted-foreground">
+        <p>{initial.canEdit ? t.drawHint : t.readOnly}</p>
+        <InfoTip text={t.gestureHint} />
+      </div>
       {error && (
         <div role="alert" className="rounded-md border border-destructive p-3 text-sm">
           {errorText(error)}
@@ -439,42 +441,23 @@ function InspectionSession({
             />
           )}
           {initial.canEdit ? (
-            <EditableReview editor={editor} busy={busy} />
+            <EditableReview editor={editor} busy={busy} items={latest.prohibitedItems ?? []} />
           ) : (
             <ReadOnlyReview editor={editor} />
           )}
-          <section
-            className="rounded-md border bg-muted/30 p-3 text-sm"
-            aria-label={t.prohibitedItems}
-          >
-            <strong>{t.prohibitedItems}</strong>
-            {latest.prohibitedItems?.length ? (
-              <ul className="mt-2 list-disc space-y-1 break-words pl-5">
-                {latest.prohibitedItems.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-2 text-muted-foreground">{t.noProhibitedItems}</p>
-            )}
-            <p className="mt-2 text-xs text-muted-foreground">{t.prohibitedItemsHint}</p>
-          </section>
+          <InspectionRules
+            items={latest.prohibitedItems ?? []}
+            details={latest.prohibitedItemDetails ?? []}
+          />
           {hasReviewChanges(state) && (
-            <p role="status" className="text-sm">
-              {t.dirty}: {changes.total}
-              <span className="mt-1 block text-muted-foreground">
-                {[
-                  ...(changes.added ? [`${t.changes.added}: ${changes.added}`] : []),
-                  ...(changes.edited ? [`${t.changes.edited}: ${changes.edited}`] : []),
-                  ...(changes.removed ? [`${t.changes.removed}: ${changes.removed}`] : []),
-                  ...changes.fields.map((field) => t.changes[field]),
-                ].join(' · ')}
-              </span>
+            <p role="status" className="text-sm text-muted-foreground">
+              {t.dirty}
             </p>
           )}
-          {!valid && (
-            <p role="alert" className="text-sm text-destructive">
-              {t.invalid}
+          {feedback && initial.canEdit && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {t.validation[feedback.key]}
+              {feedback.regions.length ? ` ${feedback.regions.join(', ')}` : ''}
             </p>
           )}
           {initial.canEdit && (
@@ -482,15 +465,11 @@ function InspectionSession({
               <IconButton
                 disabled={busy || !canSaveReview(state)}
                 icon={SaveIcon}
-                label={`${t.save} (${changes.total})`}
+                label={t.save}
                 tooltip={t.hints.save}
                 onClick={() => save.mutate()}
               >
-                {save.isPending && !save.isPaused ? (
-                  <LoadingState label={`${t.save} (${changes.total})`} />
-                ) : (
-                  `${t.save} (${changes.total})`
-                )}
+                {save.isPending && !save.isPaused ? <LoadingState label={t.save} /> : t.save}
               </IconButton>
               <AnalyzeButton
                 disabled={busy || pending}

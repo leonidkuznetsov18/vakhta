@@ -1,7 +1,34 @@
 import { describe, expect, it } from 'vitest';
-import { InspectionGeometry, InspectionPrediction, InspectionReview } from './photo-inspection.js';
+import {
+  InspectionAnnotation,
+  InspectionGeometry,
+  InspectionPrediction,
+  InspectionReview,
+} from './photo-inspection.js';
 const empty = { status: 'UNREVIEWED', comment: '', guidance: '', annotations: [] };
 describe('photo inspection training labels', () => {
+  it('stores an object name without forcing duplicate prose and preserves legacy descriptions', () => {
+    const region = {
+      id: '10000000-0000-4000-8000-000000000001',
+      geometry: { type: 'RECTANGLE', x: 0, y: 0, width: 0.2, height: 0.2 },
+      category: 'OTHER',
+      sourceRunId: null,
+      comment: '',
+    };
+    expect(InspectionAnnotation.parse({ ...region, objectName: '  Rags  ' })).toMatchObject({
+      objectName: 'Rags',
+      comment: '',
+    });
+    expect(InspectionAnnotation.parse({ ...region, comment: 'Old description' })).toEqual({
+      ...region,
+      comment: 'Old description',
+    });
+    expect(InspectionAnnotation.safeParse(region).success).toBe(false);
+    expect(InspectionAnnotation.safeParse({ ...region, objectName: '  ' }).success).toBe(false);
+    expect(InspectionAnnotation.safeParse({ ...region, objectName: 'x'.repeat(101) }).success).toBe(
+      false,
+    );
+  });
   it('preserves source identity, accepts legacy annotations and rejects repeated or invalid finding references', () => {
     const annotation = {
       id: '10000000-0000-4000-8000-000000000001',

@@ -39,15 +39,21 @@ export const InspectionCategory = z.enum([
   'EQUIPMENT_STATE',
   'OTHER',
 ]);
-export const InspectionAnnotation = z.object({
-  id: z.uuid(),
-  geometry: InspectionGeometry,
-  category: InspectionCategory,
-  comment: z.string().trim().min(1).max(2000),
-  sourceRunId: z.uuid().nullable().default(null),
-  // Index in the immutable source run, retained when the human edits the region.
-  sourceFindingIndex: z.number().int().min(0).max(29).optional(),
-});
+export const InspectionAnnotation = z
+  .object({
+    id: z.uuid(),
+    geometry: InspectionGeometry,
+    category: InspectionCategory,
+    objectName: z.string().trim().min(1).max(100).optional(),
+    comment: z.string().trim().max(2000),
+    sourceRunId: z.uuid().nullable().default(null),
+    // Index in the immutable source run, retained when the human edits the region.
+    sourceFindingIndex: z.number().int().min(0).max(29).optional(),
+  })
+  .refine((annotation) => Boolean(annotation.objectName || annotation.comment), {
+    path: ['objectName'],
+    message: 'Name the marked object or retain its existing description',
+  });
 export type InspectionAnnotation = z.infer<typeof InspectionAnnotation>;
 export const InspectionReview = z
   .object({

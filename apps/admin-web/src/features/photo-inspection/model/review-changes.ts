@@ -9,7 +9,8 @@ export function reviewChanges(review: InspectionReview, saved: InspectionReview)
     const before = previous.get(region.id);
     return (
       before &&
-      (before.comment.trim() !== region.comment.trim() ||
+      ((before.objectName ?? '').trim() !== (region.objectName ?? '').trim() ||
+        before.comment.trim() !== region.comment.trim() ||
         before.category !== region.category ||
         before.sourceRunId !== region.sourceRunId ||
         before.sourceFindingIndex !== region.sourceFindingIndex ||

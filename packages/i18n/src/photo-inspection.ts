@@ -1,4 +1,28 @@
 export const inspectionUk = {
+  objectName: 'Що позначено',
+  objectNameHint:
+    'Оберіть назву з чекліста або впишіть свою. Одна область — один предмет або однорідна проблема.',
+  objectNamePlaceholder: 'Наприклад: Ганчірки',
+  objectSuggestions: 'Назви з чекліста',
+  nameRequired: 'Оберіть або введіть назву.',
+  addDetails: 'Додати деталі',
+  detailsAdded: 'Деталі додано',
+  regionDetails: 'Деталі знахідки',
+  regionDetailsHint: 'Додайте лише те, чого не пояснює назва. Місце вже задане областю на фото.',
+  regionDetailsPlaceholder: 'Наприклад: частково під обладнанням',
+  addNote: 'Додати примітку до фото',
+  noteAdded: 'Примітка до фото',
+  assessmentReason: 'Чому не можна оцінити фото',
+  rulesReference: 'Правила перевірки',
+  ruleExceptions: 'Дозволені винятки',
+  validation: {
+    geometry: 'Виправте межі області на фото.',
+    names: 'Оберіть або введіть назву для областей:',
+    reason: 'Вкажіть причину, чому фото не можна оцінити.',
+    hasRegions: 'На фото є позначені проблеми. Оберіть «Є проблеми» або видаліть хибні позначки.',
+    needsRegions: 'Позначте хоча б одну проблему на фото.',
+    other: 'Перевірте заповнення полів і межі областей.',
+  },
   region: 'Область',
   prohibitedItems: 'Що не повинно бути на фото',
   noProhibitedItems: 'Для цього чекліста й зони список ще не заповнений.',
@@ -42,7 +66,7 @@ export const inspectionUk = {
     original: 'Відкрити оригінальне фото в новій вкладці.',
     reload: 'Завантажити останню збережену перевірку. Незбережені зміни потребують підтвердження.',
     refresh: 'Оновити посилання й повторно завантажити фото.',
-    save: 'Зберегти результат, описи та області. Заповніть описи всіх позначених областей.',
+    save: 'Зберегти результат, описи та області. Назвіть позначені предмети; деталі необов’язкові.',
     accept: 'Додати цю підказку AI до вашої розмітки для перевірки та збереження.',
     selectRegion: 'Виділити цю область на фото.',
     remove: 'Прибрати цю область із розмітки. Збережіть перевірку, щоб застосувати зміну.',
@@ -75,7 +99,7 @@ export const inspectionUk = {
   status: 'Результат перевірки',
   reviewComment: 'Загальна примітка до фото',
   reviewCommentHelp:
-    'Поясніть загальний результат огляду. Для «Не можна оцінити» вкажіть причину; конкретні проблеми описуйте в полях «Що не так» біля областей.',
+    'Лише загальний контекст фото або причина, чому його неможливо оцінити. Знахідки описуйте біля областей.',
   reviewCommentPlaceholder: 'Наприклад: фото темне, стан підлоги не видно.',
   allSuggestionsAdded:
     'Усі пропозиції додано до розмітки. Якщо видалите відповідну область, пропозиція знову з’явиться тут.',
@@ -87,13 +111,12 @@ export const inspectionUk = {
     'Знайти можливі проблеми на фото. Можна запускати без збереження; перевірте підказки й додайте правильні до розмітки.',
   aiTitle: 'Припущення AI — перевірте самостійно',
   aiPending: 'AI аналізує фото',
-  aiFailed: 'Аналіз не завершено. Перевірте підключення та спробуйте ще раз.',
+  aiFailed: 'AI не завершив аналіз. Спробуйте ще раз або позначте предмети вручну.',
   accept: 'Додати до моєї розмітки',
   noGeometry: 'Позначте область вручну: AI не визначив її координати.',
   export: 'Експортувати перевірку',
   original: 'Відкрити оригінал',
-  drawHint:
-    'Оберіть інструмент і позначте область. Для багатокутника послідовно натискайте на вершини та замкніть контур. Кожній області додайте опис.',
+  drawHint: 'Позначте кожен предмет окремо й оберіть назву. Деталі — лише за потреби.',
   empty: 'Областей ще немає. Відсутність позначок не означає, що фото перевірено.',
   invalid: 'Перевірте області та заповніть описи. Для «Не можна оцінити» потрібне пояснення.',
   imageFailed: 'Фото не завантажилося. Оновіть посилання.',
@@ -110,7 +133,7 @@ export const inspectionUk = {
   drawKeyboard:
     'Для позначення області з клавіатури додайте центральний прямокутник і відредагуйте координати.',
   addBox: 'Додати прямокутник',
-  coordinates: 'Область у відсотках фото',
+  coordinates: 'Точне налаштування області',
   coordinateLabels: { x: 'Відступ зліва', y: 'Відступ згори', width: 'Ширина', height: 'Висота' },
   statuses: {
     UNREVIEWED: 'Ще не перевірено',
@@ -128,6 +151,32 @@ export const inspectionUk = {
   },
 };
 export const inspectionEn = {
+  objectName: 'What is marked',
+  objectNameHint:
+    'Choose a checklist name or enter your own. Mark one object or one consistent problem per region.',
+  objectNamePlaceholder: 'For example: Rags',
+  objectSuggestions: 'Checklist names',
+  nameRequired: 'Choose or enter a name.',
+  addDetails: 'Add details',
+  detailsAdded: 'Details added',
+  regionDetails: 'Finding details',
+  regionDetailsHint:
+    'Add only what the name does not explain. The region already records the location.',
+  regionDetailsPlaceholder: 'For example: partly under equipment',
+  addNote: 'Add a photo note',
+  noteAdded: 'Photo note',
+  assessmentReason: 'Why the photo cannot be assessed',
+  rulesReference: 'Inspection rules',
+  ruleExceptions: 'Allowed exceptions',
+  validation: {
+    geometry: 'Correct the region boundary on the photo.',
+    names: 'Choose or enter a name for regions:',
+    reason: 'Explain why the photo cannot be assessed.',
+    hasRegions:
+      'The photo contains marked problems. Choose Problems found or remove incorrect marks.',
+    needsRegions: 'Mark at least one problem on the photo.',
+    other: 'Check the fields and region boundaries.',
+  },
   region: 'Region',
   prohibitedItems: 'What must not appear in the photo',
   noProhibitedItems: 'No items have been configured for this checklist and zone.',
@@ -170,7 +219,7 @@ export const inspectionEn = {
     original: 'Open the original photo in a new tab.',
     reload: 'Load the latest saved review. Discarding unsaved changes requires confirmation.',
     refresh: 'Refresh the link and load the photo again.',
-    save: 'Save the outcome, descriptions and regions. Describe every marked region.',
+    save: 'Save the outcome, descriptions and regions. Name marked objects; details are optional.',
     accept: 'Copy this AI suggestion into your annotations for review and saving.',
     selectRegion: 'Highlight this region on the photo.',
     remove: 'Remove this region from the annotations. Save the review to apply the change.',
@@ -202,7 +251,7 @@ export const inspectionEn = {
   status: 'Review outcome',
   reviewComment: 'General photo note',
   reviewCommentHelp:
-    'Explain the overall review outcome. For Not assessable, give a reason; describe individual problems in What is wrong beside each region.',
+    'Only add context about the whole photo or why it cannot be assessed. Describe findings beside their regions.',
   reviewCommentPlaceholder: 'For example: the photo is dark; the floor is not visible.',
   allSuggestionsAdded:
     'All suggestions have been added. Deleting a corresponding region returns its suggestion here.',
@@ -214,13 +263,12 @@ export const inspectionEn = {
     'Find possible problems in the photo. No save is needed; check suggestions and add correct ones to your annotations.',
   aiTitle: 'AI suggestions — verify independently',
   aiPending: 'AI is analyzing the photo',
-  aiFailed: 'Analysis did not complete. Check the connection and try again.',
+  aiFailed: 'AI did not complete the analysis. Retry or mark objects manually.',
   accept: 'Add to my annotations',
   noGeometry: 'Mark the region manually: AI could not locate it.',
   export: 'Export review',
   original: 'Open original',
-  drawHint:
-    'Choose a tool and mark a region. For polygons, click each vertex and close the outline. Describe each region.',
+  drawHint: 'Mark each object separately and choose its name. Add details only when needed.',
   empty: 'No regions yet. An empty annotation list does not mean the photo was reviewed.',
   invalid: 'Check regions and describe each problem. Not assessable requires an explanation.',
   imageFailed: 'Photo could not load. Refresh its link.',
@@ -237,7 +285,7 @@ export const inspectionEn = {
   drawKeyboard:
     'To mark a region with the keyboard, add a centered rectangle and edit its coordinates.',
   addBox: 'Add rectangle',
-  coordinates: 'Region as a percentage of the photo',
+  coordinates: 'Adjust region precisely',
   coordinateLabels: { x: 'Left offset', y: 'Top offset', width: 'Width', height: 'Height' },
   statuses: {
     UNREVIEWED: 'Not reviewed',
@@ -255,6 +303,32 @@ export const inspectionEn = {
   },
 };
 export const inspectionRu = {
+  objectName: 'Что отмечено',
+  objectNameHint:
+    'Выберите название из чек-листа или введите своё. Одна область — один предмет или однородная проблема.',
+  objectNamePlaceholder: 'Например: Тряпки',
+  objectSuggestions: 'Названия из чек-листа',
+  nameRequired: 'Выберите или введите название.',
+  addDetails: 'Добавить детали',
+  detailsAdded: 'Детали добавлены',
+  regionDetails: 'Детали находки',
+  regionDetailsHint:
+    'Добавьте только то, чего не объясняет название. Место уже задано областью на фото.',
+  regionDetailsPlaceholder: 'Например: частично под оборудованием',
+  addNote: 'Добавить заметку к фото',
+  noteAdded: 'Заметка к фото',
+  assessmentReason: 'Почему нельзя оценить фото',
+  rulesReference: 'Правила проверки',
+  ruleExceptions: 'Допустимые исключения',
+  validation: {
+    geometry: 'Исправьте границы области на фото.',
+    names: 'Выберите или введите название для областей:',
+    reason: 'Укажите причину, почему фото нельзя оценить.',
+    hasRegions:
+      'На фото есть отмеченные проблемы. Выберите «Есть проблемы» или удалите ошибочные отметки.',
+    needsRegions: 'Отметьте хотя бы одну проблему на фото.',
+    other: 'Проверьте заполнение полей и границы областей.',
+  },
   region: 'Область',
   prohibitedItems: 'Чего не должно быть на фото',
   noProhibitedItems: 'Для этого чек-листа и зоны список ещё не заполнен.',
@@ -298,7 +372,7 @@ export const inspectionRu = {
     reload:
       'Загрузить последнюю сохранённую проверку. Несохранённые изменения требуют подтверждения.',
     refresh: 'Обновить ссылку и повторно загрузить фото.',
-    save: 'Сохранить результат, описания и области. Заполните описания всех отмеченных областей.',
+    save: 'Сохранить результат, описания и области. Назовите отмеченные предметы; детали необязательны.',
     accept: 'Добавить эту подсказку AI в вашу разметку для проверки и сохранения.',
     selectRegion: 'Выделить эту область на фото.',
     remove: 'Убрать эту область из разметки. Сохраните проверку, чтобы применить изменение.',
@@ -330,7 +404,7 @@ export const inspectionRu = {
   status: 'Результат проверки',
   reviewComment: 'Общая заметка к фото',
   reviewCommentHelp:
-    'Поясните общий результат осмотра. Для «Нельзя оценить» укажите причину; отдельные проблемы описывайте в полях «Что не так» возле областей.',
+    'Только общий контекст фото или причина, почему его нельзя оценить. Находки описывайте возле областей.',
   reviewCommentPlaceholder: 'Например: фото тёмное, состояние пола не видно.',
   allSuggestionsAdded:
     'Все предложения добавлены в разметку. Если удалить соответствующую область, предложение снова появится здесь.',
@@ -342,13 +416,13 @@ export const inspectionRu = {
     'Найти возможные проблемы на фото. Можно запускать без сохранения; проверьте подсказки и добавьте верные в разметку.',
   aiTitle: 'Предположения AI — проверьте самостоятельно',
   aiPending: 'AI анализирует фото',
-  aiFailed: 'Анализ не завершён. Проверьте подключение и попробуйте снова.',
+  aiFailed: 'AI не завершил анализ. Попробуйте снова или отметьте предметы вручную.',
   accept: 'Добавить в мою разметку',
   noGeometry: 'Отметьте область вручную: AI не определил её координаты.',
   export: 'Экспортировать проверку',
   original: 'Открыть оригинал',
   drawHint:
-    'Выберите инструмент и отметьте область. Для многоугольника нажимайте на вершины и замкните контур. Добавьте описание каждой области.',
+    'Отметьте каждый предмет отдельно и выберите название. Детали — только при необходимости.',
   empty: 'Областей пока нет. Отсутствие отметок не означает, что фото проверено.',
   invalid: 'Проверьте области и заполните описания. Для «Нельзя оценить» нужно объяснение.',
   imageFailed: 'Фото не загрузилось. Обновите ссылку.',
@@ -365,7 +439,7 @@ export const inspectionRu = {
   drawKeyboard:
     'Для разметки с клавиатуры добавьте центральный прямоугольник и измените координаты.',
   addBox: 'Добавить прямоугольник',
-  coordinates: 'Область в процентах фото',
+  coordinates: 'Точная настройка области',
   coordinateLabels: { x: 'Отступ слева', y: 'Отступ сверху', width: 'Ширина', height: 'Высота' },
   statuses: {
     UNREVIEWED: 'Ещё не проверено',

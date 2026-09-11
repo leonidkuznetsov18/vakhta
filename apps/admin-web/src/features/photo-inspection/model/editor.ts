@@ -214,7 +214,7 @@ export class InspectionEditor {
   }
   editAnnotation(
     id: string,
-    patch: Partial<Pick<InspectionAnnotation, 'comment' | 'category'>>,
+    patch: Partial<Pick<InspectionAnnotation, 'comment' | 'category' | 'objectName'>>,
   ): void {
     this.change({
       annotations: this.store

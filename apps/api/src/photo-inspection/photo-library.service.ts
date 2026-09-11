@@ -73,7 +73,7 @@ export class PhotoLibraryService {
             sql`${photoInspections.context}->>'zoneName' ilike ${search}`,
             sql`${photoInspections.context}->>'photoLabel' ilike ${search}`,
             sql`${photoInspections.review}->>'comment' ilike ${search}`,
-            sql`exists (select 1 from jsonb_array_elements(${photoInspections.review}->'annotations') a where a->>'comment' ilike ${search})`,
+            sql`exists (select 1 from jsonb_array_elements(${photoInspections.review}->'annotations') a where a->>'comment' ilike ${search} or a->>'objectName' ilike ${search})`,
           )
         : undefined,
     );
@@ -135,7 +135,9 @@ export class PhotoLibraryService {
               annotationCount: review.annotations.length,
               remarks: [
                 ...(review.comment ? [review.comment] : []),
-                ...review.annotations.map((a) => a.comment),
+                ...review.annotations.map((a) =>
+                  [a.objectName, a.comment].filter(Boolean).join(' — '),
+                ),
               ],
               updatedAt: row.inspection.updatedAt?.toISOString() ?? null,
               businessDate: row.businessDate,

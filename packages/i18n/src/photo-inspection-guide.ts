@@ -6,10 +6,10 @@ export const inspectionGuideUk: SectionGuide = {
     'Допоможіть системі зрозуміти, як має виглядати робоче місце після зміни. Ви позначаєте на фото видимі проблеми та описуєте їх. Так ми збираємо перевірені приклади для майбутнього автоматичного пошуку проблем; зараз остаточну оцінку дає людина.',
   steps: [
     'Відкрийте «Чистота і передача», розгорніть звіт і натисніть на фото. Перегляньте його повністю; за потреби натисніть «Збільшити».',
-    'Перегляньте список «Що не повинно бути на фото». Його задають у чеклісті окремо для кожної зони.',
-    'Якщо бачите проблему, оберіть «Прямокутник» і обведіть її, або «Багатокутник» — натискайте на вершини та замкніть контур. Для кожної області запишіть у «Що не так» конкретне спостереження: «Брудна ганчірка залишена на столі».',
+    'За потреби розгорніть «Правила перевірки»: це список із чекліста, включно з уточненнями й дозволеними винятками.',
+    'Якщо бачите проблему, оберіть «Прямокутник» і обведіть її, або «Багатокутник» — натискайте на вершини та замкніть контур. У «Що позначено» оберіть назву з чекліста або впишіть свою. Одна область — один предмет або однорідна проблема. «Додати деталі» потрібне лише для додаткового пояснення.',
     'Оберіть результат: «Є проблеми» — позначили недоліки; «Проблем не знайдено» — перевірили видиму зону й недоліків немає; «Не можна оцінити» — поясніть, чого не видно. Якщо перевірку ще не завершено, залиште «Ще не перевірено».',
-    'Натисніть «Зберегти зміни». Фото не змінюється: окремо зберігаються області, ваші описи та результат. Перед переходом до іншого фото збережіть зміни. Лічильник показує змінені поля й області; нижче видно їх перелік. Після збереження біля фото з’явиться позначка, а незавершена перевірка позначатиметься окремо.',
+    'Натисніть «Зберегти зміни». Фото не змінюється: окремо зберігаються області, ваші описи та результат. Перед переходом до іншого фото збережіть зміни. Після збереження біля фото з’явиться позначка, а незавершена перевірка позначатиметься окремо.',
     'За бажанням натисніть «Аналізувати з AI» навіть до збереження чи заповнення полів. Прочитайте припущення AI. Лише правильні додайте кнопкою «Додати до моєї розмітки», виправте неточності й збережіть перевірку ще раз.',
   ],
   faq: [
@@ -19,7 +19,7 @@ export const inspectionGuideUk: SectionGuide = {
     },
     {
       q: 'Що таке розмітка або анотація фото?',
-      a: 'Це область на фото плюс короткий опис того, що ви бачите. Наприклад, рамка навколо ганчірки та текст «Брудна ганчірка на столі». Оригінал фото залишається незмінним.',
+      a: 'Це область на фото та назва предмета чи проблеми. Наприклад, рамка навколо ганчірки й назва «Ганчірки» з чекліста. Деталі необов’язкові; координати й назву не потрібно повторювати в описі. Оригінал фото залишається незмінним.',
     },
     {
       q: 'Для чого витрачати час на ці позначки?',
@@ -87,7 +87,7 @@ export const inspectionGuideUk: SectionGuide = {
     },
     {
       q: 'Для чого загальна примітка до фото?',
-      a: 'Для пояснення результату всього огляду, наприклад «Фото темне, стан підлоги не видно». Вона необов’язкова, крім результату «Не можна оцінити», коли потрібна причина. Конкретні проблеми описуйте у «Що не так» біля кожної області. Це примітка майстра, а не інструкція для AI.',
+      a: 'Для пояснення результату всього огляду, наприклад «Фото темне, стан підлоги не видно». Вона необов’язкова, крім результату «Не можна оцінити», коли потрібна причина. Натисніть «Додати примітку до фото», якщо потрібен загальний контекст. Для «Не можна оцінити» поле причини відкриється автоматично. Знахідки називайте й уточнюйте лише біля областей. Це примітка майстра, а не інструкція для AI.',
     },
     {
       q: 'Де змінити список предметів для AI?',
@@ -112,10 +112,10 @@ export const inspectionGuideEn: SectionGuide = {
     'Help the system understand how a workplace should look after a shift. Mark visible problems and describe them. These verified examples support future automatic problem detection; a person makes the final assessment today.',
   steps: [
     'Open Cleanliness and handover, expand a report and select a photo. Inspect the whole image; use Zoom in when needed.',
-    'Read What must not appear in the photo. This list is configured in the checklist separately for each zone.',
-    'For a visible problem, choose Rectangle and drag around it, or choose Polygon, click its corners and close the outline. Describe each region in What is wrong, for example “Dirty rag left on the table.”',
+    'Open Inspection rules when needed to see checklist names, clarifications and allowed exceptions.',
+    'For a visible problem, choose Rectangle and drag around it, or choose Polygon, click its corners and close the outline. In What is marked, choose a checklist name or enter your own. Mark one object or one consistent problem per region. Use Add details only for extra context.',
     'Choose the outcome: Problems found for marked issues; No problems found after inspecting the visible area; Not assessable with an explanation of missing evidence. Leave Not reviewed if your inspection is incomplete.',
-    'Select Save changes. The original photo is unchanged; regions, descriptions and your outcome are saved separately. Save before moving to another photo. The counter counts changed fields and regions; the summary lists them. A marker beside the photo shows saved work and distinguishes an unfinished review.',
+    'Select Save changes. The original photo is unchanged; regions, descriptions and your outcome are saved separately. Save before moving to another photo. A marker beside the photo shows saved work and distinguishes an unfinished review.',
     'Optionally select Analyze with AI even before saving or filling in fields. Read its suggestions. Use Add to my annotations only for correct findings, correct any inaccuracies and save the review again.',
   ],
   faq: [
@@ -125,7 +125,7 @@ export const inspectionGuideEn: SectionGuide = {
     },
     {
       q: 'What is a photo annotation?',
-      a: 'A region on a photo with a short description of what you see. For example, a box around a rag and “Dirty rag on the table.” The original image stays unchanged.',
+      a: 'A region on a photo with the name of an object or problem. For example, a box around a rag with the checklist name Rags. Details are optional; do not repeat the name or coordinates in prose. The original image stays unchanged.',
     },
     {
       q: 'Why spend time adding these marks?',
@@ -193,7 +193,7 @@ export const inspectionGuideEn: SectionGuide = {
     },
     {
       q: 'What is the general photo note for?',
-      a: 'Explain the overall review outcome, for example “The photo is dark; the floor is not visible.” It is optional except for Not assessable, which requires a reason. Describe individual problems in What is wrong beside each region. This is the reviewer’s note, not an instruction for AI.',
+      a: 'Explain the overall review outcome, for example “The photo is dark; the floor is not visible.” It is optional except for Not assessable, which requires a reason. Use Add a photo note for general context. Not assessable opens the reason automatically. Name and clarify individual findings only beside their regions. This is the reviewer’s note, not an instruction for AI.',
     },
     {
       q: 'Where can I change the object list for AI?',
@@ -218,10 +218,10 @@ export const inspectionGuideRu: SectionGuide = {
     'Помогите системе понять, как должно выглядеть рабочее место после смены. Отмечайте видимые проблемы и описывайте их. Так мы собираем проверенные примеры для будущего автоматического поиска проблем; сейчас окончательную оценку даёт человек.',
   steps: [
     'Откройте «Чистота и передача», разверните отчёт и нажмите на фото. Просмотрите его целиком; при необходимости нажмите «Увеличить».',
-    'Просмотрите список «Чего не должно быть на фото». Его задают в чек-листе отдельно для каждой зоны.',
-    'Если видите проблему, выберите «Прямоугольник» и обведите её, или «Многоугольник» — нажимайте на вершины и замкните контур. Для каждой области опишите в «Что не так» конкретное наблюдение: «Грязная тряпка оставлена на столе».',
+    'При необходимости раскройте «Правила проверки»: список из чек-листа с уточнениями и допустимыми исключениями.',
+    'Если видите проблему, выберите «Прямоугольник» и обведите её, или «Многоугольник» — нажимайте на вершины и замкните контур. В «Что отмечено» выберите название из чек-листа или введите своё. Одна область — один предмет или однородная проблема. «Добавить детали» нужно только для дополнительного пояснения.',
     'Выберите результат: «Есть проблемы» — отметили недостатки; «Проблем не найдено» — проверили видимую зону и недостатков нет; «Нельзя оценить» — объясните, чего не видно. Если проверка не завершена, оставьте «Ещё не проверено».',
-    'Нажмите «Сохранить изменения». Фото не меняется: отдельно сохраняются области, описания и результат. Сохраните изменения перед переходом к другому фото. Счётчик показывает изменённые поля и области; ниже виден их список. После сохранения у фото появится отметка; незавершённая проверка обозначается отдельно.',
+    'Нажмите «Сохранить изменения». Фото не меняется: отдельно сохраняются области, описания и результат. Сохраните изменения перед переходом к другому фото. После сохранения у фото появится отметка; незавершённая проверка обозначается отдельно.',
     'При желании нажмите «Анализировать с AI» даже до сохранения или заполнения полей. Прочитайте предположения AI. Только верные добавьте кнопкой «Добавить в мою разметку», исправьте неточности и сохраните проверку ещё раз.',
   ],
   faq: [
@@ -231,7 +231,7 @@ export const inspectionGuideRu: SectionGuide = {
     },
     {
       q: 'Что такое разметка или аннотация фото?',
-      a: 'Это область на фото и короткое описание того, что вы видите. Например, рамка вокруг тряпки и текст «Грязная тряпка на столе». Исходное фото остаётся неизменным.',
+      a: 'Это область на фото и название предмета или проблемы. Например, рамка вокруг тряпки и название «Тряпки» из чек-листа. Детали необязательны; название и координаты не нужно повторять в описании. Исходное фото остаётся неизменным.',
     },
     {
       q: 'Зачем тратить время на эти отметки?',
@@ -299,7 +299,7 @@ export const inspectionGuideRu: SectionGuide = {
     },
     {
       q: 'Для чего общая заметка к фото?',
-      a: 'Для пояснения результата всего осмотра, например «Фото тёмное, состояние пола не видно». Она необязательна, кроме результата «Нельзя оценить», когда нужна причина. Отдельные проблемы описывайте в «Что не так» возле каждой области. Это заметка мастера, а не инструкция для AI.',
+      a: 'Для пояснения результата всего осмотра, например «Фото тёмное, состояние пола не видно». Она необязательна, кроме результата «Нельзя оценить», когда нужна причина. Нажмите «Добавить заметку к фото», если нужен общий контекст. Для «Нельзя оценить» поле причины откроется автоматически. Находки называйте и уточняйте только возле областей. Это заметка мастера, а не инструкция для AI.',
     },
     {
       q: 'Где изменить список предметов для AI?',

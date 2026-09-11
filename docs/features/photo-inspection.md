@@ -5,7 +5,7 @@ Status: implemented, initial release v0.76.0, 2026-09-11.
 ## Outcome
 
 On Cleanliness and handover, a master opens a checklist photo, marks visible problems with rectangles
-or polygons and describes what is wrong in free text. A separate review records unreviewed, compliant,
+or polygons and names each marked object or problem, with optional details. A separate review records unreviewed, compliant,
 problems or not assessable. Empty annotations alone never mean compliant. The master can request
 Gemma 4 analysis and explicitly copy individual suggestions into the human review before saving.
 
@@ -22,8 +22,7 @@ Gemma 4 analysis and explicitly copy individual suggestions into the human revie
 - Analyze with AI is an optional helper, available with empty or unsaved form fields. Only saving or
   a running analysis temporarily disables it. The displayed checklist/zone object list is snapshotted for a manual run;
   analysis never saves the human review. Suggestions still require explicit human acceptance.
-- Save changes shows the number of changed fields and regions compared with the last saved version,
-  plus a readable summary. One edited region counts once; reverting edits removes them from the count.
+- Save changes has a stable label and one unsaved-work indicator. Reverting all edits removes the indicator.
 - Handover photo thumbnails identify persisted human work with a highlighted border and translucent
   background, including clean reviews without regions. Hover or focus shows the saved status and region
   count in a tooltip; no extra status block appears below the photo.
@@ -41,7 +40,7 @@ Gemma 4 analysis and explicitly copy individual suggestions into the human revie
 
 ## Operator flow
 
-Open photo → mark regions and describe observations → choose review outcome → save.
+Open photo → mark each object and choose its name → choose review outcome → save.
 Read the checklist/zone object list, then request AI → inspect suggestions → copy useful
 findings and correct them → save the human review. The object list describes the visible requirements,
 including what belongs in a zone; the model must not invent workplace rules.
@@ -92,7 +91,8 @@ options are copied, the panel explains that deletion restores them. Separate run
 
 The editor displays the current checklist/zone object list instead of an editable requirements field. Manual analysis requires no prior save. The general photo note
 explains the overall human review, is optional except for Not assessable, and is not an AI instruction.
-Its inline help and example distinguish it from each region's What is wrong description.
+It stays collapsed until requested; Not assessable opens the required reason. Individual findings use
+What is marked and optional Finding details.
 
 ## Saved photo library
 
@@ -166,3 +166,21 @@ photos in the selected checklist/zone; selecting individual photo points is outs
 The system snapshots this context for automatic and manual analysis. The model is instructed to
 respect supplied exceptions and explain uncertainty; suggestions still require human verification.
 Add/remove/save controls are accessible icon buttons; there is no separate Load saved rules action.
+
+## Named regions with optional details
+
+Each region offers **What is marked**: one-click names from the current checklist/zone or a custom
+name. **Add details** stays collapsed for an empty comment. Existing comments open automatically
+and remain unchanged when a name is added. One region should contain one object or one consistent
+problem; placement is recorded by geometry rather than repeated in prose.
+
+The structured optional `objectName` travels with the region through saving, revisions, export,
+read-only review and library search. A name alone is sufficient; legacy descriptions remain valid
+without relabeling. Names are captured text, not a new global class catalog or a guarantee of
+training readiness. A future dataset preparation step must normalize classes and audit labels. Use `objectName` as
+the explicit human object label when present; retained legacy `category` values are not a second
+independently confirmed object class.
+
+Inspection rules are a collapsed reference with clarifications and exceptions. Missing names,
+missing assessment reasons and contradictory outcomes show specific next actions. An empty
+annotation list still never implies that the photo was reviewed or found compliant.
