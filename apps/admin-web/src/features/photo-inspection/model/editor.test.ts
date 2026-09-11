@@ -168,18 +168,18 @@ describe('photo inspection form and geometry', () => {
       total: 2,
     });
   });
-  it('snapshots unsaved AI requirements without saving or changing the draft', () => {
-    const editor = new InspectionEditor(view);
-    editor.change({ guidance: ' Keep the table clear ' });
+  it('snapshots checklist objects for AI without changing legacy review data', () => {
+    const editor = new InspectionEditor({ ...view, prohibitedItems: ['Cup', 'Rag'] });
+    editor.change({ guidance: 'Legacy saved requirements' });
     const request = editor.analysisRequest();
-    expect(request).toMatchObject({ version: 0, guidance: 'Keep the table clear' });
+    expect(request.guidance).toContain('["Cup","Rag"]');
+    expect(request.guidance).not.toContain('Legacy');
     expect(editor.analysisRequest()).toEqual(request);
+    expect(editor.store.getState().review.guidance).toBe('Legacy saved requirements');
+    expect(editor.analysisRequest(['Tool']).requestId).not.toBe(request.requestId);
+    expect(editor.analysisRequest([]).guidance).toBe('');
     editor.analysisReceived();
-    expect(hasReviewChanges(editor.store.getState())).toBe(true);
-    expect(editor.store.getState().version).toBe(0);
     expect(editor.analysisRequest().requestId).not.toBe(request.requestId);
-    editor.change({ guidance: 'New requirements' });
-    expect(editor.analysisRequest()).toMatchObject({ guidance: 'New requirements' });
   });
 
   it('removes only the selected region and leaves a draft requiring a human outcome', () => {

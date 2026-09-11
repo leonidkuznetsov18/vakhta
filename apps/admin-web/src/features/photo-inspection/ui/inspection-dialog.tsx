@@ -49,6 +49,7 @@ import {
 import { EditableReview, ReadOnlyReview } from './review-fields';
 import { PredictionPanel } from './prediction-panel';
 import { deleteSelectedOnKeyDown } from '../model/delete-shortcut';
+import { RegionNumbers } from './region-numbers';
 import { AnalyzeButton } from './analyze-button';
 import '@annotorious/annotorious/annotorious.css';
 
@@ -220,7 +221,8 @@ function InspectionSession({
     },
   });
   const analyze = useMutation({
-    mutationFn: () => inspectionApi.analyze(id, editor.analysisRequest()),
+    mutationFn: () =>
+      inspectionApi.analyze(id, editor.analysisRequest(latest.prohibitedItems ?? [])),
     retry: false,
     onSuccess: (view) => {
       editor.analysisReceived();
@@ -268,69 +270,71 @@ function InspectionSession({
               <IconButton
                 icon={toolIcons[tool]}
                 label={t[tool]}
-                tooltip={t.hints[tool]}
+                tooltip={`${t[tool]}. ${t.hints[tool]}`}
                 key={tool}
-                size="sm"
+                size="icon-lg"
                 variant={state.tool === tool ? 'default' : 'outline'}
                 disabled={busy || state.imageStatus !== 'ready'}
                 aria-pressed={state.tool === tool}
                 onClick={() => editor.toggleDrawingTool(tool)}
               >
-                {t[tool]}
+                <span className="sr-only">{t[tool]}</span>
               </IconButton>
             ))}
             <IconButton
-              size="sm"
+              size="icon-lg"
               variant="outline"
               disabled={busy || state.imageStatus !== 'ready'}
               onClick={() => editor.addBox()}
               icon={SquarePlusIcon}
               label={t.addBox}
-              tooltip={t.drawKeyboard}
+              tooltip={`${t.addBox}. ${t.drawKeyboard}`}
               title={t.drawKeyboard}
             >
-              {t.addBox}
+              <span className="sr-only">{t.addBox}</span>
             </IconButton>
             <IconButton
               icon={Trash2Icon}
               label={t.removeSelected}
               tooltip={state.selected ? t.deleteShortcutHint : t.selectToDeleteHint}
-              size="sm"
+              size="icon-lg"
               variant="outline"
               disabled={busy || state.imageStatus !== 'ready' || !state.selected}
               aria-keyshortcuts="Backspace Delete"
               onClick={() => editor.removeSelected()}
-            />
+            >
+              <span className="sr-only">{t.removeSelected}</span>
+            </IconButton>
           </>
         )}
         <IconButton
-          size="sm"
+          size="icon-lg"
           variant="outline"
           icon={ZoomInIcon}
           label={t.zoomIn}
-          tooltip={t.hints.zoomIn}
+          tooltip={`${t.zoomIn}. ${t.hints.zoomIn}`}
           disabled={state.zoom >= INSPECTION_ZOOM.max}
           onClick={() => editor.zoom(INSPECTION_ZOOM.step)}
         >
-          {t.zoomIn}
+          <span className="sr-only">{t.zoomIn}</span>
         </IconButton>
         <IconButton
-          size="sm"
+          size="icon-lg"
           variant="outline"
           icon={ZoomOutIcon}
           label={t.zoomOut}
-          tooltip={t.hints.zoomOut}
+          tooltip={`${t.zoomOut}. ${t.hints.zoomOut}`}
           disabled={state.zoom <= INSPECTION_ZOOM.min}
           onClick={() => editor.zoom(-INSPECTION_ZOOM.step)}
         >
-          {t.zoomOut}
+          <span className="sr-only">{t.zoomOut}</span>
         </IconButton>
         <IconButton
-          size="sm"
+          size="icon-lg"
           variant="outline"
           icon={DownloadIcon}
           label={t.export}
-          tooltip={t.hints.export}
+          tooltip={`${t.export}. ${t.hints.export}`}
           disabled={
             hasReviewChanges(state) ||
             latest.review.status === 'UNREVIEWED' ||
@@ -338,19 +342,19 @@ function InspectionSession({
           }
           onClick={() => exportReview.mutate()}
         >
-          {t.export}
+          <span className="sr-only">{t.export}</span>
         </IconButton>
         {link.data && (
           <IconButton
             icon={ExternalLinkIcon}
             label={t.original}
-            tooltip={t.hints.original}
-            size="sm"
+            tooltip={`${t.original}. ${t.hints.original}`}
+            size="icon-lg"
             variant="outline"
             asChild
           >
             <a href={link.data.url} target="_blank" rel="noreferrer">
-              {t.original}
+              <span className="sr-only">{t.original}</span>
             </a>
           </IconButton>
         )}
@@ -403,7 +407,7 @@ function InspectionSession({
                   </IconButton>
                 </p>
               )}
-              <div ref={attachViewport} className="origin-top-left">
+              <div ref={attachViewport} className="relative origin-top-left">
                 <img
                   key={`${link.data.url}:${link.dataUpdatedAt}`}
                   ref={mount}
@@ -412,6 +416,7 @@ function InspectionSession({
                   draggable={false}
                   className="block h-auto w-full max-w-none"
                 />
+                <RegionNumbers editor={editor} />
               </div>
             </div>
           )}
@@ -433,8 +438,24 @@ function InspectionSession({
           {initial.canEdit ? (
             <EditableReview editor={editor} busy={busy} />
           ) : (
-            <ReadOnlyReview review={state.review} select={(id) => editor.select(id)} />
+            <ReadOnlyReview editor={editor} />
           )}
+          <section
+            className="rounded-md border bg-muted/30 p-3 text-sm"
+            aria-label={t.prohibitedItems}
+          >
+            <strong>{t.prohibitedItems}</strong>
+            {latest.prohibitedItems?.length ? (
+              <ul className="mt-2 list-disc space-y-1 break-words pl-5">
+                {latest.prohibitedItems.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-muted-foreground">{t.noProhibitedItems}</p>
+            )}
+            <p className="mt-2 text-xs text-muted-foreground">{t.prohibitedItemsHint}</p>
+          </section>
           {hasReviewChanges(state) && (
             <p role="status" className="text-sm">
               {t.dirty}: {changes.total}

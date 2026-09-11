@@ -437,3 +437,27 @@ editor avoids duplicate data entry. Save and close is the explicit endpoint. In-
 scope, historical read-only photos, conflicts and later dataset use in all three languages. Measure
 reviewer time to find and correct a saved example; do not equate region count with worker performance.
 Automatic-review groundwork remains separate and uncommitted.
+
+## Numbered, simplified editor — 2026-09-11
+
+Proceed (Lean): remove duplicate category entry and per-photo rule entry. The inspection GET exposes
+validated current checklist-family/zone objects after the existing photo authorization; no new write
+permission or migration. The editor displays that list and snapshots it through the existing manual
+analysis request. Legacy categories/guidance remain stored; new manual regions use OTHER. No model
+reclassification of historical data is implied.
+
+Use Annotorious DrawingStyle for green selected geometry, with a pointer-transparent React number
+layer in the same image plane. Reciprocal scale keeps number badges readable at 100–500%. The list
+adapter owns its selection subscription and animation frame cleanup; only list scrolling changes
+on selection. UUID identity and source finding references remain unchanged after renumbering.
+The toolbar uses existing IconButton icon-lg sizing and accessible hidden names; Save/Analyze keep
+visible text. Help/FAQ/static guides are updated in all locales.
+
+Verification: panel tests passed (191; CLI unexpectedly ran the full panel suite), focused API rule
+readback integration passed, editor tests cover instruction snapshots/legacy preservation and list
+scroll cleanup. Browser screenshots inspected at 1365x1000 and 390x844: green image/list selection,
+list scrolling from 396 to 0 for the first region, 24px badges retained at 150% zoom, icon toolbar,
+free-text fields and configured object list. Browser writes used an isolated PostgreSQL fixture.
+Production rule configuration for Оператор СТ вторая стенка / Вторая стенка стаканы was saved and
+read back with Ганчірки, Стаканчики, Інструменти, version 1, after v0.82.0 API deployment succeeded.
+No employee report was finalized for QA. The previously recorded Gemma accuracy limitation remains.

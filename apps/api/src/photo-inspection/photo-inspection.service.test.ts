@@ -471,6 +471,7 @@ describe('photo inspection persistence and access', () => {
       canEdit: true,
       items: ['Ганчірки', 'Стаканчики', 'Інструменти'],
     });
+    expect((await service.get(id, scoped)).prohibitedItems).toEqual(saved.items);
     expect((await rules.get(report.checklistDefinitionId, otherZoneId, master)).items).toEqual([]);
     await expect(
       rules.save(report.checklistDefinitionId, otherZoneId, { version: 0, items: ['Cup'] }, scoped),

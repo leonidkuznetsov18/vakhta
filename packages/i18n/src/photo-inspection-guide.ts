@@ -6,8 +6,8 @@ export const inspectionGuideUk: SectionGuide = {
     'Допоможіть системі зрозуміти, як має виглядати робоче місце після зміни. Ви позначаєте на фото видимі проблеми та описуєте їх. Так ми збираємо перевірені приклади для майбутнього автоматичного пошуку проблем; зараз остаточну оцінку дає людина.',
   steps: [
     'Відкрийте «Чистота і передача», розгорніть звіт і натисніть на фото. Перегляньте його повністю; за потреби натисніть «Збільшити».',
-    'У «Вимоги до цього робочого місця» запишіть відомі правила: наприклад, «Після зміни стіл має бути порожнім, інструменти — на панелі». Не вигадуйте вимог, яких немає.',
-    'Якщо бачите проблему, оберіть «Прямокутник» і обведіть її, або «Багатокутник» — натискайте на вершини та замкніть контур. Для кожної області виберіть категорію та запишіть у «Що не так» конкретне спостереження: «Брудна ганчірка залишена на столі».',
+    'Перегляньте список «Що не повинно бути на фото». Його задають у чеклісті окремо для кожної зони.',
+    'Якщо бачите проблему, оберіть «Прямокутник» і обведіть її, або «Багатокутник» — натискайте на вершини та замкніть контур. Для кожної області запишіть у «Що не так» конкретне спостереження: «Брудна ганчірка залишена на столі».',
     'Оберіть результат: «Є проблеми» — позначили недоліки; «Проблем не знайдено» — перевірили видиму зону й недоліків немає; «Не можна оцінити» — поясніть, чого не видно. Якщо перевірку ще не завершено, залиште «Ще не перевірено».',
     'Натисніть «Зберегти зміни». Фото не змінюється: окремо зберігаються області, ваші описи та результат. Перед переходом до іншого фото збережіть зміни. Лічильник показує змінені поля й області; нижче видно їх перелік. Після збереження біля фото з’явиться позначка, а незавершена перевірка позначатиметься окремо.',
     'За бажанням натисніть «Аналізувати з AI» навіть до збереження чи заповнення полів. Прочитайте припущення AI. Лише правильні додайте кнопкою «Додати до моєї розмітки», виправте неточності й збережіть перевірку ще раз.',
@@ -35,11 +35,11 @@ export const inspectionGuideUk: SectionGuide = {
     },
     {
       q: 'Як написати хороший коментар?',
-      a: 'Пишіть, що видно і де: «Пил на нижній полиці», «Ключ залишено в зоні, яка має бути вільною». Не пишіть лише «погано» або «не прибрали» й не приписуйте людині наміри. Якщо категорія не підходить, оберіть «Інша проблема».',
+      a: 'Пишіть, що видно і де: «Пил на нижній полиці», «Ключ залишено в зоні, яка має бути вільною». Не пишіть лише «погано» або «не прибрали» й не приписуйте людині наміри.',
     },
     {
       q: 'Інструмент на фото — це завжди проблема?',
-      a: 'Ні. Важливе правило для цієї зони. На робочій панелі інструмент може бути на своєму місці, а на столі, який має бути порожнім, — порушувати вимогу. Опишіть правило в полі вимог.',
+      a: 'Ні. Важливе правило для цієї зони. На робочій панелі інструмент може бути на своєму місці, а на столі, який має бути порожнім, — порушувати вимогу. Перевірте список заборонених предметів для цієї зони в чеклісті.',
     },
     {
       q: 'Що робити з чистим фото без проблем?',
@@ -51,7 +51,7 @@ export const inspectionGuideUk: SectionGuide = {
     },
     {
       q: 'Чому кнопка аналізу вимкнена?',
-      a: 'AI доступний без попереднього збереження й навіть із порожніми полями. Він враховує поточні вимоги до робочого місця та не зберігає вашу перевірку автоматично. Кнопка тимчасово недоступна під час збереження або вже запущеного аналізу.',
+      a: 'AI доступний без попереднього збереження й навіть із порожніми полями. Він враховує список предметів із чекліста для цієї зони та не зберігає вашу перевірку автоматично. Кнопка тимчасово недоступна під час збереження або вже запущеного аналізу.',
     },
     {
       q: 'Чи можна довіряти висновку AI без перевірки?',
@@ -90,8 +90,12 @@ export const inspectionGuideUk: SectionGuide = {
       a: 'Для пояснення результату всього огляду, наприклад «Фото темне, стан підлоги не видно». Вона необов’язкова, крім результату «Не можна оцінити», коли потрібна причина. Конкретні проблеми описуйте у «Що не так» біля кожної області. Це примітка майстра, а не інструкція для AI.',
     },
     {
-      q: 'Чи обов’язково заповнювати вимоги перед аналізом AI?',
-      a: 'Ні. AI може шукати видимі проблеми без цього поля. Вкажіть відомі правила, щоб пояснити, де дозволено залишати предмети. Попереднє збереження не потрібне; остаточний висновок робить майстер.',
+      q: 'Де змінити список предметів для AI?',
+      a: 'У налаштуваннях чекліста виберіть потрібну зону та збережіть список предметів. У редакторі фото він показується для довідки. Ручний аналіз не потребує попереднього збереження розмітки.',
+    },
+    {
+      q: 'Як зіставити область з описом?',
+      a: 'Номер на фото відповідає номеру у списку. Натисніть область або її номер у списку: обидва виділяться зеленим, а список прокрутиться до опису. Назви кнопок над фото показуються при наведенні або фокусі з клавіатури.',
     },
   ],
   video: {
@@ -108,8 +112,8 @@ export const inspectionGuideEn: SectionGuide = {
     'Help the system understand how a workplace should look after a shift. Mark visible problems and describe them. These verified examples support future automatic problem detection; a person makes the final assessment today.',
   steps: [
     'Open Cleanliness and handover, expand a report and select a photo. Inspect the whole image; use Zoom in when needed.',
-    'Enter known rules in Workplace requirements, such as “The table must be clear after the shift; tools belong on the panel.” Do not invent rules.',
-    'For a visible problem, choose Rectangle and drag around it, or choose Polygon, click its corners and close the outline. Select a category and describe each region in What is wrong, for example “Dirty rag left on the table.”',
+    'Read What must not appear in the photo. This list is configured in the checklist separately for each zone.',
+    'For a visible problem, choose Rectangle and drag around it, or choose Polygon, click its corners and close the outline. Describe each region in What is wrong, for example “Dirty rag left on the table.”',
     'Choose the outcome: Problems found for marked issues; No problems found after inspecting the visible area; Not assessable with an explanation of missing evidence. Leave Not reviewed if your inspection is incomplete.',
     'Select Save changes. The original photo is unchanged; regions, descriptions and your outcome are saved separately. Save before moving to another photo. The counter counts changed fields and regions; the summary lists them. A marker beside the photo shows saved work and distinguishes an unfinished review.',
     'Optionally select Analyze with AI even before saving or filling in fields. Read its suggestions. Use Add to my annotations only for correct findings, correct any inaccuracies and save the review again.',
@@ -137,11 +141,11 @@ export const inspectionGuideEn: SectionGuide = {
     },
     {
       q: 'What makes a useful comment?',
-      a: 'State what is visible and where: “Dust on the lower shelf” or “Wrench left in an area that must stay clear.” Avoid only “bad” or “not cleaned,” and do not infer someone’s intentions. Use Other problem when no category fits.',
+      a: 'State what is visible and where: “Dust on the lower shelf” or “Wrench left in an area that must stay clear.” Avoid only “bad” or “not cleaned,” and do not infer someone’s intentions.',
     },
     {
       q: 'Is a visible tool always a problem?',
-      a: 'No. The rule for that area matters. A tool may belong on its panel but violate a clear-table rule. Describe the known rule in Workplace requirements.',
+      a: 'No. The rule for that area matters. A tool may belong on its panel but violate a clear-table rule. Check the prohibited-item list for this zone in the checklist.',
     },
     {
       q: 'What if the photo shows no problems?',
@@ -153,7 +157,7 @@ export const inspectionGuideEn: SectionGuide = {
     },
     {
       q: 'Why is Analyze disabled?',
-      a: 'AI is available before saving and with empty fields. It uses the current workplace requirements and does not automatically save your review. The button is temporarily unavailable while saving or while an analysis is running.',
+      a: 'AI is available before saving and with empty fields. It uses the checklist object list for this zone and does not automatically save your review. The button is temporarily unavailable while saving or while an analysis is running.',
     },
     {
       q: 'Can I trust AI without checking?',
@@ -192,8 +196,12 @@ export const inspectionGuideEn: SectionGuide = {
       a: 'Explain the overall review outcome, for example “The photo is dark; the floor is not visible.” It is optional except for Not assessable, which requires a reason. Describe individual problems in What is wrong beside each region. This is the reviewer’s note, not an instruction for AI.',
     },
     {
-      q: 'Are workplace requirements required before AI analysis?',
-      a: 'No. AI can look for visible problems without this field. Enter known rules to explain where objects are allowed. No prior save is needed; the master makes the final assessment.',
+      q: 'Where can I change the object list for AI?',
+      a: 'In checklist settings, select the zone and save its object list. The photo editor displays that list for reference. Manual analysis does not require saving annotations first.',
+    },
+    {
+      q: 'How do I match a region to its description?',
+      a: 'The photo number matches the list number. Select a region or its numbered list entry: both turn green and the list scrolls to the description. Toolbar names appear on hover or keyboard focus.',
     },
   ],
   video: {
@@ -210,8 +218,8 @@ export const inspectionGuideRu: SectionGuide = {
     'Помогите системе понять, как должно выглядеть рабочее место после смены. Отмечайте видимые проблемы и описывайте их. Так мы собираем проверенные примеры для будущего автоматического поиска проблем; сейчас окончательную оценку даёт человек.',
   steps: [
     'Откройте «Чистота и передача», разверните отчёт и нажмите на фото. Просмотрите его целиком; при необходимости нажмите «Увеличить».',
-    'В «Требования к рабочему месту» запишите известные правила: например, «После смены стол должен быть пустым, инструменты — на панели». Не придумывайте требований.',
-    'Если видите проблему, выберите «Прямоугольник» и обведите её, или «Многоугольник» — нажимайте на вершины и замкните контур. Для каждой области выберите категорию и опишите в «Что не так» конкретное наблюдение: «Грязная тряпка оставлена на столе».',
+    'Просмотрите список «Чего не должно быть на фото». Его задают в чек-листе отдельно для каждой зоны.',
+    'Если видите проблему, выберите «Прямоугольник» и обведите её, или «Многоугольник» — нажимайте на вершины и замкните контур. Для каждой области опишите в «Что не так» конкретное наблюдение: «Грязная тряпка оставлена на столе».',
     'Выберите результат: «Есть проблемы» — отметили недостатки; «Проблем не найдено» — проверили видимую зону и недостатков нет; «Нельзя оценить» — объясните, чего не видно. Если проверка не завершена, оставьте «Ещё не проверено».',
     'Нажмите «Сохранить изменения». Фото не меняется: отдельно сохраняются области, описания и результат. Сохраните изменения перед переходом к другому фото. Счётчик показывает изменённые поля и области; ниже виден их список. После сохранения у фото появится отметка; незавершённая проверка обозначается отдельно.',
     'При желании нажмите «Анализировать с AI» даже до сохранения или заполнения полей. Прочитайте предположения AI. Только верные добавьте кнопкой «Добавить в мою разметку», исправьте неточности и сохраните проверку ещё раз.',
@@ -239,11 +247,11 @@ export const inspectionGuideRu: SectionGuide = {
     },
     {
       q: 'Как написать полезный комментарий?',
-      a: 'Пишите, что видно и где: «Пыль на нижней полке», «Ключ оставлен в зоне, которая должна быть пустой». Избегайте только «плохо» или «не убрали» и не приписывайте человеку намерения. Если категория не подходит, выберите «Другая проблема».',
+      a: 'Пишите, что видно и где: «Пыль на нижней полке», «Ключ оставлен в зоне, которая должна быть пустой». Избегайте только «плохо» или «не убрали» и не приписывайте человеку намерения.',
     },
     {
       q: 'Инструмент на фото — всегда проблема?',
-      a: 'Нет. Важно правило этой зоны. На панели инструмент может быть на своём месте, а на столе, который должен быть пустым, — нарушать требование. Опишите известное правило в поле требований.',
+      a: 'Нет. Важно правило этой зоны. На панели инструмент может быть на своём месте, а на столе, который должен быть пустым, — нарушать требование. Проверьте список запрещённых предметов для этой зоны в чек-листе.',
     },
     {
       q: 'Что делать с чистым фото без проблем?',
@@ -255,7 +263,7 @@ export const inspectionGuideRu: SectionGuide = {
     },
     {
       q: 'Почему кнопка анализа выключена?',
-      a: 'AI доступен до сохранения и даже с пустыми полями. Он учитывает текущие требования к рабочему месту и не сохраняет вашу проверку автоматически. Кнопка временно недоступна при сохранении или уже запущенном анализе.',
+      a: 'AI доступен до сохранения и даже с пустыми полями. Он учитывает список предметов из чек-листа для этой зоны и не сохраняет вашу проверку автоматически. Кнопка временно недоступна при сохранении или уже запущенном анализе.',
     },
     {
       q: 'Можно ли доверять AI без проверки?',
@@ -294,8 +302,12 @@ export const inspectionGuideRu: SectionGuide = {
       a: 'Для пояснения результата всего осмотра, например «Фото тёмное, состояние пола не видно». Она необязательна, кроме результата «Нельзя оценить», когда нужна причина. Отдельные проблемы описывайте в «Что не так» возле каждой области. Это заметка мастера, а не инструкция для AI.',
     },
     {
-      q: 'Обязательно ли заполнять требования перед анализом AI?',
-      a: 'Нет. AI может искать видимые проблемы без этого поля. Укажите известные правила, чтобы объяснить, где разрешено оставлять предметы. Предварительное сохранение не требуется; окончательный вывод делает мастер.',
+      q: 'Где изменить список предметов для AI?',
+      a: 'В настройках чек-листа выберите зону и сохраните список предметов. В редакторе фото он показан для справки. Ручной анализ не требует предварительного сохранения разметки.',
+    },
+    {
+      q: 'Как сопоставить область с описанием?',
+      a: 'Номер на фото соответствует номеру в списке. Нажмите область или её номер в списке: оба выделятся зелёным, а список прокрутится к описанию. Названия кнопок над фото показаны при наведении или фокусе с клавиатуры.',
     },
   ],
   video: {

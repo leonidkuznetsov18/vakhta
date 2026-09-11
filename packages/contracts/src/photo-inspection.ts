@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ProhibitedPhotoItems } from './checklist-photo-rules.js';
 
 export const INSPECTION_MODEL = '@cf/google/gemma-4-26b-a4b-it';
 export const INSPECTION_PROMPT_VERSION = 'workplace-v1';
@@ -146,6 +147,7 @@ export const InspectionRunView = z.object({
 });
 export type InspectionRunView = z.infer<typeof InspectionRunView>;
 export const PhotoInspectionView = z.object({
+  prohibitedItems: ProhibitedPhotoItems.optional(),
   context: InspectionContext,
   version: z.number().int().nonnegative(),
   review: InspectionReview,

@@ -12,6 +12,7 @@ import {
   handoverMedia,
   handoverRecords,
   checklistDefinitions,
+  checklistPhotoRules,
   mediaObjects,
   photoInspections,
   photoInspectionRevisions,
@@ -198,8 +199,25 @@ export class PhotoInspectionService {
       : [];
     const awaiting =
       automatic && automatic.status !== 'PENDING' && automatic.id !== row?.reviewedAutomaticRunId;
+    const [rules] = source.context.zoneId
+      ? await this.db
+          .select({ items: checklistPhotoRules.items })
+          .from(checklistPhotoRules)
+          .innerJoin(
+            checklistDefinitions,
+            eq(checklistDefinitions.familyId, checklistPhotoRules.familyId),
+          )
+          .where(
+            and(
+              eq(checklistDefinitions.id, source.context.checklistDefinitionId),
+              eq(checklistPhotoRules.zoneId, source.context.zoneId),
+            ),
+          )
+          .limit(1)
+      : [];
     const review = InspectionReview.parse(row?.review ?? EMPTY_REVIEW);
     return PhotoInspectionView.parse({
+      prohibitedItems: rules?.items ?? [],
       automaticRunId: awaiting ? automatic.id : null,
       automaticReview: awaiting
         ? automaticReviewDraft(review, automatic.id, automatic.prediction)

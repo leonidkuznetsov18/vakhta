@@ -5,7 +5,7 @@ Status: implemented, initial release v0.76.0, 2026-09-11.
 ## Outcome
 
 On Cleanliness and handover, a master opens a checklist photo, marks visible problems with rectangles
-or polygons, chooses a category and adds a comment. A separate review records unreviewed, compliant,
+or polygons and describes what is wrong in free text. A separate review records unreviewed, compliant,
 problems or not assessable. Empty annotations alone never mean compliant. The master can request
 Gemma 4 analysis and explicitly copy individual suggestions into the human review before saving.
 
@@ -20,7 +20,7 @@ Gemma 4 analysis and explicitly copy individual suggestions into the human revie
   viewers can read within their scope. Completed handovers permit this independent dataset review,
   without reopening operational decisions, notifications, scoring or shift state.
 - Analyze with AI is an optional helper, available with empty or unsaved form fields. Only saving or
-  a running analysis temporarily disables it. Current workplace guidance is snapshotted for the run;
+  a running analysis temporarily disables it. The displayed checklist/zone object list is snapshotted for a manual run;
   analysis never saves the human review. Suggestions still require explicit human acceptance.
 - Save changes shows the number of changed fields and regions compared with the last saved version,
   plus a readable summary. One edited region counts once; reverting edits removes them from the count.
@@ -42,8 +42,8 @@ Gemma 4 analysis and explicitly copy individual suggestions into the human revie
 ## Operator flow
 
 Open photo → mark regions and describe observations → choose review outcome → save.
-Optionally enter workplace guidance, then request AI → inspect suggestions → copy useful
-findings and correct them → save the human review. Guidance describes the visible requirements,
+Read the checklist/zone object list, then request AI → inspect suggestions → copy useful
+findings and correct them → save the human review. The object list describes the visible requirements,
 including what belongs in a zone; the model must not invent workplace rules.
 
 ## Pilot
@@ -90,7 +90,7 @@ annotation exists, including after editing its text/category/geometry and saving
 the annotation returns the original option; copying it again uses the original AI content. When all
 options are copied, the panel explains that deletion restores them. Separate runs remain independent.
 
-Workplace requirements are optional for analysis and require no prior save. The general photo note
+The editor displays the current checklist/zone object list instead of an editable requirements field. Manual analysis requires no prior save. The general photo note
 explains the overall human review, is optional except for Not assessable, and is not an AI instruction.
 Its inline help and example distinguish it from each region's What is wrong description.
 
@@ -144,3 +144,14 @@ Only this human decision affects operational remarks and employee points. AI nev
 violation, awards/deducts points, or trains itself merely by receiving corrected examples.
 
 The manual **Analyze with AI** helper stays available independently of the automatic flow.
+
+## Numbered region review
+
+The editor shows the configured checklist/zone prohibited objects as a read-only list. Each region
+has a matching number on the image and in the description list. Selection highlights both in green
+and scrolls the list to the selected description. Numbers follow the current list after deletion;
+persisted UUIDs and AI source references remain stable. Region descriptions are free text; the
+category selector is removed, while existing category/guidance data remains preserved in exports
+and stored revisions. New manual regions retain the existing OTHER category internally.
+The image toolbar uses larger icon-only controls with localized hover/focus tooltips and accessible
+names. Save/Analyze remain labeled primary actions.

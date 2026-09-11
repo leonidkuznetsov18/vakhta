@@ -113,13 +113,13 @@
           image; use Zoom in when needed.
         </li>
         <li>
-          Enter known rules in Workplace requirements, such as “The table must be clear after the
-          shift; tools belong on the panel.” Do not invent rules.
+          Read What must not appear in the photo. This list is configured in the checklist
+          separately for each zone.
         </li>
         <li>
           For a visible problem, choose Rectangle and drag around it, or choose Polygon, click its
-          corners and close the outline. Select a category and describe each region in What is
-          wrong, for example “Dirty rag left on the table.”
+          corners and close the outline. Describe each region in What is wrong, for example “Dirty
+          rag left on the table.”
         </li>
         <li>
           Choose the outcome: Problems found for marked issues; No problems found after inspecting
@@ -139,6 +139,15 @@
         </li>
       </ol>
       <h2>Questions and answers</h2>
+      <section>
+        <h3>How do automatic analysis and Master Review work?</h3>
+        <p>
+          The master configures prohibited objects for a checklist and zone. After submission AI
+          inspects the photos and proposes boxes. In Master Review, inspect each photo, correct or
+          delete mistaken findings, choose an outcome and save. Then finish the report review. A
+          person must review even when AI finds nothing or fails.
+        </p>
+      </section>
       <section>
         <h3>What is a photo annotation?</h3>
         <p>
@@ -175,14 +184,14 @@
         <p>
           State what is visible and where: “Dust on the lower shelf” or “Wrench left in an area that
           must stay clear.” Avoid only “bad” or “not cleaned,” and do not infer someone’s
-          intentions. Use Other problem when no category fits.
+          intentions.
         </p>
       </section>
       <section>
         <h3>Is a visible tool always a problem?</h3>
         <p>
           No. The rule for that area matters. A tool may belong on its panel but violate a
-          clear-table rule. Describe the known rule in Workplace requirements.
+          clear-table rule. Check the prohibited-item list for this zone in the checklist.
         </p>
       </section>
       <section>
@@ -204,8 +213,8 @@
       <section>
         <h3>Why is Analyze disabled?</h3>
         <p>
-          AI is available before saving and with empty fields. It uses the current workplace
-          requirements and does not automatically save your review. The button is temporarily
+          AI is available before saving and with empty fields. It uses the checklist object list for
+          this zone and does not automatically save your review. The button is temporarily
           unavailable while saving or while an analysis is running.
         </p>
       </section>
@@ -284,10 +293,18 @@
         </p>
       </section>
       <section>
-        <h3>Are workplace requirements required before AI analysis?</h3>
+        <h3>Where can I change the object list for AI?</h3>
         <p>
-          No. AI can look for visible problems without this field. Enter known rules to explain
-          where objects are allowed. No prior save is needed; the master makes the final assessment.
+          In checklist settings, select the zone and save its object list. The photo editor displays
+          that list for reference. Manual analysis does not require saving annotations first.
+        </p>
+      </section>
+      <section>
+        <h3>How do I match a region to its description?</h3>
+        <p>
+          The photo number matches the list number. Select a region or its numbered list entry: both
+          turn green and the list scrolls to the description. Toolbar names appear on hover or
+          keyboard focus.
         </p>
       </section>
     </main>

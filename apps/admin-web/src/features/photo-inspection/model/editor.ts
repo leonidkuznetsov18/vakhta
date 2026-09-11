@@ -1,3 +1,4 @@
+import { attachRegionList } from './region-navigation';
 import { availableSuggestions, linkLegacySuggestions } from './suggestions';
 import { InspectionViewport, INSPECTION_ZOOM } from './viewport';
 export { INSPECTION_ZOOM } from './viewport';
@@ -12,6 +13,7 @@ import {
   type ImageAnnotator,
 } from '@annotorious/annotorious';
 import {
+  prohibitedPhotoInstruction,
   InspectionGeometry,
   InspectionReview,
   type InspectionAnnotation,
@@ -121,6 +123,7 @@ export class InspectionEditor {
       canPan: () => this.store.getState().tool === 'select',
     });
   }
+  readonly attachRegionList = (element: HTMLDivElement | null) => attachRegionList(this, element);
   readonly mount = (image: HTMLImageElement | null) => {
     if (!image) return;
     this.store.setState({ imageStatus: 'loading' });
@@ -130,6 +133,12 @@ export class InspectionEditor {
       this.height = image.naturalHeight;
       this.canvas = createImageAnnotator(image, {
         autoSave: true,
+        style: (_annotation, state) => ({
+          stroke: state?.selected ? '#059669' : '#ffffff',
+          strokeWidth: state?.selected ? 3 : 2,
+          fill: state?.selected ? '#059669' : '#ffffff',
+          fillOpacity: state?.selected ? 0.18 : 0.08,
+        }),
         drawingEnabled: false,
         userSelectAction: this.initial.canEdit ? UserSelectAction.EDIT : UserSelectAction.SELECT,
       });
@@ -298,9 +307,9 @@ export class InspectionEditor {
     });
     this.store.setState({ invalidGeometry: false });
   }
-  analysisRequest() {
-    const { version, review } = this.store.getState();
-    const guidance = review.guidance.trim();
+  analysisRequest(items = this.initial.prohibitedItems ?? []) {
+    const { version } = this.store.getState();
+    const guidance = items.length ? prohibitedPhotoInstruction(items) : '';
     if (
       !this.analysis ||
       this.analysis.version !== version ||

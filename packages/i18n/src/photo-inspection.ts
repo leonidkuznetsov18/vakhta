@@ -1,4 +1,9 @@
 export const inspectionUk = {
+  region: 'Область',
+  prohibitedItems: 'Що не повинно бути на фото',
+  noProhibitedItems: 'Для цього чекліста й зони список ще не заповнений.',
+  prohibitedItemsHint:
+    'Список налаштований у чеклісті для цієї зони. AI використовує його під час аналізу.',
   automaticReview:
     'AI підготував припущення. Перевірте кожну рамку: виправте або видаліть хибні, додайте пропущені предмети. Оберіть результат перевірки й збережіть — це підтвердить ваш огляд фото.',
   removeSelected: 'Видалити вибрану область',
@@ -123,6 +128,11 @@ export const inspectionUk = {
   },
 };
 export const inspectionEn = {
+  region: 'Region',
+  prohibitedItems: 'What must not appear in the photo',
+  noProhibitedItems: 'No items have been configured for this checklist and zone.',
+  prohibitedItemsHint:
+    'This list is configured in the checklist for this zone. AI uses it during analysis.',
   automaticReview:
     'AI prepared suggestions. Review every box: correct or delete mistakes and add missed objects. Choose the review outcome and save to confirm your inspection of this photo.',
   removeSelected: 'Delete selected region',
@@ -245,6 +255,10 @@ export const inspectionEn = {
   },
 };
 export const inspectionRu = {
+  region: 'Область',
+  prohibitedItems: 'Чего не должно быть на фото',
+  noProhibitedItems: 'Для этого чек-листа и зоны список ещё не заполнен.',
+  prohibitedItemsHint: 'Список настроен в чек-листе для этой зоны. AI использует его при анализе.',
   automaticReview:
     'AI подготовил предположения. Проверьте каждую рамку: исправьте или удалите ошибочные, добавьте пропущенные предметы. Выберите результат проверки и сохраните — это подтвердит ваш осмотр фото.',
   removeSelected: 'Удалить выбранную область',
