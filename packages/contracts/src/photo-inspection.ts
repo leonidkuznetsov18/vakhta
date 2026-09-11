@@ -4,7 +4,7 @@ import { Uuid } from './common.js';
 
 export const INSPECTION_MODEL = '@cf/google/gemma-4-26b-a4b-it';
 /** Tiled search driven by the checklist object list; see apps/worker photo-inspection. */
-export const INSPECTION_PROMPT_VERSION = 'workplace-v3';
+export const INSPECTION_PROMPT_VERSION = 'workplace-v4';
 const coordinate = z.number().finite().min(0).max(1);
 export const InspectionGeometry = z.discriminatedUnion('type', [
   z

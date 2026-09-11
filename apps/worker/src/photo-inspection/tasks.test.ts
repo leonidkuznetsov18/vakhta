@@ -24,6 +24,7 @@ import {
   inspectionPrompt,
   inspectionTiles,
   mergeDetections,
+  voteDetections,
   parseTileCompletion,
   toPrediction,
 } from './gemma.js';
@@ -282,6 +283,23 @@ describe('durable photo analysis', () => {
     expect(result.summary).toBe('Ганчірки: 1');
     expect(toPrediction([], rules, 3, 4).status).toBe('NOT_ASSESSABLE');
     expect(toPrediction([], rules, 1, 4).status).toBe('COMPLIANT');
+  });
+  it('keeps an instance only when most rounds located it and treats shifted small boxes as one', () => {
+    const cup = { rule: 1, label: 'стаканчик', x: 0.4, y: 0.25, width: 0.026, height: 0.025 };
+    // The same cup a few pixels lower in another round: too little overlap for IoU, same center.
+    const shifted = { ...cup, y: 0.262 };
+    const strayBottle = { rule: 0, label: 'пляшка', x: 0.4, y: 0.25, width: 0.026, height: 0.025 };
+    const rounds = [[cup, strayBottle], [shifted], [cup]];
+    const kept = voteDetections(rounds, 2);
+    expect(kept).toHaveLength(1);
+    expect(kept[0]).toMatchObject({ rule: 1 });
+    expect(voteDetections(rounds, 3)).toHaveLength(1);
+    expect(voteDetections([[strayBottle], [], []], 2)).toHaveLength(0);
+    expect(voteDetections([[strayBottle], [strayBottle], []], 2)).toHaveLength(1);
+    // Two object types on one box: the type located in more rounds keeps it; a tie keeps both.
+    const twoLabels = voteDetections([[cup, strayBottle], [cup, strayBottle], [cup]], 2);
+    expect(twoLabels.map((d) => d.rule)).toEqual([1]);
+    expect(voteDetections([[cup, strayBottle], [cup, strayBottle], []], 2)).toHaveLength(2);
   });
   it('rejects malformed and truncated model results and keeps rule text as data', () => {
     const tile = { left: 0, top: 0, width: 10, height: 10 };

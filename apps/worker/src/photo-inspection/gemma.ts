@@ -15,8 +15,9 @@ export class InspectionFailure extends Error {
   constructor(
     readonly code: string,
     readonly retryable = false,
+    detail?: string,
   ) {
-    super(code);
+    super(detail ? `${code}: ${detail}` : code);
   }
 }
 export interface InspectionInput {
@@ -156,15 +157,25 @@ function intersection(a: Detection, b: Detection): number {
   const y2 = Math.min(a.y + a.height, b.y + b.height);
   return Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
 }
+function centerInside(a: Detection, b: Detection): boolean {
+  const cx = a.x + a.width / 2;
+  const cy = a.y + a.height / 2;
+  return cx >= b.x && cx <= b.x + b.width && cy >= b.y && cy <= b.y + b.height;
+}
 /**
- * Two boxes of one object type describe one instance when they mostly overlap, or when the
- * smaller box lies mostly inside the larger one: a tile edge often clips an instance in half.
+ * Two boxes of one object type describe one instance when they mostly overlap, when the smaller
+ * box lies mostly inside the larger one (a tile edge often clips an instance in half), or when each
+ * box holds the other's center: small objects get boxes a few pixels apart from one round to the next.
  */
 export function sameInstance(a: Detection, b: Detection): boolean {
   const inter = intersection(a, b);
   const areaA = a.width * a.height;
   const areaB = b.width * b.height;
-  return inter / (areaA + areaB - inter) > 0.4 || inter / Math.min(areaA, areaB) > 0.7;
+  return (
+    inter / (areaA + areaB - inter) > 0.4 ||
+    inter / Math.min(areaA, areaB) > 0.7 ||
+    (centerInside(a, b) && centerInside(b, a))
+  );
 }
 /** One instance seen from several tiles collapses to the largest box of that object type. */
 export function mergeDetections(detections: readonly Detection[]): Detection[] {
@@ -175,6 +186,55 @@ export function mergeDetections(detections: readonly Detection[]): Detection[] {
   }
   return merged.sort((a, b) => a.y - b.y || a.x - b.x);
 }
+/**
+ * Majority vote over independent rounds of the same request: the provider does not answer the
+ * same photo identically every time even at temperature 0, and the disagreements are almost
+ * always false positives (a cup called a bottle once in three rounds). An instance stays when at
+ * least `minVotes` rounds located it; the largest box of that instance represents it.
+ */
+export function voteDetections(
+  rounds: readonly (readonly Detection[])[],
+  minVotes: number,
+): Detection[] {
+  const votesFor = (candidate: Detection) =>
+    rounds.filter((round) =>
+      round.some((seen) => seen.rule === candidate.rule && sameInstance(candidate, seen)),
+    ).length;
+  const kept = mergeDetections(rounds.flat())
+    .map((detection) => ({ detection, votes: votesFor(detection) }))
+    .filter(({ votes }) => votes >= minVotes);
+  // One label per instance: when two object types claim the same box (a paper cup called a bottle
+  // by the bottle request), the type that located it in more rounds wins; a tie keeps both for the
+  // reviewer to decide.
+  return kept
+    .filter(
+      ({ detection, votes }) =>
+        !kept.some(
+          (other) =>
+            other.detection.rule !== detection.rule &&
+            other.votes > votes &&
+            sameInstance(other.detection, detection),
+        ),
+    )
+    .map(({ detection }) => detection);
+}
+/** Runs `tasks` with at most `limit` in flight; the first failure rejects, like Promise.all. */
+async function inParallel<T>(tasks: readonly (() => Promise<T>)[], limit: number): Promise<T[]> {
+  const results: T[] = new Array<T>(tasks.length);
+  let next = 0;
+  const lane = async () => {
+    while (next < tasks.length) {
+      const index = next++;
+      results[index] = await tasks[index]!();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, lane));
+  return results;
+}
+/** Independent rounds per photo and the agreement needed to keep an instance. */
+export const INSPECTION_ROUNDS = 3;
+export const INSPECTION_MIN_VOTES = 2;
+const INSPECTION_CONCURRENCY = 8;
 export function toPrediction(
   detections: readonly Detection[],
   rules: InspectionRules,
@@ -277,7 +337,32 @@ export class CloudflareInspectionAnalyzer implements InspectionAnalyzer {
     if (!meta.width || !meta.height) throw new InspectionFailure('IMAGE_UNAVAILABLE');
     return { upright, width: meta.width, height: meta.height };
   }
+  /**
+   * One model request. A throttled or failed gateway answer (429, 5xx) is retried a few times with
+   * a short pause before the whole photo is given up: dozens of requests per photo make a single
+   * transient refusal likely, and repeating the entire analysis would cost far more.
+   */
   private async complete(image: Buffer, text: string, signal: AbortSignal): Promise<unknown> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.request(image, text, signal);
+      } catch (error) {
+        if (!(error instanceof InspectionFailure) || !error.retryable || attempt >= 4) throw error;
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(resolve, 1500 * attempt);
+          signal.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(timer);
+              reject(signal.reason instanceof Error ? signal.reason : new Error('aborted'));
+            },
+            { once: true },
+          );
+        });
+      }
+    }
+  }
+  private async request(image: Buffer, text: string, signal: AbortSignal): Promise<unknown> {
     const response = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${this.account}/ai/v1/chat/completions`,
       {
@@ -312,6 +397,7 @@ export class CloudflareInspectionAnalyzer implements InspectionAnalyzer {
       throw new InspectionFailure(
         response.status === 401 || response.status === 403 ? 'AI_AUTH_FAILED' : 'AI_UNAVAILABLE',
         response.status === 429 || response.status >= 500,
+        `HTTP ${response.status}`,
       );
     const body = await response.text();
     if (body.length > 100_000) throw new InspectionFailure('INVALID_RESPONSE', true);
@@ -322,10 +408,11 @@ export class CloudflareInspectionAnalyzer implements InspectionAnalyzer {
     }
   }
   /**
-   * Two passes over the four quadrants, then the union of everything seen: the whole list at once
-   * finds the obvious objects, one object type at a time finds the ones the model skips in a crowd.
-   * Asking for every type in both passes (not only the missing ones) keeps runs alike: a box that
-   * one pass misses the other still contributes, so a second analysis rarely disagrees with the first.
+   * One object type per request over the four quadrants, repeated in independent rounds, then a
+   * majority vote. A request that lists every object at once was dropped: it depends on the whole
+   * list (adding one rule changed what it found for the others), it never found what the single
+   * object requests missed, and it added near-duplicate boxes. Single-object requests answer the
+   * same way in most rounds; the vote removes the occasional stray box.
    */
   async analyze(input: InspectionInput, signal: AbortSignal): Promise<InspectionResult> {
     if (input.model !== '@cf/google/gemma-4-26b-a4b-it')
@@ -342,40 +429,40 @@ export class CloudflareInspectionAnalyzer implements InspectionAnalyzer {
       })),
     );
     const usage = { prompt: 0, completion: 0, calls: 0 };
-    const detections: Detection[] = [];
+    const rounds: Detection[][] = Array.from({ length: INSPECTION_ROUNDS }, () => []);
     let unreadable = 0;
-    // The four tiles of one pass are independent requests; the passes run one after another.
-    const run = async (ruleIndexes: number[]) => {
-      const subset = ruleIndexes.map((index) => input.rules[index]!);
-      const outcomes = await Promise.all(
-        tiles.map(async ({ tile, jpeg }) => {
+    const requests = rounds.flatMap((round) =>
+      input.rules.flatMap((rule, index) =>
+        tiles.map(({ tile, jpeg }) => async () => {
           signal.throwIfAborted();
-          return parseTileCompletion(
-            await this.complete(jpeg, inspectionPrompt(subset), signal),
+          const outcome = parseTileCompletion(
+            await this.complete(jpeg, inspectionPrompt([rule]), signal),
             tile,
             image,
-            ruleIndexes,
+            [index],
           );
+          usage.prompt += outcome.usage.prompt;
+          usage.completion += outcome.usage.completion;
+          usage.calls++;
+          if (outcome.unreadable) unreadable++;
+          round.push(...outcome.detections);
         }),
-      );
-      for (const outcome of outcomes) {
-        usage.prompt += outcome.usage.prompt;
-        usage.completion += outcome.usage.completion;
-        usage.calls++;
-        if (outcome.unreadable) unreadable++;
-        detections.push(...outcome.detections);
-      }
-    };
-    const all = input.rules.map((_rule, index) => index);
-    await run(all);
-    for (const index of all) await run([index]);
+      ),
+    );
+    await inParallel(requests, INSPECTION_CONCURRENCY);
     return {
-      prediction: toPrediction(mergeDetections(detections), input.rules, unreadable, tiles.length),
+      prediction: toPrediction(
+        voteDetections(rounds, INSPECTION_MIN_VOTES),
+        input.rules,
+        unreadable,
+        requests.length,
+      ),
       usage: {
         ...usage,
         tiles: tiles.length,
-        passes: 1 + all.length,
-        promptVersion: 'workplace-v3',
+        passes: input.rules.length,
+        rounds: INSPECTION_ROUNDS,
+        promptVersion: 'workplace-v4',
       },
     };
   }
