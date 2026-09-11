@@ -637,6 +637,8 @@ export interface Messages {
       readonly search: string;
       readonly missingSolution: string;
       readonly legacyComment: string;
+      readonly dateRangeHint: string;
+      readonly clearDates: string;
       readonly period: string;
       readonly allDates: string;
       readonly day: string;

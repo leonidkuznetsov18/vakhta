@@ -3,7 +3,9 @@ import { messages } from '@vakhta/i18n';
 import { StateFilter } from '@/shared/ui/state-filter';
 import { DataTable } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
-import { CalendarPeriodField } from '@/shared/ui/calendar-period-field';
+import { DateField } from '@/components/app/date-picker';
+import { IconButton } from '@/shared/ui/icon-button';
+import { XIcon } from 'lucide-react';
 import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Lightbox } from '@/components/app/photo';
@@ -50,17 +52,35 @@ export function IncidentWorkspace() {
           options={org?.sites.map((s) => ({ value: s.id, label: s.name })) ?? []}
           className="w-56"
         />
-        <CalendarPeriodField
-          label={i.period}
-          from={date}
-          to={model.endDate}
-          mode={periodMode}
-          labels={{ day: i.day, month: i.month, year: i.year, all: i.allDates }}
-          open={model.calendarOpen}
-          onOpenChange={model.setCalendarOpen}
-          onApply={model.applyPeriod}
-          onClear={model.clearPeriod}
+        <DateField
+          label={i.from}
+          hint={i.dateRangeHint}
+          value={model.dates.from}
+          maxDate={model.dates.to}
+          onChange={(value) => model.changeDate('from', value)}
+          className="w-full sm:w-56"
         />
+        <DateField
+          label={i.to}
+          hint={i.dateRangeHint}
+          value={model.dates.to}
+          minDate={model.dates.from}
+          onChange={(value) => model.changeDate('to', value)}
+          className="w-full sm:w-56"
+        />
+        {(model.dates.from || model.dates.to) && (
+          <IconButton
+            icon={XIcon}
+            label={i.clearDates}
+            tooltip={i.clearDates}
+            size="icon"
+            aria-label={i.clearDates}
+            variant="ghost"
+            onClick={model.clearPeriod}
+          >
+            <span className="sr-only">{i.clearDates}</span>
+          </IconButton>
+        )}
         <div className="flex items-center gap-1">
           <StateFilter
             value={scope}

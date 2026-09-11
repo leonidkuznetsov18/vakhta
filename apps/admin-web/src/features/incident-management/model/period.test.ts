@@ -22,3 +22,13 @@ describe('incident inclusive calendar ranges', () => {
     expect(incidentPeriod('all', '2026-01-01', 'Europe/Kyiv', '2028-01-01')).toEqual({});
   });
 });
+
+it('supports independent date bounds and clearing both fields', () => {
+  expect(incidentPeriod('range', '2026-10-25', 'Europe/Kyiv', '')).toEqual({
+    from: '2026-10-24T21:00:00.000Z',
+  });
+  expect(incidentPeriod('range', '', 'Europe/Kyiv', '2026-10-25')).toEqual({
+    to: '2026-10-25T22:00:00.000Z',
+  });
+  expect(incidentPeriod('range', '', 'Europe/Kyiv', '')).toEqual({});
+});

@@ -286,6 +286,30 @@ describe('IncidentsPage', () => {
       ).toBe(true),
     );
   });
+  it('shows independent date fields and clears their API bounds', async () => {
+    setUiState({
+      'incidents.period': 'range',
+      'incidents.date': '',
+      'incidents.endDate': '2026-10-25',
+    });
+    const calls = mockApi({ rows: [incident(INC, 'REPORTED')] });
+    render(<IncidentsPage />);
+    expect(screen.getByRole('button', { name: 'От' }).textContent).toContain('—');
+    expect(screen.getByRole('button', { name: 'До' }).textContent).toContain('25');
+    await waitFor(() => {
+      const list = calls.find((call) => call.path === '/admin/incidents');
+      expect(list).toBeDefined();
+      expect(new URLSearchParams(list?.search).has('from')).toBe(false);
+      expect(new URLSearchParams(list?.search).get('to')).toBe('2026-10-25T22:00:00.000Z');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Очистить даты' }));
+    await waitFor(() => {
+      const list = calls.filter((call) => call.path === '/admin/incidents').at(-1);
+      const params = new URLSearchParams(list?.search);
+      expect(params.has('from')).toBe(false);
+      expect(params.has('to')).toBe(false);
+    });
+  });
   it.each(['RESOLVED', 'CLOSED', 'REJECTED', 'DUPLICATE'])(
     'shows %s incidents as read-only information',
     async (status) => {

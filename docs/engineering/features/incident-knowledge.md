@@ -158,3 +158,16 @@ Verification: 12 focused route/incident tests, 10 catalog tests, i18n build, pan
 changed-code lint passed. Desktop and mobile preview screenshots were captured and inspected;
 browser navigation confirmed the old URL becomes #/incidents with All selected and no duplicate
 sidebar entry. Lean: proceed; one destination avoids choosing between two views of the same records.
+
+## 2026-09-11 — Separate incident date fields
+
+Owner requested the photo library's two-field date interaction. Reuse DateField for From and To,
+with the existing site-timezone conversion and an icon-only clear action. Either bound may be empty;
+the final day is inclusive. Calendar constraints prevent reversing the range. Legacy stored day,
+month and year selections expand into visible calendar dates without changing their query bounds.
+No API, permission, incident-history or statistics semantics changed. Removed obsolete picker state.
+
+Lean: simplify; both bounds are visible without opening a combined period selector. Seventeen
+focused incident/period/route tests passed; changed-code ESLint passed. Browser QA selected both
+dates, verified the disabled earlier end date and cleared the range. Screenshots at 1365px and
+390px were captured and inspected; mobile document width remained 390px. Panel typecheck and ten catalog tests also passed after concurrent package builds completed.

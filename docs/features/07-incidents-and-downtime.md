@@ -30,10 +30,11 @@ Resolved and closed records show only read-only information, photos and history.
 
 ### Period ranges
 
-The incident list provides a From/To filter. Day mode selects dates, month mode
-selects months without day cells, and year mode selects years. Choose both endpoints and press Apply;
-the last selected day/month/year is included completely, using the site's timezone. All time removes
-the date restriction. Selecting the same month or year twice creates a one-month or one-year range.
+The incident list provides separate From and To date fields, matching the photo library.
+Selecting a date updates the list and statistics. Either field may be empty to leave that bound
+unrestricted; both empty means all time. The final selected day is included completely in the site's
+timezone. The clear icon removes both bounds. Previously saved month/year ranges retain their full
+calendar boundaries in the new fields.
 
 ### First-response SLA
 

@@ -1,4 +1,3 @@
-import type { CalendarRange } from '@/shared/lib/calendar-range';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
@@ -22,7 +21,7 @@ import { notifySuccess } from '@/lib/toast';
 import { todayIso, formatDateTime } from '@/lib/format';
 import type { LightboxImage } from '@/components/app/photo';
 import { EyeIcon, CheckIcon } from 'lucide-react';
-import { incidentPeriod, type PeriodMode } from './period';
+import { incidentDates, incidentPeriod, type PeriodMode } from './period';
 
 const i = messages(currentLocale()).admin.incidents;
 type Draft = {
@@ -35,9 +34,8 @@ type Draft = {
 interface WorkspaceState {
   drafts: Record<string, Partial<Draft>>;
   lightbox: LightboxImage[];
-  calendarOpen: boolean;
 }
-const initialState = (): WorkspaceState => ({ drafts: {}, lightbox: [], calendarOpen: false });
+const initialState = (): WorkspaceState => ({ drafts: {}, lightbox: [] });
 const useWorkspaceState = create<WorkspaceState>(() => initialState());
 // Sign-out clears shared filters and also drops transient incident notes and signed photo URLs.
 useUiStore.subscribe((state, previous) => {
@@ -56,16 +54,14 @@ export function useIncidentWorkspace() {
   const { org, queryState: orgQuery } = useOrg();
   const [siteId, setSiteId] = usePersistentState(`${prefix}.siteId`, '');
   const [scope, setScopeValue] = usePersistentState<'open' | 'all'>(`${prefix}.scope`, 'open');
-  const [periodMode, setPeriodModeValue] = usePersistentState<PeriodMode>(
-    `${prefix}.period`,
-    'all',
-  );
+  const [periodMode] = usePersistentState<PeriodMode>(`${prefix}.period`, 'all');
   const [date] = usePersistentState(`${prefix}.date`, todayIso);
   const [endDate] = usePersistentState(`${prefix}.endDate`, date);
   const [openId, setOpenId] = useDeepLinkedId(prefix, `${prefix}.openId`);
-  const { drafts, lightbox, calendarOpen } = useWorkspaceState(useShallow((state) => state));
+  const { drafts, lightbox } = useWorkspaceState(useShallow((state) => state));
   const client = useQueryClient();
   const timezone = org?.sites.find((site) => site.id === siteId)?.timezone ?? 'Europe/Kyiv';
+  const dates = incidentDates(periodMode, date, endDate);
   const range = incidentPeriod(periodMode, date, timezone, endDate);
   const query = {
     ...(siteId ? { siteId } : {}),
@@ -179,8 +175,7 @@ export function useIncidentWorkspace() {
     setSiteId,
     scope,
     periodMode,
-    calendarOpen,
-    setCalendarOpen: (open: boolean) => useWorkspaceState.setState({ calendarOpen: open }),
+    dates,
     date,
     endDate,
     live,
@@ -199,18 +194,16 @@ export function useIncidentWorkspace() {
     setScope: (value: string) => {
       if (value === 'all' || value === 'open') setScopeValue(value);
     },
-    applyPeriod: (range: CalendarRange) => {
+    changeDate: (key: 'from' | 'to', value: string) => {
+      const next = { ...dates, [key]: value };
+      if (next.from && next.to && next.from > next.to) return;
       setUiState({
-        [`${prefix}.period`]: range.mode,
-        [`${prefix}.date`]: range.from,
-        [`${prefix}.endDate`]: range.to,
+        [`${prefix}.period`]: 'range',
+        [`${prefix}.date`]: next.from,
+        [`${prefix}.endDate`]: next.to,
       });
-      useWorkspaceState.setState({ calendarOpen: false });
     },
-    clearPeriod: () => {
-      setPeriodModeValue('all');
-      useWorkspaceState.setState({ calendarOpen: false });
-    },
+    clearPeriod: () => setUiState({ [`${prefix}.period`]: 'all' }),
     others: (row: IncidentView) =>
       rows
         .filter((item) => item.id !== row.id && item.status !== 'DUPLICATE')

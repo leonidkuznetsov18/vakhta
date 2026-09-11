@@ -758,6 +758,9 @@ export const en: Messages = {
       search: 'Search problem, cause, solution or employee',
       missingSolution: 'Solution not recorded yet',
       legacyComment: 'Previous comment',
+      dateRangeHint:
+        'Incident opening date. The final day is included. An empty field leaves that side of the range unrestricted.',
+      clearDates: 'Clear dates',
       period: 'Period',
       allDates: 'All time',
       day: 'Day',
@@ -1805,7 +1808,7 @@ export const en: Messages = {
         purpose:
           'Downtime and problems reported by employees or opened by the system: reasons, SLA, owners and closing with a decision.',
         steps: [
-          'Choose the site and period: day, month, year or all time. Switch from open incidents to all when needed.',
+          'Choose the site and From/To dates. Empty dates show all time. Switch from open incidents to all when needed.',
           'Open a row to see photos, the employee description and action history.',
           'Record the cause and how it was resolved. Save drafts at any time; both fields are required for Resolved.',
           'To find previous solutions, select "All" and search by cause or solution. The employee returns from downtime to work themselves.',
