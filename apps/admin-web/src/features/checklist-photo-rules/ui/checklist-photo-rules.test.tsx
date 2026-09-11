@@ -6,7 +6,13 @@ import { render } from '@/test-utils';
 import { rulesApi } from '../api/rules-api';
 import { ChecklistPhotoRules } from './checklist-photo-rules';
 vi.mock('../api/rules-api', () => ({
-  rulesApi: { get: vi.fn(), save: vi.fn(), objects: vi.fn(), createObject: vi.fn() },
+  rulesApi: {
+    get: vi.fn(),
+    save: vi.fn(),
+    objects: vi.fn(),
+    createObject: vi.fn(),
+    updateObject: vi.fn(),
+  },
   rulesKey: (d: string) => ['rules', d],
   photoObjectsKey: ['photo-objects'],
 }));
@@ -88,4 +94,38 @@ it('shows a read-only list for viewers', async () => {
   render(<ChecklistPhotoRules definitionId="definition" />);
   expect((await screen.findByText('Стаканчики — крім гнізд машини')).tagName).toBe('LI');
   expect(screen.queryByRole('button', { name: t.save })).toBeNull();
+});
+it('renames and retires catalog objects from the edit mode after confirmation', async () => {
+  vi.mocked(rulesApi.objects).mockResolvedValue(catalog);
+  vi.mocked(rulesApi.get).mockResolvedValue({
+    version: 1,
+    rules: [{ objectId: CUP, name: 'Стаканчики', note: '' }],
+    canEdit: true,
+  });
+  vi.mocked(rulesApi.updateObject).mockImplementation(async (id, input) => ({
+    id,
+    name: input.name ?? 'Стаканчики',
+    active: input.active ?? true,
+    color: '#0a84ff',
+  }));
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  render(<ChecklistPhotoRules definitionId="definition" />);
+  fireEvent.click(await screen.findByRole('button', { name: t.catalogEdit }));
+  const input = screen.getByRole('textbox', { name: 'Ганчірки' });
+  expect(
+    screen.getByRole('button', { name: `${t.renameSave}: Ганчірки` }).hasAttribute('disabled'),
+  ).toBe(true);
+  fireEvent.change(input, { target: { value: 'Ганчірка' } });
+  fireEvent.click(screen.getByRole('button', { name: `${t.renameSave}: Ганчірки` }));
+  await waitFor(() =>
+    expect(rulesApi.updateObject).toHaveBeenCalledWith(RAG, { name: 'Ганчірка' }),
+  );
+  // A declined confirmation keeps the object; an accepted one retires it and drops it from the list.
+  fireEvent.click(screen.getByRole('button', { name: `${t.deleteObject}: Стаканчики` }));
+  expect(rulesApi.updateObject).toHaveBeenCalledTimes(1);
+  confirm.mockReturnValue(true);
+  fireEvent.click(screen.getByRole('button', { name: `${t.deleteObject}: Стаканчики` }));
+  await waitFor(() => expect(rulesApi.updateObject).toHaveBeenCalledWith(CUP, { active: false }));
+  await waitFor(() => expect(screen.queryByText('Стаканчики', { selector: 'strong' })).toBeNull());
+  confirm.mockRestore();
 });

@@ -4,6 +4,7 @@ import {
   PhotoObjectView,
   PhotoObjectsView,
   SaveChecklistPhotoRules,
+  UpdatePhotoObject,
 } from '@vakhta/contracts';
 import { apiFetch } from '@/api';
 export const rulesKey = (definitionId: string) => ['checklist-photo-rules', definitionId];
@@ -29,6 +30,14 @@ export const rulesApi = {
       await apiFetch('/admin/photo-objects', {
         method: 'POST',
         body: JSON.stringify(CreatePhotoObject.parse(input)),
+      }),
+    );
+  },
+  async updateObject(id: string, input: UpdatePhotoObject) {
+    return PhotoObjectView.parse(
+      await apiFetch(`/admin/photo-objects/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(UpdatePhotoObject.parse(input)),
       }),
     );
   },

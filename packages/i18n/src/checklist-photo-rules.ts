@@ -11,6 +11,13 @@ export const photoRulesEn = {
   newObject: 'New object',
   newObjectPlaceholder: 'For example: pallet',
   createObject: 'Add to catalog',
+  catalogEdit: 'Edit catalog',
+  catalogDone: 'Done editing',
+  renameSave: 'Save name',
+  deleteObject: 'Remove from catalog',
+  deleteConfirm:
+    'Remove "{name}" from the catalog? It leaves every checklist list; saved photo regions keep the name.',
+  objectExists: 'Another catalog object already has this spelling.',
   note: 'Note (optional)',
   noteHint:
     'For the master and for AI: what such objects look like here, where they must not lie, and which cases are allowed. Up to 300 characters.',
@@ -39,6 +46,13 @@ export const photoRulesUk: ChecklistPhotoRulesMessages = {
   newObject: 'Новий обʼєкт',
   newObjectPlaceholder: 'Наприклад: піддон',
   createObject: 'Додати в каталог',
+  catalogEdit: 'Редагувати каталог',
+  catalogDone: 'Завершити редагування',
+  renameSave: 'Зберегти назву',
+  deleteObject: 'Видалити з каталогу',
+  deleteConfirm:
+    'Видалити «{name}» з каталогу? Обʼєкт зникне з усіх чек-листів; збережена розмітка фото збереже назву.',
+  objectExists: 'Інший обʼєкт каталогу вже має таке написання.',
   note: 'Уточнення (необовʼязково)',
   noteHint:
     'Для майстра і для AI: як такі обʼєкти виглядають тут, де їм не місце і які випадки дозволені. До 300 символів.',
@@ -66,6 +80,13 @@ export const photoRulesRu: ChecklistPhotoRulesMessages = {
   newObject: 'Новый объект',
   newObjectPlaceholder: 'Например: поддон',
   createObject: 'Добавить в каталог',
+  catalogEdit: 'Редактировать каталог',
+  catalogDone: 'Завершить редактирование',
+  renameSave: 'Сохранить название',
+  deleteObject: 'Удалить из каталога',
+  deleteConfirm:
+    'Удалить «{name}» из каталога? Объект исчезнет из всех чек-листов; сохранённая разметка фото сохранит название.',
+  objectExists: 'Другой объект каталога уже имеет такое написание.',
   note: 'Уточнение (необязательно)',
   noteHint:
     'Для мастера и для AI: как такие объекты выглядят здесь, где им не место и какие случаи разрешены. До 300 символов.',

@@ -43,6 +43,17 @@ export const PhotoObjectsView = z.object({
 export type PhotoObjectsView = z.infer<typeof PhotoObjectsView>;
 export const CreatePhotoObject = z.object({ name: z.string().trim().min(1).max(100) });
 export type CreatePhotoObject = z.infer<typeof CreatePhotoObject>;
+/**
+ * Rename an object or retire it. A retired object leaves every checklist list; saved regions
+ * keep its id and name, so history stays readable.
+ */
+export const UpdatePhotoObject = z
+  .object({ name: z.string().trim().min(1).max(100), active: z.literal(false) })
+  .partial()
+  .refine((input) => input.name !== undefined || input.active !== undefined, {
+    message: 'Nothing to change',
+  });
+export type UpdatePhotoObject = z.infer<typeof UpdatePhotoObject>;
 
 /**
  * Two spellings of one object type collapse to one catalog entry: case, surrounding spaces and a

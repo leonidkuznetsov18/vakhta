@@ -57,4 +57,30 @@ describe('photo object catalog', () => {
     expect((await service.create({ name: 'піддон' }, master)).id).toBe(created.id);
     expect((await service.list(master)).objects[0]?.active).toBe(true);
   });
+  it('renames an entry, refuses a spelling another entry owns, and retires an entry', async () => {
+    const rag = await service.create({ name: 'Ганчірка' }, master);
+    const cup = await service.create({ name: 'Стаканчик' }, master);
+    expect(cup.color).not.toBe(rag.color);
+    const renamed = await service.update(rag.id, { name: 'Ганчірка для верстата' }, master);
+    expect(renamed).toMatchObject({ id: rag.id, name: 'Ганчірка для верстата', color: rag.color });
+    await expect(
+      service.update(cup.id, { name: 'ганчірка для верстата' }, master),
+    ).rejects.toMatchObject({ code: 'PHOTO_OBJECT_EXISTS' });
+    await expect(
+      service.update('00000000-0000-4000-8000-000000000000', { active: false }, master),
+    ).rejects.toMatchObject({ code: 'PHOTO_OBJECT_NOT_FOUND' });
+    const retired = await service.update(cup.id, { active: false }, master);
+    expect(retired.active).toBe(false);
+    expect((await service.list(master)).objects.map((o) => [o.name, o.active])).toEqual([
+      ['Ганчірка для верстата', true],
+      ['Стаканчик', false],
+    ]);
+    const viewer: WebUser = {
+      ...master,
+      grants: [{ role: 'HR', scopeType: 'ENTERPRISE', scopeId: null }],
+    };
+    await expect(service.update(rag.id, { name: 'x' }, viewer)).rejects.toMatchObject({
+      code: 'INSPECTION_FORBIDDEN',
+    });
+  });
 });

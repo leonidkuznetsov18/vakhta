@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ChecklistPhotoRulesView, type PhotoObjectView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
-import { PlusIcon, SaveIcon } from 'lucide-react';
+import { CheckIcon, PencilIcon, PlusIcon, SaveIcon, Trash2Icon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { InfoTip } from '@/components/app/info-tip';
@@ -106,7 +106,37 @@ function RulesEditor({
       );
     },
   });
-  const busy = mutation.isPending || create.isPending;
+  // Catalog upkeep from the same form: rename an entry or retire it. A retired entry leaves every
+  // checklist list on the server, so the saved version is refreshed while draft edits are kept.
+  const [editing, setEditing] = useState(false);
+  const [renames, setRenames] = useState<Record<string, string>>({});
+  const refreshCatalog = () => client.invalidateQueries({ queryKey: photoObjectsKey });
+  const rename = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => rulesApi.updateObject(id, { name }),
+    retry: false,
+    onSuccess: (object) => {
+      setRenames((current) => {
+        const { [object.id]: _done, ...rest } = current;
+        return rest;
+      });
+      void refreshCatalog();
+      void client.invalidateQueries({ queryKey: rulesKey(definitionId) });
+    },
+  });
+  const retire = useMutation({
+    mutationFn: (id: string) => rulesApi.updateObject(id, { active: false }),
+    retry: false,
+    onSuccess: async (object) => {
+      void refreshCatalog();
+      setDraft((current) => current.filter((rule) => rule.objectId !== object.id));
+      const view = await client.fetchQuery({
+        queryKey: rulesKey(definitionId),
+        queryFn: ({ signal }) => rulesApi.get(definitionId, signal),
+      });
+      setSaved(view);
+    },
+  });
+  const busy = mutation.isPending || create.isPending || rename.isPending || retire.isPending;
   if (!initial.canEdit)
     return (
       <ul className="text-sm">
@@ -125,8 +155,100 @@ function RulesEditor({
         <span className="flex items-center gap-2 text-sm text-muted-foreground">
           {t.catalog}
           <InfoTip text={t.catalogHint} />
+          {canCreate && choices.length > 0 && (
+            <IconButton
+              icon={editing ? CheckIcon : PencilIcon}
+              label={editing ? t.catalogDone : t.catalogEdit}
+              tooltip={editing ? t.catalogDone : t.catalogEdit}
+              variant="ghost"
+              size="sm"
+              aria-pressed={editing}
+              disabled={busy}
+              onClick={() => setEditing((on) => !on)}
+            >
+              {editing ? t.catalogDone : t.catalogEdit}
+            </IconButton>
+          )}
         </span>
-        {choices.length ? (
+        {editing ? (
+          <ul className="flex flex-col gap-2" aria-label={t.catalogEdit}>
+            {choices.map((object) => {
+              const value = renames[object.id] ?? object.name;
+              const changed = value.trim() !== '' && value.trim() !== object.name;
+              const failed =
+                rename.error instanceof ApiError &&
+                rename.error.code === 'PHOTO_OBJECT_EXISTS' &&
+                rename.variables?.id === object.id;
+              return (
+                <li key={object.id} className="flex min-w-0 flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="inline-block size-3 shrink-0 rounded-sm border border-black/30"
+                      style={{ backgroundColor: object.color }}
+                    />
+                    <Input
+                      aria-label={object.name}
+                      value={value}
+                      maxLength={100}
+                      disabled={busy}
+                      onChange={(event) =>
+                        setRenames((current) => ({ ...current, [object.id]: event.target.value }))
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' && changed) {
+                          event.preventDefault();
+                          rename.mutate({ id: object.id, name: value.trim() });
+                        }
+                      }}
+                    />
+                    <IconButton
+                      icon={SaveIcon}
+                      label={`${t.renameSave}: ${object.name}`}
+                      tooltip={t.renameSave}
+                      variant="outline"
+                      size="icon-sm"
+                      disabled={busy || !changed}
+                      onClick={() => rename.mutate({ id: object.id, name: value.trim() })}
+                    >
+                      <span className="sr-only">
+                        {t.renameSave}: {object.name}
+                      </span>
+                    </IconButton>
+                    <IconButton
+                      icon={Trash2Icon}
+                      label={`${t.deleteObject}: ${object.name}`}
+                      tooltip={t.deleteObject}
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={busy}
+                      onClick={() => {
+                        if (window.confirm(t.deleteConfirm.replace('{name}', object.name)))
+                          retire.mutate(object.id);
+                      }}
+                    >
+                      <span className="sr-only">
+                        {t.deleteObject}: {object.name}
+                      </span>
+                    </IconButton>
+                  </div>
+                  {failed && (
+                    <p role="alert" className="text-sm text-destructive">
+                      {t.objectExists}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+            {((rename.error &&
+              !(rename.error instanceof ApiError && rename.error.code === 'PHOTO_OBJECT_EXISTS')) ||
+              retire.error) && (
+              <li role="alert" className="text-sm text-destructive">
+                {readError(retire.error ?? rename.error)}
+              </li>
+            )}
+          </ul>
+        ) : choices.length ? (
           <div className="flex flex-wrap gap-2" role="group" aria-label={t.catalog}>
             {choices.map((object) => (
               <Button

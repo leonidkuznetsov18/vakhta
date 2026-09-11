@@ -130,7 +130,11 @@ the region select and the help FAQ state this rule; the production catalog was n
 2026-09-11 (plural duplicates deactivated, their rules moved to the singular entry). Every catalog
 object owns one color, assigned on creation as the least used hue of a twelve-color palette and
 stored with the object, so a rule chip, a region card, a suggestion and the box on the photo show
-the same color on every screen and stay the same when the rule list changes. **Objects that must not appear in the photo** is one list per
+the same color on every screen and stay the same when the rule list changes.
+Reviewers maintain the catalog from the same form: **Edit catalog** turns the chips into rows
+where an entry can be renamed (its id, color, rules and regions follow the new spelling; a
+spelling another entry owns is refused) or removed after confirmation. A removed entry leaves
+every checklist list at once and stops being offered, while saved photo regions keep its name. **Objects that must not appear in the photo** is one list per
 checklist family, shown as saved the moment the checklist is expanded, with no zone to choose. Each
 object may carry a note for the master and the model (appearance, placement, allowed cases; up to
 300 characters). Rules survive a new checklist version and keep optimistic version checks and an

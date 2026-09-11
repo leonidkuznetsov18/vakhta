@@ -1,5 +1,5 @@
-import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
-import { CreatePhotoObject } from '@vakhta/contracts';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { CreatePhotoObject, UpdatePhotoObject, Uuid } from '@vakhta/contracts';
 import { CurrentUser, Roles, WebAuthGuard, type WebUser } from '../auth/web-auth.guard.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { PhotoObjectsService } from './photo-objects.service.js';
@@ -21,5 +21,14 @@ export class PhotoObjectsController {
     @CurrentUser() user: WebUser,
   ) {
     return this.objects.create(input, user);
+  }
+  @Patch(':id')
+  @Roles('ADMIN', 'PRODUCTION_HEAD', 'SHIFT_MASTER', 'CLEANLINESS_CONTROLLER')
+  update(
+    @Param('id', new ZodValidationPipe(Uuid)) id: string,
+    @Body(new ZodValidationPipe(UpdatePhotoObject)) input: UpdatePhotoObject,
+    @CurrentUser() user: WebUser,
+  ) {
+    return this.objects.update(id, input, user);
   }
 }
