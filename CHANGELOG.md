@@ -1,3 +1,21 @@
+## [0.84.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.83.1...v0.84.0) (2026-09-11)
+
+### Features
+
+* **photo-inspection:** add optional rule clarification ([b4261c6](https://github.com/leonidkuznetsov18/vakhta/commit/b4261c6a990b37469cc5620bae10db3db06d97af))
+
+### Bug fixes
+
+* **i18n:** distinguish units from responsibility zones ([3a1fe5d](https://github.com/leonidkuznetsov18/vakhta/commit/3a1fe5de06ecd1b42ac47b05e9179e0e48dc8fde))
+
+### Refactoring
+
+* **incidents:** remove duplicate knowledge base page ([51f85c0](https://github.com/leonidkuznetsov18/vakhta/commit/51f85c0568e8b7151595093a98d223a5a4fbe6dd))
+
+### Maintenance
+
+* **release:** integrate v0.83.1 metadata ([04d9df9](https://github.com/leonidkuznetsov18/vakhta/commit/04d9df978a904cf694a60d7fb4f278882acb6aaf))
+
 ## [0.83.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.83.0...v0.83.1) (2026-09-11)
 
 ### Bug fixes
