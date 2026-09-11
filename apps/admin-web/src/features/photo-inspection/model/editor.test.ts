@@ -275,6 +275,13 @@ describe('photo inspection form and geometry', () => {
     editor.toggleDrawingTool('rectangle');
     expect(editor.store.getState().tool).toBe('select');
     expect(hasReviewChanges(editor.store.getState())).toBe(false);
+    editor.unlock();
+    // A selected region would swallow the first click; enabling a tool drops the selection.
+    editor.addBox();
+    expect(editor.store.getState().selected).not.toBeNull();
+    editor.toggleDrawingTool('polygon');
+    expect(editor.store.getState().tool).toBe('polygon');
+    expect(editor.store.getState().selected).toBeNull();
   });
   it('detects changes against the saved review and forgets reverted ones', () => {
     const editor = new InspectionEditor({

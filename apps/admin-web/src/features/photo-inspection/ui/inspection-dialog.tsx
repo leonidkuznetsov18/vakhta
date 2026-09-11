@@ -17,8 +17,8 @@ import { ApiError } from '@/api';
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
+  PentagonIcon,
   SquareIcon,
-  SquarePlusIcon,
   ZoomInIcon,
   ZoomOutIcon,
   DownloadIcon,
@@ -71,6 +71,8 @@ import { reviewFeedback } from '../model/review-feedback';
 import '@annotorious/annotorious/annotorious.css';
 
 const t = messages(currentLocale()).photoInspection;
+/** The two drawing tools: a dragged box for most objects, a clicked outline for irregular ones. */
+const toolIcons = { rectangle: SquareIcon, polygon: PentagonIcon } as const;
 const errorText = (error: unknown) =>
   error instanceof ApiError && error.code === 'INSPECTION_CONFLICT'
     ? t.conflict
@@ -326,30 +328,21 @@ function InspectionSession({
       <div className="flex flex-wrap gap-2">
         {initial.canEdit && (
           <>
-            <IconButton
-              icon={SquareIcon}
-              label={t.rectangle}
-              tooltip={`${t.rectangle}. ${t.hints.rectangle}`}
-              size="icon-lg"
-              variant={state.tool === 'rectangle' ? 'default' : 'outline'}
-              disabled={busy || state.imageStatus !== 'ready'}
-              aria-pressed={state.tool === 'rectangle'}
-              onClick={() => editor.toggleDrawingTool('rectangle')}
-            >
-              <span className="sr-only">{t.rectangle}</span>
-            </IconButton>
-            <IconButton
-              size="icon-lg"
-              variant="outline"
-              disabled={busy || state.imageStatus !== 'ready'}
-              onClick={() => editor.addBox()}
-              icon={SquarePlusIcon}
-              label={t.addBox}
-              tooltip={`${t.addBox}. ${t.drawKeyboard}`}
-              title={t.drawKeyboard}
-            >
-              <span className="sr-only">{t.addBox}</span>
-            </IconButton>
+            {(['rectangle', 'polygon'] as const).map((tool) => (
+              <IconButton
+                key={tool}
+                icon={toolIcons[tool]}
+                label={t[tool]}
+                tooltip={`${t[tool]}. ${t.hints[tool]}`}
+                size="icon-lg"
+                variant={state.tool === tool ? 'default' : 'outline'}
+                disabled={busy || state.imageStatus !== 'ready'}
+                aria-pressed={state.tool === tool}
+                onClick={() => editor.toggleDrawingTool(tool)}
+              >
+                <span className="sr-only">{t[tool]}</span>
+              </IconButton>
+            ))}
             <IconButton
               icon={Trash2Icon}
               label={t.removeSelected}

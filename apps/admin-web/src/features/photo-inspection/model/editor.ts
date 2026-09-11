@@ -91,7 +91,7 @@ export function fromCanvas(annotation: ImageAnnotation, width: number, height: n
 interface EditorState extends ReviewChangeState {
   version: number;
   selected: string | null;
-  tool: 'rectangle' | 'select';
+  tool: 'rectangle' | 'polygon' | 'select';
   zoom: number;
   imageStatus: 'loading' | 'ready' | 'failed';
   /** Natural size of the upright photo once loaded; the viewport fits it by aspect ratio. */
@@ -293,17 +293,21 @@ export class InspectionEditor {
     this.store.setState({ selected: null });
     return true;
   }
-  toggleDrawingTool(tool: 'rectangle'): void {
+  toggleDrawingTool(tool: 'rectangle' | 'polygon'): void {
     if (this.locked || !this.initial.canEdit) return;
     this.tool(this.store.getState().tool === tool ? 'select' : tool);
   }
+  /** A rectangle is dragged; a polygon is clicked vertex by vertex and closed on the first one. */
   tool(tool: EditorState['tool']): void {
     this.canvas?.cancelDrawing();
-    const drawing = tool === 'rectangle';
+    const drawing = tool === 'rectangle' || tool === 'polygon';
     this.canvas?.setDrawingEnabled(drawing && !this.locked && this.initial.canEdit);
     if (drawing) {
-      this.canvas?.setDrawingMode('drag');
-      this.canvas?.setDrawingTool('rectangle');
+      // A selected box would swallow the first click as a deselect; drawing starts at once instead.
+      this.canvas?.cancelSelected();
+      this.store.setState({ selected: null });
+      this.canvas?.setDrawingMode(tool === 'polygon' ? 'click' : 'drag');
+      this.canvas?.setDrawingTool(tool);
     }
     this.store.setState({ tool });
   }

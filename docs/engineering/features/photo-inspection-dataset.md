@@ -816,3 +816,17 @@ short list instead of twenty forms, and the report page no longer repeats an adm
 Verification: panel photo-inspection and handover tests (69), panel type-check and focused lint;
 layout measured on the local stand (column height equals the dialog's remaining height, region
 list has no own scroll) and inspected in production after deploy.
+
+## Drawing tools — 2026-09-11
+
+Owner report: the polygon tool had disappeared (dropped with the catalog delivery `b4ebb54`), the
+"add a centered rectangle" button was not wanted, and enabling Rectangle while a region was
+selected needed one extra click because the first click only deselected the box.
+
+Decision: Rectangle and Polygon are back as the two drawing tools (drag versus click-the-corners
+with a closing click on the first vertex); the centered-rectangle button is removed while the
+editor method stays for tests; enabling any drawing tool clears the selection so the first click
+draws. Tooltips, guide step and help pages name both tools in the three languages.
+
+Verification: editor unit tests including the new deselect-on-tool case, panel type-check and
+focused lint.
