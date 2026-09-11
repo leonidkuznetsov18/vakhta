@@ -1,5 +1,5 @@
 import { useSyncExternalStore, type Dispatch, type SetStateAction } from 'react';
-import { usePersistentState } from '@/lib/ui-store';
+import { setUiState, usePersistentState } from '@/lib/ui-store';
 
 /**
  * The panel has no router; the address bar still carries `#/<section>/<sub>` so a reload or a
@@ -16,6 +16,19 @@ export function readRoute(): Route {
   return { section, sub };
 }
 
+/** Retired knowledge-base bookmarks open the same records in the complete incident list. */
+export function restoreLegacyRoute(): void {
+  const { section, sub } = readRoute();
+  if (section !== 'incidentKnowledge') return;
+  setUiState({
+    'incidents.scope': 'all',
+    'incidents.period': 'all',
+    'incidents.siteId': '',
+    'incidents.openId': sub || null,
+  });
+  history.replaceState(null, '', `#/incidents${sub ? `/${sub}` : ''}`);
+}
+
 /**
  * The address bar is state the panel does not own, so it is subscribed to rather than mirrored.
  * `replaceState` fires no `hashchange` — that is the whole point of it — so a write of our own
@@ -25,10 +38,14 @@ const listeners = new Set<() => void>();
 
 function subscribe(onChange: () => void): () => void {
   listeners.add(onChange);
-  window.addEventListener('hashchange', onChange);
+  const handleHashChange = () => {
+    restoreLegacyRoute();
+    onChange();
+  };
+  window.addEventListener('hashchange', handleHashChange);
   return () => {
     listeners.delete(onChange);
-    window.removeEventListener('hashchange', onChange);
+    window.removeEventListener('hashchange', handleHashChange);
   };
 }
 
@@ -36,6 +53,7 @@ export function writeRoute(section: string, sub?: string): void {
   const next = `#/${section}${sub ? `/${sub}` : ''}`;
   if (location.hash === next) return;
   history.replaceState(null, '', next);
+  restoreLegacyRoute();
   for (const listener of listeners) listener();
 }
 

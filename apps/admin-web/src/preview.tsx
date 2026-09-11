@@ -1,3 +1,4 @@
+import { restoreLegacyRoute } from '@/lib/route';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
@@ -796,6 +797,7 @@ applyStoredAppearance();
     'font:600 12px/1.6 system-ui,sans-serif;text-align:center;padding:4px 8px';
   document.body.append(banner);
 }
+restoreLegacyRoute();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

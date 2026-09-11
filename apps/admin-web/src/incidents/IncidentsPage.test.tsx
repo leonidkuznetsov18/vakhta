@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { setUiState } from '@/lib/ui-store';
-import { IncidentKnowledgePage } from '@/pages/incident-knowledge';
 import { IncidentsPage } from './IncidentsPage.tsx';
 import { clickRowAction, render } from '../test-utils.tsx';
 
@@ -250,18 +249,19 @@ describe('IncidentsPage', () => {
     );
   });
 
-  it('shows historical solutions in the knowledge base without an editing form', async () => {
+  it('finds historical solutions in all incidents without an editing form', async () => {
     mockApi({
       rows: [
         incident(INC, 'CLOSED', { rootCause: 'Worn belt', resolution: 'Replace and tension' }),
       ],
     });
-    render(<IncidentKnowledgePage />);
-    expect(await screen.findByText('Replace and tension')).toBeTruthy();
+    setUiState({ 'incidents.scope': 'all' });
+    render(<IncidentsPage />);
+    await screen.findByText('Worn belt');
     fireEvent.click(screen.getByText('Worn belt'));
     expect(await screen.findByText('Сообщения сотрудников')).toBeTruthy();
     expect(screen.queryByRole('textbox', { name: 'Причина' })).toBeNull();
-    expect(screen.getAllByText('Replace and tension').length).toBeGreaterThan(1);
+    expect(screen.getByText('Replace and tension')).toBeTruthy();
   });
   it('applies the selected calendar period to the incident list and statistics', async () => {
     setUiState({ 'incidents.date': '2026-10-25', 'incidents.period': 'day' });

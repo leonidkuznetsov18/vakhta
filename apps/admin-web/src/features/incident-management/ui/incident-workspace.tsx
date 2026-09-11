@@ -20,8 +20,8 @@ const all = messages(currentLocale());
 const i = all.admin.incidents;
 const hints = all.ui.hints;
 
-export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }) {
-  const model = useIncidentWorkspace(knowledge);
+export function IncidentWorkspace() {
+  const model = useIncidentWorkspace();
   const {
     org,
     siteId,
@@ -39,11 +39,7 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
 
   return (
     <div className="flex flex-col gap-4">
-      {knowledge ? (
-        <p className="text-sm text-muted-foreground">{i.knowledgeHint}</p>
-      ) : (
-        <HowItWorks guide="incidents" />
-      )}
+      <HowItWorks guide="incidents" />
       <QueryFeedback query={model.orgQuery} />
       <Toolbar>
         <SelectField
@@ -65,20 +61,18 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
           onApply={model.applyPeriod}
           onClear={model.clearPeriod}
         />
-        {!knowledge && (
-          <div className="flex items-center gap-1">
-            <StateFilter
-              value={scope}
-              onChange={model.setScope}
-              label={all.admin.sections.incidents}
-              options={[
-                { value: 'open', label: i.scopeOpen },
-                { value: 'all', label: i.scopeAll },
-              ]}
-            />
-            <InfoTip text={hints.incidentsScope} />
-          </div>
-        )}
+        <div className="flex items-center gap-1">
+          <StateFilter
+            value={scope}
+            onChange={model.setScope}
+            label={all.admin.sections.incidents}
+            options={[
+              { value: 'open', label: i.scopeOpen },
+              { value: 'all', label: i.scopeAll },
+            ]}
+          />
+          <InfoTip text={hints.incidentsScope} />
+        </div>
         <div className="ml-auto">
           <LiveBadge live={live} />
         </div>
@@ -87,18 +81,18 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
 
       <DataTable
         queryState={model.listQuery}
-        columns={incidentColumns(knowledge)}
+        columns={incidentColumns()}
         rows={rows}
-        storageKey={knowledge ? 'incidentKnowledge' : 'incidents'}
+        storageKey="incidents"
         resetKey={`${siteId}:${scope}:${date}:${model.endDate}:${periodMode}`}
-        caption={knowledge ? all.admin.sections.incidentKnowledge : all.admin.sections.incidents}
+        caption={all.admin.sections.incidents}
         primaryKey="reason"
         rowLabel={(row) => `${row.reasonLabel} · ${row.reportedBy ?? row.zoneName ?? row.openedAt}`}
         searchText={model.searchText}
         searchPlaceholder={i.search}
         loading={model.loading}
         onRowClick={model.toggleRow}
-        rowActions={knowledge ? undefined : model.rowActions}
+        rowActions={model.rowActions}
         rowKey={(row) => row.id}
         empty={i.empty}
         rowClassName={(row) => (incidentNeedsReaction(row) ? ROW_DANGER : undefined)}
@@ -107,34 +101,32 @@ export function IncidentWorkspace({ knowledge = false }: { knowledge?: boolean }
       />
       <Lightbox images={lightbox} onClose={model.closeLightbox} title={i.photo} />
 
-      {!knowledge && (
-        <Section title={i.stats} hint={hints.incidentsStats}>
-          <QueryFeedback query={model.statsQuery} />
-          {/* Two cuts of one period: when the period holds nothing, both tables said so, and the
+      <Section title={i.stats} hint={hints.incidentsStats}>
+        <QueryFeedback query={model.statsQuery} />
+        {/* Two cuts of one period: when the period holds nothing, both tables said so, and the
             section repeated itself. One sentence answers for the period. */}
-          {stats &&
-            (stats.byReason.length === 0 && stats.byZone.length === 0 ? (
-              <EmptyState text={all.ui.common.noResults} />
-            ) : (
-              <div className="grid gap-4 2xl:grid-cols-2">
-                <StatsTable
-                  resetKey={`${siteId}:${scope}:${date}:${model.endDate}:${periodMode}`}
-                  storageKey="incident-stats.reasons"
-                  title={i.byReason}
-                  rows={stats.byReason}
-                  totals={stats.totals}
-                />
-                <StatsTable
-                  resetKey={`${siteId}:${scope}:${date}:${model.endDate}:${periodMode}`}
-                  storageKey="incident-stats.zones"
-                  title={i.byZone}
-                  rows={stats.byZone}
-                  totals={stats.totals}
-                />
-              </div>
-            ))}
-        </Section>
-      )}
+        {stats &&
+          (stats.byReason.length === 0 && stats.byZone.length === 0 ? (
+            <EmptyState text={all.ui.common.noResults} />
+          ) : (
+            <div className="grid gap-4 2xl:grid-cols-2">
+              <StatsTable
+                resetKey={`${siteId}:${scope}:${date}:${model.endDate}:${periodMode}`}
+                storageKey="incident-stats.reasons"
+                title={i.byReason}
+                rows={stats.byReason}
+                totals={stats.totals}
+              />
+              <StatsTable
+                resetKey={`${siteId}:${scope}:${date}:${model.endDate}:${periodMode}`}
+                storageKey="incident-stats.zones"
+                title={i.byZone}
+                rows={stats.byZone}
+                totals={stats.totals}
+              />
+            </div>
+          ))}
+      </Section>
     </div>
   );
 }

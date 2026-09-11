@@ -51,8 +51,8 @@ function setField(id: string, key: keyof Draft, value: string) {
 }
 
 /** Query owns records; Zustand owns only filters, selection and unsaved decisions. */
-export function useIncidentWorkspace(knowledge: boolean) {
-  const prefix = knowledge ? 'incidentKnowledge' : 'incidents';
+export function useIncidentWorkspace() {
+  const prefix = 'incidents';
   const { org, queryState: orgQuery } = useOrg();
   const [siteId, setSiteId] = usePersistentState(`${prefix}.siteId`, '');
   const [scope, setScopeValue] = usePersistentState<'open' | 'all'>(`${prefix}.scope`, 'open');
@@ -69,7 +69,7 @@ export function useIncidentWorkspace(knowledge: boolean) {
   const range = incidentPeriod(periodMode, date, timezone, endDate);
   const query = {
     ...(siteId ? { siteId } : {}),
-    scope: knowledge ? ('all' as const) : scope,
+    scope,
     ...range,
   };
   const list = useQuery({
@@ -91,7 +91,7 @@ export function useIncidentWorkspace(knowledge: boolean) {
   const statsQuery = useQuery({
     queryKey: keys.incidentStats({ ...statsRange, to: range.to ?? 'now' }),
     queryFn: () => incidentsApi.stats(statsRange.from, statsRange.to, siteId || undefined),
-    enabled: !knowledge && list.isSuccess,
+    enabled: list.isSuccess,
   });
   function form(row: IncidentView) {
     const draft = drafts[row.id];
@@ -125,7 +125,7 @@ export function useIncidentWorkspace(knowledge: boolean) {
       await client.invalidateQueries({ queryKey: ['incidents'] });
     },
   });
-  const isReadOnly = (row: IncidentView) => knowledge || !isOpenIncident(row.status);
+  const isReadOnly = (row: IncidentView) => !isOpenIncident(row.status);
   function apply(row: IncidentView) {
     if (isReadOnly(row)) return;
     const draft = form(row);
@@ -169,7 +169,6 @@ export function useIncidentWorkspace(knowledge: boolean) {
   const toggleRow = (row: IncidentView) => setOpenId(openId === row.id ? null : row.id);
   const setLightbox = (images: LightboxImage[]) => useWorkspaceState.setState({ lightbox: images });
   return {
-    knowledge,
     listQuery: list,
     orgQuery,
     detailQuery,

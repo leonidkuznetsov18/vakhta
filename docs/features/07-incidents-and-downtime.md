@@ -19,16 +19,18 @@ records **Cause** and **How was it resolved?** instead of a generic comment. Dra
 both fields are required when marking an incident resolved. Every edit stays in history, including
 previous comments. Resolving an incident does not itself end the worker's downtime.
 
-The **Incident knowledge base** page shows historical incidents, photos, causes and solutions with
-search. Both incident pages support day, month, year and all-time calendar filters. This is a knowledge
-archive for future assistance, without an LLM integration. See
+Historical incidents, photos, causes and solutions are available in **Downtime and incidents**:
+select **All** and search by problem, cause, solution or worker. One page handles active work and
+past examples, with day, month, year and all-time filters. The duplicate knowledge-base page has
+been removed; its old links open the complete incident list and retain the selected incident.
+No incident records or decisions are removed. See the
 [engineering memory](../engineering/features/incident-knowledge.md).
 
 Resolved and closed records show only read-only information, photos and history.
 
 ### Period ranges
 
-Incidents and the incident knowledge base share a From/To filter. Day mode selects dates, month mode
+The incident list provides a From/To filter. Day mode selects dates, month mode
 selects months without day cells, and year mode selects years. Choose both endpoints and press Apply;
 the last selected day/month/year is included completely, using the site's timezone. All time removes
 the date restriction. Selecting the same month or year twice creates a one-month or one-year range.

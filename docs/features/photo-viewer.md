@@ -1,6 +1,6 @@
 # Photo viewer
 
-Evidence photos opened from incidents, the incident knowledge base and handover use the shared
+Evidence photos opened from incidents and handover use the shared
 photo viewer. Each displayed photo supports zoom from 100% to 500%, zoom out and reset. At an
 increased scale, drag the photo to inspect details; touch screens support two-finger pinch gestures.
 

@@ -551,7 +551,6 @@ export const en: Messages = {
       operations: 'Live shift',
       schedule: 'Schedule',
       photoLibrary: photoLibraryEn.title,
-      incidentKnowledge: 'Incident knowledge base',
       incidents: 'Downtime and incidents',
       handover: 'Cleanliness and handover',
       requests: 'Requests',
@@ -756,8 +755,6 @@ export const en: Messages = {
       save: 'Save',
       saved: 'Incident saved.',
       problemType: 'Problem type',
-      knowledgeHint:
-        'Problem history, photos and solutions recorded by masters. Find a similar case before repeating diagnosis.',
       search: 'Search problem, cause, solution or employee',
       missingSolution: 'Solution not recorded yet',
       legacyComment: 'Previous comment',
@@ -1811,7 +1808,7 @@ export const en: Messages = {
           'Choose the site and period: day, month, year or all time. Switch from open incidents to all when needed.',
           'Open a row to see photos, the employee description and action history.',
           'Record the cause and how it was resolved. Save drafts at any time; both fields are required for Resolved.',
-          'Find previous solutions in the Incident knowledge base. The employee returns from downtime to work themselves.',
+          'To find previous solutions, select "All" and search by cause or solution. The employee returns from downtime to work themselves.',
         ],
         faq: [
           {

@@ -48,7 +48,7 @@ const STATUS_TONE: Record<IncidentStatus, Tone> = {
   REJECTED: 'neutral',
 };
 
-export function incidentColumns(knowledge: boolean): Column<IncidentView>[] {
+export function incidentColumns(): Column<IncidentView>[] {
   const columns: Column<IncidentView>[] = [
     {
       key: 'opened',
@@ -118,15 +118,6 @@ export function incidentColumns(knowledge: boolean): Column<IncidentView>[] {
     },
   ];
 
-  return knowledge
-    ? [
-        ...columns.filter((column) => !['sla', 'stopped'].includes(column.key)),
-        {
-          key: 'resolution',
-          header: i.resolution,
-          cell: (row) => <TextPreview text={row.resolution || i.missingSolution} />,
-        },
-      ]
-    : columns;
+  return columns;
 }
 export { TRANSITION_ICON };

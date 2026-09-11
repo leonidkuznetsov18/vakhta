@@ -408,7 +408,6 @@ export interface Messages {
         | 'operations'
         | 'schedule'
         | 'incidents'
-        | 'incidentKnowledge'
         | 'photoLibrary'
         | 'handover'
         | 'requests'
@@ -635,7 +634,6 @@ export interface Messages {
       readonly save: string;
       readonly saved: string;
       readonly problemType: string;
-      readonly knowledgeHint: string;
       readonly search: string;
       readonly missingSolution: string;
       readonly legacyComment: string;

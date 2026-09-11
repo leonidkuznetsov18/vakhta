@@ -142,3 +142,19 @@ screenshots inspected at 390x844 and 1440x1000 cover on-time, late, pending, saf
 a 24-hour delay wraps on mobile and document width remains 390px. Production verification follows CI.
 Lean recommendation: proceed; separate unanswered work from historical outcomes to remove false
 urgency. Masters should record taking ownership when responding, then enter diagnosis after repair.
+
+## 2026-09-11 — One incident page
+
+Owner decision: remove the duplicate Incident knowledge base destination. Sidebar, command palette,
+page registration, alternate read-only mode and help links now use Downtime and incidents. The All
+filter and search retain access to historical causes, solutions, photos and decisions; completed
+records remain read-only. No database/API changes or deletion of incident evidence.
+
+Old #/incidentKnowledge[/id] bookmarks are normalized before initial render and on hash navigation.
+They open all incidents/all dates without a site restriction, preserving a supplied incident ID and
+clearing stale selection otherwise. Ordinary incident navigation keeps the user's existing filters.
+
+Verification: 12 focused route/incident tests, 10 catalog tests, i18n build, panel typecheck and
+changed-code lint passed. Desktop and mobile preview screenshots were captured and inspected;
+browser navigation confirmed the old URL becomes #/incidents with All selected and no duplicate
+sidebar entry. Lean: proceed; one destination avoids choosing between two views of the same records.
