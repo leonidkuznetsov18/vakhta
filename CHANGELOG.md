@@ -1,3 +1,9 @@
+## [0.85.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.85.1...v0.85.2) (2026-09-11)
+
+### Bug fixes
+
+* **ui:** animate collapsible chevrons by default ([449fd11](https://github.com/leonidkuznetsov18/vakhta/commit/449fd116d598d6dd9825b376520e686c945d21e3))
+
 ## [0.85.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.85.0...v0.85.1) (2026-09-11)
 
 ### Bug fixes
