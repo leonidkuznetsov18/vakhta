@@ -138,6 +138,27 @@ it('explains a missing object list instead of a generic failure', () => {
     />,
   );
   expect(screen.getByRole('alert').textContent).toBe(t.aiRulesMissing);
+  cleanup();
+  const quota = {
+    ...view,
+    runs: [
+      {
+        ...view.runs[0]!,
+        status: 'FAILED' as const,
+        prediction: null,
+        errorCode: 'AI_QUOTA_EXCEEDED',
+      },
+    ],
+  };
+  render(
+    <PredictionPanel
+      latest={quota}
+      editor={new InspectionEditor(quota)}
+      disabled={false}
+      onRate={vi.fn()}
+    />,
+  );
+  expect(screen.getByRole('alert').textContent).toBe(t.aiQuotaExceeded);
 });
 function fail(): never {
   throw new Error('Expected suggestion');
