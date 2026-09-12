@@ -285,3 +285,15 @@ Same-scope/month supersession lineage is separate from audit entries. No generic
 mutation, migration, notification policy or frontend change. Validate real-DB repeated reasons,
 actor collisions/missing identities, stable pagination and omitted unrelated/sensitive data; test
 HTTP authentication, role/unit scope, invalid ID/query and narrow response. Independent review.
+
+### Metadata-only publication changes (#7, SC-08/09)
+
+Accepted backend/domain scope: SAVE/REVISE already persist kind/teamId/positionId, but publication's
+PlannedShift adapter drops them and sameShift therefore omits an affected employee. Add compatible
+optional metadata to PlannedShift; absent kind means REGULAR and absent team/position means null.
+Populate both ScheduleService adapters and compare these fields in the existing shared diff, keeping
+employee/business-date matching and excluding regenerated assignment/version IDs from equivalence.
+Preserve publication transaction, audience selection, outbox dedupe and notification wording. No
+new policy, contract migration, acknowledgement transfer or frontend changes. Verify each metadata
+field in pure diff tests plus absent/default equivalence, and real-DB SAVE/publish and REVISE where
+only the affected linked employee receives exactly one change notification. Independent review.

@@ -21,6 +21,10 @@ export const scheduleWorkspaceEn = {
   historySave: 'Saved assignments: {count}',
   historyRemind: 'Reminders queued: {count}; awaiting acknowledgement: {pending}',
 
+  acknowledgeAfterPublish: 'Acknowledgement will be requested after publication',
+  publicationSource: 'Current publication',
+  publicationTarget: 'Version under review',
+  newPublicationVersion: 'A new version will be created',
   calendar: 'Calendar',
   grouping: 'Group by',
   today: 'Today',
@@ -187,6 +191,10 @@ export const scheduleWorkspaceUk: ScheduleWorkspaceMessages = {
   historySave: 'Збережено призначень: {count}',
   historyRemind: 'Нагадувань у черзі: {count}; очікують ознайомлення: {pending}',
 
+  acknowledgeAfterPublish: 'Ознайомлення буде запитано після публікації',
+  publicationSource: 'Чинна публікація',
+  publicationTarget: 'Версія на перевірці',
+  newPublicationVersion: 'Буде створено нову версію',
   calendar: 'Календар',
   grouping: 'Групування',
   today: 'Сьогодні',
@@ -354,6 +362,10 @@ export const scheduleWorkspaceRu: ScheduleWorkspaceMessages = {
   historySave: 'Сохранено назначений: {count}',
   historyRemind: 'Напоминаний в очереди: {count}; ожидают ознакомления: {pending}',
 
+  acknowledgeAfterPublish: 'Ознакомление будет запрошено после публикации',
+  publicationSource: 'Текущая публикация',
+  publicationTarget: 'Версия на проверке',
+  newPublicationVersion: 'Будет создана новая версия',
   calendar: 'Календарь',
   grouping: 'Группировка',
   today: 'Сегодня',

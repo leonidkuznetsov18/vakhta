@@ -1,6 +1,10 @@
+import { AssignmentChanges } from './assignment-changes';
+import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import {
+  EmployeeView,
+  ZoneView,
   ScheduleVersionDetail,
   ScheduleWebCommand,
   ScheduleCommandResult,
@@ -452,6 +456,70 @@ describe('schedule workspace', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+  });
+  it('shows metadata-only before and after differences with directory labels', () => {
+    const before = gridToItems(gridFromDetail(ScheduleVersionDetail.parse(detail('PUBLISHED'))))[0];
+    if (!before) throw new Error('Missing assignment fixture');
+    render(
+      <AssignmentChanges
+        labels={{
+          employees: EmployeeView.array().parse(employees),
+          templates,
+          zones: ZoneView.array().parse(org.zones),
+          org: {
+            teams: [{ id: UNIT, orgUnitId: UNIT, name: 'Relief team' }],
+            positions: [{ id: SITE, code: 'P1', name: 'Relief position' }],
+          },
+        }}
+        changes={[
+          {
+            key: 'metadata',
+            type: 'changed',
+            before,
+            after: { ...before, kind: 'EXTRA', teamId: UNIT, positionId: SITE },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText(new RegExp(t.historyRegular))).toBeTruthy();
+    const after = screen.getByText(/Relief team/);
+    expect(after.textContent).toContain(t.historyExtra);
+    expect(after.textContent).toContain('Relief position');
+  });
+  it('shows acknowledgement only for the unchanged published assignment and matching version', () => {
+    const saved = ScheduleVersionDetail.parse(detail('PUBLISHED'));
+    const first = saved.assignments[0];
+    if (!first) throw new Error('Missing assignment fixture');
+    first.acknowledgedAt = '2026-09-02T10:00:00Z';
+    const assignment = gridToItems(gridFromDetail(saved))[0];
+    if (!assignment) throw new Error('Missing grid fixture');
+    const input = {
+      assignment,
+      recorded: saved.assignments,
+      version: saved.version,
+      timezone: 'Europe/Moscow',
+    };
+    expect(assignmentAcknowledgement(input)).toContain(t.acknowledged);
+    expect(
+      assignmentAcknowledgement({ ...input, recorded: [{ ...first, acknowledgedAt: null }] }),
+    ).toBe(t.notAcknowledged);
+    for (const change of [
+      { kind: 'EXTRA' as const },
+      { zoneId: UNIT },
+      { teamId: UNIT },
+      { positionId: SITE },
+      { templateId: TPL_DAY },
+    ]) {
+      expect(
+        assignmentAcknowledgement({ ...input, assignment: { ...assignment, ...change } }),
+      ).toBe(t.acknowledgeAfterPublish);
+    }
+    expect(
+      assignmentAcknowledgement({ ...input, version: { ...saved.version, status: 'DRAFT' } }),
+    ).toBe(t.acknowledgeAfterPublish);
+    expect(
+      assignmentAcknowledgement({ ...input, recorded: [{ ...first, scheduleVersionId: UNIT }] }),
+    ).toBe(t.acknowledgeAfterPublish);
   });
   it('opens read-only history with all recorded assignment states, exact instants and paginated reasons', async () => {
     const saved = ScheduleVersionDetail.parse(detail('PUBLISHED'));

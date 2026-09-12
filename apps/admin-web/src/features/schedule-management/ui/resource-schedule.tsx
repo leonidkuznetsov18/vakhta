@@ -1,3 +1,4 @@
+import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { useState } from 'react';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -43,6 +44,12 @@ export function ResourceSchedule({
   });
   const items = gridToItems(w.grid);
   const selectedItem = items.find((item) => assignmentKey(item) === picked?.itemId);
+  const acknowledgement = assignmentAcknowledgement({
+    assignment: selectedItem,
+    recorded: w.recorded,
+    version: w.version,
+    timezone: w.timezone,
+  });
   const selection =
     selectedItem && picked
       ? {
@@ -122,6 +129,7 @@ export function ResourceSchedule({
                 <p className="text-sm">{selectedView?.time}</p>
                 <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.description}</p>
                 <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.status}</p>
+                <p className="text-sm">{acknowledgement}</p>
                 <p className="text-sm text-muted-foreground">{t.presenceUnknown}</p>
                 {w.writable && <Button onClick={edit}>{t.editAssignment}</Button>}
               </>

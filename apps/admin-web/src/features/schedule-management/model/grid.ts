@@ -1,4 +1,4 @@
-import type { AssignmentInput, ScheduleVersionDetail } from '@vakhta/contracts';
+import type { AssignmentInput, AssignmentView, ScheduleVersionDetail } from '@vakhta/contracts';
 
 /** Editor state: a row per employee, a cell per day, assignment metadata per cell. */
 export interface GridRow {
@@ -154,7 +154,7 @@ export interface AssignmentChange {
 export function assignmentKey(item: Pick<AssignmentInput, 'employeeId' | 'businessDate'>): string {
   return `${item.employeeId}:${item.businessDate}`;
 }
-function fingerprint(item: AssignmentInput): string {
+function fingerprint(item: AssignmentInput | AssignmentView): string {
   return JSON.stringify([
     item.employeeId,
     item.businessDate,
@@ -165,13 +165,19 @@ function fingerprint(item: AssignmentInput): string {
     item.teamId ?? '',
   ]);
 }
+export function sameAssignment(
+  left: AssignmentInput | AssignmentView,
+  right: AssignmentInput | AssignmentView,
+): boolean {
+  return fingerprint(left) === fingerprint(right);
+}
 export function assignmentChanges(before: GridState, after: GridState): AssignmentChange[] {
   const prev = new Map(gridToItems(before).map((item) => [assignmentKey(item), item]));
   const next = new Map(gridToItems(after).map((item) => [assignmentKey(item), item]));
   return [...new Set([...prev.keys(), ...next.keys()])].flatMap((key): AssignmentChange[] => {
     const a = prev.get(key);
     const b = next.get(key);
-    if (a && b && fingerprint(a) === fingerprint(b)) return [];
+    if (a && b && sameAssignment(a, b)) return [];
     return [
       {
         key,

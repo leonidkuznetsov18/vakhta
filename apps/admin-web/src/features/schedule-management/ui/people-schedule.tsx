@@ -1,3 +1,4 @@
+import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { templateLabel } from '../lib/template-label';
 import { Trash2Icon } from 'lucide-react';
 import { useId, useState, type KeyboardEvent } from 'react';
@@ -76,6 +77,15 @@ export function PeopleSchedule({
   )
     ? focus
     : first;
+  const acknowledgement = assignmentAcknowledgement({
+    assignment: allItems.find(
+      (item) =>
+        item.employeeId === editor?.employeeId && item.businessDate === editor?.businessDate,
+    ),
+    recorded: w.recorded,
+    version: w.version,
+    timezone: w.timezone,
+  });
   const readOnlyDetails =
     editor && !w.writable
       ? calendarModel({
@@ -327,6 +337,8 @@ export function PeopleSchedule({
             <p>{readOnlyDetails.time}</p>
             <p>{readOnlyDetails.description}</p>
             <p>{readOnlyDetails.status}</p>
+            <p>{acknowledgement}</p>
+            <p className="text-muted-foreground">{t.presenceUnknown}</p>
           </div>
         ) : null}
       </CalendarDetailPanel>

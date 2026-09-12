@@ -12,7 +12,7 @@ import type {
   CalendarResource,
   CalendarViewModel,
 } from '@/shared/ui/resource-calendar';
-import { assignmentKey, gridToItems, type GridState } from './grid';
+import { assignmentKey, sameAssignment, gridToItems, type GridState } from './grid';
 import { UNASSIGNED_ZONE } from './planning';
 
 export type CalendarGrouping = 'zones' | 'people';
@@ -113,13 +113,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
     const time = plan
       ? `${timeFormat.format(plan.planStartAt)}–${siteToday(input.timezone, plan.planEndAt) !== item.businessDate ? `${endDateFormat.format(plan.planEndAt)} ` : ''}${timeFormat.format(plan.planEndAt)}`
       : t.unknownTemplate;
-    const persisted =
-      previous &&
-      sameTime &&
-      (previous.zoneId ?? undefined) === item.zoneId &&
-      previous.kind === item.kind &&
-      (previous.positionId ?? undefined) === item.positionId &&
-      (previous.teamId ?? undefined) === item.teamId;
+    const persisted = previous && sameAssignment(previous, item);
     const status = persisted ? input.publication : t.localChanges;
     const key = `${resourceId(item)}:${item.businessDate}`;
     const bucket = buckets.get(key) ?? [];

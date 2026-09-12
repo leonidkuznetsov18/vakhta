@@ -708,3 +708,41 @@ offline reading, not production delivery or an offline mutation.
   page width remains 390px, keyboard opens/closes with no automatic tooltip. Mobile decision text
   uses the full card width. No production employee actions or live Telegram messages were made.
   Lean completion: one version surface preserves evidence without a separate generic audit search.
+
+### 2026-09-13 — Metadata-only publication diff (#7, SC-08/09 accepted)
+
+- SAVE/REVISE persist kind/team/position but toPlanned discarded them, so a publication changing
+  only these fields produced no affected-employee notification. Extend the existing domain shape
+  compatibly, populate both adapters, and compare canonical REGULAR/null defaults without row IDs.
+- Lean: Proceed. Inform only the worker whose recorded assignment changed; remove the need to
+  discover an unannounced change manually, without another action or duplicated notification.
+  No production-worker time claim.
+- Implemented optional PlannedShift kind/teamId/positionId and canonical comparisons, populated in
+  both ScheduleService adapters. Existing publication transactions/outbox dedupe and wording remain
+  intact. Domain scheduling suite: 8 passed (4 new cases); API: 6 new real-DB cases passed for every
+  field through SAVE/publish and REVISE, exactly one affected linked recipient and no unchanged
+  recipient notification. Domain build/typecheck, API typecheck, scoped ESLint and independent
+  read-only review passed. Logs `/tmp/vakhta-schedule-metadata/` (domain-tests, api-tests,
+  domain-build, domain-typecheck, api-typecheck, lint). Final root-level format evidence is adjacent.
+- Lean completion: metadata-only edits now reach the existing notification/acknowledgement flow
+  without duplicate notices or extra worker steps. Visible before/after metadata labels remain
+  integration-owner frontend work; synthetic tests do not claim production delivery or close #7.
+- Frontend now shows kind/team/position (including unresolved IDs) in before/after descriptions,
+  and names the current publication and reviewed version without guessing a future version number.
+  Shared assignment equality also binds calendar acknowledgement to the unchanged PLANNED record
+  in the same PUBLISHED version. Local edits/drafts say acknowledgement follows publication;
+  recorded presence remains separately unknown in day/week and monthly details.
+- 62 focused frontend tests passed (35 workspace, 10 calendar, 8 planning, 9 grid), including visible
+  metadata and old-ACK rejection for changed kind/zone/team/position/template, draft and other version.
+  Independent review clean. Browser QA captured and inspected desktop/month ACK, mobile local-edit
+  ACK and desktop/mobile publication review. Keyboard replacement→review→cancel/discard succeeded;
+  synthetic edits were discarded, all device/touch overrides cleared. Images:
+  `acknowledgement-month.png`, `acknowledgement-local-mobile.png`, `publication-review.png`,
+  `publication-review-mobile.png`. This is synthetic preview, not actual worker activity.
+- True touch QA remains blocked: the in-app browser rejects Input.dispatchTouchEvent. Pointer and
+  keyboard checks at 390px are not claimed as physical-device/touch acceptance; #6 remains open.
+- Final panel build (including typecheck/Compiler), i18n build, affected ESLint and root Prettier
+  passed. Two focused regressions passed again after validating the test directory fixtures through
+  their schemas; the earlier 62-test suite remains the broader evidence. Logs:
+  `/tmp/vakhta-metadata-ui-{tests,regression,build,i18n,lint}.log` and
+  `/tmp/vakhta-metadata-final-format.log`. Existing bundle-size warning remains.

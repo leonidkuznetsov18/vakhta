@@ -185,3 +185,10 @@ Begin T004–T006 prototype and T052 matrix/runbook while policy answers and hum
 - [x] T074 [US1] Verify real-DB actor/scope/reason/pagination and HTTP boundaries, contracts/API checks and independent review; hand off the read-only frontend integration.
 
 - [x] T075 [US1] Integrate scoped history into a read-only Sheet with original assignment IDs/statuses/instants/acknowledgements, paginated decisions and full reasons; verify desktop/mobile and regressions.
+
+## Metadata-only publication diff — #7
+
+- [x] T076 [US1] Retain optional kind/team/position in PlannedShift adapters and shared diff with compatible canonical defaults, preserving transaction/notification ownership.
+- [x] T077 [US1] Verify metadata-only changed employees, legacy equivalence and exactly one affected-recipient notification with focused domain/real-DB tests, types/build and independent review.
+
+- [x] T078 [US1] Show metadata changes and publication ownership in review; distinguish recorded acknowledgement from unpublished edits and unknown presence in both calendar detail views, with regressions and desktop/mobile evidence.

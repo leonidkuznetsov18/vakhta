@@ -55,6 +55,19 @@ export function PublicationReview({
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto space-y-4 pr-1">
           <QueryFeedback query={w.publishedQuery} />
+          {!completed && (
+            <div className="space-y-1 text-sm">
+              <p>
+                {t.publicationSource}:{' '}
+                {w.published ? `v${w.published.versionNo} · ${w.published.periodMonth}` : '—'}
+              </p>
+              <p>
+                {t.publicationTarget}:{' '}
+                {w.version ? `v${w.version.versionNo} · ${w.version.periodMonth}` : '—'}
+                {w.version?.status === 'PUBLISHED' ? ` · ${t.newPublicationVersion}` : ''}
+              </p>
+            </div>
+          )}
           {w.publicationReady && !completed && (
             <AssignmentChanges
               changes={assignmentChanges(w.publicationBaseline, snapshot)}
