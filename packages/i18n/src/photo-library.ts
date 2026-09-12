@@ -4,6 +4,7 @@ export const photoLibraryEn = {
   description:
     'Saved photo reviews from workplace handovers. Open a photo to inspect or edit its annotations.',
   photo: 'Photo',
+  context: 'Zone and worker',
   status: 'Review result',
   date: 'Shift date',
   zone: 'Zone',
@@ -19,6 +20,8 @@ export const photoLibraryEn = {
   archivedHint:
     'This photo was replaced in the report. Its saved annotations remain available for viewing.',
   search: 'Search',
+  searchPlaceholder: 'Zone, worker, photo or remarks…',
+  loadError: 'Could not load saved photos. Try again.',
   searchHint: 'Search all saved photos by zone, worker, photo label or remarks.',
   statusHint:
     'Filter by the saved human review result. AI suggestions alone are not a completed review.',
@@ -39,6 +42,7 @@ export const photoLibraryUk: PhotoLibraryMessages = {
   description:
     'Збережені перевірки фото з передачі робочих місць. Відкрийте фото, щоб переглянути або відредагувати розмітку.',
   photo: 'Фото',
+  context: 'Зона та працівник',
   status: 'Результат перевірки',
   date: 'Дата зміни',
   zone: 'Зона',
@@ -54,6 +58,8 @@ export const photoLibraryUk: PhotoLibraryMessages = {
   archivedHint:
     'Це фото замінили у звіті. Його збережена розмітка залишається доступною для перегляду.',
   search: 'Пошук',
+  searchPlaceholder: 'Зона, працівник, фото або зауваження…',
+  loadError: 'Не вдалося завантажити збережені фото. Спробуйте ще раз.',
   searchHint:
     'Пошук серед усіх збережених фото за зоною, працівником, назвою фото або зауваженнями.',
   statusHint:
@@ -75,6 +81,7 @@ export const photoLibraryRu: PhotoLibraryMessages = {
   description:
     'Сохранённые проверки фото из передачи рабочих мест. Откройте фото, чтобы просмотреть или отредактировать разметку.',
   photo: 'Фото',
+  context: 'Зона и сотрудник',
   status: 'Результат проверки',
   date: 'Дата смены',
   zone: 'Зона',
@@ -90,6 +97,8 @@ export const photoLibraryRu: PhotoLibraryMessages = {
   archivedHint:
     'Это фото заменили в отчёте. Его сохранённая разметка остаётся доступной для просмотра.',
   search: 'Поиск',
+  searchPlaceholder: 'Зона, сотрудник, фото или замечания…',
+  loadError: 'Не удалось загрузить сохранённые фото. Попробуйте ещё раз.',
   searchHint:
     'Поиск среди всех сохранённых фото по зоне, сотруднику, названию фото или замечаниям.',
   statusHint:
@@ -111,7 +120,7 @@ export const libraryGuideEn: SectionGuide = {
   purpose:
     'A single place to find and improve saved photo examples without reopening each handover report.',
   steps: [
-    'Search by worker, zone or remarks. Use the review result and shift dates to narrow the list, then press Find photos.',
+    'Search by worker, zone or remarks. Use the review result and shift dates to narrow the list, results update automatically.',
     'Open a photo to see its regions and full descriptions. Edit the existing annotations as needed and press Save changes.',
     'After saving, close the editor. The table refreshes with the saved result and region count. No further action is required.',
   ],
@@ -139,7 +148,7 @@ export const libraryGuideUk: SectionGuide = {
   purpose:
     'Єдине місце для пошуку й уточнення збережених прикладів фото без відкривання кожного звіту передачі.',
   steps: [
-    'Знайдіть фото за працівником, зоною або зауваженнями. За потреби оберіть результат перевірки та дати зміни й натисніть «Знайти фото».',
+    'Знайдіть фото за працівником, зоною або зауваженнями. За потреби оберіть результат перевірки та дати зміни — результати оновляться автоматично.',
     'Відкрийте фото, щоб побачити області й повні описи. За потреби виправте розмітку та натисніть «Зберегти зміни».',
     'Після збереження закрийте редактор. Таблиця оновить результат і кількість областей. На цьому роботу з фото завершено.',
   ],
@@ -167,7 +176,7 @@ export const libraryGuideRu: SectionGuide = {
   purpose:
     'Единое место для поиска и уточнения сохранённых примеров фото без открытия каждого отчёта передачи.',
   steps: [
-    'Найдите фото по сотруднику, зоне или замечаниям. При необходимости выберите результат проверки и даты смены и нажмите «Найти фото».',
+    'Найдите фото по сотруднику, зоне или замечаниям. При необходимости выберите результат проверки и даты смены — результаты обновятся автоматически.',
     'Откройте фото, чтобы увидеть области и полные описания. При необходимости исправьте разметку и нажмите «Сохранить изменения».',
     'После сохранения закройте редактор. Таблица обновит результат и количество областей. На этом работа с фото завершена.',
   ],

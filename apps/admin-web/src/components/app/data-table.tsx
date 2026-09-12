@@ -10,7 +10,6 @@ import {
   ArrowUpDownIcon,
   ArrowUpIcon,
   MoreHorizontalIcon,
-  SearchIcon,
   type LucideIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
+import { TableSearch } from '@/shared/ui/table-search';
 import { Pagination, PaginationContent, PaginationItem } from '@/components/ui/pagination';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { LoadingState } from '@/shared/ui/loading-state';
@@ -482,24 +481,15 @@ export function DataTable<T extends object>({
   };
 
   const searchBox = searchText ? (
-    <div className="relative w-full max-w-sm">
-      <SearchIcon
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-      />
-      <Input
-        type="search"
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          pages.setPage(1);
-          onSelectionChange?.(new Set());
-        }}
-        placeholder={searchPlaceholder ?? t.searchPlaceholder}
-        aria-label={searchPlaceholder ?? t.searchPlaceholder}
-        className="pl-8"
-      />
-    </div>
+    <TableSearch
+      value={search}
+      onChange={(value) => {
+        setSearch(value);
+        pages.setPage(1);
+        onSelectionChange?.(new Set());
+      }}
+      label={searchPlaceholder ?? t.searchPlaceholder}
+    />
   ) : null;
 
   const body =

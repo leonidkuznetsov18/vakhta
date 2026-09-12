@@ -17,13 +17,19 @@ export interface QueryFeedbackState {
   refetch: () => Promise<unknown>;
 }
 
-export function QueryFeedback({ query }: { query: QueryFeedbackState }) {
+export function QueryFeedback({
+  query,
+  errorMessage,
+}: {
+  query: QueryFeedbackState;
+  errorMessage?: string;
+}) {
   const t = messages(currentLocale()).ui.common;
   if (query.isError)
     return (
       <Alert variant="destructive" role="alert" className="max-w-2xl">
         <AlertCircleIcon />
-        <AlertTitle>{readError(query.error)}</AlertTitle>
+        <AlertTitle>{errorMessage ?? readError(query.error)}</AlertTitle>
         <IconButton
           icon={RefreshCwIcon}
           label={t.retry}

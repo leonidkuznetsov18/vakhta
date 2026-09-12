@@ -3,6 +3,8 @@ import {
   HandoverPhotoView,
   PhotoInspectionView,
   PhotoObjectsView,
+  PhotoLibraryView,
+  PhotoLibraryQuery,
 } from '@vakhta/contracts';
 
 const id = '10000000-0000-4000-8000-000000000001';
@@ -83,8 +85,51 @@ function photoLink(photo: HandoverPhotoView) {
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
 /** Read-only fixtures; writes deliberately fail so preview never pretends to persist work. */
-export function reviewFixture(path: string, method: string): Response | null {
-  const match = path.match(/^\/admin\/handovers\/hv1\/photos\/([^/]+)\/[^/]+\/inspection(.*)$/);
+export function reviewFixture(path: string, method: string, search = ''): Response | null {
+  if (path === '/admin/photo-inspections' && method === 'GET') {
+    const query = PhotoLibraryQuery.parse(Object.fromEntries(new URLSearchParams(search)));
+    const entries = reviewPhotos.map((photo, index) => ({
+      id: `50000000-0000-4000-8000-00000000000${index + 1}`,
+      handoverId: id,
+      photo,
+      status: index === 0 ? 'PROBLEMS' : index === 2 ? 'NOT_ASSESSABLE' : 'COMPLIANT',
+      annotationCount: index === 0 ? 3 : 0,
+      remarks:
+        index === 0
+          ? [
+              'Інструмент залишено на робочій поверхні. Перевірте простір біля обладнання та приберіть сторонні предмети перед передачею зміни.',
+            ]
+          : [],
+      updatedAt: time,
+      businessDate: `2026-09-${String(12 - index).padStart(2, '0')}`,
+      zone:
+        index === 0
+          ? 'Друга стінка стаканів — ділянка підготовки та пакування'
+          : 'Перша стінка стаканів',
+      employee: index === 0 ? 'Мамелюк Артем Ігорович' : 'Ткач Олена',
+      archived: index === 4,
+    }));
+    const filtered = entries.filter(
+      (entry) =>
+        (!query.status || query.status === entry.status) &&
+        (!query.from || entry.businessDate >= query.from) &&
+        (!query.to || entry.businessDate <= query.to) &&
+        `${entry.zone} ${entry.employee} ${entry.photo.label} ${entry.remarks.join(' ')}`
+          .toLocaleLowerCase()
+          .includes(query.search.toLocaleLowerCase()),
+    );
+    return json(
+      PhotoLibraryView.parse({
+        rows: filtered.slice((query.page - 1) * query.pageSize, query.page * query.pageSize),
+        total: filtered.length,
+        page: query.page,
+        pageSize: query.pageSize,
+      }),
+    );
+  }
+  const match = path.match(
+    /^\/admin\/handovers\/(?:hv1|10000000-0000-4000-8000-000000000001)\/photos\/([^/]+)\/[^/]+\/inspection(.*)$/,
+  );
   const handled =
     path === '/admin/org/checklists' ||
     path === '/admin/photo-objects' ||

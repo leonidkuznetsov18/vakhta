@@ -107,7 +107,11 @@ unfinished reviews and explicit clean examples without regions. AI-only runs and
 not enter the library. Each row identifies the photo, review result, shift date, zone, reporting worker,
 region count, remarks and last-save time. Search covers worker, zone, photo label and human remarks;
 status and inclusive shift-date filters apply before server pagination. The footer reports the full
-filtered count. Narrow screens use the shared table's card layout.
+filtered count. Search updates automatically after a 300 ms pause; valid status/date changes apply
+without a submit button. Changing a filter returns to page one. Clear filters resets the whole search
+and is disabled at the defaults. Narrow screens use the shared table's card layout, with the date
+endpoints side by side. Region count belongs to the review result; zone and worker share a context
+column. Full remarks remain available in the photo editor.
 
 Open photo launches the same annotation editor as the handover page. Save changes updates the same
 review and append-only revision history, then refreshes the table. The original image, operational

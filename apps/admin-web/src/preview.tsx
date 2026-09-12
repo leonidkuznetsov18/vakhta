@@ -243,7 +243,7 @@ const json = (data: unknown, status = 200) =>
 window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const path = new URL(String(input), location.origin).pathname;
   const method = init?.method ?? 'GET';
-  const review = reviewFixture(path, method);
+  const review = reviewFixture(path, method, new URL(String(input), location.origin).search);
   if (review) return review;
   if (path === '/me') return json(me);
   if (path.includes('attention')) return json(attention);

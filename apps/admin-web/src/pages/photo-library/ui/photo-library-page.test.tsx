@@ -48,7 +48,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 describe('saved photo library', () => {
-  it('enables filter actions only when there is something to apply or reset', async () => {
+  it('searches automatically and labels the reset action beside the filters', async () => {
     vi.mocked(libraryApi.list).mockImplementation(async (input) => ({
       page: input.page,
       pageSize: input.pageSize,
@@ -58,40 +58,18 @@ describe('saved photo library', () => {
     render(<PhotoLibraryPage />);
     await screen.findByText('Photo 1');
     const reset = () => screen.getByRole('button', { name: t.reset });
-    const apply = () => screen.getByRole('button', { name: t.searchAction });
-    const search = screen.getByLabelText(t.search);
     expect(reset().hasAttribute('disabled')).toBe(true);
-    expect(apply().hasAttribute('disabled')).toBe(true);
-
+    expect(screen.queryByRole('button', { name: t.searchAction })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: pagination.next }));
     await screen.findByText('Photo 2');
     expect(reset().hasAttribute('disabled')).toBe(true);
-    expect(apply().hasAttribute('disabled')).toBe(true);
-    const form = search.closest('form');
-    if (!form) throw new Error('Search form is missing');
-    fireEvent.submit(form);
-    expect(screen.getByText('Photo 2')).toBeTruthy();
-
-    fireEvent.change(search, { target: { value: 'Zone A' } });
-    expect(reset().hasAttribute('disabled')).toBe(false);
-    expect(apply().hasAttribute('disabled')).toBe(false);
-    fireEvent.change(search, { target: { value: '' } });
-    expect(reset().hasAttribute('disabled')).toBe(true);
-    expect(apply().hasAttribute('disabled')).toBe(true);
-
-    fireEvent.change(search, { target: { value: 'Zone A' } });
-    fireEvent.click(apply());
+    fireEvent.change(screen.getByRole('searchbox', { name: t.search }), {
+      target: { value: 'Zone A' },
+    });
     await screen.findByText('Photo 1');
-    expect(apply().hasAttribute('disabled')).toBe(true);
     expect(reset().hasAttribute('disabled')).toBe(false);
-    fireEvent.change(search, { target: { value: ' Zone A ' } });
-    expect(apply().hasAttribute('disabled')).toBe(true);
-    fireEvent.change(search, { target: { value: '' } });
-    expect(reset().hasAttribute('disabled')).toBe(false);
-    expect(apply().hasAttribute('disabled')).toBe(false);
     fireEvent.click(reset());
     expect(reset().hasAttribute('disabled')).toBe(true);
-    expect(apply().hasAttribute('disabled')).toBe(true);
     await waitFor(() =>
       expect(libraryApi.list).toHaveBeenLastCalledWith(
         { page: 1, pageSize: 20, search: '' },
@@ -113,7 +91,6 @@ describe('saved photo library', () => {
     expect(screen.getByText('Photo 22')).toBeTruthy();
     expect(screen.queryByText('Photo 1')).toBeNull();
     fireEvent.change(screen.getByLabelText(t.search), { target: { value: 'Zone A' } });
-    fireEvent.click(screen.getByRole('button', { name: t.searchAction }));
     await waitFor(() =>
       expect(libraryApi.list).toHaveBeenLastCalledWith(
         expect.objectContaining({ page: 1, search: 'Zone A' }),
@@ -144,6 +121,8 @@ describe('saved photo library', () => {
     vi.mocked(libraryApi.list).mockRejectedValue(new Error('Unavailable'));
     render(<PhotoLibraryPage />);
     await screen.findByRole('alert');
+    expect(screen.getByText(t.loadError)).toBeTruthy();
+    expect(screen.queryByText('Unavailable')).toBeNull();
     expect(screen.queryByText(t.empty)).toBeNull();
     expect(
       screen.getByRole('button', { name: messages(currentLocale()).ui.common.retry }),

@@ -846,3 +846,32 @@ stored on the run, and the panel explains it (daily reset or Workers Paid plan) 
 generic retry message. Other 429/5xx answers keep the short retry. Whether to enable Workers Paid
 (USD 5 per month plus usage beyond the free allocation, about USD 0.004 per photo at seven rules)
 is the owner's decision; the code path does not change with the plan.
+
+## Photo library filter and layout consistency — 2026-09-12
+
+Owner request: remove detached search/reset icons and align the library with other panel tables.
+Acceptance: automatic server-wide search, immediate valid status/date filters, no-op reset disabled,
+page-one reset on filter changes, preserved counts/access/editor, readable desktop and mobile views.
+
+Reuse the shared table search field (extracted without changing local-table behavior), Toolbar,
+DateField, DataTable and photo editor. Remove the duplicate titled outer card. Use six columns:
+photo, result with region count, shift date, zone/worker, remarks, last saved. The mobile card keeps
+photo first and all metadata available. Dates stay adjacent; reset retains a visible action label.
+
+The page-owned model keeps invalid date drafts separate from the last valid query. TanStack Query
+owns request cancellation and cached results. A 300 ms abortable query delay suppresses obsolete
+nonempty searches; filters remain server-side before pagination. Existing rows remain during refresh.
+No API/access/publication changes. Add localized load-failure copy with the existing retry action,
+and update all three guides to remove explicit search submission instructions.
+
+The preview previously lacked this endpoint; add contract-validated synthetic rows and filtering so
+UI review includes photos, long zone names, remarks, empty results and counts rather than a fixture 404.
+
+Lean: simplify. Remove a repeated submit step and reduce visual scanning between detached controls;
+keep one search scope and a clear reset. Guardrails: no partial-page search, inverted date requests,
+obsolete search requests or accidental editor writes. No new operator task or business metric.
+
+Verification: 29 focused library/shared-table tests and 10 i18n tests; panel typecheck and changed-file
+ESLint pass. Desktop 1440x900: table width equals its 1134 px container. Mobile 390x844: shared cards,
+adjacent dates, automatic worker search and full-width controls visually inspected. Production writes
+and annotation saves were not exercised; the annotation editor itself is unchanged.
