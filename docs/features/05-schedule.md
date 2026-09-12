@@ -1,5 +1,9 @@
 # Schedule (spec 3)
 
+Planned successor: [Schedule calendar redesign](schedule-calendar-redesign.md) describes the complete
+page redesign and its ranked requirements. It is not implemented; the behavior below remains the
+current operational reference.
+
 The schedule workspace starts with the current published month, grouped by zone. Select the
 site (when more than one is available), unit and month. Day/night assignment counts and planned
 person-hours describe the selected period and zones; they are not staffing requirements or attendance.

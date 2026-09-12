@@ -1,0 +1,288 @@
+# Schedule calendar redesign: engineering plan
+
+Status: **planning complete; implementation not started**. Date: 2026-09-12.
+Documentation authority: owner requests a separate feature consolidating all calendar research for
+the full Schedule page redesign. Baseline inspected: `3260162a63508bd3bc92bb9da01d43b9f7f7b566` on `master`.
+Product requirements and the canonical 50-ID catalog: [Schedule calendar redesign](../../features/schedule-calendar-redesign.md).
+This is the engineering memory and implementation backlog, not a claim of shipped behavior.
+
+## Outcome and scope
+
+Deliver a usable staffing/planning workspace on desktop and mobile web while retaining the existing
+Schedule and employee workflows. Preserve the catalog as 46 target capabilities and four separately
+gated extensions. Treat capability rank as estimated manufacturing value, not build order.
+
+The current task changes documentation only. Do not install a calendar library, migrate assignments,
+grant master permissions or alter production schedules as part of this delivery. Follow the current
+direct-master workflow with one writer/index owner and task-owned paths only.
+
+## RECON: current behavior and ownership
+
+The previously researched Schedule source at `4195d82` has no changes in the inspected scheduling
+slice/service/contracts/schema through this baseline. Product docs and key contracts/schema/controller
+were reread. This is source inspection, not a new execution of old tests or a production verification.
+
+| Area                 | Observed source of truth                                                                                                        | Consequence for the redesign                                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| UI and model         | `apps/admin-web/src/features/schedule-management/{api,model,ui}`; public `index.ts`                                             | Extend this coherent FSD slice; preserve existing prepared model/actions instead of a parallel calendar                                |
+| Existing editor      | `model/planning.ts`, `model/store.ts`, `model/use-workspace.ts`                                                                 | Reuse full-payload serialization, batch diff, rotation, undo and persisted drafts; add server conflict protection                      |
+| HTTP boundary        | `apps/api/src/scheduling/admin-schedules.controller.ts`, `packages/contracts/src/scheduling.ts`                                 | Current editors are ADMIN/PLANNER; approvers ADMIN/PRODUCTION_HEAD; master calendar edits need an explicit change                      |
+| Service transactions | `apps/api/src/scheduling/schedule.service.ts`                                                                                   | Reuse lifecycle/revise/publication and request-aware transaction helpers; a lock alone does not prove stale-client protection          |
+| Database             | `packages/db/src/schema/scheduling.ts`                                                                                          | Assignments have stored planned instants; input derives them from templates. One employee/business date per version is unique          |
+| Period writes        | `PutAssignmentsCommand`, `ReviseScheduleCommand`                                                                                | Current writes replace the full month and accept no expected-revision precondition; visible-range filtering must never become deletion |
+| Connected workflows  | [Requests](../../features/08-requests.md), [reminder delivery](shift-reminders.md), [existing workspace](schedule-workspace.md) | Preserve swap/absence approval, durable reminders and actual-shift history rather than duplicating them                                |
+
+Current preserved foundations: template/day/night assignments, rotations, local batch preview and
+undo/redo, draft/review/publish lifecycle, atomic published revision, historical versions and bot plan.
+Current gaps include complete roster search (the existing UI retrieval is capped at 200), cross-month
+workspace behavior, explicit demand/qualifications/eligibility, server stale-write preconditions,
+custom per-assignment time input and segment/open-slot models. Some capabilities exist in another
+workflow; absence from the calendar is not absence from the entire product.
+
+## SPEC: decisions and unresolved gates
+
+The product file owns all functional requirements, AC-01–11, UX-01–15 and the 50-row baseline. Do not
+duplicate that catalog into a second standalone specification. If later implementation uses Spec Kit,
+create a bounded milestone change under `specs/` referencing these IDs; keep this feature's roadmap
+and delivered status here. Follow the repository's local Spec Kit guide when doing so.
+
+| Decision                                      | Recommended starting position                                                                                                              | Blocks                                                                |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| D-01 Master authority                         | Scoped propose/prepare/submit; retain existing approver. No assumed direct publication or attendance powers                                | T-03 and any new master mutation                                      |
+| D-02 Requirements and qualification ownership | Named administrator/production owner maintains effective-dated staffing and verified qualifications; unknown data is explicit              | T-06, then T-07/T-08                                                  |
+| D-03 Rule severity and exceptions             | Overlap and required missing qualification are hard failures; configure rest/hours limits and approval authority before enforcement        | T-07; no invented legal or numerical limits                           |
+| D-04 Time/segments/break semantics            | Stable parent assignment with ordered zone segments; explicit gaps/overlaps policy, relief coverage and whole-versus-part operations       | T-10/T-11; custom time must agree with attendance admission/closure   |
+| D-05 Cross-month operations                   | Keep monthly publication ownership initially, aggregate calendar reads and atomically coordinate all affected versions for a single action | T-05 and cross-month T-09; decide review/publish grouping before code |
+| D-06 Borrowing/interest                       | Employee interest plus authorized selection; source/destination scope and source coverage considered; no first-click auto-assignment       | T-08/T-12                                                             |
+| D-07 Scope extensions                         | SC-46–49 stay deferred until an actual input/system/owner and separate scope approval exist                                                | T-15 only                                                             |
+
+These are proposed policies, not recorded owner approvals. Foundations and UX preservation can proceed
+independently. Resolve a gate before its dependent behavioral work, with a concrete reviewed proposal.
+
+## DESIGN: architecture and reuse
+
+- **Frontend:** keep `features/schedule-management` ownership for commands, draft orchestration and
+  UI. If cross-feature composition with Requests/Operations is needed, use the page/widget layer and
+  public slice APIs; do not introduce peer-feature imports or move business rules into `shared`.
+- **State:** validated server snapshots, eligibility and presence belong to TanStack Query; navigation
+  and filters belong to the existing routing/filter convention; persisted draft/undo and selection
+  belong to the focused client store. Every draft is keyed by user and organizational/version scope.
+  Do not mirror live query results into a second mutable calendar state.
+- **Model:** pure transformations own period/grouping, exact diffs, counts and view models. Components
+  render them and connect named actions. Preserve the project's React Compiler/hook restrictions.
+- **Backend:** scheduling remains a Nest feature; request decisions use the existing request owner.
+  Extract genuinely pure overlap, demand, qualification and time rules into `packages/domain` where
+  justified. No framework/DB I/O in domain and no direct activity-interval writes from calendar commands.
+- **Contracts:** validate every input/output with shared schemas. Define expected revision, idempotency
+  scope, command outcome, conflict detail and warning/blocking reasons before endpoint changes.
+- **UI primitives:** reuse shared calendar period controls, shadcn, RowDetail/WorkflowSection,
+  TableCount/Paginator, LoadingState and Query feedback. Reuse English/Ukrainian/Russian catalogs.
+- **Dependencies:** no calendar engine is selected by this document. Before choosing, spike only the
+  missing requirements: resource grouping, virtualization, cross-month ranges, accessible drag and
+  mobile list compatibility. Compare installed primitives first, then maintained libraries and their
+  official APIs/licenses. Do not adopt a package solely because a competitor uses a calendar grid.
+
+### Proposed data concepts and invariants
+
+Retain schedule versions and stable links to existing assignments/actual shifts. Introduce demand,
+open slots, qualification evidence, availability and segments only in their owning milestone.
+Schema names and migration details are deliberately not finalized before D-02/D-04/D-05.
+
+1. Assignment time is a positive interval with site timezone and business date. A custom interval
+   records its relationship to the template without changing historical planned instants.
+2. A segment belongs to a parent assignment. Changing a segment cannot silently change parent identity,
+   adjacent times, ownership or publication scope. Define break/gap handling before requiring contiguity.
+3. Replacing the existing employee/date uniqueness rule requires an explicit invariant migration;
+   adding segments must not accidentally allow concurrent work. Read/write all connected consumers.
+4. Coverage is calculated from requirements and eligible, non-overlapping assignments at the relevant
+   time/role. A worker cannot satisfy two simultaneous slots. Relief/breaks use the accepted semantics.
+5. Server overlap checks must cover active effective plans, excluding cancelled/superseded records,
+   with serialization/constraints that protect concurrent transactions across units. Verify against real DB.
+6. A slot has at most one effective assignee. Interest, offer, approval and assignment are distinct;
+   losing a race returns an actionable result, not a second assignment.
+7. Multi-version operations validate all expected revisions/scopes and commit as one logical operation
+   or report an explicitly designed partial workflow before the user acts. Never silently save one month.
+8. Rules have effective dates, owners and versions. Commit rechecks current eligibility, request state,
+   scope and revision even if preview previously passed.
+
+### Async ownership and recovery
+
+Abort obsolete reads and key results by scope/date/grouping; older responses cannot replace the active
+workspace or erase later edits. Preserve cached data during refresh and distinguish empty success from
+failed dependencies. Missing qualification/presence/roster reads stay unknown with retry.
+
+Draft writes require server revision preconditions. Retain rejected local work and show a before/after
+reconciliation; never silently use last-write-wins. Explicit retry reuses the logical command key when
+the outcome is uncertain. Double taps and competing publishers/claimants must be covered by invariants.
+
+Commit schedule changes, required request decisions, audit and durable notification admission together
+where they share the database. Queue/Telegram delivery happens after commit and can fail independently.
+Reuse existing delivery/recovery paths; do not add a second publication notification channel. Present
+queued/delivery-failed/acknowledged only when corresponding evidence exists. Cancellation/supersession
+must fence obsolete reminders. Never claim exactly-once external delivery without provider support.
+
+### Migration, compatibility and rollout
+
+Use additive schema/contracts first. Backfill existing template assignments without altering historical
+times, IDs used by attendance, or version lineage. Verify employee/date uniqueness migration and all
+old consumers before enabling partial/multiple intervals. Preserve inactive reference labels.
+
+Keep one authoritative scheduling writer through cutover. The current page can remain a temporary
+fallback only while it safely understands the data; gate its editing when newer segments/custom fields
+would be dropped. Prefer read-only fallback over lossy writes. Roll back admission of new features,
+not recorded history. Do not promise an old UI rollback after incompatible data has been written.
+
+Pilot with synthetic test records and then an explicitly selected unit; never fabricate production
+employee actions. Retire old page composition after parity and recovery checks. Full redesign does
+not require abandoning existing reliable services or replacing Vite with Next.js.
+
+## Implementation backlog
+
+All tasks are **not started**. IDs in the coverage column assign every SC capability to a delivery
+stream; other tasks may depend on or integrate them. Each stream must be split into a reviewable
+bounded implementation change before coding. All writes/Git operations remain sequential.
+
+| Task | Deliverable / owned boundary                                                                                                                         | Dependencies                                     | Catalog coverage                                       | Exit evidence                                                                                                    |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| T-00 | Record accepted operating policies and a measured baseline of standard planning/replacement tasks; product + feature memory                          | None                                             | Cross-cutting AC-11                                    | D-01–06 decisions resolved for the next stream; baseline task data and acceptance scenarios                      |
+| T-01 | Schedule shell, day/week/mobile views, zone/people grouping, contextual edit and shared feedback; schedule-management + i18n                         | T-00 for prototype scope                         | SC-11, SC-12, SC-21, SC-30                             | UX-05–08/10–14, desktop/mobile screenshots, keyboard and standard edit tests                                     |
+| T-02 | Preserve draft/review/history, templates, rotation, undo, notifications, personal plan and acknowledgement integration; existing schedule/bot owners | T-01                                             | SC-08, SC-09, SC-18, SC-19, SC-20, SC-24, SC-25, SC-28 | AC-01/06/10, published diff, correct worker audience, superseded reminder and recovery tests                     |
+| T-03 | Scoped master proposal workflow and server enforcement; auth/domain + scheduling                                                                     | D-01, T-02                                       | SC-10                                                  | Allowed/denied actor-scope-operation matrix, no bypass through direct API                                        |
+| T-04 | Complete roster search and server revision/idempotency safeguards; API/contracts + schedule state                                                    | T-01                                             | SC-23, SC-29                                           | Employee beyond 200 found, two-editor stale save rejected, draft retained, uncertain retry resolved              |
+| T-05 | Cross-month day/week/fortnight/month reads and coordinated writes; scheduling/contracts + period model                                               | D-05, T-04                                       | SC-22                                                  | Month/year/DST boundary tests, all-version rollback on one failure, correct publication ownership                |
+| T-06 | Effective staffing demand and qualifications; scheduling/domain/DB + configuration UI                                                                | D-02, T-04                                       | SC-01, SC-04                                           | Unknown demand, role-specific shortage and expiring qualification cases with audited configuration               |
+| T-07 | Eligibility, overlap, rest, hours and preferences; pure rules + transaction boundary + calendar explanations                                         | D-03, T-05, T-06                                 | SC-02, SC-05, SC-06, SC-17, SC-33                      | Real-DB concurrent assignment protection, threshold/boundary/unknown-data tests, explainable candidates          |
+| T-08 | Open slots and employee interest/selection; scheduling + bot + durable effects                                                                       | D-06, T-02, T-07                                 | SC-15, SC-16                                           | Competing claims cannot double-fill; required approvals, employee response and delivery failure recover          |
+| T-09 | Period patterns, batch operations and accessible drag; schedule model/UI + saved-pattern persistence                                                 | T-04, T-05, T-07                                 | SC-26, SC-27, SC-31                                    | Exact diff preserves exceptions, drag/Move parity, fill/replace/undo and stale baseline cases                    |
+| T-10 | Custom assignment time and segmented work; contracts/domain/DB + scheduling + dependent attendance/reminder consumers                                | D-04, T-05, T-07                                 | SC-32, SC-37                                           | Safe migration, whole/segment preview, unchanged history, custom start reminder and closure/admission agreement  |
+| T-11 | Break/relief planning and workload distribution; scheduling rules + calendar                                                                         | D-04, T-07, T-10                                 | SC-35, SC-36                                           | Coverage during breaks, no actual-event rewrite, explicit comparison cohort and units                            |
+| T-12 | Attendance/absence overlays, requests/swaps and borrowing context; page composition + existing workflow public APIs                                  | D-06, T-03, T-07, T-08                           | SC-03, SC-07, SC-13, SC-14, SC-34, SC-38               | Approved/pending/unknown distinctions, all approval routes, source-unit scope and atomic multi-month effects     |
+| T-13 | Notes, linked records, retrospective reports, print/export and justified typed fields; owning feature APIs + schedule composition                    | T-05, T-10, T-12                                 | SC-39, SC-40, SC-41, SC-42, SC-43, SC-50               | Restricted-data checks, historical semantics, complete output, formula-safe export, long-data layouts            |
+| T-14 | Revocable personal feed and explainable proposed slot allocation; scheduling + feed + proposal model                                                 | T-07, T-08, T-13 for export identity             | SC-44, SC-45                                           | Own published data only, revoked feed denied, stable event updates; proposal cannot bypass rules or self-publish |
+| T-15 | Separately scoped demand forecasts, planned/actual costs and HR/payroll exchange                                                                     | D-07 plus approved data/contracts and cost model | SC-46, SC-47, SC-48, SC-49                             | Separate specification, input quality, reconciliation, financial/privacy/integration invariant review            |
+
+Tasks are dependency streams rather than a promise that each fits one release. Split T-12 to bring
+read-only absence/presence visibility earlier if it requires no new authority; retain the same SC IDs
+and acceptance checks. A first rollout can include T-01/T-02/T-04 and read-only overlays without
+claiming staffing demand, eligibility or master writes are implemented.
+
+## UX evidence and reuse decisions
+
+Research was performed on 2026-09-12 using official help pages, more than ten visually inspected
+desktop/mobile illustrations and an inspected animation frame. It was not an authenticated product
+trial. Native iOS screenshots do not establish responsive-web or Android parity. Availability may
+depend on plan/rollout. The following links are portable primary references, not local artifact paths.
+
+| Reference                                                                                             | Observed/documented mechanism                                                | Adopt or improve in Vakhta                                                                    |
+| ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| [Deputy editor image](https://help.deputy.com/hc/article_attachments/10617407757839)                  | Contextual editor with overall time, area rows, breaks and notes             | Keep context/defaults; shorten standard shifts; use existing row details for existing records |
+| [Deputy split preview](https://help.deputy.com/hc/article_attachments/12396494136079)                 | Timeline, exact split-time input and resulting shifts                        | Adopt result preview and precise input; avoid nested overlay stacks                           |
+| [Deputy mobile form](https://help.deputy.com/hc/article_attachments/13447468620175)                   | Vertical fields and prominent bottom action                                  | Adopt phone-specific composition; optional complexity stays disclosed                         |
+| [Deputy mobile day/week](https://help.deputy.com/hc/article_attachments/13447493590031)               | Readable day list versus narrow seven-column week; linked parts              | Prefer day workflow; name whole/part scope, reduce repeated location/timezone text            |
+| [When I Work desktop](https://d1fc5y2qmnxpnr.cloudfront.net/assets/Scheduler-reference-1024x648.png)  | Period/grouping controls, filters and open-shift row                         | Adopt orthogonal controls; prevent unfilled cards from consuming the entire workspace         |
+| [When I Work candidates](https://d1fc5y2qmnxpnr.cloudfront.net/assets/view-eligible-web-1024x960.png) | Own/other schedule candidate groups; selected counts; two green save actions | Show source scope and eligibility reasons; give the current workflow one clear primary action |
+| [When I Work mobile](https://d1fc5y2qmnxpnr.cloudfront.net/assets/all-shifts-view-iOS-1.png)          | Week strip with selected-day list                                            | Adopt for mobile web; strengthen person identity/status and explicit duration units           |
+
+Deputy micro-scheduling treats linked area cards as one shift: deletion/publication can affect every
+part; timesheet approval for this mode is website-only. Its split preview is useful, but Vakhta must
+explain operation scope and maintain understandable mobile rules. The linked article also describes
+dragging dates while restricting date edits in the details form; do not infer uniform interaction
+behavior without a live check. [Deputy micro-scheduling](https://help.deputy.com/hc/en-au/articles/10611651590159-Managing-micro-scheduled-shifts-and-timesheets).
+
+When I Work labor sharing adds eligible people from other schedules. Shared-slot pickup approval is
+enabled by default, can be disabled on the web, and cannot be disabled on mobile; repeating shifts and
+templates do not support shared slots in the consulted guide. Adopt candidate discovery, not those
+policy differences or automatic permission assumptions. [Labor sharing](https://help.wheniwork.com/articles/labor-sharing-reference-guide/).
+
+### Functional source index
+
+These sources support mechanisms considered in the catalog, not identical availability in both
+products. Manufacturing ranking and Vakhta-specific constraints are our proposals. Sources were
+consulted during the preceding research; this consolidation does not claim a fresh live product test.
+
+- SC-01/15: [Deputy staffing coverage](https://help.deputy.com/hc/en-au/articles/4688843118223-Using-a-simple-staff-coverage-planner-when-scheduling), [When I Work OpenShifts](https://help.wheniwork.com/articles/scheduling-an-openshift-computer/).
+- SC-02/04/05/06/17: [Deputy recommendations](https://help.deputy.com/hc/en-au/articles/4688700112015-How-do-I-ensure-that-a-team-member-is-recommended-for-a-shift), [When I Work rules](https://help.wheniwork.com/articles/scheduling-rules-reference/), [overtime visibility](https://help.wheniwork.com/articles/overtime-visibility/).
+- SC-11/12/21/22/30/31: [desktop views](https://help.wheniwork.com/articles/schedule-views-computer/), [scheduler reference](https://help.wheniwork.com/articles/scheduler-reference-guide-computer/), [iOS views](https://help.wheniwork.com/articles/schedule-views-iphoneipad/), [Deputy shift creation](https://help.deputy.com/hc/en-au/articles/4688731978639-Creating-shifts-on-your-schedule).
+- SC-24/25/26/27: [Deputy schedule templates](https://help.deputy.com/hc/en-au/articles/4688863723791-Saving-and-loading-schedule-templates). Cross-month Vakhta rotations are our target, not a claim of monthly template support in Deputy.
+- SC-32/36/37: [Deputy micro-scheduling](https://help.deputy.com/hc/en-au/articles/10611651590159-Managing-micro-scheduled-shifts-and-timesheets).
+- SC-16/38: [When I Work labor sharing](https://help.wheniwork.com/articles/labor-sharing-reference-guide/).
+- SC-39/40: [When I Work annotations](https://help.wheniwork.com/articles/using-annotations-computer/); connecting handovers is a Vakhta integration proposal.
+- SC-42/43: [Deputy printing](https://help.deputy.com/hc/en-au/articles/4688737187343-Printing-your-schedule).
+- SC-44: [When I Work calendar sync](https://help.wheniwork.com/articles/syncing-your-schedule-to-a-calendar-app-computer/); subscription refresh is not instantaneous delivery.
+- SC-45: [Deputy auto-scheduling](https://help.deputy.com/hc/en-au/articles/4688892429839-Using-Auto-scheduling), [When I Work auto-assign](https://help.wheniwork.com/articles/auto-assign-shifts/).
+- SC-46/47/48: [When I Work forecast tools](https://help.wheniwork.com/articles/forecast-tools/), [Deputy smart scheduling](https://help.deputy.com/hc/en-au/articles/4688947197455-Smart-Scheduling-101). These are not a complete payroll specification for Vakhta.
+- SC-50: [Deputy custom fields](https://help.deputy.com/hc/en-au/articles/6030947375247-Creating-custom-shift-fields).
+- Preserved Vakhta communication, requests and history: [current Schedule](../../features/05-schedule.md), [Requests](../../features/08-requests.md), [workspace evidence](schedule-workspace.md), [reminders](shift-reminders.md).
+
+## VERIFY and HARDEN
+
+### Required implementation evidence
+
+| Boundary            | Evidence required before the affected stream ships                                                                                                                    |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pure rules/model    | Overlap, rest, qualifications, demand counts, partial/night/DST time, rotations, serialization and exact diffs                                                        |
+| Real DB/concurrency | Stale draft save, two publishers, competing slot claims, cross-unit overlap, request plus multi-month rollback, migration invariants                                  |
+| Failure recovery    | Commit/queue failure, uncertain retry, cancelled/superseded reminders, failed dependent reads, retained local draft and user-session isolation                        |
+| UI                  | SC journeys, no-op actions, complete counts, unknown/empty/loading/error states, keyboard focus, mobile touch alternatives, all locales                               |
+| Connected surfaces  | Bot publication/acknowledgement/request/reminder scenarios when affected; kiosk/admission/closure only when custom-time changes touch them                            |
+| Visual QA           | Capture and inspect actual desktop and mobile screens, including long data, open details, editor, publication and failure; screenshots are not replaced by unit tests |
+| Output/privacy      | Print/export completeness and units, formula-safe spreadsheet values, own-data calendar access and revocation, scoped candidate details                               |
+
+Use the smallest relevant checks from [the testing policy](../testing-baseline.md). Existing commands
+for future implementation include the following; they were **not run for this documentation task**:
+
+```sh
+pnpm --filter admin-web test src/features/schedule-management
+pnpm --filter admin-web typecheck
+pnpm --filter api test src/scheduling/schedule.service.test.ts
+pnpm --filter api typecheck
+pnpm --filter @vakhta/domain test
+pnpm --filter @vakhta/contracts test
+pnpm --filter @vakhta/i18n test
+```
+
+Add focused paths for new tests and changed request/worker consumers when they exist; verify package
+scripts before executing later. Run affected ESLint and build only as justified by changes. Real DB
+tests require the existing container setup. High-risk implementation requires one independent fixed-diff
+review. Documentation alone needs format, links, coverage and diff inspection, not that review or full CI duplication.
+
+Delivery evidence must distinguish local checks, queued/running CI, released metadata and deployed
+behavior. Preserve the existing release-to-Telegram announcement job; do not send manual duplicates.
+Do not label a planned milestone as complete from test counts of the earlier workspace implementation.
+
+## Lean review
+
+Recommendation: **Proceed with the redesign; simplify its default paths and defer ungrounded extensions.**
+Evidence is the owner's stated need, current source constraints and reviewed competitor interfaces,
+not direct shop-floor observation. The default workspace should answer who is planned, what is known
+about readiness and which permitted next action resolves a problem. Contextual defaults, candidate
+selection, batch previews and recoverable drafts reduce search/re-entry/rework.
+
+New worker burden must stay optional and justified: interest/acknowledgement is task-specific, not a
+new check-in per segment or repeated data entry. Calendar changes do not expand actual QR/report duties.
+Unnecessary custom fields, decorative metrics and fifty permanent buttons fail this recommendation.
+
+Experiment: compare current UI and prototype on identical synthetic tasks with a planner and day/night
+masters, then select a bounded unit pilot. Measure active task time, manual contacts, corrections,
+backtracking, assistance and unresolved slots before shift start. Set targets after measuring baseline.
+Guardrails: no unauthorized changes, invisible partial save, missed staffing/qualification constraint,
+false presence, history loss or unannounced schedule change. A guardrail failure pauses the affected
+capability; preserve manual workflow and the recorded evidence. No throughput/OEE claim follows from
+scheduling interaction measurements.
+
+## Verification record and remaining work
+
+- 2026-09-12: documentation-only consolidation. Inspected current product docs, feature memory,
+  scheduling contracts/schema/controller and source continuity since the original research baseline.
+- Canonical product catalog retains SC-01–50 and the 7/19/24 baseline split. Backlog maps each ID to
+  one stream; cross-cutting acceptance and all 15 UX recommendations remain explicit.
+- No feature code, schema, permissions, employee data or notification logic changed. No application
+  test, screenshot of a new Vakhta UI, production migration or runtime verification is claimed.
+- Documentation checks passed: Prettier on all five owned Markdown files, `git diff --check`, ordered
+  unique SC-01–50 rows, the 7/19/24 baseline counts, exactly one backlog mapping per capability,
+  15 UX requirements, 11 cross-cutting criteria and resolution of every local Markdown link.
+  No machine-local research artifact paths remain in the new documents. Delivery results are recorded
+  with the task handoff. Concurrent Spec Kit/master-agent/research work is outside this delivery.
+- Next implementation step: resolve the next stream's policy gates and prepare a bounded T-01/T-04
+  design/prototype with the SC/AC/UX IDs it will satisfy. All T-00–15 implementation work remains open;
+  T-15 additionally requires separate scope approval.

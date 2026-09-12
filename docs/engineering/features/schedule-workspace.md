@@ -1,5 +1,8 @@
 # Schedule workspace
 
+Planned successor: [Schedule calendar redesign](schedule-calendar-redesign.md). This file retains
+the existing implementation evidence; the successor tracks the full future redesign and its gaps.
+
 Status: implemented and locally verified, 2026-09-12. Baseline: `0f41794`.
 Authority: owner requests full implementation of the attached Schedule UX audit.
 

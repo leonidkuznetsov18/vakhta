@@ -1,5 +1,8 @@
 # Feature docs
 
+Planned feature: [Schedule calendar redesign](schedule-calendar-redesign.md). Its future requirements
+must not be presented as available behavior; [Schedule](05-schedule.md) describes the current product.
+
 One Markdown file per feature, written for the support assistant and for people who join the
 project. The support bot (@vakhta_support_bot) loads every file in this folder, the user guide
 (`docs/user-guide/vakhta-user-guide.ru.html`) and the changelog into its context, so what is written
