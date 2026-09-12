@@ -145,13 +145,11 @@ export function PredictionPanel({
                   icon={CopyPlusIcon}
                   label={t.accept}
                   tooltip={t.hints.accept}
-                  size="sm"
+                  size="icon"
                   variant="outline"
                   disabled={disabled}
                   onClick={() => editor.acceptSuggestion(run, index)}
-                >
-                  {t.accept}
-                </IconButton>
+                />
               ) : (
                 <p>{t.noGeometry}</p>
               )}
@@ -161,12 +159,10 @@ export function PredictionPanel({
                     icon={XIcon}
                     label={t.reject}
                     tooltip={t.hints.reject}
-                    size="sm"
+                    size="icon"
                     variant="ghost"
                     disabled={disabled}
-                  >
-                    {t.reject}
-                  </IconButton>
+                  />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   {RejectionReason.options.map((reason) => (
@@ -195,13 +191,11 @@ export function PredictionPanel({
               icon={Undo2Icon}
               label={t.restore}
               tooltip={t.hints.restore}
-              size="sm"
+              size="icon"
               variant="ghost"
               disabled={disabled}
               onClick={() => editor.restoreSuggestion(run, index)}
-            >
-              {t.restore}
-            </IconButton>
+            />
           </div>
         ))}
       </div>

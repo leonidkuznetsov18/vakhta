@@ -113,6 +113,45 @@ usable width and places the add button below when the available space is narrow.
 - Affected frontend typecheck, ESLint, formatting and production build passed. Existing bundle-size
   and upstream Zod comment warnings remain unchanged.
 
+### Compact contextual actions — specification
+
+The owner requested icon-only buttons with tooltips where long icon-and-text labels crowd the UI.
+Apply this across contextual help/search, copying, import/template download, inline editing,
+checklist catalog controls, photo suggestions and photo-library filters. Keep visible text for
+primary saves, operational decisions, bulk actions with counts, ambiguous setup/generation actions,
+disclosure titles and export format choices. Preserve the requested mobile photo-navigation labels.
+
+Use the existing shared IconButton and its icon size variants, with an explicit accessible name,
+hover/focus tooltip and existing 40 px mobile target. Disabled controls must retain keyboard-accessible
+help and native disabled behavior. Slotted downloads must remain links. No business actions, permission
+checks, mutation handlers or unsaved guards change. Existing feature ownership stays intact.
+
+Acceptance: compact controls preserve their accessible names, tooltips, link attributes and handlers;
+disabled controls cannot activate; contextual actions fit at desktop/mobile widths; primary actions
+and distinctions such as CSV/XLSX remain visible. Lean recommendation: **Simplify** repeated secondary
+labels while retaining the information needed to choose consequential actions. User comprehension
+and productivity improvements remain hypotheses until tested with operators.
+
+Implemented at 21 button locations across shared help/search/copy, employees/import, user roles,
+checklist rules, photo review and photo-library controls. Shared help/search applies throughout the
+panel. The source inventory also covered reports, bonus, schedule, operations, requests, terminals
+and checklist creation; their ambiguous/primary actions and distinct export formats retain text.
+
+Verification: 27 focused tests across seven files passed, including three new accessibility/link
+regressions for icon-only controls. Frontend typecheck, scoped ESLint, formatting and production build
+passed; the existing bundle-size and upstream Zod comment warnings remain. Screenshots were
+inspected on desktop (1440×900) and mobile (390×844), with a narrow 320×568 check for help labels and
+English/Russian variants. Keyboard focus reveals disabled-action tooltips; photo suggestion menus,
+command search, CSV import, inline edit and filter reset still open/act correctly. Download retains
+its link and `download` attribute. Mobile actions measure 40×40 px; the catalog input retains 224 px
+next to its 40 px add button at 390 px. A pre-existing mobile role-badge overflow found in the affected
+view was removed by allowing wrapping. Small-screen help hides its secondary details word.
+
+The photo-library preview lacks successful result fixtures, so its filters and error/retry state were
+inspected; successful results/reset behavior also has existing regression coverage. Issuing credentials,
+clipboard success for newly issued secrets, production mutations and physical touch were not exercised.
+No permissions, operational decisions or persistence semantics changed.
+
 The preview uses synthetic SVG evidence and typed read-only fixtures. No production decisions, catalog
 changes, AI calls or employee messages were performed. Physical touch/pinch, all role permutations,
 all translated long-text combinations, screen-reader certification and authenticated production QA

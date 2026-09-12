@@ -118,11 +118,9 @@ export function RegionFields({
                   label={t.reject}
                   tooltip={t.hints.reject}
                   variant="ghost"
-                  size="sm"
+                  size="icon-sm"
                   disabled={busy}
-                >
-                  {t.reject}
-                </IconButton>
+                />
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 {RejectionReason.options.map((reason) => (

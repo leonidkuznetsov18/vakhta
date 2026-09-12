@@ -112,12 +112,14 @@ export function PhotoLibraryPage() {
             <IconButton
               type="submit"
               icon={SearchIcon}
+              size="icon"
               label={t.searchAction}
               tooltip={t.searchHint}
               disabled={!model.canApply}
             />
             <IconButton
               icon={XIcon}
+              size="icon"
               label={t.reset}
               tooltip={t.resetHint}
               variant="outline"

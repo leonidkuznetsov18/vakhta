@@ -47,12 +47,12 @@ export function HowItWorks({
           tooltip={t.ui.common.howItWorksHint}
           variant="ghost"
           type="button"
-          className="h-auto min-w-0 flex-1 basis-full justify-start gap-2 text-left text-sm font-semibold sm:basis-auto"
+          className="h-auto min-w-0 flex-1 justify-start gap-2 text-left text-sm font-semibold"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
           {t.ui.common.howItWorks}
-          <span className="ml-auto text-xs font-normal text-muted-foreground">
+          <span className="ml-auto hidden text-xs font-normal text-muted-foreground sm:inline">
             {open ? t.ui.common.hide : t.ui.common.details}
           </span>
         </IconButton>
@@ -61,12 +61,10 @@ export function HowItWorks({
           label={t.ui.common.faq}
           tooltip={t.ui.common.faqHint}
           type="button"
-          size="sm"
+          size="icon"
           variant="outline"
           onClick={() => setFaq(true)}
-        >
-          {t.ui.common.faq}
-        </IconButton>
+        />
       </div>
       {open && (
         <div className="mt-2 flex flex-col gap-2 text-sm text-muted-foreground">
@@ -92,17 +90,13 @@ export function FaqButton({ guide }: { readonly guide: GuideKey }) {
     <>
       <IconButton
         icon={CircleHelpIcon}
-        label={t.ui.common.faq}
+        label={format(t.ui.common.helpFor, { section: sectionTitle(guide) })}
         tooltip={t.ui.common.faqHint}
         type="button"
         variant="outline"
-        size="sm"
-        aria-label={format(t.ui.common.helpFor, { section: sectionTitle(guide) })}
-        title={format(t.ui.common.helpFor, { section: sectionTitle(guide) })}
+        size="icon"
         onClick={() => setOpen(true)}
-      >
-        <span className="hidden sm:inline">{t.ui.common.faq}</span>
-      </IconButton>
+      />
       <FaqSheet guide={guide} open={open} onOpenChange={setOpen} />
     </>
   );

@@ -7,6 +7,7 @@ import { format, messages } from '@vakhta/i18n';
 import { PencilIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { IconButton } from '@/shared/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
@@ -208,21 +209,25 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
           <span className="font-semibold">{user.name}</span>
           <Muted>{user.email}</Muted>
           <span className="ml-auto flex flex-wrap gap-1">
-            <Button
+            <IconButton
+              icon={Trash2Icon}
+              label={u.deleteUser}
+              tooltip={u.deleteUser}
               type="button"
-              size="sm"
+              size="icon-sm"
               variant="ghost"
               className="text-destructive hover:text-destructive"
               disabled={busy || !myRoles.includes('ADMIN')}
               onClick={() => void removeUser(user)}
-            >
-              <Trash2Icon aria-hidden="true" />
-              {u.deleteUser}
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setGrantFor(null)}>
-              <XIcon aria-hidden="true" />
-              {all.ui.common.close}
-            </Button>
+            />
+            <IconButton
+              icon={XIcon}
+              label={all.ui.common.close}
+              tooltip={all.ui.common.close}
+              size="icon-sm"
+              variant="ghost"
+              onClick={() => setGrantFor(null)}
+            />
           </span>
         </div>
         <div className="grid min-w-0 gap-6 lg:grid-cols-2">
@@ -275,27 +280,27 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
                           : ''}
                       </Muted>
                       <span className="ml-auto flex gap-1">
-                        <Button
+                        <IconButton
+                          icon={PencilIcon}
+                          label={u.replaceRole}
+                          tooltip={u.replaceRole}
                           type="button"
-                          size="sm"
+                          size="icon-sm"
                           variant="ghost"
                           disabled={busy}
                           onClick={() => startReplace(user, g.id)}
-                        >
-                          <PencilIcon aria-hidden="true" />
-                          {u.replaceRole}
-                        </Button>
-                        <Button
+                        />
+                        <IconButton
+                          icon={XIcon}
+                          label={u.revoke}
+                          tooltip={u.revoke}
                           type="button"
-                          size="sm"
+                          size="icon-sm"
                           variant="ghost"
                           className="text-destructive hover:text-destructive"
                           disabled={busy}
                           onClick={() => revoke(user, g.id)}
-                        >
-                          <XIcon aria-hidden="true" />
-                          {u.revoke}
-                        </Button>
+                        />
                       </span>
                     </li>
                   ))}
@@ -385,7 +390,11 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
       cell: (user) => (
         <div className="flex flex-wrap gap-1">
           {user.roles.map((g) => (
-            <Badge key={g.id} variant="secondary" className="gap-1 pr-1">
+            <Badge
+              key={g.id}
+              variant="secondary"
+              className="h-auto max-w-full flex-wrap justify-start gap-1 rounded-md pr-1 whitespace-normal"
+            >
               {all.roles[g.role]}
               <span className="text-muted-foreground">
                 {u.scopeTypes[g.scopeType]}

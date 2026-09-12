@@ -5,6 +5,7 @@ import { format, messages } from '@vakhta/i18n';
 import { DownloadIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { IconButton } from '@/shared/ui/icon-button';
 import {
   Dialog,
   DialogContent,
@@ -125,12 +126,18 @@ export function ImportDialog({
                 />
               )}
             </FormField>
-            <Button asChild variant="outline">
+            <IconButton
+              icon={DownloadIcon}
+              label={e.importTemplate}
+              tooltip={e.importTemplate}
+              size="icon"
+              asChild
+              variant="outline"
+            >
               <a href={templateHref} download="employees.csv">
-                <DownloadIcon aria-hidden="true" />
-                {e.importTemplate}
+                <span className="sr-only">{e.importTemplate}</span>
               </a>
-            </Button>
+            </IconButton>
           </div>
           {rows.length > 0 && (
             <>

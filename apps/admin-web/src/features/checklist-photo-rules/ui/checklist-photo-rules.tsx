@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ChecklistPhotoRulesView, type PhotoObjectView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
-import { CheckIcon, PencilIcon, PlusIcon, SaveIcon, Trash2Icon } from 'lucide-react';
+import { CheckIcon, PencilIcon, PlusIcon, SaveIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { InfoTip } from '@/components/app/info-tip';
@@ -165,10 +165,15 @@ function RulesEditor({
           {!saved.rules.length && <li>{t.empty}</li>}
         </ul>
         {initial.canEdit && (
-          <Button variant="outline" className="self-start" onClick={() => setEditingRules(true)}>
-            <PencilIcon aria-hidden="true" />
-            {t.editRules}
-          </Button>
+          <IconButton
+            icon={PencilIcon}
+            label={t.editRules}
+            tooltip={t.editRules}
+            variant="outline"
+            size="icon"
+            className="self-start"
+            onClick={() => setEditingRules(true)}
+          />
         )}
       </div>
     );
@@ -176,9 +181,15 @@ function RulesEditor({
     <div ref={dirty || catalogDirty ? guardUnsaved : undefined} className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <strong className="text-sm">{t.editRules}</strong>
-        <Button variant="outline" size="sm" disabled={busy} onClick={closeEditor}>
-          {t.viewRules}
-        </Button>
+        <IconButton
+          icon={XIcon}
+          label={t.viewRules}
+          tooltip={t.viewRules}
+          variant="outline"
+          size="icon"
+          disabled={busy}
+          onClick={closeEditor}
+        />
       </div>
       <div className="flex flex-col gap-2">
         <span className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -190,13 +201,11 @@ function RulesEditor({
               label={editing ? t.catalogDone : t.catalogEdit}
               tooltip={editing ? t.catalogDone : t.catalogEdit}
               variant="ghost"
-              size="sm"
+              size="icon-sm"
               aria-pressed={editing}
               disabled={busy}
               onClick={() => setEditing((on) => !on)}
-            >
-              {editing ? t.catalogDone : t.catalogEdit}
-            </IconButton>
+            />
           )}
         </span>
         {editing ? (
@@ -299,7 +308,7 @@ function RulesEditor({
         )}
         {canCreate && (
           <div className="flex flex-wrap items-end gap-2">
-            <label className="flex min-w-0 flex-1 basis-48 flex-col gap-1 text-sm">
+            <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
               {t.newObject}
               <Input
                 value={newName}
@@ -315,16 +324,16 @@ function RulesEditor({
                 }}
               />
             </label>
-            <Button
+            <IconButton
+              icon={PlusIcon}
+              label={t.createObject}
+              tooltip={t.createObject}
               type="button"
               variant="outline"
-              className="max-sm:w-full"
+              size="icon"
               disabled={busy || !newName.trim()}
               onClick={() => create.mutate()}
-            >
-              <PlusIcon aria-hidden="true" />
-              {t.createObject}
-            </Button>
+            />
           </div>
         )}
         {create.isError && (

@@ -11,7 +11,7 @@ import {
   UserIcon,
   type LucideIcon,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { IconButton } from '@/shared/ui/icon-button';
 import {
   CommandDialog,
   CommandEmpty,
@@ -22,7 +22,6 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from '@/components/ui/command';
-import { InfoTip } from '@/components/app/info-tip';
 import { checklistsApi } from '@/api';
 import { currentLocale } from '@/i18n';
 import { useEmployees, useOrg } from '@/lib/org';
@@ -117,23 +116,15 @@ export function CommandPalette({
 
   return (
     <>
-      <div className="flex items-center gap-1">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="text-muted-foreground"
-          aria-label={c.commandPalette}
-          onClick={() => setOpen(true)}
-        >
-          <SearchIcon aria-hidden="true" />
-          <span className="hidden sm:inline">{c.commandPalette}</span>
-          <kbd className="pointer-events-none hidden rounded border bg-muted px-1.5 font-mono text-[10px] sm:inline">
-            ⌘K
-          </kbd>
-        </Button>
-        <InfoTip text={t.ui.hints.commandPalette} />
-      </div>
+      <IconButton
+        icon={SearchIcon}
+        label={c.commandPalette}
+        tooltip={t.ui.hints.commandPalette}
+        variant="outline"
+        size="icon"
+        aria-keyshortcuts="Meta+k Control+k"
+        onClick={() => setOpen(true)}
+      />
       <CommandDialog open={open} onOpenChange={setOpen} title={c.commandPalette}>
         <CommandInput placeholder={c.commandPlaceholder} />
         <CommandList>

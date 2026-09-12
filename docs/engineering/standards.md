@@ -89,6 +89,12 @@ do not make tooltips the only way to understand an essential control.
 Do not duplicate explanatory text in both a tooltip and its surrounding card or form. Keep the
 explanation in the tooltip; retain concise field labels and distinct actionable validation messages.
 
+Use shared `IconButton` with an icon size for familiar contextual actions such as help, search,
+copying, importing and inline editing. Supply a localized label and tooltip; preserve its keyboard
+help and mobile target size. Keep text for primary saves, consequential workflow choices, bulk counts,
+disclosure titles and distinctions that share an icon (for example CSV versus XLSX). Do not hide
+labels automatically based on character count or convert every action to an unexplained icon.
+
 Test business rules, state transitions, query invalidation, permissions and error recovery at the
 appropriate unit/integration level. E2E covers authentication and complete critical journeys across
 panel, kiosk and bot, including failures and retries. Avoid tests that merely mirror implementation.

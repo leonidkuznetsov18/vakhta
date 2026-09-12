@@ -12,6 +12,7 @@ import type {
 import { format, messages } from '@vakhta/i18n';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { IconButton } from '@/shared/ui/icon-button';
 import {
   Dialog,
   DialogContent,
@@ -487,10 +488,14 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         hint={hints.employeesActivation}
         actions={
           <>
-            <Button type="button" variant="outline" onClick={() => setImporting(true)}>
-              <UploadIcon aria-hidden="true" />
-              {e.import}
-            </Button>
+            <IconButton
+              icon={UploadIcon}
+              label={e.import}
+              tooltip={e.import}
+              size="icon"
+              variant="outline"
+              onClick={() => setImporting(true)}
+            />
             <AddDialog
               title={e.create}
               trigger={e.create}
@@ -1102,16 +1107,16 @@ function EmployeeDetailsForm({
             {e.details}
             <InfoTip text={e.detailsHint} />
           </span>
-          <Button
+          <IconButton
+            icon={PencilIcon}
+            label={e.editDetails}
+            tooltip={e.editDetails}
             type="button"
-            size="sm"
+            size="icon-sm"
             variant="outline"
             className="ml-auto"
             onClick={() => setEditing(true)}
-          >
-            <PencilIcon aria-hidden="true" />
-            {e.editDetails}
-          </Button>
+          />
         </div>
         <ContactsRow employee={employee} />
       </div>
