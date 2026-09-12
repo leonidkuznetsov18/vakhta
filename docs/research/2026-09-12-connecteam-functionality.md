@@ -1,17 +1,17 @@
-# Vakhta future development plan and Connecteam feature map
+# Connecteam functionality: competitor reference for Vakhta
 
 ## Purpose and decision status
 
-Saved at the owner's request on 2026-09-12 for a future planning conversation. This document keeps
-the complete researched feature inventory together with a proposed order of development. It is an
-idea backlog, not a commitment to build every Connecteam feature, an approved implementation spec,
-or an agreed delivery schedule. No development is authorized by saving this plan.
+Connecteam is a competitor and a reference point for Vakhta's future development. Saved at the
+owner's request on 2026-09-12, this document catalogs Connecteam's functionality, compares it with
+Vakhta and identifies ideas worth considering for manufacturing. It is a competitor reference,
+not an approved Vakhta roadmap or a commitment to reproduce every competitor feature.
 
 The 90 numbered capabilities below are the reference inventory. Their status reflects the source
 snapshot recorded below; recheck the selected area when work resumes. Preserve the distinction
 between existing functionality, reliability gaps, extensions and independently valuable modules.
 
-## Proposed development sequence
+## Potential Vakhta opportunities inspired by Connecteam
 
 All entries remain unselected. Priority is a proposal based on manufacturing relevance, existing
 Vakhta capabilities and dependencies, rather than measured customer demand.
