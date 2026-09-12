@@ -1,3 +1,9 @@
+## [0.93.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.2...v0.93.3) (2026-09-12)
+
+### Bug fixes
+
+* **admin:** fit photo review workspaces and simplify row details ([a7485b5](https://github.com/leonidkuznetsov18/vakhta/commit/a7485b59eea238ff834fe457cc1bca06650f2776))
+
 ## [0.93.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.1...v0.93.2) (2026-09-11)
 
 ### Refactoring
