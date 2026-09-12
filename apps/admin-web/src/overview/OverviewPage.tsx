@@ -18,7 +18,7 @@ import { EmptyState, Muted, Section, type Tone } from '@/components/app/page';
 import { AvatarStack, type StackedPerson } from '@/components/app/avatar-stack';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { formatTime } from '@/lib/format';
-import { writeSchedulePreset } from '../schedule/preset.ts';
+import { writeSchedulePreset } from '@/features/schedule-management';
 import { currentLocale } from '../i18n.tsx';
 import { writeRoute } from '@/lib/route';
 import { setUiState } from '@/lib/ui-store';

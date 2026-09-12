@@ -57,7 +57,7 @@ import { OperationsPage } from './operations/OperationsPage.tsx';
 import { OverviewPage } from './overview/OverviewPage.tsx';
 import { useAttention } from './overview/attention.ts';
 import { RequestsPage } from './requests/RequestsPage.tsx';
-import { SchedulePage } from './schedule/SchedulePage.tsx';
+import { ScheduleWorkspace as SchedulePage } from '@/features/schedule-management';
 import { useSession } from './auth/useSession.ts';
 import { cn } from 'cn';
 import { Button } from '@/components/ui/button';
@@ -202,6 +202,7 @@ export function App() {
     <NavigationProvider
       go={(section: SectionKey) => setActive(section)}
       roles={me.roles.map((g) => g.role)}
+      grants={me.roles}
     >
       <SidebarProvider>
         <MobileNavigation>

@@ -1,0 +1,435 @@
+import { messages } from '@vakhta/i18n';
+import { currentLocale } from '@/i18n';
+import { ScheduleVersionDetail } from '@vakhta/contracts';
+import { setUiState } from '@/lib/ui-store';
+import { gridFromDetail, gridToItems, setAssignment, setCell } from '../model/grid';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { render } from '@/test-utils';
+import { ScheduleWorkspace as SchedulePage } from './schedule-workspace';
+import { useScheduleDrafts } from '../model/store';
+import { writeSchedulePreset } from '../model/preset';
+import { clearPersistentState } from '@/lib/ui-store';
+import { NavigationProvider } from '@/navigation';
+
+const SITE = 'a0000000-0000-4000-8000-000000000001';
+const UNIT = 'a0000000-0000-4000-8000-000000000002';
+const ZONE = 'a0000000-0000-4000-8000-000000000003';
+const EMP = 'b0000000-0000-4000-8000-000000000001';
+const EMP2 = 'b0000000-0000-4000-8000-000000000002';
+const TPL_DAY = 'c0000000-0000-4000-8000-000000000001';
+const TPL_NIGHT = 'c0000000-0000-4000-8000-000000000002';
+const VERSION = 'd0000000-0000-4000-8000-000000000001';
+const ASSIGN = 'e0000000-0000-4000-8000-000000000001';
+
+const org = {
+  sites: [{ id: SITE, code: 'main', name: 'Основная площадка', timezone: 'Europe/Moscow' }],
+  orgUnits: [{ id: UNIT, siteId: SITE, parentId: null, name: 'Цех фасовки' }],
+  teams: [],
+  positions: [],
+  zones: [
+    {
+      id: ZONE,
+      siteId: SITE,
+      orgUnitId: UNIT,
+      code: 'L1',
+      name: 'Линия 1',
+      type: 'AREA',
+      isShared: false,
+      isActive: true,
+    },
+  ],
+  terminals: [],
+  reasonCodes: [],
+};
+
+const employees = [
+  {
+    id: EMP,
+    personnelNumber: '0001',
+    fullName: 'Кузнецов Леонид',
+    status: 'ACTIVE',
+    telegramLinked: true,
+    currentPosition: null,
+    createdAt: 'x',
+  },
+  {
+    id: EMP2,
+    personnelNumber: '0002',
+    fullName: 'Сидоров Пётр',
+    status: 'ACTIVE',
+    telegramLinked: false,
+    currentPosition: null,
+    createdAt: 'x',
+  },
+];
+
+const templates = [
+  {
+    id: TPL_DAY,
+    siteId: SITE,
+    code: 'DAY',
+    name: 'Дневная',
+    localStart: '08:00',
+    localEnd: '20:00',
+    isNight: false,
+    isActive: true,
+  },
+  {
+    id: TPL_NIGHT,
+    siteId: SITE,
+    code: 'NIGHT',
+    name: 'Ночная',
+    localStart: '20:00',
+    localEnd: '08:00',
+    isNight: true,
+    isActive: true,
+  },
+];
+
+function version(status: string, assignmentsCount = 1) {
+  return {
+    id: VERSION,
+    siteId: SITE,
+    orgUnitId: UNIT,
+    periodMonth: '2026-09',
+    versionNo: 1,
+    status,
+    createdBy: null,
+    submittedAt: null,
+    approvedBy: null,
+    publishedAt: null,
+    supersedesId: null,
+    changeReason: null,
+    createdAt: '2026-09-01T00:00:00.000Z',
+    assignmentsCount,
+    deletable: status === 'DRAFT' || status === 'SUPERSEDED',
+  };
+}
+
+function detail(status: string) {
+  return {
+    version: version(status),
+    assignments: [
+      {
+        id: ASSIGN,
+        scheduleVersionId: VERSION,
+        employeeId: EMP,
+        templateId: TPL_NIGHT,
+        templateCode: 'NIGHT',
+        businessDate: '2026-09-05',
+        planStartAt: '2026-09-05T17:00:00.000Z',
+        planEndAt: '2026-09-06T05:00:00.000Z',
+        positionId: null,
+        orgUnitId: UNIT,
+        teamId: null,
+        zoneId: ZONE,
+        kind: 'REGULAR',
+        status: 'PLANNED',
+        acknowledgedAt: null,
+      },
+    ],
+  };
+}
+
+interface Call {
+  method: string;
+  path: string;
+  body: unknown;
+}
+
+function mockApi(state: { status: string; created?: boolean }, snapshot: typeof org = org) {
+  const calls: Call[] = [];
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = new URL(String(input));
+    const method = init?.method ?? 'GET';
+    const path = url.pathname + url.search;
+    calls.push({ method, path, body: init?.body ? JSON.parse(String(init.body)) : null });
+    const json = (data: unknown, status = 200) =>
+      new Response(JSON.stringify(data), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      });
+    if (path === '/admin/org') return json(snapshot);
+    if (path === '/admin/employees') return json(employees);
+    if (path.startsWith('/admin/schedules/templates')) return json(templates);
+    if (path.startsWith('/admin/schedules?')) {
+      const list = [version(state.status)];
+      // Once a draft has been created it is part of the month, like it would be on the server.
+      if (state.created) {
+        list.unshift({
+          ...version('DRAFT'),
+          id: 'd0000000-0000-4000-8000-000000000002',
+          versionNo: 2,
+          supersedesId: null,
+        });
+      }
+      return json(list);
+    }
+    if (path === '/admin/schedules' && method === 'POST') {
+      state.created = true;
+      return json(
+        {
+          ...version('DRAFT'),
+          id: 'd0000000-0000-4000-8000-000000000002',
+          versionNo: 2,
+          supersedesId: null,
+        },
+        201,
+      );
+    }
+    if (path === '/admin/schedules/d0000000-0000-4000-8000-000000000002') {
+      const d = detail('DRAFT');
+      return json({
+        ...d,
+        version: { ...d.version, id: 'd0000000-0000-4000-8000-000000000002', versionNo: 2 },
+        assignments: [],
+      });
+    }
+    if (path === `/admin/schedules/${VERSION}`) return json(detail(state.status));
+    if (path === `/admin/schedules/${VERSION}/assignments` && method === 'PUT') {
+      return json(detail(state.status));
+    }
+    if (path === `/admin/schedules/${VERSION}/submit`) {
+      state.status = 'IN_REVIEW';
+      return json(version('IN_REVIEW'));
+    }
+    if (path === `/admin/schedules/${VERSION}/publish`) {
+      state.status = 'PUBLISHED';
+      return json(version('PUBLISHED'));
+    }
+    if (path === `/admin/schedules/${VERSION}/revise`) {
+      return json({
+        ...version('PUBLISHED'),
+        id: 'd0000000-0000-4000-8000-000000000002',
+        versionNo: 2,
+        supersedesId: VERSION,
+      });
+    }
+    if (path === `/admin/schedules/${VERSION}/acknowledgements`) {
+      return json([
+        {
+          employeeId: EMP,
+          fullName: 'Кузнецов Леонид',
+          personnelNumber: '0001',
+          assignments: 1,
+          acknowledged: 0,
+          telegramLinked: true,
+        },
+      ]);
+    }
+    return json({ code: 'NOT_FOUND', message: path }, 404);
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return calls;
+}
+
+const t = messages(currentLocale()).scheduleWorkspace;
+const s = messages(currentLocale()).admin.schedule;
+function admin() {
+  return render(
+    <NavigationProvider
+      go={() => undefined}
+      roles={['ADMIN']}
+      grants={[{ role: 'ADMIN', scopeType: 'ENTERPRISE', scopeId: null }]}
+    >
+      <SchedulePage />
+    </NavigationProvider>,
+  );
+}
+describe('schedule workspace', () => {
+  beforeEach(() => {
+    useScheduleDrafts.setState({
+      drafts: {},
+      baselines: {},
+      past: {},
+      future: {},
+      recoveryError: false,
+    });
+    clearPersistentState();
+    setUiState({ 'schedule.month': '2026-09' });
+  });
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+  it('starts with the published zone overview and hides mutation controls for masters', async () => {
+    const calls = mockApi({ status: 'PUBLISHED', created: true });
+    render(
+      <NavigationProvider
+        go={() => undefined}
+        roles={['SHIFT_MASTER']}
+        grants={[{ role: 'SHIFT_MASTER', scopeType: 'ORG_UNIT', scopeId: UNIT }]}
+      >
+        <SchedulePage />
+      </NavigationProvider>,
+    );
+    expect(await screen.findByText(t.current)).toBeTruthy();
+    expect(screen.getByRole('tab', { name: t.zones }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByRole('button', { name: t.edit })).toBeNull();
+    expect(screen.queryByRole('button', { name: t.create })).toBeNull();
+    expect(screen.queryByRole('button', { name: t.reviewPublish })).toBeNull();
+    expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  });
+  it('does not create a version automatically when arriving with overview workers', async () => {
+    const calls = mockApi({ status: 'PUBLISHED' });
+    writeSchedulePreset({
+      orgUnitId: UNIT,
+      month: '2026-09',
+      people: [{ id: EMP2, name: 'Сидоров Пётр' }],
+    });
+    admin();
+    expect(await screen.findByText(t.current)).toBeTruthy();
+    expect(screen.getByText(/Сидоров Пётр/)).toBeTruthy();
+    expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  });
+  it('preserves full-month assignments and metadata when saving an edited cell', async () => {
+    const calls = mockApi({ status: 'DRAFT' });
+    admin();
+    fireEvent.click(await screen.findByRole('button', { name: t.edit }));
+    const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+    const next = setAssignment(saved, {
+      employeeId: EMP2,
+      businessDate: '2026-09-25',
+      templateId: TPL_DAY,
+      zoneId: ZONE,
+      kind: 'EXTRA',
+      positionId: ZONE,
+      teamId: ZONE,
+    });
+    act(() => useScheduleDrafts.getState().keep(VERSION, next, saved));
+    fireEvent.click(screen.getByRole('button', { name: `${s.save} (1)` }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ items: gridToItems(next) });
+    expect(gridToItems(next)).toHaveLength(2);
+  });
+  it('offers undo and redo, returning Save to disabled when the edit is undone', async () => {
+    mockApi({ status: 'DRAFT' });
+    admin();
+    fireEvent.click(await screen.findByRole('button', { name: t.edit }));
+    const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+    act(() =>
+      useScheduleDrafts.getState().keep(VERSION, setCell(saved, EMP, '2026-09-05', TPL_DAY), saved),
+    );
+    fireEvent.click(screen.getByRole('button', { name: t.undo }));
+    expect(screen.getByRole('button', { name: `${s.save} (0)` }).hasAttribute('disabled')).toBe(
+      true,
+    );
+    fireEvent.click(screen.getByRole('button', { name: t.redo }));
+    expect(screen.getByRole('button', { name: `${s.save} (1)` }).hasAttribute('disabled')).toBe(
+      false,
+    );
+  });
+  it('blocks stale local drafts and retains them for recovery', async () => {
+    mockApi({ status: 'DRAFT' });
+    const old = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+    const local = setCell(old, EMP, '2026-09-05', '');
+    act(() =>
+      useScheduleDrafts.getState().keep(VERSION, local, setCell(old, EMP, '2026-09-05', TPL_DAY)),
+    );
+    admin();
+    expect(await screen.findByText(t.stale)).toBeTruthy();
+    expect(screen.getByRole('button', { name: `${s.save} (1)` }).hasAttribute('disabled')).toBe(
+      true,
+    );
+    expect(useScheduleDrafts.getState().drafts[VERSION]).toEqual(local);
+  });
+  it('shows concrete publication differences and sends the entered change reason', async () => {
+    const calls = mockApi({ status: 'PUBLISHED' });
+    admin();
+    fireEvent.click(await screen.findByRole('button', { name: t.edit }));
+    const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('PUBLISHED')));
+    const next = setCell(saved, EMP, '2026-09-05', TPL_DAY);
+    act(() => useScheduleDrafts.getState().keep(VERSION, next, saved));
+    fireEvent.click(screen.getByRole('button', { name: t.reviewPublish }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/NIGHT/)).toBeTruthy();
+    expect(within(dialog).getByText(/DAY/)).toBeTruthy();
+    fireEvent.change(within(dialog).getByLabelText(t.reason), {
+      target: { value: 'Move to the day shift' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: s.publish }));
+    await waitFor(() => expect(calls.some((call) => call.path.endsWith('/revise'))).toBe(true));
+    expect(calls.find((call) => call.path.endsWith('/revise'))?.body).toEqual({
+      items: gridToItems(next),
+      changeReason: 'Move to the day shift',
+    });
+  });
+});
+
+it('previews a batch before applying it and keeps it local until Save', async () => {
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  clearPersistentState();
+  setUiState({ 'schedule.month': '2026-09' });
+  const calls = mockApi({ status: 'DRAFT' });
+  admin();
+  fireEvent.click(await screen.findByRole('button', { name: t.edit }));
+  fireEvent.click(screen.getByRole('button', { name: t.add }));
+  const dialog = screen.getByRole('dialog');
+  fireEvent.click(within(dialog).getByRole('checkbox', { name: 'Сидоров Пётр' }));
+  fireEvent.change(within(dialog).getByLabelText(t.zone), { target: { value: ZONE } });
+  fireEvent.change(within(dialog).getByLabelText(t.template), { target: { value: TPL_DAY } });
+  fireEvent.click(within(dialog).getByRole('button', { name: t.preview }));
+  expect(within(dialog).getByText(`${t.added}: 1`)).toBeTruthy();
+  expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  fireEvent.click(within(dialog).getByRole('button', { name: t.apply }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.getByRole('button', { name: `${s.save} (1)` }).hasAttribute('disabled')).toBe(
+    false,
+  );
+  expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('preserves unsaved edits when the server version is now in review and blocks publication', async () => {
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  clearPersistentState();
+  setUiState({ 'schedule.month': '2026-09' });
+  const calls = mockApi({ status: 'IN_REVIEW' });
+  const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+  const local = setCell(saved, EMP, '2026-09-05', TPL_DAY);
+  useScheduleDrafts.getState().keep(VERSION, local, saved);
+  admin();
+  expect(await screen.findByText(t.readOnlyChanges)).toBeTruthy();
+  expect(screen.getByRole('button', { name: t.reviewPublish }).hasAttribute('disabled')).toBe(true);
+  expect(useScheduleDrafts.getState().drafts[VERSION]).toEqual(local);
+  expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('offers recovery for a no-op legacy draft after the version enters review', async () => {
+  const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+  const legacy = {
+    rows: saved.rows.map(({ employeeId, zoneId, cells }) => ({ employeeId, zoneId, cells })),
+  };
+  useScheduleDrafts.setState({
+    drafts: { [VERSION]: legacy },
+    baselines: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  clearPersistentState();
+  setUiState({ 'schedule.month': '2026-09' });
+  mockApi({ status: 'IN_REVIEW' });
+  admin();
+  expect(await screen.findByText(t.readOnlyChanges)).toBeTruthy();
+  expect(screen.getByRole('button', { name: t.discard }).hasAttribute('disabled')).toBe(false);
+  expect(screen.getByRole('button', { name: t.reviewPublish }).hasAttribute('disabled')).toBe(true);
+  cleanup();
+  vi.unstubAllGlobals();
+});

@@ -1,3 +1,4 @@
+import { scheduleWorkspaceEn } from './schedule-workspace.js';
 import { photoRulesEn } from './checklist-photo-rules.js';
 import { photoLibraryEn, libraryGuideEn } from './photo-library.js';
 import { inspectionGuideEn } from './photo-inspection-guide.js';
@@ -6,6 +7,7 @@ import type { Messages } from './messages.js';
 
 /** English catalog. Same keys and placeholders as `ru`; verified by catalogs.test.ts. */
 export const en: Messages = {
+  scheduleWorkspace: scheduleWorkspaceEn,
   checklistPhotoRules: photoRulesEn,
   photoLibrary: photoLibraryEn,
   photoInspection: inspectionEn,
@@ -1788,34 +1790,30 @@ export const en: Messages = {
       },
       schedule: {
         purpose:
-          'Planned shifts for a month per unit: versions, the "employees × days" grid, rule checks, publishing and acknowledgement by employees in the bot.',
+          'View planned shifts by zone and date, edit individual assignments, and review changes before publication.',
         steps: [
-          'Pick the site, unit and month. Press "New version" when the month has no schedule yet; the draft copies the published shifts.',
-          'Add employees from the list above the grid, set D (day) and N (night) per day, pick the zone of the row. "Rotation pattern" fills a month in one click.',
-          'Watch "Check": errors (red) block publishing, warnings (yellow) do not.',
-          'Draft: "Save" → "Submit for review" → the production head presses "Publish". Employees get a notification and an "Acknowledged" button.',
-          'The production head edits a published month right in the grid and presses "Publish changes": a new version appears, the previous one stays as history.',
+          'Choose a unit and month. The current published schedule opens first; drafts and change history remain separate.',
+          'Open a zone and date to see day and night workers. By workers shows the monthly matrix.',
+          'Choose Edit schedule or Continue draft. Add assignments by selecting workers, zone, dates and a shift or rotation. Preview additions, replacements and removals before applying.',
+          'Undo and Redo affect local edits. Save a draft, then send it for review. The approver reviews the difference before publishing.',
+          'Published changes create a new version. Notifications are queued for affected workers; history retains earlier publications.',
         ],
         faq: [
           {
-            q: 'Why has the employee no "Start shift" button?',
-            a: 'A shift starts only in the window around the planned one: from 3 hours before the start until its end. Check that the shift is in the published version, not a draft.',
+            q: 'Do the figures show staffing shortages?',
+            a: 'No. They show assigned people and planned person-hours in the selected period and zones, not required staffing or actual attendance.',
           },
           {
-            q: 'What is "Superseded"?',
-            a: 'The previous published version replaced by a newer one. It is read-only; when no shift was worked against it, it can be deleted.',
+            q: 'Which rules are checked automatically?',
+            a: 'The server checks assignment validity. Rest periods, monthly-hour limits and overlaps across units are not automatically checked here. Review these before publishing.',
           },
           {
-            q: 'Why can a version not be deleted?',
-            a: 'Shifts were opened against it: attendance, points and audit reference its assignments. Such versions stay as history and have no delete button.',
+            q: 'Does a zone change affect the whole month?',
+            a: 'The assignment editor changes one worker and date. Bulk replacement affects only the selected workers and date range, with a preview.',
           },
           {
-            q: 'Why a zone on the row?',
-            a: 'The zone enables the handover: the next shift of that zone accepts the checklist and photos. Without a zone the report goes to the master and nobody accepts it.',
-          },
-          {
-            q: 'The employee has not pressed "Acknowledged".',
-            a: 'The "Acknowledgement" table under the grid shows who has not confirmed; "Remind about acknowledgement" sends the message again.',
+            q: 'Where are worker acknowledgements?',
+            a: 'Workers acknowledge their published schedule in the bot. This page has no acknowledgement table or reminder action.',
           },
         ],
       },

@@ -1,3 +1,4 @@
+import type { ScheduleWorkspaceMessages } from './schedule-workspace.js';
 import type { ChecklistPhotoRulesMessages } from './checklist-photo-rules.js';
 import type { PhotoLibraryMessages } from './photo-library.js';
 import type { PhotoInspectionMessages } from './photo-inspection.js';
@@ -65,6 +66,7 @@ export interface SectionGuide {
 export interface Messages {
   photoInspection: PhotoInspectionMessages;
   checklistPhotoRules: ChecklistPhotoRulesMessages;
+  scheduleWorkspace: ScheduleWorkspaceMessages;
   photoLibrary: PhotoLibraryMessages;
   readonly language: {
     /** Button on the home screen that opens the language picker. */

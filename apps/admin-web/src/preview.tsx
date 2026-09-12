@@ -1,3 +1,4 @@
+import { scheduleFixture, extraScheduleZone } from './preview/schedule-fixtures';
 import { reviewFixture, reviewPhotos } from './preview/review-fixtures';
 import { restoreLegacyRoute } from '@/lib/route';
 import { StrictMode } from 'react';
@@ -50,25 +51,45 @@ const attention = {
   refreshedAt: new Date().toISOString(),
 };
 const org = {
-  sites: [{ id: 's1', code: 'main', name: 'Основная площадка', timezone: 'Europe/Kyiv' }],
+  sites: [
+    {
+      id: 'a0000000-0000-4000-8000-000000000001',
+      code: 'main',
+      name: 'Основная площадка',
+      timezone: 'Europe/Kyiv',
+    },
+  ],
   orgUnits: [
     {
-      id: 'u1',
-      siteId: 's1',
+      id: 'a0000000-0000-4000-8000-000000000002',
+      siteId: 'a0000000-0000-4000-8000-000000000001',
       parentId: null,
       name: 'Цех Крышки',
       masters: [{ id: 'u-master', name: 'Ткач Олена' }],
     },
-    { id: 'u2', siteId: 's1', parentId: null, name: 'Цех Плёнка', masters: [] },
-    { id: 'u3', siteId: 's1', parentId: null, name: 'Склад', masters: [] },
+    {
+      id: 'a0000000-0000-4000-8000-000000000006',
+      siteId: 'a0000000-0000-4000-8000-000000000001',
+      parentId: null,
+      name: 'Цех Плёнка',
+      masters: [],
+    },
+    {
+      id: 'a0000000-0000-4000-8000-000000000007',
+      siteId: 'a0000000-0000-4000-8000-000000000001',
+      parentId: null,
+      name: 'Склад',
+      masters: [],
+    },
   ],
   teams: [],
-  positions: [{ id: 'p1', code: 'OPERATOR', name: 'Оператор' }],
+  positions: [{ id: 'a0000000-0000-4000-8000-000000000005', code: 'OPERATOR', name: 'Оператор' }],
   zones: [
+    extraScheduleZone,
     {
-      id: 'z1',
-      siteId: 's1',
-      orgUnitId: 'u1',
+      id: 'a0000000-0000-4000-8000-000000000003',
+      siteId: 'a0000000-0000-4000-8000-000000000001',
+      orgUnitId: 'a0000000-0000-4000-8000-000000000002',
       code: 'L1',
       name: 'Линия 1',
       type: 'AREA',
@@ -76,9 +97,9 @@ const org = {
       isActive: true,
     },
     {
-      id: 'z2',
-      siteId: 's1',
-      orgUnitId: 'u2',
+      id: 'a0000000-0000-4000-8000-000000000008',
+      siteId: 'a0000000-0000-4000-8000-000000000001',
+      orgUnitId: 'a0000000-0000-4000-8000-000000000006',
       code: 'L2',
       name: 'Линия 2',
       type: 'AREA',
@@ -89,7 +110,7 @@ const org = {
   terminals: [
     {
       id: 'terminal-preview',
-      siteId: 's1',
+      siteId: 'a0000000-0000-4000-8000-000000000001',
       name: 'Основний',
       checkpoint: 'BOTH',
       status: 'ACTIVE',
@@ -101,57 +122,10 @@ const org = {
   shiftTemplates: [],
 };
 
-/**
- * The schedule month, kept in memory: the overview hands the page a unit, a month and the people
- * who worked without a schedule, and the page answers by opening a draft with them in it. A static
- * fixture could not show that — the draft has to appear where there was none.
- */
-const scheduleTemplates = [
-  {
-    id: 'tpl-day',
-    siteId: 's1',
-    code: 'DAY',
-    name: 'Дневная',
-    localStart: '08:00',
-    localEnd: '20:00',
-    isNight: false,
-    isActive: true,
-  },
-  {
-    id: 'tpl-night',
-    siteId: 's1',
-    code: 'NIGHT',
-    name: 'Ночная',
-    localStart: '20:00',
-    localEnd: '08:00',
-    isNight: true,
-    isActive: true,
-  },
-];
-const scheduleVersions: Record<string, unknown>[] = [];
-function scheduleVersion(orgUnitId: string, periodMonth: string) {
-  return {
-    id: `sv-${scheduleVersions.length + 1}`,
-    siteId: 's1',
-    orgUnitId,
-    periodMonth,
-    versionNo: scheduleVersions.length + 1,
-    status: 'DRAFT',
-    createdBy: null,
-    submittedAt: null,
-    approvedBy: null,
-    publishedAt: null,
-    supersedesId: null,
-    changeReason: null,
-    createdAt: new Date().toISOString(),
-    assignmentsCount: 0,
-    deletable: true,
-  };
-}
 // One open shift for "Live shift": the row and its expanded details.
 const shift = {
   id: 'sh1',
-  employeeId: 'e1',
+  employeeId: 'b0000000-0000-4000-8000-000000000001',
   assignmentId: null,
   businessDate: '2026-09-07',
   state: 'WORKING',
@@ -170,7 +144,7 @@ const shift = {
   autoCloseReason: null,
   fullName: 'Кузнецов Леонид',
   personnelNumber: '0001',
-  orgUnitId: 'u1',
+  orgUnitId: 'a0000000-0000-4000-8000-000000000002',
   orgUnitName: 'Цех Крышки',
   presenceSince: '2026-09-07T04:50:00.000Z',
   stateMinutes: 12,
@@ -258,7 +232,13 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
         name: 'Ткач Олена',
         twoFactorEnabled: false,
         roles: [
-          { ...me.roles[0], id: 'g2', role: 'SHIFT_MASTER', scopeType: 'ORG_UNIT', scopeId: 'u1' },
+          {
+            ...me.roles[0],
+            id: 'g2',
+            role: 'SHIFT_MASTER',
+            scopeType: 'ORG_UNIT',
+            scopeId: 'a0000000-0000-4000-8000-000000000002',
+          },
         ],
       },
     ]);
@@ -284,13 +264,13 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   if (path === '/admin/employees') {
     return json(
       [
-        ['e1', '0001', 'Кузнецов Леонид', true],
-        ['e2', '130', 'Ткач Олена', true],
-        ['e3', '131', 'Панов Олег', false],
-        ['e4', '132', 'Гринько Юлія', true],
-        ['e5', '129', 'Калашнік Світлана', false],
+        ['b0000000-0000-4000-8000-000000000001', '0001', 'Кузнецов Леонид', true],
+        ['b0000000-0000-4000-8000-000000000002', '130', 'Ткач Олена', true],
+        ['b0000000-0000-4000-8000-000000000003', '131', 'Панов Олег', false],
+        ['b0000000-0000-4000-8000-000000000004', '132', 'Гринько Юлія', true],
+        ['b0000000-0000-4000-8000-000000000005', '129', 'Калашнік Світлана', false],
         ...Array.from({ length: 7 }, (_, index) => [
-          `employee-preview-${index}`,
+          `b0000000-0000-4000-8000-${String(index + 6).padStart(12, '0')}`,
           `QA-${index}`,
           `Тестовий працівник ${index + 1}`,
           false,
@@ -312,7 +292,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const closedNoChecklist = {
     ...shift,
     id: 'sh-closed',
-    employeeId: 'e2',
+    employeeId: 'b0000000-0000-4000-8000-000000000002',
     fullName: 'Панов Олег',
     personnelNumber: '131',
     state: 'SHIFT_CLOSED',
@@ -322,9 +302,9 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const handoverRecord = {
     id: 'hv1',
     shiftSessionId: 'sh1',
-    zoneId: 'z1',
+    zoneId: 'a0000000-0000-4000-8000-000000000003',
     zoneName: 'Перша стінка стаканів',
-    submittedBy: 'e1',
+    submittedBy: 'b0000000-0000-4000-8000-000000000001',
     submittedByName: 'Ткач Олена',
     checklistDefinitionId: 'def',
     checklistVersion: 1,
@@ -405,10 +385,24 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   if (path === '/admin/shifts')
     return json([
       shift,
-      unscheduled('sh2', 'e2', 'Ткач Олена', '130', 'u1', 'Цех Крышки'),
-      unscheduled('sh3', 'e3', 'Панов Олег', '131', 'u2', 'Цех Плёнка'),
+      unscheduled(
+        'sh2',
+        'b0000000-0000-4000-8000-000000000002',
+        'Ткач Олена',
+        '130',
+        'a0000000-0000-4000-8000-000000000002',
+        'Цех Крышки',
+      ),
+      unscheduled(
+        'sh3',
+        'b0000000-0000-4000-8000-000000000003',
+        'Панов Олег',
+        '131',
+        'a0000000-0000-4000-8000-000000000006',
+        'Цех Плёнка',
+      ),
       // Nobody's unit: the case where the schedule page has nothing to open by itself.
-      unscheduled('sh4', 'e4', 'Гринько Юлія', '132', null, null),
+      unscheduled('sh4', 'b0000000-0000-4000-8000-000000000004', 'Гринько Юлія', '132', null, null),
       closedNoChecklist,
     ]);
   if (path === `/admin/shifts/${shift.id}`) return json(shiftDetail);
@@ -441,17 +435,47 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       points: approved,
     });
     return json({
-      siteId: 's1',
+      siteId: 'a0000000-0000-4000-8000-000000000001',
       month: '2026-09',
       serverTime: new Date().toISOString(),
       employees: [
-        emp('e1', 'Гринько Юлія', '132', 'u1', 'Цех Крышки', 5, 5, 5, 0),
-        emp('e2', 'Ткач Олена', '130', 'u2', 'Цех Плёнка', 4, 4, 3, 1),
-        emp('e3', 'Панов Олег', '131', 'u1', 'Цех Крышки', 3, 2, 2, 0),
+        emp(
+          'b0000000-0000-4000-8000-000000000001',
+          'Гринько Юлія',
+          '132',
+          'a0000000-0000-4000-8000-000000000002',
+          'Цех Крышки',
+          5,
+          5,
+          5,
+          0,
+        ),
+        emp(
+          'b0000000-0000-4000-8000-000000000002',
+          'Ткач Олена',
+          '130',
+          'a0000000-0000-4000-8000-000000000006',
+          'Цех Плёнка',
+          4,
+          4,
+          3,
+          1,
+        ),
+        emp(
+          'b0000000-0000-4000-8000-000000000003',
+          'Панов Олег',
+          '131',
+          'a0000000-0000-4000-8000-000000000002',
+          'Цех Крышки',
+          3,
+          2,
+          2,
+          0,
+        ),
       ],
       units: [
         {
-          orgUnitId: 'u1',
+          orgUnitId: 'a0000000-0000-4000-8000-000000000002',
           orgUnitName: 'Цех Крышки',
           masters: ['Ткач Олена'],
           employees: 2,
@@ -460,7 +484,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
           points: 7,
         },
         {
-          orgUnitId: 'u2',
+          orgUnitId: 'a0000000-0000-4000-8000-000000000006',
           orgUnitName: 'Цех Плёнка',
           masters: [],
           employees: 1,
@@ -469,9 +493,13 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
           points: 3,
         },
       ],
-      employeeOfMonth: { id: 'e1', name: 'Гринько Юлія', points: 5 },
-      unitOfMonth: { id: 'u1', name: 'Цех Крышки', points: 7 },
-      masterOfMonth: { id: 'u1', name: 'Ткач Олена', points: 7 },
+      employeeOfMonth: {
+        id: 'b0000000-0000-4000-8000-000000000001',
+        name: 'Гринько Юлія',
+        points: 5,
+      },
+      unitOfMonth: { id: 'a0000000-0000-4000-8000-000000000002', name: 'Цех Крышки', points: 7 },
+      masterOfMonth: { id: 'a0000000-0000-4000-8000-000000000002', name: 'Ткач Олена', points: 7 },
     });
   }
   if (path === '/admin/bonus/history') {
@@ -498,7 +526,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       employeeId: `e-${id}`,
       employeeName,
       personnelNumber,
-      orgUnitId: 'u1',
+      orgUnitId: 'a0000000-0000-4000-8000-000000000002',
       orgUnitName,
       kind,
       points,
@@ -557,7 +585,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
             {
               id: 'iv1',
               businessDate: '2026-09-08',
-              employeeId: 'e1',
+              employeeId: 'b0000000-0000-4000-8000-000000000001',
               employeeName: 'Гринько Юлія',
               orgUnitName: 'Цех Крышки',
               zoneName: 'Линия 1',
@@ -588,9 +616,9 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   // from the real server — not a 404 that reads as a broken page.
   const incident = {
     id: 'inc1',
-    siteId: 's1',
-    orgUnitId: 'u1',
-    zoneId: 'z1',
+    siteId: 'a0000000-0000-4000-8000-000000000001',
+    orgUnitId: 'a0000000-0000-4000-8000-000000000002',
+    zoneId: 'a0000000-0000-4000-8000-000000000003',
     zoneName: 'Линия 1',
     reasonCode: 'SAFETY',
     reasonLabel: 'Безпека',
@@ -619,9 +647,9 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
           id: 'rep1',
           incidentId: 'inc1',
           shiftSessionId: 'sh1',
-          employeeId: 'e4',
+          employeeId: 'b0000000-0000-4000-8000-000000000004',
           fullName: 'Гринько Юлія',
-          zoneId: 'z1',
+          zoneId: 'a0000000-0000-4000-8000-000000000003',
           reasonCode: 'SAFETY',
           comment: 'роботу зупинено',
           stoppedWork: true,
@@ -644,7 +672,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
           fromStatus: null,
           toStatus: 'REPORTED',
           actorType: 'EMPLOYEE',
-          actorId: 'e4',
+          actorId: 'b0000000-0000-4000-8000-000000000004',
           at: '2026-09-08T09:18:00.000Z',
           comment: null,
         },
@@ -653,7 +681,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
           fromStatus: 'REPORTED',
           toStatus: 'IN_PROGRESS',
           actorType: 'WEB_USER',
-          actorId: 'u1',
+          actorId: 'a0000000-0000-4000-8000-000000000002',
           at: '2026-09-08T09:25:00.000Z',
           comment: 'Огородили ділянку',
         },
@@ -667,7 +695,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     id: 'rq1',
     type: 'VACATION',
     status: 'IN_REVIEW',
-    employeeId: 'e2',
+    employeeId: 'b0000000-0000-4000-8000-000000000002',
     employeeName: 'Ткач Олена',
     currentStep: 1,
     currentStepKey: 'MASTER',
@@ -700,7 +728,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
           step: 1,
           stepKey: 'MASTER',
           actorType: 'WEB_USER',
-          actorId: 'u1',
+          actorId: 'a0000000-0000-4000-8000-000000000002',
           actingRole: 'SHIFT_MASTER',
           decision: 'APPROVED',
           comment: 'Заміну знайшли',
@@ -714,7 +742,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       {
         id: null,
         shiftSessionId: 'sh1',
-        employeeId: 'e1',
+        employeeId: 'b0000000-0000-4000-8000-000000000001',
         employeeName: 'Кузнецов Леонид',
         businessDate: '2026-09-07',
         minutes: 95,
@@ -749,8 +777,16 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
         row('ORG', 'Організаційна причина', 1, 1, 0, 106, 1),
       ],
       byZone: [
-        row('z1', 'Друга стінка стаканів — пакувальна ділянка', 19, 22, 159, 386, 14),
-        row('z2', 'Перша стінка стаканів', 5, 5, 51, 46, 2),
+        row(
+          'a0000000-0000-4000-8000-000000000003',
+          'Друга стінка стаканів — пакувальна ділянка',
+          19,
+          22,
+          159,
+          386,
+          14,
+        ),
+        row('a0000000-0000-4000-8000-000000000008', 'Перша стінка стаканів', 5, 5, 51, 46, 2),
         row('z3', 'Вибирання', 2, 2, 47, 96, 1),
         row('z4', 'Станок пакування стаканів', 3, 3, 46, 67, 2),
         row('none', '—', 4, 4, 15, 707, 4),
@@ -758,29 +794,14 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       totals: row('total', 'Усього', 33, 36, 318, 313, 23),
     });
   }
-  if (path.startsWith('/admin/schedules/templates')) return json(scheduleTemplates);
-  if (path === '/admin/schedules' && method === 'POST') {
-    const body = JSON.parse(String(init?.body ?? '{}')) as {
-      orgUnitId: string;
-      periodMonth: string;
-    };
-    const created = scheduleVersion(body.orgUnitId, body.periodMonth);
-    scheduleVersions.push(created);
-    return json(created, 201);
-  }
-  if (path === '/admin/schedules') {
-    const q = new URL(String(input), location.origin).searchParams;
+  if (path.startsWith('/admin/schedules'))
     return json(
-      scheduleVersions.filter(
-        (v) => v.orgUnitId === q.get('orgUnitId') && v.periodMonth === q.get('periodMonth'),
+      scheduleFixture(
+        new URL(String(input), location.origin),
+        method,
+        init?.body ? JSON.parse(String(init.body)) : {},
       ),
     );
-  }
-  if (path.startsWith('/admin/schedules/sv-')) {
-    const id = path.split('/')[3];
-    const version = scheduleVersions.find((v) => v.id === id);
-    if (version) return json({ version, assignments: [] });
-  }
   // Anything this harness has no fixture for is a gap in the harness, not an empty answer from a
   // server. Saying so out loud stops "the record was added" over a list that never changes from
   // looking like a bug in the panel.

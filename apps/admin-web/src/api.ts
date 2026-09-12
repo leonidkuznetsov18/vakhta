@@ -74,16 +74,7 @@ export const authApi = {
 
 // ---- довідники та графік (ТЗ 9.1 «График») ----
 
-import type {
-  AssignmentInput,
-  CreateScheduleVersionCommand,
-  EmployeeView,
-  ListScheduleVersionsQuery,
-  OrgSnapshot,
-  ScheduleVersionDetail,
-  ScheduleVersionView,
-  ShiftTemplateView,
-} from '@vakhta/contracts';
+import type { EmployeeView, OrgSnapshot } from '@vakhta/contracts';
 
 function post<T>(path: string, body: unknown = {}): Promise<T> {
   return apiFetch<T>(path, { method: 'POST', body: JSON.stringify(body) });
@@ -105,35 +96,6 @@ export const employeesApi = {
   /** Words to one employee's bot; the panel sends them from anywhere it is open. */
   message: (id: string, text: string) =>
     post<{ employeeId: string; fullName: string }>(`/admin/employees/${id}/message`, { text }),
-};
-
-export const schedulesApi = {
-  templates: (siteId: string) =>
-    apiFetch<ShiftTemplateView[]>(`/admin/schedules/templates${query({ siteId })}`),
-  list: (q: ListScheduleVersionsQuery) =>
-    apiFetch<ScheduleVersionView[]>(`/admin/schedules${query(q)}`),
-  create: (cmd: CreateScheduleVersionCommand) => post<ScheduleVersionView>('/admin/schedules', cmd),
-  detail: (id: string) => apiFetch<ScheduleVersionDetail>(`/admin/schedules/${id}`),
-  remove: (id: string) => apiFetch<null>(`/admin/schedules/${id}`, { method: 'DELETE' }),
-  putAssignments: (id: string, items: AssignmentInput[]) =>
-    apiFetch<ScheduleVersionDetail>(`/admin/schedules/${id}/assignments`, {
-      method: 'PUT',
-      body: JSON.stringify({ items }),
-    }),
-  validate: (id: string) => post<ScheduleVersionDetail>(`/admin/schedules/${id}/validate`),
-  submit: (id: string) => post<ScheduleVersionView>(`/admin/schedules/${id}/submit`),
-  returnToDraft: (id: string, comment: string) =>
-    post<ScheduleVersionView>(`/admin/schedules/${id}/return`, { comment }),
-  revise: (id: string, items: AssignmentInput[], changeReason?: string) =>
-    post<ScheduleVersionView>(`/admin/schedules/${id}/revise`, {
-      items,
-      ...(changeReason ? { changeReason } : {}),
-    }),
-  publish: (id: string, changeReason?: string) =>
-    post<ScheduleVersionView>(
-      `/admin/schedules/${id}/publish`,
-      changeReason ? { changeReason } : {},
-    ),
 };
 
 // ---- адміністрування: працівники, користувачі, довідники, термінали (ТЗ 9.1) ----
