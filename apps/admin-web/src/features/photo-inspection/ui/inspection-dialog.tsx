@@ -15,8 +15,6 @@ import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { ApiError } from '@/api';
 import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
   PentagonIcon,
   SquareIcon,
   ZoomInIcon,
@@ -29,7 +27,7 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import { IconButton } from '@/shared/ui/icon-button';
-import { HowItWorks } from '@/components/app/how-it-works';
+import { FaqButton } from '@/components/app/how-it-works';
 import { InfoTip } from '@/components/app/info-tip';
 import {
   Dialog,
@@ -58,6 +56,7 @@ import {
 import { EditableReview, ReadOnlyReview } from './review-fields';
 import { PredictionPanel } from './prediction-panel';
 import { deleteSelectedOnKeyDown } from '../model/delete-shortcut';
+import { InspectionPhotoNavigation, type PhotoNavigation } from './photo-navigation';
 import { RegionNumbers } from './region-numbers';
 import { colorSources } from '../model/object-colors';
 
@@ -83,6 +82,15 @@ const errorText = (error: unknown) =>
         : error instanceof ApiError && error.code === 'INSPECTION_RULES_MISSING'
           ? t.aiRulesMissing
           : t.error;
+
+/** Start on the workspace title so opening help never obscures the photo label. */
+function focusInspectionHeading(event: Event) {
+  event.preventDefault();
+  if (event.currentTarget instanceof HTMLElement)
+    event.currentTarget
+      .querySelector<HTMLElement>('[data-slot="dialog-title"]')
+      ?.focus({ preventScroll: true });
+}
 
 export function PhotoInspectionDialog({
   handoverId,
@@ -130,6 +138,10 @@ export function PhotoInspectionDialog({
     )
       onPhotoChange?.(next);
   };
+  const navigation =
+    photos && photos.length > 1 && onPhotoChange
+      ? { index, count: photos.length, previous: () => navigate(-1), next: () => navigate(1) }
+      : undefined;
   return (
     <Dialog
       open
@@ -139,7 +151,8 @@ export function PhotoInspectionDialog({
     >
       <DialogContent
         showCloseButton={false}
-        className="flex max-h-[95dvh] w-[96vw] flex-col overflow-y-auto sm:max-w-7xl lg:h-[95dvh] lg:overflow-hidden"
+        onOpenAutoFocus={focusInspectionHeading}
+        className="flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] flex-col gap-3 overflow-hidden p-3 sm:max-w-7xl sm:p-5"
       >
         <div className="absolute top-2 right-2">
           <IconButton
@@ -154,46 +167,32 @@ export function PhotoInspectionDialog({
             <span className="sr-only">{messages(currentLocale()).ui.common.close}</span>
           </IconButton>
         </div>
-        <DialogHeader>
-          <DialogTitle>{t.title}</DialogTitle>
-          <DialogDescription>{photo.label}</DialogDescription>
-          {photos && photos.length > 1 && (
-            <div className="flex gap-2">
-              <IconButton
-                size="sm"
-                variant="outline"
-                icon={ArrowLeftIcon}
-                label={t.previous}
-                tooltip={t.hints.previous}
-                disabled={index <= 0}
-                onClick={() => navigate(-1)}
-              >
-                {t.previous}
-              </IconButton>
-              <IconButton
-                size="sm"
-                variant="outline"
-                icon={ArrowRightIcon}
-                label={t.next}
-                tooltip={t.hints.next}
-                disabled={index >= photos.length - 1}
-                onClick={() => navigate(1)}
-              >
-                {t.next}
-              </IconButton>
+        <DialogHeader className="shrink-0 pr-8 text-left">
+          <div className="flex flex-wrap items-center gap-2">
+            <DialogTitle tabIndex={-1}>{t.title}</DialogTitle>
+            <InfoTip text={`${query.data?.canEdit ? t.drawHint : t.readOnly} ${t.gestureHint}`} />
+            <div className="ml-auto">
+              <FaqButton guide="photoInspection" />
             </div>
-          )}
+          </div>
+          <DialogDescription>{photo.label}</DialogDescription>
         </DialogHeader>
-        <HowItWorks guide="photoInspection" compact />
+
         <QueryFeedback
           query={{ ...query, error: query.error ? new Error(errorText(query.error)) : null }}
         />
+        {!query.data && navigation && (
+          <div className="relative min-h-12">
+            <InspectionPhotoNavigation navigation={navigation} />
+          </div>
+        )}
         {query.data && (
           <InspectionSession
             key={`${handoverId}:${photo.media.id}:${photo.itemKey}:${generation}`}
             id={id}
             initial={query.data}
             latest={query.data}
+            navigation={navigation}
             register={setEditor}
             reload={() => setGeneration((n) => n + 1)}
           />
@@ -209,12 +208,14 @@ function InspectionSession({
   latest,
   register,
   reload: resetSession,
+  navigation,
 }: {
   id: InspectionIdentity;
   initial: PhotoInspectionView;
   latest: PhotoInspectionView;
   register: (editor: InspectionEditor | null) => void;
   reload: () => void;
+  navigation?: PhotoNavigation;
 }) {
   const client = useQueryClient();
   const [{ editor, store, mount, attachViewport, attachOwner }] = useState(() => {
@@ -321,7 +322,7 @@ function InspectionSession({
   return (
     <div
       ref={attachOwner}
-      className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:flex-1"
+      className="flex min-h-0 min-w-0 flex-1 flex-col gap-3"
       data-testid="photo-inspection"
       onKeyDownCapture={(event) => deleteSelectedOnKeyDown(event.nativeEvent, editor, busy)}
     >
@@ -409,10 +410,6 @@ function InspectionSession({
           </IconButton>
         )}
       </div>
-      <div className="flex items-start gap-2 text-sm text-muted-foreground">
-        <p>{initial.canEdit ? t.drawHint : t.readOnly}</p>
-        <InfoTip text={t.gestureHint} />
-      </div>
       {error && (
         <div role="alert" className="rounded-md border border-destructive p-3 text-sm">
           {errorText(error)}
@@ -432,8 +429,8 @@ function InspectionSession({
       )}
       {/* Wide screens: the photo and the form share the dialog's remaining height. The photo fits
           that height at 100% zoom and the form is the single scrolling column; no scroll nests. */}
-      <div className="grid min-w-0 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(22rem,1fr)] lg:grid-rows-[minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col lg:min-h-0">
+      <div className="grid min-h-0 min-w-0 flex-1 gap-4 overflow-y-auto [container-type:size] lg:overflow-hidden lg:grid-cols-[minmax(0,2fr)_minmax(22rem,1fr)] lg:grid-rows-[minmax(0,1fr)]">
+        <div className="relative flex min-w-0 flex-col gap-2 lg:min-h-0">
           <QueryFeedback
             query={{ ...link, error: link.error ? new Error(errorText(link.error)) : null }}
           />
@@ -443,7 +440,10 @@ function InspectionSession({
               tabIndex={0}
               role="group"
               aria-label={initial.context.photoLabel}
-              className={`max-h-[65dvh] overflow-auto rounded-md border bg-muted p-2 outline-none focus-visible:ring-2 focus-visible:ring-ring data-[panning=true]:cursor-grabbing lg:max-h-none lg:min-h-0 lg:flex-1 ${state.tool === 'select' ? 'touch-none cursor-grab' : ''}`}
+              style={{
+                aspectRatio: `${state.imageSize?.width ?? initial.context.encodedWidth} / ${state.imageSize?.height ?? initial.context.encodedHeight}`,
+              }}
+              className={`h-auto max-h-[min(48dvh,calc(100cqh-3rem))] shrink-0 overflow-auto rounded-md border bg-muted p-2 [container-type:size] outline-none focus-visible:ring-2 focus-visible:ring-ring data-[panning=true]:cursor-grabbing lg:max-h-none lg:min-h-0 lg:flex-1 lg:aspect-auto! ${state.tool === 'select' ? 'touch-none cursor-grab' : ''}`}
             >
               {state.imageStatus === 'loading' && <LoadingState />}
               {state.imageStatus === 'failed' && (
@@ -462,10 +462,14 @@ function InspectionSession({
               )}
               <div
                 ref={attachViewport}
-                className="relative origin-top-left lg:mx-auto lg:max-h-full lg:max-w-full"
+                className="relative mx-auto origin-top-left [&>div]:align-top"
                 style={
                   state.imageSize
-                    ? { aspectRatio: `${state.imageSize.width} / ${state.imageSize.height}` }
+                    ? {
+                        aspectRatio: `${state.imageSize.width} / ${state.imageSize.height}`,
+                        width: `min(100cqw, calc(100cqh * ${state.imageSize.width / state.imageSize.height}))`,
+                        marginBlock: `max(0px, calc((100cqh - min(100cqh, calc(100cqw / ${state.imageSize.width / state.imageSize.height}))) / 2))`,
+                      }
                     : undefined
                 }
               >
@@ -475,15 +479,16 @@ function InspectionSession({
                   src={link.data.url}
                   alt={initial.context.photoLabel}
                   draggable={false}
-                  className="block h-auto w-full max-w-none lg:h-full"
+                  className="block h-auto w-full max-w-none"
                 />
                 <RegionNumbers editor={editor} colors={colors} />
               </div>
             </div>
           )}
+          {navigation && <InspectionPhotoNavigation navigation={navigation} />}
         </div>
         {/* On wide screens the form column is as tall as the photo viewport and scrolls inside;
-            the save and analyze actions stay pinned at its bottom, so nothing hides below the photo. */}
+            the action footer is a separate sibling and never participates in this scroll. */}
         <div className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
           {initial.canEdit ? (
             <EditableReview
@@ -496,57 +501,58 @@ function InspectionSession({
           ) : (
             <ReadOnlyReview editor={editor} objects={objects.data?.objects ?? []} />
           )}
-          <InspectionRules rules={latest.rules} />
-          {hasReviewChanges(state) && (
-            <p role="status" className="text-sm text-muted-foreground">
-              {t.dirty}: {changes.total}
-            </p>
-          )}
-          {feedback && initial.canEdit && (
-            <p role="status" className="text-sm text-muted-foreground">
-              {t.validation[feedback.key]}
-              {feedback.regions.length ? ` ${feedback.regions.join(', ')}` : ''}
-            </p>
-          )}
-          <AnalysisLimits
-            view={quota}
-            retry={() => {
-              void limits.refetch();
-            }}
-          />
-          {initial.canEdit && (
-            <div className="sticky bottom-0 z-10 -mb-4 flex flex-wrap gap-2 border-t bg-background py-3 lg:-mx-1 lg:px-1">
-              <IconButton
-                disabled={busy || !canSaveReview(state)}
-                icon={SaveIcon}
-                label={t.save}
-                tooltip={t.hints.save}
-                className="bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-400 dark:bg-emerald-600 dark:hover:bg-emerald-500"
-                onClick={() => save.mutate()}
-              >
-                {save.isPending && !save.isPaused ? <LoadingState label={t.save} /> : t.save}
-              </IconButton>
-              <AnalyzeButton
-                disabled={busy || pending || latest.rules.length === 0}
-                disabledReason={quota.disabledReason ?? (save.isPending ? t.analysisSaving : null)}
-                loading={(analyze.isPending && !analyze.isPaused) || pending}
-                finished={finishedRunId}
-                onAnalyze={() => analyze.mutate()}
-              />
-            </div>
-          )}
-          {paused && (
-            <p role="status" className="text-sm text-muted-foreground">
-              {messages(currentLocale()).ui.common.waitingConnection}
-            </p>
-          )}
           <PredictionPanel
             latest={latest}
             editor={editor}
             onRate={(runId, rating) => rate.mutate({ runId, rating })}
             disabled={busy || !initial.canEdit || state.imageStatus !== 'ready'}
           />
+          <InspectionRules rules={latest.rules} />
         </div>
+      </div>
+      <div className="flex shrink-0 flex-col gap-2 border-t bg-background pt-3">
+        {hasReviewChanges(state) && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {t.dirty}: {changes.total}
+          </p>
+        )}
+        {feedback && initial.canEdit && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {t.validation[feedback.key]}
+            {feedback.regions.length ? ` ${feedback.regions.join(', ')}` : ''}
+          </p>
+        )}
+        <AnalysisLimits
+          view={quota}
+          retry={() => {
+            void limits.refetch();
+          }}
+        />
+        {initial.canEdit && (
+          <div className="flex flex-wrap gap-2">
+            <IconButton
+              disabled={busy || !canSaveReview(state)}
+              icon={SaveIcon}
+              label={t.save}
+              tooltip={t.hints.save}
+              onClick={() => save.mutate()}
+            >
+              {save.isPending && !save.isPaused ? <LoadingState label={t.save} /> : t.save}
+            </IconButton>
+            <AnalyzeButton
+              disabled={busy || pending || latest.rules.length === 0}
+              disabledReason={quota.disabledReason ?? (save.isPending ? t.analysisSaving : null)}
+              loading={(analyze.isPending && !analyze.isPaused) || pending}
+              finished={finishedRunId}
+              onAnalyze={() => analyze.mutate()}
+            />
+          </div>
+        )}
+        {paused && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {messages(currentLocale()).ui.common.waitingConnection}
+          </p>
+        )}
       </div>
     </div>
   );

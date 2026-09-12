@@ -42,7 +42,10 @@ export function RuleField({
           </span>
         </IconButton>
       </div>
-      <Collapsible className="mt-1" defaultOpen={Boolean(rule.note)}>
+      {rule.note && (
+        <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">{rule.note}</p>
+      )}
+      <Collapsible className="mt-1">
         <CollapsibleTrigger asChild>
           <Button
             type="button"

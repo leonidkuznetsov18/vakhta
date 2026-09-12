@@ -202,103 +202,109 @@ export function HandoverPage() {
   /** The report under its row: decision form, checklist and notes, photo gallery, acceptance and decisions. */
   function renderDetail(row: HandoverListItemView) {
     if (!detail || detail.handover.id !== row.id) return <QueryFeedback query={detailQuery} />;
+    const canDecide = HANDOVER_RESOLUTIONS.some((d) => canTransitionHandover(row.status, d));
     return (
       <div className="flex min-w-0 flex-col gap-6 py-1" data-testid="handover-detail">
         <QueryFeedback query={detailQuery} />
-        <div className="flex min-w-0 flex-col gap-6">
-          {/* The object list for AI lives in checklist administration; the report shows the
+        <div
+          className={`grid min-w-0 items-start gap-5 ${canDecide ? 'xl:grid-cols-[minmax(0,3fr)_minmax(18rem,2fr)]' : ''}`}
+        >
+          <div className="flex min-w-0 flex-col gap-5">
+            {/* The object list for AI lives in checklist administration; the report shows the
               checklist answers only, so the photos stay right below them. */}
-          <div className="max-w-3xl">
-            <div className="min-w-0 rounded-md border p-3">
-              <h3 className="mb-2 text-sm font-semibold">
-                {detail.handover.checklistName || h.checklist}
-              </h3>
-              <ul className="flex flex-col gap-1 text-sm">
-                {detail.handover.items
-                  .filter((item) => item.kind === 'CHECK')
-                  .map((item) => (
-                    <li key={item.key} className="flex gap-2">
-                      <span aria-hidden="true">
-                        {!item.answered ? '▫️' : item.ok ? '✅' : '⚠️'}
-                      </span>
-                      <span className="min-w-0">
-                        {item.label}
-                        {item.answered && !item.ok && (
-                          <Muted>
-                            {` · ${item.remarkCategory} · ${item.remarkText} · ${item.safeToWork ? h.safe : h.unsafe}${item.needs.length > 0 ? ` · ${item.needs.map((n) => all.handover.needs[n]).join(', ')}` : ''}`}
-                          </Muted>
-                        )}
-                      </span>
-                    </li>
-                  ))}
-              </ul>
-              {detail.handover.cannotCompleteReason && (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {h.cannotComplete}: {detail.handover.cannotCompleteReason}
-                  {detail.handover.cannotCompleteComment
-                    ? ` · ${detail.handover.cannotCompleteComment}`
-                    : ''}
-                </p>
-              )}
-            </div>
-          </div>
-          {detail.handover.items.some((item) => item.kind === 'NOTE' && item.answered) && (
-            <div>
-              <h3 className="mb-2 text-sm font-semibold">{h.notes}</h3>
-              <ul className="flex flex-col gap-1 text-sm">
-                {detail.handover.items
-                  .filter((item) => item.kind === 'NOTE' && item.answered)
-                  .map((item) => (
-                    <li key={item.key} className="rounded-md border bg-muted/40 px-3 py-2">
-                      <DetailText label={item.label} text={item.note ?? '—'} />
-                    </li>
-                  ))}
-              </ul>
-            </div>
-          )}
-          {detail.handover.photos.length > 0 && (
-            <div>
-              <h3 className="mb-2 flex items-center gap-1 text-sm font-semibold">
-                {h.photos}
-                <InfoTip text={hints.handoverPhoto} />
-              </h3>
-              <div className="grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                {detail.handover.photos.map((p) => (
-                  <InspectionPhoto
-                    key={p.itemKey}
-                    photo={p}
-                    loadLink={handoversApi.mediaLink}
-                    badge={all.handover.quality[p.media.quality]}
-                    onOpen={() =>
-                      setInspection({
-                        handoverId: detail.handover.id,
-                        photo: p,
-                        photos: detail.handover.photos,
-                      })
-                    }
-                  />
-                ))}
+            <div className="min-w-0">
+              <div className="min-w-0 rounded-md border p-3">
+                <h3 className="mb-2 text-sm font-semibold">
+                  {detail.handover.checklistName || h.checklist}
+                </h3>
+                <ul className="flex flex-col gap-1 text-sm">
+                  {detail.handover.items
+                    .filter((item) => item.kind === 'CHECK')
+                    .map((item) => (
+                      <li key={item.key} className="flex gap-2">
+                        <span aria-hidden="true">
+                          {!item.answered ? '▫️' : item.ok ? '✅' : '⚠️'}
+                        </span>
+                        <span className="min-w-0">
+                          {item.label}
+                          {item.answered && !item.ok && (
+                            <Muted>
+                              {` · ${item.remarkCategory} · ${item.remarkText} · ${item.safeToWork ? h.safe : h.unsafe}${item.needs.length > 0 ? ` · ${item.needs.map((n) => all.handover.needs[n]).join(', ')}` : ''}`}
+                            </Muted>
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                </ul>
+                {detail.handover.cannotCompleteReason && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {h.cannotComplete}: {detail.handover.cannotCompleteReason}
+                    {detail.handover.cannotCompleteComment
+                      ? ` · ${detail.handover.cannotCompleteComment}`
+                      : ''}
+                  </p>
+                )}
               </div>
             </div>
-          )}
-          {detail.resolutions.length > 0 && (
-            <ul className="flex flex-col gap-3 text-sm">
-              {detail.resolutions.map((resolution) => (
-                <li key={resolution.id}>
-                  {(detail.resolutions.length > 1 ||
-                    SHOWN_AS[resolution.decision] !== SHOWN_AS[row.status]) && (
-                    <strong>{h.shown[SHOWN_AS[resolution.decision]]} · </strong>
-                  )}
-                  <Muted>{formatDateTime(resolution.at)}</Muted>
-                  <DetailText label={h.remarkComment} text={resolution.comment} />
-                </li>
-              ))}
-            </ul>
-          )}
+            {detail.handover.items.some((item) => item.kind === 'NOTE' && item.answered) && (
+              <div>
+                <h3 className="mb-2 text-sm font-semibold">{h.notes}</h3>
+                <ul className="flex flex-col gap-1 text-sm">
+                  {detail.handover.items
+                    .filter((item) => item.kind === 'NOTE' && item.answered)
+                    .map((item) => (
+                      <li key={item.key} className="rounded-md border bg-muted/40 px-3 py-2">
+                        <DetailText label={item.label} text={item.note ?? '—'} />
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            )}
+            {detail.handover.photos.length > 0 && (
+              <div>
+                <h3 className="mb-2 flex items-center gap-1 text-sm font-semibold">
+                  {h.photos}
+                  <InfoTip text={hints.handoverPhoto} />
+                </h3>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {detail.handover.photos.map((p) => (
+                    <InspectionPhoto
+                      key={p.itemKey}
+                      photo={p}
+                      loadLink={handoversApi.mediaLink}
+                      badge={all.handover.quality[p.media.quality]}
+                      onOpen={() =>
+                        setInspection({
+                          handoverId: detail.handover.id,
+                          photo: p,
+                          photos: detail.handover.photos,
+                        })
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            {detail.resolutions.length > 0 && (
+              <ul className="flex flex-col gap-3 text-sm">
+                {detail.resolutions.map((resolution) => (
+                  <li key={resolution.id}>
+                    {(detail.resolutions.length > 1 ||
+                      SHOWN_AS[resolution.decision] !== SHOWN_AS[row.status]) && (
+                      <strong>{h.shown[SHOWN_AS[resolution.decision]]} · </strong>
+                    )}
+                    <Muted>{formatDateTime(resolution.at)}</Muted>
+                    <DetailText label={h.remarkComment} text={resolution.comment} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           {/* The decision goes last: the checklist, the note and the photos are what it is made
               on, and the status column already says how a report ended, so nothing repeats it here. */}
-          {HANDOVER_RESOLUTIONS.some((d) => canTransitionHandover(row.status, d)) && (
-            <div className="flex max-w-2xl flex-col gap-3 border-t pt-4">
+          {canDecide && (
+            <div className="flex min-w-0 flex-col gap-3 rounded-lg border bg-muted/30 p-4 xl:sticky xl:top-20">
+              <h3 className="text-sm font-semibold">{h.resolve}</h3>
               <p className="max-w-3xl text-sm whitespace-normal text-muted-foreground">
                 {h.reviewHint}
               </p>

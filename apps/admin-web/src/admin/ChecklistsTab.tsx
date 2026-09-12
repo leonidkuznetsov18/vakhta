@@ -314,11 +314,11 @@ export function ChecklistsTab({ org }: Props) {
         }}
         expanded={(row) =>
           row.id === openId ? (
-            <div className="flex max-w-6xl flex-col gap-4" data-testid="checklist-detail">
+            <div className="flex min-w-0 flex-col gap-4" data-testid="checklist-detail">
               <Muted>
                 <time dateTime={row.validFrom}>{formatDateTime(row.validFrom)}</time>
               </Muted>
-              <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
+              <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
                 <BotPreview
                   items={row.items.map((item, index) => ({
                     id: index,
@@ -376,7 +376,10 @@ function BotPreview({ items }: { readonly items: readonly DraftItem[] }) {
       </p>
       <ul className="flex flex-col gap-1">
         {items.map((item) => (
-          <li key={item.id} className="flex items-start gap-2">
+          <li
+            key={item.id}
+            className="grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_auto_auto_auto] lg:grid-cols-[1.5rem_minmax(0,1fr)_auto_auto_auto_auto] items-start gap-2 rounded-md border p-2 lg:border-0 lg:p-0"
+          >
             <span className="w-5 shrink-0 text-center" aria-hidden="true">
               {KIND_ICON[item.kind]}
             </span>
@@ -600,11 +603,14 @@ function ChecklistDialog({
             </div>
             <ol className="flex flex-col gap-2" aria-label={c.items}>
               {draft.items.map((item, index) => (
-                <li key={item.id} className="flex items-start gap-2">
+                <li
+                  key={item.id}
+                  className="grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_auto_auto_auto] lg:grid-cols-[1.5rem_minmax(0,1fr)_auto_auto_auto_auto] items-start gap-2 rounded-md border p-2 lg:border-0 lg:p-0"
+                >
                   <span className="flex h-10 w-6 shrink-0 items-center justify-end text-xs tabular-nums text-muted-foreground md:h-8">
                     {index + 1}
                   </span>
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <div className="col-span-4 flex min-w-0 flex-col gap-1 lg:col-span-1">
                     <Input
                       aria-label={`${c.itemLabel} ${index + 1}`}
                       value={item.label}
@@ -620,6 +626,7 @@ function ChecklistDialog({
                     )}
                   </div>
                   <NativeSelect
+                    className="col-span-2 col-start-1 w-full min-w-0 lg:col-span-1 lg:col-start-auto"
                     aria-label={`${c.kind} ${index + 1}`}
                     value={item.kind}
                     onChange={(ev) =>

@@ -74,6 +74,7 @@ function RulesEditor({
   const [saved, setSaved] = useState(initial);
   const [draft, setDraft] = useState(() => rulesDraft(initial));
   const [newName, setNewName] = useState('');
+  const [editingRules, setEditingRules] = useState(false);
   const client = useQueryClient();
   const { payload, valid, dirty, changes } = rulesDraftState(draft, saved);
   const choices = catalogChoices(objects, draft);
@@ -137,20 +138,48 @@ function RulesEditor({
     },
   });
   const busy = mutation.isPending || create.isPending || rename.isPending || retire.isPending;
-  if (!initial.canEdit)
+  const catalogDirty =
+    Boolean(newName.trim()) ||
+    Object.entries(renames).some(
+      ([id, name]) => name !== objects.find((object) => object.id === id)?.name,
+    );
+  const closeEditor = () => {
+    if (busy || ((dirty || catalogDirty) && !window.confirm(t.discard))) return;
+    setDraft(rulesDraft(saved));
+    setNewName('');
+    setRenames({});
+    setEditing(false);
+    setEditingRules(false);
+    mutation.reset();
+  };
+  if (!initial.canEdit || !editingRules)
     return (
-      <ul className="text-sm">
-        {saved.rules.map((rule) => (
-          <li key={rule.objectId}>
-            {rule.name}
-            {rule.note ? ` — ${rule.note}` : ''}
-          </li>
-        ))}
-        {!saved.rules.length && <li>{t.empty}</li>}
-      </ul>
+      <div className="flex min-w-0 flex-col gap-3">
+        <ul className="flex flex-col gap-2 text-sm">
+          {saved.rules.map((rule) => (
+            <li key={rule.objectId}>
+              {nameOf(rule.objectId)}
+              {rule.note ? ` — ${rule.note}` : ''}
+            </li>
+          ))}
+          {!saved.rules.length && <li>{t.empty}</li>}
+        </ul>
+        {initial.canEdit && (
+          <Button variant="outline" className="self-start" onClick={() => setEditingRules(true)}>
+            <PencilIcon aria-hidden="true" />
+            {t.editRules}
+          </Button>
+        )}
+      </div>
     );
   return (
-    <div ref={dirty ? guardUnsaved : undefined} className="flex flex-col gap-3">
+    <div ref={dirty || catalogDirty ? guardUnsaved : undefined} className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <strong className="text-sm">{t.editRules}</strong>
+        <Button variant="outline" size="sm" disabled={busy} onClick={closeEditor}>
+          {t.viewRules}
+        </Button>
+      </div>
       <div className="flex flex-col gap-2">
         <span className="flex items-center gap-2 text-sm text-muted-foreground">
           {t.catalog}
@@ -305,7 +334,7 @@ function RulesEditor({
         )}
       </div>
       {draft.length > 0 && <p className="text-sm text-muted-foreground">{t.selected}</p>}
-      <div className="flex max-h-[45dvh] flex-col gap-3 overflow-y-auto">
+      <div className="flex min-w-0 flex-col gap-3">
         {draft.map((rule) => (
           <RuleField
             key={rule.objectId}
@@ -334,20 +363,17 @@ function RulesEditor({
       )}
       <div className="flex flex-wrap gap-2">
         <IconButton
-          size="icon-lg"
           aria-label={t.save}
           className={mutation.isPending && !mutation.isPaused ? '[&>svg]:hidden' : undefined}
           icon={SaveIcon}
           label={t.save}
           tooltip={t.save}
           disabled={busy || !dirty || !valid}
-          onClick={() => mutation.mutate()}
+          onClick={() => {
+            if (!busy && dirty && valid) mutation.mutate();
+          }}
         >
-          {mutation.isPending && !mutation.isPaused ? (
-            <LoadingState />
-          ) : (
-            <span className="sr-only">{t.save}</span>
-          )}
+          {mutation.isPending && !mutation.isPaused ? <LoadingState /> : t.save}
         </IconButton>
       </div>
       {mutation.isPaused && (

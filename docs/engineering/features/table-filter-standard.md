@@ -9,7 +9,8 @@ on desktop and mobile. Kiosk and worker Telegram behavior are outside this prese
 
 ## Current behavior and ownership
 
-`components/app/data-table.tsx` is the shared renderer for all 23 production call sites.
+`components/app/data-table.tsx` is the shared renderer for 24 production call sites as of 2026-09-12
+(the original 2026-09-10 migration covered 23).
 `shared/lib/table-model.ts` uses TanStack Table 9.2.4 for filtering/sorting and pagination around the
 existing active-record page resolution. Query remains the remote source of truth; Zustand holds scoped
 UI preferences. Feature columns/actions supply business meaning. Schedule keeps its editable matrix;
@@ -80,6 +81,20 @@ Verification: nine focused library model/component tests, panel TypeScript, affe
 Prettier passed. Browser and deployment verification is reported with the delivery.
 
 ## Remaining work
+
+### Admin UX audit — 2026-09-12
+
+The [dated admin UI/UX audit](../../audits/2026-09-12/admin-ui-ux-audit.md) records current source
+coverage, desktop/mobile fixture observations, 24 prioritized findings and proposed page-composition
+acceptance criteria. This is an audit, not a claim that the findings are fixed. It preserves this
+standard as the canonical contract; Schedule, photo review and compact audit evidence retain their
+task-based exceptions.
+
+Lean recommendation: **Simplify**. First protect record identity and unsaved work, then make query
+states/actions trustworthy, repair measured form geometry, and standardize page composition. No
+worker input or Telegram steps are added. Production role sessions, physical-phone/photo workflows
+and comprehensive assistive-technology checks remain unverified; fixture endpoint gaps are explicit
+in the audit. Product code is unchanged by this documentation delivery.
 
 Audit/request capped endpoints still need server count/search/pagination for complete archive browsing;
 the UI explicitly discloses their limits. Validate representative tasks with masters on physical phones

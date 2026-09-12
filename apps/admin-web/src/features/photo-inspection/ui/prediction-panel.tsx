@@ -129,7 +129,7 @@ export function PredictionPanel({
       <div className="flex flex-col gap-2">
         {suggestions.map(({ finding, index, key }) => (
           <div key={key} className="rounded-md border p-2">
-            <p className="flex max-h-32 items-start gap-2 overflow-y-auto whitespace-pre-wrap break-words">
+            <p className="flex items-start gap-2 whitespace-pre-wrap break-words">
               <ObjectSwatch
                 objectId={finding.objectId}
                 objectName={finding.objectName}

@@ -23,6 +23,8 @@ export const photoRulesEn = {
     'For the master and for AI: what such objects look like here, where they must not lie, and which cases are allowed. Up to 300 characters.',
   notePlaceholder: 'For example: cups inside the machine molds are product and are allowed',
   remove: 'Remove object',
+  editRules: 'Edit rules',
+  viewRules: 'Finish editing',
   save: 'Save rules',
   saved: 'Rules saved',
   empty:
@@ -58,6 +60,8 @@ export const photoRulesUk: ChecklistPhotoRulesMessages = {
     'Для майстра і для AI: як такі обʼєкти виглядають тут, де їм не місце і які випадки дозволені. До 300 символів.',
   notePlaceholder: 'Наприклад: стаканчики у гніздах машини є продукцією і дозволені',
   remove: 'Прибрати обʼєкт',
+  editRules: 'Редагувати правила',
+  viewRules: 'Завершити редагування правил',
   save: 'Зберегти правила',
   saved: 'Правила збережено',
   empty:
@@ -92,6 +96,8 @@ export const photoRulesRu: ChecklistPhotoRulesMessages = {
     'Для мастера и для AI: как такие объекты выглядят здесь, где им не место и какие случаи разрешены. До 300 символов.',
   notePlaceholder: 'Например: стаканчики в гнёздах машины являются продукцией и разрешены',
   remove: 'Убрать объект',
+  editRules: 'Редактировать правила',
+  viewRules: 'Завершить редактирование правил',
   save: 'Сохранить правила',
   saved: 'Правила сохранены',
   empty:

@@ -41,6 +41,7 @@ it('selects catalog objects for a checklist and keeps edits after a failed save'
       canEdit: true,
     });
   render(<ChecklistPhotoRules definitionId="definition" />);
+  fireEvent.click(await screen.findByRole('button', { name: t.editRules }));
   await screen.findByText(t.empty);
   fireEvent.click(screen.getByRole('button', { name: 'Ганчірки' }));
   expect(screen.getByRole('status').textContent).toBe(`${t.dirty}: 1`);
@@ -73,6 +74,7 @@ it('creates a catalog object once and adds it to the checklist list', async () =
     color: '#0a84ff',
   });
   render(<ChecklistPhotoRules definitionId="definition" />);
+  fireEvent.click(await screen.findByRole('button', { name: t.editRules }));
   await screen.findByText(t.catalogEmpty);
   expect(screen.getByRole('button', { name: t.createObject }).hasAttribute('disabled')).toBe(true);
   fireEvent.change(screen.getByRole('textbox', { name: t.newObject }), {
@@ -110,7 +112,8 @@ it('renames and retires catalog objects from the edit mode after confirmation', 
   }));
   const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
   render(<ChecklistPhotoRules definitionId="definition" />);
-  fireEvent.click(await screen.findByRole('button', { name: t.catalogEdit }));
+  fireEvent.click(await screen.findByRole('button', { name: t.editRules }));
+  fireEvent.click(screen.getByRole('button', { name: t.catalogEdit }));
   const input = screen.getByRole('textbox', { name: 'Ганчірки' });
   expect(
     screen.getByRole('button', { name: `${t.renameSave}: Ганчірки` }).hasAttribute('disabled'),
@@ -128,4 +131,70 @@ it('renames and retires catalog objects from the edit mode after confirmation', 
   await waitFor(() => expect(rulesApi.updateObject).toHaveBeenCalledWith(CUP, { active: false }));
   await waitFor(() => expect(screen.queryByText('Стаканчики', { selector: 'strong' })).toBeNull());
   confirm.mockRestore();
+});
+
+it('starts with saved rules and protects both rule and catalog drafts when finishing editing', async () => {
+  vi.mocked(rulesApi.objects).mockResolvedValue(catalog);
+  vi.mocked(rulesApi.get).mockResolvedValue({
+    version: 1,
+    rules: [{ objectId: CUP, name: 'Стаканчики', note: 'Saved note' }],
+    canEdit: true,
+  });
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  render(<ChecklistPhotoRules definitionId="definition" />);
+  await screen.findByText('Стаканчики — Saved note');
+  expect(screen.queryByRole('textbox')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: t.editRules }));
+  expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(true);
+  fireEvent.change(screen.getByRole('textbox', { name: t.newObject }), {
+    target: { value: 'Unfinished object' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: t.viewRules }));
+  expect(confirm).toHaveBeenCalledWith(t.discard);
+  expect(screen.getByDisplayValue('Unfinished object')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: t.note }));
+  fireEvent.change(screen.getByLabelText(`${t.note}: Стаканчики`), {
+    target: { value: 'Draft note' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: t.viewRules }));
+  expect(screen.getByDisplayValue('Draft note')).toBeTruthy();
+  confirm.mockReturnValue(true);
+  fireEvent.click(screen.getByRole('button', { name: t.viewRules }));
+  expect(screen.getByText('Стаканчики — Saved note')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: t.editRules }));
+  expect(screen.getByRole('textbox', { name: t.newObject }).getAttribute('value')).toBe('');
+  expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(true);
+  expect(rulesApi.save).not.toHaveBeenCalled();
+  confirm.mockRestore();
+});
+
+it('shows refreshed catalog names when returning to saved rules after a rename', async () => {
+  vi.mocked(rulesApi.objects).mockResolvedValue(catalog);
+  vi.mocked(rulesApi.get).mockResolvedValue({
+    version: 1,
+    rules: [{ objectId: CUP, name: 'Стаканчики', note: 'Saved note' }],
+    canEdit: true,
+  });
+  vi.mocked(rulesApi.updateObject).mockResolvedValue({
+    id: CUP,
+    name: 'Стаканчик',
+    color: '#0a84ff',
+    active: true,
+  });
+  render(<ChecklistPhotoRules definitionId="definition" />);
+  fireEvent.click(await screen.findByRole('button', { name: t.editRules }));
+  fireEvent.click(screen.getByRole('button', { name: t.catalogEdit }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Стаканчики' }), {
+    target: { value: 'Стаканчик' },
+  });
+  vi.mocked(rulesApi.objects).mockResolvedValue({
+    ...catalog,
+    objects: catalog.objects.map((object) =>
+      object.id === CUP ? { ...object, name: 'Стаканчик' } : object,
+    ),
+  });
+  fireEvent.click(screen.getByRole('button', { name: `${t.renameSave}: Стаканчики` }));
+  await screen.findByRole('textbox', { name: 'Стаканчик' });
+  fireEvent.click(screen.getByRole('button', { name: t.viewRules }));
+  expect(screen.getByText('Стаканчик — Saved note')).toBeTruthy();
 });

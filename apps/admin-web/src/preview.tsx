@@ -1,3 +1,4 @@
+import { reviewFixture, reviewPhotos } from './preview/review-fixtures';
 import { restoreLegacyRoute } from '@/lib/route';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -242,6 +243,8 @@ const json = (data: unknown, status = 200) =>
 window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const path = new URL(String(input), location.origin).pathname;
   const method = init?.method ?? 'GET';
+  const review = reviewFixture(path, method);
+  if (review) return review;
   if (path === '/me') return json(me);
   if (path.includes('attention')) return json(attention);
   if (path === '/admin/org') return json(org);
@@ -365,7 +368,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
         note: 'Привіт',
       },
     ],
-    photos: [],
+    photos: reviewPhotos,
     issues: [],
     cannotCompleteReason: null,
     cannotCompleteComment: null,
@@ -793,7 +796,7 @@ applyStoredAppearance();
   banner.textContent =
     'PREVIEW — макет із вигаданими даними. Нічого не зберігається, запити не йдуть на сервер.';
   banner.style.cssText =
-    'position:fixed;inset:auto 0 0 0;z-index:9999;background:#b91c1c;color:#fff;' +
+    'position:fixed;inset:auto 0 0 0;z-index:40;background:#b91c1c;color:#fff;' +
     'font:600 12px/1.6 system-ui,sans-serif;text-align:center;padding:4px 8px';
   document.body.append(banner);
 }

@@ -100,7 +100,7 @@ export function ReadOnlyReview({
       <strong>{t.statuses[review.status]}</strong>
       {review.notAssessableReason && <p>{t.reasons[review.notAssessableReason]}</p>}
       {review.isReference && <p>{t.reference}</p>}
-      <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words">{review.comment}</p>
+      <p className="whitespace-pre-wrap break-words">{review.comment}</p>
       <div ref={attachList} className="flex flex-col gap-3">
         {review.annotations.map((a, index) => (
           <div
@@ -121,11 +121,7 @@ export function ReadOnlyReview({
             </IconButton>
             {name(a) && <p className="break-words font-medium">{name(a)}</p>}
             <p className="text-muted-foreground">{t.verdicts[a.verdict]}</p>
-            {a.comment && (
-              <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words">
-                {a.comment}
-              </p>
-            )}
+            {a.comment && <p className="whitespace-pre-wrap break-words">{a.comment}</p>}
           </div>
         ))}
       </div>

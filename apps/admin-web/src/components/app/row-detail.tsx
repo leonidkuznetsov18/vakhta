@@ -5,7 +5,7 @@ export function RowDetail({ children }: { children: ReactNode }) {
   return (
     <div
       data-row-detail=""
-      className="w-full min-w-0 max-w-5xl rounded-lg border bg-background p-3 text-base leading-relaxed md:text-sm whitespace-normal [overflow-wrap:anywhere] sm:p-5 [&_form]:min-w-0 [&_form]:max-w-2xl [&_p]:max-w-prose [&_textarea]:min-h-24"
+      className="w-full min-w-0 max-w-none rounded-lg border bg-background p-3 text-base leading-relaxed md:text-sm whitespace-normal [overflow-wrap:anywhere] sm:p-5 [&_form]:min-w-0 [&_form]:max-w-2xl [&_p]:max-w-prose"
     >
       {children}
     </div>
