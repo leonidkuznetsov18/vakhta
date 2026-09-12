@@ -1,3 +1,4 @@
+import { templateLabel } from '../lib/template-label';
 import { monthDates } from '@vakhta/domain';
 import { useState } from 'react';
 import { AssignmentInput } from '@vakhta/contracts';
@@ -114,7 +115,7 @@ export function AssignmentEditor({
             .filter((template) => template.isActive)
             .map((template) => ({
               value: template.id,
-              label: `${template.code} · ${template.localStart}–${template.localEnd}`,
+              label: `${templateLabel(template.code, t)} · ${template.localStart}–${template.localEnd}`,
             }))}
         />
       </div>

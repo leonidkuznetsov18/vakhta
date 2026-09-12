@@ -103,3 +103,12 @@ shortages. Production deployment/CI evidence is reported with the delivery, not 
 - Verified and visually inspected preview screenshots at 1440×900 in light and dark themes and
   390×844 on mobile. Switching dates left exactly one pressed day. Focused ESLint, formatting and
   diff checks passed; no new tests or full build for this presentation-only correction.
+
+## Localized shift template names — 2026-09-12
+
+Built-in DAY/NIGHT codes now use the existing trilingual day/night shift messages in individual and
+batch editors, change comparisons and worker-cell accessible labels/tooltips. Custom template codes
+remain intact, and IDs/time ranges are unchanged. One feature-local label function keeps these
+surfaces consistent. Lean: workers no longer translate technical codes while choosing a shift.
+Nine workspace interaction tests and focused ESLint/format checks passed. Desktop 1440×900 and mobile
+390×844 preview screenshots were captured and visually inspected with translated choices and hours.

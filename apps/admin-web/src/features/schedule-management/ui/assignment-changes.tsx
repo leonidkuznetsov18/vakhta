@@ -1,3 +1,4 @@
+import { templateLabel } from '../lib/template-label';
 import type { AssignmentInput, EmployeeView, ShiftTemplateView, ZoneView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -20,7 +21,7 @@ export function assignmentLabel(labels: ScheduleLabels, item?: AssignmentInput) 
   if (!item) return '—';
   const template = labels.templates.find((value) => value.id === item.templateId);
   const zone = labels.zones.find((value) => value.id === item.zoneId);
-  return `${item.businessDate} · ${template?.code ?? t.unknownTemplate} · ${zone?.name ?? t.noZone}`;
+  return `${item.businessDate} · ${template ? templateLabel(template.code, t) : t.unknownTemplate} · ${zone?.name ?? t.noZone}`;
 }
 export function AssignmentChanges({
   changes,

@@ -343,8 +343,8 @@ describe('schedule workspace', () => {
     act(() => useScheduleDrafts.getState().keep(VERSION, next, saved));
     fireEvent.click(screen.getByRole('button', { name: t.reviewPublish }));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/NIGHT/)).toBeTruthy();
-    expect(within(dialog).getByText(/DAY/)).toBeTruthy();
+    expect(within(dialog).getByText(new RegExp(t.nightShift))).toBeTruthy();
+    expect(within(dialog).getByText(new RegExp(t.dayShift))).toBeTruthy();
     fireEvent.change(within(dialog).getByLabelText(t.reason), {
       target: { value: 'Move to the day shift' },
     });

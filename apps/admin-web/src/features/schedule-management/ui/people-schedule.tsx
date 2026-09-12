@@ -1,3 +1,4 @@
+import { templateLabel } from '../lib/template-label';
 import { Trash2Icon } from 'lucide-react';
 import { Fragment, useId, useState, type KeyboardEvent } from 'react';
 import { monthDates } from '@vakhta/domain';
@@ -168,7 +169,7 @@ export function PeopleSchedule({ workspace: w }: { workspace: Workspace }) {
                               tabIndex={focusKey === cellKey ? 0 : -1}
                               onFocus={() => setFocus(cellKey)}
                               onKeyDown={(event) => keyDown(event, rowIndex, dayIndex)}
-                              aria-label={`${employeeLabel(w, row.employeeId)}, ${date}, ${template?.code ?? dayKinds.OFF}`}
+                              aria-label={`${employeeLabel(w, row.employeeId)}, ${date}, ${template ? templateLabel(template.code, t) : dayKinds.OFF}`}
                               onClick={() => open(row.employeeId, date)}
                               className={cn(
                                 'min-h-9 min-w-9 p-1',
@@ -189,7 +190,7 @@ export function PeopleSchedule({ workspace: w }: { workspace: Workspace }) {
                                     ? 'bg-blue-100 text-blue-950 dark:bg-blue-950 dark:text-blue-100'
                                     : 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100'),
                               )}
-                              title={`${date} · ${template?.code ?? dayKinds.OFF}`}
+                              title={`${date} · ${template ? templateLabel(template.code, t) : dayKinds.OFF}`}
                             >
                               {label}
                             </span>

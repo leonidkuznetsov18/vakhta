@@ -1,3 +1,4 @@
+import { templateLabel } from '../lib/template-label';
 import { useState } from 'react';
 import { messages } from '@vakhta/i18n';
 import { monthDates } from '@vakhta/domain';
@@ -188,7 +189,7 @@ export function BatchPlanner({
                       .filter((template) => template.isActive)
                       .map((template) => ({
                         value: template.id,
-                        label: `${template.code} · ${template.localStart}–${template.localEnd}`,
+                        label: `${templateLabel(template.code, t)} · ${template.localStart}–${template.localEnd}`,
                       }))}
                   />
                 )}
