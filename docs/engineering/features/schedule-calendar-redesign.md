@@ -168,6 +168,38 @@ claiming staffing demand, eligibility or master writes are implemented.
 
 ## UX evidence and reuse decisions
 
+### Deep research follow-up: 2026-09-12
+
+[Detailed report](../../research/2026-09-12-deputy-wheniwork-calendar-deep-research.md), based on
+26 primary sources, public API documentation and selected public repository files; Vakhta source
+baseline `3fdf2c7f98e11c83bddfaeda54eb870d6e97ce57`. Five official illustrations accompany the report,
+including newly inspected coverage and auto-assignment screens. This is documentation and public
+source inspection, not an authenticated competitor trial or calendar implementation.
+
+The following evidence sharpens the existing backlog without adding SC IDs or approving D-01–07:
+
+| Finding                                                                                                  | Implementation consequence                                                                           | Existing ownership         |
+| -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------- |
+| Deputy simple coverage counts daily area shifts                                                          | Calculate time/role readiness separately; never label daily counts as continuous qualified coverage  | SC-01; T-06/07             |
+| Deputy auto-fill uses empty shifts; When I Work uses unpublished OpenShifts                              | Distinguish internal unassigned work from employee-visible offers                                    | SC-15/16; T-08             |
+| When I Work exposes hypothetical baseline and alternative evaluation APIs                                | Preview the complete proposed batch and boundary periods; recheck the final state at commit          | SC-02/29/31; T-04/07/09    |
+| Competitor warnings, employee pickup restrictions and recipe score penalties are different mechanisms    | Record actor/action severity rules; a positive score cannot override a hard qualification constraint | SC-04–06/45; D-03; T-07/14 |
+| Night-shift day counting and hour attribution differ                                                     | Keep business dates, elapsed hours and reporting allocation explicit                                 | SC-22/32/35; D-04/05       |
+| Linked-part operations can affect hidden areas                                                           | Preview whole/part scope and every affected area/version                                             | SC-36/37; T-10/11          |
+| When I Work break updates delete omitted existing breaks; Vakhta writes replace the month                | Define collection semantics and preserve hidden records in all partial-view edits                    | SC-29/36; T-04/11          |
+| Publication, notification and acknowledgement have distinct evidence                                     | Retain durable delivery and recovery; never equate saved/published with received                     | SC-08/09/18; T-02          |
+| When I Work documents limited shift-history retention                                                    | Preserve Vakhta's own required audit/history; do not copy the competitor retention window            | SC-19; T-02                |
+| Deputy's public recipe LICENSE prohibits reuse; current calendar source was not found for either product | Use documented concepts; do not import recipes or infer a frontend library/private solver            | SC-45; T-14                |
+
+The report defines twelve future acceptance scenarios covering staffing, concurrent edits, full-batch
+validation, period boundaries, hidden parts, collection updates and delivery recovery. They are
+proposed checks, not executed tests. No calendar package or new microservice was selected.
+
+Lean recommendation remains **Proceed and simplify**: shorten standard planning/replacement paths,
+keep advanced segmentation optional, and measure task time/contacts/corrections against the current
+workspace before claiming savings. No new worker check-ins or production/OEE claims follow from
+this research. Resolve policy/data ownership before dependent behavior changes.
+
 The product brief now embeds the owner's seven selected screenshots in its
 [visual reference gallery](../../features/schedule-calendar-redesign.md#visual-references-real-deputy-and-when-i-work-interfaces).
 Each caption identifies the observed interface, the intended Vakhta adaptation and the relevant SC/UX
@@ -280,6 +312,10 @@ scheduling interaction measurements.
 
 - 2026-09-12: documentation-only consolidation. Inspected current product docs, feature memory,
   scheduling contracts/schema/controller and source continuity since the original research baseline.
+- 2026-09-12 deep-research follow-up: checked local links across the three changed documents,
+  26 unique referenced source footnotes, five report illustrations and the unchanged ordered
+  SC-01–50 catalog. Prettier and diff-whitespace checks passed. Newly inspected competitor images
+  cover Deputy area coverage and When I Work auto-assignment; no Vakhta UI or runtime was changed.
 - Canonical product catalog retains SC-01–50 and the 7/19/24 baseline split. Backlog maps each ID to
   one stream; cross-cutting acceptance and all 15 UX recommendations remain explicit.
 - No feature code, schema, permissions, employee data or notification logic changed. No application

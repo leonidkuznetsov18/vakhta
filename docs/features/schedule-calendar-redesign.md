@@ -10,6 +10,12 @@ capabilities are available. [Current Schedule behavior](05-schedule.md) remains 
 until individual capabilities ship. [Engineering plan, evidence and remaining work](../engineering/features/schedule-calendar-redesign.md)
 track implementation. This document is the single product requirements source for this redesign.
 
+The [Deputy and When I Work deep research](../research/2026-09-12-deputy-wheniwork-calendar-deep-research.md)
+provides the detailed functional comparison, public-code/API analysis, desktop/mobile illustrations,
+manufacturing implications and ten implementation clarifications. It distinguishes documented
+competitor behavior from proposed Vakhta policy. Use it with the visual gallery below; the canonical
+50-capability scope and unresolved policy gates remain in this feature and its engineering plan.
+
 ## Outcome
 
 Replace the Schedule page with a coherent calendar workspace for planning shifts, understanding team
