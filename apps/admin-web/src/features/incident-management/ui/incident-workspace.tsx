@@ -9,13 +9,14 @@ import { XIcon } from 'lucide-react';
 import { SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Lightbox } from '@/components/app/photo';
-import { EmptyState, LiveBadge, ROW_DANGER, Section, Toolbar } from '@/components/app/page';
+import { LiveBadge, ROW_DANGER, Toolbar } from '@/components/app/page';
 import { currentLocale } from '@/i18n';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { useIncidentWorkspace } from '../model/workspace';
 import { incidentNeedsReaction } from '../model/sla';
 import { IncidentDetail } from './incident-detail';
-import { StatsTable } from './stats-table';
+import { IncidentStatistics } from './incident-statistics';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { incidentColumns } from './columns';
 
 const all = messages(currentLocale());
@@ -24,24 +25,16 @@ const hints = all.ui.hints;
 
 export function IncidentWorkspace() {
   const model = useIncidentWorkspace();
-  const {
-    org,
-    siteId,
-    setSiteId,
-    scope,
-    periodMode,
-    date,
-    live,
-    error,
-    rows,
-    openId,
-    lightbox,
-    stats,
-  } = model;
+  const { org, siteId, setSiteId, scope, periodMode, date, live, error, rows, openId, lightbox } =
+    model;
 
   return (
-    <div className="flex flex-col gap-4">
-      <HowItWorks guide="incidents" />
+    <Tabs value={model.view} onValueChange={model.setView} className="min-w-0 gap-4">
+      <TabsList aria-label={all.admin.sections.incidents}>
+        <TabsTrigger value="queue">{i.queueTab}</TabsTrigger>
+        <TabsTrigger value="statistics">{i.stats}</TabsTrigger>
+      </TabsList>
+      {model.view === 'queue' && <HowItWorks guide="incidents" />}
       <QueryFeedback query={model.orgQuery} />
       <Toolbar>
         <SelectField
@@ -50,7 +43,7 @@ export function IncidentWorkspace() {
           onChange={setSiteId}
           placeholder="—"
           options={org?.sites.map((s) => ({ value: s.id, label: s.name })) ?? []}
-          className="w-56"
+          className="w-full sm:w-56"
         />
         <DateField
           label={i.from}
@@ -58,7 +51,7 @@ export function IncidentWorkspace() {
           value={model.dates.from}
           maxDate={model.dates.to}
           onChange={(value) => model.changeDate('from', value)}
-          className="w-full sm:w-56"
+          className="min-w-0 flex-1 basis-36 sm:w-56 sm:flex-none"
         />
         <DateField
           label={i.to}
@@ -66,7 +59,7 @@ export function IncidentWorkspace() {
           value={model.dates.to}
           minDate={model.dates.from}
           onChange={(value) => model.changeDate('to', value)}
-          className="w-full sm:w-56"
+          className="min-w-0 flex-1 basis-36 sm:w-56 sm:flex-none"
         />
         {(model.dates.from || model.dates.to) && (
           <IconButton
@@ -81,72 +74,60 @@ export function IncidentWorkspace() {
             <span className="sr-only">{i.clearDates}</span>
           </IconButton>
         )}
-        <div className="flex items-center gap-1">
-          <StateFilter
-            value={scope}
-            onChange={model.setScope}
-            label={all.admin.sections.incidents}
-            options={[
-              { value: 'open', label: i.scopeOpen },
-              { value: 'all', label: i.scopeAll },
-            ]}
-          />
-          <InfoTip text={hints.incidentsScope} />
-        </div>
+        {model.view === 'queue' && (
+          <div className="flex items-center gap-1">
+            <StateFilter
+              value={scope}
+              onChange={model.setScope}
+              label={all.admin.sections.incidents}
+              options={[
+                { value: 'open', label: i.scopeOpen },
+                { value: 'all', label: i.scopeAll },
+              ]}
+            />
+            <InfoTip text={hints.incidentsScope} />
+          </div>
+        )}
         <div className="ml-auto">
           <LiveBadge live={live} />
         </div>
       </Toolbar>
       <Feedback error={error} />
 
-      <DataTable
-        queryState={model.listQuery}
-        columns={incidentColumns()}
-        rows={rows}
-        storageKey="incidents"
-        resetKey={`${siteId}:${scope}:${date}:${model.endDate}:${periodMode}`}
-        caption={all.admin.sections.incidents}
-        primaryKey="reason"
-        rowLabel={(row) => `${row.reasonLabel} · ${row.reportedBy ?? row.zoneName ?? row.openedAt}`}
-        searchText={model.searchText}
-        searchPlaceholder={i.search}
-        loading={model.loading}
-        onRowClick={model.toggleRow}
-        rowActions={model.rowActions}
-        rowKey={(row) => row.id}
-        empty={i.empty}
-        rowClassName={(row) => (incidentNeedsReaction(row) ? ROW_DANGER : undefined)}
-        activeKey={openId}
-        expanded={(row) => (row.id === openId ? <IncidentDetail row={row} model={model} /> : null)}
-      />
+      <TabsContent value="queue" className="min-w-0">
+        <DataTable
+          queryState={model.listQuery}
+          columns={incidentColumns()}
+          rows={rows}
+          storageKey="incidents"
+          resetKey={`${siteId}:${scope}:${date}:${model.endDate}:${periodMode}`}
+          caption={all.admin.sections.incidents}
+          primaryKey="reason"
+          rowLabel={(row) =>
+            `${row.reasonLabel} · ${row.reportedBy ?? row.zoneName ?? row.openedAt}`
+          }
+          searchText={model.searchText}
+          searchPlaceholder={i.search}
+          loading={model.loading}
+          onRowClick={model.toggleRow}
+          rowActions={model.rowActions}
+          rowKey={(row) => row.id}
+          empty={i.empty}
+          rowClassName={(row) => (incidentNeedsReaction(row) ? ROW_DANGER : undefined)}
+          activeKey={openId}
+          expanded={(row) =>
+            row.id === openId ? <IncidentDetail row={row} model={model} /> : null
+          }
+        />
+      </TabsContent>
       <Lightbox images={lightbox} onClose={model.closeLightbox} title={i.photo} />
 
-      <Section title={i.stats} hint={hints.incidentsStats}>
-        <QueryFeedback query={model.statsQuery} />
-        {/* Two cuts of one period: when the period holds nothing, both tables said so, and the
-            section repeated itself. One sentence answers for the period. */}
-        {stats &&
-          (stats.byReason.length === 0 && stats.byZone.length === 0 ? (
-            <EmptyState text={all.ui.common.noResults} />
-          ) : (
-            <div className="grid gap-4 2xl:grid-cols-2">
-              <StatsTable
-                resetKey={`${siteId}:${scope}:${date}:${model.endDate}:${periodMode}`}
-                storageKey="incident-stats.reasons"
-                title={i.byReason}
-                rows={stats.byReason}
-                totals={stats.totals}
-              />
-              <StatsTable
-                resetKey={`${siteId}:${scope}:${date}:${model.endDate}:${periodMode}`}
-                storageKey="incident-stats.zones"
-                title={i.byZone}
-                rows={stats.byZone}
-                totals={stats.totals}
-              />
-            </div>
-          ))}
-      </Section>
-    </div>
+      <TabsContent value="statistics" className="min-w-0">
+        <IncidentStatistics
+          query={model.statsQuery}
+          resetKey={`${siteId}:${date}:${model.endDate}:${periodMode}`}
+        />
+      </TabsContent>
+    </Tabs>
   );
 }

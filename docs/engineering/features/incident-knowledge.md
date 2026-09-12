@@ -171,3 +171,43 @@ Lean: simplify; both bounds are visible without opening a combined period select
 focused incident/period/route tests passed; changed-code ESLint passed. Browser QA selected both
 dates, verified the disabled earlier end date and cleared the range. Screenshots at 1365px and
 390px were captured and inspected; mobile document width remained 390px. Panel typecheck and ten catalog tests also passed after concurrent package builds completed.
+
+## Incident queue and statistics layout — 2026-09-12
+
+Owner request: the stacked operational queue and two cramped statistics tables make scanning and
+comparison difficult. Separate the operational queue from retrospective analysis with shadcn tabs.
+The default remains Incidents. Reserve `#/incidents/statistics` for analysis and preserve existing
+`#/incidents/<id>` links and unsaved incident drafts. Site/date filters are shared; Open/All affects
+only the queue, never the existing all-status statistics aggregation. State this scope explicitly.
+
+Statistics show one set of period totals and one full-width searchable table, switching by reason
+or zone. Preserve all six columns, complete counts, sorting, pagination and distinct table preferences.
+Display durations with units; null average resolution remains unknown, not zero. On phones use the
+shared primary-name card layout. Queue severity joins the problem identity; current stopped workers
+and report counts share an explicitly labeled Impact column. Keep problem/root-cause previews,
+reporter, zone, status, SLA and all existing row actions. No incident or aggregation API changes.
+
+Architecture: retain the existing incident feature. Hash navigation owns the selected task; Zustand
+owns breakdown preferences and drafts; Query owns data. Load statistics only when its tab is selected,
+independently of queue request success. Do not request a detail with `statistics` as its incident ID.
+
+Acceptance: keyboard-accessible tab switching restores an open queue record/draft; deep links still
+work; failed queue requests cannot block statistics; cached refresh/error and successful empty states
+remain distinct. One summary and one breakdown table are visible in statistics; no horizontal document
+overflow at mobile width, with aligned readable metrics at desktop widths.
+
+Lean recommendation: **Simplify**. Separate two distinct tasks, eliminate duplicated totals and reduce
+horizontal scanning. No worker steps or new decisions. Validate navigation and data preservation;
+operator search-time improvements need actual user observation and are not claimed here.
+
+Verification: 14 incident page tests passed, including new keyboard tab/draft preservation, direct
+statistics bookmark and failed-statistics retry regressions. The existing 17 period/detail/SLA tests
+passed; all 10 i18n catalog tests passed. Frontend typecheck, scoped ESLint and production build passed
+with the existing bundle-size and upstream Zod-comment warnings. Layout detector returned no findings.
+
+Local preview screenshots inspected at 1440×900 and 390×844, including a dark mobile statistics view.
+Both desktop tables measure 1134 px inside their 1134 px viewport without horizontal scrolling; mobile
+document width stays 390 px. Eight reason rows and five zone rows exercise long labels, null averages,
+zero values and multi-hour durations. Search, grouping and ArrowRight tab navigation were exercised.
+Preview data is synthetic; no production incident or employee action was submitted. Physical touch,
+screen-reader certification, every locale and actual production performance remain unverified.

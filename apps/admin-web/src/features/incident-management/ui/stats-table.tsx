@@ -1,6 +1,7 @@
 import type { IncidentStatsView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { DataTable, type Column } from '@/components/app/data-table';
+import { formatDuration } from '@/lib/format';
 import { currentLocale } from '@/i18n';
 
 const all = messages(currentLocale());
@@ -13,20 +14,28 @@ export function StatsTable({
   storageKey,
   resetKey,
   rows,
-  totals,
 }: {
   readonly title: string;
   readonly storageKey: string;
   readonly resetKey: string;
   readonly rows: readonly StatsRow[];
-  readonly totals: IncidentStatsView['totals'];
 }) {
   const columns: Column<StatsRow>[] = [
-    { key: 'label', header: title, cell: (r) => r.label, sortValue: (r) => r.label },
+    {
+      key: 'label',
+      header: title,
+      minWidth: '14rem',
+      className: 'w-full',
+      cell: (r) => (
+        <span className="block max-w-md whitespace-normal [overflow-wrap:anywhere]">{r.label}</span>
+      ),
+      sortValue: (r) => r.label,
+    },
     {
       key: 'incidents',
       header: i.colIncidents,
       align: 'right',
+      className: 'tabular-nums whitespace-nowrap',
       cell: (r) => r.incidents,
       sortValue: (r) => r.incidents,
     },
@@ -34,27 +43,31 @@ export function StatsTable({
       key: 'reports',
       header: i.colReports,
       align: 'right',
+      className: 'tabular-nums whitespace-nowrap',
       cell: (r) => r.reports,
       sortValue: (r) => r.reports,
     },
     {
       key: 'downtime',
-      header: i.colDowntime,
+      header: i.downtimeLabel,
       align: 'right',
-      cell: (r) => r.downtimeMinutes,
+      className: 'tabular-nums whitespace-nowrap',
+      cell: (r) => formatDuration(r.downtimeMinutes),
       sortValue: (r) => r.downtimeMinutes,
     },
     {
       key: 'resolution',
-      header: i.colResolution,
+      header: i.resolutionLabel,
       align: 'right',
-      cell: (r) => r.avgResolutionMinutes ?? '—',
+      className: 'tabular-nums whitespace-nowrap',
+      cell: (r) => (r.avgResolutionMinutes === null ? '—' : formatDuration(r.avgResolutionMinutes)),
       sortValue: (r) => r.avgResolutionMinutes,
     },
     {
       key: 'breached',
       header: i.colBreached,
       align: 'right',
+      className: 'tabular-nums whitespace-nowrap',
       cell: (r) => r.slaBreached,
       sortValue: (r) => r.slaBreached,
     },
@@ -68,12 +81,8 @@ export function StatsTable({
       storageKey={storageKey}
       resetKey={resetKey}
       caption={title}
-      summary={columns
-        .filter((column) => column.key !== 'label')
-        .map((column) => ({
-          label: typeof column.header === 'string' ? column.header : column.key,
-          value: column.cell(totals),
-        }))}
+      primaryKey="label"
+      searchText={(row) => row.label}
     />
   );
 }

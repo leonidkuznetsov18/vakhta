@@ -725,25 +725,37 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       },
     ]);
   if (path === '/admin/incidents/stats') {
-    const zero = {
-      key: 'total',
-      label: 'Усього',
-      incidents: 0,
-      reports: 0,
-      downtimeMinutes: 0,
-      avgResolutionMinutes: null,
-      slaBreached: 0,
-    };
+    // Synthetic long-label and varied-duration data for responsive analytics checks.
+    const row = (
+      key: string,
+      label: string,
+      incidents: number,
+      reports: number,
+      downtimeMinutes: number,
+      avgResolutionMinutes: number | null,
+      slaBreached: number,
+    ) => ({ key, label, incidents, reports, downtimeMinutes, avgResolutionMinutes, slaBreached });
     return json({
       from: '2026-09-01T00:00:00.000Z',
       to: '2026-09-08T00:00:00.000Z',
       byReason: [
-        { ...zero, key: 'SAFETY', label: 'Безпека', incidents: 1, reports: 1, downtimeMinutes: 12 },
+        row('SAFETY', 'Безпека', 11, 11, 231, 72, 5),
+        row('BREAKDOWN', 'Поломка обладнання', 15, 18, 78, 440, 12),
+        row('OTHER', 'Інша причина', 2, 2, 8, 46, 1),
+        row('RAW', 'Немає сировини', 1, 1, 1, null, 1),
+        row('MASTER', 'Очікування майстра', 1, 1, 0, 12, 1),
+        row('SETUP', 'Очікування наладчика', 1, 1, 0, 105, 1),
+        row('QUALITY', 'Очікування перевірки якості готової продукції', 1, 1, 0, 1070, 1),
+        row('ORG', 'Організаційна причина', 1, 1, 0, 106, 1),
       ],
       byZone: [
-        { ...zero, key: 'z1', label: 'Линия 1', incidents: 1, reports: 1, downtimeMinutes: 12 },
+        row('z1', 'Друга стінка стаканів — пакувальна ділянка', 19, 22, 159, 386, 14),
+        row('z2', 'Перша стінка стаканів', 5, 5, 51, 46, 2),
+        row('z3', 'Вибирання', 2, 2, 47, 96, 1),
+        row('z4', 'Станок пакування стаканів', 3, 3, 46, 67, 2),
+        row('none', '—', 4, 4, 15, 707, 4),
       ],
-      totals: { ...zero, incidents: 1, reports: 1, downtimeMinutes: 12 },
+      totals: row('total', 'Усього', 33, 36, 318, 313, 23),
     });
   }
   if (path.startsWith('/admin/schedules/templates')) return json(scheduleTemplates);

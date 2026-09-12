@@ -680,6 +680,13 @@ export interface Messages {
       readonly notStopped: string;
       readonly photo: string;
       readonly empty: string;
+      readonly queueTab: string;
+      readonly statisticsScope: string;
+      readonly groupBy: string;
+      readonly periodTotals: string;
+      readonly downtimeLabel: string;
+      readonly resolutionLabel: string;
+      readonly impact: string;
       readonly stats: string;
       readonly byReason: string;
       readonly byZone: string;

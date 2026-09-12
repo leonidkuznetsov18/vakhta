@@ -45,3 +45,18 @@ shows On time with response duration, or a fixed response delay, and retains the
 Safety uses Immediate response with its recorded response duration. Rejected/duplicate records
 without response have no active countdown; missing legacy response times remain explicitly unknown.
 Historical breaches remain in statistics; red row backgrounds indicate only outstanding response work.
+
+### Panel workspaces
+
+Use **Incidents** for the operational queue, employee reports and master decisions. Severity appears
+beside the problem; Impact shows workers currently in downtime and the report count. Expand the row
+for evidence, diagnosis and history.
+
+Use **Downtime statistics** for retrospective analysis. One set of totals covers the selected site
+and period across all statuses. Switch **By reason / By zone** to compare a single full-width table;
+search and sorting apply to that breakdown, while period totals remain unchanged. Durations include
+hours/minutes; an unknown average resolution is shown as a dash. Phones show named cards with the
+same metrics. Open/All is a queue filter and is not presented as a statistics filter.
+
+The statistics tab has a bookmark at `#/incidents/statistics`. Returning to Incidents restores the
+open record and its draft; existing direct incident links continue to open their row.

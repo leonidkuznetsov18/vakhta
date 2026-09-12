@@ -65,7 +65,11 @@ class FakeEventSource {
   close() {}
 }
 
-function mockApi(state: { rows: ReturnType<typeof incident>[]; media?: unknown }) {
+function mockApi(state: {
+  rows: ReturnType<typeof incident>[];
+  media?: unknown;
+  statsError?: boolean;
+}) {
   const calls: { method: string; path: string; search: string; body: unknown }[] = [];
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
@@ -79,6 +83,8 @@ function mockApi(state: { rows: ReturnType<typeof incident>[]; media?: unknown }
       if (url.pathname === '/admin/org') return json(org);
       if (url.pathname === '/admin/incidents') return json(state.rows);
       if (url.pathname === '/admin/incidents/stats') {
+        if (state.statsError)
+          return json({ code: 'INTERNAL_ERROR', message: 'Stats unavailable' }, 500);
         const row = {
           key: 'BREAKDOWN',
           label: 'Поломка',
@@ -153,15 +159,59 @@ describe('IncidentsPage', () => {
     vi.unstubAllGlobals();
   });
 
+  it('separates breakdowns and preserves the open incident draft across tabs', async () => {
+    mockApi({ rows: [incident(INC, 'REPORTED')] });
+    render(<IncidentsPage />);
+    await screen.findByText('Поломка');
+    await clickRowAction('Подробности');
+    fireEvent.change(await screen.findByLabelText('Причина'), {
+      target: { value: 'Pending diagnosis' },
+    });
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Статистика простоев' }), { key: 'Enter' });
+    expect(await screen.findByRole('region', { name: 'Итоги выбранного периода' })).toBeTruthy();
+    expect(screen.getAllByRole('table')).toHaveLength(1);
+    expect(screen.getByRole('table', { name: 'По причинам' })).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: 'Открытые' })).toBeNull();
+    expect(location.hash).toBe('#/incidents/statistics');
+    fireEvent.click(screen.getByRole('radio', { name: 'По зонам' }));
+    expect(screen.getByRole('table', { name: 'По зонам' })).toBeTruthy();
+    expect(screen.getAllByRole('region', { name: 'Итоги выбранного периода' })).toHaveLength(1);
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Инциденты' }), { key: 'Enter' });
+    expect(await screen.findByDisplayValue('Pending diagnosis')).toBeTruthy();
+    expect(location.hash).toBe(`#/incidents/${INC}`);
+  });
+
+  it('opens the statistics bookmark without fetching a queue or a statistics incident', async () => {
+    location.hash = '#/incidents/statistics';
+    const calls = mockApi({ rows: [] });
+    render(<IncidentsPage />);
+    expect(await screen.findByRole('table', { name: 'По причинам' })).toBeTruthy();
+    expect(calls.some((call) => call.path === '/admin/incidents')).toBe(false);
+    expect(calls.some((call) => call.path === '/admin/incidents/statistics')).toBe(false);
+  });
+
+  it('shows a statistics failure with retry instead of invented totals', async () => {
+    location.hash = '#/incidents/statistics';
+    const state = { rows: [], statsError: true };
+    mockApi(state);
+    render(<IncidentsPage />);
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Итоги выбранного периода' })).toBeNull();
+    state.statsError = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Попробовать снова' }));
+    expect(await screen.findByRole('region', { name: 'Итоги выбранного периода' })).toBeTruthy();
+  });
+
   it('shows the queue, details with reports and statistics; acknowledgement carries a comment', async () => {
     const state = {
       rows: [incident(INC, 'REPORTED'), incident(INC2, 'REPORTED', { zoneName: 'Линия B' })],
     };
     const calls = mockApi(state);
     render(<IncidentsPage />);
-    await waitFor(() => expect(screen.getAllByText('Поломка').length).toBeGreaterThanOrEqual(3));
+    await waitFor(() => expect(screen.getAllByText('Поломка').length).toBeGreaterThanOrEqual(2));
     expect(screen.getAllByText('Сообщено')).toHaveLength(2);
-    expect(await screen.findAllByText('Итого')).toHaveLength(2);
+    expect(screen.queryByRole('region', { name: 'Итоги выбранного периода' })).toBeNull();
+    expect(calls.some((call) => call.path.endsWith('/stats'))).toBe(false);
 
     await clickRowAction('Подробности');
     expect(await screen.findByText(/работа остановлена · фото/)).toBeTruthy();
@@ -270,9 +320,13 @@ describe('IncidentsPage', () => {
     await waitFor(() => {
       const list = calls.find((call) => call.path === '/admin/incidents');
       expect(new URLSearchParams(list?.search).get('from')).toBe('2026-10-24T21:00:00.000Z');
+    });
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Статистика простоев' }), { key: 'Enter' });
+    await waitFor(() => {
       const stats = calls.find((call) => call.path.endsWith('/stats'));
       expect(new URLSearchParams(stats?.search).get('to')).toBe('2026-10-25T22:00:00.000Z');
     });
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Инциденты' }), { key: 'Enter' });
     // Browser QA covers the calendar interaction; this test checks the shared filter/API boundary.
     act(() => setUiState({ 'incidents.period': 'year', 'incidents.endDate': '2028-01-01' }));
     await waitFor(() =>

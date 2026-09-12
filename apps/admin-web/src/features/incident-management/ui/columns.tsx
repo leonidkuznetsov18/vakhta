@@ -54,26 +54,23 @@ export function incidentColumns(): Column<IncidentView>[] {
       key: 'opened',
       sortValue: (row) => row.openedAt,
       header: i.opened,
-      cell: (row) => <span className="tabular-nums">{formatTime(row.openedAt)}</span>,
-    },
-    {
-      key: 'severity',
-      sortValue: (row) => all.incidents.severities[row.severity],
-      header: i.severity,
       cell: (row) => (
-        <StatusPill tone={SEVERITY_TONE[row.severity]}>
-          {all.incidents.severities[row.severity]}
-        </StatusPill>
+        <span className="whitespace-nowrap tabular-nums">{formatTime(row.openedAt)}</span>
       ),
     },
     {
       key: 'reason',
-      minWidth: '15rem',
+      minWidth: '12rem',
       sortValue: (row) => row.reasonLabel,
       header: i.problemType,
       cell: (row) => (
         <div>
-          <div>{row.reasonLabel}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="min-w-0 [overflow-wrap:anywhere]">{row.reasonLabel}</span>
+            <StatusPill tone={SEVERITY_TONE[row.severity]}>
+              {all.incidents.severities[row.severity]}
+            </StatusPill>
+          </div>
           {row.rootCause && (
             <Muted>
               <TextPreview text={row.rootCause} />
@@ -85,18 +82,38 @@ export function incidentColumns(): Column<IncidentView>[] {
     {
       key: 'reportedBy',
       header: i.reportedBy,
-      cell: (row) => row.reportedBy ?? '—',
+      cell: (row) => (
+        <span className="block max-w-40 whitespace-normal [overflow-wrap:anywhere]">
+          {row.reportedBy ?? '—'}
+        </span>
+      ),
       sortValue: (row) => row.reportedBy ?? '',
     },
     {
       key: 'zone',
-      minWidth: '13rem',
+      minWidth: '9rem',
       sortValue: (row) => row.zoneName ?? '',
       header: i.zone,
-      cell: (row) => row.zoneName ?? '—',
+      cell: (row) => (
+        <span className="block max-w-40 whitespace-normal [overflow-wrap:anywhere]">
+          {row.zoneName ?? '—'}
+        </span>
+      ),
     },
-    { key: 'reports', header: i.reports, align: 'right', cell: (row) => row.reportsCount },
-    { key: 'stopped', header: i.stoppedNow, align: 'right', cell: (row) => row.stoppedNow },
+    {
+      key: 'impact',
+      header: i.impact,
+      minWidth: '8rem',
+      sortValue: (row) => row.stoppedNow,
+      cell: (row) => (
+        <dl className="grid grid-cols-[1fr_auto] gap-x-2 text-xs tabular-nums">
+          <dt>{i.stoppedNow}</dt>
+          <dd className="font-semibold">{row.stoppedNow}</dd>
+          <dt className="text-muted-foreground">{i.reports}</dt>
+          <dd>{row.reportsCount}</dd>
+        </dl>
+      ),
+    },
     {
       key: 'status',
       sortValue: (row) => all.incidents.statuses[row.status],

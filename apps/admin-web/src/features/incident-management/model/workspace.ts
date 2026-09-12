@@ -13,7 +13,7 @@ import { incidentsApi } from '@/api';
 import { readError } from '@/errors';
 import { currentLocale } from '@/i18n';
 import { usePersistentState, useUiStore, setUiState } from '@/lib/ui-store';
-import { useDeepLinkedId } from '@/lib/route';
+import { useRoute, writeRoute } from '@/lib/route';
 import { useLiveUpdates } from '@/lib/live';
 import { useOrg } from '@/lib/org';
 import { keys } from '@/lib/query';
@@ -57,7 +57,25 @@ export function useIncidentWorkspace() {
   const [periodMode] = usePersistentState<PeriodMode>(`${prefix}.period`, 'all');
   const [date] = usePersistentState(`${prefix}.date`, todayIso);
   const [endDate] = usePersistentState(`${prefix}.endDate`, date);
-  const [openId, setOpenId] = useDeepLinkedId(prefix, `${prefix}.openId`);
+  const route = useRoute();
+  const view = route.section === prefix && route.sub === 'statistics' ? 'statistics' : 'queue';
+  const [storedOpenId, setStoredOpenId] = usePersistentState<string | null>(
+    `${prefix}.openId`,
+    null,
+  );
+  const openId =
+    route.section === prefix && route.sub && view === 'queue' ? route.sub : storedOpenId;
+  const setOpenId = (id: string | null) => {
+    setStoredOpenId(id);
+    writeRoute(prefix, id ?? undefined);
+  };
+  const setView = (value: string) => {
+    if (value === 'statistics') {
+      setStoredOpenId(openId);
+      writeRoute(prefix, 'statistics');
+    }
+    if (value === 'queue') writeRoute(prefix, storedOpenId ?? undefined);
+  };
   const { drafts, lightbox } = useWorkspaceState(useShallow((state) => state));
   const client = useQueryClient();
   const timezone = org?.sites.find((site) => site.id === siteId)?.timezone ?? 'Europe/Kyiv';
@@ -71,13 +89,14 @@ export function useIncidentWorkspace() {
   const list = useQuery({
     queryKey: keys.incidents(query),
     queryFn: () => incidentsApi.list(query),
+    enabled: view === 'queue',
   });
   const rows = list.data ?? [];
   const live = useLiveUpdates(incidentsApi.streamUrl(), 'incident', ['incidents']);
   const detailQuery = useQuery({
     queryKey: keys.incident(openId),
     queryFn: () => incidentsApi.detail(openId ?? ''),
-    enabled: openId !== null,
+    enabled: view === 'queue' && openId !== null,
   });
   const statsRange = {
     from: range.from ?? '1970-01-01T00:00:00.000Z',
@@ -87,7 +106,7 @@ export function useIncidentWorkspace() {
   const statsQuery = useQuery({
     queryKey: keys.incidentStats({ ...statsRange, to: range.to ?? 'now' }),
     queryFn: () => incidentsApi.stats(statsRange.from, statsRange.to, siteId || undefined),
-    enabled: list.isSuccess,
+    enabled: view === 'statistics',
   });
   function form(row: IncidentView) {
     const draft = drafts[row.id];
@@ -165,6 +184,8 @@ export function useIncidentWorkspace() {
   const toggleRow = (row: IncidentView) => setOpenId(openId === row.id ? null : row.id);
   const setLightbox = (images: LightboxImage[]) => useWorkspaceState.setState({ lightbox: images });
   return {
+    view,
+    setView,
     listQuery: list,
     orgQuery,
     detailQuery,
