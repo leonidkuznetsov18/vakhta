@@ -2,6 +2,10 @@
 
 Status: draft / accepted / superseded. Owner: <role>. Baseline: <commit>. Authorized scope: <request or issue>.
 
+For Spec Kit changes, `specs/<change>/spec.md`, `plan.md` and `tasks.md` collectively implement this
+outline. Use the local template overrides and [workflow guide](../engineering/spec-kit.md); do not
+duplicate the same change into another standalone spec.
+
 ## RECON
 
 Observed problem, affected actors, existing behavior, source files, constraints and reuse candidates.

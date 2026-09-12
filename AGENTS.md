@@ -54,6 +54,12 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 
 ## Required engineering workflow
 
+- For Spec Kit work, follow `docs/engineering/spec-kit.md` and `.specify/memory/constitution.md`.
+  `AGENTS.md` and accepted engineering standards override generic skill/template defaults.
+  The `spec.md`, `plan.md` and `tasks.md` under `specs/<change>/` collectively follow
+  `docs/templates/spec.md`; do not create a second copy of the same specification. Use local
+  template overrides, include risk-based required tests and serialize writing tasks. Generate extra
+  design artifacts only when needed. Keep the active feature explicit in every handoff.
 - Read `docs/engineering/standards.md` before implementation. These are project requirements.
 - Search the repository first, then official documentation and maintained existing solutions. Write custom
   code only when neither fits; record why. Avoid duplicate logic and speculative abstractions.

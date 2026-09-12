@@ -4,6 +4,10 @@ Read `AGENTS.md` and the feature's product and engineering documents. For non-tr
 problem, scope, non-goals and acceptance criteria using `docs/templates/spec.md`, then decide module
 placement before implementation. Reuse existing solutions before introducing a dependency.
 
+For bounded Spec Kit work, follow [the project guide](docs/engineering/spec-kit.md). The repository
+includes the Codex integration, constitution and local templates; ordinary small fixes retain the
+existing lightweight workflow.
+
 ## Local environment
 
 Use Node 22 (at least 22.12) and pnpm 10.9.0 as configured by `.node-version` and `package.json`.

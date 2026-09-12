@@ -61,3 +61,42 @@ The owner subsequently confirmed `@cryptoleonid` and terminal `Основний`
 is recorded in `worker-bot-qa.md`. Complete the remaining cross-surface journey checks there.
 Migrate legacy React hooks and frontend folder boundaries with affected features. Add browser E2E
 coverage for critical journeys; the secret launcher only supplies credentials to test commands.
+
+## Spec Kit adoption: 2026-09-12
+
+The owner authorized project setup after installing the global skills. Scope: initialize Spec Kit,
+reuse accepted rules, define artifact ownership and verify the setup. No application behavior or
+product document changes are part of this adoption. The first product change remains to be selected.
+
+Official Specify CLI 1.0.6 generated the tracked Codex/Bash integration. The constitution starts at
+1.0.0: five principles derived from existing policy, artifact ownership, direct-master workflow and
+governance. No policy relaxation or unresolved placeholder remains. Upstream assets retain their
+managed hashes; the upstream MIT notice is in `.specify/UPSTREAM-LICENSE`. Local spec/plan/task
+overrides remove greenfield scaffolding, optional-test defaults and parallel-writer examples.
+The formatter excludes managed assets only; authored guidance remains checked.
+
+[The Spec Kit guide](../spec-kit.md) owns usage and maintenance instructions. Change contracts live
+under `specs/<change>/`; product documentation remains current behavior and this feature memory keeps
+durable evidence. Existing standards remain canonical. No new Git extension, runtime dependency,
+unattended agent or recurring automation was installed. The active feature pointer is absent until
+a real task is selected and is ignored by Git.
+
+Lean recommendation: Proceed with the bounded setup, then evaluate it on one real change. Reuse
+the existing documents, skip empty phases and optional ceremonies, and keep one writer/index owner.
+Expected benefit is fewer repeated decisions and scope mismatches; no measured time saving or
+production improvement is claimed. Stop expanding the setup if it creates duplicate documentation.
+
+Local verification passed:
+
+- `specify integration list`: Codex installed and default; CLI reports 1.0.6.
+- SHA-256 integrity of 22 managed files and metadata for all 10 local skills.
+- `bash -n` for all six helpers and resolution of all three project template overrides.
+- Temporary fixture: missing plan/tasks reported as errors; plan/task helpers use local overrides;
+  repeated plan setup preserves authored content; prerequisite output includes the task document.
+- Explicit feature-directory selection leaves the shared pointer unchanged; the real checkout's
+  pointer remains absent and ignored. Constitution values and local documentation links resolve.
+- Focused Prettier check for all authored guidance/overrides and `git diff --check` passed.
+
+Application tests, build and product visual/live QA are inapplicable to this tooling/documentation
+change. No employee actions were performed. CI/release and deployment evidence are separate from
+these local checks; the existing pipeline remains the integration gate.
