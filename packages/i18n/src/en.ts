@@ -490,6 +490,7 @@ export const en: Messages = {
     nextMonth: 'Next month ▶',
     ackButton: 'Acknowledged',
     ackDone: 'Thank you, acknowledgement confirmed.',
+    ackRefresh: 'This button is out of date. Review the updated plan and confirm again.',
     ackNothing: 'Nothing to confirm: there are no new schedule publications.',
     ackRequired: 'There is a new schedule. Please confirm acknowledgement.',
     nextShift: 'Next shift: {date} ({weekday}), {kind} {start}–{end}{zone}',

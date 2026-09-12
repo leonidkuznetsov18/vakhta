@@ -173,3 +173,8 @@ Begin T004–T006 prototype and T052 matrix/runbook while policy answers and hum
 
 - [x] T069 [US1] Aggregate enabled main-workspace queries, distinguish missing templates from failed reads, align Create/Restore handlers and disabled state; focused regressions and review.
 - [x] T070 [US1] Inspect desktop/390px contextual create and grouping/undo, all three locale period controls, and empty-template feedback; capture evidence and record synthetic-only limits.
+
+## Snapshot-bound acknowledgement — #7
+
+- [x] T071 [US1] Bind Home/Plan acknowledgement to the displayed employee/scope snapshot; retain one button and atomic existing acknowledgement/event ownership, make legacy ack:all refresh-only.
+- [x] T072 [US1] Verify stale publication, month isolation, identity mismatch, repeat/concurrency/rollback and Telegram callbacks with focused real-DB/bot tests; record review and limitations.

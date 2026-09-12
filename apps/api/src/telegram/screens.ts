@@ -45,7 +45,6 @@ export const CALLBACK = {
   activationCancel: 'act:no',
   planPrefix: 'plan:',
   ackPrefix: 'ack:',
-  ackAll: 'ack:all',
   arrivePrefix: 'arr:',
   departPrefix: 'dep:',
   languageMenu: 'lang:menu',
@@ -88,7 +87,7 @@ const itemLabel = checklistItemLabel;
 export interface HomeInput {
   readonly employee: EmployeeRecord;
   readonly next: NextShift | null;
-  readonly unacknowledged: number;
+  readonly acknowledgementCallback: string | null;
   /** Open presence: when the employee recorded arrival. */
   readonly presenceSince: Date | null;
   readonly timezone: string;
@@ -130,7 +129,7 @@ export function homeScreen(t: Messages, input: HomeInput): Screen {
   } else {
     lines.push(t.schedule.noNextShift);
   }
-  if (input.unacknowledged > 0) lines.push('', t.schedule.ackRequired);
+  if (input.acknowledgementCallback !== null) lines.push('', t.schedule.ackRequired);
 
   const keyboard = new InlineKeyboard()
     .text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`)
@@ -138,7 +137,8 @@ export function homeScreen(t: Messages, input: HomeInput): Screen {
     .row()
     .text(t.bonus.myScoresButton, BONUS_CALLBACK.me)
     .text(t.language.menuButton, CALLBACK.languageMenu);
-  if (input.unacknowledged > 0) keyboard.row().text(t.schedule.ackButton, CALLBACK.ackAll);
+  if (input.acknowledgementCallback !== null)
+    keyboard.row().text(t.schedule.ackButton, input.acknowledgementCallback);
   if (input.pendingSwaps > 0)
     keyboard.row().text(`${t.requests.counterpartYes}? (${input.pendingSwaps})`, 'rq:pending');
   if (input.helpUrl || input.supportUrl) keyboard.row();
@@ -204,7 +204,11 @@ export function checkInResultScreen(t: Messages, result: CheckInResult, timezone
 }
 
 /** "My plan" for a month (FR-SCH-01): compact calendar with totals and navigation. */
-export function planScreen(t: Messages, plan: MyPlanView): Screen {
+export function planScreen(
+  t: Messages,
+  plan: MyPlanView,
+  acknowledgementCallback: string | null,
+): Screen {
   const [year, m] = plan.month.split('-');
   const monthName = t.schedule.months[Number(m) - 1] ?? plan.month;
   const lines = [format(t.schedule.planHeader, { month: monthName, year: year ?? '' }), ''];
@@ -241,8 +245,8 @@ export function planScreen(t: Messages, plan: MyPlanView): Screen {
   const keyboard = new InlineKeyboard()
     .text(t.schedule.prevMonth, `${CALLBACK.planPrefix}${addMonths(plan.month, -1)}`)
     .text(t.schedule.nextMonth, `${CALLBACK.planPrefix}${addMonths(plan.month, 1)}`);
-  if (plan.unacknowledgedVersionIds.length > 0)
-    keyboard.row().text(t.schedule.ackButton, CALLBACK.ackAll);
+  if (acknowledgementCallback !== null)
+    keyboard.row().text(t.schedule.ackButton, acknowledgementCallback);
   keyboard.row().text(t.shift.backToShift, SHIFT_CALLBACK.back);
   return { text: lines.join('\n'), keyboard };
 }

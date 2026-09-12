@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Api } from 'grammy';
+import { z } from 'zod';
 import type { Update } from 'grammy/types';
 import {
   activityIntervals,
@@ -17,7 +18,8 @@ import {
   sql,
   telegramAccounts,
 } from '@vakhta/db';
-import { DEFAULT_ATTENDANCE_WINDOW } from '@vakhta/domain';
+import { DEFAULT_ATTENDANCE_WINDOW, addMonths, businessDateOf } from '@vakhta/domain';
+import { assignmentAcknowledgements } from '@vakhta/db';
 import { hashChallengeToken } from '@vakhta/domain/node';
 import { messages } from '@vakhta/i18n';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
@@ -48,6 +50,7 @@ import { TemplatesService } from '../scheduling/templates.service.js';
 import { ShiftChanges } from '../shift/shift-changes.js';
 import { ShiftService } from '../shift/shift.service.js';
 import { createBot } from './bot.factory.js';
+import { acknowledgementCallback } from './schedule-acknowledgement.js';
 import { UpdateDedup } from './update-dedup.js';
 
 const TELEGRAM_USER_ID = 10001;
@@ -204,7 +207,16 @@ function services(testDb: TestDatabase) {
     defaultTimezone: OPTIONS.defaultTimezone,
     logger: createLogger({ LOG_LEVEL: 'error', NODE_ENV: 'test' }),
   });
-  return { attendance, shift, bot, store, incidents };
+  return {
+    attendance,
+    shift,
+    bot,
+    store,
+    incidents,
+    schedule,
+    org,
+    templates: new TemplatesService(db, events, audit, org),
+  };
 }
 
 describe('Telegram departure callback: QR and shift/presence consistency', () => {
@@ -300,6 +312,158 @@ describe('Telegram departure callback: QR and shift/presence consistency', () =>
       if (!result.ok) throw new Error(`Shift fixture action ${action} failed: ${result.error}`);
     }
     expect(await app.shift.activeSession(employeeId)).toMatchObject({ state: 'READY_TO_CLOSE' });
+  });
+
+  describe('snapshot acknowledgement callbacks', () => {
+    const month = addMonths(businessDateOf(new Date(), OPTIONS.defaultTimezone).slice(0, 7), 1);
+    const actor = { type: 'WEB_USER', id: null, role: 'PRODUCTION_HEAD' } as const;
+
+    async function scheduleFixture() {
+      const site = await app.org.createSite(
+        { code: 'schedule', name: 'Schedule site', timezone: OPTIONS.defaultTimezone },
+        actor,
+      );
+      const unit = await app.org.createOrgUnit({ siteId: site.id, name: 'Schedule unit' }, actor);
+      const template = await app.templates.create(
+        {
+          siteId: site.id,
+          code: 'DAY',
+          name: 'Day',
+          localStart: '08:00',
+          localEnd: '20:00',
+          isNight: false,
+        },
+        actor,
+      );
+      return async (periodMonth = month) => {
+        const version = await app.schedule.createVersion(
+          { siteId: site.id, orgUnitId: unit.id, periodMonth },
+          actor,
+        );
+        await app.schedule.putAssignments(
+          version.id,
+          {
+            items: [
+              {
+                employeeId,
+                templateId: template.id,
+                businessDate: `${periodMonth}-01`,
+                kind: 'REGULAR',
+              },
+            ],
+          },
+          actor,
+        );
+        await app.schedule.submit(version.id, actor);
+        return app.schedule.publish(version.id, { changeReason: 'Test publication' }, actor);
+      };
+    }
+
+    async function callback(data: string, updateId = 90001) {
+      const update = departureUpdate('unused');
+      if (!update.callback_query) throw new Error('Missing callback fixture');
+      await app.bot.handleUpdate({
+        ...update,
+        update_id: updateId,
+        callback_query: { ...update.callback_query, data },
+      });
+    }
+
+    function renderedCallbacks() {
+      const last = vi.mocked(Api.prototype.editMessageText).mock.calls.at(-1);
+      const options = z
+        .object({
+          reply_markup: z.object({
+            inline_keyboard: z.array(z.array(z.object({ callback_data: z.string().optional() }))),
+          }),
+        })
+        .safeParse(last?.[3]);
+      return options.success
+        ? options.data.reply_markup.inline_keyboard
+            .flat()
+            .flatMap((button) => (button.callback_data ? [button.callback_data] : []))
+        : [];
+    }
+
+    function renderedAcknowledgement() {
+      return renderedCallbacks().find((data) => data.startsWith('ack2:'));
+    }
+
+    it.each(['en', 'uk', 'ru'] as const)(
+      'refreshes legacy ack:all in %s without writing acknowledgements',
+      async (locale) => {
+        const publish = await scheduleFixture();
+        await publish();
+        await testDb.db.update(employees).set({ locale }).where(eq(employees.id, employeeId));
+        await callback('ack:all');
+        expect(vi.mocked(Api.prototype.answerCallbackQuery)).toHaveBeenCalledWith(
+          expect.any(String),
+          { text: messages(locale).schedule.ackRefresh, show_alert: true },
+          undefined,
+        );
+        expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
+        expect(vi.mocked(Api.prototype.editMessageText)).toHaveBeenCalled();
+      },
+    );
+
+    it('refreshes an old Plan after publication, confirms only that month, and accepts a repeat tap', async () => {
+      const publish = await scheduleFixture();
+      await publish();
+      await callback(`plan:${month}`);
+      const oldButton = renderedAcknowledgement();
+      if (!oldButton) throw new Error('Plan acknowledgement button was not rendered');
+      expect(Buffer.byteLength(oldButton)).toBe(58);
+      const current = await publish();
+      await callback(oldButton, 90002);
+      expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
+      expect(vi.mocked(Api.prototype.answerCallbackQuery).mock.calls.at(-1)?.[1]).toMatchObject({
+        text: messages('en').schedule.ackRefresh,
+      });
+      const freshButton = renderedAcknowledgement();
+      if (!freshButton) throw new Error('Refreshed acknowledgement button was not rendered');
+      expect(freshButton).not.toBe(oldButton);
+      await publish(addMonths(month, 1));
+      await callback(freshButton, 90003);
+      expect(vi.mocked(Api.prototype.answerCallbackQuery).mock.calls.at(-1)?.[1]).toMatchObject({
+        text: messages('en').schedule.ackDone,
+      });
+      expect(renderedAcknowledgement()).toBeUndefined();
+      await callback(freshButton, 90004);
+      expect(vi.mocked(Api.prototype.answerCallbackQuery).mock.calls.at(-1)?.[1]).toMatchObject({
+        text: messages('en').schedule.ackNothing,
+      });
+      expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([
+        expect.objectContaining({ employeeId, scheduleVersionId: current.id }),
+      ]);
+      expect(renderedCallbacks()).toContain(`plan:${addMonths(month, 1)}`);
+    });
+
+    it('rejects an old Home snapshot when another month has been published', async () => {
+      const publish = await scheduleFixture();
+      await publish();
+      const button = acknowledgementCallback(await app.schedule.homeAcknowledgement(employeeId));
+      if (!button) throw new Error('Home acknowledgement button was not prepared');
+      expect(Buffer.byteLength(button)).toBe(50);
+      await publish(addMonths(month, 1));
+      await callback(button);
+      expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
+      expect(vi.mocked(Api.prototype.answerCallbackQuery).mock.calls.at(-1)?.[1]).toMatchObject({
+        text: messages('en').schedule.ackRefresh,
+      });
+    });
+
+    it.each([`ack2:m:2026-13:${'A'.repeat(43)}`, 'ack2:h:malformed'])(
+      'refreshes malformed callback %s without a write',
+      async (data) => {
+        const publish = await scheduleFixture();
+        await publish();
+        await callback(data);
+        expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
+        expect(vi.mocked(Api.prototype.answerCallbackQuery).mock.calls.at(-1)?.[1]).toMatchObject({
+          text: messages('en').schedule.ackRefresh,
+        });
+      },
+    );
   });
 
   async function issueChallenge(expiresAt: Date): Promise<void> {

@@ -626,3 +626,35 @@ remaining domain streams retain their outstanding acceptance criteria.
 - Lean: one waiting surface and a visible actionable explanation reduce duplicate reading and inert
   clicks. Full #6/#7 acceptance remains open for the outstanding integrated workflow evidence; no
   participant baseline or production cutover is inferred.
+
+### 2026-09-13 — Snapshot-bound acknowledgement (#7, accepted increment)
+
+- Home and monthly Plan previously emitted ack:all, whose handler expanded the target at click time.
+  An old Plan can therefore confirm a newer publication or another month. Accepted SC-18/20 scope:
+  bind employee/view/assignment snapshot with a stateless digest, compare after version locks and
+  write only matched IDs/events in one transaction. Exclude acknowledgement state for repeat taps.
+  Legacy unbound buttons refresh only; no policy, Redis token lifecycle or notification-button change.
+- Lean: Proceed. Keep one acknowledgement action and remove accidental confirmation/rework; request
+  another tap only after the plan changes. Synthetic regression evidence verifies the guardrail;
+  no production employee activity or throughput claim.
+- Implemented in existing ScheduleService and Telegram owners; callbacks are 50/58 ASCII bytes.
+  New 9 service and 7 bot real-DB cases verify stale Home/Plan, exact month, employee/scope/digest
+  mismatch, concurrent/repeated taps, lock-wait reread, whole-batch rollback, legacy refresh in all
+  locales, malformed callbacks and same-month redraw. Three existing compatibility checks passed
+  (publication/acknowledgement, replacement publication, Home rendering). API typecheck, i18n build,
+  scoped lint/format and independent read-only review passed. Logs: `/tmp/vakhta-schedule-ack-snapshot/`
+  (`tests.log`: 13 passed with 3 legacy mock-arity assertion failures; corrected `legacy-retest.log`:
+  3 passed; `compatibility-tests.log`: 3 passed; no service/bot behavior failure remained).
+- Lean completion: unchanged plans still take one tap; stale buttons refresh without recording
+  acknowledgement. Fixed assignment IDs cannot expand after the final reread. This is snapshot
+  equivalence, not signed proof of reading, and Telegram response delivery is not DB-atomic. No live
+  employee messages/screenshots were produced; bot texts/keyboards were inspected through synthetic
+  transport assertions. Full #7 history/diff and other accepted scope remains open.
+
+### 2026-09-13 — Durable commands (#9) completed checkpoint
+
+Integration owner verified source `0e066554cf0b172152762d0b008758db05f92c7f` through successful
+[CI 34724963401](https://github.com/leonidkuznetsov18/vakhta/actions/runs/34724963401), reconciled the
+acceptance criteria, and [closed #9](https://github.com/leonidkuznetsov18/vakhta/issues/9#issuecomment-5649387586)
+as completed. The command guarantees and bounded concurrent-revocation limitation above remain
+unchanged; this checkpoint does not close the surrounding Schedule epic.

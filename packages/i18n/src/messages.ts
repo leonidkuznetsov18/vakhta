@@ -388,6 +388,7 @@ export interface Messages {
     readonly nextMonth: string;
     readonly ackButton: string;
     readonly ackDone: string;
+    readonly ackRefresh: string;
     readonly ackNothing: string;
     readonly ackRequired: string;
     /** Placeholders: {date}, {weekday}, {kind}, {start}, {end}, {zone} */

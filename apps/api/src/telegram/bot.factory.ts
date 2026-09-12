@@ -1,3 +1,7 @@
+import {
+  acknowledgementCallback,
+  parseAcknowledgementCallback,
+} from './schedule-acknowledgement.js';
 import { Bot, InlineKeyboard } from 'grammy';
 import type { Logger } from 'pino';
 import {
@@ -196,9 +200,9 @@ export async function renderHomeScreen(
   t: Messages,
   employee: EmployeeRecord,
 ): Promise<Screen> {
-  const [next, unacknowledged, presence, shiftRaw, pendingSwaps] = await Promise.all([
+  const [next, acknowledgement, presence, shiftRaw, pendingSwaps] = await Promise.all([
     deps.schedule.nextShift(employee.id),
-    deps.schedule.unacknowledgedVersions(employee.id),
+    deps.schedule.homeAcknowledgement(employee.id),
     deps.attendance.openPresence(employee.id),
     deps.shift.screen(employee.id),
     deps.requests.pendingCounterpart(employee.id),
@@ -208,7 +212,7 @@ export async function renderHomeScreen(
   const home = homeScreen(t, {
     employee,
     next,
-    unacknowledged: unacknowledged.length,
+    acknowledgementCallback: acknowledgementCallback(acknowledgement),
     presenceSince: presence?.arrivedAt ?? null,
     timezone,
     pendingSwaps: pendingSwaps.length,
@@ -300,7 +304,11 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     const resolved =
       month === 'cur' ? businessDateOf(new Date(), deps.defaultTimezone).slice(0, 7) : month;
     if (!isMonth(resolved)) return null;
-    return planScreen(ctx.t, await deps.schedule.myPlan(ctx.employee.id, resolved));
+    const { plan, acknowledgement } = await deps.schedule.myPlanWithAcknowledgement(
+      ctx.employee.id,
+      resolved,
+    );
+    return planScreen(ctx.t, plan, acknowledgementCallback(acknowledgement));
   }
 
   async function startActivation(ctx: BotContext, rawCode: string): Promise<void> {
@@ -1218,21 +1226,53 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     if (screen) await edit(ctx, screen);
   });
 
-  // "Acknowledged" from a notification (ack:<versionId>) or from the home screen (ack:all).
-  bot.callbackQuery(/^ack:(all|[0-9a-f-]{36})$/, async (ctx) => {
+  // Unbound legacy buttons cannot recover the plan the employee originally saw.
+  bot.callbackQuery('ack:all', async (ctx) => {
+    await ctx.answerCallbackQuery({ text: ctx.t.schedule.ackRefresh, show_alert: true });
+    await edit(ctx, await buildHome(ctx));
+  });
+
+  bot.callbackQuery(/^ack2:/, async (ctx) => {
     if (ctx.access !== 'ALLOWED' || !ctx.employee) {
       await ctx.answerCallbackQuery({ text: ctx.t.bot.access.NOT_REGISTERED, show_alert: true });
       return;
     }
-    const target = ctx.match[1] ?? 'all';
-    const versions =
-      target === 'all'
-        ? (await deps.schedule.unacknowledgedVersions(ctx.employee.id)).map((v) => v.versionId)
-        : [target];
+    const target = parseAcknowledgementCallback(ctx.callbackQuery.data);
+    const result = target
+      ? await deps.schedule.acknowledgeSnapshot(
+          ctx.employee.id,
+          target.scope,
+          target.fingerprint,
+          'TELEGRAM',
+        )
+      : { kind: 'STALE' as const };
+    await ctx.answerCallbackQuery({
+      text:
+        result.kind === 'STALE'
+          ? ctx.t.schedule.ackRefresh
+          : result.acknowledged > 0
+            ? ctx.t.schedule.ackDone
+            : ctx.t.schedule.ackNothing,
+      show_alert: result.kind === 'STALE',
+    });
+    const screen =
+      target?.scope.kind === 'MONTH'
+        ? await buildPlan(ctx, target.scope.month)
+        : await buildHome(ctx);
+    if (screen) await edit(ctx, screen);
+  });
+
+  // Version-specific publication and reminder notifications retain their existing target.
+  bot.callbackQuery(/^ack:([0-9a-f-]{36})$/, async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee) {
+      await ctx.answerCallbackQuery({ text: ctx.t.bot.access.NOT_REGISTERED, show_alert: true });
+      return;
+    }
+    const versionId = ctx.match[1];
     let acknowledged = 0;
-    for (const versionId of versions) {
+    if (versionId) {
       try {
-        acknowledged += (await deps.schedule.acknowledge(versionId, ctx.employee.id, 'TELEGRAM'))
+        acknowledged = (await deps.schedule.acknowledge(versionId, ctx.employee.id, 'TELEGRAM'))
           .acknowledged;
       } catch (error) {
         deps.logger.warn({ err: error, versionId }, 'acknowledgement rejected');

@@ -9,7 +9,8 @@ import type { WebUser } from '../auth/web-auth.guard.js';
 import { RolesService } from '../auth/roles.service.js';
 import { ScheduleCommandService } from './schedule-command.service.js';
 import { backgroundTasks } from '@vakhta/db';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { assignmentAcknowledgements, shiftAssignments } from '@vakhta/db';
 import { eq, notificationOutbox, scheduleVersions, sql, telegramAccounts } from '@vakhta/db';
 import { addMonths, businessDateOf } from '@vakhta/domain';
 import { AuditLog } from '../events/audit-log.js';
@@ -145,6 +146,175 @@ describe('scheduling: версії, валідація, публікація, о
       )
     ).id;
     await testDb.db.insert(telegramAccounts).values({ employeeId: ivanov, telegramUserId: 111 });
+  });
+
+  describe('snapshot acknowledgement', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    async function publishMonth(month = MONTH) {
+      const version = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: month },
+        PLANNER,
+      );
+      await schedule.putAssignments(
+        version.id,
+        {
+          items: [
+            {
+              employeeId: ivanov,
+              templateId: dayId,
+              businessDate: `${month}-01`,
+              zoneId,
+              kind: 'REGULAR',
+            },
+            {
+              employeeId: petrova,
+              templateId: dayId,
+              businessDate: `${month}-01`,
+              kind: 'REGULAR',
+            },
+          ],
+        },
+        PLANNER,
+      );
+      await schedule.submit(version.id, PLANNER);
+      return schedule.publish(version.id, { changeReason: 'Test publication' }, HEAD);
+    }
+
+    const confirm = (
+      snapshot: Awaited<ReturnType<ScheduleService['homeAcknowledgement']>>,
+      employeeId = ivanov,
+    ) => schedule.acknowledgeSnapshot(employeeId, snapshot.scope, snapshot.fingerprint, 'TELEGRAM');
+
+    it.each(['HOME', 'MONTH'] as const)(
+      'rejects the old %s snapshot after a new publication',
+      async (kind) => {
+        await publishMonth();
+        const snapshot =
+          kind === 'HOME'
+            ? await schedule.homeAcknowledgement(ivanov)
+            : (await schedule.myPlanWithAcknowledgement(ivanov, MONTH)).acknowledgement;
+        await publishMonth();
+        expect(await confirm(snapshot)).toEqual({ kind: 'STALE' });
+        expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
+      },
+    );
+
+    it('confirms the displayed month without confirming a later month or another employee', async () => {
+      const current = await publishMonth();
+      const snapshot = (await schedule.myPlanWithAcknowledgement(ivanov, MONTH)).acknowledgement;
+      const later = await publishMonth(addMonths(MONTH, 1));
+      expect(await confirm(snapshot)).toEqual({ kind: 'ACKNOWLEDGED', acknowledged: 1, total: 1 });
+      expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([
+        expect.objectContaining({ employeeId: ivanov, scheduleVersionId: current.id }),
+      ]);
+      expect(await schedule.unacknowledgedVersions(ivanov)).toEqual([
+        { versionId: later.id, periodMonth: later.periodMonth },
+      ]);
+    });
+
+    it('retains the Home aggregate scope and serializes repeat taps without duplicate events', async () => {
+      await publishMonth();
+      await publishMonth(addMonths(MONTH, 1));
+      const snapshot = await schedule.homeAcknowledgement(ivanov);
+      const before = await testDb.db.select().from(domainEvents);
+      const results = await Promise.all([confirm(snapshot), confirm(snapshot)]);
+      expect(results).toEqual(
+        expect.arrayContaining([
+          { kind: 'ACKNOWLEDGED', acknowledged: 2, total: 2 },
+          { kind: 'ACKNOWLEDGED', acknowledged: 0, total: 2 },
+        ]),
+      );
+      expect(await confirm(snapshot)).toEqual({ kind: 'ACKNOWLEDGED', acknowledged: 0, total: 2 });
+      expect((await schedule.homeAcknowledgement(ivanov)).fingerprint).toBe(snapshot.fingerprint);
+      expect(await testDb.db.select().from(assignmentAcknowledgements)).toHaveLength(2);
+      const after = await testDb.db.select().from(domainEvents);
+      expect(
+        after.filter(
+          (event) =>
+            event.type === 'SCHEDULE_ACKNOWLEDGED' && !before.some((old) => old.id === event.id),
+        ),
+      ).toHaveLength(2);
+    });
+
+    it.each(['employee', 'scope', 'digest'] as const)(
+      'rejects %s identity reuse without acknowledgements',
+      async (change) => {
+        await publishMonth();
+        const snapshot = await schedule.homeAcknowledgement(ivanov);
+        const altered =
+          change === 'scope'
+            ? { ...snapshot, scope: { kind: 'MONTH' as const, month: MONTH } }
+            : change === 'digest'
+              ? { ...snapshot, fingerprint: 'A'.repeat(43) }
+              : snapshot;
+        expect(await confirm(altered, change === 'employee' ? petrova : ivanov)).toEqual({
+          kind: 'STALE',
+        });
+        expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
+      },
+    );
+
+    it('rolls back the entire aggregate and its events after an event failure, then permits retry', async () => {
+      await publishMonth();
+      await publishMonth(addMonths(MONTH, 1));
+      const snapshot = await schedule.homeAcknowledgement(ivanov);
+      const before = await testDb.db.select().from(domainEvents);
+      const append = EventStore.prototype.append;
+      let acknowledgements = 0;
+      const fault = vi.spyOn(EventStore.prototype, 'append').mockImplementation(async function (
+        this: EventStore,
+        tx,
+        event,
+      ) {
+        if (event.type === 'SCHEDULE_ACKNOWLEDGED' && ++acknowledgements === 2)
+          throw new Error('Injected acknowledgement failure');
+        return append.call(this, tx, event);
+      });
+      await expect(confirm(snapshot)).rejects.toThrow('Injected acknowledgement failure');
+      expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
+      expect(await testDb.db.select().from(domainEvents)).toEqual(before);
+      fault.mockRestore();
+      expect(await confirm(snapshot)).toMatchObject({ kind: 'ACKNOWLEDGED', acknowledged: 2 });
+    });
+
+    it('rereads assignment eligibility after waiting for the version lock', async () => {
+      const version = await publishMonth();
+      const snapshot = await schedule.homeAcknowledgement(ivanov);
+      let release: () => void = () => {};
+      const released = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let locked: () => void = () => {};
+      const hasLock = new Promise<void>((resolve) => {
+        locked = resolve;
+      });
+      const changing = testDb.db.transaction(async (tx) => {
+        await schedule.lockVersion(version.id, tx);
+        locked();
+        await released;
+        await tx
+          .update(shiftAssignments)
+          .set({ status: 'CANCELLED' })
+          .where(eq(shiftAssignments.scheduleVersionId, version.id));
+      });
+      await hasLock;
+      let requested: () => void = () => {};
+      const requestedLock = new Promise<void>((resolve) => {
+        requested = resolve;
+      });
+      const lock = schedule.lockVersion.bind(schedule);
+      vi.spyOn(schedule, 'lockVersion').mockImplementation((id, tx, revision) => {
+        requested();
+        return lock(id, tx, revision);
+      });
+      const confirming = confirm(snapshot);
+      await requestedLock;
+      release();
+      await changing;
+      expect(await confirming).toEqual({ kind: 'STALE' });
+      expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
+    });
   });
 
   it('чернетка → подання → публікація з нотифікацією і таймерами', async () => {

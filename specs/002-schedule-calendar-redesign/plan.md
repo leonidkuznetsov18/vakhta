@@ -255,3 +255,18 @@ Show missing templates only after a successful empty response. Derive create/con
 restore availability once for both handlers and buttons. Verify initial concurrent loads, successful
 empty versus failed templates, and cached list failure with unchanged local intent. No business
 policy or period ownership change. Lean: remove duplicate waiting indicators and inert actions.
+
+### Snapshot-bound acknowledgement increment (#7, SC-18/20)
+
+Accepted scope: bind the Home aggregate and exact-month Plan acknowledgement button to employee,
+view scope, and the rendered published PLANNED assignment identities/intervals/zones. Use a canonical
+SHA-256 base64url fingerprint in a callback below [Telegram's 64-byte limit](https://core.telegram.org/bots/api#inlinekeyboardbutton); exclude acknowledgement
+state so repeated taps remain idempotent. Build Plan and fingerprint from the same database rows.
+On callback, lock candidate versions in stable order, reread and compare inside the acknowledgement
+transaction, then insert only those fixed assignment IDs and append events atomically. Changed
+snapshots refresh the same view without acknowledgement. Legacy ack:all cannot recover its original
+snapshot and becomes localized refresh-only; version-specific notification buttons stay compatible.
+No Redis snapshot storage/expiry, migrations, acknowledgement transfer, future-only admission,
+publication audience or new business policy. Required evidence: real DB stale/new-publication,
+month isolation, repeat/concurrent taps, employee/scope mismatch, lock-wait change and rollback;
+bot legacy/new callback routing, localized feedback and callback byte size. Independent review.

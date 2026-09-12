@@ -58,6 +58,7 @@ import { TIMER_SCHEDULER, type TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { OrgService } from '../org/org.service.js';
 import { TemplatesService } from './templates.service.js';
+import { acknowledgementSnapshot, type AcknowledgementScope } from './acknowledgement-snapshot.js';
 
 export interface ScheduleOptions {
   readonly shiftReminderMinutes: number;
@@ -983,29 +984,113 @@ export class ScheduleService {
           ),
         );
       if (rows.length === 0) return { acknowledged: 0, total: 0 };
-      const inserted = await tx
-        .insert(assignmentAcknowledgements)
-        .values(
-          rows.map((r) => ({
-            assignmentId: r.id,
-            employeeId,
-            scheduleVersionId: versionId,
-            source,
-          })),
-        )
-        .onConflictDoNothing({ target: assignmentAcknowledgements.assignmentId })
-        .returning({ id: assignmentAcknowledgements.id });
-      if (inserted.length > 0) {
-        await this.events.append(tx, {
-          type: 'SCHEDULE_ACKNOWLEDGED',
-          source: source === 'TELEGRAM' ? 'TELEGRAM' : 'WEB',
-          actor: { type: 'EMPLOYEE', id: employeeId, role: 'EMPLOYEE' },
+      const acknowledged = await this.recordAcknowledgementsWithin(
+        tx,
+        versionId,
+        employeeId,
+        source,
+        rows.map((row) => row.id),
+      );
+      return { acknowledged, total: rows.length };
+    });
+  }
+
+  private async recordAcknowledgementsWithin(
+    tx: Transaction,
+    versionId: string,
+    employeeId: string,
+    source: 'TELEGRAM' | 'WEB',
+    assignmentIds: readonly string[],
+  ): Promise<number> {
+    const inserted = await tx
+      .insert(assignmentAcknowledgements)
+      .values(
+        assignmentIds.map((assignmentId) => ({
+          assignmentId,
           employeeId,
           scheduleVersionId: versionId,
-          payload: { assignments: inserted.length },
-        });
+          source,
+        })),
+      )
+      .onConflictDoNothing({ target: assignmentAcknowledgements.assignmentId })
+      .returning({ id: assignmentAcknowledgements.id });
+    if (inserted.length > 0) {
+      await this.events.append(tx, {
+        type: 'SCHEDULE_ACKNOWLEDGED',
+        source: source === 'TELEGRAM' ? 'TELEGRAM' : 'WEB',
+        actor: { type: 'EMPLOYEE', id: employeeId, role: 'EMPLOYEE' },
+        employeeId,
+        scheduleVersionId: versionId,
+        payload: { assignments: inserted.length },
+      });
+    }
+    return inserted.length;
+  }
+
+  private readAcknowledgementAssignments(
+    db: DbOrTx,
+    employeeId: string,
+    scope: AcknowledgementScope,
+  ) {
+    return db
+      .select({ a: shiftAssignments, acknowledgedAt: assignmentAcknowledgements.acknowledgedAt })
+      .from(shiftAssignments)
+      .innerJoin(scheduleVersions, eq(scheduleVersions.id, shiftAssignments.scheduleVersionId))
+      .leftJoin(
+        assignmentAcknowledgements,
+        eq(assignmentAcknowledgements.assignmentId, shiftAssignments.id),
+      )
+      .where(
+        and(
+          eq(shiftAssignments.employeeId, employeeId),
+          eq(shiftAssignments.status, 'PLANNED'),
+          eq(scheduleVersions.status, 'PUBLISHED'),
+          scope.kind === 'MONTH' ? eq(scheduleVersions.periodMonth, scope.month) : undefined,
+        ),
+      );
+  }
+
+  async homeAcknowledgement(employeeId: string) {
+    const scope = { kind: 'HOME' } as const;
+    return acknowledgementSnapshot(
+      employeeId,
+      scope,
+      await this.readAcknowledgementAssignments(this.db, employeeId, scope),
+    );
+  }
+
+  async acknowledgeSnapshot(
+    employeeId: string,
+    scope: AcknowledgementScope,
+    fingerprint: string,
+    source: 'TELEGRAM' | 'WEB',
+  ): Promise<{ kind: 'STALE' } | { kind: 'ACKNOWLEDGED'; acknowledged: number; total: number }> {
+    return this.db.transaction(async (tx) => {
+      const candidates = await this.readAcknowledgementAssignments(tx, employeeId, scope);
+      const versionIds = [...new Set(candidates.map(({ a }) => a.scheduleVersionId))].sort();
+      for (const versionId of versionIds) await this.lockVersion(versionId, tx);
+      const rows = await this.readAcknowledgementAssignments(tx, employeeId, scope);
+      if (
+        rows.some(({ a }) => !versionIds.includes(a.scheduleVersionId)) ||
+        acknowledgementSnapshot(employeeId, scope, rows).fingerprint !== fingerprint
+      ) {
+        return { kind: 'STALE' };
       }
-      return { acknowledged: inserted.length, total: rows.length };
+      let acknowledged = 0;
+      for (const versionId of versionIds) {
+        const assignmentIds = rows
+          .filter(({ a }) => a.scheduleVersionId === versionId)
+          .map(({ a }) => a.id);
+        if (assignmentIds.length > 0)
+          acknowledged += await this.recordAcknowledgementsWithin(
+            tx,
+            versionId,
+            employeeId,
+            source,
+            assignmentIds,
+          );
+      }
+      return { kind: 'ACKNOWLEDGED', acknowledged, total: rows.length };
     });
   }
 
@@ -1111,6 +1196,10 @@ export class ScheduleService {
 
   /** Календар місяця працівника з усіх опублікованих версій (FR-SCH-01). */
   async myPlan(employeeId: string, month: string): Promise<MyPlanView> {
+    return (await this.myPlanWithAcknowledgement(employeeId, month)).plan;
+  }
+
+  async myPlanWithAcknowledgement(employeeId: string, month: string) {
     const rows = await this.db
       .select({
         a: shiftAssignments,
@@ -1152,15 +1241,15 @@ export class ScheduleService {
       zoneId: r.a.zoneId,
     }));
     const byId = new Map(rows.map((r) => [r.a.id, r]));
-    const plan = buildMonthPlan(planned, month);
+    const monthPlan = buildMonthPlan(planned, month);
     const unacknowledged = new Set(
       rows.filter((r) => r.acknowledgedAt === null).map((r) => r.a.scheduleVersionId),
     );
 
-    return {
+    const plan: MyPlanView = {
       month,
       timezone: rows[0]?.timezone ?? this.options.defaultTimezone,
-      days: plan.days.map((d) => {
+      days: monthPlan.days.map((d) => {
         const r = d.shift ? byId.get(d.shift.id) : undefined;
         return {
           date: d.date,
@@ -1180,8 +1269,12 @@ export class ScheduleService {
             : null,
         };
       }),
-      totals: plan.totals,
+      totals: monthPlan.totals,
       unacknowledgedVersionIds: [...unacknowledged],
+    };
+    return {
+      plan,
+      acknowledgement: acknowledgementSnapshot(employeeId, { kind: 'MONTH', month }, rows),
     };
   }
 
