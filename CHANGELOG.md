@@ -1,3 +1,9 @@
+## [0.93.8](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.7...v0.93.8) (2026-09-12)
+
+### Bug fixes
+
+* **admin:** simplify photo library search and responsive layout ([0f41794](https://github.com/leonidkuznetsov18/vakhta/commit/0f4179496f2d70f6e45793182eb3f6426300d0fb))
+
 ## [0.93.7](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.6...v0.93.7) (2026-09-12)
 
 ### Bug fixes
