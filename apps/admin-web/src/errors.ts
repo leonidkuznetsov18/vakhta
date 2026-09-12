@@ -7,6 +7,7 @@ const t = messages(currentLocale());
 /** User-facing text: 403 → "insufficient permissions", known domain codes → catalog, otherwise the server message. */
 export function describeError(e: unknown): string {
   if (e instanceof ApiError) {
+    if (e.code === 'SCHEDULE_REVISION_CONFLICT') return t.scheduleWorkspace.stale;
     if (e.status === 403) return t.admin.schedule.forbidden;
     if (e.status === 0) return t.admin.auth.networkError;
     if (e.code === 'INSPECTION_RULES_MISSING') return t.photoInspection.aiRulesMissing;

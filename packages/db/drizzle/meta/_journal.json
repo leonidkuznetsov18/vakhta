@@ -281,6 +281,13 @@
       "when": 1789140441861,
       "tag": "0039_photo_object_colors",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1789252365530,
+      "tag": "0040_schedule_revisions",
+      "breakpoints": true
     }
   ]
 }

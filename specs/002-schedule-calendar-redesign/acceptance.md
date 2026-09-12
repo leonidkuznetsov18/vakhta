@@ -112,7 +112,6 @@ HOLD: no redesigned release, participant baseline or unit pilot accepted. Preser
 Schedule behavior. See planned docs/runbooks/schedule-calendar-rollout.md; automatic local checks
 cannot substitute for measured participant tasks or an explicit production pilot decision.
 
-
 ### Complete roster read evidence — #9
 
 T057 is complete: PostgreSQL pages return all 205 workers with exact totals; Schedule rejects
@@ -122,3 +121,14 @@ original assignment. Batch pagination counts the complete filtered roster and se
 page. Desktop/mobile synthetic screenshots are recorded in feature memory. This supplies the roster
 read portion of SC-23; expected revisions, uncertain commands, session isolation and full #9 remain
 open. Per-page snapshots do not freeze directory changes across the entire multi-request read.
+
+### Stale-write evidence — #9
+
+T058 is complete locally: two concurrent editors produce one committed full-month save and one
+409 conflict; the winning assignments and revision agree. Stale submit/return/publish/revise/delete
+are rejected under lock. HR removal of planned assignments advances the reviewed version revision.
+The panel preserves the rejected draft and original revision, including same-grid revision conflicts,
+and blocks no-op lifecycle actions. Legacy API reads/create responses remain visible during deployment
+while existing-version writes stay disabled. Evidence and desktop/mobile screenshots are recorded
+in feature memory. SC-29 and #9 remain open for actor-isolated persistence and command outcome recovery;
+no timeout/idempotency or production acceptance is inferred from these checks.

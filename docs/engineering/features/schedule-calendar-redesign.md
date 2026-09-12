@@ -454,7 +454,6 @@ Segment editing, custom-time persistence, production move rules and participant 
 owned by later streams; prototype completion does not approve those policies. Lean: Proceed with
 installed primitives; no paid engine or new worker input is needed for the demonstrated renderer.
 
-
 ### Complete schedule roster — first bounded #9 increment
 
 - Added validated `/admin/employees/page` UUID cursor reads (maximum 200 per page), exact totals,
@@ -475,3 +474,35 @@ installed primitives; no paid engine or new worker input is needed for the demon
   authority. Expected revisions, command receipts, actor-scoped recovery and #9 closure remain open.
 - Lean: Simplify. Find an authorized worker once, retain selection across search/pages, and never
   require a planner to know which API page contains the worker. No extra worker input.
+
+### Stale schedule writes — second bounded #9 increment
+
+- Migration `0040_schedule_revisions` initializes a positive revision and advances it on every
+  version update. Public save/submit/return/publish/revise/delete commands require an expected
+  revision, checked after acquiring the version lock in the same transaction. Detail reads share
+  one repeatable-read snapshot; save returns the revision of the assignments actually committed.
+- HR hard-delete is an existing assignment writer: it now locks parent versions and advances the
+  revision for the actual deleted assignment set. A reviewed schedule changed by that operation
+  cannot be published using the old revision. Internal request publication keeps its transaction
+  and advances revisions; request rollback regression remains passing.
+- Local draft baselines persist their original revision. Same-grid/newer-revision changes are still
+  conflicts. A rejected save retains the draft; lifecycle buttons match the conflict/legacy guards.
+  Discard removes the local draft and clears its obsolete conflict warning. Revisionless legacy
+  drafts require the existing explicit review/recovery action; no silent rebinding occurs.
+- Rolling deployment: old API responses without revision remain readable (client sentinel 0),
+  including create responses; all existing-version writes remain disabled until a fresh revision
+  is available. The authoritative server contract and mutation preconditions require positive values.
+- Verification: Schedule 10, Requests 9 and HTTP boundary 6 tests passed against disposable PostgreSQL;
+  panel/planning 27 tests passed, including concurrent-save rejection, full draft retention,
+  same-grid stale lifecycle controls and legacy API create/read compatibility. API typecheck,
+  admin-web TypeScript/Compiler build and affected lint passed. Independent review findings on HR
+  deletion and no-op lifecycle controls were fixed and regression-tested; create compatibility was
+  also fixed. Desktop/mobile stale-draft screenshots were captured and inspected.
+- Prior roster CI stopped at formatting of three docs; this delivery formats those files. No prior
+  failed/cancelled CI run is described as passed. Migration/deployment confirmation is separate.
+- Remaining #9: durable command receipts, timeout outcome reconciliation, actor/session draft
+  isolation and complete recovery journeys. A stale response alone cannot resolve a lost success.
+  Concurrent HR deletion/new assignment races may abort via database conflict/FK protection; they
+  do not silently commit without the touched version's revision change. No automatic mutation retry.
+- Lean: Prevent rework. Preserve the planner's local intent when the server changes; stop actions
+  that cannot safely execute and keep the current schedule readable during rolling deployment.

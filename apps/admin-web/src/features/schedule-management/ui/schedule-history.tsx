@@ -104,7 +104,7 @@ export function ScheduleHistory({ workspace: w }: { workspace: Workspace }) {
                   label: s.deleteVersion,
                   icon: Trash2Icon,
                   destructive: true,
-                  disabled: w.busy,
+                  disabled: w.busy || version.revision === 0,
                   onSelect: () => void remove(version.id),
                 },
               ]

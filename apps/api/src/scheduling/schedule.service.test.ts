@@ -496,4 +496,128 @@ describe('scheduling: версії, валідація, публікація, о
       code: 'SCHEDULE_VERSION_IN_USE',
     });
   });
+
+  it('rejects a stale concurrent full-month save without changing the winning assignments', async () => {
+    const version = await schedule.createVersion(
+      { siteId, orgUnitId: unitId, periodMonth: MONTH },
+      PLANNER,
+    );
+    const commands = [
+      {
+        items: [
+          { employeeId: ivanov, templateId: dayId, businessDate: day(1), kind: 'REGULAR' as const },
+        ],
+      },
+      {
+        items: [
+          {
+            employeeId: petrova,
+            templateId: nightId,
+            businessDate: day(2),
+            kind: 'REGULAR' as const,
+          },
+        ],
+      },
+    ];
+    const results = await Promise.allSettled(
+      commands.map((command) =>
+        schedule.putAssignments(version.id, command, PLANNER, version.revision),
+      ),
+    );
+    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.find((result) => result.status === 'rejected');
+    expect(rejected).toMatchObject({ reason: { code: 'SCHEDULE_REVISION_CONFLICT' } });
+    const accepted = results.find((result) => result.status === 'fulfilled');
+    if (!accepted || accepted.status !== 'fulfilled') throw new Error('Missing successful save');
+    const detail = await schedule.detail(version.id);
+    expect(detail.version.revision).toBe(version.revision + 1);
+    expect(detail.assignments).toEqual(accepted.value.assignments);
+    expect(accepted.value.version.revision).toBe(detail.version.revision);
+  });
+
+  it('checks lifecycle revisions under lock and advances revisions for internal writers too', async () => {
+    const version = await schedule.createVersion(
+      { siteId, orgUnitId: unitId, periodMonth: MONTH },
+      PLANNER,
+    );
+    const saved = await schedule.putAssignments(
+      version.id,
+      { items: [{ employeeId: ivanov, templateId: dayId, businessDate: day(1), kind: 'REGULAR' }] },
+      PLANNER,
+    );
+    expect(saved.version.revision).toBe(version.revision + 1);
+    await expect(schedule.submit(version.id, PLANNER, version.revision)).rejects.toMatchObject({
+      code: 'SCHEDULE_REVISION_CONFLICT',
+    });
+    const submitted = await schedule.submit(version.id, PLANNER, saved.version.revision);
+    expect(submitted.revision).toBe(saved.version.revision + 1);
+    await expect(
+      schedule.returnToDraft(
+        version.id,
+        { comment: 'Return stale review' },
+        HEAD,
+        saved.version.revision,
+      ),
+    ).rejects.toMatchObject({ code: 'SCHEDULE_REVISION_CONFLICT' });
+    await expect(
+      schedule.publish(version.id, {}, HEAD, saved.version.revision),
+    ).rejects.toMatchObject({ code: 'SCHEDULE_REVISION_CONFLICT' });
+    const published = await schedule.publish(version.id, {}, HEAD, submitted.revision);
+    expect(published.revision).toBe(submitted.revision + 1);
+    await expect(
+      schedule.revise(version.id, { items: [] }, HEAD, submitted.revision),
+    ).rejects.toMatchObject({ code: 'SCHEDULE_REVISION_CONFLICT' });
+    expect((await schedule.detail(version.id)).version.status).toBe('PUBLISHED');
+  });
+
+  it('does not delete a version changed since the deleting editor read it', async () => {
+    const version = await schedule.createVersion(
+      { siteId, orgUnitId: unitId, periodMonth: MONTH },
+      PLANNER,
+    );
+    const updated = await schedule.putAssignments(
+      version.id,
+      { items: [] },
+      PLANNER,
+      version.revision,
+    );
+    await expect(
+      schedule.deleteVersion(version.id, PLANNER, version.revision),
+    ).rejects.toMatchObject({ code: 'SCHEDULE_REVISION_CONFLICT' });
+    expect((await schedule.detail(version.id)).version.revision).toBe(updated.version.revision);
+    await schedule.deleteVersion(version.id, PLANNER, updated.version.revision);
+    await expect(schedule.detail(version.id)).rejects.toMatchObject({
+      code: 'SCHEDULE_VERSION_NOT_FOUND',
+    });
+  });
+
+  it('invalidates a review revision when HR removes an unworked employee and their planned assignments', async () => {
+    const version = await schedule.createVersion(
+      { siteId, orgUnitId: unitId, periodMonth: MONTH },
+      PLANNER,
+    );
+    await schedule.putAssignments(
+      version.id,
+      {
+        items: [
+          { employeeId: ivanov, templateId: dayId, businessDate: day(1), kind: 'REGULAR' },
+          { employeeId: petrova, templateId: nightId, businessDate: day(2), kind: 'REGULAR' },
+        ],
+      },
+      PLANNER,
+    );
+    const reviewed = await schedule.submit(version.id, PLANNER);
+    await employeesService.deleteEmployee(
+      ivanov,
+      { reason: 'Remove unworked duplicate card' },
+      PLANNER,
+    );
+    const changed = await schedule.detail(version.id);
+    expect(changed.version.revision).toBe(reviewed.revision + 1);
+    expect(changed.assignments.map((item) => item.employeeId)).toEqual([petrova]);
+    await expect(schedule.publish(version.id, {}, HEAD, reviewed.revision)).rejects.toMatchObject({
+      code: 'SCHEDULE_REVISION_CONFLICT',
+    });
+    expect((await schedule.detail(version.id)).version.status).toBe('IN_REVIEW');
+  });
 });

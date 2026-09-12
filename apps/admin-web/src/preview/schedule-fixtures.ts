@@ -1,4 +1,5 @@
 import {
+  ScheduleRevisionPrecondition,
   CreateScheduleVersionCommand,
   PutAssignmentsCommand,
   ReviseScheduleCommand,
@@ -47,6 +48,7 @@ function create(unit: string, periodMonth: string): ScheduleVersionView {
     orgUnitId: unit,
     periodMonth,
     versionNo: versions.length + 1,
+    revision: 1,
     status: 'DRAFT',
     createdBy: null,
     submittedAt: null,
@@ -59,9 +61,11 @@ function create(unit: string, periodMonth: string): ScheduleVersionView {
     deletable: true,
   };
 }
+const simulateStaleSave = new URLSearchParams(location.search).get('schedule') === 'stale';
+let staleSaveInjected = false;
 const initial = create(scheduleUnitId, month);
-initial.status = 'PUBLISHED';
-initial.deletable = false;
+initial.status = simulateStaleSave ? 'DRAFT' : 'PUBLISHED';
+initial.deletable = simulateStaleSave;
 initial.publishedAt = new Date().toISOString();
 versions.push(initial);
 const initialItems: AssignmentInput[] = [];
@@ -141,6 +145,23 @@ export function scheduleFixture(url: URL, method: string, body: unknown): unknow
   const [, , , id, action] = url.pathname.split('/');
   const version = versions.find((v) => v.id === id);
   if (!version) return null;
+  if (
+    method === 'DELETE' ||
+    ['assignments', 'submit', 'return', 'publish', 'revise'].includes(action ?? '')
+  ) {
+    if (simulateStaleSave && !staleSaveInjected && action === 'assignments') {
+      version.revision += 1;
+      staleSaveInjected = true;
+    }
+    const precondition = ScheduleRevisionPrecondition.parse(body);
+    if (precondition.expectedRevision !== version.revision) {
+      return new Response(
+        JSON.stringify({ code: 'SCHEDULE_REVISION_CONFLICT', message: 'Stale schedule revision' }),
+        { status: 409, headers: { 'content-type': 'application/json' } },
+      );
+    }
+    version.revision += 1;
+  }
   if (action === 'assignments') {
     const input = PutAssignmentsCommand.parse(body);
     assignments.set(version.id, input.items);

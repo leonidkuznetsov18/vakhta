@@ -18,15 +18,17 @@ const gridSchema = z.object({
 const storedSchema = z.object({
   drafts: z.record(z.string(), gridSchema),
   baselines: z.record(z.string(), gridSchema).default({}),
+  revisions: z.record(z.string(), z.number().int().positive()).default({}),
 });
 interface ScheduleDrafts {
   drafts: Readonly<Record<string, GridState>>;
   baselines: Readonly<Record<string, GridState>>;
+  revisions: Readonly<Record<string, number>>;
   past: Readonly<Record<string, readonly GridState[]>>;
   future: Readonly<Record<string, readonly GridState[]>>;
   recoveryError: boolean;
-  restore: (id: string, draft: GridState, baseline: GridState) => void;
-  keep: (id: string, next: GridState, baseline: GridState) => void;
+  restore: (id: string, draft: GridState, baseline: GridState, revision: number) => void;
+  keep: (id: string, next: GridState, baseline: GridState, revision: number) => void;
   undo: (id: string) => void;
   redo: (id: string) => void;
   drop: (id: string) => void;
@@ -36,22 +38,25 @@ export const useScheduleDrafts = create<ScheduleDrafts>()(
     (set) => ({
       drafts: {},
       baselines: {},
+      revisions: {},
       past: {},
       future: {},
       recoveryError: false,
-      restore: (id, draft, baseline) =>
+      restore: (id, draft, baseline, revision) =>
         set((state) => ({
+          revisions: { ...state.revisions, [id]: revision },
           drafts: { ...state.drafts, [id]: draft },
           baselines: { ...state.baselines, [id]: baseline },
           past: { ...state.past, [id]: [] },
           future: { ...state.future, [id]: [] },
         })),
-      keep: (id, next, baseline) =>
+      keep: (id, next, baseline, revision) =>
         set((state) => {
           const previous = state.drafts[id] ?? baseline;
           if (countChanges(previous, next) === 0 && previous.rows.length === next.rows.length)
             return state;
           return {
+            revisions: { ...state.revisions, [id]: state.revisions[id] ?? revision },
             drafts: { ...state.drafts, [id]: next },
             baselines: { ...state.baselines, [id]: state.baselines[id] ?? baseline },
             past: {
@@ -87,21 +92,23 @@ export const useScheduleDrafts = create<ScheduleDrafts>()(
         }),
       drop: (id) =>
         set((state) => {
+          const revisions = { ...state.revisions };
           const drafts = { ...state.drafts };
           const baselines = { ...state.baselines };
           const past = { ...state.past };
           const future = { ...state.future };
+          delete revisions[id];
           delete drafts[id];
           delete baselines[id];
           delete past[id];
           delete future[id];
-          return { drafts, baselines, past, future };
+          return { drafts, baselines, revisions, past, future };
         }),
     }),
     {
       name: 'vakhta.ui.schedule.drafts',
       storage: createJSONStorage(() => localStorage),
-      partialize: ({ drafts, baselines }) => ({ drafts, baselines }),
+      partialize: ({ drafts, baselines, revisions }) => ({ drafts, baselines, revisions }),
       merge: (persisted, current) => {
         const parsed = storedSchema.safeParse(persisted);
         return parsed.success

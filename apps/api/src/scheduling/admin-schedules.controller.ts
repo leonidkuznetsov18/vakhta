@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ScheduleRevisionPrecondition,
   CreateScheduleVersionCommand,
   CreateShiftTemplateCommand,
   ListScheduleVersionsQuery,
@@ -124,6 +125,7 @@ export class AdminSchedulesController {
   @Roles(...EDITORS)
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(ScheduleRevisionPrecondition)) body: ScheduleRevisionPrecondition,
     @CurrentUser() user: WebUser,
   ): Promise<void> {
     const detail = await this.schedules.detail(id);
@@ -131,19 +133,20 @@ export class AdminSchedulesController {
       siteId: detail.version.siteId,
       orgUnitId: detail.version.orgUnitId,
     });
-    await this.schedules.deleteVersion(id, webUserActor(user));
+    await this.schedules.deleteVersion(id, webUserActor(user), body.expectedRevision);
   }
 
   @Put(':id/assignments')
   @Roles(...EDITORS)
   async putAssignments(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(PutAssignmentsCommand)) body: PutAssignmentsCommand,
+    @Body(new ZodValidationPipe(PutAssignmentsCommand.extend(ScheduleRevisionPrecondition.shape)))
+    body: PutAssignmentsCommand & ScheduleRevisionPrecondition,
     @CurrentUser() user: WebUser,
   ): Promise<ScheduleVersionDetail> {
     const version = await this.schedules.requireVersion(id);
     assertScope(user, EDITORS, { siteId: version.siteId, orgUnitId: version.orgUnitId });
-    return this.schedules.putAssignments(id, body, webUserActor(user));
+    return this.schedules.putAssignments(id, body, webUserActor(user), body.expectedRevision);
   }
 
   @Post(':id/submit')
@@ -151,11 +154,12 @@ export class AdminSchedulesController {
   @Roles(...EDITORS)
   async submit(
     @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(ScheduleRevisionPrecondition)) body: ScheduleRevisionPrecondition,
     @CurrentUser() user: WebUser,
   ): Promise<ScheduleVersionView> {
     const version = await this.schedules.requireVersion(id);
     assertScope(user, EDITORS, { siteId: version.siteId, orgUnitId: version.orgUnitId });
-    return this.schedules.submit(id, webUserActor(user));
+    return this.schedules.submit(id, webUserActor(user), body.expectedRevision);
   }
 
   @Post(':id/return')
@@ -163,12 +167,13 @@ export class AdminSchedulesController {
   @Roles(...APPROVERS)
   async returnToDraft(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(ReturnToDraftCommand)) body: ReturnToDraftCommand,
+    @Body(new ZodValidationPipe(ReturnToDraftCommand.extend(ScheduleRevisionPrecondition.shape)))
+    body: ReturnToDraftCommand & ScheduleRevisionPrecondition,
     @CurrentUser() user: WebUser,
   ): Promise<ScheduleVersionView> {
     const version = await this.schedules.requireVersion(id);
     assertScope(user, APPROVERS, { siteId: version.siteId, orgUnitId: version.orgUnitId });
-    return this.schedules.returnToDraft(id, body, webUserActor(user));
+    return this.schedules.returnToDraft(id, body, webUserActor(user), body.expectedRevision);
   }
 
   @Post(':id/publish')
@@ -176,12 +181,13 @@ export class AdminSchedulesController {
   @Roles(...APPROVERS)
   async publish(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(PublishScheduleCommand)) body: PublishScheduleCommand,
+    @Body(new ZodValidationPipe(PublishScheduleCommand.extend(ScheduleRevisionPrecondition.shape)))
+    body: PublishScheduleCommand & ScheduleRevisionPrecondition,
     @CurrentUser() user: WebUser,
   ): Promise<ScheduleVersionView> {
     const version = await this.schedules.requireVersion(id);
     assertScope(user, APPROVERS, { siteId: version.siteId, orgUnitId: version.orgUnitId });
-    return this.schedules.publish(id, body, webUserActor(user));
+    return this.schedules.publish(id, body, webUserActor(user), body.expectedRevision);
   }
 
   @Post(':id/revise')
@@ -189,12 +195,13 @@ export class AdminSchedulesController {
   @Roles(...APPROVERS)
   async revise(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(ReviseScheduleCommand)) body: ReviseScheduleCommand,
+    @Body(new ZodValidationPipe(ReviseScheduleCommand.extend(ScheduleRevisionPrecondition.shape)))
+    body: ReviseScheduleCommand & ScheduleRevisionPrecondition,
     @CurrentUser() user: WebUser,
   ): Promise<ScheduleVersionView> {
     const version = await this.schedules.requireVersion(id);
     assertScope(user, APPROVERS, { siteId: version.siteId, orgUnitId: version.orgUnitId });
-    return this.schedules.revise(id, body, webUserActor(user));
+    return this.schedules.revise(id, body, webUserActor(user), body.expectedRevision);
   }
 
   @Post(':id/remind')

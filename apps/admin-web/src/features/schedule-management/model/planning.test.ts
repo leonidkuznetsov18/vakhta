@@ -85,7 +85,7 @@ describe('zone planning', () => {
     expect(gridToItems(result.grid).some((value) => value.businessDate === '2026-09-03')).toBe(
       false,
     );
-    useScheduleDrafts.getState().keep('v', result.grid, grid);
+    useScheduleDrafts.getState().keep('v', result.grid, grid, 1);
     useScheduleDrafts.getState().undo('v');
     expect(useScheduleDrafts.getState().drafts.v).toEqual(grid);
     useScheduleDrafts.getState().redo('v');
@@ -178,6 +178,6 @@ it('reconciles a legacy row without losing kind, position, team or per-date zone
     { ...item, businessDate: '2026-09-02', zoneId: otherZone },
   ]);
   expect(legacy.rows[0]?.cells['2026-09-01']).toBe(night.id);
-  useScheduleDrafts.getState().restore('legacy', restored, baseline);
+  useScheduleDrafts.getState().restore('legacy', restored, baseline, 1);
   expect(useScheduleDrafts.getState().baselines.legacy).toEqual(baseline);
 });

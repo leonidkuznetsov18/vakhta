@@ -105,6 +105,8 @@ export const scheduleWorkspaceEn = {
   inactive: 'Inactive',
   namesUnavailable: 'Some worker names could not be loaded. Retry loading the roster.',
   rosterUnavailable: 'The complete worker list could not be loaded. Retry loading the roster.',
+  revisionUnavailable:
+    'Schedule updates are temporarily unavailable while the service is updating. Refresh shortly; the current schedule remains visible.',
   workerSearch: 'Find workers',
   allPeople: 'Select shown workers',
   clearPeople: 'Clear selection',
@@ -235,6 +237,8 @@ export const scheduleWorkspaceUk: ScheduleWorkspaceMessages = {
   inactive: 'Неактивний',
   namesUnavailable: 'Не вдалося завантажити частину імен. Повторіть завантаження працівників.',
   rosterUnavailable: 'Не вдалося завантажити повний список працівників. Спробуйте ще раз.',
+  revisionUnavailable:
+    'Збереження графіка тимчасово недоступне під час оновлення сервісу. Оновіть сторінку трохи згодом; чинний графік залишається видимим.',
   workerSearch: 'Знайти працівників',
   allPeople: 'Обрати показаних працівників',
   clearPeople: 'Очистити вибір',
@@ -364,6 +368,8 @@ export const scheduleWorkspaceRu: ScheduleWorkspaceMessages = {
   inactive: 'Неактивен',
   namesUnavailable: 'Не удалось загрузить часть имён. Повторите загрузку сотрудников.',
   rosterUnavailable: 'Не удалось загрузить полный список сотрудников. Попробуйте ещё раз.',
+  revisionUnavailable:
+    'Сохранение графика временно недоступно во время обновления сервиса. Обновите страницу чуть позже; текущий график остаётся видимым.',
   workerSearch: 'Найти сотрудников',
   allPeople: 'Выбрать показанных сотрудников',
   clearPeople: 'Очистить выбор',

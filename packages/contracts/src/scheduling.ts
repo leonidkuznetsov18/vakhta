@@ -57,6 +57,12 @@ export const AssignmentInput = z.object({
 });
 export type AssignmentInput = z.infer<typeof AssignmentInput>;
 
+/** Required at public mutation boundaries; domain-owned workflows use their owning transaction. */
+export const ScheduleRevisionPrecondition = z.object({
+  expectedRevision: z.number().int().positive(),
+});
+export type ScheduleRevisionPrecondition = z.infer<typeof ScheduleRevisionPrecondition>;
+
 /** Повна заміна призначень чернетки: планувальник надсилає весь місяць. */
 export const PutAssignmentsCommand = z.object({
   items: z.array(AssignmentInput).max(5000),
@@ -87,6 +93,7 @@ export const ScheduleVersionView = z.object({
   orgUnitId: Uuid,
   periodMonth: Month,
   versionNo: z.number().int().positive(),
+  revision: z.number().int().positive(),
   status: ScheduleStatusSchema,
   createdBy: Uuid.nullable(),
   submittedAt: IsoDateTime.nullable(),

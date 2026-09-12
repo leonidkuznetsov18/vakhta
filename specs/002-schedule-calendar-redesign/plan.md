@@ -61,7 +61,6 @@ search operate on the completed roster. Tests cover 205 employees, cursor comple
 changing pages, cancellation, and existing permissions. Revision/receipt work remains the next
 bounded increment within #9 and is not satisfied by this read fix.
 
-
 Keep filtered/paginated rendering separate from complete month draft serialization. Add complete
 scope-aware roster retrieval and validated page totals; abort obsolete requests. Add monotonic version
 revision and command receipts in scheduling schema. Client commands carry expected revision and
@@ -78,6 +77,29 @@ Cross-month reads aggregate the required monthly snapshots, including adjacent r
 multi-version action lists every expected revision; deterministic lock order and one transaction
 cover validation, versions, request decision, audit and notification intent. D-05 defines review
 ownership before this write boundary is enabled. The calendar cannot promise saves it cannot commit.
+
+#### Second bounded increment: stale-write preconditions
+
+Expose a positive monotonic revision on each version, initialized for existing rows. A database
+update trigger advances it for all version writers, including request-driven publication. Every
+public mutation of an existing version supplies a required expected revision; compare it after
+locking the version inside the mutation transaction, before replacing assignments or changing
+status. Delete locks before checking as well. Revision-free internal workflows retain their own
+transaction/state guards and still advance the database revision. Detail reads use one repeatable
+snapshot so a revision cannot label assignments from a different instant.
+
+Persist the revision with each local draft baseline. A refresh cannot silently rebind an older
+draft to a newer revision; legacy drafts without a revision require explicit recovery/review.
+On a conflict preserve the local grid, refresh server details, and show localized stale guidance.
+Missing public preconditions fail closed, so an older panel must reload before writing. Tests cover
+two concurrent editors, lifecycle/delete stale checks, all-writer increments and draft retention.
+HR deletion also locks affected parent versions and advances revisions for the actual deleted
+assignment set. During rolling deployment, a missing revision is a read-only client compatibility
+state (sentinel 0, never accepted by mutation contracts), with localized guidance; old API reads
+remain visible while writes wait for the new API.
+
+Idempotency receipts and session-isolated uncertain intents remain the next increment; a revision
+conflict alone is not proof that a timed-out command failed or succeeded.
 
 ### Rules, staffing and human decisions
 

@@ -244,9 +244,9 @@ export class ScheduleService {
    * Drafts and superseded versions can be deleted (spec 3.2 keeps the published one as the live
    * schedule). A superseded version whose assignments were worked stays as history.
    */
-  async deleteVersion(id: string, actor: Actor): Promise<void> {
+  async deleteVersion(id: string, actor: Actor, expectedRevision?: number): Promise<void> {
     try {
-      await this.deleteVersionWithin(id, actor);
+      await this.deleteVersionWithin(id, actor, expectedRevision);
     } catch (e) {
       if (isForeignKeyViolation(e)) {
         throw new DomainError(
@@ -259,9 +259,13 @@ export class ScheduleService {
     }
   }
 
-  private async deleteVersionWithin(id: string, actor: Actor): Promise<void> {
+  private async deleteVersionWithin(
+    id: string,
+    actor: Actor,
+    expectedRevision?: number,
+  ): Promise<void> {
     await this.db.transaction(async (tx) => {
-      const version = await this.requireVersion(id, tx);
+      const version = await this.lockVersion(id, tx, expectedRevision);
       if (version.status !== 'DRAFT' && version.status !== 'SUPERSEDED') {
         throw new DomainError(
           'SCHEDULE_TRANSITION_NOT_ALLOWED',
@@ -307,16 +311,43 @@ export class ScheduleService {
   }
 
   async detail(id: string): Promise<ScheduleVersionDetail> {
-    const version = await this.requireVersion(id);
-    const assignments = await this.loadAssignments(id);
-    return {
-      version: this.toVersionView(
-        version,
-        assignments.filter((x) => x.a.status === 'PLANNED').length,
-        await this.isInUse(id),
-      ),
-      assignments: assignments.map((x) => this.toAssignmentView(x)),
-    };
+    return this.db.transaction(
+      async (tx) => {
+        const version = await this.requireVersion(id, tx);
+        const assignments = await this.loadAssignments(id, tx);
+        return {
+          version: this.toVersionView(
+            version,
+            assignments.filter((x) => x.a.status === 'PLANNED').length,
+            await this.isInUse(id, tx),
+          ),
+          assignments: assignments.map((x) => this.toAssignmentView(x)),
+        };
+      },
+      { isolationLevel: 'repeatable read', accessMode: 'read only' },
+    );
+  }
+
+  private async lockVersion(
+    id: string,
+    tx: Transaction,
+    expectedRevision?: number,
+  ): Promise<VersionRow> {
+    const [version] = await tx
+      .select()
+      .from(scheduleVersions)
+      .where(eq(scheduleVersions.id, id))
+      .for('update');
+    if (!version)
+      throw new DomainError('SCHEDULE_VERSION_NOT_FOUND', 404, `Version ${id} not found`);
+    if (expectedRevision !== undefined && version.revision !== expectedRevision) {
+      throw new DomainError(
+        'SCHEDULE_REVISION_CONFLICT',
+        409,
+        'Schedule changed since this draft was read',
+      );
+    }
+    return version;
   }
 
   async requireVersion(id: string, tx: DbOrTx = this.db): Promise<VersionRow> {
@@ -338,15 +369,10 @@ export class ScheduleService {
     id: string,
     cmd: PutAssignmentsCommand,
     actor: Actor,
+    expectedRevision?: number,
   ): Promise<ScheduleVersionDetail> {
     return this.db.transaction(async (tx) => {
-      const [version] = await tx
-        .select()
-        .from(scheduleVersions)
-        .where(eq(scheduleVersions.id, id))
-        .for('update');
-      if (!version)
-        throw new DomainError('SCHEDULE_VERSION_NOT_FOUND', 404, `Версію ${id} не знайдено`);
+      const version = await this.lockVersion(id, tx, expectedRevision);
       if (version.status !== 'DRAFT') {
         throw new DomainError(
           'SCHEDULE_NOT_EDITABLE',
@@ -357,7 +383,7 @@ export class ScheduleService {
       const count = await this.replaceAssignments(tx, version, cmd, actor);
       const assignments = await this.loadAssignments(version.id, tx);
       return {
-        version: this.toVersionView(version, count),
+        version: this.toVersionView(await this.requireVersion(version.id, tx), count),
         assignments: assignments.map((x) => this.toAssignmentView(x)),
       };
     });
@@ -476,8 +502,9 @@ export class ScheduleService {
   /* Життєвий цикл                                                       */
   /* ------------------------------------------------------------------ */
 
-  async submit(id: string, actor: Actor): Promise<ScheduleVersionView> {
+  async submit(id: string, actor: Actor, expectedRevision?: number): Promise<ScheduleVersionView> {
     return this.transition(id, 'SUBMIT', actor, {
+      ...(expectedRevision === undefined ? {} : { expectedRevision }),
       requireNoErrors: true,
       set: { submittedAt: new Date() },
     });
@@ -487,8 +514,10 @@ export class ScheduleService {
     id: string,
     cmd: ReturnToDraftCommand,
     actor: Actor,
+    expectedRevision?: number,
   ): Promise<ScheduleVersionView> {
     return this.transition(id, 'RETURN', actor, {
+      ...(expectedRevision === undefined ? {} : { expectedRevision }),
       comment: cmd.comment,
       set: { submittedAt: null },
     });
@@ -502,9 +531,12 @@ export class ScheduleService {
     id: string,
     cmd: PublishScheduleCommand,
     actor: Actor,
+    expectedRevision?: number,
   ): Promise<ScheduleVersionView> {
     const now = new Date();
-    const result = await this.db.transaction((tx) => this.publishWithin(tx, id, cmd, actor, now));
+    const result = await this.db.transaction((tx) =>
+      this.publishWithin(tx, id, cmd, actor, now, expectedRevision),
+    );
     return this.toVersionView(result.updated, result.nextShifts.length);
   }
 
@@ -513,9 +545,14 @@ export class ScheduleService {
    * is published in the same transaction, the current version is superseded and employees are
    * notified of the difference. Validation errors roll everything back, so no draft is left.
    */
-  async revise(id: string, cmd: ReviseScheduleCommand, actor: Actor): Promise<ScheduleVersionView> {
+  async revise(
+    id: string,
+    cmd: ReviseScheduleCommand,
+    actor: Actor,
+    expectedRevision?: number,
+  ): Promise<ScheduleVersionView> {
     const result = await this.db.transaction((tx) =>
-      this.reviseWithin(tx, id, cmd, actor, new Date()),
+      this.reviseWithin(tx, id, cmd, actor, new Date(), expectedRevision),
     );
     return result;
   }
@@ -527,14 +564,9 @@ export class ScheduleService {
     cmd: ReviseScheduleCommand,
     actor: Actor,
     now: Date,
+    expectedRevision?: number,
   ): Promise<ScheduleVersionView> {
-    const [current] = await tx
-      .select()
-      .from(scheduleVersions)
-      .where(eq(scheduleVersions.id, id))
-      .for('update');
-    if (!current)
-      throw new DomainError('SCHEDULE_VERSION_NOT_FOUND', 404, `Version ${id} not found`);
+    const current = await this.lockVersion(id, tx, expectedRevision);
     if (current.status !== 'PUBLISHED') {
       throw new DomainError(
         'SCHEDULE_NOT_PUBLISHED',
@@ -604,14 +636,9 @@ export class ScheduleService {
     cmd: PublishScheduleCommand,
     actor: Actor,
     now: Date,
+    expectedRevision?: number,
   ): Promise<{ updated: VersionRow; nextShifts: PlannedShift[] }> {
-    const [version] = await tx
-      .select()
-      .from(scheduleVersions)
-      .where(eq(scheduleVersions.id, id))
-      .for('update');
-    if (!version)
-      throw new DomainError('SCHEDULE_VERSION_NOT_FOUND', 404, `Версію ${id} не знайдено`);
+    const version = await this.lockVersion(id, tx, expectedRevision);
     const next = nextScheduleStatus(version.status, 'PUBLISH');
     if (!next)
       throw new DomainError(
@@ -755,19 +782,14 @@ export class ScheduleService {
     action: ScheduleAction,
     actor: Actor,
     opts: {
+      expectedRevision?: number;
       requireNoErrors?: boolean;
       comment?: string;
       set?: Partial<typeof scheduleVersions.$inferInsert>;
     },
   ): Promise<ScheduleVersionView> {
     return this.db.transaction(async (tx) => {
-      const [version] = await tx
-        .select()
-        .from(scheduleVersions)
-        .where(eq(scheduleVersions.id, id))
-        .for('update');
-      if (!version)
-        throw new DomainError('SCHEDULE_VERSION_NOT_FOUND', 404, `Версію ${id} не знайдено`);
+      const version = await this.lockVersion(id, tx, opts.expectedRevision);
       const next = nextScheduleStatus(version.status, action);
       if (!next)
         throw new DomainError(
@@ -1172,6 +1194,7 @@ export class ScheduleService {
       orgUnitId: row.orgUnitId,
       periodMonth: row.periodMonth,
       versionNo: row.versionNo,
+      revision: row.revision,
       status: row.status,
       createdBy: row.createdBy,
       submittedAt: row.submittedAt?.toISOString() ?? null,

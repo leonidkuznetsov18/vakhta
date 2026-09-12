@@ -233,6 +233,37 @@ describe('e2e: межі доступу панелі', () => {
     expect(list.statusCode).toBe(200);
     expect((list.json() as { id: string }[]).map((v) => v.id)).toContain(body.id);
 
+    // Old panels cannot silently overwrite a newer draft without a revision precondition.
+    const missingRevision = await app.inject({
+      method: 'PUT',
+      url: `/admin/schedules/${body.id}/assignments`,
+      headers: as('admin@e2e.test'),
+      payload: { items: [] },
+    });
+    expect(missingRevision.statusCode).toBe(400);
+    const saved = await app.inject({
+      method: 'PUT',
+      url: `/admin/schedules/${body.id}/assignments`,
+      headers: as('admin@e2e.test'),
+      payload: { items: [], expectedRevision: 1 },
+    });
+    expect(saved.statusCode).toBe(200);
+    const stale = await app.inject({
+      method: 'PUT',
+      url: `/admin/schedules/${body.id}/assignments`,
+      headers: as('admin@e2e.test'),
+      payload: { items: [], expectedRevision: 1 },
+    });
+    expect(stale.statusCode).toBe(409);
+    expect(stale.json()).toMatchObject({ code: 'SCHEDULE_REVISION_CONFLICT' });
+    const missingDeleteRevision = await app.inject({
+      method: 'DELETE',
+      url: `/admin/schedules/${body.id}`,
+      headers: as('admin@e2e.test'),
+      payload: {},
+    });
+    expect(missingDeleteRevision.statusCode).toBe(400);
+
     // The overview's "Build a schedule" lands on a month that may already hold a draft, and on one
     // that holds nothing at all. Both have to answer with a version — the panel selects it by id,
     // and an answer shaped like the list is what left the page empty with a success message.

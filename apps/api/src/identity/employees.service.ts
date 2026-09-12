@@ -17,6 +17,7 @@ import {
   presenceSessions,
   qrChallengeUses,
   requests,
+  scheduleVersions,
   shiftAssignments,
   shiftSessions,
   shiftSummaries,
@@ -289,7 +290,32 @@ export class EmployeesService {
       await tx
         .delete(assignmentAcknowledgements)
         .where(eq(assignmentAcknowledgements.employeeId, id));
-      await tx.delete(shiftAssignments).where(eq(shiftAssignments.employeeId, id));
+      // Lock parent versions before touching their assignments, matching schedule writer order.
+      await tx
+        .select({ id: scheduleVersions.id })
+        .from(scheduleVersions)
+        .where(
+          inArray(
+            scheduleVersions.id,
+            tx
+              .select({ id: shiftAssignments.scheduleVersionId })
+              .from(shiftAssignments)
+              .where(eq(shiftAssignments.employeeId, id)),
+          ),
+        )
+        .orderBy(asc(scheduleVersions.id))
+        .for('update');
+      const removedAssignments = await tx
+        .delete(shiftAssignments)
+        .where(eq(shiftAssignments.employeeId, id))
+        .returning({ versionId: shiftAssignments.scheduleVersionId });
+      // Use actual deleted rows too: concurrent new references must never bypass revision fencing.
+      for (const versionId of [...new Set(removedAssignments.map((row) => row.versionId))].sort()) {
+        await tx
+          .update(scheduleVersions)
+          .set({ updatedAt: new Date() })
+          .where(eq(scheduleVersions.id, versionId));
+      }
       await tx.delete(activationCodes).where(eq(activationCodes.employeeId, id));
       await tx.delete(telegramAccounts).where(eq(telegramAccounts.employeeId, id));
       await tx.delete(employeePositions).where(eq(employeePositions.employeeId, id));

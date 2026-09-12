@@ -103,6 +103,7 @@ function version(status: string, assignmentsCount = 1) {
     orgUnitId: UNIT,
     periodMonth: '2026-09',
     versionNo: 1,
+    revision: 1,
     status,
     createdBy: null,
     submittedAt: null,
@@ -148,7 +149,13 @@ interface Call {
 }
 
 function mockApi(
-  state: { status: string; created?: boolean },
+  state: {
+    status: string;
+    created?: boolean;
+    revision?: number;
+    conflict?: boolean;
+    legacyApi?: boolean;
+  },
   snapshot: typeof org = org,
   roster = employees,
 ) {
@@ -176,7 +183,10 @@ function mockApi(
     }
     if (path.startsWith('/admin/schedules/templates')) return json(templates);
     if (path.startsWith('/admin/schedules?')) {
-      const list = [version(state.status)];
+      const list =
+        state.status === 'EMPTY' && !state.created
+          ? []
+          : [version(state.status === 'EMPTY' ? 'DRAFT' : state.status)];
       // Once a draft has been created it is part of the month, like it would be on the server.
       if (state.created) {
         list.unshift({
@@ -190,13 +200,16 @@ function mockApi(
     }
     if (path === '/admin/schedules' && method === 'POST') {
       state.created = true;
+      const created = {
+        ...version('DRAFT'),
+        id: 'd0000000-0000-4000-8000-000000000002',
+        versionNo: 2,
+        supersedesId: null,
+      };
       return json(
-        {
-          ...version('DRAFT'),
-          id: 'd0000000-0000-4000-8000-000000000002',
-          versionNo: 2,
-          supersedesId: null,
-        },
+        state.legacyApi
+          ? Object.fromEntries(Object.entries(created).filter(([key]) => key !== 'revision'))
+          : created,
         201,
       );
     }
@@ -204,12 +217,29 @@ function mockApi(
       const d = detail('DRAFT');
       return json({
         ...d,
-        version: { ...d.version, id: 'd0000000-0000-4000-8000-000000000002', versionNo: 2 },
+        version: {
+          ...d.version,
+          id: 'd0000000-0000-4000-8000-000000000002',
+          versionNo: 2,
+          revision: state.legacyApi ? 0 : 1,
+        },
         assignments: [],
       });
     }
-    if (path === `/admin/schedules/${VERSION}`) return json(detail(state.status));
+    if (path === `/admin/schedules/${VERSION}`) {
+      const result = detail(state.status);
+      return json({
+        ...result,
+        version: state.legacyApi
+          ? Object.fromEntries(Object.entries(result.version).filter(([key]) => key !== 'revision'))
+          : { ...result.version, revision: state.revision ?? 1 },
+      });
+    }
     if (path === `/admin/schedules/${VERSION}/assignments` && method === 'PUT') {
+      if (state.conflict) {
+        state.revision = 2;
+        return json({ code: 'SCHEDULE_REVISION_CONFLICT', message: 'Stale revision' }, 409);
+      }
       return json(detail(state.status));
     }
     if (path === `/admin/schedules/${VERSION}/submit`) {
@@ -265,6 +295,7 @@ describe('schedule workspace', () => {
     useScheduleDrafts.setState({
       drafts: {},
       baselines: {},
+      revisions: {},
       past: {},
       future: {},
       recoveryError: false,
@@ -348,7 +379,7 @@ describe('schedule workspace', () => {
       zoneId: EMP2,
       kind: 'EXTRA',
     });
-    act(() => useScheduleDrafts.getState().keep(VERSION, next, saved));
+    act(() => useScheduleDrafts.getState().keep(VERSION, next, saved, 1));
     fireEvent.click(screen.getByRole('radio', { name: t.month }));
     fireEvent.mouseDown(screen.getByRole('tab', { name: t.people }), { button: 0, ctrlKey: false });
     fireEvent.change(screen.getByRole('combobox', { name: t.zone }), { target: { value: ZONE } });
@@ -436,10 +467,13 @@ describe('schedule workspace', () => {
       positionId: ZONE,
       teamId: ZONE,
     });
-    act(() => useScheduleDrafts.getState().keep(VERSION, next, saved));
+    act(() => useScheduleDrafts.getState().keep(VERSION, next, saved, 1));
     fireEvent.click(screen.getByRole('button', { name: `${s.save} (1)` }));
     await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
-    expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ items: gridToItems(next) });
+    expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+      expectedRevision: 1,
+      items: gridToItems(next),
+    });
     expect(gridToItems(next)).toHaveLength(2);
   });
   it('offers undo and redo, returning Save to disabled when the edit is undone', async () => {
@@ -448,7 +482,9 @@ describe('schedule workspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: t.edit }));
     const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
     act(() =>
-      useScheduleDrafts.getState().keep(VERSION, setCell(saved, EMP, '2026-09-05', TPL_DAY), saved),
+      useScheduleDrafts
+        .getState()
+        .keep(VERSION, setCell(saved, EMP, '2026-09-05', TPL_DAY), saved, 1),
     );
     fireEvent.click(screen.getByRole('button', { name: t.undo }));
     expect(screen.getByRole('button', { name: `${s.save} (0)` }).hasAttribute('disabled')).toBe(
@@ -464,7 +500,9 @@ describe('schedule workspace', () => {
     const old = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
     const local = setCell(old, EMP, '2026-09-05', '');
     act(() =>
-      useScheduleDrafts.getState().keep(VERSION, local, setCell(old, EMP, '2026-09-05', TPL_DAY)),
+      useScheduleDrafts
+        .getState()
+        .keep(VERSION, local, setCell(old, EMP, '2026-09-05', TPL_DAY), 1),
     );
     admin();
     expect(await screen.findByText(t.stale)).toBeTruthy();
@@ -479,7 +517,7 @@ describe('schedule workspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: t.edit }));
     const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('PUBLISHED')));
     const next = setCell(saved, EMP, '2026-09-05', TPL_DAY);
-    act(() => useScheduleDrafts.getState().keep(VERSION, next, saved));
+    act(() => useScheduleDrafts.getState().keep(VERSION, next, saved, 1));
     fireEvent.click(screen.getByRole('button', { name: t.reviewPublish }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(new RegExp(t.nightShift))).toBeTruthy();
@@ -490,6 +528,7 @@ describe('schedule workspace', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: s.publish }));
     await waitFor(() => expect(calls.some((call) => call.path.endsWith('/revise'))).toBe(true));
     expect(calls.find((call) => call.path.endsWith('/revise'))?.body).toEqual({
+      expectedRevision: 1,
       items: gridToItems(next),
       changeReason: 'Move to the day shift',
     });
@@ -500,6 +539,7 @@ it('previews a batch before applying it and keeps it local until Save', async ()
   useScheduleDrafts.setState({
     drafts: {},
     baselines: {},
+    revisions: {},
     past: {},
     future: {},
     recoveryError: false,
@@ -531,6 +571,7 @@ it('preserves unsaved edits when the server version is now in review and blocks 
   useScheduleDrafts.setState({
     drafts: {},
     baselines: {},
+    revisions: {},
     past: {},
     future: {},
     recoveryError: false,
@@ -540,7 +581,7 @@ it('preserves unsaved edits when the server version is now in review and blocks 
   const calls = mockApi({ status: 'IN_REVIEW' });
   const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
   const local = setCell(saved, EMP, '2026-09-05', TPL_DAY);
-  useScheduleDrafts.getState().keep(VERSION, local, saved);
+  useScheduleDrafts.getState().keep(VERSION, local, saved, 1);
   admin();
   expect(await screen.findByText(t.readOnlyChanges)).toBeTruthy();
   expect(screen.getByRole('button', { name: t.reviewPublish }).hasAttribute('disabled')).toBe(true);
@@ -558,6 +599,7 @@ it('offers recovery for a no-op legacy draft after the version enters review', a
   useScheduleDrafts.setState({
     drafts: { [VERSION]: legacy },
     baselines: {},
+    revisions: {},
     past: {},
     future: {},
     recoveryError: false,
@@ -578,6 +620,7 @@ it('finds a worker beyond 200 through the paginated batch picker without trimmin
   useScheduleDrafts.setState({
     drafts: {},
     baselines: {},
+    revisions: {},
     past: {},
     future: {},
     recoveryError: false,
@@ -625,6 +668,116 @@ it('finds a worker beyond 200 through the paginated batch picker without trimmin
       expect.objectContaining({ employeeId: roster[204]?.id, templateId: TPL_DAY }),
     ]),
   });
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('retains a stale draft and its original revision after the server rejects a save', async () => {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    revisions: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+  const calls = mockApi({ status: 'DRAFT', conflict: true });
+  admin();
+  fireEvent.click(await screen.findByRole('button', { name: t.edit }));
+  const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+  const local = setCell(saved, EMP, '2026-09-05', TPL_DAY);
+  act(() => useScheduleDrafts.getState().keep(VERSION, local, saved, 1));
+  fireEvent.click(screen.getByRole('button', { name: `${s.save} (1)` }));
+  await waitFor(() => expect(screen.getAllByText(t.stale).length).toBeGreaterThan(0));
+  expect(useScheduleDrafts.getState().drafts[VERSION]).toEqual(local);
+  expect(useScheduleDrafts.getState().revisions[VERSION]).toBe(1);
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: `${s.save} (1)` }).hasAttribute('disabled')).toBe(
+      true,
+    ),
+  );
+  expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(1);
+  expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({ expectedRevision: 1 });
+  fireEvent.click(screen.getByRole('button', { name: t.discard }));
+  const confirmation = await screen.findByRole('alertdialog');
+  fireEvent.click(within(confirmation).getByRole('button', { name: t.discard }));
+  await waitFor(() => expect(screen.queryByText(t.stale)).toBeNull());
+  expect(useScheduleDrafts.getState().drafts[VERSION]).toBeUndefined();
+
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('disables lifecycle actions when an identical server grid has a newer revision', async () => {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    revisions: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+  const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+  useScheduleDrafts.getState().keep(VERSION, setCell(saved, EMP, '2026-09-05', TPL_DAY), saved, 1);
+  useScheduleDrafts.getState().undo(VERSION);
+  const calls = mockApi({ status: 'DRAFT', revision: 2 });
+  admin();
+  fireEvent.click(await screen.findByRole('button', { name: t.edit }));
+  expect(await screen.findByText(t.stale)).toBeTruthy();
+  expect(screen.getByRole('button', { name: s.submit }).hasAttribute('disabled')).toBe(true);
+  expect(screen.getByRole('button', { name: s.deleteVersion }).hasAttribute('disabled')).toBe(true);
+  expect(useScheduleDrafts.getState().revisions[VERSION]).toBe(1);
+  expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('keeps a legacy API schedule readable but disables editing during a rolling deployment', async () => {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    revisions: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+  const calls = mockApi({ status: 'DRAFT', legacyApi: true });
+  admin();
+  expect(await screen.findByText(t.revisionUnavailable)).toBeTruthy();
+  expect(screen.getByRole('button', { name: t.edit }).hasAttribute('disabled')).toBe(true);
+  fireEvent.click(screen.getByRole('radio', { name: t.month }));
+  expect((await screen.findAllByText('Кузнецов Леонид')).length).toBeGreaterThan(0);
+  expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('accepts a legacy create response and opens the new draft read only', async () => {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    revisions: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+  const calls = mockApi({ status: 'EMPTY', legacyApi: true });
+  admin();
+  fireEvent.click(await screen.findByRole('button', { name: t.create }));
+  expect(await screen.findByText(t.revisionUnavailable)).toBeTruthy();
+  expect(screen.getByRole('button', { name: t.edit }).hasAttribute('disabled')).toBe(true);
+  expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+  expect(
+    calls.some((call) => call.path === '/admin/schedules/d0000000-0000-4000-8000-000000000002'),
+  ).toBe(true);
   cleanup();
   vi.unstubAllGlobals();
 });

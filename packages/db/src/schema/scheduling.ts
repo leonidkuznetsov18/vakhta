@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   date,
   index,
   integer,
@@ -61,6 +62,7 @@ export const scheduleVersions = pgTable(
     /** 'YYYY-MM' */
     periodMonth: text('period_month').notNull(),
     versionNo: integer('version_no').notNull(),
+    revision: integer('revision').notNull().default(1),
     status: scheduleStatus('status').notNull().default('DRAFT'),
     createdBy: uuid('created_by'),
     submittedAt: timestamp('submitted_at', { withTimezone: true }),
@@ -72,6 +74,7 @@ export const scheduleVersions = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check('schedule_versions_revision_positive', sql`${t.revision} > 0`),
     uniqueIndex('schedule_versions_key_no_uq').on(
       t.siteId,
       t.orgUnitId,

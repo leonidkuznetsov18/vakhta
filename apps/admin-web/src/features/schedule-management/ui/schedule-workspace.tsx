@@ -157,7 +157,7 @@ function WorkspaceView({
     if (accepted !== false) w.store.drop(version.id);
   }
   async function remove() {
-    if (!version || w.busy) return;
+    if (!version || !w.commandReady) return;
     const accepted = await confirm({
       title: s.deleteVersion,
       description: s.deleteConfirm.replace('{no}', String(version.versionNo)),
@@ -167,7 +167,7 @@ function WorkspaceView({
     if (accepted !== false) w.commit('remove');
   }
   async function returnDraft() {
-    if (!version || w.busy) return;
+    if (!version || !w.commandReady) return;
     const reason = await confirm({
       title: s.returnToDraft,
       commentLabel: s.returnComment,
@@ -197,7 +197,7 @@ function WorkspaceView({
               {!w.editMode &&
                 ((version.status === 'DRAFT' && w.rights.edit) ||
                   (version.status === 'PUBLISHED' && w.rights.publish)) && (
-                  <Button disabled={w.busy} onClick={w.begin}>
+                  <Button disabled={w.busy || version.revision === 0} onClick={w.begin}>
                     {t.edit}
                   </Button>
                 )}
@@ -228,7 +228,7 @@ function WorkspaceView({
               {w.editMode && (
                 <Button
                   variant="outline"
-                  disabled={w.busy || w.changes > 0 || w.legacy}
+                  disabled={!w.commandReady || w.changes > 0}
                   onClick={w.finish}
                 >
                   {t.finish}
@@ -253,6 +253,7 @@ function WorkspaceView({
               {t.preset}: {w.preset.people.map((person) => person.name).join(', ')}
             </p>
           )}
+          {version.revision === 0 && <Feedback error={t.revisionUnavailable} />}
           {w.stale && <Feedback error={t.stale} />}
           {w.readOnlyChanges && (
             <section className="space-y-3 rounded-lg border p-3">
@@ -439,7 +440,7 @@ function WorkspaceView({
                       <Button
                         variant="secondary"
                         disabled={
-                          w.busy ||
+                          !w.commandReady ||
                           w.changes > 0 ||
                           !w.grid.rows.some((row) => Object.values(row.cells).some(Boolean))
                         }
@@ -459,7 +460,11 @@ function WorkspaceView({
                     </Button>
                   )}
                   {version.deletable && w.rights.edit && (
-                    <Button variant="ghost" disabled={w.busy} onClick={() => void remove()}>
+                    <Button
+                      variant="ghost"
+                      disabled={!w.commandReady}
+                      onClick={() => void remove()}
+                    >
                       {s.deleteVersion}
                     </Button>
                   )}
@@ -468,12 +473,16 @@ function WorkspaceView({
               {version.status === 'IN_REVIEW' && w.rights.publish && (
                 <>
                   <Button
-                    disabled={w.busy || w.changes > 0 || w.legacy}
+                    disabled={!w.commandReady || w.changes > 0}
                     onClick={() => setReview({ grid: w.grid, versionId: version.id })}
                   >
                     {t.reviewPublish}
                   </Button>
-                  <Button variant="outline" disabled={w.busy} onClick={() => void returnDraft()}>
+                  <Button
+                    variant="outline"
+                    disabled={!w.commandReady || w.changes > 0}
+                    onClick={() => void returnDraft()}
+                  >
                     {s.returnToDraft}
                   </Button>
                 </>

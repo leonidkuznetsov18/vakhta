@@ -808,14 +808,14 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       totals: row('total', 'Усього', 33, 36, 318, 313, 23),
     });
   }
-  if (path.startsWith('/admin/schedules'))
-    return json(
-      scheduleFixture(
-        new URL(String(input), location.origin),
-        method,
-        init?.body ? JSON.parse(String(init.body)) : {},
-      ),
+  if (path.startsWith('/admin/schedules')) {
+    const result = scheduleFixture(
+      new URL(String(input), location.origin),
+      method,
+      init?.body ? JSON.parse(String(init.body)) : {},
     );
+    return result instanceof Response ? result : json(result);
+  }
   // Anything this harness has no fixture for is a gap in the harness, not an empty answer from a
   // server. Saying so out loud stops "the record was added" over a list that never changes from
   // looking like a bug in the panel.
