@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -9,7 +9,6 @@ import type { PhotoLibraryEntry } from '@vakhta/contracts';
 
 vi.mock('../api/library-api', () => ({ libraryApi: { list: vi.fn(), link: vi.fn() } }));
 vi.mock('@/features/photo-inspection', () => ({
-  InspectionPhoto: ({ photo }: { photo: PhotoLibraryEntry['photo'] }) => <span>{photo.label}</span>,
   PhotoInspectionDialog: ({ photo }: { photo: PhotoLibraryEntry['photo'] }) => (
     <div role="dialog">{photo.itemKey}</div>
   ),
@@ -34,6 +33,7 @@ function row(index: number): PhotoLibraryEntry {
       },
     },
     status: 'COMPLIANT',
+    aiFeedback: null,
     annotationCount: 0,
     remarks: [],
     updatedAt: '2026-09-10T10:00:00Z',
@@ -43,11 +43,43 @@ function row(index: number): PhotoLibraryEntry {
     archived: false,
   };
 }
+beforeEach(() => {
+  vi.mocked(libraryApi.link).mockResolvedValue({
+    url: 'https://example.test/photo.jpg',
+    expiresAt: '2099-09-12T10:00:00Z',
+  });
+});
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
 describe('saved photo library', () => {
+  it('shows the saved verdict and all AI feedback answers without annotation decorations', async () => {
+    const ratings = ['HELPFUL', 'PARTIAL', 'NOT_HELPFUL', null] as const;
+    vi.mocked(libraryApi.list).mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      total: 4,
+      rows: ratings.map((aiFeedback, index) => ({
+        ...row(index),
+        aiFeedback,
+        photo: { ...row(index).photo, inspection: { status: 'PROBLEMS', annotationCount: 3 } },
+      })),
+    });
+    render(<PhotoLibraryPage />);
+    await screen.findByRole('columnheader', { name: t.assessment });
+    for (const rating of ratings) {
+      expect(
+        screen.getByText(
+          rating
+            ? messages(currentLocale()).photoInspection.feedbackRatings[rating]
+            : t.aiFeedbackUnset,
+        ),
+      ).toBeTruthy();
+    }
+    expect(document.querySelector('.lucide-square-pen')).toBeNull();
+    expect(document.querySelector('[class*="ring-blue"]')).toBeNull();
+  });
   it('searches automatically and labels the reset action beside the filters', async () => {
     vi.mocked(libraryApi.list).mockImplementation(async (input) => ({
       page: input.page,
@@ -110,7 +142,7 @@ describe('saved photo library', () => {
       rows: [row(1)],
     });
     render(<PhotoLibraryPage />);
-    const open = await screen.findByRole('button', { name: /Photo 1/ });
+    const open = await screen.findByRole('button', { name: 'Photo 1' });
     open.focus();
     expect(document.activeElement).toBe(open);
     expect(open.tagName).toBe('BUTTON');

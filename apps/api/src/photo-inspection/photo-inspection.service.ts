@@ -202,7 +202,7 @@ export class PhotoInspectionService {
             ),
           )
           .where(eq(photoInspectionRuns.inspectionId, row.id))
-          .orderBy(desc(photoInspectionRuns.requestedAt))
+          .orderBy(desc(photoInspectionRuns.requestedAt), desc(photoInspectionRuns.id))
           .limit(10)
       : [];
     const rules = (await loadPhotoRules(this.db, source.familyId)).rules;

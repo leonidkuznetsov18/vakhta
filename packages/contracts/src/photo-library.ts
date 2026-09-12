@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { HandoverPhotoView } from './handover.js';
+import { AiFeedbackRating } from './photo-inspection.js';
 
 export const PhotoLibraryQuery = z
   .object({
@@ -20,6 +21,8 @@ export const PhotoLibraryEntry = z.object({
   handoverId: z.string().uuid(),
   photo: HandoverPhotoView,
   status: z.enum(['UNREVIEWED', 'COMPLIANT', 'PROBLEMS', 'NOT_ASSESSABLE']),
+  /** Current reviewer feedback on the newest analysis run; absent feedback is not a negative vote. */
+  aiFeedback: AiFeedbackRating.nullable().default(null),
   annotationCount: z.number().int().nonnegative(),
   remarks: z.array(z.string()),
   updatedAt: z.string().datetime().nullable(),

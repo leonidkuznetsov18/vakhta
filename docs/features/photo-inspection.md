@@ -105,7 +105,12 @@ What is marked and optional Finding details.
 The panel's Annotated photos page collects every human-saved inspection (`version > 0`), including
 unfinished reviews and explicit clean examples without regions. AI-only runs and unsaved changes do
 not enter the library. Each row identifies the photo, review result, shift date, zone, reporting worker,
-region count, remarks and last-save time. Search covers worker, zone, photo label and human remarks;
+region count, remarks and last-save time. The Photo assessment column contains the saved human
+verdict. Did AI help? shows the current reviewer's feedback on the newest analysis run, matching the
+editor; an unrated or absent run reads Not rated, never No. Starting another analysis clears the
+previous run's displayed rating, and saving feedback refreshes the library. Thumbnails on this page
+use the plain photo control without the redundant saved-annotation highlight or pen icon; other
+inspection surfaces keep their existing markers. Search covers worker, zone, photo label and human remarks;
 status and inclusive shift-date filters apply before server pagination. The footer reports the full
 filtered count. Search updates automatically after a 300 ms pause; valid status/date changes apply
 without a submit button. Changing a filter returns to page one. Clear filters resets the whole search

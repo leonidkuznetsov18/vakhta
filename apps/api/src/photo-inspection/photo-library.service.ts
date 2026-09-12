@@ -10,6 +10,8 @@ import {
   or,
   sql,
   photoInspections,
+  photoInspectionRuns,
+  photoInspectionFeedback,
   photoObjects,
   handoverRecords,
   handoverMedia,
@@ -89,6 +91,16 @@ export class PhotoLibraryService {
             employee: employees.fullName,
             businessDate: shiftSessions.businessDate,
             attachmentId: handoverMedia.id,
+            aiFeedback: sql<unknown>`(
+              select ${photoInspectionFeedback.rating}
+              from ${photoInspectionRuns}
+              left join ${photoInspectionFeedback}
+                on ${photoInspectionFeedback.runId} = ${photoInspectionRuns.id}
+                and ${photoInspectionFeedback.actorId} = ${user.id}
+              where ${photoInspectionRuns.inspectionId} = ${photoInspections.id}
+              order by ${photoInspectionRuns.requestedAt} desc, ${photoInspectionRuns.id} desc
+              limit 1
+            )`.as('ai_feedback'),
           })
           .from(photoInspections)
           .innerJoin(handoverRecords, eq(handoverRecords.id, photoInspections.handoverId))
@@ -140,6 +152,7 @@ export class PhotoLibraryService {
                 inspection: { status: review.status, annotationCount: review.annotations.length },
               },
               status: review.status,
+              aiFeedback: row.aiFeedback,
               annotationCount: review.annotations.length,
               remarks: [
                 ...(review.comment ? [review.comment] : []),

@@ -424,6 +424,7 @@ describe('photo inspection persistence and access', () => {
     const first = await list({ pageSize: 2 });
     const second = await list({ pageSize: 2, page: 2 });
     expect(first.total).toBe(5);
+    expect([...first.rows, ...second.rows].every((row) => row.aiFeedback === null)).toBe(true);
     expect(second.rows).toHaveLength(2);
     expect(second.rows.some((row) => first.rows.some((other) => row.id === other.id))).toBe(false);
     expect(await list({ pageSize: 2, page: 99 })).toMatchObject({ page: 3, total: 5 });
@@ -634,6 +635,17 @@ describe('photo inspection persistence and access', () => {
     );
     expect(rated.runs[0]?.feedback).toEqual({ rating: 'HELPFUL', comment: 'Missed the cup' });
     expect((await service.get(id, { ...master, id: randomUUID() })).runs[0]?.feedback).toBeNull();
+    const library = new PhotoLibraryService(fixture.db);
+    const list = (user = master) => library.list(PhotoLibraryQuery.parse({}), user);
+    expect((await list()).rows[0]).toMatchObject({ aiFeedback: 'HELPFUL', status: 'COMPLIANT' });
+    expect((await list({ ...master, id: randomUUID() })).rows[0]?.aiFeedback).toBeNull();
+    await service.rateRun(id, run.id, { rating: 'NOT_HELPFUL' }, master);
+    expect((await list()).rows[0]?.aiFeedback).toBe('NOT_HELPFUL');
+    await service.rateRun(id, run.id, { rating: 'PARTIAL' }, master);
+    expect((await list()).rows[0]?.aiFeedback).toBe('PARTIAL');
+    await service.analyze(id, { version: saved.version, requestId: randomUUID() }, master);
+    // A new, unrated run must not inherit the prior run's usefulness verdict.
+    expect((await list()).rows[0]?.aiFeedback).toBeNull();
     expect(rated.review).toEqual(review);
     expect((await fixture.db.select().from(photoInspectionRevisions))[0]?.durationMs).toBe(4200);
     expect(await fixture.db.select().from(photoInspectionRevisions)).toHaveLength(1);

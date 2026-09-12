@@ -275,6 +275,7 @@ function InspectionSession({
       await client.invalidateQueries({ queryKey: ['photo-analysis-limits'] });
     },
     onSuccess: (view) => {
+      void client.invalidateQueries({ queryKey: ['photo-library'] });
       editor.analysisReceived(view);
       client.setQueryData(inspectionKey(id), view);
     },
@@ -301,7 +302,10 @@ function InspectionSession({
     mutationFn: ({ runId, rating }: { runId: string; rating: AiFeedbackRating }) =>
       inspectionApi.rateRun(id, runId, { rating }),
     retry: false,
-    onSuccess: (view) => client.setQueryData(inspectionKey(id), view),
+    onSuccess: (view) => {
+      client.setQueryData(inspectionKey(id), view);
+      void client.invalidateQueries({ queryKey: ['photo-library'] });
+    },
   });
   const exportReview = useMutation({
     mutationFn: () => inspectionApi.export(id),

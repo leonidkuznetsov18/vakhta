@@ -1,7 +1,7 @@
 import { RotateCcwIcon } from 'lucide-react';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
-import { PhotoInspectionDialog, InspectionPhoto } from '@/features/photo-inspection';
+import { PhotoInspectionDialog } from '@/features/photo-inspection';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { Toolbar } from '@/components/app/page';
@@ -9,6 +9,8 @@ import { FormField, SelectField } from '@/components/app/fields';
 import { DateField } from '@/components/app/date-picker';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { TableSearch } from '@/shared/ui/table-search';
+import { PhotoThumb } from '@/components/app/photo';
+import { InfoTip } from '@/components/app/info-tip';
 import { Badge } from '@/components/ui/badge';
 import { IconButton } from '@/shared/ui/icon-button';
 import { formatDate, formatDateTime } from '@/lib/format';
@@ -25,11 +27,12 @@ export function PhotoLibraryPage() {
     {
       key: 'photo',
       header: t.photo,
-      minWidth: '10rem',
+      minWidth: '8rem',
       cell: (row) => (
-        <div className="w-36 max-w-full max-md:w-48">
-          <InspectionPhoto
-            photo={row.photo}
+        <div className="w-28 max-w-full max-md:w-48">
+          <PhotoThumb
+            media={row.photo.media}
+            label={row.photo.label}
             loadLink={() => libraryApi.link(row)}
             onOpen={() => model.select(row)}
           />
@@ -38,8 +41,8 @@ export function PhotoLibraryPage() {
     },
     {
       key: 'status',
-      header: t.status,
-      minWidth: '11rem',
+      header: t.assessment,
+      minWidth: '10rem',
       cell: (row) => (
         <div className="space-y-2">
           <Badge variant={row.status === 'PROBLEMS' ? 'destructive' : 'secondary'}>
@@ -53,15 +56,33 @@ export function PhotoLibraryPage() {
       ),
     },
     {
+      key: 'aiFeedback',
+      header: (
+        <span className="inline-flex items-center gap-1.5">
+          {t.aiFeedback}
+          <InfoTip text={t.aiFeedbackHint} />
+        </span>
+      ),
+      label: t.aiFeedback,
+      minWidth: '9rem',
+      cell: (row) =>
+        row.aiFeedback ? (
+          <span className="text-sm">{inspection.feedbackRatings[row.aiFeedback]}</span>
+        ) : (
+          <span className="text-sm text-muted-foreground">{t.aiFeedbackUnset}</span>
+        ),
+    },
+    {
       key: 'date',
       header: t.date,
+      minWidth: '6rem',
       className: 'whitespace-nowrap',
       cell: (row) => formatDate(row.businessDate),
     },
     {
       key: 'context',
       header: t.context,
-      minWidth: '12rem',
+      minWidth: '11rem',
       cell: (row) => (
         <div className="space-y-1">
           <p className="font-medium">{row.zone ?? '—'}</p>
@@ -72,7 +93,7 @@ export function PhotoLibraryPage() {
     {
       key: 'remarks',
       header: t.remarks,
-      minWidth: '13rem',
+      minWidth: '11rem',
       cell: (row) => (
         <p className="line-clamp-3 max-w-64 whitespace-pre-line [overflow-wrap:anywhere]">
           {row.remarks.join('\n') || '—'}
@@ -82,7 +103,7 @@ export function PhotoLibraryPage() {
     {
       key: 'updated',
       header: t.updated,
-      minWidth: '10rem',
+      minWidth: '8rem',
       cell: (row) => formatDateTime(row.updatedAt),
     },
   ];

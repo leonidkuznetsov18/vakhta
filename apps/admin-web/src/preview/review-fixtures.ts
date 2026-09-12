@@ -82,6 +82,7 @@ function photoLink(photo: HandoverPhotoView) {
     expiresAt: '2099-01-01T00:00:00Z',
   };
 }
+const feedbackRatings = ['HELPFUL', 'PARTIAL', 'NOT_HELPFUL'] as const;
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
 /** Read-only fixtures; writes deliberately fail so preview never pretends to persist work. */
@@ -93,6 +94,7 @@ export function reviewFixture(path: string, method: string, search = ''): Respon
       handoverId: id,
       photo,
       status: index === 0 ? 'PROBLEMS' : index === 2 ? 'NOT_ASSESSABLE' : 'COMPLIANT',
+      aiFeedback: feedbackRatings[index] ?? null,
       annotationCount: index === 0 ? 3 : 0,
       remarks:
         index === 0
@@ -144,6 +146,7 @@ export function reviewFixture(path: string, method: string, search = ''): Respon
   if (path.endsWith('/photo-rules')) return json(reviewRules);
   const photo = reviewPhotos.find((item) => path.includes(item.media.id));
   if (!photo) return json({ message: 'Preview photo not found' }, 404);
+  const rating = feedbackRatings[reviewPhotos.indexOf(photo)];
   if (path.endsWith('/link')) return json(photoLink(photo));
   if (path.endsWith('/limits'))
     return json({
@@ -203,7 +206,7 @@ export function reviewFixture(path: string, method: string, search = ''): Respon
                 }
               : null,
           reviewVersion: 0,
-          feedback: null,
+          feedback: rating ? { rating, comment: null } : null,
         },
       ],
       context: {

@@ -875,3 +875,24 @@ Verification: 29 focused library/shared-table tests and 10 i18n tests; panel typ
 ESLint pass. Desktop 1440x900: table width equals its 1134 px container. Mobile 390x844: shared cards,
 adjacent dates, automatic worker search and full-width controls visually inspected. Production writes
 and annotation saves were not exercised; the annotation editor itself is unchanged.
+
+## Library assessment visibility — 2026-09-12
+
+- Acceptance: show the saved human verdict as Photo assessment and a separate Did AI help? column;
+  remove persistent annotation decoration only from library thumbnails; preserve mobile cards,
+  keyboard opening, full evidence in the editor, filters and collection counts.
+- `PhotoLibraryEntry.aiFeedback` is a validated nullable rating of the newest run for the current
+  actor, consistent with inspection GET. A correlated scalar projection keeps one result per photo
+  and one paginated query, under the existing read-only snapshot and scope predicate. Timestamp ties
+  use run ID in both readers. No migration or feedback ownership change.
+- Analysis admission and feedback save invalidate the library; absence of a rating is never a negative
+  vote. Existing verdict labels are reused. Plain `PhotoThumb` replaces `InspectionPhoto` only here.
+- Lean: eliminate opening each photo just to inspect two saved outcomes; do not add reviewer steps or
+  imply an AI judgment replaces the human verdict. Smaller desktop thumbnails leave room for all
+  seven columns, while mobile keeps larger photos and labeled fields.
+- Verification: 17 PostgreSQL integration tests passed, including rating replacement, reviewer
+  isolation, unrated latest runs and existing access/pagination cases. Initial runtime discovery failed;
+  rerunning against the active Colima socket passed. All 14 focused panel tests, Panel/API typechecks
+  and focused ESLint passed.
+  Desktop 1440×900 and mobile 390×844 preview screenshots captured and visually inspected; no page
+  overflow on mobile and photo opening confirmed. Preview is synthetic and does not verify live writes.
