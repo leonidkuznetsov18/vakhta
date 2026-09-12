@@ -168,6 +168,12 @@ claiming staffing demand, eligibility or master writes are implemented.
 
 ## UX evidence and reuse decisions
 
+The product brief now embeds the owner's seven selected screenshots in its
+[visual reference gallery](../../features/schedule-calendar-redesign.md#visual-references-real-deputy-and-when-i-work-interfaces).
+Each caption identifies the observed interface, the intended Vakhta adaptation and the relevant SC/UX
+requirements. Use that gallery during design and review; these are competitor references, not Vakhta
+implementation evidence. Images remain hosted by the official documentation providers.
+
 Research was performed on 2026-09-12 using official help pages, more than ten visually inspected
 desktop/mobile illustrations and an inspected animation frame. It was not an authenticated product
 trial. Native iOS screenshots do not establish responsive-web or Android parity. Availability may

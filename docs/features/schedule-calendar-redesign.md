@@ -260,10 +260,113 @@ severity, segment/break semantics and cross-month publication behavior. Other in
 continue. These are policy questions to resolve in the feature plan, not a request to approve this
 documentation again.
 
+## Visual references: real Deputy and When I Work interfaces
+
+These seven screenshots are part of the redesign brief. Use them when designing the calendar and
+reviewing the implementation, alongside the SC/UX requirements above. They show competitor interfaces,
+not implemented Vakhta screens or final Vakhta mockups. Red arrows are annotations from the original
+help articles. Images are embedded from official documentation hosts; each has an original-size link.
+
+### 1. Deputy: schedule grouped by areas
+
+The selected location and week appear above the calendar. Areas form groups, dates form columns,
+and cards show employee names and working times. This example is filtered to Ben; it does not show
+the location's complete staffing. Deputy's Area is a reference for Vakhta's zone view, not an exact
+equivalent of a Vakhta organizational unit.
+
+**Apply to Vakhta:** a unit's calendar grouped by its zones, with understandable team coverage and
+contextual creation. Requirements: SC-12, UX-01, UX-06, UX-08.
+
+![Deputy weekly schedule grouped by areas, filtered to employee Ben Figuro](https://help.deputy.com/hc/article_attachments/10710923539855)
+
+[Open original screenshot](https://help.deputy.com/hc/article_attachments/10710923539855).
+
+### 2. When I Work: team schedule grouped by employees
+
+Each employee has a row; each date has a column. Shift cards occupy the cells. OpenShifts appear
+above the employee rows, with filtering controls to the left of the calendar.
+
+**Apply to Vakhta:** a readable employee/week overview, a visible place for unfilled slots and
+independent period/grouping controls. Requirements: SC-15, SC-21, SC-23, UX-08.
+
+![When I Work weekly team schedule with employee rows and an OpenShifts row](https://d1fc5y2qmnxpnr.cloudfront.net/assets/Scheduler-reference-1024x648.png)
+
+[Open original screenshot](https://d1fc5y2qmnxpnr.cloudfront.net/assets/Scheduler-reference-1024x648.png).
+
+### 3. Deputy: one employee's schedule
+
+Ben appears in one row. Monday's 08:00–16:00 card says "3 areas", representing one shift with work
+in multiple areas. Other cards show an individual area's name.
+
+**Apply to Vakhta:** switch between zone and employee views of the same assignments. Make a whole
+shift and its segments explicit so their counts and editing consequences cannot be confused.
+Requirements: SC-21, SC-37, UX-08, UX-09.
+
+![Deputy employee week showing one shift across three areas and other single-area shifts](https://help.deputy.com/hc/article_attachments/10710946238991)
+
+[Open original screenshot](https://help.deputy.com/hc/article_attachments/10710946238991).
+
+### 4. Deputy: create a shift from the calendar
+
+The creation editor retains the calendar behind it and presents employee, date, time, area, break
+and note fields. Add area expands the shift's work plan. Save is the primary action in this editor;
+publication remains a separate workflow step.
+
+**Apply to Vakhta:** start from a date/person/zone context and prefill those fields. Keep a standard
+day/night shift short to create, with additional fields disclosed when needed. Requirements:
+SC-11, SC-24, UX-06, UX-07. Follow Vakhta's own dialog/detail conventions rather than copying the overlay.
+
+![Deputy shift creation editor with employee, time, area, break, note and Save action](https://help.deputy.com/hc/article_attachments/10617419782031)
+
+[Open original screenshot](https://help.deputy.com/hc/article_attachments/10617419782031).
+
+### 5. Deputy: edit working times and areas within a shift
+
+The expanded editor shows an overall shift interval and separate area intervals. A time field offers
+a dropdown while the remaining fields retain their context.
+
+**Apply to Vakhta:** provide exact time input and a readable segment sequence. Preview any effect on
+adjacent segments before committing. Requirements: SC-32, SC-37, UX-09, UX-11, UX-13.
+
+![Deputy detailed shift editor with separate area intervals and a time dropdown](https://help.deputy.com/hc/article_attachments/10617407757839)
+
+[Open original screenshot](https://help.deputy.com/hc/article_attachments/10617407757839).
+
+### 6. When I Work: edit an unfilled shift
+
+The Edit OpenShift form includes time, position, breaks, pickup approval and sharing with other
+schedules. Save and Save & Publish expose different outcomes in the footer.
+
+**Apply to Vakhta:** show the role and approval requirements of an open slot, with contextual access
+to candidates. Distinguish saving from publication and emphasize one primary action for the current
+stage. Requirements: SC-09, SC-15, SC-16, SC-38, UX-03, UX-04.
+
+![When I Work OpenShift editor with sharing, pickup approval, breaks and save/publication actions](https://d1fc5y2qmnxpnr.cloudfront.net/assets/share-with-other-schedules-web-932x1024.png)
+
+[Open original screenshot](https://d1fc5y2qmnxpnr.cloudfront.net/assets/share-with-other-schedules-web-932x1024.png).
+
+### 7. Deputy: create a shift on a phone
+
+The mobile form stacks employee, date, total time, areas and breaks vertically, with a prominent
+Add shift action at the bottom. This is a native-app reference, not evidence of responsive-web behavior.
+
+**Apply to Vakhta:** a phone-specific vertical creation flow with readable labels and a reachable
+primary action. The responsive web panel must preserve input and remain usable with the on-screen
+keyboard. Requirements: SC-30, UX-05, UX-07, UX-14.
+
+![Deputy mobile shift creation form with area intervals and a bottom Add shift button](https://help.deputy.com/hc/article_attachments/13447468620175)
+
+[Open original screenshot](https://help.deputy.com/hc/article_attachments/13447468620175).
+
+Source guides: [Deputy micro-scheduling](https://help.deputy.com/hc/en-au/articles/10611651590159-Managing-micro-scheduled-shifts-and-timesheets),
+[When I Work Scheduler](https://help.wheniwork.com/articles/scheduler-reference-guide-computer/) and
+[When I Work Labor Sharing](https://help.wheniwork.com/articles/labor-sharing-reference-guide/).
+
 ## Research provenance
 
 This consolidates the Deputy/When I Work research and UI review performed in this conversation on
 2026-09-12. The ranking, manufacturing adaptation and proposed Vakhta behavior are our design
 recommendations, not promises of identical functionality in either competitor. Official screenshots
 were visually reviewed; authenticated accounts, native devices, screen readers and competitor
-performance were not tested. Sources and portable visual references live in the engineering document.
+performance were not tested. The gallery above embeds the selected screenshots; additional sources,
+observations and tradeoffs live in the engineering document.
