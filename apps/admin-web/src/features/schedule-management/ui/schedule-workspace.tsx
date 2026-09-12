@@ -33,6 +33,13 @@ const t = messages(currentLocale()).scheduleWorkspace;
 const s = messages(currentLocale()).admin.schedule;
 export function ScheduleWorkspace() {
   const w = useWorkspace();
+  const [periodMode, setPeriodMode] = useState<PeriodMode | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  function selectDate(value: string) {
+    if (w.busy) return;
+    setSelectedDate(value);
+    if (!value.startsWith(w.month)) w.changeMonth(value.slice(0, 7));
+  }
   return (
     <div className="min-w-0 space-y-4">
       <div className="hidden md:block">
@@ -57,13 +64,15 @@ export function ScheduleWorkspace() {
           options={w.units.map((unit) => ({ value: unit.id, label: unit.name }))}
           className="min-w-0 w-full sm:w-64"
         />
-        <MonthField
-          picker="months"
-          label={s.month}
-          value={w.month}
-          onChange={w.changeMonth}
-          className="min-w-0 w-full sm:w-48"
-        />
+        {!w.version && (
+          <MonthField
+            picker="months"
+            label={s.month}
+            value={w.month}
+            onChange={w.changeMonth}
+            className="min-w-0 w-full sm:w-48"
+          />
+        )}
       </div>
       <QueryFeedback query={w.orgResult.queryState} />
       <QueryFeedback query={w.versionsQuery} />
@@ -89,20 +98,42 @@ export function ScheduleWorkspace() {
           }
         />
       ) : (
-        <WorkspaceView key={w.scope} workspace={w} />
+        <WorkspaceView
+          key={w.scope}
+          workspace={w}
+          mode={periodMode}
+          onMode={setPeriodMode}
+          selectedDate={selectedDate}
+          onDate={selectDate}
+        />
       )}
     </div>
   );
 }
-function WorkspaceView({ workspace: w }: { workspace: ReturnType<typeof useWorkspace> }) {
+function WorkspaceView({
+  workspace: w,
+  mode,
+  onMode,
+  selectedDate,
+  onDate,
+}: {
+  workspace: ReturnType<typeof useWorkspace>;
+  mode: PeriodMode | null;
+  onMode: (mode: PeriodMode) => void;
+  selectedDate: string | null;
+  onDate: (date: string) => void;
+}) {
   const mobile = useIsMobile();
-  const [mode, setMode] = useState<PeriodMode | null>(null);
   const effectiveMode = mobile && mode === 'month' ? 'week' : (mode ?? (mobile ? 'day' : 'week'));
   const today = siteToday(w.timezone);
   const [grouping, setGrouping] = useState<'zones' | 'people' | 'history'>('zones');
   const visibleGrouping =
     grouping === 'history' ? 'history' : effectiveMode === 'month' ? 'people' : grouping;
-  const [date, setDate] = useState(today.startsWith(w.month) ? today : `${w.month}-01`);
+  const date = selectedDate?.startsWith(w.month)
+    ? selectedDate
+    : today.startsWith(w.month)
+      ? today
+      : `${w.month}-01`;
   const [zone, setZone] = useState('');
   const [batch, setBatch] = useState<{ zoneId: string; date: string } | null>(null);
   const [review, setReview] = useState<{ grid: GridState; versionId: string } | null>(null);
@@ -267,17 +298,23 @@ function WorkspaceView({ workspace: w }: { workspace: ReturnType<typeof useWorks
                     ]}
                     className="min-w-0 w-full sm:w-64"
                   />
-                  {effectiveMode !== 'month' && (
+                  {effectiveMode === 'month' ? (
+                    <MonthField
+                      picker="months"
+                      label={s.month}
+                      value={w.month}
+                      onChange={w.changeMonth}
+                      disabled={w.busy}
+                      className="min-w-0 w-full sm:w-60"
+                    />
+                  ) : (
                     <>
                       <DateField
                         selection={effectiveMode === 'week' ? 'week' : 'day'}
                         label={effectiveMode === 'week' ? t.week : t.date}
-                        minDate={`${w.month}-01`}
-                        maxDate={monthDates(w.month).at(-1)}
+                        disabled={w.busy}
                         value={date}
-                        onChange={(value) => {
-                          if (monthDates(w.month).includes(value)) setDate(value);
-                        }}
+                        onChange={onDate}
                         className="min-w-0 w-full sm:w-60"
                       />
                       <Button
@@ -285,8 +322,7 @@ function WorkspaceView({ workspace: w }: { workspace: ReturnType<typeof useWorks
                         disabled={date === today}
                         onClick={() => {
                           if (date === today) return;
-                          if (today.startsWith(w.month)) setDate(today);
-                          else w.changeMonth(today.slice(0, 7));
+                          onDate(today);
                         }}
                       >
                         {t.today}
@@ -303,14 +339,14 @@ function WorkspaceView({ workspace: w }: { workspace: ReturnType<typeof useWorks
                         tooltip={t.previous}
                         disabled={dates[0] === `${w.month}-01`}
                         onClick={() =>
-                          setDate(shiftDate(w.month, date, effectiveMode === 'week' ? -7 : -1))
+                          onDate(shiftDate(w.month, date, effectiveMode === 'week' ? -7 : -1))
                         }
                       />
                     )}
                     <StateFilter
                       label={t.period}
                       value={effectiveMode}
-                      onChange={setMode}
+                      onChange={onMode}
                       options={(mobile
                         ? (['day', 'week'] as const)
                         : (['day', 'week', 'month'] as const)
@@ -328,7 +364,7 @@ function WorkspaceView({ workspace: w }: { workspace: ReturnType<typeof useWorks
                         tooltip={t.next}
                         disabled={dates.at(-1) === monthDates(w.month).at(-1)}
                         onClick={() =>
-                          setDate(shiftDate(w.month, date, effectiveMode === 'week' ? 7 : 1))
+                          onDate(shiftDate(w.month, date, effectiveMode === 'week' ? 7 : 1))
                         }
                       />
                     )}
@@ -343,12 +379,20 @@ function WorkspaceView({ workspace: w }: { workspace: ReturnType<typeof useWorks
                     grouping={visibleGrouping}
                     zoneId={zone}
                     selectedDate={date}
-                    onDate={setDate}
+                    onDate={onDate}
                   />
                 )}
               </TabsContent>
             )}
             <TabsContent value="history" className="pt-2 min-w-0">
+              <MonthField
+                picker="months"
+                label={s.month}
+                value={w.month}
+                onChange={w.changeMonth}
+                disabled={w.busy}
+                className="mb-3 w-full sm:w-60"
+              />
               <ScheduleHistory workspace={w} />
             </TabsContent>
           </Tabs>

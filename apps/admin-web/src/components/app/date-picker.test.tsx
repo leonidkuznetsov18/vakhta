@@ -8,6 +8,26 @@ import { currentLocale } from '@/i18n';
 afterEach(cleanup);
 
 describe('calendar field selection units', () => {
+  it('browses another month and year before choosing a whole week', () => {
+    const onChange = vi.fn();
+    render(<DateField label="Week" value="2026-09-10" selection="week" onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }));
+    const labels = messages(currentLocale()).ui.common;
+    fireEvent.change(screen.getByRole('combobox', { name: labels.calendarYear }), {
+      target: { value: '2027' },
+    });
+    fireEvent.change(screen.getByRole('combobox', { name: labels.calendarMonth }), {
+      target: { value: '01' },
+    });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `${formatDate('2027-01-04')} – ${formatDate('2027-01-10')}`,
+      }),
+    );
+    expect(onChange).toHaveBeenCalledWith('2027-01-04');
+  });
+
   it('shows whole weeks only and commits one week in a single click', () => {
     const onChange = vi.fn();
     render(

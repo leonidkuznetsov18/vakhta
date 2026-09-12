@@ -1345,6 +1345,7 @@ export interface Messages {
       readonly page: string;
     };
     readonly common: {
+      readonly calendarMonth: string;
       readonly calendarYear: string;
       readonly calendarPreviousYear: string;
       readonly calendarNextYear: string;

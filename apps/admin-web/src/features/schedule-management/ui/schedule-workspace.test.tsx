@@ -364,6 +364,33 @@ describe('schedule workspace', () => {
     expect(within(sheet).queryByRole('combobox')).toBeNull();
     expect(within(sheet).queryByRole('button', { name: t.apply })).toBeNull();
   });
+  it('keeps month mode and its toolbar picker when the selected year changes', async () => {
+    mockApi({ status: 'PUBLISHED' });
+    admin();
+    await screen.findByRole('tab', { name: t.zones });
+    fireEvent.click(screen.getByRole('radio', { name: t.month }));
+    fireEvent.click(
+      screen.getByRole('button', { name: messages(currentLocale()).admin.schedule.month }),
+    );
+    fireEvent.change(
+      screen.getByRole('combobox', { name: messages(currentLocale()).ui.common.calendarYear }),
+      { target: { value: '2027' } },
+    );
+    const january = new Intl.DateTimeFormat(currentLocale(), { month: 'short' }).format(
+      new Date(2000, 0, 1),
+    );
+    fireEvent.click(screen.getByRole('button', { name: january }));
+    await waitFor(() =>
+      expect(screen.getByRole('radio', { name: t.month }).getAttribute('aria-checked')).toBe(
+        'true',
+      ),
+    );
+    expect(
+      screen.getByRole('button', { name: messages(currentLocale()).admin.schedule.month })
+        .textContent,
+    ).toContain('2027');
+    expect(screen.queryByRole('tab', { name: t.zones })).toBeNull();
+  });
   it('does not create a version automatically when arriving with overview workers', async () => {
     const calls = mockApi({ status: 'PUBLISHED' });
     writeSchedulePreset({

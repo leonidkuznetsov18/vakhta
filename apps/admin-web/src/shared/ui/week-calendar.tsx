@@ -1,7 +1,11 @@
+import { useState } from 'react';
+import { messages } from '@vakhta/i18n';
+import { currentLocale } from '@/i18n';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { CheckIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatDate, formatMonth } from '@/lib/format';
-import { fromIsoDate, toIsoDate, weekDateRange } from '@/shared/lib/calendar-date';
+import { formatDate } from '@/lib/format';
+import { fromIsoDate, fromIsoMonth, toIsoDate, weekDateRange } from '@/shared/lib/calendar-date';
 
 /** A week is the only selectable unit. Bounds reflect the caller's loaded calendar scope. */
 export function WeekCalendar({
@@ -16,8 +20,12 @@ export function WeekCalendar({
   readonly onChange: (value: string) => void;
 }) {
   const selected = fromIsoDate(value) ?? new Date();
-  const month = toIsoDate(selected).slice(0, 7);
-  const last = toIsoDate(new Date(selected.getFullYear(), selected.getMonth() + 1, 0));
+  const [month, setMonth] = useState(toIsoDate(selected).slice(0, 7));
+  const displayed = fromIsoMonth(month) ?? selected;
+  const year = displayed.getFullYear();
+  const t = messages(currentLocale()).ui.common;
+  const monthFormat = new Intl.DateTimeFormat(currentLocale(), { month: 'long' });
+  const last = toIsoDate(new Date(year, displayed.getMonth() + 1, 0));
   const minimum = minDate && minDate > `${month}-01` ? minDate : `${month}-01`;
   const maximum = maxDate && maxDate < last ? maxDate : last;
   const weeks = [];
@@ -34,7 +42,33 @@ export function WeekCalendar({
   }
   return (
     <div className="w-72 space-y-2 p-3">
-      <p className="px-2 py-1 text-center text-sm font-medium">{formatMonth(month)}</p>
+      <div className="flex items-center justify-between gap-2">
+        <NativeSelect
+          aria-label={t.calendarMonth}
+          value={month.slice(5)}
+          onChange={(event) => setMonth(`${year}-${event.target.value}`)}
+        >
+          {Array.from({ length: 12 }, (_, index) => {
+            const id = String(index + 1).padStart(2, '0');
+            return (
+              <NativeSelectOption key={id} value={id}>
+                {monthFormat.format(new Date(2000, index, 1))}
+              </NativeSelectOption>
+            );
+          })}
+        </NativeSelect>
+        <NativeSelect
+          aria-label={t.calendarYear}
+          value={year}
+          onChange={(event) => setMonth(`${event.target.value}-${month.slice(5)}`)}
+        >
+          {Array.from({ length: 201 }, (_, index) => year - 100 + index).map((item) => (
+            <NativeSelectOption key={item} value={item}>
+              {item}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      </div>
       <div className="grid gap-1">
         {weeks.map(({ from, to }) => {
           const active = value >= from && value <= to;

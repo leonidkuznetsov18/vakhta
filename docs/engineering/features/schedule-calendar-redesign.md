@@ -430,3 +430,14 @@ not approve unresolved domain policy. Writer/index ownership transferred after c
   pickers and Sheet inspected; 390×720 mobile list and full-width Sheet inspected. Document width
   remained 390px. All ten i18n catalog checks passed. Screenshot evidence and comments will accompany each completed issue;
   incomplete epic criteria remain open, including policy answers and participant baseline/pilot.
+
+### Period navigation follow-up — 2026-09-13
+
+Week selection now includes month and year dropdowns; changing either only browses weeks, and
+choosing a week changes the loaded month and preserves the selected period mode. Month/year
+selection is directly beside the period mode controls. Empty-month and history views retain their
+month navigation. No backend cross-month write behavior changed. Local date-field/workspace
+regressions: 19 passed, including browsing another year without committing until a week is selected
+and retaining month mode across scope changes. i18n catalogs: 10 passed; affected ESLint and
+admin-web TypeScript/Compiler build passed. Updated week/month screenshots supersede earlier picker
+captures. Lean: Simplify; period navigation is available where the period is read.

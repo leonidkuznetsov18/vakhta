@@ -1655,6 +1655,7 @@ export const uk: Messages = {
       page: 'Сторінка {page} з {pages}',
     },
     common: {
+      calendarMonth: 'Місяць',
       calendarYear: 'Рік',
       calendarPreviousYear: 'Попередній рік',
       calendarNextYear: 'Наступний рік',
