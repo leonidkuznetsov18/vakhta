@@ -12,6 +12,7 @@ export const scheduleWorkspaceEn = {
   prototype: 'Calendar prototype — synthetic data; no server writes',
   conflict: 'Conflicting assignment',
   resourceItems: 'Assignments: {count}',
+  resourceMoreItems: '{count} more',
   allItems: 'All assignments',
   dateStrip: 'Select day',
 
@@ -136,6 +137,7 @@ export const scheduleWorkspaceUk: ScheduleWorkspaceMessages = {
   prototype: 'Прототип календаря — вигадані дані; без запису на сервер',
   conflict: 'Конфлікт призначень',
   resourceItems: 'Призначення: {count}',
+  resourceMoreItems: 'Ще {count}',
   allItems: 'Усі призначення',
   dateStrip: 'Обрати день',
 
@@ -261,6 +263,7 @@ export const scheduleWorkspaceRu: ScheduleWorkspaceMessages = {
   prototype: 'Прототип календаря — вымышленные данные; без записи на сервер',
   conflict: 'Конфликт назначений',
   resourceItems: 'Назначения: {count}',
+  resourceMoreItems: 'Ещё {count}',
   allItems: 'Все назначения',
   dateStrip: 'Выбрать день',
 

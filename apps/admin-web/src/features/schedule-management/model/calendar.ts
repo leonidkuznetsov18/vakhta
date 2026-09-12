@@ -133,10 +133,10 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
         input.grouping === 'zones'
           ? (employeeMap.get(item.employeeId)?.fullName ?? t.unknownEmployee)
           : (zones.get(item.zoneId ?? '')?.name ?? t.noZone),
-      time: `${time}${duration ? ` · ${duration}` : ''}`,
+      time: `${time}${duration ? ` ${duration}` : ''}`,
       description: template ? (template.isNight ? t.nightShift : t.dayShift) : t.unknownShift,
       status,
-      tone: persisted ? 'info' : 'warning',
+      tone: template ? (template.isNight ? 'indigo' : 'amber') : 'neutral',
     });
     buckets.set(key, bucket);
   }
@@ -192,5 +192,6 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
     })),
     resources,
     emptyLabel: t.noAssignments,
+    moreItemsLabel: t.resourceMoreItems,
   };
 }

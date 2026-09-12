@@ -25,7 +25,6 @@ import { periodDates, shiftDate, type PeriodMode } from '../model/planning';
 import type { GridState } from '../model/grid';
 import { ResourceSchedule } from './resource-schedule';
 import { calendarWeek, siteToday } from '../model/calendar';
-import { ZoneSchedule } from './zone-schedule';
 import { PeopleSchedule } from './people-schedule';
 import { ScheduleHistory } from './schedule-history';
 import { BatchPlanner } from './batch-planner';
@@ -59,6 +58,7 @@ export function ScheduleWorkspace() {
           className="min-w-0 w-full sm:w-64"
         />
         <MonthField
+          picker="months"
           label={s.month}
           value={w.month}
           onChange={w.changeMonth}
@@ -100,6 +100,8 @@ function WorkspaceView({ workspace: w }: { workspace: ReturnType<typeof useWorks
   const effectiveMode = mobile && mode === 'month' ? 'week' : (mode ?? (mobile ? 'day' : 'week'));
   const today = siteToday(w.timezone);
   const [grouping, setGrouping] = useState<'zones' | 'people' | 'history'>('zones');
+  const visibleGrouping =
+    grouping === 'history' ? 'history' : effectiveMode === 'month' ? 'people' : grouping;
   const [date, setDate] = useState(today.startsWith(w.month) ? today : `${w.month}-01`);
   const [zone, setZone] = useState('');
   const [batch, setBatch] = useState<{ zoneId: string; date: string } | null>(null);
@@ -241,19 +243,19 @@ function WorkspaceView({ workspace: w }: { workspace: ReturnType<typeof useWorks
             <Feedback error={null} notice={t.missingTemplates} />
           )}
           <Tabs
-            value={grouping}
+            value={visibleGrouping}
             onValueChange={(value) => {
               if (value === 'zones' || value === 'people' || value === 'history')
                 setGrouping(value);
             }}
           >
             <TabsList aria-label={t.grouping}>
-              <TabsTrigger value="zones">{t.zones}</TabsTrigger>
+              {effectiveMode !== 'month' && <TabsTrigger value="zones">{t.zones}</TabsTrigger>}
               <TabsTrigger value="people">{t.people}</TabsTrigger>
               <TabsTrigger value="history">{t.history}</TabsTrigger>
             </TabsList>
-            {grouping !== 'history' && (
-              <TabsContent value={grouping} className="space-y-3 pt-2 min-w-0">
+            {visibleGrouping !== 'history' && (
+              <TabsContent value={visibleGrouping} className="space-y-3 pt-2 min-w-0">
                 <div className="grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap">
                   <SelectField
                     label={t.zone}
@@ -265,39 +267,46 @@ function WorkspaceView({ workspace: w }: { workspace: ReturnType<typeof useWorks
                     ]}
                     className="min-w-0 w-full sm:w-64"
                   />
-                  <DateField
-                    label={t.date}
-                    minDate={`${w.month}-01`}
-                    maxDate={monthDates(w.month).at(-1)}
-                    value={date}
-                    onChange={(value) => {
-                      if (monthDates(w.month).includes(value)) setDate(value);
-                    }}
-                    className="min-w-0 w-full sm:w-48"
-                  />
-                  <Button
-                    variant="outline"
-                    disabled={date === today}
-                    onClick={() => {
-                      if (date === today) return;
-                      if (today.startsWith(w.month)) setDate(today);
-                      else w.changeMonth(today.slice(0, 7));
-                    }}
-                  >
-                    {t.today}
-                  </Button>
+                  {effectiveMode !== 'month' && (
+                    <>
+                      <DateField
+                        selection={effectiveMode === 'week' ? 'week' : 'day'}
+                        label={effectiveMode === 'week' ? t.week : t.date}
+                        minDate={`${w.month}-01`}
+                        maxDate={monthDates(w.month).at(-1)}
+                        value={date}
+                        onChange={(value) => {
+                          if (monthDates(w.month).includes(value)) setDate(value);
+                        }}
+                        className="min-w-0 w-full sm:w-60"
+                      />
+                      <Button
+                        variant="outline"
+                        disabled={date === today}
+                        onClick={() => {
+                          if (date === today) return;
+                          if (today.startsWith(w.month)) setDate(today);
+                          else w.changeMonth(today.slice(0, 7));
+                        }}
+                      >
+                        {t.today}
+                      </Button>
+                    </>
+                  )}
                   <div className="col-span-2 flex items-center gap-2">
-                    <IconButton
-                      size="icon-sm"
-                      variant="outline"
-                      icon={ChevronLeftIcon}
-                      label={t.previous}
-                      tooltip={t.previous}
-                      disabled={dates[0] === `${w.month}-01`}
-                      onClick={() =>
-                        setDate(shiftDate(w.month, date, effectiveMode === 'week' ? -7 : -1))
-                      }
-                    />
+                    {effectiveMode !== 'month' && (
+                      <IconButton
+                        size="icon-sm"
+                        variant="outline"
+                        icon={ChevronLeftIcon}
+                        label={t.previous}
+                        tooltip={t.previous}
+                        disabled={dates[0] === `${w.month}-01`}
+                        onClick={() =>
+                          setDate(shiftDate(w.month, date, effectiveMode === 'week' ? -7 : -1))
+                        }
+                      />
+                    )}
                     <StateFilter
                       label={t.period}
                       value={effectiveMode}
@@ -310,37 +319,28 @@ function WorkspaceView({ workspace: w }: { workspace: ReturnType<typeof useWorks
                         label: t[value],
                       }))}
                     />
-                    <IconButton
-                      size="icon-sm"
-                      variant="outline"
-                      icon={ChevronRightIcon}
-                      label={t.next}
-                      tooltip={t.next}
-                      disabled={dates.at(-1) === monthDates(w.month).at(-1)}
-                      onClick={() =>
-                        setDate(shiftDate(w.month, date, effectiveMode === 'week' ? 7 : 1))
-                      }
-                    />
+                    {effectiveMode !== 'month' && (
+                      <IconButton
+                        size="icon-sm"
+                        variant="outline"
+                        icon={ChevronRightIcon}
+                        label={t.next}
+                        tooltip={t.next}
+                        disabled={dates.at(-1) === monthDates(w.month).at(-1)}
+                        onClick={() =>
+                          setDate(shiftDate(w.month, date, effectiveMode === 'week' ? 7 : 1))
+                        }
+                      />
+                    )}
                   </div>
                 </div>
-                {effectiveMode === 'month' && !mobile ? (
-                  grouping === 'zones' ? (
-                    <ZoneSchedule
-                      workspace={w}
-                      dates={dates}
-                      zoneId={zone}
-                      selectedDate={date}
-                      onDate={setDate}
-                      onAdd={(zoneId, nextDate) => setBatch({ zoneId, date: nextDate })}
-                    />
-                  ) : (
-                    <PeopleSchedule workspace={w} zoneId={zone} />
-                  )
+                {effectiveMode === 'month' ? (
+                  <PeopleSchedule workspace={w} zoneId={zone} />
                 ) : (
                   <ResourceSchedule
                     workspace={w}
                     dates={resourceDates}
-                    grouping={grouping}
+                    grouping={visibleGrouping}
                     zoneId={zone}
                     selectedDate={date}
                     onDate={setDate}

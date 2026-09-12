@@ -1345,6 +1345,9 @@ export interface Messages {
       readonly page: string;
     };
     readonly common: {
+      readonly calendarYear: string;
+      readonly calendarPreviousYear: string;
+      readonly calendarNextYear: string;
       readonly actions: string;
       /** Short units for a duration: "3 h 20 min". */
       readonly hoursShort: string;

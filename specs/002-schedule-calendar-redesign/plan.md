@@ -36,8 +36,8 @@ unless the prototype demonstrates an unsolved need. `shared/ui/resource-calendar
 readonly resource/date/item view types and one renderer. Prepared labels, semantic status, disabled
 reasons, selection and callbacks enter through props; no Workspace/API DTO/query/mutation enters it.
 Feature `model/calendar.ts` adapts existing complete grids and stored instants. Feature UI composes
-AssignmentEditor in a responsive Sheet, BatchPlanner, PublicationReview and ScheduleHistory. Preserve legacy
-monthly editing until replacement parity is proved; no parallel authoritative data state.
+AssignmentEditor in a responsive Sheet, BatchPlanner, PublicationReview and ScheduleHistory. Preserve employee-matrix
+monthly editing and its Sheet; month is always people grouped by explicit owner correction; no parallel authoritative data state.
 
 Grouping and period are independent. Mobile defaults to a selected-day list with a seven-date strip;
 desktop shows resource rows/date columns and a paginated complete count. People and zones use the

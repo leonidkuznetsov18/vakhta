@@ -405,3 +405,28 @@ not approve unresolved domain policy. Writer/index ownership transferred after c
   actions reuse existing editing and no-op guards. Missing staffing norms and presence remain unknown.
 - Full epic HOLD: D-01–07, real participant baseline/pilot and remaining child scope are pending.
   Next independent work: #9 complete roster and stale/uncertain draft write recovery.
+
+### Owner UI corrections — 2026-09-13
+
+- Month always opens the employee D/N matrix with assignment Sheet; removed the misleading zone
+  aggregate renderer. Read-only assignments expose complete details without editing inputs.
+- Shared amber/indigo day/night palette and visible hover/focus/pressed states; vertical date
+  separators span headers and rows. Cards use fixed height and bounded title/type/status previews;
+  their complete values remain available in the Sheet. Removed the time/duration dot separator.
+- All layouts show up to three assignments per cell. Overflow says `N more` for hidden items only,
+  and opens the complete list. Two assignments are both visible without a redundant count button.
+- Day chooses an individual date; week chooses only whole-week rows; month selects month/year
+  without day cells. The month scope picker remains authoritative. Boundary weeks explicitly show
+  only loaded dates; cross-month operational reads/writes remain owned by #10.
+- Shared overlay focus now preserves native accessibility focus without automatically requesting
+  a tooltip. Intentional keyboard focus and hover still reveal tooltips; shared UI memory has details.
+- Lean: Simplify. Remove the click needed to discover a second teammate and the ambiguous total;
+  choose the same time unit as the current view. No new worker input or operational policy.
+- Local regression run: 39 tests across date fields, resource calendar, projection, workspace,
+  tooltip and icon button passed. i18n and admin-web TypeScript/Compiler build passed; affected ESLint
+  passed. Existing dependency annotation and bundle-size warnings remain. Final evidence below is
+  from synthetic preview data, not production or participant acceptance.
+- Screenshots: [evidence directory](../evidence/schedule-ui-2026-09-13/). Desktop 1280×720 matrix, week/month
+  pickers and Sheet inspected; 390×720 mobile list and full-width Sheet inspected. Document width
+  remained 390px. All ten i18n catalog checks passed. Screenshot evidence and comments will accompany each completed issue;
+  incomplete epic criteria remain open, including policy answers and participant baseline/pilot.

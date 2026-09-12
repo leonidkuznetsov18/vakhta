@@ -1653,6 +1653,9 @@ export const en: Messages = {
       page: 'Page {page} of {pages}',
     },
     common: {
+      calendarYear: 'Year',
+      calendarPreviousYear: 'Previous year',
+      calendarNextYear: 'Next year',
       actions: 'Actions',
       hoursShort: 'h',
       minutesShort: 'min',

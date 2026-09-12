@@ -348,6 +348,22 @@ describe('schedule workspace', () => {
       gridToItems(next).filter((item) => item.zoneId !== ZONE),
     );
   });
+  it('opens the month as a day/night employee matrix with read-only assignment details', async () => {
+    mockApi({ status: 'PUBLISHED' });
+    admin();
+    await screen.findByRole('tab', { name: t.zones });
+    fireEvent.click(screen.getByRole('radio', { name: t.month }));
+    expect(screen.queryByRole('tab', { name: t.zones })).toBeNull();
+    expect(screen.getByRole('tabpanel', { name: t.people })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: t.date })).toBeNull();
+    const cell = await screen.findByRole('button', { name: /Кузнецов Леонид, 2026-09-05/ });
+    expect(cell.textContent).toBe(messages(currentLocale()).schedule.dayKinds.NIGHT);
+    fireEvent.click(cell);
+    const sheet = screen.getByRole('dialog');
+    expect(within(sheet).getByText('Линия 1')).toBeTruthy();
+    expect(within(sheet).queryByRole('combobox')).toBeNull();
+    expect(within(sheet).queryByRole('button', { name: t.apply })).toBeNull();
+  });
   it('does not create a version automatically when arriving with overview workers', async () => {
     const calls = mockApi({ status: 'PUBLISHED' });
     writeSchedulePreset({

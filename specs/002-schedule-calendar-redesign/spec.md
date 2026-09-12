@@ -160,3 +160,17 @@ invariants and failure tests plus one independent review. UI requires focused in
 type/lint/build and captured/inspected desktop/390px views in uk/en/ru. Reuse existing fixtures and
 CI integration gate. Only custom-time changes require attendance/kiosk checks; bot changes require
 relevant worker communication QA. Product pilot and release/CI/deployed evidence remain distinct.
+
+### Owner UI acceptance corrections — 2026-09-13
+
+The month view is the compact employee D/N matrix with assignment Sheet, independent of remembered
+zone/person grouping in day/week. Shift cards have uniform dimensions, truncated previews with full
+Sheet details, separate day/night colors and shared clear hover/focus/active states. Date columns
+have visible vertical separators. Time and duration have no dot separator. Show up to three items
+per cell; `N more` counts only hidden assignments. Overlay autofocus must not automatically display
+tooltips. Period pickers select a day, a whole-week row, or month/year respectively. Existing loaded
+month bounds remain explicit until #10 delivers cross-month behavior.
+
+Each completed GitHub issue requires an implementation comment with screenshots and verification
+results. Close only when its acceptance criteria are fulfilled; unrelated or pending policies and
+human pilot evidence are not inferred from UI approval.

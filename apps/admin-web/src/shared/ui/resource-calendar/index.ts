@@ -7,3 +7,4 @@ export type {
   CalendarViewModel,
 } from './model';
 export { CalendarDetailPanel } from './detail-panel';
+export { calendarItemColors, calendarInteraction } from './styles';

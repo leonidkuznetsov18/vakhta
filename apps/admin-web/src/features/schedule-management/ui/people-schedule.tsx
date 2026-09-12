@@ -15,7 +15,11 @@ import {
 } from '@/components/ui/table';
 import { TableSearch } from '@/shared/ui/table-search';
 import { Paginator, RowMenu, usePages } from '@/components/app/data-table';
-import { CalendarDetailPanel } from '@/shared/ui/resource-calendar';
+import {
+  CalendarDetailPanel,
+  calendarItemColors,
+  calendarInteraction,
+} from '@/shared/ui/resource-calendar';
 import { InfoTip } from '@/components/app/info-tip';
 import { formatDuration } from '@/lib/format';
 import { cn } from 'cn';
@@ -29,6 +33,7 @@ import {
   removeRow,
 } from '../model/grid';
 import { summarize } from '../model/planning';
+import { calendarModel } from '../model/calendar';
 import { employeeLabel } from './assignment-changes';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
 const t = messages(currentLocale()).scheduleWorkspace;
@@ -58,16 +63,31 @@ export function PeopleSchedule({
   const first =
     visible.flatMap((row) =>
       days
-        .filter((date) => !outsideZone(row.employeeId, date))
+        .filter((date) => !outsideZone(row.employeeId, date) && (w.writable || !!row.cells[date]))
         .map((date) => `${row.employeeId}:${date}`),
     )[0] ?? '';
   const focusKey = visible.some((row) =>
     days.some(
-      (date) => `${row.employeeId}:${date}` === focus && !outsideZone(row.employeeId, date),
+      (date) =>
+        `${row.employeeId}:${date}` === focus &&
+        !outsideZone(row.employeeId, date) &&
+        (w.writable || !!row.cells[date]),
     ),
   )
     ? focus
     : first;
+  const readOnlyDetails =
+    editor && !w.writable
+      ? calendarModel({
+          ...w,
+          dates: [editor.businessDate],
+          grouping: 'people',
+          locale: currentLocale(),
+          publication: w.version
+            ? messages(currentLocale()).admin.schedule.statuses[w.version.status]
+            : '',
+        }).resources.find((row) => row.id === editor.employeeId)?.cells[0]?.items[0]
+      : null;
   function outsideZone(employeeId: string, date: string) {
     return (
       !!zoneId &&
@@ -113,7 +133,7 @@ export function PeopleSchedule({
         const employee = visible[nextRow];
         const date = days[nextDay];
         if (!employee || !date) break;
-        if (!outsideZone(employee.employeeId, date)) {
+        if (!outsideZone(employee.employeeId, date) && (w.writable || !!employee.cells[date])) {
           const next = `${employee.employeeId}:${date}`;
           setFocus(next);
           document.getElementById(`${instance}:${next}`)?.focus();
@@ -153,7 +173,10 @@ export function PeopleSchedule({
         <InfoTip text={t.keyboard} />
       </div>
       <div className="rounded-lg border overflow-hidden">
-        <Table aria-label={t.people} className="min-w-max">
+        <Table
+          aria-label={t.people}
+          className="min-w-max [&_tr>*:not(:last-child)]:border-r [&_tr>*]:border-border"
+        >
           <TableHeader>
             <TableRow>
               <TableHead className="sticky left-0 z-10 w-40 bg-background">{t.workers}</TableHead>
@@ -225,22 +248,23 @@ export function PeopleSchedule({
                             <span aria-hidden>—</span>
                             <span className="sr-only">{t.outsideZone}</span>
                           </span>
-                        ) : w.writable ? (
+                        ) : w.writable || !!row.cells[date] ? (
                           <Button
                             id={`${instance}:${cellKey}`}
                             variant="ghost"
                             size="sm"
                             tabIndex={focusKey === cellKey ? 0 : -1}
+                            aria-pressed={
+                              editor?.employeeId === row.employeeId && editor.businessDate === date
+                            }
                             onFocus={() => setFocus(cellKey)}
                             onKeyDown={(event) => keyDown(event, rowIndex, dayIndex)}
                             aria-label={`${employeeLabel(w, row.employeeId)}, ${date}, ${template ? templateLabel(template.code, t) : dayKinds.OFF}`}
                             onClick={(event) => open(row.employeeId, date, event.currentTarget)}
                             className={cn(
                               'min-h-9 min-w-9 p-1',
-                              template &&
-                                (template.isNight
-                                  ? 'bg-blue-100 text-blue-950 dark:bg-blue-950 dark:text-blue-100'
-                                  : 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100'),
+                              calendarInteraction,
+                              template && calendarItemColors[template.isNight ? 'indigo' : 'amber'],
                             )}
                           >
                             {label}
@@ -249,10 +273,7 @@ export function PeopleSchedule({
                           <span
                             className={cn(
                               'inline-flex min-h-9 min-w-9 items-center justify-center rounded text-sm',
-                              template &&
-                                (template.isNight
-                                  ? 'bg-blue-100 text-blue-950 dark:bg-blue-950 dark:text-blue-100'
-                                  : 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100'),
+                              template && calendarItemColors[template.isNight ? 'indigo' : 'amber'],
                             )}
                             title={`${date} · ${template ? templateLabel(template.code, t) : dayKinds.OFF}`}
                           >
@@ -284,7 +305,7 @@ export function PeopleSchedule({
       </div>
       <Paginator pages={pages} total={rows.length} />
       <CalendarDetailPanel
-        open={!!editor && w.writable}
+        open={!!editor}
         title={editor ? employeeLabel(w, editor.employeeId) : t.people}
         description={editor?.businessDate}
         onClose={() => setEditor(null)}
@@ -293,14 +314,21 @@ export function PeopleSchedule({
           else document.getElementById(instance)?.focus();
         }}
       >
-        {editor && (
+        {editor && w.writable ? (
           <AssignmentEditor
             key={`${editor.employeeId}:${editor.businessDate}:${editor.templateId}`}
             workspace={w}
             context={editor}
             onClose={() => setEditor(null)}
           />
-        )}
+        ) : readOnlyDetails ? (
+          <div className="space-y-3 text-sm">
+            <p className="[overflow-wrap:anywhere]">{readOnlyDetails.title}</p>
+            <p>{readOnlyDetails.time}</p>
+            <p>{readOnlyDetails.description}</p>
+            <p>{readOnlyDetails.status}</p>
+          </div>
+        ) : null}
       </CalendarDetailPanel>
     </div>
   );

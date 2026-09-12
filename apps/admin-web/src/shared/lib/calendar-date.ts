@@ -25,3 +25,17 @@ export function fromIsoMonth(value: string): Date | undefined {
   if (!y || !m) return undefined;
   return new Date(y, m - 1, 1);
 }
+
+/** ISO weeks start on Monday; optional bounds keep the displayed period in the loaded scope. */
+export function weekDateRange(value: string, minDate?: string, maxDate?: string) {
+  const day = fromIsoDate(value);
+  if (!day) return undefined;
+  const from = new Date(day);
+  from.setDate(from.getDate() - ((from.getDay() + 6) % 7));
+  const to = new Date(from);
+  to.setDate(to.getDate() + 6);
+  return {
+    from: minDate && toIsoDate(from) < minDate ? (fromIsoDate(minDate) ?? from) : from,
+    to: maxDate && toIsoDate(to) > maxDate ? (fromIsoDate(maxDate) ?? to) : to,
+  };
+}

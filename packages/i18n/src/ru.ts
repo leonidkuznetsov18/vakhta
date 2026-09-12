@@ -1653,6 +1653,9 @@ export const ru: Messages = {
       page: 'Страница {page} из {pages}',
     },
     common: {
+      calendarYear: 'Год',
+      calendarPreviousYear: 'Предыдущий год',
+      calendarNextYear: 'Следующий год',
       actions: 'Действия',
       hoursShort: 'ч',
       minutesShort: 'мин',

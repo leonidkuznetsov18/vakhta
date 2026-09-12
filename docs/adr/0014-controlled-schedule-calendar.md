@@ -23,12 +23,12 @@ detail slot. It emits selected resource/date/item identities. It does not fetch,
 authorize, validate assignments or write drafts. `schedule-management/model/calendar.ts` prepares
 views from the existing full grid and recorded instants. The feature adapter opens existing editors.
 
-Paginate resources (20 by default), show one item per cell in a multi-day grid or three in a day/list,
-and expose the complete cell collection through a paginated Sheet. Mobile uses the same
+Paginate resources (20 by default), show up to three items per cell in every layout,
+and expose overflow through a `N more` button counting only hidden assignments and a paginated Sheet. Mobile uses the same
 model with a date strip and single-day resource list. The owner explicitly lifted prior component/palette and mandatory sub-row restrictions on 2026-09-13.
 Sheet presentation keeps calendar geometry stable, returns focus to the opening control, and uses
-full width on mobile. Blue and amber cards retain text status labels. Current month editing remains available through
-the established views. No additional runtime dependency or application lifecycle hook is introduced.
+full width on mobile. Indigo night and amber day cards retain text status labels. Month uses the established employee
+D/N matrix and assignment Sheet; day/week retain zone/person grouping. No additional runtime dependency or application lifecycle hook is introduced.
 
 ## Evidence and limits
 

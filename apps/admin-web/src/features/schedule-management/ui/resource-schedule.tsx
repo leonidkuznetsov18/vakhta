@@ -56,6 +56,7 @@ export function ResourceSchedule({
   const selectedCell = model.resources
     .find((resource) => resource.id === selection?.resourceId)
     ?.cells.find((cell) => cell.date === selection?.date);
+  const selectedView = selectedCell?.items.find((item) => item.id === selection?.itemId);
   const pages = usePages(
     selectedCell?.items.length ?? 0,
     10,
@@ -115,9 +116,12 @@ export function ResourceSchedule({
                   {grouping === 'zones' ? `${employeeLabel(w, selectedItem.employeeId)} · ` : ''}
                   {t.wholeAssignment}
                 </h3>
-                <p className="text-sm">
-                  {selectedCell.items.find((item) => item.id === selection.itemId)?.time}
-                </p>
+                {grouping === 'people' && (
+                  <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.title}</p>
+                )}
+                <p className="text-sm">{selectedView?.time}</p>
+                <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.description}</p>
+                <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.status}</p>
                 <p className="text-sm text-muted-foreground">{t.presenceUnknown}</p>
                 {w.writable && <Button onClick={edit}>{t.editAssignment}</Button>}
               </>

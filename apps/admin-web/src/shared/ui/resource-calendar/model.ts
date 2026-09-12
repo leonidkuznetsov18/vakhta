@@ -5,7 +5,7 @@ export interface CalendarItem {
   readonly time: string;
   readonly description: string;
   readonly status: string;
-  readonly tone: 'info' | 'warning' | 'danger' | 'neutral';
+  readonly tone: 'info' | 'warning' | 'danger' | 'neutral' | 'amber' | 'indigo';
   readonly parts?: readonly { readonly id: string; readonly label: string }[];
 }
 export interface CalendarCell {
@@ -31,6 +31,7 @@ export interface CalendarViewModel {
   }[];
   readonly resources: readonly CalendarResource[];
   readonly emptyLabel: string;
+  readonly moreItemsLabel: string;
 }
 export interface CalendarSelection {
   readonly resourceId: string;

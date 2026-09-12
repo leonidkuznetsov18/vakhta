@@ -67,10 +67,10 @@ export function CalendarPrototype() {
         grouping === 'people'
           ? `Zone ${entry.zone + 1}`
           : `Worker ${entry.employee + 1} · Long manufacturing employee name`,
-      time: entry.employee % 2 ? `20:00–${endDate} 08:00 · 12 h` : '08:00–20:00 · 12 h',
+      time: entry.employee % 2 ? `20:00–${endDate} 08:00 12 h` : '08:00–20:00 12 h',
       description: entry.employee % 2 ? t.nightShift : t.dayShift,
       status: t.current,
-      tone: 'info',
+      tone: entry.employee % 2 ? 'indigo' : 'amber',
       ...(entry.employee === 0
         ? {
             parts: [
@@ -87,6 +87,7 @@ export function CalendarPrototype() {
     resourceLabel: grouping === 'people' ? t.workers : t.zone,
     dates: dates.map((id) => ({ id, label: id, shortLabel: id.slice(8) })),
     emptyLabel: t.noAssignments,
+    moreItemsLabel: t.resourceMoreItems,
     resources: Array.from({ length: count }, (_, index) => ({
       id: String(index),
       title:
@@ -197,6 +198,11 @@ export function CalendarPrototype() {
                   <p>
                     Worker {selected.employee + 1} · Zone {selected.zone + 1}
                   </p>
+                  {selectedCell?.items
+                    .find((item) => item.id === selected.id)
+                    ?.parts?.map((part) => (
+                      <p key={part.id}>{part.label}</p>
+                    ))}
                   <DateField label={t.date} value={target} onChange={setTarget} />
                   <Feedback error={error || null} />
                   <Button disabled={target === selected.date} onClick={move}>

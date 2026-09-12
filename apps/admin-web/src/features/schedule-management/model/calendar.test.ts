@@ -80,6 +80,15 @@ const allItems = (model: ReturnType<typeof calendarModel>) =>
   model.resources.flatMap((row) => row.cells.flatMap((cell) => cell.items));
 
 describe('calendar projections', () => {
+  it('distinguishes day and night by tone independently of publication status', () => {
+    expect(allItems(calendarModel(base))[0]?.tone).toBe('indigo');
+    const day = calendarModel({
+      ...base,
+      templates: base.templates.map((template) => ({ ...template, isNight: false })),
+    });
+    expect(allItems(day)[0]?.tone).toBe('amber');
+    expect(allItems(calendarModel({ ...base, templates: [] }))[0]?.tone).toBe('neutral');
+  });
   it('keeps all seven dates across month/year and DST boundaries', () => {
     expect(calendarWeek('2026-09-30')).toEqual([
       '2026-09-28',
