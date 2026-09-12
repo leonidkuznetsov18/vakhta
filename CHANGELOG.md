@@ -1,3 +1,9 @@
+## [0.95.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.94.3...v0.95.0) (2026-09-12)
+
+### Features
+
+* **schedule:** add responsive resource calendar with sheet details ([d57d85b](https://github.com/leonidkuznetsov18/vakhta/commit/d57d85b1cd98a3036ed969363ad0c8841eec8764)), closes [#1](https://github.com/leonidkuznetsov18/vakhta/issues/1) [#5](https://github.com/leonidkuznetsov18/vakhta/issues/5) [#6](https://github.com/leonidkuznetsov18/vakhta/issues/6) [#54](https://github.com/leonidkuznetsov18/vakhta/issues/54)
+
 ## [0.94.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.94.2...v0.94.3) (2026-09-12)
 
 ### Documentation
