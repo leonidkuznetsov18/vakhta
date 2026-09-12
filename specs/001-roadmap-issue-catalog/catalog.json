@@ -1,0 +1,1283 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-12",
+  "repository": "leonidkuznetsov18/vakhta",
+  "source_revision": "3fdf2c7f98e11c83bddfaeda54eb870d6e97ce57",
+  "scope": "Issue catalog publication; issue completion describes product work, task completion describes publication.",
+  "items": [
+    {
+      "key": "schedule-epic",
+      "task": "T002",
+      "title": "Schedule | Epic | Redesign the planning calendar",
+      "area": "schedule",
+      "kind": "epic",
+      "status": "backlog",
+      "source_ids": [
+        "SC-01",
+        "SC-02",
+        "SC-03",
+        "SC-04",
+        "SC-05",
+        "SC-06",
+        "SC-07",
+        "SC-08",
+        "SC-09",
+        "SC-10",
+        "SC-11",
+        "SC-12",
+        "SC-13",
+        "SC-14",
+        "SC-15",
+        "SC-16",
+        "SC-17",
+        "SC-18",
+        "SC-19",
+        "SC-20",
+        "SC-21",
+        "SC-22",
+        "SC-23",
+        "SC-24",
+        "SC-25",
+        "SC-26",
+        "SC-27",
+        "SC-28",
+        "SC-29",
+        "SC-30",
+        "SC-31",
+        "SC-32",
+        "SC-33",
+        "SC-34",
+        "SC-35",
+        "SC-36",
+        "SC-37",
+        "SC-38",
+        "SC-39",
+        "SC-40",
+        "SC-41",
+        "SC-42",
+        "SC-43",
+        "SC-44",
+        "SC-45",
+        "SC-46",
+        "SC-47",
+        "SC-48",
+        "SC-49",
+        "SC-50"
+      ],
+      "scope": "Deliver the planned calendar in bounded streams. Preserve existing Schedule behavior and distinguish draft, published plan and recorded attendance. The current source is a proposal, not release evidence. SC-46–49 remain separately approved scope.",
+      "acceptance": [
+        "Each child has scope and acceptance evidence; existing journeys remain protected.",
+        "Close this epic only when all included children are completed or explicitly removed with a recorded scope decision."
+      ],
+      "depends_on": [],
+      "labels": ["area:schedule", "type:epic", "status:backlog"],
+      "parent": null,
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "ai-epic",
+      "task": "T003",
+      "title": "AI Master | Epic | Deliver evidence-linked assisted review",
+      "area": "ai-master",
+      "kind": "epic",
+      "status": "backlog",
+      "source_ids": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "B1",
+        "B2",
+        "B3",
+        "B4",
+        "B5",
+        "C1",
+        "C2",
+        "D1",
+        "D2",
+        "D3",
+        "E1"
+      ],
+      "scope": "Start with the selected handover pilot: Shadow → Assist. Reuse evidence, existing human decision services and durable background tasks. Incident/request expansion follows later. Autonomous actions remain separately authorized.",
+      "acceptance": [
+        "Evaluate on held-out and fresh evidence; report misses, false alarms, abstentions, latency and cost.",
+        "Human decisions remain authoritative; deferred autonomy must not be silently included in initial delivery."
+      ],
+      "depends_on": [],
+      "labels": ["area:ai-master", "type:epic", "status:backlog"],
+      "parent": null,
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "workforce-epic",
+      "task": "T004",
+      "title": "Workforce Platform | Epic | Evaluate Connecteam-inspired capabilities",
+      "area": "workforce",
+      "kind": "epic",
+      "status": "discovery",
+      "source_ids": [
+        "CT-01",
+        "CT-02",
+        "CT-03",
+        "CT-04",
+        "CT-05",
+        "CT-06",
+        "CT-07",
+        "CT-08",
+        "CT-09",
+        "CT-10",
+        "CT-11",
+        "CT-12",
+        "CT-13",
+        "CT-14",
+        "CT-15",
+        "CT-16",
+        "CT-17",
+        "CT-18",
+        "CT-19",
+        "CT-20",
+        "CT-21",
+        "CT-22",
+        "CT-23",
+        "CT-24",
+        "CT-25",
+        "CT-26",
+        "CT-27",
+        "CT-28",
+        "CT-29",
+        "CT-30",
+        "CT-31",
+        "CT-32",
+        "CT-33",
+        "CT-34",
+        "CT-35",
+        "CT-36",
+        "CT-37",
+        "CT-38",
+        "CT-39",
+        "CT-40",
+        "CT-41",
+        "CT-42",
+        "CT-43",
+        "CT-44",
+        "CT-45",
+        "CT-46",
+        "CT-47",
+        "CT-48",
+        "CT-49",
+        "CT-50",
+        "CT-51",
+        "CT-52",
+        "CT-53",
+        "CT-54",
+        "CT-55",
+        "CT-56",
+        "CT-57",
+        "CT-58",
+        "CT-59",
+        "CT-60",
+        "CT-61",
+        "CT-62",
+        "CT-63",
+        "CT-64",
+        "CT-65",
+        "CT-66",
+        "CT-67",
+        "CT-68",
+        "CT-69",
+        "CT-70",
+        "CT-71",
+        "CT-72",
+        "CT-73",
+        "CT-74",
+        "CT-75",
+        "CT-76",
+        "CT-77",
+        "CT-78",
+        "CT-79",
+        "CT-80",
+        "CT-81",
+        "CT-82",
+        "CT-83",
+        "CT-84",
+        "CT-85",
+        "CT-86",
+        "CT-87",
+        "CT-88",
+        "CT-89",
+        "CT-90"
+      ],
+      "scope": "Evaluate 18 capability areas from the 2026-09-12 comparison. Existing, partial and absent behavior are distinct. Research is not approval to build a competitor clone. F1 reliability belongs to existing scope; M1–M8 are candidate module boundaries.",
+      "acceptance": [
+        "Every CT-01–90 capability has a traceable assessment and a go/defer/reject decision before implementation.",
+        "Link overlapping Schedule/AI Master delivery instead of creating duplicate implementation tickets."
+      ],
+      "depends_on": [],
+      "labels": ["area:workforce", "type:epic", "status:discovery"],
+      "parent": null,
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "schedule-T-00",
+      "task": "T005",
+      "title": "Schedule | Policy decisions | Agree the first calendar slice and baseline",
+      "area": "schedule",
+      "kind": "decision",
+      "status": "needs-decision",
+      "source_ids": ["T-00"],
+      "scope": "Record accepted operating policies and a measured baseline of standard planning/replacement tasks; product + feature memory\n\nSource prerequisites: None. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "D-01–06 decisions resolved for the next stream; baseline task data and acceptance scenarios"
+      ],
+      "depends_on": [],
+      "labels": ["area:schedule", "type:decision", "status:needs-decision"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-component",
+      "task": "T006",
+      "title": "Schedule | Calendar component | Select and validate a reusable calendar engine",
+      "area": "schedule",
+      "kind": "decision",
+      "status": "needs-decision",
+      "source_ids": ["T-01", "SC-11", "SC-12", "SC-21", "SC-22", "SC-30", "SC-31"],
+      "scope": "Inspect installed primitives, compare maintained calendar libraries against actual Schedule needs, and record an ADR. No vendor or new dependency is selected by this issue. The reusable visual component must keep schedule rules, permissions and mutations in schedule-management.",
+      "acceptance": [
+        "Compare React 19/Vite integration, licenses and any paid resource features using official documentation.",
+        "Prototype resource grouping, day/week views, cross-month ranges, representative roster rendering, keyboard Move parity and a usable 390px day list.",
+        "Capture and inspect desktop/mobile prototypes; record measured constraints, chosen API and alternatives before production integration."
+      ],
+      "depends_on": ["schedule-T-00"],
+      "labels": ["area:schedule", "type:decision", "status:needs-decision"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-01",
+      "task": "T007",
+      "title": "Schedule | Calendar workspace | Build day and week planning with mobile views",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["T-01", "SC-11", "SC-12", "SC-21", "SC-30"],
+      "scope": "Schedule shell, day/week/mobile views, zone/people grouping, contextual edit and shared feedback; schedule-management + i18n\n\nSource prerequisites: T-00 for prototype scope. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "UX-05–08/10–14, desktop/mobile screenshots, keyboard and standard edit tests",
+        "SC-11: A context-created shift inherits the selected date/person/zone; edits preserve all untouched metadata and show their scope",
+        "SC-12: A master can open a zone/date and read its complete team; empty active zones remain visible",
+        "SC-21: Switching from zone to employee grouping preserves the period and uses the same assignments",
+        "SC-30: The primary day view works at 390px without page-level horizontal scrolling; create/replace/review remain usable with touch and keyboard"
+      ],
+      "depends_on": ["schedule-T-00", "schedule-component"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-02",
+      "task": "T008",
+      "title": "Schedule | Existing workflows | Preserve draft publication and worker acknowledgement",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": [
+        "T-02",
+        "SC-08",
+        "SC-09",
+        "SC-18",
+        "SC-19",
+        "SC-20",
+        "SC-24",
+        "SC-25",
+        "SC-28"
+      ],
+      "scope": "Preserve draft/review/history, templates, rotation, undo, notifications, personal plan and acknowledgement integration; existing schedule/bot owners\n\nSource prerequisites: T-01. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "AC-01/06/10, published diff, correct worker audience, superseded reminder and recovery tests",
+        "SC-08: Only affected recipients are admitted to existing notification delivery; queueing is not labelled delivery",
+        "SC-09: Draft edits remain unpublished; the permitted approver sees additions/removals/changes and affected people before publication",
+        "SC-18: An acknowledgement refers to the relevant publication/change; obsolete acknowledgement cannot confirm a new assignment",
+        "SC-19: Historical versions and decisions are read-only; navigation reveals actor/time/reason without replacing original evidence",
+        "SC-20: The bot reflects published time/zone, suppresses superseded or absence-covered reminders and does not expose other people's plans",
+        "SC-24: A standard shift remains creatable from a template; historical times remain stable when templates change",
+        "SC-25: A selected range follows a chosen cycle and anchor; fill-empty and replace have explicit, different previews",
+        "SC-28: Undo/redo restores assignment data, including zone and metadata; it never rolls back a published decision"
+      ],
+      "depends_on": ["schedule-T-01"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-03",
+      "task": "T009",
+      "title": "Schedule | Master proposals | Enforce scoped planning and approval authority",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["T-03", "SC-10"],
+      "scope": "Scoped master proposal workflow and server enforcement; auth/domain + scheduling\n\nSource prerequisites: D-01, T-02. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "Allowed/denied actor-scope-operation matrix, no bypass through direct API",
+        "SC-10: The accepted authority matrix is enforced server-side; a master cannot alter another zone or publish without an explicit grant"
+      ],
+      "depends_on": ["schedule-T-02"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-04",
+      "task": "T010",
+      "title": "Schedule | Draft reliability | Support full roster search and stale-save recovery",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["T-04", "SC-23", "SC-29"],
+      "scope": "Complete roster search and server revision/idempotency safeguards; API/contracts + schedule state\n\nSource prerequisites: T-01. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "Employee beyond 200 found, two-editor stale save rejected, draft retained, uncertain retry resolved",
+        "SC-23: Search can find an authorized employee beyond the first 200; totals, pagination and failures are accurate",
+        "SC-29: Reload restores a user-scoped draft; a stale server revision is rejected while retaining the local draft for reconciliation"
+      ],
+      "depends_on": ["schedule-T-01"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-05",
+      "task": "T011",
+      "title": "Schedule | Period planning | Coordinate cross-month reads and writes",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["T-05", "SC-22"],
+      "scope": "Cross-month day/week/fortnight/month reads and coordinated writes; scheduling/contracts + period model\n\nSource prerequisites: D-05, T-04. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "Month/year/DST boundary tests, all-version rollback on one failure, correct publication ownership",
+        "SC-22: A week spanning two months shows all dates; writes identify every affected version and never partially apply without an explicit outcome"
+      ],
+      "depends_on": ["schedule-T-04"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-06",
+      "task": "T012",
+      "title": "Schedule | Staffing demand | Model coverage norms and qualifications",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["T-06", "SC-01", "SC-04"],
+      "scope": "Effective staffing demand and qualifications; scheduling/domain/DB + configuration UI\n\nSource prerequisites: D-02, T-04. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "Unknown demand, role-specific shortage and expiring qualification cases with audited configuration",
+        "SC-01: With four required and three eligible assigned people, show one vacancy; missing norms show unknown, not sufficient",
+        "SC-04: A missing/expired required qualification blocks assignment under the approved policy; unknown qualification data is explicit"
+      ],
+      "depends_on": ["schedule-T-04"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-07",
+      "task": "T013",
+      "title": "Schedule | Eligibility | Explain conflicts rest limits and availability",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["T-07", "SC-02", "SC-05", "SC-06", "SC-17", "SC-33"],
+      "scope": "Eligibility, overlap, rest, hours and preferences; pure rules + transaction boundary + calendar explanations\n\nSource prerequisites: D-03, T-05, T-06. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "Real-DB concurrent assignment protection, threshold/boundary/unknown-data tests, explainable candidates",
+        "SC-02: Candidate selection explains eligibility and revalidates it at commit; stale candidates cannot create conflicts",
+        "SC-05: Overlapping active plans are rejected even when submitted concurrently; adjacent non-overlapping intervals remain valid",
+        "SC-06: Versioned configured limits produce actionable reasons at preview and commit, including overnight transitions",
+        "SC-17: Totals show units and the chosen period; exceeding a configured limit follows the approved blocking/approval policy",
+        "SC-33: Preferences stay distinct from approved leave; recurrence, scope and exceptions have explicit dates and timezone"
+      ],
+      "depends_on": ["schedule-T-05", "schedule-T-06"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-08",
+      "task": "T014",
+      "title": "Schedule | Open shifts | Collect interest and select eligible employees",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["T-08", "SC-15", "SC-16"],
+      "scope": "Open slots and employee interest/selection; scheduling + bot + durable effects\n\nSource prerequisites: D-06, T-02, T-07. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "Competing claims cannot double-fill; required approvals, employee response and delivery failure recover",
+        "SC-15: A slot can exist without a person, fills once, and is counted separately from assigned people and requirements",
+        "SC-16: Interest does not assign the slot; the authorized decision selects one candidate and preserves other responses/history"
+      ],
+      "depends_on": ["schedule-T-02", "schedule-T-07"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-09",
+      "task": "T015",
+      "title": "Schedule | Batch planning | Add patterns bulk changes and accessible moves",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["T-09", "SC-26", "SC-27", "SC-31"],
+      "scope": "Period patterns, batch operations and accessible drag; schedule model/UI + saved-pattern persistence\n\nSource prerequisites: T-04, T-05, T-07. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "Exact diff preserves exceptions, drag/Move parity, fill/replace/undo and stale baseline cases",
+        "SC-26: Copy maps source to target dates, exposes absences/inactive entities/conflicts and does not publish automatically",
+        "SC-27: Preview gives exact additions/removals/changes; filters do not silently narrow or erase unrelated assignments",
+        "SC-31: Drag and the explicit Move action invoke equivalent validation/preview; invalid drops leave the plan unchanged"
+      ],
+      "depends_on": ["schedule-T-04", "schedule-T-05", "schedule-T-07"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-10",
+      "task": "T016",
+      "title": "Schedule | Assignment time | Support custom hours and linked work segments",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["T-10", "SC-32", "SC-37"],
+      "scope": "Custom assignment time and segmented work; contracts/domain/DB + scheduling + dependent attendance/reminder consumers\n\nSource prerequisites: D-04, T-05, T-07. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "Safe migration, whole/segment preview, unchanged history, custom start reminder and closure/admission agreement",
+        "SC-32: A custom time retains template provenance, handles next-day end times and reaches reminders/attendance planning consistently",
+        "SC-37: The full shift and each segment are identifiable; split/link previews preserve duration and explain every affected person/zone"
+      ],
+      "depends_on": ["schedule-T-05", "schedule-T-07"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-11",
+      "task": "T017",
+      "title": "Schedule | Workload and relief | Show distribution and planned break coverage",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["T-11", "SC-35", "SC-36"],
+      "scope": "Break/relief planning and workload distribution; scheduling rules + calendar\n\nSource prerequisites: D-04, T-07, T-10. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "Coverage during breaks, no actual-event rewrite, explicit comparison cohort and units",
+        "SC-35: Comparisons state period and eligible cohort, respect agreements and do not present a fairness score as an objective verdict",
+        "SC-36: Planned relief is included in staffing calculations; planned breaks never rewrite actual break events"
+      ],
+      "depends_on": ["schedule-T-07", "schedule-T-10"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-12",
+      "task": "T018",
+      "title": "Schedule | Operational context | Connect absences requests swaps and borrowing",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["T-12", "SC-03", "SC-07", "SC-13", "SC-14", "SC-34", "SC-38"],
+      "scope": "Attendance/absence overlays, requests/swaps and borrowing context; page composition + existing workflow public APIs\n\nSource prerequisites: D-06, T-03, T-07, T-08. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "Approved/pending/unknown distinctions, all approval routes, source-unit scope and atomic multi-month effects",
+        "SC-03: An approved absence covering the relevant business date is visible; pending/rejected states stay distinct and private attachments stay hidden",
+        "SC-07: Scheduled, acknowledged, started and unknown-presence states differ; missing QR evidence is not a proven no-show",
+        "SC-13: Both assignments change atomically through the existing request route; rejection changes neither",
+        "SC-14: The action opens the correct request workflow and coverage impact; it cannot silently correct attendance",
+        "SC-34: Only the current permitted approval step is actionable; request and all affected schedule changes remain atomic",
+        "SC-38: Source unit and its staffing impact are visible to authorized users; both scopes and the agreed approval route are checked at commit"
+      ],
+      "depends_on": ["schedule-T-03", "schedule-T-07", "schedule-T-08"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-13",
+      "task": "T019",
+      "title": "Schedule | Records and output | Add notes linked evidence reports print and export",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["T-13", "SC-39", "SC-40", "SC-41", "SC-42", "SC-43", "SC-50"],
+      "scope": "Notes, linked records, retrospective reports, print/export and justified typed fields; owning feature APIs + schedule composition\n\nSource prerequisites: T-05, T-10, T-12. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "Restricted-data checks, historical semantics, complete output, formula-safe export, long-data layouts",
+        "SC-39: Notes have clear audience and visibility; long text cannot stretch the page or disclose restricted information",
+        "SC-40: A link opens the correct permitted record; the calendar does not duplicate checklist or handover completion logic",
+        "SC-41: Reports distinguish planned time, recorded work and unknown departure; they do not infer OEE or employee fault",
+        "SC-42: Print includes period, timezone, publication identity and creation time; unpublished output is clearly marked",
+        "SC-43: Export uses the requested complete scope and states filters/version/units; it does not expose hidden records or execute spreadsheet formulas",
+        "SC-50: Each field has a defined meaning/type/audience; historical values remain interpretable and standard shifts need no unnecessary input"
+      ],
+      "depends_on": ["schedule-T-05", "schedule-T-10", "schedule-T-12"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-14",
+      "task": "T020",
+      "title": "Schedule | Personal feeds and proposals | Offer revocable calendars and reviewed allocation",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["T-14", "SC-44", "SC-45"],
+      "scope": "Revocable personal feed and explainable proposed slot allocation; scheduling + feed + proposal model\n\nSource prerequisites: T-07, T-08, T-13 for export identity. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "Own published data only, revoked feed denied, stable event updates; proposal cannot bypass rules or self-publish",
+        "SC-44: Only the employee's published assignments are exposed; access is revocable, updates retain identity and sync delay is explained",
+        "SC-45: A person reviews an explainable diff; infeasible slots remain explicit and no automatic publication or AI decision occurs"
+      ],
+      "depends_on": ["schedule-T-07", "schedule-T-08", "schedule-T-13"],
+      "labels": ["area:schedule", "type:feature", "status:backlog"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "schedule-T-15",
+      "task": "T021",
+      "title": "Schedule | Forecasts and costs | Define separately approved HR and financial scope",
+      "area": "schedule",
+      "kind": "feature",
+      "status": "deferred",
+      "source_ids": ["T-15", "SC-46", "SC-47", "SC-48", "SC-49"],
+      "scope": "Separately scoped demand forecasts, planned/actual costs and HR/payroll exchange\n\nSource prerequisites: D-07 plus approved data/contracts and cost model. Each stream is split into a bounded accepted implementation specification before coding.",
+      "acceptance": [
+        "Separate specification, input quality, reconciliation, financial/privacy/integration invariant review",
+        "SC-46: **Separate scope approval:** define input quality and approved norms; missing workload data never becomes invented demand",
+        "SC-47: **Separate scope approval:** version rates/rules, currencies and access; estimates are not payroll calculations",
+        "SC-48: **Separate scope approval:** comparable approved inputs expose missing/unapproved actuals instead of misleading totals",
+        "SC-49: **Separate scope approval:** identify the actual system, contract, owner, reconciliation and retry behavior before integration"
+      ],
+      "depends_on": [],
+      "labels": ["area:schedule", "type:feature", "status:deferred", "scope:separate-approval"],
+      "parent": "schedule-epic",
+      "sources": [
+        "docs/features/schedule-calendar-redesign.md",
+        "docs/engineering/features/schedule-calendar-redesign.md"
+      ]
+    },
+    {
+      "key": "ai-A1",
+      "task": "T022",
+      "title": "AI Master | Pilot evidence | Curate and reconcile the handover evaluation set",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["A1"],
+      "scope": "Curate pilot inventory and reconcile contradictory handover/photo product docs\n\nSource prerequisites: Current inventory. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "Classify 10 reports/24 photos as operational/test/unknown; preserve raw data, identify held-out groups; no assumed 100-200 examples",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": [],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p0"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-A2",
+      "task": "T023",
+      "title": "AI Master | Access boundaries | Enforce full grants on records photos and actions",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["A2"],
+      "scope": "Repair scoped handover/photo/media reads and actions using full grants; later apply same boundary to incidents/requests and their streams\n\nSource prerequisites: None. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "Cross-site/unit and direct-ID/media/export tests fail closed, including missing zone; one independent access review",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": [],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p0"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-A3",
+      "task": "T024",
+      "title": "AI Master | Vision reliability | Represent incomplete and invalid evidence conservatively",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["A3"],
+      "scope": "Make the existing vision contract conservative: explicit coverage/invalid/partial states; retain old runs by prompt version\n\nSource prerequisites: None. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "Tests for missing quality, malformed boxes, empty response, partially unreadable image, detection truncation and no-rule cases; none can auto-approve",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": [],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p0"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-A4",
+      "task": "T025",
+      "title": "AI Master | Provider reliability | Bound attempted calls quota and queue costs",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["A4"],
+      "scope": "Diagnose provider quota/unavailable results; add attempted-call budget, manual reservation and bounded queue policy; centralize model/prompt config\n\nSource prerequisites: A1, A3. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "Provider settings verified without secrets; bounded authorized probe/eval succeeds or exact blocker recorded; compare latency and cost on pilot, not pooled historical versions",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": ["ai-A1", "ai-A3"],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p0"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-B1",
+      "task": "T026",
+      "title": "AI Master | Review policy | Version criteria and reference-photo mapping",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["B1"],
+      "scope": "Publish pilot review policy and explicit item/reference mapping; preserve family object rules\n\nSource prerequisites: A1. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "All three photo points have defined required view/criteria; one reference is insufficient for other points; version reorder cannot silently remap rules/reference",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": ["ai-A1"],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p1"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-B2",
+      "task": "T027",
+      "title": "AI Master | Review contracts | Persist scoped snapshots policies and results",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["B2"],
+      "scope": "Add run/policy schema, typed snapshot/result contracts and scope-aware context builder\n\nSource prerequisites: A2, B1. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "SQL target/state/uniqueness checks plus boundary tests; no medical content or signed URLs in snapshots; incomplete evidence explicitly represented",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": ["ai-A2", "ai-B1"],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p1"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-B3",
+      "task": "T028",
+      "title": "AI Master | Durable processing | Admit and recover automatic handover reviews",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["B3"],
+      "scope": "Factor shared photo admission, add MASTER_REVIEW durable admission/readiness/reconciliation and worker runner\n\nSource prerequisites: A3, A4, B2. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "Submit without opening editor starts review; duplicate submits/restarts/media delays/quota exhaustion are recoverable; disabled pilot admits nothing",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": ["ai-A3", "ai-A4", "ai-B2"],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p1"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-B4",
+      "task": "T029",
+      "title": "AI Master | Shadow review | Assess complete reports with linked evidence",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["B4"],
+      "scope": "Add deterministic whole-report reviewer plus necessary synthesis; link original photo runs and evidence\n\nSource prerequisites: B3. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "Each configured criterion checked or marked unknown; cannot-complete/unsafe/unsure/missing-view cases escalate; no operational writes in shadow",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": ["ai-B3"],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p1"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-B5",
+      "task": "T030",
+      "title": "AI Master | Evaluation | Replay frozen evidence without reference leakage",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["B5"],
+      "scope": "Add isolated historical replay/evaluation and baseline report\n\nSource prerequisites: A1, B4. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "Freeze inputs/policies/model versions; split near-duplicates/shift groups; evaluate photo findings and final action separately; retrospective future information never leaks into input",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": ["ai-A1", "ai-B4"],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p1"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-C1",
+      "task": "T031",
+      "title": "AI Master | Master workspace | Show findings and capture human corrections",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["C1"],
+      "scope": "Integrate findings in existing handover row; store master corrections and decision links\n\nSource prerequisites: B4, B5. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "Visible sources, actionable recommendation, loading/offline/failure/stale states; human remains decision author; desktop/mobile and focused decision flow checks",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": ["ai-B4", "ai-B5"],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p1"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-C2",
+      "task": "T032",
+      "title": "AI Master | Decision safety | Recheck freshness and apply actions transactionally",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["C2"],
+      "scope": "Add freshness/application envelope and transactional service internals, action receipt and audit provenance\n\nSource prerequisites: C1. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "Changing photo, rule, status or reference invalidates apply; duplicate command gives one decision/point/outbox intent; human-v-agent race has one winner; invariant tests and independent review",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": ["ai-C1"],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p1"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-D1",
+      "task": "T033",
+      "title": "AI Master | Incident assistance | Add scoped triage and related-case evidence",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["D1"],
+      "scope": "Add incident context, bounded related-case query, triage/synthesis and UI block\n\nSource prerequisites: B2, B5, C1; incident part of A2. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "Only authorized related cases; drafts not treated as confirmed repairs; severity floor retained; no autonomous resolve/merge; SLA remains active",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": ["ai-B2", "ai-B5", "ai-C1", "ai-A2"],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p2"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-D2",
+      "task": "T034",
+      "title": "AI Master | Request assistance | Review the current approval step with verified context",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["D2"],
+      "scope": "Add selected master-step request review and UI block; deterministic time/schedule preview where needed\n\nSource prerequisites: B2, B5, C1; request part of A2. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "Correct current step, no counterpart/HR bypass, no guessed minute allowance, synthetic edge cases plus all eligible real examples; medical content excluded",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": ["ai-B2", "ai-B5", "ai-C1", "ai-A2"],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p2"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-D3",
+      "task": "T035",
+      "title": "AI Master | Human escalation | Route urgent findings with delivery evidence",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "backlog",
+      "source_ids": ["D3"],
+      "scope": "Establish reliable human escalation channel before unattended operation\n\nSource prerequisites: D1; owner channel choice. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "Queue has responsible recipient and due state; chosen external channel has explicit routing/delivery failure handling; WEB_USER skip no longer mistaken for delivery",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": ["ai-D1"],
+      "labels": ["area:ai-master", "type:feature", "status:backlog", "priority:p2"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ai-E1",
+      "task": "T036",
+      "title": "AI Master | Limited autonomy | Gate allowlisted actions behind explicit approval",
+      "area": "ai-master",
+      "kind": "feature",
+      "status": "deferred",
+      "source_ids": ["E1"],
+      "scope": "Enable allowlisted automatic application for evaluated categories only\n\nSource prerequisites: C2, B5 and each category's D tasks/D3 as needed. The source inventory is a dated snapshot; recheck the affected code and evidence before implementation. No production inference, operational mutation or autonomous decision is authorized by catalog publication.",
+      "acceptance": [
+        "Category thresholds met on held-out and fresh data; policy locks, command dedupe, kill switch checked immediately before commit; sampled human audit and rollback to ASSIST verified",
+        "Preserve evidence provenance and human decision ownership; missing or stale evidence cannot become a clean result."
+      ],
+      "depends_on": ["ai-C2", "ai-B5", "ai-D3"],
+      "labels": ["area:ai-master", "type:feature", "status:deferred", "scope:separate-approval"],
+      "parent": "ai-epic",
+      "sources": ["docs/features/master-agent.md", "docs/engineering/features/master-agent.md"]
+    },
+    {
+      "key": "ct-01-05",
+      "task": "T037",
+      "title": "Workforce Platform | Attendance | Assess remaining clock and timesheet gaps",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-01", "CT-02", "CT-03", "CT-04", "CT-05"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-01 | Mobile/desktop clock-in and current attendance | Partial | QR/Telegram attendance and live panel; not direct desktop worker clocking. |\n| CT-02 | Time by jobs, projects, clients and sub-jobs | Partial | Time by employee, shift, zone and activity; no generic client/project hierarchy. |\n| CT-03 | Paid/unpaid breaks and automatic deductions | Partial | Break/meal intervals and reminders; no configurable wage deduction policy engine. |\n| CT-04 | Timesheets, correction requests and manager editing | Present | Audited corrections and shift summaries. |\n| CT-05 | Shift notes and attachments including signatures | Partial | Comments and handover photos; no employee e-signature. |\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": [],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-06-10",
+      "task": "T038",
+      "title": "Workforce Platform | Presence verification | Validate a need for alternatives to QR",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "deferred",
+      "source_ids": ["CT-06", "CT-07", "CT-08", "CT-09", "CT-10"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-06 | Shared PIN/selfie kiosk with automatic logout | Partial | Paired rotating-QR display that opens Telegram; no PIN/selfie shared worker session. |\n| CT-07 | Restrict attendance to selected interfaces | Partial | QR verification plus audited master fallback; no configurable interface policy builder. |\n| CT-08 | GPS stamps, maps and geofences | Not found | No location-based attendance implementation identified. |\n| CT-09 | Breadcrumbs and automatic clock-out rules | Partial | Automatic closure and unknown-departure reconciliation; no movement tracking/geofence closure. |\n| CT-10 | NFC site/job tags and external scan events | Not found | Current terminal workflow uses QR. |\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": [],
+      "labels": [
+        "area:workforce",
+        "type:discovery",
+        "status:deferred",
+        "source:connecteam",
+        "scope:separate-approval"
+      ],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-11-15",
+      "task": "T039",
+      "title": "Workforce Platform | Payroll and reporting | Separate reporting needs from payroll expansion",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "deferred",
+      "source_ids": ["CT-11", "CT-12", "CT-13", "CT-14", "CT-15"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-11 | Payroll periods, reminders and timesheet-day locking | Partial | Bonus period finalization; not general payroll/timesheet locking. |\n| CT-12 | Pay rates and overtime/payment rules | Partial | Overtime duration/approval and bonus rules; no payroll engine. |\n| CT-13 | Timesheet and labor report export | Partial | CSV/XLSX interval-loss reports and bonus/history exports; not equivalent wage-cost reports. |\n| CT-14 | Scheduled attendance/payroll report delivery | Not found | On-demand exports exist; no user-configurable report distribution found. |\n| CT-15 | Payroll integrations and supported payslip connections | Not found | No supported external payroll adapter identified. |\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": [],
+      "labels": [
+        "area:workforce",
+        "type:discovery",
+        "status:deferred",
+        "source:connecteam",
+        "scope:separate-approval"
+      ],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-16-20",
+      "task": "T040",
+      "title": "Workforce Platform | Schedule creation | Map competitor planning gaps to the calendar epic",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-16", "CT-17", "CT-18", "CT-19", "CT-20"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-16 | Day/week/month calendars and draft/published shifts | Present | Zone views and worker matrix with versioned publication. |\n| CT-17 | Repeating shifts, templates and schedule reuse | Partial | Shift templates and rotation fill; cross-month date-shifting copy not verified. |\n| CT-18 | Bulk schedule changes and spreadsheet import/export | Partial | Bulk fill/replace, preview and undo; no general schedule spreadsheet import found. |\n| CT-19 | Shift jobs, sites, custom fields, files and shortcuts | Partial | Employee/zone/template assignments; no generic rich shift-attachment/custom-field builder. |\n| CT-20 | Confirm/reject shifts, notifications and live share links | Partial | Acknowledgment and cannot-attend requests; no public live schedule link/calendar sync found. Acknowledgment administration is not fully exposed in current workspace. |\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": ["schedule-T-01", "schedule-T-02", "schedule-T-09", "schedule-T-13"],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-21-25",
+      "task": "T041",
+      "title": "Workforce Platform | Staffing and coverage | Validate qualifications shortages and reviewed allocation",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-21", "CT-22", "CT-23", "CT-24", "CT-25"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-21 | Open shifts, claims and manager approval | Partial | Extra-shift requests; no published open-shift marketplace. |\n| CT-22 | Swaps and employee availability | Partial | Consent-based shift swaps and absence requests; no recurring preference/availability calendar. |\n| CT-23 | Qualification-based assignment eligibility | Not found | Positions exist; certified skill eligibility does not. |\n| CT-24 | Coverage/conflict/rest/hour rules and warnings | Partial | Basic assignment validation and counts; no required staffing baseline or comprehensive scheduling-rule engine. |\n| CT-25 | Automatic staffing assignment | Not found | Deterministic rotation fill is not a staffing optimizer. |\n\nCandidate modules: M3, M4, M7. These are discovery boundaries, not commitments.\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": ["schedule-T-06", "schedule-T-07", "schedule-T-08", "schedule-T-14"],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-26-30",
+      "task": "T042",
+      "title": "Workforce Platform | Forms | Validate repeated workflows before extending checklist fields",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-26", "CT-27", "CT-28", "CT-29", "CT-30"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-26 | Reusable form/checklist builder and templates | Partial | Admin-configurable, immutable-versioned production checklists. |\n| CT-27 | Text, choice, numeric/date, media, signature and location fields | Partial | CHECK, NOTE and PHOTO only; broader field types not found. |\n| CT-28 | Required fields and configurable conditional questions | Partial | Required photos/answers and fixed domain branches; no arbitrary condition builder. |\n| CT-29 | Calculated/formula fields | Not found | No generic formula field implementation. |\n| CT-30 | Voice form answers and AI file-to-form conversion | Not found | Support voice Q&A is separate from form entry or form generation. |\n\nCandidate modules: M5. These are discovery boundaries, not commitments.\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": [],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-31-35",
+      "task": "T043",
+      "title": "Workforce Platform | Submission workflows | Validate routing reminders and export gaps",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-31", "CT-32", "CT-33", "CT-34", "CT-35"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-31 | Submission tables, filters and insights | Present | Handover, incident and photo review lists; domain-specific rather than arbitrary forms. |\n| CT-32 | Approval/rejection and manager status/comments | Present | Master decisions, remarks and preserved review history. |\n| CT-33 | Automatic routing or external email sharing | Partial | Fixed domain routes and Telegram notifications; no configurable external sharing. |\n| CT-34 | Reminders, submission limits/windows and follow-up | Partial | Domain deadlines/reminders/guards; no general form policy builder. |\n| CT-35 | Form PDF/Excel exports and scheduled summaries | Partial | Domain exports exist; no arbitrary submitted-form PDF/Excel and scheduled-summary engine. |\n\nCandidate modules: M5. These are discovery boundaries, not commitments.\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": [],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-36-40",
+      "task": "T044",
+      "title": "Workforce Platform | Operational tasks | Define accountable follow-up from finding to closure",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-36", "CT-37", "CT-38", "CT-39", "CT-40"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-36 | Ad hoc tasks with owner, start/due dates and location | Not found | Incidents and requests exist, but no general operational task model. |\n| CT-37 | Group tasks and per-worker task copies | Not found | No user-facing general task assignment system. |\n| CT-38 | Subtasks, attachments and task discussions | Not found | Evidence/history belong to incidents and handovers instead. |\n| CT-39 | Recurring daily/weekly/monthly tasks | Not found | Technical background jobs are not employee tasks. |\n| CT-40 | Progress, overdue views, labels, exports and shift tasks | Partial | Action queues and domain checklists; no general task lifecycle. |\n\nCandidate modules: M1. These are discovery boundaries, not commitments.\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": ["ai-D1"],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-41-45",
+      "task": "T045",
+      "title": "Workforce Platform | Internal chat | Assess gaps beyond current Telegram communication",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "deferred",
+      "source_ids": ["CT-41", "CT-42", "CT-43", "CT-44", "CT-45"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-41 | Private chats, team chats and broadcast channels | Partial | Admin-to-one-employee Telegram messages; no built-in corporate chat/channel model. |\n| CT-42 | Media, polls and read receipts | Partial | Domain media and sent-message tracking; no polls or Telegram read receipts. |\n| CT-43 | Scheduled messages, pinning and deep links | Partial | Domain reminders/deep links; no general scheduled conversation tools. |\n| CT-44 | Communication permissions and team restrictions | Partial | Roles restrict existing message action; no team-chat policy system. |\n| CT-45 | AI translation and voice-message transcripts | Not found | Support voice processing is a different flow. |\n\nCandidate modules: M6. These are discovery boundaries, not commitments.\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": [],
+      "labels": [
+        "area:workforce",
+        "type:discovery",
+        "status:deferred",
+        "source:connecteam",
+        "scope:separate-approval"
+      ],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-46-50",
+      "task": "T046",
+      "title": "Workforce Platform | Targeted announcements | Validate instruction delivery and acknowledgement",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-46", "CT-47", "CT-48", "CT-49", "CT-50"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-46 | Company feed with posts, media and engagement | Not found | No announcement/feed publishing model. |\n| CT-47 | Read analytics and mandatory acknowledgment | Partial | Schedule-specific acknowledgment only; message sent status is not acknowledgment. |\n| CT-48 | Scheduled/recurring targeted posts and topics | Not found | No configurable announcement campaigns. |\n| CT-49 | Anonymous surveys and live polls | Not found | Photo AI-feedback rating is not an employee survey module. |\n| CT-50 | Events, RSVP, capacity and participant export | Not found | No corporate event-management flow. |\n\nCandidate modules: M2, M6. These are discovery boundaries, not commitments.\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": ["schedule-T-02"],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-51-55",
+      "task": "T047",
+      "title": "Workforce Platform | Directory and help desk | Validate worker lookup and accountable support routes",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-51", "CT-52", "CT-53", "CT-54", "CT-55"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-51 | Searchable employee directory | Partial | Admin employee records/contact links; no employee-facing directory. |\n| CT-52 | External work contacts | Not found | No supplier/departmental contact directory model. |\n| CT-53 | Contact/profile visibility controls | Partial | Role/scope access exists; no configurable employee-directory field visibility. |\n| CT-54 | Department help desks with representatives | Partial | Structured requests and product support; no configurable departmental desks. |\n| CT-55 | Help-desk assignment and query tracking | Partial | Fixed request routing/history; no agent-assigned threaded help-desk workflow. |\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": [],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-56-60",
+      "task": "T048",
+      "title": "Workforce Platform | Knowledge and company AI | Define versioned instructions and scoped answers",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-56", "CT-57", "CT-58", "CT-59", "CT-60"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-56 | Company knowledge folders, pages, files and links | Partial | Product guides/FAQ; no admin-editable company SOP library. |\n| CT-57 | Knowledge assignment by worker/group | Not found | No general content-assignment workflow. |\n| CT-58 | Knowledge search/read insights | Partial | AI product Q&A; no company KB readership dashboard. |\n| CT-59 | Source-based company AI agents and custom instructions | Partial | Implemented product help assistant; no live shift/employee/score access or arbitrary company resource selection. |\n| CT-60 | Multiple targeted agents and automatic knowledge updates | Partial | Repository knowledge loading exists; no admin-created agent catalogue. |\n\nCandidate modules: M2, M8. These are discovery boundaries, not commitments.\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": ["ai-B2", "ai-C1"],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-61-65",
+      "task": "T049",
+      "title": "Workforce Platform | Learning and qualifications | Define training evidence needed for role eligibility",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-61", "CT-62", "CT-63", "CT-64", "CT-65"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-61 | Courses with text, files, videos, forms and quizzes | Not found | Product help is not tracked learning. |\n| CT-62 | Sections, ordered release and deadlines | Not found | No learning assignment/completion model. |\n| CT-63 | Read/watch confirmation and completion tracking | Not found | No employee training completion ledger. |\n| CT-64 | Quizzes, pass marks, attempts and result exports | Not found | No employee assessment system. |\n| CT-65 | Course templates and AI course creation | Not found | First establish useful training before AI generation. |\n\nCandidate modules: M3. These are discovery boundaries, not commitments.\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": ["schedule-T-06"],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-66-70",
+      "task": "T050",
+      "title": "Workforce Platform | Employee documents | Validate document expiry and qualification evidence",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-66", "CT-67", "CT-68", "CT-69", "CT-70"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-66 | Document packs and employee uploads | Partial | Restricted sick-leave attachments only; no general employee document packs. |\n| CT-67 | Review, permissions and missing-document visibility | Partial | Sensitive attachment access exists; no general document checklist. |\n| CT-68 | Expiry dates and renewal follow-up | Not found | No certificate/license expiry registry. |\n| CT-69 | Fillable/signable PDF and profile prefill | Not found | No employee e-sign workflow. |\n| CT-70 | Multiple signers, signing order and audit | Not found | Audit logs are not document signing. |\n\nCandidate modules: M3. These are discovery boundaries, not commitments.\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work.",
+        "Separate document expiry/qualification proof from e-signatures and broad HR administration; never expose medical content to operational AI."
+      ],
+      "depends_on": [],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-71-75",
+      "task": "T051",
+      "title": "Workforce Platform | Leave administration | Validate needs beyond existing absence approvals",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "deferred",
+      "source_ids": ["CT-71", "CT-72", "CT-73", "CT-74", "CT-75"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-71 | Paid/unpaid categories and leave requests | Partial | Fixed vacation/sick/day-off request types; no customizable entitlement policies. |\n| CT-72 | Approve/decline with available balances | Partial | Approval exists; accrued available balance does not. |\n| CT-73 | Hourly/day accrual and tenure-based allowance | Not found | No accrual ledger or policy engine. |\n| CT-74 | Carryover, negative balance and request-limit policies | Not found | No configurable entitlement rules. |\n| CT-75 | Attachments, history, balance export and schedule visibility | Partial | Attachments/history and approved schedule changes; no balance log. |\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": ["schedule-T-12"],
+      "labels": [
+        "area:workforce",
+        "type:discovery",
+        "status:deferred",
+        "source:connecteam",
+        "scope:separate-approval"
+      ],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-76-80",
+      "task": "T052",
+      "title": "Workforce Platform | Hiring and onboarding | Separate onboarding needs from recruitment expansion",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-76", "CT-77", "CT-78", "CT-79", "CT-80"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-76 | Public vacancies, application fields and CV uploads | Not found | No candidate/application system. |\n| CT-77 | Candidate stages, notes and rejection reasons | Not found | No recruiting pipeline. |\n| CT-78 | Convert successful applicant to employee | Not found | Employee import/create exists, not candidate conversion. |\n| CT-79 | Onboarding packs: information, documents, policies, tasks | Not found | Telegram activation is identity linking, not onboarding. |\n| CT-80 | Onboarding completion, missing items and approval/reopen | Not found | No onboarding process state. |\n\nCandidate modules: M3. These are discovery boundaries, not commitments.\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work.",
+        "Prioritize a demonstrated onboarding/qualification need; recruitment pipeline expansion remains deferred pending a separate decision."
+      ],
+      "depends_on": [],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-81-85",
+      "task": "T053",
+      "title": "Workforce Platform | Organization and access | Validate targeting and directory gaps within existing scopes",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-81", "CT-82", "CT-83", "CT-84", "CT-85"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-81 | Custom profiles, tags and automatic Smart Groups | Partial | Fixed employee fields and dated structural assignments; no custom-field/group rule engine. |\n| CT-82 | Org chart and hierarchy export | Partial | Organization/manager relationships exist; no org-chart visualization/export found. |\n| CT-83 | Unified employee timeline | Partial | Position history, bonus history and audit; no consolidated HR timeline. |\n| CT-84 | Recognition, celebrations and gift-card rewards | Partial | Operational points/awards/monthly nominations; no gift redemption or birthday automation. |\n| CT-85 | Web/mobile admin, branding, access, logs, SSO and app lock | Partial | Responsive panel, roles/scopes, audit, TOTP; no native admin app or SSO/SAML/OIDC integration found. |\n\nCandidate modules: M6. These are discovery boundaries, not commitments.\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work."
+      ],
+      "depends_on": [],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    },
+    {
+      "key": "ct-86-90",
+      "task": "T054",
+      "title": "Workforce Platform | Automation and delivery | Prioritize reliable notifications before platform expansion",
+      "area": "workforce",
+      "kind": "discovery",
+      "status": "discovery",
+      "source_ids": ["CT-86", "CT-87", "CT-88", "CT-89", "CT-90"],
+      "scope": "Assessment of the 2026-09-12 research snapshot, not an approved implementation request. Recheck the selected current code and official competitor documentation before deciding.\n\n| Source ID | Capability | Vakhta baseline | Observed scope |\n| --- | --- | --- | --- |\n| CT-86 | Cross-module trigger/action workflows | Partial | Fixed domain transitions, timers, outbox and recovery; no user-configurable automation builder. |\n| CT-87 | Conditions, delays, recurrence, AI building and run logs | Partial | Fixed execution infrastructure; no general business-flow editor. |\n| CT-88 | Messages, SMS, phone calls and NFC triggers | Partial | Telegram transport exists; SLA event persistence is not proof of delivered escalation; no SMS/call/NFC stack found. |\n| CT-89 | AI content drafting, translation and generation | Partial | Product support and specialized photo analysis; no announcement/form/course generator. |\n| CT-90 | Public APIs, webhooks, Zapier and payroll/HR/POS adapters | Partial | Internal authenticated HTTP APIs and Telegram/provider integrations; no packaged customer integration platform. |\n\nCandidate modules: F1, M8. These are discovery boundaries, not commitments.\n\nCorporate chat/social features, tracking/NFC/biometrics, hiring/leave accrual/e-signatures, general builders and payroll/integrations require demonstrated need and separate scope decisions. Existing behavior must not be reimplemented merely for parity.",
+      "acceptance": [
+        "For every listed capability record retain/link-existing, bounded gap to build, defer or reject, with repository evidence and rationale.",
+        "Identify the operational actor, repeated problem, current workaround and smallest useful workflow; record permissions, failure handling and measurable pilot evidence without invented targets.",
+        "For any go decision write a bounded product specification, technical plan and task list with ownership, acceptance criteria, support impact and agreed scope before implementation.",
+        "Link Schedule/AI Master overlaps and preserve their authority, evidence and dependency gates; do not count baseline Present/Partial as newly shipped work.",
+        "F1: trace an existing notification from event to named recipient, delivery, acknowledgement and fallback; sending is not proof of receipt. Reliability corrections to agreed behavior remain existing scope."
+      ],
+      "depends_on": ["schedule-T-02", "ai-D3"],
+      "labels": ["area:workforce", "type:discovery", "status:discovery", "source:connecteam"],
+      "parent": "workforce-epic",
+      "sources": ["docs/research/2026-09-12-connecteam-functionality.md"]
+    }
+  ]
+}

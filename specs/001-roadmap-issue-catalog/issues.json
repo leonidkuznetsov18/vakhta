@@ -1,0 +1,317 @@
+{
+  "schedule-epic": {
+    "number": 1,
+    "id": 5435915595,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/1"
+  },
+  "ai-epic": {
+    "number": 2,
+    "id": 5435915728,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/2"
+  },
+  "workforce-epic": {
+    "number": 3,
+    "id": 5435916014,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/3"
+  },
+  "schedule-T-00": {
+    "number": 4,
+    "id": 5435916166,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/4",
+    "parent_verified": 1
+  },
+  "schedule-component": {
+    "number": 5,
+    "id": 5435916573,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/5",
+    "parent_verified": 1
+  },
+  "schedule-T-01": {
+    "number": 6,
+    "id": 5435917131,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/6",
+    "parent_verified": 1
+  },
+  "schedule-T-02": {
+    "number": 7,
+    "id": 5435917513,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/7",
+    "parent_verified": 1
+  },
+  "schedule-T-03": {
+    "number": 8,
+    "id": 5435918033,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/8",
+    "parent_verified": 1
+  },
+  "schedule-T-04": {
+    "number": 9,
+    "id": 5435918406,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/9",
+    "parent_verified": 1
+  },
+  "schedule-T-05": {
+    "number": 10,
+    "id": 5435918918,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/10",
+    "parent_verified": 1
+  },
+  "schedule-T-06": {
+    "number": 11,
+    "id": 5435919309,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/11",
+    "parent_verified": 1
+  },
+  "schedule-T-07": {
+    "number": 12,
+    "id": 5435919835,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/12",
+    "parent_verified": 1
+  },
+  "schedule-T-08": {
+    "number": 13,
+    "id": 5435920276,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/13",
+    "parent_verified": 1
+  },
+  "schedule-T-09": {
+    "number": 14,
+    "id": 5435920825,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/14",
+    "parent_verified": 1
+  },
+  "schedule-T-10": {
+    "number": 15,
+    "id": 5435921234,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/15",
+    "parent_verified": 1
+  },
+  "schedule-T-11": {
+    "number": 16,
+    "id": 5435921744,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/16",
+    "parent_verified": 1
+  },
+  "schedule-T-12": {
+    "number": 17,
+    "id": 5435922170,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/17",
+    "parent_verified": 1
+  },
+  "schedule-T-13": {
+    "number": 18,
+    "id": 5435922655,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/18",
+    "parent_verified": 1
+  },
+  "schedule-T-14": {
+    "number": 19,
+    "id": 5435923195,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/19",
+    "parent_verified": 1
+  },
+  "schedule-T-15": {
+    "number": 20,
+    "id": 5435923639,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/20",
+    "parent_verified": 1
+  },
+  "ai-A1": {
+    "number": 21,
+    "id": 5435924313,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/21",
+    "parent_verified": 2
+  },
+  "ai-A2": {
+    "number": 22,
+    "id": 5435924667,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/22",
+    "parent_verified": 2
+  },
+  "ai-A3": {
+    "number": 23,
+    "id": 5435925233,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/23",
+    "parent_verified": 2
+  },
+  "ai-A4": {
+    "number": 24,
+    "id": 5435925673,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/24",
+    "parent_verified": 2
+  },
+  "ai-B1": {
+    "number": 25,
+    "id": 5435926214,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/25",
+    "parent_verified": 2
+  },
+  "ai-B2": {
+    "number": 26,
+    "id": 5435926814,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/26",
+    "parent_verified": 2
+  },
+  "ai-B3": {
+    "number": 27,
+    "id": 5435927178,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/27",
+    "parent_verified": 2
+  },
+  "ai-B4": {
+    "number": 28,
+    "id": 5435927695,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/28",
+    "parent_verified": 2
+  },
+  "ai-B5": {
+    "number": 29,
+    "id": 5435928040,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/29",
+    "parent_verified": 2
+  },
+  "ai-C1": {
+    "number": 30,
+    "id": 5435928535,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/30",
+    "parent_verified": 2
+  },
+  "ai-C2": {
+    "number": 31,
+    "id": 5435928917,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/31",
+    "parent_verified": 2
+  },
+  "ai-D1": {
+    "number": 32,
+    "id": 5435929424,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/32",
+    "parent_verified": 2
+  },
+  "ai-D2": {
+    "number": 33,
+    "id": 5435929957,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/33",
+    "parent_verified": 2
+  },
+  "ai-D3": {
+    "number": 34,
+    "id": 5435930330,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/34",
+    "parent_verified": 2
+  },
+  "ai-E1": {
+    "number": 35,
+    "id": 5435930828,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/35",
+    "parent_verified": 2
+  },
+  "ct-01-05": {
+    "number": 36,
+    "id": 5435931243,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/36",
+    "parent_verified": 3
+  },
+  "ct-06-10": {
+    "number": 37,
+    "id": 5435931772,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/37",
+    "parent_verified": 3
+  },
+  "ct-11-15": {
+    "number": 38,
+    "id": 5435932269,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/38",
+    "parent_verified": 3
+  },
+  "ct-16-20": {
+    "number": 39,
+    "id": 5435932788,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/39",
+    "parent_verified": 3
+  },
+  "ct-21-25": {
+    "number": 40,
+    "id": 5435933296,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/40",
+    "parent_verified": 3
+  },
+  "ct-26-30": {
+    "number": 41,
+    "id": 5435933782,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/41",
+    "parent_verified": 3
+  },
+  "ct-31-35": {
+    "number": 42,
+    "id": 5435934167,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/42",
+    "parent_verified": 3
+  },
+  "ct-36-40": {
+    "number": 43,
+    "id": 5435934671,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/43",
+    "parent_verified": 3
+  },
+  "ct-41-45": {
+    "number": 44,
+    "id": 5435935055,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/44",
+    "parent_verified": 3
+  },
+  "ct-46-50": {
+    "number": 45,
+    "id": 5435935548,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/45",
+    "parent_verified": 3
+  },
+  "ct-51-55": {
+    "number": 46,
+    "id": 5435935913,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/46",
+    "parent_verified": 3
+  },
+  "ct-56-60": {
+    "number": 47,
+    "id": 5435936412,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/47",
+    "parent_verified": 3
+  },
+  "ct-61-65": {
+    "number": 48,
+    "id": 5435936904,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/48",
+    "parent_verified": 3
+  },
+  "ct-66-70": {
+    "number": 49,
+    "id": 5435937426,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/49",
+    "parent_verified": 3
+  },
+  "ct-71-75": {
+    "number": 50,
+    "id": 5435937835,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/50",
+    "parent_verified": 3
+  },
+  "ct-76-80": {
+    "number": 51,
+    "id": 5435938464,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/51",
+    "parent_verified": 3
+  },
+  "ct-81-85": {
+    "number": 52,
+    "id": 5435938822,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/52",
+    "parent_verified": 3
+  },
+  "ct-86-90": {
+    "number": 53,
+    "id": 5435939428,
+    "url": "https://github.com/leonidkuznetsov18/vakhta/issues/53",
+    "parent_verified": 3
+  }
+}

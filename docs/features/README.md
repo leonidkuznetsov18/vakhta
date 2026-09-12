@@ -2,6 +2,9 @@
 
 Planned feature: [Schedule calendar redesign](schedule-calendar-redesign.md). Its future requirements
 must not be presented as available behavior; [Schedule](05-schedule.md) describes the current product.
+Planned feature: [AI Master](master-agent.md); its proposed behavior is not available functionality.
+For epic grouping, GitHub issues and live status links, use the
+[engineering roadmap](../engineering/roadmap.md). Connecteam opportunities are research, not shipped features.
 
 One Markdown file per feature, written for the support assistant and for people who join the
 project. The support bot (@vakhta_support_bot) loads every file in this folder, the user guide
