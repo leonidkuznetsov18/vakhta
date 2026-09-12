@@ -658,3 +658,9 @@ Integration owner verified source `0e066554cf0b172152762d0b008758db05f92c7f` thr
 acceptance criteria, and [closed #9](https://github.com/leonidkuznetsov18/vakhta/issues/9#issuecomment-5649387586)
 as completed. The command guarantees and bounded concurrent-revocation limitation above remain
 unchanged; this checkpoint does not close the surrounding Schedule epic.
+
+Additional #6 browser evidence: an offline network override in the agent's synthetic preview tab
+showed one connection-waiting message while retaining the calendar on desktop and 390px mobile.
+Restoring the network removed the message. Captured and inspected `schedule-offline.png` and
+`schedule-offline-mobile.png`; all network/device overrides were cleared. This exercises cached
+offline reading, not production delivery or an offline mutation.
