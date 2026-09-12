@@ -1,3 +1,11 @@
+## [0.94.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.94.0...v0.94.1) (2026-09-12)
+
+### Bug fixes
+
+* **admin:** localize schedule shift template labels ([62f9ec3](https://github.com/leonidkuznetsov18/vakhta/commit/62f9ec31252ce70b10adc92fde248961d9b3e29a))
+* **admin:** make the selected schedule day clearly visible ([c8d43cb](https://github.com/leonidkuznetsov18/vakhta/commit/c8d43cb7d0e4dd71c27c1465b061cb747450baae))
+* **admin:** shorten worker action and size row menus to content ([4195d82](https://github.com/leonidkuznetsov18/vakhta/commit/4195d82632d3f2be00ffcb2fa2a2ece2e5f5bd1f))
+
 ## [0.94.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.8...v0.94.0) (2026-09-12)
 
 ### Features
