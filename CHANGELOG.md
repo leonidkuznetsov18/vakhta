@@ -1,3 +1,10 @@
+## [0.93.6](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.5...v0.93.6) (2026-09-12)
+
+### Bug fixes
+
+* **admin:** compact profile identity and settings ([c870cf9](https://github.com/leonidkuznetsov18/vakhta/commit/c870cf9103cd72154ba2c7c59e544b142ba44a6a))
+* **admin:** separate evidence and decision workflow zones ([228df84](https://github.com/leonidkuznetsov18/vakhta/commit/228df840bda4ec78252816468dca646585256764))
+
 ## [0.93.5](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.4...v0.93.5) (2026-09-12)
 
 ### Bug fixes
