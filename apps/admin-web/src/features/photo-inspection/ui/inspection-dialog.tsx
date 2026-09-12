@@ -1,3 +1,4 @@
+import { WorkflowSection } from '@/shared/ui/workflow-section';
 import { AnalysisLimits } from './analysis-limits';
 import { analysisLimitsView } from '../model/analysis-limits';
 import { hasReviewChanges, reviewChanges } from '../model/review-changes';
@@ -490,17 +491,22 @@ function InspectionSession({
         {/* On wide screens the form column is as tall as the photo viewport and scrolls inside;
             the action footer is a separate sibling and never participates in this scroll. */}
         <div className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
-          {initial.canEdit ? (
-            <EditableReview
-              editor={editor}
-              busy={busy}
-              rules={latest.rules}
-              objects={objects.data?.objects ?? []}
-              onCreateObject={(name) => createObject.mutateAsync(name)}
-            />
-          ) : (
-            <ReadOnlyReview editor={editor} objects={objects.data?.objects ?? []} />
-          )}
+          <WorkflowSection
+            title={messages(currentLocale()).ui.workflow.photoReview}
+            emphasis={initial.canEdit ? 'action' : 'neutral'}
+          >
+            {initial.canEdit ? (
+              <EditableReview
+                editor={editor}
+                busy={busy}
+                rules={latest.rules}
+                objects={objects.data?.objects ?? []}
+                onCreateObject={(name) => createObject.mutateAsync(name)}
+              />
+            ) : (
+              <ReadOnlyReview editor={editor} objects={objects.data?.objects ?? []} />
+            )}
+          </WorkflowSection>
           <PredictionPanel
             latest={latest}
             editor={editor}

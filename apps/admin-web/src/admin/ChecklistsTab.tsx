@@ -1,3 +1,4 @@
+import { WorkflowSection } from '@/shared/ui/workflow-section';
 import { ChecklistPhotoRules } from '@/features/checklist-photo-rules';
 import { confirmLeave } from '@/lib/unsaved';
 import { useState, type FormEvent } from 'react';
@@ -369,11 +370,7 @@ export function ChecklistsTab({ org }: Props) {
 /** The checklist as the bot renders it: one line per item with the same marks. */
 function BotPreview({ items }: { readonly items: readonly DraftItem[] }) {
   return (
-    <div className="min-w-0 rounded-lg border bg-muted/40 p-3 text-base leading-relaxed md:text-sm">
-      <p className="mb-2 flex items-center gap-1 font-medium">
-        {c.preview}
-        <InfoTip text={hints.checklistsItems} />
-      </p>
+    <WorkflowSection title={c.preview} hint={<InfoTip text={hints.checklistsItems} />}>
       <ul className="flex flex-col gap-1">
         {items.map((item) => (
           <li
@@ -391,7 +388,7 @@ function BotPreview({ items }: { readonly items: readonly DraftItem[] }) {
           </li>
         ))}
       </ul>
-    </div>
+    </WorkflowSection>
   );
 }
 

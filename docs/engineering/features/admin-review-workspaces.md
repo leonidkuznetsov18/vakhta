@@ -158,3 +158,33 @@ all translated long-text combinations, screen-reader certification and authentic
 remain unverified. CI is the full integration gate and is checked after delivery. The dated audit
 remains baseline evidence: this batch addresses UX14/UX15 and the owner's review-layout request;
 the other backlog items are not represented as fixed.
+
+### Functional zones — owner follow-up
+
+Problem: submission content had individual boxes but no common source boundary; Handover history
+appeared inside employee evidence; Requests mixed the employee comment and approver inputs.
+Implement one domain-independent `shared/ui/WorkflowSection` (heading, border, optional action tone).
+Handover separates submission, master decision and history; Requests and overtime identify decision
+input; incident reports/history/resolution have named zones; checklist worker preview and photo rules
+share the same headings; photo assessment is distinct from AI suggestions and reference rules.
+Keep the existing feature ownership, permission checks, mutation handlers and read-only states.
+Profile uses compact labeled divider rows; remove the avatar information icon at the owner's request.
+
+Acceptance: source content contains no decision textbox; saved decisions are outside employee material;
+action zones have a localized name and visible boundary in both themes; mobile follows the reading
+order with natural page/body scrolling. No mandatory equal heights, new sticky panels, or new scroll
+containers. Lean recommendation: **Simplify** source attribution and the next action without adding
+worker steps. User testing is still needed to measure reduced search time or mistaken attribution.
+
+Verification: 33 frontend tests passed across Profile, Handover, Requests, Incidents, checklists and
+photo inspection; focused Handover/Requests assertions now protect source/decision/history ownership.
+The affected 17 tests passed again after those assertions and final presentation cleanup. All 10 i18n
+catalog tests passed; frontend typecheck, scoped lint and production build passed. Existing upstream
+Zod comment and large-chunk warnings remain. The layout detector returned no findings.
+
+Desktop 1440×900 and mobile 390×844 screenshots were captured and inspected for Handover, photo
+inspection, Requests, Incidents, checklists and Profile. Handover/Requests/Incidents/checklists each
+measured document width 390 px without horizontal overflow on mobile. Checklist zones were checked
+in dark mode; other review screenshots used light mode. Source/decision headings align on desktop
+and zones stack on mobile. The local preview banner can obscure content in full-page captures; it
+is a preview-only overlay, not a production control. No production mutations were performed.

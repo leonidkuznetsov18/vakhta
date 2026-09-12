@@ -1,3 +1,4 @@
+import { WorkflowSection } from '@/shared/ui/workflow-section';
 import { confirmLeave } from '@/lib/unsaved';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { DetailText } from '@/components/app/row-detail';
@@ -207,13 +208,13 @@ export function HandoverPage() {
       <div className="flex min-w-0 flex-col gap-6 py-1" data-testid="handover-detail">
         <QueryFeedback query={detailQuery} />
         <div
-          className={`grid min-w-0 items-start gap-5 ${canDecide ? 'xl:grid-cols-[minmax(0,3fr)_minmax(18rem,2fr)]' : ''}`}
+          className={`grid min-w-0 items-start gap-5 ${canDecide || detail.resolutions.length > 0 ? 'xl:grid-cols-[minmax(0,3fr)_minmax(18rem,2fr)]' : ''}`}
         >
-          <div className="flex min-w-0 flex-col gap-5">
+          <WorkflowSection title={all.ui.workflow.employeeSubmission}>
             {/* The object list for AI lives in checklist administration; the report shows the
               checklist answers only, so the photos stay right below them. */}
             <div className="min-w-0">
-              <div className="min-w-0 rounded-md border p-3">
+              <div className="min-w-0">
                 <h3 className="mb-2 text-sm font-semibold">
                   {detail.handover.checklistName || h.checklist}
                 </h3>
@@ -248,12 +249,11 @@ export function HandoverPage() {
             </div>
             {detail.handover.items.some((item) => item.kind === 'NOTE' && item.answered) && (
               <div>
-                <h3 className="mb-2 text-sm font-semibold">{h.notes}</h3>
                 <ul className="flex flex-col gap-1 text-sm">
                   {detail.handover.items
                     .filter((item) => item.kind === 'NOTE' && item.answered)
                     .map((item) => (
-                      <li key={item.key} className="rounded-md border bg-muted/40 px-3 py-2">
+                      <li key={item.key} className="min-w-0">
                         <DetailText label={item.label} text={item.note ?? '—'} />
                       </li>
                     ))}
@@ -285,26 +285,11 @@ export function HandoverPage() {
                 </div>
               </div>
             )}
-            {detail.resolutions.length > 0 && (
-              <ul className="flex flex-col gap-3 text-sm">
-                {detail.resolutions.map((resolution) => (
-                  <li key={resolution.id}>
-                    {(detail.resolutions.length > 1 ||
-                      SHOWN_AS[resolution.decision] !== SHOWN_AS[row.status]) && (
-                      <strong>{h.shown[SHOWN_AS[resolution.decision]]} · </strong>
-                    )}
-                    <Muted>{formatDateTime(resolution.at)}</Muted>
-                    <DetailText label={h.remarkComment} text={resolution.comment} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          </WorkflowSection>
           {/* The decision goes last: the checklist, the note and the photos are what it is made
               on, and the status column already says how a report ended, so nothing repeats it here. */}
           {canDecide && (
-            <div className="flex min-w-0 flex-col gap-3 rounded-lg border bg-muted/30 p-3 xl:sticky xl:top-20">
-              <h3 className="text-sm font-semibold">{h.resolve}</h3>
+            <WorkflowSection title={h.resolve} emphasis="action" className="xl:sticky xl:top-20">
               <p className="max-w-3xl text-sm whitespace-normal text-muted-foreground">
                 {h.reviewHint}
               </p>
@@ -343,7 +328,26 @@ export function HandoverPage() {
                   {h.addRemark}
                 </Button>
               </div>
-            </div>
+            </WorkflowSection>
+          )}
+          {detail.resolutions.length > 0 && (
+            <WorkflowSection
+              title={all.ui.workflow.history}
+              className={canDecide ? 'xl:col-span-2' : undefined}
+            >
+              <ul className="flex flex-col gap-3 text-sm">
+                {detail.resolutions.map((resolution) => (
+                  <li key={resolution.id}>
+                    {(detail.resolutions.length > 1 ||
+                      SHOWN_AS[resolution.decision] !== SHOWN_AS[row.status]) && (
+                      <strong>{h.shown[SHOWN_AS[resolution.decision]]} · </strong>
+                    )}
+                    <Muted>{formatDateTime(resolution.at)}</Muted>
+                    <DetailText label={h.remarkComment} text={resolution.comment} />
+                  </li>
+                ))}
+              </ul>
+            </WorkflowSection>
           )}
         </div>
       </div>

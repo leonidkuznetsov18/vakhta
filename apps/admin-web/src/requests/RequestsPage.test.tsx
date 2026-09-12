@@ -128,9 +128,17 @@ describe('RequestsPage', () => {
     expect(await screen.findByText('Опоздаю')).toBeTruthy();
     expect(screen.getByText(/^просрочено на/)).toBeTruthy();
     await clickRowAction('Подробности');
-    // The decision form lives in the side sheet; the overtime table has its own buttons.
+    // The expanded request separates employee material from reviewer input.
     const sheet = await screen.findByTestId('request-detail');
     expect(await within(sheet).findByText('Пробки на мосту')).toBeTruthy();
+    const evidence = within(sheet).getByRole('region', { name: 'Материалы сотрудника' });
+    expect(within(evidence).getByText('Пробки на мосту')).toBeTruthy();
+    expect(within(evidence).queryByRole('textbox')).toBeNull();
+    expect(
+      within(within(sheet).getByRole('region', { name: 'Проверка и решение' })).getByRole(
+        'textbox',
+      ),
+    ).toBeTruthy();
     fireEvent.change(within(sheet).getByLabelText('Утверждённое отклонение, мин'), {
       target: { value: '15' },
     });

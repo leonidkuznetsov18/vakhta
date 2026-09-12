@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { HandoverPage } from './HandoverPage.tsx';
 import { clickRowAction, render } from '../test-utils.tsx';
 
@@ -208,6 +208,13 @@ describe('HandoverPage', () => {
     expect(thumb.getAttribute('src')).toBe('https://storage.example/signed?x=1');
     expect(calls.some((c) => c.path === `/admin/handovers/media/${MEDIA}/link`)).toBe(true);
 
+    const evidence = screen.getByRole('region', { name: 'Материалы сотрудника' });
+    const decisionZone = screen.getByRole('region', { name: 'Решение мастера' });
+    expect(within(evidence).getByText('Проверьте станок 3')).toBeTruthy();
+    expect(within(evidence).queryByRole('textbox')).toBeNull();
+    expect(within(decisionZone).getByRole('textbox')).toBeTruthy();
+    expect(within(decisionZone).queryByAltText(/Общий вид зоны/)).toBeNull();
+
     // The master decides with two buttons: a remark needs its text, an approval does not.
     const remark = screen.getByRole('button', { name: 'Замечание' });
     expect((remark as HTMLButtonElement).disabled).toBe(true);
@@ -265,7 +272,16 @@ describe('HandoverPage', () => {
     render(<HandoverPage />);
     await clickRowAction('Подробности');
     const decision = await screen.findByText('Master approved the clean station');
-    expect(decision).toBeTruthy();
+    expect(
+      within(screen.getByRole('region', { name: 'История решений' })).getByText(
+        'Master approved the clean station',
+      ),
+    ).toBe(decision);
+    expect(
+      within(screen.getByRole('region', { name: 'Материалы сотрудника' })).queryByText(
+        'Master approved the clean station',
+      ),
+    ).toBeNull();
     expect(screen.queryByText(/просрочено на/)).toBeNull();
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Одобрить' })).toBeNull();

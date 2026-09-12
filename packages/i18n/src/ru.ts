@@ -1620,6 +1620,14 @@ export const ru: Messages = {
     },
   },
   ui: {
+    workflow: {
+      employeeComment: 'Комментарий сотрудника',
+      noAdditionalMaterial: 'Дополнительного комментария или вложения нет.',
+      employeeSubmission: 'Материалы сотрудника',
+      decision: 'Проверка и решение',
+      history: 'История решений',
+      photoReview: 'Оценка фото',
+    },
     time: {
       in: 'через {value}',
       overdueBy: 'просрочено на {value}',

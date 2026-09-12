@@ -1622,6 +1622,14 @@ export const uk: Messages = {
     },
   },
   ui: {
+    workflow: {
+      employeeComment: 'Коментар працівника',
+      noAdditionalMaterial: 'Додаткового коментаря чи вкладення немає.',
+      employeeSubmission: 'Матеріали працівника',
+      decision: 'Перевірка та рішення',
+      history: 'Історія рішень',
+      photoReview: 'Оцінка фото',
+    },
     time: {
       in: 'через {value}',
       overdueBy: 'прострочено на {value}',

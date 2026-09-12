@@ -1,3 +1,4 @@
+import { WorkflowSection } from '@/shared/ui/workflow-section';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ChecklistPhotoRulesView, type PhotoObjectView } from '@vakhta/contracts';
@@ -27,13 +28,9 @@ const guardUnsaved = (element: HTMLDivElement | null) =>
 /** One object list per checklist; it is shown as saved the moment the checklist is expanded. */
 export function ChecklistPhotoRules({ definitionId }: { definitionId: string }) {
   return (
-    <section className="flex min-w-0 flex-col gap-3 rounded-md border p-3">
-      <h3 className="flex items-center gap-2 text-sm font-semibold">
-        {t.title}
-        <InfoTip text={t.hint} />
-      </h3>
+    <WorkflowSection title={t.title} hint={<InfoTip text={t.hint} />} emphasis="action">
       <RulesQuery definitionId={definitionId} />
-    </section>
+    </WorkflowSection>
   );
 }
 function RulesQuery({ definitionId }: { definitionId: string }) {

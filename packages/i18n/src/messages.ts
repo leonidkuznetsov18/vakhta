@@ -1310,6 +1310,14 @@ export interface Messages {
   };
   /** Shared panel chrome: pagination, dialogs, generic labels and information tooltips. */
   readonly ui: {
+    readonly workflow: {
+      readonly employeeComment: string;
+      readonly noAdditionalMaterial: string;
+      readonly employeeSubmission: string;
+      readonly decision: string;
+      readonly history: string;
+      readonly photoReview: string;
+    };
     /** Relative time next to deadlines: {value} is "2 ч 15 мин" or "40 мин". */
     readonly time: {
       readonly in: string;

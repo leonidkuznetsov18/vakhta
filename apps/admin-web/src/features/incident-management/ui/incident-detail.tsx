@@ -1,5 +1,6 @@
+import { WorkflowSection } from '@/shared/ui/workflow-section';
 import { QueryFeedback } from '@/components/app/query-feedback';
-import { DetailText } from '@/components/app/row-detail';
+import { DetailText, ScrollableText } from '@/components/app/row-detail';
 import type { IncidentView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
@@ -38,8 +39,7 @@ export function IncidentDetail({
             reading the reports, not beside them. */}
       {detail && detail.incident.id === row.id ? (
         <div className="grid min-w-0 items-start gap-6 md:grid-cols-2">
-          <div className="min-w-0">
-            <h3 className="mb-2 text-sm font-semibold">{i.reportsTitle}</h3>
+          <WorkflowSection title={i.reportsTitle}>
             <ul className="flex flex-col gap-3 text-sm">
               {view.reports.map((r) => (
                 <li key={r.id} className="flex flex-col gap-1">
@@ -68,10 +68,9 @@ export function IncidentDetail({
                 </li>
               ))}
             </ul>
-          </div>
+          </WorkflowSection>
           {view.history.length > 0 && (
-            <div className="min-w-0">
-              <h3 className="mb-2 text-sm font-semibold">{i.history}</h3>
+            <WorkflowSection title={i.history}>
               <ul
                 tabIndex={0}
                 aria-label={i.history}
@@ -98,88 +97,96 @@ export function IncidentDetail({
                   </li>
                 ))}
               </ul>
-            </div>
+            </WorkflowSection>
           )}
         </div>
       ) : (
         <QueryFeedback query={model.detailQuery} />
       )}
-      {view.legacyComment && <DetailText label={i.legacyComment} text={view.legacyComment} />}
+      {view.legacyComment && (
+        <WorkflowSection title={i.legacyComment}>
+          <ScrollableText label={i.legacyComment} text={view.legacyComment} />
+        </WorkflowSection>
+      )}
       {readOnly ? (
         (row.rootCause || row.resolution) && (
-          <div className="grid min-w-0 gap-6 md:grid-cols-2">
-            {row.rootCause && <DetailText label={i.rootCause} text={row.rootCause} />}
-            {row.resolution && <DetailText label={i.resolution} text={row.resolution} />}
-          </div>
+          <WorkflowSection title={all.ui.workflow.decision}>
+            <div className="grid min-w-0 gap-6 md:grid-cols-2">
+              {row.rootCause && <DetailText label={i.rootCause} text={row.rootCause} />}
+              {row.resolution && <DetailText label={i.resolution} text={row.resolution} />}
+            </div>
+          </WorkflowSection>
         )
       ) : (
-        <form
-          className="flex max-w-2xl flex-col gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            apply(row);
-          }}
-        >
-          <SelectField
-            label={i.status}
-            disabled={busy}
-            searchable={false}
-            value={draft.target}
-            onChange={(v) => setField(row.id, 'target', v)}
-            placeholder="…"
-            options={model.transitions(row)}
-          />
-          {draft.target === 'DUPLICATE' && (
+        <WorkflowSection title={all.ui.workflow.decision} emphasis="action">
+          <form
+            className="flex max-w-2xl flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              apply(row);
+            }}
+          >
             <SelectField
+              label={i.status}
               disabled={busy}
-              label={i.duplicateOf}
-              hint={hints.incidentsDuplicate}
-              value={draft.duplicateOf}
-              onChange={(v) => setField(row.id, 'duplicateOf', v)}
+              searchable={false}
+              value={draft.target}
+              onChange={(v) => setField(row.id, 'target', v)}
               placeholder="…"
-              required
-              options={others(row)}
+              options={model.transitions(row)}
             />
-          )}
-          <FormField label={i.rootCause}>
-            {(id) => (
-              <Textarea
-                id={id}
+            {draft.target === 'DUPLICATE' && (
+              <SelectField
                 disabled={busy}
-                rows={3}
-                value={draft.rootCause}
-                maxLength={2000}
-                onChange={(e) => setField(row.id, 'rootCause', e.target.value)}
-                required={draft.requiresCause}
-                minLength={draft.requiresCause ? 3 : undefined}
+                label={i.duplicateOf}
+                hint={hints.incidentsDuplicate}
+                value={draft.duplicateOf}
+                onChange={(v) => setField(row.id, 'duplicateOf', v)}
+                placeholder="…"
+                required
+                options={others(row)}
               />
             )}
-          </FormField>
-          <FormField label={i.resolution}>
-            {(id) => (
-              <Textarea
-                id={id}
-                disabled={busy}
-                rows={3}
-                value={draft.resolution}
-                maxLength={2000}
-                onChange={(e) => setField(row.id, 'resolution', e.target.value)}
-                required={draft.requiresSolution}
-                minLength={draft.requiresSolution ? 3 : undefined}
-              />
+            <FormField label={i.rootCause}>
+              {(id) => (
+                <Textarea
+                  id={id}
+                  disabled={busy}
+                  rows={3}
+                  value={draft.rootCause}
+                  maxLength={2000}
+                  onChange={(e) => setField(row.id, 'rootCause', e.target.value)}
+                  required={draft.requiresCause}
+                  minLength={draft.requiresCause ? 3 : undefined}
+                />
+              )}
+            </FormField>
+            <FormField label={i.resolution}>
+              {(id) => (
+                <Textarea
+                  id={id}
+                  disabled={busy}
+                  rows={3}
+                  value={draft.resolution}
+                  maxLength={2000}
+                  onChange={(e) => setField(row.id, 'resolution', e.target.value)}
+                  required={draft.requiresSolution}
+                  minLength={draft.requiresSolution ? 3 : undefined}
+                />
+              )}
+            </FormField>
+            {draft.error && (
+              <p role="alert" className="text-sm text-destructive">
+                {draft.error}
+              </p>
             )}
-          </FormField>
-          {draft.error && (
-            <p role="alert" className="text-sm text-destructive">
-              {draft.error}
-            </p>
-          )}
-          <div>
-            <Button type="submit" variant="success" disabled={busy}>
-              {draft.target ? i.apply : i.save}
-            </Button>
-          </div>
-        </form>
+            <div>
+              <Button type="submit" variant="success" disabled={busy}>
+                {draft.target ? i.apply : i.save}
+              </Button>
+            </div>
+          </form>
+        </WorkflowSection>
       )}
     </div>
   );

@@ -1620,6 +1620,14 @@ export const en: Messages = {
     },
   },
   ui: {
+    workflow: {
+      employeeComment: 'Employee comment',
+      noAdditionalMaterial: 'No additional comment or attachment.',
+      employeeSubmission: 'Submitted by the employee',
+      decision: 'Review and decision',
+      history: 'Decision history',
+      photoReview: 'Photo assessment',
+    },
     time: {
       in: 'in {value}',
       overdueBy: 'overdue by {value}',

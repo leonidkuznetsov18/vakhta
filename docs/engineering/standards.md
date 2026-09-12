@@ -95,6 +95,16 @@ help and mobile target size. Keep text for primary saves, consequential workflow
 disclosure titles and distinctions that share an icon (for example CSV versus XLSX). Do not hide
 labels automatically based on character count or convert every action to an unexplained icon.
 
+Separate functional zones whenever a detail mixes submitted evidence, reviewer input and recorded
+history. Use shared `WorkflowSection` with a concise localized heading, consistent padding and a
+visible boundary. Employee answers, messages and attachments stay together; editable decision fields
+and their submit actions belong in a separate zone; recorded decisions never appear as employee data.
+Place source material before decision input in DOM/mobile order. Use subtle action emphasis without
+reusing success/error colors to identify ownership. Configuration separates the worker preview from
+review rules. Compact settings can use labeled divider rows instead of additional cards. Do not force
+equal-height empty panels or add scroll regions merely to achieve symmetry. Preserve read-only final
+states and all historical evidence.
+
 Test business rules, state transitions, query invalidation, permissions and error recovery at the
 appropriate unit/integration level. E2E covers authentication and complete critical journeys across
 panel, kiosk and bot, including failures and retries. Avoid tests that merely mirror implementation.
