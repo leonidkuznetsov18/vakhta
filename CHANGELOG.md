@@ -1,3 +1,13 @@
+## [1.0.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.0.0...v1.0.1) (2026-09-12)
+
+### Bug fixes
+
+* **schedule:** isolate local recovery by account and scope ([3dff3b7](https://github.com/leonidkuznetsov18/vakhta/commit/3dff3b7b712af05b01326dc51873189119449435)), closes [#9](https://github.com/leonidkuznetsov18/vakhta/issues/9)
+
+### Maintenance
+
+* **release:** integrate v1.0.0 release metadata ([b8097b3](https://github.com/leonidkuznetsov18/vakhta/commit/b8097b36f063114351d6d8ef630b9598f1a1f4ea))
+
 ## [1.0.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.95.0...v1.0.0) (2026-09-12)
 
 ### ⚠ BREAKING CHANGES
