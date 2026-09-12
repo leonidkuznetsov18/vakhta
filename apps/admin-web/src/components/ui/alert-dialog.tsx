@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { cn } from 'cn';
+import { withoutAutoFocusTooltip } from '@/shared/lib/tooltip-focus';
 import { AlertDialog as AlertDialogPrimitive } from 'radix-ui';
 
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,8 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = 'default',
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
   size?: 'default' | 'sm';
@@ -52,6 +55,8 @@ function AlertDialogContent({
           className,
         )}
         {...props}
+        onOpenAutoFocus={withoutAutoFocusTooltip(onOpenAutoFocus)}
+        onCloseAutoFocus={withoutAutoFocusTooltip(onCloseAutoFocus)}
       />
     </AlertDialogPortal>
   );

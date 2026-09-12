@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { cn } from 'cn';
+import { withoutAutoFocusTooltip } from '@/shared/lib/tooltip-focus';
 import { Dialog as SheetPrimitive } from 'radix-ui';
 
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,8 @@ function SheetContent({
   side = 'right',
   showCloseButton = true,
   overlayClassName,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: 'top' | 'right' | 'bottom' | 'left';
@@ -62,6 +65,8 @@ function SheetContent({
           className,
         )}
         {...props}
+        onOpenAutoFocus={withoutAutoFocusTooltip(onOpenAutoFocus)}
+        onCloseAutoFocus={withoutAutoFocusTooltip(onCloseAutoFocus)}
       >
         {children}
         {showCloseButton && (

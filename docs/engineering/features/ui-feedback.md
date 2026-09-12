@@ -120,3 +120,18 @@ Affected ESLint passed. The initial full panel typecheck was blocked only by ano
 untracked `src/inspection-qa.tsx` (`media.quality` widened to string). The panel typecheck passed using
 a temporary config that excluded that QA fixture alone; no production source or compiler rule was
 excluded or weakened. The concurrent photo-inspection changes are outside this commit.
+
+## 2026-09-13 — Quiet overlay autofocus
+
+Owner reports tooltips appearing automatically when dialogs, Sheets and popovers open. Shared
+Radix wrappers mark only the synchronous open/close autofocus stack; deferred first-field focus
+uses the same helper. TooltipTrigger ignores that synthetic focus request while leaving native
+focus, custom autofocus callbacks, pointer hover and subsequent keyboard focus intact. Menu close
+focus is covered as well. No new lifecycle hook or global event listener is introduced.
+
+Checked against installed Radix source and [Tooltip](https://www.radix-ui.com/primitives/docs/components/tooltip)
+/[Dialog](https://www.radix-ui.com/primitives/docs/components/dialog) focus contracts. Five regressions
+cover Sheet, Dialog deferred focus, Popover, AlertDialog and explicit hover/custom callbacks; five
+existing IconButton checks still pass. Browser inspection confirmed focused Sheet close control with
+zero tooltips on opening, and an intentional keyboard return shows its tooltip. Lean: Simplify;
+remove unsolicited content without losing keyboard explanations or focus management.

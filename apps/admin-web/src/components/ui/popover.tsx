@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { cn } from 'cn';
+import { withoutAutoFocusTooltip } from '@/shared/lib/tooltip-focus';
 import { Popover as PopoverPrimitive } from 'radix-ui';
 
 function Popover({ ...props }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
@@ -14,6 +15,8 @@ function PopoverContent({
   className,
   align = 'center',
   sideOffset = 4,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
   return (
@@ -27,6 +30,8 @@ function PopoverContent({
           className,
         )}
         {...props}
+        onOpenAutoFocus={withoutAutoFocusTooltip(onOpenAutoFocus)}
+        onCloseAutoFocus={withoutAutoFocusTooltip(onCloseAutoFocus)}
       />
     </PopoverPrimitive.Portal>
   );

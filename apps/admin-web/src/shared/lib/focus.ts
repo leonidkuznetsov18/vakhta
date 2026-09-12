@@ -1,3 +1,5 @@
+import { focusWithoutTooltip } from './tooltip-focus';
+
 /**
  * Keyboard-first focus for dialogs and side panels: the first field gets the caret, not the first
  * button (Radix would otherwise focus an ⓘ tip and open its tooltip). Falls back to the first
@@ -17,7 +19,7 @@ export function focusFirstField(container: HTMLElement | null): void {
   if (target === container && !container.hasAttribute('tabindex')) {
     container.setAttribute('tabindex', '-1');
   }
-  target.focus({ preventScroll: true });
+  focusWithoutTooltip(target, { preventScroll: true });
 }
 
 /** Radix `onOpenAutoFocus` handler: prevent the default and place the focus ourselves. */

@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { cn } from 'cn';
 import { Tooltip as TooltipPrimitive } from 'radix-ui';
+import { isAutoFocusTooltipSuppressed } from '@/shared/lib/tooltip-focus';
 
 function TooltipProvider({
   delayDuration = 0,
@@ -21,8 +22,20 @@ function Tooltip({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Root
   return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
 }
 
-function TooltipTrigger({ ...props }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
+function TooltipTrigger({
+  onFocus,
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
+  return (
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
+      {...props}
+      onFocus={(event) => {
+        onFocus?.(event);
+        if (isAutoFocusTooltipSuppressed(event.currentTarget.ownerDocument)) event.preventDefault();
+      }}
+    />
+  );
 }
 
 function TooltipContent({

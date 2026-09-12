@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { cn } from 'cn';
+import { withoutAutoFocusTooltip } from '@/shared/lib/tooltip-focus';
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui';
 import { CheckIcon, ChevronRightIcon } from 'lucide-react';
 
@@ -25,6 +26,7 @@ function DropdownMenuContent({
   className,
   align = 'start',
   sideOffset = 4,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (
@@ -38,6 +40,7 @@ function DropdownMenuContent({
           className,
         )}
         {...props}
+        onCloseAutoFocus={withoutAutoFocusTooltip(onCloseAutoFocus)}
       />
     </DropdownMenuPrimitive.Portal>
   );
