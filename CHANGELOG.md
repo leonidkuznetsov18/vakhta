@@ -1,3 +1,9 @@
+## [0.93.7](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.6...v0.93.7) (2026-09-12)
+
+### Bug fixes
+
+* **admin:** separate incident queue and readable downtime statistics ([d184de9](https://github.com/leonidkuznetsov18/vakhta/commit/d184de9b52cb9f360ed2916cf04665b5399a246a))
+
 ## [0.93.6](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.5...v0.93.6) (2026-09-12)
 
 ### Bug fixes
