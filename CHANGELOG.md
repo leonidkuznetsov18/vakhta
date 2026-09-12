@@ -1,3 +1,26 @@
+## [0.94.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.94.1...v0.94.2) (2026-09-12)
+
+### Documentation
+
+* **master-agent:** define evidence-based implementation plan ([d9a927b](https://github.com/leonidkuznetsov18/vakhta/commit/d9a927b6a73142a86be5c96451986357fc80639e))
+* **research:** label Connecteam as a competitor reference ([0fb7b3e](https://github.com/leonidkuznetsov18/vakhta/commit/0fb7b3e5b85ee5d4c4817f3c08300f310a47e1cf))
+* **research:** save supporting workforce competitor research ([bee33fb](https://github.com/leonidkuznetsov18/vakhta/commit/bee33fb3da0c897846a38e057801e55b410a5175))
+* **roadmap:** preserve future modules and feature comparison ([5e21686](https://github.com/leonidkuznetsov18/vakhta/commit/5e21686056aa58f2e7bc654d3e6d2bf0db260f51))
+* **roadmap:** publish structured feature issue catalog ([4221bd7](https://github.com/leonidkuznetsov18/vakhta/commit/4221bd7d5118e74f82a2686446ab1de160734164))
+* **schedule:** define full calendar redesign feature ([0f7add1](https://github.com/leonidkuznetsov18/vakhta/commit/0f7add176dba4043bd0315ee506f714eab92620d))
+* **schedule:** document deputy and when i work calendar research ([4aff45c](https://github.com/leonidkuznetsov18/vakhta/commit/4aff45c0d5da9cdc3d1c9e5b30b1861201f6be28))
+* **schedule:** embed calendar interface reference screenshots ([3fdf2c7](https://github.com/leonidkuznetsov18/vakhta/commit/3fdf2c7f98e11c83bddfaeda54eb870d6e97ce57))
+* **schedule:** reconcile calendar research with github backlog ([f66cafc](https://github.com/leonidkuznetsov18/vakhta/commit/f66cafc7f78b84d7482bb7ec8d19eaa09c947a91))
+
+### Maintenance
+
+* **repo:** integrate release metadata for roadmap delivery ([3260162](https://github.com/leonidkuznetsov18/vakhta/commit/3260162a63508bd3bc92bb9da01d43b9f7f7b566))
+* **spec-kit:** configure repository specification workflow ([c1094b8](https://github.com/leonidkuznetsov18/vakhta/commit/c1094b841b9f0d2bffe7bc2300ffdcaa82e30434))
+
+### Styles
+
+* **docs:** format competitor research tables ([62198f5](https://github.com/leonidkuznetsov18/vakhta/commit/62198f51523e50c662496837bd02841a772f9f27))
+
 ## [0.94.1](https://github.com/leonidkuznetsov18/vakhta/compare/v0.94.0...v0.94.1) (2026-09-12)
 
 ### Bug fixes
