@@ -7,6 +7,7 @@ import { currentLocale } from '@/i18n';
 import { SelectField } from '@/components/app/fields';
 import { DateField } from '@/components/app/date-picker';
 import { Button } from '@/components/ui/button';
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { Feedback } from '@/components/app/feedback';
 import type { Workspace } from '../model/use-workspace';
 import { assignmentKey, gridToItems, setAssignment, setCell } from '../model/grid';
@@ -80,6 +81,7 @@ export function AssignmentEditor({
     >
       <h3 className="font-semibold">{original ? t.editAssignment : t.add}</h3>
       <div className="grid gap-4 @min-[36rem]:grid-cols-2">
+        <QueryFeedback query={w.employeeResult.queryState} errorMessage={t.rosterUnavailable} />
         <SelectField
           placeholder={t.select}
           label={s.employee}

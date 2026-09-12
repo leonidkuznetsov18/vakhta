@@ -137,6 +137,20 @@ export const EmployeeView = z.object({
 });
 export type EmployeeView = z.infer<typeof EmployeeView>;
 
+/** Additive cursor pagination; the legacy directory endpoint retains its contract. */
+export const ListEmployeesPageQuery = z.object({
+  after: Uuid.optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(200),
+});
+export type ListEmployeesPageQuery = z.infer<typeof ListEmployeesPageQuery>;
+
+export const EmployeesPage = z.object({
+  items: z.array(EmployeeView).max(200),
+  total: z.number().int().nonnegative(),
+  nextCursor: Uuid.nullable(),
+});
+export type EmployeesPage = z.infer<typeof EmployeesPage>;
+
 /** Код показується один раз у відповіді; у базі лишається лише хеш. */
 export const ActivationCodeIssued = z.object({
   employeeId: Uuid,

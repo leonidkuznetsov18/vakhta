@@ -453,3 +453,25 @@ The date picker now also exposes future years rather than DayPicker's default cu
 Segment editing, custom-time persistence, production move rules and participant baseline remain
 owned by later streams; prototype completion does not approve those policies. Lean: Proceed with
 installed primitives; no paid engine or new worker input is needed for the demonstrated renderer.
+
+
+### Complete schedule roster — first bounded #9 increment
+
+- Added validated `/admin/employees/page` UUID cursor reads (maximum 200 per page), exact totals,
+  stable ordering and a read-only repeatable-read transaction for each page/count/current-position
+  snapshot. Existing directory read roles and the legacy list contract are unchanged.
+- Schedule loads every page under Query cancellation and publishes only the completed directory.
+  Changed totals, duplicate/nonprogressing cursors and incomplete reads surface a localized retry;
+  cached complete data remains available. Historical identity lookups wait for the complete directory.
+- Batch search covers every loaded worker; shared pagination retains the full filtered total.
+  "Select shown" affects only the displayed page. Loading/failure does not invent a zero count.
+  Employee 205 can be selected and saved without dropping another employee's hidden assignment.
+- Verification: PostgreSQL integration 4 tests; roster/workspace 23 tests; API typecheck, admin-web
+  TypeScript/Compiler build and affected ESLint passed. Independent access/transaction review found
+  no demonstrated blocker. Synthetic preview screenshots captured and inspected at 1280×720 and
+  390×720: `roster-pagination.png`, `roster-search.png`, `roster-mobile.png` in the evidence directory.
+- Consistency is per page, not one snapshot spanning all HTTP requests; changes with the same total
+  may produce a mixed-time directory. This increment does not change eligibility or expand read
+  authority. Expected revisions, command receipts, actor-scoped recovery and #9 closure remain open.
+- Lean: Simplify. Find an authorized worker once, retain selection across search/pages, and never
+  require a planner to know which API page contains the worker. No extra worker input.

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateScheduleVersionCommand, ScheduleVersionView } from '@vakhta/contracts';
-import { useOrg, useEmployees } from '@/lib/org';
+import { useOrg } from '@/lib/org';
 import { usePersistentState } from '@/lib/ui-store';
 import { useNavigation } from '@/navigation';
 import { keys } from '@/lib/query';
@@ -18,6 +18,7 @@ import {
   type GridState,
 } from './grid';
 import { useScheduleDrafts } from './store';
+import { useScheduleRoster } from './roster';
 import { PRESET_KEY, clearSchedulePreset, type SchedulePreset } from './preset';
 
 const t = messages(currentLocale()).scheduleWorkspace;
@@ -39,7 +40,7 @@ export function useWorkspace() {
   const canReadEmployees = roles.some((role) =>
     ['ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER'].includes(role),
   );
-  const employeeResult = useEmployees(canReadEmployees);
+  const employeeResult = useScheduleRoster(canReadEmployees);
   const [storedSite, setSite] = usePersistentState('schedule.siteId', '');
   const [storedUnit, setUnit] = usePersistentState('schedule.orgUnitId', '');
   const [month, setMonth] = usePersistentState('schedule.month', () =>
@@ -109,7 +110,7 @@ export function useWorkspace() {
     queries: missingIds.map((employeeId) => ({
       queryKey: ['employees', employeeId],
       queryFn: ({ signal }: { signal: AbortSignal }) => scheduleApi.employee(employeeId, signal),
-      enabled: canReadEmployees,
+      enabled: canReadEmployees && employeeResult.loaded,
     })),
   });
   const employees = [

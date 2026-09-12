@@ -9,10 +9,13 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
 import {
+  ListEmployeesPageQuery,
+  type EmployeesPage,
   ChangeEmployeeStatusCommand,
   CreateEmployeeCommand,
   SendEmployeeMessageCommand,
@@ -56,6 +59,14 @@ export class AdminEmployeesController {
   @Roles('ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER')
   list(): Promise<EmployeeView[]> {
     return this.employees.list();
+  }
+
+  @Get('page')
+  @Roles('ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER')
+  listPage(
+    @Query(new ZodValidationPipe(ListEmployeesPageQuery)) query: ListEmployeesPageQuery,
+  ): Promise<EmployeesPage> {
+    return this.employees.listPage(query);
   }
 
   @Post()

@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SelectField } from '@/components/app/fields';
 import { DateField } from '@/components/app/date-picker';
+import { QueryFeedback } from '@/components/app/query-feedback';
+import { Paginator, usePages } from '@/components/app/data-table';
 import { TableSearch } from '@/shared/ui/table-search';
 import type { Workspace } from '../model/use-workspace';
 import { batchPreview, type BatchInput } from '../model/planning';
@@ -50,9 +52,11 @@ export function BatchPlanner({
       .toLocaleLowerCase()
       .includes(search.trim().toLocaleLowerCase()),
   );
-  const validPeople = input.employeeIds.every((id) =>
-    active.some((employee) => employee.id === id),
-  );
+  const pages = usePages(visible.length, 20, 'schedule.roster', -1, `${search}|${active.length}`);
+  const pageEmployees = visible.slice((pages.page - 1) * pages.size, pages.page * pages.size);
+  const validPeople =
+    w.employeeResult.loaded &&
+    input.employeeIds.every((id) => active.some((employee) => employee.id === id));
   const result =
     validPeople && w.zones.some((zone) => zone.id === input.zoneId && zone.isActive)
       ? batchPreview(w.grid, input, w.month, w.templates)
@@ -90,17 +94,23 @@ export function BatchPlanner({
                     {t.clearPeople}
                   </Button>
                 </div>
+                <QueryFeedback
+                  query={w.employeeResult.queryState}
+                  errorMessage={t.rosterUnavailable}
+                />
                 <TableSearch value={search} onChange={setSearch} label={t.workerSearch} />
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={!visible.some((employee) => !input.employeeIds.includes(employee.id))}
+                  disabled={
+                    !pageEmployees.some((employee) => !input.employeeIds.includes(employee.id))
+                  }
                   onClick={() =>
                     update({
                       employeeIds: [
                         ...new Set([
                           ...input.employeeIds,
-                          ...visible.map((employee) => employee.id),
+                          ...pageEmployees.map((employee) => employee.id),
                         ]),
                       ],
                     })
@@ -109,7 +119,7 @@ export function BatchPlanner({
                   {t.allPeople}
                 </Button>
                 <div className="max-h-56 overflow-y-auto space-y-1 rounded-md border p-1">
-                  {visible.map((employee) => (
+                  {pageEmployees.map((employee) => (
                     <label
                       key={employee.id}
                       className="flex min-h-11 items-center gap-3 rounded-md p-2 text-sm hover:bg-muted cursor-pointer"
@@ -128,6 +138,7 @@ export function BatchPlanner({
                     </label>
                   ))}
                 </div>
+                {w.employeeResult.loaded && <Paginator pages={pages} total={visible.length} />}
               </section>
               <section className="space-y-3 rounded-lg border p-3">
                 <SelectField

@@ -77,7 +77,9 @@ export function ScheduleWorkspace() {
       <QueryFeedback query={w.orgResult.queryState} />
       <QueryFeedback query={w.versionsQuery} />
       <QueryFeedback query={w.templatesQuery} />
-      {w.canReadEmployees && <QueryFeedback query={w.employeeResult.queryState} />}
+      {w.canReadEmployees && (
+        <QueryFeedback query={w.employeeResult.queryState} errorMessage={t.rosterUnavailable} />
+      )}
       {w.extraQueries
         .filter((query) => query.isError)
         .slice(0, 1)

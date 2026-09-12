@@ -47,6 +47,21 @@ emits the same move intent as explicit Move; it does not apply unvalidated chang
 
 ### Complete reads and reliable commands
 
+#### First bounded increment: complete directory reads
+
+Add an additive `/admin/employees/page` endpoint under the same explicit directory read roles as
+`/admin/employees`; this does not expand existing organizational authority or change assignment
+eligibility. A UUID cursor, validated page size (maximum 200), deterministic ID order and an exact
+total replace the accidental first-200 ceiling for Schedule. Each page and count use one repeatable
+read snapshot. Existing directory clients keep their current response contract. Schedule aggregates
+validated pages with the Query AbortSignal; duplicate/non-progressing pages or a changing total fail
+visibly instead of exposing a partial roster as complete. Saved assignments still provide missing
+historical identities. Roster pagination never trims full-month writes. Local display pagination and
+search operate on the completed roster. Tests cover 205 employees, cursor completion, malformed/
+changing pages, cancellation, and existing permissions. Revision/receipt work remains the next
+bounded increment within #9 and is not satisfied by this read fix.
+
+
 Keep filtered/paginated rendering separate from complete month draft serialization. Add complete
 scope-aware roster retrieval and validated page totals; abort obsolete requests. Add monotonic version
 revision and command receipts in scheduling schema. Client commands carry expected revision and

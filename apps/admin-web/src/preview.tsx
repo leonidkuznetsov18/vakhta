@@ -263,33 +263,45 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     ]);
   if (path === '/admin/audit/events') return json([]);
   if (/^\/admin\/employees\/[^/]+\/positions$/.test(path)) return json([]);
-  if (path === '/admin/employees') {
-    return json(
-      [
-        ['b0000000-0000-4000-8000-000000000001', '0001', 'Кузнецов Леонид', true],
-        ['b0000000-0000-4000-8000-000000000002', '130', 'Ткач Олена', true],
-        ['b0000000-0000-4000-8000-000000000003', '131', 'Панов Олег', false],
-        ['b0000000-0000-4000-8000-000000000004', '132', 'Гринько Юлія', true],
-        ['b0000000-0000-4000-8000-000000000005', '129', 'Калашнік Світлана', false],
-        ...Array.from({ length: 7 }, (_, index) => [
+  if (path === '/admin/employees' || path === '/admin/employees/page') {
+    const roster = [
+      ['b0000000-0000-4000-8000-000000000001', '0001', 'Кузнецов Леонид', true],
+      ['b0000000-0000-4000-8000-000000000002', '130', 'Ткач Олена', true],
+      ['b0000000-0000-4000-8000-000000000003', '131', 'Панов Олег', false],
+      ['b0000000-0000-4000-8000-000000000004', '132', 'Гринько Юлія', true],
+      ['b0000000-0000-4000-8000-000000000005', '129', 'Калашнік Світлана', false],
+      ...Array.from(
+        { length: new URLSearchParams(location.search).get('roster') === 'large' ? 200 : 7 },
+        (_, index) => [
           `b0000000-0000-4000-8000-${String(index + 6).padStart(12, '0')}`,
           `QA-${index}`,
           `Тестовий працівник ${index + 1}`,
           false,
-        ]),
-      ].map(([id, personnelNumber, fullName, telegramLinked]) => ({
-        id,
-        personnelNumber,
-        fullName,
-        status: 'ACTIVE',
-        telegramLinked,
-        email: null,
-        phone: null,
-        telegramUsername: null,
-        currentPosition: null,
-        createdAt: '2026-09-01T00:00:00Z',
-      })),
-    );
+        ],
+      ),
+    ].map(([id, personnelNumber, fullName, telegramLinked]) => ({
+      id,
+      personnelNumber,
+      fullName,
+      status: 'ACTIVE',
+      telegramLinked,
+      email: null,
+      phone: null,
+      telegramUsername: null,
+      currentPosition: null,
+      createdAt: '2026-09-01T00:00:00Z',
+    }));
+    if (!path.endsWith('/page')) return json(roster.slice(0, 200));
+    const query = new URL(String(input), location.origin).searchParams;
+    const after = query.get('after');
+    const limit = Number(query.get('limit') ?? 200);
+    const remaining = roster.filter((employee) => !after || String(employee.id) > after);
+    const items = remaining.slice(0, limit);
+    return json({
+      items,
+      total: roster.length,
+      nextCursor: remaining.length > limit ? items.at(-1)?.id : null,
+    });
   }
   const closedNoChecklist = {
     ...shift,

@@ -29,6 +29,7 @@ export const keys = {
   org: ['org'] as const,
   users: ['users'] as const,
   employees: ['employees'] as const,
+  scheduleRoster: ['employees', 'schedule-complete'] as const,
   employee: (id: string) => ['employees', id] as const,
   employeePositions: (id: string) => ['employees', id, 'positions'] as const,
   shifts: (q: unknown) => ['shifts', q] as const,

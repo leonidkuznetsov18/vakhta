@@ -111,3 +111,14 @@ No DB concurrency, production operation, human baseline, full SC acceptance or p
 HOLD: no redesigned release, participant baseline or unit pilot accepted. Preserve current operational
 Schedule behavior. See planned docs/runbooks/schedule-calendar-rollout.md; automatic local checks
 cannot substitute for measured participant tasks or an explicit production pilot decision.
+
+
+### Complete roster read evidence — #9
+
+T057 is complete: PostgreSQL pages return all 205 workers with exact totals; Schedule rejects
+incomplete/changing/nonprogressing pages and aborts obsolete reads. The workspace regression finds
+worker 205 through search, applies an assignment and verifies the full-month save retains the hidden
+original assignment. Batch pagination counts the complete filtered roster and selects only the shown
+page. Desktop/mobile synthetic screenshots are recorded in feature memory. This supplies the roster
+read portion of SC-23; expected revisions, uncertain commands, session isolation and full #9 remain
+open. Per-page snapshots do not freeze directory changes across the entire multi-request read.

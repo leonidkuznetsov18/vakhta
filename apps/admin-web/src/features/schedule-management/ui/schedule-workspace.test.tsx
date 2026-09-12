@@ -54,7 +54,10 @@ const employees = [
     status: 'ACTIVE',
     telegramLinked: true,
     currentPosition: null,
-    createdAt: 'x',
+    email: null,
+    phone: null,
+    telegramUsername: null,
+    createdAt: '2026-09-01T00:00:00Z',
   },
   {
     id: EMP2,
@@ -63,7 +66,10 @@ const employees = [
     status: 'ACTIVE',
     telegramLinked: false,
     currentPosition: null,
-    createdAt: 'x',
+    email: null,
+    phone: null,
+    telegramUsername: null,
+    createdAt: '2026-09-01T00:00:00Z',
   },
 ];
 
@@ -141,7 +147,11 @@ interface Call {
   body: unknown;
 }
 
-function mockApi(state: { status: string; created?: boolean }, snapshot: typeof org = org) {
+function mockApi(
+  state: { status: string; created?: boolean },
+  snapshot: typeof org = org,
+  roster = employees,
+) {
   const calls: Call[] = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
@@ -154,7 +164,16 @@ function mockApi(state: { status: string; created?: boolean }, snapshot: typeof 
         headers: { 'content-type': 'application/json' },
       });
     if (path === '/admin/org') return json(snapshot);
-    if (path === '/admin/employees') return json(employees);
+    if (url.pathname === '/admin/employees/page') {
+      const after = url.searchParams.get('after');
+      const remaining = roster.filter((employee) => !after || employee.id > after);
+      const items = remaining.slice(0, 200);
+      return json({
+        items,
+        total: roster.length,
+        nextCursor: remaining.length > 200 ? items.at(-1)?.id : null,
+      });
+    }
     if (path.startsWith('/admin/schedules/templates')) return json(templates);
     if (path.startsWith('/admin/schedules?')) {
       const list = [version(state.status)];
@@ -550,6 +569,62 @@ it('offers recovery for a no-op legacy draft after the version enters review', a
   expect(await screen.findByText(t.readOnlyChanges)).toBeTruthy();
   expect(screen.getByRole('button', { name: t.discard }).hasAttribute('disabled')).toBe(false);
   expect(screen.getByRole('button', { name: t.reviewPublish }).hasAttribute('disabled')).toBe(true);
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('finds a worker beyond 200 through the paginated batch picker without trimming hidden assignments', async () => {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+  const roster = Array.from({ length: 205 }, (_, index) => ({
+    ...employees[0],
+    id: `b0000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    personnelNumber: `P${index}`,
+    fullName: `Roster worker ${index + 1}`,
+    status: 'ACTIVE',
+    telegramLinked: false,
+    currentPosition: null,
+    email: null,
+    phone: null,
+    telegramUsername: null,
+    createdAt: '2026-09-01T00:00:00Z',
+  }));
+  const calls = mockApi({ status: 'DRAFT' }, org, roster);
+  admin();
+  fireEvent.click(await screen.findByRole('button', { name: t.edit }));
+  fireEvent.click(screen.getByRole('button', { name: t.add }));
+  const dialog = screen.getByRole('dialog');
+  await waitFor(() => expect(within(dialog).getAllByRole('checkbox')).toHaveLength(20));
+  fireEvent.click(within(dialog).getByRole('button', { name: t.allPeople }));
+  expect(within(dialog).getByText(`${t.selectedPeople}: 20`)).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole('button', { name: t.clearPeople }));
+  fireEvent.change(within(dialog).getByRole('searchbox', { name: t.workerSearch }), {
+    target: { value: 'Roster worker 205' },
+  });
+  fireEvent.click(await within(dialog).findByRole('checkbox', { name: 'Roster worker 205' }));
+  fireEvent.change(within(dialog).getByLabelText(t.zone), { target: { value: ZONE } });
+  fireEvent.change(within(dialog).getByLabelText(t.template), { target: { value: TPL_DAY } });
+  fireEvent.click(within(dialog).getByRole('button', { name: t.preview }));
+  fireEvent.click(within(dialog).getByRole('button', { name: t.apply }));
+  fireEvent.click(screen.getByRole('button', { name: `${s.save} (1)` }));
+  await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+  expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
+    items: expect.arrayContaining([
+      expect.objectContaining({
+        employeeId: EMP,
+        businessDate: '2026-09-05',
+        templateId: TPL_NIGHT,
+      }),
+      expect.objectContaining({ employeeId: roster[204]?.id, templateId: TPL_DAY }),
+    ]),
+  });
   cleanup();
   vi.unstubAllGlobals();
 });

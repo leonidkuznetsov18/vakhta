@@ -10,6 +10,7 @@ import {
   PublishScheduleCommand,
   ReturnToDraftCommand,
   EmployeeView,
+  EmployeesPage,
   type ListScheduleVersionsQuery,
 } from '@vakhta/contracts';
 
@@ -33,6 +34,10 @@ export const scheduleApi = {
     return z
       .array(ShiftTemplateView)
       .parse(await apiFetch(`${root}/templates?siteId=${encodeURIComponent(siteId)}`, { signal }));
+  },
+  async employeesPage(after: string | undefined, signal: AbortSignal) {
+    const query = new URLSearchParams({ limit: '200', ...(after ? { after } : {}) });
+    return EmployeesPage.parse(await apiFetch(`/admin/employees/page?${query}`, { signal }));
   },
   async employee(id: string, signal: AbortSignal) {
     return EmployeeView.parse(await apiFetch(`/admin/employees/${id}`, { signal }));

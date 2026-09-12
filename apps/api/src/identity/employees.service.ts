@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, isNull, or, gt, inArray } from '@vakhta/db';
+import { and, asc, count, desc, eq, isNull, or, gt, inArray } from '@vakhta/db';
 import {
   activationCodes,
   assignmentAcknowledgements,
@@ -27,6 +27,8 @@ import {
   type Transaction,
 } from '@vakhta/db';
 import type {
+  ListEmployeesPageQuery,
+  EmployeesPage,
   ChangeEmployeeStatusCommand,
   CreateEmployeeCommand,
   BulkDeleteEmployeesCommand,
@@ -471,14 +473,50 @@ export class EmployeesService {
     );
   }
 
+  async listPage(query: ListEmployeesPageQuery): Promise<EmployeesPage> {
+    return this.db.transaction(
+      async (tx) => {
+        const [collection] = await tx.select({ total: count() }).from(employees);
+        const rows = await tx
+          .select({ employee: employees, linkId: telegramAccounts.id })
+          .from(employees)
+          .leftJoin(
+            telegramAccounts,
+            and(
+              eq(telegramAccounts.employeeId, employees.id),
+              eq(telegramAccounts.status, 'ACTIVE'),
+            ),
+          )
+          .where(query.after ? gt(employees.id, query.after) : undefined)
+          .orderBy(asc(employees.id))
+          .limit(query.limit + 1);
+        const page = rows.slice(0, query.limit);
+        const current = await this.currentPositions(
+          page.map((row) => row.employee.id),
+          new Date(),
+          tx,
+        );
+        return {
+          items: page.map((row) =>
+            this.toView(row.employee, row.linkId !== null, current.get(row.employee.id) ?? null),
+          ),
+          total: collection?.total ?? 0,
+          nextCursor: rows.length > query.limit ? (page.at(-1)?.employee.id ?? null) : null,
+        };
+      },
+      { isolationLevel: 'repeatable read', accessMode: 'read only' },
+    );
+  }
+
   /** Assignment in force per employee (open-ended or not yet expired), newest first. */
   private async currentPositions(
     employeeIds: readonly string[],
     now: Date = new Date(),
+    reader: DbOrTx = this.db,
   ): Promise<Map<string, EmployeeView['currentPosition']>> {
     const map = new Map<string, EmployeeView['currentPosition']>();
     if (employeeIds.length === 0) return map;
-    const rows = await this.db
+    const rows = await reader
       .select({
         employeeId: employeePositions.employeeId,
         positionId: employeePositions.positionId,
