@@ -1,6 +1,6 @@
 # Schedule acceptance ledger
 
-Baseline: f66cafc. Status: first rendering increment verified locally; no full child accepted yet.
+Baseline: f66cafc. Status: #5 research/prototype accepted and closed; production workflow children remain open.
 Canonical meaning: [product source](../../docs/features/schedule-calendar-redesign.md). Full issue
 criteria in the live GitHub children supplement each row; original bodies must not be overwritten.
 Dates/timings/results are recorded only after actual execution. Prior workspace tests are preserved
@@ -132,3 +132,18 @@ and blocks no-op lifecycle actions. Legacy API reads/create responses remain vis
 while existing-version writes stay disabled. Evidence and desktop/mobile screenshots are recorded
 in feature memory. SC-29 and #9 remain open for actor-isolated persistence and command outcome recovery;
 no timeout/idempotency or production acceptance is inferred from these checks.
+
+### Actor-owned recovery evidence — #9
+
+T061 is complete: new drafts are keyed by actor/site/unit/month/version. Unowned legacy bytes remain
+stored but are not loaded as the current actor's edits. Overview worker presets also carry their actor.
+Reads are partitioned by actor/current grants, and responses require the original workspace generation
+and observed Query instance. A→B and warm-cache A→B→A delayed saves cannot clear drafts or announce
+success in the new workspace. Workspace regressions (23), planning regressions (8), panel build and
+scoped lint pass; desktop/mobile recovery alerts were captured and inspected. The earlier ignored
+storage-recovery notice now renders as an actual error. Durable receipts/timeout resolution remain
+open. Browser storage is not encrypted and is not a boundary against direct device/storage access.
+
+#5 was closed with the full research/prototype checklist and screenshot comment after integrated
+CI 34723539292 succeeded, including release, announcement, images and Pages. It does not close #4
+policy decisions, advanced persistence, participant baseline or pilot acceptance.

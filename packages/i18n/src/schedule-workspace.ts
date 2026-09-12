@@ -98,6 +98,8 @@ export const scheduleWorkspaceEn = {
   unchanged: 'No changes to apply',
   stale:
     'The saved schedule changed while you were editing. Your edits are retained. Discard them to load the latest schedule, then reapply the intended changes.',
+  unownedDraft:
+    'This browser contains older edits with no recorded owner. They remain stored but are not opened automatically. Check the server schedule before editing.',
   recovery:
     'Some saved local edits could not be restored. Check the server schedule before editing.',
   unknownEmployee: 'Worker unavailable',
@@ -230,6 +232,8 @@ export const scheduleWorkspaceUk: ScheduleWorkspaceMessages = {
   unchanged: 'Немає змін для застосування',
   stale:
     'Збережений графік змінився під час редагування. Ваші правки збережено локально. Відкиньте їх, щоб завантажити актуальний графік, і внесіть потрібні зміни повторно.',
+  unownedDraft:
+    'У браузері залишилися старі правки без записаного власника. Вони збережені, але автоматично не відкриваються. Перевірте серверний графік перед редагуванням.',
   recovery:
     'Частину локальних правок не вдалося відновити. Перевірте збережений графік перед редагуванням.',
   unknownEmployee: 'Працівник недоступний',
@@ -361,6 +365,8 @@ export const scheduleWorkspaceRu: ScheduleWorkspaceMessages = {
   unchanged: 'Нет изменений для применения',
   stale:
     'Сохранённый график изменился во время редактирования. Ваши правки сохранены локально. Отбросьте их, чтобы загрузить актуальный график, и внесите нужные изменения повторно.',
+  unownedDraft:
+    'В браузере остались старые правки без записанного владельца. Они сохранены, но автоматически не открываются. Проверьте серверный график перед редактированием.',
   recovery:
     'Часть локальных правок не удалось восстановить. Проверьте сохранённый график перед редактированием.',
   unknownEmployee: 'Сотрудник недоступен',

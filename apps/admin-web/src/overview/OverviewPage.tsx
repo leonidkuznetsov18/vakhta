@@ -241,6 +241,7 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
     const first = group.people[0];
     if (first) {
       writeSchedulePreset({
+        actorId: me.id,
         orgUnitId: group.orgUnitId,
         month: first.businessDate.slice(0, 7),
         people: group.people.map((p) => ({ id: p.employeeId, name: p.fullName })),

@@ -193,3 +193,13 @@ history-preserving recovery, pilot inputs and go/hold decision.
 D-01–07 are tracked in spec.md. None is implicitly accepted by this plan. Human baseline/participant
 pilot and production unit selection remain external evidence requirements. Component choice requires
 runtime spike evidence; preliminary source recommendation does not claim verified behavior.
+
+### Actor-owned recovery increment (#9)
+
+Persist new drafts under actor/site/unit/month/version keys. Retain unscoped legacy bytes without
+attributing them to the next signed-in user; display a recovery notice without exposing their content.
+Namespace Schedule reads by actor and current grants, remount the feature on identity/access changes,
+and ignore mutation callbacks whose original query instance is no longer observed. Keep complete-month
+payloads and revision preconditions unchanged. Verify account changes, scoped draft restoration,
+legacy isolation and late responses in the existing workspace regression suite. This does not implement
+command receipts or claim isolation from a person with direct access to browser storage.

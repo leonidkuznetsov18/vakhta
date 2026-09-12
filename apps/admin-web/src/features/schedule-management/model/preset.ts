@@ -14,6 +14,7 @@ export interface SchedulePresetPerson {
 }
 
 export interface SchedulePreset {
+  readonly actorId: string;
   /** Null when the people are not attached to a unit: the master picks one before planning. */
   readonly orgUnitId: string | null;
   /** 'YYYY-MM' of the shift that was worked without a schedule. */

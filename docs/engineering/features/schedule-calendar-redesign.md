@@ -506,3 +506,33 @@ installed primitives; no paid engine or new worker input is needed for the demon
   do not silently commit without the touched version's revision change. No automatic mutation retry.
 - Lean: Prevent rework. Preserve the planner's local intent when the server changes; stop actions
   that cannot safely execute and keep the current schedule readable during rolling deployment.
+
+### Actor-owned local recovery — #9, 2026-09-13
+
+- New draft/baseline/revision/history keys include actor, site, unit, month and version; an old bare
+  version key is retained without displaying its assignments or attributing it to the next account.
+  A localized notice explains why it was not restored. Overview worker presets now include the actor.
+- Schedule list/detail/template/roster/identity reads include actor and current grants. Account/access
+  changes remount the feature. Late callbacks require their original per-mount owner token plus the
+  same observed Query instance; a warm-cache A→B→A round trip cannot revive an obsolete callback.
+  A newer cached detail revision is never replaced by an older successful mutation response.
+- Independent review found the warm-cache callback hole; a generation guard and real warm-cache
+  regression resolved it. Workspace 23 tests and planning 8 passed. TypeScript/React Compiler build
+  and scoped ESLint passed. The existing invalid-storage notice used an ignored Feedback prop; it
+  now renders a visible error. No automatic mutation retry or command-receipt completion is claimed.
+- Captured and inspected `draft-ownership.png` (1280×720) and `draft-ownership-mobile.png` (390×720)
+  under `docs/engineering/evidence/schedule-ui-2026-09-13/`. The screenshot uses a temporary synthetic
+  unowned draft in preview storage; it was removed afterwards. Preview's initial version now has a
+  stable fixture identity for reproducible reload/recovery checks. Production actions were not used.
+- Lean: protect the planner's intent and prevent another account from silently continuing it. Keep
+  a readable server schedule while preserving older unowned bytes; do not guess ownership.
+- Remaining #9: atomic durable receipts, outcome resolution after lost responses and their recovery
+  journeys. Draft namespacing does not encrypt browser storage or prevent direct device access.
+
+### Accepted prototype and delivery checkpoint — 2026-09-13
+
+#5 is closed with completed criteria and screenshot comment 5649238116. Advanced features shown only
+in the spike remain prototypes. CI 34723539292 for 14d33604 succeeded in all jobs: checks, release,
+Telegram announcement, API/worker images and Pages. This pipeline result does not establish a real
+participant baseline, selected unit pilot or production migration inspection. #4/#6/#9 and the
+remaining domain streams retain their outstanding acceptance criteria.

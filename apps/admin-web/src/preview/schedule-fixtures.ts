@@ -64,6 +64,8 @@ function create(unit: string, periodMonth: string): ScheduleVersionView {
 const simulateStaleSave = new URLSearchParams(location.search).get('schedule') === 'stale';
 let staleSaveInjected = false;
 const initial = create(scheduleUnitId, month);
+// Stable identity makes local recovery scenarios reproducible across preview reloads.
+initial.id = 'd0000000-0000-4000-8000-000000000001';
 initial.status = simulateStaleSave ? 'DRAFT' : 'PUBLISHED';
 initial.deletable = simulateStaleSave;
 initial.publishedAt = new Date().toISOString();

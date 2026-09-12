@@ -8,6 +8,7 @@ import { ChevronLeftIcon, ChevronRightIcon, Undo2Icon, Redo2Icon, PlusIcon } fro
 import { currentLocale } from '@/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SelectField } from '@/components/app/fields';
@@ -20,6 +21,8 @@ import { useConfirm } from '@/components/app/confirm-dialog';
 import { IconButton } from '@/shared/ui/icon-button';
 import { StateFilter } from '@/shared/ui/state-filter';
 import { readError } from '@/errors';
+import { useNavigation } from '@/navigation';
+import { scheduleAccessKey } from '../model/ownership';
 import { useWorkspace } from '../model/use-workspace';
 import { periodDates, shiftDate, type PeriodMode } from '../model/planning';
 import type { GridState } from '../model/grid';
@@ -32,6 +35,10 @@ import { PublicationReview } from './publication-review';
 const t = messages(currentLocale()).scheduleWorkspace;
 const s = messages(currentLocale()).admin.schedule;
 export function ScheduleWorkspace() {
+  const { actorId, grants } = useNavigation();
+  return <WorkspaceContent key={scheduleAccessKey(actorId, grants)} />;
+}
+function WorkspaceContent() {
   const w = useWorkspace();
   const [periodMode, setPeriodMode] = useState<PeriodMode | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -87,7 +94,12 @@ export function ScheduleWorkspace() {
           <QueryFeedback key="names" query={query} errorMessage={t.namesUnavailable} />
         ))}
       <Feedback error={readError(w.error)} />
-      {w.store.recoveryError && <Feedback error={null} notice={t.recovery} />}
+      {w.unownedDraft && (
+        <Alert>
+          <AlertDescription>{t.unownedDraft}</AlertDescription>
+        </Alert>
+      )}
+      {w.store.recoveryError && <Feedback error={t.recovery} />}
       {w.versionsQuery.isSuccess && !w.versions.length ? (
         <EmptyState
           text={t.empty}
@@ -154,7 +166,7 @@ function WorkspaceView({
       description: t.discardHint,
       confirmLabel: t.discard,
     });
-    if (accepted !== false) w.store.drop(version.id);
+    if (accepted !== false) w.store.drop(w.draftKey);
   }
   async function remove() {
     if (!version || !w.commandReady) return;
@@ -409,9 +421,9 @@ function WorkspaceView({
                     icon={Undo2Icon}
                     label={t.undo}
                     tooltip={t.undo}
-                    disabled={!w.writable || !w.store.past[version.id]?.length}
+                    disabled={!w.writable || !w.store.past[w.draftKey]?.length}
                     onClick={() => {
-                      if (w.writable) w.store.undo(version.id);
+                      if (w.writable) w.store.undo(w.draftKey);
                     }}
                   />
                   <IconButton
@@ -420,9 +432,9 @@ function WorkspaceView({
                     icon={Redo2Icon}
                     label={t.redo}
                     tooltip={t.redo}
-                    disabled={!w.writable || !w.store.future[version.id]?.length}
+                    disabled={!w.writable || !w.store.future[w.draftKey]?.length}
                     onClick={() => {
-                      if (w.writable) w.store.redo(version.id);
+                      if (w.writable) w.store.redo(w.draftKey);
                     }}
                   />
                   <Button

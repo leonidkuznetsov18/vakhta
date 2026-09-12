@@ -6,7 +6,7 @@ import { format, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { DataTable } from '@/components/app/data-table';
 import { QueryFeedback } from '@/components/app/query-feedback';
-import { keys } from '@/lib/query';
+import { scheduleKeys } from '../model/ownership';
 import { formatDate } from '@/lib/format';
 import { scheduleApi } from '../api/schedule-api';
 import { gridFromDetail, gridToItems } from '../model/grid';
@@ -16,7 +16,7 @@ const t = messages(currentLocale()).scheduleWorkspace;
 const s = messages(currentLocale()).admin.schedule;
 function HistoryDetail({ id, workspace: w }: { id: string; workspace: Workspace }) {
   const query = useQuery({
-    queryKey: keys.schedule(id),
+    queryKey: scheduleKeys.detail(w.accessKey, id),
     queryFn: ({ signal }) => scheduleApi.detail(id, signal),
   });
   const missing = [...new Set(query.data?.assignments.map((item) => item.employeeId) ?? [])].filter(
@@ -24,7 +24,7 @@ function HistoryDetail({ id, workspace: w }: { id: string; workspace: Workspace 
   );
   const names = useQueries({
     queries: missing.map((employeeId) => ({
-      queryKey: keys.employee(employeeId),
+      queryKey: scheduleKeys.employee(w.accessKey, employeeId),
       queryFn: ({ signal }: { signal: AbortSignal }) => scheduleApi.employee(employeeId, signal),
       enabled: w.canReadEmployees,
     })),

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type { EmployeeView, EmployeesPage } from '@vakhta/contracts';
-import { keys } from '@/lib/query';
+import { scheduleKeys } from './ownership';
 import { scheduleApi } from '../api/schedule-api';
 
 type ReadPage = (after: string | undefined, signal: AbortSignal) => Promise<EmployeesPage>;
@@ -45,9 +45,9 @@ export async function loadScheduleRoster(
   return employees;
 }
 
-export function useScheduleRoster(enabled: boolean) {
+export function useScheduleRoster(accessKey: string, enabled: boolean) {
   const query = useQuery({
-    queryKey: keys.scheduleRoster,
+    queryKey: scheduleKeys.roster(accessKey),
     queryFn: ({ signal }) => loadScheduleRoster(signal),
     enabled,
   });

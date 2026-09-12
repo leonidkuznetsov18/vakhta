@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CreateScheduleVersionCommand, ScheduleVersionView } from '@vakhta/contracts';
+import type {
+  CreateScheduleVersionCommand,
+  ScheduleVersionView,
+  ScheduleVersionDetail,
+} from '@vakhta/contracts';
 import { ApiError } from '@/api';
 import { useOrg } from '@/lib/org';
 import { usePersistentState } from '@/lib/ui-store';
 import { useNavigation } from '@/navigation';
-import { keys } from '@/lib/query';
+import { scheduleAccessKey, scheduleDraftKey, scheduleKeys } from './ownership';
 import { notifySuccess } from '@/lib/toast';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -26,6 +30,7 @@ const t = messages(currentLocale()).scheduleWorkspace;
 type Selection = { scope: string; id: string };
 type Write = {
   id: string;
+  draftKey: string;
   expectedRevision: number;
   scope: string;
   grid: GridState;
@@ -36,13 +41,17 @@ type Write = {
 /** Server snapshots and local transactions have separate ownership. Filters never trim write payloads. */
 export function useWorkspace() {
   const client = useQueryClient();
-  const { grants, roles } = useNavigation();
+  const { grants, roles, actorId } = useNavigation();
+  const accessKey = scheduleAccessKey(actorId, grants);
+  const [workspaceOwner] = useState(() => crypto.randomUUID());
   const orgResult = useOrg();
   const { org } = orgResult;
-  const canReadEmployees = roles.some((role) =>
-    ['ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER'].includes(role),
-  );
-  const employeeResult = useScheduleRoster(canReadEmployees);
+  const canReadEmployees =
+    !!actorId &&
+    roles.some((role) =>
+      ['ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER'].includes(role),
+    );
+  const employeeResult = useScheduleRoster(accessKey, canReadEmployees);
   const [storedSite, setSite] = usePersistentState('schedule.siteId', '');
   const [storedUnit, setUnit] = usePersistentState('schedule.orgUnitId', '');
   const [month, setMonth] = usePersistentState('schedule.month', () =>
@@ -58,20 +67,21 @@ export function useWorkspace() {
   const units = org?.orgUnits.filter((item) => item.siteId === siteId) ?? [];
   const orgUnitId = unit?.id ?? units[0]?.id ?? '';
   const zones = org?.zones.filter((item) => item.orgUnitId === orgUnitId) ?? [];
-  const scope = `${siteId}|${orgUnitId}|${month}`;
+  const scope = `${accessKey}|${siteId}|${orgUnitId}|${month}`;
   const rights = capabilities(grants, siteId, orgUnitId);
   const [picked, setPicked] = useState<Selection | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const listInput = { siteId, orgUnitId, periodMonth: month };
   const versionsQuery = useQuery({
-    queryKey: keys.schedules(listInput),
+    queryKey: scheduleKeys.list(accessKey, listInput),
+    meta: { workspaceOwner },
     queryFn: ({ signal }) => scheduleApi.list(listInput, signal),
-    enabled: !!siteId && !!orgUnitId,
+    enabled: !!actorId && !!siteId && !!orgUnitId,
   });
   const templatesQuery = useQuery({
-    queryKey: keys.templates(siteId),
+    queryKey: scheduleKeys.templates(accessKey, siteId),
     queryFn: ({ signal }) => scheduleApi.templates(siteId, signal),
-    enabled: !!siteId,
+    enabled: !!actorId && !!siteId,
   });
   const versions = versionsQuery.data ?? [];
   const current = preferredVersion(versions);
@@ -79,31 +89,34 @@ export function useWorkspace() {
     picked?.scope === scope ? (versions.find((v) => v.id === picked.id) ?? current) : current;
   const id = selected?.id ?? '';
   const detailQuery = useQuery({
-    queryKey: keys.schedule(id),
+    queryKey: scheduleKeys.detail(accessKey, id),
     queryFn: ({ signal }) => scheduleApi.detail(id, signal),
-    enabled: !!id,
+    enabled: !!actorId && !!id,
   });
   const published = versions.find((v) => v.status === 'PUBLISHED');
   const publishedQuery = useQuery({
-    queryKey: keys.schedule(published?.id ?? null),
+    queryKey: scheduleKeys.detail(accessKey, published?.id ?? null),
     queryFn: ({ signal }) => scheduleApi.detail(published?.id ?? '', signal),
-    enabled: !!published,
+    enabled: !!actorId && !!published,
   });
   const detail = detailQuery.data;
   const version = detail?.version;
   const baseline = detail ? gridFromDetail(detail) : EMPTY_GRID;
   const store = useScheduleDrafts();
-  const kept = store.drafts[id];
-  const legacy = !!kept && (!store.baselines[id] || store.revisions[id] === undefined);
+  const draftKey = scheduleDraftKey(actorId, siteId, orgUnitId, month, id);
+  const kept = actorId ? store.drafts[draftKey] : undefined;
+  const unownedDraft = !!store.drafts[id];
+  const legacy = !!kept && (!store.baselines[draftKey] || store.revisions[draftKey] === undefined);
   const localGrid = kept && legacy ? restoreLegacyGrid(kept, baseline) : (kept ?? baseline);
-  const savedBaseline = store.baselines[id];
+  const savedBaseline = store.baselines[draftKey];
   const stale =
     !!kept &&
     !legacy &&
     !!savedBaseline &&
-    (store.revisions[id] !== version?.revision || countChanges(savedBaseline, baseline) > 0);
+    (store.revisions[draftKey] !== version?.revision || countChanges(savedBaseline, baseline) > 0);
   const changes = countChanges(baseline, localGrid);
   const canEdit =
+    !!actorId &&
     !!version &&
     version.revision > 0 &&
     ((version.status === 'DRAFT' && rights.edit) ||
@@ -116,7 +129,7 @@ export function useWorkspace() {
   );
   const extraQueries = useQueries({
     queries: missingIds.map((employeeId) => ({
-      queryKey: ['employees', employeeId],
+      queryKey: scheduleKeys.employee(accessKey, employeeId),
       queryFn: ({ signal }: { signal: AbortSignal }) => scheduleApi.employee(employeeId, signal),
       enabled: canReadEmployees && employeeResult.loaded,
     })),
@@ -126,14 +139,30 @@ export function useWorkspace() {
     ...extraQueries.flatMap((query) => (query.data ? [query.data] : [])),
   ];
   const presetHere =
-    preset?.month === month && (preset.orgUnitId === null || preset.orgUnitId === orgUnitId)
+    !!actorId &&
+    preset?.actorId === actorId &&
+    preset.month === month &&
+    (preset.orgUnitId === null || preset.orgUnitId === orgUnitId)
       ? preset
       : null;
-  const refresh = () => client.invalidateQueries({ queryKey: ['schedules'] });
+  const refresh = () => client.invalidateQueries({ queryKey: scheduleKeys.all(accessKey) });
+  const observedQuery = client
+    .getQueryCache()
+    .find({ queryKey: scheduleKeys.list(accessKey, listInput), exact: true });
+  // QueryClient.clear() on logout removes the old instance, even if the same actor signs in again.
+  const ownsResponse = () =>
+    !!actorId &&
+    !!observedQuery &&
+    observedQuery.getObserversCount() > 0 &&
+    observedQuery.meta?.['workspaceOwner'] === workspaceOwner &&
+    client
+      .getQueryCache()
+      .find({ queryKey: scheduleKeys.list(accessKey, listInput), exact: true }) === observedQuery;
   const create = useMutation({
     mutationFn: ({ input }: { input: CreateScheduleVersionCommand; scope: string }) =>
       scheduleApi.create(input),
     onSuccess: async (created, variables) => {
+      if (!ownsResponse()) return;
       // Only an unchanged workspace can receive the response's selection.
       setPicked((previous) =>
         previous?.scope === variables.scope ? { scope: variables.scope, id: created.id } : previous,
@@ -169,14 +198,19 @@ export function useWorkspace() {
       }
     },
     onSuccess: async (result, variables) => {
+      if (!ownsResponse()) return;
       if (
         ['save', 'revise', 'remove'].includes(variables.action) &&
-        useScheduleDrafts.getState().drafts[variables.id] === variables.grid
+        useScheduleDrafts.getState().drafts[variables.draftKey] === variables.grid
       )
-        useScheduleDrafts.getState().drop(variables.id);
+        useScheduleDrafts.getState().drop(variables.draftKey);
       if (variables.action === 'save' || variables.action === 'revise') clearSchedulePreset();
       if (result && 'version' in result)
-        client.setQueryData(keys.schedule(result.version.id), result);
+        client.setQueryData<ScheduleVersionDetail>(
+          scheduleKeys.detail(accessKey, result.version.id),
+          (current) =>
+            current && current.version.revision > result.version.revision ? current : result,
+        );
       if (result && 'id' in result) {
         setPicked((previous) =>
           previous?.scope === variables.scope && previous.id === variables.id
@@ -194,15 +228,22 @@ export function useWorkspace() {
       await refresh();
     },
     onError: async (error, variables) => {
+      if (!ownsResponse()) return;
       if (error instanceof ApiError && error.code === 'SCHEDULE_REVISION_CONFLICT') {
-        await client.invalidateQueries({ queryKey: keys.schedule(variables.id) });
+        await client.invalidateQueries({ queryKey: scheduleKeys.detail(accessKey, variables.id) });
       }
     },
     retry: false,
   });
   const busy = create.isPending || write.isPending;
   const commandReady =
-    !!version && version.revision > 0 && !busy && !stale && !legacy && !detailQuery.isError;
+    !!actorId &&
+    !!version &&
+    version.revision > 0 &&
+    !busy &&
+    !stale &&
+    !legacy &&
+    !detailQuery.isError;
   const writable = !!editMode && commandReady;
   function select(value: ScheduleVersionView) {
     if (busy) return;
@@ -215,7 +256,7 @@ export function useWorkspace() {
     setEditing(id);
   }
   function createDraft() {
-    if (busy || !rights.edit || !orgUnitId || !versionsQuery.isSuccess) return;
+    if (!actorId || busy || !rights.edit || !orgUnitId || !versionsQuery.isSuccess) return;
     const draft = versions.find((value) => value.status === 'DRAFT');
     if (draft) {
       select(draft);
@@ -235,7 +276,7 @@ export function useWorkspace() {
   }
   function edit(next: GridState) {
     if (writable && version && gridToItems(next).length <= 5000)
-      store.keep(id, next, baseline, version.revision);
+      store.keep(draftKey, next, baseline, version.revision);
   }
   function commit(action: Write['action'], reason = '', snapshot = grid) {
     if (!version || !commandReady || snapshot !== grid) return;
@@ -261,7 +302,8 @@ export function useWorkspace() {
       setPicked({ scope, id });
       write.mutate({
         id,
-        expectedRevision: store.revisions[id] ?? version.revision,
+        draftKey,
+        expectedRevision: store.revisions[draftKey] ?? version.revision,
         scope,
         grid: snapshot,
         action,
@@ -286,6 +328,9 @@ export function useWorkspace() {
     orgUnitId,
     month,
     scope,
+    accessKey,
+    draftKey,
+    unownedDraft,
     rights,
     versionsQuery,
     templatesQuery,
@@ -305,7 +350,7 @@ export function useWorkspace() {
     recorded: detail?.assignments ?? [],
     restoreLegacy() {
       if (legacy && version && canEdit && !busy && detailQuery.isSuccess)
-        store.restore(id, grid, baseline, version.revision);
+        store.restore(draftKey, grid, baseline, version.revision);
     },
     store,
     busy,
@@ -326,6 +371,7 @@ export function useWorkspace() {
     removeHistory(versionId: string) {
       const target = versions.find((value) => value.id === versionId);
       if (
+        !!actorId &&
         !busy &&
         rights.edit &&
         target?.deletable &&
@@ -334,9 +380,12 @@ export function useWorkspace() {
       )
         write.mutate({
           id: versionId,
+          draftKey: scheduleDraftKey(actorId, siteId, orgUnitId, month, versionId),
           expectedRevision: target.revision,
           scope,
-          grid: store.drafts[versionId] ?? EMPTY_GRID,
+          grid:
+            store.drafts[scheduleDraftKey(actorId, siteId, orgUnitId, month, versionId)] ??
+            EMPTY_GRID,
           action: 'remove',
           reason: '',
         });

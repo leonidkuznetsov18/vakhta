@@ -4,13 +4,26 @@ import { ScheduleVersionDetail } from '@vakhta/contracts';
 import { setUiState } from '@/lib/ui-store';
 import { gridFromDetail, gridToItems, setAssignment, setCell } from '../model/grid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+  render as renderRaw,
+} from '@testing-library/react';
 import { render } from '@/test-utils';
 import { ScheduleWorkspace as SchedulePage } from './schedule-workspace';
+import { scheduleDraftKey } from '../model/ownership';
 import { useScheduleDrafts } from '../model/store';
 import { writeSchedulePreset } from '../model/preset';
 import { clearPersistentState } from '@/lib/ui-store';
+import { notifySuccess } from '@/lib/toast';
 import { NavigationProvider } from '@/navigation';
+
+vi.mock('@/lib/toast', () => ({ notifySuccess: vi.fn() }));
 
 const viewport = vi.hoisted(() => ({ mobile: false }));
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => viewport.mobile }));
@@ -23,6 +36,8 @@ const EMP2 = 'b0000000-0000-4000-8000-000000000002';
 const TPL_DAY = 'c0000000-0000-4000-8000-000000000001';
 const TPL_NIGHT = 'c0000000-0000-4000-8000-000000000002';
 const VERSION = 'd0000000-0000-4000-8000-000000000001';
+const ACTOR = 'f0000000-0000-4000-8000-000000000001';
+const DRAFT_KEY = scheduleDraftKey(ACTOR, SITE, UNIT, '2026-09', VERSION);
 const ASSIGN = 'e0000000-0000-4000-8000-000000000001';
 
 const org = {
@@ -155,6 +170,7 @@ function mockApi(
     revision?: number;
     conflict?: boolean;
     legacyApi?: boolean;
+    saveGate?: Promise<void>;
   },
   snapshot: typeof org = org,
   roster = employees,
@@ -236,6 +252,7 @@ function mockApi(
       });
     }
     if (path === `/admin/schedules/${VERSION}/assignments` && method === 'PUT') {
+      await state.saveGate;
       if (state.conflict) {
         state.revision = 2;
         return json({ code: 'SCHEDULE_REVISION_CONFLICT', message: 'Stale revision' }, 409);
@@ -278,16 +295,20 @@ function mockApi(
 
 const t = messages(currentLocale()).scheduleWorkspace;
 const s = messages(currentLocale()).admin.schedule;
-function admin() {
-  return render(
+function account(actorId = ACTOR) {
+  return (
     <NavigationProvider
+      actorId={actorId}
       go={() => undefined}
       roles={['ADMIN']}
       grants={[{ role: 'ADMIN', scopeType: 'ENTERPRISE', scopeId: null }]}
     >
       <SchedulePage />
-    </NavigationProvider>,
+    </NavigationProvider>
   );
+}
+function admin() {
+  return render(account());
 }
 describe('schedule workspace', () => {
   beforeEach(() => {
@@ -307,10 +328,113 @@ describe('schedule workspace', () => {
     cleanup();
     vi.unstubAllGlobals();
   });
+  it('isolates local edits and server reads when the signed-in account changes', async () => {
+    const calls = mockApi({ status: 'DRAFT' });
+    const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+    const local = setCell(saved, EMP, '2026-09-05', TPL_DAY);
+    useScheduleDrafts.getState().keep(DRAFT_KEY, local, saved, 1);
+    writeSchedulePreset({
+      actorId: ACTOR,
+      orgUnitId: UNIT,
+      month: '2026-09',
+      people: [{ id: EMP2, name: 'Private preset person' }],
+    });
+    const page = admin();
+    expect(await screen.findByRole('button', { name: `${s.save} (1)` })).toBeTruthy();
+    const reads = calls.filter((call) => call.path === `/admin/schedules/${VERSION}`).length;
+    page.rerender(account('f0000000-0000-4000-8000-000000000002'));
+    expect(screen.queryByText(/Private preset person/)).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: t.edit }));
+    expect(screen.getByRole('button', { name: `${s.save} (0)` }).hasAttribute('disabled')).toBe(
+      true,
+    );
+    expect(
+      calls.filter((call) => call.path === `/admin/schedules/${VERSION}`).length,
+    ).toBeGreaterThan(reads);
+    expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toEqual(local);
+    page.rerender(account());
+    expect(await screen.findByRole('button', { name: `${s.save} (1)` })).toBeTruthy();
+  });
+
+  it('retains unowned legacy edits without opening their content for the current account', async () => {
+    mockApi({ status: 'DRAFT' });
+    const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+    const local = setCell(saved, EMP, '2026-09-05', TPL_DAY);
+    useScheduleDrafts.getState().keep(VERSION, local, saved, 1);
+    admin();
+    expect(await screen.findByText(t.unownedDraft)).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: t.edit }));
+    expect(screen.getByRole('button', { name: `${s.save} (0)` }).hasAttribute('disabled')).toBe(
+      true,
+    );
+    expect(useScheduleDrafts.getState().drafts[VERSION]).toEqual(local);
+    expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toBeUndefined();
+  });
+
+  it('ignores a successful write response after the account changes', async () => {
+    let finishSave: () => void = () => undefined;
+    const saveGate = new Promise<void>((resolve) => {
+      finishSave = () => resolve();
+    });
+    const calls = mockApi({ status: 'DRAFT', saveGate });
+    const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+    const local = setCell(saved, EMP, '2026-09-05', TPL_DAY);
+    useScheduleDrafts.getState().keep(DRAFT_KEY, local, saved, 1);
+    const page = admin();
+    fireEvent.click(await screen.findByRole('button', { name: `${s.save} (1)` }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    page.rerender(account('f0000000-0000-4000-8000-000000000002'));
+    fireEvent.click(await screen.findByRole('button', { name: t.edit }));
+    vi.mocked(notifySuccess).mockClear();
+    await act(async () => {
+      finishSave();
+      await saveGate;
+    });
+    expect(screen.getByRole('button', { name: `${s.save} (0)` }).hasAttribute('disabled')).toBe(
+      true,
+    );
+    expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toEqual(local);
+    expect(notifySuccess).not.toHaveBeenCalled();
+  });
+
+  it('ignores the old workspace response after switching accounts and returning to its warm cache', async () => {
+    let finishSave: () => void = () => undefined;
+    const saveGate = new Promise<void>((resolve) => {
+      finishSave = resolve;
+    });
+    const calls = mockApi({ status: 'DRAFT', saveGate });
+    const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+    const local = setCell(saved, EMP, '2026-09-05', TPL_DAY);
+    useScheduleDrafts.getState().keep(DRAFT_KEY, local, saved, 1);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 300_000, staleTime: 30_000 } },
+    });
+    const page = renderRaw(account(), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    fireEvent.click(await screen.findByRole('button', { name: `${s.save} (1)` }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    page.rerender(account('f0000000-0000-4000-8000-000000000002'));
+    await screen.findByRole('button', { name: t.edit });
+    page.rerender(account());
+    await screen.findByRole('button', { name: `${s.save} (1)` });
+    vi.mocked(notifySuccess).mockClear();
+    await act(async () => {
+      finishSave();
+      await saveGate;
+    });
+    expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toEqual(local);
+    expect(notifySuccess).not.toHaveBeenCalled();
+    client.clear();
+  });
+
   it('starts with the published zone overview and hides mutation controls for masters', async () => {
     const calls = mockApi({ status: 'PUBLISHED', created: true });
     render(
       <NavigationProvider
+        actorId={ACTOR}
         go={() => undefined}
         roles={['SHIFT_MASTER']}
         grants={[{ role: 'SHIFT_MASTER', scopeType: 'ORG_UNIT', scopeId: UNIT }]}
@@ -379,14 +503,14 @@ describe('schedule workspace', () => {
       zoneId: EMP2,
       kind: 'EXTRA',
     });
-    act(() => useScheduleDrafts.getState().keep(VERSION, next, saved, 1));
+    act(() => useScheduleDrafts.getState().keep(DRAFT_KEY, next, saved, 1));
     fireEvent.click(screen.getByRole('radio', { name: t.month }));
     fireEvent.mouseDown(screen.getByRole('tab', { name: t.people }), { button: 0, ctrlKey: false });
     fireEvent.change(screen.getByRole('combobox', { name: t.zone }), { target: { value: ZONE } });
     expect(screen.getByRole('tabpanel', { name: t.people })).toBeTruthy();
     expect(screen.getByText(t.outsideZone)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Кузнецов Леонид, 2026-09-06/ })).toBeNull();
-    expect(gridToItems(useScheduleDrafts.getState().drafts[VERSION] ?? { rows: [] })).toEqual(
+    expect(gridToItems(useScheduleDrafts.getState().drafts[DRAFT_KEY] ?? { rows: [] })).toEqual(
       gridToItems(next),
     );
     fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 2026-09-05/ }));
@@ -394,7 +518,7 @@ describe('schedule workspace', () => {
     await waitFor(() =>
       expect(document.activeElement).toBe(screen.getByRole('region', { name: t.people })),
     );
-    expect(gridToItems(useScheduleDrafts.getState().drafts[VERSION] ?? { rows: [] })).toEqual(
+    expect(gridToItems(useScheduleDrafts.getState().drafts[DRAFT_KEY] ?? { rows: [] })).toEqual(
       gridToItems(next).filter((item) => item.zoneId !== ZONE),
     );
   });
@@ -444,6 +568,7 @@ describe('schedule workspace', () => {
   it('does not create a version automatically when arriving with overview workers', async () => {
     const calls = mockApi({ status: 'PUBLISHED' });
     writeSchedulePreset({
+      actorId: ACTOR,
       orgUnitId: UNIT,
       month: '2026-09',
       people: [{ id: EMP2, name: 'Сидоров Пётр' }],
@@ -467,7 +592,7 @@ describe('schedule workspace', () => {
       positionId: ZONE,
       teamId: ZONE,
     });
-    act(() => useScheduleDrafts.getState().keep(VERSION, next, saved, 1));
+    act(() => useScheduleDrafts.getState().keep(DRAFT_KEY, next, saved, 1));
     fireEvent.click(screen.getByRole('button', { name: `${s.save} (1)` }));
     await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
     expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
@@ -484,7 +609,7 @@ describe('schedule workspace', () => {
     act(() =>
       useScheduleDrafts
         .getState()
-        .keep(VERSION, setCell(saved, EMP, '2026-09-05', TPL_DAY), saved, 1),
+        .keep(DRAFT_KEY, setCell(saved, EMP, '2026-09-05', TPL_DAY), saved, 1),
     );
     fireEvent.click(screen.getByRole('button', { name: t.undo }));
     expect(screen.getByRole('button', { name: `${s.save} (0)` }).hasAttribute('disabled')).toBe(
@@ -502,14 +627,14 @@ describe('schedule workspace', () => {
     act(() =>
       useScheduleDrafts
         .getState()
-        .keep(VERSION, local, setCell(old, EMP, '2026-09-05', TPL_DAY), 1),
+        .keep(DRAFT_KEY, local, setCell(old, EMP, '2026-09-05', TPL_DAY), 1),
     );
     admin();
     expect(await screen.findByText(t.stale)).toBeTruthy();
     expect(screen.getByRole('button', { name: `${s.save} (1)` }).hasAttribute('disabled')).toBe(
       true,
     );
-    expect(useScheduleDrafts.getState().drafts[VERSION]).toEqual(local);
+    expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toEqual(local);
   });
   it('shows concrete publication differences and sends the entered change reason', async () => {
     const calls = mockApi({ status: 'PUBLISHED' });
@@ -517,7 +642,7 @@ describe('schedule workspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: t.edit }));
     const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('PUBLISHED')));
     const next = setCell(saved, EMP, '2026-09-05', TPL_DAY);
-    act(() => useScheduleDrafts.getState().keep(VERSION, next, saved, 1));
+    act(() => useScheduleDrafts.getState().keep(DRAFT_KEY, next, saved, 1));
     fireEvent.click(screen.getByRole('button', { name: t.reviewPublish }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText(new RegExp(t.nightShift))).toBeTruthy();
@@ -581,11 +706,11 @@ it('preserves unsaved edits when the server version is now in review and blocks 
   const calls = mockApi({ status: 'IN_REVIEW' });
   const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
   const local = setCell(saved, EMP, '2026-09-05', TPL_DAY);
-  useScheduleDrafts.getState().keep(VERSION, local, saved, 1);
+  useScheduleDrafts.getState().keep(DRAFT_KEY, local, saved, 1);
   admin();
   expect(await screen.findByText(t.readOnlyChanges)).toBeTruthy();
   expect(screen.getByRole('button', { name: t.reviewPublish }).hasAttribute('disabled')).toBe(true);
-  expect(useScheduleDrafts.getState().drafts[VERSION]).toEqual(local);
+  expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toEqual(local);
   expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
   cleanup();
   vi.unstubAllGlobals();
@@ -597,7 +722,7 @@ it('offers recovery for a no-op legacy draft after the version enters review', a
     rows: saved.rows.map(({ employeeId, zoneId, cells }) => ({ employeeId, zoneId, cells })),
   };
   useScheduleDrafts.setState({
-    drafts: { [VERSION]: legacy },
+    drafts: { [DRAFT_KEY]: legacy },
     baselines: {},
     revisions: {},
     past: {},
@@ -688,11 +813,11 @@ it('retains a stale draft and its original revision after the server rejects a s
   fireEvent.click(await screen.findByRole('button', { name: t.edit }));
   const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
   const local = setCell(saved, EMP, '2026-09-05', TPL_DAY);
-  act(() => useScheduleDrafts.getState().keep(VERSION, local, saved, 1));
+  act(() => useScheduleDrafts.getState().keep(DRAFT_KEY, local, saved, 1));
   fireEvent.click(screen.getByRole('button', { name: `${s.save} (1)` }));
   await waitFor(() => expect(screen.getAllByText(t.stale).length).toBeGreaterThan(0));
-  expect(useScheduleDrafts.getState().drafts[VERSION]).toEqual(local);
-  expect(useScheduleDrafts.getState().revisions[VERSION]).toBe(1);
+  expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toEqual(local);
+  expect(useScheduleDrafts.getState().revisions[DRAFT_KEY]).toBe(1);
   await waitFor(() =>
     expect(screen.getByRole('button', { name: `${s.save} (1)` }).hasAttribute('disabled')).toBe(
       true,
@@ -704,7 +829,7 @@ it('retains a stale draft and its original revision after the server rejects a s
   const confirmation = await screen.findByRole('alertdialog');
   fireEvent.click(within(confirmation).getByRole('button', { name: t.discard }));
   await waitFor(() => expect(screen.queryByText(t.stale)).toBeNull());
-  expect(useScheduleDrafts.getState().drafts[VERSION]).toBeUndefined();
+  expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toBeUndefined();
 
   cleanup();
   vi.unstubAllGlobals();
@@ -722,15 +847,17 @@ it('disables lifecycle actions when an identical server grid has a newer revisio
   });
   setUiState({ 'schedule.month': '2026-09' });
   const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
-  useScheduleDrafts.getState().keep(VERSION, setCell(saved, EMP, '2026-09-05', TPL_DAY), saved, 1);
-  useScheduleDrafts.getState().undo(VERSION);
+  useScheduleDrafts
+    .getState()
+    .keep(DRAFT_KEY, setCell(saved, EMP, '2026-09-05', TPL_DAY), saved, 1);
+  useScheduleDrafts.getState().undo(DRAFT_KEY);
   const calls = mockApi({ status: 'DRAFT', revision: 2 });
   admin();
   fireEvent.click(await screen.findByRole('button', { name: t.edit }));
   expect(await screen.findByText(t.stale)).toBeTruthy();
   expect(screen.getByRole('button', { name: s.submit }).hasAttribute('disabled')).toBe(true);
   expect(screen.getByRole('button', { name: s.deleteVersion }).hasAttribute('disabled')).toBe(true);
-  expect(useScheduleDrafts.getState().revisions[VERSION]).toBe(1);
+  expect(useScheduleDrafts.getState().revisions[DRAFT_KEY]).toBe(1);
   expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
   cleanup();
   vi.unstubAllGlobals();
