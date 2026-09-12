@@ -1,3 +1,9 @@
+## [0.93.4](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.3...v0.93.4) (2026-09-12)
+
+### Bug fixes
+
+* **admin:** align status indicators and responsive review controls ([f2cf17f](https://github.com/leonidkuznetsov18/vakhta/commit/f2cf17f7158e59da655d9f2c0b429764c729ea16))
+
 ## [0.93.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.2...v0.93.3) (2026-09-12)
 
 ### Bug fixes
