@@ -21,7 +21,7 @@ const me: { [k: string]: unknown; image: string | null; roles: Record<string, un
   id: 'u-preview',
   email: 'admin@example.com',
   name: 'Леонид Кузнецов',
-  twoFactorEnabled: true,
+  twoFactorEnabled: new URLSearchParams(window.location.search).get('profile') !== 'setup',
   image: null,
   roles: [
     {
