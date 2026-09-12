@@ -1,0 +1,248 @@
+{
+  "research_date": "2026-09-13",
+  "repository": "leonidkuznetsov18/vakhta",
+  "report": "https://github.com/leonidkuznetsov18/vakhta/blob/master/docs/research/2026-09-13-connecteam-deep-research.md",
+  "specification": "https://github.com/leonidkuznetsov18/vakhta/blob/master/specs/003-connecteam-workforce-discovery/spec.md",
+  "updated_issue_count": 19,
+  "created_issue_count": 0,
+  "parent": 3,
+  "native_children_preserved": [
+    36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53
+  ],
+  "product_implementation": false,
+  "issues": [
+    {
+      "number": 3,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/3",
+      "title": "Workforce Platform | Epic | Evaluate Connecteam-inspired capabilities",
+      "state": "open",
+      "labels": ["area:workforce", "status:discovery", "type:epic"],
+      "body_sha256": "046da4de3c7cae44deb049c885f358473a26119aed36668962f71e76eaec12c6",
+      "verified_updated_at": "2026-09-12T21:28:51Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 36,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/36",
+      "title": "Workforce Platform | Attendance | Assess remaining clock and timesheet gaps",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "5c7ad593144923cc09c87b7c4728b4cd74349f3d0931a6af4de7dcc201128a24",
+      "verified_updated_at": "2026-09-12T21:28:54Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 37,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/37",
+      "title": "Workforce Platform | Presence verification | Validate a need for alternatives to QR",
+      "state": "open",
+      "labels": [
+        "area:workforce",
+        "scope:separate-approval",
+        "source:connecteam",
+        "status:deferred",
+        "type:discovery"
+      ],
+      "body_sha256": "7e59d45686e184ee0b90bb3d344b4e7824aa3627cc7ee205fff452b5ff9a7904",
+      "verified_updated_at": "2026-09-12T21:28:57Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 38,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/38",
+      "title": "Workforce Platform | Payroll and reporting | Separate reporting needs from payroll expansion",
+      "state": "open",
+      "labels": [
+        "area:workforce",
+        "scope:separate-approval",
+        "source:connecteam",
+        "status:deferred",
+        "type:discovery"
+      ],
+      "body_sha256": "41541ffb6714b282a6bb385784f22b2eae8f98548ecce665aa8f3125b70051b8",
+      "verified_updated_at": "2026-09-12T21:29:00Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 39,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/39",
+      "title": "Workforce Platform | Schedule creation | Map competitor planning gaps to the calendar epic",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "f26ab52f0b3f17d8e5377f9f77bdcd8e11b28e7eac56c6306ec220a6b03a6fb6",
+      "verified_updated_at": "2026-09-12T21:29:03Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 40,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/40",
+      "title": "Workforce Platform | Staffing and coverage | Validate qualifications shortages and reviewed allocation",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "564580bb478a47cf6339fd3cb82619732aadb5cfb92e5c4f1bab0b564da5f723",
+      "verified_updated_at": "2026-09-12T21:29:06Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 41,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/41",
+      "title": "Workforce Platform | Forms | Validate repeated workflows before extending checklist fields",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "f95848abc3fd6f420789ef68984c5851a3e69d8344dc145483e3c1b47cda82f7",
+      "verified_updated_at": "2026-09-12T21:29:10Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 42,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/42",
+      "title": "Workforce Platform | Submission workflows | Validate routing reminders and export gaps",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "c0b10e60fb1215d7b1618700f319d0a6d63cd9001c1facfabb7939051b463506",
+      "verified_updated_at": "2026-09-12T21:29:13Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 43,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/43",
+      "title": "Workforce Platform | Operational tasks | Define accountable follow-up from finding to closure",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "769ade653c1ccf447ab6a41ce6d11c1f6b55c803fecf449e8ca68a951f29861f",
+      "verified_updated_at": "2026-09-12T21:29:16Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 44,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/44",
+      "title": "Workforce Platform | Internal chat | Assess gaps beyond current Telegram communication",
+      "state": "open",
+      "labels": [
+        "area:workforce",
+        "scope:separate-approval",
+        "source:connecteam",
+        "status:deferred",
+        "type:discovery"
+      ],
+      "body_sha256": "1a5b8e8be503f9a54ca9958b5eecd84b26aa568435ada87ac7ff3d2273b223c2",
+      "verified_updated_at": "2026-09-12T21:29:19Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 45,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/45",
+      "title": "Workforce Platform | Targeted announcements | Validate instruction delivery and acknowledgement",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "7d4f583bb0cd2c1f68c2b7442599e0f273beb16c34225df7b90a955c892a0435",
+      "verified_updated_at": "2026-09-12T21:29:22Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 46,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/46",
+      "title": "Workforce Platform | Directory and help desk | Validate worker lookup and accountable support routes",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "4047599a145588d35068e7e5697920755f03023d90a1fc03095c18097f102beb",
+      "verified_updated_at": "2026-09-12T21:29:26Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 47,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/47",
+      "title": "Workforce Platform | Knowledge and company AI | Define versioned instructions and scoped answers",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "090bcab33fbca54a1e28ba52ee400df86d30c3c63bfb8b2dca49cc7516d03f15",
+      "verified_updated_at": "2026-09-12T21:29:29Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 48,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/48",
+      "title": "Workforce Platform | Learning and qualifications | Define training evidence needed for role eligibility",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "72f8285b89442918ef0607db1098353423652c66f38f289dab5492bae02b111f",
+      "verified_updated_at": "2026-09-12T21:29:32Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 49,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/49",
+      "title": "Workforce Platform | Employee documents | Validate document expiry and qualification evidence",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "685cfefaa34261f54daa6cfb70d7d4ed6a88a2bc503a39ee2e0b20aee6fa0fe1",
+      "verified_updated_at": "2026-09-12T21:29:35Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 50,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/50",
+      "title": "Workforce Platform | Leave administration | Validate needs beyond existing absence approvals",
+      "state": "open",
+      "labels": [
+        "area:workforce",
+        "scope:separate-approval",
+        "source:connecteam",
+        "status:deferred",
+        "type:discovery"
+      ],
+      "body_sha256": "09de0f8a713443ccac3801cfda234067056890598fc08a3b18429e3dfab9406a",
+      "verified_updated_at": "2026-09-12T21:29:38Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 51,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/51",
+      "title": "Workforce Platform | Hiring and onboarding | Separate onboarding needs from recruitment expansion",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "eef76e6a121188293223d1bdd91ef7fa199c3031b652c6f75927a98654f7316b",
+      "verified_updated_at": "2026-09-12T21:29:41Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 52,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/52",
+      "title": "Workforce Platform | Organization and access | Validate targeting and directory gaps within existing scopes",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "6a1eccfcdbeffee7ca3bf434d295dc0d61eb541bc6c86f2ba9cc38dace7551c0",
+      "verified_updated_at": "2026-09-12T21:29:44Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    },
+    {
+      "number": 53,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/53",
+      "title": "Workforce Platform | Automation and delivery | Prioritize reliable notifications before platform expansion",
+      "state": "open",
+      "labels": ["area:workforce", "source:connecteam", "status:discovery", "type:discovery"],
+      "body_sha256": "cd8eea9dc381ac029ace5709668280403706929ee0930fccde44614f575b9d56",
+      "verified_updated_at": "2026-09-12T21:29:47Z",
+      "section_marker": "<!-- connecteam-deep-research:2026-09-13:start -->",
+      "original_metadata_preserved": true
+    }
+  ]
+}

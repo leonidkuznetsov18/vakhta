@@ -68,6 +68,11 @@ Epic: [#2](https://github.com/leonidkuznetsov18/vakhta/issues/2).
 
 Epic: [#3](https://github.com/leonidkuznetsov18/vakhta/issues/3).
 
+Connecteam deep research, 2026-09-13: [90 detailed capability analyses and UI evidence](../research/2026-09-13-connecteam-deep-research.md)
+and [C1–C7 candidate acceptance contracts](../../specs/003-connecteam-workforce-discovery/spec.md).
+The follow-up enriches #3/#36–53 and reuses Schedule/AI owners; it creates no duplicate issues or
+implementation approval. Publication evidence lives in [Connecteam engineering memory](features/connecteam-reference.md).
+
 | Issue                                                        | Capability and outcome                                                                 | Initial status | Source IDs                        |
 | ------------------------------------------------------------ | -------------------------------------------------------------------------------------- | -------------- | --------------------------------- |
 | [#36](https://github.com/leonidkuznetsov18/vakhta/issues/36) | Attendance — Assess remaining clock and timesheet gaps                                 | discovery      | CT-01, CT-02, CT-03, CT-04, CT-05 |

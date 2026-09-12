@@ -1,5 +1,11 @@
 # Connecteam functionality: competitor reference for Vakhta
 
+Detailed follow-up: [feature logic, UI/UX and visual evidence](2026-09-13-connecteam-deep-research.md)
+and [candidate acceptance contracts](../../specs/003-connecteam-workforce-discovery/spec.md).
+The follow-up preserves CT-01–90 and refines existing GitHub issues; this document remains the
+2026-09-12 comparison snapshot. In particular, the newer evidence qualifies broad signature-audit
+claims and distinguishes qualification allow-lists from certificate-based work authorization.
+
 ## Purpose and decision status
 
 Connecteam is a competitor and a reference point for Vakhta's future development. Saved at the
