@@ -23,6 +23,8 @@ import { readError } from '@/errors';
 import { useWorkspace } from '../model/use-workspace';
 import { periodDates, shiftDate, type PeriodMode } from '../model/planning';
 import type { GridState } from '../model/grid';
+import { ResourceSchedule } from './resource-schedule';
+import { calendarWeek, siteToday } from '../model/calendar';
 import { ZoneSchedule } from './zone-schedule';
 import { PeopleSchedule } from './people-schedule';
 import { ScheduleHistory } from './schedule-history';
@@ -95,8 +97,9 @@ export function ScheduleWorkspace() {
 function WorkspaceView({ workspace: w }: { workspace: ReturnType<typeof useWorkspace> }) {
   const mobile = useIsMobile();
   const [mode, setMode] = useState<PeriodMode | null>(null);
-  const effectiveMode = mode ?? (mobile ? 'day' : 'week');
-  const today = new Date().toISOString().slice(0, 10);
+  const effectiveMode = mobile && mode === 'month' ? 'week' : (mode ?? (mobile ? 'day' : 'week'));
+  const today = siteToday(w.timezone);
+  const [grouping, setGrouping] = useState<'zones' | 'people' | 'history'>('zones');
   const [date, setDate] = useState(today.startsWith(w.month) ? today : `${w.month}-01`);
   const [zone, setZone] = useState('');
   const [batch, setBatch] = useState<{ zoneId: string; date: string } | null>(null);
@@ -104,6 +107,9 @@ function WorkspaceView({ workspace: w }: { workspace: ReturnType<typeof useWorks
   const { confirm, dialog } = useConfirm();
   const version = w.version;
   const dates = periodDates(w.month, date, effectiveMode);
+  const resourceDates = mobile
+    ? calendarWeek(date).filter((value) => value.startsWith(w.month))
+    : dates;
   const existingDraft = w.versions.find((value) => value.status === 'DRAFT');
   const pendingReview = w.versions.find((value) => value.status === 'IN_REVIEW');
   async function discard() {
@@ -234,80 +240,114 @@ function WorkspaceView({ workspace: w }: { workspace: ReturnType<typeof useWorks
           {w.editMode && !w.templates.some((template) => template.isActive) && (
             <Feedback error={null} notice={t.missingTemplates} />
           )}
-          <Tabs defaultValue="zones">
-            <TabsList aria-label={s.month}>
+          <Tabs
+            value={grouping}
+            onValueChange={(value) => {
+              if (value === 'zones' || value === 'people' || value === 'history')
+                setGrouping(value);
+            }}
+          >
+            <TabsList aria-label={t.grouping}>
               <TabsTrigger value="zones">{t.zones}</TabsTrigger>
               <TabsTrigger value="people">{t.people}</TabsTrigger>
               <TabsTrigger value="history">{t.history}</TabsTrigger>
             </TabsList>
-            <TabsContent value="zones" className="space-y-3 pt-2 min-w-0">
-              <div className="grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap">
-                <SelectField
-                  label={t.zone}
-                  value={zone}
-                  onChange={setZone}
-                  options={[
-                    { value: '', label: t.allZones },
-                    ...w.zones.map((item) => ({ value: item.id, label: item.name })),
-                  ]}
-                  className="min-w-0 w-full sm:w-64"
-                />
-                <DateField
-                  label={t.date}
-                  minDate={`${w.month}-01`}
-                  maxDate={monthDates(w.month).at(-1)}
-                  value={date}
-                  onChange={(value) => {
-                    if (monthDates(w.month).includes(value)) setDate(value);
-                  }}
-                  className="min-w-0 w-full sm:w-48"
-                />
-                <div className="col-span-2 flex items-center gap-2">
-                  <IconButton
-                    size="icon-sm"
+            {grouping !== 'history' && (
+              <TabsContent value={grouping} className="space-y-3 pt-2 min-w-0">
+                <div className="grid grid-cols-2 items-end gap-3 sm:flex sm:flex-wrap">
+                  <SelectField
+                    label={t.zone}
+                    value={zone}
+                    onChange={setZone}
+                    options={[
+                      { value: '', label: t.allZones },
+                      ...w.zones.map((item) => ({ value: item.id, label: item.name })),
+                    ]}
+                    className="min-w-0 w-full sm:w-64"
+                  />
+                  <DateField
+                    label={t.date}
+                    minDate={`${w.month}-01`}
+                    maxDate={monthDates(w.month).at(-1)}
+                    value={date}
+                    onChange={(value) => {
+                      if (monthDates(w.month).includes(value)) setDate(value);
+                    }}
+                    className="min-w-0 w-full sm:w-48"
+                  />
+                  <Button
                     variant="outline"
-                    icon={ChevronLeftIcon}
-                    label={t.previous}
-                    tooltip={t.previous}
-                    disabled={dates[0] === `${w.month}-01`}
-                    onClick={() =>
-                      setDate(shiftDate(w.month, date, effectiveMode === 'week' ? -7 : -1))
-                    }
-                  />
-                  <StateFilter
-                    label={t.period}
-                    value={effectiveMode}
-                    onChange={setMode}
-                    options={(['day', 'week', 'month'] as const).map((value) => ({
-                      value,
-                      label: t[value],
-                    }))}
-                  />
-                  <IconButton
-                    size="icon-sm"
-                    variant="outline"
-                    icon={ChevronRightIcon}
-                    label={t.next}
-                    tooltip={t.next}
-                    disabled={dates.at(-1) === monthDates(w.month).at(-1)}
-                    onClick={() =>
-                      setDate(shiftDate(w.month, date, effectiveMode === 'week' ? 7 : 1))
-                    }
-                  />
+                    disabled={date === today}
+                    onClick={() => {
+                      if (date === today) return;
+                      if (today.startsWith(w.month)) setDate(today);
+                      else w.changeMonth(today.slice(0, 7));
+                    }}
+                  >
+                    {t.today}
+                  </Button>
+                  <div className="col-span-2 flex items-center gap-2">
+                    <IconButton
+                      size="icon-sm"
+                      variant="outline"
+                      icon={ChevronLeftIcon}
+                      label={t.previous}
+                      tooltip={t.previous}
+                      disabled={dates[0] === `${w.month}-01`}
+                      onClick={() =>
+                        setDate(shiftDate(w.month, date, effectiveMode === 'week' ? -7 : -1))
+                      }
+                    />
+                    <StateFilter
+                      label={t.period}
+                      value={effectiveMode}
+                      onChange={setMode}
+                      options={(mobile
+                        ? (['day', 'week'] as const)
+                        : (['day', 'week', 'month'] as const)
+                      ).map((value) => ({
+                        value,
+                        label: t[value],
+                      }))}
+                    />
+                    <IconButton
+                      size="icon-sm"
+                      variant="outline"
+                      icon={ChevronRightIcon}
+                      label={t.next}
+                      tooltip={t.next}
+                      disabled={dates.at(-1) === monthDates(w.month).at(-1)}
+                      onClick={() =>
+                        setDate(shiftDate(w.month, date, effectiveMode === 'week' ? 7 : 1))
+                      }
+                    />
+                  </div>
                 </div>
-              </div>
-              <ZoneSchedule
-                workspace={w}
-                dates={dates}
-                zoneId={zone}
-                selectedDate={date}
-                onDate={setDate}
-                onAdd={(zoneId, nextDate) => setBatch({ zoneId, date: nextDate })}
-              />
-            </TabsContent>
-            <TabsContent value="people" className="pt-2 min-w-0">
-              <PeopleSchedule workspace={w} />
-            </TabsContent>
+                {effectiveMode === 'month' && !mobile ? (
+                  grouping === 'zones' ? (
+                    <ZoneSchedule
+                      workspace={w}
+                      dates={dates}
+                      zoneId={zone}
+                      selectedDate={date}
+                      onDate={setDate}
+                      onAdd={(zoneId, nextDate) => setBatch({ zoneId, date: nextDate })}
+                    />
+                  ) : (
+                    <PeopleSchedule workspace={w} zoneId={zone} />
+                  )
+                ) : (
+                  <ResourceSchedule
+                    workspace={w}
+                    dates={resourceDates}
+                    grouping={grouping}
+                    zoneId={zone}
+                    selectedDate={date}
+                    onDate={setDate}
+                  />
+                )}
+              </TabsContent>
+            )}
             <TabsContent value="history" className="pt-2 min-w-0">
               <ScheduleHistory workspace={w} />
             </TabsContent>

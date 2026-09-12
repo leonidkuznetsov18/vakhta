@@ -82,7 +82,9 @@ Returning to the baseline disables the action again. Derive availability in the 
 use native `disabled` and guard the handler, including keyboard submission. Compare normalized
 values where submission normalizes them. Explicit refresh and retry remain separate useful actions.
 
-Use Tailwind and shadcn/ui, existing design tokens and localization catalogs. Preserve keyboard and
+Use the existing Tailwind/shadcn foundation where suitable and keep localization catalogs. The owner
+permits other suitable components, Sheets, custom composition and purposeful colors (2026-09-13);
+choose the best interaction for the workflow instead of requiring expanded sub-rows. Preserve keyboard and
 screen-reader access. Mobile is a primary workflow: check narrow viewports, touch controls, readable
 status, inline errors, the on-screen keyboard and long translated text. Keep the primary action obvious;
 do not make tooltips the only way to understand an essential control.

@@ -151,7 +151,7 @@ export interface AssignmentChange {
   readonly before?: AssignmentInput;
   readonly after?: AssignmentInput;
 }
-export function assignmentKey(item: AssignmentInput): string {
+export function assignmentKey(item: Pick<AssignmentInput, 'employeeId' | 'businessDate'>): string {
   return `${item.employeeId}:${item.businessDate}`;
 }
 function fingerprint(item: AssignmentInput): string {
@@ -255,4 +255,24 @@ export function restoreLegacyGrid(draft: GridState, baseline: GridState): GridSt
       return { ...row, details };
     }),
   };
+}
+
+/** A read projection only. Writes must continue from the complete source grid. */
+export function gridForZone(grid: GridState, zoneId: string): GridState {
+  if (!zoneId) return grid;
+  return gridFromItems(gridToItems(grid).filter((item) => item.zoneId === zoneId));
+}
+
+export function removeZoneAssignments(
+  grid: GridState,
+  employeeId: string,
+  zoneId: string,
+): GridState {
+  const selected = gridToItems(grid).filter(
+    (item) => item.employeeId === employeeId && item.zoneId === zoneId,
+  );
+  return selected.reduce(
+    (next, item) => setCell(next, item.employeeId, item.businessDate, ''),
+    grid,
+  );
 }

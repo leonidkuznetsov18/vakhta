@@ -72,14 +72,14 @@ export function AssignmentEditor({
   }
   return (
     <form
-      className="space-y-3"
+      className="@container space-y-4"
       onSubmit={(event) => {
         event.preventDefault();
         apply();
       }}
     >
       <h3 className="font-semibold">{original ? t.editAssignment : t.add}</h3>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-4 @min-[36rem]:grid-cols-2">
         <SelectField
           placeholder={t.select}
           label={s.employee}

@@ -105,7 +105,7 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 - Long text must never stretch a page. Previews use bounded wrapping or TextPreview truncation;
   full text uses ScrollableText/DetailText with preserved newlines, long-word wrapping, bounded width
   and height, and vertical scrolling when needed. Never truncate the only available full version.
-- Expanded rows use the shared RowDetail reading surface: bounded width, grouped sections, wrapping
+- When expanded rows suit the workflow, use the shared RowDetail reading surface: bounded width, grouped sections, wrapping
   prose, bounded scrollable long text/history and one-column mobile layouts. Keep actions near their fields.
 - For every UI/UX change, capture AND visually inspect screenshots of the affected desktop and mobile
   views. Reuse the current authenticated QA session and inspect only changed surfaces. Automated tests
@@ -115,17 +115,19 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
   selects, submit buttons and mutation actions; preserve photos, recorded decisions and history.
   Filters and navigation remain available. Do not show a disabled editing form as the final state.
 
-- Every component, color, size and spacing comes from shadcn/ui (https://ui.shadcn.com); components are copied into
-  `apps/admin-web/src/components/ui`. No bespoke CSS where a shadcn primitive exists.
+- Owner design decision, 2026-09-13: choose components, layout, colors, sizing and spacing for
+  professional usability. Existing shadcn primitives are reusable defaults, not exclusive choices.
+  Other suitable components and custom composition are allowed. Use purposeful, accessible colors
+  consistently, with text or icons so color is never the only signal.
 - Every table shows its complete filtered record count below the rows, including small and empty
   successful results. Pagination must retain the total collection count, not just the current page
   length; use the shared TableCount/Paginator. Loading or failed requests must not invent a zero.
 - Long lists and tables are paginated. Forms validate input with the zod contracts and show inline errors.
 - Every non-obvious control has an information tooltip; tooltip texts live in `@vakhta/i18n` in all three languages.
 - Every interactive element has visible hover, active and focus states. The interface must be usable without a manual.
-- The details of a table row open as a sub-row under it (`DataTable`'s `expanded`), never in a side sheet: the row
-  stays visible, and the reader keeps their place in the list. A sheet or a dialog is for what is not a row — creating
-  a record, the questions and answers, a document. The sub-row never repeats what the row's own columns already show.
+- Choose a Sheet, dialog, dedicated view or inline details according to the task. Sub-rows are not
+  mandatory; avoid expanding the calendar to accommodate an editor when a focused panel better
+  preserves context. Keep selection and scroll position, restore keyboard focus, and adapt to mobile.
   Avoid repeated author/time/photo captions and identical legacy comments. Preserve additional reports, distinct
   historical decisions and full text when the preview is truncated; never remove stored evidence to simplify UI.
 - A number carries its unit where it is read: a duration is formatted (`formatDuration`), not printed as bare minutes,

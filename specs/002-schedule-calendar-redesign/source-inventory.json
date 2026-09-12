@@ -1,0 +1,170 @@
+{
+  "baseline": "f66cafc7f78b84d7482bb7ec8d19eaa09c947a91",
+  "note": "Retrieval date is 2026-09-12 UTC; exact time not recorded. Live bodies were read, not replayed from publication catalog.",
+  "epic": 1,
+  "issues": [
+    {
+      "number": 4,
+      "title": "Schedule | Policy decisions | Agree the first calendar slice and baseline",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/4",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:56:58Z",
+      "bodySha256": "7120e288a2840bc5609c28b01f521458cbfae208db49924cec9756ac12e99cd4",
+      "sourceIds": []
+    },
+    {
+      "number": 5,
+      "title": "Schedule | Calendar component | Select and validate a reusable calendar engine",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/5",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:01Z",
+      "bodySha256": "3c52ad66701848e11f35079e4f152f47658edbe6535f3dc20ee0d9571bb16f7d",
+      "sourceIds": ["SC-11", "SC-12", "SC-21", "SC-22", "SC-30", "SC-31"]
+    },
+    {
+      "number": 6,
+      "title": "Schedule | Calendar workspace | Build day and week planning with mobile views",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/6",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:03Z",
+      "bodySha256": "d1dc7ee8d060680cc868f6c9c6982283927abea7dabd38b40d329557769c9121",
+      "sourceIds": ["SC-11", "SC-12", "SC-21", "SC-30"]
+    },
+    {
+      "number": 7,
+      "title": "Schedule | Existing workflows | Preserve draft publication and worker acknowledgement",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/7",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:05Z",
+      "bodySha256": "38200ee5677049f475d3cfa206d3d7e882f75b888216c649ea5fa304ceb40ed2",
+      "sourceIds": ["SC-08", "SC-09", "SC-18", "SC-19", "SC-20", "SC-24", "SC-25", "SC-28"]
+    },
+    {
+      "number": 8,
+      "title": "Schedule | Master proposals | Enforce scoped planning and approval authority",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/8",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:07Z",
+      "bodySha256": "987519fbbbcd8738c0017c4e2a721e3a9c91b2f3f366a0b96c14e6b7170bf542",
+      "sourceIds": ["SC-10"]
+    },
+    {
+      "number": 9,
+      "title": "Schedule | Draft reliability | Support full roster search and stale-save recovery",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/9",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:10Z",
+      "bodySha256": "848c9758742b77f12057f6c60f33795c50c2111c9df2150e08d8258af9b229a6",
+      "sourceIds": ["SC-23", "SC-29"]
+    },
+    {
+      "number": 10,
+      "title": "Schedule | Period planning | Coordinate cross-month reads and writes",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/10",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:12Z",
+      "bodySha256": "20e5a74ff29125befdfc21a55a0bc2ef29e5674634d4cf2e537b29965f5efa88",
+      "sourceIds": ["SC-22"]
+    },
+    {
+      "number": 11,
+      "title": "Schedule | Staffing demand | Model coverage norms and qualifications",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/11",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:14Z",
+      "bodySha256": "c4e7c54e87c437338942f364242fd44d996aa0d6f63505df5e410a8356cfa6ca",
+      "sourceIds": ["SC-01", "SC-04"]
+    },
+    {
+      "number": 12,
+      "title": "Schedule | Eligibility | Explain conflicts rest limits and availability",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/12",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:16Z",
+      "bodySha256": "82f05b966b1ac6e7dfdb6f9a119295a0fab1b8a6bfbbb5dd50207c302ba5466c",
+      "sourceIds": ["SC-02", "SC-05", "SC-06", "SC-17", "SC-33"]
+    },
+    {
+      "number": 13,
+      "title": "Schedule | Open shifts | Collect interest and select eligible employees",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/13",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:19Z",
+      "bodySha256": "c3ebba586a27e6d738e60cf7abd14e56bd770542d1c90b27e65b008e9dd5b20f",
+      "sourceIds": ["SC-15", "SC-16"]
+    },
+    {
+      "number": 14,
+      "title": "Schedule | Batch planning | Add patterns bulk changes and accessible moves",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/14",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:21Z",
+      "bodySha256": "4229d9fdcc1f257c636ed520a780d5c8cdf2e587d8a7be66a3cb6cfa4b34ba07",
+      "sourceIds": ["SC-26", "SC-27", "SC-31"]
+    },
+    {
+      "number": 15,
+      "title": "Schedule | Assignment time | Support custom hours and linked work segments",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/15",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:23Z",
+      "bodySha256": "810f5b97e159f8ed796f240ea65c195de4baf3d52f8177970c5d1c945cdce2b8",
+      "sourceIds": ["SC-32", "SC-37"]
+    },
+    {
+      "number": 16,
+      "title": "Schedule | Workload and relief | Show distribution and planned break coverage",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/16",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:25Z",
+      "bodySha256": "53bfc1c5bdcf405a161550f441ff061cbf2a65ef57b450fa25fb63c922827d31",
+      "sourceIds": ["SC-35", "SC-36"]
+    },
+    {
+      "number": 17,
+      "title": "Schedule | Operational context | Connect absences requests swaps and borrowing",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/17",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:27Z",
+      "bodySha256": "c77d009d7151e854609f1574004355deaf24a6dc6719430d669d252bc56f0161",
+      "sourceIds": ["SC-03", "SC-07", "SC-13", "SC-14", "SC-34", "SC-38"]
+    },
+    {
+      "number": 18,
+      "title": "Schedule | Records and output | Add notes linked evidence reports print and export",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/18",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:30Z",
+      "bodySha256": "e331246d5091e0b78d53158d1d18d5c7b74402006451a572fe4902318b792d15",
+      "sourceIds": ["SC-39", "SC-40", "SC-41", "SC-42", "SC-43", "SC-50"]
+    },
+    {
+      "number": 19,
+      "title": "Schedule | Personal feeds and proposals | Offer revocable calendars and reviewed allocation",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/19",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:32Z",
+      "bodySha256": "3c46d50e3a5f4728ef10355dadf4aff9f7e41253eb7622b68013a508aaf9b6db",
+      "sourceIds": ["SC-44", "SC-45"]
+    },
+    {
+      "number": 20,
+      "title": "Schedule | Forecasts and costs | Define separately approved HR and financial scope",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/20",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:57:34Z",
+      "bodySha256": "283dba591b4df4d50d839d74740ac66b457556f4b95f0b5b5187186209b71c9c",
+      "sourceIds": ["SC-45", "SC-46", "SC-47", "SC-48", "SC-49"]
+    },
+    {
+      "number": 54,
+      "title": "Schedule | Rollout and acceptance | Verify calendar parity and safe cutover",
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/54",
+      "state": "open",
+      "updatedAt": "2026-09-12T20:56:38Z",
+      "bodySha256": "5daa3bd6c9d12912bf0eb53145bba320e0b502bfdbdbfe4a70afd044af3356e0",
+      "sourceIds": ["SC-01", "SC-46", "SC-50"]
+    }
+  ],
+  "retrievedOn": "2026-09-12"
+}

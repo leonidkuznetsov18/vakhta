@@ -12,6 +12,9 @@ import { writeSchedulePreset } from '../model/preset';
 import { clearPersistentState } from '@/lib/ui-store';
 import { NavigationProvider } from '@/navigation';
 
+const viewport = vi.hoisted(() => ({ mobile: false }));
+vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => viewport.mobile }));
+
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const UNIT = 'a0000000-0000-4000-8000-000000000002';
 const ZONE = 'a0000000-0000-4000-8000-000000000003';
@@ -239,6 +242,7 @@ function admin() {
 }
 describe('schedule workspace', () => {
   beforeEach(() => {
+    viewport.mobile = false;
     useScheduleDrafts.setState({
       drafts: {},
       baselines: {},
@@ -270,6 +274,79 @@ describe('schedule workspace', () => {
     expect(screen.queryByRole('button', { name: t.create })).toBeNull();
     expect(screen.queryByRole('button', { name: t.reviewPublish })).toBeNull();
     expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  });
+  it('retains selected assignment context when changing grouping and opens the existing editor', async () => {
+    mockApi({ status: 'DRAFT' });
+    admin();
+    fireEvent.click(await screen.findByRole('button', { name: t.edit }));
+    while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+      const previous = screen.getByRole('button', { name: t.previous });
+      if (previous.hasAttribute('disabled')) break;
+      fireEvent.click(previous);
+    }
+    const calendar = screen.getByRole('table', { name: t.calendar });
+    const rowCount = within(calendar).getAllByRole('row').length;
+    const origin = screen.getByRole('button', { name: /Кузнецов Леонид, 05/ });
+    fireEvent.click(origin);
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(within(calendar).getAllByRole('row', { hidden: true })).toHaveLength(rowCount);
+    fireEvent.click(
+      screen.getByRole('button', { name: messages(currentLocale()).ui.common.close }),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(origin));
+    fireEvent.mouseDown(screen.getByRole('tab', { name: t.people }), { button: 0, ctrlKey: false });
+    const assignment = screen.getByRole('button', { name: /Линия 1, 05/ });
+    expect(assignment.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(assignment);
+    expect(screen.getByRole('heading', { name: t.wholeAssignment })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t.editAssignment }));
+    expect(screen.getByRole('combobox', { name: s.employee }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: t.apply }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getAllByRole('button', { name: t.cancel })).toHaveLength(1);
+  });
+  it('offers only supported mobile periods and keeps day navigation usable', async () => {
+    viewport.mobile = true;
+    mockApi({ status: 'PUBLISHED' });
+    admin();
+    await screen.findByText(t.current);
+    expect(screen.queryByRole('radio', { name: t.month })).toBeNull();
+    expect(screen.getByRole('radio', { name: t.day }).getAttribute('aria-checked')).toBe('true');
+    const navigation = [
+      screen.getByRole('button', { name: t.previous }),
+      screen.getByRole('button', { name: t.next }),
+    ];
+    expect(navigation.some((button) => !button.hasAttribute('disabled'))).toBe(true);
+  });
+  it('filters the monthly people projection without changing assignments in another zone', async () => {
+    mockApi({ status: 'DRAFT' });
+    admin();
+    fireEvent.click(await screen.findByRole('button', { name: t.edit }));
+    const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+    const next = setAssignment(saved, {
+      employeeId: EMP,
+      businessDate: '2026-09-06',
+      templateId: TPL_DAY,
+      zoneId: EMP2,
+      kind: 'EXTRA',
+    });
+    act(() => useScheduleDrafts.getState().keep(VERSION, next, saved));
+    fireEvent.click(screen.getByRole('radio', { name: t.month }));
+    fireEvent.mouseDown(screen.getByRole('tab', { name: t.people }), { button: 0, ctrlKey: false });
+    fireEvent.change(screen.getByRole('combobox', { name: t.zone }), { target: { value: ZONE } });
+    expect(screen.getByRole('tabpanel', { name: t.people })).toBeTruthy();
+    expect(screen.getByText(t.outsideZone)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Кузнецов Леонид, 2026-09-06/ })).toBeNull();
+    expect(gridToItems(useScheduleDrafts.getState().drafts[VERSION] ?? { rows: [] })).toEqual(
+      gridToItems(next),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 2026-09-05/ }));
+    fireEvent.click(screen.getByRole('button', { name: t.removeAssignment }));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole('region', { name: t.people })),
+    );
+    expect(gridToItems(useScheduleDrafts.getState().drafts[VERSION] ?? { rows: [] })).toEqual(
+      gridToItems(next).filter((item) => item.zoneId !== ZONE),
+    );
   });
   it('does not create a version automatically when arriving with overview workers', async () => {
     const calls = mockApi({ status: 'PUBLISHED' });

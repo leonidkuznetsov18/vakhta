@@ -1,6 +1,6 @@
 import { templateLabel } from '../lib/template-label';
 import { Trash2Icon } from 'lucide-react';
-import { Fragment, useId, useState, type KeyboardEvent } from 'react';
+import { useId, useState, type KeyboardEvent } from 'react';
 import { monthDates } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -15,42 +15,83 @@ import {
 } from '@/components/ui/table';
 import { TableSearch } from '@/shared/ui/table-search';
 import { Paginator, RowMenu, usePages } from '@/components/app/data-table';
-import { RowDetail } from '@/components/app/row-detail';
+import { CalendarDetailPanel } from '@/shared/ui/resource-calendar';
 import { InfoTip } from '@/components/app/info-tip';
 import { formatDuration } from '@/lib/format';
 import { cn } from 'cn';
 import type { Workspace } from '../model/use-workspace';
-import { gridToItems, setAssignment, setCell, removeRow } from '../model/grid';
+import {
+  gridToItems,
+  gridForZone,
+  removeZoneAssignments,
+  setAssignment,
+  setCell,
+  removeRow,
+} from '../model/grid';
 import { summarize } from '../model/planning';
 import { employeeLabel } from './assignment-changes';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
 const t = messages(currentLocale()).scheduleWorkspace;
 const dayKinds = messages(currentLocale()).schedule.dayKinds;
-export function PeopleSchedule({ workspace: w }: { workspace: Workspace }) {
+export function PeopleSchedule({
+  workspace: w,
+  zoneId = '',
+}: {
+  workspace: Workspace;
+  zoneId?: string;
+}) {
   const [search, setSearch] = useState('');
   const [editor, setEditor] = useState<AssignmentContext | null>(null);
   const [focus, setFocus] = useState('');
+  const [trigger, setTrigger] = useState<HTMLElement | null>(null);
   const instance = useId();
   const days = monthDates(w.month);
-  const rows = w.grid.rows.filter((row) =>
+  const allItems = gridToItems(w.grid);
+  const projected = gridForZone(w.grid, zoneId);
+  const rows = projected.rows.filter((row) =>
     employeeLabel(w, row.employeeId)
       .toLocaleLowerCase()
       .includes(search.trim().toLocaleLowerCase()),
   );
-  const pages = usePages(rows.length, 20, 'schedule.people', -1, `${w.month}:${search}`);
+  const pages = usePages(rows.length, 20, 'schedule.people', -1, `${w.month}:${search}:${zoneId}`);
   const visible = rows.slice((pages.page - 1) * pages.size, pages.page * pages.size);
-  const first = `${visible[0]?.employeeId}:${days[0]}`;
-  const focusKey = visible.some((row) => days.some((date) => `${row.employeeId}:${date}` === focus))
+  const first =
+    visible.flatMap((row) =>
+      days
+        .filter((date) => !outsideZone(row.employeeId, date))
+        .map((date) => `${row.employeeId}:${date}`),
+    )[0] ?? '';
+  const focusKey = visible.some((row) =>
+    days.some(
+      (date) => `${row.employeeId}:${date}` === focus && !outsideZone(row.employeeId, date),
+    ),
+  )
     ? focus
     : first;
-  function open(employeeId: string, businessDate: string, templateId?: string) {
+  function outsideZone(employeeId: string, date: string) {
+    return (
+      !!zoneId &&
+      allItems.some(
+        (item) =>
+          item.employeeId === employeeId && item.businessDate === date && item.zoneId !== zoneId,
+      )
+    );
+  }
+  function open(
+    employeeId: string,
+    businessDate: string,
+    trigger: HTMLElement,
+    templateId?: string,
+  ) {
+    if (outsideZone(employeeId, businessDate)) return;
+    setTrigger(trigger);
     const item = gridToItems(w.grid).find(
       (value) => value.employeeId === employeeId && value.businessDate === businessDate,
     );
     setEditor({
       employeeId,
       businessDate,
-      zoneId: item?.zoneId ?? '',
+      zoneId: item?.zoneId ?? zoneId,
       ...(templateId ? { templateId } : {}),
     });
   }
@@ -64,19 +105,29 @@ export function PeopleSchedule({ workspace: w }: { workspace: Workspace }) {
     const move = moves[event.key];
     if (move) {
       event.preventDefault();
-      const employee = visible[move[0]];
-      const date = days[move[1]];
-      if (employee && date) {
-        const next = `${employee.employeeId}:${date}`;
-        setFocus(next);
-        document.getElementById(`${instance}:${next}`)?.focus();
+      const rowStep = move[0] - rowIndex;
+      const dayStep = move[1] - dayIndex;
+      let nextRow = move[0];
+      let nextDay = move[1];
+      while (visible[nextRow] && days[nextDay]) {
+        const employee = visible[nextRow];
+        const date = days[nextDay];
+        if (!employee || !date) break;
+        if (!outsideZone(employee.employeeId, date)) {
+          const next = `${employee.employeeId}:${date}`;
+          setFocus(next);
+          document.getElementById(`${instance}:${next}`)?.focus();
+          break;
+        }
+        nextRow += rowStep;
+        nextDay += dayStep;
       }
       return;
     }
     if (!w.writable) return;
     const row = visible[rowIndex];
     const date = days[dayIndex];
-    if (!row || !date) return;
+    if (!row || !date || outsideZone(row.employeeId, date)) return;
     if (event.key === 'Delete' || event.key === 'Backspace') {
       event.preventDefault();
       w.edit(setCell(w.grid, row.employeeId, date, ''));
@@ -93,10 +144,10 @@ export function PeopleSchedule({ workspace: w }: { workspace: Workspace }) {
       (value) => value.employeeId === row.employeeId && value.businessDate === date,
     );
     if (item) w.edit(setAssignment(w.grid, { ...item, templateId: template.id }));
-    else open(row.employeeId, date, template.id);
+    else open(row.employeeId, date, event.currentTarget, template.id);
   }
   return (
-    <div className="space-y-3">
+    <div id={instance} role="region" aria-label={t.people} tabIndex={-1} className="space-y-3">
       <div className="flex items-center gap-2">
         <TableSearch value={search} onChange={setSearch} label={t.workerSearch} />
         <InfoTip text={t.keyboard} />
@@ -125,101 +176,97 @@ export function PeopleSchedule({ workspace: w }: { workspace: Workspace }) {
                 w.recorded,
               );
               return (
-                <Fragment key={row.employeeId}>
-                  <TableRow>
-                    <TableCell className="sticky left-0 z-10 bg-background">
-                      <div className="flex items-center gap-1">
-                        <span className="block w-32 whitespace-normal break-words font-medium">
-                          {employeeLabel(w, row.employeeId)}
-                        </span>
-                        {w.writable && (
-                          <RowMenu
-                            label={`${t.removeWorker}: ${employeeLabel(w, row.employeeId)}`}
-                            actions={[
-                              {
-                                key: 'remove',
-                                label: t.removeWorker,
-                                icon: Trash2Icon,
-                                destructive: true,
-                                disabled: !Object.values(row.cells).some(Boolean),
-                                onSelect: () => w.edit(removeRow(w.grid, row.employeeId)),
-                              },
-                            ]}
-                          />
+                <TableRow key={row.employeeId}>
+                  <TableCell className="sticky left-0 z-10 bg-background">
+                    <div className="flex items-center gap-1">
+                      <span className="block w-32 whitespace-normal break-words font-medium">
+                        {employeeLabel(w, row.employeeId)}
+                      </span>
+                      {w.writable && (
+                        <RowMenu
+                          label={`${zoneId ? t.removeZoneAssignments : t.removeWorker}: ${employeeLabel(w, row.employeeId)}`}
+                          actions={[
+                            {
+                              key: 'remove',
+                              label: zoneId ? t.removeZoneAssignments : t.removeWorker,
+                              icon: Trash2Icon,
+                              destructive: true,
+                              disabled: !Object.values(row.cells).some(Boolean),
+                              onSelect: () =>
+                                w.edit(
+                                  zoneId
+                                    ? removeZoneAssignments(w.grid, row.employeeId, zoneId)
+                                    : removeRow(w.grid, row.employeeId),
+                                ),
+                            },
+                          ]}
+                        />
+                      )}
+                    </div>
+                  </TableCell>
+                  {days.map((date, dayIndex) => {
+                    const template = w.templates.find((value) => value.id === row.cells[date]);
+                    const hidden = outsideZone(row.employeeId, date);
+                    const cellKey = `${row.employeeId}:${date}`;
+                    const label = template
+                      ? template.isNight
+                        ? dayKinds.NIGHT
+                        : dayKinds.DAY
+                      : row.cells[date]
+                        ? '?'
+                        : dayKinds.OFF;
+                    return (
+                      <TableCell key={date} className="p-0.5 text-center">
+                        {hidden ? (
+                          <span
+                            className="inline-flex min-h-9 min-w-9 items-center justify-center text-muted-foreground"
+                            title={t.outsideZone}
+                          >
+                            <span aria-hidden>—</span>
+                            <span className="sr-only">{t.outsideZone}</span>
+                          </span>
+                        ) : w.writable ? (
+                          <Button
+                            id={`${instance}:${cellKey}`}
+                            variant="ghost"
+                            size="sm"
+                            tabIndex={focusKey === cellKey ? 0 : -1}
+                            onFocus={() => setFocus(cellKey)}
+                            onKeyDown={(event) => keyDown(event, rowIndex, dayIndex)}
+                            aria-label={`${employeeLabel(w, row.employeeId)}, ${date}, ${template ? templateLabel(template.code, t) : dayKinds.OFF}`}
+                            onClick={(event) => open(row.employeeId, date, event.currentTarget)}
+                            className={cn(
+                              'min-h-9 min-w-9 p-1',
+                              template &&
+                                (template.isNight
+                                  ? 'bg-blue-100 text-blue-950 dark:bg-blue-950 dark:text-blue-100'
+                                  : 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100'),
+                            )}
+                          >
+                            {label}
+                          </Button>
+                        ) : (
+                          <span
+                            className={cn(
+                              'inline-flex min-h-9 min-w-9 items-center justify-center rounded text-sm',
+                              template &&
+                                (template.isNight
+                                  ? 'bg-blue-100 text-blue-950 dark:bg-blue-950 dark:text-blue-100'
+                                  : 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100'),
+                            )}
+                            title={`${date} · ${template ? templateLabel(template.code, t) : dayKinds.OFF}`}
+                          >
+                            {label}
+                          </span>
                         )}
-                      </div>
-                    </TableCell>
-                    {days.map((date, dayIndex) => {
-                      const template = w.templates.find((value) => value.id === row.cells[date]);
-                      const cellKey = `${row.employeeId}:${date}`;
-                      const label = template
-                        ? template.isNight
-                          ? dayKinds.NIGHT
-                          : dayKinds.DAY
-                        : row.cells[date]
-                          ? '?'
-                          : dayKinds.OFF;
-                      return (
-                        <TableCell key={date} className="p-0.5 text-center">
-                          {w.writable ? (
-                            <Button
-                              id={`${instance}:${cellKey}`}
-                              variant="ghost"
-                              size="sm"
-                              tabIndex={focusKey === cellKey ? 0 : -1}
-                              onFocus={() => setFocus(cellKey)}
-                              onKeyDown={(event) => keyDown(event, rowIndex, dayIndex)}
-                              aria-label={`${employeeLabel(w, row.employeeId)}, ${date}, ${template ? templateLabel(template.code, t) : dayKinds.OFF}`}
-                              onClick={() => open(row.employeeId, date)}
-                              className={cn(
-                                'min-h-9 min-w-9 p-1',
-                                template &&
-                                  (template.isNight
-                                    ? 'bg-blue-100 text-blue-950 dark:bg-blue-950 dark:text-blue-100'
-                                    : 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100'),
-                              )}
-                            >
-                              {label}
-                            </Button>
-                          ) : (
-                            <span
-                              className={cn(
-                                'inline-flex min-h-9 min-w-9 items-center justify-center rounded text-sm',
-                                template &&
-                                  (template.isNight
-                                    ? 'bg-blue-100 text-blue-950 dark:bg-blue-950 dark:text-blue-100'
-                                    : 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100'),
-                              )}
-                              title={`${date} · ${template ? templateLabel(template.code, t) : dayKinds.OFF}`}
-                            >
-                              {label}
-                            </span>
-                          )}
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell className="sticky right-0 z-10 bg-background text-right tabular-nums">
-                      {summary.assignments} /{' '}
-                      {summary.minutes === null ? '—' : formatDuration(summary.minutes)}
-                    </TableCell>
-                  </TableRow>
-                  {editor?.employeeId === row.employeeId && w.writable && (
-                    <TableRow>
-                      <TableCell colSpan={days.length + 2}>
-                        <div className="sticky left-0 max-w-[calc(100vw-4rem)] md:max-w-2xl">
-                          <RowDetail>
-                            <AssignmentEditor
-                              key={`${editor.employeeId}:${editor.businessDate}:${editor.templateId}`}
-                              workspace={w}
-                              context={editor}
-                              onClose={() => setEditor(null)}
-                            />
-                          </RowDetail>
-                        </div>
                       </TableCell>
-                    </TableRow>
-                  )}
-                </Fragment>
+                    );
+                  })}
+                  <TableCell className="sticky right-0 z-10 bg-background text-right tabular-nums">
+                    {summary.assignments} /{' '}
+                    {summary.minutes === null ? '—' : formatDuration(summary.minutes)}
+                  </TableCell>
+                </TableRow>
               );
             })}
             {visible.length === 0 && (
@@ -236,6 +283,25 @@ export function PeopleSchedule({ workspace: w }: { workspace: Workspace }) {
         </Table>
       </div>
       <Paginator pages={pages} total={rows.length} />
+      <CalendarDetailPanel
+        open={!!editor && w.writable}
+        title={editor ? employeeLabel(w, editor.employeeId) : t.people}
+        description={editor?.businessDate}
+        onClose={() => setEditor(null)}
+        onRestoreFocus={() => {
+          if (trigger?.isConnected) trigger.focus();
+          else document.getElementById(instance)?.focus();
+        }}
+      >
+        {editor && (
+          <AssignmentEditor
+            key={`${editor.employeeId}:${editor.businessDate}:${editor.templateId}`}
+            workspace={w}
+            context={editor}
+            onClose={() => setEditor(null)}
+          />
+        )}
+      </CalendarDetailPanel>
     </div>
   );
 }

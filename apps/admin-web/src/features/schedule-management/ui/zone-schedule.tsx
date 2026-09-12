@@ -1,16 +1,19 @@
 import { InfoTip } from '@/components/app/info-tip';
 import type { AssignmentInput } from '@vakhta/contracts';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { messages } from '@vakhta/i18n';
 import { SunIcon, MoonIcon, PlusIcon, PencilIcon } from 'lucide-react';
 import { currentLocale } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { DataTable, Paginator, usePages, type Column } from '@/components/app/data-table';
+import { CalendarDetailPanel } from '@/shared/ui/resource-calendar';
 import { IconButton } from '@/shared/ui/icon-button';
 import { formatDate, formatDuration } from '@/lib/format';
 import type { Workspace } from '../model/use-workspace';
 import { summarize, zoneRows, type ZoneRow } from '../model/planning';
 import { employeeLabel } from './assignment-changes';
+import { calendarModel } from '../model/calendar';
+import { assignmentKey } from '../model/grid';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
 const t = messages(currentLocale()).scheduleWorkspace;
 export function ZoneSchedule({
@@ -28,8 +31,10 @@ export function ZoneSchedule({
   onDate: (date: string) => void;
   onAdd: (zone: string, date: string) => void;
 }) {
+  const instance = useId();
   const [opened, setOpened] = useState<string | null>(null);
   const [editor, setEditor] = useState<AssignmentContext | null>(null);
+  const [trigger, setTrigger] = useState<HTMLElement | null>(null);
   const rows = zoneRows(w.grid, w.zones, dates).filter((row) => !zoneId || row.id === zoneId);
   const summary = summarize(
     rows.flatMap((row) => row.items),
@@ -37,6 +42,7 @@ export function ZoneSchedule({
     w.timezone,
     w.recorded,
   );
+  const row = rows.find((value) => value.id === opened);
   const columns: Column<ZoneRow>[] = [
     {
       key: 'zone',
@@ -69,6 +75,7 @@ export function ZoneSchedule({
             aria-label={`${row.zone?.name ?? t.noZone}, ${date}, ${t.dayShift}: ${counts.day}, ${t.nightShift}: ${counts.night}`}
             onClick={(event) => {
               event.stopPropagation();
+              setTrigger(event.currentTarget);
               setOpened(row.id);
               setEditor(null);
               onDate(date);
@@ -99,7 +106,7 @@ export function ZoneSchedule({
     { key: 'total', header: t.assigned, align: 'right', cell: (row) => row.items.length },
   ];
   return (
-    <div className="space-y-3">
+    <div id={instance} role="region" aria-label={t.zones} tabIndex={-1} className="space-y-3">
       <dl className="grid grid-cols-3 gap-x-4 gap-y-3 rounded-lg border bg-muted/20 p-3 sm:flex sm:flex-wrap">
         {[
           { label: t.assigned, value: summary.assignments },
@@ -132,84 +139,94 @@ export function ZoneSchedule({
         rowLabel={(row) => row.zone?.name ?? t.noZone}
         empty={t.noAssignments}
         onRowClick={(row) => {
+          setTrigger(document.activeElement instanceof HTMLElement ? document.activeElement : null);
           setOpened(opened === row.id ? null : row.id);
           setEditor(null);
         }}
         activeKey={opened}
         storageKey="schedule.zones"
-        expanded={(row) =>
-          opened === row.id ? (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="font-semibold">
-                  {row.zone?.name ?? t.noZone} · {formatDate(selectedDate)}
-                </h3>
-                {w.writable && row.zone?.isActive && (
-                  <Button size="sm" onClick={() => onAdd(row.id, selectedDate)}>
-                    <PlusIcon aria-hidden />
-                    {t.add}
-                  </Button>
-                )}
-              </div>
-              <div className="grid gap-4 lg:grid-cols-2">
-                {[false, true, undefined]
-                  .filter(
-                    (kind) =>
-                      kind !== undefined ||
-                      row.items.some(
-                        (item) =>
-                          item.businessDate === selectedDate &&
-                          !w.templates.some((template) => template.id === item.templateId),
-                      ),
-                  )
-                  .map((isNight) => {
-                    const items = row.items.filter(
-                      (item) =>
-                        item.businessDate === selectedDate &&
-                        w.templates.find((template) => template.id === item.templateId)?.isNight ===
-                          isNight,
-                    );
-                    return (
-                      <section
-                        key={String(isNight)}
-                        className="min-w-0 rounded-lg border p-3 space-y-3"
-                      >
-                        <h4 className="inline-flex items-center gap-2 font-semibold">
-                          {isNight ? (
-                            <MoonIcon className="size-4" aria-hidden />
-                          ) : (
-                            <SunIcon className="size-4" aria-hidden />
-                          )}
-                          {isNight === undefined
-                            ? t.unknownShift
-                            : isNight
-                              ? t.nightShift
-                              : t.dayShift}{' '}
-                          <span className="text-muted-foreground tabular-nums">{items.length}</span>
-                        </h4>
-                        <ShiftPeople
-                          items={items}
-                          workspace={w}
-                          onEdit={(item) => setEditor({ ...item, zoneId: item.zoneId ?? '' })}
-                        />
-                      </section>
-                    );
-                  })}
-              </div>
-              {editor && w.writable && (
-                <div className="rounded-lg border bg-muted/20 p-3">
-                  <AssignmentEditor
-                    key={`${editor.employeeId}:${editor.businessDate}`}
-                    workspace={w}
-                    context={editor}
-                    onClose={() => setEditor(null)}
-                  />
-                </div>
+      />
+      <CalendarDetailPanel
+        open={!!row}
+        title={row?.zone?.name ?? t.noZone}
+        description={formatDate(selectedDate)}
+        onClose={() => setOpened(null)}
+        onRestoreFocus={() => {
+          if (trigger?.isConnected) trigger.focus();
+          else document.getElementById(instance)?.focus();
+        }}
+      >
+        {row ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-semibold">
+                {row.zone?.name ?? t.noZone} · {formatDate(selectedDate)}
+              </h3>
+              {w.writable && row.zone?.isActive && (
+                <Button size="sm" onClick={() => onAdd(row.id, selectedDate)}>
+                  <PlusIcon aria-hidden />
+                  {t.add}
+                </Button>
               )}
             </div>
-          ) : null
-        }
-      />
+            <div className="grid gap-4 lg:grid-cols-2">
+              {[false, true, undefined]
+                .filter(
+                  (kind) =>
+                    kind !== undefined ||
+                    row.items.some(
+                      (item) =>
+                        item.businessDate === selectedDate &&
+                        !w.templates.some((template) => template.id === item.templateId),
+                    ),
+                )
+                .map((isNight) => {
+                  const items = row.items.filter(
+                    (item) =>
+                      item.businessDate === selectedDate &&
+                      w.templates.find((template) => template.id === item.templateId)?.isNight ===
+                        isNight,
+                  );
+                  return (
+                    <section
+                      key={String(isNight)}
+                      className="min-w-0 rounded-lg border p-3 space-y-3"
+                    >
+                      <h4 className="inline-flex items-center gap-2 font-semibold">
+                        {isNight ? (
+                          <MoonIcon className="size-4" aria-hidden />
+                        ) : (
+                          <SunIcon className="size-4" aria-hidden />
+                        )}
+                        {isNight === undefined
+                          ? t.unknownShift
+                          : isNight
+                            ? t.nightShift
+                            : t.dayShift}{' '}
+                        <span className="text-muted-foreground tabular-nums">{items.length}</span>
+                      </h4>
+                      <ShiftPeople
+                        items={items}
+                        workspace={w}
+                        onEdit={(item) => setEditor({ ...item, zoneId: item.zoneId ?? '' })}
+                      />
+                    </section>
+                  );
+                })}
+            </div>
+            {editor && w.writable && (
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <AssignmentEditor
+                  key={`${editor.employeeId}:${editor.businessDate}`}
+                  workspace={w}
+                  context={editor}
+                  onClose={() => setEditor(null)}
+                />
+              </div>
+            )}
+          </div>
+        ) : null}
+      </CalendarDetailPanel>
     </div>
   );
 }
@@ -225,11 +242,22 @@ function ShiftPeople({
 }) {
   const pages = usePages(items.length, 10);
   const visible = items.slice((pages.page - 1) * pages.size, pages.page * pages.size);
+  const display = calendarModel({
+    ...w,
+    dates: [...new Set(items.map((item) => item.businessDate))],
+    grouping: 'zones',
+    locale: currentLocale(),
+    publication: '',
+  });
+  const times = new Map(
+    display.resources.flatMap((resource) =>
+      resource.cells.flatMap((cell) => cell.items.map((item) => [item.id, item.time] as const)),
+    ),
+  );
   return (
     <div className="space-y-2">
       <ul className="divide-y">
         {visible.map((item) => {
-          const template = w.templates.find((value) => value.id === item.templateId);
           return (
             <li
               key={`${item.employeeId}:${item.businessDate}`}
@@ -238,7 +266,7 @@ function ShiftPeople({
               <div className="min-w-0">
                 <p className="font-medium break-words">{employeeLabel(w, item.employeeId)}</p>
                 <p className="text-sm text-muted-foreground">
-                  {template ? `${template.localStart}–${template.localEnd}` : t.unknownTemplate}
+                  {times.get(assignmentKey(item)) ?? t.unknownTemplate}
                 </p>
               </div>
               {w.writable && (

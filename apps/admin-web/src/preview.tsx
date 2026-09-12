@@ -1,3 +1,5 @@
+import './preview/locale';
+import { CalendarPrototype } from './preview/calendar-prototype';
 import { scheduleFixture, extraScheduleZone } from './preview/schedule-fixtures';
 import { reviewFixture, reviewPhotos } from './preview/review-fixtures';
 import { restoreLegacyRoute } from '@/lib/route';
@@ -814,11 +816,6 @@ if (params.get('avatar') === '1') {
   me.image =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 }
-try {
-  localStorage.setItem('vakhta.locale', params.get('lang') ?? 'uk');
-} catch {
-  // preview only
-}
 setUiState({ theme: params.get('theme') ?? 'light' });
 installZodLocale();
 applyStoredAppearance();
@@ -838,7 +835,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delayDuration={200}>
-        <App />
+        {params.get('calendar') === 'spike' ? <CalendarPrototype /> : <App />}
         <Toaster richColors position="bottom-right" closeButton />
       </TooltipProvider>
     </QueryClientProvider>

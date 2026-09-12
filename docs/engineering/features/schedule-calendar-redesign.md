@@ -355,3 +355,53 @@ from before the deep-research revision; its `catalog.json` and publication recei
 - Next implementation step: resolve the next stream's policy gates and prepare a bounded T-01/T-04
   design/prototype with the SC/AC/UX IDs it will satisfy. All T-00–15 implementation work remains open;
   T-15 additionally requires separate scope approval.
+
+## Full epic implementation — 2026-09-13
+
+Authority: owner requests the entire live epic #1 in one task. Active Spec Kit directory:
+[002-schedule-calendar-redesign](../../../specs/002-schedule-calendar-redesign/spec.md).
+This supersedes the earlier documentation-only task restriction for this implementation; it does
+not approve unresolved domain policy. Writer/index ownership transferred after clean f66cafc.
+
+- Recon read all 18 live children (#4–20/#54), dependency/acceptance additions, current slice,
+  controller/contracts/schema, existing workspace memory and research scenarios. The issue catalog
+  under 001 remains historical. Source hashes and requirement mapping are in the implementation spec.
+- Spec/plan/tasks analysis: 50 capability rows, 18 issue owners, 58 initial tasks, no unmapped
+  capability; AC/UX and twelve integrated scenarios retain #54 ownership. Independent prototype
+  scope is ready. D-01–07 and real participant baseline/pilot are unresolved high-impact gates.
+- Owner questions sent for master authority, dated norms/qualification owners, rule severity,
+  time/segment/break semantics, atomic monthly effects, borrowing approval and SC-46–49 inputs.
+  No answer is inferred from elapsed time or a preselected option.
+- Lean design: Proceed / Simplify. Reuse template/batch/draft/publication owners, present a readable
+  day team and contextual actions; no new worker check-ins or compulsory advanced fields.
+- Component research favors a controlled rendering boundary on installed Table 9.2.4/shadcn;
+  source comparison in the spec research.md includes current paid resource terms. The first
+  rendering increment is implemented; the remaining epic stays open.
+
+### Controlled calendar rendering increment
+
+- Owner design correction: component selection, Sheets, layout and purposeful colors are free design
+  choices. Updated AGENTS.md and engineering standards; expanded sub-rows are no longer mandatory.
+- Added one controlled resource calendar and feature-owned projection for zone/person grouping,
+  day/week navigation and a mobile date strip. Details use a responsive Sheet in both the new calendar
+  and existing monthly views. Existing draft, template, review and publication owners remain in place.
+- Recorded assignment times survive template edits; grouping and monthly zone filtering preserve
+  hidden assignments and metadata. Removing a filtered employee row affects only that zone.
+  Opening/closing details preserves keyboard focus, including after the opening row disappears.
+- Synthetic prototype: 500 employees, 20 populated zones plus one empty, 7,000 assignments, cross-month
+  dates, visual segments and explicit Move conflict feedback. Custom time/segment persistence, drag,
+  production cross-month writes and complete roster loading remain unimplemented.
+- Verification executed on 2026-09-13: 38 tests across calendar/grid/planning/workspace passed;
+  affected ESLint passed; admin-web build including TypeScript and React Compiler passed.
+  Existing Rollup dependency annotation and bundle-size warnings remain. No backend/migration changed.
+- Captured and visually inspected desktop 1440×900 and mobile 390×844 synthetic views, English Sheet
+  editing, Russian monthly details, Ukrainian day view and full-width Sheet. Ukrainian mobile document
+  width was 390px; closing details returned focus to its assignment. Preview locale initialization now
+  precedes catalog consumers. These are preview checks, not production or participant acceptance.
+- Independent code review findings resolved: mobile period fallback, monthly filter parity, tabpanel
+  semantics and disconnected-trigger focus recovery. Reviewer reused valid deterministic checks;
+  visual inspection was performed by the implementation owner.
+- Lean completion: Proceed / Simplify. The calendar stays in place while details open; contextual
+  actions reuse existing editing and no-op guards. Missing staffing norms and presence remain unknown.
+- Full epic HOLD: D-01–07, real participant baseline/pilot and remaining child scope are pending.
+  Next independent work: #9 complete roster and stale/uncertain draft write recovery.
