@@ -16,17 +16,17 @@ between existing functionality, reliability gaps, extensions and independently v
 All entries remain unselected. Priority is a proposal based on manufacturing relevance, existing
 Vakhta capabilities and dependencies, rather than measured customer demand.
 
-| Stage / ID | Candidate | Reference capabilities | Small first outcome and completion evidence |
-| --- | --- | --- | --- |
-| Foundation F1 | Reliable notifications and acknowledgment | 20, 86–88 | Trace an incident to its intended recipient, delivered notice, acknowledgment and fallback; make existing schedule acknowledgment visible. Verify actual delivery rather than only recorded events. |
-| Near term M1 | Corrective operational tasks | 36–40 | Link a finding to one owner, deadline and closure evidence. Pilot with real recurring issues and measure unresolved issues and master follow-up effort. |
-| Near term M2 | Production instructions and acknowledgment | 46–50, 56–60 | Give each role/zone relevant, versioned instructions and photo examples; acknowledge material changes. Compare instruction retrieval time and repeated questions. |
-| Near term M3 | Qualifications, expiring documents and onboarding | 23, 61–68, 79–80 | Track a small set of real qualifications, renewal dates and onboarding steps, with authorized human sign-off. Make missing or expired requirements visible. |
-| Near term M4 | Required staffing and coverage | 22–24 | Agree required people and roles per zone/shift, then show shortages and eligible replacements. Check against one real planning cycle before adding blocking rules. |
-| Conditional M5 | Richer production forms | 26–35 | Extend current checklists for two or three repeatedly requested processes, adding only needed field types and conditions. Avoid duplicate entry and measure manual follow-up removed. |
-| Conditional M6 | Targeted announcements | 41–50, 81 | Reach relevant teams through the existing Telegram channel and collect explicit acknowledgment where necessary. Sending a message alone does not prove reading. |
-| Later M7 | Automatic schedule assignment | 21–25 | Suggest a draft from agreed coverage, qualifications, absence and scheduling rules; explain unresolved assignments and retain planner approval. Depends on M3/M4 and adequate data. |
-| Later M8 | Operational AI assistant | 59–60, 86–89 | Answer a small set of useful operational questions from permitted, current evidence. Keep product-help AI distinct and retain human verification; reconcile with the separate Master-agent plan before scoping. |
+| Stage / ID     | Candidate                                         | Reference capabilities | Small first outcome and completion evidence                                                                                                                                                                     |
+| -------------- | ------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Foundation F1  | Reliable notifications and acknowledgment         | 20, 86–88              | Trace an incident to its intended recipient, delivered notice, acknowledgment and fallback; make existing schedule acknowledgment visible. Verify actual delivery rather than only recorded events.             |
+| Near term M1   | Corrective operational tasks                      | 36–40                  | Link a finding to one owner, deadline and closure evidence. Pilot with real recurring issues and measure unresolved issues and master follow-up effort.                                                         |
+| Near term M2   | Production instructions and acknowledgment        | 46–50, 56–60           | Give each role/zone relevant, versioned instructions and photo examples; acknowledge material changes. Compare instruction retrieval time and repeated questions.                                               |
+| Near term M3   | Qualifications, expiring documents and onboarding | 23, 61–68, 79–80       | Track a small set of real qualifications, renewal dates and onboarding steps, with authorized human sign-off. Make missing or expired requirements visible.                                                     |
+| Near term M4   | Required staffing and coverage                    | 22–24                  | Agree required people and roles per zone/shift, then show shortages and eligible replacements. Check against one real planning cycle before adding blocking rules.                                              |
+| Conditional M5 | Richer production forms                           | 26–35                  | Extend current checklists for two or three repeatedly requested processes, adding only needed field types and conditions. Avoid duplicate entry and measure manual follow-up removed.                           |
+| Conditional M6 | Targeted announcements                            | 41–50, 81              | Reach relevant teams through the existing Telegram channel and collect explicit acknowledgment where necessary. Sending a message alone does not prove reading.                                                 |
+| Later M7       | Automatic schedule assignment                     | 21–25                  | Suggest a draft from agreed coverage, qualifications, absence and scheduling rules; explain unresolved assignments and retain planner approval. Depends on M3/M4 and adequate data.                             |
+| Later M8       | Operational AI assistant                          | 59–60, 86–89           | Answer a small set of useful operational questions from permitted, current evidence. Keep product-help AI distinct and retain human verification; reconcile with the separate Master-agent plan before scoping. |
 
 ### Deferred and separately scoped ideas
 
@@ -72,217 +72,217 @@ Present means a source-verified counterpart, not complete product equivalence. P
 
 Official sources: [1](https://help.connecteam.com/en/articles/3310664-starting-guide-to-the-time-clock), [2](https://help.connecteam.com/en/articles/6489625-time-clock-must-have-capabilities). Vakhta evidence: V1, V2 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 1 | Mobile/desktop clock-in and current attendance | Partial | QR/Telegram attendance and live panel; not direct desktop worker clocking. | High |
-| 2 | Time by jobs, projects, clients and sub-jobs | Partial | Time by employee, shift, zone and activity; no generic client/project hierarchy. | High |
-| 3 | Paid/unpaid breaks and automatic deductions | Partial | Break/meal intervals and reminders; no configurable wage deduction policy engine. | High |
-| 4 | Timesheets, correction requests and manager editing | Present | Audited corrections and shift summaries. | High |
-| 5 | Shift notes and attachments including signatures | Partial | Comments and handover photos; no employee e-signature. | High |
+| #   | Connecteam capability                               | Vakhta status | Exact current scope                                                               | Manufacturing relevance |
+| --- | --------------------------------------------------- | ------------- | --------------------------------------------------------------------------------- | ----------------------- |
+| 1   | Mobile/desktop clock-in and current attendance      | Partial       | QR/Telegram attendance and live panel; not direct desktop worker clocking.        | High                    |
+| 2   | Time by jobs, projects, clients and sub-jobs        | Partial       | Time by employee, shift, zone and activity; no generic client/project hierarchy.  | High                    |
+| 3   | Paid/unpaid breaks and automatic deductions         | Partial       | Break/meal intervals and reminders; no configurable wage deduction policy engine. | High                    |
+| 4   | Timesheets, correction requests and manager editing | Present       | Audited corrections and shift summaries.                                          | High                    |
+| 5   | Shift notes and attachments including signatures    | Partial       | Comments and handover photos; no employee e-signature.                            | High                    |
 
 ## Presence verification, kiosk and NFC
 
 Official sources: [1](https://help.connecteam.com/en/articles/6135619-the-kiosk-app), [2](https://help.connecteam.com/en/articles/11462177-starting-guide-to-nfc-clock-in), [3](https://help.connecteam.com/en/articles/13263966-how-to-set-nfc-events-in-connecteam). Vakhta evidence: V1 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 6 | Shared PIN/selfie kiosk with automatic logout | Partial | Paired rotating-QR display that opens Telegram; no PIN/selfie shared worker session. | High |
-| 7 | Restrict attendance to selected interfaces | Partial | QR verification plus audited master fallback; no configurable interface policy builder. | Medium |
-| 8 | GPS stamps, maps and geofences | Not found | No location-based attendance implementation identified. | Conditional |
-| 9 | Breadcrumbs and automatic clock-out rules | Partial | Automatic closure and unknown-departure reconciliation; no movement tracking/geofence closure. | Conditional |
-| 10 | NFC site/job tags and external scan events | Not found | Current terminal workflow uses QR. | Conditional |
+| #   | Connecteam capability                         | Vakhta status | Exact current scope                                                                            | Manufacturing relevance |
+| --- | --------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------- | ----------------------- |
+| 6   | Shared PIN/selfie kiosk with automatic logout | Partial       | Paired rotating-QR display that opens Telegram; no PIN/selfie shared worker session.           | High                    |
+| 7   | Restrict attendance to selected interfaces    | Partial       | QR verification plus audited master fallback; no configurable interface policy builder.        | Medium                  |
+| 8   | GPS stamps, maps and geofences                | Not found     | No location-based attendance implementation identified.                                        | Conditional             |
+| 9   | Breadcrumbs and automatic clock-out rules     | Partial       | Automatic closure and unknown-departure reconciliation; no movement tracking/geofence closure. | Conditional             |
+| 10  | NFC site/job tags and external scan events    | Not found     | Current terminal workflow uses QR.                                                             | Conditional             |
 
 ## Timesheet control, labor cost and payroll
 
 Official sources: [1](https://help.connecteam.com/en/articles/6489625-time-clock-must-have-capabilities), [2](https://help.connecteam.com/en/articles/15944148-what-integrations-does-connecteam-offer). Vakhta evidence: V2, V3 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 11 | Payroll periods, reminders and timesheet-day locking | Partial | Bonus period finalization; not general payroll/timesheet locking. | Medium |
-| 12 | Pay rates and overtime/payment rules | Partial | Overtime duration/approval and bonus rules; no payroll engine. | Conditional |
-| 13 | Timesheet and labor report export | Partial | CSV/XLSX interval-loss reports and bonus/history exports; not equivalent wage-cost reports. | High |
-| 14 | Scheduled attendance/payroll report delivery | Not found | On-demand exports exist; no user-configurable report distribution found. | Medium |
-| 15 | Payroll integrations and supported payslip connections | Not found | No supported external payroll adapter identified. | Separate decision |
+| #   | Connecteam capability                                  | Vakhta status | Exact current scope                                                                         | Manufacturing relevance |
+| --- | ------------------------------------------------------ | ------------- | ------------------------------------------------------------------------------------------- | ----------------------- |
+| 11  | Payroll periods, reminders and timesheet-day locking   | Partial       | Bonus period finalization; not general payroll/timesheet locking.                           | Medium                  |
+| 12  | Pay rates and overtime/payment rules                   | Partial       | Overtime duration/approval and bonus rules; no payroll engine.                              | Conditional             |
+| 13  | Timesheet and labor report export                      | Partial       | CSV/XLSX interval-loss reports and bonus/history exports; not equivalent wage-cost reports. | High                    |
+| 14  | Scheduled attendance/payroll report delivery           | Not found     | On-demand exports exist; no user-configurable report distribution found.                    | Medium                  |
+| 15  | Payroll integrations and supported payslip connections | Not found     | No supported external payroll adapter identified.                                           | Separate decision       |
 
 ## Schedule creation and publication
 
 Official sources: [1](https://help.connecteam.com/en/articles/4100339-starting-guide-to-the-job-scheduler), [2](https://help.connecteam.com/en/articles/6400563-job-scheduling-must-have-capabilities). Vakhta evidence: V4 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 16 | Day/week/month calendars and draft/published shifts | Present | Zone views and worker matrix with versioned publication. | High |
-| 17 | Repeating shifts, templates and schedule reuse | Partial | Shift templates and rotation fill; cross-month date-shifting copy not verified. | High |
-| 18 | Bulk schedule changes and spreadsheet import/export | Partial | Bulk fill/replace, preview and undo; no general schedule spreadsheet import found. | High |
-| 19 | Shift jobs, sites, custom fields, files and shortcuts | Partial | Employee/zone/template assignments; no generic rich shift-attachment/custom-field builder. | Medium |
-| 20 | Confirm/reject shifts, notifications and live share links | Partial | Acknowledgment and cannot-attend requests; no public live schedule link/calendar sync found. Acknowledgment administration is not fully exposed in current workspace. | High |
+| #   | Connecteam capability                                     | Vakhta status | Exact current scope                                                                                                                                                   | Manufacturing relevance |
+| --- | --------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| 16  | Day/week/month calendars and draft/published shifts       | Present       | Zone views and worker matrix with versioned publication.                                                                                                              | High                    |
+| 17  | Repeating shifts, templates and schedule reuse            | Partial       | Shift templates and rotation fill; cross-month date-shifting copy not verified.                                                                                       | High                    |
+| 18  | Bulk schedule changes and spreadsheet import/export       | Partial       | Bulk fill/replace, preview and undo; no general schedule spreadsheet import found.                                                                                    | High                    |
+| 19  | Shift jobs, sites, custom fields, files and shortcuts     | Partial       | Employee/zone/template assignments; no generic rich shift-attachment/custom-field builder.                                                                            | Medium                  |
+| 20  | Confirm/reject shifts, notifications and live share links | Partial       | Acknowledgment and cannot-attend requests; no public live schedule link/calendar sync found. Acknowledgment administration is not fully exposed in current workspace. | High                    |
 
 ## Staffing coverage and scheduling intelligence
 
 Official sources: [1](https://help.connecteam.com/en/articles/8886939-automatically-assign-shifts-in-connecteam), [2](https://help.connecteam.com/en/articles/12829136-starting-guide-to-scheduling-rules-and-shift-quotas), [3](https://help.connecteam.com/en/articles/9745134-job-schedule-issues). Vakhta evidence: V4, V5 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 21 | Open shifts, claims and manager approval | Partial | Extra-shift requests; no published open-shift marketplace. | Medium |
-| 22 | Swaps and employee availability | Partial | Consent-based shift swaps and absence requests; no recurring preference/availability calendar. | High |
-| 23 | Qualification-based assignment eligibility | Not found | Positions exist; certified skill eligibility does not. | High |
-| 24 | Coverage/conflict/rest/hour rules and warnings | Partial | Basic assignment validation and counts; no required staffing baseline or comprehensive scheduling-rule engine. | High |
-| 25 | Automatic staffing assignment | Not found | Deterministic rotation fill is not a staffing optimizer. | Later |
+| #   | Connecteam capability                          | Vakhta status | Exact current scope                                                                                            | Manufacturing relevance |
+| --- | ---------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| 21  | Open shifts, claims and manager approval       | Partial       | Extra-shift requests; no published open-shift marketplace.                                                     | Medium                  |
+| 22  | Swaps and employee availability                | Partial       | Consent-based shift swaps and absence requests; no recurring preference/availability calendar.                 | High                    |
+| 23  | Qualification-based assignment eligibility     | Not found     | Positions exist; certified skill eligibility does not.                                                         | High                    |
+| 24  | Coverage/conflict/rest/hour rules and warnings | Partial       | Basic assignment validation and counts; no required staffing baseline or comprehensive scheduling-rule engine. | High                    |
+| 25  | Automatic staffing assignment                  | Not found     | Deterministic rotation fill is not a staffing optimizer.                                                       | Later                   |
 
 ## Forms and evidence collection
 
 Official sources: [1](https://help.connecteam.com/en/articles/4225197-starting-guide-to-forms), [2](https://help.connecteam.com/en/articles/6803911-forms-how-to-create-conditional-forms), [3](https://help.connecteam.com/en/articles/11008729-can-i-record-voice-input-in-form-fields), [4](https://help.connecteam.com/en/articles/10714480-how-to-create-a-form-in-connecteam-with-ai). Vakhta evidence: V6 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 26 | Reusable form/checklist builder and templates | Partial | Admin-configurable, immutable-versioned production checklists. | High |
-| 27 | Text, choice, numeric/date, media, signature and location fields | Partial | CHECK, NOTE and PHOTO only; broader field types not found. | High |
-| 28 | Required fields and configurable conditional questions | Partial | Required photos/answers and fixed domain branches; no arbitrary condition builder. | High |
-| 29 | Calculated/formula fields | Not found | No generic formula field implementation. | Conditional |
-| 30 | Voice form answers and AI file-to-form conversion | Not found | Support voice Q&A is separate from form entry or form generation. | Later |
+| #   | Connecteam capability                                            | Vakhta status | Exact current scope                                                                | Manufacturing relevance |
+| --- | ---------------------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------- | ----------------------- |
+| 26  | Reusable form/checklist builder and templates                    | Partial       | Admin-configurable, immutable-versioned production checklists.                     | High                    |
+| 27  | Text, choice, numeric/date, media, signature and location fields | Partial       | CHECK, NOTE and PHOTO only; broader field types not found.                         | High                    |
+| 28  | Required fields and configurable conditional questions           | Partial       | Required photos/answers and fixed domain branches; no arbitrary condition builder. | High                    |
+| 29  | Calculated/formula fields                                        | Not found     | No generic formula field implementation.                                           | Conditional             |
+| 30  | Voice form answers and AI file-to-form conversion                | Not found     | Support voice Q&A is separate from form entry or form generation.                  | Later                   |
 
 ## Submission processing
 
 Official sources: [1](https://help.connecteam.com/en/articles/5949142-the-operations-hub), [2](https://help.connecteam.com/en/articles/6865546-how-to-view-form-submissions-and-summaries), [3](https://help.connecteam.com/en/articles/8300373-how-do-i-send-a-completed-form-to-a-client-who-is-not-a-user-in-connecteam). Vakhta evidence: V6, V3 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 31 | Submission tables, filters and insights | Present | Handover, incident and photo review lists; domain-specific rather than arbitrary forms. | High |
-| 32 | Approval/rejection and manager status/comments | Present | Master decisions, remarks and preserved review history. | High |
-| 33 | Automatic routing or external email sharing | Partial | Fixed domain routes and Telegram notifications; no configurable external sharing. | Medium |
-| 34 | Reminders, submission limits/windows and follow-up | Partial | Domain deadlines/reminders/guards; no general form policy builder. | High |
-| 35 | Form PDF/Excel exports and scheduled summaries | Partial | Domain exports exist; no arbitrary submitted-form PDF/Excel and scheduled-summary engine. | Medium |
+| #   | Connecteam capability                              | Vakhta status | Exact current scope                                                                       | Manufacturing relevance |
+| --- | -------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------- | ----------------------- |
+| 31  | Submission tables, filters and insights            | Present       | Handover, incident and photo review lists; domain-specific rather than arbitrary forms.   | High                    |
+| 32  | Approval/rejection and manager status/comments     | Present       | Master decisions, remarks and preserved review history.                                   | High                    |
+| 33  | Automatic routing or external email sharing        | Partial       | Fixed domain routes and Telegram notifications; no configurable external sharing.         | Medium                  |
+| 34  | Reminders, submission limits/windows and follow-up | Partial       | Domain deadlines/reminders/guards; no general form policy builder.                        | High                    |
+| 35  | Form PDF/Excel exports and scheduled summaries     | Partial       | Domain exports exist; no arbitrary submitted-form PDF/Excel and scheduled-summary engine. | Medium                  |
 
 ## Tasks and execution
 
 Official sources: [1](https://help.connecteam.com/en/articles/6475029-create-single-and-multiple-tasks), [2](https://help.connecteam.com/en/articles/8527883-group-tasks), [3](https://help.connecteam.com/en/articles/6475064-quick-tasks-recurring-tasks), [4](https://help.connecteam.com/en/articles/6474694-quick-tasks-task-description-and-comment-board), [5](https://help.connecteam.com/en/articles/9362458-what-is-the-difference-between-quick-tasks-and-the-shift-tasks-in-the-schedule). Vakhta evidence: V7 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 36 | Ad hoc tasks with owner, start/due dates and location | Not found | Incidents and requests exist, but no general operational task model. | High |
-| 37 | Group tasks and per-worker task copies | Not found | No user-facing general task assignment system. | Conditional |
-| 38 | Subtasks, attachments and task discussions | Not found | Evidence/history belong to incidents and handovers instead. | Medium |
-| 39 | Recurring daily/weekly/monthly tasks | Not found | Technical background jobs are not employee tasks. | High |
-| 40 | Progress, overdue views, labels, exports and shift tasks | Partial | Action queues and domain checklists; no general task lifecycle. | High |
+| #   | Connecteam capability                                    | Vakhta status | Exact current scope                                                  | Manufacturing relevance |
+| --- | -------------------------------------------------------- | ------------- | -------------------------------------------------------------------- | ----------------------- |
+| 36  | Ad hoc tasks with owner, start/due dates and location    | Not found     | Incidents and requests exist, but no general operational task model. | High                    |
+| 37  | Group tasks and per-worker task copies                   | Not found     | No user-facing general task assignment system.                       | Conditional             |
+| 38  | Subtasks, attachments and task discussions               | Not found     | Evidence/history belong to incidents and handovers instead.          | Medium                  |
+| 39  | Recurring daily/weekly/monthly tasks                     | Not found     | Technical background jobs are not employee tasks.                    | High                    |
+| 40  | Progress, overdue views, labels, exports and shift tasks | Partial       | Action queues and domain checklists; no general task lifecycle.      | High                    |
 
 ## Internal chat
 
 Official sources: [1](https://help.connecteam.com/en/articles/5951839-the-communication-hub), [2](https://help.connecteam.com/en/collections/3425366-the-communication-hub). Vakhta evidence: V8 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 41 | Private chats, team chats and broadcast channels | Partial | Admin-to-one-employee Telegram messages; no built-in corporate chat/channel model. | Low |
-| 42 | Media, polls and read receipts | Partial | Domain media and sent-message tracking; no polls or Telegram read receipts. | Medium |
-| 43 | Scheduled messages, pinning and deep links | Partial | Domain reminders/deep links; no general scheduled conversation tools. | Low |
-| 44 | Communication permissions and team restrictions | Partial | Roles restrict existing message action; no team-chat policy system. | Medium |
-| 45 | AI translation and voice-message transcripts | Not found | Support voice processing is a different flow. | Conditional |
+| #   | Connecteam capability                            | Vakhta status | Exact current scope                                                                | Manufacturing relevance |
+| --- | ------------------------------------------------ | ------------- | ---------------------------------------------------------------------------------- | ----------------------- |
+| 41  | Private chats, team chats and broadcast channels | Partial       | Admin-to-one-employee Telegram messages; no built-in corporate chat/channel model. | Low                     |
+| 42  | Media, polls and read receipts                   | Partial       | Domain media and sent-message tracking; no polls or Telegram read receipts.        | Medium                  |
+| 43  | Scheduled messages, pinning and deep links       | Partial       | Domain reminders/deep links; no general scheduled conversation tools.              | Low                     |
+| 44  | Communication permissions and team restrictions  | Partial       | Roles restrict existing message action; no team-chat policy system.                | Medium                  |
+| 45  | AI translation and voice-message transcripts     | Not found     | Support voice processing is a different flow.                                      | Conditional             |
 
 ## Announcements, feedback and events
 
 Official sources: [1](https://help.connecteam.com/en/articles/5951839-the-communication-hub), [2](https://help.connecteam.com/en/articles/6514885-set-up-guide-for-cleaning-companies-communications-hub). Vakhta evidence: V8 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 46 | Company feed with posts, media and engagement | Not found | No announcement/feed publishing model. | Medium |
-| 47 | Read analytics and mandatory acknowledgment | Partial | Schedule-specific acknowledgment only; message sent status is not acknowledgment. | High |
-| 48 | Scheduled/recurring targeted posts and topics | Not found | No configurable announcement campaigns. | Medium |
-| 49 | Anonymous surveys and live polls | Not found | Photo AI-feedback rating is not an employee survey module. | Low |
-| 50 | Events, RSVP, capacity and participant export | Not found | No corporate event-management flow. | Low |
+| #   | Connecteam capability                         | Vakhta status | Exact current scope                                                               | Manufacturing relevance |
+| --- | --------------------------------------------- | ------------- | --------------------------------------------------------------------------------- | ----------------------- |
+| 46  | Company feed with posts, media and engagement | Not found     | No announcement/feed publishing model.                                            | Medium                  |
+| 47  | Read analytics and mandatory acknowledgment   | Partial       | Schedule-specific acknowledgment only; message sent status is not acknowledgment. | High                    |
+| 48  | Scheduled/recurring targeted posts and topics | Not found     | No configurable announcement campaigns.                                           | Medium                  |
+| 49  | Anonymous surveys and live polls              | Not found     | Photo AI-feedback rating is not an employee survey module.                        | Low                     |
+| 50  | Events, RSVP, capacity and participant export | Not found     | No corporate event-management flow.                                               | Low                     |
 
 ## Directory and internal help desk
 
 Official sources: [1](https://help.connecteam.com/en/articles/5951839-the-communication-hub), [2](https://help.connecteam.com/en/articles/9725892-starting-guide-to-the-help-desk), [3](https://help.connecteam.com/en/articles/9726353-adding-managing-help-desks). Vakhta evidence: V8, V9 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 51 | Searchable employee directory | Partial | Admin employee records/contact links; no employee-facing directory. | Medium |
-| 52 | External work contacts | Not found | No supplier/departmental contact directory model. | Low |
-| 53 | Contact/profile visibility controls | Partial | Role/scope access exists; no configurable employee-directory field visibility. | Medium |
-| 54 | Department help desks with representatives | Partial | Structured requests and product support; no configurable departmental desks. | Conditional |
-| 55 | Help-desk assignment and query tracking | Partial | Fixed request routing/history; no agent-assigned threaded help-desk workflow. | Conditional |
+| #   | Connecteam capability                      | Vakhta status | Exact current scope                                                            | Manufacturing relevance |
+| --- | ------------------------------------------ | ------------- | ------------------------------------------------------------------------------ | ----------------------- |
+| 51  | Searchable employee directory              | Partial       | Admin employee records/contact links; no employee-facing directory.            | Medium                  |
+| 52  | External work contacts                     | Not found     | No supplier/departmental contact directory model.                              | Low                     |
+| 53  | Contact/profile visibility controls        | Partial       | Role/scope access exists; no configurable employee-directory field visibility. | Medium                  |
+| 54  | Department help desks with representatives | Partial       | Structured requests and product support; no configurable departmental desks.   | Conditional             |
+| 55  | Help-desk assignment and query tracking    | Partial       | Fixed request routing/history; no agent-assigned threaded help-desk workflow.  | Conditional             |
 
 ## Knowledge and company AI
 
 Official sources: [1](https://help.connecteam.com/en/articles/5951839-the-communication-hub), [2](https://help.connecteam.com/en/articles/11112114-connecteam-s-knowledge-base-agent-your-company-s-ai-assistant). Vakhta evidence: V10 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 56 | Company knowledge folders, pages, files and links | Partial | Product guides/FAQ; no admin-editable company SOP library. | High |
-| 57 | Knowledge assignment by worker/group | Not found | No general content-assignment workflow. | High |
-| 58 | Knowledge search/read insights | Partial | AI product Q&A; no company KB readership dashboard. | Medium |
-| 59 | Source-based company AI agents and custom instructions | Partial | Implemented product help assistant; no live shift/employee/score access or arbitrary company resource selection. | High |
-| 60 | Multiple targeted agents and automatic knowledge updates | Partial | Repository knowledge loading exists; no admin-created agent catalogue. | Later |
+| #   | Connecteam capability                                    | Vakhta status | Exact current scope                                                                                              | Manufacturing relevance |
+| --- | -------------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| 56  | Company knowledge folders, pages, files and links        | Partial       | Product guides/FAQ; no admin-editable company SOP library.                                                       | High                    |
+| 57  | Knowledge assignment by worker/group                     | Not found     | No general content-assignment workflow.                                                                          | High                    |
+| 58  | Knowledge search/read insights                           | Partial       | AI product Q&A; no company KB readership dashboard.                                                              | Medium                  |
+| 59  | Source-based company AI agents and custom instructions   | Partial       | Implemented product help assistant; no live shift/employee/score access or arbitrary company resource selection. | High                    |
+| 60  | Multiple targeted agents and automatic knowledge updates | Partial       | Repository knowledge loading exists; no admin-created agent catalogue.                                           | Later                   |
 
 ## Learning and competency checks
 
 Official sources: [1](https://help.connecteam.com/en/articles/6385698-starting-guide-to-courses), [2](https://help.connecteam.com/en/articles/6451819-starting-guide-to-quizzes), [3](https://help.connecteam.com/en/articles/9556009-how-to-view-quiz-entries), [4](https://help.connecteam.com/en/articles/12517029-our-ai-tools-a-complete-guide). Vakhta evidence: V9, V10 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 61 | Courses with text, files, videos, forms and quizzes | Not found | Product help is not tracked learning. | High |
-| 62 | Sections, ordered release and deadlines | Not found | No learning assignment/completion model. | High |
-| 63 | Read/watch confirmation and completion tracking | Not found | No employee training completion ledger. | High |
-| 64 | Quizzes, pass marks, attempts and result exports | Not found | No employee assessment system. | High |
-| 65 | Course templates and AI course creation | Not found | First establish useful training before AI generation. | Later |
+| #   | Connecteam capability                               | Vakhta status | Exact current scope                                   | Manufacturing relevance |
+| --- | --------------------------------------------------- | ------------- | ----------------------------------------------------- | ----------------------- |
+| 61  | Courses with text, files, videos, forms and quizzes | Not found     | Product help is not tracked learning.                 | High                    |
+| 62  | Sections, ordered release and deadlines             | Not found     | No learning assignment/completion model.              | High                    |
+| 63  | Read/watch confirmation and completion tracking     | Not found     | No employee training completion ledger.               | High                    |
+| 64  | Quizzes, pass marks, attempts and result exports    | Not found     | No employee assessment system.                        | High                    |
+| 65  | Course templates and AI course creation             | Not found     | First establish useful training before AI generation. | Later                   |
 
 ## Employee documents and signatures
 
 Official sources: [1](https://help.connecteam.com/en/articles/5957871-introduction-to-the-hr-hub), [2](https://help.connecteam.com/en/articles/13628062-e-signatures-for-document-signing). Vakhta evidence: V9 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 66 | Document packs and employee uploads | Partial | Restricted sick-leave attachments only; no general employee document packs. | High |
-| 67 | Review, permissions and missing-document visibility | Partial | Sensitive attachment access exists; no general document checklist. | High |
-| 68 | Expiry dates and renewal follow-up | Not found | No certificate/license expiry registry. | High |
-| 69 | Fillable/signable PDF and profile prefill | Not found | No employee e-sign workflow. | Conditional |
-| 70 | Multiple signers, signing order and audit | Not found | Audit logs are not document signing. | Conditional |
+| #   | Connecteam capability                               | Vakhta status | Exact current scope                                                         | Manufacturing relevance |
+| --- | --------------------------------------------------- | ------------- | --------------------------------------------------------------------------- | ----------------------- |
+| 66  | Document packs and employee uploads                 | Partial       | Restricted sick-leave attachments only; no general employee document packs. | High                    |
+| 67  | Review, permissions and missing-document visibility | Partial       | Sensitive attachment access exists; no general document checklist.          | High                    |
+| 68  | Expiry dates and renewal follow-up                  | Not found     | No certificate/license expiry registry.                                     | High                    |
+| 69  | Fillable/signable PDF and profile prefill           | Not found     | No employee e-sign workflow.                                                | Conditional             |
+| 70  | Multiple signers, signing order and audit           | Not found     | Audit logs are not document signing.                                        | Conditional             |
 
 ## Leave and absence
 
 Official sources: [1](https://help.connecteam.com/en/articles/6713889-starting-guide-to-time-off). Vakhta evidence: V5, V9 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 71 | Paid/unpaid categories and leave requests | Partial | Fixed vacation/sick/day-off request types; no customizable entitlement policies. | High |
-| 72 | Approve/decline with available balances | Partial | Approval exists; accrued available balance does not. | High |
-| 73 | Hourly/day accrual and tenure-based allowance | Not found | No accrual ledger or policy engine. | Conditional |
-| 74 | Carryover, negative balance and request-limit policies | Not found | No configurable entitlement rules. | Conditional |
-| 75 | Attachments, history, balance export and schedule visibility | Partial | Attachments/history and approved schedule changes; no balance log. | High |
+| #   | Connecteam capability                                        | Vakhta status | Exact current scope                                                              | Manufacturing relevance |
+| --- | ------------------------------------------------------------ | ------------- | -------------------------------------------------------------------------------- | ----------------------- |
+| 71  | Paid/unpaid categories and leave requests                    | Partial       | Fixed vacation/sick/day-off request types; no customizable entitlement policies. | High                    |
+| 72  | Approve/decline with available balances                      | Partial       | Approval exists; accrued available balance does not.                             | High                    |
+| 73  | Hourly/day accrual and tenure-based allowance                | Not found     | No accrual ledger or policy engine.                                              | Conditional             |
+| 74  | Carryover, negative balance and request-limit policies       | Not found     | No configurable entitlement rules.                                               | Conditional             |
+| 75  | Attachments, history, balance export and schedule visibility | Partial       | Attachments/history and approved schedule changes; no balance log.               | High                    |
 
 ## Hiring and onboarding
 
 Official sources: [1](https://help.connecteam.com/en/articles/13311464-starting-guide-to-hiring), [2](https://help.connecteam.com/en/articles/12801593-starting-guide-to-the-onboarding-feature). Vakhta evidence: V9 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 76 | Public vacancies, application fields and CV uploads | Not found | No candidate/application system. | Conditional |
-| 77 | Candidate stages, notes and rejection reasons | Not found | No recruiting pipeline. | Conditional |
-| 78 | Convert successful applicant to employee | Not found | Employee import/create exists, not candidate conversion. | Conditional |
-| 79 | Onboarding packs: information, documents, policies, tasks | Not found | Telegram activation is identity linking, not onboarding. | High |
-| 80 | Onboarding completion, missing items and approval/reopen | Not found | No onboarding process state. | High |
+| #   | Connecteam capability                                     | Vakhta status | Exact current scope                                      | Manufacturing relevance |
+| --- | --------------------------------------------------------- | ------------- | -------------------------------------------------------- | ----------------------- |
+| 76  | Public vacancies, application fields and CV uploads       | Not found     | No candidate/application system.                         | Conditional             |
+| 77  | Candidate stages, notes and rejection reasons             | Not found     | No recruiting pipeline.                                  | Conditional             |
+| 78  | Convert successful applicant to employee                  | Not found     | Employee import/create exists, not candidate conversion. | Conditional             |
+| 79  | Onboarding packs: information, documents, policies, tasks | Not found     | Telegram activation is identity linking, not onboarding. | High                    |
+| 80  | Onboarding completion, missing items and approval/reopen  | Not found     | No onboarding process state.                             | High                    |
 
 ## People organization and platform administration
 
 Official sources: [1](https://help.connecteam.com/en/articles/6114686-smart-groups-and-segments), [2](https://help.connecteam.com/en/articles/10321251-starting-guide-to-org-chart), [3](https://help.connecteam.com/en/articles/5956786-starting-guide-to-the-timeline), [4](https://help.connecteam.com/en/articles/5956739-starting-guide-to-rewards), [5](https://help.connecteam.com/en/articles/6419701-checking-your-account-activity-with-connecteam), [6](https://help.connecteam.com/en/articles/6141378-the-enterprise-plan). Vakhta evidence: V9, V11 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 81 | Custom profiles, tags and automatic Smart Groups | Partial | Fixed employee fields and dated structural assignments; no custom-field/group rule engine. | High |
-| 82 | Org chart and hierarchy export | Partial | Organization/manager relationships exist; no org-chart visualization/export found. | Low |
-| 83 | Unified employee timeline | Partial | Position history, bonus history and audit; no consolidated HR timeline. | Medium |
-| 84 | Recognition, celebrations and gift-card rewards | Partial | Operational points/awards/monthly nominations; no gift redemption or birthday automation. | Low |
-| 85 | Web/mobile admin, branding, access, logs, SSO and app lock | Partial | Responsive panel, roles/scopes, audit, TOTP; no native admin app or SSO/SAML/OIDC integration found. | High |
+| #   | Connecteam capability                                      | Vakhta status | Exact current scope                                                                                  | Manufacturing relevance |
+| --- | ---------------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------- | ----------------------- |
+| 81  | Custom profiles, tags and automatic Smart Groups           | Partial       | Fixed employee fields and dated structural assignments; no custom-field/group rule engine.           | High                    |
+| 82  | Org chart and hierarchy export                             | Partial       | Organization/manager relationships exist; no org-chart visualization/export found.                   | Low                     |
+| 83  | Unified employee timeline                                  | Partial       | Position history, bonus history and audit; no consolidated HR timeline.                              | Medium                  |
+| 84  | Recognition, celebrations and gift-card rewards            | Partial       | Operational points/awards/monthly nominations; no gift redemption or birthday automation.            | Low                     |
+| 85  | Web/mobile admin, branding, access, logs, SSO and app lock | Partial       | Responsive panel, roles/scopes, audit, TOTP; no native admin app or SSO/SAML/OIDC integration found. | High                    |
 
 ## Automation, AI productivity and integrations
 
 Official sources: [1](https://help.connecteam.com/en/articles/13438104-starting-guide-to-automations), [2](https://help.connecteam.com/en/articles/15701250-automations-common-use-cases), [3](https://help.connecteam.com/en/articles/12517029-our-ai-tools-a-complete-guide), [4](https://help.connecteam.com/en/articles/15944148-what-integrations-does-connecteam-offer), [5](https://developer.connecteam.com/docs/api-access). Vakhta evidence: V7, V10, V11 below.
 
-| # | Connecteam capability | Vakhta status | Exact current scope | Manufacturing relevance |
-| --- | --- | --- | --- | --- |
-| 86 | Cross-module trigger/action workflows | Partial | Fixed domain transitions, timers, outbox and recovery; no user-configurable automation builder. | High |
-| 87 | Conditions, delays, recurrence, AI building and run logs | Partial | Fixed execution infrastructure; no general business-flow editor. | Later |
-| 88 | Messages, SMS, phone calls and NFC triggers | Partial | Telegram transport exists; SLA event persistence is not proof of delivered escalation; no SMS/call/NFC stack found. | High |
-| 89 | AI content drafting, translation and generation | Partial | Product support and specialized photo analysis; no announcement/form/course generator. | Later |
-| 90 | Public APIs, webhooks, Zapier and payroll/HR/POS adapters | Partial | Internal authenticated HTTP APIs and Telegram/provider integrations; no packaged customer integration platform. | Separate decision |
+| #   | Connecteam capability                                     | Vakhta status | Exact current scope                                                                                                 | Manufacturing relevance |
+| --- | --------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| 86  | Cross-module trigger/action workflows                     | Partial       | Fixed domain transitions, timers, outbox and recovery; no user-configurable automation builder.                     | High                    |
+| 87  | Conditions, delays, recurrence, AI building and run logs  | Partial       | Fixed execution infrastructure; no general business-flow editor.                                                    | Later                   |
+| 88  | Messages, SMS, phone calls and NFC triggers               | Partial       | Telegram transport exists; SLA event persistence is not proof of delivered escalation; no SMS/call/NFC stack found. | High                    |
+| 89  | AI content drafting, translation and generation           | Partial       | Product support and specialized photo analysis; no announcement/form/course generator.                              | Later                   |
+| 90  | Public APIs, webhooks, Zapier and payroll/HR/POS adapters | Partial       | Internal authenticated HTTP APIs and Telegram/provider integrations; no packaged customer integration platform.     | Separate decision       |
 
 ## Differentiation and limitations
 
@@ -307,17 +307,17 @@ Connecteam caveats:
 
 These are hypotheses. Validate each with the plant owner before making it a paid module or adding worker steps. Apply [standardized work](https://www.lean.org/lexicon-terms/standardized-work/) with attention to the actual task and burden.
 
-| Decision | Opportunity | Smallest useful scope | Evidence to collect | Burden/guardrail |
-| --- | --- | --- | --- | --- |
-| Proceed with verification | Complete existing incident escalation | Trace event through named recipient, delivery, acknowledgment and fallback; surface existing schedule acknowledgment controls | Missed critical notices, delivery and acknowledgment times in a representative pilot | Fix agreed behavior as reliability work; do not sell a defect as a new feature. Source event alone proves no push delivery. |
-| Simplify | Corrective operational tasks | One finding creates one accountable task with due date and evidence of closure, reusing incidents | Reopened/unresolved issues and master follow-up time over several shift cycles | Avoid a second parallel incident tracker or duplicated employee input. |
-| Proceed to discovery | Position/zone instructions and acknowledgment | Versioned SOP, relevant photo examples and acknowledgment on actual change | Repeat questions, observed errors and retrieval time before/after a small pilot | Do not require repetitive daily confirmation of unchanged material; reading is not skill proof. |
-| Proceed to discovery | Competence, document expiry and onboarding | Record a few real qualifications, validity, required learning and authorized sign-off | Manual qualification checks, expired documents, uncovered eligible roles | Owner defines authorization policy; quiz/AI output alone does not authorize hazardous work. |
-| Simplify | Staffing coverage | Define required people/roles by zone and shift; show unmet requirements | Planner time and uncovered assignments across a real planning cycle | Counts alone are not staffing requirements. Do not restore previously removed blocking rules without a new decision. |
-| Defer until repeated need | Richer forms and automation | Extend current checklist types for two or three demonstrated processes | Form changes requiring development and duplicated data entry | Start with useful fields/rules; avoid an unrestricted low-code platform. |
-| Defer | Automatic roster optimizer and operational AI agent | Build only after staffing constraints/data quality and permission boundaries are defined | Manual scheduling bottleneck or repeated operational query pattern | Current product support assistant is not an operational agent; preserve human decisions. |
-| Defer | Corporate chat, events, celebrations and gift marketplace | Consider only if existing Telegram and current awards fail an actual need | Actual adoption/communication gap | Avoid duplicating channels and engagement work without production benefit. |
-| Separate decision | Payroll, ERP/MES, equipment/production/OEE integrations | Explicit business case and integration scope | Owner-approved requirement and external system access | Outside current MVP; worker intervals cannot establish equipment metrics. |
+| Decision                  | Opportunity                                               | Smallest useful scope                                                                                                         | Evidence to collect                                                                  | Burden/guardrail                                                                                                            |
+| ------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| Proceed with verification | Complete existing incident escalation                     | Trace event through named recipient, delivery, acknowledgment and fallback; surface existing schedule acknowledgment controls | Missed critical notices, delivery and acknowledgment times in a representative pilot | Fix agreed behavior as reliability work; do not sell a defect as a new feature. Source event alone proves no push delivery. |
+| Simplify                  | Corrective operational tasks                              | One finding creates one accountable task with due date and evidence of closure, reusing incidents                             | Reopened/unresolved issues and master follow-up time over several shift cycles       | Avoid a second parallel incident tracker or duplicated employee input.                                                      |
+| Proceed to discovery      | Position/zone instructions and acknowledgment             | Versioned SOP, relevant photo examples and acknowledgment on actual change                                                    | Repeat questions, observed errors and retrieval time before/after a small pilot      | Do not require repetitive daily confirmation of unchanged material; reading is not skill proof.                             |
+| Proceed to discovery      | Competence, document expiry and onboarding                | Record a few real qualifications, validity, required learning and authorized sign-off                                         | Manual qualification checks, expired documents, uncovered eligible roles             | Owner defines authorization policy; quiz/AI output alone does not authorize hazardous work.                                 |
+| Simplify                  | Staffing coverage                                         | Define required people/roles by zone and shift; show unmet requirements                                                       | Planner time and uncovered assignments across a real planning cycle                  | Counts alone are not staffing requirements. Do not restore previously removed blocking rules without a new decision.        |
+| Defer until repeated need | Richer forms and automation                               | Extend current checklist types for two or three demonstrated processes                                                        | Form changes requiring development and duplicated data entry                         | Start with useful fields/rules; avoid an unrestricted low-code platform.                                                    |
+| Defer                     | Automatic roster optimizer and operational AI agent       | Build only after staffing constraints/data quality and permission boundaries are defined                                      | Manual scheduling bottleneck or repeated operational query pattern                   | Current product support assistant is not an operational agent; preserve human decisions.                                    |
+| Defer                     | Corporate chat, events, celebrations and gift marketplace | Consider only if existing Telegram and current awards fail an actual need                                                     | Actual adoption/communication gap                                                    | Avoid duplicating channels and engagement work without production benefit.                                                  |
+| Separate decision         | Payroll, ERP/MES, equipment/production/OEE integrations   | Explicit business case and integration scope                                                                                  | Owner-approved requirement and external system access                                | Outside current MVP; worker intervals cannot establish equipment metrics.                                                   |
 
 ## Source evidence in Vakhta
 
