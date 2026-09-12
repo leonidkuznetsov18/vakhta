@@ -14,6 +14,8 @@ import {
 } from '@nestjs/common';
 import {
   ScheduleRevisionPrecondition,
+  ScheduleWebCommand,
+  type ScheduleCommandResult,
   CreateScheduleVersionCommand,
   CreateShiftTemplateCommand,
   ListScheduleVersionsQuery,
@@ -38,6 +40,7 @@ import {
 } from '../auth/web-auth.guard.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { ScheduleService } from './schedule.service.js';
+import { ScheduleCommandService } from './schedule-command.service.js';
 import { TemplatesService } from './templates.service.js';
 
 const ALL_PANEL_ROLES: WebRole[] = [
@@ -70,7 +73,18 @@ export class AdminSchedulesController {
   constructor(
     private readonly schedules: ScheduleService,
     private readonly templates: TemplatesService,
+    private readonly commands: ScheduleCommandService,
   ) {}
+
+  @Post('commands')
+  @HttpCode(200)
+  @Roles(...EDITORS, ...APPROVERS)
+  command(
+    @Body(new ZodValidationPipe(ScheduleWebCommand)) body: ScheduleWebCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ScheduleCommandResult> {
+    return this.commands.execute(body, user);
+  }
 
   @Get('templates')
   listTemplates(

@@ -1,3 +1,4 @@
+import { CommandRecovery } from './command-recovery';
 import { useState } from 'react';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -33,7 +34,13 @@ export function PublicationReview({
   const [reason, setReason] = useState('');
   const [sent, setSent] = useState(false);
   const changed = w.version?.id !== versionId || countChanges(snapshot, w.grid) > 0;
-  const completed = sent && !w.busy && !w.error && w.version?.status === 'PUBLISHED' && !w.changes;
+  const completed =
+    sent &&
+    !w.pendingCommand &&
+    !w.busy &&
+    !w.error &&
+    w.version?.status === 'PUBLISHED' &&
+    !w.changes;
   return (
     <Dialog
       open
@@ -68,6 +75,7 @@ export function PublicationReview({
             </div>
           )}
           <Feedback error={readError(w.error)} />
+          <CommandRecovery workspace={w} />
           {changed && !completed && <Feedback error={t.stale} />}
         </div>
         <DialogFooter>
@@ -77,7 +85,7 @@ export function PublicationReview({
           {!completed && (
             <Button
               disabled={
-                w.busy ||
+                !w.commandReady ||
                 changed ||
                 w.stale ||
                 !w.publicationReady ||

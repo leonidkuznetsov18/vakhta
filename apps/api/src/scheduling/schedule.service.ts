@@ -44,6 +44,8 @@ import type {
   ReturnToDraftCommand,
   ScheduleVersionDetail,
   ScheduleVersionView,
+  ScheduleWebCommand,
+  ScheduleCommandResult,
 } from '@vakhta/contracts';
 import { format, type Messages } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
@@ -129,6 +131,96 @@ export class ScheduleService {
     @Inject(SCHEDULE_OPTIONS) private readonly options: ScheduleOptions,
   ) {}
 
+  /** Internal command executor. The caller owns authorization, receipt and transaction. */
+  async applyCommandWithin(
+    tx: Transaction,
+    command: ScheduleWebCommand,
+    actor: Actor,
+  ): Promise<ScheduleCommandResult> {
+    const commandId = command.commandId;
+    switch (command.action) {
+      case 'CREATE':
+        return {
+          commandId,
+          kind: 'VERSION',
+          version: await this.createVersionWithin(tx, command.payload, actor),
+        };
+      case 'SAVE':
+        return {
+          commandId,
+          kind: 'DETAIL',
+          detail: await this.putAssignmentsWithin(
+            tx,
+            command.versionId,
+            command.payload,
+            actor,
+            command.expectedRevision,
+          ),
+        };
+      case 'DELETE':
+        try {
+          await this.deleteVersionWithin(tx, command.versionId, actor, command.expectedRevision);
+        } catch (error) {
+          if (isForeignKeyViolation(error))
+            throw new DomainError(
+              'SCHEDULE_VERSION_IN_USE',
+              409,
+              'Version is referenced by other records and stays as history',
+            );
+          throw error;
+        }
+        return { commandId, kind: 'DELETED', versionId: command.versionId };
+      case 'SUBMIT':
+        return {
+          commandId,
+          kind: 'VERSION',
+          version: await this.transitionWithin(tx, command.versionId, 'SUBMIT', actor, {
+            expectedRevision: command.expectedRevision,
+            requireNoErrors: true,
+            set: { submittedAt: new Date() },
+          }),
+        };
+      case 'RETURN':
+        return {
+          commandId,
+          kind: 'VERSION',
+          version: await this.transitionWithin(tx, command.versionId, 'RETURN', actor, {
+            expectedRevision: command.expectedRevision,
+            comment: command.payload.comment,
+            set: { submittedAt: null },
+          }),
+        };
+      case 'PUBLISH': {
+        const result = await this.publishWithin(
+          tx,
+          command.versionId,
+          command.payload,
+          actor,
+          new Date(),
+          command.expectedRevision,
+        );
+        return {
+          commandId,
+          kind: 'VERSION',
+          version: this.toVersionView(result.updated, result.nextShifts.length),
+        };
+      }
+      case 'REVISE':
+        return {
+          commandId,
+          kind: 'VERSION',
+          version: await this.reviseWithin(
+            tx,
+            command.versionId,
+            command.payload,
+            actor,
+            new Date(),
+            command.expectedRevision,
+          ),
+        };
+    }
+  }
+
   /* ------------------------------------------------------------------ */
   /* Версії                                                              */
   /* ------------------------------------------------------------------ */
@@ -157,86 +249,103 @@ export class ScheduleService {
     cmd: CreateScheduleVersionCommand,
     actor: Actor,
   ): Promise<ScheduleVersionView> {
-    await this.org.requireOrgUnit(cmd.orgUnitId, cmd.siteId);
-    return this.db.transaction(async (tx) => {
-      const [agg] = await tx
-        .select({ maxNo: max(scheduleVersions.versionNo) })
-        .from(scheduleVersions)
+    return this.db.transaction((tx) => this.createVersionWithin(tx, cmd, actor));
+  }
+
+  private async createVersionWithin(
+    tx: Transaction,
+    cmd: CreateScheduleVersionCommand,
+    actor: Actor,
+  ): Promise<ScheduleVersionView> {
+    await this.org.requireOrgUnit(cmd.orgUnitId, cmd.siteId, tx);
+    const [agg] = await tx
+      .select({ maxNo: max(scheduleVersions.versionNo) })
+      .from(scheduleVersions)
+      .where(
+        and(
+          eq(scheduleVersions.siteId, cmd.siteId),
+          eq(scheduleVersions.orgUnitId, cmd.orgUnitId),
+          eq(scheduleVersions.periodMonth, cmd.periodMonth),
+        ),
+      );
+    const versionNo = (agg?.maxNo ?? 0) + 1;
+
+    let source: VersionRow | null = null;
+    if (cmd.basedOnVersionId) {
+      source = await this.requireVersion(cmd.basedOnVersionId, tx);
+      if (
+        source.siteId !== cmd.siteId ||
+        source.orgUnitId !== cmd.orgUnitId ||
+        source.periodMonth !== cmd.periodMonth
+      ) {
+        throw new DomainError(
+          'SCHEDULE_SOURCE_SCOPE_MISMATCH',
+          422,
+          'Source version must belong to the same site, unit and month',
+        );
+      }
+    } else {
+      source = await this.publishedFor(cmd.siteId, cmd.orgUnitId, cmd.periodMonth, tx);
+    }
+
+    const [row] = await tx
+      .insert(scheduleVersions)
+      .values({
+        siteId: cmd.siteId,
+        orgUnitId: cmd.orgUnitId,
+        periodMonth: cmd.periodMonth,
+        versionNo,
+        createdBy: actor.id,
+      })
+      .returning();
+    if (!row) throw new Error('schedule_versions: insert не повернув рядок');
+
+    let copied = 0;
+    if (source) {
+      const rows = await tx
+        .select()
+        .from(shiftAssignments)
         .where(
           and(
-            eq(scheduleVersions.siteId, cmd.siteId),
-            eq(scheduleVersions.orgUnitId, cmd.orgUnitId),
-            eq(scheduleVersions.periodMonth, cmd.periodMonth),
+            eq(shiftAssignments.scheduleVersionId, source.id),
+            eq(shiftAssignments.status, 'PLANNED'),
           ),
         );
-      const versionNo = (agg?.maxNo ?? 0) + 1;
-
-      let source: VersionRow | null = null;
-      if (cmd.basedOnVersionId) {
-        source = await this.requireVersion(cmd.basedOnVersionId, tx);
-      } else {
-        source = await this.publishedFor(cmd.siteId, cmd.orgUnitId, cmd.periodMonth, tx);
+      if (rows.length > 0) {
+        await tx.insert(shiftAssignments).values(
+          rows.map((a) => ({
+            scheduleVersionId: row.id,
+            employeeId: a.employeeId,
+            templateId: a.templateId,
+            businessDate: a.businessDate,
+            planStartAt: a.planStartAt,
+            planEndAt: a.planEndAt,
+            positionId: a.positionId,
+            orgUnitId: a.orgUnitId,
+            teamId: a.teamId,
+            zoneId: a.zoneId,
+            kind: a.kind,
+          })),
+        );
+        copied = rows.length;
       }
+    }
 
-      const [row] = await tx
-        .insert(scheduleVersions)
-        .values({
-          siteId: cmd.siteId,
-          orgUnitId: cmd.orgUnitId,
-          periodMonth: cmd.periodMonth,
-          versionNo,
-          createdBy: actor.id,
-        })
-        .returning();
-      if (!row) throw new Error('schedule_versions: insert не повернув рядок');
-
-      let copied = 0;
-      if (source) {
-        const rows = await tx
-          .select()
-          .from(shiftAssignments)
-          .where(
-            and(
-              eq(shiftAssignments.scheduleVersionId, source.id),
-              eq(shiftAssignments.status, 'PLANNED'),
-            ),
-          );
-        if (rows.length > 0) {
-          await tx.insert(shiftAssignments).values(
-            rows.map((a) => ({
-              scheduleVersionId: row.id,
-              employeeId: a.employeeId,
-              templateId: a.templateId,
-              businessDate: a.businessDate,
-              planStartAt: a.planStartAt,
-              planEndAt: a.planEndAt,
-              positionId: a.positionId,
-              orgUnitId: a.orgUnitId,
-              teamId: a.teamId,
-              zoneId: a.zoneId,
-              kind: a.kind,
-            })),
-          );
-          copied = rows.length;
-        }
-      }
-
-      await this.events.append(tx, {
-        type: 'SCHEDULE_VERSION_CREATED',
-        source: 'WEB',
-        actor,
-        scheduleVersionId: row.id,
-        payload: { periodMonth: cmd.periodMonth, versionNo, basedOn: source?.id ?? null, copied },
-      });
-      await this.audit.record(tx, {
-        actor,
-        action: 'schedule.version.create',
-        objectType: 'schedule_version',
-        objectId: row.id,
-        after: { periodMonth: cmd.periodMonth, versionNo, basedOn: source?.id ?? null },
-      });
-      return this.toVersionView(row, copied);
+    await this.events.append(tx, {
+      type: 'SCHEDULE_VERSION_CREATED',
+      source: 'WEB',
+      actor,
+      scheduleVersionId: row.id,
+      payload: { periodMonth: cmd.periodMonth, versionNo, basedOn: source?.id ?? null, copied },
     });
+    await this.audit.record(tx, {
+      actor,
+      action: 'schedule.version.create',
+      objectType: 'schedule_version',
+      objectId: row.id,
+      after: { periodMonth: cmd.periodMonth, versionNo, basedOn: source?.id ?? null },
+    });
+    return this.toVersionView(row, copied);
   }
 
   /** Only a draft can go: published and superseded versions are history (spec 3.2). */
@@ -246,7 +355,7 @@ export class ScheduleService {
    */
   async deleteVersion(id: string, actor: Actor, expectedRevision?: number): Promise<void> {
     try {
-      await this.deleteVersionWithin(id, actor, expectedRevision);
+      await this.db.transaction((tx) => this.deleteVersionWithin(tx, id, actor, expectedRevision));
     } catch (e) {
       if (isForeignKeyViolation(e)) {
         throw new DomainError(
@@ -260,53 +369,52 @@ export class ScheduleService {
   }
 
   private async deleteVersionWithin(
+    tx: Transaction,
     id: string,
     actor: Actor,
     expectedRevision?: number,
   ): Promise<void> {
-    await this.db.transaction(async (tx) => {
-      const version = await this.lockVersion(id, tx, expectedRevision);
-      if (version.status !== 'DRAFT' && version.status !== 'SUPERSEDED') {
-        throw new DomainError(
-          'SCHEDULE_TRANSITION_NOT_ALLOWED',
-          409,
-          `Only a draft or a superseded version can be deleted; version ${id} is ${version.status}`,
-        );
-      }
-      if (await this.isInUse(version.id, tx)) {
-        throw new DomainError(
-          'SCHEDULE_VERSION_IN_USE',
-          409,
-          `Version ${id} is worked or replaced by a later one and stays as history`,
-        );
-      }
-      await tx
-        .delete(assignmentAcknowledgements)
-        .where(eq(assignmentAcknowledgements.scheduleVersionId, version.id));
-      await tx.delete(shiftAssignments).where(eq(shiftAssignments.scheduleVersionId, version.id));
-      await tx.delete(scheduleVersions).where(eq(scheduleVersions.id, version.id));
-      await this.events.append(tx, {
-        type: 'SCHEDULE_VERSION_DELETED',
-        source: 'WEB',
-        actor,
-        scheduleVersionId: version.id,
-        payload: {
-          periodMonth: version.periodMonth,
-          versionNo: version.versionNo,
-          status: version.status,
-        },
-      });
-      await this.audit.record(tx, {
-        actor,
-        action: 'schedule.version.delete',
-        objectType: 'schedule_version',
-        objectId: version.id,
-        before: {
-          periodMonth: version.periodMonth,
-          versionNo: version.versionNo,
-          status: version.status,
-        },
-      });
+    const version = await this.lockVersion(id, tx, expectedRevision);
+    if (version.status !== 'DRAFT' && version.status !== 'SUPERSEDED') {
+      throw new DomainError(
+        'SCHEDULE_TRANSITION_NOT_ALLOWED',
+        409,
+        `Only a draft or a superseded version can be deleted; version ${id} is ${version.status}`,
+      );
+    }
+    if (await this.isInUse(version.id, tx)) {
+      throw new DomainError(
+        'SCHEDULE_VERSION_IN_USE',
+        409,
+        `Version ${id} is worked or replaced by a later one and stays as history`,
+      );
+    }
+    await tx
+      .delete(assignmentAcknowledgements)
+      .where(eq(assignmentAcknowledgements.scheduleVersionId, version.id));
+    await tx.delete(shiftAssignments).where(eq(shiftAssignments.scheduleVersionId, version.id));
+    await tx.delete(scheduleVersions).where(eq(scheduleVersions.id, version.id));
+    await this.events.append(tx, {
+      type: 'SCHEDULE_VERSION_DELETED',
+      source: 'WEB',
+      actor,
+      scheduleVersionId: version.id,
+      payload: {
+        periodMonth: version.periodMonth,
+        versionNo: version.versionNo,
+        status: version.status,
+      },
+    });
+    await this.audit.record(tx, {
+      actor,
+      action: 'schedule.version.delete',
+      objectType: 'schedule_version',
+      objectId: version.id,
+      before: {
+        periodMonth: version.periodMonth,
+        versionNo: version.versionNo,
+        status: version.status,
+      },
     });
   }
 
@@ -328,11 +436,8 @@ export class ScheduleService {
     );
   }
 
-  private async lockVersion(
-    id: string,
-    tx: Transaction,
-    expectedRevision?: number,
-  ): Promise<VersionRow> {
+  /** Internal transaction lock; omit the revision check when resolving scope before authorization. */
+  async lockVersion(id: string, tx: Transaction, expectedRevision?: number): Promise<VersionRow> {
     const [version] = await tx
       .select()
       .from(scheduleVersions)
@@ -371,22 +476,32 @@ export class ScheduleService {
     actor: Actor,
     expectedRevision?: number,
   ): Promise<ScheduleVersionDetail> {
-    return this.db.transaction(async (tx) => {
-      const version = await this.lockVersion(id, tx, expectedRevision);
-      if (version.status !== 'DRAFT') {
-        throw new DomainError(
-          'SCHEDULE_NOT_EDITABLE',
-          409,
-          'Редагувати можна лише чернетку; створіть нову версію',
-        );
-      }
-      const count = await this.replaceAssignments(tx, version, cmd, actor);
-      const assignments = await this.loadAssignments(version.id, tx);
-      return {
-        version: this.toVersionView(await this.requireVersion(version.id, tx), count),
-        assignments: assignments.map((x) => this.toAssignmentView(x)),
-      };
-    });
+    return this.db.transaction((tx) =>
+      this.putAssignmentsWithin(tx, id, cmd, actor, expectedRevision),
+    );
+  }
+
+  private async putAssignmentsWithin(
+    tx: Transaction,
+    id: string,
+    cmd: PutAssignmentsCommand,
+    actor: Actor,
+    expectedRevision?: number,
+  ): Promise<ScheduleVersionDetail> {
+    const version = await this.lockVersion(id, tx, expectedRevision);
+    if (version.status !== 'DRAFT') {
+      throw new DomainError(
+        'SCHEDULE_NOT_EDITABLE',
+        409,
+        'Редагувати можна лише чернетку; створіть нову версію',
+      );
+    }
+    const count = await this.replaceAssignments(tx, version, cmd, actor);
+    const assignments = await this.loadAssignments(version.id, tx);
+    return {
+      version: this.toVersionView(await this.requireVersion(version.id, tx), count),
+      assignments: assignments.map((x) => this.toAssignmentView(x)),
+    };
   }
 
   /** Validates and writes the whole month of a version; returns the number of assignments. */
@@ -503,11 +618,13 @@ export class ScheduleService {
   /* ------------------------------------------------------------------ */
 
   async submit(id: string, actor: Actor, expectedRevision?: number): Promise<ScheduleVersionView> {
-    return this.transition(id, 'SUBMIT', actor, {
-      ...(expectedRevision === undefined ? {} : { expectedRevision }),
-      requireNoErrors: true,
-      set: { submittedAt: new Date() },
-    });
+    return this.db.transaction((tx) =>
+      this.transitionWithin(tx, id, 'SUBMIT', actor, {
+        ...(expectedRevision === undefined ? {} : { expectedRevision }),
+        requireNoErrors: true,
+        set: { submittedAt: new Date() },
+      }),
+    );
   }
 
   async returnToDraft(
@@ -516,11 +633,13 @@ export class ScheduleService {
     actor: Actor,
     expectedRevision?: number,
   ): Promise<ScheduleVersionView> {
-    return this.transition(id, 'RETURN', actor, {
-      ...(expectedRevision === undefined ? {} : { expectedRevision }),
-      comment: cmd.comment,
-      set: { submittedAt: null },
-    });
+    return this.db.transaction((tx) =>
+      this.transitionWithin(tx, id, 'RETURN', actor, {
+        ...(expectedRevision === undefined ? {} : { expectedRevision }),
+        comment: cmd.comment,
+        set: { submittedAt: null },
+      }),
+    );
   }
 
   /**
@@ -777,7 +896,8 @@ export class ScheduleService {
     }
   }
 
-  private async transition(
+  private async transitionWithin(
+    tx: Transaction,
     id: string,
     action: ScheduleAction,
     actor: Actor,
@@ -788,47 +908,45 @@ export class ScheduleService {
       set?: Partial<typeof scheduleVersions.$inferInsert>;
     },
   ): Promise<ScheduleVersionView> {
-    return this.db.transaction(async (tx) => {
-      const version = await this.lockVersion(id, tx, opts.expectedRevision);
-      const next = nextScheduleStatus(version.status, action);
-      if (!next)
-        throw new DomainError(
-          'SCHEDULE_TRANSITION_NOT_ALLOWED',
-          409,
-          `Дія ${action} неможлива зі статусу ${version.status}`,
-        );
+    const version = await this.lockVersion(id, tx, opts.expectedRevision);
+    const next = nextScheduleStatus(version.status, action);
+    if (!next)
+      throw new DomainError(
+        'SCHEDULE_TRANSITION_NOT_ALLOWED',
+        409,
+        `Дія ${action} неможлива зі статусу ${version.status}`,
+      );
 
-      const assignments = await this.loadAssignments(version.id, tx);
-      // An empty month is still refused: there is nothing in it to approve or to publish.
-      if (opts.requireNoErrors && assignments.length === 0) {
-        throw new DomainError('SCHEDULE_EMPTY', 422, 'Порожню версію подати не можна');
-      }
-      const [updated] = await tx
-        .update(scheduleVersions)
-        .set({ ...opts.set, status: next, updatedAt: new Date() })
-        .where(eq(scheduleVersions.id, version.id))
-        .returning();
-      if (!updated) throw new Error('schedule_versions: update не повернув рядок');
+    const assignments = await this.loadAssignments(version.id, tx);
+    // An empty month is still refused: there is nothing in it to approve or to publish.
+    if (opts.requireNoErrors && assignments.length === 0) {
+      throw new DomainError('SCHEDULE_EMPTY', 422, 'Порожню версію подати не можна');
+    }
+    const [updated] = await tx
+      .update(scheduleVersions)
+      .set({ ...opts.set, status: next, updatedAt: new Date() })
+      .where(eq(scheduleVersions.id, version.id))
+      .returning();
+    if (!updated) throw new Error('schedule_versions: update не повернув рядок');
 
-      await this.events.append(tx, {
-        type: `SCHEDULE_${action}`,
-        source: 'WEB',
-        actor,
-        scheduleVersionId: version.id,
-        comment: opts.comment ?? null,
-        payload: { from: version.status, to: next },
-      });
-      await this.audit.record(tx, {
-        actor,
-        action: `schedule.version.${action.toLowerCase()}`,
-        objectType: 'schedule_version',
-        objectId: version.id,
-        before: { status: version.status },
-        after: { status: next },
-        reason: opts.comment ?? null,
-      });
-      return this.toVersionView(updated, assignments.length);
+    await this.events.append(tx, {
+      type: `SCHEDULE_${action}`,
+      source: 'WEB',
+      actor,
+      scheduleVersionId: version.id,
+      comment: opts.comment ?? null,
+      payload: { from: version.status, to: next },
     });
+    await this.audit.record(tx, {
+      actor,
+      action: `schedule.version.${action.toLowerCase()}`,
+      objectType: 'schedule_version',
+      objectId: version.id,
+      before: { status: version.status },
+      after: { status: next },
+      reason: opts.comment ?? null,
+    });
+    return this.toVersionView(updated, assignments.length);
   }
 
   /* ------------------------------------------------------------------ */

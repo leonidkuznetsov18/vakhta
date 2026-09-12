@@ -133,6 +133,46 @@ export const ScheduleVersionDetail = z.object({
 });
 export type ScheduleVersionDetail = z.infer<typeof ScheduleVersionDetail>;
 
+/** Additive web boundary: preserve one command ID and payload until its outcome is known. */
+const ExistingScheduleCommand = {
+  commandId: Uuid,
+  versionId: Uuid,
+  ...ScheduleRevisionPrecondition.shape,
+};
+export const ScheduleWebCommand = z.discriminatedUnion('action', [
+  z.object({ commandId: Uuid, action: z.literal('CREATE'), payload: CreateScheduleVersionCommand }),
+  z.object({
+    ...ExistingScheduleCommand,
+    action: z.literal('SAVE'),
+    payload: PutAssignmentsCommand,
+  }),
+  z.object({ ...ExistingScheduleCommand, action: z.literal('SUBMIT') }),
+  z.object({
+    ...ExistingScheduleCommand,
+    action: z.literal('RETURN'),
+    payload: ReturnToDraftCommand,
+  }),
+  z.object({
+    ...ExistingScheduleCommand,
+    action: z.literal('PUBLISH'),
+    payload: PublishScheduleCommand,
+  }),
+  z.object({
+    ...ExistingScheduleCommand,
+    action: z.literal('REVISE'),
+    payload: ReviseScheduleCommand,
+  }),
+  z.object({ ...ExistingScheduleCommand, action: z.literal('DELETE') }),
+]);
+export type ScheduleWebCommand = z.infer<typeof ScheduleWebCommand>;
+
+export const ScheduleCommandResult = z.discriminatedUnion('kind', [
+  z.object({ commandId: Uuid, kind: z.literal('VERSION'), version: ScheduleVersionView }),
+  z.object({ commandId: Uuid, kind: z.literal('DETAIL'), detail: ScheduleVersionDetail }),
+  z.object({ commandId: Uuid, kind: z.literal('DELETED'), versionId: Uuid }),
+]);
+export type ScheduleCommandResult = z.infer<typeof ScheduleCommandResult>;
+
 /** Хто ознайомився з опублікованою версією (FR-SCH-03, ТЗ 10). */
 export const AcknowledgementStatusView = z.object({
   employeeId: Uuid,

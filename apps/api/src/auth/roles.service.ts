@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { asc, eq } from '@vakhta/db';
+import { asc, eq, type DbOrTx } from '@vakhta/db';
 import { webUserRoles, type Database } from '@vakhta/db';
 import type { RoleGrant } from '@vakhta/domain';
 import type { GrantRoleCommand, RoleGrantView } from '@vakhta/contracts';
@@ -21,8 +21,8 @@ export class RolesService {
     private readonly audit: AuditLog,
   ) {}
 
-  async grantsOf(userId: string): Promise<RoleGrant[]> {
-    const rows = await this.db.select().from(webUserRoles).where(eq(webUserRoles.userId, userId));
+  async grantsOf(userId: string, tx: DbOrTx = this.db): Promise<RoleGrant[]> {
+    const rows = await tx.select().from(webUserRoles).where(eq(webUserRoles.userId, userId));
     return rows.map((r) => ({ role: r.role, scopeType: r.scopeType, scopeId: r.scopeId }));
   }
 

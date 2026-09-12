@@ -203,3 +203,29 @@ and ignore mutation callbacks whose original query instance is no longer observe
 payloads and revision preconditions unchanged. Verify account changes, scoped draft restoration,
 legacy isolation and late responses in the existing workspace regression suite. This does not implement
 command receipts or claim isolation from a person with direct access to browser storage.
+
+### Durable command outcome increment (#9)
+
+Use the existing idempotency table with an additive `POST /admin/schedules/commands` boundary.
+Validated command identity binds actor, action, target, expected revision and payload. Serialize equal
+IDs, replay authorized receipts before live-version lookup, and commit the receipt with every change,
+audit/event, outbox and timer intent. New existing-version commands acquire the version lock before
+refreshing grants; revision follows authorization. This is transaction-time authorization, not
+serialization of simultaneous permission revocation with final commit. Internal Requests keeps its
+own transaction. Existing revision endpoints remain compatible; the updated panel never falls back
+to them for a command with an uncertain outcome.
+
+Persist exact validated intent under actor/site/unit/month before dispatch; storage failure prevents
+dispatch. Unknown transport/5xx outcomes retain the identity, payload and edits across reload. Only
+an explicit retry resolves that same logical command. Block new writes for its scope until a receipt
+or authoritative rejection arrives; never infer success from a refreshed schedule. Refetch current
+state after receipt, preserve newer local edits and newer cached revisions, and ignore callbacks from
+obsolete workspace generations. Use existing Zustand/Query ownership with a feature-local queue;
+its synchronous storage-before-dispatch order is required because ordinary persist middleware writes
+after the in-memory update. Verify lost-success/reload, duplicate taps, rejected stale writes,
+identity mismatches, storage failure and scoped recovery. Preview fixtures stay synthetic.
+
+Serialize local admission/completion/retry lookup across live tabs with the browser Web Locks API,
+re-reading and validating the shared map inside the exclusive callback. Fail closed if locking is
+unavailable; no lockless read-modify-write fallback. Locks cover storage updates; durable server
+receipts serialize duplicate command execution. See the [Web Locks specification](https://w3c.github.io/web-locks/).

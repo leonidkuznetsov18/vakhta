@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
-  CreateScheduleVersionCommand,
+  ScheduleWebCommand,
   ScheduleVersionView,
   ScheduleVersionDetail,
 } from '@vakhta/contracts';
@@ -9,7 +9,12 @@ import { ApiError } from '@/api';
 import { useOrg } from '@/lib/org';
 import { usePersistentState } from '@/lib/ui-store';
 import { useNavigation } from '@/navigation';
-import { scheduleAccessKey, scheduleDraftKey, scheduleKeys } from './ownership';
+import {
+  scheduleAccessKey,
+  scheduleDraftKey,
+  scheduleKeys,
+  scheduleCommandScope,
+} from './ownership';
 import { notifySuccess } from '@/lib/toast';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -18,25 +23,19 @@ import { capabilities, EMPTY_GRID, preferredVersion } from './planning';
 import {
   countChanges,
   gridFromDetail,
+  gridFromItems,
   gridToItems,
   restoreLegacyGrid,
   type GridState,
 } from './grid';
 import { useScheduleDrafts } from './store';
+import { scheduleCommands, useScheduleCommands, commandWasRejected } from './commands';
 import { useScheduleRoster } from './roster';
 import { PRESET_KEY, clearSchedulePreset, type SchedulePreset } from './preset';
 
 const t = messages(currentLocale()).scheduleWorkspace;
 type Selection = { scope: string; id: string };
-type Write = {
-  id: string;
-  draftKey: string;
-  expectedRevision: number;
-  scope: string;
-  grid: GridState;
-  reason: string;
-  action: 'save' | 'revise' | 'publish' | 'submit' | 'return' | 'remove';
-};
+type WriteAction = 'save' | 'revise' | 'publish' | 'submit' | 'return' | 'remove';
 
 /** Server snapshots and local transactions have separate ownership. Filters never trim write payloads. */
 export function useWorkspace() {
@@ -68,6 +67,9 @@ export function useWorkspace() {
   const orgUnitId = unit?.id ?? units[0]?.id ?? '';
   const zones = org?.zones.filter((item) => item.orgUnitId === orgUnitId) ?? [];
   const scope = `${accessKey}|${siteId}|${orgUnitId}|${month}`;
+  const commandScope = scheduleCommandScope(actorId, siteId, orgUnitId, month);
+  const commandQueue = useScheduleCommands();
+  const pendingCommand = commandQueue.pending[commandScope];
   const rights = capabilities(grants, siteId, orgUnitId);
   const [picked, setPicked] = useState<Selection | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -158,89 +160,83 @@ export function useWorkspace() {
     client
       .getQueryCache()
       .find({ queryKey: scheduleKeys.list(accessKey, listInput), exact: true }) === observedQuery;
-  const create = useMutation({
-    mutationFn: ({ input }: { input: CreateScheduleVersionCommand; scope: string }) =>
-      scheduleApi.create(input),
-    onSuccess: async (created, variables) => {
-      if (!ownsResponse()) return;
-      // Only an unchanged workspace can receive the response's selection.
-      setPicked((previous) =>
-        previous?.scope === variables.scope ? { scope: variables.scope, id: created.id } : previous,
-      );
-      setEditing(created.id);
-      await refresh();
-    },
-    retry: false,
-  });
   const write = useMutation({
-    mutationFn: async (input: Write) => {
-      const precondition = { expectedRevision: input.expectedRevision };
-      const body = { ...precondition, items: gridToItems(input.grid) };
-      switch (input.action) {
-        case 'save':
-          return scheduleApi.save(input.id, body);
-        case 'revise':
-          return scheduleApi.revise(input.id, {
-            ...body,
-            ...(input.reason ? { changeReason: input.reason } : {}),
-          });
-        case 'publish':
-          return scheduleApi.publish(input.id, {
-            ...precondition,
-            ...(input.reason ? { changeReason: input.reason } : {}),
-          });
-        case 'submit':
-          return scheduleApi.submit(input.id, precondition);
-        case 'return':
-          return scheduleApi.returnDraft(input.id, { ...precondition, comment: input.reason });
-        case 'remove':
-          return scheduleApi.remove(input.id, precondition);
-      }
-    },
-    onSuccess: async (result, variables) => {
+    mutationFn: (command: ScheduleWebCommand) => scheduleApi.execute(command),
+    onSuccess: async (result, command) => {
       if (!ownsResponse()) return;
-      if (
-        ['save', 'revise', 'remove'].includes(variables.action) &&
-        useScheduleDrafts.getState().drafts[variables.draftKey] === variables.grid
-      )
-        useScheduleDrafts.getState().drop(variables.draftKey);
-      if (variables.action === 'save' || variables.action === 'revise') clearSchedulePreset();
-      if (result && 'version' in result)
-        client.setQueryData<ScheduleVersionDetail>(
-          scheduleKeys.detail(accessKey, result.version.id),
-          (current) =>
-            current && current.version.revision > result.version.revision ? current : result,
-        );
-      if (result && 'id' in result) {
-        setPicked((previous) =>
-          previous?.scope === variables.scope && previous.id === variables.id
-            ? { scope: variables.scope, id: result.id }
-            : previous,
-        );
+      if (command.action === 'SAVE' || command.action === 'REVISE') {
+        const key = scheduleDraftKey(actorId, siteId, orgUnitId, month, command.versionId);
+        const local = useScheduleDrafts.getState().drafts[key];
+        if (
+          local &&
+          countChanges(local, gridFromItems(command.payload.items)) === 0 &&
+          useScheduleDrafts.getState().revisions[key] === command.expectedRevision
+        )
+          useScheduleDrafts.getState().drop(key);
+        clearSchedulePreset();
       }
+      if (command.action === 'DELETE')
+        useScheduleDrafts
+          .getState()
+          .drop(scheduleDraftKey(actorId, siteId, orgUnitId, month, command.versionId));
+      if (result.kind === 'DETAIL')
+        client.setQueryData<ScheduleVersionDetail>(
+          scheduleKeys.detail(accessKey, result.detail.version.id),
+          (current) =>
+            current && current.version.revision > result.detail.version.revision
+              ? current
+              : result.detail,
+        );
+      if (result.kind === 'VERSION') {
+        setPicked({ scope, id: result.version.id });
+        if (command.action === 'CREATE') setEditing(result.version.id);
+      }
+      await scheduleCommands.getState().complete(commandScope, command.commandId);
+      if (!ownsResponse()) return;
       notifySuccess(
-        variables.action === 'revise' || variables.action === 'publish'
+        command.action === 'PUBLISH' || command.action === 'REVISE'
           ? t.success
-          : variables.action === 'submit'
+          : command.action === 'SUBMIT'
             ? t.submitted
             : t.saved,
       );
       await refresh();
     },
-    onError: async (error, variables) => {
+    onError: async (error, command) => {
       if (!ownsResponse()) return;
-      if (error instanceof ApiError && error.code === 'SCHEDULE_REVISION_CONFLICT') {
-        await client.invalidateQueries({ queryKey: scheduleKeys.detail(accessKey, variables.id) });
-      }
+      if (commandWasRejected(error))
+        await scheduleCommands.getState().complete(commandScope, command.commandId);
+      if (
+        error instanceof ApiError &&
+        error.code === 'SCHEDULE_REVISION_CONFLICT' &&
+        command.action !== 'CREATE'
+      )
+        await client.invalidateQueries({
+          queryKey: scheduleKeys.detail(accessKey, command.versionId),
+        });
     },
     retry: false,
+    networkMode: 'always',
   });
-  const busy = create.isPending || write.isPending;
+  const busy = write.isPending;
+  const commandsBlocked = busy || !!pendingCommand || commandQueue.recoveryError;
+  const canRetryCommand =
+    !!actorId &&
+    !!pendingCommand &&
+    !busy &&
+    (['RETURN', 'PUBLISH', 'REVISE'].includes(pendingCommand.action)
+      ? rights.publish
+      : rights.edit);
+  async function dispatch(command: ScheduleWebCommand) {
+    if (!actorId || busy) return;
+    const queued = await scheduleCommands.getState().enqueue(commandScope, command);
+    if (queued && ownsResponse()) write.mutate(queued);
+  }
   const commandReady =
     !!actorId &&
     !!version &&
     version.revision > 0 &&
-    !busy &&
+    !commandsBlocked &&
     !stale &&
     !legacy &&
     !detailQuery.isError;
@@ -251,12 +247,13 @@ export function useWorkspace() {
     setEditing(null);
   }
   function begin() {
-    if (busy || !version || !canEdit) return;
+    if (commandsBlocked || !version || !canEdit) return;
     setPicked({ scope, id });
     setEditing(id);
   }
   function createDraft() {
-    if (!actorId || busy || !rights.edit || !orgUnitId || !versionsQuery.isSuccess) return;
+    if (!actorId || commandsBlocked || !rights.edit || !orgUnitId || !versionsQuery.isSuccess)
+      return;
     const draft = versions.find((value) => value.status === 'DRAFT');
     if (draft) {
       select(draft);
@@ -264,9 +261,10 @@ export function useWorkspace() {
       return;
     }
     setPicked({ scope, id });
-    create.mutate({
-      scope,
-      input: {
+    dispatch({
+      commandId: crypto.randomUUID(),
+      action: 'CREATE',
+      payload: {
         siteId,
         orgUnitId,
         periodMonth: month,
@@ -278,7 +276,7 @@ export function useWorkspace() {
     if (writable && version && gridToItems(next).length <= 5000)
       store.keep(draftKey, next, baseline, version.revision);
   }
-  function commit(action: Write['action'], reason = '', snapshot = grid) {
+  function commit(action: WriteAction, reason = '', snapshot = grid) {
     if (!version || !commandReady || snapshot !== grid) return;
     const allowed =
       action === 'save'
@@ -300,15 +298,39 @@ export function useWorkspace() {
                 : rights.edit && version.deletable;
     if (allowed) {
       setPicked({ scope, id });
-      write.mutate({
-        id,
-        draftKey,
+      const common = {
+        commandId: crypto.randomUUID(),
+        versionId: id,
         expectedRevision: store.revisions[draftKey] ?? version.revision,
-        scope,
-        grid: snapshot,
-        action,
-        reason,
-      });
+      };
+      switch (action) {
+        case 'save':
+          dispatch({ ...common, action: 'SAVE', payload: { items: gridToItems(snapshot) } });
+          break;
+        case 'revise':
+          dispatch({
+            ...common,
+            action: 'REVISE',
+            payload: { items: gridToItems(snapshot), ...(reason ? { changeReason: reason } : {}) },
+          });
+          break;
+        case 'publish':
+          dispatch({
+            ...common,
+            action: 'PUBLISH',
+            payload: reason ? { changeReason: reason } : {},
+          });
+          break;
+        case 'submit':
+          dispatch({ ...common, action: 'SUBMIT' });
+          break;
+        case 'return':
+          dispatch({ ...common, action: 'RETURN', payload: { comment: reason } });
+          break;
+        case 'remove':
+          dispatch({ ...common, action: 'DELETE' });
+          break;
+      }
     }
   }
   function resetSelection() {
@@ -354,17 +376,27 @@ export function useWorkspace() {
     },
     store,
     busy,
+    commandsBlocked,
+    pendingCommand,
+    canRetryCommand,
+    commandStorageError: commandQueue.storageError || commandQueue.recoveryError,
+    async retryCommand() {
+      if (!canRetryCommand || !pendingCommand) return;
+      const pending = await scheduleCommands
+        .getState()
+        .recover(commandScope, pendingCommand.commandId);
+      if (pending && ownsResponse()) write.mutate(pending);
+    },
     writable,
     commandReady,
     editMode,
     templates: templatesQuery.data ?? [],
     error:
-      create.error ??
-      ((stale || !kept) &&
+      (stale || !kept) &&
       write.error instanceof ApiError &&
       write.error.code === 'SCHEDULE_REVISION_CONFLICT'
         ? null
-        : write.error),
+        : write.error,
     preset: presetHere,
     publicationBaseline: publishedQuery.data ? gridFromDetail(publishedQuery.data) : EMPTY_GRID,
     publicationReady: !published || publishedQuery.isSuccess,
@@ -372,22 +404,17 @@ export function useWorkspace() {
       const target = versions.find((value) => value.id === versionId);
       if (
         !!actorId &&
-        !busy &&
+        !commandsBlocked &&
         rights.edit &&
         target?.deletable &&
         target.revision > 0 &&
         target.status === 'SUPERSEDED'
       )
-        write.mutate({
-          id: versionId,
-          draftKey: scheduleDraftKey(actorId, siteId, orgUnitId, month, versionId),
+        dispatch({
+          commandId: crypto.randomUUID(),
+          action: 'DELETE',
+          versionId,
           expectedRevision: target.revision,
-          scope,
-          grid:
-            store.drafts[scheduleDraftKey(actorId, siteId, orgUnitId, month, versionId)] ??
-            EMPTY_GRID,
-          action: 'remove',
-          reason: '',
         });
     },
     select,

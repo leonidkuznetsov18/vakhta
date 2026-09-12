@@ -536,3 +536,39 @@ in the spike remain prototypes. CI 34723539292 for 14d33604 succeeded in all job
 Telegram announcement, API/worker images and Pages. This pipeline result does not establish a real
 participant baseline, selected unit pilot or production migration inspection. #4/#6/#9 and the
 remaining domain streams retain their outstanding acceptance criteria.
+
+### Durable command recovery — #9, 2026-09-13
+
+- Added validated `POST /admin/schedules/commands` for create/save/submit/return/publish/revise/delete.
+  The existing idempotency table binds the command UUID to actor, action, target and payload. Equal
+  identities serialize; the original result is committed with schedule/audit/event/outbox/timer
+  changes. Receipt replay checks current scope authorization before disclosure, including deleted
+  versions. Mismatched identities return a conflict instead of a different command's result.
+- Existing-version execution locks the version before refreshing grants and checking revision.
+  Internal Requests retains its transaction; old revision-guarded endpoints remain compatible. Source
+  copies must share site/unit/month because the existing copy operation preserves literal dates and
+  assignment scope. No cross-month copy contract is introduced.
+- The panel persists validated intent before sending, retains unknown outcomes across reload, and
+  exposes one explicit result-check action. New commands stay blocked while outcome is unknown;
+  coded domain rejection preserves the draft. Newer edits/cached revisions and obsolete workspace
+  generations remain protected. No automatic mutation retry or fallback to legacy write endpoints.
+- Cross-tab queue admission, completion and retry lookup use the origin-wide Web Locks API with a
+  fresh validated storage read under lock. Unavailable storage/locking fails closed. Independent
+  review found and verified fixes for stale-tab overwrite and stale identity retry. The lock covers
+  storage updates, not network requests; the server serializes equal identities and revision checks.
+- Evidence: Schedule + Requests 26 tests, HTTP 7, durable-command hardening 8 and final lock-wait /
+  revoked-grant regression 1 passed against disposable PostgreSQL. Contracts build/API typecheck
+  passed. Panel recovery/workspace tests: 34 passed, including lost-success/reload, duplicate taps,
+  newer local edits, two live queue stores, identity replacement and unavailable persistence.
+  Final panel TypeScript/React Compiler build, affected ESLint, formatting and whitespace checks pass.
+- Captured and inspected `command-recovery.png` (1280×720) and `command-recovery-mobile.png`
+  (390×720). Synthetic preview applies the write then loses its response; explicit result checking
+  clears recovery and restores editing. The fixture now uses domain-calculated overnight timestamps;
+  weekly cards remain bounded and show the next-day date. Server receipt durability is covered by
+  real DB tests, not the in-memory preview fixture. No production employee action was performed.
+- Limits: browser storage is not encrypted; receipt authorization refresh does not serialize a
+  simultaneous permission revocation with final commit. An old API without the new endpoint cannot
+  resolve a queued command until updated. Production migration and participant/pilot acceptance
+  remain separate. Previous delivery CI 34724106893 passed all jobs, including release/announcement.
+- Lean: prevent duplicate work and preserve intent. Offer one clear recovery action instead of asking
+  the planner to recreate a draft or guess whether a save succeeded.

@@ -1,4 +1,5 @@
 import { InfoTip } from '@/components/app/info-tip';
+import { CommandRecovery } from './command-recovery';
 import { AssignmentChanges } from './assignment-changes';
 import { assignmentChanges } from '../model/grid';
 import { useState } from 'react';
@@ -94,6 +95,7 @@ function WorkspaceContent() {
           <QueryFeedback key="names" query={query} errorMessage={t.namesUnavailable} />
         ))}
       <Feedback error={readError(w.error)} />
+      <CommandRecovery workspace={w} />
       {w.unownedDraft && (
         <Alert>
           <AlertDescription>{t.unownedDraft}</AlertDescription>
@@ -105,7 +107,7 @@ function WorkspaceContent() {
           text={t.empty}
           action={
             w.rights.edit ? (
-              <Button disabled={w.busy} onClick={w.createDraft}>
+              <Button disabled={w.commandsBlocked} onClick={w.createDraft}>
                 {t.create}
               </Button>
             ) : undefined
@@ -160,7 +162,7 @@ function WorkspaceView({
   const existingDraft = w.versions.find((value) => value.status === 'DRAFT');
   const pendingReview = w.versions.find((value) => value.status === 'IN_REVIEW');
   async function discard() {
-    if (!version || w.busy) return;
+    if (!version || w.commandsBlocked) return;
     const accepted = await confirm({
       title: t.discard,
       description: t.discardHint,
@@ -209,7 +211,7 @@ function WorkspaceView({
               {!w.editMode &&
                 ((version.status === 'DRAFT' && w.rights.edit) ||
                   (version.status === 'PUBLISHED' && w.rights.publish)) && (
-                  <Button disabled={w.busy || version.revision === 0} onClick={w.begin}>
+                  <Button disabled={w.commandsBlocked || version.revision === 0} onClick={w.begin}>
                     {t.edit}
                   </Button>
                 )}
@@ -217,7 +219,7 @@ function WorkspaceView({
                 w.rights.edit &&
                 version.status !== 'DRAFT' &&
                 (existingDraft || !w.rights.publish) && (
-                  <Button variant="outline" disabled={w.busy} onClick={w.createDraft}>
+                  <Button variant="outline" disabled={w.commandsBlocked} onClick={w.createDraft}>
                     {existingDraft ? t.continueDraft : t.create}
                   </Button>
                 )}
@@ -266,12 +268,12 @@ function WorkspaceView({
             </p>
           )}
           {version.revision === 0 && <Feedback error={t.revisionUnavailable} />}
-          {w.stale && <Feedback error={t.stale} />}
+          {w.stale && !w.pendingCommand && <Feedback error={t.stale} />}
           {w.readOnlyChanges && (
             <section className="space-y-3 rounded-lg border p-3">
               <p>{t.readOnlyChanges}</p>
               <AssignmentChanges changes={assignmentChanges(w.baseline, w.localGrid)} labels={w} />
-              <Button variant="outline" disabled={w.busy} onClick={() => void discard()}>
+              <Button variant="outline" disabled={w.commandsBlocked} onClick={() => void discard()}>
                 {t.discard}
               </Button>
             </section>
@@ -439,7 +441,7 @@ function WorkspaceView({
                   />
                   <Button
                     variant="outline"
-                    disabled={w.busy || (!w.changes && !w.stale)}
+                    disabled={w.commandsBlocked || (!w.changes && !w.stale)}
                     onClick={() => void discard()}
                   >
                     {t.discard}

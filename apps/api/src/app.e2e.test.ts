@@ -1,4 +1,7 @@
 import 'reflect-metadata';
+import { randomUUID } from 'node:crypto';
+import { ScheduleCommandResult } from '@vakhta/contracts';
+import { authUser, eq, webUserRoles } from '@vakhta/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { NestFactory } from '@nestjs/core';
@@ -61,6 +64,7 @@ describe('e2e: межі доступу панелі', () => {
       ['hr@e2e.test', 'HR'],
       ['master@e2e.test', 'SHIFT_MASTER'],
       ['nobody@e2e.test', null],
+      ['planner@e2e.test', null],
     ] as const) {
       await auth.createUser(
         {
@@ -302,6 +306,96 @@ describe('e2e: межі доступу панелі', () => {
       payload: { siteId: site!.id, orgUnitId: unit!.id, periodMonth: 'вересень' },
     });
     expect(invalid.statusCode).toBe(400);
+  });
+
+  it('schedule command HTTP boundary validates, scopes, replays and preserves deleted receipts', async () => {
+    const [site] = await db
+      .insert(sites)
+      .values({ code: 'COMMANDS', name: 'Commands', timezone: 'Europe/Kyiv' })
+      .returning();
+    if (!site) throw new Error('Site fixture missing');
+    const [unit] = await db
+      .insert(orgUnits)
+      .values({ siteId: site.id, name: 'Commands' })
+      .returning();
+    const [other] = await db
+      .insert(orgUnits)
+      .values({ siteId: site.id, name: 'Other' })
+      .returning();
+    const [planner] = await db
+      .select()
+      .from(authUser)
+      .where(eq(authUser.email, 'planner@e2e.test'));
+    if (!unit || !other || !planner) throw new Error('Command fixtures missing');
+    await db
+      .insert(webUserRoles)
+      .values({ userId: planner.id, role: 'PLANNER', scopeType: 'ORG_UNIT', scopeId: unit.id });
+    const payload = {
+      commandId: randomUUID(),
+      action: 'CREATE',
+      payload: { siteId: site.id, orgUnitId: unit.id, periodMonth: '2026-10' },
+    };
+    const post = (body: object, email = 'planner@e2e.test') =>
+      app.inject({
+        method: 'POST',
+        url: '/admin/schedules/commands',
+        headers: as(email),
+        payload: body,
+      });
+    expect(
+      (await app.inject({ method: 'POST', url: '/admin/schedules/commands', payload })).statusCode,
+    ).toBe(401);
+    expect((await post(payload, 'master@e2e.test')).statusCode).toBe(403);
+    expect((await post({ ...payload, commandId: 'invalid' })).statusCode).toBe(400);
+    expect(
+      (await post({ ...payload, payload: { ...payload.payload, orgUnitId: other.id } })).statusCode,
+    ).toBe(403);
+    const first = await post(payload);
+    expect(first.statusCode).toBe(200);
+    const result = ScheduleCommandResult.parse(first.json());
+    if (result.kind !== 'VERSION') throw new Error('Expected created version');
+    expect((await post(payload)).json()).toEqual(result);
+    expect((await post(payload, 'admin@e2e.test')).statusCode).toBe(409);
+    expect(
+      (
+        await post({
+          commandId: randomUUID(),
+          action: 'SAVE',
+          versionId: result.version.id,
+          payload: { items: [] },
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await post({
+          commandId: randomUUID(),
+          action: 'PUBLISH',
+          versionId: result.version.id,
+          expectedRevision: result.version.revision,
+          payload: {},
+        })
+      ).statusCode,
+    ).toBe(403);
+    const remove = {
+      commandId: randomUUID(),
+      action: 'DELETE',
+      versionId: result.version.id,
+      expectedRevision: result.version.revision,
+    };
+    const deleted = await post(remove);
+    expect(deleted.statusCode).toBe(200);
+    expect(ScheduleCommandResult.parse(deleted.json())).toEqual({
+      commandId: remove.commandId,
+      kind: 'DELETED',
+      versionId: result.version.id,
+    });
+    expect((await post(remove)).json()).toEqual(deleted.json());
+    await db.delete(webUserRoles).where(eq(webUserRoles.userId, planner.id));
+    await db
+      .insert(webUserRoles)
+      .values({ userId: planner.id, role: 'PLANNER', scopeType: 'ORG_UNIT', scopeId: other.id });
+    expect((await post(remove)).statusCode).toBe(403);
   });
 
   it('невалідне тіло відхиляється 400 до бізнес-логіки; чужий origin не отримує CORS', async () => {

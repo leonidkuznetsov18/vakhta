@@ -98,6 +98,18 @@ export const scheduleWorkspaceEn = {
   unchanged: 'No changes to apply',
   stale:
     'The saved schedule changed while you were editing. Your edits are retained. Discard them to load the latest schedule, then reapply the intended changes.',
+  commandUnconfirmed: 'Action result not confirmed',
+  commandRecoveryHint:
+    'Your action is saved on this device. Check its result before making more changes. The same action will be used, without duplicating a completed update.',
+  commandRetry: 'Check result',
+  commandChecking: 'Checking the action…',
+  commandStorageError: 'Local recovery storage is unavailable',
+  commandStorageHint:
+    'The action cannot safely continue until browser storage is available. Keep this page open and retry after resolving the storage problem.',
+  commandPermission: 'Your current permissions do not allow checking this action.',
+  sourceScopeMismatch: 'The source schedule must belong to the same site, department and month.',
+  commandIdentityConflict:
+    'This action ID is bound to a different request. Its result cannot be confirmed automatically.',
   unownedDraft:
     'This browser contains older edits with no recorded owner. They remain stored but are not opened automatically. Check the server schedule before editing.',
   recovery:
@@ -232,6 +244,18 @@ export const scheduleWorkspaceUk: ScheduleWorkspaceMessages = {
   unchanged: 'Немає змін для застосування',
   stale:
     'Збережений графік змінився під час редагування. Ваші правки збережено локально. Відкиньте їх, щоб завантажити актуальний графік, і внесіть потрібні зміни повторно.',
+  commandUnconfirmed: 'Результат дії ще не підтверджено',
+  commandRecoveryHint:
+    'Вашу дію збережено на цьому пристрої. Перевірте її результат перед новими змінами. Буде використано ту саму дію без дублювання вже виконаного оновлення.',
+  commandRetry: 'Перевірити результат',
+  commandChecking: 'Перевіряємо результат дії…',
+  commandStorageError: 'Локальне сховище відновлення недоступне',
+  commandStorageHint:
+    'Дію неможливо безпечно продовжити, доки сховище браузера недоступне. Залиште сторінку відкритою та спробуйте знову після усунення проблеми зі сховищем.',
+  commandPermission: 'Ваші поточні права не дозволяють перевірити цю дію.',
+  sourceScopeMismatch: 'Графік-джерело має належати тому самому майданчику, підрозділу й місяцю.',
+  commandIdentityConflict:
+    'Ідентифікатор цієї дії належить іншому запиту. Автоматично підтвердити результат неможливо.',
   unownedDraft:
     'У браузері залишилися старі правки без записаного власника. Вони збережені, але автоматично не відкриваються. Перевірте серверний графік перед редагуванням.',
   recovery:
@@ -365,6 +389,19 @@ export const scheduleWorkspaceRu: ScheduleWorkspaceMessages = {
   unchanged: 'Нет изменений для применения',
   stale:
     'Сохранённый график изменился во время редактирования. Ваши правки сохранены локально. Отбросьте их, чтобы загрузить актуальный график, и внесите нужные изменения повторно.',
+  commandUnconfirmed: 'Результат действия ещё не подтверждён',
+  commandRecoveryHint:
+    'Ваше действие сохранено на этом устройстве. Проверьте его результат перед новыми изменениями. Будет использовано то же действие без дублирования уже выполненного обновления.',
+  commandRetry: 'Проверить результат',
+  commandChecking: 'Проверяем результат действия…',
+  commandStorageError: 'Локальное хранилище восстановления недоступно',
+  commandStorageHint:
+    'Действие нельзя безопасно продолжить, пока хранилище браузера недоступно. Оставьте страницу открытой и повторите попытку после устранения проблемы с хранилищем.',
+  commandPermission: 'Ваши текущие права не позволяют проверить это действие.',
+  sourceScopeMismatch:
+    'График-источник должен относиться к той же площадке, подразделению и месяцу.',
+  commandIdentityConflict:
+    'Идентификатор этого действия принадлежит другому запросу. Автоматически подтвердить результат невозможно.',
   unownedDraft:
     'В браузере остались старые правки без записанного владельца. Они сохранены, но автоматически не открываются. Проверьте серверный график перед редактированием.',
   recovery:

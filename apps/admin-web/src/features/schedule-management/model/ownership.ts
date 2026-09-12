@@ -27,3 +27,12 @@ export const scheduleKeys = {
   roster: (access: string) => ['employees', 'schedule-complete', access] as const,
   employee: (access: string, id: string) => ['employees', 'schedule-detail', access, id] as const,
 };
+
+export function scheduleCommandScope(
+  actorId: string | null,
+  siteId: string,
+  orgUnitId: string,
+  month: string,
+) {
+  return JSON.stringify(['schedule-command:v1', actorId, siteId, orgUnitId, month]);
+}

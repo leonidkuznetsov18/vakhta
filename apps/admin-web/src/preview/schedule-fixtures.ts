@@ -1,5 +1,8 @@
+import { planInstants } from '@vakhta/domain';
 import {
   ScheduleRevisionPrecondition,
+  ScheduleWebCommand,
+  ScheduleCommandResult,
   CreateScheduleVersionCommand,
   PutAssignmentsCommand,
   ReviseScheduleCommand,
@@ -63,11 +66,15 @@ function create(unit: string, periodMonth: string): ScheduleVersionView {
 }
 const simulateStaleSave = new URLSearchParams(location.search).get('schedule') === 'stale';
 let staleSaveInjected = false;
+const simulateLostResponse =
+  new URLSearchParams(location.search).get('schedule') === 'lost-response';
+let lostResponseInjected = false;
+const commandReceipts = new Map<string, ScheduleCommandResult>();
 const initial = create(scheduleUnitId, month);
 // Stable identity makes local recovery scenarios reproducible across preview reloads.
 initial.id = 'd0000000-0000-4000-8000-000000000001';
-initial.status = simulateStaleSave ? 'DRAFT' : 'PUBLISHED';
-initial.deletable = simulateStaleSave;
+initial.status = simulateStaleSave || simulateLostResponse ? 'DRAFT' : 'PUBLISHED';
+initial.deletable = simulateStaleSave || simulateLostResponse;
 initial.publishedAt = new Date().toISOString();
 versions.push(initial);
 const initialItems: AssignmentInput[] = [];
@@ -100,13 +107,15 @@ function detail(version: ScheduleVersionView): ScheduleVersionDetail {
     version,
     assignments: (assignments.get(version.id) ?? []).map((item) => {
       const template = scheduleTemplates.find((value) => value.id === item.templateId);
+      if (!template) throw new Error('Preview template missing');
+      const instants = planInstants(item.businessDate, template, 'Europe/Kyiv');
       return {
         ...item,
         id: crypto.randomUUID(),
         scheduleVersionId: version.id,
         templateCode: template?.code ?? 'DAY',
-        planStartAt: `${item.businessDate}T05:00:00.000Z`,
-        planEndAt: `${item.businessDate}T17:00:00.000Z`,
+        planStartAt: instants.planStartAt.toISOString(),
+        planEndAt: instants.planEndAt.toISOString(),
         orgUnitId: version.orgUnitId,
         positionId: item.positionId ?? null,
         teamId: item.teamId ?? null,
@@ -119,6 +128,48 @@ function detail(version: ScheduleVersionView): ScheduleVersionDetail {
 }
 /** In-memory preview only: exercises the actual validated frontend contract, never production. */
 export function scheduleFixture(url: URL, method: string, body: unknown): unknown {
+  if (url.pathname === '/admin/schedules/commands') {
+    const command = ScheduleWebCommand.parse(body);
+    const stored = commandReceipts.get(command.commandId);
+    if (stored) return stored;
+    const actionPaths = {
+      SAVE: 'assignments',
+      SUBMIT: 'submit',
+      RETURN: 'return',
+      PUBLISH: 'publish',
+      REVISE: 'revise',
+    };
+    const path =
+      command.action === 'CREATE'
+        ? '/admin/schedules'
+        : `/admin/schedules/${command.versionId}${command.action === 'DELETE' ? '' : `/${actionPaths[command.action]}`}`;
+    const payload =
+      command.action === 'CREATE'
+        ? command.payload
+        : {
+            ...('payload' in command ? command.payload : {}),
+            expectedRevision: command.expectedRevision,
+          };
+    const value = scheduleFixture(
+      new URL(path, url),
+      command.action === 'DELETE' ? 'DELETE' : command.action === 'SAVE' ? 'PUT' : 'POST',
+      payload,
+    );
+    if (value instanceof Response) return value;
+    const result = ScheduleCommandResult.parse(
+      command.action === 'DELETE'
+        ? { commandId: command.commandId, kind: 'DELETED', versionId: command.versionId }
+        : command.action === 'SAVE'
+          ? { commandId: command.commandId, kind: 'DETAIL', detail: value }
+          : { commandId: command.commandId, kind: 'VERSION', version: value },
+    );
+    commandReceipts.set(command.commandId, structuredClone(result));
+    if (simulateLostResponse && !lostResponseInjected) {
+      lostResponseInjected = true;
+      throw new TypeError('Synthetic response lost after commit');
+    }
+    return result;
+  }
   if (url.pathname.endsWith('/templates')) return scheduleTemplates;
   if (url.pathname === '/admin/schedules') {
     if (method === 'GET')

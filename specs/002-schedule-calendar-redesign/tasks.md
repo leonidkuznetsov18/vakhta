@@ -45,9 +45,9 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 - [x] T057 [US1] Complete validated employee directory cursor reads and Schedule aggregation, paginated selection, employee-205 preservation regression and desktop/mobile evidence (#9, SC-23 read increment).
 - [x] T058 [US1] Add all-writer revision advancement, mandatory public stale-write preconditions, consistent detail reads, persisted draft revisions and lifecycle/legacy compatibility regressions (#9, stale-write increment).
 - [x] T061 [US1] Isolate draft/preset ownership and Schedule caches by actor and scope, reject old workspace callbacks, quarantine unowned legacy edits, and verify desktop/mobile recovery (#9).
-- [ ] T013 [US1] Add validated complete roster and revision/command receipt contracts with additive schema/migration in packages/contracts/src/scheduling.ts and packages/db/src/schema/scheduling.ts (#9).
-- [ ] T014 [US1] Enforce expected revision and idempotency across writers in apps/api/src/scheduling/; persist actor-scoped uncertain intents/reconciliation in schedule-management/model/store.ts and use-workspace.ts (#9).
-- [ ] T015 [US1] Verify employee beyond 200, filtered metadata preservation, real-DB concurrent stale saves, uncertain duplicate retry and session isolation in scheduling/schedule.service.test.ts and schedule-management tests (#9).
+- [x] T013 [US1] Add validated complete roster and revision/command receipt contracts, revision migration and reuse of existing idempotency schema (#9).
+- [x] T014 [US1] Enforce expected revisions across writers and durable idempotency for web commands in apps/api/src/scheduling/; persist actor-scoped uncertain intents/reconciliation in schedule-management/model/commands.ts, store.ts and use-workspace.ts (#9).
+- [x] T015 [US1] Verify employee beyond 200, filtered metadata preservation, real-DB concurrent stale saves, uncertain duplicate retry and session isolation in scheduling/schedule.service.test.ts and schedule-management tests (#9).
 
 ## Phase 6: Master authority — #8
 

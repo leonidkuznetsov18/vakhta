@@ -147,3 +147,15 @@ open. Browser storage is not encrypted and is not a boundary against direct devi
 #5 was closed with the full research/prototype checklist and screenshot comment after integrated
 CI 34723539292 succeeded, including release, announcement, images and Pages. It does not close #4
 policy decisions, advanced persistence, participant baseline or pilot acceptance.
+
+### Durable outcome evidence — #9
+
+Validated web command receipts now commit atomically with schedule and required effect intent.
+Lost responses resolve by the same actor-bound identity, including create and delete; replay checks
+current authorization. Panel commands are stored before dispatch and restored after reload without
+an automatic retry. Newer local edits are retained. Origin-wide storage locking prevents stale live
+stores from erasing other commands; retry rejects a removed/replaced identity. The 34 panel tests,
+real-DB command/revision/effect tests, independent review and desktop/mobile recovery screenshots are
+recorded in engineering memory. Combined with T057/T058/T061 this covers the implementation criteria
+for #9; final CI and GitHub issue reconciliation remain the delivery gate. It does not accept #4
+policies, #6's remaining interface criteria, a participant baseline or production pilot.

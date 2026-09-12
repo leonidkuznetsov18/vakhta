@@ -4,6 +4,7 @@ import type { Env } from '../config/env.js';
 import { OrgModule } from '../org/org.module.js';
 import { AdminSchedulesController } from './admin-schedules.controller.js';
 import { SCHEDULE_OPTIONS, ScheduleService, type ScheduleOptions } from './schedule.service.js';
+import { ScheduleCommandService } from './schedule-command.service.js';
 import { TemplatesService } from './templates.service.js';
 
 @Module({
@@ -12,6 +13,7 @@ import { TemplatesService } from './templates.service.js';
   providers: [
     TemplatesService,
     ScheduleService,
+    ScheduleCommandService,
     {
       provide: SCHEDULE_OPTIONS,
       useFactory: (config: ConfigService<Env, true>): ScheduleOptions => ({

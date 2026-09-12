@@ -1,6 +1,10 @@
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
-import { ScheduleVersionDetail } from '@vakhta/contracts';
+import {
+  ScheduleVersionDetail,
+  ScheduleWebCommand,
+  ScheduleCommandResult,
+} from '@vakhta/contracts';
 import { setUiState } from '@/lib/ui-store';
 import { gridFromDetail, gridToItems, setAssignment, setCell } from '../model/grid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,11 +21,20 @@ import {
 import { render } from '@/test-utils';
 import { ScheduleWorkspace as SchedulePage } from './schedule-workspace';
 import { scheduleDraftKey } from '../model/ownership';
+import { scheduleCommands, createCommandQueue } from '../model/commands';
 import { useScheduleDrafts } from '../model/store';
 import { writeSchedulePreset } from '../model/preset';
 import { clearPersistentState } from '@/lib/ui-store';
 import { notifySuccess } from '@/lib/toast';
 import { NavigationProvider } from '@/navigation';
+
+beforeEach(() => {
+  vi.stubGlobal('navigator', {
+    locks: { request: async (_name: string, action: () => unknown) => action() },
+  });
+  localStorage.removeItem('vakhta.ui.schedule.commands.v1');
+  scheduleCommands.setState({ pending: {}, recoveryError: false, storageError: false });
+});
 
 vi.mock('@/lib/toast', () => ({ notifySuccess: vi.fn() }));
 
@@ -171,21 +184,65 @@ function mockApi(
     conflict?: boolean;
     legacyApi?: boolean;
     saveGate?: Promise<void>;
+    lostResponse?: boolean;
+    savedDetail?: ScheduleVersionDetail;
   },
   snapshot: typeof org = org,
   roster = employees,
 ) {
   const calls: Call[] = [];
+  const receipts = new Map<string, ScheduleCommandResult>();
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(String(input));
-    const method = init?.method ?? 'GET';
-    const path = url.pathname + url.search;
-    calls.push({ method, path, body: init?.body ? JSON.parse(String(init.body)) : null });
-    const json = (data: unknown, status = 200) =>
-      new Response(JSON.stringify(data), {
+    const requestUrl = new URL(String(input));
+    const requestMethod = init?.method ?? 'GET';
+    const body: unknown = init?.body ? JSON.parse(String(init.body)) : null;
+    calls.push({ method: requestMethod, path: requestUrl.pathname + requestUrl.search, body });
+    const command =
+      requestUrl.pathname === '/admin/schedules/commands' ? ScheduleWebCommand.parse(body) : null;
+    if (command && state.legacyApi)
+      return new Response(JSON.stringify({ message: 'Not Found' }), { status: 404 });
+    const receipt = command && receipts.get(command.commandId);
+    if (receipt)
+      return new Response(JSON.stringify(receipt), {
+        headers: { 'content-type': 'application/json' },
+      });
+    const actionPaths = {
+      SAVE: 'assignments',
+      SUBMIT: 'submit',
+      RETURN: 'return',
+      PUBLISH: 'publish',
+      REVISE: 'revise',
+    };
+    const path = command
+      ? command.action === 'CREATE'
+        ? '/admin/schedules'
+        : `/admin/schedules/${command.versionId}${command.action === 'DELETE' ? '' : `/${actionPaths[command.action]}`}`
+      : requestUrl.pathname + requestUrl.search;
+    const method =
+      command?.action === 'SAVE' ? 'PUT' : command?.action === 'DELETE' ? 'DELETE' : requestMethod;
+    const url = new URL(path, requestUrl);
+    const json = (data: unknown, status = 200) => {
+      let response = data;
+      if (command && status < 400) {
+        const result = ScheduleCommandResult.parse(
+          command.action === 'SAVE'
+            ? { commandId: command.commandId, kind: 'DETAIL', detail: data }
+            : command.action === 'DELETE'
+              ? { commandId: command.commandId, kind: 'DELETED', versionId: command.versionId }
+              : { commandId: command.commandId, kind: 'VERSION', version: data },
+        );
+        receipts.set(command.commandId, result);
+        if (state.lostResponse) {
+          state.lostResponse = false;
+          throw new TypeError('Response lost after commit');
+        }
+        response = result;
+      }
+      return new Response(JSON.stringify(response), {
         status,
         headers: { 'content-type': 'application/json' },
       });
+    };
     if (path === '/admin/org') return json(snapshot);
     if (url.pathname === '/admin/employees/page') {
       const after = url.searchParams.get('after');
@@ -243,7 +300,7 @@ function mockApi(
       });
     }
     if (path === `/admin/schedules/${VERSION}`) {
-      const result = detail(state.status);
+      const result = state.savedDetail ?? detail(state.status);
       return json({
         ...result,
         version: state.legacyApi
@@ -257,7 +314,31 @@ function mockApi(
         state.revision = 2;
         return json({ code: 'SCHEDULE_REVISION_CONFLICT', message: 'Stale revision' }, 409);
       }
-      return json(detail(state.status));
+      if (command?.action === 'SAVE') {
+        state.revision = (state.revision ?? 1) + 1;
+        state.savedDetail = ScheduleVersionDetail.parse({
+          version: {
+            ...version(state.status, command.payload.items.length),
+            revision: state.revision,
+          },
+          assignments: command.payload.items.map((item) => ({
+            ...detail(state.status).assignments[0],
+            ...item,
+            id: crypto.randomUUID(),
+            scheduleVersionId: VERSION,
+            orgUnitId: UNIT,
+            templateCode: item.templateId === TPL_DAY ? 'DAY' : 'NIGHT',
+            positionId: item.positionId ?? null,
+            teamId: item.teamId ?? null,
+            zoneId: item.zoneId ?? null,
+            status: 'PLANNED',
+            acknowledgedAt: null,
+            planStartAt: `${item.businessDate}T05:00:00.000Z`,
+            planEndAt: `${item.businessDate}T17:00:00.000Z`,
+          })),
+        });
+      }
+      return json(state.savedDetail ?? detail(state.status));
     }
     if (path === `/admin/schedules/${VERSION}/submit`) {
       state.status = 'IN_REVIEW';
@@ -293,6 +374,18 @@ function mockApi(
   return calls;
 }
 
+function commands(calls: Call[]) {
+  return calls.flatMap((call) => {
+    const parsed = ScheduleWebCommand.safeParse(call.body);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
+function saves(calls: Call[]) {
+  return commands(calls).filter((command) => command.action === 'SAVE');
+}
+function revisions(calls: Call[]) {
+  return commands(calls).filter((command) => command.action === 'REVISE');
+}
 const t = messages(currentLocale()).scheduleWorkspace;
 const s = messages(currentLocale()).admin.schedule;
 function account(actorId = ACTOR) {
@@ -382,7 +475,7 @@ describe('schedule workspace', () => {
     useScheduleDrafts.getState().keep(DRAFT_KEY, local, saved, 1);
     const page = admin();
     fireEvent.click(await screen.findByRole('button', { name: `${s.save} (1)` }));
-    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    await waitFor(() => expect(saves(calls).length > 0).toBe(true));
     page.rerender(account('f0000000-0000-4000-8000-000000000002'));
     fireEvent.click(await screen.findByRole('button', { name: t.edit }));
     vi.mocked(notifySuccess).mockClear();
@@ -415,7 +508,7 @@ describe('schedule workspace', () => {
       ),
     });
     fireEvent.click(await screen.findByRole('button', { name: `${s.save} (1)` }));
-    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    await waitFor(() => expect(saves(calls).length > 0).toBe(true));
     page.rerender(account('f0000000-0000-4000-8000-000000000002'));
     await screen.findByRole('button', { name: t.edit });
     page.rerender(account());
@@ -428,6 +521,104 @@ describe('schedule workspace', () => {
     expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toEqual(local);
     expect(notifySuccess).not.toHaveBeenCalled();
     client.clear();
+  });
+
+  it('recovers a lost save response after reload using the original durable identity', async () => {
+    const calls = mockApi({ status: 'DRAFT', lostResponse: true });
+    const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+    const local = setCell(saved, EMP, '2026-09-05', TPL_DAY);
+    useScheduleDrafts.getState().keep(DRAFT_KEY, local, saved, 1);
+    const page = admin();
+    fireEvent.click(await screen.findByRole('button', { name: `${s.save} (1)` }));
+    await screen.findByRole('button', { name: t.commandRetry });
+    expect(saves(calls)).toHaveLength(1);
+    expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toEqual(local);
+    page.unmount();
+    const restored = createCommandQueue(() => localStorage).getState();
+    act(() => scheduleCommands.setState({ pending: restored.pending }));
+    admin();
+    fireEvent.click(await screen.findByRole('button', { name: t.commandRetry }));
+    await waitFor(() => expect(screen.queryByText(t.commandUnconfirmed)).toBeNull());
+    expect(saves(calls)).toHaveLength(2);
+    expect(saves(calls)[1]).toEqual(saves(calls)[0]);
+    expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toBeUndefined();
+    expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(0);
+  });
+
+  it('retains newer local edits when resolving an earlier committed save', async () => {
+    const calls = mockApi({ status: 'DRAFT', lostResponse: true });
+    const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+    const local = setCell(saved, EMP, '2026-09-05', TPL_DAY);
+    useScheduleDrafts.getState().keep(DRAFT_KEY, local, saved, 1);
+    admin();
+    fireEvent.click(await screen.findByRole('button', { name: `${s.save} (1)` }));
+    await screen.findByRole('button', { name: t.commandRetry });
+    const newer = setCell(local, EMP, '2026-09-06', TPL_NIGHT);
+    act(() => useScheduleDrafts.getState().keep(DRAFT_KEY, newer, saved, 1));
+    fireEvent.click(screen.getByRole('button', { name: t.commandRetry }));
+    await waitFor(() => expect(screen.queryByText(t.commandUnconfirmed)).toBeNull());
+    expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toEqual(newer);
+    expect(await screen.findByText(t.stale)).toBeTruthy();
+    expect(saves(calls)[1]).toEqual(saves(calls)[0]);
+  });
+
+  it('resolves an uncertain create after remount without creating a new command', async () => {
+    const calls = mockApi({ status: 'EMPTY', lostResponse: true });
+    const page = admin();
+    fireEvent.click(await screen.findByRole('button', { name: t.create }));
+    await screen.findByRole('button', { name: t.commandRetry });
+    page.unmount();
+    admin();
+    await screen.findByRole('button', { name: t.commandRetry });
+    expect(commands(calls)).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: t.commandRetry }));
+    await waitFor(() => expect(screen.queryByText(t.commandUnconfirmed)).toBeNull());
+    expect(commands(calls)).toHaveLength(2);
+    expect(commands(calls)[1]).toEqual(commands(calls)[0]);
+    expect(calls.some((call) => call.path.endsWith('d0000000-0000-4000-8000-000000000002'))).toBe(
+      true,
+    );
+  });
+
+  it('admits only one command for duplicate save taps', async () => {
+    let finish: () => void = () => undefined;
+    const saveGate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const calls = mockApi({ status: 'DRAFT', saveGate });
+    const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+    useScheduleDrafts
+      .getState()
+      .keep(DRAFT_KEY, setCell(saved, EMP, '2026-09-05', TPL_DAY), saved, 1);
+    admin();
+    const button = await screen.findByRole('button', { name: `${s.save} (1)` });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await waitFor(() => expect(saves(calls)).toHaveLength(1));
+    await act(async () => {
+      finish();
+      await saveGate;
+    });
+    expect(saves(calls)).toHaveLength(1);
+  });
+
+  it('does not dispatch when browser storage cannot preserve command identity', async () => {
+    const calls = mockApi({ status: 'DRAFT' });
+    const saved = gridFromDetail(ScheduleVersionDetail.parse(detail('DRAFT')));
+    const local = setCell(saved, EMP, '2026-09-05', TPL_DAY);
+    useScheduleDrafts.getState().keep(DRAFT_KEY, local, saved, 1);
+    admin();
+    const button = await screen.findByRole('button', { name: `${s.save} (1)` });
+    const storage = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Storage full');
+    });
+    fireEvent.click(button);
+    expect(await screen.findByText(t.commandStorageError)).toBeTruthy();
+    expect(commands(calls)).toHaveLength(0);
+    expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toEqual(local);
+    storage.mockRestore();
+    fireEvent.click(button);
+    await waitFor(() => expect(saves(calls)).toHaveLength(1));
   });
 
   it('starts with the published zone overview and hides mutation controls for masters', async () => {
@@ -594,10 +785,12 @@ describe('schedule workspace', () => {
     });
     act(() => useScheduleDrafts.getState().keep(DRAFT_KEY, next, saved, 1));
     fireEvent.click(screen.getByRole('button', { name: `${s.save} (1)` }));
-    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
-    expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+    await waitFor(() => expect(saves(calls).length > 0).toBe(true));
+    expect(saves(calls)[0]).toMatchObject({
       expectedRevision: 1,
-      items: gridToItems(next),
+      action: 'SAVE',
+      versionId: VERSION,
+      payload: { items: gridToItems(next) },
     });
     expect(gridToItems(next)).toHaveLength(2);
   });
@@ -651,11 +844,10 @@ describe('schedule workspace', () => {
       target: { value: 'Move to the day shift' },
     });
     fireEvent.click(within(dialog).getByRole('button', { name: s.publish }));
-    await waitFor(() => expect(calls.some((call) => call.path.endsWith('/revise'))).toBe(true));
-    expect(calls.find((call) => call.path.endsWith('/revise'))?.body).toEqual({
+    await waitFor(() => expect(revisions(calls).length > 0).toBe(true));
+    expect(revisions(calls)[0]).toMatchObject({
       expectedRevision: 1,
-      items: gridToItems(next),
-      changeReason: 'Move to the day shift',
+      payload: { items: gridToItems(next), changeReason: 'Move to the day shift' },
     });
   });
 });
@@ -782,8 +974,8 @@ it('finds a worker beyond 200 through the paginated batch picker without trimmin
   fireEvent.click(within(dialog).getByRole('button', { name: t.preview }));
   fireEvent.click(within(dialog).getByRole('button', { name: t.apply }));
   fireEvent.click(screen.getByRole('button', { name: `${s.save} (1)` }));
-  await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
-  expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
+  await waitFor(() => expect(saves(calls).length > 0).toBe(true));
+  expect(saves(calls)[0]?.payload).toMatchObject({
     items: expect.arrayContaining([
       expect.objectContaining({
         employeeId: EMP,
@@ -823,8 +1015,8 @@ it('retains a stale draft and its original revision after the server rejects a s
       true,
     ),
   );
-  expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(1);
-  expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({ expectedRevision: 1 });
+  expect(saves(calls)).toHaveLength(1);
+  expect(saves(calls)[0]).toMatchObject({ expectedRevision: 1 });
   fireEvent.click(screen.getByRole('button', { name: t.discard }));
   const confirmation = await screen.findByRole('alertdialog');
   fireEvent.click(within(confirmation).getByRole('button', { name: t.discard }));
@@ -885,7 +1077,7 @@ it('keeps a legacy API schedule readable but disables editing during a rolling d
   vi.unstubAllGlobals();
 });
 
-it('accepts a legacy create response and opens the new draft read only', async () => {
+it('retains command identity without falling back when an older API has no command endpoint', async () => {
   clearPersistentState();
   useScheduleDrafts.setState({
     drafts: {},
@@ -899,12 +1091,12 @@ it('accepts a legacy create response and opens the new draft read only', async (
   const calls = mockApi({ status: 'EMPTY', legacyApi: true });
   admin();
   fireEvent.click(await screen.findByRole('button', { name: t.create }));
-  expect(await screen.findByText(t.revisionUnavailable)).toBeTruthy();
-  expect(screen.getByRole('button', { name: t.edit }).hasAttribute('disabled')).toBe(true);
+  expect(await screen.findByText(t.commandUnconfirmed)).toBeTruthy();
+  expect(screen.getByRole('button', { name: t.create }).hasAttribute('disabled')).toBe(true);
   expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
-  expect(
-    calls.some((call) => call.path === '/admin/schedules/d0000000-0000-4000-8000-000000000002'),
-  ).toBe(true);
+  expect(calls.some((call) => call.path === '/admin/schedules' && call.method === 'POST')).toBe(
+    false,
+  );
   cleanup();
   vi.unstubAllGlobals();
 });
