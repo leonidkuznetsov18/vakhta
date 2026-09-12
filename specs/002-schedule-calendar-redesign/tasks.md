@@ -163,3 +163,8 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 ## Dependencies and handoff
 
 Begin T004–T006 prototype and T052 matrix/runbook while policy answers and human baseline are pending. First stage preserves existing roles/templates/month writes. Resume from the first unchecked task whose prerequisites are met. Read .specify/feature.json and explicitly select this directory for every skill helper. T055 is recon only, not runtime proof.
+
+## Bounded acknowledgement delivery hardening — #7
+
+- [x] T067 [US1] Share existing future/unacknowledged publication eligibility between timer admission and ACK_REMINDER relay validation; validate automatic/manual reminder identity, preserve retry ownership.
+- [x] T068 [US1] Verify stale publication/acknowledgement/retry suppression and valid delivery with real DB tests; type/lint, independent review, then record exact evidence and remaining #7 gaps.

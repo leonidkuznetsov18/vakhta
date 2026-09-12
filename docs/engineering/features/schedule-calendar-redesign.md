@@ -572,3 +572,28 @@ remaining domain streams retain their outstanding acceptance criteria.
   remain separate. Previous delivery CI 34724106893 passed all jobs, including release/announcement.
 - Lean: prevent duplicate work and preserve intent. Offer one clear recovery action instead of asking
   the planner to recreate a draft or guess whether a save succeeded.
+
+### ACK reminder delivery hardening — accepted bounded increment
+
+- Live #7 SC-18/20 and AC-10 require obsolete reminders to be suppressed. Recon found admission
+  checks in `timers/reminders.ts`, while `outbox/relay.ts` revalidates only SHIFT_REMINDER. An ACK
+  message queued before supersession/acknowledgement can therefore still be sent on the next relay.
+- Scope/design: active `specs/002-schedule-calendar-redesign/plan.md`; tasks T067/T068. Reuse the
+  existing pending-future-assignment predicate at ACK delivery/retry, support automatic/manual keys,
+  validate recipient/version provenance, retain original outbox recovery owner. No ACK-all change.
+- Lean: Proceed. Remove obsolete employee prompts and repeat acknowledgement work without adding a
+  worker step. Guardrails: still-current unacknowledged future assignments retain delivery; stale
+  messages become SKIPPED with a recorded reason. Verify with synthetic real-DB relay cases; no
+  production worker/time savings claim. The completed implementation preserves live delivery while
+  removing stale prompts; no worker input or new screen was added.
+- Verification: worker `worker.test.ts` 17 and `timer-tasks.test.ts` 20: **37 passed**, including 13
+  new ACK delivery cases (automatic/manual, superseded/acknowledged/retried, partial confirmation,
+  cancelled/replaced/start boundary and malformed/mismatched identity). Existing admission locks,
+  durable recovery and rollback tests passed unchanged. Worker typecheck and affected ESLint pass;
+  independent read-only review found no blocker. Logs: `/tmp/vakhta-schedule-ack-delivery/`.
+- Limits: committed eligibility is checked before each send; it can still change after that read.
+  Telegram send and the DB commit remain non-atomic. No production employee action or delivery was
+  manufactured. Full #7 stays open: snapshot-bound `ack:all`, actor/time/reason history presentation,
+  exact metadata publication preview and integrated redesign acceptance remain subsequent work.
+- Next: integration owner delivers this bounded worker change through existing CI/release, then
+  continues #7 without treating timer admission or queued state as Telegram delivery evidence.

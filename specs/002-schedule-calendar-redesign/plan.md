@@ -229,3 +229,19 @@ Serialize local admission/completion/retry lookup across live tabs with the brow
 re-reading and validating the shared map inside the exclusive callback. Fail closed if locking is
 unavailable; no lockless read-modify-write fallback. Locks cover storage updates; durable server
 receipts serialize duplicate command execution. See the [Web Locks specification](https://w3c.github.io/web-locks/).
+
+### Acknowledgement reminder delivery increment (#7, SC-18/20, AC-10)
+
+Accepted scope: revalidate only `ACK_REMINDER` immediately before each relay send/retry. A reminder
+is applicable only to its encoded employee and still-published version with a future PLANNED,
+unacknowledged assignment. Reuse the existing admission predicate and current notification owner;
+automatic and manual dedupe-key formats remain compatible. Invalid keys or recipient mismatch are
+skipped, and the message is reconstructed with the validated version-specific acknowledgement.
+Keep admission locks and durable outbox retry/status behavior. Do not add version locks after relay
+outbox locks; this checks committed eligibility before sending, not atomic Telegram delivery.
+Non-goals: `ack:all`, publication notifications, acknowledgement policy, manual admission workflow,
+UI/history changes, schemas/migrations, and stronger concurrency promises across Telegram/DB.
+Verify real-DB queued-then-superseded, queued-then-acknowledged, retry after acknowledgement,
+manual/automatic live delivery, invalid provenance, and exhausted future assignment cases. Reuse
+existing reminder admission/locking tests. No employee messages or screenshots are required because
+this changes delivery eligibility only, not visible wording/layout.

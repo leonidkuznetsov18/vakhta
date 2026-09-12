@@ -11,6 +11,7 @@ import {
 } from '@vakhta/db';
 import type { NotificationPayload } from '@vakhta/domain';
 import { ShiftReminderJob } from '@vakhta/contracts';
+import { ackReminderTarget, readAckReminder } from '../timers/ack-reminder-policy.js';
 import { readShiftReminder } from '../timers/shift-reminder-policy.js';
 import { timerNow } from '../timers/time.js';
 
@@ -169,6 +170,20 @@ export async function relayOnce(
           continue;
         }
         payload = reminder.payload;
+      }
+
+      if (row.template === 'ACK_REMINDER') {
+        const target = ackReminderTarget(row.dedupeKey);
+        const deliveryTime = await timerNow(tx, options.now?.());
+        const reminder =
+          target && target.employeeId === row.recipientId
+            ? await readAckReminder(tx, target, deliveryTime)
+            : null;
+        if (!reminder) {
+          await skip('Acknowledgement reminder is no longer applicable');
+          continue;
+        }
+        payload = reminder;
       }
 
       try {

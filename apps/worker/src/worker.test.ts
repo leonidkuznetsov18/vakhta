@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   assignmentAcknowledgements,
@@ -270,5 +271,207 @@ describe('worker: релей аутбоксу і нагадування (ADR-8, 
         fireAt,
       }),
     ).toBe('stale');
+  });
+  describe('acknowledgement reminder delivery eligibility', () => {
+    async function queuedAcknowledgement(manual = false) {
+      const now = new Date('2026-10-01T08:00:00Z');
+      const [site] = await testDb.db
+        .insert(sites)
+        .values({ code: 'ACK', name: 'Ack', timezone: 'Europe/Kyiv' })
+        .returning();
+      if (!site) throw new Error('Site fixture missing');
+      const [unit] = await testDb.db
+        .insert(orgUnits)
+        .values({ siteId: site.id, name: 'Unit' })
+        .returning();
+      const [template] = await testDb.db
+        .insert(shiftTemplates)
+        .values({
+          siteId: site.id,
+          code: 'DAY',
+          name: 'Day',
+          localStart: '08:00',
+          localEnd: '20:00',
+          isNight: false,
+        })
+        .returning();
+      if (!unit || !template) throw new Error('Schedule fixtures missing');
+      const [version] = await testDb.db
+        .insert(scheduleVersions)
+        .values({
+          siteId: site.id,
+          orgUnitId: unit.id,
+          periodMonth: '2026-10',
+          versionNo: 1,
+          status: 'PUBLISHED',
+        })
+        .returning();
+      if (!version) throw new Error('Version fixture missing');
+      const [assignment] = await testDb.db
+        .insert(shiftAssignments)
+        .values({
+          scheduleVersionId: version.id,
+          employeeId: linkedEmployeeId,
+          templateId: template.id,
+          orgUnitId: unit.id,
+          businessDate: '2026-10-02',
+          planStartAt: new Date('2026-10-02T05:00:00Z'),
+          planEndAt: new Date('2026-10-02T17:00:00Z'),
+        })
+        .returning();
+      if (!assignment) throw new Error('Assignment fixture missing');
+      expect(
+        await handleAckReminder(
+          testDb.db,
+          { versionId: version.id, employeeId: linkedEmployeeId, fireAt: now.toISOString() },
+          now,
+        ),
+      ).toBe('queued');
+      const key = manual
+        ? `ack-reminder:manual:${version.id}:${linkedEmployeeId}:2026-10-01`
+        : `ack-reminder:${version.id}:${linkedEmployeeId}`;
+      await testDb.db.update(notificationOutbox).set({ dedupeKey: key, nextAttemptAt: now });
+      return { now, version, assignment, sender: new FakeSender() };
+    }
+    async function acknowledge(assignmentId: string, versionId: string) {
+      await testDb.db
+        .insert(assignmentAcknowledgements)
+        .values({
+          assignmentId,
+          employeeId: linkedEmployeeId,
+          scheduleVersionId: versionId,
+          source: 'TELEGRAM',
+        });
+    }
+
+    it.each([false, true])(
+      'delivers a live reminder with the exact current version button (manual=%s)',
+      async (manual) => {
+        const { now, version, sender } = await queuedAcknowledgement(manual);
+        // The stored text/button is not authority for which publication can be acknowledged.
+        await testDb.db
+          .update(notificationOutbox)
+          .set({
+            payload: {
+              text: 'old text',
+              buttons: [[{ text: 'old action', callbackData: `ack:${randomUUID()}` }]],
+            },
+          });
+        expect(await relayOnce(testDb.db, sender, { now: () => now })).toMatchObject({ sent: 1 });
+        expect(sender.sent).toHaveLength(1);
+        expect(sender.sent[0]?.chatId).toBe(777);
+        expect(sender.sent[0]?.payload.buttons?.[0]?.[0]?.callbackData).toBe(`ack:${version.id}`);
+        const [row] = await testDb.db.select().from(notificationOutbox);
+        expect(row).toMatchObject({ status: 'SENT', attempts: 1 });
+        expect(await relayOnce(testDb.db, sender, { now: () => now })).toMatchObject({ sent: 0 });
+      },
+    );
+
+    it.each([false, true])(
+      'skips a queued reminder after publication is superseded (manual=%s)',
+      async (manual) => {
+        const { now, sender, version } = await queuedAcknowledgement(manual);
+        await testDb.db
+          .update(scheduleVersions)
+          .set({ status: 'SUPERSEDED' })
+          .where(eq(scheduleVersions.id, version.id));
+        expect(await relayOnce(testDb.db, sender, { now: () => now })).toMatchObject({
+          skipped: 1,
+          sent: 0,
+        });
+        expect(sender.sent).toHaveLength(0);
+        const [row] = await testDb.db.select().from(notificationOutbox);
+        expect(row).toMatchObject({
+          status: 'SKIPPED',
+          attempts: 0,
+          lastError: 'Acknowledgement reminder is no longer applicable',
+        });
+      },
+    );
+
+    it('skips a queued reminder after its employee acknowledges the assignments', async () => {
+      const { now, sender, assignment, version } = await queuedAcknowledgement();
+      await acknowledge(assignment.id, version.id);
+      expect(await relayOnce(testDb.db, sender, { now: () => now })).toMatchObject({
+        skipped: 1,
+        sent: 0,
+      });
+      expect(sender.sent).toHaveLength(0);
+    });
+
+    it('rechecks acknowledgement after a Telegram retry without resending or consuming another attempt', async () => {
+      const { now, sender, assignment, version } = await queuedAcknowledgement();
+      sender.behaviour = 'retry';
+      expect(await relayOnce(testDb.db, sender, { now: () => now })).toMatchObject({ retried: 1 });
+      await acknowledge(assignment.id, version.id);
+      sender.behaviour = 'ok';
+      expect(
+        await relayOnce(testDb.db, sender, { now: () => new Date(now.getTime() + 60_000) }),
+      ).toMatchObject({ skipped: 1, sent: 0 });
+      expect(sender.sent).toHaveLength(0);
+      const [row] = await testDb.db.select().from(notificationOutbox);
+      expect(row).toMatchObject({ status: 'SKIPPED', attempts: 1 });
+    });
+
+    it('retains delivery when another future assignment of the same employee remains unacknowledged', async () => {
+      const { now, sender, assignment, version } = await queuedAcknowledgement();
+      await acknowledge(assignment.id, version.id);
+      await testDb.db
+        .insert(shiftAssignments)
+        .values({
+          scheduleVersionId: version.id,
+          employeeId: linkedEmployeeId,
+          templateId: assignment.templateId,
+          orgUnitId: assignment.orgUnitId,
+          businessDate: '2026-10-03',
+          planStartAt: new Date('2026-10-03T05:00:00Z'),
+          planEndAt: new Date('2026-10-03T17:00:00Z'),
+        });
+      expect(await relayOnce(testDb.db, sender, { now: () => now })).toMatchObject({
+        sent: 1,
+        skipped: 0,
+      });
+    });
+
+    it.each(['CANCELLED', 'REPLACED'] as const)(
+      'skips a reminder when its last assignment becomes %s',
+      async (status) => {
+        const { now, sender, assignment } = await queuedAcknowledgement();
+        await testDb.db
+          .update(shiftAssignments)
+          .set({ status })
+          .where(eq(shiftAssignments.id, assignment.id));
+        expect(await relayOnce(testDb.db, sender, { now: () => now })).toMatchObject({
+          skipped: 1,
+        });
+        expect(sender.sent).toHaveLength(0);
+      },
+    );
+
+    it('skips at the future-assignment boundary even when the reminder was previously queued', async () => {
+      const { sender, assignment } = await queuedAcknowledgement();
+      expect(
+        await relayOnce(testDb.db, sender, { now: () => assignment.planStartAt }),
+      ).toMatchObject({ skipped: 1 });
+      expect(sender.sent).toHaveLength(0);
+    });
+
+    it.each(['invalid', 'recipient-mismatch', 'invalid-manual-date'] as const)(
+      'skips %s reminder provenance',
+      async (kind) => {
+        const { now, sender, version } = await queuedAcknowledgement();
+        const dedupeKey =
+          kind === 'invalid'
+            ? 'ack-reminder:invalid'
+            : kind === 'recipient-mismatch'
+              ? `ack-reminder:${version.id}:${unlinkedEmployeeId}`
+              : `ack-reminder:manual:${version.id}:${linkedEmployeeId}:2026-99-99`;
+        await testDb.db.update(notificationOutbox).set({ dedupeKey });
+        expect(await relayOnce(testDb.db, sender, { now: () => now })).toMatchObject({
+          skipped: 1,
+        });
+        expect(sender.sent).toHaveLength(0);
+      },
+    );
   });
 });

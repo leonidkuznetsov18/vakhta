@@ -1,20 +1,15 @@
+import { readAckReminder } from './ack-reminder-policy.js';
 import { readShiftReminder } from './shift-reminder-policy.js';
 import { timerNow } from './time.js';
 import {
-  and,
-  assignmentAcknowledgements,
   eq,
-  isNull,
-  gt,
   notificationOutbox,
   scheduleVersions,
   shiftAssignments,
-  employeeLocale,
   type Database,
   type Transaction,
 } from '@vakhta/db';
 import type { AckReminderJob, ShiftReminderJob } from '@vakhta/contracts';
-import { format, messages } from '@vakhta/i18n';
 
 export type ReminderOutcome = 'queued' | 'duplicate' | 'stale';
 
@@ -69,54 +64,24 @@ export async function handleAckReminderWithin(
   data: AckReminderJob,
   testTime?: Date,
 ): Promise<ReminderOutcome> {
-  const [version] = await db
-    .select({
-      id: scheduleVersions.id,
-      periodMonth: scheduleVersions.periodMonth,
-      status: scheduleVersions.status,
-    })
+  await db
+    .select({ id: scheduleVersions.id })
     .from(scheduleVersions)
     .where(eq(scheduleVersions.id, data.versionId))
     .for('no key update');
   const now = await timerNow(db, testTime);
-  if (!version || version.status !== 'PUBLISHED' || new Date(data.fireAt) > now) return 'stale';
+  if (new Date(data.fireAt) > now) return 'stale';
+  const payload = await readAckReminder(db, data, now);
+  if (!payload) return 'stale';
 
-  const [pending] = await db
-    .select({ id: shiftAssignments.id })
-    .from(shiftAssignments)
-    .leftJoin(
-      assignmentAcknowledgements,
-      eq(assignmentAcknowledgements.assignmentId, shiftAssignments.id),
-    )
-    .where(
-      and(
-        eq(shiftAssignments.scheduleVersionId, data.versionId),
-        eq(shiftAssignments.employeeId, data.employeeId),
-        gt(shiftAssignments.planStartAt, now),
-        eq(shiftAssignments.status, 'PLANNED'),
-        isNull(assignmentAcknowledgements.id),
-      ),
-    )
-    .limit(1);
-  if (!pending) return 'stale';
-
-  const [year, m] = version.periodMonth.split('-');
-  const t = messages(await employeeLocale(db, data.employeeId));
-  const text = format(t.schedule.ackReminder, {
-    month: t.schedule.months[Number(m) - 1] ?? version.periodMonth,
-    year: year ?? '',
-  });
   const inserted = await db
     .insert(notificationOutbox)
     .values({
       recipientType: 'EMPLOYEE',
       recipientId: data.employeeId,
       template: 'ACK_REMINDER',
-      payload: {
-        text,
-        buttons: [[{ text: t.schedule.ackButton, callbackData: `ack:${version.id}` }]],
-      },
-      dedupeKey: `ack-reminder:${version.id}:${data.employeeId}`,
+      payload,
+      dedupeKey: `ack-reminder:${data.versionId}:${data.employeeId}`,
     })
     .onConflictDoNothing({ target: notificationOutbox.dedupeKey })
     .returning({ id: notificationOutbox.id });
