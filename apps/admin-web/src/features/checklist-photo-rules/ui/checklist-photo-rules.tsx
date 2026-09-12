@@ -174,7 +174,7 @@ function RulesEditor({
     );
   return (
     <div ref={dirty || catalogDirty ? guardUnsaved : undefined} className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <strong className="text-sm">{t.editRules}</strong>
         <Button variant="outline" size="sm" disabled={busy} onClick={closeEditor}>
           {t.viewRules}
@@ -299,7 +299,7 @@ function RulesEditor({
         )}
         {canCreate && (
           <div className="flex flex-wrap items-end gap-2">
-            <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
+            <label className="flex min-w-0 flex-1 basis-48 flex-col gap-1 text-sm">
               {t.newObject}
               <Input
                 value={newName}
@@ -318,7 +318,7 @@ function RulesEditor({
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              className="max-sm:w-full"
               disabled={busy || !newName.trim()}
               onClick={() => create.mutate()}
             >

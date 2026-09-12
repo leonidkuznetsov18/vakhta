@@ -92,6 +92,27 @@ loading. These SVG checks do not establish EXIF behavior across all real camera 
 pinch gestures. Browser measurements were taken through the local preview; no automated browser
 runner or new test dependency was introduced.
 
+### Alignment follow-up
+
+The owner also requested consistent alignment and spacing, specifically the live-status dot next to
+filters. Shared LiveBadge and StateFilter now match the existing control heights: 32 px on desktop,
+40 px on mobile. FormField reserves the same label height with or without a help icon. Photo-region
+headers reserve action space, AI finding dots align with the first text line, and Handover evidence
+and decision cards share 12 px padding. Checklist editor headings wrap; its new-object field keeps
+usable width and places the add button below when the available space is narrow.
+
+- Browser measurements on Handover, Requests, Incidents and Operations at 1440×900 and 390×844:
+  all eight toolbar checks have a 0 px difference between control centers.
+- Mobile photo-region label, chevron and swatch centers match; the card has no horizontal overflow.
+  A five-line synthetic AI finding has its dot centered on the first 20 px line, with no overflow.
+- At 320×568 the catalog field and button each occupy the available 202 px on separate rows;
+  at 1440×900 both are 32 px tall with a 0 px center difference. Screenshots were inspected.
+- 51 existing focused frontend tests passed across ten files for fields, inspection review/predictions,
+  checklist rules, Handover, Requests, Operations and incident management. This presentation-only
+  follow-up adds no tests asserting CSS class names; browser geometry is the regression evidence.
+- Affected frontend typecheck, ESLint, formatting and production build passed. Existing bundle-size
+  and upstream Zod comment warnings remain unchanged.
+
 The preview uses synthetic SVG evidence and typed read-only fixtures. No production decisions, catalog
 changes, AI calls or employee messages were performed. Physical touch/pinch, all role permutations,
 all translated long-text combinations, screen-reader certification and authenticated production QA

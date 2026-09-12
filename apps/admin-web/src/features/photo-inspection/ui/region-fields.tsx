@@ -89,7 +89,7 @@ export function RegionFields({
           aria-expanded={expanded}
           variant="ghost"
           size="sm"
-          className="min-w-0"
+          className="min-w-0 flex-1 justify-start overflow-hidden"
           disabled={busy}
           onClick={() => editor.toggleSelect(annotation.id)}
         >
@@ -109,7 +109,7 @@ export function RegionFields({
             </span>
           )}
         </IconButton>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           {fromAi && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

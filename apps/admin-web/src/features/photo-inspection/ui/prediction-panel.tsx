@@ -130,12 +130,14 @@ export function PredictionPanel({
         {suggestions.map(({ finding, index, key }) => (
           <div key={key} className="rounded-md border p-2">
             <p className="flex items-start gap-2 whitespace-pre-wrap break-words">
-              <ObjectSwatch
-                objectId={finding.objectId}
-                objectName={finding.objectName}
-                colors={latest.rules}
-              />
-              {label(finding)}
+              <span className="flex h-[1lh] shrink-0 items-center">
+                <ObjectSwatch
+                  objectId={finding.objectId}
+                  objectName={finding.objectName}
+                  colors={latest.rules}
+                />
+              </span>
+              <span className="min-w-0">{label(finding)}</span>
             </p>
             <div className="mt-1 flex flex-wrap gap-2">
               {finding.geometry ? (

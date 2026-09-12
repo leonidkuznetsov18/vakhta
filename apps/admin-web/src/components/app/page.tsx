@@ -96,7 +96,7 @@ export function LiveBadge({ live, hint }: { readonly live: boolean; readonly hin
   // in the toolbar took the room of a control to say it. The words stay a hover and a screen
   // reader away, so nothing is lost.
   return (
-    <div className="flex items-center gap-1" aria-live="polite">
+    <div className="flex h-10 items-center gap-1 md:h-8" aria-live="polite">
       {/* Its own provider, like the info tip: a page rendered on its own (a test, a preview) has
           no app-level one, and a tooltip without a provider throws. */}
       <TooltipProvider delayDuration={200}>

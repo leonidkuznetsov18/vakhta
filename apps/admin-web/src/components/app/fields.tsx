@@ -34,7 +34,7 @@ export function FormField({ label, hint, error, optional, className, children }:
   const t = messages(currentLocale()).ui.common;
   return (
     <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
-      <div className="flex items-center gap-1">
+      <div className="flex min-h-5 items-center gap-1">
         <Label htmlFor={id}>
           {label}
           {optional ? (

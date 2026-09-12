@@ -133,13 +133,30 @@ export function reviewFixture(path: string, method: string): Response | null {
       runs: [
         {
           id,
-          status: 'FAILED',
+          status: photo.itemKey === 'PHOTO_4' ? 'SUCCEEDED' : 'FAILED',
           model: 'preview',
           promptVersion: 'preview',
           requestedAt: time,
           completedAt: time,
-          errorCode: 'MODEL_ERROR',
-          prediction: null,
+          errorCode: photo.itemKey === 'PHOTO_4' ? null : 'MODEL_ERROR',
+          prediction:
+            photo.itemKey === 'PHOTO_4'
+              ? {
+                  status: 'PROBLEMS',
+                  summary: 'Приклад довгого опису для перевірки перенесення тексту',
+                  limitations: '',
+                  findings: [
+                    {
+                      category: 'OTHER',
+                      objectId: reviewObjects.objects[0]?.id,
+                      objectName: 'Інструмент',
+                      comment:
+                        'На робочій поверхні залишено інструмент. Перевірте його розташування та переконайтеся, що він не заважає безпечному доступу до обладнання.',
+                      geometry: { type: 'RECTANGLE', x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+                    },
+                  ],
+                }
+              : null,
           reviewVersion: 0,
           feedback: null,
         },

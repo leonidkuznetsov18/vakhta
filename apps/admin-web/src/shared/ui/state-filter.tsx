@@ -18,7 +18,7 @@ export function StateFilter<T extends string>({
       size="sm"
       value={value}
       aria-label={label}
-      className="max-w-full flex-wrap rounded-lg bg-muted p-1"
+      className="max-w-full flex-wrap rounded-lg bg-muted p-0.5"
       spacing={0}
       onValueChange={(next) => {
         const option = options.find((item) => item.value === next);
@@ -29,7 +29,7 @@ export function StateFilter<T extends string>({
         <ToggleGroupItem
           key={option.value}
           value={option.value}
-          className="rounded-md! data-[state=on]:bg-background data-[state=on]:shadow-sm"
+          className="max-md:h-9 rounded-md! data-[state=on]:bg-background data-[state=on]:shadow-sm"
         >
           {option.label}
         </ToggleGroupItem>

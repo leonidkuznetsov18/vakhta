@@ -303,7 +303,7 @@ export function HandoverPage() {
           {/* The decision goes last: the checklist, the note and the photos are what it is made
               on, and the status column already says how a report ended, so nothing repeats it here. */}
           {canDecide && (
-            <div className="flex min-w-0 flex-col gap-3 rounded-lg border bg-muted/30 p-4 xl:sticky xl:top-20">
+            <div className="flex min-w-0 flex-col gap-3 rounded-lg border bg-muted/30 p-3 xl:sticky xl:top-20">
               <h3 className="text-sm font-semibold">{h.resolve}</h3>
               <p className="max-w-3xl text-sm whitespace-normal text-muted-foreground">
                 {h.reviewHint}
