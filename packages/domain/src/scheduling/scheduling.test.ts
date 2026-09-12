@@ -65,6 +65,50 @@ describe('календар місяця (FR-SCH-01)', () => {
 });
 
 describe('різниця версій (FR-SCH-03)', () => {
+  it.each([{ kind: 'EXTRA' as const }, { teamId: 'team-2' }, { positionId: 'position-2' }])(
+    'reports metadata-only additions and removals for the affected employee: %j',
+    (metadata) => {
+      const before = shift('old', 'changed', '2026-09-01', 'DAY');
+      const after = { ...before, id: 'new', ...metadata };
+      const unchanged = shift('other-old', 'unchanged', '2026-09-01', 'DAY');
+      for (const [previous, next] of [
+        [before, after],
+        [after, before],
+      ] as const) {
+        const diff = diffSchedules(
+          [previous, unchanged],
+          [next, { ...unchanged, id: 'other-new' }],
+        );
+        expect([...diff.keys()]).toEqual(['changed']);
+        expect(diff.get('changed')).toEqual({
+          added: [],
+          removed: [],
+          changed: [{ before: previous, after: next }],
+        });
+      }
+    },
+  );
+
+  it('treats absent metadata as REGULAR/null and ignores regenerated assignment IDs', () => {
+    const legacy = shift('old', 'employee', '2026-09-01', 'DAY');
+    const explicit = {
+      ...legacy,
+      id: 'new',
+      kind: 'REGULAR' as const,
+      teamId: null,
+      positionId: null,
+    };
+    expect(diffSchedules([legacy], [explicit]).size).toBe(0);
+    expect(diffSchedules([explicit], [legacy]).size).toBe(0);
+    const populated = {
+      ...explicit,
+      kind: 'SWAP' as const,
+      teamId: 'team',
+      positionId: 'position',
+    };
+    expect(diffSchedules([populated], [{ ...populated, id: 'another-new-id' }]).size).toBe(0);
+  });
+
   it('знаходить додані, скасовані і змінені зміни по працівнику', () => {
     const prev = [
       shift('a', 'e1', '2026-09-01', 'DAY', 'z1'),

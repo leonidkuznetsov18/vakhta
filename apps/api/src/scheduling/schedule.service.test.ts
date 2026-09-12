@@ -151,6 +151,91 @@ describe('scheduling: версії, валідація, публікація, о
     await testDb.db.insert(telegramAccounts).values({ employeeId: ivanov, telegramUserId: 111 });
   });
 
+  describe('metadata-only publication changes', () => {
+    it.each([
+      { field: 'kind', workflow: 'SAVE' },
+      { field: 'teamId', workflow: 'SAVE' },
+      { field: 'positionId', workflow: 'SAVE' },
+      { field: 'kind', workflow: 'REVISE' },
+      { field: 'teamId', workflow: 'REVISE' },
+      { field: 'positionId', workflow: 'REVISE' },
+    ] as const)(
+      'notifies only the affected employee once for $workflow changing $field',
+      async ({ field, workflow }) => {
+        const team = await org.createTeam({ orgUnitId: unitId, name: 'Metadata team' }, PLANNER);
+        const position = await org.createPosition(
+          { code: `META_${randomUUID().slice(0, 8).toUpperCase()}`, name: 'Metadata position' },
+          PLANNER,
+        );
+        await testDb.db
+          .insert(telegramAccounts)
+          .values({ employeeId: petrova, telegramUserId: 222 });
+        const original = await schedule.createVersion(
+          { siteId, orgUnitId: unitId, periodMonth: MONTH },
+          PLANNER,
+        );
+        const affected = {
+          employeeId: ivanov,
+          templateId: dayId,
+          businessDate: day(1),
+          kind: 'REGULAR' as const,
+        };
+        const unchanged = { ...affected, employeeId: petrova };
+        await schedule.putAssignments(original.id, { items: [affected, unchanged] }, PLANNER);
+        await schedule.submit(original.id, PLANNER);
+        await schedule.publish(original.id, {}, HEAD);
+        const metadata =
+          field === 'kind'
+            ? { kind: 'EXTRA' as const }
+            : field === 'teamId'
+              ? { teamId: team.id }
+              : { positionId: position.id };
+        const items = [{ ...affected, ...metadata }, unchanged];
+        let published: ScheduleVersionView;
+        if (workflow === 'REVISE') {
+          published = await schedule.revise(
+            original.id,
+            { items, changeReason: 'Metadata update' },
+            HEAD,
+          );
+        } else {
+          const next = await schedule.createVersion(
+            { siteId, orgUnitId: unitId, periodMonth: MONTH },
+            PLANNER,
+          );
+          await schedule.putAssignments(next.id, { items }, PLANNER);
+          await schedule.submit(next.id, PLANNER);
+          published = await schedule.publish(next.id, { changeReason: 'Metadata update' }, HEAD);
+        }
+        const notifications = await testDb.db
+          .select()
+          .from(notificationOutbox)
+          .where(eq(notificationOutbox.template, 'SCHEDULE_CHANGED'));
+        expect(notifications).toHaveLength(1);
+        expect(notifications[0]).toMatchObject({
+          recipientId: ivanov,
+          dedupeKey: `schedule:${published.id}:${ivanov}`,
+        });
+        expect(notifications[0]?.payload.text).toMatch(/добавлено 0, отменено 0, изменено 1/);
+        expect(notifications[0]?.payload.buttons?.[0]?.[0]?.callbackData).toBe(
+          `ack:${published.id}`,
+        );
+        const events = await testDb.db
+          .select()
+          .from(domainEvents)
+          .where(eq(domainEvents.scheduleVersionId, published.id));
+        expect(events.find((event) => event.type === 'SCHEDULE_PUBLISHED')?.payload).toMatchObject({
+          affected: 1,
+          notified: 1,
+        });
+        const detail = await schedule.detail(published.id);
+        expect(
+          detail.assignments.find((assignment) => assignment.employeeId === ivanov),
+        ).toMatchObject(metadata);
+      },
+    );
+  });
+
   describe('scoped decision history', () => {
     afterEach(() => vi.restoreAllMocks());
     const read = (id: string, page = 1, pageSize = 20) =>

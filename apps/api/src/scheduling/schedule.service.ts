@@ -1239,6 +1239,9 @@ export class ScheduleService {
       isNight: r.isNight,
       templateCode: r.templateCode,
       zoneId: r.a.zoneId,
+      kind: r.a.kind,
+      teamId: r.a.teamId,
+      positionId: r.a.positionId,
     }));
     const byId = new Map(rows.map((r) => [r.a.id, r]));
     const monthPlan = buildMonthPlan(planned, month);
@@ -1380,6 +1383,9 @@ export class ScheduleService {
       isNight: r.isNight,
       templateCode: r.templateCode,
       zoneId: r.a.zoneId,
+      kind: r.a.kind,
+      teamId: r.a.teamId,
+      positionId: r.a.positionId,
     }));
   }
 

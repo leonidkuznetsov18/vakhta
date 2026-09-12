@@ -32,6 +32,10 @@ export interface PlannedShift {
   readonly isNight: boolean;
   readonly templateCode: string;
   readonly zoneId: string | null;
+  /** Older callers omit metadata; publication equivalence uses REGULAR/null defaults. */
+  readonly kind?: ShiftKind;
+  readonly teamId?: string | null;
+  readonly positionId?: string | null;
 }
 
 /** Життєвий цикл версії за ТЗ 3.1. null означає, що перехід заборонений. */

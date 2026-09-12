@@ -16,7 +16,10 @@ function sameShift(a: PlannedShift, b: PlannedShift): boolean {
     a.planStartAt.getTime() === b.planStartAt.getTime() &&
     a.planEndAt.getTime() === b.planEndAt.getTime() &&
     a.zoneId === b.zoneId &&
-    a.templateCode === b.templateCode
+    a.templateCode === b.templateCode &&
+    (a.kind ?? 'REGULAR') === (b.kind ?? 'REGULAR') &&
+    (a.teamId ?? null) === (b.teamId ?? null) &&
+    (a.positionId ?? null) === (b.positionId ?? null)
   );
 }
 
