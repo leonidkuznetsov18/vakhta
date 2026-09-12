@@ -168,3 +168,8 @@ Begin T004–T006 prototype and T052 matrix/runbook while policy answers and hum
 
 - [x] T067 [US1] Share existing future/unacknowledged publication eligibility between timer admission and ACK_REMINDER relay validation; validate automatic/manual reminder identity, preserve retry ownership.
 - [x] T068 [US1] Verify stale publication/acknowledgement/retry suppression and valid delivery with real DB tests; type/lint, independent review, then record exact evidence and remaining #7 gaps.
+
+## Workspace feedback and visual QA — #6
+
+- [x] T069 [US1] Aggregate enabled main-workspace queries, distinguish missing templates from failed reads, align Create/Restore handlers and disabled state; focused regressions and review.
+- [x] T070 [US1] Inspect desktop/390px contextual create and grouping/undo, all three locale period controls, and empty-template feedback; capture evidence and record synthetic-only limits.

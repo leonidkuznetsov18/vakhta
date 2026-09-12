@@ -597,3 +597,32 @@ remaining domain streams retain their outstanding acceptance criteria.
   exact metadata publication preview and integrated redesign acceptance remain subsequent work.
 - Next: integration owner delivers this bounded worker change through existing CI/release, then
   continues #7 without treating timer admission or queued state as Telegram delivery evidence.
+
+### Main workspace feedback and interface QA — #6
+
+- Aggregate enabled org/list/templates/roster/current-detail queries into one shared QueryFeedback,
+  following the existing Overview pattern. Retain failure-specific text/retry and paused feedback;
+  cached refresh stays in the header. Disabled dependent queries cannot create an endless loader.
+- Missing active templates now use a visible success-gated Alert instead of the ignored Feedback
+  notice prop. Create/Continue and Restore derive their availability from the same condition as the
+  handler; failed reads cannot leave an apparently working button that silently returns.
+- Workspace tests: 32 passed (four additional loading/empty-versus-failure/cached-list regressions).
+  Panel TypeScript/React Compiler build and scoped ESLint passed. Independent review found no blocker.
+- Captured and inspected desktop/mobile missing-template alerts. A temporary synthetic empty-template
+  fetch response was installed only in the agent's preview tab, then removed by reload. No production
+  records or user tab were changed. The existing full stored interval remains readable when directory
+  template metadata is unavailable.
+- Additional browser evidence: context creation inherited 10 September and its zone, employee/template
+  selection enabled Apply, Enter applied the local change, keyboard Close worked, switching grouping
+  kept the selected date/assignment, and Undo returned Save to zero. Screenshots cover the desktop and
+  390px Sheet. Synthetic local draft was discarded after QA. Page width equals viewport width at 390px.
+- English week picker and Russian month picker/day list were visually inspected; the picker exposes
+  localized month/year and whole weeks or twelve months without day selection respectively. Russian
+  390px page width also equals viewport. Ukrainian preview restored after testing. These browser checks
+  use synthetic data and keyboard/pointer interaction, not real production personnel or a device pilot.
+- Evidence: `context-create.png`, `context-create-mobile.png`, `week-picker-en.png`,
+  `month-picker-ru.png`, `day-ru-mobile.png`, `missing-templates.png`, `missing-templates-mobile.png`
+  in `docs/engineering/evidence/schedule-ui-2026-09-13/`.
+- Lean: one waiting surface and a visible actionable explanation reduce duplicate reading and inert
+  clicks. Full #6/#7 acceptance remains open for the outstanding integrated workflow evidence; no
+  participant baseline or production cutover is inferred.

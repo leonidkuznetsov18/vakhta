@@ -31,6 +31,7 @@ import {
 import { useScheduleDrafts } from './store';
 import { scheduleCommands, useScheduleCommands, commandWasRejected } from './commands';
 import { useScheduleRoster } from './roster';
+import { workspaceFeedback } from './feedback';
 import { PRESET_KEY, clearSchedulePreset, type SchedulePreset } from './preset';
 
 const t = messages(currentLocale()).scheduleWorkspace;
@@ -251,9 +252,12 @@ export function useWorkspace() {
     setPicked({ scope, id });
     setEditing(id);
   }
+  const canCreateDraft =
+    !!actorId && !commandsBlocked && rights.edit && !!orgUnitId && versionsQuery.isSuccess;
+  const canRestoreDraft =
+    legacy && !!version && canEdit && !commandsBlocked && detailQuery.isSuccess;
   function createDraft() {
-    if (!actorId || commandsBlocked || !rights.edit || !orgUnitId || !versionsQuery.isSuccess)
-      return;
+    if (!canCreateDraft) return;
     const draft = versions.find((value) => value.status === 'DRAFT');
     if (draft) {
       select(draft);
@@ -337,7 +341,22 @@ export function useWorkspace() {
     setPicked(null);
     setEditing(null);
   }
+  const feedback = workspaceFeedback([
+    { query: orgResult.queryState },
+    ...(actorId && siteId && orgUnitId ? [{ query: versionsQuery }] : []),
+    ...(actorId && siteId ? [{ query: templatesQuery }] : []),
+    ...(canReadEmployees
+      ? [{ query: employeeResult.queryState, errorMessage: t.rosterUnavailable }]
+      : []),
+    ...(actorId && id ? [{ query: detailQuery }] : []),
+    ...(canReadEmployees && employeeResult.loaded
+      ? extraQueries.map((query) => ({ query, errorMessage: t.namesUnavailable }))
+      : []),
+  ]);
   return {
+    feedback,
+    canCreateDraft,
+    canRestoreDraft,
     orgResult,
     employeeResult,
     canReadEmployees,
@@ -371,8 +390,7 @@ export function useWorkspace() {
     timezone: org?.sites.find((site) => site.id === siteId)?.timezone ?? 'UTC',
     recorded: detail?.assignments ?? [],
     restoreLegacy() {
-      if (legacy && version && canEdit && !busy && detailQuery.isSuccess)
-        store.restore(draftKey, grid, baseline, version.revision);
+      if (canRestoreDraft && version) store.restore(draftKey, grid, baseline, version.revision);
     },
     store,
     busy,

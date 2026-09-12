@@ -245,3 +245,13 @@ Verify real-DB queued-then-superseded, queued-then-acknowledged, retry after ack
 manual/automatic live delivery, invalid provenance, and exhausted future assignment cases. Reuse
 existing reminder admission/locking tests. No employee messages or screenshots are required because
 this changes delivery eligibility only, not visible wording/layout.
+
+### Workspace feedback hardening (#6)
+
+Aggregate the main workspace's enabled directory/list/template/detail queries through the existing
+QueryFeedback primitive (same pattern as Overview). One loading/offline/error surface keeps cached
+content readable and preserves each error's retry target/message. Dialog-owned queries remain local.
+Show missing templates only after a successful empty response. Derive create/continue and legacy
+restore availability once for both handlers and buttons. Verify initial concurrent loads, successful
+empty versus failed templates, and cached list failure with unchanged local intent. No business
+policy or period ownership change. Lean: remove duplicate waiting indicators and inert actions.

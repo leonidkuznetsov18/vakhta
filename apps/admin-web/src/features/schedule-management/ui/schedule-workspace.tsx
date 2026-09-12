@@ -82,18 +82,7 @@ function WorkspaceContent() {
           />
         )}
       </div>
-      <QueryFeedback query={w.orgResult.queryState} />
-      <QueryFeedback query={w.versionsQuery} />
-      <QueryFeedback query={w.templatesQuery} />
-      {w.canReadEmployees && (
-        <QueryFeedback query={w.employeeResult.queryState} errorMessage={t.rosterUnavailable} />
-      )}
-      {w.extraQueries
-        .filter((query) => query.isError)
-        .slice(0, 1)
-        .map((query) => (
-          <QueryFeedback key="names" query={query} errorMessage={t.namesUnavailable} />
-        ))}
+      <QueryFeedback {...w.feedback} />
       <Feedback error={readError(w.error)} />
       <CommandRecovery workspace={w} />
       {w.unownedDraft && (
@@ -107,7 +96,7 @@ function WorkspaceContent() {
           text={t.empty}
           action={
             w.rights.edit ? (
-              <Button disabled={w.commandsBlocked} onClick={w.createDraft}>
+              <Button disabled={!w.canCreateDraft} onClick={w.createDraft}>
                 {t.create}
               </Button>
             ) : undefined
@@ -192,7 +181,6 @@ function WorkspaceView({
   }
   return (
     <div className="space-y-4 min-w-0">
-      <QueryFeedback query={w.detailQuery} />
       {version && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -219,7 +207,7 @@ function WorkspaceView({
                 w.rights.edit &&
                 version.status !== 'DRAFT' &&
                 (existingDraft || !w.rights.publish) && (
-                  <Button variant="outline" disabled={w.commandsBlocked} onClick={w.createDraft}>
+                  <Button variant="outline" disabled={!w.canCreateDraft} onClick={w.createDraft}>
                     {existingDraft ? t.continueDraft : t.create}
                   </Button>
                 )}
@@ -282,14 +270,18 @@ function WorkspaceView({
             <section className="space-y-3 rounded-lg border p-3">
               <p className="text-sm">{t.legacy}</p>
               <AssignmentChanges changes={assignmentChanges(w.baseline, w.localGrid)} labels={w} />
-              <Button disabled={w.busy} onClick={w.restoreLegacy}>
+              <Button disabled={!w.canRestoreDraft} onClick={w.restoreLegacy}>
                 {t.restore}
               </Button>
             </section>
           )}
-          {w.editMode && !w.templates.some((template) => template.isActive) && (
-            <Feedback error={null} notice={t.missingTemplates} />
-          )}
+          {w.editMode &&
+            w.templatesQuery.isSuccess &&
+            !w.templates.some((template) => template.isActive) && (
+              <Alert>
+                <AlertDescription>{t.missingTemplates}</AlertDescription>
+              </Alert>
+            )}
           <Tabs
             value={visibleGrouping}
             onValueChange={(value) => {

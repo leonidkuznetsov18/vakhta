@@ -186,6 +186,10 @@ function mockApi(
     saveGate?: Promise<void>;
     lostResponse?: boolean;
     savedDetail?: ScheduleVersionDetail;
+    readGate?: Promise<void>;
+    templatesEmpty?: boolean;
+    templatesFail?: boolean;
+    listFail?: boolean;
   },
   snapshot: typeof org = org,
   roster = employees,
@@ -243,6 +247,7 @@ function mockApi(
         headers: { 'content-type': 'application/json' },
       });
     };
+    if (method === 'GET' && state.readGate) await state.readGate;
     if (path === '/admin/org') return json(snapshot);
     if (url.pathname === '/admin/employees/page') {
       const after = url.searchParams.get('after');
@@ -254,8 +259,12 @@ function mockApi(
         nextCursor: remaining.length > 200 ? items.at(-1)?.id : null,
       });
     }
-    if (path.startsWith('/admin/schedules/templates')) return json(templates);
+    if (path.startsWith('/admin/schedules/templates'))
+      return state.templatesFail
+        ? json({ message: 'Template read failed' }, 500)
+        : json(state.templatesEmpty ? [] : templates);
     if (path.startsWith('/admin/schedules?')) {
+      if (state.listFail) return json({ message: 'Version read failed' }, 500);
       const list =
         state.status === 'EMPTY' && !state.created
           ? []
@@ -420,6 +429,60 @@ describe('schedule workspace', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+  });
+  it('shows one loading surface for simultaneous workspace reads without inventing empty data', async () => {
+    let resolveReads: () => void = () => undefined;
+    const readGate = new Promise<void>((resolve) => {
+      resolveReads = resolve;
+    });
+    mockApi({ status: 'DRAFT', readGate });
+    admin();
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(screen.queryByText(t.empty)).toBeNull();
+    expect(screen.queryByText(t.missingTemplates)).toBeNull();
+    await act(async () => {
+      resolveReads();
+      await readGate;
+    });
+    await screen.findByRole('button', { name: t.edit });
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+  it.each([false, true])(
+    'distinguishes missing templates from a failed read (failure %s)',
+    async (templatesFail) => {
+      mockApi({ status: 'DRAFT', templatesEmpty: true, templatesFail });
+      admin();
+      fireEvent.click(await screen.findByRole('button', { name: t.edit }));
+      if (templatesFail) {
+        await screen.findByRole('button', { name: messages(currentLocale()).ui.common.retry });
+        expect(screen.queryByText(t.missingTemplates)).toBeNull();
+      } else expect(await screen.findByText(t.missingTemplates)).toBeTruthy();
+    },
+  );
+  it('disables continuing a cached draft after its version list fails and recovers on retry', async () => {
+    const state = { status: 'PUBLISHED', created: true, listFail: false };
+    const calls = mockApi(state);
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    renderRaw(account(), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    const button = await screen.findByRole('button', { name: t.continueDraft });
+    expect(button.hasAttribute('disabled')).toBe(false);
+    state.listFail = true;
+    await act(async () => {
+      await client.invalidateQueries();
+    });
+    await waitFor(() => expect(button.hasAttribute('disabled')).toBe(true));
+    fireEvent.click(button);
+    expect(commands(calls)).toHaveLength(0);
+    state.listFail = false;
+    fireEvent.click(
+      screen.getByRole('button', { name: messages(currentLocale()).ui.common.retry }),
+    );
+    await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
+    client.clear();
   });
   it('isolates local edits and server reads when the signed-in account changes', async () => {
     const calls = mockApi({ status: 'DRAFT' });
