@@ -97,6 +97,11 @@ export function DateField({
                 locale={dayPickerLocale()}
                 captionLayout="dropdown"
                 defaultMonth={selected}
+                endMonth={
+                  maxDate
+                    ? fromIsoDate(maxDate)
+                    : new Date((selected?.getFullYear() ?? new Date().getFullYear()) + 100, 11)
+                }
                 weekStartsOn={1}
                 mode="single"
                 selected={selected}

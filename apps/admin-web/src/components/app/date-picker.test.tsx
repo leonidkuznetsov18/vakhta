@@ -83,6 +83,7 @@ describe('calendar field selection units', () => {
     render(<DateField label="Day" value="2026-09-10" onChange={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Day' }));
     expect(screen.getByRole('grid')).toBeTruthy();
+    expect(screen.getByRole('option', { name: '2027' })).toBeTruthy();
   });
 
   it('selects a month and year without day cells', () => {
