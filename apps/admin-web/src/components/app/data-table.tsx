@@ -299,7 +299,10 @@ export function RowMenu({
           <MoreHorizontalIcon aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent
+        align="end"
+        className="w-max min-w-40 max-w-[min(20rem,var(--radix-dropdown-menu-content-available-width))]"
+      >
         {actions.map((a) => (
           <div key={a.key}>
             {a.separator ? <DropdownMenuSeparator /> : null}

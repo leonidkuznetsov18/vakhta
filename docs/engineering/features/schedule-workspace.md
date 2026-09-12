@@ -112,3 +112,12 @@ remain intact, and IDs/time ranges are unchanged. One feature-local label functi
 surfaces consistent. Lean: workers no longer translate technical codes while choosing a shift.
 Nine workspace interaction tests and focused ESLint/format checks passed. Desktop 1440×900 and mobile
 390×844 preview screenshots were captured and visually inspected with translated choices and hours.
+
+## Compact worker action menu — 2026-09-12
+
+The worker action is now Remove all shifts in all three catalogs. Shared `RowMenu` uses content
+width bounded by the viewport/20rem instead of inheriting the small icon trigger's width. This removes
+word-by-word wrapping while preserving full labels and existing local undo/publication behavior.
+Lean: reduce reading effort without another confirmation step. Desktop 1440×900 and mobile 390×844
+screenshots were captured and visually checked: the action fits on one line. ESLint, catalog build,
+formatting and diff checks passed; no scheduling behavior changed.
