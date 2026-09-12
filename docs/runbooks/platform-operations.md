@@ -210,3 +210,18 @@ Resolver `1681a76` passed CI `34483329441` at `3824f13`: no new release, Pages v
 announcement skipped, API/worker images unchanged. It does not alter the Railway CI gate. See the
 release delivery engineering memory for the distinction between deployed fallback and synthetic rerun
 regression coverage. Timer rollout and broader bonus recovery remain separate verification gates.
+
+### Local release tags missing from the Git history — 2026-09-12
+
+GitHub releases `v0.93.3` through `v0.93.8` had matching remote Git tags, but this checkout only knew
+local tags through `v0.93.2`. Release commits alone do not prove that the local tag refs are current.
+Compare `git ls-remote --tags origin` with `git tag` before changing release automation or creating tags.
+
+The checkout now uses `git config --local remote.origin.tagOpt --tags`; `git fetch origin --tags`
+restores the missing local refs and future ordinary origin fetches include all tags. Explicit
+`--no-tags` from a GUI overrides this default. Never force-update or recreate existing release tags.
+
+Run `34692945641` stopped before release because the shared help test still asserted obsolete Schedule
+copy. The test now verifies the current catalog's steps and questions while preserving its collapse,
+expand and FAQ interaction assertions. The release pipeline correctly withheld publication after the
+failed check; semantic-release tag creation and the existing Telegram announcement path are unchanged.
