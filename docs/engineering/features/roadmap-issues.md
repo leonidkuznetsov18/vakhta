@@ -57,6 +57,13 @@ are the evidence for this internal change; no invented manufacturing time-saving
 
 ## Remaining product decisions
 
+The later calendar research follow-up updates the live bodies of #1, #4–20 and #39/#40 and adds
+native Schedule child #54 for integrated acceptance and safe cutover. The original publication totals,
+`catalog.json` and receipts above describe the initial 53-issue snapshot, not a synchronization source
+for overwriting later edits. See [Schedule engineering memory](schedule-calendar-redesign.md#github-backlog-research-follow-up)
+and the [updated roadmap index](../roadmap.md). No SC capability, operating-policy approval or
+implementation completion is added by this backlog refinement.
+
 Calendar library/license and prototype, operating policies, staffing/qualification ownership,
 AI pilot curation and enrolled unit, provider budget, escalation recipient/channel and numerical
 release thresholds remain in their respective issues. Competitor-inspired modules require a real

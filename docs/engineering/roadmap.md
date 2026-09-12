@@ -33,6 +33,14 @@ Epic: [#1](https://github.com/leonidkuznetsov18/vakhta/issues/1).
 | [#18](https://github.com/leonidkuznetsov18/vakhta/issues/18) | Records and output — Add notes linked evidence reports print and export          | backlog        | T-13, SC-39, SC-40, SC-41, SC-42, SC-43, SC-50               |
 | [#19](https://github.com/leonidkuznetsov18/vakhta/issues/19) | Personal feeds and proposals — Offer revocable calendars and reviewed allocation | backlog        | T-14, SC-44, SC-45                                           |
 | [#20](https://github.com/leonidkuznetsov18/vakhta/issues/20) | Forecasts and costs — Define separately approved HR and financial scope          | deferred       | T-15, SC-46, SC-47, SC-48, SC-49                             |
+| [#54](https://github.com/leonidkuznetsov18/vakhta/issues/54) | Rollout and acceptance — Verify calendar parity and safe cutover                 | backlog        | AC-01–11, UX-01–15; cross-cutting rollout evidence           |
+
+Calendar research follow-up, 2026-09-12: #1 and #4–20 incorporate the
+[Deputy/When I Work research](../research/2026-09-12-deputy-wheniwork-calendar-deep-research.md).
+Related discovery #39/#40 maps into the same implementation owners. New native child #54 owns
+integrated acceptance, compatibility/cutover and pilot evidence; it adds no SC capability and does
+not replace the existing implementation issues. A first bounded release does not complete the full
+redesign. The initial publication snapshot remains historical; GitHub contains the updated bodies.
 
 ## AI Master
 

@@ -310,6 +310,33 @@ scheduling interaction measurements.
 
 ## Verification record and remaining work
 
+### GitHub backlog research follow-up
+
+Owner request, 2026-09-12: review [Schedule epic #1](https://github.com/leonidkuznetsov18/vakhta/issues/1),
+update existing Calendar/redesign issues and create only genuinely missing work. Reviewed all
+17 original Schedule children and related workforce discovery. The original issue catalog pins sources
+from before the deep-research revision; its `catalog.json` and publication receipts remain historical snapshots.
+
+- Updated #1 and #4–20 with research links, concrete design constraints and additional acceptance
+  checks, preserving original criteria, stable markers, source IDs, titles and lifecycle labels.
+- Updated #39/#40 with explicit reuse mappings to Schedule owners; #48/#49/#53 already provide
+  related qualification/document/delivery discovery and needed no duplicate implementation issue.
+- Created [#54 — Schedule | Rollout and acceptance | Verify calendar parity and safe cutover](https://github.com/leonidkuznetsov18/vakhta/issues/54)
+  as a native child of #1. It owns the cross-cutting evidence matrix, compatibility/cutover runbook,
+  relevant desktop/mobile/worker journeys and measured pilot. It adds no SC capability; SC-46–49
+  remain deferred behind #20 and D-07.
+- The 50-capability catalog and T-00–15 implementation ownership remain unchanged. #54 reuses child
+  evidence and closes only against explicit accepted scope, not merely a successful first release.
+- Live GitHub readback passed for all 20 edited bodies and new #54: exact text, original titles/states/
+  labels, unique stable markers, all SC-01–50 source IDs and 18 native Schedule children. Unrelated
+  issue bodies remained unchanged; #20 retains its deferred status. Local document links, formatting
+  and diff-whitespace checks passed. No application code, runtime tests or production actions changed.
+- Lean review: **Proceed / Simplify**. Enrich existing streams rather than duplicate component,
+  rule-engine or workflow ownership; add only the missing integrated acceptance owner. No new worker
+  steps, guessed performance targets or production/OEE claims are introduced.
+
+### Documentation delivery evidence
+
 - 2026-09-12: documentation-only consolidation. Inspected current product docs, feature memory,
   scheduling contracts/schema/controller and source continuity since the original research baseline.
 - 2026-09-12 deep-research follow-up: checked local links across the three changed documents,
