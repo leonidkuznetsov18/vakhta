@@ -92,3 +92,14 @@ measure time, mistakes and explanations needed. No measured productivity claim i
 Master write permissions and staffing requirements remain unchanged. The existing employee and
 version-list caps remain a server limitation; unknown staffing requirements are never labelled as
 shortages. Production deployment/CI evidence is reported with the delivery, not inferred from preview.
+
+## Selected zone/day visibility — 2026-09-12
+
+- Replace the low-contrast secondary fill with the shared primary button tokens and a separated
+  selection outline. Day/night icons inherit the selected foreground for light/dark contrast.
+  `aria-pressed` exposes the same existing zone/date selection; changing or closing the row removes
+  the previous selected state. No scheduling rules or mutation behavior changed.
+- Lean: make the currently inspected team obvious without another click or legend.
+- Verified and visually inspected preview screenshots at 1440×900 in light and dark themes and
+  390×844 on mobile. Switching dates left exactly one pressed day. Focused ESLint, formatting and
+  diff checks passed; no new tests or full build for this presentation-only correction.

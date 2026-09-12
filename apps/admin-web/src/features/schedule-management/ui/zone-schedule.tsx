@@ -54,6 +54,7 @@ export function ZoneSchedule({
       label: formatDate(date),
       minWidth: '5.5rem',
       cell: (row: ZoneRow) => {
+        const selected = opened === row.id && selectedDate === date;
         const counts = summarize(
           row.items.filter((item) => item.businessDate === date),
           w.templates,
@@ -62,8 +63,9 @@ export function ZoneSchedule({
         );
         return (
           <Button
-            variant={opened === row.id && selectedDate === date ? 'secondary' : 'ghost'}
-            className="h-auto min-h-11 w-full flex-col gap-1 px-2 py-1 tabular-nums"
+            variant={selected ? 'default' : 'ghost'}
+            aria-pressed={selected}
+            className="h-auto min-h-11 w-full flex-col gap-1 px-2 py-1 tabular-nums aria-pressed:ring-2 aria-pressed:ring-primary aria-pressed:ring-offset-2 aria-pressed:ring-offset-background"
             aria-label={`${row.zone?.name ?? t.noZone}, ${date}, ${t.dayShift}: ${counts.day}, ${t.nightShift}: ${counts.night}`}
             onClick={(event) => {
               event.stopPropagation();
@@ -73,11 +75,21 @@ export function ZoneSchedule({
             }}
           >
             <span className="inline-flex items-center gap-1.5">
-              <SunIcon className="size-3.5 text-amber-600 dark:text-amber-400" aria-hidden />
+              <SunIcon
+                className={
+                  selected ? 'size-3.5 text-current' : 'size-3.5 text-amber-600 dark:text-amber-400'
+                }
+                aria-hidden
+              />
               {counts.day}
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <MoonIcon className="size-3.5 text-blue-600 dark:text-blue-400" aria-hidden />
+              <MoonIcon
+                className={
+                  selected ? 'size-3.5 text-current' : 'size-3.5 text-blue-600 dark:text-blue-400'
+                }
+                aria-hidden
+              />
               {counts.night}
             </span>
           </Button>
