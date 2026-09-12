@@ -334,14 +334,12 @@ describe('worker: релей аутбоксу і нагадування (ADR-8, 
       return { now, version, assignment, sender: new FakeSender() };
     }
     async function acknowledge(assignmentId: string, versionId: string) {
-      await testDb.db
-        .insert(assignmentAcknowledgements)
-        .values({
-          assignmentId,
-          employeeId: linkedEmployeeId,
-          scheduleVersionId: versionId,
-          source: 'TELEGRAM',
-        });
+      await testDb.db.insert(assignmentAcknowledgements).values({
+        assignmentId,
+        employeeId: linkedEmployeeId,
+        scheduleVersionId: versionId,
+        source: 'TELEGRAM',
+      });
     }
 
     it.each([false, true])(
@@ -349,14 +347,12 @@ describe('worker: релей аутбоксу і нагадування (ADR-8, 
       async (manual) => {
         const { now, version, sender } = await queuedAcknowledgement(manual);
         // The stored text/button is not authority for which publication can be acknowledged.
-        await testDb.db
-          .update(notificationOutbox)
-          .set({
-            payload: {
-              text: 'old text',
-              buttons: [[{ text: 'old action', callbackData: `ack:${randomUUID()}` }]],
-            },
-          });
+        await testDb.db.update(notificationOutbox).set({
+          payload: {
+            text: 'old text',
+            buttons: [[{ text: 'old action', callbackData: `ack:${randomUUID()}` }]],
+          },
+        });
         expect(await relayOnce(testDb.db, sender, { now: () => now })).toMatchObject({ sent: 1 });
         expect(sender.sent).toHaveLength(1);
         expect(sender.sent[0]?.chatId).toBe(777);
@@ -416,17 +412,15 @@ describe('worker: релей аутбоксу і нагадування (ADR-8, 
     it('retains delivery when another future assignment of the same employee remains unacknowledged', async () => {
       const { now, sender, assignment, version } = await queuedAcknowledgement();
       await acknowledge(assignment.id, version.id);
-      await testDb.db
-        .insert(shiftAssignments)
-        .values({
-          scheduleVersionId: version.id,
-          employeeId: linkedEmployeeId,
-          templateId: assignment.templateId,
-          orgUnitId: assignment.orgUnitId,
-          businessDate: '2026-10-03',
-          planStartAt: new Date('2026-10-03T05:00:00Z'),
-          planEndAt: new Date('2026-10-03T17:00:00Z'),
-        });
+      await testDb.db.insert(shiftAssignments).values({
+        scheduleVersionId: version.id,
+        employeeId: linkedEmployeeId,
+        templateId: assignment.templateId,
+        orgUnitId: assignment.orgUnitId,
+        businessDate: '2026-10-03',
+        planStartAt: new Date('2026-10-03T05:00:00Z'),
+        planEndAt: new Date('2026-10-03T17:00:00Z'),
+      });
       expect(await relayOnce(testDb.db, sender, { now: () => now })).toMatchObject({
         sent: 1,
         skipped: 0,
