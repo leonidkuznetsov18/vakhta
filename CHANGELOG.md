@@ -1,3 +1,9 @@
+## [0.93.5](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.4...v0.93.5) (2026-09-12)
+
+### Bug fixes
+
+* **admin:** compact contextual actions with accessible icon buttons ([1367bce](https://github.com/leonidkuznetsov18/vakhta/commit/1367bce3845ef37ac851c288943e3802984a733f))
+
 ## [0.93.4](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.3...v0.93.4) (2026-09-12)
 
 ### Bug fixes
