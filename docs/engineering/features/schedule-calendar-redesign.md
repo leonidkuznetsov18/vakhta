@@ -441,3 +441,15 @@ regressions: 19 passed, including browsing another year without committing until
 and retaining month mode across scope changes. i18n catalogs: 10 passed; affected ESLint and
 admin-web TypeScript/Compiler build passed. Updated week/month screenshots supersede earlier picker
 captures. Lean: Simplify; period navigation is available where the period is read.
+
+### Calendar component prototype acceptance — #5
+
+T005 completed after the owner UI corrections: 500-worker/7,000-entry group projections, 8.5-hour
+custom interval rendering, overnight date, whole/segment inspection, keyboard conflict and successful
+Move, bounded overflow, desktop/mobile capture and measured constraints. Exact sample values and
+limitations are in the [component research](../../../specs/002-schedule-calendar-redesign/research.md).
+Five focused date-picker tests, affected ESLint and admin-web TypeScript/Compiler build passed.
+The date picker now also exposes future years rather than DayPicker's default current-year ceiling.
+Segment editing, custom-time persistence, production move rules and participant baseline remain
+owned by later streams; prototype completion does not approve those policies. Lean: Proceed with
+installed primitives; no paid engine or new worker input is needed for the demonstrated renderer.

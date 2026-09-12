@@ -19,7 +19,7 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 **Story**: US1 | **Dependencies**: #4 for prototype scope | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
 - [x] T004 [US1] Prototype controlled resource/date/item API and zone/person/day/week/cross-month projections in apps/admin-web/src/shared/ui/resource-calendar/ and apps/admin-web/src/preview/calendar-prototype.tsx (#5).
-- [ ] T005 [US1] Measure 500-person fixture, inspect desktop/390px and keyboard Move/custom interval/segment/conflict demonstrations in apps/admin-web/src/preview.tsx (#5).
+- [x] T005 [US1] Measure 500-person fixture, inspect desktop/390px and keyboard Move/custom interval/segment/conflict demonstrations in apps/admin-web/src/preview.tsx (#5).
 - [x] T006 [US1] Record chosen API, official license/capability matrix, performance evidence and alternatives in research.md and docs/adr/ (#5).
 
 ## Phase 3: Calendar workspace — #6

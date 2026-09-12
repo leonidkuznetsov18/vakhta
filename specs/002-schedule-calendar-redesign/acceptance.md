@@ -104,7 +104,8 @@ affected ESLint and admin-web build (TypeScript/Compiler included) passed. Synth
 screenshots were captured and inspected, including localized Sheets and keyboard focus return.
 [The engineering memory](../../docs/engineering/features/schedule-calendar-redesign.md) records
 exact scope and limitations. SC-11/12/21/30 have partial local evidence; T009 and full child #6
-acceptance remain open. T005 still needs custom-interval demonstration and final integrated evidence.
+acceptance remain open. T005 is now complete for its controlled rendering prototype; custom interval/segment inspection,
+keyboard Move/conflict, measured constraints and screenshots are recorded in research.md.
 No DB concurrency, production operation, human baseline, full SC acceptance or pilot is inferred.
 
 HOLD: no redesigned release, participant baseline or unit pilot accepted. Preserve current operational

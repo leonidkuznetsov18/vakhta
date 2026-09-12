@@ -45,10 +45,16 @@ export function CalendarPrototype() {
   const [selection, setSelection] = useState<CalendarSelection | null>(null);
   const [target, setTarget] = useState(date);
   const [error, setError] = useState('');
+  const [partId, setPartId] = useState('whole');
   const selected = entries.find((item) => item.id === selection?.itemId);
   const dates = mode === 'day' ? [date] : mode === 'week' ? DATES.slice(0, 7) : DATES;
   const count = grouping === 'people' ? WORKERS : ZONES + 1;
   const buckets = new Map<string, CalendarItem[]>();
+  const hours = new Intl.NumberFormat(currentLocale(), {
+    style: 'unit',
+    unit: 'hour',
+    unitDisplay: 'short',
+  });
   const endDateFormat = new Intl.DateTimeFormat(currentLocale(), {
     day: '2-digit',
     month: '2-digit',
@@ -67,7 +73,12 @@ export function CalendarPrototype() {
         grouping === 'people'
           ? `Zone ${entry.zone + 1}`
           : `Worker ${entry.employee + 1} · Long manufacturing employee name`,
-      time: entry.employee % 2 ? `20:00–${endDate} 08:00 12 h` : '08:00–20:00 12 h',
+      time:
+        entry.employee === 2
+          ? `10:15–18:45 ${hours.format(8.5)}`
+          : entry.employee % 2
+            ? `20:00–${endDate} 08:00 ${hours.format(12)}`
+            : `08:00–20:00 ${hours.format(12)}`,
       description: entry.employee % 2 ? t.nightShift : t.dayShift,
       status: t.current,
       tone: entry.employee % 2 ? 'indigo' : 'amber',
@@ -117,8 +128,11 @@ export function CalendarPrototype() {
     -1,
     `${selection?.resourceId}:${selection?.date}`,
   );
+  const selectedView = selectedCell?.items.find((item) => item.id === selected?.id);
+  const selectedPart = selectedView?.parts?.find((part) => part.id === partId);
   function pick(value: CalendarSelection) {
     setSelection(value);
+    setPartId('whole');
     setTarget(value.date);
     setError('');
   }
@@ -175,7 +189,11 @@ export function CalendarPrototype() {
             { value: 'fortnight', label: '14' },
           ]}
           onChange={(value) => {
-            if (value === 'day' || value === 'week' || value === 'fortnight') setMode(value);
+            if (value === 'day' || value === 'week' || value === 'fortnight') {
+              setMode(value);
+              const range = value === 'week' ? DATES.slice(0, 7) : DATES;
+              if (value !== 'day' && !range.includes(date)) setDate(DATES[0] ?? date);
+            }
           }}
         />
       </div>
@@ -198,11 +216,24 @@ export function CalendarPrototype() {
                   <p>
                     Worker {selected.employee + 1} · Zone {selected.zone + 1}
                   </p>
-                  {selectedCell?.items
-                    .find((item) => item.id === selected.id)
-                    ?.parts?.map((part) => (
-                      <p key={part.id}>{part.label}</p>
-                    ))}
+                  {selectedView?.parts && (
+                    <SelectField
+                      label={t.inspectScope}
+                      value={partId}
+                      onChange={setPartId}
+                      options={[
+                        { value: 'whole', label: t.wholeAssignment },
+                        ...selectedView.parts.map((part) => ({
+                          value: part.id,
+                          label: part.label,
+                        })),
+                      ]}
+                    />
+                  )}
+                  <p>{selectedPart ? selectedPart.label : selectedView?.time}</p>
+                  {!selectedPart &&
+                    selectedView?.parts?.map((part) => <p key={part.id}>{part.label}</p>)}
+                  <p className="text-sm text-muted-foreground">{t.prototypeMoveScope}</p>
                   <DateField label={t.date} value={target} onChange={setTarget} />
                   <Feedback error={error || null} />
                   <Button disabled={target === selected.date} onClick={move}>
