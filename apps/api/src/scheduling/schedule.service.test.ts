@@ -1,3 +1,6 @@
+import { ScheduleHistoryPage } from '@vakhta/contracts';
+import { auditLog } from '@vakhta/db';
+import { ScheduleHistoryService } from './schedule-history.service.js';
 import { randomUUID } from 'node:crypto';
 import { authUser, webUserRoles, idempotencyKeys, domainEvents } from '@vakhta/db';
 import {
@@ -146,6 +149,236 @@ describe('scheduling: версії, валідація, публікація, о
       )
     ).id;
     await testDb.db.insert(telegramAccounts).values({ employeeId: ivanov, telegramUserId: 111 });
+  });
+
+  describe('scoped decision history', () => {
+    afterEach(() => vi.restoreAllMocks());
+    const read = (id: string, page = 1, pageSize = 20) =>
+      new ScheduleHistoryService(testDb.db, schedule).history(id, { page, pageSize });
+    const create = () =>
+      schedule.createVersion({ siteId, orgUnitId: unitId, periodMonth: MONTH }, PLANNER);
+
+    async function reviewedVersion() {
+      const version = await create();
+      await schedule.putAssignments(
+        version.id,
+        {
+          items: [{ employeeId: ivanov, templateId: dayId, businessDate: day(1), kind: 'REGULAR' }],
+        },
+        PLANNER,
+      );
+      await schedule.submit(version.id, PLANNER);
+      await schedule.returnToDraft(version.id, { comment: 'First return reason' }, HEAD);
+      await schedule.submit(version.id, PLANNER);
+      await schedule.returnToDraft(version.id, { comment: 'Second return reason' }, HEAD);
+      await schedule.submit(version.id, PLANNER);
+      return schedule.publish(version.id, { changeReason: 'First publication reason' }, HEAD);
+    }
+
+    it('preserves every return reason and publication decision independently of the latest summary', async () => {
+      const original = await reviewedVersion();
+      const replacement = await create();
+      await schedule.submit(replacement.id, PLANNER);
+      await schedule.publish(replacement.id, { changeReason: 'Second publication reason' }, HEAD);
+      const page = ScheduleHistoryPage.parse(await read(original.id));
+      expect(page.total).toBe(8);
+      expect(
+        page.entries.filter((entry) => entry.action === 'RETURN').map((entry) => entry.reason),
+      ).toEqual(['Second return reason', 'First return reason']);
+      expect(page.entries.find((entry) => entry.action === 'PUBLISH')).toMatchObject({
+        reason: 'First publication reason',
+        fromStatus: 'IN_REVIEW',
+        toStatus: 'PUBLISHED',
+      });
+      expect(page.entries.find((entry) => entry.action === 'SAVE')).toMatchObject({
+        assignmentCount: 1,
+      });
+      expect(page.lineage).toEqual({
+        supersedes: null,
+        supersededBy: { id: replacement.id, versionNo: 2 },
+      });
+      const next = await read(replacement.id);
+      expect(next.entries.find((entry) => entry.action === 'PUBLISH')?.reason).toBe(
+        'Second publication reason',
+      );
+      expect(next.entries.find((entry) => entry.action === 'CREATE')).toMatchObject({
+        basedOnVersionId: original.id,
+      });
+      expect(next.lineage.supersedes).toEqual({ id: original.id, versionNo: 1 });
+    });
+
+    it('resolves only current labels for the recorded actor type and leaves missing actors nullable', async () => {
+      const version = await create();
+      await testDb.db
+        .insert(authUser)
+        .values({ id: ivanov, email: `old-${ivanov}@test.invalid`, name: 'Not the email label' });
+      const missing = randomUUID();
+      for (const actor of [
+        { type: 'WEB_USER', id: ivanov, role: 'ADMIN' },
+        { type: 'EMPLOYEE', id: ivanov, role: 'EMPLOYEE' },
+        { type: 'TERMINAL', id: ivanov, role: 'TERMINAL' },
+        { type: 'SYSTEM', id: null, role: 'SYSTEM' },
+        { type: 'WEB_USER', id: missing, role: 'ADMIN' },
+      ] as const) {
+        await new AuditLog().record(testDb.db, {
+          actor,
+          action: 'schedule.version.return',
+          objectType: 'schedule_version',
+          objectId: version.id,
+          reason: 'Recorded reason',
+        });
+      }
+      const email = `current-${ivanov}@test.invalid`;
+      await testDb.db.update(authUser).set({ email }).where(eq(authUser.id, ivanov));
+      const page = await read(version.id);
+      const decisions = page.entries.filter((entry) => entry.reason === 'Recorded reason');
+      expect(decisions).toHaveLength(5);
+      expect(
+        decisions.find((entry) => entry.actorType === 'WEB_USER' && entry.actorId === ivanov)
+          ?.actorLabel,
+      ).toBe(email);
+      expect(decisions.find((entry) => entry.actorType === 'EMPLOYEE')?.actorLabel).toBe(
+        'Иванов Иван',
+      );
+      expect(decisions.find((entry) => entry.actorType === 'TERMINAL')).toMatchObject({
+        actorId: ivanov,
+        actorLabel: null,
+      });
+      expect(decisions.find((entry) => entry.actorType === 'SYSTEM')).toMatchObject({
+        actorId: null,
+        actorLabel: null,
+      });
+      expect(decisions.find((entry) => entry.actorId === missing)?.actorLabel).toBeNull();
+    });
+
+    it('pages equal timestamps by ID and excludes other objects/actions and raw audit metadata', async () => {
+      const version = await create();
+      const at = new Date('2099-01-01T00:00:00Z');
+      const ids = [randomUUID(), randomUUID(), randomUUID()].sort().reverse();
+      await testDb.db.insert(auditLog).values(
+        ids.map((id) => ({
+          id,
+          at,
+          actorType: 'SYSTEM' as const,
+          action: 'schedule.assignments.replace',
+          objectType: 'schedule_version',
+          objectId: version.id,
+          after: { count: 2, privateField: 'NEVER_EXPOSE' },
+          before: { privateField: 'NEVER_EXPOSE' },
+          ip: '192.0.2.1',
+          traceId: 'PRIVATE_TRACE',
+          reason: 'Repeated reason',
+        })),
+      );
+      await testDb.db.insert(auditLog).values([
+        {
+          actorType: 'SYSTEM',
+          action: 'schedule.version.publish',
+          objectType: 'employee',
+          objectId: version.id,
+        },
+        {
+          actorType: 'SYSTEM',
+          action: 'employee.status.change',
+          objectType: 'schedule_version',
+          objectId: version.id,
+        },
+        {
+          actorType: 'SYSTEM',
+          action: 'schedule.version.publish',
+          objectType: 'schedule_version',
+          objectId: randomUUID(),
+        },
+      ]);
+      const first = await read(version.id, 1, 2);
+      const second = await read(version.id, 2, 2);
+      expect(first.total).toBe(4);
+      expect(first.entries.map((entry) => entry.id)).toEqual(ids.slice(0, 2));
+      expect(second.entries[0]?.id).toBe(ids[2]);
+      expect(new Set([...first.entries, ...second.entries].map((entry) => entry.id)).size).toBe(4);
+      expect(await read(version.id, 3, 2)).toMatchObject({ total: 4, entries: [] });
+      expect(JSON.stringify(first)).not.toMatch(
+        /NEVER_EXPOSE|PRIVATE_TRACE|192\.0\.2\.1|"before"|"after"|"ip"|"traceId"/,
+      );
+    });
+
+    it('projects malformed historical status/count references as unknown without hiding the reason', async () => {
+      const version = await create();
+      for (const action of [
+        'schedule.version.create',
+        'schedule.assignments.replace',
+        'schedule.version.publish',
+        'schedule.version.remind',
+      ]) {
+        await new AuditLog().record(testDb.db, {
+          actor: PLANNER,
+          action,
+          objectType: 'schedule_version',
+          objectId: version.id,
+          reason: 'Historical reason',
+          before: { status: 'INVALID' },
+          after: { status: 3, count: '3', basedOn: 'invalid', reminded: -1, pending: '2' },
+        });
+      }
+      const entries = (await read(version.id)).entries.filter(
+        (entry) => entry.reason === 'Historical reason',
+      );
+      expect(entries).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ action: 'CREATE', basedOnVersionId: null }),
+          expect.objectContaining({ action: 'SAVE', assignmentCount: null }),
+          expect.objectContaining({ action: 'PUBLISH', fromStatus: null, toStatus: null }),
+          expect.objectContaining({ action: 'REMIND', reminded: null, pending: null }),
+        ]),
+      );
+    });
+
+    it('never resolves a lineage reference into another unit', async () => {
+      const version = await create();
+      await testDb.db.insert(scheduleVersions).values({
+        siteId,
+        orgUnitId: otherUnitId,
+        periodMonth: MONTH,
+        versionNo: 1,
+        supersedesId: version.id,
+      });
+      expect((await read(version.id)).lineage).toEqual({ supersedes: null, supersededBy: null });
+    });
+
+    it('keeps the count and page in one read snapshot while a later decision is appended', async () => {
+      const version = await create();
+      let release: () => void = () => {};
+      const released = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let reached: () => void = () => {};
+      const snapshotRead = new Promise<void>((resolve) => {
+        reached = resolve;
+      });
+      const requireVersion = schedule.requireVersion.bind(schedule);
+      const pause = vi.spyOn(schedule, 'requireVersion').mockImplementation(async (id, tx) => {
+        const result = await requireVersion(id, tx);
+        reached();
+        await released;
+        return result;
+      });
+      const reading = read(version.id);
+      await snapshotRead;
+      await new AuditLog().record(testDb.db, {
+        actor: PLANNER,
+        action: 'schedule.version.return',
+        objectType: 'schedule_version',
+        objectId: version.id,
+        reason: 'Concurrent decision',
+      });
+      release();
+      expect(await reading).toMatchObject({
+        total: 1,
+        entries: [expect.objectContaining({ action: 'CREATE' })],
+      });
+      pause.mockRestore();
+      expect((await read(version.id)).total).toBe(2);
+    });
   });
 
   describe('snapshot acknowledgement', () => {

@@ -3,6 +3,8 @@ import { apiFetch } from '@/api';
 import {
   ScheduleWebCommand,
   ScheduleCommandResult,
+  ScheduleHistoryPage,
+  type ScheduleHistoryQuery,
   ScheduleVersionView,
   ScheduleVersionDetail,
   ShiftTemplateView,
@@ -26,6 +28,13 @@ export const scheduleApi = {
       ),
     );
     return z.array(readVersion).parse(await apiFetch(`${root}?${query}`, { signal }));
+  },
+  async history(id: string, input: ScheduleHistoryQuery, signal: AbortSignal) {
+    const query = new URLSearchParams({
+      page: String(input.page),
+      pageSize: String(input.pageSize),
+    });
+    return ScheduleHistoryPage.parse(await apiFetch(`${root}/${id}/history?${query}`, { signal }));
   },
   async detail(id: string, signal: AbortSignal) {
     return readDetail.parse(await apiFetch(`${root}/${id}`, { signal }));

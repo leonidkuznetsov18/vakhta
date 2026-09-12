@@ -6,6 +6,7 @@ import { AdminSchedulesController } from './admin-schedules.controller.js';
 import { SCHEDULE_OPTIONS, ScheduleService, type ScheduleOptions } from './schedule.service.js';
 import { ScheduleCommandService } from './schedule-command.service.js';
 import { TemplatesService } from './templates.service.js';
+import { ScheduleHistoryService } from './schedule-history.service.js';
 
 @Module({
   imports: [OrgModule],
@@ -14,6 +15,7 @@ import { TemplatesService } from './templates.service.js';
     TemplatesService,
     ScheduleService,
     ScheduleCommandService,
+    ScheduleHistoryService,
     {
       provide: SCHEDULE_OPTIONS,
       useFactory: (config: ConfigService<Env, true>): ScheduleOptions => ({

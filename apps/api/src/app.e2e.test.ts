@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
-import { ScheduleCommandResult } from '@vakhta/contracts';
+import { ScheduleCommandResult, ScheduleHistoryPage, ScheduleVersionView } from '@vakhta/contracts';
 import { authUser, eq, webUserRoles } from '@vakhta/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
@@ -306,6 +306,125 @@ describe('e2e: межі доступу панелі', () => {
       payload: { siteId: site!.id, orgUnitId: unit!.id, periodMonth: 'вересень' },
     });
     expect(invalid.statusCode).toBe(400);
+  });
+
+  it('schedule history HTTP boundary matches detail scope and exposes only validated decision pages', async () => {
+    const [site] = await db
+      .insert(sites)
+      .values({ code: 'HISTORY', name: 'History', timezone: 'Europe/Kyiv' })
+      .returning();
+    const [otherSite] = await db
+      .insert(sites)
+      .values({ code: 'HISTORY_OTHER', name: 'Other history site', timezone: 'Europe/Kyiv' })
+      .returning();
+    if (!site || !otherSite) throw new Error('History site fixtures missing');
+    const units = await db
+      .insert(orgUnits)
+      .values([
+        { siteId: site.id, name: 'Allowed history' },
+        { siteId: site.id, name: 'Outside unit' },
+        { siteId: otherSite.id, name: 'Outside site' },
+      ])
+      .returning();
+    const allowedUnit = units[0];
+    const [planner] = await db
+      .select()
+      .from(authUser)
+      .where(eq(authUser.email, 'planner@e2e.test'));
+    if (!allowedUnit || !planner) throw new Error('History scope fixtures missing');
+    await db.insert(webUserRoles).values({
+      userId: planner.id,
+      role: 'PLANNER',
+      scopeType: 'ORG_UNIT',
+      scopeId: allowedUnit.id,
+    });
+    const versions = [];
+    for (const unit of units) {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/admin/schedules',
+        headers: as('admin@e2e.test'),
+        payload: { siteId: unit.siteId, orgUnitId: unit.id, periodMonth: '2026-11' },
+      });
+      expect(response.statusCode).toBe(201);
+      versions.push(ScheduleVersionView.parse(response.json()));
+    }
+    const allowed = versions[0];
+    if (!allowed) throw new Error('History version missing');
+    const url = `/admin/schedules/${allowed.id}/history`;
+    expect((await app.inject({ method: 'GET', url })).statusCode).toBe(401);
+    expect(
+      (await app.inject({ method: 'GET', url, headers: as('nobody@e2e.test') })).statusCode,
+    ).toBe(403);
+    for (const version of versions) {
+      const expected = version.orgUnitId === allowedUnit.id ? 200 : 403;
+      for (const suffix of ['', '/history']) {
+        expect(
+          (
+            await app.inject({
+              method: 'GET',
+              url: `/admin/schedules/${version.id}${suffix}`,
+              headers: as('planner@e2e.test'),
+            })
+          ).statusCode,
+        ).toBe(expected);
+      }
+    }
+    // Read-only panel roles retain the same history access as detail; no editor privilege is needed.
+    expect(
+      (await app.inject({ method: 'GET', url, headers: as('master@e2e.test') })).statusCode,
+    ).toBe(200);
+    for (const query of ['?page=0', '?pageSize=101', '?page=x', `?actorId=${planner.id}`]) {
+      expect(
+        (
+          await app.inject({
+            method: 'GET',
+            url: `${url}${query}`,
+            headers: as('planner@e2e.test'),
+          })
+        ).statusCode,
+      ).toBe(400);
+    }
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/admin/schedules/not-a-uuid/history',
+          headers: as('admin@e2e.test'),
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: `/admin/schedules/${randomUUID()}/history`,
+          headers: as('admin@e2e.test'),
+        })
+      ).statusCode,
+    ).toBe(404);
+    const response = await app.inject({
+      method: 'GET',
+      url: `${url}?page=1&pageSize=1`,
+      headers: as('planner@e2e.test'),
+    });
+    const page = ScheduleHistoryPage.parse(response.json());
+    expect(page).toMatchObject({
+      versionId: allowed.id,
+      page: 1,
+      pageSize: 1,
+      total: 1,
+      entries: [{ action: 'CREATE', actorType: 'WEB_USER', actorLabel: 'admin@e2e.test' }],
+      lineage: { supersedes: null, supersededBy: null },
+    });
+    expect(response.body).not.toMatch(/"before"|"after"|"ip"|"traceId"/);
+    const empty = await app.inject({
+      method: 'GET',
+      url: `${url}?page=2&pageSize=1`,
+      headers: as('planner@e2e.test'),
+    });
+    expect(ScheduleHistoryPage.parse(empty.json())).toMatchObject({ total: 1, entries: [] });
+    await db.delete(webUserRoles).where(eq(webUserRoles.userId, planner.id));
   });
 
   it('schedule command HTTP boundary validates, scopes, replays and preserves deleted receipts', async () => {

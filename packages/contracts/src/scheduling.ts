@@ -220,3 +220,63 @@ export const MyPlanView = z.object({
   unacknowledgedVersionIds: z.array(Uuid),
 });
 export type MyPlanView = z.infer<typeof MyPlanView>;
+
+export const ScheduleHistoryQuery = z
+  .object({
+    page: z.coerce.number().int().min(1).max(1000000).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .strict();
+export type ScheduleHistoryQuery = z.infer<typeof ScheduleHistoryQuery>;
+
+const ScheduleHistoryIdentity = z.object({
+  id: Uuid,
+  at: IsoDateTime,
+  actorType: z.enum(['EMPLOYEE', 'WEB_USER', 'SYSTEM', 'TERMINAL']),
+  actorId: Uuid.nullable(),
+  /** Current directory label, not a historical name snapshot. */
+  actorLabel: z.string().nullable(),
+  reason: z.string().nullable(),
+});
+
+export const ScheduleHistoryEntry = z.discriminatedUnion('action', [
+  ScheduleHistoryIdentity.extend({
+    action: z.literal('CREATE'),
+    basedOnVersionId: Uuid.nullable(),
+  }).strict(),
+  ScheduleHistoryIdentity.extend({
+    action: z.literal('SAVE'),
+    assignmentCount: z.number().int().nonnegative().nullable(),
+  }).strict(),
+  ScheduleHistoryIdentity.extend({
+    action: z.enum(['SUBMIT', 'RETURN', 'PUBLISH']),
+    fromStatus: ScheduleStatusSchema.nullable(),
+    toStatus: ScheduleStatusSchema.nullable(),
+  }).strict(),
+  ScheduleHistoryIdentity.extend({
+    action: z.literal('REMIND'),
+    reminded: z.number().int().nonnegative().nullable(),
+    pending: z.number().int().nonnegative().nullable(),
+  }).strict(),
+]);
+export type ScheduleHistoryEntry = z.infer<typeof ScheduleHistoryEntry>;
+
+const ScheduleHistoryVersionReference = z
+  .object({ id: Uuid, versionNo: z.number().int().positive() })
+  .strict();
+export const ScheduleHistoryPage = z
+  .object({
+    versionId: Uuid,
+    page: z.number().int().positive(),
+    pageSize: z.number().int().positive().max(100),
+    total: z.number().int().nonnegative(),
+    entries: z.array(ScheduleHistoryEntry),
+    lineage: z
+      .object({
+        supersedes: ScheduleHistoryVersionReference.nullable(),
+        supersededBy: ScheduleHistoryVersionReference.nullable(),
+      })
+      .strict(),
+  })
+  .strict();
+export type ScheduleHistoryPage = z.infer<typeof ScheduleHistoryPage>;

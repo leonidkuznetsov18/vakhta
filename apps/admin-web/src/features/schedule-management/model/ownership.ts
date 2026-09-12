@@ -21,6 +21,8 @@ export function scheduleDraftKey(
 export const scheduleKeys = {
   all: (access: string) => ['schedules', access] as const,
   list: (access: string, input: unknown) => ['schedules', access, 'list', input] as const,
+  history: (access: string, id: string, page: number, size: number) =>
+    ['schedules', access, 'history', id, page, size] as const,
   detail: (access: string, id: string | null) => ['schedules', access, 'detail', id] as const,
   templates: (access: string, siteId: string) =>
     ['schedules', access, 'templates', siteId] as const,

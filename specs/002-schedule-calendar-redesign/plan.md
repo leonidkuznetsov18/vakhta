@@ -270,3 +270,18 @@ No Redis snapshot storage/expiry, migrations, acknowledgement transfer, future-o
 publication audience or new business policy. Required evidence: real DB stale/new-publication,
 month isolation, repeat/concurrent taps, employee/scope mismatch, lock-wait change and rollback;
 bot legacy/new callback routing, localized feedback and callback byte size. Independent review.
+
+### Scoped version decision history (#7, SC-19)
+
+Accepted backend scope: add GET /admin/schedules/:id/history with the existing detail role and
+site/unit authorization before reading audit rows. Use a dedicated ScheduleHistoryService and narrow
+validated shared DTO; page/pageSize follows the existing photo-library bounds/defaults. A read-only
+repeatable-read transaction returns count/page ordered by at DESC, id DESC. Allowlist only existing
+schedule-version create/save/submit/return/publish/remind audit actions for the exact version object.
+Preserve every decision reason; never replace repeated returns with current version summary.
+Expose recorded actor type/id and current nullable WEB_USER email or EMPLOYEE name; never infer
+names for another actor type. Project only typed status/count/based-on fields, not raw JSON/IP/trace.
+Same-scope/month supersession lineage is separate from audit entries. No generic audit access,
+mutation, migration, notification policy or frontend change. Validate real-DB repeated reasons,
+actor collisions/missing identities, stable pagination and omitted unrelated/sensitive data; test
+HTTP authentication, role/unit scope, invalid ID/query and narrow response. Independent review.

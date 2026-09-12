@@ -178,3 +178,10 @@ Begin T004–T006 prototype and T052 matrix/runbook while policy answers and hum
 
 - [x] T071 [US1] Bind Home/Plan acknowledgement to the displayed employee/scope snapshot; retain one button and atomic existing acknowledgement/event ownership, make legacy ack:all refresh-only.
 - [x] T072 [US1] Verify stale publication, month isolation, identity mismatch, repeat/concurrency/rollback and Telegram callbacks with focused real-DB/bot tests; record review and limitations.
+
+## Scoped decision history — #7
+
+- [x] T073 [US1] Add authorized paginated version audit history and narrow actor/status/count/lineage DTO, preserving append-only reasons and current-label semantics.
+- [x] T074 [US1] Verify real-DB actor/scope/reason/pagination and HTTP boundaries, contracts/API checks and independent review; hand off the read-only frontend integration.
+
+- [x] T075 [US1] Integrate scoped history into a read-only Sheet with original assignment IDs/statuses/instants/acknowledgements, paginated decisions and full reasons; verify desktop/mobile and regressions.

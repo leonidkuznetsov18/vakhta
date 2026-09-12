@@ -198,6 +198,52 @@ export function scheduleFixture(url: URL, method: string, body: unknown): unknow
   const [, , , id, action] = url.pathname.split('/');
   const version = versions.find((v) => v.id === id);
   if (!version) return null;
+  if (action === 'history') {
+    const page = Number(url.searchParams.get('page') ?? 1);
+    const pageSize = Number(url.searchParams.get('pageSize') ?? 20);
+    const entries = [
+      {
+        id: 'f0000000-0000-4000-8000-000000000001',
+        at: version.publishedAt ?? version.createdAt,
+        actorType: 'WEB_USER',
+        actorId: null,
+        actorLabel: 'Preview planner',
+        reason:
+          'Coverage reviewed for both shifts.\nThe recorded decision remains available in full.',
+        action: 'PUBLISH',
+        fromStatus: 'IN_REVIEW',
+        toStatus: 'PUBLISHED',
+      },
+      {
+        id: 'f0000000-0000-4000-8000-000000000002',
+        at: version.createdAt,
+        actorType: 'WEB_USER',
+        actorId: null,
+        actorLabel: 'Preview planner',
+        reason: null,
+        action: 'SAVE',
+        assignmentCount: version.assignmentsCount,
+      },
+      {
+        id: 'f0000000-0000-4000-8000-000000000003',
+        at: version.createdAt,
+        actorType: 'SYSTEM',
+        actorId: null,
+        actorLabel: null,
+        reason: null,
+        action: 'CREATE',
+        basedOnVersionId: null,
+      },
+    ];
+    return {
+      versionId: id,
+      page,
+      pageSize,
+      total: entries.length,
+      entries: entries.slice((page - 1) * pageSize, page * pageSize),
+      lineage: { supersedes: null, supersededBy: null },
+    };
+  }
   if (
     method === 'DELETE' ||
     ['assignments', 'submit', 'return', 'publish', 'revise'].includes(action ?? '')

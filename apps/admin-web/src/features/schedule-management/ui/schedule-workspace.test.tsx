@@ -308,6 +308,29 @@ function mockApi(
         assignments: [],
       });
     }
+    if (url.pathname === `/admin/schedules/${VERSION}/history`) {
+      const page = Number(url.searchParams.get('page'));
+      const pageSize = Number(url.searchParams.get('pageSize'));
+      const entries = Array.from({ length: 21 }, (_, index) => ({
+        id: `f0000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+        at: '2026-09-01T12:00:00Z',
+        actorType: 'WEB_USER',
+        actorId: ACTOR,
+        actorLabel: 'Recorded reviewer',
+        reason: `Original decision ${index + 1}\nFull reason retained`,
+        action: 'RETURN',
+        fromStatus: 'IN_REVIEW',
+        toStatus: 'DRAFT',
+      }));
+      return json({
+        versionId: VERSION,
+        page,
+        pageSize,
+        total: entries.length,
+        entries: entries.slice((page - 1) * pageSize, page * pageSize),
+        lineage: { supersedes: null, supersededBy: null },
+      });
+    }
     if (path === `/admin/schedules/${VERSION}`) {
       const result = state.savedDetail ?? detail(state.status);
       return json({
@@ -429,6 +452,53 @@ describe('schedule workspace', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+  });
+  it('opens read-only history with all recorded assignment states, exact instants and paginated reasons', async () => {
+    const saved = ScheduleVersionDetail.parse(detail('PUBLISHED'));
+    const original = saved.assignments[0];
+    if (!original) throw new Error('Missing assignment fixture');
+    saved.assignments = [
+      original,
+      { ...original, id: EMP2, status: 'CANCELLED', acknowledgedAt: '2026-09-02T10:00:00Z' },
+      { ...original, id: ZONE, status: 'REPLACED', kind: 'EXTRA' },
+      { ...original, id: UNIT, kind: 'REPLACEMENT' },
+      { ...original, id: SITE, kind: 'SWAP' },
+    ];
+    const calls = mockApi({ status: 'PUBLISHED', savedDetail: saved });
+    admin();
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: t.history }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    const panel = await screen.findByRole('tabpanel', { name: t.history });
+    const origin = await within(panel).findByRole('button', { name: /v1/ });
+    origin.focus();
+    fireEvent.click(origin);
+    const sheet = await screen.findByRole('dialog');
+    expect(await within(sheet).findByText(t.historyCancelled)).toBeTruthy();
+    expect(within(sheet).getByText(t.historyReplaced)).toBeTruthy();
+    expect(within(sheet).getByText(t.historyExtra)).toBeTruthy();
+    expect(within(sheet).getByText(t.historyReplacement)).toBeTruthy();
+    expect(within(sheet).getByText(t.historySwap)).toBeTruthy();
+    expect(within(sheet).getAllByText(/20:00.*08:00/)).toHaveLength(5);
+    expect(await within(sheet).findByText(/Original decision 1\s/)).toBeTruthy();
+    expect(within(sheet).queryByRole('button', { name: s.deleteVersion })).toBeNull();
+    const pagination = messages(currentLocale()).ui.pagination;
+    fireEvent.click(within(sheet).getByRole('button', { name: pagination.next }));
+    expect(await within(sheet).findByText(/Original decision 21\s/)).toBeTruthy();
+    expect(within(sheet).queryByText(/Original decision 1\s/)).toBeNull();
+    expect(calls.some((call) => call.path.endsWith('/history?page=2&pageSize=20'))).toBe(true);
+    const decisions = within(sheet).getByRole('region', { name: t.historyDecisions });
+    fireEvent.change(within(decisions).getByRole('combobox', { name: pagination.pageSize }), {
+      target: { value: '50' },
+    });
+    await waitFor(() =>
+      expect(calls.some((call) => call.path.endsWith('/history?page=1&pageSize=50'))).toBe(true),
+    );
+    fireEvent.click(
+      within(sheet).getByRole('button', { name: messages(currentLocale()).ui.common.close }),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(origin));
   });
   it('shows one loading surface for simultaneous workspace reads without inventing empty data', async () => {
     let resolveReads: () => void = () => undefined;

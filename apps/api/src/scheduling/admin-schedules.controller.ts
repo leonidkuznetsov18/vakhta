@@ -13,6 +13,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ScheduleHistoryQuery,
+  type ScheduleHistoryPage,
   ScheduleRevisionPrecondition,
   ScheduleWebCommand,
   type ScheduleCommandResult,
@@ -42,6 +44,7 @@ import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { ScheduleService } from './schedule.service.js';
 import { ScheduleCommandService } from './schedule-command.service.js';
 import { TemplatesService } from './templates.service.js';
+import { ScheduleHistoryService } from './schedule-history.service.js';
 
 const ALL_PANEL_ROLES: WebRole[] = [
   'ADMIN',
@@ -74,6 +77,7 @@ export class AdminSchedulesController {
     private readonly schedules: ScheduleService,
     private readonly templates: TemplatesService,
     private readonly commands: ScheduleCommandService,
+    private readonly historyService: ScheduleHistoryService,
   ) {}
 
   @Post('commands')
@@ -119,6 +123,17 @@ export class AdminSchedulesController {
   ): Promise<ScheduleVersionView> {
     assertScope(user, EDITORS, { siteId: body.siteId, orgUnitId: body.orgUnitId });
     return this.schedules.createVersion(body, webUserActor(user));
+  }
+
+  @Get(':id/history')
+  async history(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query(new ZodValidationPipe(ScheduleHistoryQuery)) query: ScheduleHistoryQuery,
+    @CurrentUser() user: WebUser,
+  ): Promise<ScheduleHistoryPage> {
+    const version = await this.schedules.requireVersion(id);
+    assertScope(user, ALL_PANEL_ROLES, { siteId: version.siteId, orgUnitId: version.orgUnitId });
+    return this.historyService.history(id, query);
   }
 
   @Get(':id')

@@ -591,6 +591,11 @@ remaining domain streams retain their outstanding acceptance criteria.
   cancelled/replaced/start boundary and malformed/mismatched identity). Existing admission locks,
   durable recovery and rollback tests passed unchanged. Worker typecheck and affected ESLint pass;
   independent read-only review found no blocker. Logs: `/tmp/vakhta-schedule-ack-delivery/`.
+- Correction: the original `format.log` reported worker.test.ts warnings; the handoff incorrectly
+  called formatting passed. [CI 34725635925](https://github.com/leonidkuznetsov18/vakhta/actions/runs/34725635925)
+  then failed format:check on this file. Root-level Prettier now corrects its three line-wrapping
+  differences; no behavior changed and existing worker test evidence is reused. Final correction
+  format evidence is recorded with the scoped history delivery below.
 - Limits: committed eligibility is checked before each send; it can still change after that read.
   Telegram send and the DB commit remain non-atomic. No production employee action or delivery was
   manufactured. Full #7 stays open: snapshot-bound `ack:all`, actor/time/reason history presentation,
@@ -664,3 +669,42 @@ showed one connection-waiting message while retaining the calendar on desktop an
 Restoring the network removed the message. Captured and inspected `schedule-offline.png` and
 `schedule-offline-mobile.png`; all network/device overrides were cleared. This exercises cached
 offline reading, not production delivery or an offline mutation.
+
+### 2026-09-13 — Scoped version decision history (#7, SC-19 accepted)
+
+- Existing historical version summary loses repeated return/publish decisions. Add a dedicated
+  same-detail-authorized paginated audit projection, stable at/id ordering and repeatable-read
+  count/page. Only approved schedule actions, recorded actor identity/current nullable label,
+  original reason and typed status/count/based-on detail; same-scope lineage stays separate.
+- Lean: Proceed. Bring the recorded decision beside the version instead of requiring a generic
+  audit search or inferring reasons from the latest summary. No new worker action/data collection.
+  Names are current directory labels, not historical identity snapshots.
+- Implemented strict ScheduleHistoryQuery/Entry/Page contracts and dedicated history service/route.
+  Six real-DB cases passed: repeated decisions/reasons, current labels and actor-type collisions,
+  stable tied timestamps/pagination and sensitive-field exclusion, malformed historical metadata,
+  lineage scope, and consistent count/page during a concurrent append. One full HTTP case passed:
+  authentication, role/site/unit parity with detail, query/UUID validation and narrow paginated data.
+  Contracts build, API typecheck, affected ESLint and independent read-only review passed. Logs:
+  `/tmp/vakhta-schedule-history/{contracts-build,typecheck,service-tests,http-tests,lint}.log`.
+- Root-level formatting corrects the prior worker CI failure; its diff is three line-wrap changes
+  only, so no worker behavior tests were rerun. Final format/diff evidence is in the same log folder.
+- Lean completion: the endpoint preserves decisions without a generic audit search or extra worker
+  steps. Existing versions only; directory labels are current, offset pages are consistent per
+  request but not frozen across later appends. No historical draft grids or supersession event
+  timestamps are invented. Original-assignment read-only frontend remains integration-owner work;
+  this backend increment alone does not close full #7.
+- Frontend integration complete: history opens a read-only Sheet; original AssignmentView IDs,
+  cancelled/replaced rows, all four kinds, recorded instants in site timezone and acknowledgement
+  time are retained. Paginated decisions preserve full multiline reasons and actor fallback;
+  lineage navigation retains the original row focus. No editing/deletion controls in this surface.
+- Frontend regression suite: 33 passed, including original states, overnight times, kinds, original
+  reasons, page 2, page-size changes and keyboard focus restoration. i18n build, panel build and
+  scoped lint passed. Logs `/tmp/vakhta-history-{i18n,web-tests,web-build,web-lint}.log`.
+  Independent review found pagination stale-state, incomplete kind labels and lost return focus;
+  all corrected and re-reviewed clean. Initial test failures were harness event/locale assertions,
+  corrected before the passing run. Build has the existing large-chunk warning.
+- Captured and visually inspected synthetic preview `history-decisions.png`,
+  `history-decisions-mobile.png`, `history-assignments-mobile.png` at desktop/390px. Full reasons fit,
+  page width remains 390px, keyboard opens/closes with no automatic tooltip. Mobile decision text
+  uses the full card width. No production employee actions or live Telegram messages were made.
+  Lean completion: one version surface preserves evidence without a separate generic audit search.
