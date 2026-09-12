@@ -1,3 +1,13 @@
+## [0.94.3](https://github.com/leonidkuznetsov18/vakhta/compare/v0.94.2...v0.94.3) (2026-09-12)
+
+### Documentation
+
+* **research:** deepen connecteam analysis and refine workforce backlog ([5d7d452](https://github.com/leonidkuznetsov18/vakhta/commit/5d7d452a23ed5bfd8b39dc97a3e2734b8edb7d25))
+
+### Maintenance
+
+* **release:** integrate v0.94.2 metadata before research delivery ([b00502c](https://github.com/leonidkuznetsov18/vakhta/commit/b00502ca88cc50c8a1091bc288fc9173641313b7))
+
 ## [0.94.2](https://github.com/leonidkuznetsov18/vakhta/compare/v0.94.1...v0.94.2) (2026-09-12)
 
 ### Documentation
