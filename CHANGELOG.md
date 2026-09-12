@@ -1,3 +1,14 @@
+## [0.94.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.8...v0.94.0) (2026-09-12)
+
+### Features
+
+* **admin:** redesign schedule planning around zones and reviewed changes ([d5954ea](https://github.com/leonidkuznetsov18/vakhta/commit/d5954ea5107192fe4cc4a9c5fb7d0b548edd08cb))
+* **admin:** show AI usefulness in the photo library ([a028a7a](https://github.com/leonidkuznetsov18/vakhta/commit/a028a7af9466bb92ae2efcc14a4c1de970cc6849))
+
+### Tests
+
+* **admin:** align schedule help checks with current guide ([8e56de0](https://github.com/leonidkuznetsov18/vakhta/commit/8e56de01a9aaf31627c877176329c16d35ed0926))
+
 ## [0.93.8](https://github.com/leonidkuznetsov18/vakhta/compare/v0.93.7...v0.93.8) (2026-09-12)
 
 ### Bug fixes
