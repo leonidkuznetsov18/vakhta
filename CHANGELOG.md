@@ -1,3 +1,26 @@
+## [1.0.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.95.0...v1.0.0) (2026-09-12)
+
+### ⚠ BREAKING CHANGES
+
+* **schedule:** Existing-version schedule mutations require expectedRevision. Reload older panel clients before writing.
+
+### Bug fixes
+
+* **schedule:** clarify calendar cells and period selection ([f72dfe4](https://github.com/leonidkuznetsov18/vakhta/commit/f72dfe41c45170cfe3cb038cff04fd15bd6261ac))
+* **schedule:** load and search the complete employee roster ([ce68fd8](https://github.com/leonidkuznetsov18/vakhta/commit/ce68fd89a7dae195fc6341376fe71916d72d659c)), closes [#9](https://github.com/leonidkuznetsov18/vakhta/issues/9)
+* **schedule:** navigate months and years from period pickers ([fca6840](https://github.com/leonidkuznetsov18/vakhta/commit/fca684084bbec018e744b8dcf14a1c52ec328a86))
+* **schedule:** reject stale version mutations ([14d3360](https://github.com/leonidkuznetsov18/vakhta/commit/14d33604db239ffbcbb9c9a798671a56b85be238)), closes [#9](https://github.com/leonidkuznetsov18/vakhta/issues/9)
+* **ui:** allow future years in date selection ([6adaafb](https://github.com/leonidkuznetsov18/vakhta/commit/6adaafb785e3a9226b935c899e86b9dc39c6752b))
+* **ui:** suppress tooltips during overlay autofocus ([f7a1c9f](https://github.com/leonidkuznetsov18/vakhta/commit/f7a1c9fe98e2fcdd26e40a7d179a0c50320ccfc5))
+
+### Maintenance
+
+* **release:** integrate v0.95.0 metadata ([738bd74](https://github.com/leonidkuznetsov18/vakhta/commit/738bd74778712087211f095ab357c661685a0f60))
+
+### Tests
+
+* **schedule:** complete controlled calendar prototype evidence ([e05e512](https://github.com/leonidkuznetsov18/vakhta/commit/e05e51223e64b38984a58bdeb4a2aca30f358b84))
+
 ## [0.95.0](https://github.com/leonidkuznetsov18/vakhta/compare/v0.94.3...v0.95.0) (2026-09-12)
 
 ### Features
