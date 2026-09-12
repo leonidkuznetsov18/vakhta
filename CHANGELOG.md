@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.0.1...v1.1.0) (2026-09-12)
+
+### Features
+
+* **schedule:** persist and recover command outcomes ([0e06655](https://github.com/leonidkuznetsov18/vakhta/commit/0e066554cf0b172152762d0b008758db05f92c7f)), closes [#9](https://github.com/leonidkuznetsov18/vakhta/issues/9)
+
 ## [1.0.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.0.0...v1.0.1) (2026-09-12)
 
 ### Bug fixes
