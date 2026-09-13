@@ -1,3 +1,17 @@
+## [1.11.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.11.0...v1.11.1) (2026-09-13)
+
+### Bug fixes
+
+* **employee-profile:** label existing compensation as editable ([f93ddfc](https://github.com/leonidkuznetsov18/vakhta/commit/f93ddfc673a4322e8d7cc93c5168fcb41cc387f0)), closes [#70](https://github.com/leonidkuznetsov18/vakhta/issues/70) [#72](https://github.com/leonidkuznetsov18/vakhta/issues/72)
+
+### Documentation
+
+* **audit:** review backend and frontend simplification risks ([ee965b8](https://github.com/leonidkuznetsov18/vakhta/commit/ee965b89372424d6e3c1bfc478ccafe1d723a05e))
+
+### Maintenance
+
+* **release:** integrate v1.11.0 metadata ([6f34797](https://github.com/leonidkuznetsov18/vakhta/commit/6f347974856a17bea0c658e212bae328542e1123))
+
 ## [1.11.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.10.0...v1.11.0) (2026-09-13)
 
 ### Features
