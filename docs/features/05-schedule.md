@@ -77,6 +77,15 @@ Counts describe assigned people, not required staffing or attendance.
   timezone, version identity and generation time and stores every cell as text or number, never
   a formula. Print (actions menu) outputs the visible period with period, timezone, version
   identity and generation time and marks unpublished plans and unsaved local changes.
+- **Personal calendar link:** in the bot, "Calendar link" issues a private subscription link that
+  shows only the employee's own published shifts; calendars refresh every few hours, so a change
+  appears with a delay. The employee can revoke it at any time, and requesting a new link stops
+  the old one. Events keep one identity per person and date across revisions.
+- **Proposed allocation:** with open slots on the plan, "Propose allocation" (actions menu)
+  suggests one person per slot from a declared cohort (this unit or the whole roster) with two
+  preferences (prefer own unit, balance planned hours). Blocking rules are filtered first, warnings
+  are shown, unresolved slots stay listed with a reason, and every pick can be skipped. Applying
+  fills the slots into the current draft through the usual checks; nothing is published.
 - **Conflicts and candidates:** the plan is checked as you edit: overlapping shifts of one person
   in any unit, approved absences and missing required qualifications block saving and publishing;
   short rest and too many monthly hours warn or block according to the site rules; a worker's

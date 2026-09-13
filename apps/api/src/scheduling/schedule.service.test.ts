@@ -27,6 +27,8 @@ import { PatternsService } from './patterns.service.js';
 import { OpenSlotsService } from './open-slots.service.js';
 import { NotesService } from './notes.service.js';
 import { RetrospectiveService } from './retrospective.service.js';
+import { FeedService } from './feed.service.js';
+import { homeScreen } from '../telegram/screens.js';
 import { planScreen } from '../telegram/screens.js';
 import { shiftSummaries } from '@vakhta/db';
 import { backgroundTasks } from '@vakhta/db';
@@ -2499,6 +2501,107 @@ describe('scheduling: версії, валідація, публікація, о
         header: 1,
       });
       expect(meta.flat()).toEqual(expect.arrayContaining([v1.id, 'Europe/Kyiv', MONTH]));
+    });
+  });
+
+  describe('personal calendar feed (#19, SC-44)', () => {
+    it('exposes only own published shifts with stable identity, revokes and rotates tokens', async () => {
+      const feed = new FeedService(testDb.db, new EventStore(), new AuditLog());
+      const v1 = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      await schedule.putAssignments(
+        v1.id,
+        {
+          items: [
+            {
+              employeeId: ivanov,
+              templateId: dayId,
+              businessDate: day(1),
+              zoneId,
+              kind: 'REGULAR',
+            },
+            {
+              employeeId: petrova,
+              templateId: nightId,
+              businessDate: day(1),
+              zoneId,
+              kind: 'REGULAR',
+            },
+          ],
+        },
+        PLANNER,
+      );
+      const token = await feed.issue(ivanov);
+      expect(token).toMatch(/^[A-Za-z0-9_-]{40,}$/);
+      expect(await feed.resolve(token)).toBe(ivanov);
+      // Before publication the feed is empty: drafts never leak.
+      const now = new Date(`${MONTH}-15T12:00:00Z`);
+      expect(await feed.ics(ivanov, now)).not.toContain('BEGIN:VEVENT');
+      await schedule.submit(v1.id, PLANNER);
+      await schedule.publish(v1.id, {}, HEAD);
+      const ics = await feed.ics(ivanov, now);
+      expect(ics).toContain('BEGIN:VCALENDAR');
+      expect(ics).toContain(`UID:${ivanov}-${day(1)}@vakhta`);
+      expect(ics).not.toContain(petrova);
+      expect(ics).toContain('REFRESH-INTERVAL;VALUE=DURATION:PT3H');
+      expect(ics).toContain('SUMMARY:Day shift · Линия 1');
+      expect(ics.split('BEGIN:VEVENT')).toHaveLength(2);
+      // A revision keeps the event identity and bumps the sequence.
+      await schedule.revise(
+        v1.id,
+        {
+          items: [
+            {
+              employeeId: ivanov,
+              templateId: nightId,
+              businessDate: day(1),
+              zoneId,
+              kind: 'REGULAR',
+            },
+            {
+              employeeId: petrova,
+              templateId: nightId,
+              businessDate: day(2),
+              zoneId,
+              kind: 'REGULAR',
+            },
+          ],
+        },
+        HEAD,
+      );
+      const revised = await feed.ics(ivanov, now);
+      expect(revised).toContain(`UID:${ivanov}-${day(1)}@vakhta`);
+      expect(revised).toContain('SEQUENCE:2');
+      expect(revised).toContain('SUMMARY:Night shift');
+      // The home screen offers the link only when the feed is configured.
+      const t = messages('en');
+      const withFeed = homeScreen(t, {
+        employee: { id: ivanov, fullName: 'Иванов Иван', personnelNumber: '1' } as never,
+        next: null,
+        acknowledgementCallback: null,
+        feed: true,
+        presenceSince: null,
+        timezone: 'Europe/Kyiv',
+        pendingSwaps: 0,
+        helpUrl: null,
+        supportUrl: null,
+      });
+      expect(JSON.stringify(withFeed.keyboard?.inline_keyboard)).toContain('feed:issue');
+      // Rotation and revocation.
+      const second = await feed.issue(ivanov);
+      expect(await feed.resolve(token)).toBeNull();
+      expect(await feed.resolve(second)).toBe(ivanov);
+      expect(await feed.hasActive(ivanov)).toBe(true);
+      expect(await feed.revoke(ivanov)).toBe(1);
+      expect(await feed.resolve(second)).toBeNull();
+      expect(await feed.revoke(ivanov)).toBe(0);
+      expect(await feed.resolve('short')).toBeNull();
+      const audit = await testDb.db.select().from(auditLog);
+      expect(audit.map((row) => row.action)).toEqual(
+        expect.arrayContaining(['schedule.feed.issue', 'schedule.feed.revoke']),
+      );
     });
   });
 

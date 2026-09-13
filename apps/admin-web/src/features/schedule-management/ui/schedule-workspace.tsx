@@ -12,6 +12,7 @@ import {
   BarChart3Icon,
   PrinterIcon,
   FileClockIcon,
+  WandSparklesIcon,
 } from 'lucide-react';
 import { currentLocale } from '@/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -52,6 +53,7 @@ import { ScheduleExport } from './schedule-export';
 import { StaffingSheet } from './staffing-sheet';
 import { WorkloadSheet } from './workload-sheet';
 import { RetrospectiveSheet } from './retrospective-sheet';
+import { ProposalSheet } from './proposal-sheet';
 import { calendarModel } from '../model/calendar';
 import { openPrint, printDocument } from '../model/print';
 import { CopyPeriodDialog } from './copy-period';
@@ -169,6 +171,8 @@ function WorkspaceView({
   const [staffingOpen, setStaffingOpen] = useState(false);
   const [workloadOpen, setWorkloadOpen] = useState(false);
   const [retrospectiveOpen, setRetrospectiveOpen] = useState(false);
+  const [proposalOpen, setProposalOpen] = useState(false);
+  const [proposalTrigger, setProposalTrigger] = useState<HTMLElement | null>(null);
   const [retrospectiveTrigger, setRetrospectiveTrigger] = useState<HTMLElement | null>(null);
   const [printBlocked, setPrintBlocked] = useState(false);
   const slots = useOpenSlots({
@@ -379,6 +383,19 @@ function WorkspaceView({
                 <FileClockIcon aria-hidden="true" />
                 {t.retrospective}
               </DropdownMenuItem>
+              {w.writable && slots.open.length > 0 && (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setProposalTrigger(
+                      document.activeElement instanceof HTMLElement ? document.activeElement : null,
+                    );
+                    setProposalOpen(true);
+                  }}
+                >
+                  <WandSparklesIcon aria-hidden="true" />
+                  {t.proposal}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onSelect={print}>
                 <PrinterIcon aria-hidden="true" />
                 {t.print}
@@ -574,6 +591,15 @@ function WorkspaceView({
         date={date}
       />
       {printBlocked && <Feedback error={t.printBlocked} />}
+      <ProposalSheet
+        workspace={w}
+        slots={slots}
+        open={proposalOpen}
+        onClose={() => setProposalOpen(false)}
+        onRestoreFocus={() => {
+          if (proposalTrigger?.isConnected) proposalTrigger.focus();
+        }}
+      />
       <RetrospectiveSheet
         workspace={w}
         open={retrospectiveOpen}

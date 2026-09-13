@@ -469,3 +469,22 @@ export const scheduleNotes = pgTable(
     check('schedule_notes_text_bounded', sql`char_length(${t.text}) BETWEEN 1 AND 2000`),
   ],
 );
+
+/**
+ * Personal calendar feed tokens (SC-44): one active token per employee, stored hashed, revocable.
+ * The feed exposes only the employee's own published assignments.
+ */
+export const calendarFeedTokens = pgTable(
+  'calendar_feed_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    employeeId: uuid('employee_id')
+      .notNull()
+      .references(() => employees.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull().unique(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  },
+  (t) => [index('calendar_feed_tokens_employee_idx').on(t.employeeId)],
+);

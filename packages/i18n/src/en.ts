@@ -514,6 +514,12 @@ export const en: Messages = {
     slotClosed: 'This offer is closed.',
     slotSelected:
       'You were selected for the {kind} shift on {date}, {start}–{end}{zone}. The schedule will be published; confirm acknowledgement when it arrives.',
+    feedButton: '📅 Calendar link',
+    feedIssued:
+      'Your personal calendar link:\n{url}\n\nAdd it to your phone calendar as a subscription. It shows only your published shifts and refreshes every few hours, so a change appears with a delay. Anyone with the link sees your shifts: keep it private. You can revoke it here at any time; an older link stops working when you request a new one.',
+    feedRevokeButton: 'Revoke calendar link',
+    feedRevoked: 'The calendar link is revoked. Calendars that used it will stop updating.',
+    feedNothing: 'There was no active calendar link.',
   },
   roles: {
     ADMIN: 'Administrator',

@@ -1,4 +1,12 @@
-import { inArray, or, sql, type SQL, type SQLWrapper } from '@vakhta/db';
+import {
+  getTableName,
+  inArray,
+  or,
+  sql,
+  type AnyColumn,
+  type SQL,
+  type SQLWrapper,
+} from '@vakhta/db';
 
 import {
   accessScope,
@@ -97,17 +105,20 @@ export function scopedEvents<T>(
  * Place of an employee by their open position, as SQL expressions over an employee id column:
  * requests and summaries have no unit of their own, the person's current post decides it.
  */
-export function employeePlaceSql(employeeId: SQLWrapper): {
+export function employeePlaceSql(employeeId: AnyColumn): {
   readonly site: SQL<string | null>;
   readonly unit: SQL<string | null>;
   readonly team: SQL<string | null>;
   readonly zone: SQL<string | null>;
 } {
+  // Always table-qualified: in a single-table select drizzle renders a bare column name, which the
+  // subquery would bind to its own p.employee_id and match every position.
+  const person = sql.raw(`"${getTableName(employeeId.table)}"."${employeeId.name}"`);
   const current = (column: SQL) =>
     sql<
       string | null
     >`(select ${column} from employee_positions p join org_units u on u.id = p.org_unit_id
-      where p.employee_id = ${employeeId} and p.valid_to is null order by p.valid_from desc limit 1)`;
+      where p.employee_id = ${person} and p.valid_to is null order by p.valid_from desc limit 1)`;
   return {
     site: current(sql.raw('u.site_id')),
     unit: current(sql.raw('p.org_unit_id')),

@@ -88,6 +88,8 @@ export interface HomeInput {
   readonly employee: EmployeeRecord;
   readonly next: NextShift | null;
   readonly acknowledgementCallback: string | null;
+  /** Whether the calendar link button is offered (feed configured). */
+  readonly feed?: boolean | undefined;
   /** Open presence: when the employee recorded arrival. */
   readonly presenceSince: Date | null;
   readonly timezone: string;
@@ -141,6 +143,7 @@ export function homeScreen(t: Messages, input: HomeInput): Screen {
     keyboard.row().text(t.schedule.ackButton, input.acknowledgementCallback);
   if (input.pendingSwaps > 0)
     keyboard.row().text(`${t.requests.counterpartYes}? (${input.pendingSwaps})`, 'rq:pending');
+  if (input.feed) keyboard.row().text(t.schedule.feedButton, 'feed:issue');
   if (input.helpUrl || input.supportUrl) keyboard.row();
   if (input.helpUrl) keyboard.url(`ℹ️ ${t.bot.helpButton}`, input.helpUrl);
   if (input.supportUrl) keyboard.url(`🆘 ${t.bot.supportButton}`, input.supportUrl);

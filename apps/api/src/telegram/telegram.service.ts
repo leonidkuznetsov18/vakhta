@@ -19,6 +19,7 @@ import { EmployeesService } from '../identity/employees.service.js';
 import { createLogger } from '../logger.js';
 import { ScheduleService } from '../scheduling/schedule.service.js';
 import { OpenSlotsService } from '../scheduling/open-slots.service.js';
+import { FeedService } from '../scheduling/feed.service.js';
 import { HandoverService } from '../handover/handover.service.js';
 import { IncidentsService } from '../incidents/incidents.service.js';
 import { BonusService } from '../bonus/bonus.service.js';
@@ -51,6 +52,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     private readonly activation: ActivationService,
     private readonly schedule: ScheduleService,
     private readonly slots: OpenSlotsService,
+    private readonly feed: FeedService,
     private readonly attendance: AttendanceService,
     private readonly shift: ShiftService,
     private readonly incidents: IncidentsService,
@@ -78,6 +80,8 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       activation: this.activation,
       schedule: this.schedule,
       slots: this.slots,
+      feed: this.feed,
+      feedBaseUrl: this.config.get('PUBLIC_BASE_URL', { infer: true }),
       attendance: this.attendance,
       shift: this.shift,
       incidents: this.incidents,
@@ -96,6 +100,8 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     this.bot = bot;
     this.homeDeps = {
       schedule: this.schedule,
+      feed: this.feed,
+      feedBaseUrl: this.config.get('PUBLIC_BASE_URL', { infer: true }),
       attendance: this.attendance,
       shift: this.shift,
       handover: this.handover,

@@ -133,9 +133,9 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US3 | **Dependencies**: #12/#13/#18 | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T046 [US3] Implement own-published-only stable calendar identities and hashed revocable personal feed access in scheduling schema/contracts/API (#19).
-- [ ] T047 [US3] Implement explainable allocation on existing slots with complete-plan revalidation and human-edited/rejected preview in domain/scheduling/schedule-management (#19).
-- [ ] T048 [US3] Test revoked/private feed, stable updates, unresolved slots, hard-constraint precedence, stale proposal and no auto-publication in API/domain/UI tests (#19).
+- [x] T046 [US3] Implement own-published-only stable calendar identities and hashed revocable personal feed access in scheduling schema/contracts/API (#19).
+- [x] T047 [US3] Implement explainable allocation on existing slots with complete-plan revalidation and human-edited/rejected preview in domain/scheduling/schedule-management (#19).
+- [x] T048 [US3] Test revoked/private feed, stable updates, unresolved slots, hard-constraint precedence, stale proposal and no auto-publication in API/domain/UI tests (#19).
 
 ## Phase 17: Forecasts and costs — #20
 

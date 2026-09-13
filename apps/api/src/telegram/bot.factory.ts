@@ -23,6 +23,7 @@ import type { ActivationService } from '../identity/activation.service.js';
 import type { EmployeesService } from '../identity/employees.service.js';
 import type { ScheduleService } from '../scheduling/schedule.service.js';
 import type { OpenSlotsService } from '../scheduling/open-slots.service.js';
+import type { FeedService } from '../scheduling/feed.service.js';
 import type { ShiftService } from '../shift/shift.service.js';
 import type { HandoverService } from '../handover/handover.service.js';
 import type { IncidentsService } from '../incidents/incidents.service.js';
@@ -166,6 +167,10 @@ export interface BotDeps {
   readonly schedule: ScheduleService;
   /** Open slot responses (#13); absent in narrow test harnesses. */
   readonly slots?: OpenSlotsService | undefined;
+  /** Personal calendar feed (#19); absent in narrow test harnesses. */
+  readonly feed?: FeedService | undefined;
+  /** Public API origin used to build feed links. */
+  readonly feedBaseUrl?: string | undefined;
   readonly attendance: AttendanceService;
   readonly shift: ShiftService;
   readonly incidents: IncidentsService;
@@ -190,6 +195,8 @@ export type HomeScreenDeps = Pick<
   | 'defaultTimezone'
   | 'helpUrl'
   | 'supportUrl'
+  | 'feed'
+  | 'feedBaseUrl'
 >;
 
 /**
@@ -216,6 +223,7 @@ export async function renderHomeScreen(
     employee,
     next,
     acknowledgementCallback: acknowledgementCallback(acknowledgement),
+    feed: !!deps.feed && !!deps.feedBaseUrl,
     presenceSince: presence?.arrivedAt ?? null,
     timezone,
     pendingSwaps: pendingSwaps.length,
@@ -1263,6 +1271,35 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         ? await buildPlan(ctx, target.scope.month)
         : await buildHome(ctx);
     if (screen) await edit(ctx, screen);
+  });
+
+  // Personal calendar feed (#19, SC-44): the link is shown once in the private chat and never logged.
+  bot.callbackQuery('feed:issue', async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee || !deps.feed || !deps.feedBaseUrl) {
+      await ctx.answerCallbackQuery({ text: ctx.t.bot.access.NOT_REGISTERED, show_alert: true });
+      return;
+    }
+    const token = await deps.feed.issue(ctx.employee.id);
+    await ctx.answerCallbackQuery();
+    await ctx.reply(
+      format(ctx.t.schedule.feedIssued, { url: `${deps.feedBaseUrl}/calendar/feed/${token}.ics` }),
+      {
+        reply_markup: new InlineKeyboard().text(ctx.t.schedule.feedRevokeButton, 'feed:revoke'),
+        link_preview_options: { is_disabled: true },
+      },
+    );
+  });
+  bot.callbackQuery('feed:revoke', async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee || !deps.feed) {
+      await ctx.answerCallbackQuery({ text: ctx.t.bot.access.NOT_REGISTERED, show_alert: true });
+      return;
+    }
+    const revoked = await deps.feed.revoke(ctx.employee.id);
+    await ctx.answerCallbackQuery({
+      text: revoked > 0 ? ctx.t.schedule.feedRevoked : ctx.t.schedule.feedNothing,
+      show_alert: true,
+    });
+    await ctx.editMessageReplyMarkup().catch(() => undefined);
   });
 
   // Open shift offers (#13, SC-16): a response is recorded interest, never an assignment; a

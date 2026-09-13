@@ -21,6 +21,13 @@ export function scrubEvent<T extends Sentry.ErrorEvent>(event: T): T {
     }
   }
   if (event.request?.cookies) delete event.request.cookies;
+  // Personal feed tokens travel in the URL (SC-44): never let them reach an error report.
+  if (event.request?.url && event.request.url.includes('/calendar/feed/'))
+    event.request.url = event.request.url.replace(
+      /\/calendar\/feed\/[^/?#]+/,
+      '/calendar/feed/[redacted]',
+    );
+  if (event.request?.query_string) delete event.request.query_string;
   if (event.user) {
     delete event.user.ip_address;
     delete event.user.email;

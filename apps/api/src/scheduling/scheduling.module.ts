@@ -13,11 +13,13 @@ import { PatternsService } from './patterns.service.js';
 import { OpenSlotsService } from './open-slots.service.js';
 import { NotesService } from './notes.service.js';
 import { RetrospectiveService } from './retrospective.service.js';
+import { FeedService } from './feed.service.js';
+import { CalendarFeedController } from './calendar-feed.controller.js';
 import { AdminStaffingController } from './admin-staffing.controller.js';
 
 @Module({
   imports: [OrgModule],
-  controllers: [AdminSchedulesController, AdminStaffingController],
+  controllers: [AdminSchedulesController, AdminStaffingController, CalendarFeedController],
   providers: [
     TemplatesService,
     ScheduleService,
@@ -29,6 +31,7 @@ import { AdminStaffingController } from './admin-staffing.controller.js';
     OpenSlotsService,
     NotesService,
     RetrospectiveService,
+    FeedService,
     {
       provide: SCHEDULE_OPTIONS,
       useFactory: (config: ConfigService<Env, true>): ScheduleOptions => ({
@@ -39,6 +42,6 @@ import { AdminStaffingController } from './admin-staffing.controller.js';
       inject: [ConfigService],
     },
   ],
-  exports: [ScheduleService, TemplatesService, StaffingService, OpenSlotsService],
+  exports: [ScheduleService, TemplatesService, StaffingService, OpenSlotsService, FeedService],
 })
 export class SchedulingModule {}

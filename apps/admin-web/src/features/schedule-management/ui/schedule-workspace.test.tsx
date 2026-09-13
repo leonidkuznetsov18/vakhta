@@ -2353,3 +2353,69 @@ it('shows the retrospective report with planned, recorded and unknown departure 
   cleanup();
   vi.unstubAllGlobals();
 });
+
+it('proposes an explainable allocation for open slots and applies it through slot selection', async () => {
+  freshState();
+  const calls = mockApi({
+    status: 'DRAFT',
+    slots: [
+      {
+        id: 'f1000000-0000-4000-8000-000000000001',
+        siteId: SITE,
+        orgUnitId: UNIT,
+        periodMonth: '2026-09',
+        businessDate: '2026-09-06',
+        templateId: TPL_DAY,
+        zoneId: ZONE,
+        status: 'OFFERED',
+        filledEmployeeId: null,
+        filledVersionId: null,
+        offer: {
+          id: 'f2000000-0000-4000-8000-000000000001',
+          status: 'OPEN',
+          audience: 'UNIT',
+          notifiedCount: 2,
+          offeredAt: '2026-09-01T10:00:00.000Z',
+          closedAt: null,
+          interests: [],
+        },
+        offerCount: 1,
+        createdAt: '2026-09-01T00:00:00.000Z',
+      },
+    ],
+  });
+  admin();
+  await screen.findByText(t.draftState);
+  await screen.findByText(t.openSlotsCount.replace('{count}', '1'));
+  fireEvent.click(screen.getByRole('menuitem', { name: t.proposal }));
+  const sheet = await screen.findByRole('dialog', { name: t.proposal });
+  const picks = await within(sheet).findByRole('region', { name: t.proposalPicks });
+  // Кузнецов already works the night of the 5th; Сидоров is free and gets the day slot.
+  expect(picks.textContent).toContain('2026-09-06');
+  expect(picks.textContent).toContain('Сидоров Пётр');
+  expect(sheet.textContent).toContain(t.proposalScope.replace('{slots}', '1').split('{')[0] ?? '');
+  fireEvent.click(within(picks).getByRole('button', { name: t.skipPick }));
+  const apply = () =>
+    within(sheet).getByRole('button', { name: t.applyProposal.replace('{count}', '0') });
+  expect(apply().hasAttribute('disabled')).toBe(true);
+  fireEvent.click(within(picks).getByRole('button', { name: t.keepPick }));
+  fireEvent.click(
+    within(sheet).getByRole('button', { name: t.applyProposal.replace('{count}', '1') }),
+  );
+  await waitFor(() =>
+    expect(
+      calls.find((call) => call.path.endsWith('/select') && call.method === 'POST')?.body,
+    ).toMatchObject({
+      employeeId: EMP2,
+      versionId: VERSION,
+      expectedRevision: 1,
+    }),
+  );
+  expect(
+    await within(sheet).findByText(
+      t.proposalApplied.replace('{count}', '1').replace('{failed}', '0'),
+    ),
+  ).toBeTruthy();
+  cleanup();
+  vi.unstubAllGlobals();
+});

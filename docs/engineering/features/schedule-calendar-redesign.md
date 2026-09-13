@@ -1152,3 +1152,35 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
 - Lean: Proceed. Notes replace side chats with an audience-scoped record; the retrospective gives
   an honest planned-versus-recorded view without inventing verdicts; print and export state their
   identity so a paper copy cannot be mistaken for the published plan.
+
+## 2026-09-13 — Personal feed and reviewed allocation proposal (#19, SC-44/SC-45)
+
+- Feed (migration `0048`, `calendar_feed_tokens`): one active token per employee, 32 random bytes
+  base64url, stored as a SHA-256 hash, revocable; issuing a new token revokes the previous. The
+  public `GET /calendar/feed/:token.ics` (no session) resolves a live token to one employee and
+  returns iCalendar events for the previous, current and next month of that employee's PLANNED
+  assignments in PUBLISHED versions only; UID is `<employee>-<date>@vakhta` (stable across
+  revisions), SEQUENCE is the version number, DTSTAMP the publication time; `REFRESH-INTERVAL`
+  PT3H explains the sync delay. Unknown and revoked tokens answer the same 404. The token is never
+  logged: request logging is off, and the Sentry scrubber redacts `/calendar/feed/<token>` URLs.
+- Bot: home keyboard "📅 Calendar link" (`feed:issue`) replies once with the URL and a revoke
+  button (`feed:revoke`); the reply explains own-data-only, the delay and revocation.
+- Proposal (SC-45): domain `scheduling/proposal.ts` (`proposeAllocation`) takes explicit slots,
+  cohort and preferences, filters blocked people before ranking (fewer warnings, own unit, lower
+  planned load, then id for determinism), evaluates each pick against the plan including earlier
+  picks, and keeps unresolved slots with `NO_PEOPLE`/`ALL_BLOCKED`. The panel model feeds it with
+  open slots, the active roster (unit cohort excludes other-unit people not yet planned) and the
+  same `planIssues` evaluation as the editor. The sheet shows scope, picks with reasons and
+  alternatives count, unresolved slots, skip/keep per pick, and applies kept picks sequentially
+  through slot selection with the revision carried forward; a failure stops and reports what stays
+  open. Preview never publishes; publication keeps its human route.
+- Verification: domain 2 tests; real-DB 1 case (draft never leaks, own events only, stable UID and
+  SEQUENCE after revision, home keyboard button, rotation, revocation, audit); Sentry scrub test;
+  panel test (proposal picks the free person, skip/keep, apply calls select with version and
+  revision, outcome line); 117 schedule tests; typecheck, ESLint, Prettier. Evidence:
+  `proposal-sheet.png`, `proposal-sheet-mobile.png`.
+- Limits: the feed covers three months around today and carries no notes or breaks; the bot reply
+  shows the link in the private chat (the employee must keep it private); the proposal ranks with
+  the two declared preferences only and imports no competitor tenure policy.
+- Lean: Proceed. Employees get their shifts where they already look, revocably; planners get a
+  transparent first pass over vacancies that they still decide on.

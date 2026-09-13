@@ -31,3 +31,12 @@ describe('Sentry без витоку секретів (CLAUDE.md, ТЗ 13)', () 
     expect(scrubbed.user).toEqual({ id: 'u1' });
   });
 });
+
+it('redacts a personal calendar feed token from the request URL', () => {
+  const event = scrubEvent({
+    request: { url: 'https://api.example/calendar/feed/abcdefghijklmnopqrstuvwxyz0123456789.ics' },
+  } as never);
+  expect((event as { request?: { url?: string } }).request?.url).toBe(
+    'https://api.example/calendar/feed/[redacted]',
+  );
+});

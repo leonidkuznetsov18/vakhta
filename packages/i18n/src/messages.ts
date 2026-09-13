@@ -411,6 +411,11 @@ export interface Messages {
     readonly slotDeclined: string;
     readonly slotClosed: string;
     readonly slotSelected: string;
+    readonly feedButton: string;
+    readonly feedIssued: string;
+    readonly feedRevokeButton: string;
+    readonly feedRevoked: string;
+    readonly feedNothing: string;
   };
   readonly admin: {
     readonly productName: string;
