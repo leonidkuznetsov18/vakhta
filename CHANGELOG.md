@@ -1,3 +1,24 @@
+## [1.8.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.7.0...v1.8.0) (2026-09-13)
+
+### Features
+
+* **overview:** shift command center with action queue, health, zones and events ([75e2731](https://github.com/leonidkuznetsov18/vakhta/commit/75e2731689c78b4dc515de9f920c8fafaa766cab)), closes [#57](https://github.com/leonidkuznetsov18/vakhta/issues/57) [#58](https://github.com/leonidkuznetsov18/vakhta/issues/58) [#59](https://github.com/leonidkuznetsov18/vakhta/issues/59) [#60](https://github.com/leonidkuznetsov18/vakhta/issues/60) [#61](https://github.com/leonidkuznetsov18/vakhta/issues/61) [#62](https://github.com/leonidkuznetsov18/vakhta/issues/62) [#63](https://github.com/leonidkuznetsov18/vakhta/issues/63)
+* **schedule:** regional holidays, birthdays, absences and care messages on the calendar ([6c51fcb](https://github.com/leonidkuznetsov18/vakhta/commit/6c51fcb4860e7025a7b419a53604eb31588a705e))
+
+### Bug fixes
+
+* **access:** scope the employee directory and employee actions to the grant ([#66](https://github.com/leonidkuznetsov18/vakhta/issues/66)) ([0d5f514](https://github.com/leonidkuznetsov18/vakhta/commit/0d5f5141015d3f3e9a672c91ebd4712a56708cba))
+* **schedule:** deterministic card order inside a calendar cell ([9319055](https://github.com/leonidkuznetsov18/vakhta/commit/9319055601fb771efd3b0ad8a3c564ae1faeb092))
+* **schedule:** distinct holiday hue, candidate row states, uniform error alerts ([7776fa8](https://github.com/leonidkuznetsov18/vakhta/commit/7776fa8cad9ba43abfa10b6a6149de98cf19e24e))
+* **schedule:** event column tints, today tint restored, selection cleared on close, read-only reason ([d5865a4](https://github.com/leonidkuznetsov18/vakhta/commit/d5865a4badb5a2f205951fb15f5292189b685800))
+* **schedule:** outline today's column like a wall-calendar slider ([b6a801a](https://github.com/leonidkuznetsov18/vakhta/commit/b6a801a0073719f14453a5f1ef1b22b8f093c470))
+* **schedule:** today column as a bold green frame only, corners not clipped ([cd86c88](https://github.com/leonidkuznetsov18/vakhta/commit/cd86c88d63f31f2cc2a09c4304a4023177ba7d30))
+
+### Documentation
+
+* **employee-profile:** specify profile, unit master and restricted compensation (spec 005) ([85df2e3](https://github.com/leonidkuznetsov18/vakhta/commit/85df2e3b35ab9dc49b41da6f940bd3a03fcfadc7))
+* **overview:** document the command center and mount schedule attention ([d00a894](https://github.com/leonidkuznetsov18/vakhta/commit/d00a894093df6bcf7b6ba797a8175033bc86215f)), closes [#62](https://github.com/leonidkuznetsov18/vakhta/issues/62) [#64](https://github.com/leonidkuznetsov18/vakhta/issues/64)
+
 ## [1.7.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.6.0...v1.7.0) (2026-09-13)
 
 ### Features
