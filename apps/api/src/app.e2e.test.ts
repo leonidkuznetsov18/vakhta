@@ -626,7 +626,22 @@ describe('e2e: межі доступу панелі', () => {
     expect(
       (await app.inject({ method: 'POST', url: '/admin/schedules/commands', payload })).statusCode,
     ).toBe(401);
-    expect((await post(payload, 'master@e2e.test')).statusCode).toBe(403);
+    // D-01: a master covering the unit may prepare a draft; a reader role may not.
+    expect((await post(payload, 'auditor@e2e.test')).statusCode).toBe(403);
+    expect(
+      (
+        await post(
+          {
+            commandId: randomUUID(),
+            action: 'PUBLISH',
+            versionId: randomUUID(),
+            expectedRevision: 1,
+            payload: {},
+          },
+          'master@e2e.test',
+        )
+      ).statusCode,
+    ).toBe(404);
     expect((await post({ ...payload, commandId: 'invalid' })).statusCode).toBe(400);
     expect(
       (await post({ ...payload, payload: { ...payload.payload, orgUnitId: other.id } })).statusCode,
