@@ -2549,11 +2549,82 @@ it('turns the conflicts pill into a highlight toggle with a list and explains th
   expect(card.getAttribute('data-emphasized')).toBe('true');
   const list = screen.getByRole('region', { name: t.conflict });
   expect(list.textContent).toContain('Кузнецов Леонид');
-  expect(list.textContent).toContain('2026-09-05');
-  expect(within(list).getByRole('button', { name: t.goToDate })).toBeTruthy();
+  expect(list.textContent).toContain('05.09');
+  expect(within(list).getByRole('button', { name: /Кузнецов Леонид/ })).toBeTruthy();
   fireEvent.click(pill);
   expect(pill.getAttribute('aria-pressed')).toBe('false');
   expect(screen.queryByRole('region', { name: t.conflict })).toBeNull();
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('does not dim the visible week when every warning sits on other dates, and a list row reveals the shift', async () => {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    revisions: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+  // 18 day shifts (216 h) exceed the 200 h site limit; the warning lands on the last one, 30.09.
+  const assignments = Array.from({ length: 18 }, (_, index) => {
+    const day = String(13 + index).padStart(2, '0');
+    return {
+      id: `e0000000-0000-4000-8000-0000000000${day}`,
+      scheduleVersionId: VERSION,
+      employeeId: EMP,
+      templateId: TPL_DAY,
+      templateCode: 'DAY',
+      businessDate: `2026-09-${day}`,
+      planStartAt: `2026-09-${day}T05:00:00.000Z`,
+      planEndAt: `2026-09-${day}T17:00:00.000Z`,
+      positionId: null,
+      orgUnitId: UNIT,
+      teamId: null,
+      zoneId: ZONE,
+      kind: 'REGULAR',
+      status: 'PLANNED',
+      acknowledgedAt: null,
+      customStart: null,
+      customEnd: null,
+      segments: [],
+      breaks: [],
+    };
+  });
+  mockApi({
+    status: 'DRAFT',
+    savedDetail: ScheduleVersionDetail.parse({ version: version('DRAFT', 18), assignments }),
+  });
+  admin();
+  await screen.findByText(t.draftState);
+  const pill = await screen.findByRole('button', {
+    name: t.warningsCount.replace('{count}', '1'),
+  });
+  // The week of today (13.09) holds a shift without warnings: hovering must not fade it.
+  const visibleCard = await screen.findByRole('button', { name: /Кузнецов Леонид, 13/ });
+  expect(screen.queryByRole('button', { name: /Кузнецов Леонид, 30/ })).toBeNull();
+  fireEvent.mouseEnter(pill);
+  expect(visibleCard.getAttribute('data-emphasized')).toBeNull();
+  expect(pill.getAttribute('title')).toBe(t.highlightNoneVisible);
+  fireEvent.mouseLeave(pill);
+  fireEvent.click(pill);
+  const list = screen.getByRole('region', { name: t.warning });
+  expect(list.textContent).toContain(
+    t.issuesElsewhere.replace('{visible}', '0').replace('{count}', '1'),
+  );
+  const row = within(list).getByRole('button', { name: /Кузнецов Леонид/ });
+  expect(row.textContent).toContain('30.09');
+  fireEvent.click(row);
+  // The period moves to the week of 30.09 and the shift opens with its reason.
+  const card = await screen.findByRole('button', { name: /Кузнецов Леонид, 30/ });
+  expect(card.getAttribute('aria-pressed')).toBe('true');
+  const sheet = await screen.findByRole('dialog');
+  expect(sheet.textContent).toContain('216');
+  // The list stays behind the open panel; the modal hides it from assistive tech, so query the DOM.
+  expect(document.querySelector(`section[aria-label="${t.warning}"]`)).not.toBeNull();
   cleanup();
   vi.unstubAllGlobals();
 });

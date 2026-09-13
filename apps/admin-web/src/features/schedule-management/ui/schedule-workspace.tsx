@@ -17,6 +17,7 @@ import {
   CircleDashedIcon,
   TriangleAlertIcon,
   OctagonAlertIcon,
+  ChevronRightIcon,
 } from 'lucide-react';
 import { currentLocale } from '@/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -36,18 +37,22 @@ import { Feedback } from '@/components/app/feedback';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { IconButton } from '@/shared/ui/icon-button';
 import { InfoTip } from '@/components/app/info-tip';
-import type { CalendarEmphasis } from '@/shared/ui/resource-calendar';
+import {
+  selectableRow,
+  type CalendarEmphasis,
+  type CalendarSelection,
+} from '@/shared/ui/resource-calendar';
 import { reasonText } from '../model/use-eligibility';
 import { readError } from '@/errors';
 import { useNavigation } from '@/navigation';
 import { recordedTime } from '../lib/labels';
 import { scheduleAccessKey } from '../model/ownership';
 import { useWorkspace, type Workspace } from '../model/use-workspace';
-import { periodDates, type PeriodMode } from '../model/planning';
+import { periodDates, UNASSIGNED_ZONE, type PeriodMode } from '../model/planning';
 import { useAdjacentPlan } from '../model/use-adjacent';
 import { useOpenSlots } from '../model/use-open-slots';
 import { LoadingState } from '@/shared/ui/loading-state';
-import { assignmentChanges, type GridState } from '../model/grid';
+import { assignmentChanges, assignmentKey, gridToItems, type GridState } from '../model/grid';
 import { calendarWeek, siteToday, type CalendarGrouping } from '../model/calendar';
 import { CommandRecovery } from './command-recovery';
 import { AssignmentChanges } from './assignment-changes';
@@ -296,11 +301,50 @@ function WorkspaceView({
   const [focus, setFocus] = useState<CalendarEmphasis | null>(null);
   const [hover, setHover] = useState<CalendarEmphasis | null>(null);
   const emphasis = hover ?? focus;
+  const [reveal, setReveal] = useState<{
+    readonly employeeId: string;
+    readonly businessDate: string;
+    readonly selection: CalendarSelection;
+  } | null>(null);
   const labels = {
     unitName: (id: string) => w.units.find((unit) => unit.id === id)?.name ?? id,
     zoneName: (id: string) => w.zones.find((item) => item.id === id)?.name ?? id,
     employeeName: (id: string) => w.employees.find((item) => item.id === id)?.fullName ?? id,
   };
+  /** Issues of one severity, and how many of them fall inside the visible period. */
+  const issuesOf = (severity: 'WARN' | 'BLOCK') =>
+    w.issues.reasons
+      .filter((item) => item.severity === severity)
+      .sort(
+        (a, b) =>
+          a.businessDate.localeCompare(b.businessDate) ||
+          labels.employeeName(a.employeeId).localeCompare(labels.employeeName(b.employeeId)),
+      );
+  const visibleIssues = (severity: 'WARN' | 'BLOCK') =>
+    issuesOf(severity).filter((item) => dates.includes(item.businessDate)).length;
+  const issueDate = new Intl.DateTimeFormat(currentLocale(), {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+  });
+  /** Opens the shift behind an issue: moves the period there and selects the card. */
+  function revealIssue(item: { readonly employeeId: string; readonly businessDate: string }) {
+    const shift = gridToItems(w.grid).find(
+      (value) => value.employeeId === item.employeeId && value.businessDate === item.businessDate,
+    );
+    onDate(item.businessDate);
+    if (shift && zone && (shift.zoneId ?? UNASSIGNED_ZONE) !== zone) setZone('');
+    setReveal({
+      employeeId: item.employeeId,
+      businessDate: item.businessDate,
+      selection: {
+        resourceId:
+          visibleGrouping === 'zones' ? (shift?.zoneId ?? UNASSIGNED_ZONE) : item.employeeId,
+        date: item.businessDate,
+        ...(shift ? { itemId: assignmentKey(shift) } : {}),
+      },
+    });
+  }
   const pill = (
     kind: CalendarEmphasis,
     tone: PillTone,
@@ -312,7 +356,13 @@ function WorkspaceView({
       <button
         type="button"
         aria-pressed={focus === kind}
-        title={focus === kind ? t.highlightOff : title}
+        title={
+          focus === kind
+            ? t.highlightOff
+            : kind !== 'unpublished' && effectiveMode !== 'month' && visibleIssues(kind) === 0
+              ? t.highlightNoneVisible
+              : title
+        }
         className={`inline-flex cursor-pointer items-center gap-1 transition-shadow hover:ring-2 hover:ring-sky-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${focus === kind ? 'ring-2 ring-sky-600' : ''}`}
         onMouseEnter={() => setHover(kind)}
         onMouseLeave={() => setHover(null)}
@@ -591,33 +641,49 @@ function WorkspaceView({
             )}
             {(focus === 'WARN' || focus === 'BLOCK') && (
               <section
-                className="space-y-1 rounded-lg border p-3 text-sm"
+                className="space-y-2 rounded-lg border p-3 text-sm"
                 aria-label={focus === 'BLOCK' ? t.conflict : t.warning}
               >
-                <ul className="space-y-1">
-                  {w.issues.reasons
-                    .filter((item) => item.severity === focus)
-                    .map((item, index) => (
-                      <li key={index} className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={
-                            focus === 'BLOCK'
-                              ? 'min-w-0 flex-1 text-red-700 dark:text-red-300 [overflow-wrap:anywhere]'
-                              : 'min-w-0 flex-1 text-orange-800 dark:text-orange-200 [overflow-wrap:anywhere]'
-                          }
-                        >
-                          {labels.employeeName(item.employeeId)} · {item.businessDate} ·{' '}
-                          {reasonText(item, labels)}
+                <Muted>
+                  {format(t.issuesElsewhere, {
+                    visible:
+                      effectiveMode === 'month' ? issuesOf(focus).length : visibleIssues(focus),
+                    count: issuesOf(focus).length,
+                  })}
+                </Muted>
+                <ul className="max-h-72 divide-y overflow-y-auto">
+                  {issuesOf(focus).map((item, index) => (
+                    <li key={index}>
+                      <button
+                        type="button"
+                        className={`${selectableRow} flex w-full items-center gap-3 px-2 py-1.5 text-left`}
+                        onClick={() => revealIssue(item)}
+                      >
+                        <span className="w-20 shrink-0 text-muted-foreground tabular-nums">
+                          {issueDate.format(new Date(`${item.businessDate}T00:00:00Z`))}
                         </span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onDate(item.businessDate)}
-                        >
-                          {t.goToDate}
-                        </Button>
-                      </li>
-                    ))}
+                        <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                          <span className="font-medium">
+                            {labels.employeeName(item.employeeId)}
+                          </span>
+                          <span
+                            className={
+                              focus === 'BLOCK'
+                                ? ' text-red-700 dark:text-red-300'
+                                : ' text-orange-800 dark:text-orange-200'
+                            }
+                          >
+                            {' · '}
+                            {reasonText(item, labels)}
+                          </span>
+                        </span>
+                        <ChevronRightIcon
+                          aria-hidden
+                          className="size-4 shrink-0 text-muted-foreground"
+                        />
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               </section>
             )}
@@ -674,7 +740,7 @@ function WorkspaceView({
                 </Alert>
               )}
             {effectiveMode === 'month' ? (
-              <PeopleSchedule workspace={w} zoneId={zone} today={today} />
+              <PeopleSchedule workspace={w} zoneId={zone} today={today} reveal={reveal} />
             ) : (
               <ResourceSchedule
                 workspace={w}
@@ -687,6 +753,7 @@ function WorkspaceView({
                 adjacent={adjacent}
                 slots={slots}
                 emphasis={emphasis}
+                reveal={reveal?.selection ?? null}
               />
             )}
           </>

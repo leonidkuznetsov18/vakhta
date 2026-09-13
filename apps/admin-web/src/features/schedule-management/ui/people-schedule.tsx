@@ -46,14 +46,34 @@ export function PeopleSchedule({
   workspace: w,
   zoneId = '',
   today,
+  reveal = null,
 }: {
   workspace: Workspace;
   zoneId?: string;
   today?: string;
+  /** A person day the caller wants opened (from the issue list); a new object per request. */
+  reveal?: { readonly employeeId: string; readonly businessDate: string } | null;
 }) {
   const [search, setSearch] = useState('');
   const [editor, setEditor] = useState<AssignmentContext | null>(null);
   const [focus, setFocus] = useState('');
+  const [revealed, setRevealed] = useState(reveal);
+  if (reveal !== revealed) {
+    setRevealed(reveal);
+    if (reveal) {
+      setSearch('');
+      setFocus(`${reveal.employeeId}:${reveal.businessDate}`);
+      const item = gridToItems(w.grid).find(
+        (value) =>
+          value.employeeId === reveal.employeeId && value.businessDate === reveal.businessDate,
+      );
+      setEditor({
+        employeeId: reveal.employeeId,
+        businessDate: reveal.businessDate,
+        zoneId: item?.zoneId ?? zoneId,
+      });
+    }
+  }
   const [trigger, setTrigger] = useState<HTMLElement | null>(null);
   const instance = useId();
   const days = monthDates(w.month);
@@ -67,7 +87,14 @@ export function PeopleSchedule({
       .toLocaleLowerCase()
       .includes(search.trim().toLocaleLowerCase()),
   );
-  const pages = usePages(rows.length, 20, 'schedule.people', -1, `${w.month}:${search}:${zoneId}`);
+  const anchor = reveal ? rows.findIndex((row) => row.employeeId === reveal.employeeId) : -1;
+  const pages = usePages(
+    rows.length,
+    20,
+    'schedule.people',
+    anchor,
+    `${w.month}:${search}:${zoneId}`,
+  );
   const visible = rows.slice((pages.page - 1) * pages.size, pages.page * pages.size);
   const first =
     visible.flatMap((row) =>

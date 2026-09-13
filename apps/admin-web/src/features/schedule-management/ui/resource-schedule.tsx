@@ -62,6 +62,7 @@ export function ResourceSchedule({
   adjacent,
   slots,
   emphasis = null,
+  reveal = null,
 }: {
   readonly workspace: Workspace;
   readonly dates: readonly string[];
@@ -74,6 +75,8 @@ export function ResourceSchedule({
   readonly adjacent: AdjacentPlan;
   readonly slots: OpenSlots;
   readonly emphasis?: CalendarEmphasis | null;
+  /** A shift the caller wants opened (from the issue list); a new object per request. */
+  readonly reveal?: CalendarSelection | null;
 }) {
   const t = messages(currentLocale()).scheduleWorkspace;
   const mobile = useIsMobile();
@@ -99,8 +102,16 @@ export function ResourceSchedule({
     month: w.month,
     enabled: !!w.version,
   });
-  const [picked, setPicked] = useState<CalendarSelection | null>(null);
+  const [picked, setPicked] = useState<CalendarSelection | null>(reveal);
   const [editor, setEditor] = useState<AssignmentContext | null>(null);
+  const [revealed, setRevealed] = useState(reveal);
+  if (reveal !== revealed) {
+    setRevealed(reveal);
+    if (reveal) {
+      setPicked(reveal);
+      setEditor(null);
+    }
+  }
   const [moveError, setMoveError] = useState<string | null>(null);
   const displayGrid = adjacent.months.length
     ? gridFromItems([...gridToItems(w.grid), ...gridToItems(adjacent.grid)])
@@ -279,6 +290,7 @@ export function ResourceSchedule({
           : {})}
         layout={mobile ? 'list' : 'grid'}
         selectedDate={selectedDate}
+        detailRequest={reveal}
         selection={selection}
         onSelect={select}
         onClearSelection={() => {

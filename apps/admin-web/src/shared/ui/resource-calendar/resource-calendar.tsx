@@ -58,6 +58,8 @@ interface ResourceCalendarProps {
   readonly onCreate: (selection: CalendarSelection) => void;
   /** Items matching the emphasis get a ring and the rest fade, so a count becomes visible places. */
   readonly emphasis?: CalendarEmphasis | null;
+  /** A new object here opens the detail panel for the current selection without a click. */
+  readonly detailRequest?: object | null;
   /** Drag and drop of an item onto another row/date; the keyboard alternative is the caller's. */
   readonly onMove?: (
     item: CalendarSelection & { readonly itemId: string },
@@ -150,7 +152,22 @@ function ItemContent({ item }: { readonly item: CalendarItem }) {
 /** A controlled projection: no API access, date arithmetic, permissions or draft writes. */
 export function ResourceCalendar(props: ResourceCalendarProps) {
   const { model, layout, selectedDate, selection, detail, onDate } = props;
-  const [detailOpen, setDetailOpen] = useState(false);
+  // Fading the rest only makes sense when at least one visible card matches; otherwise the
+  // period would go grey with nothing to point at.
+  const emphasis =
+    props.emphasis &&
+    model.resources.some((row) =>
+      row.cells.some((cell) => cell.items.some((item) => emphasized(item, props.emphasis!))),
+    )
+      ? props.emphasis
+      : null;
+  const [detailOpen, setDetailOpen] = useState(!!props.detailRequest);
+  // A selection handed in from outside (an issue list, a link) opens the panel like a click would.
+  const [detailRequest, setDetailRequest] = useState(props.detailRequest);
+  if (props.detailRequest !== detailRequest) {
+    setDetailRequest(props.detailRequest);
+    if (props.detailRequest) setDetailOpen(true);
+  }
   const [focusOrigin, setFocusOrigin] = useState<{
     trigger: HTMLElement;
     calendar: Element | null;
@@ -188,7 +205,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
         {cell.note && <Note note={cell.note} className="px-0.5" />}
         {cell.items.slice(0, CELL_PREVIEW_LIMIT).map((item) => {
           const selected = cellSelected && selection?.itemId === item.id;
-          const highlight = props.emphasis ? emphasized(item, props.emphasis) : null;
+          const highlight = emphasis ? emphasized(item, emphasis) : null;
           return (
             <Button
               key={item.id}
