@@ -13,6 +13,7 @@ import { currentLocale } from '@/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   ResourceCalendar,
+  selectableRow,
   type CalendarSelection,
   type CalendarEmphasis,
 } from '@/shared/ui/resource-calendar';
@@ -33,6 +34,7 @@ import { staffingCoverage } from '../model/use-staffing';
 import { planIssues, reasonText, reasonsFor } from '../model/use-eligibility';
 import { moveAssignment } from '../model/batch';
 import { Feedback } from '@/components/app/feedback';
+import { ReasonAlerts } from './reason-alerts';
 import { UNASSIGNED_ZONE, zoneAllowed } from '../model/planning';
 import type { Workspace } from '../model/use-workspace';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
@@ -344,27 +346,15 @@ export function ResourceSchedule({
                     <dt className="text-muted-foreground">{t.detailAcknowledgement}</dt>
                     <dd>{acknowledgement}</dd>
                   </dl>
-                  {reasonsFor(w.issues.reasons, selectedItem.employeeId, selectedItem.businessDate)
-                    .length > 0 && (
-                    <ul className="space-y-1 text-sm" aria-label={t.conflict}>
-                      {reasonsFor(
-                        w.issues.reasons,
-                        selectedItem.employeeId,
-                        selectedItem.businessDate,
-                      ).map((reason, index) => (
-                        <li
-                          key={index}
-                          className={
-                            reason.severity === 'BLOCK'
-                              ? 'text-red-700 dark:text-red-300'
-                              : 'text-amber-700 dark:text-amber-300'
-                          }
-                        >
-                          {reasonText(reason, labels)}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <ReasonAlerts
+                    reasons={reasonsFor(
+                      w.issues.reasons,
+                      selectedItem.employeeId,
+                      selectedItem.businessDate,
+                    )}
+                    labels={labels}
+                    label={t.conflict}
+                  />
                   <AbsenceContext
                     events={events.data}
                     failed={events.isError}
@@ -454,7 +444,7 @@ export function ResourceSchedule({
                         <li key={item.id} className="py-2">
                           <Button
                             variant="ghost"
-                            className="h-auto min-h-11 w-full whitespace-normal text-left justify-start"
+                            className={`h-auto min-h-11 w-full justify-start whitespace-normal text-left ${selectableRow}`}
                             onClick={() => select({ ...selection, itemId: item.id })}
                           >
                             {item.title} · {item.time}

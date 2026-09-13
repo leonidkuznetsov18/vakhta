@@ -134,6 +134,18 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
   length; use the shared TableCount/Paginator. Loading or failed requests must not invent a zero.
 - Long lists and tables are paginated. Forms validate input with the zod contracts and show inline errors.
 - Every non-obvious control has an information tooltip; tooltip texts live in `@vakhta/i18n` in all three languages.
+- Owner rule, 2026-09-13 — one hue means one thing: different states or event kinds never share a
+  colour on the same screen, and a colour is never the only signal (pair it with text or an icon).
+  Schedule palette: day shift amber, night shift indigo, today emerald, public holiday sky,
+  approved absence red, pending absence orange, birthday violet, open slot teal, blocking conflict
+  red ring, warning orange, unpublished change neutral grey with a dashed icon, hover/selection
+  highlight sky ring. Pick a new hue for a new meaning instead of reusing one from this list.
+- Inline errors and warnings share one typography: the shared Alert with its icon and title,
+  red for blocking, orange for warnings. Never render a reason as loose coloured text next to an
+  alert box; different font sizes or weights for messages of the same kind are a defect.
+- Cards inside one calendar cell keep a deterministic order: earlier start first, then title
+  alphabetically in the UI locale, then open slots after assignments. A moved card lands where the
+  rule puts it, never where roster order happened to put it.
 - Owner rule, 2026-09-13: never show the same explanation twice. An explanation lives either in
   visible text or in an information icon with a tooltip, not both; when space is tight or the text
   is secondary (why a button is disabled, a section hint), use the icon + tooltip only. Do not add

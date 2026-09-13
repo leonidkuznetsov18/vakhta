@@ -66,17 +66,17 @@ interface ResourceCalendarProps {
 export type CalendarEmphasis = 'unpublished' | 'WARN' | 'BLOCK';
 /** Translucent column tints by day event; the header text and icons carry the meaning. */
 const HEADER_TINT = {
-  holiday: 'bg-rose-500/15 dark:bg-rose-400/20',
+  holiday: 'bg-sky-500/15 dark:bg-sky-400/20',
   absence: 'bg-red-500/12 dark:bg-red-400/20',
   birthday: 'bg-violet-500/15 dark:bg-violet-400/20',
 } as const;
 const COLUMN_TINT = {
-  holiday: 'bg-rose-500/6 dark:bg-rose-400/10',
+  holiday: 'bg-sky-500/6 dark:bg-sky-400/10',
   absence: 'bg-red-500/5 dark:bg-red-400/10',
   birthday: 'bg-violet-500/6 dark:bg-violet-400/10',
 } as const;
 const EVENT_TEXT = {
-  holiday: 'text-rose-700 dark:text-rose-300',
+  holiday: 'text-sky-700 dark:text-sky-300',
   absence: 'text-red-700 dark:text-red-300',
   birthday: 'text-violet-700 dark:text-violet-300',
 } as const;
@@ -323,7 +323,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
             return (
               <p className="text-xs [overflow-wrap:anywhere]">
                 {day.holiday && (
-                  <span className="mr-2 text-rose-700 dark:text-rose-300">🎉 {day.holiday}</span>
+                  <span className={cn('mr-2', EVENT_TEXT.holiday)}>🎉 {day.holiday}</span>
                 )}
                 {day.events?.map((event) => (
                   <span
@@ -406,12 +406,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                       </span>
                     )}
                     {date.holiday && (
-                      <span
-                        className={cn(
-                          'block text-[11px] font-normal',
-                          'text-rose-700 dark:text-rose-300',
-                        )}
-                      >
+                      <span className={cn('block text-[11px] font-normal', EVENT_TEXT.holiday)}>
                         🎉 {date.holiday}
                       </span>
                     )}

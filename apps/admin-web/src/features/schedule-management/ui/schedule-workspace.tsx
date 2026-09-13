@@ -499,7 +499,7 @@ function WorkspaceView({
                 w.unpublished > 0 &&
                 pill(
                   'unpublished',
-                  'accent',
+                  'neutral',
                   CircleDashedIcon,
                   format(t.unpublishedChanges, { count: w.unpublished }),
                   t.highlightUnpublished,

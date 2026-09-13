@@ -10,4 +10,4 @@ export type {
   CalendarViewModel,
 } from './model';
 export { CalendarDetailPanel } from './detail-panel';
-export { calendarItemColors, calendarInteraction } from './styles';
+export { calendarItemColors, calendarInteraction, selectableRow } from './styles';

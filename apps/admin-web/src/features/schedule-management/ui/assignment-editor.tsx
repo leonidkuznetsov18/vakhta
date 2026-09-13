@@ -19,6 +19,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { IconButton } from '@/shared/ui/icon-button';
+import { selectableRow } from '@/shared/ui/resource-calendar';
 import { planIssues, reasonText, reasonsFor, useCandidates } from '../model/use-eligibility';
 import { setAssignment as placeAssignment } from '../model/grid';
 import { LoadingState } from '@/shared/ui/loading-state';
@@ -29,6 +30,7 @@ import { DateField } from '@/components/app/date-picker';
 import { Button } from '@/components/ui/button';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { Feedback } from '@/components/app/feedback';
+import { ReasonAlerts } from './reason-alerts';
 import { InfoTip } from '@/components/app/info-tip';
 import type { Workspace } from '../model/use-workspace';
 import { assignmentKey, gridToItems, sameAssignment, setAssignment, setCell } from '../model/grid';
@@ -503,24 +505,11 @@ export function AssignmentEditor({
           error={format(t.qualificationRequired, { names: missingQualifications.join(', ') })}
         />
       )}
-      {evaluated.filter((reason) => reason.code !== 'QUALIFICATION').length > 0 && (
-        <ul className="space-y-1 text-sm" aria-label={t.conflict}>
-          {evaluated
-            .filter((reason) => reason.code !== 'QUALIFICATION')
-            .map((reason, index) => (
-              <li
-                key={index}
-                className={
-                  reason.severity === 'BLOCK'
-                    ? 'text-red-700 dark:text-red-300'
-                    : 'text-amber-700 dark:text-amber-300'
-                }
-              >
-                {reasonText(reason, labels)}
-              </li>
-            ))}
-        </ul>
-      )}
+      <ReasonAlerts
+        reasons={evaluated.filter((reason) => reason.code !== 'QUALIFICATION')}
+        labels={labels}
+        label={t.conflict}
+      />
       {candidateQuery && (
         <section className="space-y-2" aria-label={t.candidates}>
           <div className="flex items-center gap-1">
@@ -550,12 +539,15 @@ export function AssignmentEditor({
                     <Button
                       type="button"
                       variant="ghost"
-                      className="h-auto w-full flex-col items-start gap-0.5 whitespace-normal py-1.5 text-left"
+                      className={`h-auto w-full flex-col items-start gap-0.5 whitespace-normal py-1.5 text-left ${selectableRow}`}
                       aria-pressed={draft.employeeId === item.employeeId}
                       disabled={item.status === 'BLOCKED'}
                       onClick={() => setDraft({ ...draft, employeeId: item.employeeId })}
                     >
                       <span className="flex w-full items-center gap-2">
+                        {draft.employeeId === item.employeeId && (
+                          <CheckIcon aria-hidden="true" className="size-4 shrink-0 text-primary" />
+                        )}
                         <span className="min-w-0 flex-1 truncate font-medium">
                           {employee.fullName}
                         </span>
