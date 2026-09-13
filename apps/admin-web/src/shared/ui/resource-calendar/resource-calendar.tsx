@@ -283,7 +283,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                   'min-h-11 min-w-11 flex-1 flex-col gap-0 px-1 text-xs leading-tight',
                   date.today &&
                     selectedDate !== date.id &&
-                    'border-emerald-600 bg-emerald-600 font-bold text-white hover:bg-emerald-700 hover:text-white dark:border-emerald-500 dark:bg-emerald-500 dark:text-emerald-950',
+                    'border-2 border-emerald-600 font-bold text-emerald-700 dark:border-emerald-500 dark:text-emerald-300',
                 )}
                 onClick={() => onDate(date.id)}
               >
@@ -339,7 +339,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                 <TableHead className="sticky left-0 z-10 w-40 whitespace-normal bg-background">
                   {model.resourceLabel}
                 </TableHead>
-                {model.dates.map((date) => (
+                {model.dates.map((date, index) => (
                   <TableHead
                     key={date.id}
                     aria-current={date.today ? 'date' : undefined}
@@ -347,15 +347,20 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                     className={cn(
                       'w-34 whitespace-normal px-2 py-1.5 text-center align-top',
                       date.today &&
-                        'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-emerald-950',
+                        'shadow-[inset_3px_0_0_var(--color-emerald-600),inset_-3px_0_0_var(--color-emerald-600),inset_0_3px_0_var(--color-emerald-600)] dark:shadow-[inset_3px_0_0_var(--color-emerald-500),inset_-3px_0_0_var(--color-emerald-500),inset_0_3px_0_var(--color-emerald-500)]',
                       date.readonly && 'bg-muted/40 text-muted-foreground',
                       date.holiday && 'bg-rose-50/70 dark:bg-rose-950/40',
+                      // The container clips at its rounded corners; give the corner cells the same
+                      // radius so a solid header or frame follows the curve instead of being cut.
+                      index === model.dates.length - 1 && 'rounded-tr-lg',
                     )}
                   >
                     <span
                       className={cn(
                         'block font-medium',
-                        date.today ? 'font-bold text-inherit' : 'text-foreground',
+                        date.today
+                          ? 'font-bold text-emerald-700 dark:text-emerald-300'
+                          : 'text-foreground',
                       )}
                     >
                       {date.label}
@@ -364,7 +369,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                       <span
                         className={cn(
                           'block text-[11px] font-normal tabular-nums',
-                          date.today ? 'text-inherit opacity-90' : 'text-muted-foreground',
+                          'text-muted-foreground',
                         )}
                       >
                         {date.summary}
@@ -374,7 +379,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                       <span
                         className={cn(
                           'block text-[11px] font-normal',
-                          date.today ? 'text-inherit' : 'text-rose-700 dark:text-rose-300',
+                          'text-rose-700 dark:text-rose-300',
                         )}
                       >
                         🎉 {date.holiday}
@@ -385,7 +390,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                         key={event}
                         className={cn(
                           'block text-[11px] font-normal [overflow-wrap:anywhere]',
-                          date.today ? 'text-inherit' : 'text-violet-700 dark:text-violet-300',
+                          'text-violet-700 dark:text-violet-300',
                         )}
                       >
                         {event}
@@ -415,10 +420,13 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                       key={cell.date}
                       className={cn(
                         'whitespace-normal p-1.5 align-top',
+                        rowIndex === rows.length - 1 &&
+                          index === row.cells.length - 1 &&
+                          'rounded-br-lg',
                         // Wall-calendar slider: a solid frame drawn with inset shadows, which
                         // neither the collapsed borders nor the rounded container can clip.
                         model.dates[index]?.today &&
-                          'bg-emerald-50 shadow-[inset_3px_0_0_var(--color-emerald-600),inset_-3px_0_0_var(--color-emerald-600)] dark:bg-emerald-950/40 dark:shadow-[inset_3px_0_0_var(--color-emerald-500),inset_-3px_0_0_var(--color-emerald-500)]',
+                          'shadow-[inset_3px_0_0_var(--color-emerald-600),inset_-3px_0_0_var(--color-emerald-600)] dark:shadow-[inset_3px_0_0_var(--color-emerald-500),inset_-3px_0_0_var(--color-emerald-500)]',
                         model.dates[index]?.today &&
                           rowIndex === rows.length - 1 &&
                           'shadow-[inset_3px_0_0_var(--color-emerald-600),inset_-3px_0_0_var(--color-emerald-600),inset_0_-3px_0_var(--color-emerald-600)] dark:shadow-[inset_3px_0_0_var(--color-emerald-500),inset_-3px_0_0_var(--color-emerald-500),inset_0_-3px_0_var(--color-emerald-500)]',
