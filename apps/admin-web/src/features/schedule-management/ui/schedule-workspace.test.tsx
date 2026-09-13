@@ -203,6 +203,7 @@ function mockApi(
     };
     context?: { intervals: unknown[]; absences: unknown[]; otherUnitEmployees: unknown[] };
     candidates?: unknown[];
+    patterns?: unknown[];
     readGate?: Promise<void>;
     templatesEmpty?: boolean;
     templatesFail?: boolean;
@@ -275,6 +276,11 @@ function mockApi(
         total: roster.length,
         nextCursor: remaining.length > 200 ? items.at(-1)?.id : null,
       });
+    }
+    if (path.startsWith('/admin/schedules/patterns')) {
+      if (method === 'POST')
+        return json({ ...(body as object), id: SITE, createdAt: '2026-09-01T00:00:00.000Z' });
+      return json(state.patterns ?? []);
     }
     if (path.startsWith('/admin/schedules/staffing/context'))
       return json(state.context ?? { intervals: [], absences: [], otherUnitEmployees: [] });
@@ -1733,6 +1739,158 @@ it('lists candidates with reasons when creating a shift and blocks an absent wor
   expect(blocked.textContent).toContain('VACATION');
   fireEvent.click(within(list).getByRole('button', { name: /Сидоров Пётр/ }));
   expect(within(sheet).getByRole('button', { name: t.apply }).hasAttribute('disabled')).toBe(false);
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+function freshState() {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    revisions: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+}
+
+it('moves a shift by drag to another date and refuses an occupied target without changing the plan', async () => {
+  freshState();
+  mockApi({ status: 'DRAFT' });
+  admin();
+  await screen.findByText(t.draftState);
+  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+    fireEvent.click(screen.getByRole('button', { name: t.previous }));
+  }
+  const card = screen.getByRole('button', { name: /Кузнецов Леонид, 05/ });
+  expect(card.getAttribute('draggable')).toBe('true');
+  fireEvent.dragStart(card);
+  const target = screen.getByRole('button', {
+    name: `${t.add}: Линия 1, 2026-09-06`,
+  }).parentElement;
+  if (!target) throw new Error('Missing target cell');
+  fireEvent.dragOver(target);
+  fireEvent.drop(target);
+  expect(await screen.findByRole('button', { name: /Кузнецов Леонид, 06/ })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })).toBeNull();
+  expect(gridToItems(useScheduleDrafts.getState().drafts[DRAFT_KEY] ?? { rows: [] })).toEqual([
+    expect.objectContaining({ employeeId: EMP, businessDate: '2026-09-06', zoneId: ZONE }),
+  ]);
+  // Dropping onto a date the person already has keeps the plan and explains why.
+  fireEvent.click(screen.getByRole('radio', { name: t.people }));
+  const moved = screen.getByRole('button', { name: /Линия 1, 06/ });
+  fireEvent.dragStart(moved);
+  const same = moved.parentElement;
+  if (!same) throw new Error('Missing cell');
+  fireEvent.drop(same);
+  expect(screen.queryByText(t.moveInvalidOccupied)).toBeNull();
+  expect(gridToItems(useScheduleDrafts.getState().drafts[DRAFT_KEY] ?? { rows: [] })).toHaveLength(
+    1,
+  );
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('opens the explicit Move editor with the person changeable and the same validation', async () => {
+  freshState();
+  mockApi({ status: 'DRAFT' });
+  admin();
+  await screen.findByText(t.draftState);
+  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+    fireEvent.click(screen.getByRole('button', { name: t.previous }));
+  }
+  fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 05/ }));
+  const sheet = await screen.findByRole('dialog');
+  fireEvent.click(within(sheet).getByRole('button', { name: t.moveAssignment }));
+  const employee = within(sheet).getByRole('combobox', { name: s.employee });
+  expect(employee.hasAttribute('disabled')).toBe(false);
+  fireEvent.change(employee, { target: { value: EMP2 } });
+  fireEvent.click(within(sheet).getByRole('button', { name: t.apply }));
+  await waitFor(() =>
+    expect(gridToItems(useScheduleDrafts.getState().drafts[DRAFT_KEY] ?? { rows: [] })).toEqual([
+      expect.objectContaining({
+        employeeId: EMP2,
+        businessDate: '2026-09-05',
+        templateId: TPL_NIGHT,
+      }),
+    ]),
+  );
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('copies the previous week onto the visible week with a preview and no publication', async () => {
+  freshState();
+  const calls = mockApi({ status: 'DRAFT' });
+  admin();
+  await screen.findByText(t.draftState);
+  // The visible week is 7–13 September; the previous week holds the 5 September shift.
+  fireEvent.click(screen.getByRole('menuitem', { name: t.copyPeriod }));
+  const dialog = await screen.findByRole('dialog');
+  const preview = within(dialog).getByRole('button', { name: t.preview });
+  await waitFor(() => expect(preview.hasAttribute('disabled')).toBe(false));
+  fireEvent.click(preview);
+  expect(within(dialog).getByText(`${t.added}: 1`)).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole('button', { name: t.apply }));
+  await waitFor(() =>
+    expect(gridToItems(useScheduleDrafts.getState().drafts[DRAFT_KEY] ?? { rows: [] })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ employeeId: EMP, businessDate: '2026-09-05' }),
+        expect.objectContaining({
+          employeeId: EMP,
+          businessDate: '2026-09-12',
+          templateId: TPL_NIGHT,
+          zoneId: ZONE,
+        }),
+      ]),
+    ),
+  );
+  expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('loads a saved pattern into the batch planner and saves the current input as a pattern', async () => {
+  freshState();
+  const calls = mockApi({
+    status: 'DRAFT',
+    patterns: [
+      {
+        id: 'e5000000-0000-4000-8000-000000000001',
+        siteId: SITE,
+        name: 'Two on two off',
+        definition: { pattern: 'DAY_2_2', templateId: null, mode: 'replace', zoneId: ZONE },
+        createdAt: '2026-09-01T00:00:00.000Z',
+      },
+    ],
+  });
+  admin();
+  fireEvent.click(await screen.findByRole('button', { name: t.add }));
+  const dialog = screen.getByRole('dialog');
+  fireEvent.change(await within(dialog).findByLabelText(t.loadPattern), {
+    target: { value: 'e5000000-0000-4000-8000-000000000001' },
+  });
+  expect((within(dialog).getByLabelText(t.pattern) as HTMLSelectElement).value).toBe('DAY_2_2');
+  expect((within(dialog).getByLabelText(t.batchMode) as HTMLSelectElement).value).toBe('replace');
+  fireEvent.change(within(dialog).getByLabelText(t.batchMode), { target: { value: 'fill' } });
+  fireEvent.click(within(dialog).getByRole('button', { name: t.savePattern }));
+  const confirmation = await screen.findByRole('alertdialog');
+  fireEvent.change(within(confirmation).getByRole('textbox'), { target: { value: 'Fill 2/2' } });
+  fireEvent.click(within(confirmation).getByRole('button', { name: t.savePattern }));
+  await waitFor(() =>
+    expect(
+      calls.some((call) => call.method === 'POST' && call.path === '/admin/schedules/patterns'),
+    ).toBe(true),
+  );
+  expect(
+    calls.find((call) => call.path === '/admin/schedules/patterns' && call.method === 'POST')?.body,
+  ).toMatchObject({
+    siteId: SITE,
+    name: 'Fill 2/2',
+    definition: { pattern: 'DAY_2_2', mode: 'fill', zoneId: ZONE },
+  });
   cleanup();
   vi.unstubAllGlobals();
 });

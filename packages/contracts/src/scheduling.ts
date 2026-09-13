@@ -288,3 +288,36 @@ export const ScheduleExportQuery = z
   })
   .strict();
 export type ScheduleExportQuery = z.infer<typeof ScheduleExportQuery>;
+
+/** A reusable batch input (SC-26): the rotation or single template, existing-date mode and zone. */
+export const PatternDefinition = z.object({
+  pattern: z.enum([
+    'SINGLE',
+    'DAY_2_2',
+    'NIGHT_2_2',
+    'DAY_4_2',
+    'NIGHT_4_2',
+    'DAY_NIGHT_OFF_OFF',
+    'WEEKDAYS_DAY',
+  ]),
+  templateId: Uuid.nullable(),
+  mode: z.enum(['fill', 'replace']),
+  zoneId: Uuid.nullable(),
+});
+export type PatternDefinition = z.infer<typeof PatternDefinition>;
+
+export const SchedulePatternView = z.object({
+  id: Uuid,
+  siteId: Uuid,
+  name: z.string(),
+  definition: PatternDefinition,
+  createdAt: IsoDateTime,
+});
+export type SchedulePatternView = z.infer<typeof SchedulePatternView>;
+
+export const SavePatternCommand = z.object({
+  siteId: Uuid,
+  name: z.string().trim().min(1).max(80),
+  definition: PatternDefinition,
+});
+export type SavePatternCommand = z.infer<typeof SavePatternCommand>;

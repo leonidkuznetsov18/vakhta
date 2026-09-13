@@ -93,9 +93,9 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US1 | **Dependencies**: #9/#10/#12 | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T031 [US1] Add versioned saved-pattern contracts/persistence and exact occurrence/range/fill/replace diff in scheduling and schedule-management/model/planning.ts (#14).
-- [ ] T032 [US1] Connect drag and explicit Move to the same evaluated intent and preview in shared/ui/resource-calendar/ and schedule-management/ui/ (#14).
-- [ ] T033 [US1] Test full-result conflicts, hidden records, inactive refs, undo/recovery and keyboard/touch parity in schedule-management model/UI tests (#14).
+- [x] T031 [US1] Add versioned saved-pattern contracts/persistence and exact occurrence/range/fill/replace diff in scheduling and schedule-management/model/planning.ts (#14).
+- [x] T032 [US1] Connect drag and explicit Move to the same evaluated intent and preview in shared/ui/resource-calendar/ and schedule-management/ui/ (#14).
+- [x] T033 [US1] Test full-result conflicts, hidden records, inactive refs, undo/recovery and keyboard/touch parity in schedule-management model/UI tests (#14).
 
 ## Phase 12: Custom time and segments — #15
 

@@ -53,6 +53,11 @@ interface ResourceCalendarProps {
   readonly onDate: (date: string) => void;
   readonly onSelect: (selection: CalendarSelection) => void;
   readonly onCreate: (selection: CalendarSelection) => void;
+  /** Drag and drop of an item onto another row/date; the keyboard alternative is the caller's. */
+  readonly onMove?: (
+    item: CalendarSelection & { readonly itemId: string },
+    target: { readonly resourceId: string; readonly date: string },
+  ) => void;
 }
 const PAGE_SIZE = 20;
 const CELL_PREVIEW_LIMIT = 3;
@@ -97,6 +102,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
     trigger: HTMLElement;
     calendar: Element | null;
   } | null>(null);
+  const [dragging, setDragging] = useState<(CalendarSelection & { itemId: string }) | null>(null);
   const selectedResource = model.resources.find((row) => row.id === selection?.resourceId);
   const selectedCell = selectedResource?.cells.find((cell) => cell.date === selection?.date);
   function openFrom(trigger: HTMLButtonElement) {
@@ -109,8 +115,23 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
     const cellSelected = selection?.resourceId === row.id && selection.date === cell.date;
     const empty = cell.items.length === 0;
     const readonlyDate = !!model.dates.find((date) => date.id === cell.date)?.readonly;
+    const droppable = !!props.onMove && !!dragging && !readonlyDate;
     return (
-      <div className="group/cell flex min-h-[4.75rem] min-w-0 flex-col gap-1.5">
+      <div
+        className={cn(
+          'group/cell flex min-h-[4.75rem] min-w-0 flex-col gap-1.5 rounded-md',
+          droppable && 'outline-dashed outline-1 outline-offset-2 outline-muted-foreground/40',
+        )}
+        onDragOver={(event) => {
+          if (droppable) event.preventDefault();
+        }}
+        onDrop={(event) => {
+          if (!droppable || !dragging) return;
+          event.preventDefault();
+          props.onMove?.(dragging, { resourceId: row.id, date: cell.date });
+          setDragging(null);
+        }}
+      >
         {cell.note && <Note note={cell.note} className="px-0.5" />}
         {cell.items.slice(0, CELL_PREVIEW_LIMIT).map((item) => {
           const selected = cellSelected && selection?.itemId === item.id;
@@ -137,6 +158,11 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                 item.readonly && 'opacity-70',
                 item.issue === 'BLOCK' && 'inset-ring-2 inset-ring-red-500/70',
               )}
+              draggable={!!props.onMove && !item.readonly}
+              onDragStart={() =>
+                setDragging({ resourceId: row.id, date: cell.date, itemId: item.id })
+              }
+              onDragEnd={() => setDragging(null)}
               onClick={(event) => {
                 openFrom(event.currentTarget);
                 props.onSelect({ resourceId: row.id, date: cell.date, itemId: item.id });

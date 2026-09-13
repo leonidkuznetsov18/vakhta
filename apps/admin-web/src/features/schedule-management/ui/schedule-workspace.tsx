@@ -8,6 +8,7 @@ import {
   Trash2Icon,
   XIcon,
   UsersIcon,
+  CopyIcon,
 } from 'lucide-react';
 import { currentLocale } from '@/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -45,6 +46,7 @@ import { PublicationReview } from './publication-review';
 import { ScheduleToolbar } from './schedule-toolbar';
 import { ScheduleExport } from './schedule-export';
 import { StaffingSheet } from './staffing-sheet';
+import { CopyPeriodDialog } from './copy-period';
 
 const t = messages(currentLocale()).scheduleWorkspace;
 const s = messages(currentLocale()).admin.schedule;
@@ -157,6 +159,7 @@ function WorkspaceView({
   const [batch, setBatch] = useState<{ zoneId: string; date: string } | null>(null);
   const [review, setReview] = useState<{ grid: GridState; versionId: string } | null>(null);
   const [staffingOpen, setStaffingOpen] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
   const [staffingTrigger, setStaffingTrigger] = useState<HTMLElement | null>(null);
   const { confirm, dialog } = useConfirm();
   const version = w.version;
@@ -284,6 +287,12 @@ function WorkspaceView({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-48">
+              {w.writable && (
+                <DropdownMenuItem onSelect={() => setCopyOpen(true)}>
+                  <CopyIcon aria-hidden="true" />
+                  {t.copyPeriod}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onSelect={() => {
                   setStaffingTrigger(
@@ -383,7 +392,11 @@ function WorkspaceView({
                   compact
                 />
               )}
-              {w.writable && !mobile && <Muted>{t.planningHint}</Muted>}
+              {w.writable && !mobile && (
+                <Muted>
+                  {t.planningHint} {t.dragHint}
+                </Muted>
+              )}
               {adjacent.months.map((month) => (
                 <Muted key={month}>{format(t.otherMonth, { month: monthLabel(month) })}</Muted>
               ))}
@@ -475,6 +488,13 @@ function WorkspaceView({
         }}
         date={date}
       />
+      {copyOpen && (
+        <CopyPeriodDialog
+          workspace={w}
+          weekDates={calendarWeek(date)}
+          onClose={() => setCopyOpen(false)}
+        />
+      )}
       {review && (
         <PublicationReview
           workspace={w}

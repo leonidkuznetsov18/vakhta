@@ -956,3 +956,27 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   planners/HR in the panel; an employee self-service entry is not part of this increment.
 - Lean: Proceed. The planner sees why a person cannot take a shift before saving and gets an
   ordered candidate list instead of calling around; the server keeps the final word.
+
+## 2026-09-13 — Batch planning: copy, patterns and moves (#14, SC-26/27/31)
+
+- `model/batch.ts`: `copyPeriod` maps a source period onto a target period by position, skips
+  inactive workers, zones and templates and occupied fill-mode dates with a listed reason, and
+  replaces only the copied people's target dates in replace mode; `moveAssignment` moves one
+  assignment to another person, date or zone with its metadata and refuses same, occupied and
+  other-month targets without touching the plan.
+- Copy a period (actions menu): previous week onto the visible week or previous month onto this
+  month, source read through the adjacent-month hook; the preview shows exact changes, the skipped
+  list and rule reasons, and apply keeps the result local. Saved patterns (`schedule_patterns`,
+  migration `0043`, audited `/admin/schedules/patterns`) load into the batch planner and the
+  current input can be saved by name.
+- Drag on desktop and the explicit Move action in the Sheet call the same command: the editor
+  allows changing the person for a Move; an invalid drop (occupied, other month, blocking rule
+  reason, zone scope) leaves the plan unchanged and states why.
+- Verification: batch model 3 tests; real-DB 1 case (save, update by name, list, remove, audit);
+  panel suites 107 tests including drag move, occupied drop, Move editor with a changeable person,
+  copy of the previous week and saved pattern load/save; typecheck, ESLint, Prettier. Evidence:
+  `batch-copy-period-preview.png`, `batch-saved-pattern.png`, `batch-drag-moved.png`.
+- Limits: drag is pointer-only by design; the Sheet's Move is the keyboard/touch path. Copy maps
+  by position (a 31-day month onto a 30-day month drops the last source day).
+- Lean: Proceed. Repeating last week or last month becomes one reviewed action; small moves
+  become one gesture with the same safeguards as the editor.

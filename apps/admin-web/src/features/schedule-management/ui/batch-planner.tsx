@@ -22,6 +22,10 @@ import type { Workspace } from '../model/use-workspace';
 import { batchPreview, zoneAllowed, type BatchInput } from '../model/planning';
 import { ROTATION_PATTERNS } from '../model/grid';
 import { AssignmentChanges } from './assignment-changes';
+import { usePatterns } from '../model/use-patterns';
+import { useConfirm } from '@/components/app/confirm-dialog';
+import { notifySuccess } from '@/lib/toast';
+import { QueryFeedback as PatternsFeedback } from '@/components/app/query-feedback';
 import { planIssues, reasonText } from '../model/use-eligibility';
 import { Feedback } from '@/components/app/feedback';
 const t = messages(currentLocale()).scheduleWorkspace;
@@ -48,6 +52,29 @@ export function BatchPlanner({
     mode: 'fill',
   });
   const [review, setReview] = useState(false);
+  const saved = usePatterns({ accessKey: w.accessKey, siteId: w.siteId, enabled: w.writable });
+  const [loadedPattern, setLoadedPattern] = useState('');
+  const { confirm, dialog } = useConfirm();
+  const definition = {
+    pattern: input.pattern,
+    templateId: input.pattern === 'SINGLE' ? input.templateId || null : null,
+    mode: input.mode,
+    zoneId: input.zoneId || null,
+  };
+  async function savePattern() {
+    if (!w.writable || saved.save.isPending) return;
+    const name = await confirm({
+      title: t.savePattern,
+      commentLabel: t.patternName,
+      commentRequired: true,
+      confirmLabel: t.savePattern,
+    });
+    if (!name) return;
+    saved.save.mutate(
+      { siteId: w.siteId, name: name.trim(), definition },
+      { onSuccess: () => notifySuccess(t.patternSaved) },
+    );
+  }
   const active = w.employees.filter((employee) => employee.status === 'ACTIVE');
   const visible = active.filter((employee) =>
     `${employee.fullName} ${employee.personnelNumber}`
@@ -165,6 +192,32 @@ export function BatchPlanner({
                 {w.employeeResult.loaded && <Paginator pages={pages} total={visible.length} />}
               </section>
               <section className="space-y-3 rounded-lg border p-3">
+                <PatternsFeedback query={saved.query} errorMessage={t.patternsUnavailable} />
+                {saved.patterns.length > 0 && (
+                  <SelectField
+                    placeholder={t.select}
+                    label={t.loadPattern}
+                    value={loadedPattern}
+                    onChange={(id) => {
+                      const pattern = saved.patterns.find((item) => item.id === id);
+                      setLoadedPattern(id);
+                      if (!pattern) return;
+                      update({
+                        pattern: pattern.definition.pattern,
+                        templateId: pattern.definition.templateId ?? '',
+                        mode: pattern.definition.mode,
+                        ...(pattern.definition.zoneId &&
+                        w.zones.some((zone) => zone.id === pattern.definition.zoneId)
+                          ? { zoneId: pattern.definition.zoneId }
+                          : {}),
+                        ...(pattern.definition.pattern !== 'SINGLE' && input.from === input.to
+                          ? { to: monthDates(w.month).at(-1) ?? input.to }
+                          : {}),
+                      });
+                    }}
+                    options={saved.patterns.map((item) => ({ value: item.id, label: item.name }))}
+                  />
+                )}
                 <SelectField
                   placeholder={t.select}
                   label={t.zone}
@@ -266,6 +319,26 @@ export function BatchPlanner({
           )}
         </div>
         <DialogFooter>
+          {!review && (
+            <Button
+              variant="ghost"
+              disabled={
+                !w.writable ||
+                saved.save.isPending ||
+                !!(
+                  loadedPattern &&
+                  saved.patterns.find(
+                    (item) =>
+                      item.id === loadedPattern &&
+                      JSON.stringify(item.definition) === JSON.stringify(definition),
+                  )
+                )
+              }
+              onClick={() => void savePattern()}
+            >
+              {t.savePattern}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => (review ? setReview(false) : onClose())}>
             {review ? t.editSelection : t.cancel}
           </Button>
@@ -290,6 +363,7 @@ export function BatchPlanner({
             </Button>
           )}
         </DialogFooter>
+        {dialog}
       </DialogContent>
     </Dialog>
   );

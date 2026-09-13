@@ -9,6 +9,7 @@ import { ScheduleCommandService } from './schedule-command.service.js';
 import { TemplatesService } from './templates.service.js';
 import { ScheduleHistoryService } from './schedule-history.service.js';
 import { StaffingService } from './staffing.service.js';
+import { PatternsService } from './patterns.service.js';
 import { AdminStaffingController } from './admin-staffing.controller.js';
 
 @Module({
@@ -21,6 +22,7 @@ import { AdminStaffingController } from './admin-staffing.controller.js';
     ScheduleHistoryService,
     ScheduleExportService,
     StaffingService,
+    PatternsService,
     {
       provide: SCHEDULE_OPTIONS,
       useFactory: (config: ConfigService<Env, true>): ScheduleOptions => ({

@@ -31,6 +31,8 @@ import {
   ReviseScheduleCommand,
   PutAssignmentsCommand,
   ReturnToDraftCommand,
+  SavePatternCommand,
+  type SchedulePatternView,
   type AcknowledgementStatusView,
   type ScheduleVersionDetail,
   type ScheduleVersionView,
@@ -57,6 +59,7 @@ import { ScheduleService } from './schedule.service.js';
 import { ScheduleCommandService } from './schedule-command.service.js';
 import { TemplatesService } from './templates.service.js';
 import { ScheduleHistoryService } from './schedule-history.service.js';
+import { PatternsService } from './patterns.service.js';
 
 const ALL_PANEL_ROLES: WebRole[] = [
   'ADMIN',
@@ -93,7 +96,41 @@ export class AdminSchedulesController {
     private readonly commands: ScheduleCommandService,
     private readonly historyService: ScheduleHistoryService,
     private readonly exportService: ScheduleExportService,
+    private readonly patterns: PatternsService,
   ) {}
+
+  @Get('patterns')
+  @Roles(...EDITORS, ...APPROVERS)
+  listPatterns(
+    @Query(new ZodValidationPipe(SiteQuery)) query: { siteId: string },
+    @CurrentUser() user: WebUser,
+  ): Promise<SchedulePatternView[]> {
+    assertScope(user, [...EDITORS, ...APPROVERS], { siteId: query.siteId });
+    return this.patterns.list(query.siteId);
+  }
+
+  @Post('patterns')
+  @HttpCode(200)
+  @Roles(...EDITORS)
+  savePattern(
+    @Body(new ZodValidationPipe(SavePatternCommand)) body: SavePatternCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<SchedulePatternView> {
+    assertScope(user, EDITORS, { siteId: body.siteId });
+    return this.patterns.save(body, webUserActor(user));
+  }
+
+  @Delete('patterns/:id')
+  @HttpCode(204)
+  @Roles(...EDITORS)
+  async removePattern(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: WebUser,
+  ): Promise<void> {
+    const siteId = await this.patterns.siteOf(id);
+    assertScope(user, EDITORS, { siteId });
+    await this.patterns.remove(id, webUserActor(user));
+  }
 
   @Post('commands')
   @HttpCode(200)

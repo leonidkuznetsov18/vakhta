@@ -248,8 +248,42 @@ const planContext = {
   ],
   otherUnitEmployees: [] as { employeeId: string; orgUnitId: string }[],
 };
+const patterns: {
+  id: string;
+  siteId: string;
+  name: string;
+  definition: { pattern: string; templateId: string | null; mode: string; zoneId: string | null };
+  createdAt: string;
+}[] = [
+  {
+    id: 'e5000000-0000-4000-8000-000000000001',
+    siteId: scheduleSiteId,
+    name: '2/2 денна · Лінія 1',
+    definition: { pattern: 'DAY_2_2', templateId: null, mode: 'replace', zoneId: scheduleZoneId },
+    createdAt: new Date().toISOString(),
+  },
+];
 /** In-memory preview only: exercises the actual validated frontend contract, never production. */
 export function scheduleFixture(url: URL, method: string, body: unknown): unknown {
+  if (url.pathname.startsWith('/admin/schedules/patterns')) {
+    if (method === 'GET') return patterns;
+    if (method === 'POST') {
+      const input = body as (typeof patterns)[number];
+      const row = { ...input, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+      const index = patterns.findIndex((item) => item.name === input.name);
+      if (index >= 0) patterns[index] = { ...patterns[index]!, definition: input.definition };
+      else patterns.push(row);
+      return index >= 0 ? patterns[index] : row;
+    }
+    if (method === 'DELETE') {
+      const id = url.pathname.split('/').at(-1);
+      patterns.splice(
+        patterns.findIndex((item) => item.id === id),
+        1,
+      );
+      return {};
+    }
+  }
   if (url.pathname.startsWith('/admin/schedules/staffing')) {
     if (url.pathname.endsWith('/context') && method === 'GET') return planContext;
     if (url.pathname.endsWith('/candidates') && method === 'GET') {

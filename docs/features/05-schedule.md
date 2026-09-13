@@ -35,6 +35,11 @@ Counts describe assigned people, not required staffing or attendance.
   menu); administrators and HR record who holds which qualification and until when. Zone rows show
   missing people or "not defined"; cells show eligible/required per shift. A zone whose every
   requirement demands a qualification refuses an unqualified or expired worker at save.
+- **Copy, patterns and moves:** Copy a period (actions menu) copies the previous week or month
+  onto the current one with a preview of exact changes, skipped inactive references and rule
+  reasons. Saved patterns store a rotation, shift, mode and zone for the batch planner. Drag a shift
+  to another date or row, or use Move in its details to change the person, date or zone; an invalid
+  move leaves the plan unchanged and explains why.
 - **Conflicts and candidates:** the plan is checked as you edit: overlapping shifts of one person
   in any unit, approved absences and missing required qualifications block saving and publishing;
   short rest and too many monthly hours warn or block according to the site rules; a worker's

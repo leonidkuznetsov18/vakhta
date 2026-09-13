@@ -25,6 +25,8 @@ export interface AssignmentContext {
   businessDate: string;
   zoneId: string;
   templateId?: string;
+  /** Explicit Move: the person may change as well as the date and zone (SC-31). */
+  move?: boolean;
 }
 export function AssignmentEditor({
   workspace: w,
@@ -115,6 +117,7 @@ export function AssignmentEditor({
   };
   const unchanged =
     !!original &&
+    original.employeeId === draft.employeeId &&
     original.businessDate === draft.businessDate &&
     original.templateId === draft.templateId &&
     original.zoneId === draft.zoneId;
@@ -142,14 +145,16 @@ export function AssignmentEditor({
         apply();
       }}
     >
-      <h3 className="font-semibold">{original ? t.editAssignment : t.add}</h3>
+      <h3 className="font-semibold">
+        {original ? (context.move ? t.moveAssignment : t.editAssignment) : t.add}
+      </h3>
       <div className="grid gap-4 @min-[36rem]:grid-cols-2">
         <QueryFeedback query={w.employeeResult.queryState} errorMessage={t.rosterUnavailable} />
         <SelectField
           placeholder={t.select}
           label={s.employee}
           value={draft.employeeId}
-          disabled={!!original || !w.writable}
+          disabled={(!!original && !context.move) || !w.writable}
           onChange={(employeeId) => setDraft({ ...draft, employeeId })}
           options={w.employees
             .filter((employee) => employee.status === 'ACTIVE' || employee.id === draft.employeeId)

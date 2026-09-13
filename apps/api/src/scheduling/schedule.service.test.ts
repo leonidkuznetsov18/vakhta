@@ -23,6 +23,7 @@ import { webUserActor, type WebUser } from '../auth/web-auth.guard.js';
 import { RolesService } from '../auth/roles.service.js';
 import { ScheduleCommandService } from './schedule-command.service.js';
 import { StaffingService } from './staffing.service.js';
+import { PatternsService } from './patterns.service.js';
 import { backgroundTasks } from '@vakhta/db';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { assignmentAcknowledgements, requests, shiftAssignments } from '@vakhta/db';
@@ -1653,6 +1654,41 @@ describe('scheduling: версії, валідація, публікація, о
       expect(context.absences).toEqual([
         expect.objectContaining({ employeeId: petrova, status: 'APPROVED', type: 'VACATION' }),
       ]);
+    });
+  });
+
+  describe('saved patterns (#14, SC-26)', () => {
+    it('saves, updates by name, lists and removes site patterns with audit', async () => {
+      const patterns = new PatternsService(testDb.db, new AuditLog());
+      const saved = await patterns.save(
+        {
+          siteId,
+          name: 'Two on two off',
+          definition: { pattern: 'DAY_2_2', templateId: null, mode: 'replace', zoneId },
+        },
+        PLANNER,
+      );
+      const updated = await patterns.save(
+        {
+          siteId,
+          name: 'Two on two off',
+          definition: { pattern: 'DAY_2_2', templateId: null, mode: 'fill', zoneId: null },
+        },
+        PLANNER,
+      );
+      expect(updated.id).toBe(saved.id);
+      expect(updated.definition.mode).toBe('fill');
+      expect(await patterns.list(siteId)).toHaveLength(1);
+      expect(await patterns.siteOf(saved.id)).toBe(siteId);
+      await patterns.remove(saved.id, PLANNER);
+      expect(await patterns.list(siteId)).toEqual([]);
+      await expect(patterns.remove(saved.id, PLANNER)).rejects.toMatchObject({
+        code: 'PATTERN_NOT_FOUND',
+      });
+      const audit = await testDb.db.select().from(auditLog);
+      expect(audit.map((row) => row.action)).toEqual(
+        expect.arrayContaining(['schedule.pattern.save', 'schedule.pattern.remove']),
+      );
     });
   });
 

@@ -5,6 +5,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -279,4 +280,20 @@ export const employeeAvailability = pgTable(
       sql`${t.validTo} IS NULL OR ${t.validTo} >= ${t.validFrom}`,
     ),
   ],
+);
+
+/** Named batch inputs a planner reuses (SC-26): rotation, template, mode and optional zone. */
+export const schedulePatterns = pgTable(
+  'schedule_patterns',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    siteId: uuid('site_id')
+      .notNull()
+      .references(() => sites.id),
+    name: text('name').notNull(),
+    definition: jsonb('definition').notNull(),
+    createdBy: uuid('created_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('schedule_patterns_site_name_uq').on(t.siteId, t.name)],
 );
