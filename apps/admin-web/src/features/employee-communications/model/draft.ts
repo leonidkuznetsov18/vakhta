@@ -19,7 +19,6 @@ export type DraftFile = {
 );
 export interface CommunicationDraft {
   open: boolean;
-  expanded: boolean;
   view: 'compose' | 'history';
   phase: 'EDITING' | 'REVIEW' | 'SUBMITTING' | 'UNCERTAIN';
   requestId: string;
@@ -33,7 +32,6 @@ export interface CommunicationDraft {
 }
 const empty = (): CommunicationDraft => ({
   open: false,
-  expanded: false,
   view: 'compose',
   phase: 'EDITING',
   requestId: crypto.randomUUID(),

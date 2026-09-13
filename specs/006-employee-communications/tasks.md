@@ -45,3 +45,7 @@ Codex. Dependencies are sequential; review is read-only. Do not mark proposals a
 
 - [ ] T16 — Verify the source commit, master push, CI/release/announcement and deployed API/worker/panel revision. Record final run evidence in the delivery report.
 - [ ] T17 — Owner-authorized live Telegram Mini App launch, private storage delivery and physical phone keyboard QA. Local synthetic screenshots do not establish these outcomes.
+- [x] T18 — Owner refinement: editable employee autocomplete with cancelable server suggestions,
+      keyboard multi-selection and removable selected chips; one 640px desktop width and Close (X).
+      Outside-close retains the draft; no backdrop. Focused interaction tests, typecheck, lint and
+      production build passed; inspected screenshots at 1280x720 and 360x800 before publishing.

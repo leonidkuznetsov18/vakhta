@@ -1,4 +1,5 @@
 export const communicationsRu = {
+  removeRecipient: 'Убрать {name} из получателей',
   audienceFilters: 'Фильтры получателей',
   questionnaireIncomplete:
     'Укажите название, текст каждого вопроса и 2–10 разных вариантов для вопросов с выбором.',
@@ -50,8 +51,6 @@ export const communicationsRu = {
   failed: 'Ошибка',
   skipped: 'Недоступен',
   unknown: 'Результат неизвестен',
-  minimize: 'Свернуть',
-  expand: 'Развернуть',
   restore: 'Вернуться к черновику',
   discard: 'Удалить черновик',
   newMessage: 'Новое сообщение',
@@ -112,6 +111,7 @@ export const communicationsRu = {
   },
 };
 export const communicationsUk: typeof communicationsRu = {
+  removeRecipient: 'Прибрати {name} з одержувачів',
   audienceFilters: 'Фільтри одержувачів',
   questionnaireIncomplete:
     'Укажіть назву, текст кожного запитання та 2–10 різних варіантів для запитань із вибором.',
@@ -163,8 +163,6 @@ export const communicationsUk: typeof communicationsRu = {
   failed: 'Помилка',
   skipped: 'Недоступний',
   unknown: 'Результат невідомий',
-  minimize: 'Згорнути',
-  expand: 'Розгорнути',
   restore: 'Повернутися до чернетки',
   discard: 'Видалити чернетку',
   newMessage: 'Нове повідомлення',
@@ -226,6 +224,7 @@ export const communicationsUk: typeof communicationsRu = {
   },
 };
 export const communicationsEn: typeof communicationsRu = {
+  removeRecipient: 'Remove {name} from recipients',
   audienceFilters: 'Recipient filters',
   questionnaireIncomplete:
     'Enter a title, every question, and 2–10 distinct options for choice questions.',
@@ -277,8 +276,6 @@ export const communicationsEn: typeof communicationsRu = {
   failed: 'Failed',
   skipped: 'Unavailable',
   unknown: 'Outcome unknown',
-  minimize: 'Minimize',
-  expand: 'Expand',
   restore: 'Return to draft',
   discard: 'Discard draft',
   newMessage: 'New message',

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useStore } from 'zustand';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { messages } from '@vakhta/i18n';
+import { format, messages } from '@vakhta/i18n';
+import { XIcon } from 'lucide-react';
 import { currentLocale } from '@/i18n';
 import { useNavigation } from '@/navigation';
 import { useOrg } from '@/lib/org';
@@ -9,7 +10,7 @@ import { QueryFeedback } from '@/components/app/query-feedback';
 import { Feedback } from '@/components/app/feedback';
 import { TableCount } from '@/components/app/data-table';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { RecipientCombobox } from './recipient-combobox';
 import { SelectField } from '@/components/app/fields';
 import { communicationApi, communicationKey } from '../api/communications';
 import { useCommunicationDraft } from '../model/context';
@@ -90,15 +91,77 @@ export function Audience() {
         )}
       </summary>
       <div className="space-y-3 border-t p-3">
-        <Input
-          aria-label={t.search}
-          placeholder={t.search}
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
+        <RecipientCombobox
+          search={search}
+          onSearch={(value) => {
+            setSearch(value);
             setPage(1);
           }}
+          items={items}
+          selected={recipients}
+          onToggle={(person) => draft.toggle(person)}
+          empty={total === 0 && (selectedOnly || (!query.isPending && !query.isError))}
+          feedback={
+            !selectedOnly && (
+              <QueryFeedback
+                query={query}
+                errorMessage={communicationError(query.error) ?? undefined}
+              />
+            )
+          }
+          footer={
+            total !== undefined && (
+              <div className="flex items-center justify-between gap-2">
+                <TableCount
+                  total={total}
+                  from={total ? (page - 1) * 30 + 1 : 0}
+                  to={Math.min(total, page * 30)}
+                />
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage(page - 1)}
+                  >
+                    {t.back}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={page * 30 >= total}
+                    onClick={() => setPage(page + 1)}
+                  >
+                    {t.next}
+                  </Button>
+                </div>
+              </div>
+            )
+          }
         />
+        {recipients.length > 0 && (
+          <div
+            className="flex max-h-28 flex-wrap gap-2 overflow-y-auto"
+            aria-label={t.selectedOnly}
+          >
+            {recipients.map((person) => (
+              <Button
+                key={person.id}
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="max-w-full gap-2 rounded-full"
+                aria-label={format(t.removeRecipient, { name: person.fullName })}
+                onClick={() => draft.toggle(person)}
+              >
+                <span className="truncate">{person.fullName}</span>
+                <XIcon className="size-3 shrink-0" />
+              </Button>
+            ))}
+          </div>
+        )}
         {!selectedOnly && (
           <details>
             <summary className="cursor-pointer py-2 text-sm font-medium">
@@ -188,74 +251,7 @@ export function Audience() {
             {t.clear}
           </Button>
         </div>
-        {!selectedOnly && (
-          <QueryFeedback
-            query={query}
-            errorMessage={communicationError(query.error) ?? undefined}
-          />
-        )}
         <Feedback error={communicationError(selectAll.error)} />
-        <ul className="max-h-64 overflow-y-auto divide-y rounded-lg border">
-          {items.map((person) => (
-            <li key={person.id}>
-              <label className="flex min-h-12 cursor-pointer items-center gap-3 px-3 py-2 hover:bg-accent has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring">
-                <input
-                  type="checkbox"
-                  className="size-4 accent-primary"
-                  checked={recipients.some((selected) => selected.id === person.id)}
-                  disabled={
-                    !person.eligible ||
-                    (recipients.length >= 500 &&
-                      !recipients.some((selected) => selected.id === person.id))
-                  }
-                  onChange={() => draft.toggle(person)}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block break-words text-sm font-medium">{person.fullName}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {person.personnelNumber}
-                    {person.unitName ? ` · ${person.unitName}` : ''}
-                  </span>
-                  {person.reason && (
-                    <span className="block text-xs text-muted-foreground">
-                      {person.reason === 'INACTIVE' ? t.inactive : t.unlinked}
-                    </span>
-                  )}
-                </span>
-              </label>
-            </li>
-          ))}
-        </ul>
-        {total === 0 && <p className="text-sm text-muted-foreground">{t.emptyAudience}</p>}
-        {total !== undefined && (
-          <div className="flex items-center justify-between gap-2">
-            <TableCount
-              total={total}
-              from={total ? (page - 1) * 30 + 1 : 0}
-              to={Math.min(total, page * 30)}
-            />
-            <div className="flex gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage(page - 1)}
-              >
-                {t.back}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={page * 30 >= total}
-                onClick={() => setPage(page + 1)}
-              >
-                {t.next}
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
     </details>
   );

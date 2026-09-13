@@ -2,16 +2,20 @@
 
 Authorized masters, production heads, HR and administrators can send private Telegram messages to
 one employee or a reviewed group from any panel page. The header and sidebar both open the same
-communications workspace. Desktop uses a non-modal right dock; mobile uses the full screen.
+communications workspace. Desktop uses one 640px, viewport-bounded, non-modal Sheet; mobile uses
+the full screen. There is no dimming or width toggle. Close (X), Escape or clicking outside closes
+the panel while retaining its draft.
 
 ## Compose and return to work
 
-Select recipients by name/personnel number, with optional site, unit and team filters. Selection
+An autocomplete combobox finds recipients by name/personnel number, with optional site, unit and
+team filters. Use arrows and Enter to choose employees; selected employees have removable chips.
+Escape first closes suggestions. Search requests are debounced and superseded requests are canceled. Selection
 survives pagination and filtering. Select all results selects the entire eligible matching audience,
 up to 500 people. Inactive employees and employees without Telegram remain visibly unavailable.
 
 A single text message sends directly. A group or questionnaire opens an inline review first.
-Minimize preserves the draft across internal navigation; opening a different employee context asks
+Closing preserves the draft across internal navigation; opening a different employee context asks
 whether to keep or replace an existing draft. Drafts are local to the signed-in tab and disappear on
 reload or logout. They are not cross-device drafts.
 

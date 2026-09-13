@@ -15,10 +15,18 @@ resume operations, reopen exactly where the user left off. A single text message
 bulk audience, attachments, survey fields and history are progressive disclosures, not mandatory
 setup. Avoid dashboard statistics above the compose task.
 
-Desktop: dock at the right edge, approximately 480 px wide, viewport-bounded, opaque
-surface with border and modest shadow, no backdrop. Expand to a wider workspace for audience
-review/history/results; retain an obvious minimize control. Global header action remains outside
-the overlay. Do not add freely draggable windows or resizing controls without demonstrated need.
+Desktop: dock at the right edge, 640 px wide and viewport-bounded, opaque surface with border and
+modest shadow, no backdrop. Owner refinement removes the width toggle; a Close (X) control retains
+the draft. Global header access remains available. Mobile remains full-screen.
+Use the shared Sheet in non-modal mode for outside-click dismissal and nested popup handling;
+the owner explicitly rejected dimming after requesting outside-close. There is no backdrop.
+
+Recipient search composes the shared Input with an ARIA listbox. The existing Command primitive
+forces aria-expanded=true and its own label, so it cannot represent a collapsible editable input
+correctly. This bounded composition preserves the real popup and multi-selection semantics.
+Server suggestions retain current scope filters and pagination; selected employees remain visible
+as removable chips. Debounce requests for 250ms and cancel superseded query work. Escape closes
+suggestions before the workspace. Keyboard and touch selection keep the input ready for another name.
 
 Mobile: full-screen route-backed workspace, one step visible at a time; header Back and
 minimize, content area and composer action area. Return preserves page scroll and focus where
@@ -36,7 +44,7 @@ content review; single-recipient text stays direct. History detail is read-only.
 - Existing employee contexts invoke its public API through app composition or callbacks; do not
   create peer-feature imports. If shared employee identity/query access is required, place that
   coherent capability in `entities/employee`, not in domain-independent shared.
-- Zustand: actor-bound draft, selected IDs, minimized/expanded state and upload resource lifecycle.
+- Zustand: actor-bound draft, selected IDs, open/closed state and upload resource lifecycle.
   TanStack Query: recipients, submission, history, delivery and survey results. Do not copy remote
   results into the draft store. Local files/object URLs are ephemeral and explicitly disposed.
 - Model workflow as discriminated states, including composing, reviewing, submitting and accepted;

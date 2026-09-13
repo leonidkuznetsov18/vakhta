@@ -9,6 +9,7 @@ import {
 } from '@vakhta/contracts';
 import { apiFetch, API_URL, ApiError } from '@/api';
 import { currentLocale } from '@/i18n';
+import { waitForAudienceSearch } from './search-delay';
 export const communicationKey = (actor: string) => ['communications', actor] as const;
 function search(query: CommunicationAudienceQuery) {
   const params = new URLSearchParams();
@@ -18,6 +19,7 @@ function search(query: CommunicationAudienceQuery) {
 }
 export const communicationApi = {
   async audience(query: CommunicationAudienceQuery, signal: AbortSignal) {
+    if (query.search) await waitForAudienceSearch(signal);
     return CommunicationAudience.parse(
       await apiFetch(`/admin/communications/audience?${search(query)}`, { signal }),
     );

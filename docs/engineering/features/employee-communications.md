@@ -18,6 +18,12 @@ source commit and CI run; local checks below do not imply live delivery.
 - Non-modal desktop dock, full-screen mobile, persistent minimized draft. Header access is always
   visible to permitted senders. Group/questionnaire review is deliberate; single text stays direct.
   Mobile geometry follows visualViewport changes; background inert/focus restoration is explicit.
+- Owner refinements: a single 640px desktop width; remove width state/toggle; Close (X) and outside
+  dismissal preserve the draft. Shared Sheet uses `modal=false`, so no overlay/dimming is rendered.
+  Mobile-only history dismissal no longer closes the desktop panel on ordinary history changes.
+  Autocomplete composes shared Input with a multi-select ARIA listbox: cancelable 250ms search,
+  keyboard navigation, unavailable reasons, removable chips and paginated results. Command was
+  unsuitable because its input forces expanded state and a label even when suggestions are closed.
 - Four additive tables store communications, recipient/account snapshots, private attachments and
   ordered delivery parts. The create transaction revalidates complete scope/eligibility, adopts files,
   records audit and dispatch intents, and serializes stable actor/request IDs with bounded retries.
@@ -63,6 +69,16 @@ source commit and CI run; local checks below do not imply live delivery.
   restore and mobile browser Back/focus. No employee messages or real survey responses were created.
 - Independent read-only reviewer identified seven recovery/interaction defects; all were corrected,
   including the final reload-during-save reverse race, with focused regressions.
+- Refinement evidence: two audience tests, one search cancellation test and one real Sheet interaction
+  test pass. The latter covers desktop history stability, outside dismissal, draft restoration and
+  Escape closing the combobox before the panel. Visually inspected the real components at 1280x720
+  and 360x800 with synthetic data; checked keyboard multi-selection, Close (X), outside close and
+  retained content. Desktop width was 640px; mobile suggestions, counts and footer fit the viewport.
+- Source `54bbb28` passed full CI in run `34776537602`; Pages and both images succeeded. Release was
+  intentionally skipped because concurrent master `2ce8e0f` had advanced; announcement was skipped.
+  Railway worker `54bbb28` and API `2ce8e0f` (which includes the feature) reached SUCCESS. Production
+  audience route returns 401 without authentication rather than 404; questionnaire path returns its
+  Telegram-only frame policy while the panel root retains DENY. This is not authenticated delivery QA.
 
 ## Lean completion review
 

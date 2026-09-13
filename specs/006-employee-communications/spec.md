@@ -59,8 +59,8 @@ receive content through the existing bot; sending and responding never changes a
 
 - Required by the owner: individual and multiple recipients, media, surveys, global availability,
   mobile support, and replacement of the modal interaction.
-- Selected interaction: a right-edge, non-modal communications dock on desktop, expandable for
-  audience/history/results; a full-screen workspace on mobile; a minimized global draft launcher.
+- Owner refinement: a right-edge, non-modal communications dock with one viewport-bounded 640px
+  desktop width and no resize toggle; full-screen on mobile. A Close (X) control retains the draft.
 - Selected first media set: photos, video, audio and documents. No browser recording, media editor
   or automatic AI processing. Unsupported formats receive actionable validation before sending.
 - Selected delivery scope: private bot messages to selected employees, not Telegram group chats.
@@ -77,7 +77,8 @@ receive content through the existing bot; sending and responding never changes a
 - **C01:** every authenticated page exposes a communications action to permitted senders. On
   mobile it remains reachable without opening the navigation drawer. There is one workspace instance.
 - **C02:** desktop opening does not dim, blur, mark inert or trap focus in the underlying page.
-  The panel is a labeled complementary region, not an aria-modal dialog. Its close/minimize action
+  The panel is a labeled non-modal Sheet; clicking outside or Close (X) closes it without discarding.
+  Its close action
   returns focus to the invoking control, or the global launcher if that control no longer exists.
 - **C03:** minimize, navigation and reopening preserve recipients, content, attachment state and
   current step. Opening from another employee never silently replaces a nonempty draft: offer
@@ -93,6 +94,9 @@ receive content through the existing bot; sending and responding never changes a
 - **C06:** search by name/personnel number and narrow by existing site/unit/team data within the
   actor's scope. Support one/multiple selections, selected-only view, remove and clear. Pagination
   and search do not lose selection. Duplicate employees are counted once.
+  Owner refinement: the search field is an autocomplete combobox with server suggestions, keyboard
+  arrows/Enter/Escape, visible chosen employees and removal. Requests are debounced and canceled
+  when superseded. Loading, failure and empty results remain distinct; Escape first closes suggestions.
 - **C07:** “select all results” explicitly means all matching authorized results, not the loaded
   page. Show the complete selected total and a reviewable paginated recipient list. Never treat
   the legacy 200-row directory response as the complete workforce.
