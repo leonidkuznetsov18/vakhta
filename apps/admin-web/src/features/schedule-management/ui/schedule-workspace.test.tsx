@@ -1109,6 +1109,9 @@ describe('schedule workspace', () => {
     fireEvent.click(screen.getByRole('radio', { name: t.month }));
     fireEvent.change(screen.getByRole('combobox', { name: t.zone }), { target: { value: ZONE } });
     expect(screen.getByRole('region', { name: t.people })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Кузнецов Леонид' }).getAttribute('href')).toBe(
+      `#/administration/employees/${EMP}`,
+    );
     expect(screen.getByText(t.outsideZone)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Кузнецов Леонид, 2026-09-06/ })).toBeNull();
     expect(gridToItems(useScheduleDrafts.getState().drafts[DRAFT_KEY] ?? { rows: [] })).toEqual(
@@ -1139,6 +1142,9 @@ describe('schedule workspace', () => {
     fireEvent.click(screen.getByRole('radio', { name: t.month }));
     expect(screen.queryByRole('radio', { name: t.zones })).toBeNull();
     expect(screen.getByRole('region', { name: t.people })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Кузнецов Леонид' }).getAttribute('href')).toBe(
+      `#/administration/employees/${EMP}`,
+    );
     expect(screen.queryByRole('button', { name: t.date })).toBeNull();
     const cell = await screen.findByRole('button', { name: /Кузнецов Леонид, 2026-09-05/ });
     expect(cell.textContent).toBe(messages(currentLocale()).schedule.dayKinds.NIGHT);
@@ -1175,6 +1181,44 @@ describe('schedule workspace', () => {
     ).toContain('2027');
     expect(screen.queryByRole('radio', { name: t.zones })).toBeNull();
   });
+  it.each([false, true])(
+    'links worker avatars and names to profiles (mobile: %s)',
+    async (mobile) => {
+      viewport.mobile = mobile;
+      const calls = mockApi(
+        { status: 'PUBLISHED' },
+        org,
+        employees.map((employee) => ({
+          ...employee,
+          avatarVersion: mobile ? null : ASSIGN,
+        })),
+      );
+      writeSchedulePreset({
+        actorId: ACTOR,
+        orgUnitId: UNIT,
+        month: '2026-09',
+        people: [{ id: EMP2, name: 'Сидоров Пётр' }],
+      });
+      const mounted = admin();
+      await screen.findByText(t.publishedState);
+      fireEvent.click(screen.getByRole('radio', { name: t.people }));
+      const link = await screen.findByRole('link', { name: 'Кузнецов Леонид' });
+      expect(link.getAttribute('href')).toBe(`#/administration/employees/${EMP}`);
+      if (mobile) expect(link.querySelector('svg')).toBeTruthy();
+      else
+        expect(link.querySelector('img')?.getAttribute('src')).toContain(
+          `/admin/employees/${EMP}/avatar?v=${ASSIGN}`,
+        );
+      expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+      mounted.unmount();
+      admin();
+      expect(await screen.findByRole('link', { name: 'Кузнецов Леонид' })).toBeTruthy();
+      expect(screen.getByRole('radio', { name: t.people }).getAttribute('aria-checked')).toBe(
+        'true',
+      );
+      viewport.mobile = false;
+    },
+  );
   it('does not create a version automatically when arriving with overview workers', async () => {
     const calls = mockApi({ status: 'PUBLISHED' });
     writeSchedulePreset({

@@ -46,6 +46,7 @@ function Note({ note, className }: { readonly note: CalendarNote; readonly class
 
 interface ResourceCalendarProps {
   readonly model: CalendarViewModel;
+  readonly renderResourceTitle?: (resource: CalendarResource) => ReactNode;
   readonly layout: 'grid' | 'list';
   readonly selectedDate: string;
   readonly selection: CalendarSelection | null;
@@ -345,7 +346,9 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
               return (
                 <section key={row.id} className="min-w-0 space-y-3 rounded-lg border p-3">
                   <div>
-                    <h3 className="font-semibold [overflow-wrap:anywhere]">{row.title}</h3>
+                    <h3 className="font-semibold [overflow-wrap:anywhere]">
+                      {props.renderResourceTitle?.(row) ?? row.title}
+                    </h3>
                     <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
                       {[row.description, row.summary].filter(Boolean).join(' · ')}
                     </p>
@@ -429,7 +432,9 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
               {rows.map((row, rowIndex) => (
                 <TableRow key={row.id} className="hover:bg-transparent">
                   <TableCell className="sticky left-0 z-10 whitespace-normal bg-background align-top">
-                    <p className="font-semibold [overflow-wrap:anywhere]">{row.title}</p>
+                    <p className="font-semibold [overflow-wrap:anywhere]">
+                      {props.renderResourceTitle?.(row) ?? row.title}
+                    </p>
                     <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
                       {row.description}
                     </p>

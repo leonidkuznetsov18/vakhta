@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePersistentState } from '@/lib/ui-store';
 import { format, messages } from '@vakhta/i18n';
 import {
   Undo2Icon,
@@ -80,8 +81,14 @@ export function ScheduleWorkspace() {
 
 function WorkspaceContent() {
   const w = useWorkspace();
-  const [periodMode, setPeriodMode] = useState<PeriodMode | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [periodMode, setPeriodMode] = usePersistentState<PeriodMode | null>(
+    `schedule.view:${w.accessKey}:period`,
+    null,
+  );
+  const [selectedDate, setSelectedDate] = usePersistentState<string | null>(
+    `schedule.view:${w.accessKey}:date`,
+    null,
+  );
   function selectDate(value: string) {
     if (w.busy) return;
     setSelectedDate(value);
@@ -177,14 +184,20 @@ function WorkspaceView({
   const mobile = useIsMobile();
   const effectiveMode = mobile && mode === 'month' ? 'week' : (mode ?? (mobile ? 'day' : 'week'));
   const today = siteToday(w.timezone);
-  const [grouping, setGrouping] = useState<CalendarGrouping>('zones');
+  const [grouping, setGrouping] = usePersistentState<CalendarGrouping>(
+    `schedule.view:${w.accessKey}:${w.orgUnitId}:grouping`,
+    'zones',
+  );
   const visibleGrouping: CalendarGrouping = effectiveMode === 'month' ? 'people' : grouping;
   const date = selectedDate?.startsWith(w.month)
     ? selectedDate
     : today.startsWith(w.month)
       ? today
       : `${w.month}-01`;
-  const [zone, setZone] = useState('');
+  const [zone, setZone] = usePersistentState(
+    `schedule.view:${w.accessKey}:${w.orgUnitId}:zone`,
+    '',
+  );
   const [batch, setBatch] = useState<{ zoneId: string; date: string } | null>(null);
   const [review, setReview] = useState<{ grid: GridState; versionId: string } | null>(null);
   const [staffingOpen, setStaffingOpen] = useState(false);

@@ -54,5 +54,3 @@ export async function refreshProfiles(client: QueryClient) {
     client.invalidateQueries({ queryKey: keys.org }),
   ]);
 }
-export const avatarUrl = (id: string, version: string | null | undefined) =>
-  version ? `${API_URL}/admin/employees/${id}/avatar?v=${encodeURIComponent(version)}` : null;

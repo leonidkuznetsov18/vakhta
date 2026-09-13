@@ -1,3 +1,4 @@
+import { avatarUrl } from '@/entities/employee';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { EmployeeProfileView } from '@vakhta/contracts';
@@ -7,7 +8,7 @@ import { UserAvatar } from '@/components/app/avatar';
 import { InfoTip } from '@/components/app/info-tip';
 import { Button } from '@/components/ui/button';
 import { LoadingState } from '@/shared/ui/loading-state';
-import { avatarUrl, profileApi, refreshProfiles } from '../model/api';
+import { profileApi, refreshProfiles } from '../model/api';
 import { profileError } from '../model/editor';
 export function AvatarControl({
   profile,

@@ -1,3 +1,4 @@
+import { EmployeeProfileLink } from '@/entities/employee';
 import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { templateLabel } from '../lib/template-label';
 import { Trash2Icon } from 'lucide-react';
@@ -234,7 +235,17 @@ export function PeopleSchedule({
                   <TableCell className="sticky left-0 z-10 bg-background">
                     <div className="flex items-center gap-1">
                       <span className="block w-32 whitespace-normal break-words font-medium">
-                        {employeeLabel(w, row.employeeId)}
+                        <EmployeeProfileLink
+                          id={row.employeeId}
+                          name={
+                            w.employees.find((employee) => employee.id === row.employeeId)
+                              ?.fullName ?? employeeLabel(w, row.employeeId)
+                          }
+                          avatarVersion={
+                            w.employees.find((employee) => employee.id === row.employeeId)
+                              ?.avatarVersion
+                          }
+                        />
                       </span>
                       {w.writable && (
                         <RowMenu

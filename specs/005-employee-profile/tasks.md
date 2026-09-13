@@ -83,3 +83,5 @@ delivery. Owned files: plan.md "Project Structure and Allowed Files". Migration 
 
 Compare code with the accepted spec and plan after implementation. Append only demonstrated gaps
 within scope as new numbered tasks; preserve completed history.
+
+- [x] T028 Owner refinement (2026-09-13): show linked employee avatars in Schedule day/week and month views, retain calendar navigation context, verify desktop/mobile and attach proof to #71.

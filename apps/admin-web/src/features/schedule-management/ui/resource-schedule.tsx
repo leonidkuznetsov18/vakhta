@@ -1,3 +1,4 @@
+import { EmployeeProfileLink } from '@/entities/employee';
 import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { useState } from 'react';
 import {
@@ -263,6 +264,19 @@ export function ResourceSchedule({
       <Feedback error={moveError} />
       <ResourceCalendar
         model={model}
+        {...(grouping === 'people'
+          ? {
+              renderResourceTitle: (row: { readonly id: string; readonly title: string }) => (
+                <EmployeeProfileLink
+                  id={row.id}
+                  name={row.title}
+                  avatarVersion={
+                    w.employees.find((employee) => employee.id === row.id)?.avatarVersion
+                  }
+                />
+              ),
+            }
+          : {})}
         layout={mobile ? 'list' : 'grid'}
         selectedDate={selectedDate}
         selection={selection}

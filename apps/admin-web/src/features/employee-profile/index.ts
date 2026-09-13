@@ -1,5 +1,4 @@
 export { ProfilePage } from './ui/profile-page';
-export { avatarUrl } from './model/api';
 export { UnitMasterPicker } from './ui/unit-master-picker';
 export {
   rememberEmployeeList,

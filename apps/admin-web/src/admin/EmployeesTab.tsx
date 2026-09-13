@@ -1,6 +1,6 @@
+import { avatarUrl } from '@/entities/employee';
 import { useSession } from '@/auth/useSession';
 import {
-  avatarUrl,
   rememberEmployeeList,
   employeeListReturnId,
   ProfileSheet,

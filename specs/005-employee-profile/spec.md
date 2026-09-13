@@ -236,7 +236,7 @@ A master or HR sees when the employee works without switching to the unit calend
 - **AC-028**: Given no published schedule for the month, then the section says so explicitly and links
   to Schedule; unpublished drafts are not presented as the employee's schedule.
 - **AC-029**: Given "Open in Schedule", then Schedule opens on that unit and month with the employee
-  highlighted.
+  highlighted. Schedule employee identities show an avatar (initials when absent) and a keyboard-accessible profile link in week/day and month views. Returning from a profile retains the calendar period, date, unit and grouping (owner refinement, 2026-09-13).
 
 ### Edge Cases
 

@@ -62,6 +62,17 @@ Implementation is complete locally; delivery and moderated acceptance are tracke
   exposes both the master and next published shifts; operator confirmation is pending with SC-001.
 - CI/release/announcement and deployed read-only verification: pending delivery.
 
+## Schedule identity extension (owner, 2026-09-13)
+
+Schedule day/week resources and monthly worker rows show an avatar and a semantic profile link.
+The `entities/employee` public API owns the shared identity link and private avatar URL; Schedule
+and Profile do not import each other. ResourceCalendar exposes a domain-independent title slot.
+Existing legacy avatar and API primitives are reused without an unrelated architecture migration.
+Calendar period/date and unit-specific grouping/zone survive navigation, keyed by account/access.
+Desktop 1440 and mobile 390 screenshots were captured and visually inspected with synthetic
+Schedule read responses and real local profile endpoints. Browser navigation and Back preserved
+14–20 September, Packaging and people grouping. The screenshots are `schedule-avatar-*.png`.
+
 ## Lean completion review
 
 Recommendation: **Simplify**, implemented. Removed the duplicate expanded editor; kept a quick

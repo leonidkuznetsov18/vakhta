@@ -1,3 +1,4 @@
+import { avatarUrl } from '@/entities/employee';
 import { ApiError } from '@/api';
 import { useQuery } from '@tanstack/react-query';
 import { messages } from '@vakhta/i18n';
@@ -13,7 +14,7 @@ import {
 import { buttonVariants } from '@/components/ui/button';
 import { UserAvatar } from '@/components/app/avatar';
 import { ExternalLinkIcon } from 'lucide-react';
-import { avatarUrl, profileApi, profileKey } from '../model/api';
+import { profileApi, profileKey } from '../model/api';
 
 /** A scoped reading surface. All employee changes belong to the dedicated profile. */
 export function ProfileSheet({ employeeId, onClose }: { employeeId: string; onClose: () => void }) {
