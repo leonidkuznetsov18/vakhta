@@ -1,3 +1,7 @@
+import type { FastifyReply } from 'fastify';
+import type { Locale } from '@vakhta/domain';
+import { RequestLocale } from '../common/locale.decorator.js';
+import { ScheduleExportService } from './schedule-export.service.js';
 import {
   Body,
   Controller,
@@ -10,10 +14,12 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
   ScheduleHistoryQuery,
+  ScheduleExportQuery,
   type ScheduleHistoryPage,
   ScheduleRevisionPrecondition,
   ScheduleWebCommand,
@@ -78,6 +84,7 @@ export class AdminSchedulesController {
     private readonly templates: TemplatesService,
     private readonly commands: ScheduleCommandService,
     private readonly historyService: ScheduleHistoryService,
+    private readonly exportService: ScheduleExportService,
   ) {}
 
   @Post('commands')
@@ -123,6 +130,24 @@ export class AdminSchedulesController {
   ): Promise<ScheduleVersionView> {
     assertScope(user, EDITORS, { siteId: body.siteId, orgUnitId: body.orgUnitId });
     return this.schedules.createVersion(body, webUserActor(user));
+  }
+
+  @Get(':id/export')
+  async export(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query(new ZodValidationPipe(ScheduleExportQuery)) query: ScheduleExportQuery,
+    @CurrentUser() user: WebUser,
+    @RequestLocale() locale: Locale,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const version = await this.schedules.requireVersion(id);
+    assertScope(user, ALL_PANEL_ROLES, { siteId: version.siteId, orgUnitId: version.orgUnitId });
+    const file = await this.exportService.export(id, query, user, locale);
+    await reply
+      .header('content-type', file.contentType)
+      .header('content-disposition', `attachment; filename="${file.filename}"`)
+      .header('cache-control', 'private, no-store')
+      .send(file.body);
   }
 
   @Get(':id/history')

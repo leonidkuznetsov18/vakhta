@@ -280,3 +280,11 @@ export const ScheduleHistoryPage = z
   })
   .strict();
 export type ScheduleHistoryPage = z.infer<typeof ScheduleHistoryPage>;
+
+/** Complete saved-version XLSX only; calendar filters and pagination are not export parameters. */
+export const ScheduleExportQuery = z
+  .object({
+    expectedRevision: z.coerce.number().int().positive(),
+  })
+  .strict();
+export type ScheduleExportQuery = z.infer<typeof ScheduleExportQuery>;

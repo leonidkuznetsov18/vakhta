@@ -1,3 +1,4 @@
+import { scheduleExportEn } from './schedule-export.js';
 import { scheduleWorkspaceEn } from './schedule-workspace.js';
 import { photoRulesEn } from './checklist-photo-rules.js';
 import { photoLibraryEn, libraryGuideEn } from './photo-library.js';
@@ -7,6 +8,7 @@ import type { Messages } from './messages.js';
 
 /** English catalog. Same keys and placeholders as `ru`; verified by catalogs.test.ts. */
 export const en: Messages = {
+  scheduleExport: scheduleExportEn,
   scheduleWorkspace: scheduleWorkspaceEn,
   checklistPhotoRules: photoRulesEn,
   photoLibrary: photoLibraryEn,

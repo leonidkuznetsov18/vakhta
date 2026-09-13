@@ -746,3 +746,48 @@ offline reading, not production delivery or an offline mutation.
   their schemas; the earlier 62-test suite remains the broader evidence. Logs:
   `/tmp/vakhta-metadata-ui-{tests,regression,build,i18n,lint}.log` and
   `/tmp/vakhta-metadata-final-format.log`. Existing bundle-size warning remains.
+
+### 2026-09-13 — Whole saved-version XLSX (#18, SC-43 accepted increment)
+
+- A dedicated export of the selected saved version avoids paginated/virtualized grid truncation and
+  local-edit ambiguity. Exact route/query is in active plan.md; SheetJS/xlsx is already installed.
+  Schedule scope remains unchanged; employee names require the narrower existing directory roles.
+- Lean: Proceed. Remove manual spreadsheet transcription with one explicit complete-scope download.
+  Original assignment IDs/instants/statuses remain evidence; current labels are marked as current,
+  planned duration is not actual work. Text cells are literal, not formulas. No worker action,
+  production-time claim, print/notes/actual report or finance scope.
+- Verified 8 real-DB/XLSX cases and 1 HTTP boundary journey: all statuses/205 rows, original overnight
+  DST interval despite template edits, all three locales, literal formula-like labels, employee-name
+  privacy, revision conflict, concurrent snapshot, empty output and explicit 20,001-row rejection.
+  Catalog parity: 10 passed. Contracts/i18n/API builds, API typecheck, affected ESLint and root
+  Prettier passed. Independent read-only review clean; existing CI remains the integration gate.
+  Evidence: `/tmp/vakhta-schedule-export/{db-tests,http-tests,i18n-tests,contracts-build,i18n-build,
+api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbook: `preview.xlsx` in
+  the same directory; no production employee actions. Frontend download/print remain separate.
+- Limits: names and site-timezone presentation are current; original UTC instants remain recorded.
+  Repeatable read binds this generation to one snapshot, not later saves/grant revocation. Export
+  audit records successful server generation, not proof that the browser received the attachment.
+
+- Frontend complete: history details expose one whole-saved-version XLSX action with revision,
+  loading/duplicate-tap guards, localized failure/retry and explicit stale-version refresh. Closing
+  the actor/version detail ignores a late response. Filename and MIME are controlled; raw errors
+  are not rendered. No new dependency, global state or cross-feature import.
+- Verified 10 download API/UI tests plus 35 existing workspace tests; panel build, i18n build and
+  focused ESLint passed. The initial test run used unavailable jest-dom matchers; changed to the
+  repository's native disabled-attribute assertions and all 10 focused tests passed. Independent
+  frontend review clean. Logs `/tmp/vakhta-export-ui-{retest,build,i18n,lint}.log`; workspace evidence
+  is in `tests.log` (35 passed even while three new matcher assertions failed).
+- Desktop 1280px and mobile 390px screenshots captured and inspected: `export-desktop.png` and
+  `export-failure-mobile.png` in the existing evidence directory. Mobile page width remains 390px.
+  Keyboard download/failure preserves the open history. Preview has no export binary fixture:
+  these images prove the action and safe failure, not an end-to-end live download. Actual XLSX
+  generation/contents and successful frontend handling are protected by separate deterministic tests.
+  The temporary three-row October workbook differs from the existing 63-row September UI fixture;
+  it was not substituted as that version's file. Temporary test artifact writing was removed.
+- Chrome touch fallback also blocked by the browser's paused-document/CDP limitation; its temporary
+  tab was closed without changing user drafts. True-touch acceptance remains open.
+- Prior source `93deec4` CI `34726542786` completed successfully: checks, release, announcement,
+  API/worker images and Pages. This precedes the XLSX increment and does not prove its deployment.
+- Lean completion: Proceed. Saved-version scope is visible before download, a stale copy requires
+  explicit refresh, and failure leaves history readable. No extra worker data entry or notification.
+  #18 remains open for print, notes, typed fields and operational report dependencies.

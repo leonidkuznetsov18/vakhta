@@ -1,3 +1,4 @@
+import { ScheduleExportService } from './schedule-export.service.js';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.js';
@@ -16,6 +17,7 @@ import { ScheduleHistoryService } from './schedule-history.service.js';
     ScheduleService,
     ScheduleCommandService,
     ScheduleHistoryService,
+    ScheduleExportService,
     {
       provide: SCHEDULE_OPTIONS,
       useFactory: (config: ConfigService<Env, true>): ScheduleOptions => ({

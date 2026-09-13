@@ -1,3 +1,4 @@
+import { scheduleExportRu } from './schedule-export.js';
 import { scheduleWorkspaceRu } from './schedule-workspace.js';
 import { photoRulesRu } from './checklist-photo-rules.js';
 import { photoLibraryRu, libraryGuideRu } from './photo-library.js';
@@ -7,6 +8,7 @@ import type { Messages } from './messages.js';
 
 /** Base interface language (NFR-08). Button and state wording follows the spec, sections 4.3-4.4 and 5.1. */
 export const ru: Messages = {
+  scheduleExport: scheduleExportRu,
   scheduleWorkspace: scheduleWorkspaceRu,
   checklistPhotoRules: photoRulesRu,
   photoLibrary: photoLibraryRu,

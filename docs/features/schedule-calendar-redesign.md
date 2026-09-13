@@ -376,3 +376,11 @@ recommendations, not promises of identical functionality in either competitor. O
 were visually reviewed; authenticated accounts, native devices, screen readers and competitor
 performance were not tested. The gallery above embeds the selected screenshots; additional sources,
 observations and tradeoffs live in the engineering document.
+
+### Saved-version spreadsheet output (2026-09-13)
+
+Open a version in Schedule history and choose **Download XLSX**. The file includes the complete saved
+version, all assignment statuses, original planned times and version/timezone metadata. It excludes
+local draft edits and calendar filters; recorded planned duration is not actual work. Employee names
+follow directory access rights. If the saved revision changed, refresh the version before downloading.
+Print, notes and operational reports remain separate roadmap work.

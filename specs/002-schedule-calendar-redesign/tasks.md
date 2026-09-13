@@ -192,3 +192,10 @@ Begin T004–T006 prototype and T052 matrix/runbook while policy answers and hum
 - [x] T077 [US1] Verify metadata-only changed employees, legacy equivalence and exactly one affected-recipient notification with focused domain/real-DB tests, types/build and independent review.
 
 - [x] T078 [US1] Show metadata changes and publication ownership in review; distinguish recorded acknowledgement from unpublished edits and unknown presence in both calendar detail views, with regressions and desktop/mobile evidence.
+
+## Whole saved-version XLSX output — #18
+
+- [x] T079 [US3] Add strict revision-bound whole-version XLSX export with original records, scoped authorization/current-label privacy, localized metadata and explicit size limit.
+- [x] T080 [US3] Verify real-DB/XLSX completeness, literal formula-like content, snapshot/revision/privacy and HTTP boundaries; builds/types/lint/root formatting and independent review.
+
+- [x] T081 [US3] Add revision-bound saved-version XLSX download to history, guard pending/stale/unmounted flows, and verify API/UI behavior plus desktop/mobile evidence.

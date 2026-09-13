@@ -22,6 +22,7 @@ import type { Workspace } from '../model/use-workspace';
 import { employeeLabel } from './assignment-changes';
 import { templateLabel } from '../lib/template-label';
 import { HistoryDecisions } from './history-decisions';
+import { ScheduleExport } from './schedule-export';
 const t = messages(currentLocale()).scheduleWorkspace;
 const s = messages(currentLocale()).admin.schedule;
 function HistoryDetail({
@@ -53,6 +54,17 @@ function HistoryDetail({
   };
   return (
     <div className="space-y-6">
+      {query.data && (
+        <ScheduleExport
+          key={query.data.version.revision}
+          id={id}
+          revision={query.data.version.revision}
+          refreshing={query.isFetching || query.isError || query.isPaused}
+          refresh={() => {
+            void query.refetch();
+          }}
+        />
+      )}
       <HistoryDecisions
         key={id}
         id={id}

@@ -1,3 +1,6 @@
+import * as XLSX from 'xlsx';
+import { messages } from '@vakhta/i18n';
+import { employees, shiftAssignments, shiftTemplates } from '@vakhta/db';
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { ScheduleCommandResult, ScheduleHistoryPage, ScheduleVersionView } from '@vakhta/contracts';
@@ -65,6 +68,7 @@ describe('e2e: межі доступу панелі', () => {
       ['master@e2e.test', 'SHIFT_MASTER'],
       ['nobody@e2e.test', null],
       ['planner@e2e.test', null],
+      ['auditor@e2e.test', 'AUDITOR'],
     ] as const) {
       await auth.createUser(
         {
@@ -306,6 +310,164 @@ describe('e2e: межі доступу панелі', () => {
       payload: { siteId: site!.id, orgUnitId: unit!.id, periodMonth: 'вересень' },
     });
     expect(invalid.statusCode).toBe(400);
+  });
+
+  it('schedule export HTTP boundary enforces saved revision, scope and separate employee-name access', async () => {
+    const [site] = await db
+      .insert(sites)
+      .values({ code: 'EXPORT', name: 'Export', timezone: 'Europe/Kyiv' })
+      .returning();
+    const [outside] = await db
+      .insert(sites)
+      .values({ code: 'EXPORT_OUTSIDE', name: 'Outside', timezone: 'UTC' })
+      .returning();
+    if (!site || !outside) throw new Error('Missing sites');
+    const units = await db
+      .insert(orgUnits)
+      .values([
+        { siteId: site.id, name: 'Export allowed' },
+        { siteId: site.id, name: 'Outside unit' },
+        { siteId: outside.id, name: 'Outside site' },
+      ])
+      .returning();
+    const allowedUnit = units[0];
+    const [planner] = await db
+      .select()
+      .from(authUser)
+      .where(eq(authUser.email, 'planner@e2e.test'));
+    if (!allowedUnit || !planner) throw new Error('Missing scope');
+    await db.insert(webUserRoles).values({
+      userId: planner.id,
+      role: 'PLANNER',
+      scopeType: 'ORG_UNIT',
+      scopeId: allowedUnit.id,
+    });
+    const versions = [];
+    for (const unit of units) {
+      const result = await app.inject({
+        method: 'POST',
+        url: '/admin/schedules',
+        headers: as('admin@e2e.test'),
+        payload: { siteId: unit.siteId, orgUnitId: unit.id, periodMonth: '2026-11' },
+      });
+      expect(result.statusCode).toBe(201);
+      versions.push(ScheduleVersionView.parse(result.json()));
+    }
+    const allowed = versions[0];
+    if (!allowed) throw new Error('Missing version');
+    const [employee] = await db
+      .insert(employees)
+      .values({
+        personnelNumber: 'EXPORT_HTTP',
+        fullName: '=PRIVATE_EMPLOYEE_NAME',
+        status: 'ACTIVE',
+        phone: 'PRIVATE_PHONE',
+      })
+      .returning();
+    const [template] = await db
+      .insert(shiftTemplates)
+      .values({
+        siteId: site.id,
+        code: 'EXPORT_HTTP',
+        name: 'Export',
+        localStart: '08:00',
+        localEnd: '20:00',
+      })
+      .returning();
+    if (!employee || !template) throw new Error('Missing assignment fixture');
+    await db.insert(shiftAssignments).values({
+      scheduleVersionId: allowed.id,
+      employeeId: employee.id,
+      templateId: template.id,
+      orgUnitId: allowedUnit.id,
+      businessDate: '2026-11-01',
+      planStartAt: new Date('2026-11-01T06:00:00Z'),
+      planEndAt: new Date('2026-11-01T18:00:00Z'),
+    });
+    const base = `/admin/schedules/${allowed.id}/export`;
+    const url = `${base}?expectedRevision=${allowed.revision}`;
+    expect((await app.inject({ method: 'GET', url })).statusCode).toBe(401);
+    expect(
+      (await app.inject({ method: 'GET', url, headers: as('nobody@e2e.test') })).statusCode,
+    ).toBe(403);
+    for (const version of versions) {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/admin/schedules/${version.id}/export?expectedRevision=1`,
+        headers: as('planner@e2e.test'),
+      });
+      expect(response.statusCode).toBe(version.id === allowed.id ? 200 : 403);
+    }
+    for (const query of [
+      '',
+      '?expectedRevision=0',
+      '?expectedRevision=1.5',
+      '?expectedRevision=x',
+      '?expectedRevision=1&page=1',
+      '?expectedRevision=1&employeeId=hidden',
+    ]) {
+      expect(
+        (
+          await app.inject({
+            method: 'GET',
+            url: `${base}${query}`,
+            headers: as('planner@e2e.test'),
+          })
+        ).statusCode,
+      ).toBe(400);
+    }
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/admin/schedules/not-a-uuid/export?expectedRevision=1',
+          headers: as('admin@e2e.test'),
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: `/admin/schedules/${randomUUID()}/export?expectedRevision=1`,
+          headers: as('admin@e2e.test'),
+        })
+      ).statusCode,
+    ).toBe(404);
+    const stale = await app.inject({
+      method: 'GET',
+      url: `${base}?expectedRevision=2`,
+      headers: as('planner@e2e.test'),
+    });
+    expect(stale.statusCode).toBe(409);
+    expect(stale.json()).toMatchObject({ code: 'SCHEDULE_REVISION_CONFLICT' });
+    for (const email of ['planner@e2e.test', 'auditor@e2e.test']) {
+      const response = await app.inject({
+        method: 'GET',
+        url,
+        headers: { ...as(email), 'x-locale': 'uk', 'accept-language': 'en' },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['content-type']).toBe(
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      expect(response.headers['cache-control']).toBe('private, no-store');
+      expect(response.headers['content-disposition']).toContain(`r1-${allowed.id}.xlsx`);
+      const book = XLSX.read(response.rawPayload, { type: 'buffer' });
+      const t = messages('uk').scheduleExport;
+      const page = book.Sheets[t.assignmentsSheet];
+      if (!page) throw new Error('Missing localized assignments');
+      expect(XLSX.utils.sheet_to_json(page)).toEqual([
+        expect.objectContaining({
+          [t.employeeId]: employee.id,
+          [t.employeeName]: email.startsWith('planner') ? '=PRIVATE_EMPLOYEE_NAME' : '',
+        }),
+      ]);
+      expect(JSON.stringify(book)).not.toContain('PRIVATE_PHONE');
+      if (email.startsWith('auditor'))
+        expect(JSON.stringify(book)).not.toContain('PRIVATE_EMPLOYEE_NAME');
+    }
+    await db.delete(webUserRoles).where(eq(webUserRoles.userId, planner.id));
   });
 
   it('schedule history HTTP boundary matches detail scope and exposes only validated decision pages', async () => {

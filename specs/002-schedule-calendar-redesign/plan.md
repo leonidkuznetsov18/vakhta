@@ -297,3 +297,21 @@ Preserve publication transaction, audience selection, outbox dedupe and notifica
 new policy, contract migration, acknowledgement transfer or frontend changes. Verify each metadata
 field in pure diff tests plus absent/default equivalence, and real-DB SAVE/publish and REVISE where
 only the affected linked employee receives exactly one change notification. Independent review.
+
+### Whole saved-version XLSX export (#18, bounded SC-43)
+
+Accepted HTTP contract: GET /admin/schedules/:id/export?expectedRevision=N; UUID route, required
+positive integer revision, strict query (no calendar filters/pagination), XLSX-only attachment.
+Use the existing Schedule read roles/site+unit authorization and a separate employee-directory-role
+check for current nullable employee names; never add personnel/contact fields. Dedicated export
+service reads all original assignments/statuses, version/site/timezone and labels in repeatable read,
+rejects stale revision with SCHEDULE_REVISION_CONFLICT, and audits export in the same transaction.
+Metadata explicitly states whole saved version, all dates/people/zones/statuses, no local edits,
+version ID/no/revision/status/month/publishedAt/generatedAt, current-label semantics and duration
+units. Original IDs/instants/status/kind/zone/team/position/acknowledgement remain intact; planned
+minutes count only PLANNED rows. Reuse installed SheetJS/xlsx and report attachment patterns with
+explicit string cells and no formulas/hyperlinks; all workbook headers/text live in three catalogs.
+The existing report-style 20,000-row export ceiling rejects larger output before serialization,
+never truncates. No print, actual-work report, notes, finance, new library or frontend changes.
+Verify XLSX roundtrip completeness/metadata/privacy/formula-looking text, stored overnight/DST
+instants, revision/snapshot, size rejection and HTTP role/site/unit/name-access boundaries.

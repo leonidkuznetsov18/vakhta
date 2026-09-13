@@ -1,3 +1,14 @@
+import * as XLSX from 'xlsx';
+import { messages } from '@vakhta/i18n';
+import {
+  employees,
+  sites,
+  responsibilityZones,
+  teams,
+  positions,
+  shiftTemplates,
+} from '@vakhta/db';
+import { ScheduleExportService } from './schedule-export.service.js';
 import { ScheduleHistoryPage } from '@vakhta/contracts';
 import { auditLog } from '@vakhta/db';
 import { ScheduleHistoryService } from './schedule-history.service.js';
@@ -149,6 +160,254 @@ describe('scheduling: версії, валідація, публікація, о
       )
     ).id;
     await testDb.db.insert(telegramAccounts).values({ employeeId: ivanov, telegramUserId: 111 });
+  });
+
+  describe('whole saved-version XLSX export', () => {
+    afterEach(() => vi.restoreAllMocks());
+    const create = () =>
+      schedule.createVersion({ siteId, orgUnitId: unitId, periodMonth: MONTH }, PLANNER);
+    const user = (role: 'PLANNER' | 'AUDITOR' = 'PLANNER'): WebUser => ({
+      id: randomUUID(),
+      name: 'Exporter',
+      email: 'exporter@example.test',
+      twoFactorEnabled: true,
+      grants: [{ role, scopeType: 'ORG_UNIT', scopeId: unitId }],
+    });
+    const exporter = () => new ScheduleExportService(testDb.db, schedule, new AuditLog());
+    function sheet(book: XLSX.WorkBook, name: string) {
+      const value = book.Sheets[name];
+      if (!value) throw new Error(`Missing sheet ${name}`);
+      return value;
+    }
+    const metadata = (book: XLSX.WorkBook) =>
+      Object.fromEntries(
+        XLSX.utils.sheet_to_json<[string, string | number]>(sheet(book, 'Metadata'), { header: 1 }),
+      );
+    const records = (book: XLSX.WorkBook) =>
+      XLSX.utils.sheet_to_json<Record<string, string | number>>(sheet(book, 'Assignments'));
+    async function insert(versionId: string, count: number) {
+      return testDb.db
+        .insert(shiftAssignments)
+        .values(
+          Array.from({ length: count }, (_, i) => ({
+            scheduleVersionId: versionId,
+            employeeId: ivanov,
+            templateId: nightId,
+            businessDate: new Date(Date.UTC(2026, 9, 1 + i)).toISOString().slice(0, 10),
+            planStartAt: new Date('2026-10-24T17:00:00Z'),
+            planEndAt: new Date('2026-10-25T06:00:00Z'),
+            orgUnitId: unitId,
+            zoneId,
+          })),
+        )
+        .returning();
+    }
+
+    it('preserves original intervals, every status, metadata and ACK in a complete saved snapshot', async () => {
+      const version = await create();
+      const [planned, cancelled, replaced] = await insert(version.id, 3);
+      if (!planned || !cancelled || !replaced) throw new Error('Missing assignments');
+      const [team] = await testDb.db
+        .insert(teams)
+        .values({ orgUnitId: unitId, name: 'Synthetic team' })
+        .returning();
+      const [position] = await testDb.db
+        .insert(positions)
+        .values({ code: 'EXPORT', name: 'Synthetic position' })
+        .returning();
+      if (!team || !position) throw new Error('Missing metadata');
+      await testDb.db
+        .update(shiftAssignments)
+        .set({ kind: 'EXTRA', teamId: team.id, positionId: position.id })
+        .where(eq(shiftAssignments.id, planned.id));
+      await testDb.db
+        .update(shiftAssignments)
+        .set({ status: 'CANCELLED' })
+        .where(eq(shiftAssignments.id, cancelled.id));
+      await testDb.db
+        .update(shiftAssignments)
+        .set({ status: 'REPLACED' })
+        .where(eq(shiftAssignments.id, replaced.id));
+      const ack = new Date('2026-09-01T12:00:00Z');
+      await testDb.db.insert(assignmentAcknowledgements).values({
+        assignmentId: planned.id,
+        employeeId: ivanov,
+        scheduleVersionId: version.id,
+        source: 'WEB',
+        acknowledgedAt: ack,
+      });
+      await testDb.db
+        .update(shiftTemplates)
+        .set({ localStart: '01:00', localEnd: '02:00' })
+        .where(eq(shiftTemplates.id, nightId));
+      const now = new Date('2026-09-13T12:00:00Z');
+      const result = await exporter().export(
+        version.id,
+        { expectedRevision: version.revision },
+        user(),
+        'en',
+        now,
+      );
+      const book = XLSX.read(result.body, { type: 'buffer' });
+      const t = messages('en').scheduleExport;
+      expect(metadata(book)).toMatchObject({
+        [t.versionId]: version.id,
+        [t.revision]: version.revision,
+        [t.rows]: 3,
+        [t.plannedMinutes]: 780,
+        [t.generatedAt]: now.toISOString(),
+        [t.scope]: t.wholeVersion,
+      });
+      expect(records(book)).toHaveLength(3);
+      expect(records(book)[0]).toMatchObject({
+        [t.assignmentId]: planned.id,
+        [t.startUtc]: planned.planStartAt.toISOString(),
+        [t.endUtc]: planned.planEndAt.toISOString(),
+        [t.startLocal]: '2026-10-24 20:00 +03:00',
+        [t.endLocal]: '2026-10-25 08:00 +02:00',
+        [t.duration]: 780,
+        [t.kind]: 'EXTRA',
+        [t.teamId]: team.id,
+        [t.positionId]: position.id,
+        [t.acknowledgedAt]: ack.toISOString(),
+      });
+      expect(records(book).map((row) => row[t.status])).toEqual([
+        'PLANNED',
+        'CANCELLED',
+        'REPLACED',
+      ]);
+      expect(result.contentType).toBe(
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      expect(result.filename).toContain(`r${version.revision}-${version.id}.xlsx`);
+    });
+
+    it('exports more than a page of original rows without date or status filtering', async () => {
+      const version = await create();
+      await insert(version.id, 205);
+      const result = await exporter().export(version.id, { expectedRevision: 1 }, user(), 'en');
+      const book = XLSX.read(result.body, { type: 'buffer' });
+      expect(records(book)).toHaveLength(205);
+      expect(metadata(book)[messages('en').scheduleExport.rows]).toBe(205);
+    });
+
+    it.each(['en', 'uk', 'ru'] as const)(
+      'keeps formula-looking labels literal and gates current employee names (%s)',
+      async (locale) => {
+        const version = await create();
+        await insert(version.id, 1);
+        await testDb.db
+          .update(employees)
+          .set({ fullName: '=HYPERLINK("bad","name")', phone: 'PRIVATE_PHONE' })
+          .where(eq(employees.id, ivanov));
+        await testDb.db
+          .update(responsibilityZones)
+          .set({ name: '+SUM(1,2)' })
+          .where(eq(responsibilityZones.id, zoneId));
+        await testDb.db.update(sites).set({ name: '@SUM(1,2)' }).where(eq(sites.id, siteId));
+        const t = messages(locale).scheduleExport;
+        for (const role of ['PLANNER', 'AUDITOR'] as const) {
+          const result = await exporter().export(
+            version.id,
+            { expectedRevision: 1 },
+            user(role),
+            locale,
+          );
+          const book = XLSX.read(result.body, { type: 'buffer' });
+          const assignmentSheet = sheet(book, t.assignmentsSheet);
+          const rows = XLSX.utils.sheet_to_json<Record<string, string | number>>(assignmentSheet);
+          expect(rows[0]).toMatchObject({
+            [t.employeeId]: ivanov,
+            [t.employeeName]: role === 'PLANNER' ? '=HYPERLINK("bad","name")' : '',
+            [t.zoneName]: '+SUM(1,2)',
+          });
+          for (const page of Object.values(book.Sheets)) {
+            for (const [address, value] of Object.entries(page)) {
+              if (address.startsWith('!')) continue;
+              const cell: XLSX.CellObject = value;
+              expect(cell.f).toBeUndefined();
+              expect(cell.l).toBeUndefined();
+              if (typeof cell.v === 'string') expect(cell.t).toBe('s');
+            }
+          }
+          expect(JSON.stringify(book)).not.toContain('PRIVATE_PHONE');
+          if (role === 'AUDITOR') expect(JSON.stringify(book)).not.toContain('HYPERLINK');
+        }
+      },
+    );
+
+    it('rejects stale revisions and versions beyond the row ceiling without a success audit', async () => {
+      const version = await create();
+      await expect(
+        exporter().export(version.id, { expectedRevision: 2 }, user()),
+      ).rejects.toMatchObject({ code: 'SCHEDULE_REVISION_CONFLICT', status: 409 });
+      await testDb.db
+        .execute(sql`INSERT INTO shift_assignments (schedule_version_id, employee_id, template_id, business_date, plan_start_at, plan_end_at, org_unit_id)
+        SELECT ${version.id}::uuid, ${ivanov}::uuid, ${dayId}::uuid, '2026-01-01'::date + i, '2026-01-01T08:00:00Z'::timestamptz, '2026-01-01T20:00:00Z'::timestamptz, ${unitId}::uuid FROM generate_series(1, 20001) AS i`);
+      await expect(
+        exporter().export(version.id, { expectedRevision: 1 }, user()),
+      ).rejects.toMatchObject({ code: 'SCHEDULE_EXPORT_TOO_LARGE', status: 422 });
+      const audits = await testDb.db
+        .select()
+        .from(auditLog)
+        .where(eq(auditLog.objectId, version.id));
+      expect(audits.filter((row) => row.action === 'schedule.version.export')).toEqual([]);
+    });
+
+    it('keeps rows and revision from one snapshot during a concurrent saved change', async () => {
+      const version = await create();
+      const [original] = await insert(version.id, 1);
+      if (!original) throw new Error('Missing assignment');
+      let release = () => {};
+      const released = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let reached = () => {};
+      const read = new Promise<void>((resolve) => {
+        reached = resolve;
+      });
+      const requireVersion = schedule.requireVersion.bind(schedule);
+      vi.spyOn(schedule, 'requireVersion').mockImplementationOnce(async (id, tx) => {
+        const result = await requireVersion(id, tx);
+        reached();
+        await released;
+        return result;
+      });
+      const exporting = exporter().export(version.id, { expectedRevision: 1 }, user(), 'en');
+      await read;
+      try {
+        await testDb.db.transaction(async (tx) => {
+          await tx
+            .update(scheduleVersions)
+            .set({ revision: 2 })
+            .where(eq(scheduleVersions.id, version.id));
+          await tx
+            .update(shiftAssignments)
+            .set({ kind: 'EXTRA' })
+            .where(eq(shiftAssignments.id, original.id));
+        });
+      } finally {
+        release();
+      }
+      const book = XLSX.read((await exporting).body, { type: 'buffer' });
+      const t = messages('en').scheduleExport;
+      expect(metadata(book)[t.revision]).toBe(1);
+      expect(records(book)[0]?.[t.kind]).toBe('REGULAR');
+      await expect(
+        exporter().export(version.id, { expectedRevision: 1 }, user()),
+      ).rejects.toMatchObject({ status: 409 });
+    });
+
+    it('exports an empty saved version with metadata and an assignment header', async () => {
+      const version = await create();
+      const book = XLSX.read(
+        (await exporter().export(version.id, { expectedRevision: 1 }, user(), 'en')).body,
+        { type: 'buffer' },
+      );
+      expect(records(book)).toEqual([]);
+      expect(metadata(book)[messages('en').scheduleExport.rows]).toBe(0);
+      expect(sheet(book, 'Assignments')['!ref']).toBe('A1:W1');
+    });
   });
 
   describe('metadata-only publication changes', () => {
