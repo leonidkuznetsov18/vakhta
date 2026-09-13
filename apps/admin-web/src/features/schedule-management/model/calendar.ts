@@ -2,6 +2,7 @@ import { assignmentInstants, type EligibilityReason } from '@vakhta/domain';
 import { format, messages, type Locale, type Messages } from '@vakhta/i18n';
 import type {
   AbsenceView,
+  CalendarEventsView,
   OpenSlotView,
   OperationsView,
   AssignmentInput,
@@ -50,6 +51,8 @@ export interface CalendarInput {
   readonly operations?: OperationsView;
   /** Absence requests of the plan's people (SC-03); shown per person and date. */
   readonly absences?: readonly AbsenceView[];
+  /** Holidays, birthdays, absences with check-ins and replacement needs (calendar events). */
+  readonly events?: CalendarEventsView;
 }
 
 /** Business dates are calendar values, never browser-local instants. */
@@ -205,9 +208,11 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
       (row) => row.employeeId === item.employeeId && row.businessDate === item.businessDate,
     );
     const marker = evidence ? presenceMarker(evidence, timeFormat, t) : undefined;
+    const flags = eventFlags(input.events, item.employeeId, item.businessDate, t);
     bucket.push({
       id: assignmentKey(item),
       ...(marker ? { marker } : {}),
+      ...(flags.length > 0 ? { flags } : {}),
       title:
         input.grouping === 'zones'
           ? (employeeMap.get(item.employeeId)?.fullName ?? t.unknownEmployee)
@@ -393,6 +398,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
           .replace('{night}', String(counts.night)),
         today: id === input.today,
         readonly: !!input.editableMonth && !id.startsWith(input.editableMonth),
+        ...dateEvents(input.events, id, employeeMap, t),
       };
     }),
     resources,
@@ -422,4 +428,59 @@ function presenceMarker(
     default:
       return { label: t.presenceScheduled, tone: 'muted' };
   }
+}
+
+function holidayName(code: string, t: Messages['scheduleWorkspace']): string {
+  const value = (t as unknown as Record<string, unknown>)[`holiday${code}`];
+  return typeof value === 'string' ? value : code;
+}
+
+function dateEvents(
+  events: CalendarEventsView | undefined,
+  date: string,
+  employees: ReadonlyMap<string, { readonly fullName: string }>,
+  t: Messages['scheduleWorkspace'],
+): { holiday?: string; events?: string[] } {
+  if (!events) return {};
+  const holiday = events.holidays.find((row) => row.date === date);
+  const names = events.birthdays
+    .filter((row) => row.date === date)
+    .map((row) => `🎂 ${employees.get(row.employeeId)?.fullName ?? t.unknownEmployee}`);
+  return {
+    ...(holiday ? { holiday: holidayName(holiday.code, t) } : {}),
+    ...(names.length > 0 ? { events: names } : {}),
+  };
+}
+
+/** Event chips of one person on one date: sick leave, vacation, day off, replacement needed. */
+export function eventFlags(
+  events: CalendarEventsView | undefined,
+  employeeId: string,
+  date: string,
+  t: Messages['scheduleWorkspace'],
+): { label: string; tone: 'danger' | 'warn' | 'info' }[] {
+  if (!events) return [];
+  const flags: { label: string; tone: 'danger' | 'warn' | 'info' }[] = [];
+  const absence = events.absences.find(
+    (row) => row.employeeId === employeeId && row.from <= date && date <= row.to,
+  );
+  if (absence) {
+    const type =
+      absence.type === 'SICK'
+        ? t.onSickLeave
+        : absence.type === 'VACATION'
+          ? t.onVacation
+          : t.onDayOff;
+    const replacement = events.replacements.some(
+      (row) => row.employeeId === employeeId && row.businessDate === date,
+    );
+    flags.push(
+      absence.status === 'APPROVED'
+        ? { label: replacement ? `${type} · ${t.needsReplacement}` : type, tone: 'danger' }
+        : { label: `${type} · ${t.absencePendingShort}`, tone: 'warn' },
+    );
+  }
+  if (events.birthdays.some((row) => row.employeeId === employeeId && row.date === date))
+    flags.push({ label: `🎂 ${t.birthday}`, tone: 'info' });
+  return flags;
 }

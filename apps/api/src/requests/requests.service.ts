@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
   FULL_SCOPE,
   employeePlaceSql,
@@ -32,6 +32,7 @@ import {
   type Database,
   type DbOrTx,
   type Transaction,
+  wellbeingCheckins,
 } from '@vakhta/db';
 import {
   PERIOD_TYPES,
@@ -44,6 +45,8 @@ import {
   type RequestType,
   type AccessScope,
   type ScopeTarget,
+  businessDateOf,
+  planInstants,
 } from '@vakhta/domain';
 import type {
   AssignmentInput,
@@ -64,6 +67,7 @@ import { AuditLog } from '../events/audit-log.js';
 import { EventStore, type EventSource } from '../events/event-store.js';
 import { MediaService } from '../handover/media.service.js';
 import { DATABASE } from '../infra/database.module.js';
+import { TIMER_SCHEDULER, type TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ScheduleService } from '../scheduling/schedule.service.js';
 import { CorrectionsService } from './corrections.service.js';
@@ -96,7 +100,98 @@ export class RequestsService {
     private readonly media: MediaService,
     private readonly corrections: CorrectionsService,
     private readonly changes: RequestChanges,
+    @Optional() @Inject(TIMER_SCHEDULER) private readonly timers?: TimerScheduler,
   ) {}
+
+  /**
+   * Care effects of an approved absence (calendar events): wishes now, a daily "how are you"
+   * during sick leave and a plan reminder the day before a vacation ends. Timers recheck the
+   * request when they fire, so a later cancellation silences them.
+   */
+  private async absenceEffects(tx: Transaction, row: RequestRow, now: Date): Promise<void> {
+    if (!row.periodFrom || !row.periodTo) return;
+    const place = await this.placeForEmployee(row.employeeId, tx);
+    const [site] = place
+      ? await tx.select({ timezone: sites.timezone }).from(sites).where(eq(sites.id, place.siteId))
+      : [];
+    const timezone = site?.timezone ?? 'Europe/Kyiv';
+    const today = businessDateOf(now, timezone);
+    await this.notifications.enqueue(tx, {
+      recipientType: 'EMPLOYEE',
+      recipientId: row.employeeId,
+      template: 'ABSENCE_WISHES',
+      payload: (t) => ({
+        text: format(row.type === 'SICK' ? t.schedule.sickWishes : t.schedule.vacationWishes, {
+          from: row.periodFrom ?? '',
+          to: row.periodTo ?? '',
+        }),
+      }),
+      dedupeKey: `absence-wishes:${row.id}`,
+    });
+    if (!this.timers) return;
+    const at = (date: string, localStart: string) =>
+      planInstants(date, { localStart, localEnd: '23:59' }, timezone).planStartAt;
+    if (row.type === 'SICK') {
+      let date = row.periodFrom > today ? row.periodFrom : today;
+      let count = 0;
+      while (date <= row.periodTo && count < 30) {
+        if (date > today || (date === today && at(date, '10:00') > now))
+          await this.timers.scheduleAbsenceCheckin(tx, row.id, date, at(date, '10:00'));
+        date = shiftDate(date, 1);
+        count += 1;
+      }
+      return;
+    }
+    const eve = shiftDate(row.periodTo, -1);
+    if (eve >= today) await this.timers.scheduleAbsenceReturn(tx, row.id, at(eve, '18:00'));
+  }
+
+  /** A sick-leave answer from the bot; only during an approved sick leave of that employee. */
+  async recordWellbeing(
+    requestId: string,
+    employeeId: string,
+    answer: 'GOOD' | 'SAME' | 'WORSE',
+    now: Date = new Date(),
+  ): Promise<{ kind: 'RECORDED' | 'CLOSED' }> {
+    return this.db.transaction(async (tx) => {
+      const [row] = await tx.select().from(requests).where(eq(requests.id, requestId));
+      if (
+        !row ||
+        row.employeeId !== employeeId ||
+        row.type !== 'SICK' ||
+        row.status !== 'APPROVED' ||
+        !row.periodFrom ||
+        !row.periodTo
+      )
+        return { kind: 'CLOSED' };
+      const place = await this.placeForEmployee(employeeId, tx);
+      const [site] = place
+        ? await tx
+            .select({ timezone: sites.timezone })
+            .from(sites)
+            .where(eq(sites.id, place.siteId))
+        : [];
+      const businessDate = businessDateOf(now, site?.timezone ?? 'Europe/Kyiv');
+      if (businessDate < row.periodFrom || businessDate > shiftDate(row.periodTo, 1))
+        return { kind: 'CLOSED' };
+      await tx
+        .insert(wellbeingCheckins)
+        .values({ requestId, employeeId, businessDate, answer, answeredAt: now })
+        .onConflictDoUpdate({
+          target: [wellbeingCheckins.requestId, wellbeingCheckins.businessDate],
+          set: { answer, answeredAt: now },
+        });
+      await this.events.append(tx, {
+        type: 'WELLBEING_RECORDED',
+        source: 'TELEGRAM',
+        actor: { type: 'EMPLOYEE', id: employeeId, role: 'EMPLOYEE' },
+        occurredAt: now,
+        employeeId,
+        payload: { requestId, businessDate, answer },
+      });
+      return { kind: 'RECORDED' };
+    });
+  }
 
   /* ------------------------------------------------------------------ */
   /* Працівник                                                           */
@@ -335,6 +430,7 @@ export class RequestsService {
         }
       }
       await tx.update(requests).set(patch).where(eq(requests.id, id));
+      if (finalApproved && PERIOD_TYPES.includes(row.type)) await this.absenceEffects(tx, row, now);
       await this.events.append(tx, {
         type: 'REQUEST_DECIDED',
         source: decider.type === 'EMPLOYEE' ? 'TELEGRAM' : 'WEB',
@@ -1034,3 +1130,9 @@ function normalizeProposal(p: CorrectionProposalCommand): CorrectionProposalComm
 }
 
 export type { RequestType };
+
+function shiftDate(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}

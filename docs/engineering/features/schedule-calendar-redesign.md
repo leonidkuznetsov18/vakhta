@@ -1220,3 +1220,42 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   disabled-publish reason; 118 schedule tests; typecheck, ESLint, Prettier. Evidence:
   `pills-hover-conflicts.png`, `pills-conflicts-list.png`, `sheet-actions-icons.png`,
   `sheet-editor-icons.png`, `staffing-hints-icons.png`.
+
+## 2026-09-13 — Calendar events: regional holidays, birthdays, absences, care messages
+
+- Domain `time/holidays.ts`: `holidayRegion(timezone)` (Ukrainian zones → UA), `orthodoxEaster`
+  (Meeus Julian algorithm, +13 days), `holidaysOf('UA', year)` per the 2023–2024 Labour Code
+  amendments (New Year, 8 March, Easter, 1 May, 8 May, Trinity, 28 June, 15 July, 24 August,
+  1 October, 25 December), `holidaysBetween`, `nextAnniversary` (29 Feb → 1 Mar). 4 tests.
+- Storage (migration `0049`): `employees.birth_date`, `wellbeing_checkins` (request, employee,
+  business date, GOOD/SAME/WORSE, unique per request/day), background task kinds
+  `BIRTHDAY_GREETING`, `ABSENCE_CHECKIN`, `ABSENCE_RETURN` (check constraint updated).
+- API: `GET /admin/schedules/staffing/events` (holidays of the site region, birthdays of unit
+  members and planned people, approved/pending absences with the last check-in, published shifts
+  inside an approved absence as replacement needs) and `GET /admin/schedules/staffing/attention`
+  (today's holiday, birthdays, sick leaves, next-7-day replacement needs across the site).
+  Employees: `birthDate` on create/update/view; saving it admits the next 09:00 (site time)
+  greeting. Requests: an approved SICK/VACATION/DAY_OFF enqueues `ABSENCE_WISHES` now, schedules a
+  10:00 `ABSENCE_CHECKIN` for each sick-leave day (≤30) and an 18:00 `ABSENCE_RETURN` the day
+  before a vacation ends; `recordWellbeing` stores the bot answer only during an approved sick
+  leave of that employee. Bot: `well:<request>:<answer>` callback.
+- Worker `timers/events.ts`: the greeting sends on the planned day only, re-admits next year in
+  every case; the check-in and return reminders re-read the request (approved, covering the day,
+  Telegram linked) and write to the outbox with dedupe keys; the return reminder names the next
+  published shift or points to "My plan". 3 real-DB tests including dispatch through the runner.
+- Panel: `useCalendarEvents` feeds the calendar model: date headers carry the holiday (tinted
+  column) and 🎂 names; cards carry red chips (sick/vacation/day off, "needs replacement") or
+  orange pending chips and a birthday chip; the Sheet shows the absence period with the last
+  check-in. `ScheduleAttentionCard` (exported from the slice) is ready for Overview; the Overview
+  session was asked to mount it. Employee card gets a "Date of birth" field. Today's column is
+  outlined with a bold emerald border in grid and list layouts.
+- Verification: domain 4 tests; API real-DB case (events and attention); worker 3 cases; panel
+  schedule suites 121 tests with event mocks; typecheck, ESLint, Prettier. Evidence:
+  `events-week-today.png`, `events-sheet-sick.png`, `events-week-holiday-vacation.png`,
+  `events-people-flags.png`, `events-day-mobile.png`.
+- Limits: holiday calendars exist for Ukraine only (other regions show none); birthdays are
+  visible to planning roles only; wellbeing answers are informational and never feed attendance
+  or bonus; the greeting chain starts when a birth date is saved (no backfill for existing cards
+  until they are edited).
+- Lean: Proceed. The planner sees who cannot come before the shift starts; the employee hears
+  from the company on the days that matter, without a separate HR tool.

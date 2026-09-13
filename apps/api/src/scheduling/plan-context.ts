@@ -19,8 +19,15 @@ import {
   siteSchedulingRules,
   sql,
   type DbOrTx,
+  employees,
+  wellbeingCheckins,
 } from '@vakhta/db';
-import type { AssignmentPresenceView, OperationalRequestView } from '@vakhta/contracts';
+import type {
+  AbsenceEventView,
+  AssignmentPresenceView,
+  OperationalRequestView,
+  ReplacementNeedView,
+} from '@vakhta/contracts';
 import { routeFor, TERMINAL_STATES } from '@vakhta/domain';
 import {
   DEFAULT_SCHEDULING_RULES,
@@ -386,4 +393,148 @@ export async function loadOperationalRequests(
       submittedAt: row.submittedAt.toISOString(),
     };
   });
+}
+
+/** Approved and pending absence requests touching the range, with the latest sick-leave answer. */
+export async function loadAbsenceEvents(
+  tx: DbOrTx,
+  input: { readonly employeeIds?: readonly string[]; readonly from: string; readonly to: string },
+): Promise<AbsenceEventView[]> {
+  if (input.employeeIds && input.employeeIds.length === 0) return [];
+  const rows = await tx
+    .select({
+      id: requests.id,
+      employeeId: requests.employeeId,
+      from: requests.periodFrom,
+      to: requests.periodTo,
+      type: requests.type,
+      status: requests.status,
+    })
+    .from(requests)
+    .where(
+      and(
+        inArray(requests.type, [...ABSENCE_TYPES]),
+        inArray(requests.status, ['APPROVED', 'SUBMITTED', 'IN_REVIEW']),
+        lte(requests.periodFrom, input.to),
+        gte(requests.periodTo, input.from),
+        ...(input.employeeIds ? [inArray(requests.employeeId, [...input.employeeIds])] : []),
+      ),
+    );
+  const ids = rows.map((row) => row.id);
+  const checkins =
+    ids.length > 0
+      ? await tx
+          .select()
+          .from(wellbeingCheckins)
+          .where(inArray(wellbeingCheckins.requestId, ids))
+          .orderBy(desc(wellbeingCheckins.businessDate))
+      : [];
+  return rows.flatMap((row) => {
+    if (!row.from || !row.to) return [];
+    const last = checkins.find((item) => item.requestId === row.id);
+    return [
+      {
+        requestId: row.id,
+        employeeId: row.employeeId,
+        type: row.type,
+        status: row.status === 'APPROVED' ? ('APPROVED' as const) : ('PENDING' as const),
+        from: row.from,
+        to: row.to,
+        lastCheckin: last
+          ? {
+              businessDate: last.businessDate,
+              answer: last.answer,
+              answeredAt: last.answeredAt.toISOString(),
+            }
+          : null,
+      },
+    ];
+  });
+}
+
+/** Planned shifts of published plans whose person is on an approved absence that day. */
+export async function loadReplacementNeeds(
+  tx: DbOrTx,
+  input: {
+    readonly siteId: string;
+    readonly orgUnitId?: string;
+    readonly from: string;
+    readonly to: string;
+  },
+): Promise<ReplacementNeedView[]> {
+  const planned = await tx
+    .select({
+      id: shiftAssignments.id,
+      employeeId: shiftAssignments.employeeId,
+      businessDate: shiftAssignments.businessDate,
+      zoneId: shiftAssignments.zoneId,
+      orgUnitId: shiftAssignments.orgUnitId,
+    })
+    .from(shiftAssignments)
+    .innerJoin(scheduleVersions, eq(scheduleVersions.id, shiftAssignments.scheduleVersionId))
+    .where(
+      and(
+        eq(scheduleVersions.siteId, input.siteId),
+        ...(input.orgUnitId ? [eq(scheduleVersions.orgUnitId, input.orgUnitId)] : []),
+        eq(scheduleVersions.status, 'PUBLISHED'),
+        eq(shiftAssignments.status, 'PLANNED'),
+        gte(shiftAssignments.businessDate, input.from),
+        lte(shiftAssignments.businessDate, input.to),
+      ),
+    );
+  if (planned.length === 0) return [];
+  const absences = (
+    await loadAbsenceEvents(tx, {
+      employeeIds: [...new Set(planned.map((row) => row.employeeId))],
+      from: input.from,
+      to: input.to,
+    })
+  ).filter((absence) => absence.status === 'APPROVED');
+  return planned.flatMap((row) => {
+    const absence = absences.find(
+      (item) =>
+        item.employeeId === row.employeeId &&
+        item.from <= row.businessDate &&
+        row.businessDate <= item.to,
+    );
+    return absence
+      ? [
+          {
+            assignmentId: row.id,
+            employeeId: row.employeeId,
+            businessDate: row.businessDate,
+            zoneId: row.zoneId,
+            orgUnitId: row.orgUnitId,
+            requestId: absence.requestId,
+            type: absence.type,
+          },
+        ]
+      : [];
+  });
+}
+
+/** Birthdays of the given people that fall inside the range (year-agnostic month-day match). */
+export async function loadBirthdays(
+  tx: DbOrTx,
+  input: { readonly employeeIds: readonly string[]; readonly from: string; readonly to: string },
+): Promise<{ employeeId: string; date: string }[]> {
+  if (input.employeeIds.length === 0) return [];
+  const rows = await tx
+    .select({ id: employees.id, birthDate: employees.birthDate })
+    .from(employees)
+    .where(and(inArray(employees.id, [...input.employeeIds]), eq(employees.status, 'ACTIVE')));
+  const first = Number(input.from.slice(0, 4));
+  const last = Number(input.to.slice(0, 4));
+  const result: { employeeId: string; date: string }[] = [];
+  for (const row of rows) {
+    if (!row.birthDate) continue;
+    for (let year = first; year <= last; year += 1) {
+      const candidate = new Date(`${year}-${row.birthDate.slice(5)}T00:00:00Z`);
+      const date = Number.isNaN(candidate.getTime())
+        ? `${year}-03-01`
+        : candidate.toISOString().slice(0, 10);
+      if (date >= input.from && date <= input.to) result.push({ employeeId: row.id, date });
+    }
+  }
+  return result;
 }

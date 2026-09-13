@@ -40,6 +40,7 @@ import {
   requests,
   shiftAssignments,
   shiftSessions,
+  wellbeingCheckins,
 } from '@vakhta/db';
 import { eq, notificationOutbox, scheduleVersions, sql, telegramAccounts } from '@vakhta/db';
 import { addMonths, businessDateOf } from '@vakhta/domain';
@@ -2602,6 +2603,106 @@ describe('scheduling: версії, валідація, публікація, о
       expect(audit.map((row) => row.action)).toEqual(
         expect.arrayContaining(['schedule.feed.issue', 'schedule.feed.revoke']),
       );
+    });
+  });
+
+  describe('calendar events: holidays, birthdays, absences, replacements', () => {
+    it('overlays the site region holidays, birthdays and approved absences with replacement needs', async () => {
+      const staffing = new StaffingService(testDb.db, new AuditLog());
+      const [position] = await testDb.db
+        .insert(positions)
+        .values({ code: 'EV', name: 'Operator' })
+        .returning();
+      await testDb.db.insert(employeePositions).values([
+        { employeeId: ivanov, orgUnitId: unitId, positionId: position!.id, validFrom: new Date(0) },
+        {
+          employeeId: petrova,
+          orgUnitId: unitId,
+          positionId: position!.id,
+          validFrom: new Date(0),
+        },
+      ]);
+      await testDb.db
+        .update(employees)
+        .set({ birthDate: `1990-${day(20).slice(5)}` })
+        .where(eq(employees.id, petrova));
+      const v1 = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      await schedule.putAssignments(
+        v1.id,
+        {
+          items: [
+            {
+              employeeId: ivanov,
+              templateId: dayId,
+              businessDate: day(5),
+              zoneId,
+              kind: 'REGULAR',
+            },
+            {
+              employeeId: ivanov,
+              templateId: dayId,
+              businessDate: day(8),
+              zoneId,
+              kind: 'REGULAR',
+            },
+          ],
+        },
+        PLANNER,
+      );
+      await schedule.submit(v1.id, PLANNER);
+      await schedule.publish(v1.id, {}, HEAD);
+      const [sick] = await testDb.db
+        .insert(requests)
+        .values({
+          type: 'SICK',
+          employeeId: ivanov,
+          status: 'APPROVED',
+          currentStep: 1,
+          periodFrom: day(4),
+          periodTo: day(6),
+        })
+        .returning();
+      await testDb.db.insert(requests).values({
+        type: 'VACATION',
+        employeeId: petrova,
+        status: 'SUBMITTED',
+        currentStep: 0,
+        periodFrom: day(8),
+        periodTo: day(9),
+      });
+      await testDb.db.insert(wellbeingCheckins).values({
+        requestId: sick!.id,
+        employeeId: ivanov,
+        businessDate: day(5),
+        answer: 'WORSE',
+      });
+      const view = await staffing.events({ siteId, orgUnitId: unitId, from: day(1), to: day(28) });
+      expect(view.region).toBe('UA');
+      // The site is in Kyiv, so the Ukrainian calendar applies; whichever month the test runs in.
+      expect(view.holidays.every((row) => row.date.startsWith(MONTH))).toBe(true);
+      expect(view.birthdays).toEqual([{ employeeId: petrova, date: day(20) }]);
+      expect(view.absences.map((row) => [row.employeeId, row.type, row.status])).toEqual(
+        expect.arrayContaining([
+          [ivanov, 'SICK', 'APPROVED'],
+          [petrova, 'VACATION', 'PENDING'],
+        ]),
+      );
+      expect(view.absences.find((row) => row.type === 'SICK')?.lastCheckin).toMatchObject({
+        businessDate: day(5),
+        answer: 'WORSE',
+      });
+      // Only the shift inside the approved sick leave needs a replacement.
+      expect(view.replacements.map((row) => [row.employeeId, row.businessDate, row.type])).toEqual([
+        [ivanov, day(5), 'SICK'],
+      ]);
+      const attention = await staffing.attention(siteId, new Date(`${day(5)}T09:00:00Z`));
+      expect(attention.today).toBe(day(5));
+      expect(attention.onSickLeave.map((row) => row.employeeId)).toEqual([ivanov]);
+      expect(attention.replacements.map((row) => row.businessDate)).toEqual([day(5)]);
+      expect(attention.birthdaysToday).toEqual([]);
     });
   });
 

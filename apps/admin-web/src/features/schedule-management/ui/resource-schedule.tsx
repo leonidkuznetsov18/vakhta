@@ -1,6 +1,13 @@
 import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { useState } from 'react';
-import { PencilIcon, MoveIcon, UserSearchIcon, ActivityIcon, InboxIcon } from 'lucide-react';
+import {
+  PencilIcon,
+  MoveIcon,
+  UserSearchIcon,
+  ActivityIcon,
+  InboxIcon,
+  Undo2Icon,
+} from 'lucide-react';
 import { format, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -10,9 +17,17 @@ import {
   type CalendarEmphasis,
 } from '@/shared/ui/resource-calendar';
 import { Button } from '@/components/ui/button';
+import { IconButton } from '@/shared/ui/icon-button';
 import { Paginator, usePages } from '@/components/app/data-table';
 import { calendarModel, type CalendarGrouping } from '../model/calendar';
-import { assignmentKey, gridFromItems, gridToItems } from '../model/grid';
+import {
+  assignmentKey,
+  gridFromItems,
+  gridToItems,
+  sameAssignment,
+  setAssignment,
+  setCell,
+} from '../model/grid';
 import type { AdjacentPlan } from '../model/use-adjacent';
 import { staffingCoverage } from '../model/use-staffing';
 import { planIssues, reasonText, reasonsFor } from '../model/use-eligibility';
@@ -23,12 +38,14 @@ import type { Workspace } from '../model/use-workspace';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
 import { SlotDetails } from './slot-details';
 import { useOperations } from '../model/use-operations';
+import { useCalendarEvents } from '../model/use-events';
 import { useNotes } from '../model/use-notes';
 import { NotesSection } from './notes-section';
 import { useNavigation } from '@/navigation';
 import { InfoTip } from '@/components/app/info-tip';
 import { recordedTime } from '../lib/labels';
 import type { OpenSlots } from '../model/use-open-slots';
+import type { CalendarEventsView } from '@vakhta/contracts';
 import { employeeLabel } from './assignment-changes';
 
 export function ResourceSchedule({
@@ -59,6 +76,13 @@ export function ResourceSchedule({
   const mobile = useIsMobile();
   const navigation = useNavigation();
   const operations = useOperations({
+    accessKey: w.accessKey,
+    siteId: w.siteId,
+    orgUnitId: w.orgUnitId,
+    dates,
+    enabled: !!w.version,
+  });
+  const events = useCalendarEvents({
     accessKey: w.accessKey,
     siteId: w.siteId,
     orgUnitId: w.orgUnitId,
@@ -107,6 +131,7 @@ export function ResourceSchedule({
     slots: slots.slots,
     ...(operations.data ? { operations: operations.data } : {}),
     ...(w.context ? { absences: w.context.absences } : {}),
+    ...(events.data ? { events: events.data } : {}),
   });
   const items = gridToItems(w.grid);
   const selectedItem = items.find((item) => assignmentKey(item) === picked?.itemId);
@@ -163,6 +188,20 @@ export function ResourceSchedule({
   function edit(move = false) {
     if (!selectedItem || !editable) return;
     setEditor({ ...selectedItem, zoneId: selectedItem.zoneId ?? '', move });
+  }
+  // The saved version of the selected shift; a local edit differs from it or added the shift.
+  const savedItem = selectedItem
+    ? gridToItems(w.baseline).find((item) => assignmentKey(item) === assignmentKey(selectedItem))
+    : undefined;
+  const locallyChanged = !!selectedItem && (!savedItem || !sameAssignment(savedItem, selectedItem));
+  function revertSelected() {
+    if (!selectedItem || !editable || !locallyChanged) return;
+    w.edit(
+      savedItem
+        ? setAssignment(w.grid, savedItem)
+        : setCell(w.grid, selectedItem.employeeId, selectedItem.businessDate, ''),
+    );
+    setPicked(null);
   }
   const labels = {
     unitName: (id: string) => w.units.find((unit) => unit.id === id)?.name ?? id,
@@ -322,6 +361,13 @@ export function ResourceSchedule({
                       ))}
                     </ul>
                   )}
+                  <AbsenceContext
+                    events={events.data}
+                    failed={events.isError}
+                    employeeId={selectedItem.employeeId}
+                    date={selectedItem.businessDate}
+                    timezone={w.timezone}
+                  />
                   <OperationalContext
                     workspace={w}
                     item={selectedItem}
@@ -337,30 +383,46 @@ export function ResourceSchedule({
                     zoneId={selectedItem.zoneId ?? null}
                     employeeId={selectedItem.employeeId}
                   />
-                  {editable && (
-                    <div className="flex flex-wrap gap-2">
-                      <Button onClick={() => edit()}>
-                        <PencilIcon aria-hidden="true" />
-                        {t.editAssignment}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="border-sky-300 text-sky-800 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-200 dark:hover:bg-sky-950"
-                        onClick={() => edit(true)}
-                      >
-                        <MoveIcon aria-hidden="true" />
-                        {t.moveAssignment}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="border-emerald-300 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-200 dark:hover:bg-emerald-950"
-                        onClick={() => edit(true)}
-                      >
-                        <UserSearchIcon aria-hidden="true" />
-                        {t.findReplacement}
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex flex-wrap gap-2" role="group" aria-label={t.wholeAssignment}>
+                    <IconButton
+                      icon={PencilIcon}
+                      label={t.editAssignment}
+                      tooltip={t.editAssignment}
+                      size="icon"
+                      disabled={!editable}
+                      onClick={() => edit()}
+                    />
+                    <IconButton
+                      icon={MoveIcon}
+                      label={t.moveAssignment}
+                      tooltip={t.moveAssignment}
+                      variant="outline"
+                      size="icon"
+                      className="border-sky-300 text-sky-800 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-200 dark:hover:bg-sky-950"
+                      disabled={!editable}
+                      onClick={() => edit(true)}
+                    />
+                    <IconButton
+                      icon={UserSearchIcon}
+                      label={t.findReplacement}
+                      tooltip={t.findReplacement}
+                      variant="outline"
+                      size="icon"
+                      className="border-emerald-300 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-200 dark:hover:bg-emerald-950"
+                      disabled={!editable}
+                      onClick={() => edit(true)}
+                    />
+                    <IconButton
+                      icon={Undo2Icon}
+                      label={t.revertAssignment}
+                      tooltip={t.revertAssignment}
+                      variant="outline"
+                      size="icon"
+                      className="border-amber-300 text-amber-800 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-950"
+                      disabled={!editable || !locallyChanged}
+                      onClick={revertSelected}
+                    />
+                  </div>
                   {w.writable && !editable && (
                     <p className="text-sm text-muted-foreground">{t.zoneScope}</p>
                   )}
@@ -499,6 +561,65 @@ function OperationalContext({
           </Button>
         )}
       </section>
+    </div>
+  );
+}
+
+/** The person's absence around the shift with the latest sick-leave answer, and their birthday. */
+function AbsenceContext({
+  events,
+  failed,
+  employeeId,
+  date,
+  timezone,
+}: {
+  readonly events: CalendarEventsView | undefined;
+  readonly failed: boolean;
+  readonly employeeId: string;
+  readonly date: string;
+  readonly timezone: string;
+}) {
+  const t = messages(currentLocale()).scheduleWorkspace;
+  if (failed) return <p className="text-sm text-muted-foreground">{t.eventsUnavailable}</p>;
+  const absence = events?.absences.find(
+    (row) => row.employeeId === employeeId && row.from <= date && date <= row.to,
+  );
+  const birthday = events?.birthdays.some(
+    (row) => row.employeeId === employeeId && row.date === date,
+  );
+  if (!absence && !birthday) return null;
+  const type = absence
+    ? absence.type === 'SICK'
+      ? t.onSickLeave
+      : absence.type === 'VACATION'
+        ? t.onVacation
+        : t.onDayOff
+    : '';
+  const answer = (value: 'GOOD' | 'SAME' | 'WORSE') =>
+    value === 'GOOD' ? t.checkinGood : value === 'SAME' ? t.checkinSame : t.checkinWorse;
+  const replacement = events?.replacements.some(
+    (row) => row.employeeId === employeeId && row.businessDate === date,
+  );
+  return (
+    <div className="space-y-1 rounded-md border border-red-200 bg-red-50 p-2 text-sm dark:border-red-900 dark:bg-red-950">
+      {absence && (
+        <p className="font-medium text-red-800 dark:text-red-200">
+          {format(t.absenceRange, { type, from: absence.from, to: absence.to })}
+          {absence.status === 'PENDING' ? ` · ${t.absencePendingShort}` : ''}
+          {replacement ? ` · ${t.needsReplacement}` : ''}
+        </p>
+      )}
+      {absence?.type === 'SICK' && absence.status === 'APPROVED' && (
+        <p className="text-xs text-muted-foreground">
+          {absence.lastCheckin
+            ? format(t.lastCheckin, {
+                date: recordedTime(absence.lastCheckin.answeredAt, timezone),
+                answer: answer(absence.lastCheckin.answer),
+              })
+            : t.noCheckin}
+        </p>
+      )}
+      {birthday && <p className="text-violet-800 dark:text-violet-200">🎂 {t.birthday}</p>}
     </div>
   );
 }

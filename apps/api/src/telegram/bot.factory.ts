@@ -1273,6 +1273,25 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     if (screen) await edit(ctx, screen);
   });
 
+  // Sick-leave check-in answers: informational only, never an attendance record.
+  bot.callbackQuery(/^well:([0-9a-f-]{36}):(GOOD|SAME|WORSE)$/, async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee) {
+      await ctx.answerCallbackQuery({ text: ctx.t.bot.access.NOT_REGISTERED, show_alert: true });
+      return;
+    }
+    const result = await deps.requests.recordWellbeing(
+      ctx.match[1] ?? '',
+      ctx.employee.id,
+      ctx.match[2] as 'GOOD' | 'SAME' | 'WORSE',
+    );
+    await ctx.answerCallbackQuery({
+      text:
+        result.kind === 'RECORDED' ? ctx.t.schedule.checkinThanks : ctx.t.schedule.checkinClosed,
+      show_alert: result.kind !== 'RECORDED',
+    });
+    await ctx.editMessageReplyMarkup().catch(() => undefined);
+  });
+
   // Personal calendar feed (#19, SC-44): the link is shown once in the private chat and never logged.
   bot.callbackQuery('feed:issue', async (ctx) => {
     if (ctx.access !== 'ALLOWED' || !ctx.employee || !deps.feed || !deps.feedBaseUrl) {

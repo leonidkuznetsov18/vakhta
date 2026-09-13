@@ -16,6 +16,8 @@ export interface CalendarItem {
   readonly parts?: readonly { readonly id: string; readonly label: string }[];
   /** Operational state under the card, for example presence evidence; text plus tone, never color alone. */
   readonly marker?: { readonly label: string; readonly tone: 'ok' | 'muted' | 'danger' };
+  /** Event chips on the card, for example "Sick leave · needs replacement"; text plus tone. */
+  readonly flags?: readonly { readonly label: string; readonly tone: 'danger' | 'warn' | 'info' }[];
 }
 export type CalendarNoteTone = 'danger' | 'ok' | 'muted';
 export interface CalendarNote {
@@ -50,6 +52,10 @@ export interface CalendarDate {
   readonly today?: boolean;
   /** The date belongs to another plan and is shown for context only. */
   readonly readonly?: boolean;
+  /** A public holiday of the site region; the column is tinted and named. */
+  readonly holiday?: string;
+  /** Short event lines under the date, for example birthdays. */
+  readonly events?: readonly string[];
 }
 export interface CalendarViewModel {
   readonly label: string;

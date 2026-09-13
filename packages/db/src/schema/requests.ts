@@ -4,6 +4,7 @@ import {
   integer,
   jsonb,
   pgEnum,
+  uniqueIndex,
   pgTable,
   text,
   timestamp,
@@ -136,4 +137,24 @@ export const overtimeApprovals = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('overtime_approvals_session_idx').on(t.shiftSessionId)],
+);
+
+export const wellbeingAnswer = pgEnum('wellbeing_answer', ['GOOD', 'SAME', 'WORSE']);
+
+/** Daily "how are you" answers during sick leave; informational, never an attendance record. */
+export const wellbeingCheckins = pgTable(
+  'wellbeing_checkins',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    requestId: uuid('request_id')
+      .notNull()
+      .references(() => requests.id, { onDelete: 'cascade' }),
+    employeeId: uuid('employee_id')
+      .notNull()
+      .references(() => employees.id),
+    businessDate: date('business_date').notNull(),
+    answer: wellbeingAnswer('answer').notNull(),
+    answeredAt: timestamp('answered_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('wellbeing_checkins_request_date_uq').on(t.requestId, t.businessDate)],
 );

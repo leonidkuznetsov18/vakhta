@@ -5,8 +5,12 @@ import {
   CandidatesQuery,
   CreateQualificationCommand,
   EmployeeAvailabilityView,
+  CalendarEventsQuery,
+  CalendarEventsView,
   EmployeeQualificationView,
   OperationsQuery,
+  ScheduleAttentionQuery,
+  ScheduleAttentionView,
   OperationsView,
   PlanContextView,
   QualificationView,
@@ -23,6 +27,14 @@ const root = '/admin/schedules/staffing';
 
 /** Staffing demand, qualification catalog and holdings of one unit (SC-01, SC-04). */
 export const staffingApi = {
+  async events(query: CalendarEventsQuery, signal: AbortSignal) {
+    const params = new URLSearchParams(CalendarEventsQuery.parse(query));
+    return CalendarEventsView.parse(await apiFetch(`${root}/events?${params}`, { signal }));
+  },
+  async attention(query: ScheduleAttentionQuery, signal: AbortSignal) {
+    const params = new URLSearchParams(ScheduleAttentionQuery.parse(query));
+    return ScheduleAttentionView.parse(await apiFetch(`${root}/attention?${params}`, { signal }));
+  },
   async operations(query: OperationsQuery, signal: AbortSignal) {
     const params = new URLSearchParams(OperationsQuery.parse(query));
     return OperationsView.parse(await apiFetch(`${root}/operations?${params}`, { signal }));

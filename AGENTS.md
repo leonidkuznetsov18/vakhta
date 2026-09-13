@@ -134,6 +134,10 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
   length; use the shared TableCount/Paginator. Loading or failed requests must not invent a zero.
 - Long lists and tables are paginated. Forms validate input with the zod contracts and show inline errors.
 - Every non-obvious control has an information tooltip; tooltip texts live in `@vakhta/i18n` in all three languages.
+- Owner rule, 2026-09-13: never show the same explanation twice. An explanation lives either in
+  visible text or in an information icon with a tooltip, not both; when space is tight or the text
+  is secondary (why a button is disabled, a section hint), use the icon + tooltip only. Do not add
+  a native `title` next to a tooltip either.
 - Every interactive element has visible hover, active and focus states. The interface must be usable without a manual.
 - Choose a Sheet, dialog, dedicated view or inline details according to the task. Sub-rows are not
   mandatory; avoid expanding the calendar to accommodate an editor when a focused panel better

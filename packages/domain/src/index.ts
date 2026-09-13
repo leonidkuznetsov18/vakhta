@@ -23,6 +23,7 @@ export * from './scheduling/segments.js';
 export * from './scheduling/breaks.js';
 export * from './scheduling/workload.js';
 export * from './scheduling/proposal.js';
+export * from './time/holidays.js';
 export * from './attendance/window.js';
 export * from './notifications/payload.js';
 export * from './bonus/rules.js';

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { IsoDateTime, Uuid } from './common.js';
+import { BusinessDate, IsoDateTime, Uuid } from './common.js';
 
 /**
  * Назви черг BullMQ, спільні для api і worker (ADR-8). Доставка нотифікацій йде не через
@@ -62,3 +62,19 @@ export type HandoverTimeoutJob = z.infer<typeof HandoverTimeoutJob>;
 
 export const CleaningReminderJob = z.object({ sessionId: Uuid, fireAt: IsoDateTime });
 export type CleaningReminderJob = z.infer<typeof CleaningReminderJob>;
+
+/** Yearly greeting; the worker re-enqueues next year after sending (calendar events, #61). */
+export const BirthdayGreetingJob = z.object({ employeeId: Uuid, fireAt: IsoDateTime });
+export type BirthdayGreetingJob = z.infer<typeof BirthdayGreetingJob>;
+
+/** One "how are you" per sick-leave day; the worker rechecks the request is still approved. */
+export const AbsenceCheckinJob = z.object({
+  requestId: Uuid,
+  businessDate: BusinessDate,
+  fireAt: IsoDateTime,
+});
+export type AbsenceCheckinJob = z.infer<typeof AbsenceCheckinJob>;
+
+/** The day before a vacation ends: remind the plan that follows. */
+export const AbsenceReturnJob = z.object({ requestId: Uuid, fireAt: IsoDateTime });
+export type AbsenceReturnJob = z.infer<typeof AbsenceReturnJob>;

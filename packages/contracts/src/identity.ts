@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { IsoDateTime, Uuid } from './common.js';
+import { BusinessDate, IsoDateTime, Uuid } from './common.js';
 
 export const EmployeeStatusSchema = z.enum(['ACTIVE', 'BLOCKED', 'TERMINATED']);
 
@@ -54,6 +54,8 @@ export const CreateEmployeeCommand = EmployeeContacts.extend({
   personnelNumber: PersonnelNumber,
   fullName: z.string().trim().min(3).max(200),
   status: EmployeeStatusSchema.default('ACTIVE'),
+  /** Optional HR date for the calendar overlay and a greeting; never shown to other employees. */
+  birthDate: z.preprocess(blankToUndefined, BusinessDate.optional()),
   /** The first personnel assignment, optional: a unit with a position, and a team of that unit. */
   orgUnitId: optionalId,
   positionId: optionalId,
@@ -72,6 +74,7 @@ export const UpdateEmployeeCommand = z.object({
   email: z.preprocess(blankToNull, EmployeeEmail.nullable().optional()),
   phone: z.preprocess(blankToNull, EmployeePhone.nullable().optional()),
   telegramUsername: z.preprocess(blankToNull, TelegramUsername.nullable().optional()),
+  birthDate: z.preprocess(blankToNull, BusinessDate.nullable().optional()),
 });
 export type UpdateEmployeeCommand = z.infer<typeof UpdateEmployeeCommand>;
 
@@ -129,6 +132,7 @@ export const EmployeeView = z.object({
   email: z.string().nullable(),
   phone: z.string().nullable(),
   telegramUsername: z.string().nullable(),
+  birthDate: BusinessDate.nullable().optional(),
   /** The personnel assignment in force now; null until HR assigns a position. */
   currentPosition: z
     .object({ positionId: Uuid, orgUnitId: Uuid, teamId: Uuid.nullable() })

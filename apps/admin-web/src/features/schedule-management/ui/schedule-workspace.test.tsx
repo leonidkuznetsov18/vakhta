@@ -201,6 +201,7 @@ function mockApi(
     savedDetail?: ScheduleVersionDetail;
     slots?: Record<string, unknown>[];
     operations?: Record<string, unknown>;
+    events?: Record<string, unknown>;
     notes?: Record<string, unknown>[];
     retrospective?: Record<string, unknown>;
     october?: ScheduleVersionDetail;
@@ -397,6 +398,24 @@ function mockApi(
         return json({ ...(body as object), id: SITE, createdAt: '2026-09-01T00:00:00.000Z' });
       return json(state.patterns ?? []);
     }
+    if (path.startsWith('/admin/schedules/staffing/events'))
+      return json(
+        state.events ?? {
+          region: 'UA',
+          holidays: [],
+          birthdays: [],
+          absences: [],
+          replacements: [],
+        },
+      );
+    if (path.startsWith('/admin/schedules/staffing/attention'))
+      return json({
+        today: '2026-09-05',
+        holiday: null,
+        birthdaysToday: [],
+        onSickLeave: [],
+        replacements: [],
+      });
     if (path.startsWith('/admin/schedules/staffing/operations'))
       return json(
         state.operations ?? {
@@ -1019,7 +1038,9 @@ describe('schedule workspace', () => {
     expect(screen.getByRole('button', { name: `${t.add}: Линия 2, 2026-09-06` })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 05/ }));
     const sheet = await screen.findByRole('dialog');
-    expect(within(sheet).queryByRole('button', { name: t.editAssignment })).toBeNull();
+    expect(
+      within(sheet).getByRole('button', { name: t.editAssignment }).hasAttribute('disabled'),
+    ).toBe(true);
     expect(within(sheet).getByText(t.zoneScope)).toBeTruthy();
   });
   it('retains selected assignment context when changing grouping and opens the existing editor', async () => {
@@ -2458,7 +2479,11 @@ it('turns the conflicts pill into a highlight toggle with a list and explains th
   expect(pill.getAttribute('aria-pressed')).toBe('false');
   // The primary button is disabled and says why.
   expect(screen.getByRole('button', { name: t.reviewPublish }).hasAttribute('disabled')).toBe(true);
-  expect(screen.getByText(t.publishBlockedConflicts)).toBeTruthy();
+  const tip = screen.getByRole('button', { name: t.reviewPublish }).nextElementSibling;
+  expect(tip?.getAttribute('data-info-tip')).not.toBeNull();
+  fireEvent.pointerMove(tip as HTMLElement);
+  fireEvent.pointerEnter(tip as HTMLElement);
+  expect((await screen.findByRole('tooltip')).textContent).toContain(t.publishBlockedConflicts);
   while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
     fireEvent.click(screen.getByRole('button', { name: t.previous }));
   }

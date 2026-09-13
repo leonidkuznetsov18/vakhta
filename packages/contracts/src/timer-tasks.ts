@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import {
+  absenceCheckinJobId,
+  absenceReturnJobId,
   ackReminderJobId,
+  birthdayGreetingJobId,
   cleaningReminderJobId,
   downtimeEscalationJobId,
   handoverTimeoutJobId,
@@ -9,7 +12,10 @@ import {
   shiftReminderJobId,
 } from '@vakhta/domain';
 import {
+  AbsenceCheckinJob,
+  AbsenceReturnJob,
   AckReminderJob,
+  BirthdayGreetingJob,
   CleaningReminderJob,
   DowntimeEscalationJob,
   HandoverTimeoutJob,
@@ -27,6 +33,9 @@ export const TimerTask = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('CLEANING_REMINDER'), payload: CleaningReminderJob }),
   z.object({ kind: z.literal('INCIDENT_SLA'), payload: IncidentSlaJob }),
   z.object({ kind: z.literal('HANDOVER_TIMEOUT'), payload: HandoverTimeoutJob }),
+  z.object({ kind: z.literal('BIRTHDAY_GREETING'), payload: BirthdayGreetingJob }),
+  z.object({ kind: z.literal('ABSENCE_CHECKIN'), payload: AbsenceCheckinJob }),
+  z.object({ kind: z.literal('ABSENCE_RETURN'), payload: AbsenceReturnJob }),
 ]);
 export type TimerTask = z.infer<typeof TimerTask>;
 
@@ -46,6 +55,15 @@ export function timerTaskKey(task: TimerTask): string {
       return incidentSlaJobId(task.payload.incidentId);
     case 'HANDOVER_TIMEOUT':
       return handoverTimeoutJobId(task.payload.handoverId);
+    case 'BIRTHDAY_GREETING':
+      return birthdayGreetingJobId(
+        task.payload.employeeId,
+        Number(task.payload.fireAt.slice(0, 4)),
+      );
+    case 'ABSENCE_CHECKIN':
+      return absenceCheckinJobId(task.payload.requestId, task.payload.businessDate);
+    case 'ABSENCE_RETURN':
+      return absenceReturnJobId(task.payload.requestId);
   }
 }
 

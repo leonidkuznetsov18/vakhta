@@ -97,6 +97,21 @@ function ItemContent({ item }: { readonly item: CalendarItem }) {
           </span>
         )}
       </span>
+      {item.flags?.map((flag) => (
+        <span
+          key={flag.label}
+          className={cn(
+            'mt-0.5 mr-1 inline-block max-w-full truncate rounded px-1 text-[10px] leading-4 font-medium',
+            flag.tone === 'danger' && 'bg-red-600 text-white dark:bg-red-500 dark:text-red-950',
+            flag.tone === 'warn' &&
+              'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-100',
+            flag.tone === 'info' &&
+              'bg-violet-200 text-violet-900 dark:bg-violet-900 dark:text-violet-100',
+          )}
+        >
+          {flag.label}
+        </span>
+      ))}
       {item.marker && (
         <span
           className={cn(
@@ -168,6 +183,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                 item.description,
                 item.status,
                 item.marker?.label ?? '',
+                ...(item.flags?.map((flag) => flag.label) ?? []),
                 item.issue ? model.issueLabels?.[item.issue] : '',
               ]
                 .filter(Boolean)
@@ -265,15 +281,32 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                 aria-pressed={selectedDate === date.id}
                 className={cn(
                   'min-h-11 min-w-11 flex-1 flex-col gap-0 px-1 text-xs leading-tight',
-                  date.today && selectedDate !== date.id && 'border-emerald-500',
+                  date.today && 'border-2 border-emerald-600 font-bold dark:border-emerald-400',
                 )}
                 onClick={() => onDate(date.id)}
               >
                 <span>{date.shortLabel}</span>
                 {date.summary && <span className="text-[10px] opacity-80">{date.summary}</span>}
+                {date.holiday && <span className="text-[10px]">🎉</span>}
               </Button>
             ))}
           </div>
+          {(() => {
+            const day = model.dates.find((date) => date.id === selectedDate);
+            if (!day?.holiday && !day?.events?.length) return null;
+            return (
+              <p className="text-xs [overflow-wrap:anywhere]">
+                {day.holiday && (
+                  <span className="mr-2 text-rose-700 dark:text-rose-300">🎉 {day.holiday}</span>
+                )}
+                {day.events?.map((event) => (
+                  <span key={event} className="mr-2 text-violet-700 dark:text-violet-300">
+                    {event}
+                  </span>
+                ))}
+              </p>
+            );
+          })()}
           <div className="space-y-3">
             {rows.map((row) => {
               const cell = row.cells.find((value) => value.date === selectedDate);
@@ -311,14 +344,18 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                     title={date.readonly ? date.label : undefined}
                     className={cn(
                       'w-34 whitespace-normal px-2 py-1.5 text-center align-top',
-                      date.today && 'bg-emerald-50/70 dark:bg-emerald-950/40',
+                      date.today &&
+                        'border-x-2 border-t-2 border-emerald-600 bg-emerald-50/70 dark:border-emerald-400 dark:bg-emerald-950/40',
                       date.readonly && 'bg-muted/40 text-muted-foreground',
+                      date.holiday && 'bg-rose-50/70 dark:bg-rose-950/40',
                     )}
                   >
                     <span
                       className={cn(
                         'block font-medium',
-                        date.today ? 'text-emerald-800 dark:text-emerald-200' : 'text-foreground',
+                        date.today
+                          ? 'font-bold text-emerald-800 dark:text-emerald-200'
+                          : 'text-foreground',
                       )}
                     >
                       {date.label}
@@ -328,12 +365,25 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                         {date.summary}
                       </span>
                     )}
+                    {date.holiday && (
+                      <span className="block text-[11px] font-normal text-rose-700 dark:text-rose-300">
+                        🎉 {date.holiday}
+                      </span>
+                    )}
+                    {date.events?.map((event) => (
+                      <span
+                        key={event}
+                        className="block text-[11px] font-normal text-violet-700 dark:text-violet-300 [overflow-wrap:anywhere]"
+                      >
+                        {event}
+                      </span>
+                    ))}
                   </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
+              {rows.map((row, rowIndex) => (
                 <TableRow key={row.id} className="hover:bg-transparent">
                   <TableCell className="sticky left-0 z-10 whitespace-normal bg-background align-top">
                     <p className="font-semibold [overflow-wrap:anywhere]">{row.title}</p>
@@ -352,7 +402,11 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                       key={cell.date}
                       className={cn(
                         'whitespace-normal p-1.5 align-top',
-                        model.dates[index]?.today && 'bg-emerald-50/30 dark:bg-emerald-950/20',
+                        model.dates[index]?.today &&
+                          'border-x-2 border-emerald-600 bg-emerald-50/30 dark:border-emerald-400 dark:bg-emerald-950/20',
+                        model.dates[index]?.today &&
+                          rowIndex === rows.length - 1 &&
+                          'border-b-2 border-b-emerald-600 dark:border-b-emerald-400',
                         model.dates[index]?.readonly && 'bg-muted/30',
                       )}
                     >

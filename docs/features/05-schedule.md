@@ -86,6 +86,17 @@ Counts describe assigned people, not required staffing or attendance.
   preferences (prefer own unit, balance planned hours). Blocking rules are filtered first, warnings
   are shown, unresolved slots stay listed with a reason, and every pick can be skipped. Applying
   fills the slots into the current draft through the usual checks; nothing is published.
+- **Holidays and people events on the calendar:** the site region (from its timezone; Ukraine for
+  Europe/Kyiv) adds public holidays to the day headers with a tinted column. Employee birthdays
+  (an optional HR field on the card) appear under the date and on the person's card. Approved
+  sick leave, vacation and days off mark the person's cards in red; a published shift inside an
+  approved absence reads "needs replacement" so the planner acts early; pending requests show in
+  orange. Shift details show the absence period and, for sick leave, the last "how are you"
+  answer. The bot congratulates on birthdays, wishes a quick recovery or a good holiday when a
+  request is approved, asks how the person feels every sick-leave day (one-tap answers), and the
+  day before a vacation ends reminds them of their next shift. A ready "Schedule today" card lists
+  today's holiday, birthdays, people on sick leave and shifts without a person for the next week
+  for the Overview page. Today's column is outlined like a wall-calendar slider.
 - **Conflicts and candidates:** the plan is checked as you edit: overlapping shifts of one person
   in any unit, approved absences and missing required qualifications block saving and publishing;
   short rest and too many monthly hours warn or block according to the site rules; a worker's

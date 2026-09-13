@@ -31,6 +31,10 @@ import {
   type StaffingView,
   OperationsQuery,
   type OperationsView,
+  CalendarEventsQuery,
+  type CalendarEventsView,
+  ScheduleAttentionQuery,
+  type ScheduleAttentionView,
 } from '@vakhta/contracts';
 import { canActOn, type ScopeTarget, type WebRole } from '@vakhta/domain';
 import {
@@ -88,6 +92,24 @@ export class AdminStaffingController {
   ): Promise<PlanContextView> {
     assertScope(user, PLANNERS, query);
     return this.staffing.context(query.siteId, query.orgUnitId, query.periodMonth);
+  }
+
+  @Get('events')
+  events(
+    @Query(new ZodValidationPipe(CalendarEventsQuery)) query: CalendarEventsQuery,
+    @CurrentUser() user: WebUser,
+  ): Promise<CalendarEventsView> {
+    assertScope(user, READERS, query);
+    return this.staffing.events(query);
+  }
+
+  @Get('attention')
+  attention(
+    @Query(new ZodValidationPipe(ScheduleAttentionQuery)) query: ScheduleAttentionQuery,
+    @CurrentUser() user: WebUser,
+  ): Promise<ScheduleAttentionView> {
+    assertScope(user, READERS, query);
+    return this.staffing.attention(query.siteId);
   }
 
   @Get('operations')

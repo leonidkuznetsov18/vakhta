@@ -17,6 +17,11 @@ import {
 import { handleCleaningReminderWithin, handleHandoverTimeoutWithin } from './handover-timers.js';
 import { handleDowntimeEscalationWithin, handleReturnReminderWithin } from './shift-timers.js';
 import { handleIncidentSlaWithin } from './incident-sla.js';
+import {
+  handleAbsenceCheckinWithin,
+  handleAbsenceReturnWithin,
+  handleBirthdayGreetingWithin,
+} from './events.js';
 
 export const TIMER_TASK_KINDS = [
   'SHIFT_REMINDER',
@@ -26,6 +31,9 @@ export const TIMER_TASK_KINDS = [
   'CLEANING_REMINDER',
   'INCIDENT_SLA',
   'HANDOVER_TIMEOUT',
+  'BIRTHDAY_GREETING',
+  'ABSENCE_CHECKIN',
+  'ABSENCE_RETURN',
 ] as const;
 const DispatchOptions = z.object({
   batch: z.number().int().min(1).max(50).default(10),
@@ -56,6 +64,12 @@ export function executeTimerWithin(
       return handleIncidentSlaWithin(tx, task.payload, now);
     case 'HANDOVER_TIMEOUT':
       return handleHandoverTimeoutWithin(tx, task.payload, now);
+    case 'BIRTHDAY_GREETING':
+      return handleBirthdayGreetingWithin(tx, task.payload, now);
+    case 'ABSENCE_CHECKIN':
+      return handleAbsenceCheckinWithin(tx, task.payload, now);
+    case 'ABSENCE_RETURN':
+      return handleAbsenceReturnWithin(tx, task.payload, now);
   }
 }
 

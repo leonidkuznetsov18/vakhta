@@ -82,6 +82,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     'employees.telegramUsername',
     '',
   );
+  const [birthDate, setBirthDate] = usePersistentState('employees.birthDate', '');
   const [newOrgUnitId, setNewOrgUnitId] = usePersistentState('employees.newOrgUnit', '');
   const [newPositionId, setNewPositionId] = usePersistentState('employees.newPosition', '');
   const [newTeamId, setNewTeamId] = usePersistentState('employees.newTeam', '');
@@ -177,6 +178,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       email,
       phone,
       telegramUsername,
+      birthDate,
       orgUnitId: newOrgUnitId,
       positionId: newPositionId,
       teamId: newTeamId,
@@ -582,6 +584,17 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
                       placeholder={e.telegramPlaceholder}
                       autoComplete="off"
                       onChange={(ev) => setTelegramUsername(ev.target.value)}
+                    />
+                  )}
+                </FormField>
+                <FormField label={e.birthDate} error={fieldErrors.birthDate} optional>
+                  {(id) => (
+                    <Input
+                      id={id}
+                      type="date"
+                      value={birthDate}
+                      autoComplete="off"
+                      onChange={(ev) => setBirthDate(ev.target.value)}
                     />
                   )}
                 </FormField>
@@ -1069,6 +1082,7 @@ function EmployeeDetailsForm({
     email: employee.email ?? '',
     phone: employee.phone ?? '',
     telegramUsername: employee.telegramUsername ?? '',
+    birthDate: employee.birthDate ?? '',
   };
   const [draft, setDraft] = useState(initial);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -1177,6 +1191,16 @@ function EmployeeDetailsForm({
             />
           )}
         </FormField>
+        <FormField label={e.birthDate} error={errors.birthDate} optional>
+          {(id) => (
+            <Input
+              id={id}
+              type="date"
+              value={draft.birthDate}
+              onChange={(ev) => field('birthDate')(ev.target.value)}
+            />
+          )}
+        </FormField>
         <FormField
           label={e.telegramUsername}
           hint={hints.employeesTelegram}
@@ -1227,7 +1251,7 @@ function createChecklistFor(positionId: string): void {
 
 /** Optional contacts of the card as links: mail, call, open the Telegram profile. */
 function ContactsRow({ employee }: { readonly employee: EmployeeView }) {
-  const items: { key: string; label: string; href: string; text: string }[] = [];
+  const items: { key: string; label: string; href?: string; text: string }[] = [];
   if (employee.email)
     items.push({
       key: 'email',
@@ -1242,6 +1266,8 @@ function ContactsRow({ employee }: { readonly employee: EmployeeView }) {
       href: `tel:${employee.phone}`,
       text: employee.phone,
     });
+  if (employee.birthDate)
+    items.push({ key: 'birthDate', label: e.birthDate, text: employee.birthDate });
   if (employee.telegramUsername)
     items.push({
       key: 'telegram',
@@ -1259,14 +1285,18 @@ function ContactsRow({ employee }: { readonly employee: EmployeeView }) {
           {items.map((item) => (
             <li key={item.key} className="flex items-center gap-1">
               <Muted>{item.label}:</Muted>
-              <a
-                href={item.href}
-                target={item.key === 'telegram' ? '_blank' : undefined}
-                rel="noreferrer"
-                className="underline-offset-4 hover:underline"
-              >
-                {item.text}
-              </a>
+              {item.href ? (
+                <a
+                  href={item.href}
+                  target={item.key === 'telegram' ? '_blank' : undefined}
+                  rel="noreferrer"
+                  className="underline-offset-4 hover:underline"
+                >
+                  {item.text}
+                </a>
+              ) : (
+                <span>{item.text}</span>
+              )}
             </li>
           ))}
         </ul>

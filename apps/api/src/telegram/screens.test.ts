@@ -386,6 +386,7 @@ describe('language of the bot screens', () => {
         email: null,
         phone: null,
         telegramUsername: null,
+        birthDate: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       },

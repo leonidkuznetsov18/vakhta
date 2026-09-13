@@ -1,5 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, count, desc, eq, isNull, or, gt, inArray } from '@vakhta/db';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { and, asc, count, desc, eq, isNull, or, gt, inArray, sites } from '@vakhta/db';
 import {
   activationCodes,
   assignmentAcknowledgements,
@@ -47,7 +47,9 @@ import type { Actor } from '../common/actor.js';
 import { isUniqueViolation } from '../common/pg-errors.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
+import { businessDateOf, nextAnniversary, planInstants } from '@vakhta/domain';
 import { DATABASE } from '../infra/database.module.js';
+import { TIMER_SCHEDULER, type TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { IdentityError } from './identity.errors.js';
 
@@ -73,7 +75,33 @@ export class EmployeesService {
     private readonly events: EventStore,
     private readonly audit: AuditLog,
     private readonly notifications: NotificationsService,
+    @Optional() @Inject(TIMER_SCHEDULER) private readonly timers?: TimerScheduler,
   ) {}
+
+  /** Next birthday greeting at 09:00 site time (the site of the current position, else Kyiv). */
+  private async scheduleGreeting(
+    tx: Transaction,
+    employeeId: string,
+    birthDate: string,
+    now = new Date(),
+  ): Promise<void> {
+    if (!this.timers) return;
+    const [place] = await tx
+      .select({ timezone: sites.timezone })
+      .from(employeePositions)
+      .innerJoin(orgUnits, eq(orgUnits.id, employeePositions.orgUnitId))
+      .innerJoin(sites, eq(sites.id, orgUnits.siteId))
+      .where(and(eq(employeePositions.employeeId, employeeId), isNull(employeePositions.validTo)))
+      .limit(1);
+    const timezone = place?.timezone ?? 'Europe/Kyiv';
+    const date = nextAnniversary(birthDate, businessDateOf(now, timezone));
+    const fireAt = planInstants(
+      date,
+      { localStart: '09:00', localEnd: '09:01' },
+      timezone,
+    ).planStartAt;
+    await this.timers.scheduleBirthdayGreeting(tx, employeeId, fireAt);
+  }
 
   async create(cmd: CreateEmployeeCommand, actor: Actor): Promise<EmployeeRecord> {
     try {
@@ -87,9 +115,11 @@ export class EmployeesService {
             email: cmd.email ?? null,
             phone: cmd.phone ?? null,
             telegramUsername: cmd.telegramUsername ?? null,
+            birthDate: cmd.birthDate ?? null,
           })
           .returning();
         if (!row) throw new Error('employees: insert не повернув рядок');
+        if (row.birthDate) await this.scheduleGreeting(tx, row.id, row.birthDate);
         await this.events.append(tx, {
           type: 'EMPLOYEE_CREATED',
           source: 'WEB',
@@ -132,14 +162,18 @@ export class EmployeesService {
         if (cmd.email !== undefined) set.email = cmd.email;
         if (cmd.phone !== undefined) set.phone = cmd.phone;
         if (cmd.telegramUsername !== undefined) set.telegramUsername = cmd.telegramUsername;
+        if (cmd.birthDate !== undefined) set.birthDate = cmd.birthDate;
         const [after] = await tx.update(employees).set(set).where(eq(employees.id, id)).returning();
         if (!after) throw new IdentityError('EMPLOYEE_NOT_FOUND', `Працівника ${id} не знайдено`);
+        if (after.birthDate && after.birthDate !== before.birthDate)
+          await this.scheduleGreeting(tx, after.id, after.birthDate);
         const fields = [
           'personnelNumber',
           'fullName',
           'email',
           'phone',
           'telegramUsername',
+          'birthDate',
         ] as const;
         const changed = fields.filter((f) => before[f] !== after[f]);
         if (changed.length === 0) return after;
@@ -800,6 +834,7 @@ export class EmployeesService {
       email: row.email,
       phone: row.phone,
       telegramUsername: row.telegramUsername,
+      birthDate: row.birthDate,
       currentPosition,
       createdAt: row.createdAt.toISOString(),
     };

@@ -32,6 +32,10 @@ export const NOTIFICATION_TEMPLATES = [
   'SCHEDULE_CHANGED_BY_REQUEST',
   'SLOT_OFFERED',
   'SLOT_SELECTED',
+  'BIRTHDAY_GREETING',
+  'ABSENCE_WISHES',
+  'ABSENCE_CHECKIN',
+  'ABSENCE_RETURN',
   'BONUS_PERIOD_CLOSED',
   'BONUS_ADJUSTED',
   'BONUS_REVIEWED',
@@ -52,6 +56,9 @@ export const TIMER_JOBS = {
   incidentSla: 'incident-sla',
   handoverTimeout: 'handover-timeout',
   cleaningReminder: 'cleaning-reminder',
+  birthdayGreeting: 'birthday-greeting',
+  absenceCheckin: 'absence-checkin',
+  absenceReturn: 'absence-return',
 } as const;
 
 export function shiftReminderJobId(assignmentId: string): string {
@@ -85,4 +92,14 @@ export function handoverTimeoutJobId(handoverId: string): string {
 /** Нагадування про прибирання перед кінцем зміни (FR-CLN-01). */
 export function cleaningReminderJobId(sessionId: string): string {
   return `${TIMER_JOBS.cleaningReminder}.${sessionId}`;
+}
+
+export function birthdayGreetingJobId(employeeId: string, year: number): string {
+  return `${TIMER_JOBS.birthdayGreeting}.${employeeId}.${year}`;
+}
+export function absenceCheckinJobId(requestId: string, businessDate: string): string {
+  return `${TIMER_JOBS.absenceCheckin}.${requestId}.${businessDate}`;
+}
+export function absenceReturnJobId(requestId: string): string {
+  return `${TIMER_JOBS.absenceReturn}.${requestId}`;
 }

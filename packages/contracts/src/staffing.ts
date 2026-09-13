@@ -286,3 +286,65 @@ export const OperationsView = z.object({
   requests: z.array(OperationalRequestView),
 });
 export type OperationsView = z.infer<typeof OperationsView>;
+
+/* ------------------------------------------------------------------ */
+/* Calendar events: holidays, birthdays, absences, replacements        */
+/* ------------------------------------------------------------------ */
+
+export const CalendarEventsQuery = z.object({
+  siteId: Uuid,
+  orgUnitId: Uuid,
+  from: BusinessDate,
+  to: BusinessDate,
+});
+export type CalendarEventsQuery = z.infer<typeof CalendarEventsQuery>;
+
+export const WellbeingAnswer = z.enum(['GOOD', 'SAME', 'WORSE']);
+export type WellbeingAnswer = z.infer<typeof WellbeingAnswer>;
+
+export const AbsenceEventView = z.object({
+  requestId: Uuid,
+  employeeId: Uuid,
+  type: z.string(),
+  status: z.enum(['APPROVED', 'PENDING']),
+  from: BusinessDate,
+  to: BusinessDate,
+  lastCheckin: z
+    .object({ businessDate: BusinessDate, answer: WellbeingAnswer, answeredAt: IsoDateTime })
+    .nullable(),
+});
+export type AbsenceEventView = z.infer<typeof AbsenceEventView>;
+
+/** A planned shift whose person is on an approved absence: someone else must take it. */
+export const ReplacementNeedView = z.object({
+  assignmentId: Uuid,
+  employeeId: Uuid,
+  businessDate: BusinessDate,
+  zoneId: Uuid.nullable(),
+  orgUnitId: Uuid,
+  requestId: Uuid,
+  type: z.string(),
+});
+export type ReplacementNeedView = z.infer<typeof ReplacementNeedView>;
+
+export const CalendarEventsView = z.object({
+  region: z.string().nullable(),
+  holidays: z.array(z.object({ date: BusinessDate, code: z.string() })),
+  birthdays: z.array(z.object({ employeeId: Uuid, date: BusinessDate })),
+  absences: z.array(AbsenceEventView),
+  replacements: z.array(ReplacementNeedView),
+});
+export type CalendarEventsView = z.infer<typeof CalendarEventsView>;
+
+export const ScheduleAttentionQuery = z.object({ siteId: Uuid });
+export type ScheduleAttentionQuery = z.infer<typeof ScheduleAttentionQuery>;
+
+/** What masters and administrators must see today and for the coming week (Overview). */
+export const ScheduleAttentionView = z.object({
+  today: BusinessDate,
+  holiday: z.string().nullable(),
+  birthdaysToday: z.array(Uuid),
+  onSickLeave: z.array(AbsenceEventView),
+  replacements: z.array(ReplacementNeedView),
+});
+export type ScheduleAttentionView = z.infer<typeof ScheduleAttentionView>;

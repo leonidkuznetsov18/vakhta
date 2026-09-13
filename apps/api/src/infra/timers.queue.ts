@@ -65,6 +65,29 @@ export class TimerScheduler {
       payload: { sessionId, fireAt: fireAt.toISOString() },
     });
   }
+  scheduleBirthdayGreeting(tx: Transaction, employeeId: string, fireAt: Date): Promise<void> {
+    return this.enqueue(tx, {
+      kind: 'BIRTHDAY_GREETING',
+      payload: { employeeId, fireAt: fireAt.toISOString() },
+    });
+  }
+  scheduleAbsenceCheckin(
+    tx: Transaction,
+    requestId: string,
+    businessDate: string,
+    fireAt: Date,
+  ): Promise<void> {
+    return this.enqueue(tx, {
+      kind: 'ABSENCE_CHECKIN',
+      payload: { requestId, businessDate, fireAt: fireAt.toISOString() },
+    });
+  }
+  scheduleAbsenceReturn(tx: Transaction, requestId: string, fireAt: Date): Promise<void> {
+    return this.enqueue(tx, {
+      kind: 'ABSENCE_RETURN',
+      payload: { requestId, fireAt: fireAt.toISOString() },
+    });
+  }
 }
 
 @Global()

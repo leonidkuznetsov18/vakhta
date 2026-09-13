@@ -384,16 +384,11 @@ function WorkspaceView({
           </Button>
         )}
         {primary && (
-          <Button disabled={!primary.enabled} title={reason ?? undefined} onClick={runPrimary}>
+          <Button disabled={!primary.enabled} onClick={runPrimary}>
             {primary.label}
           </Button>
         )}
-        {reason && (
-          <span className="flex items-center gap-1 text-xs text-muted-foreground" role="status">
-            <InfoTip text={reason} />
-            <span className="max-w-64 [overflow-wrap:anywhere]">{reason}</span>
-          </span>
-        )}
+        {reason && <InfoTip text={reason} />}
         {version && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -418,6 +418,17 @@ export interface Messages {
     readonly feedRevokeButton: string;
     readonly feedRevoked: string;
     readonly feedNothing: string;
+    readonly birthdayGreeting: string;
+    readonly sickWishes: string;
+    readonly vacationWishes: string;
+    readonly checkinQuestion: string;
+    readonly checkinGood: string;
+    readonly checkinSame: string;
+    readonly checkinWorse: string;
+    readonly checkinThanks: string;
+    readonly checkinClosed: string;
+    readonly returnReminder: string;
+    readonly returnReminderNoShift: string;
   };
   readonly admin: {
     readonly productName: string;
@@ -1154,6 +1165,7 @@ export interface Messages {
         readonly email: string;
         readonly phone: string;
         readonly telegramUsername: string;
+        readonly birthDate: string;
         readonly personnelNumberPlaceholder: string;
         readonly fullNamePlaceholder: string;
         readonly emailPlaceholder: string;

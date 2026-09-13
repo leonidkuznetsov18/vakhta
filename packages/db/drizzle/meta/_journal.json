@@ -344,6 +344,13 @@
       "when": 1789291649877,
       "tag": "0048_calendar_feed_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1789293915386,
+      "tag": "0049_calendar_events",
+      "breakpoints": true
     }
   ]
 }

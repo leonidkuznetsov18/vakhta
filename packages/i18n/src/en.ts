@@ -522,6 +522,22 @@ export const en: Messages = {
     feedRevokeButton: 'Revoke calendar link',
     feedRevoked: 'The calendar link is revoked. Calendars that used it will stop updating.',
     feedNothing: 'There was no active calendar link.',
+    birthdayGreeting:
+      '🎂 Happy birthday, {name}! Thank you for your work — the whole team wishes you health, strength and good shifts.',
+    sickWishes:
+      'We are sorry you are unwell. Your sick leave {from} – {to} is approved; your shifts are covered. Get well soon — we will ask how you feel each day, and you can answer with one tap.',
+    vacationWishes:
+      'Enjoy your time off {from} – {to}! Your shifts are covered. The day before it ends we will remind you what comes next.',
+    checkinQuestion: 'How are you feeling today?',
+    checkinGood: '🙂 Better',
+    checkinSame: '😐 The same',
+    checkinWorse: '🙁 Worse',
+    checkinThanks: 'Thank you, recorded. Take care!',
+    checkinClosed: 'This check-in is no longer active.',
+    returnReminder:
+      'Your time off ends tomorrow. Next shift: {date} ({weekday}), {kind} {start}–{end}{zone}. Welcome back!',
+    returnReminderNoShift:
+      'Your time off ends tomorrow. There is no published shift for you yet; check "My plan" later.',
   },
   roles: {
     ADMIN: 'Administrator',
@@ -1446,6 +1462,7 @@ export const en: Messages = {
         email: 'E-mail',
         phone: 'Phone',
         telegramUsername: 'Telegram',
+        birthDate: 'Date of birth',
         personnelNumberPlaceholder: 'For example, 0042',
         fullNamePlaceholder: 'Surname Name Patronymic',
         emailPlaceholder: 'name@example.com',

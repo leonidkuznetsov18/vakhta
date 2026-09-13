@@ -678,6 +678,95 @@ export function scheduleFixture(url: URL, method: string, body: unknown): unknow
         ],
       };
     }
+    if (url.pathname.endsWith('/events') && method === 'GET') {
+      const from = url.searchParams.get('from') ?? '';
+      const to = url.searchParams.get('to') ?? '';
+      const holidays = [
+        { date: `${month}-01`, code: 'DEFENDERS_DAY' },
+        { date: '2026-08-24', code: 'INDEPENDENCE_DAY' },
+        { date: '2026-10-01', code: 'DEFENDERS_DAY' },
+        { date: '2026-12-25', code: 'CHRISTMAS' },
+      ].filter((row) => row.date >= from && row.date <= to);
+      const birthdays = [{ employeeId: scheduleEmployees[1]!, date: `${month}-12` }].filter(
+        (row) => row.date >= from && row.date <= to,
+      );
+      const sickRequest = 'a7000000-0000-4000-8000-000000000003';
+      return {
+        region: 'UA',
+        holidays,
+        birthdays,
+        absences: [
+          {
+            requestId: sickRequest,
+            employeeId: scheduleEmployees[0]!,
+            type: 'SICK',
+            status: 'APPROVED',
+            from: `${month}-10`,
+            to: `${month}-12`,
+            lastCheckin: {
+              businessDate: `${month}-11`,
+              answer: 'SAME',
+              answeredAt: new Date(Date.now() - 3600_000).toISOString(),
+            },
+          },
+          {
+            requestId: 'a7000000-0000-4000-8000-000000000002',
+            employeeId: scheduleEmployees[2]!,
+            type: 'VACATION',
+            status: 'APPROVED',
+            from: `${month}-04`,
+            to: `${month}-06`,
+            lastCheckin: null,
+          },
+        ],
+        replacements: detail(initial)
+          .assignments.filter(
+            (item) =>
+              (item.employeeId === scheduleEmployees[0] &&
+                item.businessDate >= `${month}-10` &&
+                item.businessDate <= `${month}-12`) ||
+              (item.employeeId === scheduleEmployees[2] &&
+                item.businessDate >= `${month}-04` &&
+                item.businessDate <= `${month}-06`),
+          )
+          .map((item) => ({
+            assignmentId: item.id,
+            employeeId: item.employeeId,
+            businessDate: item.businessDate,
+            zoneId: item.zoneId,
+            orgUnitId: item.orgUnitId,
+            requestId:
+              item.employeeId === scheduleEmployees[0]
+                ? sickRequest
+                : 'a7000000-0000-4000-8000-000000000002',
+            type: item.employeeId === scheduleEmployees[0] ? 'SICK' : 'VACATION',
+          })),
+      };
+    }
+    if (url.pathname.endsWith('/attention') && method === 'GET') {
+      const today = new Date().toISOString().slice(0, 10);
+      return {
+        today,
+        holiday: null,
+        birthdaysToday: [scheduleEmployees[1]!],
+        onSickLeave: [
+          {
+            requestId: 'a7000000-0000-4000-8000-000000000003',
+            employeeId: scheduleEmployees[0]!,
+            type: 'SICK',
+            status: 'APPROVED',
+            from: `${month}-10`,
+            to: `${month}-12`,
+            lastCheckin: {
+              businessDate: today,
+              answer: 'SAME',
+              answeredAt: new Date().toISOString(),
+            },
+          },
+        ],
+        replacements: [],
+      };
+    }
     if (url.pathname.endsWith('/context') && method === 'GET') return planContext;
     if (url.pathname.endsWith('/candidates') && method === 'GET') {
       const businessDate = url.searchParams.get('businessDate') ?? '';

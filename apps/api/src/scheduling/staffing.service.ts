@@ -15,6 +15,8 @@ import {
   zoneStaffingRequirements,
   type Database,
   type DbOrTx,
+  scheduleVersions,
+  shiftAssignments,
 } from '@vakhta/db';
 import type {
   CandidateView,
@@ -22,8 +24,11 @@ import type {
   CreateQualificationCommand,
   EmployeeAvailabilityView,
   EmployeeQualificationView,
+  CalendarEventsQuery,
+  CalendarEventsView,
   OperationsQuery,
   OperationsView,
+  ScheduleAttentionView,
   PlanContextView,
   QualificationView,
   RecordAvailabilityCommand,
@@ -34,10 +39,20 @@ import type {
   StaffingRequirementView,
   StaffingView,
 } from '@vakhta/contracts';
-import { eligibilityStatus, evaluatePlan, planInstants } from '@vakhta/domain';
 import {
+  businessDateOf,
+  eligibilityStatus,
+  evaluatePlan,
+  holidayRegion,
+  holidaysBetween,
+  planInstants,
+} from '@vakhta/domain';
+import {
+  loadAbsenceEvents,
   loadAbsences,
+  loadBirthdays,
   loadContextIntervals,
+  loadReplacementNeeds,
   loadOperationalRequests,
   loadPreferences,
   loadPresence,
@@ -237,6 +252,75 @@ export class StaffingService {
         })),
         absences,
         otherUnitEmployees: membership.filter((member) => member.orgUnitId !== orgUnitId),
+      };
+    });
+  }
+
+  /** Holidays of the site region, birthdays, absences and replacement needs for a date range. */
+  async events(query: CalendarEventsQuery): Promise<CalendarEventsView> {
+    return this.db.transaction(async (tx) => {
+      const [site] = await tx
+        .select({ timezone: sites.timezone })
+        .from(sites)
+        .where(eq(sites.id, query.siteId));
+      const region = holidayRegion(site?.timezone ?? 'UTC');
+      const members = (await loadUnitMembership(tx, query.siteId))
+        .filter((member) => member.orgUnitId === query.orgUnitId)
+        .map((member) => member.employeeId);
+      const planned = await tx
+        .select({ employeeId: shiftAssignments.employeeId })
+        .from(shiftAssignments)
+        .innerJoin(scheduleVersions, eq(scheduleVersions.id, shiftAssignments.scheduleVersionId))
+        .where(
+          and(
+            eq(scheduleVersions.siteId, query.siteId),
+            eq(scheduleVersions.orgUnitId, query.orgUnitId),
+            inArray(scheduleVersions.status, ['DRAFT', 'IN_REVIEW', 'PUBLISHED']),
+            eq(shiftAssignments.status, 'PLANNED'),
+          ),
+        );
+      const people = [...new Set([...members, ...planned.map((row) => row.employeeId)])];
+      return {
+        region,
+        holidays: holidaysBetween(region, query.from, query.to),
+        birthdays: await loadBirthdays(tx, { employeeIds: people, from: query.from, to: query.to }),
+        absences: await loadAbsenceEvents(tx, {
+          employeeIds: people,
+          from: query.from,
+          to: query.to,
+        }),
+        replacements: await loadReplacementNeeds(tx, {
+          siteId: query.siteId,
+          orgUnitId: query.orgUnitId,
+          from: query.from,
+          to: query.to,
+        }),
+      };
+    });
+  }
+
+  /** Today's holiday, birthdays and sick leaves plus the week's replacement needs (Overview). */
+  async attention(siteId: string, now: Date = new Date()): Promise<ScheduleAttentionView> {
+    return this.db.transaction(async (tx) => {
+      const [site] = await tx
+        .select({ timezone: sites.timezone })
+        .from(sites)
+        .where(eq(sites.id, siteId));
+      const timezone = site?.timezone ?? 'UTC';
+      const today = businessDateOf(now, timezone);
+      const weekEnd = new Date(`${today}T00:00:00Z`);
+      weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+      const to = weekEnd.toISOString().slice(0, 10);
+      const people = [...new Set((await loadUnitMembership(tx, siteId)).map((m) => m.employeeId))];
+      const absences = await loadAbsenceEvents(tx, { employeeIds: people, from: today, to: today });
+      return {
+        today,
+        holiday: holidaysBetween(holidayRegion(timezone), today, today)[0]?.code ?? null,
+        birthdaysToday: (
+          await loadBirthdays(tx, { employeeIds: people, from: today, to: today })
+        ).map((row) => row.employeeId),
+        onSickLeave: absences.filter((item) => item.type === 'SICK' && item.status === 'APPROVED'),
+        replacements: await loadReplacementNeeds(tx, { siteId, from: today, to }),
       };
     });
   }

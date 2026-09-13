@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  date,
   bigint,
   index,
   integer,
@@ -28,6 +29,8 @@ export const employees = pgTable('employees', {
   email: text('email'),
   phone: text('phone'),
   telegramUsername: text('telegram_username'),
+  /** Calendar overlay and greeting; optional HR data, never shown to other employees. */
+  birthDate: date('birth_date'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
