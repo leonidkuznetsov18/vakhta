@@ -1,4 +1,19 @@
 export const scheduleExportEn = {
+  retrospectiveSheet: 'Retrospective',
+  retrospectiveTotalsSheet: 'Totals',
+  retrospectiveScope:
+    'Effective published plan of the unit month against recorded shift evidence; planned time, recorded work and unknown departure are separate columns. No OEE or fault is inferred.',
+  sessionId: 'Shift record ID',
+  recordedStart: 'Recorded shift start (UTC)',
+  recordedEnd: 'Recorded shift end (UTC)',
+  workMinutes: 'Recorded work (minutes, closed-shift summary)',
+  totalMinutes: 'Recorded shift total (minutes)',
+  departure: 'Departure evidence (RECORDED / UNKNOWN / NONE)',
+  autoCloseReason: 'Automatic close reason',
+  shifts: 'Planned shifts',
+  recordedShifts: 'Shifts with a recorded session',
+  unknownDepartures: 'Unknown departures',
+  missingActuals: 'Planned shifts without any recorded session',
   download: 'Download XLSX',
   preparing: 'Preparing file…',
   failed: 'Could not download the file. Try again.',
@@ -58,6 +73,21 @@ export const scheduleExportEn = {
 export type ScheduleExportMessages = { [Key in keyof typeof scheduleExportEn]: string };
 
 export const scheduleExportUk: ScheduleExportMessages = {
+  retrospectiveSheet: 'Ретроспектива',
+  retrospectiveTotalsSheet: 'Підсумки',
+  retrospectiveScope:
+    'Чинний опублікований план місяця підрозділу проти зафіксованих свідчень змін; плановий час, зафіксована робота та невідомий вихід — окремі колонки. OEE чи вина не виводяться.',
+  sessionId: 'ID запису зміни',
+  recordedStart: 'Зафіксований початок зміни (UTC)',
+  recordedEnd: 'Зафіксований кінець зміни (UTC)',
+  workMinutes: 'Зафіксована робота (хвилини, підсумок закритої зміни)',
+  totalMinutes: 'Зафіксована тривалість зміни (хвилини)',
+  departure: 'Свідчення виходу (RECORDED / UNKNOWN / NONE)',
+  autoCloseReason: 'Причина автоматичного закриття',
+  shifts: 'Планових змін',
+  recordedShifts: 'Змін із зафіксованою сесією',
+  unknownDepartures: 'Невідомих виходів',
+  missingActuals: 'Планових змін без жодної зафіксованої сесії',
   download: 'Завантажити XLSX',
   preparing: 'Готуємо файл…',
   failed: 'Не вдалося завантажити файл. Спробуйте ще раз.',
@@ -115,6 +145,21 @@ export const scheduleExportUk: ScheduleExportMessages = {
 };
 
 export const scheduleExportRu: ScheduleExportMessages = {
+  retrospectiveSheet: 'Ретроспектива',
+  retrospectiveTotalsSheet: 'Итоги',
+  retrospectiveScope:
+    'Действующий опубликованный план месяца подразделения против зафиксированных свидетельств смен; плановое время, зафиксированная работа и неизвестный уход — отдельные колонки. OEE или вина не выводятся.',
+  sessionId: 'ID записи смены',
+  recordedStart: 'Зафиксированное начало смены (UTC)',
+  recordedEnd: 'Зафиксированный конец смены (UTC)',
+  workMinutes: 'Зафиксированная работа (минуты, итог закрытой смены)',
+  totalMinutes: 'Зафиксированная длительность смены (минуты)',
+  departure: 'Свидетельство ухода (RECORDED / UNKNOWN / NONE)',
+  autoCloseReason: 'Причина автоматического закрытия',
+  shifts: 'Плановых смен',
+  recordedShifts: 'Смен с зафиксированной сессией',
+  unknownDepartures: 'Неизвестных уходов',
+  missingActuals: 'Плановых смен без зафиксированной сессии',
   download: 'Скачать XLSX',
   preparing: 'Готовим файл…',
   failed: 'Не удалось скачать файл. Попробуйте ещё раз.',

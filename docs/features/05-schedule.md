@@ -67,6 +67,16 @@ Counts describe assigned people, not required staffing or attendance.
   the assignment with candidates and their eligibility. Planning a person from another unit shows
   the source unit and whether they are planned there that day; saving needs administrator or head
   of production authority, rechecked at commit.
+- **Notes, records, reports, print and export:** a note on a date, zone or person has an explicit
+  audience: planners only, or the employees concerned, who see it in their plan in the bot; long
+  text stays inside a bounded scrollable box. Shift details link to the shift record in Live shift
+  and to the Requests workflow; the calendar never repeats checklist or handover logic. The
+  retrospective report (actions menu) puts the effective published plan next to recorded shift
+  sessions: planned time, recorded work and unknown departure stay separate, a shift without any
+  session is "no recorded session", and nothing infers OEE or fault; its XLSX states scope, month,
+  timezone, version identity and generation time and stores every cell as text or number, never
+  a formula. Print (actions menu) outputs the visible period with period, timezone, version
+  identity and generation time and marks unpublished plans and unsaved local changes.
 - **Conflicts and candidates:** the plan is checked as you edit: overlapping shifts of one person
   in any unit, approved absences and missing required qualifications block saving and publishing;
   short rest and too many monthly hours warn or block according to the site rules; a worker's
@@ -98,3 +108,23 @@ receive a start reminder. This does not change schedule-publication or acknowled
 
 See [shift reminder delivery](../engineering/features/shift-reminders.md) for queued-message handling
 and verification evidence.
+
+## Assignment fields (SC-50)
+
+Every field has one meaning, one type and one audience. A standard shift needs only the first
+four; the others are disclosed progressively and stay interpretable in history because the stored
+planned instants and template reference never change after the fact.
+
+| Field            | Type                              | Meaning                                                     | Audience                     | Required |
+| ---------------- | --------------------------------- | ----------------------------------------------------------- | ---------------------------- | -------- |
+| Employee         | reference                         | Who works the shift                                         | Planners, the employee (bot) | Yes      |
+| Date             | business date                     | The calendar day the shift belongs to, also overnight       | Planners, the employee       | Yes      |
+| Zone             | reference (unit zone)             | Where coverage is counted                                   | Planners, the employee       | Yes      |
+| Shift template   | reference                         | Default hours and day/night kind; provenance for history    | Planners, the employee       | Yes      |
+| Custom time      | local start and end (HH:mm)       | Replaces the template hours on that day only                | Planners, the employee       | No       |
+| Zone segments    | ordered list (zone, start, end)   | Parts of one shift in different zones; must tile the shift  | Planners, the employee       | No       |
+| Planned breaks   | ordered list (start, end, relief) | Break intervals and who relieves; never actual break events | Planners, relief employee    | No       |
+| Kind             | code (REGULAR, EXTRA, …)          | Origin of the assignment (request effects set EXTRA/SWAP)   | Planners, reports            | Default  |
+| Position, team   | reference                         | Optional organisational context                             | Planners, export             | No       |
+| Note (planners)  | text ≤ 2000                       | Planning remark for the date, zone or person                | Planners only                | No       |
+| Note (employees) | text ≤ 2000                       | Instruction shown in the employee's plan in the bot         | The employees concerned      | No       |

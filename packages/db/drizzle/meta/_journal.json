@@ -330,6 +330,13 @@
       "when": 1789289138273,
       "tag": "0046_open_slots",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1789290765058,
+      "tag": "0047_schedule_notes",
+      "breakpoints": true
     }
   ]
 }

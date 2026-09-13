@@ -125,9 +125,9 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US3 | **Dependencies**: #10/#15/#17 | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T043 [US3] Define scoped note/typed-field audiences and versioned historical values plus permitted record links in scheduling contracts/schema and schedule-management/ (#18).
-- [ ] T044 [US3] Implement complete authorized retrospective print/export with identity/timezone/version/units and formula-safe cells in scheduling and schedule-management/ (#18).
-- [ ] T045 [US3] Test long text, hidden/private data, complete output beyond pagination, unknown actual departure and historical field/template changes in API/model/UI tests (#18).
+- [x] T043 [US3] Define scoped note/typed-field audiences and versioned historical values plus permitted record links in scheduling contracts/schema and schedule-management/ (#18).
+- [x] T044 [US3] Implement complete authorized retrospective print/export with identity/timezone/version/units and formula-safe cells in scheduling and schedule-management/ (#18).
+- [x] T045 [US3] Test long text, hidden/private data, complete output beyond pagination, unknown actual departure and historical field/template changes in API/model/UI tests (#18).
 
 ## Phase 16: Personal feeds and proposals — #19
 

@@ -50,7 +50,8 @@ import type {
   ReportProblemResult,
   ReportView,
 } from '@vakhta/contracts';
-import { DEFAULT_LOCALE, type Locale } from '@vakhta/domain';
+import { DEFAULT_LOCALE, type AccessScope, type Locale, type ScopeTarget } from '@vakhta/domain';
+import { FULL_SCOPE, placeTarget, scopeCondition } from '../common/access-scope.js';
 import { messages } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
@@ -653,8 +654,18 @@ export class IncidentsService {
   /* Читання                                                             */
   /* ------------------------------------------------------------------ */
 
-  async list(q: IncidentsQuery, now: Date = new Date()): Promise<IncidentView[]> {
+  async list(
+    q: IncidentsQuery,
+    now: Date = new Date(),
+    access: AccessScope = FULL_SCOPE,
+  ): Promise<IncidentView[]> {
     const conditions = [];
+    const scoped = scopeCondition(access, {
+      site: downtimeIncidents.siteId,
+      unit: downtimeIncidents.orgUnitId,
+      zone: downtimeIncidents.zoneId,
+    });
+    if (scoped) conditions.push(scoped);
     if ((q.scope ?? 'open') === 'open') conditions.push(inArray(downtimeIncidents.status, OPEN));
     if (q.siteId) conditions.push(eq(downtimeIncidents.siteId, q.siteId));
     if (q.zoneId) conditions.push(eq(downtimeIncidents.zoneId, q.zoneId));
@@ -724,11 +735,18 @@ export class IncidentsService {
     q: IncidentStatsQuery,
     locale: Locale = DEFAULT_LOCALE,
     now: Date = new Date(),
+    access: AccessScope = FULL_SCOPE,
   ): Promise<IncidentStatsView> {
     const from = new Date(q.from);
     const to = new Date(q.to);
     const scope = [gte(downtimeIncidents.openedAt, from), lt(downtimeIncidents.openedAt, to)];
     if (q.siteId) scope.push(eq(downtimeIncidents.siteId, q.siteId));
+    const scopedIncidents = scopeCondition(access, {
+      site: downtimeIncidents.siteId,
+      unit: downtimeIncidents.orgUnitId,
+      zone: downtimeIncidents.zoneId,
+    });
+    if (scopedIncidents) scope.push(scopedIncidents);
 
     const incidents = await this.db
       .select({
@@ -756,11 +774,18 @@ export class IncidentsService {
       })
       .from(activityIntervals)
       .innerJoin(shiftSessions, eq(activityIntervals.shiftSessionId, shiftSessions.id))
+      .leftJoin(responsibilityZones, eq(shiftSessions.zoneId, responsibilityZones.id))
       .where(
         and(
           eq(activityIntervals.state, 'DOWNTIME'),
           gte(activityIntervals.startedAt, from),
           lt(activityIntervals.startedAt, to),
+          q.siteId ? eq(responsibilityZones.siteId, q.siteId) : undefined,
+          scopeCondition(access, {
+            site: responsibilityZones.siteId,
+            unit: responsibilityZones.orgUnitId,
+            zone: shiftSessions.zoneId,
+          }),
         ),
       )
       .groupBy(activityIntervals.reasonCode, shiftSessions.zoneId);
@@ -897,6 +922,20 @@ export class IncidentsService {
         and(eq(reasonCodes.kind, 'DOWNTIME'), eq(reasonCodes.code, downtimeIncidents.reasonCode)),
       )
       .$dynamic();
+  }
+
+  /** Where an incident belongs, for scope checks on its identifier. */
+  async incidentPlace(id: string): Promise<ScopeTarget | null> {
+    const [row] = await this.db
+      .select({
+        siteId: downtimeIncidents.siteId,
+        orgUnitId: downtimeIncidents.orgUnitId,
+        zoneId: downtimeIncidents.zoneId,
+      })
+      .from(downtimeIncidents)
+      .where(eq(downtimeIncidents.id, id))
+      .limit(1);
+    return row ? placeTarget(row) : null;
   }
 
   private async view(id: string, now: Date): Promise<IncidentView | null> {

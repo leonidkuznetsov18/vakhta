@@ -10,6 +10,8 @@ import {
   UsersIcon,
   CopyIcon,
   BarChart3Icon,
+  PrinterIcon,
+  FileClockIcon,
 } from 'lucide-react';
 import { currentLocale } from '@/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -49,6 +51,9 @@ import { ScheduleToolbar } from './schedule-toolbar';
 import { ScheduleExport } from './schedule-export';
 import { StaffingSheet } from './staffing-sheet';
 import { WorkloadSheet } from './workload-sheet';
+import { RetrospectiveSheet } from './retrospective-sheet';
+import { calendarModel } from '../model/calendar';
+import { openPrint, printDocument } from '../model/print';
 import { CopyPeriodDialog } from './copy-period';
 
 const t = messages(currentLocale()).scheduleWorkspace;
@@ -163,6 +168,9 @@ function WorkspaceView({
   const [review, setReview] = useState<{ grid: GridState; versionId: string } | null>(null);
   const [staffingOpen, setStaffingOpen] = useState(false);
   const [workloadOpen, setWorkloadOpen] = useState(false);
+  const [retrospectiveOpen, setRetrospectiveOpen] = useState(false);
+  const [retrospectiveTrigger, setRetrospectiveTrigger] = useState<HTMLElement | null>(null);
+  const [printBlocked, setPrintBlocked] = useState(false);
   const slots = useOpenSlots({
     accessKey: w.accessKey,
     siteId: w.siteId,
@@ -178,6 +186,39 @@ function WorkspaceView({
   const dates = periodDates(w.month, date, effectiveMode);
   const resourceDates = mobile ? calendarWeek(date) : dates;
   const adjacent = useAdjacentPlan({ ...w, dates: effectiveMode === 'month' ? [] : resourceDates });
+  function print() {
+    const model = calendarModel({
+      ...w,
+      issues: w.issues.reasons,
+      dates: resourceDates,
+      grouping: visibleGrouping,
+      zoneId: zone,
+      locale: currentLocale(),
+      today,
+      writable: false,
+      slots: slots.slots,
+      published: w.publicationBaseline,
+    });
+    const html = printDocument({
+      model,
+      locale: currentLocale(),
+      siteName: w.org?.sites.find((site) => site.id === w.siteId)?.name ?? w.siteId,
+      unitName: w.units.find((unit) => unit.id === w.orgUnitId)?.name ?? w.orgUnitId,
+      period: { from: resourceDates[0] ?? date, to: resourceDates.at(-1) ?? date },
+      timezone: w.timezone,
+      version: w.version
+        ? {
+            versionNo: w.version.versionNo,
+            status: w.version.status,
+            publishedAt: w.version.publishedAt,
+          }
+        : null,
+      unpublished: !w.version || w.version.status !== 'PUBLISHED' || w.unpublished > 0,
+      localChanges: w.changes > 0,
+      generatedAt: new Date().toISOString(),
+    });
+    setPrintBlocked(!openPrint(html));
+  }
   const primary = primaryAction(w);
   const state = planState(w);
   async function discard() {
@@ -326,6 +367,21 @@ function WorkspaceView({
               >
                 <BarChart3Icon aria-hidden="true" />
                 {t.workload}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  setRetrospectiveTrigger(
+                    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+                  );
+                  setRetrospectiveOpen(true);
+                }}
+              >
+                <FileClockIcon aria-hidden="true" />
+                {t.retrospective}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={print}>
+                <PrinterIcon aria-hidden="true" />
+                {t.print}
               </DropdownMenuItem>
               {w.hasDraft && (
                 <DropdownMenuItem
@@ -516,6 +572,15 @@ function WorkspaceView({
           if (staffingTrigger?.isConnected) staffingTrigger.focus();
         }}
         date={date}
+      />
+      {printBlocked && <Feedback error={t.printBlocked} />}
+      <RetrospectiveSheet
+        workspace={w}
+        open={retrospectiveOpen}
+        onClose={() => setRetrospectiveOpen(false)}
+        onRestoreFocus={() => {
+          if (retrospectiveTrigger?.isConnected) retrospectiveTrigger.focus();
+        }}
       />
       <WorkloadSheet
         workspace={w}

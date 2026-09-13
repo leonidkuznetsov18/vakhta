@@ -266,6 +266,8 @@ export const MyPlanView = z.object({
   }),
   /** Опубліковані версії, з якими працівник ще не ознайомився. */
   unacknowledgedVersionIds: z.array(Uuid),
+  /** Notes addressed to employees (SC-39): month-wide or per date. */
+  notes: z.array(z.object({ date: BusinessDate.nullable(), text: z.string() })).default([]),
 });
 export type MyPlanView = z.infer<typeof MyPlanView>;
 

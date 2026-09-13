@@ -229,7 +229,11 @@ export function planScreen(
       const zone = a.zoneName ? ` · ${a.zoneName}` : '';
       const mark = a.acknowledged ? '' : ' •';
       lines.push(`${dd} ${wd}  ${t.schedule.dayKinds[day.kind]} ${start}–${end}${zone}${mark}`);
+      for (const note of plan.notes.filter((item) => item.date === day.date))
+        lines.push(`   📝 ${note.text}`);
     }
+    for (const note of plan.notes.filter((item) => item.date === null))
+      lines.push('', `📝 ${note.text}`);
     lines.push(
       '',
       format(t.schedule.planTotals, {

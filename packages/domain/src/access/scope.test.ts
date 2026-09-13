@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { RoleGrant } from './roles.js';
-import { canActOn, grantCovers, reviewableUnitIds } from './scope.js';
+import {
+  accessScope,
+  canActOn,
+  grantCovers,
+  reviewableUnitIds,
+  scopeCovers,
+  scopeIsEmpty,
+} from './scope.js';
 
 const SITE = '11111111-1111-4111-8111-111111111111';
 const UNIT = '22222222-2222-4222-8222-222222222222';
@@ -57,5 +64,46 @@ describe('reviewableUnitIds (майстер бачить лише свій пі�
       ]) as ReadonlySet<string>),
     ]).toEqual([]);
     expect([...(reviewableUnitIds([]) as ReadonlySet<string>)]).toEqual([]);
+  });
+});
+
+describe('accessScope (overview sources, spec 004 AC-001)', () => {
+  it('resolves only grants with the endpoint roles; ENTERPRISE is all, SITE is not', () => {
+    const grants: RoleGrant[] = [
+      { role: 'SHIFT_MASTER', scopeType: 'ORG_UNIT', scopeId: UNIT },
+      { role: 'PRODUCTION_HEAD', scopeType: 'SITE', scopeId: SITE },
+      { role: 'ACCOUNTANT', scopeType: 'ENTERPRISE', scopeId: null },
+    ];
+    const scope = accessScope(grants, ['SHIFT_MASTER', 'PRODUCTION_HEAD']);
+    expect(scope).toEqual({
+      all: false,
+      siteIds: [SITE],
+      orgUnitIds: [UNIT],
+      teamIds: [],
+      zoneIds: [],
+    });
+    expect(scopeCovers(scope, { siteId: SITE, orgUnitId: OTHER })).toBe(true);
+    expect(scopeCovers(scope, { siteId: OTHER, orgUnitId: UNIT })).toBe(true);
+    expect(scopeCovers(scope, { siteId: OTHER, orgUnitId: OTHER })).toBe(false);
+    expect(accessScope(grants, ['ACCOUNTANT'])).toEqual({ all: true });
+  });
+
+  it('no relevant grant is an empty scope that covers nothing', () => {
+    const scope = accessScope(
+      [{ role: 'HR', scopeType: 'ENTERPRISE', scopeId: null }],
+      ['PLANNER'],
+    );
+    expect(scopeIsEmpty(scope)).toBe(true);
+    expect(scopeCovers(scope, { siteId: SITE, orgUnitId: UNIT, zoneId: OTHER })).toBe(false);
+    expect(scopeIsEmpty({ all: true })).toBe(false);
+  });
+
+  it('a target without the scoped dimension is not covered (unknown place is not visible)', () => {
+    const scope = accessScope(
+      [{ role: 'SHIFT_MASTER', scopeType: 'ZONE', scopeId: OTHER }],
+      ['SHIFT_MASTER'],
+    );
+    expect(scopeCovers(scope, { siteId: SITE, orgUnitId: UNIT })).toBe(false);
+    expect(scopeCovers(scope, { zoneId: OTHER })).toBe(true);
   });
 });

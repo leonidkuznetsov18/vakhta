@@ -38,11 +38,11 @@ import {
   canReview,
   canTransitionHandover,
   itemKind,
-  reviewableUnitIds,
+  type AccessScope,
+  type ScopeTarget,
   validateHandoverDraft,
   type ChecklistItemDefinition,
   type HandoverStatus,
-  type RoleGrant,
 } from '@vakhta/domain';
 import type {
   AnswerChecklistCommand,
@@ -65,6 +65,7 @@ import type {
 import { InspectionReview } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
+import { FULL_SCOPE, placeTarget, scopeCondition } from '../common/access-scope.js';
 import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore, type EventSource } from '../events/event-store.js';
@@ -750,7 +751,7 @@ export class HandoverService {
   async list(
     q: HandoverListQuery,
     now: Date = new Date(),
-    grants?: readonly RoleGrant[],
+    access: AccessScope = FULL_SCOPE,
   ): Promise<HandoverListItemView[]> {
     const scope = q.scope ?? 'pending';
     const conditions = [];
@@ -767,16 +768,14 @@ export class HandoverService {
     if (q.date) conditions.push(eq(shiftSessions.businessDate, q.date));
     if (q.zoneId) conditions.push(eq(handoverRecords.zoneId, q.zoneId));
     if (q.siteId) conditions.push(eq(responsibilityZones.siteId, q.siteId));
-    // A shift master is bound to their unit: they review only handovers in their unit's zones.
-    // ENTERPRISE/SITE reviewers (admins, production heads) are not restricted.
-    if (grants) {
-      const units = reviewableUnitIds(grants);
-      if (units !== null) {
-        conditions.push(
-          units.size > 0 ? inArray(responsibilityZones.orgUnitId, [...units]) : sql`false`,
-        );
-      }
-    }
+    // Role and scope of one grant (spec 004 AC-001): a unit master reviews only their unit's zones,
+    // SITE is limited to its site, ENTERPRISE sees everything.
+    const scoped = scopeCondition(access, {
+      site: responsibilityZones.siteId,
+      unit: responsibilityZones.orgUnitId,
+      zone: handoverRecords.zoneId,
+    });
+    if (scoped) conditions.push(scoped);
     const rows = await tx_list(this.db, conditions);
     const out: HandoverListItemView[] = [];
     for (const row of rows) {
@@ -800,6 +799,21 @@ export class HandoverService {
       void issues;
     }
     return out;
+  }
+
+  /** Where a handover belongs (its zone), for scope checks on its identifier. */
+  async handoverPlace(id: string): Promise<ScopeTarget | null> {
+    const [row] = await this.db
+      .select({
+        siteId: responsibilityZones.siteId,
+        orgUnitId: responsibilityZones.orgUnitId,
+        zoneId: handoverRecords.zoneId,
+      })
+      .from(handoverRecords)
+      .leftJoin(responsibilityZones, eq(handoverRecords.zoneId, responsibilityZones.id))
+      .where(eq(handoverRecords.id, id))
+      .limit(1);
+    return row ? placeTarget(row) : null;
   }
 
   async detail(handoverId: string, now: Date = new Date()): Promise<HandoverDetailView> {

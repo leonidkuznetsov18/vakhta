@@ -269,6 +269,7 @@ export async function loadPresence(
     .orderBy(desc(presenceSessions.arrivedAt));
   const sessions = await tx
     .select({
+      id: shiftSessions.id,
       assignmentId: shiftSessions.assignmentId,
       state: shiftSessions.state,
       startedAt: shiftSessions.startedAt,
@@ -302,6 +303,7 @@ export async function loadPresence(
       startedAt: session?.startedAt?.toISOString() ?? null,
       endedAt: session?.endedAt?.toISOString() ?? null,
       sessionState: session?.state ?? null,
+      sessionId: session?.id ?? null,
     };
   });
 }

@@ -38,6 +38,11 @@ import {
   OpenSlotsQuery,
   SelectSlotCommand,
   type OpenSlotView,
+  CreateScheduleNoteCommand,
+  ScheduleNotesQuery,
+  type ScheduleNoteView,
+  RetrospectiveQuery,
+  type RetrospectiveView,
   type AcknowledgementStatusView,
   type ScheduleVersionDetail,
   type ScheduleVersionView,
@@ -66,6 +71,8 @@ import { TemplatesService } from './templates.service.js';
 import { ScheduleHistoryService } from './schedule-history.service.js';
 import { PatternsService } from './patterns.service.js';
 import { OpenSlotsService } from './open-slots.service.js';
+import { NotesService } from './notes.service.js';
+import { RetrospectiveService } from './retrospective.service.js';
 
 const ALL_PANEL_ROLES: WebRole[] = [
   'ADMIN',
@@ -104,6 +111,8 @@ export class AdminSchedulesController {
     private readonly exportService: ScheduleExportService,
     private readonly patterns: PatternsService,
     private readonly slots: OpenSlotsService,
+    private readonly notes: NotesService,
+    private readonly retrospective: RetrospectiveService,
   ) {}
 
   @Get('patterns')
@@ -137,6 +146,68 @@ export class AdminSchedulesController {
     const siteId = await this.patterns.siteOf(id);
     assertScope(user, EDITORS, { siteId });
     await this.patterns.remove(id, webUserActor(user));
+  }
+
+  @Get('notes')
+  listNotes(
+    @Query(new ZodValidationPipe(ScheduleNotesQuery)) query: ScheduleNotesQuery,
+    @CurrentUser() user: WebUser,
+  ): Promise<ScheduleNoteView[]> {
+    assertScope(user, ALL_PANEL_ROLES, query);
+    return this.notes.list(query);
+  }
+
+  @Post('notes')
+  @HttpCode(200)
+  @Roles(...EDITORS, ...APPROVERS)
+  createNote(
+    @Body(new ZodValidationPipe(CreateScheduleNoteCommand)) body: CreateScheduleNoteCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ScheduleNoteView> {
+    assertScope(user, [...EDITORS, ...APPROVERS], {
+      siteId: body.siteId,
+      orgUnitId: body.orgUnitId,
+    });
+    return this.notes.create(body, webUserActor(user));
+  }
+
+  @Delete('notes/:id')
+  @HttpCode(204)
+  @Roles(...EDITORS, ...APPROVERS)
+  async removeNote(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: WebUser,
+  ): Promise<void> {
+    const scope = await this.notes.scopeOf(id);
+    assertScope(user, [...EDITORS, ...APPROVERS], scope);
+    if (scope.createdBy !== user.id && !canActOn(user.grants, APPROVERS, scope))
+      throw new ForbiddenException('Only the author or an approver removes a note');
+    await this.notes.remove(id, webUserActor(user));
+  }
+
+  @Get('reports/retrospective')
+  retrospectiveView(
+    @Query(new ZodValidationPipe(RetrospectiveQuery)) query: RetrospectiveQuery,
+    @CurrentUser() user: WebUser,
+  ): Promise<RetrospectiveView> {
+    assertScope(user, ALL_PANEL_ROLES, query);
+    return this.retrospective.view(query);
+  }
+
+  @Get('reports/retrospective/export')
+  async retrospectiveExport(
+    @Query(new ZodValidationPipe(RetrospectiveQuery)) query: RetrospectiveQuery,
+    @CurrentUser() user: WebUser,
+    @RequestLocale() locale: Locale,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    assertScope(user, ALL_PANEL_ROLES, query);
+    const file = await this.retrospective.export(query, user, locale);
+    await reply
+      .header('content-type', file.contentType)
+      .header('content-disposition', `attachment; filename="${file.filename}"`)
+      .header('cache-control', 'private, no-store')
+      .send(file.body);
   }
 
   @Get('open-slots')

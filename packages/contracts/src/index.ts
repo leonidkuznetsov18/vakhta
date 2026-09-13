@@ -11,6 +11,8 @@ export * from './auth.js';
 export * from './scheduling.js';
 export * from './staffing.js';
 export * from './open-slots.js';
+export * from './schedule-notes.js';
+export * from './retrospective.js';
 export * from './incidents.js';
 export * from './checklists.js';
 export * from './handover.js';

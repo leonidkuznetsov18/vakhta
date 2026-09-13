@@ -434,3 +434,38 @@ export const slotInterests = pgTable(
   },
   (t) => [uniqueIndex('slot_interests_offer_employee_uq').on(t.offerId, t.employeeId)],
 );
+
+/* ------------------------------------------------------------------ */
+/* Schedule notes (SC-39, SC-50)                                        */
+/* ------------------------------------------------------------------ */
+
+export const noteAudience = pgEnum('note_audience', ['PLANNERS', 'EMPLOYEES']);
+
+/**
+ * A note on a unit month, optionally narrowed to a date, zone or person. The audience is explicit:
+ * PLANNERS notes stay in the panel; EMPLOYEES notes reach the person's plan in the bot.
+ */
+export const scheduleNotes = pgTable(
+  'schedule_notes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    siteId: uuid('site_id')
+      .notNull()
+      .references(() => sites.id),
+    orgUnitId: uuid('org_unit_id')
+      .notNull()
+      .references(() => orgUnits.id),
+    periodMonth: text('period_month').notNull(),
+    businessDate: date('business_date'),
+    zoneId: uuid('zone_id').references(() => responsibilityZones.id),
+    employeeId: uuid('employee_id').references(() => employees.id),
+    audience: noteAudience('audience').notNull().default('PLANNERS'),
+    text: text('text').notNull(),
+    createdBy: uuid('created_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('schedule_notes_scope_idx').on(t.siteId, t.orgUnitId, t.periodMonth),
+    check('schedule_notes_text_bounded', sql`char_length(${t.text}) BETWEEN 1 AND 2000`),
+  ],
+);

@@ -257,6 +257,8 @@ export const AssignmentPresenceView = z.object({
   startedAt: IsoDateTime.nullable(),
   endedAt: IsoDateTime.nullable(),
   sessionState: z.string().nullable(),
+  /** The shift record behind the evidence, for a link to the operations view (SC-40). */
+  sessionId: Uuid.nullable().default(null),
 });
 export type AssignmentPresenceView = z.infer<typeof AssignmentPresenceView>;
 

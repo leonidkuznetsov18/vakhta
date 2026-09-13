@@ -74,6 +74,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { OrgService } from '../org/org.service.js';
 import { TemplatesService } from './templates.service.js';
 import { acknowledgementSnapshot, type AcknowledgementScope } from './acknowledgement-snapshot.js';
+import { loadEmployeeNotes } from './notes.service.js';
 import {
   loadAbsences,
   loadContextIntervals,
@@ -1661,6 +1662,11 @@ export class ScheduleService {
       }),
       totals: monthPlan.totals,
       unacknowledgedVersionIds: [...unacknowledged],
+      notes: await loadEmployeeNotes(this.db, {
+        employeeId,
+        month,
+        orgUnitIds: [...new Set(rows.map((r) => r.a.orgUnitId))],
+      }),
     };
     return {
       plan,

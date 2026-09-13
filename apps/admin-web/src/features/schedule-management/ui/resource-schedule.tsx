@@ -18,6 +18,8 @@ import type { Workspace } from '../model/use-workspace';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
 import { SlotDetails } from './slot-details';
 import { useOperations } from '../model/use-operations';
+import { useNotes } from '../model/use-notes';
+import { NotesSection } from './notes-section';
 import { useNavigation } from '@/navigation';
 import { InfoTip } from '@/components/app/info-tip';
 import { recordedTime } from '../lib/labels';
@@ -54,6 +56,13 @@ export function ResourceSchedule({
     siteId: w.siteId,
     orgUnitId: w.orgUnitId,
     dates,
+    enabled: !!w.version,
+  });
+  const notes = useNotes({
+    accessKey: w.accessKey,
+    siteId: w.siteId,
+    orgUnitId: w.orgUnitId,
+    month: w.month,
     enabled: !!w.version,
   });
   const [picked, setPicked] = useState<CalendarSelection | null>(null);
@@ -296,6 +305,14 @@ export function ResourceSchedule({
                     presence={selectedView?.marker?.label ?? null}
                     query={operations}
                     onOpenRequests={() => navigation.go('requests')}
+                    onOpenOperations={() => navigation.go('operations')}
+                  />
+                  <NotesSection
+                    workspace={w}
+                    notes={notes}
+                    date={selectedItem.businessDate}
+                    zoneId={selectedItem.zoneId ?? null}
+                    employeeId={selectedItem.employeeId}
                   />
                   {editable && (
                     <div className="flex flex-wrap gap-2">
@@ -333,6 +350,19 @@ export function ResourceSchedule({
                       ))}
                   </ul>
                   <Paginator pages={pages} total={selectedCell.items.length} />
+                  {selection.date.startsWith(w.month) && (
+                    <NotesSection
+                      workspace={w}
+                      notes={notes}
+                      date={selection.date}
+                      zoneId={
+                        grouping === 'zones' && selection.resourceId !== UNASSIGNED_ZONE
+                          ? selection.resourceId
+                          : null
+                      }
+                      employeeId={grouping === 'people' ? selection.resourceId : null}
+                    />
+                  )}
                 </>
               )}
               {!editor && (
@@ -355,12 +385,14 @@ function OperationalContext({
   presence,
   query,
   onOpenRequests,
+  onOpenOperations,
 }: {
   readonly workspace: Workspace;
   readonly item: { readonly employeeId: string; readonly businessDate: string };
   readonly presence: string | null;
   readonly query: ReturnType<typeof useOperations>;
   readonly onOpenRequests: () => void;
+  readonly onOpenOperations: () => void;
 }) {
   const t = messages(currentLocale()).scheduleWorkspace;
   const catalog = messages(currentLocale()).requests;
@@ -377,6 +409,10 @@ function OperationalContext({
   const published = w.publicationBaseline.rows.some(
     (row) => row.employeeId === item.employeeId && !!row.cells[item.businessDate],
   );
+  const sessionId =
+    query.data?.presence.find(
+      (row) => row.employeeId === item.employeeId && row.businessDate === item.businessDate,
+    )?.sessionId ?? null;
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1 text-sm">
@@ -391,6 +427,11 @@ function OperationalContext({
         <p className="text-xs text-muted-foreground">
           {format(t.presenceAsOf, { time: recordedTime(query.data.fetchedAt, w.timezone) })}
         </p>
+      )}
+      {sessionId && (
+        <Button variant="outline" size="sm" onClick={onOpenOperations}>
+          {t.openShiftRecord}
+        </Button>
       )}
       <section className="space-y-1" aria-label={t.requestsContext}>
         <h4 className="text-sm font-semibold">{t.requestsContext}</h4>

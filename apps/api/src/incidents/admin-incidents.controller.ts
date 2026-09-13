@@ -31,12 +31,13 @@ import {
 } from '../auth/web-auth.guard.js';
 import { RequestLocale } from '../common/locale.decorator.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
-import type { Locale } from '@vakhta/domain';
+import type { Locale, WebRole } from '@vakhta/domain';
+import { assertInScope, scopedEvents, scopeOf } from '../common/access-scope.js';
 import { MediaService } from '../handover/media.service.js';
 import { IncidentChanges } from './incident-changes.js';
 import { IncidentsService } from './incidents.service.js';
 
-const VIEWERS = [
+const VIEWERS: readonly WebRole[] = [
   'ADMIN',
   'PRODUCTION_HEAD',
   'SHIFT_MASTER',
@@ -45,8 +46,8 @@ const VIEWERS = [
   'CLEANLINESS_CONTROLLER',
   'ACCOUNTANT',
   'AUDITOR',
-] as const;
-const MASTERS = ['ADMIN', 'PRODUCTION_HEAD', 'SHIFT_MASTER'] as const;
+];
+const MASTERS: readonly WebRole[] = ['ADMIN', 'PRODUCTION_HEAD', 'SHIFT_MASTER'];
 
 /** Екран майстра «Простои и инциденты» (ТЗ 9.1, FR-DWN-05). */
 @Controller('admin/incidents')
@@ -60,14 +61,20 @@ export class AdminIncidentsController {
   ) {}
 
   @Get()
-  list(@Query(new ZodValidationPipe(IncidentsQuery)) q: IncidentsQuery): Promise<IncidentView[]> {
-    return this.incidents.list(q);
+  list(
+    @Query(new ZodValidationPipe(IncidentsQuery)) q: IncidentsQuery,
+    @CurrentUser() user: WebUser,
+  ): Promise<IncidentView[]> {
+    return this.incidents.list(q, new Date(), scopeOf(user, VIEWERS));
   }
 
   @Sse('stream')
-  stream(): Observable<MessageEvent> {
+  stream(@CurrentUser() user: WebUser): Observable<MessageEvent> {
+    const events = scopedEvents(this.changes.stream(), scopeOf(user, VIEWERS), (e) =>
+      this.incidents.incidentPlace(e.incidentId),
+    );
     return merge(
-      this.changes.stream().pipe(map((e) => ({ type: 'incident', data: e }) as MessageEvent)),
+      events.pipe(map((e) => ({ type: 'incident', data: e }) as MessageEvent)),
       interval(25_000).pipe(map(() => ({ type: 'ping', data: '' }) as MessageEvent)),
     );
   }
@@ -76,8 +83,9 @@ export class AdminIncidentsController {
   stats(
     @Query(new ZodValidationPipe(IncidentStatsQuery)) q: IncidentStatsQuery,
     @RequestLocale() locale: Locale,
+    @CurrentUser() user: WebUser,
   ): Promise<IncidentStatsView> {
-    return this.incidents.stats(q, locale);
+    return this.incidents.stats(q, locale, new Date(), scopeOf(user, VIEWERS));
   }
 
   /** The photo of a report, behind a signed short-lived link like every other photo (FR-PHO-06). */
@@ -90,29 +98,42 @@ export class AdminIncidentsController {
   }
 
   @Get(':id')
-  detail(@Param('id', ParseUUIDPipe) id: string): Promise<IncidentDetailView> {
+  async detail(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: WebUser,
+  ): Promise<IncidentDetailView> {
+    await this.assertIncident(user, VIEWERS, id);
     return this.incidents.detail(id);
+  }
+
+  private async assertIncident(user: WebUser, roles: readonly WebRole[], id: string) {
+    const scope = scopeOf(user, roles);
+    if (scope.all) return;
+    const place = await this.incidents.incidentPlace(id);
+    if (place) assertInScope(scope, place);
   }
 
   @Post(':id/transition')
   @HttpCode(200)
   @Roles(...MASTERS)
-  transition(
+  async transition(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(IncidentTransitionCommand)) body: IncidentTransitionCommand,
     @CurrentUser() user: WebUser,
   ): Promise<IncidentView> {
+    await this.assertIncident(user, MASTERS, id);
     return this.incidents.transition(id, body, webUserActor(user));
   }
 
   @Post(':id/update')
   @HttpCode(200)
   @Roles(...MASTERS)
-  update(
+  async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(IncidentUpdateCommand)) body: IncidentUpdateCommand,
     @CurrentUser() user: WebUser,
   ): Promise<IncidentView> {
+    await this.assertIncident(user, MASTERS, id);
     return this.incidents.update(id, body, webUserActor(user));
   }
 }

@@ -25,6 +25,10 @@ import { ScheduleCommandService } from './schedule-command.service.js';
 import { StaffingService } from './staffing.service.js';
 import { PatternsService } from './patterns.service.js';
 import { OpenSlotsService } from './open-slots.service.js';
+import { NotesService } from './notes.service.js';
+import { RetrospectiveService } from './retrospective.service.js';
+import { planScreen } from '../telegram/screens.js';
+import { shiftSummaries } from '@vakhta/db';
 import { backgroundTasks } from '@vakhta/db';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -2303,6 +2307,198 @@ describe('scheduling: версії, валідація, публікація, о
           items,
         ),
       ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('notes and retrospective output (#18, SC-39/41/43)', () => {
+    it('keeps planner notes off the bot, shows employee notes in the plan, and reports evidence separately', async () => {
+      const notes = new NotesService(testDb.db, new AuditLog());
+      const v1 = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      await schedule.putAssignments(
+        v1.id,
+        {
+          items: [
+            {
+              employeeId: ivanov,
+              templateId: dayId,
+              businessDate: day(1),
+              zoneId,
+              kind: 'REGULAR',
+            },
+            {
+              employeeId: ivanov,
+              templateId: dayId,
+              businessDate: day(2),
+              zoneId,
+              kind: 'REGULAR',
+            },
+            {
+              employeeId: ivanov,
+              templateId: dayId,
+              businessDate: day(3),
+              zoneId,
+              kind: 'REGULAR',
+            },
+          ],
+        },
+        PLANNER,
+      );
+      await schedule.submit(v1.id, PLANNER);
+      await schedule.publish(v1.id, {}, HEAD);
+      const scope = { siteId, orgUnitId: unitId, periodMonth: MONTH };
+      await notes.create(
+        {
+          ...scope,
+          businessDate: day(1),
+          zoneId: null,
+          employeeId: null,
+          audience: 'PLANNERS',
+          text: 'Audit visit; keep the line staffed',
+        },
+        PLANNER,
+      );
+      await notes.create(
+        {
+          ...scope,
+          businessDate: day(2),
+          zoneId: null,
+          employeeId: ivanov,
+          audience: 'EMPLOYEES',
+          text: 'Bring the new badge',
+        },
+        PLANNER,
+      );
+      await notes.create(
+        {
+          ...scope,
+          businessDate: null,
+          zoneId: null,
+          employeeId: null,
+          audience: 'EMPLOYEES',
+          text: 'Canteen closed this month',
+        },
+        PLANNER,
+      );
+      await notes.create(
+        {
+          ...scope,
+          businessDate: day(2),
+          zoneId: null,
+          employeeId: petrova,
+          audience: 'EMPLOYEES',
+          text: 'Not for Ivanov',
+        },
+        PLANNER,
+      );
+      await expect(
+        notes.create(
+          {
+            ...scope,
+            businessDate: `${addMonths(MONTH, 1)}-01`,
+            zoneId: null,
+            employeeId: null,
+            audience: 'PLANNERS',
+            text: 'x',
+          },
+          PLANNER,
+        ),
+      ).rejects.toMatchObject({ code: 'DATE_OUTSIDE_MONTH' });
+      expect(await notes.list(scope)).toHaveLength(4);
+      const plan = await schedule.myPlan(ivanov, MONTH);
+      expect(plan.notes).toHaveLength(2);
+      expect(plan.notes).toEqual(
+        expect.arrayContaining([
+          { date: null, text: 'Canteen closed this month' },
+          { date: day(2), text: 'Bring the new badge' },
+        ]),
+      );
+      const screen = planScreen(messages('en'), plan, null);
+      expect(screen.text).toContain('📝 Bring the new badge');
+      expect(screen.text).toContain('📝 Canteen closed this month');
+      expect(screen.text).not.toContain('Audit visit');
+      expect(screen.text).not.toContain('Not for Ivanov');
+
+      // Retrospective: recorded, unknown departure and missing actuals stay separate.
+      const detail = await schedule.detail(v1.id);
+      const first = detail.assignments.find((a) => a.businessDate === day(1))!;
+      const second = detail.assignments.find((a) => a.businessDate === day(2))!;
+      const [closed] = await testDb.db
+        .insert(shiftSessions)
+        .values({
+          employeeId: ivanov,
+          assignmentId: first.id,
+          businessDate: day(1),
+          state: 'SHIFT_CLOSED',
+          startedAt: new Date(first.planStartAt),
+          endedAt: new Date(first.planEndAt),
+          planStartAt: new Date(first.planStartAt),
+          planEndAt: new Date(first.planEndAt),
+        })
+        .returning();
+      await testDb.db.insert(shiftSummaries).values({
+        shiftSessionId: closed!.id,
+        employeeId: ivanov,
+        businessDate: day(1),
+        plannedMinutes: 720,
+        totalMinutes: 715,
+        workMinutes: 600,
+        preparationMinutes: 15,
+        serviceMinutes: 0,
+        breakMinutes: 60,
+        mealMinutes: 40,
+        downtimeMinutes: 0,
+      });
+      await testDb.db.insert(shiftSessions).values({
+        employeeId: ivanov,
+        assignmentId: second.id,
+        businessDate: day(2),
+        state: 'SHIFT_CLOSED',
+        startedAt: new Date(second.planStartAt),
+        endedAt: new Date(second.planEndAt),
+        autoCloseReason: 'NO_CHECKLIST',
+        planStartAt: new Date(second.planStartAt),
+        planEndAt: new Date(second.planEndAt),
+      });
+      const retrospective = new RetrospectiveService(testDb.db);
+      const view = await retrospective.view(scope);
+      expect(view.version).toMatchObject({ id: v1.id, versionNo: 1 });
+      expect(view.rows.map((row) => [row.businessDate, row.departure, row.workMinutes])).toEqual([
+        [day(1), 'RECORDED', 600],
+        [day(2), 'UNKNOWN', null],
+        [day(3), 'NONE', null],
+      ]);
+      expect(view.totals).toEqual([
+        {
+          employeeId: ivanov,
+          shifts: 3,
+          plannedMinutes: 2160,
+          workMinutes: 600,
+          recordedShifts: 2,
+          unknownDepartures: 1,
+          missingActuals: 1,
+        },
+      ]);
+      const file = await retrospective.export(scope, {
+        id: randomUUID(),
+        name: 'Head',
+        email: 'head@example.test',
+        twoFactorEnabled: true,
+        grants: [{ role: 'PRODUCTION_HEAD', scopeType: 'SITE', scopeId: siteId }],
+      });
+      const book = XLSX.read(file.body, { type: 'buffer' });
+      expect(book.SheetNames).toHaveLength(3);
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+        book.Sheets[book.SheetNames[1]!]!,
+      );
+      expect(rows).toHaveLength(3);
+      expect(Object.values(rows[0]!)).toContain('Иванов Иван');
+      const meta = XLSX.utils.sheet_to_json<string[]>(book.Sheets[book.SheetNames[0]!]!, {
+        header: 1,
+      });
+      expect(meta.flat()).toEqual(expect.arrayContaining([v1.id, 'Europe/Kyiv', MONTH]));
     });
   });
 

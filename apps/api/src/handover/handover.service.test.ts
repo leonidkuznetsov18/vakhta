@@ -789,6 +789,30 @@ describe('handover: прибирання, чек-лист, фото, перед�
     const list = await handover.list({ scope: 'pending' });
     expect(list).toHaveLength(1);
     expect(list[0]).toMatchObject({ status: 'SUBMITTED', overdue: false, remarks: 0 });
+    // spec 004 AC-001: role and scope of one grant; SITE is not ENTERPRISE
+    const [place] = await testDb.db
+      .select({ siteId: responsibilityZones.siteId, orgUnitId: responsibilityZones.orgUnitId })
+      .from(responsibilityZones)
+      .where(eq(responsibilityZones.id, zoneId));
+    const other = 'a0000000-0000-4000-8000-00000000ffff';
+    const scoped = (s: { siteIds?: string[]; orgUnitIds?: string[]; zoneIds?: string[] }) =>
+      handover.list({ scope: 'pending' }, new Date(), {
+        all: false,
+        siteIds: s.siteIds ?? [],
+        orgUnitIds: s.orgUnitIds ?? [],
+        teamIds: [],
+        zoneIds: s.zoneIds ?? [],
+      });
+    expect(await scoped({ orgUnitIds: [place!.orgUnitId] })).toHaveLength(1);
+    expect(await scoped({ siteIds: [place!.siteId] })).toHaveLength(1);
+    expect(await scoped({ orgUnitIds: [other] })).toHaveLength(0);
+    expect(await scoped({ siteIds: [other] })).toHaveLength(0);
+    expect(await scoped({})).toHaveLength(0);
+    expect(await handover.handoverPlace(submitted.handover.id)).toEqual({
+      siteId: place!.siteId,
+      orgUnitId: place!.orgUnitId,
+      zoneId,
+    });
   });
   it('rolls back shift start when its cleaning reminder cannot be admitted', async () => {
     await testDb.db.execute(

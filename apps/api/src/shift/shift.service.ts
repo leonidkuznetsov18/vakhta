@@ -42,6 +42,8 @@ import {
   isActive,
   isTerminal,
   transition,
+  type AccessScope,
+  type ScopeTarget,
   type ActivityInterval,
   type CommandErrorCode,
   type ShiftAction,
@@ -69,6 +71,7 @@ import { summaryLines } from '../telegram/screens.js';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor, type Actor } from '../common/actor.js';
 import { lockEmployee } from '../common/employee-lock.js';
+import { FULL_SCOPE, placeTarget, scopeCondition } from '../common/access-scope.js';
 import { DomainError } from '../common/domain-error.js';
 import { isUniqueViolation } from '../common/pg-errors.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -234,7 +237,11 @@ export class ShiftService {
   }
 
   /** Оперативний екран (ТЗ 9.2): незакриті зміни, за вибором — закриті або конкретний день. */
-  async listActive(q: ActiveShiftsQuery, now: Date = new Date()): Promise<ActiveShiftView[]> {
+  async listActive(
+    q: ActiveShiftsQuery,
+    now: Date = new Date(),
+    access: AccessScope = FULL_SCOPE,
+  ): Promise<ActiveShiftView[]> {
     const since = new Date(now.getTime() - 24 * 3_600_000);
     const scope = q.scope ?? 'OPEN';
     const open = notInArray(shiftSessions.state, TERMINAL);
@@ -255,6 +262,14 @@ export class ShiftService {
     ];
     if (q.orgUnitId) conditions.push(sql`${this.unitOfShift()} = ${q.orgUnitId}`);
     if (q.siteId) conditions.push(eq(orgUnits.siteId, q.siteId));
+    conditions.push(
+      scopeCondition(access, {
+        site: orgUnits.siteId,
+        unit: this.unitOfShift(),
+        team: shiftAssignments.teamId,
+        zone: shiftSessions.zoneId,
+      }),
+    );
 
     const rows = await this.db
       .select({
@@ -291,6 +306,39 @@ export class ShiftService {
       .orderBy(asc(shiftSessions.startedAt));
 
     return rows.map((r) => this.toActiveView(r, now));
+  }
+
+  /** Where an employee currently belongs (open position), for scope checks by employee id. */
+  async employeePlace(employeeId: string): Promise<ScopeTarget | null> {
+    const [row] = await this.db
+      .select({
+        siteId: orgUnits.siteId,
+        orgUnitId: employeePositions.orgUnitId,
+        teamId: employeePositions.teamId,
+      })
+      .from(employeePositions)
+      .innerJoin(orgUnits, eq(employeePositions.orgUnitId, orgUnits.id))
+      .where(and(eq(employeePositions.employeeId, employeeId), isNull(employeePositions.validTo)))
+      .orderBy(desc(employeePositions.validFrom))
+      .limit(1);
+    return row ? placeTarget(row) : null;
+  }
+
+  /** Where a shift belongs, for scope checks on its identifier; null when it does not exist. */
+  async placeOf(sessionId: string): Promise<ScopeTarget | null> {
+    const [row] = await this.db
+      .select({
+        siteId: orgUnits.siteId,
+        orgUnitId: orgUnits.id,
+        teamId: shiftAssignments.teamId,
+        zoneId: shiftSessions.zoneId,
+      })
+      .from(shiftSessions)
+      .leftJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
+      .leftJoin(orgUnits, sql`${orgUnits.id} = ${this.unitOfShift()}`)
+      .where(eq(shiftSessions.id, sessionId))
+      .limit(1);
+    return row ? placeTarget(row) : null;
   }
 
   async detail(sessionId: string, now: Date = new Date()): Promise<ShiftDetailView> {

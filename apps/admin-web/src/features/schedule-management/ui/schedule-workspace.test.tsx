@@ -201,6 +201,8 @@ function mockApi(
     savedDetail?: ScheduleVersionDetail;
     slots?: Record<string, unknown>[];
     operations?: Record<string, unknown>;
+    notes?: Record<string, unknown>[];
+    retrospective?: Record<string, unknown>;
     october?: ScheduleVersionDetail;
     staffing?: {
       requirements: unknown[];
@@ -283,6 +285,62 @@ function mockApi(
         nextCursor: remaining.length > 200 ? items.at(-1)?.id : null,
       });
     }
+    if (path.startsWith('/admin/schedules/notes')) {
+      state.notes ??= [];
+      if (method === 'GET') return json(state.notes);
+      if (method === 'POST') {
+        const row = {
+          ...(body as object),
+          id: 'b7000000-0000-4000-8000-000000000001',
+          createdBy: ACTOR,
+          createdAt: '2026-09-01T10:00:00.000Z',
+        };
+        state.notes.push(row);
+        return json(row);
+      }
+      state.notes = [];
+      return new Response(null, { status: 204 });
+    }
+    if (path.startsWith('/admin/schedules/reports/retrospective'))
+      return json(
+        state.retrospective ?? {
+          generatedAt: '2026-09-05T10:00:00.000Z',
+          timezone: 'Europe/Kyiv',
+          periodMonth: '2026-09',
+          siteId: SITE,
+          orgUnitId: UNIT,
+          version: { id: VERSION, versionNo: 1, publishedAt: '2026-08-31T10:00:00.000Z' },
+          rows: [
+            {
+              assignmentId: ASSIGN,
+              employeeId: EMP,
+              businessDate: '2026-09-05',
+              zoneId: ZONE,
+              plannedStartAt: '2026-09-05T17:00:00.000Z',
+              plannedEndAt: '2026-09-06T05:00:00.000Z',
+              plannedMinutes: 720,
+              sessionId: 'c7000000-0000-4000-8000-000000000001',
+              recordedStartAt: '2026-09-05T17:03:00.000Z',
+              recordedEndAt: '2026-09-06T05:00:00.000Z',
+              workMinutes: 610,
+              totalMinutes: 717,
+              departure: 'UNKNOWN',
+              autoCloseReason: 'NO_CHECKLIST',
+            },
+          ],
+          totals: [
+            {
+              employeeId: EMP,
+              shifts: 1,
+              plannedMinutes: 720,
+              workMinutes: 610,
+              recordedShifts: 1,
+              unknownDepartures: 1,
+              missingActuals: 0,
+            },
+          ],
+        },
+      );
     if (path.startsWith('/admin/schedules/open-slots')) {
       const [, , , , id, action] = path.split('?')[0]!.split('/');
       state.slots ??= [];
@@ -2205,6 +2263,93 @@ it('overlays presence evidence and request context on a published shift and open
   const candidates = await within(sheet).findByRole('region', { name: t.candidates });
   expect(await within(candidates).findByText('Сидоров Пётр')).toBeTruthy();
   expect(within(candidates).queryByText('Кузнецов Леонид')).toBeNull();
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('adds a note with an explicit audience to the selected shift and lists it', async () => {
+  freshState();
+  const calls = mockApi({ status: 'DRAFT' });
+  admin();
+  await screen.findByText(t.draftState);
+  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+    fireEvent.click(screen.getByRole('button', { name: t.previous }));
+  }
+  fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 05/ }));
+  const sheet = await screen.findByRole('dialog');
+  const notes = within(sheet).getByRole('region', { name: t.notes });
+  expect(within(notes).getByText(t.noNotes)).toBeTruthy();
+  const add = within(notes).getByRole('button', { name: t.addNote });
+  expect(add.hasAttribute('disabled')).toBe(true);
+  fireEvent.change(within(notes).getByLabelText(t.noteText), {
+    target: { value: 'Принести новый бейдж' },
+  });
+  fireEvent.change(within(notes).getByLabelText(t.noteAudience), {
+    target: { value: 'EMPLOYEES' },
+  });
+  fireEvent.change(within(notes).getByLabelText(t.noteScope), { target: { value: 'person' } });
+  expect(add.hasAttribute('disabled')).toBe(false);
+  fireEvent.click(add);
+  await waitFor(() =>
+    expect(
+      calls.find((call) => call.method === 'POST' && call.path === '/admin/schedules/notes')?.body,
+    ).toMatchObject({
+      businessDate: '2026-09-05',
+      employeeId: EMP,
+      zoneId: null,
+      audience: 'EMPLOYEES',
+      text: 'Принести новый бейдж',
+    }),
+  );
+  expect(await within(notes).findByText('Принести новый бейдж')).toBeTruthy();
+  expect(notes.textContent).toContain(t.audienceEmployees);
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('prints the visible plan with version identity and marks an unpublished draft', async () => {
+  freshState();
+  mockApi({ status: 'DRAFT' });
+  const written: string[] = [];
+  const popup = {
+    document: { open: vi.fn(), write: (html: string) => written.push(html), close: vi.fn() },
+    focus: vi.fn(),
+    print: vi.fn(),
+  };
+  const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
+  admin();
+  await screen.findByText(t.draftState);
+  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+    fireEvent.click(screen.getByRole('button', { name: t.previous }));
+  }
+  fireEvent.click(screen.getByRole('menuitem', { name: t.print }));
+  expect(open).toHaveBeenCalled();
+  const html = written.join('');
+  expect(html).toContain(t.printUnpublished);
+  expect(html).toContain(`${t.printTimezone}:`);
+  expect(html).toContain(`${t.printPeriod}: 2026-08-31 – 2026-09-06`);
+  expect(html).toContain('Кузнецов Леонид');
+  expect(html).toContain(`${t.printVersion}: 1`);
+  expect(popup.print).toHaveBeenCalled();
+  open.mockRestore();
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('shows the retrospective report with planned, recorded and unknown departure kept apart', async () => {
+  freshState();
+  setUiState({ 'schedule.month': '2026-09' });
+  mockApi({ status: 'PUBLISHED' });
+  admin();
+  await screen.findByText(t.publishedState);
+  fireEvent.click(screen.getByRole('menuitem', { name: t.retrospective }));
+  const sheet = await screen.findByRole('dialog', { name: t.retrospective });
+  const rows = await within(sheet).findAllByRole('row', { name: /Кузнецов Леонид.*12 ч/ });
+  expect(rows[0]?.textContent).toContain('10 ч 10 мин');
+  expect(within(sheet).getByText(t.departureUnknown)).toBeTruthy();
+  expect(
+    within(sheet).getByRole('button', { name: t.downloadRetrospective }).hasAttribute('disabled'),
+  ).toBe(false);
   cleanup();
   vi.unstubAllGlobals();
 });

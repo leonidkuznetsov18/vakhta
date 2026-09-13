@@ -27,6 +27,8 @@ import {
   webUserActor,
   type WebUser,
 } from '../auth/web-auth.guard.js';
+import type { WebRole } from '@vakhta/domain';
+import { assertInScope, scopedEvents, scopeOf } from '../common/access-scope.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { HandoverChanges } from './handover-changes.js';
 import { HandoverService } from './handover.service.js';
@@ -58,13 +60,16 @@ export class AdminHandoverController {
     @Query(new ZodValidationPipe(HandoverListQuery)) q: HandoverListQuery,
     @CurrentUser() user: WebUser,
   ): Promise<HandoverListItemView[]> {
-    return this.handovers.list(q, new Date(), user.grants);
+    return this.handovers.list(q, new Date(), scopeOf(user, VIEWERS));
   }
 
   @Sse('stream')
-  stream(): Observable<MessageEvent> {
+  stream(@CurrentUser() user: WebUser): Observable<MessageEvent> {
+    const events = scopedEvents(this.changes.stream(), scopeOf(user, VIEWERS), (e) =>
+      this.handovers.handoverPlace(e.handoverId),
+    );
     return merge(
-      this.changes.stream().pipe(map((e) => ({ type: 'handover', data: e }) as MessageEvent)),
+      events.pipe(map((e) => ({ type: 'handover', data: e }) as MessageEvent)),
       interval(25_000).pipe(map(() => ({ type: 'ping', data: '' }) as MessageEvent)),
     );
   }
@@ -78,18 +83,30 @@ export class AdminHandoverController {
   }
 
   @Get(':id')
-  detail(@Param('id', ParseUUIDPipe) id: string): Promise<HandoverDetailView> {
+  async detail(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: WebUser,
+  ): Promise<HandoverDetailView> {
+    await this.assertHandover(user, VIEWERS, id);
     return this.handovers.detail(id);
+  }
+
+  private async assertHandover(user: WebUser, roles: readonly WebRole[], id: string) {
+    const scope = scopeOf(user, roles);
+    if (scope.all) return;
+    const place = await this.handovers.handoverPlace(id);
+    if (place) assertInScope(scope, place);
   }
 
   @Post(':id/resolve')
   @HttpCode(200)
   @Roles(...DECIDERS)
-  resolve(
+  async resolve(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(ResolveHandoverCommand)) body: ResolveHandoverCommand,
     @CurrentUser() user: WebUser,
   ): Promise<HandoverView> {
+    await this.assertHandover(user, DECIDERS, id);
     return this.handovers.resolve(id, body, webUserActor(user));
   }
 }

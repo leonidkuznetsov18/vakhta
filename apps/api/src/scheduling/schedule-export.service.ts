@@ -26,7 +26,7 @@ import { DATABASE } from '../infra/database.module.js';
 import { ScheduleService } from './schedule.service.js';
 
 const EXPORT_LIMIT = 20_000;
-const EMPLOYEE_NAME_READERS: WebRole[] = [
+export const EMPLOYEE_NAME_READERS: WebRole[] = [
   'ADMIN',
   'HR',
   'PRODUCTION_HEAD',
@@ -36,7 +36,7 @@ const EMPLOYEE_NAME_READERS: WebRole[] = [
 const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 /** Explicit cell types preserve formula-looking text as literal values, never formulas or links. */
-function worksheet(rows: readonly (readonly (string | number | null)[])[]) {
+export function worksheet(rows: readonly (readonly (string | number | null)[])[]) {
   return XLSX.utils.aoa_to_sheet(
     rows.map((row) =>
       row.map((value): XLSX.CellObject =>

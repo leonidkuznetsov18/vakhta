@@ -11,6 +11,8 @@ import { ScheduleHistoryService } from './schedule-history.service.js';
 import { StaffingService } from './staffing.service.js';
 import { PatternsService } from './patterns.service.js';
 import { OpenSlotsService } from './open-slots.service.js';
+import { NotesService } from './notes.service.js';
+import { RetrospectiveService } from './retrospective.service.js';
 import { AdminStaffingController } from './admin-staffing.controller.js';
 
 @Module({
@@ -25,6 +27,8 @@ import { AdminStaffingController } from './admin-staffing.controller.js';
     StaffingService,
     PatternsService,
     OpenSlotsService,
+    NotesService,
+    RetrospectiveService,
     {
       provide: SCHEDULE_OPTIONS,
       useFactory: (config: ConfigService<Env, true>): ScheduleOptions => ({

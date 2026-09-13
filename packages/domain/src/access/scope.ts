@@ -59,3 +59,59 @@ export function reviewableUnitIds(
     .map((g) => g.scopeId as string);
   return new Set(units);
 }
+
+/**
+ * What a person may read for the given roles, resolved from the grants that carry those roles.
+ * `all` means an ENTERPRISE grant; otherwise the union of the granted sites, units, teams and zones.
+ * SITE is not ENTERPRISE: it covers only its own site. No relevant grant means an empty scope.
+ */
+export type AccessScope =
+  | { readonly all: true }
+  | {
+      readonly all: false;
+      readonly siteIds: readonly string[];
+      readonly orgUnitIds: readonly string[];
+      readonly teamIds: readonly string[];
+      readonly zoneIds: readonly string[];
+    };
+
+export function accessScope(grants: readonly RoleGrant[], roles: readonly WebRole[]): AccessScope {
+  const relevant = grants.filter((g) => roles.includes(g.role));
+  if (relevant.some((g) => g.scopeType === 'ENTERPRISE')) return { all: true };
+  const ids = (type: RoleGrant['scopeType']) => [
+    ...new Set(
+      relevant
+        .filter((g) => g.scopeType === type && g.scopeId !== null)
+        .map((g) => g.scopeId as string),
+    ),
+  ];
+  return {
+    all: false,
+    siteIds: ids('SITE'),
+    orgUnitIds: ids('ORG_UNIT'),
+    teamIds: ids('TEAM'),
+    zoneIds: ids('ZONE'),
+  };
+}
+
+/** Whether a resolved scope covers an object; the same rule as `grantCovers` over the union. */
+export function scopeCovers(scope: AccessScope, target: ScopeTarget): boolean {
+  if (scope.all) return true;
+  const hit = (ids: readonly string[], id: string | undefined) =>
+    id !== undefined && ids.includes(id);
+  return (
+    hit(scope.siteIds, target.siteId) ||
+    hit(scope.orgUnitIds, target.orgUnitId) ||
+    hit(scope.teamIds, target.teamId) ||
+    hit(scope.zoneIds, target.zoneId)
+  );
+}
+
+/** A scope with nothing in it: the person has none of the roles, or no usable grant. */
+export function scopeIsEmpty(scope: AccessScope): boolean {
+  return (
+    !scope.all &&
+    scope.siteIds.length + scope.orgUnitIds.length + scope.teamIds.length + scope.zoneIds.length ===
+      0
+  );
+}

@@ -394,8 +394,128 @@ const openSlots: PreviewSlot[] = [
   },
 ];
 
+interface PreviewNote {
+  id: string;
+  siteId: string;
+  orgUnitId: string;
+  periodMonth: string;
+  businessDate: string | null;
+  zoneId: string | null;
+  employeeId: string | null;
+  audience: 'PLANNERS' | 'EMPLOYEES';
+  text: string;
+  createdBy: string | null;
+  createdAt: string;
+}
+const notes: PreviewNote[] = [
+  {
+    id: 'b7000000-0000-4000-8000-000000000001',
+    siteId: scheduleSiteId,
+    orgUnitId: scheduleUnitId,
+    periodMonth: month,
+    businessDate: `${month}-05`,
+    zoneId: null,
+    employeeId: null,
+    audience: 'PLANNERS',
+    text: 'Аудит якості на лінії о 10:00 — тримати повний склад, не відпускати на перерви одночасно.',
+    createdBy: null,
+    createdAt: new Date(Date.now() - 3600_000).toISOString(),
+  },
+  {
+    id: 'b7000000-0000-4000-8000-000000000002',
+    siteId: scheduleSiteId,
+    orgUnitId: scheduleUnitId,
+    periodMonth: month,
+    businessDate: `${month}-05`,
+    zoneId: null,
+    employeeId: scheduleEmployees[0]!,
+    audience: 'EMPLOYEES',
+    text: 'Візьміть новий бейдж на прохідній перед зміною.',
+    createdBy: null,
+    createdAt: new Date(Date.now() - 1800_000).toISOString(),
+  },
+];
+
 /** In-memory preview only: exercises the actual validated frontend contract, never production. */
 export function scheduleFixture(url: URL, method: string, body: unknown): unknown {
+  if (url.pathname.startsWith('/admin/schedules/notes')) {
+    if (method === 'GET')
+      return notes.filter((note) => note.periodMonth === url.searchParams.get('periodMonth'));
+    if (method === 'POST') {
+      const input = body as Omit<PreviewNote, 'id' | 'createdBy' | 'createdAt'>;
+      const row: PreviewNote = {
+        ...input,
+        id: crypto.randomUUID(),
+        createdBy: null,
+        createdAt: new Date().toISOString(),
+      };
+      notes.push(row);
+      return row;
+    }
+    if (method === 'DELETE') {
+      const id = url.pathname.split('/').at(-1);
+      notes.splice(
+        notes.findIndex((note) => note.id === id),
+        1,
+      );
+      return {};
+    }
+  }
+  if (url.pathname.startsWith('/admin/schedules/reports/retrospective')) {
+    const rows = detail(initial).assignments;
+    const today = new Date().toISOString().slice(0, 10);
+    const report = rows.map((item, index) => {
+      const past = item.businessDate < today;
+      const departure = !past ? 'NONE' : index % 4 === 0 ? 'UNKNOWN' : 'RECORDED';
+      return {
+        assignmentId: item.id,
+        employeeId: item.employeeId,
+        businessDate: item.businessDate,
+        zoneId: item.zoneId,
+        plannedStartAt: item.planStartAt,
+        plannedEndAt: item.planEndAt,
+        plannedMinutes: 720,
+        sessionId: past ? crypto.randomUUID() : null,
+        recordedStartAt: past ? item.planStartAt : null,
+        recordedEndAt: past && departure === 'RECORDED' ? item.planEndAt : null,
+        workMinutes: past && departure === 'RECORDED' ? 600 + (index % 3) * 20 : null,
+        totalMinutes: past && departure === 'RECORDED' ? 715 : null,
+        departure,
+        autoCloseReason: departure === 'UNKNOWN' ? 'NO_CHECKLIST' : null,
+      };
+    });
+    const totals = new Map<string, Record<string, number | string>>();
+    for (const row of report) {
+      const total = totals.get(row.employeeId) ?? {
+        employeeId: row.employeeId,
+        shifts: 0,
+        plannedMinutes: 0,
+        workMinutes: 0,
+        recordedShifts: 0,
+        unknownDepartures: 0,
+        missingActuals: 0,
+      };
+      totals.set(row.employeeId, {
+        ...total,
+        shifts: Number(total.shifts) + 1,
+        plannedMinutes: Number(total.plannedMinutes) + row.plannedMinutes,
+        workMinutes: Number(total.workMinutes) + (row.workMinutes ?? 0),
+        recordedShifts: Number(total.recordedShifts) + (row.sessionId ? 1 : 0),
+        unknownDepartures: Number(total.unknownDepartures) + (row.departure === 'UNKNOWN' ? 1 : 0),
+        missingActuals: Number(total.missingActuals) + (row.departure === 'NONE' ? 1 : 0),
+      });
+    }
+    return {
+      generatedAt: new Date().toISOString(),
+      timezone: 'Europe/Kyiv',
+      periodMonth: month,
+      siteId: scheduleSiteId,
+      orgUnitId: scheduleUnitId,
+      version: { id: initial.id, versionNo: initial.versionNo, publishedAt: initial.publishedAt },
+      rows: report,
+      totals: [...totals.values()],
+    };
+  }
   if (url.pathname.startsWith('/admin/schedules/open-slots')) {
     const [, , , , id, action] = url.pathname.split('/');
     if (method === 'GET')
@@ -521,6 +641,7 @@ export function scheduleFixture(url: URL, method: string, body: unknown): unknow
             endedAt: state === 'CLOSED' ? item.planEndAt : null,
             sessionState:
               state === 'STARTED' ? 'WORKING' : state === 'CLOSED' ? 'SHIFT_CLOSED' : null,
+            sessionId: ['STARTED', 'CLOSED'].includes(state) ? crypto.randomUUID() : null,
           };
         }),
         requests: [

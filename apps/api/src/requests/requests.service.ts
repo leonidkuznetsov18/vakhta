@@ -1,5 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
+  FULL_SCOPE,
+  employeePlaceSql,
+  placeTarget,
+  scopeCondition,
+} from '../common/access-scope.js';
+import {
   and,
   asc,
   desc,
@@ -36,6 +42,8 @@ import {
   routeFor,
   stepDeadline,
   type RequestType,
+  type AccessScope,
+  type ScopeTarget,
 } from '@vakhta/domain';
 import type {
   AssignmentInput,
@@ -383,7 +391,11 @@ export class RequestsService {
   /* Переробка (FR-TIME-06, AC-14)                                       */
   /* ------------------------------------------------------------------ */
 
-  async overtime(scope: 'pending' | 'all' = 'pending'): Promise<OvertimeView[]> {
+  async overtime(
+    scope: 'pending' | 'all' = 'pending',
+    access: AccessScope = FULL_SCOPE,
+  ): Promise<OvertimeView[]> {
+    const person = employeePlaceSql(shiftSessions.employeeId);
     const rows = await this.db
       .select({
         summary: shiftSummaries,
@@ -398,10 +410,19 @@ export class RequestsService {
         overtimeApprovals,
         eq(overtimeApprovals.shiftSessionId, shiftSummaries.shiftSessionId),
       )
+      .leftJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
       .where(
-        scope === 'pending'
-          ? and(eq(shiftSummaries.overtimePending, true), isNull(overtimeApprovals.id))
-          : eq(shiftSummaries.overtimePending, true),
+        and(
+          scope === 'pending'
+            ? and(eq(shiftSummaries.overtimePending, true), isNull(overtimeApprovals.id))
+            : eq(shiftSummaries.overtimePending, true),
+          scopeCondition(access, {
+            site: person.site,
+            unit: sql`coalesce(${shiftAssignments.orgUnitId}, ${person.unit})`,
+            team: sql`coalesce(${shiftAssignments.teamId}, ${person.team})`,
+            zone: shiftSessions.zoneId,
+          }),
+        ),
       )
       .orderBy(desc(shiftSessions.endedAt));
     return rows.map((r) => ({
@@ -479,8 +500,11 @@ export class RequestsService {
     q: RequestsQuery,
     viewer: { roles: readonly string[] },
     now: Date = new Date(),
+    access: AccessScope = FULL_SCOPE,
   ): Promise<RequestView[]> {
     const conditions = [];
+    const scoped = scopeCondition(access, employeePlaceSql(requests.employeeId));
+    if (scoped) conditions.push(scoped);
     if ((q.scope ?? 'inbox') === 'inbox') conditions.push(inArray(requests.status, [...OPEN]));
     if (q.status) conditions.push(eq(requests.status, q.status));
     if (q.type) conditions.push(eq(requests.type, q.type));
@@ -498,6 +522,40 @@ export class RequestsService {
       const step = routeFor(v.type)[v.currentStep];
       return step ? canDecideStep(step, { roles: viewer.roles }, null) : false;
     });
+  }
+
+  /** Where a request belongs (the requester's current unit), for scope checks by identifier. */
+  async requestPlace(id: string): Promise<ScopeTarget | null> {
+    const person = employeePlaceSql(requests.employeeId);
+    const [row] = await this.db
+      .select({ siteId: person.site, orgUnitId: person.unit, teamId: person.team })
+      .from(requests)
+      .where(eq(requests.id, id))
+      .limit(1);
+    return row
+      ? placeTarget(
+          row as { siteId: string | null; orgUnitId: string | null; teamId: string | null },
+        )
+      : null;
+  }
+
+  /** Where an overtime decision belongs: the shift's unit, else the employee's current unit. */
+  async sessionPlace(sessionId: string): Promise<ScopeTarget | null> {
+    const person = employeePlaceSql(shiftSessions.employeeId);
+    const [row] = await this.db
+      .select({
+        siteId: sql<
+          string | null
+        >`coalesce((select site_id from org_units where id = ${shiftAssignments.orgUnitId}), ${person.site})`,
+        orgUnitId: sql<string | null>`coalesce(${shiftAssignments.orgUnitId}, ${person.unit})`,
+        teamId: sql<string | null>`coalesce(${shiftAssignments.teamId}, ${person.team})`,
+        zoneId: shiftSessions.zoneId,
+      })
+      .from(shiftSessions)
+      .leftJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
+      .where(eq(shiftSessions.id, sessionId))
+      .limit(1);
+    return row ? placeTarget(row) : null;
   }
 
   async detail(

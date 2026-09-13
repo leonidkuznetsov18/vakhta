@@ -1114,3 +1114,41 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   coverage numbers are not fetched into the destination editor beyond the planned/free statement.
 - Lean: Proceed. Planners see evidence and workflow state where they plan, without a second
   attendance or request workflow, and cannot turn a missing scan into a verdict.
+
+## 2026-09-13 — Notes, linked records, retrospective report, print and export (#18, SC-39–43/50)
+
+- Storage (migration `0047`): `schedule_notes` (site, unit, month, optional date/zone/employee,
+  audience PLANNERS/EMPLOYEES, text bounded 1–2000 in SQL, author). `NotesService` lists, creates
+  (date inside the month) and removes with audit; `loadEmployeeNotes` feeds EMPLOYEES notes into
+  `myPlan` (unit-wide or addressed to the person), and the bot plan screen prints them as 📝 lines.
+  PLANNERS notes never reach the bot; notes carry no attachments.
+- Linked records (SC-40): the presence evidence carries `sessionId`; shift details offer "Open shift
+  record" (Live shift section) and "Open Requests"; completion logic stays with those features.
+- Retrospective (SC-41): `RetrospectiveService.view` joins the latest published version's PLANNED
+  assignments with shift sessions and closed-shift summaries: `departure` RECORDED (ended, no
+  auto-close), UNKNOWN (auto-closed) or NONE (no session); per-employee totals keep planned minutes,
+  recorded work minutes, recorded shifts, unknown departures and missing actuals apart. Export
+  writes three sheets (metadata with scope, month, site/unit ids and names, timezone, version id/no,
+  published at, generated at, label policy, row count; rows; totals) through the shared explicit
+  cell-type `worksheet` helper, so formula-looking text stays text (SC-43). Names follow the
+  existing employee-name read roles.
+- Print (SC-42): `model/print.ts` builds an escaped HTML document from the calendar view model with
+  site, unit, period, timezone, version number/status/published time and generation time; an
+  unpublished plan and unsaved local changes are marked in red; open slots and parts print too.
+  `openPrint` uses a popup and reports when the browser blocks it.
+- Panel: notes section in shift and cell details (audience and scope selectors, long text in a
+  scrollable box, removal by author or approver); Retrospective sheet with compact totals and rows
+  plus XLSX download; Print in the actions menu.
+- Verification: real-DB 1 case (planner note off the bot, employee notes in the plan and screen,
+  month check, retrospective rows RECORDED/UNKNOWN/NONE with totals, XLSX with three sheets, names
+  and metadata); panel tests (note with audience and person scope, print HTML with unpublished mark
+  and version identity, retrospective sheet totals); 116 schedule tests; typecheck, ESLint,
+  Prettier. Evidence: `records-notes.png`, `records-retrospective.png`,
+  `records-retrospective-mobile.png`, `records-print.png`.
+- Limits: the retrospective reads the latest published version of the month (earlier published
+  versions remain in history and the export names the version); print covers the visible period
+  and grouping, not a whole-month landscape layout; custom typed fields beyond the catalogued ones
+  are not added (SC-50 is met by the documented field catalog and progressive disclosure).
+- Lean: Proceed. Notes replace side chats with an audience-scoped record; the retrospective gives
+  an honest planned-versus-recorded view without inventing verdicts; print and export state their
+  identity so a paper copy cannot be mistaken for the published plan.
