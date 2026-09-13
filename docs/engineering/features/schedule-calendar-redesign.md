@@ -1010,3 +1010,37 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   preview. Breaks and relief remain #16.
 - Lean: Proceed. Exceptional hours and a zone change mid-shift are recorded in one assignment with
   the same validation and publication path, instead of second assignments or notes.
+
+## 2026-09-13 — Planned breaks, relief and workload (#16, SC-35/SC-36, D-04)
+
+- Storage (migration `0045`): `assignment_breaks` (parent assignment, `position`, local start/end,
+  optional `relief_employee_id`, unique per assignment/position, cascade with the assignment).
+  Planned breaks are planning statements; actual break events keep their own tables and owners.
+- Domain `scheduling/breaks.ts`: `resolveBreaks` places breaks inside the planned interval in order
+  (`BREAK_EMPTY`/`BREAK_BOUNDS`/`BREAK_OVERLAP`); `reliefChecks` reports `RELIEF_SELF`,
+  `RELIEF_ABSENT` (relief not planned over the whole break) and `RELIEF_BUSY` (relief on their own
+  break or relieving another overlapping break); `evaluatePlan` turns those into blocking `RELIEF`
+  reasons. `coverage` excludes a person whose break inside the requirement interval lacks valid
+  relief and reports `onBreak`. `scheduling/workload.ts` totals shifts, nights, weekends, planned
+  minutes minus breaks and break minutes per explicit cohort and period, with the cohort average
+  and each person's difference; no score or verdict.
+- API: saving validates the break list, evaluates relief with the plan, writes breaks with the
+  assignment and copies them on new and revised versions; views expose ordered `breaks` with
+  `reliefEmployeeId`. Relief must be planned in the same unit month (context intervals cover the
+  plan's own people only).
+- Panel: the editor discloses "Planned breaks" with a relief chooser limited to people planned on
+  the same date; cards and details list each break and its relief; coverage notes show "On break
+  without relief: N"; the Workload sheet (actions menu) states the cohort and period, compares
+  against the cohort average and says that recorded attendance is excluded.
+- Verification: domain 4 tests (break resolution, relief rules incl. double relief, coverage loss
+  and recovery with relief, workload totals); real-DB 1 case (bounds rejection, invalid relief
+  blocked, ordered breaks stored, copied on revise and new version); panel workspace test (break
+  with relief applied locally, invalid break refused, workload sheet totals); 111 schedule tests;
+  typecheck, ESLint, Prettier. Evidence: `breaks-week.png`, `breaks-detail.png`,
+  `breaks-editor.png`, `workload-sheet.png`, `workload-sheet-mobile.png`.
+- Limits: relief validity is evaluated against planned intervals only; a relief's own required post
+  is not checked against staffing rows (the coverage of the relief's zone already drops while they
+  relieve, which the note shows). Editing breaks replaces the assignment's list as one unit; the
+  editor shows every break before apply.
+- Lean: Proceed. Break planning and relief become explicit and checked instead of tribal knowledge;
+  workload comparison is informational and bounded, avoiding a fairness verdict nobody agreed to.

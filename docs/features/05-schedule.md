@@ -44,6 +44,13 @@ Counts describe assigned people, not required staffing or attendance.
   start and end for that day (an end time before the start belongs to the next day) and split the
   shift into ordered zone segments that must cover the whole interval without gaps or overlaps.
   The card shows the custom hours and each segment; reminders and coverage use the custom interval.
+- **Planned breaks, relief and workload:** the editor records planned breaks inside a shift, each
+  with an optional relief, another worker planned over the whole break. A break without relief
+  removes that person from zone coverage for its duration; a named relief must be planned, free and
+  never cover two breaks at once, or the plan will not save. Workload (actions menu) lists planned
+  shifts, nights, weekends, hours and breaks per worker for the visible week or the month, names the
+  cohort and shows the difference from the cohort average. Planned figures only, never a verdict;
+  recorded attendance and actual breaks stay where they are.
 - **Conflicts and candidates:** the plan is checked as you edit: overlapping shifts of one person
   in any unit, approved absences and missing required qualifications block saving and publishing;
   short rest and too many monthly hours warn or block according to the site rules; a worker's

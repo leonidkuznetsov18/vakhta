@@ -109,9 +109,9 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US3 | **Dependencies**: D-04/#12/#15 | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T037 [US3] Implement planned break/relief intervals and explicit cohort/units workload model in packages/domain/src/scheduling/ and scheduling contracts/schema (#16).
-- [ ] T038 [US3] Expose break editing and distribution without fairness verdict or actual-event changes in schedule-management/model/ and ui/ (#16).
-- [ ] T039 [US3] Test coverage loss during break, valid relief, no double relief, omitted-break preservation and reporting-period hours in domain/API/UI tests (#16).
+- [x] T037 [US3] Implement planned break/relief intervals and explicit cohort/units workload model in packages/domain/src/scheduling/ and scheduling contracts/schema (#16).
+- [x] T038 [US3] Expose break editing and distribution without fairness verdict or actual-event changes in schedule-management/model/ and ui/ (#16).
+- [x] T039 [US3] Test coverage loss during break, valid relief, no double relief, omitted-break preservation and reporting-period hours in domain/API/UI tests (#16).
 
 ## Phase 14: Operational context — #17
 

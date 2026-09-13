@@ -44,8 +44,8 @@ historical evidence and are not automatically accepted for this redesign.
 | SC-32      | #15   | T034 / T035 / T036 | A custom time retains template provenance, handles next-day end times and reaches reminders/attendance planning consistently                  | Custom local start/end stored with template provenance and instants; reminder fires at the custom start; #15 accepted |
 | SC-33      | #12   | T025 / T026 / T027 | Preferences stay distinct from approved leave; recurrence, scope and exceptions have explicit dates and timezone                              | Availability preferences with weekday/date and validity, distinct from absences; #12 accepted                         |
 | SC-34      | #17   | T040 / T041 / T042 | Only the current permitted approval step is actionable; request and all affected schedule changes remain atomic                               | Not yet verified                                                                                                      |
-| SC-35      | #16   | T037 / T038 / T039 | Comparisons state period and eligible cohort, respect agreements and do not present a fairness score as an objective verdict                  | Not yet verified                                                                                                      |
-| SC-36      | #16   | T037 / T038 / T039 | Planned relief is included in staffing calculations; planned breaks never rewrite actual break events                                         | Not yet verified                                                                                                      |
+| SC-35      | #16   | T037 / T038 / T039 | Comparisons state period and eligible cohort, respect agreements and do not present a fairness score as an objective verdict                  | Workload sheet names cohort and period, compares to the cohort average, planned only, no verdict; #16 accepted        |
+| SC-36      | #16   | T037 / T038 / T039 | Planned relief is included in staffing calculations; planned breaks never rewrite actual break events                                         | Breaks with relief evaluated in coverage and plan validation; actual break events untouched; #16 accepted             |
 | SC-37      | #15   | T034 / T035 / T036 | The full shift and each segment are identifiable; split/link previews preserve duration and explain every affected person/zone                | Ordered zone segments tile the shift; editor previews parts, card and details list them; #15 accepted                 |
 | SC-38      | #17   | T040 / T041 / T042 | Source unit and its staffing impact are visible to authorized users; both scopes and the agreed approval route are checked at commit          | Not yet verified                                                                                                      |
 | SC-39      | #18   | T043 / T044 / T045 | Notes have clear audience and visibility; long text cannot stretch the page or disclose restricted information                                | Not yet verified                                                                                                      |
@@ -80,20 +80,20 @@ historical evidence and are not automatically accepted for this redesign.
 
 ## Twelve integrated scenarios (#54)
 
-| Scenario                                      | Owner       | Evidence/status                                                          |
-| --------------------------------------------- | ----------- | ------------------------------------------------------------------------ |
-| Standard day/night creation                   | #6/#7       | Verified in redesigned preview (create Sheet, batch fill/replace, undo)  |
-| Partial required interval                     | #11/#16     | Pending                                                                  |
-| Missing/expired qualification                 | #11/#12     | Pending                                                                  |
-| Individually valid previews conflict together | #12/#14     | Pending                                                                  |
-| Concurrent replacement selection              | #12/#13/#17 | Pending                                                                  |
-| Week crosses month/year                       | #10         | Pending                                                                  |
-| Night shift and DST                           | #10/#15     | #15: overnight segments resolve to the next day; API test in Europe/Kyiv |
-| One visible linked part                       | #15         | #15: segments render inside the parent card; filters never hide a part   |
-| Filtered save / breaks omission               | #9/#14/#16  | Pending                                                                  |
-| Timeout after committed change                | #9          | Pending                                                                  |
-| Publication commits, delivery fails           | #7          | Pending                                                                  |
-| Phone/keyboard/weak network                   | #5/#6/#9    | Pending                                                                  |
+| Scenario                                      | Owner       | Evidence/status                                                                              |
+| --------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------- |
+| Standard day/night creation                   | #6/#7       | Verified in redesigned preview (create Sheet, batch fill/replace, undo)                      |
+| Partial required interval                     | #11/#16     | Pending                                                                                      |
+| Missing/expired qualification                 | #11/#12     | Pending                                                                                      |
+| Individually valid previews conflict together | #12/#14     | Pending                                                                                      |
+| Concurrent replacement selection              | #12/#13/#17 | Pending                                                                                      |
+| Week crosses month/year                       | #10         | Pending                                                                                      |
+| Night shift and DST                           | #10/#15     | #15: overnight segments resolve to the next day; API test in Europe/Kyiv                     |
+| One visible linked part                       | #15         | #15: segments render inside the parent card; filters never hide a part                       |
+| Filtered save / breaks omission               | #9/#14/#16  | #9/#14 full-month writes; #16: the editor replaces one assignment's break list shown in full |
+| Timeout after committed change                | #9          | Pending                                                                                      |
+| Publication commits, delivery fails           | #7          | Pending                                                                                      |
+| Phone/keyboard/weak network                   | #5/#6/#9    | Pending                                                                                      |
 
 ## Pilot/cutover decision
 
