@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.2.0...v1.3.0) (2026-09-13)
+
+### Features
+
+* **schedule:** export complete saved versions as xlsx ([7059fad](https://github.com/leonidkuznetsov18/vakhta/commit/7059fad3ccefd42462e35addf00468d24bd19edd)), closes [#18](https://github.com/leonidkuznetsov18/vakhta/issues/18)
+
 ## [1.2.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.1.0...v1.2.0) (2026-09-13)
 
 ### Features
