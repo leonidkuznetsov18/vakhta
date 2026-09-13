@@ -1,7 +1,11 @@
 import { templateLabel } from '../lib/template-label';
-import { assignmentInstants, monthDates, resolveSegments } from '@vakhta/domain';
+import { assignmentInstants, monthDates, resolveBreaks, resolveSegments } from '@vakhta/domain';
 import { useState } from 'react';
-import { AssignmentInput, type AssignmentSegmentInput } from '@vakhta/contracts';
+import {
+  AssignmentInput,
+  type AssignmentBreakInput,
+  type AssignmentSegmentInput,
+} from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
 import { qualifiedFor, requiredQualifications } from '@vakhta/domain';
 import { PlusIcon, XIcon } from 'lucide-react';
@@ -54,9 +58,10 @@ export function AssignmentEditor({
     customStart: original?.customStart ?? '',
     customEnd: original?.customEnd ?? '',
     segments: (original?.segments ?? []) as readonly AssignmentSegmentInput[],
+    breaks: (original?.breaks ?? []) as readonly AssignmentBreakInput[],
   });
   const template = w.templates.find((item) => item.id === draft.templateId);
-  const { custom, customStart, customEnd, segments, ...fields } = draft;
+  const { custom, customStart, customEnd, segments, breaks, ...fields } = draft;
   const candidate = AssignmentInput.safeParse({
     ...original,
     ...fields,
@@ -64,6 +69,7 @@ export function AssignmentEditor({
     customStart: custom ? customStart : undefined,
     customEnd: custom ? customEnd : undefined,
     segments: segments.length > 0 ? segments : undefined,
+    breaks: breaks.length > 0 ? breaks : undefined,
   });
   // Segments must tile the planned interval (SC-37); the server repeats this check on save.
   const tiling =
@@ -86,6 +92,42 @@ export function AssignmentEditor({
         )
       : { segments: [] };
   const segmentsInvalid = 'error' in tiling;
+  const pauses =
+    template && breaks.length > 0 && candidate.success
+      ? resolveBreaks(
+          {
+            ...assignmentInstants(
+              {
+                businessDate: draft.businessDate,
+                template,
+                customStart: candidate.data.customStart,
+                customEnd: candidate.data.customEnd,
+              },
+              w.timezone,
+            ),
+            businessDate: draft.businessDate,
+          },
+          breaks,
+          w.timezone,
+        )
+      : { breaks: [] };
+  const breaksInvalid = 'error' in pauses;
+  const setBreak = (index: number, patch: Partial<AssignmentBreakInput>) =>
+    setDraft({
+      ...draft,
+      breaks: breaks.map((pause, at) => (at === index ? { ...pause, ...patch } : pause)),
+    });
+  // Relief candidates: other people planned on the same date in the loaded plan.
+  const reliefOptions = gridToItems(w.grid)
+    .filter(
+      (item) => item.businessDate === draft.businessDate && item.employeeId !== draft.employeeId,
+    )
+    .map((item) => ({
+      value: item.employeeId,
+      label:
+        w.employees.find((employee) => employee.id === item.employeeId)?.fullName ??
+        item.employeeId,
+    }));
   const setSegment = (index: number, patch: Partial<AssignmentSegmentInput>) =>
     setDraft({
       ...draft,
@@ -153,6 +195,8 @@ export function AssignmentEditor({
   const labels = {
     unitName: (id: string) => w.units.find((unit) => unit.id === id)?.name ?? id,
     zoneName: (id: string) => w.zones.find((zone) => zone.id === id)?.name ?? id,
+    employeeName: (id: string) =>
+      w.employees.find((employee) => employee.id === id)?.fullName ?? id,
   };
   const unchanged = !!original && candidate.success && sameAssignment(original, candidate.data);
   const valid =
@@ -163,6 +207,7 @@ export function AssignmentEditor({
     missingQualifications.length === 0 &&
     !blockedByRules &&
     !segmentsInvalid &&
+    !breaksInvalid &&
     !unchanged;
   function apply() {
     if (!valid || !candidate.success || !w.writable) return;
@@ -347,6 +392,78 @@ export function AssignmentEditor({
         >
           <PlusIcon aria-hidden="true" />
           {t.addSegment}
+        </Button>
+      </section>
+      <section className="space-y-2 rounded-md border p-3" aria-label={t.breaks}>
+        <div className="flex items-center gap-1">
+          <h4 className="text-sm font-semibold">{t.breaks}</h4>
+          <InfoTip text={t.breaksHint} />
+        </div>
+        {breaks.map((pause, index) => (
+          <div key={index} className="grid grid-cols-[1fr_auto] items-end gap-2">
+            <div className="grid gap-2 @min-[26rem]:grid-cols-3">
+              <FormField label={t.customStart}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    type="time"
+                    step={60}
+                    value={pause.localStart}
+                    disabled={!w.writable}
+                    onChange={(event) => setBreak(index, { localStart: event.target.value })}
+                  />
+                )}
+              </FormField>
+              <FormField label={t.customEnd}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    type="time"
+                    step={60}
+                    value={pause.localEnd}
+                    disabled={!w.writable}
+                    onChange={(event) => setBreak(index, { localEnd: event.target.value })}
+                  />
+                )}
+              </FormField>
+              <SelectField
+                label={t.relief}
+                value={pause.reliefEmployeeId ?? ''}
+                disabled={!w.writable}
+                onChange={(reliefEmployeeId) =>
+                  setBreak(index, { reliefEmployeeId: reliefEmployeeId || null })
+                }
+                options={[{ value: '', label: t.noRelief }, ...reliefOptions]}
+              />
+            </div>
+            <IconButton
+              icon={XIcon}
+              label={t.removeBreak}
+              tooltip={t.removeBreak}
+              variant="ghost"
+              size="icon"
+              disabled={!w.writable}
+              onClick={() => setDraft({ ...draft, breaks: breaks.filter((_, at) => at !== index) })}
+            />
+          </div>
+        ))}
+        {breaksInvalid && <Feedback error={t.breakInvalid} />}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!w.writable || breaks.length >= 8}
+          onClick={() => {
+            const last = breaks.at(-1);
+            const start = last?.localEnd ?? (custom ? customStart : template?.localStart) ?? '';
+            setDraft({
+              ...draft,
+              breaks: [...breaks, { localStart: start, localEnd: start, reliefEmployeeId: null }],
+            });
+          }}
+        >
+          <PlusIcon aria-hidden="true" />
+          {t.addBreak}
         </Button>
       </section>
       {occupied && <Feedback error={t.occupied} />}

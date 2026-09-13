@@ -17,6 +17,7 @@ import { currentLocale } from '@/i18n';
 import { staffingApi } from '../api/staffing-api';
 import { scheduleKeys } from './ownership';
 import { gridToItems, type GridState } from './grid';
+import { plannedBreaks } from './breaks';
 
 export const contextKey = (access: string, siteId: string, orgUnitId: string, month: string) =>
   [...scheduleKeys.all(access), 'context', siteId, orgUnitId, month] as const;
@@ -84,6 +85,7 @@ export function planIssues(input: {
         templateId: item.templateId,
         zoneId: item.zoneId,
         orgUnitId: input.orgUnitId,
+        breaks: plannedBreaks(item, template, input.timezone),
       },
     ];
   });
@@ -120,6 +122,7 @@ export function reasonText(
   labels: {
     readonly unitName?: (id: string) => string;
     readonly zoneName?: (id: string) => string;
+    readonly employeeName?: (id: string) => string;
   },
 ): string {
   const t = messages(currentLocale()).scheduleWorkspace;
@@ -167,5 +170,19 @@ export function reasonText(
             ? labels.zoneName(detail['zoneId'])
             : '',
       });
+    case 'RELIEF': {
+      const problem =
+        detail['problem'] === 'RELIEF_SELF'
+          ? t.reliefSelf
+          : detail['problem'] === 'RELIEF_BUSY'
+            ? t.reliefBusy
+            : t.reliefAbsent;
+      const id = String(detail['reliefEmployeeId'] ?? '');
+      return format(t.reasonRelief, {
+        position: String(Number(detail['position'] ?? 0) + 1),
+        name: labels.employeeName ? labels.employeeName(id) : id,
+        problem,
+      });
+    }
   }
 }

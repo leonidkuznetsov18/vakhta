@@ -316,6 +316,13 @@
       "when": 1789286878533,
       "tag": "0044_assignment_custom_time_segments",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1789288182422,
+      "tag": "0045_assignment_breaks",
+      "breakpoints": true
     }
   ]
 }

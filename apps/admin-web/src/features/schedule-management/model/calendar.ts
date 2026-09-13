@@ -1,5 +1,5 @@
 import { assignmentInstants, type EligibilityReason } from '@vakhta/domain';
-import { messages, type Locale } from '@vakhta/i18n';
+import { format, messages, type Locale } from '@vakhta/i18n';
 import type {
   AssignmentInput,
   AssignmentView,
@@ -139,10 +139,25 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
         : template
           ? assignmentInstants({ ...item, template }, input.timezone)
           : null;
-    const parts = (item.segments ?? []).map((segment, index) => ({
-      id: `${assignmentKey(item)}:${index}`,
-      label: `${segment.localStart}–${segment.localEnd} · ${zones.get(segment.zoneId)?.code ?? zones.get(segment.zoneId)?.name ?? t.noZone}`,
-    }));
+    const parts = [
+      ...(item.segments ?? []).map((segment, index) => ({
+        id: `${assignmentKey(item)}:${index}`,
+        label: `${segment.localStart}–${segment.localEnd} · ${zones.get(segment.zoneId)?.code ?? zones.get(segment.zoneId)?.name ?? t.noZone}`,
+      })),
+      ...(item.breaks ?? []).map((pause, index) => ({
+        id: `${assignmentKey(item)}:break:${index}`,
+        label: [
+          format(t.breakPart, { start: pause.localStart, end: pause.localEnd }),
+          pause.reliefEmployeeId
+            ? format(t.reliefBy, {
+                name: employeeMap.get(pause.reliefEmployeeId)?.fullName ?? t.unknownEmployee,
+              })
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      })),
+    ];
     const time = plan
       ? `${timeFormat.format(plan.planStartAt)}–${siteToday(input.timezone, plan.planEndAt) !== item.businessDate ? `${endDateFormat.format(plan.planEndAt)} ` : ''}${timeFormat.format(plan.planEndAt)}`
       : t.unknownTemplate;
@@ -236,13 +251,15 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
       });
     }
     const short = rows.some((row) => row.missing > 0);
+    const onBreak = Math.max(...rows.map((row) => row.onBreak));
     return {
-      text: [...byTemplate]
-        .map(
+      text: [
+        ...[...byTemplate].map(
           ([templateId, value]) =>
             `${templateLabel(templateId)} ${value.eligible}/${value.required}`,
-        )
-        .join(' · '),
+        ),
+        ...(onBreak > 0 ? [format(t.onBreakShort, { count: onBreak })] : []),
+      ].join(' · '),
       tone: short ? 'danger' : 'ok',
     };
   };

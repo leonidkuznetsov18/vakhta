@@ -17,6 +17,7 @@ import type {
 } from '@vakhta/contracts';
 import { staffingApi } from '../api/staffing-api';
 import { scheduleKeys } from './ownership';
+import { plannedBreaks } from './breaks';
 import { gridToItems, type GridState } from './grid';
 
 export const staffingKey = (access: string, siteId: string, orgUnitId: string) =>
@@ -135,6 +136,7 @@ export function staffingCoverage(input: {
         templateId: item.templateId,
         zoneId: item.zoneId,
         ...(plan ? { startMs: plan.planStartAt.getTime(), endMs: plan.planEndAt.getTime() } : {}),
+        breaks: plannedBreaks(item, template, input.timezone),
       };
     });
   return {

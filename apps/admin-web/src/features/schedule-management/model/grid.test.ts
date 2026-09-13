@@ -39,6 +39,7 @@ function assignment(over: Partial<ScheduleVersionDetail['assignments'][number]>)
     customStart: null,
     customEnd: null,
     segments: [],
+    breaks: [],
     ...over,
   };
 }

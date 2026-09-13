@@ -104,6 +104,19 @@ if (customShift && scheduleTemplates[0]) {
     ],
   });
 }
+// A relieved and an unrelieved planned break on the 3rd (SC-36).
+const withBreaks = initialItems.filter((item) => item.businessDate === `${month}-03`);
+if (withBreaks[0] && withBreaks[1]) {
+  Object.assign(withBreaks[0], {
+    breaks: [
+      { localStart: '00:00', localEnd: '00:30', reliefEmployeeId: withBreaks[1].employeeId },
+    ],
+  });
+}
+const unrelieved = initialItems.find(
+  (item) => item.businessDate === `${month}-04` && item.zoneId === scheduleZoneId,
+);
+if (unrelieved) Object.assign(unrelieved, { breaks: [{ localStart: '03:00', localEnd: '03:30' }] });
 initial.assignmentsCount = initialItems.length;
 assignments.set(initial.id, initialItems);
 // The next month is published too, so a week crossing the boundary shows both plans.
@@ -156,6 +169,13 @@ function detail(version: ScheduleVersionView): ScheduleVersionDetail {
           id: crypto.randomUUID(),
           position,
           ...segment,
+        })),
+        breaks: (item.breaks ?? []).map((pause, position) => ({
+          id: crypto.randomUUID(),
+          position,
+          localStart: pause.localStart,
+          localEnd: pause.localEnd,
+          reliefEmployeeId: pause.reliefEmployeeId ?? null,
         })),
         scheduleVersionId: version.id,
         templateCode: template?.code ?? 'DAY',

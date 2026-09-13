@@ -1855,6 +1855,94 @@ describe('scheduling: версії, валідація, публікація, о
     });
   });
 
+  describe('planned breaks and relief (#16, SC-36)', () => {
+    it('stores ordered breaks with valid relief, blocks invalid relief and copies breaks on revision', async () => {
+      const v1 = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      const ivanovDay = {
+        employeeId: ivanov,
+        templateId: dayId,
+        businessDate: day(1),
+        zoneId,
+        kind: 'REGULAR' as const,
+      };
+      const petrovaDay = { ...ivanovDay, employeeId: petrova };
+      await expect(
+        schedule.putAssignments(
+          v1.id,
+          { items: [{ ...ivanovDay, breaks: [{ localStart: '19:30', localEnd: '20:30' }] }] },
+          PLANNER,
+        ),
+      ).rejects.toMatchObject({ code: 'BREAK_BOUNDS' });
+      await expect(
+        schedule.putAssignments(
+          v1.id,
+          {
+            items: [
+              {
+                ...ivanovDay,
+                breaks: [{ localStart: '12:00', localEnd: '12:30', reliefEmployeeId: petrova }],
+              },
+            ],
+          },
+          PLANNER,
+        ),
+      ).rejects.toMatchObject({ code: 'SCHEDULE_ELIGIBILITY' });
+      const saved = await schedule.putAssignments(
+        v1.id,
+        {
+          items: [
+            {
+              ...ivanovDay,
+              breaks: [
+                { localStart: '12:00', localEnd: '12:30', reliefEmployeeId: petrova },
+                { localStart: '16:00', localEnd: '16:15' },
+              ],
+            },
+            petrovaDay,
+          ],
+        },
+        PLANNER,
+      );
+      const stored = saved.assignments.find((a) => a.employeeId === ivanov);
+      expect(
+        stored!.breaks.map((b) => [b.position, b.localStart, b.localEnd, b.reliefEmployeeId]),
+      ).toEqual([
+        [0, '12:00', '12:30', petrova],
+        [1, '16:00', '16:15', null],
+      ]);
+      await schedule.submit(v1.id, PLANNER);
+      await schedule.publish(v1.id, {}, HEAD);
+      const revised = await schedule.revise(
+        v1.id,
+        {
+          items: [
+            {
+              ...ivanovDay,
+              breaks: [{ localStart: '12:00', localEnd: '12:30', reliefEmployeeId: petrova }],
+            },
+            petrovaDay,
+          ],
+        },
+        HEAD,
+      );
+      const copy = (await schedule.detail(revised.id)).assignments.find(
+        (a) => a.employeeId === ivanov,
+      );
+      expect(copy!.breaks).toHaveLength(1);
+      const v3 = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      const inherited = (await schedule.detail(v3.id)).assignments.find(
+        (a) => a.employeeId === ivanov,
+      );
+      expect(inherited!.breaks.map((b) => b.reliefEmployeeId)).toEqual([petrova]);
+    });
+  });
+
   describe('master authority (D-01, #8)', () => {
     async function commandsFor(
       ...grants: { role: string; scopeType: string; scopeId: string | null }[]

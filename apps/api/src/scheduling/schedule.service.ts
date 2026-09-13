@@ -24,6 +24,7 @@ import {
   employeeQualifications,
   zoneStaffingRequirements,
   assignmentSegments,
+  assignmentBreaks,
 } from '@vakhta/db';
 import {
   buildMonthPlan,
@@ -42,6 +43,7 @@ import {
   evaluatePlan,
   assignmentInstants,
   resolveSegments,
+  resolveBreaks,
 } from '@vakhta/domain';
 import type {
   AcknowledgementStatusView,
@@ -113,12 +115,14 @@ type VersionRow = typeof scheduleVersions.$inferSelect;
 type AssignmentRow = typeof shiftAssignments.$inferSelect;
 
 type SegmentRow = typeof assignmentSegments.$inferSelect;
+type BreakRow = typeof assignmentBreaks.$inferSelect;
 interface AssignmentWithTemplate {
   readonly a: AssignmentRow;
   readonly templateCode: string;
   readonly isNight: boolean;
   readonly acknowledgedAt: Date | null;
   readonly segments: readonly SegmentRow[];
+  readonly breaks: readonly BreakRow[];
 }
 
 export interface NextShift {
@@ -370,9 +374,28 @@ export class ScheduleService {
               rows.map((a) => a.id),
             ),
           );
+        const byOld = new Map(rows.map((a) => [a.id, `${a.employeeId}:${a.businessDate}`]));
+        const byKey = new Map(copies.map((c) => [`${c.employeeId}:${c.businessDate}`, c.id]));
+        const sourceBreaks = await tx
+          .select()
+          .from(assignmentBreaks)
+          .where(
+            inArray(
+              assignmentBreaks.assignmentId,
+              rows.map((a) => a.id),
+            ),
+          );
+        if (sourceBreaks.length > 0)
+          await tx.insert(assignmentBreaks).values(
+            sourceBreaks.map((pause) => ({
+              assignmentId: byKey.get(byOld.get(pause.assignmentId) ?? '') as string,
+              position: pause.position,
+              localStart: pause.localStart,
+              localEnd: pause.localEnd,
+              reliefEmployeeId: pause.reliefEmployeeId,
+            })),
+          );
         if (sourceSegments.length > 0) {
-          const byOld = new Map(rows.map((a) => [a.id, `${a.employeeId}:${a.businessDate}`]));
-          const byKey = new Map(copies.map((c) => [`${c.employeeId}:${c.businessDate}`, c.id]));
           await tx.insert(assignmentSegments).values(
             sourceSegments.map((segment) => ({
               assignmentId: byKey.get(byOld.get(segment.assignmentId) ?? '') as string,
@@ -753,6 +776,17 @@ export class ScheduleService {
           422,
           `Segment ${resolved.position + 1} of ${item.employeeId} on ${item.businessDate} does not tile the shift`,
         );
+      const pauses = resolveBreaks(
+        { ...plan, businessDate: item.businessDate },
+        item.breaks ?? [],
+        site.timezone,
+      );
+      if ('error' in pauses)
+        throw new DomainError(
+          pauses.error,
+          422,
+          `Break ${pauses.position + 1} of ${item.employeeId} on ${item.businessDate} lies outside the shift or overlaps`,
+        );
       return {
         scheduleVersionId: version.id,
         employeeId: item.employeeId,
@@ -768,6 +802,7 @@ export class ScheduleService {
         customStart: item.customStart ?? null,
         customEnd: item.customEnd ?? null,
         segments: resolved.segments,
+        breaks: pauses.breaks,
       };
     });
 
@@ -791,6 +826,11 @@ export class ScheduleService {
           templateId: value.templateId,
           zoneId: value.zoneId,
           orgUnitId: version.orgUnitId,
+          breaks: value.breaks.map((pause) => ({
+            startMs: pause.startAt.getTime(),
+            endMs: pause.endAt.getTime(),
+            reliefEmployeeId: pause.reliefEmployeeId ?? null,
+          })),
         })),
         context,
         absences: await loadAbsences(tx, { employeeIds, from: range.from, to: range.to }),
@@ -814,7 +854,7 @@ export class ScheduleService {
     if (values.length > 0) {
       const inserted = await tx
         .insert(shiftAssignments)
-        .values(values.map(({ segments: _segments, ...value }) => value))
+        .values(values.map(({ segments: _segments, breaks: _breaks, ...value }) => value))
         .returning({
           id: shiftAssignments.id,
           employeeId: shiftAssignments.employeeId,
@@ -831,6 +871,16 @@ export class ScheduleService {
         })),
       );
       if (segmentRows.length > 0) await tx.insert(assignmentSegments).values(segmentRows);
+      const breakRows = values.flatMap((value) =>
+        value.breaks.map((pause) => ({
+          assignmentId: ids.get(`${value.employeeId}:${value.businessDate}`) as string,
+          position: pause.position,
+          localStart: pause.localStart,
+          localEnd: pause.localEnd,
+          reliefEmployeeId: pause.reliefEmployeeId ?? null,
+        })),
+      );
+      if (breakRows.length > 0) await tx.insert(assignmentBreaks).values(breakRows);
     }
     await tx
       .update(scheduleVersions)
@@ -1620,13 +1670,32 @@ export class ScheduleService {
         ),
       )
       .orderBy(asc(assignmentSegments.assignmentId), asc(assignmentSegments.position));
-    const byAssignment = new Map<string, SegmentRow[]>();
-    for (const segment of segments) {
-      const list = byAssignment.get(segment.assignmentId) ?? [];
-      list.push(segment);
-      byAssignment.set(segment.assignmentId, list);
-    }
-    return rows.map((row) => ({ ...row, segments: byAssignment.get(row.a.id) ?? [] }));
+    const breaks = await tx
+      .select()
+      .from(assignmentBreaks)
+      .where(
+        inArray(
+          assignmentBreaks.assignmentId,
+          rows.map((row) => row.a.id),
+        ),
+      )
+      .orderBy(asc(assignmentBreaks.assignmentId), asc(assignmentBreaks.position));
+    const group = <T extends { assignmentId: string }>(items: readonly T[]) => {
+      const byAssignment = new Map<string, T[]>();
+      for (const item of items) {
+        const list = byAssignment.get(item.assignmentId) ?? [];
+        list.push(item);
+        byAssignment.set(item.assignmentId, list);
+      }
+      return byAssignment;
+    };
+    const segmentsBy = group(segments);
+    const breaksBy = group(breaks);
+    return rows.map((row) => ({
+      ...row,
+      segments: segmentsBy.get(row.a.id) ?? [],
+      breaks: breaksBy.get(row.a.id) ?? [],
+    }));
   }
 
   /** Контекст валідації: опубліковані зміни тих самих працівників поза цією версією і її ключем. */
@@ -1707,6 +1776,13 @@ export class ScheduleService {
         zoneId: segment.zoneId,
         localStart: segment.localStart,
         localEnd: segment.localEnd,
+      })),
+      breaks: x.breaks.map((pause) => ({
+        id: pause.id,
+        position: pause.position,
+        localStart: pause.localStart,
+        localEnd: pause.localEnd,
+        reliefEmployeeId: pause.reliefEmployeeId,
       })),
     };
   }

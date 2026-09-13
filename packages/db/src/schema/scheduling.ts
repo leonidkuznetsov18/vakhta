@@ -325,3 +325,26 @@ export const assignmentSegments = pgTable(
     check('assignment_segments_position_nonnegative', sql`${t.position} >= 0`),
   ],
 );
+
+/**
+ * Planned breaks of one assignment (SC-36, D-04): ordered intervals inside the planned shift, each
+ * optionally relieved by another planned worker. Planned breaks never touch actual break events.
+ */
+export const assignmentBreaks = pgTable(
+  'assignment_breaks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    assignmentId: uuid('assignment_id')
+      .notNull()
+      .references(() => shiftAssignments.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+    localStart: text('local_start').notNull(),
+    localEnd: text('local_end').notNull(),
+    reliefEmployeeId: uuid('relief_employee_id').references(() => employees.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('assignment_breaks_position_uq').on(t.assignmentId, t.position),
+    check('assignment_breaks_position_nonnegative', sql`${t.position} >= 0`),
+  ],
+);

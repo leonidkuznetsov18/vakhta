@@ -193,6 +193,7 @@ export const EligibilityReasonView = z.object({
     'ABSENCE_PENDING',
     'UNAVAILABLE',
     'QUALIFICATION',
+    'RELIEF',
   ]),
   severity: EligibilitySeverity,
   employeeId: Uuid,

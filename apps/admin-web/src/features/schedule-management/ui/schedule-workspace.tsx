@@ -9,6 +9,7 @@ import {
   XIcon,
   UsersIcon,
   CopyIcon,
+  BarChart3Icon,
 } from 'lucide-react';
 import { currentLocale } from '@/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -46,6 +47,7 @@ import { PublicationReview } from './publication-review';
 import { ScheduleToolbar } from './schedule-toolbar';
 import { ScheduleExport } from './schedule-export';
 import { StaffingSheet } from './staffing-sheet';
+import { WorkloadSheet } from './workload-sheet';
 import { CopyPeriodDialog } from './copy-period';
 
 const t = messages(currentLocale()).scheduleWorkspace;
@@ -159,6 +161,8 @@ function WorkspaceView({
   const [batch, setBatch] = useState<{ zoneId: string; date: string } | null>(null);
   const [review, setReview] = useState<{ grid: GridState; versionId: string } | null>(null);
   const [staffingOpen, setStaffingOpen] = useState(false);
+  const [workloadOpen, setWorkloadOpen] = useState(false);
+  const [workloadTrigger, setWorkloadTrigger] = useState<HTMLElement | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
   const [staffingTrigger, setStaffingTrigger] = useState<HTMLElement | null>(null);
   const { confirm, dialog } = useConfirm();
@@ -303,6 +307,17 @@ function WorkspaceView({
               >
                 <UsersIcon aria-hidden="true" />
                 {t.staffing}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  setWorkloadTrigger(
+                    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+                  );
+                  setWorkloadOpen(true);
+                }}
+              >
+                <BarChart3Icon aria-hidden="true" />
+                {t.workload}
               </DropdownMenuItem>
               {w.hasDraft && (
                 <DropdownMenuItem
@@ -487,6 +502,15 @@ function WorkspaceView({
           if (staffingTrigger?.isConnected) staffingTrigger.focus();
         }}
         date={date}
+      />
+      <WorkloadSheet
+        workspace={w}
+        open={workloadOpen}
+        onClose={() => setWorkloadOpen(false)}
+        onRestoreFocus={() => {
+          if (workloadTrigger?.isConnected) workloadTrigger.focus();
+        }}
+        weekDates={calendarWeek(date)}
       />
       {copyOpen && (
         <CopyPeriodDialog

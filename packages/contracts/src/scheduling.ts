@@ -54,6 +54,14 @@ export const AssignmentSegmentInput = z.object({
 });
 export type AssignmentSegmentInput = z.infer<typeof AssignmentSegmentInput>;
 
+/** One planned break inside a shift (SC-36), optionally relieved by another planned worker. */
+export const AssignmentBreakInput = z.object({
+  localStart: LocalTime,
+  localEnd: LocalTime,
+  reliefEmployeeId: Uuid.nullable().optional(),
+});
+export type AssignmentBreakInput = z.infer<typeof AssignmentBreakInput>;
+
 export const AssignmentInput = z
   .object({
     employeeId: Uuid,
@@ -67,6 +75,7 @@ export const AssignmentInput = z
     customStart: LocalTime.optional(),
     customEnd: LocalTime.optional(),
     segments: z.array(AssignmentSegmentInput).max(8).optional(),
+    breaks: z.array(AssignmentBreakInput).max(8).optional(),
   })
   .refine((input) => (input.customStart === undefined) === (input.customEnd === undefined), {
     path: ['customEnd'],
@@ -82,6 +91,15 @@ export const AssignmentSegmentView = z.object({
   localEnd: LocalTime,
 });
 export type AssignmentSegmentView = z.infer<typeof AssignmentSegmentView>;
+
+export const AssignmentBreakView = z.object({
+  id: Uuid,
+  position: z.number().int().nonnegative(),
+  localStart: LocalTime,
+  localEnd: LocalTime,
+  reliefEmployeeId: Uuid.nullable(),
+});
+export type AssignmentBreakView = z.infer<typeof AssignmentBreakView>;
 
 /** Required at public mutation boundaries; domain-owned workflows use their owning transaction. */
 export const ScheduleRevisionPrecondition = z.object({
@@ -153,6 +171,7 @@ export const AssignmentView = z.object({
   customStart: LocalTime.nullable().default(null),
   customEnd: LocalTime.nullable().default(null),
   segments: z.array(AssignmentSegmentView).default([]),
+  breaks: z.array(AssignmentBreakView).default([]),
 });
 export type AssignmentView = z.infer<typeof AssignmentView>;
 

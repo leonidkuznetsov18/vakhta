@@ -178,6 +178,7 @@ describe('calendar projections', () => {
           customStart: null,
           customEnd: null,
           segments: [],
+          breaks: [],
         },
       ],
     });
@@ -313,6 +314,7 @@ describe('staffing coverage projection', () => {
             eligible: 1,
             missing: 1,
             status: 'SHORT',
+            onBreak: 0,
           },
         ],
       },

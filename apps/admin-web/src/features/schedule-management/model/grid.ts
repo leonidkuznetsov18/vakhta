@@ -38,6 +38,15 @@ export function gridFromDetail(detail: ScheduleVersionDetail): GridState {
               })),
             }
           : {}),
+        ...(a.breaks.length > 0
+          ? {
+              breaks: a.breaks.map((pause) => ({
+                localStart: pause.localStart,
+                localEnd: pause.localEnd,
+                reliefEmployeeId: pause.reliefEmployeeId,
+              })),
+            }
+          : {}),
       })),
   );
 }
@@ -178,6 +187,11 @@ function fingerprint(item: AssignmentInput | AssignmentView): string {
     item.customStart ?? '',
     item.customEnd ?? '',
     (item.segments ?? []).map((segment) => [segment.zoneId, segment.localStart, segment.localEnd]),
+    (item.breaks ?? []).map((pause) => [
+      pause.localStart,
+      pause.localEnd,
+      pause.reliefEmployeeId ?? '',
+    ]),
   ]);
 }
 export function sameAssignment(

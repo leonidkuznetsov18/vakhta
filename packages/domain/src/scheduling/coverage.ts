@@ -1,3 +1,5 @@
+import { coveredBreaks, type PlannedBreak } from './breaks.js';
+
 /**
  * Staffing coverage (SC-01, SC-04, D-02/D-03): effective-dated requirements per zone and shift
  * template, qualification holdings with validity, and a per-zone/date/template comparison of
@@ -32,6 +34,8 @@ export interface CoveredAssignment {
   /** Planned interval in epoch milliseconds; a shorter custom interval covers less. */
   readonly startMs?: number | undefined;
   readonly endMs?: number | undefined;
+  /** Planned breaks; a break without valid relief inside the requirement interval removes cover. */
+  readonly breaks?: readonly PlannedBreak[] | undefined;
 }
 
 export interface RequirementInterval {
@@ -55,6 +59,8 @@ export interface CoverageCell {
   readonly eligible: number;
   readonly missing: number;
   readonly status: CoverageStatus;
+  /** Assigned people not counted because a planned break inside the interval has no valid relief. */
+  readonly onBreak: number;
 }
 
 function activeOn(from: string, to: string | null, date: string): boolean {
@@ -156,21 +162,32 @@ export function coverage(input: {
         const rows = effectiveRequirements(input.rules, zoneId, templateId, businessDate);
         if (rows.length === 0) continue;
         const required = input.interval?.(zoneId, templateId, businessDate) ?? null;
+        const planned = input.assignments.filter(
+          (item) =>
+            item.zoneId === zoneId &&
+            item.templateId === templateId &&
+            item.businessDate === businessDate &&
+            (required === null ||
+              item.startMs === undefined ||
+              item.endMs === undefined ||
+              (item.startMs <= required.startMs && item.endMs >= required.endMs)),
+        );
+        const onBreak = new Set<string>();
+        for (const item of planned) {
+          if (!item.breaks || item.breaks.length === 0) continue;
+          if (item.startMs === undefined || item.endMs === undefined) continue;
+          const owner = { ...item, startMs: item.startMs, endMs: item.endMs };
+          const covered = coveredBreaks(owner, owners(input.assignments));
+          const uncovered = item.breaks.some(
+            (pause, position) =>
+              !covered[position] &&
+              (required === null ||
+                (pause.startMs < required.endMs && pause.endMs > required.startMs)),
+          );
+          if (uncovered) onBreak.add(item.employeeId);
+        }
         const people = [
-          ...new Set(
-            input.assignments
-              .filter(
-                (item) =>
-                  item.zoneId === zoneId &&
-                  item.templateId === templateId &&
-                  item.businessDate === businessDate &&
-                  (required === null ||
-                    item.startMs === undefined ||
-                    item.endMs === undefined ||
-                    (item.startMs <= required.startMs && item.endMs >= required.endMs)),
-              )
-              .map((item) => item.employeeId),
-          ),
+          ...new Set(planned.map((item) => item.employeeId).filter((id) => !onBreak.has(id))),
         ];
         const taken = new Set<string>();
         for (const rule of rows) {
@@ -193,6 +210,7 @@ export function coverage(input: {
             eligible: counted.length,
             missing,
             status: missing > 0 ? 'SHORT' : 'COVERED',
+            onBreak: onBreak.size,
           });
         }
       }
@@ -209,5 +227,13 @@ export function zoneHasRequirement(
     (rule) =>
       rule.zoneId === zoneId &&
       dates.some((date) => activeOn(rule.effectiveFrom, rule.effectiveTo, date)),
+  );
+}
+
+function owners(assignments: readonly CoveredAssignment[]) {
+  return assignments.flatMap((item) =>
+    item.startMs === undefined || item.endMs === undefined
+      ? []
+      : [{ ...item, startMs: item.startMs, endMs: item.endMs }],
   );
 }

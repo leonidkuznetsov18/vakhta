@@ -176,6 +176,7 @@ function detail(status: string) {
         customStart: null,
         customEnd: null,
         segments: [],
+        breaks: [],
       },
     ],
   };
@@ -425,6 +426,13 @@ function mockApi(
               id: crypto.randomUUID(),
               position,
               ...segment,
+            })),
+            breaks: (item.breaks ?? []).map((pause, position) => ({
+              id: crypto.randomUUID(),
+              position,
+              localStart: pause.localStart,
+              localEnd: pause.localEnd,
+              reliefEmployeeId: pause.reliefEmployeeId ?? null,
             })),
             planStartAt: `${item.businessDate}T05:00:00.000Z`,
             planEndAt: `${item.businessDate}T17:00:00.000Z`,
@@ -1955,6 +1963,67 @@ it('edits custom hours and zone segments locally and refuses a tiling that leave
   expect(screen.getByRole('button', { name: `${s.save} (1)` }).hasAttribute('disabled')).toBe(
     false,
   );
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('plans a break with relief from the same date, refuses one outside the shift and shows workload', async () => {
+  freshState();
+  mockApi({
+    status: 'DRAFT',
+    savedDetail: ScheduleVersionDetail.parse({
+      ...detail('DRAFT'),
+      assignments: [
+        detail('DRAFT').assignments[0]!,
+        {
+          ...detail('DRAFT').assignments[0]!,
+          id: 'a0000000-0000-4000-8000-0000000000aa',
+          employeeId: EMP2,
+        },
+      ],
+    }),
+  });
+  admin();
+  await screen.findByText(t.draftState);
+  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+    fireEvent.click(screen.getByRole('button', { name: t.previous }));
+  }
+  fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 05/ }));
+  const sheet = await screen.findByRole('dialog');
+  fireEvent.click(within(sheet).getByRole('button', { name: t.editAssignment }));
+  const apply = () => within(sheet).getByRole('button', { name: t.apply });
+  fireEvent.click(within(sheet).getByRole('button', { name: t.addBreak }));
+  const pauses = within(sheet).getByRole('region', { name: t.breaks });
+  // A zero-length break is a whole day for the instant planner and leaves the shift.
+  expect(within(pauses).getByText(t.breakInvalid)).toBeTruthy();
+  expect(apply().hasAttribute('disabled')).toBe(true);
+  fireEvent.change(within(pauses).getByLabelText(t.customEnd), { target: { value: '20:30' } });
+  expect(within(pauses).queryByText(t.breakInvalid)).toBeNull();
+  fireEvent.change(within(pauses).getByLabelText(t.relief), { target: { value: EMP2 } });
+  expect(apply().hasAttribute('disabled')).toBe(false);
+  fireEvent.click(apply());
+  await waitFor(() =>
+    expect(gridToItems(useScheduleDrafts.getState().drafts[DRAFT_KEY] ?? { rows: [] })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          employeeId: EMP,
+          breaks: [{ localStart: '20:00', localEnd: '20:30', reliefEmployeeId: EMP2 }],
+        }),
+      ]),
+    ),
+  );
+  const card = await screen.findByRole('button', { name: /Кузнецов Леонид, 05/ });
+  expect(card.textContent).toContain(
+    t.breakPart.replace('{start}', '20:00').replace('{end}', '20:30'),
+  );
+  expect(card.textContent).toContain('Сидоров');
+  fireEvent.click(screen.getByRole('menuitem', { name: t.workload }));
+  const workload = await screen.findByRole('dialog', { name: t.workload });
+  fireEvent.change(within(workload).getByLabelText(t.period), { target: { value: 'month' } });
+  const row = within(workload).getByRole('row', { name: /Кузнецов Леонид/ });
+  expect(row.textContent).toContain('11 ч 30 мин');
+  expect(row.textContent).toContain('30 мин');
+  expect(within(workload).getByText(t.workloadPlannedOnly)).toBeTruthy();
   cleanup();
   vi.unstubAllGlobals();
 });

@@ -1,3 +1,4 @@
+import { reliefChecks, type PlannedBreak } from './breaks.js';
 import {
   qualifiedFor,
   type QualificationHolding,
@@ -19,7 +20,8 @@ export type EligibilityCode =
   | 'ABSENCE'
   | 'ABSENCE_PENDING'
   | 'UNAVAILABLE'
-  | 'QUALIFICATION';
+  | 'QUALIFICATION'
+  | 'RELIEF';
 export type EligibilitySeverity = 'BLOCK' | 'WARN';
 
 export interface SchedulingRules {
@@ -45,6 +47,8 @@ export interface PlannedInterval {
   readonly zoneId?: string | null | undefined;
   /** Where the interval lives; a different unit is reported in the reason. */
   readonly orgUnitId?: string | undefined;
+  /** Planned breaks with their relief (SC-36); relief validity is part of the evaluation. */
+  readonly breaks?: readonly PlannedBreak[] | undefined;
 }
 
 export interface AbsenceWindow {
@@ -236,6 +240,19 @@ export function evaluatePlan(input: EvaluationInput): EligibilityReason[] {
         });
     }
   }
+  // Relief for planned breaks (SC-36): a named relief must be planned, free and not doubled.
+  for (const problem of reliefChecks(input.proposed, input.context))
+    push({
+      code: 'RELIEF',
+      severity: 'BLOCK',
+      employeeId: problem.employeeId,
+      businessDate: problem.businessDate,
+      detail: {
+        position: problem.position,
+        reliefEmployeeId: problem.reliefEmployeeId,
+        problem: problem.problem,
+      },
+    });
   return reasons;
 }
 
