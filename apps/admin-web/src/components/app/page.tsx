@@ -142,8 +142,10 @@ export const ROW_DANGER =
   'bg-red-50/60 data-[state=selected]:bg-red-50/60 dark:bg-red-950/30 dark:data-[state=selected]:bg-red-950/30';
 
 export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+/** Pill-only tone for states that must not be confused with amber cards (owner decision 2026-09-13). */
+export type PillTone = Tone | 'accent' | 'caution' | 'teal';
 
-const TONE: Record<Tone, string> = {
+const TONE: Record<PillTone, string> = {
   neutral: 'border-border bg-muted text-foreground',
   // The palette is white, black, red, amber and emerald: red for what is wrong, amber for what
   // wants attention, emerald for what is well. Anything merely informational stays neutral.
@@ -154,6 +156,13 @@ const TONE: Record<Tone, string> = {
     'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200',
   danger:
     'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200',
+  // Owner decision 2026-09-13: a distinct hue for states that must not be confused with the amber
+  // day-shift cards (unpublished changes, rule warnings). Always paired with an icon or text.
+  accent:
+    'border-violet-300 bg-violet-50 text-violet-900 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200',
+  caution:
+    'border-orange-300 bg-orange-100 text-orange-900 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-200',
+  teal: 'border-teal-300 bg-teal-50 text-teal-900 dark:border-teal-800 dark:bg-teal-950 dark:text-teal-200',
 };
 
 /** Status chip; semantic colour is separate from the accent so states read at a glance. */
@@ -161,13 +170,20 @@ export function StatusPill({
   tone = 'neutral',
   children,
   className,
+  asChild = false,
 }: {
-  readonly tone?: Tone;
+  readonly tone?: PillTone;
   readonly children: ReactNode;
   readonly className?: string;
+  /** Render the pill styles onto the child (for example a toggle button). */
+  readonly asChild?: boolean;
 }) {
   return (
-    <Badge variant="outline" className={cn('whitespace-nowrap', TONE[tone], className)}>
+    <Badge
+      variant="outline"
+      asChild={asChild}
+      className={cn('whitespace-nowrap', TONE[tone], className)}
+    >
       {children}
     </Badge>
   );

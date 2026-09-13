@@ -13,6 +13,9 @@ import {
   PrinterIcon,
   FileClockIcon,
   WandSparklesIcon,
+  CircleDashedIcon,
+  TriangleAlertIcon,
+  OctagonAlertIcon,
 } from 'lucide-react';
 import { currentLocale } from '@/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -25,12 +28,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { EmptyState, Muted, StatusPill, type Tone } from '@/components/app/page';
+import { EmptyState, Muted, StatusPill, type PillTone, type Tone } from '@/components/app/page';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { Feedback } from '@/components/app/feedback';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { IconButton } from '@/shared/ui/icon-button';
+import { InfoTip } from '@/components/app/info-tip';
+import type { CalendarEmphasis } from '@/shared/ui/resource-calendar';
+import { reasonText } from '../model/use-eligibility';
 import { readError } from '@/errors';
 import { useNavigation } from '@/navigation';
 import { recordedTime } from '../lib/labels';
@@ -108,6 +114,19 @@ function WorkspaceContent() {
       />
     </div>
   );
+}
+
+/** Why the primary button is disabled, in the planner's words; null when it is enabled. */
+function primaryReason(w: Workspace, primary: { kind: string; enabled: boolean } | null) {
+  if (!primary || primary.enabled) return null;
+  if (w.issues.blocked) return t.publishBlockedConflicts;
+  if (w.stale) return t.publishBlockedStale;
+  if (w.busy || !w.commandReady) return t.publishBlockedBusy;
+  if (primary.kind === 'review' && w.version?.status === 'PUBLISHED' && w.changes === 0)
+    return t.publishNothing;
+  if (primary.kind === 'review' && w.changes > 0 && w.version?.status !== 'PUBLISHED')
+    return t.publishSaveFirst;
+  return null;
 }
 
 /** What the one primary button does for the current plan state and rights. */
@@ -260,6 +279,39 @@ function WorkspaceView({
     else if (primary.kind === 'submit') w.commit('submit');
     else setReview({ grid: w.grid, versionId: version.id });
   }
+  const reason = primaryReason(w, primary);
+  const [focus, setFocus] = useState<CalendarEmphasis | null>(null);
+  const [hover, setHover] = useState<CalendarEmphasis | null>(null);
+  const emphasis = hover ?? focus;
+  const labels = {
+    unitName: (id: string) => w.units.find((unit) => unit.id === id)?.name ?? id,
+    zoneName: (id: string) => w.zones.find((item) => item.id === id)?.name ?? id,
+    employeeName: (id: string) => w.employees.find((item) => item.id === id)?.fullName ?? id,
+  };
+  const pill = (
+    kind: CalendarEmphasis,
+    tone: PillTone,
+    Icon: typeof CircleDashedIcon,
+    label: string,
+    title: string,
+  ) => (
+    <StatusPill tone={tone} asChild>
+      <button
+        type="button"
+        aria-pressed={focus === kind}
+        title={focus === kind ? t.highlightOff : title}
+        className={`inline-flex cursor-pointer items-center gap-1 transition-shadow hover:ring-2 hover:ring-sky-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${focus === kind ? 'ring-2 ring-sky-600' : ''}`}
+        onMouseEnter={() => setHover(kind)}
+        onMouseLeave={() => setHover(null)}
+        onFocus={() => setHover(kind)}
+        onBlur={() => setHover(null)}
+        onClick={() => setFocus((current) => (current === kind ? null : kind))}
+      >
+        <Icon aria-hidden className="size-3.5" />
+        {label}
+      </button>
+    </StatusPill>
+  );
   const canUndo = w.canEdit && w.writable && !!w.store.past[w.draftKey]?.length;
   const canRedo = w.canEdit && w.writable && !!w.store.future[w.draftKey]?.length;
   const canDiscard = w.canEdit && !w.commandsBlocked && (w.changes > 0 || w.stale);
@@ -332,9 +384,15 @@ function WorkspaceView({
           </Button>
         )}
         {primary && (
-          <Button disabled={!primary.enabled} onClick={runPrimary}>
+          <Button disabled={!primary.enabled} title={reason ?? undefined} onClick={runPrimary}>
             {primary.label}
           </Button>
+        )}
+        {reason && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground" role="status">
+            <InfoTip text={reason} />
+            <span className="max-w-64 [overflow-wrap:anywhere]">{reason}</span>
+          </span>
         )}
         {version && (
           <DropdownMenu>
@@ -442,33 +500,46 @@ function WorkspaceView({
           <>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
               {state && <StatusPill tone={state.tone}>{state.label}</StatusPill>}
-              {!w.viewingPublished && w.unpublished > 0 && (
-                <StatusPill tone="warning">
-                  {format(t.unpublishedChanges, { count: w.unpublished })}
-                </StatusPill>
-              )}
+              {!w.viewingPublished &&
+                w.unpublished > 0 &&
+                pill(
+                  'unpublished',
+                  'accent',
+                  CircleDashedIcon,
+                  format(t.unpublishedChanges, { count: w.unpublished }),
+                  t.highlightUnpublished,
+                )}
               {w.changes > 0 && !w.viewingPublished && (
                 <Muted>
                   {t.localChanges}: {w.changes}
                 </Muted>
               )}
-              {w.issues.blocked && (
-                <StatusPill tone="danger">
-                  {format(t.conflictsCount, {
-                    count: w.issues.reasons.filter((reason) => reason.severity === 'BLOCK').length,
-                  })}
-                </StatusPill>
-              )}
-              {!w.issues.blocked &&
-                w.issues.reasons.some((reason) => reason.severity === 'WARN') && (
-                  <StatusPill tone="warning">
-                    {format(t.warningsCount, {
-                      count: w.issues.reasons.filter((reason) => reason.severity === 'WARN').length,
-                    })}
-                  </StatusPill>
+              {w.issues.blocked &&
+                pill(
+                  'BLOCK',
+                  'danger',
+                  OctagonAlertIcon,
+                  format(t.conflictsCount, {
+                    count: w.issues.reasons.filter((item) => item.severity === 'BLOCK').length,
+                  }),
+                  t.highlightConflicts,
                 )}
+              {w.issues.reasons.some((item) => item.severity === 'WARN') &&
+                pill(
+                  'WARN',
+                  'caution',
+                  TriangleAlertIcon,
+                  format(t.warningsCount, {
+                    count: w.issues.reasons.filter((item) => item.severity === 'WARN').length,
+                  }),
+                  t.highlightWarnings,
+                )}
+              {(w.unpublished > 0 || w.issues.reasons.length > 0) && !w.viewingPublished && (
+                <InfoTip text={t.highlightHint} />
+              )}
               {slots.open.length > 0 && (
-                <StatusPill tone="info">
+                <StatusPill tone="teal">
+                  <CircleDashedIcon aria-hidden className="size-3.5" />
                   {format(t.openSlotsCount, { count: slots.open.length })}
                 </StatusPill>
               )}
@@ -493,16 +564,55 @@ function WorkspaceView({
                   compact
                 />
               )}
-              {w.writable && !mobile && (
-                <Muted>
-                  {t.planningHint} {t.dragHint}
-                </Muted>
-              )}
+              {w.writable && !mobile && <InfoTip text={`${t.planningHint} ${t.dragHint}`} />}
               {adjacent.months.map((month) => (
                 <Muted key={month}>{format(t.otherMonth, { month: monthLabel(month) })}</Muted>
               ))}
               {adjacent.loading && <LoadingState label={t.loadingAdjacent} />}
             </div>
+            {focus === 'unpublished' && (
+              <section
+                className="space-y-2 rounded-lg border p-3"
+                aria-label={t.unpublishedChanges.split(':')[0] ?? t.unpublishedChanges}
+              >
+                <AssignmentChanges
+                  changes={assignmentChanges(w.publicationBaseline, w.grid)}
+                  labels={w}
+                />
+              </section>
+            )}
+            {(focus === 'WARN' || focus === 'BLOCK') && (
+              <section
+                className="space-y-1 rounded-lg border p-3 text-sm"
+                aria-label={focus === 'BLOCK' ? t.conflict : t.warning}
+              >
+                <ul className="space-y-1">
+                  {w.issues.reasons
+                    .filter((item) => item.severity === focus)
+                    .map((item, index) => (
+                      <li key={index} className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={
+                            focus === 'BLOCK'
+                              ? 'min-w-0 flex-1 text-red-700 dark:text-red-300 [overflow-wrap:anywhere]'
+                              : 'min-w-0 flex-1 text-orange-800 dark:text-orange-200 [overflow-wrap:anywhere]'
+                          }
+                        >
+                          {labels.employeeName(item.employeeId)} · {item.businessDate} ·{' '}
+                          {reasonText(item, labels)}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onDate(item.businessDate)}
+                        >
+                          {t.goToDate}
+                        </Button>
+                      </li>
+                    ))}
+                </ul>
+              </section>
+            )}
             {adjacent.failed && <Feedback error={t.adjacentUnavailable} />}
             {w.viewingPublished && (
               <p className="text-sm text-muted-foreground">{t.viewingPublished}</p>
@@ -568,6 +678,7 @@ function WorkspaceView({
                 today={today}
                 adjacent={adjacent}
                 slots={slots}
+                emphasis={emphasis}
               />
             )}
           </>

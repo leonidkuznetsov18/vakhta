@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trash2Icon } from 'lucide-react';
+import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { format, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { useNavigation } from '@/navigation';
@@ -156,6 +156,7 @@ export function NotesSection({
             />
           </div>
           <Button type="submit" size="sm" disabled={!canAdd}>
+            <PlusIcon aria-hidden="true" />
             {t.addNote}
           </Button>
         </form>

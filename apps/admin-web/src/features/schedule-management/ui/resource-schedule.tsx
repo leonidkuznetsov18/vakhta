@@ -1,9 +1,14 @@
 import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { useState } from 'react';
+import { PencilIcon, MoveIcon, UserSearchIcon, ActivityIcon, InboxIcon } from 'lucide-react';
 import { format, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { ResourceCalendar, type CalendarSelection } from '@/shared/ui/resource-calendar';
+import {
+  ResourceCalendar,
+  type CalendarSelection,
+  type CalendarEmphasis,
+} from '@/shared/ui/resource-calendar';
 import { Button } from '@/components/ui/button';
 import { Paginator, usePages } from '@/components/app/data-table';
 import { calendarModel, type CalendarGrouping } from '../model/calendar';
@@ -36,6 +41,7 @@ export function ResourceSchedule({
   today,
   adjacent,
   slots,
+  emphasis = null,
 }: {
   readonly workspace: Workspace;
   readonly dates: readonly string[];
@@ -47,6 +53,7 @@ export function ResourceSchedule({
   /** Neighbouring months touched by the visible week; displayed, never written. */
   readonly adjacent: AdjacentPlan;
   readonly slots: OpenSlots;
+  readonly emphasis?: CalendarEmphasis | null;
 }) {
   const t = messages(currentLocale()).scheduleWorkspace;
   const mobile = useIsMobile();
@@ -225,6 +232,7 @@ export function ResourceSchedule({
           setPicked(null);
           setEditor(null);
         }}
+        emphasis={emphasis}
         {...(w.writable ? { onMove: move } : {})}
         detail={
           selection && selectedCell ? (
@@ -267,17 +275,32 @@ export function ResourceSchedule({
                   {grouping === 'people' && (
                     <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.title}</p>
                   )}
-                  <p className="text-sm">{selectedView?.time}</p>
-                  <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.description}</p>
-                  {selectedView?.parts && selectedView.parts.length > 0 && (
-                    <ul className="space-y-0.5 text-sm" aria-label={t.segments}>
-                      {selectedView.parts.map((part) => (
-                        <li key={part.id}>{part.label}</li>
-                      ))}
-                    </ul>
-                  )}
-                  <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.status}</p>
-                  <p className="text-sm">{acknowledgement}</p>
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+                    <dt className="text-muted-foreground">{t.detailTime}</dt>
+                    <dd className="tabular-nums">{selectedView?.time}</dd>
+                    <dt className="text-muted-foreground">{t.kind}</dt>
+                    <dd className="[overflow-wrap:anywhere]">{selectedView?.description}</dd>
+                    {selectedView?.parts && selectedView.parts.length > 0 && (
+                      <>
+                        <dt className="text-muted-foreground">{t.segments}</dt>
+                        <dd>
+                          <ul className="space-y-0.5" aria-label={t.segments}>
+                            {selectedView.parts.map((part) => (
+                              <li key={part.id}>{part.label}</li>
+                            ))}
+                          </ul>
+                        </dd>
+                      </>
+                    )}
+                    {selectedView?.status && (
+                      <>
+                        <dt className="text-muted-foreground">{t.detailPublication}</dt>
+                        <dd className="[overflow-wrap:anywhere]">{selectedView.status}</dd>
+                      </>
+                    )}
+                    <dt className="text-muted-foreground">{t.detailAcknowledgement}</dt>
+                    <dd>{acknowledgement}</dd>
+                  </dl>
                   {reasonsFor(w.issues.reasons, selectedItem.employeeId, selectedItem.businessDate)
                     .length > 0 && (
                     <ul className="space-y-1 text-sm" aria-label={t.conflict}>
@@ -316,11 +339,24 @@ export function ResourceSchedule({
                   />
                   {editable && (
                     <div className="flex flex-wrap gap-2">
-                      <Button onClick={() => edit()}>{t.editAssignment}</Button>
-                      <Button variant="outline" onClick={() => edit(true)}>
+                      <Button onClick={() => edit()}>
+                        <PencilIcon aria-hidden="true" />
+                        {t.editAssignment}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-sky-300 text-sky-800 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-200 dark:hover:bg-sky-950"
+                        onClick={() => edit(true)}
+                      >
+                        <MoveIcon aria-hidden="true" />
                         {t.moveAssignment}
                       </Button>
-                      <Button variant="outline" onClick={() => edit(true)}>
+                      <Button
+                        variant="outline"
+                        className="border-emerald-300 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-200 dark:hover:bg-emerald-950"
+                        onClick={() => edit(true)}
+                      >
+                        <UserSearchIcon aria-hidden="true" />
                         {t.findReplacement}
                       </Button>
                     </div>
@@ -364,11 +400,6 @@ export function ResourceSchedule({
                     />
                   )}
                 </>
-              )}
-              {!editor && (
-                <Button variant="outline" onClick={() => setPicked(null)}>
-                  {t.cancel}
-                </Button>
               )}
             </div>
           ) : null
@@ -416,6 +447,7 @@ function OperationalContext({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1 text-sm">
+        <span className="text-muted-foreground">{t.detailPresence}:</span>
         <span>
           {query.isError
             ? t.presenceUnavailable
@@ -430,6 +462,7 @@ function OperationalContext({
       )}
       {sessionId && (
         <Button variant="outline" size="sm" onClick={onOpenOperations}>
+          <ActivityIcon aria-hidden="true" />
           {t.openShiftRecord}
         </Button>
       )}
@@ -461,6 +494,7 @@ function OperationalContext({
         )}
         {related.length > 0 && (
           <Button variant="outline" size="sm" onClick={onOpenRequests}>
+            <InboxIcon aria-hidden="true" />
             {t.openRequests}
           </Button>
         )}

@@ -8,7 +8,14 @@ import {
 } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
 import { qualifiedFor, requiredQualifications } from '@vakhta/domain';
-import { PlusIcon, XIcon } from 'lucide-react';
+import {
+  PlusIcon,
+  XIcon,
+  CheckIcon,
+  ArrowLeftIcon,
+  CircleDashedIcon,
+  Trash2Icon,
+} from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { IconButton } from '@/shared/ui/icon-button';
@@ -580,11 +587,17 @@ export function AssignmentEditor({
         <p className="text-sm text-muted-foreground">{t.invalid}</p>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={!valid || !w.writable}>
+        <Button
+          type="submit"
+          disabled={!valid || !w.writable}
+          className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400"
+        >
+          <CheckIcon aria-hidden="true" />
           {t.apply}
         </Button>
         <Button type="button" variant="outline" onClick={onClose}>
-          {t.cancel}
+          <ArrowLeftIcon aria-hidden="true" />
+          {t.backToDetails}
         </Button>
         {!original && onCreateSlot && (
           <Button
@@ -604,6 +617,7 @@ export function AssignmentEditor({
               })
             }
           >
+            <CircleDashedIcon aria-hidden="true" />
             {t.createOpenSlot}
           </Button>
         )}
@@ -619,6 +633,7 @@ export function AssignmentEditor({
               }
             }}
           >
+            <Trash2Icon aria-hidden="true" />
             {t.removeAssignment}
           </Button>
         )}

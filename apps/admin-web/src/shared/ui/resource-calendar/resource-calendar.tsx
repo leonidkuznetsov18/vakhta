@@ -53,11 +53,18 @@ interface ResourceCalendarProps {
   readonly onDate: (date: string) => void;
   readonly onSelect: (selection: CalendarSelection) => void;
   readonly onCreate: (selection: CalendarSelection) => void;
+  /** Items matching the emphasis get a ring and the rest fade, so a count becomes visible places. */
+  readonly emphasis?: CalendarEmphasis | null;
   /** Drag and drop of an item onto another row/date; the keyboard alternative is the caller's. */
   readonly onMove?: (
     item: CalendarSelection & { readonly itemId: string },
     target: { readonly resourceId: string; readonly date: string },
   ) => void;
+}
+export type CalendarEmphasis = 'unpublished' | 'WARN' | 'BLOCK';
+function emphasized(item: CalendarItem, emphasis: CalendarEmphasis): boolean {
+  if (emphasis === 'unpublished') return !!item.unpublished && !item.readonly;
+  return item.issue === emphasis;
 }
 const PAGE_SIZE = 20;
 const CELL_PREVIEW_LIMIT = 3;
@@ -147,11 +154,13 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
         {cell.note && <Note note={cell.note} className="px-0.5" />}
         {cell.items.slice(0, CELL_PREVIEW_LIMIT).map((item) => {
           const selected = cellSelected && selection?.itemId === item.id;
+          const highlight = props.emphasis ? emphasized(item, props.emphasis) : null;
           return (
             <Button
               key={item.id}
               variant="outline"
               aria-pressed={selected}
+              data-emphasized={highlight === null ? undefined : highlight}
               aria-label={[
                 item.title,
                 cell.label,
@@ -170,6 +179,8 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                 item.unpublished && 'border-dashed border-current/50',
                 item.readonly && 'opacity-70',
                 item.issue === 'BLOCK' && 'inset-ring-2 inset-ring-red-500/70',
+                highlight === true && 'ring-2 ring-offset-2 ring-sky-600 dark:ring-sky-400',
+                highlight === false && 'opacity-35',
               )}
               draggable={!!props.onMove && !item.readonly}
               onDragStart={() =>

@@ -324,6 +324,8 @@ export function useWorkspace() {
   }
   function edit(next: GridState) {
     if (!writable || !version || gridToItems(next).length > MAX_ITEMS) return;
+    // A failed write describes the plan as it was; a new local change starts a new attempt.
+    if (write.error) write.reset();
     if (canEdit) {
       store.keep(draftKey, next, baseline, version.revision);
       return;

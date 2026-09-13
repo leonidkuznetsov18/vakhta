@@ -1199,3 +1199,24 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
 - Remaining risk: master CI carried an unrelated failing Overview test (`access-scope.test.ts`) from
   a concurrent session's work swept into 13631b9; the owning session was notified. Schedule suites
   pass locally at every delivered revision.
+
+## 2026-09-13 — Owner review corrections: pills, publish reason, Sheet actions, hints
+
+- Status pills are toggles with distinct colours and icons: unpublished changes violet (dashed
+  circle), conflicts red, warnings orange, open slots teal, published emerald. Hover previews and
+  click keeps a highlight: matching cards get a sky ring, the rest fade (`data-emphasized`), and a
+  list under the status row names each change or reason with a "Show" button to the date.
+  `PillTone` keeps the shared `Tone` map unchanged for other pages.
+- The primary button states why it is disabled next to it (blocking conflicts, stale plan, running
+  command, nothing to publish, save first) with an info icon and `title`.
+- A failed write is reset on the next local edit, so an error never outlives the plan it described.
+- Shift Sheet: labelled rows (Time, Shift type, Segments, Publication, Acknowledgement, Presence);
+  the redundant Cancel is gone (closing the Sheet cancels); every action carries an icon and a
+  purposeful colour (edit primary, move sky, find replacement emerald, apply emerald, back, remove
+  red, offer/select/withdraw/cancel slot, add note).
+- `WorkflowSection` renders a string hint as an information icon with a tooltip; the workspace
+  planning/drag hint moved into an icon so explanations no longer run into titles.
+- Verification: workspace test for the conflicts pill (hover, click, list, toggle off) and the
+  disabled-publish reason; 118 schedule tests; typecheck, ESLint, Prettier. Evidence:
+  `pills-hover-conflicts.png`, `pills-conflicts-list.png`, `sheet-actions-icons.png`,
+  `sheet-editor-icons.png`, `staffing-hints-icons.png`.

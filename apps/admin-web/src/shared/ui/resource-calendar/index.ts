@@ -1,4 +1,4 @@
-export { ResourceCalendar } from './resource-calendar';
+export { ResourceCalendar, type CalendarEmphasis } from './resource-calendar';
 export type {
   CalendarItem,
   CalendarCell,

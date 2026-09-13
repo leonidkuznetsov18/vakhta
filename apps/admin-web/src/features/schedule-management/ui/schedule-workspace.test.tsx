@@ -1049,7 +1049,8 @@ describe('schedule workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: t.editAssignment }));
     expect(screen.getByRole('combobox', { name: s.employee }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByRole('button', { name: t.apply }).hasAttribute('disabled')).toBe(true);
-    expect(screen.getAllByRole('button', { name: t.cancel })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: t.backToDetails })).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: t.cancel })).toBeNull();
   });
   it('offers only supported mobile periods and keeps day navigation usable', async () => {
     viewport.mobile = true;
@@ -2416,6 +2417,67 @@ it('proposes an explainable allocation for open slots and applies it through slo
       t.proposalApplied.replace('{count}', '1').replace('{failed}', '0'),
     ),
   ).toBeTruthy();
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('turns the conflicts pill into a highlight toggle with a list and explains the disabled publish button', async () => {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    revisions: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+  const OTHER_UNIT = 'a0000000-0000-4000-8000-000000000012';
+  mockApi({
+    status: 'DRAFT',
+    context: {
+      intervals: [
+        {
+          employeeId: EMP,
+          businessDate: '2026-09-05',
+          startAt: '2026-09-05T18:00:00.000Z',
+          endAt: '2026-09-06T02:00:00.000Z',
+          orgUnitId: OTHER_UNIT,
+          status: 'PUBLISHED',
+        },
+      ],
+      absences: [],
+      otherUnitEmployees: [],
+    },
+  });
+  admin();
+  await screen.findByText(t.draftState);
+  const pill = await screen.findByRole('button', {
+    name: t.conflictsCount.replace('{count}', '1'),
+  });
+  expect(pill.getAttribute('aria-pressed')).toBe('false');
+  // The primary button is disabled and says why.
+  expect(screen.getByRole('button', { name: t.reviewPublish }).hasAttribute('disabled')).toBe(true);
+  expect(screen.getByText(t.publishBlockedConflicts)).toBeTruthy();
+  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+    fireEvent.click(screen.getByRole('button', { name: t.previous }));
+  }
+  const card = screen.getByRole('button', { name: /Кузнецов Леонид, 05/ });
+  expect(card.getAttribute('data-emphasized')).toBeNull();
+  fireEvent.mouseEnter(pill);
+  expect(card.getAttribute('data-emphasized')).toBe('true');
+  fireEvent.mouseLeave(pill);
+  expect(card.getAttribute('data-emphasized')).toBeNull();
+  fireEvent.click(pill);
+  expect(pill.getAttribute('aria-pressed')).toBe('true');
+  expect(card.getAttribute('data-emphasized')).toBe('true');
+  const list = screen.getByRole('region', { name: t.conflict });
+  expect(list.textContent).toContain('Кузнецов Леонид');
+  expect(list.textContent).toContain('2026-09-05');
+  expect(within(list).getByRole('button', { name: t.goToDate })).toBeTruthy();
+  fireEvent.click(pill);
+  expect(pill.getAttribute('aria-pressed')).toBe('false');
+  expect(screen.queryByRole('region', { name: t.conflict })).toBeNull();
   cleanup();
   vi.unstubAllGlobals();
 });

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SendIcon, UserCheckIcon, Undo2Icon, BanIcon } from 'lucide-react';
 import type { OpenSlotView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -99,6 +100,7 @@ export function SlotDetails({
             disabled={slots.busy}
             onClick={() => slots.offer.mutate({ id: slot.id, command: { audience } })}
           >
+            <SendIcon aria-hidden="true" />
             {t.offerSlot}
           </Button>
         </div>
@@ -141,6 +143,7 @@ export function SlotDetails({
                   {manage && item.response === 'INTERESTED' && (
                     <Button
                       size="sm"
+                      className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400"
                       disabled={!draftReady || blocked || slots.busy || !w.version}
                       onClick={() => {
                         if (!w.version) return;
@@ -157,6 +160,7 @@ export function SlotDetails({
                         );
                       }}
                     >
+                      <UserCheckIcon aria-hidden="true" />
                       {t.selectCandidate}
                     </Button>
                   )}
@@ -174,6 +178,7 @@ export function SlotDetails({
               disabled={slots.busy}
               onClick={() => slots.withdraw.mutate(slot.id)}
             >
+              <Undo2Icon aria-hidden="true" />
               {t.withdrawOffer}
             </Button>
           )}
@@ -182,6 +187,7 @@ export function SlotDetails({
             disabled={slots.busy}
             onClick={() => slots.cancel.mutate(slot.id, { onSuccess: onDone })}
           >
+            <BanIcon aria-hidden="true" />
             {t.cancelSlot}
           </Button>
         </div>

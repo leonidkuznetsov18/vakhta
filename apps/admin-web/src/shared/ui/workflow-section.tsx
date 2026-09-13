@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { InfoTip } from '@/components/app/info-tip';
 
-/** A named task zone. Surface emphasis indicates an action area, never a record status. */
 export function WorkflowSection({
   title,
   children,
@@ -31,7 +31,7 @@ export function WorkflowSection({
         )}
       >
         {title}
-        {hint}
+        {typeof hint === 'string' ? <InfoTip text={hint} /> : hint}
       </h3>
       <div className="flex min-w-0 flex-col gap-4 p-3">{children}</div>
     </section>
