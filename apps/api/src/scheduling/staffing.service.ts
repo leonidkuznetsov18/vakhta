@@ -22,6 +22,8 @@ import type {
   CreateQualificationCommand,
   EmployeeAvailabilityView,
   EmployeeQualificationView,
+  OperationsQuery,
+  OperationsView,
   PlanContextView,
   QualificationView,
   RecordAvailabilityCommand,
@@ -36,7 +38,9 @@ import { eligibilityStatus, evaluatePlan, planInstants } from '@vakhta/domain';
 import {
   loadAbsences,
   loadContextIntervals,
+  loadOperationalRequests,
   loadPreferences,
+  loadPresence,
   loadRules,
   loadUnitMembership,
   monthContextRange,
@@ -235,6 +239,15 @@ export class StaffingService {
         otherUnitEmployees: membership.filter((member) => member.orgUnitId !== orgUnitId),
       };
     });
+  }
+
+  /** Presence evidence and request context of the unit's people for a date range (#17). */
+  async operations(query: OperationsQuery, now: Date = new Date()): Promise<OperationsView> {
+    return this.db.transaction(async (tx) => ({
+      fetchedAt: now.toISOString(),
+      presence: await loadPresence(tx, query, now),
+      requests: await loadOperationalRequests(tx, query),
+    }));
   }
 
   /**

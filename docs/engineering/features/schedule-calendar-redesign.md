@@ -1082,3 +1082,35 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   bot handler is covered through the service test and typecheck, not a bot harness test.
 - Lean: Proceed. Vacancies stop living in chats: one internal slot, one deliberate offer, recorded
   answers and one auditable decision, without a second assignment workflow.
+
+## 2026-09-13 — Operational context: presence, absences, requests, borrowing (#17, SC-03/07/13/14/34/38)
+
+- API `GET /admin/schedules/staffing/operations?siteId&orgUnitId&from&to` (`loadPresence`,
+  `loadOperationalRequests` in plan-context.ts): per published assignment the state STARTED /
+  CLOSED (shift session), ARRIVED (presence session), NO_EVIDENCE (planned start passed, nothing
+  recorded), ACKNOWLEDGED or SCHEDULED, with the underlying instants; and the unit people's requests
+  touching the range (open and decided) with the current step key and total steps computed from
+  the request route. `fetchedAt` states freshness. Nothing here writes attendance or decides.
+- Borrowing (D-06, SC-38): `ScheduleService.assertBorrowingAuthority` requires site-level
+  ADMIN/PRODUCTION_HEAD when any item's employee holds a current position in another unit; it runs
+  in the command service (SAVE/REVISE) and the legacy PUT/revise routes, so both scopes are checked
+  at commit. The editor shows the source unit and whether the person is planned there that day
+  (the OVERLAP reason names the unit).
+- Panel: cards carry a presence marker (text with tone, also in the accessible name); the
+  by-people view notes approved (danger) and pending (muted) absences per day from the plan
+  context; shift details show the evidence with "as of", the related requests with their step, an
+  "Open Requests" shortcut, and "Find replacement", which opens the Move editor with candidates
+  minus the current person. Swap decisions stay in Requests, where `applyScheduleEffect` revises
+  both assignments in one transaction (SC-13/SC-34).
+- Verification: real-DB 1 case (STARTED/SCHEDULED before, NO_EVIDENCE after the planned start,
+  acknowledgement carried, SWAP and VACATION requests with step key, borrowing refused for a unit
+  planner and allowed for site production head); panel workspace test (marker in the card name,
+  evidence in details, request with step and counterpart, Open Requests navigation, Find replacement
+  candidates without the current person); 113 schedule tests; typecheck, ESLint, Prettier.
+  Evidence: `operations-week.png`, `operations-absences-people.png`, `operations-detail.png`,
+  `operations-find-replacement.png`, `operations-day-mobile.png`.
+- Limits: the panel does not create requests on behalf of employees (they come from the bot);
+  borrowing approval is the site authority check, not a separate approval step; source-unit
+  coverage numbers are not fetched into the destination editor beyond the planned/free statement.
+- Lean: Proceed. Planners see evidence and workflow state where they plan, without a second
+  attendance or request workflow, and cannot turn a missing scan into a verdict.

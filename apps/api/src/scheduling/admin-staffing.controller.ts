@@ -29,6 +29,8 @@ import {
   type SchedulingRulesView,
   type StaffingRequirementView,
   type StaffingView,
+  OperationsQuery,
+  type OperationsView,
 } from '@vakhta/contracts';
 import { canActOn, type ScopeTarget, type WebRole } from '@vakhta/domain';
 import {
@@ -86,6 +88,15 @@ export class AdminStaffingController {
   ): Promise<PlanContextView> {
     assertScope(user, PLANNERS, query);
     return this.staffing.context(query.siteId, query.orgUnitId, query.periodMonth);
+  }
+
+  @Get('operations')
+  operations(
+    @Query(new ZodValidationPipe(OperationsQuery)) query: OperationsQuery,
+    @CurrentUser() user: WebUser,
+  ): Promise<OperationsView> {
+    assertScope(user, PLANNERS, query);
+    return this.staffing.operations(query);
   }
 
   @Get('candidates')

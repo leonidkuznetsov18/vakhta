@@ -14,6 +14,8 @@ export interface CalendarItem {
   /** A rule the item breaks: blocking conflicts get a red mark, warnings an amber one. */
   readonly issue?: 'BLOCK' | 'WARN';
   readonly parts?: readonly { readonly id: string; readonly label: string }[];
+  /** Operational state under the card, for example presence evidence; text plus tone, never color alone. */
+  readonly marker?: { readonly label: string; readonly tone: 'ok' | 'muted' | 'danger' };
 }
 export type CalendarNoteTone = 'danger' | 'ok' | 'muted';
 export interface CalendarNote {

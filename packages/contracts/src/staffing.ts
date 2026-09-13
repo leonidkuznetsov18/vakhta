@@ -220,3 +220,67 @@ export const CandidateView = z.object({
   reasons: z.array(EligibilityReasonView),
 });
 export type CandidateView = z.infer<typeof CandidateView>;
+
+/* ------------------------------------------------------------------ */
+/* Operational context (SC-03, SC-07, SC-13/14/34/38, #17)             */
+/* ------------------------------------------------------------------ */
+
+export const OperationsQuery = z.object({
+  siteId: Uuid,
+  orgUnitId: Uuid,
+  from: BusinessDate,
+  to: BusinessDate,
+});
+export type OperationsQuery = z.infer<typeof OperationsQuery>;
+
+/**
+ * Presence evidence per published assignment. NO_EVIDENCE means the planned start has passed and
+ * nothing was recorded; it is not a proven no-show.
+ */
+export const PresenceState = z.enum([
+  'SCHEDULED',
+  'ACKNOWLEDGED',
+  'ARRIVED',
+  'STARTED',
+  'CLOSED',
+  'NO_EVIDENCE',
+]);
+export type PresenceState = z.infer<typeof PresenceState>;
+
+export const AssignmentPresenceView = z.object({
+  assignmentId: Uuid,
+  employeeId: Uuid,
+  businessDate: BusinessDate,
+  state: PresenceState,
+  acknowledgedAt: IsoDateTime.nullable(),
+  arrivedAt: IsoDateTime.nullable(),
+  startedAt: IsoDateTime.nullable(),
+  endedAt: IsoDateTime.nullable(),
+  sessionState: z.string().nullable(),
+});
+export type AssignmentPresenceView = z.infer<typeof AssignmentPresenceView>;
+
+/** Requests of the unit's people that touch the range; only the current step is actionable elsewhere. */
+export const OperationalRequestView = z.object({
+  id: Uuid,
+  type: z.string(),
+  status: z.string(),
+  employeeId: Uuid,
+  counterpartEmployeeId: Uuid.nullable(),
+  periodFrom: BusinessDate.nullable(),
+  periodTo: BusinessDate.nullable(),
+  assignmentId: Uuid.nullable(),
+  assignmentDate: BusinessDate.nullable(),
+  currentStep: z.number().int().nonnegative(),
+  currentStepKey: z.string().nullable(),
+  totalSteps: z.number().int().positive(),
+  submittedAt: IsoDateTime,
+});
+export type OperationalRequestView = z.infer<typeof OperationalRequestView>;
+
+export const OperationsView = z.object({
+  fetchedAt: IsoDateTime,
+  presence: z.array(AssignmentPresenceView),
+  requests: z.array(OperationalRequestView),
+});
+export type OperationsView = z.infer<typeof OperationsView>;

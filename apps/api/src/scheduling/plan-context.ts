@@ -1,5 +1,7 @@
 import {
   and,
+  assignmentAcknowledgements,
+  desc,
   employeeAvailability,
   employeePositions,
   eq,
@@ -7,14 +9,19 @@ import {
   inArray,
   isNull,
   lte,
+  or,
   orgUnits,
+  presenceSessions,
   requests,
   scheduleVersions,
   shiftAssignments,
+  shiftSessions,
   siteSchedulingRules,
   sql,
   type DbOrTx,
 } from '@vakhta/db';
+import type { AssignmentPresenceView, OperationalRequestView } from '@vakhta/contracts';
+import { routeFor, TERMINAL_STATES } from '@vakhta/domain';
 import {
   DEFAULT_SCHEDULING_RULES,
   type AbsenceWindow,
@@ -208,4 +215,173 @@ export function monthContextRange(periodMonth: string): { from: string; to: stri
   const after = new Date(start);
   after.setUTCMonth(after.getUTCMonth() + 1);
   return { from: before.toISOString().slice(0, 10), to: after.toISOString().slice(0, 10) };
+}
+
+/**
+ * Presence evidence of the unit's published assignments in a date range (SC-07): acknowledged,
+ * arrived (presence session), started/closed (shift session) or, after the planned start, no
+ * evidence at all. A failed read or a missing QR scan is never turned into a no-show here.
+ */
+export async function loadPresence(
+  tx: DbOrTx,
+  input: {
+    readonly siteId: string;
+    readonly orgUnitId: string;
+    readonly from: string;
+    readonly to: string;
+  },
+  now: Date = new Date(),
+): Promise<AssignmentPresenceView[]> {
+  const rows = await tx
+    .select({
+      id: shiftAssignments.id,
+      employeeId: shiftAssignments.employeeId,
+      businessDate: shiftAssignments.businessDate,
+      planStartAt: shiftAssignments.planStartAt,
+      acknowledgedAt: assignmentAcknowledgements.acknowledgedAt,
+    })
+    .from(shiftAssignments)
+    .innerJoin(scheduleVersions, eq(scheduleVersions.id, shiftAssignments.scheduleVersionId))
+    .leftJoin(
+      assignmentAcknowledgements,
+      eq(assignmentAcknowledgements.assignmentId, shiftAssignments.id),
+    )
+    .where(
+      and(
+        eq(scheduleVersions.siteId, input.siteId),
+        eq(scheduleVersions.orgUnitId, input.orgUnitId),
+        eq(scheduleVersions.status, 'PUBLISHED'),
+        eq(shiftAssignments.status, 'PLANNED'),
+        gte(shiftAssignments.businessDate, input.from),
+        lte(shiftAssignments.businessDate, input.to),
+      ),
+    );
+  if (rows.length === 0) return [];
+  const ids = rows.map((row) => row.id);
+  const presence = await tx
+    .select({
+      assignmentId: presenceSessions.assignmentId,
+      arrivedAt: presenceSessions.arrivedAt,
+      departedAt: presenceSessions.departedAt,
+    })
+    .from(presenceSessions)
+    .where(inArray(presenceSessions.assignmentId, ids))
+    .orderBy(desc(presenceSessions.arrivedAt));
+  const sessions = await tx
+    .select({
+      assignmentId: shiftSessions.assignmentId,
+      state: shiftSessions.state,
+      startedAt: shiftSessions.startedAt,
+      endedAt: shiftSessions.endedAt,
+    })
+    .from(shiftSessions)
+    .where(inArray(shiftSessions.assignmentId, ids))
+    .orderBy(desc(shiftSessions.createdAt));
+  const terminal = new Set<string>(TERMINAL_STATES);
+  return rows.map((row) => {
+    const arrival = presence.find((item) => item.assignmentId === row.id);
+    const session = sessions.find((item) => item.assignmentId === row.id);
+    const state: AssignmentPresenceView['state'] = session?.startedAt
+      ? terminal.has(session.state) || session.endedAt
+        ? 'CLOSED'
+        : 'STARTED'
+      : arrival
+        ? 'ARRIVED'
+        : row.planStartAt.getTime() <= now.getTime()
+          ? 'NO_EVIDENCE'
+          : row.acknowledgedAt
+            ? 'ACKNOWLEDGED'
+            : 'SCHEDULED';
+    return {
+      assignmentId: row.id,
+      employeeId: row.employeeId,
+      businessDate: row.businessDate,
+      state,
+      acknowledgedAt: row.acknowledgedAt?.toISOString() ?? null,
+      arrivedAt: arrival?.arrivedAt.toISOString() ?? null,
+      startedAt: session?.startedAt?.toISOString() ?? null,
+      endedAt: session?.endedAt?.toISOString() ?? null,
+      sessionState: session?.state ?? null,
+    };
+  });
+}
+
+/**
+ * Open and decided requests of the unit's planned people that touch the range (SC-13/14/34):
+ * enough to show the workflow and its current step; decisions stay in the Requests workflow.
+ */
+export async function loadOperationalRequests(
+  tx: DbOrTx,
+  input: {
+    readonly siteId: string;
+    readonly orgUnitId: string;
+    readonly from: string;
+    readonly to: string;
+  },
+): Promise<OperationalRequestView[]> {
+  const people = await tx
+    .select({ employeeId: shiftAssignments.employeeId })
+    .from(shiftAssignments)
+    .innerJoin(scheduleVersions, eq(scheduleVersions.id, shiftAssignments.scheduleVersionId))
+    .where(
+      and(
+        eq(scheduleVersions.siteId, input.siteId),
+        eq(scheduleVersions.orgUnitId, input.orgUnitId),
+        inArray(scheduleVersions.status, ['DRAFT', 'IN_REVIEW', 'PUBLISHED']),
+        eq(shiftAssignments.status, 'PLANNED'),
+      ),
+    );
+  const employeeIds = [...new Set(people.map((row) => row.employeeId))];
+  if (employeeIds.length === 0) return [];
+  const rows = await tx
+    .select({
+      id: requests.id,
+      type: requests.type,
+      status: requests.status,
+      employeeId: requests.employeeId,
+      counterpartEmployeeId: requests.counterpartEmployeeId,
+      periodFrom: requests.periodFrom,
+      periodTo: requests.periodTo,
+      assignmentId: requests.assignmentId,
+      assignmentDate: shiftAssignments.businessDate,
+      currentStep: requests.currentStep,
+      submittedAt: requests.submittedAt,
+    })
+    .from(requests)
+    .leftJoin(shiftAssignments, eq(shiftAssignments.id, requests.assignmentId))
+    .where(
+      and(
+        or(
+          inArray(requests.employeeId, employeeIds),
+          inArray(requests.counterpartEmployeeId, employeeIds),
+        ),
+        inArray(requests.status, ['SUBMITTED', 'IN_REVIEW', 'APPROVED', 'REJECTED']),
+        or(
+          and(lte(requests.periodFrom, input.to), gte(requests.periodTo, input.from)),
+          and(
+            gte(shiftAssignments.businessDate, input.from),
+            lte(shiftAssignments.businessDate, input.to),
+          ),
+        ),
+      ),
+    )
+    .orderBy(desc(requests.submittedAt));
+  return rows.map((row) => {
+    const steps = routeFor(row.type);
+    return {
+      id: row.id,
+      type: row.type,
+      status: row.status,
+      employeeId: row.employeeId,
+      counterpartEmployeeId: row.counterpartEmployeeId,
+      periodFrom: row.periodFrom,
+      periodTo: row.periodTo,
+      assignmentId: row.assignmentId,
+      assignmentDate: row.assignmentDate,
+      currentStep: row.currentStep,
+      currentStepKey: steps[row.currentStep]?.key ?? null,
+      totalSteps: Math.max(1, steps.length),
+      submittedAt: row.submittedAt.toISOString(),
+    };
+  });
 }

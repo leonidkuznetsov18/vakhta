@@ -286,6 +286,20 @@ const planContext = {
       type: 'VACATION',
       status: 'APPROVED' as const,
     },
+    {
+      employeeId: scheduleEmployees[2]!,
+      from: `${month}-04`,
+      to: `${month}-06`,
+      type: 'VACATION',
+      status: 'APPROVED' as const,
+    },
+    {
+      employeeId: scheduleEmployees[0]!,
+      from: `${month}-03`,
+      to: `${month}-03`,
+      type: 'DAY_OFF',
+      status: 'PENDING' as const,
+    },
   ],
   otherUnitEmployees: [] as { employeeId: string; orgUnitId: string }[],
 };
@@ -474,6 +488,75 @@ export function scheduleFixture(url: URL, method: string, body: unknown): unknow
     }
   }
   if (url.pathname.startsWith('/admin/schedules/staffing')) {
+    if (url.pathname.endsWith('/operations') && method === 'GET') {
+      const from = url.searchParams.get('from') ?? '';
+      const to = url.searchParams.get('to') ?? '';
+      const rows = detail(initial).assignments.filter(
+        (item) => item.businessDate >= from && item.businessDate <= to,
+      );
+      const today = new Date().toISOString().slice(0, 10);
+      return {
+        fetchedAt: new Date().toISOString(),
+        presence: rows.map((item, index) => {
+          const past = item.businessDate < today;
+          const state = past
+            ? index % 3 === 0
+              ? 'NO_EVIDENCE'
+              : 'CLOSED'
+            : item.businessDate === today
+              ? index % 2 === 0
+                ? 'STARTED'
+                : 'ARRIVED'
+              : index % 2 === 0
+                ? 'ACKNOWLEDGED'
+                : 'SCHEDULED';
+          return {
+            assignmentId: item.id,
+            employeeId: item.employeeId,
+            businessDate: item.businessDate,
+            state,
+            acknowledgedAt: state === 'SCHEDULED' ? null : item.planStartAt,
+            arrivedAt: ['ARRIVED', 'STARTED', 'CLOSED'].includes(state) ? item.planStartAt : null,
+            startedAt: ['STARTED', 'CLOSED'].includes(state) ? item.planStartAt : null,
+            endedAt: state === 'CLOSED' ? item.planEndAt : null,
+            sessionState:
+              state === 'STARTED' ? 'WORKING' : state === 'CLOSED' ? 'SHIFT_CLOSED' : null,
+          };
+        }),
+        requests: [
+          {
+            id: 'a7000000-0000-4000-8000-000000000001',
+            type: 'SWAP',
+            status: 'IN_REVIEW',
+            employeeId: scheduleEmployees[0]!,
+            counterpartEmployeeId: scheduleEmployees[1]!,
+            periodFrom: null,
+            periodTo: null,
+            assignmentId: rows[0]?.id ?? null,
+            assignmentDate: `${month}-05`,
+            currentStep: 1,
+            currentStepKey: 'MASTER',
+            totalSteps: 2,
+            submittedAt: new Date(Date.now() - 86_400_000).toISOString(),
+          },
+          {
+            id: 'a7000000-0000-4000-8000-000000000002',
+            type: 'VACATION',
+            status: 'APPROVED',
+            employeeId: scheduleEmployees[2]!,
+            counterpartEmployeeId: null,
+            periodFrom: `${month}-04`,
+            periodTo: `${month}-06`,
+            assignmentId: null,
+            assignmentDate: null,
+            currentStep: 2,
+            currentStepKey: null,
+            totalSteps: 2,
+            submittedAt: new Date(Date.now() - 172_800_000).toISOString(),
+          },
+        ],
+      };
+    }
     if (url.pathname.endsWith('/context') && method === 'GET') return planContext;
     if (url.pathname.endsWith('/candidates') && method === 'GET') {
       const businessDate = url.searchParams.get('businessDate') ?? '';

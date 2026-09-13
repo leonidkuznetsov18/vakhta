@@ -81,6 +81,7 @@ import {
   loadRules,
   monthContextRange,
   toPlannedIntervals,
+  loadUnitMembership,
 } from './plan-context.js';
 
 export interface ScheduleOptions {
@@ -560,6 +561,35 @@ export class ScheduleService {
     return this.db.transaction((tx) =>
       this.putAssignmentsWithin(tx, id, cmd, actor, expectedRevision, restriction),
     );
+  }
+
+  /**
+   * Borrowing (D-06, SC-38): planning a person whose current position sits in another unit of the
+   * site needs site-level ADMIN or PRODUCTION_HEAD authority, rechecked at every commit.
+   */
+  async assertBorrowingAuthority(
+    grants: readonly RoleGrant[],
+    target: { siteId: string; orgUnitId: string },
+    items: readonly Pick<AssignmentInput, 'employeeId' | 'businessDate'>[],
+    tx: DbOrTx = this.db,
+  ): Promise<void> {
+    if (items.length === 0) return;
+    if (canActOn(grants, ['ADMIN', 'PRODUCTION_HEAD'], { siteId: target.siteId })) return;
+    const membership = await loadUnitMembership(tx, target.siteId);
+    const home = new Map(membership.map((row) => [row.employeeId, row.orgUnitId]));
+    const borrowed = items.filter((item) => {
+      const unit = home.get(item.employeeId);
+      return unit !== undefined && unit !== target.orgUnitId;
+    });
+    if (borrowed.length > 0)
+      throw new DomainError(
+        'SCHEDULE_BORROWING_AUTHORITY',
+        403,
+        `Borrowing from another unit needs site authority: ${borrowed
+          .slice(0, 5)
+          .map((item) => `${item.employeeId} ${item.businessDate}`)
+          .join(', ')}`,
+      );
   }
 
   /**

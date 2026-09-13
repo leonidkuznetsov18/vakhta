@@ -316,6 +316,7 @@ export class AdminSchedulesController {
   ): Promise<ScheduleVersionDetail> {
     const version = await this.schedules.requireVersion(id);
     const restriction = await this.schedules.editorScope(user.grants, version, 'SAVE');
+    await this.schedules.assertBorrowingAuthority(user.grants, version, body.items);
     return this.schedules.putAssignments(
       id,
       body,
@@ -377,6 +378,7 @@ export class AdminSchedulesController {
   ): Promise<ScheduleVersionView> {
     const version = await this.schedules.requireVersion(id);
     assertScope(user, APPROVERS, { siteId: version.siteId, orgUnitId: version.orgUnitId });
+    await this.schedules.assertBorrowingAuthority(user.grants, version, body.items);
     return this.schedules.revise(id, body, webUserActor(user), body.expectedRevision);
   }
 

@@ -27,7 +27,14 @@ import { PatternsService } from './patterns.service.js';
 import { OpenSlotsService } from './open-slots.service.js';
 import { backgroundTasks } from '@vakhta/db';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { assignmentAcknowledgements, requests, shiftAssignments } from '@vakhta/db';
+import {
+  assignmentAcknowledgements,
+  employeePositions,
+  presenceSessions,
+  requests,
+  shiftAssignments,
+  shiftSessions,
+} from '@vakhta/db';
 import { eq, notificationOutbox, scheduleVersions, sql, telegramAccounts } from '@vakhta/db';
 import { addMonths, businessDateOf } from '@vakhta/domain';
 import { AuditLog } from '../events/audit-log.js';
@@ -2144,6 +2151,158 @@ describe('scheduling: версії, валідація, публікація, о
           'schedule.slot.cancel',
         ]),
       );
+    });
+  });
+
+  describe('operational context and borrowing (#17, SC-03/07/13/14/34/38)', () => {
+    it('reports presence evidence without inventing no-shows, lists request steps and guards borrowing', async () => {
+      const staffing = new StaffingService(testDb.db, new AuditLog());
+      const v1 = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      await schedule.putAssignments(
+        v1.id,
+        {
+          items: [
+            {
+              employeeId: ivanov,
+              templateId: dayId,
+              businessDate: day(1),
+              zoneId,
+              kind: 'REGULAR',
+            },
+            {
+              employeeId: petrova,
+              templateId: nightId,
+              businessDate: day(1),
+              zoneId,
+              kind: 'REGULAR',
+            },
+            {
+              employeeId: petrova,
+              templateId: dayId,
+              businessDate: day(3),
+              zoneId,
+              kind: 'REGULAR',
+            },
+          ],
+        },
+        PLANNER,
+      );
+      await schedule.submit(v1.id, PLANNER);
+      await schedule.publish(v1.id, {}, HEAD);
+      const detail = await schedule.detail(v1.id);
+      const ivanovShift = detail.assignments.find((a) => a.employeeId === ivanov)!;
+      const petrovaNight = detail.assignments.find(
+        (a) => a.employeeId === petrova && a.businessDate === day(1),
+      )!;
+      await schedule.acknowledge(v1.id, ivanov, 'TELEGRAM');
+      const [presence] = await testDb.db
+        .insert(presenceSessions)
+        .values({
+          employeeId: ivanov,
+          assignmentId: ivanovShift.id,
+          arrivedAt: new Date(ivanovShift.planStartAt),
+          arrivalMethod: 'QR',
+        })
+        .returning();
+      await testDb.db.insert(shiftSessions).values({
+        employeeId: ivanov,
+        assignmentId: ivanovShift.id,
+        presenceId: presence!.id,
+        businessDate: day(1),
+        state: 'WORKING',
+        startedAt: new Date(new Date(ivanovShift.planStartAt).getTime() + 5 * 60_000),
+        planStartAt: new Date(ivanovShift.planStartAt),
+        planEndAt: new Date(ivanovShift.planEndAt),
+      });
+      await testDb.db.insert(requests).values({
+        type: 'SWAP',
+        employeeId: ivanov,
+        counterpartEmployeeId: petrova,
+        assignmentId: ivanovShift.id,
+        payload: { counterpartAssignmentId: petrovaNight.id },
+        status: 'SUBMITTED',
+        currentStep: 0,
+        comment: 'swap please',
+      });
+      await testDb.db.insert(requests).values({
+        type: 'VACATION',
+        employeeId: petrova,
+        periodFrom: day(3),
+        periodTo: day(4),
+        status: 'APPROVED',
+        currentStep: 1,
+        comment: 'approved leave',
+      });
+      const range = { siteId, orgUnitId: unitId, from: day(1), to: day(7) };
+      const before = await staffing.operations(range, new Date(`${MONTH}-01T00:00:00Z`));
+      const state = (view: typeof before, employeeId: string, date: string) =>
+        view.presence.find((p) => p.employeeId === employeeId && p.businessDate === date)?.state;
+      expect(state(before, ivanov, day(1))).toBe('STARTED');
+      expect(state(before, petrova, day(1))).toBe('SCHEDULED');
+      // After the planned start with nothing recorded the state is "no evidence", never a no-show.
+      const after = await staffing.operations(range, new Date('2099-01-01T00:00:00Z'));
+      expect(state(after, petrova, day(1))).toBe('NO_EVIDENCE');
+      expect(state(after, petrova, day(3))).toBe('NO_EVIDENCE');
+      expect(before.presence.find((p) => p.employeeId === ivanov)?.acknowledgedAt).not.toBeNull();
+      expect(before.requests.map((r) => [r.type, r.status])).toEqual(
+        expect.arrayContaining([
+          ['SWAP', 'SUBMITTED'],
+          ['VACATION', 'APPROVED'],
+        ]),
+      );
+      expect(before.requests.find((r) => r.type === 'SWAP')?.currentStepKey).toEqual(
+        expect.any(String),
+      );
+      const swap = before.requests.find((r) => r.type === 'SWAP')!;
+      expect(swap).toMatchObject({
+        employeeId: ivanov,
+        counterpartEmployeeId: petrova,
+        assignmentId: ivanovShift.id,
+        assignmentDate: day(1),
+        currentStep: 0,
+      });
+      expect(swap.totalSteps).toBeGreaterThanOrEqual(1);
+
+      // Borrowing (D-06/SC-38): petrova's position is in the other unit.
+      const [position] = await testDb.db
+        .insert(positions)
+        .values({ code: 'OP', name: 'Operator' })
+        .returning();
+      await testDb.db.insert(employeePositions).values([
+        { employeeId: ivanov, orgUnitId: unitId, positionId: position!.id, validFrom: new Date(0) },
+        {
+          employeeId: petrova,
+          orgUnitId: otherUnitId,
+          positionId: position!.id,
+          validFrom: new Date(0),
+        },
+      ]);
+      const target = { siteId, orgUnitId: unitId };
+      const items = [{ employeeId: petrova, businessDate: day(5) }];
+      await expect(
+        schedule.assertBorrowingAuthority(
+          [{ role: 'PLANNER', scopeType: 'ORG_UNIT', scopeId: unitId }],
+          target,
+          items,
+        ),
+      ).rejects.toMatchObject({ code: 'SCHEDULE_BORROWING_AUTHORITY' });
+      await expect(
+        schedule.assertBorrowingAuthority(
+          [{ role: 'PLANNER', scopeType: 'ORG_UNIT', scopeId: unitId }],
+          target,
+          [{ employeeId: ivanov, businessDate: day(5) }],
+        ),
+      ).resolves.toBeUndefined();
+      await expect(
+        schedule.assertBorrowingAuthority(
+          [{ role: 'PRODUCTION_HEAD', scopeType: 'SITE', scopeId: siteId }],
+          target,
+          items,
+        ),
+      ).resolves.toBeUndefined();
     });
   });
 

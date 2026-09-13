@@ -200,6 +200,7 @@ function mockApi(
     lostResponse?: boolean;
     savedDetail?: ScheduleVersionDetail;
     slots?: Record<string, unknown>[];
+    operations?: Record<string, unknown>;
     october?: ScheduleVersionDetail;
     staffing?: {
       requirements: unknown[];
@@ -338,6 +339,14 @@ function mockApi(
         return json({ ...(body as object), id: SITE, createdAt: '2026-09-01T00:00:00.000Z' });
       return json(state.patterns ?? []);
     }
+    if (path.startsWith('/admin/schedules/staffing/operations'))
+      return json(
+        state.operations ?? {
+          fetchedAt: '2026-09-05T10:00:00.000Z',
+          presence: [],
+          requests: [],
+        },
+      );
     if (path.startsWith('/admin/schedules/staffing/context'))
       return json(state.context ?? { intervals: [], absences: [], otherUnitEmployees: [] });
     if (path.startsWith('/admin/schedules/staffing/candidates'))
@@ -541,11 +550,11 @@ function revisions(calls: Call[]) {
 }
 const t = messages(currentLocale()).scheduleWorkspace;
 const s = messages(currentLocale()).admin.schedule;
-function account(actorId = ACTOR) {
+function account(actorId = ACTOR, go: (section: string) => void = () => undefined) {
   return (
     <NavigationProvider
       actorId={actorId}
-      go={() => undefined}
+      go={go as never}
       roles={['ADMIN']}
       grants={[{ role: 'ADMIN', scopeType: 'ENTERPRISE', scopeId: null }]}
     >
@@ -553,8 +562,8 @@ function account(actorId = ACTOR) {
     </NavigationProvider>
   );
 }
-function admin() {
-  return render(account());
+function admin(go?: (section: string) => void) {
+  return render(account(ACTOR, go));
 }
 describe('schedule workspace', () => {
   beforeEach(() => {
@@ -2130,6 +2139,72 @@ it('creates an internal open slot, offers it, lists responses and selects one pe
       expectedRevision: 1,
     }),
   );
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('overlays presence evidence and request context on a published shift and opens replacement candidates', async () => {
+  freshState();
+  setUiState({ 'schedule.month': '2026-09' });
+  mockApi({
+    status: 'PUBLISHED',
+    operations: {
+      fetchedAt: '2026-09-05T18:30:00.000Z',
+      presence: [
+        {
+          assignmentId: ASSIGN,
+          employeeId: EMP,
+          businessDate: '2026-09-05',
+          state: 'STARTED',
+          acknowledgedAt: '2026-09-01T10:00:00.000Z',
+          arrivedAt: '2026-09-05T16:55:00.000Z',
+          startedAt: '2026-09-05T17:02:00.000Z',
+          endedAt: null,
+          sessionState: 'WORKING',
+        },
+      ],
+      requests: [
+        {
+          id: 'a7000000-0000-4000-8000-000000000001',
+          type: 'SWAP',
+          status: 'IN_REVIEW',
+          employeeId: EMP,
+          counterpartEmployeeId: EMP2,
+          periodFrom: null,
+          periodTo: null,
+          assignmentId: ASSIGN,
+          assignmentDate: '2026-09-05',
+          currentStep: 1,
+          currentStepKey: 'MASTER',
+          totalSteps: 2,
+          submittedAt: '2026-09-04T10:00:00.000Z',
+        },
+      ],
+    },
+    candidates: [
+      { employeeId: EMP2, orgUnitId: UNIT, ownUnit: true, status: 'ELIGIBLE', reasons: [] },
+    ],
+  });
+  const go = vi.fn();
+  admin(go);
+  await screen.findByText(t.publishedState);
+  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+    fireEvent.click(screen.getByRole('button', { name: t.previous }));
+  }
+  const card = await screen.findByRole('button', { name: /Кузнецов Леонид, 05/ });
+  await waitFor(() => expect(card.getAttribute('aria-label')).toContain('20:02'));
+  fireEvent.click(card);
+  const sheet = await screen.findByRole('dialog');
+  expect(within(sheet).getByText(/20:02/)).toBeTruthy();
+  const requestsSection = within(sheet).getByRole('region', { name: t.requestsContext });
+  expect(requestsSection.textContent).toContain('MASTER');
+  expect(requestsSection.textContent).toContain('Сидоров');
+  fireEvent.click(within(requestsSection).getByRole('button', { name: t.openRequests }));
+  expect(go).toHaveBeenCalledWith('requests');
+  fireEvent.click(within(sheet).getByRole('button', { name: t.findReplacement }));
+  const candidates = await within(sheet).findByRole('region', { name: t.candidates });
+  expect(await within(candidates).findByText('Сидоров Пётр')).toBeTruthy();
+  expect(within(candidates).queryByText('Кузнецов Леонид')).toBeNull();
   cleanup();
   vi.unstubAllGlobals();
 });

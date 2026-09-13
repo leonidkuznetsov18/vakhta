@@ -185,7 +185,10 @@ export function AssignmentEditor({
       : [];
   const blockedByRules = evaluated.some((reason) => reason.severity === 'BLOCK');
   const candidateQuery =
-    !original && draft.zoneId && draft.templateId && draft.businessDate.startsWith(w.month)
+    (!original || context.move) &&
+    draft.zoneId &&
+    draft.templateId &&
+    draft.businessDate.startsWith(w.month)
       ? {
           siteId: w.siteId,
           orgUnitId: w.orgUnitId,
@@ -202,6 +205,13 @@ export function AssignmentEditor({
       w.employees.find((employee) => employee.id === id)?.fullName ?? id,
   };
   const unchanged = !!original && candidate.success && sameAssignment(original, candidate.data);
+  // Borrowing (D-06, SC-38): a person whose position sits in another unit of the site.
+  const sourceUnit = w.context?.otherUnitEmployees.find(
+    (member) => member.employeeId === draft.employeeId,
+  );
+  const sourcePlanned = evaluated.some(
+    (reason) => reason.code === 'OVERLAP' && reason.detail['orgUnitId'] === sourceUnit?.orgUnitId,
+  );
   const valid =
     candidate.success &&
     active &&
@@ -469,6 +479,17 @@ export function AssignmentEditor({
           {t.addBreak}
         </Button>
       </section>
+      {sourceUnit && (
+        <div className="space-y-1 rounded-md border p-3 text-sm" role="note">
+          <div className="flex items-center gap-1 font-medium">
+            {format(t.borrowing, { unit: labels.unitName(sourceUnit.orgUnitId) })}
+            <InfoTip text={t.borrowingHint} />
+          </div>
+          <p className="text-muted-foreground">
+            {sourcePlanned ? t.borrowingSourcePlanned : t.borrowingSourceFree}
+          </p>
+        </div>
+      )}
       {occupied && <Feedback error={t.occupied} />}
       {missingQualifications.length > 0 && (
         <Feedback
@@ -510,7 +531,7 @@ export function AssignmentEditor({
             <ul className="max-h-64 space-y-1 overflow-y-auto rounded-md border p-1">
               {candidates.data.slice(0, 50).map((item) => {
                 const employee = w.employees.find((value) => value.id === item.employeeId);
-                if (!employee) return null;
+                if (!employee || item.employeeId === original?.employeeId) return null;
                 const tone =
                   item.status === 'BLOCKED'
                     ? 'text-red-700 dark:text-red-300'

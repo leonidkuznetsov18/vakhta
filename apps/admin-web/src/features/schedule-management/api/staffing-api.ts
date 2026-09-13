@@ -6,6 +6,8 @@ import {
   CreateQualificationCommand,
   EmployeeAvailabilityView,
   EmployeeQualificationView,
+  OperationsQuery,
+  OperationsView,
   PlanContextView,
   QualificationView,
   RecordAvailabilityCommand,
@@ -21,6 +23,10 @@ const root = '/admin/schedules/staffing';
 
 /** Staffing demand, qualification catalog and holdings of one unit (SC-01, SC-04). */
 export const staffingApi = {
+  async operations(query: OperationsQuery, signal: AbortSignal) {
+    const params = new URLSearchParams(OperationsQuery.parse(query));
+    return OperationsView.parse(await apiFetch(`${root}/operations?${params}`, { signal }));
+  },
   async view(siteId: string, orgUnitId: string, signal: AbortSignal) {
     const query = new URLSearchParams({ siteId, orgUnitId });
     return StaffingView.parse(await apiFetch(`${root}?${query}`, { signal }));

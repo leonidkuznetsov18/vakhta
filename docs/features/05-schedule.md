@@ -58,6 +58,15 @@ Counts describe assigned people, not required staffing or attendance.
   from the responses into the draft; the slot fills exactly once, other responses stay in history,
   and the schedule is published as usual. Withdrawing an offer or cancelling the slot closes stale
   bot buttons.
+- **Presence, absences and requests in context:** published shifts carry presence evidence from
+  QR arrivals and shift sessions: scheduled, acknowledged, arrived, started, closed, or "no evidence
+  recorded" after the planned start, which is never called a no-show. By-people view marks approved
+  and pending absences per day; private attachments never appear. Shift details list the requests
+  that touch the shift with their current step, open the Requests workflow for decisions (a swap
+  changes both assignments there, atomically, or neither), and offer Find replacement, which opens
+  the assignment with candidates and their eligibility. Planning a person from another unit shows
+  the source unit and whether they are planned there that day; saving needs administrator or head
+  of production authority, rechecked at commit.
 - **Conflicts and candidates:** the plan is checked as you edit: overlapping shifts of one person
   in any unit, approved absences and missing required qualifications block saving and publishing;
   short rest and too many monthly hours warn or block according to the site rules; a worker's

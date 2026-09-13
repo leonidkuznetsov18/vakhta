@@ -94,6 +94,8 @@ export class ScheduleCommandService {
       // Grant revocation is not serialized with the eventual commit.
       const grants = await this.roles.grantsOf(user.id, tx);
       const restriction = await this.schedules.editorScope(grants, target, command.action, tx);
+      if (command.action === 'SAVE' || command.action === 'REVISE')
+        await this.schedules.assertBorrowingAuthority(grants, target, command.payload.items, tx);
       if (command.action === 'CREATE' && command.payload.basedOnVersionId) {
         const source = await this.schedules.requireVersion(command.payload.basedOnVersionId, tx);
         await this.schedules.editorScope(grants, source, command.action, tx);

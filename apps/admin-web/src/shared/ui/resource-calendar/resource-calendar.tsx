@@ -90,6 +90,18 @@ function ItemContent({ item }: { readonly item: CalendarItem }) {
           </span>
         )}
       </span>
+      {item.marker && (
+        <span
+          className={cn(
+            'block min-w-0 truncate text-[10px] leading-4',
+            item.marker.tone === 'ok' && 'text-emerald-700 dark:text-emerald-300',
+            item.marker.tone === 'danger' && 'text-amber-700 dark:text-amber-300',
+            item.marker.tone === 'muted' && 'text-muted-foreground',
+          )}
+        >
+          {item.marker.label}
+        </span>
+      )}
     </>
   );
 }
@@ -146,6 +158,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                 item.time,
                 item.description,
                 item.status,
+                item.marker?.label ?? '',
                 item.issue ? model.issueLabels?.[item.issue] : '',
               ]
                 .filter(Boolean)

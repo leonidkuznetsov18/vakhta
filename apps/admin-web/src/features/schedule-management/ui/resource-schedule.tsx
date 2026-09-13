@@ -1,6 +1,6 @@
 import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { useState } from 'react';
-import { messages } from '@vakhta/i18n';
+import { format, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ResourceCalendar, type CalendarSelection } from '@/shared/ui/resource-calendar';
@@ -17,6 +17,10 @@ import { UNASSIGNED_ZONE, zoneAllowed } from '../model/planning';
 import type { Workspace } from '../model/use-workspace';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
 import { SlotDetails } from './slot-details';
+import { useOperations } from '../model/use-operations';
+import { useNavigation } from '@/navigation';
+import { InfoTip } from '@/components/app/info-tip';
+import { recordedTime } from '../lib/labels';
 import type { OpenSlots } from '../model/use-open-slots';
 import { employeeLabel } from './assignment-changes';
 
@@ -44,6 +48,14 @@ export function ResourceSchedule({
 }) {
   const t = messages(currentLocale()).scheduleWorkspace;
   const mobile = useIsMobile();
+  const navigation = useNavigation();
+  const operations = useOperations({
+    accessKey: w.accessKey,
+    siteId: w.siteId,
+    orgUnitId: w.orgUnitId,
+    dates,
+    enabled: !!w.version,
+  });
   const [picked, setPicked] = useState<CalendarSelection | null>(null);
   const [editor, setEditor] = useState<AssignmentContext | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
@@ -77,6 +89,8 @@ export function ResourceSchedule({
     editableMonth: w.month,
     allowedZones: w.rights.zones,
     slots: slots.slots,
+    ...(operations.data ? { operations: operations.data } : {}),
+    ...(w.context ? { absences: w.context.absences } : {}),
   });
   const items = gridToItems(w.grid);
   const selectedItem = items.find((item) => assignmentKey(item) === picked?.itemId);
@@ -276,12 +290,21 @@ export function ResourceSchedule({
                       ))}
                     </ul>
                   )}
-                  <p className="text-sm text-muted-foreground">{t.presenceUnknown}</p>
+                  <OperationalContext
+                    workspace={w}
+                    item={selectedItem}
+                    presence={selectedView?.marker?.label ?? null}
+                    query={operations}
+                    onOpenRequests={() => navigation.go('requests')}
+                  />
                   {editable && (
                     <div className="flex flex-wrap gap-2">
                       <Button onClick={() => edit()}>{t.editAssignment}</Button>
                       <Button variant="outline" onClick={() => edit(true)}>
                         {t.moveAssignment}
+                      </Button>
+                      <Button variant="outline" onClick={() => edit(true)}>
+                        {t.findReplacement}
                       </Button>
                     </div>
                   )}
@@ -322,5 +345,85 @@ export function ResourceSchedule({
         }
       />
     </>
+  );
+}
+
+/** Presence evidence and requests of one assignment (SC-03/07/13/14/34); decisions stay in Requests. */
+function OperationalContext({
+  workspace: w,
+  item,
+  presence,
+  query,
+  onOpenRequests,
+}: {
+  readonly workspace: Workspace;
+  readonly item: { readonly employeeId: string; readonly businessDate: string };
+  readonly presence: string | null;
+  readonly query: ReturnType<typeof useOperations>;
+  readonly onOpenRequests: () => void;
+}) {
+  const t = messages(currentLocale()).scheduleWorkspace;
+  const catalog = messages(currentLocale()).requests;
+  const related = (query.data?.requests ?? []).filter(
+    (request) =>
+      (request.employeeId === item.employeeId ||
+        request.counterpartEmployeeId === item.employeeId) &&
+      ((request.periodFrom !== null &&
+        request.periodTo !== null &&
+        request.periodFrom <= item.businessDate &&
+        item.businessDate <= request.periodTo) ||
+        request.assignmentDate === item.businessDate),
+  );
+  const published = w.publicationBaseline.rows.some(
+    (row) => row.employeeId === item.employeeId && !!row.cells[item.businessDate],
+  );
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1 text-sm">
+        <span>
+          {query.isError
+            ? t.presenceUnavailable
+            : (presence ?? (published && query.isPending ? '…' : t.presenceUnknown))}
+        </span>
+        <InfoTip text={t.presenceHint} />
+      </div>
+      {query.data && (
+        <p className="text-xs text-muted-foreground">
+          {format(t.presenceAsOf, { time: recordedTime(query.data.fetchedAt, w.timezone) })}
+        </p>
+      )}
+      <section className="space-y-1" aria-label={t.requestsContext}>
+        <h4 className="text-sm font-semibold">{t.requestsContext}</h4>
+        {related.length === 0 && (
+          <p className="text-sm text-muted-foreground">{t.noRequestsContext}</p>
+        )}
+        {related.length > 0 && (
+          <ul className="space-y-1 text-sm">
+            {related.map((request) => (
+              <li key={request.id} className="[overflow-wrap:anywhere]">
+                {catalog.types[request.type as keyof typeof catalog.types] ?? request.type} ·{' '}
+                {catalog.statuses[request.status as keyof typeof catalog.statuses] ??
+                  request.status}
+                {request.currentStepKey
+                  ? ` · ${format(t.requestStep, {
+                      step: request.currentStep + 1,
+                      total: request.totalSteps,
+                      key: request.currentStepKey,
+                    })}`
+                  : ''}
+                {request.counterpartEmployeeId
+                  ? ` · ${employeeLabel(w, request.employeeId)} ⇄ ${employeeLabel(w, request.counterpartEmployeeId)}`
+                  : ''}
+              </li>
+            ))}
+          </ul>
+        )}
+        {related.length > 0 && (
+          <Button variant="outline" size="sm" onClick={onOpenRequests}>
+            {t.openRequests}
+          </Button>
+        )}
+      </section>
+    </div>
   );
 }

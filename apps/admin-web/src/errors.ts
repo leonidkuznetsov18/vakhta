@@ -16,6 +16,7 @@ export function describeError(e: unknown): string {
     if (e.code?.startsWith('SEGMENT_')) return t.scheduleWorkspace.segmentError;
     if (e.code?.startsWith('BREAK_')) return t.scheduleWorkspace.breakError;
     if (e.code === 'SLOT_FILLED') return t.scheduleWorkspace.slotFilledError;
+    if (e.code === 'SCHEDULE_BORROWING_AUTHORITY') return t.scheduleWorkspace.borrowingError;
     if (e.status === 403) return t.admin.schedule.forbidden;
     if (e.status === 0) return t.admin.auth.networkError;
     if (e.code === 'INSPECTION_RULES_MISSING') return t.photoInspection.aiRulesMissing;

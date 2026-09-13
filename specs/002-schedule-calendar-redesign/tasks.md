@@ -117,9 +117,9 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US2 | **Dependencies**: D-06/#8/#12/#13 | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T040 [US2] Expose scoped absence/presence/request context through owning APIs in apps/api/src/requests/ and scheduling; preserve unknown freshness/private fields (#17).
-- [ ] T041 [US2] Compose public Requests/Operations APIs above features; atomic swap/borrowing decisions and source coverage in apps/api/src/requests/ and scheduling (#17).
-- [ ] T042 [US2] Verify current approval step, approved/pending/rejected privacy, missing-QR unknown, two-sided swap and borrowing rollback with real DB and affected worker/UI tests (#17).
+- [x] T040 [US2] Expose scoped absence/presence/request context through owning APIs in apps/api/src/requests/ and scheduling; preserve unknown freshness/private fields (#17).
+- [x] T041 [US2] Compose public Requests/Operations APIs above features; atomic swap/borrowing decisions and source coverage in apps/api/src/requests/ and scheduling (#17).
+- [x] T042 [US2] Verify current approval step, approved/pending/rejected privacy, missing-QR unknown, two-sided swap and borrowing rollback with real DB and affected worker/UI tests (#17).
 
 ## Phase 15: Records and output — #18
 

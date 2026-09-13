@@ -1,7 +1,9 @@
 import { assignmentInstants, type EligibilityReason } from '@vakhta/domain';
-import { format, messages, type Locale } from '@vakhta/i18n';
+import { format, messages, type Locale, type Messages } from '@vakhta/i18n';
 import type {
+  AbsenceView,
   OpenSlotView,
+  OperationsView,
   AssignmentInput,
   AssignmentView,
   EmployeeView,
@@ -44,6 +46,10 @@ export interface CalendarInput {
   readonly issues?: readonly EligibilityReason[];
   /** Open slots of the plan (SC-15); rendered in their zone, never counted as people. */
   readonly slots?: readonly OpenSlotView[];
+  /** Presence evidence of published assignments (SC-07); absent while loading. */
+  readonly operations?: OperationsView;
+  /** Absence requests of the plan's people (SC-03); shown per person and date. */
+  readonly absences?: readonly AbsenceView[];
 }
 
 /** Business dates are calendar values, never browser-local instants. */
@@ -195,8 +201,13 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
     if (template?.isNight) dateCounts.night += 1;
     else if (template) dateCounts.day += 1;
     countsByDate.set(item.businessDate, dateCounts);
+    const evidence = input.operations?.presence.find(
+      (row) => row.employeeId === item.employeeId && row.businessDate === item.businessDate,
+    );
+    const marker = evidence ? presenceMarker(evidence, timeFormat, t) : undefined;
     bucket.push({
       id: assignmentKey(item),
+      ...(marker ? { marker } : {}),
       title:
         input.grouping === 'zones'
           ? (employeeMap.get(item.employeeId)?.fullName ?? t.unknownEmployee)
@@ -270,7 +281,20 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
       ? { text: t.coverageShort.replace('{count}', String(missing)), tone: 'danger' }
       : { text: t.coverageOk, tone: 'ok' };
   };
+  const absenceNote = (employeeId: string, date: string): CalendarNote | undefined => {
+    const absence = (input.absences ?? []).find(
+      (row) => row.employeeId === employeeId && row.from <= date && date <= row.to,
+    );
+    if (!absence) return undefined;
+    const type =
+      messages(input.locale).requests.types[absence.type as keyof Messages['requests']['types']] ??
+      absence.type;
+    return absence.status === 'APPROVED'
+      ? { text: format(t.absenceApproved, { type }), tone: 'danger' }
+      : { text: format(t.absencePending, { type }), tone: 'muted' };
+  };
   const cellNote = (zoneId: string, date: string): CalendarNote | undefined => {
+    if (input.grouping === 'people') return absenceNote(zoneId, date);
     if (input.grouping !== 'zones' || !input.coverage?.ready) return undefined;
     const rows = input.coverage.cells.filter(
       (cell) => cell.zoneId === zoneId && cell.businessDate === date,
@@ -376,4 +400,26 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
     moreItemsLabel: t.resourceMoreItems,
     issueLabels: { BLOCK: t.conflict, WARN: t.warning },
   };
+}
+
+function presenceMarker(
+  evidence: OperationsView['presence'][number],
+  timeFormat: Intl.DateTimeFormat,
+  t: Messages['scheduleWorkspace'],
+): { label: string; tone: 'ok' | 'muted' | 'danger' } {
+  const at = (value: string | null) => (value ? timeFormat.format(new Date(value)) : '');
+  switch (evidence.state) {
+    case 'STARTED':
+      return { label: format(t.presenceStarted, { time: at(evidence.startedAt) }), tone: 'ok' };
+    case 'CLOSED':
+      return { label: format(t.presenceClosed, { time: at(evidence.endedAt) }), tone: 'ok' };
+    case 'ARRIVED':
+      return { label: format(t.presenceArrived, { time: at(evidence.arrivedAt) }), tone: 'ok' };
+    case 'NO_EVIDENCE':
+      return { label: t.presenceNoEvidence, tone: 'danger' };
+    case 'ACKNOWLEDGED':
+      return { label: t.presenceAcknowledged, tone: 'muted' };
+    default:
+      return { label: t.presenceScheduled, tone: 'muted' };
+  }
 }
