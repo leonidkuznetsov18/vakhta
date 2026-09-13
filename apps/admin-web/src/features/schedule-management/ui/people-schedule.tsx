@@ -26,9 +26,11 @@ import { formatDuration } from '@/lib/format';
 import { cn } from 'cn';
 import type { Workspace } from '../model/use-workspace';
 import {
+  assignmentKey,
   gridToItems,
   gridForZone,
   removeZoneAssignments,
+  sameAssignment,
   setAssignment,
   setCell,
   removeRow,
@@ -42,9 +44,11 @@ const dayKinds = messages(currentLocale()).schedule.dayKinds;
 export function PeopleSchedule({
   workspace: w,
   zoneId = '',
+  today,
 }: {
   workspace: Workspace;
   zoneId?: string;
+  today?: string;
 }) {
   const [search, setSearch] = useState('');
   const [editor, setEditor] = useState<AssignmentContext | null>(null);
@@ -53,6 +57,9 @@ export function PeopleSchedule({
   const instance = useId();
   const days = monthDates(w.month);
   const allItems = gridToItems(w.grid);
+  const publishedItems = new Map(
+    gridToItems(w.publicationBaseline).map((item) => [assignmentKey(item), item]),
+  );
   const projected = gridForZone(w.grid, zoneId);
   const rows = projected.rows.filter((row) =>
     employeeLabel(w, row.employeeId)
@@ -93,9 +100,7 @@ export function PeopleSchedule({
           dates: [editor.businessDate],
           grouping: 'people',
           locale: currentLocale(),
-          publication: w.version
-            ? messages(currentLocale()).admin.schedule.statuses[w.version.status]
-            : '',
+          published: w.publicationBaseline,
         }).resources.find((row) => row.id === editor.employeeId)?.cells[0]?.items[0]
       : null;
   function outsideZone(employeeId: string, date: string) {
@@ -191,7 +196,15 @@ export function PeopleSchedule({
             <TableRow>
               <TableHead className="sticky left-0 z-10 w-40 bg-background">{t.workers}</TableHead>
               {days.map((date) => (
-                <TableHead key={date} className="px-1 text-center">
+                <TableHead
+                  key={date}
+                  aria-current={date === today ? 'date' : undefined}
+                  className={cn(
+                    'px-1 text-center',
+                    date === today &&
+                      'bg-emerald-50/70 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200',
+                  )}
+                >
                   {date.slice(8)}
                 </TableHead>
               ))}
@@ -248,6 +261,13 @@ export function PeopleSchedule({
                       : row.cells[date]
                         ? '?'
                         : dayKinds.OFF;
+                    const current = row.details?.[date];
+                    const live = publishedItems.get(cellKey);
+                    const unpublished =
+                      !!row.cells[date] && (!live || !current || !sameAssignment(live, current));
+                    const unpublishedMark =
+                      unpublished &&
+                      'outline-dashed outline-1 outline-offset-[-2px] outline-current/60';
                     return (
                       <TableCell key={date} className="p-0.5 text-center">
                         {hidden ? (
@@ -269,12 +289,13 @@ export function PeopleSchedule({
                             }
                             onFocus={() => setFocus(cellKey)}
                             onKeyDown={(event) => keyDown(event, rowIndex, dayIndex)}
-                            aria-label={`${employeeLabel(w, row.employeeId)}, ${date}, ${template ? templateLabel(template.code, t) : dayKinds.OFF}`}
+                            aria-label={`${employeeLabel(w, row.employeeId)}, ${date}, ${template ? templateLabel(template.code, t) : dayKinds.OFF}${unpublished ? `, ${t.notPublished}` : ''}`}
                             onClick={(event) => open(row.employeeId, date, event.currentTarget)}
                             className={cn(
                               'min-h-9 min-w-9 p-1',
                               calendarInteraction,
                               template && calendarItemColors[template.isNight ? 'indigo' : 'amber'],
+                              unpublishedMark,
                             )}
                           >
                             {label}
@@ -284,8 +305,9 @@ export function PeopleSchedule({
                             className={cn(
                               'inline-flex min-h-9 min-w-9 items-center justify-center rounded text-sm',
                               template && calendarItemColors[template.isNight ? 'indigo' : 'amber'],
+                              unpublishedMark,
                             )}
-                            title={`${date} · ${template ? templateLabel(template.code, t) : dayKinds.OFF}`}
+                            title={`${date} · ${template ? templateLabel(template.code, t) : dayKinds.OFF}${unpublished ? ` · ${t.notPublished}` : ''}`}
                           >
                             {label}
                           </span>

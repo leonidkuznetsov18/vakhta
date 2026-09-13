@@ -1,4 +1,4 @@
-import { historyAssignmentKind } from '../model/history';
+import { assignmentKindLabel } from '../lib/labels';
 import { templateLabel } from '../lib/template-label';
 import type {
   AssignmentInput,
@@ -33,12 +33,12 @@ export function assignmentLabel(labels: ScheduleLabels, item?: AssignmentInput) 
     item.businessDate,
     template ? templateLabel(template.code, t) : `${t.unknownTemplate} · ${item.templateId}`,
     item.zoneId ? (zone?.name ?? item.zoneId) : t.noZone,
-    historyAssignmentKind(item.kind),
+    assignmentKindLabel(item.kind),
     item.teamId
-      ? `${t.historyTeam}: ${labels.org?.teams.find((team) => team.id === item.teamId)?.name ?? item.teamId}`
+      ? `${t.team}: ${labels.org?.teams.find((team) => team.id === item.teamId)?.name ?? item.teamId}`
       : null,
     item.positionId
-      ? `${t.historyPosition}: ${labels.org?.positions.find((position) => position.id === item.positionId)?.name ?? item.positionId}`
+      ? `${t.position}: ${labels.org?.positions.find((position) => position.id === item.positionId)?.name ?? item.positionId}`
       : null,
   ]
     .filter((value) => value !== null)

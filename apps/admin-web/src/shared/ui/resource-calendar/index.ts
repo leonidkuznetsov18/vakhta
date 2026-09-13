@@ -2,6 +2,7 @@ export { ResourceCalendar } from './resource-calendar';
 export type {
   CalendarItem,
   CalendarCell,
+  CalendarDate,
   CalendarResource,
   CalendarSelection,
   CalendarViewModel,

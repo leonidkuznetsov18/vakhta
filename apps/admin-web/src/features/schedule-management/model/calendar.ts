@@ -18,6 +18,8 @@ import { UNASSIGNED_ZONE } from './planning';
 export type CalendarGrouping = 'zones' | 'people';
 export interface CalendarInput {
   readonly grid: GridState;
+  /** Assignments of the currently published month; an item outside it is not published. */
+  readonly published: GridState;
   readonly recorded: readonly AssignmentView[];
   readonly employees: readonly EmployeeView[];
   readonly templates: readonly ShiftTemplateView[];
@@ -28,7 +30,7 @@ export interface CalendarInput {
   readonly grouping: CalendarGrouping;
   readonly zoneId?: string;
   readonly writable: boolean;
-  readonly publication: string;
+  readonly today?: string;
 }
 
 /** Business dates are calendar values, never browser-local instants. */
@@ -56,6 +58,7 @@ export function siteToday(timezone: string, now = new Date()): string {
 
 export function calendarModel(input: CalendarInput): CalendarViewModel {
   const t = messages(input.locale).scheduleWorkspace;
+  const totalsLabel = messages(input.locale).admin.schedule.dayTotals;
   const allAssignments = gridToItems(input.grid);
   const occupiedDays = new Set(allAssignments.map(assignmentKey));
   const items = allAssignments.filter(
@@ -66,6 +69,9 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
   const employeeMap = new Map(input.employees.map((employee) => [employee.id, employee]));
   const templates = new Map(input.templates.map((template) => [template.id, template]));
   const zones = new Map(input.zones.map((zone) => [zone.id, zone]));
+  const published = new Map(
+    gridToItems(input.published).map((item) => [assignmentKey(item), item]),
+  );
   const saved = new Map(
     input.recorded
       .filter((item) => item.status === 'PLANNED')
@@ -100,6 +106,9 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
   const resourceId = (item: AssignmentInput) =>
     input.grouping === 'zones' ? (item.zoneId ?? UNASSIGNED_ZONE) : item.employeeId;
   const buckets = new Map<string, CalendarItem[]>();
+  const minutesByResource = new Map<string, number | null>();
+  const countsByResource = new Map<string, number>();
+  const countsByDate = new Map<string, { day: number; night: number }>();
   for (const item of items) {
     const template = templates.get(item.templateId);
     const previous = saved.get(assignmentKey(item));
@@ -113,23 +122,40 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
     const time = plan
       ? `${timeFormat.format(plan.planStartAt)}–${siteToday(input.timezone, plan.planEndAt) !== item.businessDate ? `${endDateFormat.format(plan.planEndAt)} ` : ''}${timeFormat.format(plan.planEndAt)}`
       : t.unknownTemplate;
-    const persisted = previous && sameAssignment(previous, item);
-    const status = persisted ? input.publication : t.localChanges;
+    const live = published.get(assignmentKey(item));
+    const unpublished = !live || !sameAssignment(live, item);
     const key = `${resourceId(item)}:${item.businessDate}`;
     const bucket = buckets.get(key) ?? [];
     const durationMinutes = plan
       ? (plan.planEndAt.getTime() - plan.planStartAt.getTime()) / 60000
       : null;
     const duration = durationMinutes === null ? '' : durationFormat.format(durationMinutes / 60);
+    const owner = resourceId(item);
+    const minutes = minutesByResource.get(owner);
+    minutesByResource.set(
+      owner,
+      minutes === null || durationMinutes === null ? null : (minutes ?? 0) + durationMinutes,
+    );
+    countsByResource.set(owner, (countsByResource.get(owner) ?? 0) + 1);
+    const dateCounts = countsByDate.get(item.businessDate) ?? { day: 0, night: 0 };
+    if (template?.isNight) dateCounts.night += 1;
+    else if (template) dateCounts.day += 1;
+    countsByDate.set(item.businessDate, dateCounts);
     bucket.push({
       id: assignmentKey(item),
       title:
         input.grouping === 'zones'
           ? (employeeMap.get(item.employeeId)?.fullName ?? t.unknownEmployee)
           : (zones.get(item.zoneId ?? '')?.name ?? t.noZone),
-      time: `${time}${duration ? ` ${duration}` : ''}`,
-      description: template ? (template.isNight ? t.nightShift : t.dayShift) : t.unknownShift,
-      status,
+      time,
+      description: [
+        template ? (template.isNight ? t.nightShift : t.dayShift) : t.unknownShift,
+        duration,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      status: unpublished ? t.notPublished : '',
+      unpublished,
       tone: template ? (template.isNight ? 'indigo' : 'amber') : 'neutral',
     });
     buckets.set(key, bucket);
@@ -144,46 +170,68 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
   );
   const resources: CalendarResource[] = [...ids]
     .filter((id) => input.grouping !== 'zones' || !input.zoneId || id === input.zoneId)
-    .map((id) => ({
-      id,
-      title:
-        input.grouping === 'zones'
-          ? (zones.get(id)?.name ?? t.noZone)
-          : (employeeMap.get(id)?.fullName ?? t.unknownEmployee),
-      description:
-        input.grouping === 'zones'
-          ? t.coverageUnknown
-          : (employeeMap.get(id)?.personnelNumber ?? ''),
-      cells: input.dates.map((date) => {
-        const values = buckets.get(`${id}:${date}`) ?? [];
-        return {
-          date,
-          label: dateFormat.format(new Date(`${date}T00:00:00Z`)),
-          items: values,
-          summary: t.resourceItems.replace('{count}', String(values.length)),
-          create: input.writable
-            ? {
-                label: t.add,
-                ...(input.grouping === 'zones' && id !== UNASSIGNED_ZONE && !zones.get(id)?.isActive
-                  ? { disabledReason: t.inactive }
-                  : {}),
-                ...(input.grouping === 'people' &&
-                occupiedDays.has(assignmentKey({ employeeId: id, businessDate: date }))
-                  ? { disabledReason: values.length ? t.occupied : t.outsideZone }
-                  : {}),
-              }
-            : null,
-        };
-      }),
-    }));
+    .map((id) => {
+      const count = countsByResource.get(id) ?? 0;
+      const minutes = minutesByResource.get(id);
+      const hours =
+        count === 0
+          ? ''
+          : minutes === null || minutes === undefined
+            ? ''
+            : durationFormat.format(minutes / 60);
+      return {
+        id,
+        title:
+          input.grouping === 'zones'
+            ? (zones.get(id)?.name ?? t.noZone)
+            : (employeeMap.get(id)?.fullName ?? t.unknownEmployee),
+        description:
+          input.grouping === 'zones'
+            ? t.coverageUnknown
+            : (employeeMap.get(id)?.personnelNumber ?? ''),
+        summary: [t.shiftsCount.replace('{count}', String(count)), hours]
+          .filter(Boolean)
+          .join(' · '),
+        cells: input.dates.map((date) => {
+          const values = buckets.get(`${id}:${date}`) ?? [];
+          return {
+            date,
+            label: dateFormat.format(new Date(`${date}T00:00:00Z`)),
+            items: values,
+            summary: t.resourceItems.replace('{count}', String(values.length)),
+            create: input.writable
+              ? {
+                  label: t.add,
+                  ...(input.grouping === 'zones' &&
+                  id !== UNASSIGNED_ZONE &&
+                  !zones.get(id)?.isActive
+                    ? { disabledReason: t.inactive }
+                    : {}),
+                  ...(input.grouping === 'people' &&
+                  occupiedDays.has(assignmentKey({ employeeId: id, businessDate: date }))
+                    ? { disabledReason: values.length ? t.occupied : t.outsideZone }
+                    : {}),
+                }
+              : null,
+          };
+        }),
+      };
+    });
   return {
     label: t.calendar,
     resourceLabel: input.grouping === 'zones' ? t.zone : t.workers,
-    dates: input.dates.map((id) => ({
-      id,
-      label: dayFormat.format(new Date(`${id}T00:00:00Z`)),
-      shortLabel: id.slice(8),
-    })),
+    dates: input.dates.map((id) => {
+      const counts = countsByDate.get(id) ?? { day: 0, night: 0 };
+      return {
+        id,
+        label: dayFormat.format(new Date(`${id}T00:00:00Z`)),
+        shortLabel: id.slice(8),
+        summary: totalsLabel
+          .replace('{day}', String(counts.day))
+          .replace('{night}', String(counts.night)),
+        today: id === input.today,
+      };
+    }),
     resources,
     emptyLabel: t.noAssignments,
     moreItemsLabel: t.resourceMoreItems,

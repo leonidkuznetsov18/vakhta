@@ -199,3 +199,9 @@ Begin T004–T006 prototype and T052 matrix/runbook while policy answers and hum
 - [x] T080 [US3] Verify real-DB/XLSX completeness, literal formula-like content, snapshot/revision/privacy and HTTP boundaries; builds/types/lint/root formatting and independent review.
 
 - [x] T081 [US3] Add revision-bound saved-version XLSX download to history, guard pending/stale/unmounted flows, and verify API/UI behavior plus desktop/mobile evidence.
+
+## Workspace redesign and version removal — #6 (owner decision 2026-09-13)
+
+- [x] T082 [US1] Remove version numbers, history, lineage, version navigation and delete-version from the Schedule page; keep server versions/audit; delete the history client, model and UI.
+- [x] T083 [US1] Compose one toolbar and status line with role-based working plan, in-place editing, planner draft copy on first edit and chained draft publication; compact calendar cards with unpublished marking, totals and hover add.
+- [x] T084 [US1] Regression-test planner draft copy, chained submit→publish, draft/published toggle and adapted lifecycle cases; inspect desktop/390px preview; update product, guide and engineering docs.

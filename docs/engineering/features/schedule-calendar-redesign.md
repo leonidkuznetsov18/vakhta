@@ -791,3 +791,35 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
 - Lean completion: Proceed. Saved-version scope is visible before download, a stale copy requires
   explicit refresh, and failure leaves history readable. No extra worker data entry or notification.
   #18 remains open for print, notes, typed fields and operational report dependencies.
+
+## 2026-09-13 — Workspace redesign and version removal (#6, owner decision)
+
+- Owner request: redesign the page like When I Work / Deputy and remove versioning from the Schedule
+  interface entirely. The previous session had planned this before its usage limit; nothing was
+  written. Server versions, revisions, receipts and the audit history endpoint are untouched.
+- Removed from the panel: version badge and numbers, history tab, decisions/lineage Sheet,
+  version-bound export section, "Continue draft" / "Edit schedule" / "Back to current" navigation,
+  delete-version action and the sticky lifecycle footer. Deleted `schedule-history.tsx`,
+  `history-decisions.tsx`, `model/history.ts`, the history API client and query key.
+- New composition: one toolbar (scope, zone, period navigation with Today, day/week/month, zone/people
+  grouping, undo/redo, Discard, Add assignments, one primary action, actions menu) and a status line
+  (published / draft / awaiting approval pill, unpublished-change count, publication time, XLSX).
+  `workingVersion(versions, rights)` picks the plan per role: editors continue the draft, approvers
+  see the reviewed plan, readers see the published one; a menu toggle shows the other side.
+- Editing is direct: publishers edit a published month in place and publish the diff (REVISE);
+  planners' first edit of a published month starts a draft copy (CREATE with basedOnVersionId) and
+  the deferred edit is stored under the new draft key once its revision is known. Publishing a saved
+  draft runs SUBMIT then PUBLISH through a scoped, non-persisted chain (`model/chain.ts`); an
+  interrupted chain leaves the explicit "awaiting approval" state.
+- Calendar cards: title, time range and description with duration; unpublished shifts have a dashed
+  border, an icon and "Not published" in the accessible name; status is computed against the
+  published month, not the selected version. Column headers show day/night counts, rows show shifts
+  and hours, today is highlighted, and empty cells reveal an add affordance on hover/focus (always on
+  touch widths). Applying a contextual edit closes the Sheet and restores focus.
+- Verification (local, synthetic preview): schedule-management and resource-calendar tests 90 passed,
+  including three new cases (planner draft copy with retained edit, chained submit→publish with reason,
+  draft/published toggle without writes); i18n catalog parity 10 passed; admin-web typecheck, ESLint
+  and Prettier clean. Desktop 1440×900 and 390×844 preview inspected: zones/people week, month matrix,
+  hover add, create Sheet, unpublished card, publication review, mobile toolbar/date strip.
+- Lean: Simplify. One place for the plan, one primary action per state, no version vocabulary for a
+  master. No new worker step. Remaining: cross-month reads (#10) and every other epic stream.

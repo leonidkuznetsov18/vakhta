@@ -4,8 +4,11 @@ export interface CalendarItem {
   readonly title: string;
   readonly time: string;
   readonly description: string;
+  /** Empty when nothing needs saying; otherwise a short state such as "Not published". */
   readonly status: string;
   readonly tone: 'info' | 'warning' | 'danger' | 'neutral' | 'amber' | 'indigo';
+  /** Rendered with a dashed border so an unpublished shift is recognizable without color. */
+  readonly unpublished?: boolean;
   readonly parts?: readonly { readonly id: string; readonly label: string }[];
 }
 export interface CalendarCell {
@@ -19,16 +22,22 @@ export interface CalendarResource {
   readonly id: string;
   readonly title: string;
   readonly description: string;
+  /** Period totals of the row, for example shifts and planned hours. */
+  readonly summary?: string;
   readonly cells: readonly CalendarCell[];
+}
+export interface CalendarDate {
+  readonly id: string;
+  readonly label: string;
+  readonly shortLabel: string;
+  /** Column totals, for example day/night counts. */
+  readonly summary?: string;
+  readonly today?: boolean;
 }
 export interface CalendarViewModel {
   readonly label: string;
   readonly resourceLabel: string;
-  readonly dates: readonly {
-    readonly id: string;
-    readonly label: string;
-    readonly shortLabel: string;
-  }[];
+  readonly dates: readonly CalendarDate[];
   readonly resources: readonly CalendarResource[];
   readonly emptyLabel: string;
   readonly moreItemsLabel: string;

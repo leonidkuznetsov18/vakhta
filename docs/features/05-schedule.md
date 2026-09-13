@@ -4,35 +4,36 @@ Planned successor: [Schedule calendar redesign](schedule-calendar-redesign.md) d
 page redesign and its ranked requirements. It is not implemented; the behavior below remains the
 current operational reference.
 
-The schedule workspace starts with the current published month, grouped by zone. Select the
-site (when more than one is available), unit and month. Day/night assignment counts and planned
-person-hours describe the selected period and zones; they are not staffing requirements or attendance.
+The Schedule page is one planning calendar per site and unit, modelled on When I Work and Deputy.
+Choose the unit, navigate by day, week or month with the period picker and Today, and group the
+calendar by zones or by workers; the month always opens the worker day/night matrix. Column headers
+show day/night counts for each date and every row shows its shifts and planned hours for the period.
+Counts describe assigned people, not required staffing or attendance.
 
-- **By zones:** desktop defaults to a week, mobile to a day. Switch day/week/month, navigate dates,
-  and open a zone/date to read its day and night teams. Empty active zones remain visible.
-- **By workers:** a monthly matrix with worker search, assignment totals and planned hours.
-  Arrow keys navigate one roving cell focus; Enter opens the assignment, D/N changes its template,
-  and Delete clears it. Creating an empty cell asks for its zone instead of guessing a monthly zone.
-- **Change history:** saved versions open inline as read-only assignment lists. Server-permitted
-  deletion remains available only to scoped editors and requires confirmation.
-- **Edit schedule / Continue draft:** explicit entry into editing. Each assignment owns its date,
-  template and zone. Unchanged kind, position and team metadata survive serialization.
-- **Add assignments:** select workers, a zone and date range, then a shift or rotation. Fill-empty
-  preserves occupied dates; replacement may remove off-days. Review exact additions/removals/changes
-  before applying. Undo/redo reverse local actions, and discard restores the saved baseline.
-- Local drafts survive navigation/reload. Legacy drafts require explicit reconciliation against
-  saved assignments. A changed server baseline blocks stale overwrite and keeps local work available
-  for recovery. Filters never narrow the complete monthly write payload.
-- Draft lifecycle remains DRAFT → IN_REVIEW → PUBLISHED. Admins/planners save and submit; scoped
-  admins/production heads publish or return with a comment. Masters retain existing read-only rights.
-- Published editing by an admin/production head uses the existing atomic revise endpoint: a new
-  publication supersedes the old version. Review shows exact changes and affected people before
-  sending the optional reason. The success message says notifications were queued, not delivered.
-- Inactive records retain their available historical names; only active workers/zones/templates can
-  receive new assignments. Employee list retrieval is currently capped at 200; missing scheduled
-  identities are fetched individually when the role permits it. This is not a complete searchable roster.
-- Server assignment validation remains authoritative. This page does not automatically check rest,
-  monthly-hour limits or cross-unit overlap, and does not contain an acknowledgement/reminder table.
+- **Working plan:** editors see the unpublished month when one exists, approvers see what awaits
+  them, and everybody else sees what workers see. The status line says whether the plan is published,
+  a draft workers cannot see, or awaiting approval, and how many changes are not published yet.
+  Unpublished shifts carry a dashed border and an icon. When a draft exists next to a published month,
+  the actions menu switches between them; there is no version list, number or history on this page.
+- **Edit in place:** click an empty cell to add a shift with the selected date, worker or zone, or
+  click a shift to change its date, zone or template or remove it. Add assignments plans several
+  workers over a date range with a shift or rotation; fill-empty preserves occupied dates, replace may
+  remove off-days, and exact additions/removals/changes are previewed before applying. Undo/redo and
+  Discard work on local edits, which survive navigation and reload.
+- **Publish:** Review and publish lists exact additions, removals and changes with the affected
+  workers and an optional reason. An administrator or production head publishes directly; a planner
+  saves the draft and sends it for approval, and the approver publishes or returns it with a comment.
+  A planner editing a published month starts a draft copy on the first change. Publication queues
+  worker notifications; it does not prove delivery. Download XLSX exports the complete saved plan.
+- Local drafts are owned by the signed-in account. A changed server plan blocks a stale overwrite
+  and keeps local work available for reconciliation. Filters never narrow the complete monthly write.
+- Inactive records retain their historical names; only active workers, zones and templates can
+  receive new assignments. Server assignment validation remains authoritative; rest, monthly-hour
+  limits and cross-unit overlap are not checked on this page.
+
+Versions remain a server-side storage and audit mechanism (published plans supersede earlier ones,
+attendance and bonus records keep their links). Owner decision 2026-09-13: they are no longer a
+concept of the Schedule interface.
 
 Implementation and evidence: [schedule workspace](../engineering/features/schedule-workspace.md).
 

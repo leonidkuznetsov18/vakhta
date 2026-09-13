@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { PlusIcon } from 'lucide-react';
+import { CircleDashedIcon, PlusIcon } from 'lucide-react';
 import { cn } from 'cn';
 import { CalendarDetailPanel } from './detail-panel';
 import { calendarItemColors, calendarInteraction } from './styles';
@@ -42,13 +42,15 @@ function ItemContent({ item }: { readonly item: CalendarItem }) {
   return (
     <>
       <span className="block min-w-0 truncate font-medium leading-5">{item.title}</span>
-      <span className="line-clamp-2 min-w-0 text-xs font-medium leading-4 tabular-nums">
-        {item.time}
-      </span>
-      <span className="block min-w-0 truncate text-xs leading-4">{description}</span>
-      <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-medium leading-4">
-        {item.status && <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-current" />}
-        <span className="truncate">{item.status}</span>
+      <span className="block min-w-0 truncate text-[11px] leading-4 tabular-nums">{item.time}</span>
+      <span className="flex min-w-0 items-center gap-1.5 text-[11px] leading-4">
+        <span className="min-w-0 truncate">{description}</span>
+        {item.status && (
+          <span className="ml-auto flex shrink-0 items-center" title={item.status}>
+            <CircleDashedIcon aria-hidden className="size-3.5" />
+            <span className="sr-only">{item.status}</span>
+          </span>
+        )}
       </span>
     </>
   );
@@ -71,47 +73,46 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
   const pages = usePages(model.resources.length, PAGE_SIZE, undefined, -1, model.resourceLabel);
   const rows = useTablePage(model.resources, (row) => row.id, pages.page, pages.size);
   function cellContent(row: CalendarResource, cell: CalendarCell) {
+    const cellSelected = selection?.resourceId === row.id && selection.date === cell.date;
+    const empty = cell.items.length === 0;
     return (
-      <div className="space-y-2 min-w-0">
+      <div className="group/cell flex min-h-[4.75rem] min-w-0 flex-col gap-1.5">
         {cell.items.slice(0, CELL_PREVIEW_LIMIT).map((item) => {
-          const selected =
-            selection?.resourceId === row.id &&
-            selection.date === cell.date &&
-            selection.itemId === item.id;
+          const selected = cellSelected && selection?.itemId === item.id;
           return (
             <Button
               key={item.id}
               variant="outline"
               aria-pressed={selected}
-              aria-label={`${item.title}, ${cell.label}, ${item.time}, ${item.description}, ${item.status}`}
+              aria-label={[item.title, cell.label, item.time, item.description, item.status]
+                .filter(Boolean)
+                .join(', ')}
               className={cn(
-                'h-28 w-full min-w-0 justify-start whitespace-normal text-left p-2.5 shadow-none transition-colors',
+                'h-auto w-full min-w-0 justify-start whitespace-normal px-1.5 py-1.5 text-left shadow-none transition-colors',
                 calendarItemColors[item.tone],
                 calendarInteraction,
+                item.unpublished && 'border-dashed border-current/50',
               )}
               onClick={(event) => {
                 openFrom(event.currentTarget);
                 props.onSelect({ resourceId: row.id, date: cell.date, itemId: item.id });
               }}
             >
-              <span className="grid h-full min-w-0 w-full grid-rows-[1.25rem_2rem_1rem_1rem] gap-y-0.5">
+              <span className="grid w-full min-w-0 grid-rows-[1.25rem_1rem_1rem] gap-y-0.5">
                 <ItemContent item={item} />
               </span>
             </Button>
           );
         })}
-        {cell.items.length === 0 && <p className="text-xs text-muted-foreground">{cell.summary}</p>}
         {cell.items.length > CELL_PREVIEW_LIMIT && (
           <Button
             variant="ghost"
-            className={cn('h-auto min-h-11 w-full whitespace-normal text-xs', calendarInteraction)}
+            className={cn('h-auto min-h-9 w-full whitespace-normal text-xs', calendarInteraction)}
             onClick={(event) => {
               openFrom(event.currentTarget);
               props.onSelect({ resourceId: row.id, date: cell.date });
             }}
-            aria-expanded={
-              selection?.resourceId === row.id && selection.date === cell.date && !selection.itemId
-            }
+            aria-expanded={cellSelected && !selection?.itemId}
           >
             {model.moreItemsLabel.replace(
               '{count}',
@@ -119,32 +120,36 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
             )}
           </Button>
         )}
-        {cell.create &&
-          (cell.items.length === 0 ||
-            (selection?.resourceId === row.id && selection.date === cell.date)) && (
-            <div>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!!cell.create.disabledReason}
-                aria-label={`${cell.create.label}: ${row.title}, ${cell.date}`}
-                className={cn('min-h-11 w-full whitespace-normal h-auto', calendarInteraction)}
-                onClick={(event) => {
-                  if (!cell.create || cell.create.disabledReason) return;
-                  openFrom(event.currentTarget);
-                  props.onCreate({ resourceId: row.id, date: cell.date });
-                }}
-              >
-                <PlusIcon aria-hidden className="size-4 shrink-0" />
-                {cell.create.label}
-              </Button>
-              {cell.create.disabledReason && (
-                <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                  {cell.create.disabledReason}
-                </p>
-              )}
-            </div>
-          )}
+        {cell.create && !cell.create.disabledReason && (
+          <Button
+            variant={empty ? 'ghost' : 'outline'}
+            size={empty ? 'default' : 'sm'}
+            aria-label={`${cell.create.label}: ${row.title}, ${cell.date}`}
+            className={cn(
+              'w-full whitespace-normal text-xs text-muted-foreground',
+              empty
+                ? 'h-auto min-h-[4.75rem] flex-1 border border-dashed border-transparent opacity-0 transition-opacity hover:border-border hover:text-foreground focus-visible:opacity-100 group-hover/cell:opacity-100 max-md:opacity-100'
+                : cn(
+                    'h-auto min-h-8 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/cell:opacity-100 max-md:opacity-100',
+                    cellSelected && 'opacity-100',
+                  ),
+              calendarInteraction,
+            )}
+            onClick={(event) => {
+              if (!cell.create || cell.create.disabledReason) return;
+              openFrom(event.currentTarget);
+              props.onCreate({ resourceId: row.id, date: cell.date });
+            }}
+          >
+            <PlusIcon aria-hidden className="size-4 shrink-0" />
+            {cell.create.label}
+          </Button>
+        )}
+        {cell.create?.disabledReason && empty && (
+          <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+            {cell.create.disabledReason}
+          </p>
+        )}
       </div>
     );
   }
@@ -164,10 +169,14 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                 variant={selectedDate === date.id ? 'default' : 'outline'}
                 aria-label={date.label}
                 aria-pressed={selectedDate === date.id}
-                className="min-h-11 min-w-11 flex-1 px-1 text-xs"
+                className={cn(
+                  'min-h-11 min-w-11 flex-1 flex-col gap-0 px-1 text-xs leading-tight',
+                  date.today && selectedDate !== date.id && 'border-emerald-500',
+                )}
                 onClick={() => onDate(date.id)}
               >
-                {date.shortLabel}
+                <span>{date.shortLabel}</span>
+                {date.summary && <span className="text-[10px] opacity-80">{date.summary}</span>}
               </Button>
             ))}
           </div>
@@ -175,11 +184,11 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
             {rows.map((row) => {
               const cell = row.cells.find((value) => value.date === selectedDate);
               return (
-                <section key={row.id} className="min-w-0 rounded-lg border p-3 space-y-3">
+                <section key={row.id} className="min-w-0 space-y-3 rounded-lg border p-3">
                   <div>
                     <h3 className="font-semibold [overflow-wrap:anywhere]">{row.title}</h3>
                     <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                      {row.description}
+                      {[row.description, row.summary].filter(Boolean).join(' · ')}
                     </p>
                   </div>
                   {cell ? cellContent(row, cell) : <p>{model.emptyLabel}</p>}
@@ -189,35 +198,65 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
           </div>
         </>
       ) : (
-        <div className="rounded-lg border overflow-hidden">
+        <div className="overflow-hidden rounded-lg border">
           <Table
             aria-label={model.label}
             className="table-fixed [&_tr>*:not(:last-child)]:border-r [&_tr>*]:border-border"
-            style={{ minWidth: `${176 + model.dates.length * 128}px` }}
+            style={{ minWidth: `${160 + model.dates.length * 136}px` }}
           >
             <TableHeader>
               <TableRow>
-                <TableHead className="w-44 sticky left-0 z-10 bg-background whitespace-normal">
+                <TableHead className="sticky left-0 z-10 w-40 whitespace-normal bg-background">
                   {model.resourceLabel}
                 </TableHead>
                 {model.dates.map((date) => (
-                  <TableHead key={date.id} className="w-32 whitespace-normal text-center">
-                    {date.label}
+                  <TableHead
+                    key={date.id}
+                    aria-current={date.today ? 'date' : undefined}
+                    className={cn(
+                      'w-34 whitespace-normal px-2 py-1.5 text-center align-top',
+                      date.today && 'bg-emerald-50/70 dark:bg-emerald-950/40',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'block font-medium',
+                        date.today ? 'text-emerald-800 dark:text-emerald-200' : 'text-foreground',
+                      )}
+                    >
+                      {date.label}
+                    </span>
+                    {date.summary && (
+                      <span className="block text-[11px] font-normal text-muted-foreground tabular-nums">
+                        {date.summary}
+                      </span>
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="sticky left-0 z-10 bg-background align-top whitespace-normal">
+                <TableRow key={row.id} className="hover:bg-transparent">
+                  <TableCell className="sticky left-0 z-10 whitespace-normal bg-background align-top">
                     <p className="font-semibold [overflow-wrap:anywhere]">{row.title}</p>
                     <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
                       {row.description}
                     </p>
+                    {row.summary && (
+                      <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+                        {row.summary}
+                      </p>
+                    )}
                   </TableCell>
-                  {row.cells.map((cell) => (
-                    <TableCell key={cell.date} className="align-top whitespace-normal">
+                  {row.cells.map((cell, index) => (
+                    <TableCell
+                      key={cell.date}
+                      className={cn(
+                        'whitespace-normal p-1.5 align-top',
+                        model.dates[index]?.today && 'bg-emerald-50/30 dark:bg-emerald-950/20',
+                      )}
+                    >
                       {cellContent(row, cell)}
                     </TableCell>
                   ))}

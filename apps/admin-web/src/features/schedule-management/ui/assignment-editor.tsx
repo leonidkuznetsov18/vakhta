@@ -23,10 +23,13 @@ export function AssignmentEditor({
   workspace: w,
   context,
   onClose,
+  onApplied = onClose,
 }: {
   workspace: Workspace;
   context: AssignmentContext;
   onClose: () => void;
+  /** Called instead of onClose after a local change was applied or the assignment removed. */
+  onApplied?: () => void;
 }) {
   const original = gridToItems(w.grid).find(
     (item) => item.employeeId === context.employeeId && item.businessDate === context.businessDate,
@@ -69,7 +72,7 @@ export function AssignmentEditor({
       ? setCell(w.grid, original.employeeId, original.businessDate, '')
       : w.grid;
     w.edit(setAssignment(cleared, candidate.data));
-    onClose();
+    onApplied();
   }
   return (
     <form
@@ -140,7 +143,7 @@ export function AssignmentEditor({
             onClick={() => {
               if (w.writable) {
                 w.edit(setCell(w.grid, original.employeeId, original.businessDate, ''));
-                onClose();
+                onApplied();
               }
             }}
           >

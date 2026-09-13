@@ -110,6 +110,8 @@ export const useScheduleDrafts = create<ScheduleDrafts>()(
       storage: createJSONStorage(() => localStorage),
       partialize: ({ drafts, baselines, revisions }) => ({ drafts, baselines, revisions }),
       merge: (persisted, current) => {
+        // A browser without stored drafts is not a recovery failure.
+        if (persisted === undefined || persisted === null) return current;
         const parsed = storedSchema.safeParse(persisted);
         return parsed.success
           ? { ...current, ...parsed.data }

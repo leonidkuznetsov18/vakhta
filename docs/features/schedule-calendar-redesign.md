@@ -16,6 +16,15 @@ manufacturing implications and ten implementation clarifications. It distinguish
 competitor behavior from proposed Vakhta policy. Use it with the visual gallery below; the canonical
 50-capability scope and unresolved policy gates remain in this feature and its engineering plan.
 
+## Owner scope decision — 2026-09-13
+
+Versioning is removed from the Schedule interface: no version numbers, version lists, change history
+or version-bound actions. Server-side versions remain as storage, supersession and audit evidence for
+attendance, bonus and acknowledgement records. SC-19 (history navigation) is therefore closed as not
+planned for the panel; recorded decisions stay in the audit log and the export. The page now follows
+the When I Work / Deputy model: one working plan, in-place editing, a status line with unpublished
+changes and a single Review and publish action. See [Schedule](05-schedule.md) for current behavior.
+
 ## Outcome
 
 Replace the Schedule page with a coherent calendar workspace for planning shifts, understanding team

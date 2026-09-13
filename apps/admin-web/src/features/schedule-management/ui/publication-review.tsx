@@ -20,6 +20,12 @@ import type { Workspace } from '../model/use-workspace';
 import { assignmentChanges, countChanges, type GridState } from '../model/grid';
 import { AssignmentChanges } from './assignment-changes';
 const t = messages(currentLocale()).scheduleWorkspace;
+
+/**
+ * One publication dialog for every plan state: a first draft publishes after submission, a
+ * reviewed plan publishes as is, and a published month is revised in place. The reader sees the
+ * exact difference against what workers currently have, never a version number.
+ */
 export function PublicationReview({
   workspace: w,
   snapshot,
@@ -33,6 +39,7 @@ export function PublicationReview({
 }) {
   const [reason, setReason] = useState('');
   const [sent, setSent] = useState(false);
+  const status = w.version?.status;
   const changed = w.version?.id !== versionId || countChanges(snapshot, w.grid) > 0;
   const completed =
     sent &&
@@ -41,6 +48,21 @@ export function PublicationReview({
     !w.error &&
     w.version?.status === 'PUBLISHED' &&
     !w.changes;
+  const ready =
+    !changed &&
+    !w.stale &&
+    w.publicationReady &&
+    (status === 'DRAFT'
+      ? w.canPublishDraft
+      : status === 'IN_REVIEW'
+        ? w.allowed.publish
+        : w.allowed.revise);
+  function publish() {
+    if (!ready || w.busy) return;
+    setSent(true);
+    if (status === 'DRAFT') w.publishDraft(reason);
+    else w.commit(status === 'PUBLISHED' ? 'revise' : 'publish', reason, w.grid);
+  }
   return (
     <Dialog
       open
@@ -51,23 +73,12 @@ export function PublicationReview({
       <DialogContent className="sm:max-w-4xl max-h-[90dvh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{t.reviewPublish}</DialogTitle>
-          <DialogDescription>{completed ? t.success : t.publishHint}</DialogDescription>
+          <DialogDescription>
+            {completed ? t.success : w.published ? t.publishHint : t.publishFirstHint}
+          </DialogDescription>
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto space-y-4 pr-1">
           <QueryFeedback query={w.publishedQuery} />
-          {!completed && (
-            <div className="space-y-1 text-sm">
-              <p>
-                {t.publicationSource}:{' '}
-                {w.published ? `v${w.published.versionNo} · ${w.published.periodMonth}` : '—'}
-              </p>
-              <p>
-                {t.publicationTarget}:{' '}
-                {w.version ? `v${w.version.versionNo} · ${w.version.periodMonth}` : '—'}
-                {w.version?.status === 'PUBLISHED' ? ` · ${t.newPublicationVersion}` : ''}
-              </p>
-            </div>
-          )}
           {w.publicationReady && !completed && (
             <AssignmentChanges
               changes={assignmentChanges(w.publicationBaseline, snapshot)}
@@ -96,25 +107,7 @@ export function PublicationReview({
             {completed ? messages(currentLocale()).ui.common.close : t.cancel}
           </Button>
           {!completed && (
-            <Button
-              disabled={
-                !w.commandReady ||
-                changed ||
-                w.stale ||
-                !w.publicationReady ||
-                (w.version?.status === 'IN_REVIEW' && w.changes > 0)
-              }
-              onClick={() => {
-                if (!changed && w.publicationReady) {
-                  setSent(true);
-                  w.commit(
-                    w.version?.status === 'PUBLISHED' ? 'revise' : 'publish',
-                    reason,
-                    w.grid,
-                  );
-                }
-              }}
-            >
+            <Button disabled={!ready || w.busy} onClick={publish}>
               {messages(currentLocale()).admin.schedule.publish}
             </Button>
           )}

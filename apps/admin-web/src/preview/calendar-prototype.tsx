@@ -80,7 +80,7 @@ export function CalendarPrototype() {
             ? `20:00–${endDate} 08:00 ${hours.format(12)}`
             : `08:00–20:00 ${hours.format(12)}`,
       description: entry.employee % 2 ? t.nightShift : t.dayShift,
-      status: t.current,
+      status: '',
       tone: entry.employee % 2 ? 'indigo' : 'amber',
       ...(entry.employee === 0
         ? {

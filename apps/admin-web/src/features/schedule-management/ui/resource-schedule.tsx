@@ -20,6 +20,7 @@ export function ResourceSchedule({
   zoneId,
   selectedDate,
   onDate,
+  today,
 }: {
   readonly workspace: Workspace;
   readonly dates: readonly string[];
@@ -27,6 +28,7 @@ export function ResourceSchedule({
   readonly zoneId: string;
   readonly selectedDate: string;
   readonly onDate: (date: string) => void;
+  readonly today: string;
 }) {
   const t = messages(currentLocale()).scheduleWorkspace;
   const mobile = useIsMobile();
@@ -38,9 +40,8 @@ export function ResourceSchedule({
     grouping,
     zoneId,
     locale: currentLocale(),
-    publication: w.version
-      ? messages(currentLocale()).admin.schedule.statuses[w.version.status]
-      : '',
+    published: w.publicationBaseline,
+    today,
   });
   const items = gridToItems(w.grid);
   const selectedItem = items.find((item) => assignmentKey(item) === picked?.itemId);
@@ -116,6 +117,10 @@ export function ResourceSchedule({
                 workspace={w}
                 context={editor}
                 onClose={() => setEditor(null)}
+                onApplied={() => {
+                  setEditor(null);
+                  setPicked(null);
+                }}
               />
             ) : selectedItem ? (
               <>

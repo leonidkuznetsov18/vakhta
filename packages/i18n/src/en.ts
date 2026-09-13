@@ -1797,13 +1797,13 @@ export const en: Messages = {
       },
       schedule: {
         purpose:
-          'View planned shifts by zone and date, edit individual assignments, and review changes before publication.',
+          'Plan shifts by zone or worker on a day, week or month calendar; change assignments in place and publish the difference to workers.',
         steps: [
-          'Choose a unit and month. The current published schedule opens first; drafts and change history remain separate.',
-          'Open a zone and date to see day and night workers. By workers shows the monthly matrix.',
-          'Choose Edit schedule or Continue draft. Add assignments by selecting workers, zone, dates and a shift or rotation. Preview additions, replacements and removals before applying.',
-          'Undo and Redo affect local edits. Save a draft, then send it for review. The approver reviews the difference before publishing.',
-          'Published changes create a new version. Notifications are queued for affected workers; history retains earlier publications.',
+          'Choose a unit, then navigate by day, week or month with the period picker and Today. Group the calendar by zones or by workers; the month opens the day/night matrix.',
+          'Click an empty cell to add a shift with the selected date, worker or zone, or use Add assignments for several workers, a date range and a shift or rotation with a preview.',
+          'Click a shift to change its date, zone or shift template, or to remove it. Edits stay on this device until you save or publish; Undo and Redo reverse them.',
+          'The status line shows whether the plan is published, a draft or awaiting approval, and how many changes workers have not seen yet. A planner saves the draft and sends it for approval.',
+          'Review and publish lists exact additions, removals and changes with the affected workers; publishing queues their Telegram notifications and acknowledgement requests.',
         ],
         faq: [
           {

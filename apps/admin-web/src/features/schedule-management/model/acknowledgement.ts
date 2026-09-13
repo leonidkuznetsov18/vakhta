@@ -2,7 +2,7 @@ import type { AssignmentInput, AssignmentView, ScheduleVersionView } from '@vakh
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { sameAssignment } from './grid';
-import { historyTime } from './history';
+import { recordedTime } from '../lib/labels';
 
 /** An old acknowledgement cannot describe an edited or unpublished assignment. */
 export function assignmentAcknowledgement(input: {
@@ -23,6 +23,6 @@ export function assignmentAcknowledgement(input: {
     );
   if (!saved || input.version?.status !== 'PUBLISHED') return t.acknowledgeAfterPublish;
   return saved.acknowledgedAt
-    ? `${t.acknowledged} · ${historyTime(saved.acknowledgedAt, input.timezone)}`
+    ? `${t.acknowledged} · ${recordedTime(saved.acknowledgedAt, input.timezone)}`
     : t.notAcknowledged;
 }

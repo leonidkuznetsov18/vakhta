@@ -40,15 +40,21 @@ export function shiftDate(month: string, date: string, offset: number): string {
   const index = Math.max(0, days.indexOf(date));
   return days[Math.max(0, Math.min(days.length - 1, index + offset))] ?? date;
 }
-export function preferredVersion(
+/**
+ * The plan a person works with: editors continue the unpublished month, approvers see what awaits
+ * them, and readers see what workers see. Versions stay a server-side storage concept.
+ */
+export function workingVersion(
   versions: readonly ScheduleVersionView[],
+  rights: { readonly edit: boolean; readonly publish: boolean },
 ): ScheduleVersionView | null {
-  return (
-    versions.find((v) => v.status === 'PUBLISHED') ??
-    versions.find((v) => v.status === 'DRAFT') ??
-    versions[0] ??
-    null
-  );
+  const by = (status: ScheduleVersionView['status']) => versions.find((v) => v.status === status);
+  const order: readonly ScheduleVersionView['status'][] = rights.edit
+    ? ['DRAFT', 'IN_REVIEW', 'PUBLISHED']
+    : rights.publish
+      ? ['IN_REVIEW', 'PUBLISHED', 'DRAFT']
+      : ['PUBLISHED', 'IN_REVIEW', 'DRAFT'];
+  return order.map(by).find((v) => v !== undefined) ?? versions[0] ?? null;
 }
 export function capabilities(grants: readonly RoleGrant[], siteId: string, orgUnitId: string) {
   const scope = { siteId, orgUnitId };

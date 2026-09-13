@@ -73,7 +73,7 @@ const base: CalendarInput = {
   locale: 'en',
   grouping: 'zones',
   writable: true,
-  publication: 'Published',
+  published: { rows: [] },
   recorded: [],
 };
 const allItems = (model: ReturnType<typeof calendarModel>) =>
@@ -119,13 +119,15 @@ describe('calendar projections', () => {
     const item = allItems(calendarModel(base))[0];
     expect(item?.time).toContain('20:00');
     expect(item?.time).toContain('10/01');
-    expect(item?.time).toContain('12 hr');
-    expect(item?.status).toBe('Local changes');
+    expect(item?.description).toContain('12 hr');
+    expect(item?.status).toBe('Not published');
+    expect(item?.unpublished).toBe(true);
   });
   it('uses stored instants after a template changes and keeps read-only actions absent', () => {
     const model = calendarModel({
       ...base,
       writable: false,
+      published: base.grid,
       recorded: [
         {
           id: 'assignment',
@@ -147,7 +149,10 @@ describe('calendar projections', () => {
       ],
     });
     expect(allItems(model)[0]?.time).toContain('21:00');
-    expect(allItems(model)[0]?.status).toBe('Published');
+    expect(allItems(model)[0]?.status).toBe('');
+    expect(allItems(model)[0]?.unpublished).toBe(false);
+    expect(model.resources[0]?.summary).toContain('1');
+    expect(model.dates.find((date) => date.id === '2026-09-30')?.summary).toContain('1');
     expect(model.resources.every((row) => row.cells.every((cell) => cell.create === null))).toBe(
       true,
     );
