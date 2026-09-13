@@ -33,6 +33,11 @@ import {
   ReturnToDraftCommand,
   SavePatternCommand,
   type SchedulePatternView,
+  CreateOpenSlotCommand,
+  OfferSlotCommand,
+  OpenSlotsQuery,
+  SelectSlotCommand,
+  type OpenSlotView,
   type AcknowledgementStatusView,
   type ScheduleVersionDetail,
   type ScheduleVersionView,
@@ -60,6 +65,7 @@ import { ScheduleCommandService } from './schedule-command.service.js';
 import { TemplatesService } from './templates.service.js';
 import { ScheduleHistoryService } from './schedule-history.service.js';
 import { PatternsService } from './patterns.service.js';
+import { OpenSlotsService } from './open-slots.service.js';
 
 const ALL_PANEL_ROLES: WebRole[] = [
   'ADMIN',
@@ -97,6 +103,7 @@ export class AdminSchedulesController {
     private readonly historyService: ScheduleHistoryService,
     private readonly exportService: ScheduleExportService,
     private readonly patterns: PatternsService,
+    private readonly slots: OpenSlotsService,
   ) {}
 
   @Get('patterns')
@@ -130,6 +137,73 @@ export class AdminSchedulesController {
     const siteId = await this.patterns.siteOf(id);
     assertScope(user, EDITORS, { siteId });
     await this.patterns.remove(id, webUserActor(user));
+  }
+
+  @Get('open-slots')
+  @Roles(...EDITORS, ...APPROVERS)
+  listOpenSlots(
+    @Query(new ZodValidationPipe(OpenSlotsQuery)) query: OpenSlotsQuery,
+    @CurrentUser() user: WebUser,
+  ): Promise<OpenSlotView[]> {
+    assertScope(user, [...EDITORS, ...APPROVERS], query);
+    return this.slots.list(query);
+  }
+
+  @Post('open-slots')
+  @HttpCode(200)
+  @Roles(...EDITORS)
+  createOpenSlot(
+    @Body(new ZodValidationPipe(CreateOpenSlotCommand)) body: CreateOpenSlotCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<OpenSlotView> {
+    assertScope(user, EDITORS, body);
+    return this.slots.create(body, webUserActor(user));
+  }
+
+  @Post('open-slots/:id/offer')
+  @HttpCode(200)
+  @Roles(...EDITORS)
+  async offerOpenSlot(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(OfferSlotCommand)) body: OfferSlotCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<OpenSlotView> {
+    assertScope(user, EDITORS, await this.slots.scopeOf(id));
+    return this.slots.offer(id, body, webUserActor(user));
+  }
+
+  @Post('open-slots/:id/withdraw')
+  @HttpCode(200)
+  @Roles(...EDITORS)
+  async withdrawOpenSlot(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: WebUser,
+  ): Promise<OpenSlotView> {
+    assertScope(user, EDITORS, await this.slots.scopeOf(id));
+    return this.slots.withdraw(id, webUserActor(user));
+  }
+
+  @Post('open-slots/:id/cancel')
+  @HttpCode(200)
+  @Roles(...EDITORS)
+  async cancelOpenSlot(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: WebUser,
+  ): Promise<OpenSlotView> {
+    assertScope(user, EDITORS, await this.slots.scopeOf(id));
+    return this.slots.cancel(id, webUserActor(user));
+  }
+
+  @Post('open-slots/:id/select')
+  @HttpCode(200)
+  @Roles(...EDITORS)
+  async selectOpenSlot(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(SelectSlotCommand)) body: SelectSlotCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<{ slot: OpenSlotView; detail: ScheduleVersionDetail }> {
+    assertScope(user, EDITORS, await this.slots.scopeOf(id));
+    return this.slots.select(id, body, webUserActor(user), user.grants);
   }
 
   @Post('commands')

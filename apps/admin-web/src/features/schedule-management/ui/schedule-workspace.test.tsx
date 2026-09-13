@@ -199,6 +199,7 @@ function mockApi(
     saveGate?: Promise<void>;
     lostResponse?: boolean;
     savedDetail?: ScheduleVersionDetail;
+    slots?: Record<string, unknown>[];
     october?: ScheduleVersionDetail;
     staffing?: {
       requirements: unknown[];
@@ -280,6 +281,57 @@ function mockApi(
         total: roster.length,
         nextCursor: remaining.length > 200 ? items.at(-1)?.id : null,
       });
+    }
+    if (path.startsWith('/admin/schedules/open-slots')) {
+      const [, , , , id, action] = path.split('?')[0]!.split('/');
+      state.slots ??= [];
+      if (method === 'GET') return json(state.slots);
+      if (method === 'POST' && !id) {
+        const row = {
+          ...(body as object),
+          id: 'f1000000-0000-4000-8000-000000000001',
+          status: 'OPEN',
+          filledEmployeeId: null,
+          filledVersionId: null,
+          offer: null,
+          offerCount: 0,
+          createdAt: '2026-09-01T00:00:00.000Z',
+        };
+        state.slots.push(row);
+        return json(row);
+      }
+      const slot = state.slots.find((item) => item.id === id)!;
+      if (action === 'offer') {
+        Object.assign(slot, {
+          status: 'OFFERED',
+          offer: {
+            id: 'f2000000-0000-4000-8000-000000000001',
+            status: 'OPEN',
+            audience: (body as { audience: string }).audience,
+            notifiedCount: 2,
+            offeredAt: '2026-09-01T10:00:00.000Z',
+            closedAt: null,
+            interests: [
+              {
+                employeeId: EMP2,
+                response: 'INTERESTED',
+                respondedAt: '2026-09-01T11:00:00.000Z',
+              },
+            ],
+          },
+          offerCount: 1,
+        });
+        return json(slot);
+      }
+      if (action === 'select') {
+        Object.assign(slot, {
+          status: 'FILLED',
+          filledEmployeeId: (body as { employeeId: string }).employeeId,
+        });
+        return json({ slot, detail: state.savedDetail ?? detail(state.status) });
+      }
+      Object.assign(slot, { status: action === 'cancel' ? 'CANCELLED' : 'OPEN' });
+      return json(slot);
     }
     if (path.startsWith('/admin/schedules/patterns')) {
       if (method === 'POST')
@@ -2024,6 +2076,60 @@ it('plans a break with relief from the same date, refuses one outside the shift 
   expect(row.textContent).toContain('11 ч 30 мин');
   expect(row.textContent).toContain('30 мин');
   expect(within(workload).getByText(t.workloadPlannedOnly)).toBeTruthy();
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('creates an internal open slot, offers it, lists responses and selects one person into the draft', async () => {
+  freshState();
+  const calls = mockApi({ status: 'DRAFT' });
+  admin();
+  await screen.findByText(t.draftState);
+  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+    fireEvent.click(screen.getByRole('button', { name: t.previous }));
+  }
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${t.add}: .*2026-09-06`) }));
+  const sheet = await screen.findByRole('dialog');
+  fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_DAY } });
+  fireEvent.click(within(sheet).getByRole('button', { name: t.createOpenSlot }));
+  await waitFor(() =>
+    expect(
+      calls.some((call) => call.method === 'POST' && call.path === '/admin/schedules/open-slots'),
+    ).toBe(true),
+  );
+  expect(
+    calls.find((call) => call.method === 'POST' && call.path === '/admin/schedules/open-slots')
+      ?.body,
+  ).toMatchObject({
+    businessDate: '2026-09-06',
+    templateId: TPL_DAY,
+    zoneId: ZONE,
+  });
+  const card = await screen.findByRole('button', { name: new RegExp(`${t.openSlot}, 06`) });
+  expect(card.textContent).toContain(t.slotInternal);
+  expect(screen.getByText(t.openSlotsCount.replace('{count}', '1'))).toBeTruthy();
+  // The slot is no assignment: nothing to save.
+  expect(
+    screen.queryByRole('button', { name: /^Сохранить/ })?.hasAttribute('disabled') ?? true,
+  ).toBe(true);
+  fireEvent.click(card);
+  const details = await screen.findByRole('dialog');
+  fireEvent.click(within(details).getByRole('button', { name: t.offerSlot }));
+  await waitFor(() =>
+    expect(calls.some((call) => call.path.endsWith('/offer') && call.method === 'POST')).toBe(true),
+  );
+  const responses = await within(details).findByRole('region', { name: t.responses });
+  expect(responses.textContent).toContain('Сидоров');
+  fireEvent.click(within(responses).getByRole('button', { name: t.selectCandidate }));
+  await waitFor(() =>
+    expect(
+      calls.find((call) => call.path.endsWith('/select') && call.method === 'POST')?.body,
+    ).toMatchObject({
+      employeeId: EMP2,
+      versionId: VERSION,
+      expectedRevision: 1,
+    }),
+  );
   cleanup();
   vi.unstubAllGlobals();
 });

@@ -41,12 +41,15 @@ export function AssignmentEditor({
   context,
   onClose,
   onApplied = onClose,
+  onCreateSlot,
 }: {
   workspace: Workspace;
   context: AssignmentContext;
   onClose: () => void;
   /** Called instead of onClose after a local change was applied or the assignment removed. */
   onApplied?: () => void;
+  /** Creates an internal open slot for the chosen date, zone and shift instead of a person. */
+  onCreateSlot?: (input: { businessDate: string; zoneId: string; templateId: string }) => void;
 }) {
   const original = gridToItems(w.grid).find(
     (item) => item.employeeId === context.employeeId && item.businessDate === context.businessDate,
@@ -562,6 +565,27 @@ export function AssignmentEditor({
         <Button type="button" variant="outline" onClick={onClose}>
           {t.cancel}
         </Button>
+        {!original && onCreateSlot && (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={
+              !w.writable ||
+              !draft.zoneId ||
+              !draft.templateId ||
+              !draft.businessDate.startsWith(w.month)
+            }
+            onClick={() =>
+              onCreateSlot({
+                businessDate: draft.businessDate,
+                zoneId: draft.zoneId,
+                templateId: draft.templateId,
+              })
+            }
+          >
+            {t.createOpenSlot}
+          </Button>
+        )}
         {original && (
           <Button
             type="button"

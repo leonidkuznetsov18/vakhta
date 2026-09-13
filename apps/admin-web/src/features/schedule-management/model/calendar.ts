@@ -1,6 +1,7 @@
 import { assignmentInstants, type EligibilityReason } from '@vakhta/domain';
 import { format, messages, type Locale } from '@vakhta/i18n';
 import type {
+  OpenSlotView,
   AssignmentInput,
   AssignmentView,
   EmployeeView,
@@ -41,6 +42,8 @@ export interface CalendarInput {
   readonly coverage?: CoverageModel;
   /** Rule evaluation of the visible plan; blocking reasons mark the card. */
   readonly issues?: readonly EligibilityReason[];
+  /** Open slots of the plan (SC-15); rendered in their zone, never counted as people. */
+  readonly slots?: readonly OpenSlotView[];
 }
 
 /** Business dates are calendar values, never browser-local instants. */
@@ -214,6 +217,37 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
     });
     buckets.set(key, bucket);
   }
+  if (input.grouping === 'zones')
+    for (const slot of input.slots ?? []) {
+      if (slot.status !== 'OPEN' && slot.status !== 'OFFERED') continue;
+      if (!input.dates.includes(slot.businessDate)) continue;
+      if (input.zoneId && slot.zoneId !== input.zoneId) continue;
+      const template = templates.get(slot.templateId);
+      const plan = template
+        ? assignmentInstants({ businessDate: slot.businessDate, template }, input.timezone)
+        : null;
+      const interested =
+        slot.offer?.interests.filter((item) => item.response === 'INTERESTED').length ?? 0;
+      const key = `${slot.zoneId}:${slot.businessDate}`;
+      const bucket = buckets.get(key) ?? [];
+      bucket.push({
+        id: `slot:${slot.id}`,
+        title: t.openSlot,
+        time: plan
+          ? `${timeFormat.format(plan.planStartAt)}–${timeFormat.format(plan.planEndAt)}`
+          : t.unknownTemplate,
+        description: [
+          template ? (template.isNight ? t.nightShift : t.dayShift) : t.unknownShift,
+          slot.status === 'OFFERED'
+            ? format(t.slotOfferedState, { count: interested })
+            : t.slotInternal,
+        ].join(' · '),
+        status: '',
+        unpublished: true,
+        tone: 'neutral',
+      });
+      buckets.set(key, bucket);
+    }
   const ids = new Set(
     input.grouping === 'zones'
       ? [

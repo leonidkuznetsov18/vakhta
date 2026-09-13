@@ -22,6 +22,7 @@ import type { AttendanceService } from '../attendance/attendance.service.js';
 import type { ActivationService } from '../identity/activation.service.js';
 import type { EmployeesService } from '../identity/employees.service.js';
 import type { ScheduleService } from '../scheduling/schedule.service.js';
+import type { OpenSlotsService } from '../scheduling/open-slots.service.js';
 import type { ShiftService } from '../shift/shift.service.js';
 import type { HandoverService } from '../handover/handover.service.js';
 import type { IncidentsService } from '../incidents/incidents.service.js';
@@ -163,6 +164,8 @@ export interface BotDeps {
   readonly employees: EmployeesService;
   readonly activation: ActivationService;
   readonly schedule: ScheduleService;
+  /** Open slot responses (#13); absent in narrow test harnesses. */
+  readonly slots?: OpenSlotsService | undefined;
   readonly attendance: AttendanceService;
   readonly shift: ShiftService;
   readonly incidents: IncidentsService;
@@ -1260,6 +1263,30 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         ? await buildPlan(ctx, target.scope.month)
         : await buildHome(ctx);
     if (screen) await edit(ctx, screen);
+  });
+
+  // Open shift offers (#13, SC-16): a response is recorded interest, never an assignment; a
+  // stale button on a closed offer or filled slot changes nothing.
+  bot.callbackQuery(/^slot:([0-9a-f-]{36}):(yes|no)$/, async (ctx) => {
+    if (ctx.access !== 'ALLOWED' || !ctx.employee) {
+      await ctx.answerCallbackQuery({ text: ctx.t.bot.access.NOT_REGISTERED, show_alert: true });
+      return;
+    }
+    const offerId = ctx.match[1] ?? '';
+    const response = ctx.match[2] === 'yes' ? 'INTERESTED' : 'DECLINED';
+    const result = deps.slots
+      ? await deps.slots.respond(offerId, ctx.employee.id, response)
+      : { kind: 'CLOSED' as const };
+    await ctx.answerCallbackQuery({
+      text:
+        result.kind === 'CLOSED'
+          ? ctx.t.schedule.slotClosed
+          : response === 'INTERESTED'
+            ? ctx.t.schedule.slotInterestRecorded
+            : ctx.t.schedule.slotDeclined,
+      show_alert: result.kind === 'CLOSED',
+    });
+    if (result.kind === 'CLOSED') await ctx.editMessageReplyMarkup().catch(() => undefined);
   });
 
   // Version-specific publication and reminder notifications retain their existing target.

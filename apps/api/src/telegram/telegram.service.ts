@@ -18,6 +18,7 @@ import { ActivationService } from '../identity/activation.service.js';
 import { EmployeesService } from '../identity/employees.service.js';
 import { createLogger } from '../logger.js';
 import { ScheduleService } from '../scheduling/schedule.service.js';
+import { OpenSlotsService } from '../scheduling/open-slots.service.js';
 import { HandoverService } from '../handover/handover.service.js';
 import { IncidentsService } from '../incidents/incidents.service.js';
 import { BonusService } from '../bonus/bonus.service.js';
@@ -49,6 +50,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
     private readonly employees: EmployeesService,
     private readonly activation: ActivationService,
     private readonly schedule: ScheduleService,
+    private readonly slots: OpenSlotsService,
     private readonly attendance: AttendanceService,
     private readonly shift: ShiftService,
     private readonly incidents: IncidentsService,
@@ -75,6 +77,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       employees: this.employees,
       activation: this.activation,
       schedule: this.schedule,
+      slots: this.slots,
       attendance: this.attendance,
       shift: this.shift,
       incidents: this.incidents,

@@ -16,6 +16,8 @@ import { Feedback } from '@/components/app/feedback';
 import { UNASSIGNED_ZONE, zoneAllowed } from '../model/planning';
 import type { Workspace } from '../model/use-workspace';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
+import { SlotDetails } from './slot-details';
+import type { OpenSlots } from '../model/use-open-slots';
 import { employeeLabel } from './assignment-changes';
 
 export function ResourceSchedule({
@@ -27,6 +29,7 @@ export function ResourceSchedule({
   onDate,
   today,
   adjacent,
+  slots,
 }: {
   readonly workspace: Workspace;
   readonly dates: readonly string[];
@@ -37,6 +40,7 @@ export function ResourceSchedule({
   readonly today: string;
   /** Neighbouring months touched by the visible week; displayed, never written. */
   readonly adjacent: AdjacentPlan;
+  readonly slots: OpenSlots;
 }) {
   const t = messages(currentLocale()).scheduleWorkspace;
   const mobile = useIsMobile();
@@ -72,9 +76,13 @@ export function ResourceSchedule({
     today,
     editableMonth: w.month,
     allowedZones: w.rights.zones,
+    slots: slots.slots,
   });
   const items = gridToItems(w.grid);
   const selectedItem = items.find((item) => assignmentKey(item) === picked?.itemId);
+  const selectedSlot = picked?.itemId?.startsWith('slot:')
+    ? slots.slots.find((slot) => `slot:${slot.id}` === picked.itemId)
+    : undefined;
   const acknowledgement = assignmentAcknowledgement({
     assignment: selectedItem,
     recorded: w.recorded,
@@ -208,6 +216,24 @@ export function ResourceSchedule({
                     setEditor(null);
                     setPicked(null);
                   }}
+                  onCreateSlot={(input) =>
+                    slots.create.mutate(
+                      {
+                        siteId: w.siteId,
+                        orgUnitId: w.orgUnitId,
+                        periodMonth: w.month,
+                        ...input,
+                      },
+                      { onSuccess: () => setEditor(null) },
+                    )
+                  }
+                />
+              ) : selectedSlot ? (
+                <SlotDetails
+                  workspace={w}
+                  slot={selectedSlot}
+                  slots={slots}
+                  onDone={() => setPicked(null)}
                 />
               ) : selectedItem ? (
                 <>

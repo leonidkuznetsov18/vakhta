@@ -85,9 +85,9 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US2 | **Dependencies**: D-06/#7/#12 | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T028 [US2] Define internal slot/offer/interest/selection transitions and SQL invariants in packages/db/src/schema/scheduling.ts and packages/contracts/src/scheduling.ts (#13).
-- [ ] T029 [US2] Implement deliberate offers, audience/approval checks, atomic selection and existing durable bot communication in apps/api/src/scheduling/, apps/worker/src/ and schedule-management/ (#13).
-- [ ] T030 [US2] Test simultaneous selection, cancellation/re-offer, stale audience/eligibility and delivery retry preserving losing draft and response history (#13).
+- [x] T028 [US2] Define internal slot/offer/interest/selection transitions and SQL invariants in packages/db/src/schema/scheduling.ts and packages/contracts/src/scheduling.ts (#13).
+- [x] T029 [US2] Implement deliberate offers, audience/approval checks, atomic selection and existing durable bot communication in apps/api/src/scheduling/, apps/worker/src/ and schedule-management/ (#13).
+- [x] T030 [US2] Test simultaneous selection, cancellation/re-offer, stale audience/eligibility and delivery retry preserving losing draft and response history (#13).
 
 ## Phase 11: Patterns and accessible moves — #14
 

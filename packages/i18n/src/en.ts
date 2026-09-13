@@ -505,6 +505,15 @@ export const en: Messages = {
       'Reminder: {kind} shift on {date}, starts at {start}{zone}. Record arrival by QR at the checkpoint.',
     ackReminder:
       'You have not confirmed acknowledgement of the schedule for {month} {year}. Open "My plan" and press "Acknowledged".',
+    slotOffered:
+      'Open shift: {kind} {date}, {start}–{end}{zone}. Are you interested? Interest is not an assignment: the planner selects one person and the schedule is published as usual.',
+    slotInterested: 'I am interested',
+    slotNotInterested: 'Not interested',
+    slotInterestRecorded: 'Recorded. The planner will choose; the schedule arrives as usual.',
+    slotDeclined: 'Recorded: not interested.',
+    slotClosed: 'This offer is closed.',
+    slotSelected:
+      'You were selected for the {kind} shift on {date}, {start}–{end}{zone}. The schedule will be published; confirm acknowledgement when it arrives.',
   },
   roles: {
     ADMIN: 'Administrator',

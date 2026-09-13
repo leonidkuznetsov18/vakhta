@@ -10,6 +10,7 @@ export * from './org.js';
 export * from './auth.js';
 export * from './scheduling.js';
 export * from './staffing.js';
+export * from './open-slots.js';
 export * from './incidents.js';
 export * from './checklists.js';
 export * from './handover.js';

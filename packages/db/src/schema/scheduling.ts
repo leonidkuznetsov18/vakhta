@@ -348,3 +348,89 @@ export const assignmentBreaks = pgTable(
     check('assignment_breaks_position_nonnegative', sql`${t.position} >= 0`),
   ],
 );
+
+/* ------------------------------------------------------------------ */
+/* Open slots, deliberate offers and interest (SC-15, SC-16, D-06)     */
+/* ------------------------------------------------------------------ */
+
+export const openSlotStatus = pgEnum('open_slot_status', [
+  'OPEN',
+  'OFFERED',
+  'FILLED',
+  'CANCELLED',
+]);
+export const slotOfferStatus = pgEnum('slot_offer_status', ['OPEN', 'CLOSED', 'CANCELLED']);
+export const slotInterestResponse = pgEnum('slot_interest_response', ['INTERESTED', 'DECLINED']);
+
+/**
+ * An internal unassigned planning slot of a unit month. It never counts as an assigned person or
+ * satisfied demand; it is invisible to employees until deliberately offered and fills at most once.
+ */
+export const openSlots = pgTable(
+  'open_slots',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    siteId: uuid('site_id')
+      .notNull()
+      .references(() => sites.id),
+    orgUnitId: uuid('org_unit_id')
+      .notNull()
+      .references(() => orgUnits.id),
+    periodMonth: text('period_month').notNull(),
+    businessDate: date('business_date').notNull(),
+    templateId: uuid('template_id')
+      .notNull()
+      .references(() => shiftTemplates.id),
+    zoneId: uuid('zone_id')
+      .notNull()
+      .references(() => responsibilityZones.id),
+    status: openSlotStatus('status').notNull().default('OPEN'),
+    filledEmployeeId: uuid('filled_employee_id').references(() => employees.id),
+    filledVersionId: uuid('filled_version_id').references(() => scheduleVersions.id),
+    createdBy: uuid('created_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('open_slots_scope_idx').on(t.siteId, t.orgUnitId, t.periodMonth),
+    check(
+      'open_slots_filled_consistent',
+      sql`(${t.status} = 'FILLED') = (${t.filledEmployeeId} IS NOT NULL)`,
+    ),
+  ],
+);
+
+/** A deliberate offer of a slot to an audience; interest is collected against one offer. */
+export const slotOffers = pgTable(
+  'slot_offers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    slotId: uuid('slot_id')
+      .notNull()
+      .references(() => openSlots.id, { onDelete: 'cascade' }),
+    audience: text('audience').notNull(),
+    status: slotOfferStatus('status').notNull().default('OPEN'),
+    notifiedCount: integer('notified_count').notNull().default(0),
+    offeredBy: uuid('offered_by'),
+    offeredAt: timestamp('offered_at', { withTimezone: true }).notNull().defaultNow(),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+  },
+  (t) => [index('slot_offers_slot_idx').on(t.slotId)],
+);
+
+/** An employee's response to one offer; a response is never an assignment (SC-16). */
+export const slotInterests = pgTable(
+  'slot_interests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    offerId: uuid('offer_id')
+      .notNull()
+      .references(() => slotOffers.id, { onDelete: 'cascade' }),
+    employeeId: uuid('employee_id')
+      .notNull()
+      .references(() => employees.id),
+    response: slotInterestResponse('response').notNull(),
+    respondedAt: timestamp('responded_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('slot_interests_offer_employee_uq').on(t.offerId, t.employeeId)],
+);

@@ -24,6 +24,7 @@ import { RolesService } from '../auth/roles.service.js';
 import { ScheduleCommandService } from './schedule-command.service.js';
 import { StaffingService } from './staffing.service.js';
 import { PatternsService } from './patterns.service.js';
+import { OpenSlotsService } from './open-slots.service.js';
 import { backgroundTasks } from '@vakhta/db';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { assignmentAcknowledgements, requests, shiftAssignments } from '@vakhta/db';
@@ -1940,6 +1941,209 @@ describe('scheduling: версії, валідація, публікація, о
         (a) => a.employeeId === ivanov,
       );
       expect(inherited!.breaks.map((b) => b.reliefEmployeeId)).toEqual([petrova]);
+    });
+  });
+
+  describe('open slots, offers and interest (#13, SC-15/SC-16, D-06)', () => {
+    const grants = () => [{ role: 'PLANNER', scopeType: 'ORG_UNIT', scopeId: unitId }] as const;
+    it('keeps a slot internal until offered, records interest without assigning and fills once', async () => {
+      const slots = new OpenSlotsService(
+        testDb.db,
+        new EventStore(),
+        new AuditLog(),
+        new NotificationsService(),
+        schedule,
+      );
+      const v1 = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      await schedule.putAssignments(
+        v1.id,
+        {
+          items: [
+            {
+              employeeId: ivanov,
+              templateId: dayId,
+              businessDate: day(2),
+              zoneId,
+              kind: 'REGULAR',
+            },
+          ],
+        },
+        PLANNER,
+      );
+      const slot = await slots.create(
+        {
+          siteId,
+          orgUnitId: unitId,
+          periodMonth: MONTH,
+          businessDate: day(3),
+          templateId: dayId,
+          zoneId,
+        },
+        PLANNER,
+      );
+      expect(slot).toMatchObject({ status: 'OPEN', offer: null, offerCount: 0 });
+      // An internal slot is neither an assignment nor an employee-visible offer.
+      expect((await schedule.detail(v1.id)).assignments).toHaveLength(1);
+      expect(await testDb.db.select().from(notificationOutbox)).toHaveLength(0);
+      await expect(
+        slots.create(
+          {
+            siteId,
+            orgUnitId: unitId,
+            periodMonth: MONTH,
+            businessDate: `${addMonths(MONTH, 1)}-01`,
+            templateId: dayId,
+            zoneId,
+          },
+          PLANNER,
+        ),
+      ).rejects.toMatchObject({ code: 'DATE_OUTSIDE_MONTH' });
+
+      const offered = await slots.offer(slot.id, { audience: 'UNIT' }, PLANNER);
+      expect(offered.status).toBe('OFFERED');
+      expect(offered.offer).toMatchObject({ status: 'OPEN', audience: 'UNIT', notifiedCount: 1 });
+      const outbox = await testDb.db.select().from(notificationOutbox);
+      expect(outbox).toHaveLength(1);
+      expect(outbox[0]).toMatchObject({ recipientId: ivanov, template: 'SLOT_OFFERED' });
+      const offerId = offered.offer!.id;
+      expect(outbox[0]?.payload.buttons?.[0]?.[0]?.callbackData).toBe(`slot:${offerId}:yes`);
+      await expect(slots.offer(slot.id, { audience: 'UNIT' }, PLANNER)).rejects.toMatchObject({
+        code: 'SLOT_NOT_OPEN',
+      });
+
+      expect(await slots.respond(offerId, ivanov, 'INTERESTED')).toEqual({
+        kind: 'RECORDED',
+        response: 'INTERESTED',
+      });
+      expect(await slots.respond(offerId, ivanov, 'DECLINED')).toEqual({
+        kind: 'RECORDED',
+        response: 'DECLINED',
+      });
+      await slots.respond(offerId, ivanov, 'INTERESTED');
+      await slots.respond(offerId, petrova, 'INTERESTED');
+      const listed = await slots.list({ siteId, orgUnitId: unitId, periodMonth: MONTH });
+      expect(listed[0]?.offer?.interests.map((i) => [i.employeeId, i.response])).toEqual([
+        [ivanov, 'INTERESTED'],
+        [petrova, 'INTERESTED'],
+      ]);
+      // Interest changed nothing in the plan.
+      expect((await schedule.detail(v1.id)).assignments).toHaveLength(1);
+
+      const revision = (await schedule.detail(v1.id)).version.revision;
+      await expect(
+        slots.select(
+          slot.id,
+          { employeeId: ivanov, versionId: v1.id, expectedRevision: revision + 5 },
+          PLANNER,
+          grants(),
+        ),
+      ).rejects.toMatchObject({ code: 'SCHEDULE_REVISION_CONFLICT' });
+      const selected = await slots.select(
+        slot.id,
+        { employeeId: ivanov, versionId: v1.id, expectedRevision: revision },
+        PLANNER,
+        grants(),
+      );
+      expect(selected.slot).toMatchObject({ status: 'FILLED', filledEmployeeId: ivanov });
+      expect(selected.slot.offer).toMatchObject({ status: 'CLOSED' });
+      expect(selected.slot.offer?.interests).toHaveLength(2);
+      expect(selected.detail.assignments.map((a) => [a.employeeId, a.businessDate])).toEqual(
+        expect.arrayContaining([
+          [ivanov, day(2)],
+          [ivanov, day(3)],
+        ]),
+      );
+      const afterSelect = await testDb.db.select().from(notificationOutbox);
+      expect(afterSelect.map((row) => row.template)).toEqual(
+        expect.arrayContaining(['SLOT_OFFERED', 'SLOT_SELECTED']),
+      );
+      // The losing decision and stale employee taps change nothing.
+      const current = (await schedule.detail(v1.id)).version.revision;
+      await expect(
+        slots.select(
+          slot.id,
+          { employeeId: petrova, versionId: v1.id, expectedRevision: current },
+          PLANNER,
+          grants(),
+        ),
+      ).rejects.toMatchObject({ code: 'SLOT_FILLED' });
+      expect(await slots.respond(offerId, petrova, 'DECLINED')).toEqual({ kind: 'CLOSED' });
+      expect((await schedule.detail(v1.id)).assignments).toHaveLength(2);
+
+      // Withdraw keeps the responses in history; cancel closes for good.
+      const second = await slots.create(
+        {
+          siteId,
+          orgUnitId: unitId,
+          periodMonth: MONTH,
+          businessDate: day(4),
+          templateId: dayId,
+          zoneId,
+        },
+        PLANNER,
+      );
+      const secondOffered = await slots.offer(second.id, { audience: 'ALL' }, PLANNER);
+      await slots.respond(secondOffered.offer!.id, ivanov, 'INTERESTED');
+      const withdrawn = await slots.withdraw(second.id, PLANNER);
+      expect(withdrawn.status).toBe('OPEN');
+      expect(withdrawn.offer).toMatchObject({ status: 'CANCELLED' });
+      expect(withdrawn.offer?.interests).toHaveLength(1);
+      expect(await slots.respond(secondOffered.offer!.id, petrova, 'INTERESTED')).toEqual({
+        kind: 'CLOSED',
+      });
+      const reoffered = await slots.offer(second.id, { audience: 'UNIT' }, PLANNER);
+      expect(reoffered.offerCount).toBe(2);
+      const cancelled = await slots.cancel(second.id, PLANNER);
+      expect(cancelled.status).toBe('CANCELLED');
+      await expect(slots.offer(second.id, { audience: 'UNIT' }, PLANNER)).rejects.toMatchObject({
+        code: 'SLOT_NOT_OPEN',
+      });
+
+      // Two competing selections fill a third slot at most once.
+      const third = await slots.create(
+        {
+          siteId,
+          orgUnitId: unitId,
+          periodMonth: MONTH,
+          businessDate: day(5),
+          templateId: dayId,
+          zoneId,
+        },
+        PLANNER,
+      );
+      const base = (await schedule.detail(v1.id)).version.revision;
+      const race = await Promise.allSettled([
+        slots.select(
+          third.id,
+          { employeeId: ivanov, versionId: v1.id, expectedRevision: base },
+          PLANNER,
+          grants(),
+        ),
+        slots.select(
+          third.id,
+          { employeeId: petrova, versionId: v1.id, expectedRevision: base },
+          PLANNER,
+          grants(),
+        ),
+      ]);
+      expect(race.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      const loser = race.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+      expect(['SLOT_FILLED', 'SCHEDULE_REVISION_CONFLICT']).toContain(loser.reason.code);
+      const finalSlots = await slots.list({ siteId, orgUnitId: unitId, periodMonth: MONTH });
+      expect(finalSlots.find((s) => s.id === third.id)?.status).toBe('FILLED');
+      const audit = await testDb.db.select().from(auditLog);
+      expect(audit.map((row) => row.action)).toEqual(
+        expect.arrayContaining([
+          'schedule.slot.create',
+          'schedule.slot.offer',
+          'schedule.slot.select',
+          'schedule.slot.withdraw',
+          'schedule.slot.cancel',
+        ]),
+      );
     });
   });
 

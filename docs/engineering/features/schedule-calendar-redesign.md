@@ -1044,3 +1044,41 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   editor shows every break before apply.
 - Lean: Proceed. Break planning and relief become explicit and checked instead of tribal knowledge;
   workload comparison is informational and bounded, avoiding a fairness verdict nobody agreed to.
+
+## 2026-09-13 — Open slots, deliberate offers and interest (#13, SC-15/SC-16, D-06)
+
+- Storage (migration `0046`): `open_slots` (site, unit, month, date, template, zone, status
+  OPEN/OFFERED/FILLED/CANCELLED, filled employee and version; a check ties FILLED to a filled
+  employee), `slot_offers` (slot, audience UNIT/ALL, status OPEN/CLOSED/CANCELLED, notified count,
+  offered by/at, closed at) and `slot_interests` (offer, employee, INTERESTED/DECLINED, unique per
+  offer and employee). Slots live per unit month, not per version, so revisions keep them.
+- API `OpenSlotsService`: create validates unit, active zone and template and the month; offer locks
+  the slot, records the offer and enqueues `SLOT_OFFERED` through the notification outbox to the
+  explicit audience (unit = people planned in the unit this or the previous month; all = every
+  active Telegram-linked employee) with `slot:<offer>:yes|no` buttons; respond upserts a response
+  only while the offer is open and the slot is offered, otherwise reports CLOSED; withdraw returns
+  the slot to internal and cancels the offer, keeping responses; cancel closes for good; select
+  locks the slot, checks editor scope and the draft (same plan, expected revision), adds the
+  assignment through the whole-month validation (`addAssignmentWithin`), marks the slot FILLED,
+  closes the offer and sends `SLOT_SELECTED`. A competing selection fails with `SLOT_FILLED`
+  (or the revision conflict) and changes nothing.
+- Bot: `slot:<offer>:yes|no` records interest and answers with the recorded state; a stale button
+  on a closed offer or filled slot answers "closed" and removes its keyboard.
+- Panel: the Add form offers "Create open slot instead"; slots render as dashed cards in their zone
+  with internal/offered state and the interested count; the status row counts open slots
+  separately; slot details offer with an audience choice, list responses with the same eligibility
+  reasons as candidates, allow selection only into an editable draft without unsaved local changes,
+  and withdraw or cancel. Coverage ignores slots (SC-15).
+- Verification: real-DB 1 case (internal slot invisible to employees, month check, offer to the
+  unit audience with buttons, interest changes and second responder, stale revision, selection
+  writes the assignment and closes the offer while keeping responses, losing selection `SLOT_FILLED`,
+  stale response CLOSED, withdraw/re-offer/cancel with history, two concurrent selections fill once,
+  audit trail); panel workspace test (create from the editor, offer, responses, select with version
+  and revision); 112 schedule tests; API and panel typecheck, ESLint, Prettier. Evidence:
+  `open-slots-week.png`, `open-slot-responses.png`, `open-slot-internal.png`,
+  `open-slot-create.png`, `open-slot-responses-mobile.png`.
+- Limits: selection needs a draft (planners start one from the published month first); approval of
+  an offer beyond the editor roles is not modelled (D-06 keeps offers with the planning roles); the
+  bot handler is covered through the service test and typecheck, not a bot harness test.
+- Lean: Proceed. Vacancies stop living in chats: one internal slot, one deliberate offer, recorded
+  answers and one auditable decision, without a second assignment workflow.

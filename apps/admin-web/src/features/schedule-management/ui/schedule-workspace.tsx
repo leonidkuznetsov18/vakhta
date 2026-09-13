@@ -35,6 +35,7 @@ import { scheduleAccessKey } from '../model/ownership';
 import { useWorkspace, type Workspace } from '../model/use-workspace';
 import { periodDates, type PeriodMode } from '../model/planning';
 import { useAdjacentPlan } from '../model/use-adjacent';
+import { useOpenSlots } from '../model/use-open-slots';
 import { LoadingState } from '@/shared/ui/loading-state';
 import { assignmentChanges, type GridState } from '../model/grid';
 import { calendarWeek, siteToday, type CalendarGrouping } from '../model/calendar';
@@ -162,6 +163,13 @@ function WorkspaceView({
   const [review, setReview] = useState<{ grid: GridState; versionId: string } | null>(null);
   const [staffingOpen, setStaffingOpen] = useState(false);
   const [workloadOpen, setWorkloadOpen] = useState(false);
+  const slots = useOpenSlots({
+    accessKey: w.accessKey,
+    siteId: w.siteId,
+    orgUnitId: w.orgUnitId,
+    month: w.month,
+    enabled: !!w.version,
+  });
   const [workloadTrigger, setWorkloadTrigger] = useState<HTMLElement | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
   const [staffingTrigger, setStaffingTrigger] = useState<HTMLElement | null>(null);
@@ -386,6 +394,11 @@ function WorkspaceView({
                     })}
                   </StatusPill>
                 )}
+              {slots.open.length > 0 && (
+                <StatusPill tone="info">
+                  {format(t.openSlotsCount, { count: slots.open.length })}
+                </StatusPill>
+              )}
               {w.published?.publishedAt && (
                 <Muted>
                   {format(t.publishedAt, {
@@ -481,6 +494,7 @@ function WorkspaceView({
                 onDate={onDate}
                 today={today}
                 adjacent={adjacent}
+                slots={slots}
               />
             )}
           </>

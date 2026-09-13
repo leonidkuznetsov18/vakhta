@@ -51,6 +51,13 @@ Counts describe assigned people, not required staffing or attendance.
   shifts, nights, weekends, hours and breaks per worker for the visible week or the month, names the
   cohort and shows the difference from the cohort average. Planned figures only, never a verdict;
   recorded attendance and actual breaks stay where they are.
+- **Open slots and offers:** an open slot is an unassigned place in the plan for a date, zone and
+  shift (create one from the Add form). It never counts as a person or as covered demand and stays
+  internal until a planner deliberately offers it to an explicit audience through the bot. Employees
+  answer "interested" or "not interested"; a response never assigns. The planner selects one person
+  from the responses into the draft; the slot fills exactly once, other responses stay in history,
+  and the schedule is published as usual. Withdrawing an offer or cancelling the slot closes stale
+  bot buttons.
 - **Conflicts and candidates:** the plan is checked as you edit: overlapping shifts of one person
   in any unit, approved absences and missing required qualifications block saving and publishing;
   short rest and too many monthly hours warn or block according to the site rules; a worker's

@@ -304,8 +304,156 @@ const patterns: {
     createdAt: new Date().toISOString(),
   },
 ];
+interface PreviewSlot {
+  id: string;
+  siteId: string;
+  orgUnitId: string;
+  periodMonth: string;
+  businessDate: string;
+  templateId: string;
+  zoneId: string;
+  status: 'OPEN' | 'OFFERED' | 'FILLED' | 'CANCELLED';
+  filledEmployeeId: string | null;
+  filledVersionId: string | null;
+  offer: {
+    id: string;
+    status: 'OPEN' | 'CLOSED' | 'CANCELLED';
+    audience: 'UNIT' | 'ALL';
+    notifiedCount: number;
+    offeredAt: string;
+    closedAt: string | null;
+    interests: { employeeId: string; response: 'INTERESTED' | 'DECLINED'; respondedAt: string }[];
+  } | null;
+  offerCount: number;
+  createdAt: string;
+}
+// One offered slot with responses and one internal slot (SC-15/SC-16).
+const openSlots: PreviewSlot[] = [
+  {
+    id: 'f1000000-0000-4000-8000-000000000001',
+    siteId: scheduleSiteId,
+    orgUnitId: scheduleUnitId,
+    periodMonth: month,
+    businessDate: `${month}-05`,
+    templateId: scheduleTemplates[0]!.id,
+    zoneId: scheduleZoneId,
+    status: 'OFFERED',
+    filledEmployeeId: null,
+    filledVersionId: null,
+    offer: {
+      id: 'f2000000-0000-4000-8000-000000000001',
+      status: 'OPEN',
+      audience: 'UNIT',
+      notifiedCount: 3,
+      offeredAt: new Date(Date.now() - 3600_000).toISOString(),
+      closedAt: null,
+      interests: [
+        {
+          employeeId: scheduleEmployees[1]!,
+          response: 'INTERESTED',
+          respondedAt: new Date(Date.now() - 1800_000).toISOString(),
+        },
+        {
+          employeeId: scheduleEmployees[2]!,
+          response: 'DECLINED',
+          respondedAt: new Date(Date.now() - 900_000).toISOString(),
+        },
+      ],
+    },
+    offerCount: 1,
+    createdAt: new Date(Date.now() - 7200_000).toISOString(),
+  },
+  {
+    id: 'f1000000-0000-4000-8000-000000000002',
+    siteId: scheduleSiteId,
+    orgUnitId: scheduleUnitId,
+    periodMonth: month,
+    businessDate: `${month}-06`,
+    templateId: scheduleTemplates[1]!.id,
+    zoneId: secondZone,
+    status: 'OPEN',
+    filledEmployeeId: null,
+    filledVersionId: null,
+    offer: null,
+    offerCount: 0,
+    createdAt: new Date(Date.now() - 7200_000).toISOString(),
+  },
+];
+
 /** In-memory preview only: exercises the actual validated frontend contract, never production. */
 export function scheduleFixture(url: URL, method: string, body: unknown): unknown {
+  if (url.pathname.startsWith('/admin/schedules/open-slots')) {
+    const [, , , , id, action] = url.pathname.split('/');
+    if (method === 'GET')
+      return openSlots.filter((slot) => slot.periodMonth === url.searchParams.get('periodMonth'));
+    if (method === 'POST' && !id) {
+      const input = body as Pick<
+        PreviewSlot,
+        'siteId' | 'orgUnitId' | 'periodMonth' | 'businessDate' | 'templateId' | 'zoneId'
+      >;
+      const row: PreviewSlot = {
+        ...input,
+        id: crypto.randomUUID(),
+        status: 'OPEN',
+        filledEmployeeId: null,
+        filledVersionId: null,
+        offer: null,
+        offerCount: 0,
+        createdAt: new Date().toISOString(),
+      };
+      openSlots.push(row);
+      return row;
+    }
+    const slot = openSlots.find((item) => item.id === id);
+    if (!slot) throw new Error('Preview slot missing');
+    if (action === 'offer') {
+      slot.status = 'OFFERED';
+      slot.offer = {
+        id: crypto.randomUUID(),
+        status: 'OPEN',
+        audience: (body as { audience: 'UNIT' | 'ALL' }).audience,
+        notifiedCount: 3,
+        offeredAt: new Date().toISOString(),
+        closedAt: null,
+        interests: [],
+      };
+      slot.offerCount += 1;
+      return slot;
+    }
+    if (action === 'withdraw') {
+      slot.status = 'OPEN';
+      if (slot.offer)
+        slot.offer = { ...slot.offer, status: 'CANCELLED', closedAt: new Date().toISOString() };
+      return slot;
+    }
+    if (action === 'cancel') {
+      slot.status = 'CANCELLED';
+      if (slot.offer)
+        slot.offer = { ...slot.offer, status: 'CANCELLED', closedAt: new Date().toISOString() };
+      return slot;
+    }
+    if (action === 'select') {
+      const input = body as { employeeId: string; versionId: string };
+      slot.status = 'FILLED';
+      slot.filledEmployeeId = input.employeeId;
+      slot.filledVersionId = input.versionId;
+      if (slot.offer)
+        slot.offer = { ...slot.offer, status: 'CLOSED', closedAt: new Date().toISOString() };
+      const version = versions.find((item) => item.id === input.versionId);
+      if (!version) throw new Error('Preview version missing');
+      const items = assignments.get(version.id) ?? [];
+      items.push({
+        employeeId: input.employeeId,
+        businessDate: slot.businessDate,
+        templateId: slot.templateId,
+        zoneId: slot.zoneId,
+        kind: 'REGULAR',
+      });
+      version.assignmentsCount = items.length;
+      version.revision += 1;
+      return { slot, detail: detail(version) };
+    }
+  }
   if (url.pathname.startsWith('/admin/schedules/patterns')) {
     if (method === 'GET') return patterns;
     if (method === 'POST') {

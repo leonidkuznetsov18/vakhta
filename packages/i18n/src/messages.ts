@@ -404,6 +404,13 @@ export interface Messages {
     readonly shiftReminder: string;
     /** Placeholders: {month}, {year} */
     readonly ackReminder: string;
+    readonly slotOffered: string;
+    readonly slotInterested: string;
+    readonly slotNotInterested: string;
+    readonly slotInterestRecorded: string;
+    readonly slotDeclined: string;
+    readonly slotClosed: string;
+    readonly slotSelected: string;
   };
   readonly admin: {
     readonly productName: string;

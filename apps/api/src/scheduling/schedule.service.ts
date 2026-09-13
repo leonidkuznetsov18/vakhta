@@ -47,6 +47,7 @@ import {
 } from '@vakhta/domain';
 import type {
   AcknowledgementStatusView,
+  AssignmentInput,
   AssignmentView,
   CreateScheduleVersionCommand,
   ListScheduleVersionsQuery,
@@ -559,6 +560,72 @@ export class ScheduleService {
     return this.db.transaction((tx) =>
       this.putAssignmentsWithin(tx, id, cmd, actor, expectedRevision, restriction),
     );
+  }
+
+  /**
+   * Adds one assignment to a draft inside the caller's transaction, keeping every other planned
+   * assignment with its metadata (open slot selection, #13). The whole-month validation applies.
+   */
+  async addAssignmentWithin(
+    tx: Transaction,
+    versionId: string,
+    item: AssignmentInput,
+    actor: Actor,
+    expectedRevision?: number,
+    restriction: ReadonlySet<string> | null = null,
+  ): Promise<ScheduleVersionDetail> {
+    const current = (await this.loadAssignments(versionId, tx))
+      .filter((x) => x.a.status === 'PLANNED')
+      .map((x) => this.toAssignmentInput(x));
+    if (
+      current.some((x) => x.employeeId === item.employeeId && x.businessDate === item.businessDate)
+    )
+      throw new DomainError(
+        'DUPLICATE_ASSIGNMENT',
+        422,
+        `${item.employeeId} already has an assignment on ${item.businessDate}`,
+      );
+    return this.putAssignmentsWithin(
+      tx,
+      versionId,
+      { items: [...current, item] },
+      actor,
+      expectedRevision,
+      restriction,
+    );
+  }
+
+  private toAssignmentInput(x: AssignmentWithTemplate): AssignmentInput {
+    return {
+      employeeId: x.a.employeeId,
+      templateId: x.a.templateId,
+      businessDate: x.a.businessDate,
+      kind: x.a.kind,
+      ...(x.a.positionId ? { positionId: x.a.positionId } : {}),
+      ...(x.a.teamId ? { teamId: x.a.teamId } : {}),
+      ...(x.a.zoneId ? { zoneId: x.a.zoneId } : {}),
+      ...(x.a.customStart && x.a.customEnd
+        ? { customStart: x.a.customStart, customEnd: x.a.customEnd }
+        : {}),
+      ...(x.segments.length > 0
+        ? {
+            segments: x.segments.map((segment) => ({
+              zoneId: segment.zoneId,
+              localStart: segment.localStart,
+              localEnd: segment.localEnd,
+            })),
+          }
+        : {}),
+      ...(x.breaks.length > 0
+        ? {
+            breaks: x.breaks.map((pause) => ({
+              localStart: pause.localStart,
+              localEnd: pause.localEnd,
+              reliefEmployeeId: pause.reliefEmployeeId,
+            })),
+          }
+        : {}),
+    };
   }
 
   /**
