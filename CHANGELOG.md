@@ -1,3 +1,9 @@
+## [1.12.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.12.0...v1.12.1) (2026-09-13)
+
+### Refactoring
+
+* **cleanup:** separate planning rules and page composition ([1805b5b](https://github.com/leonidkuznetsov18/vakhta/commit/1805b5be404b85c4c6c922af58fbaa46f75b1463))
+
 ## [1.12.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.11.1...v1.12.0) (2026-09-13)
 
 ### Features
