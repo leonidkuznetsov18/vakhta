@@ -101,9 +101,9 @@ export function ShiftHeader({
           </Button>
         </div>
       )}
-      {snapshot && (
+      {snapshot && snapshot.contexts.some(hasShiftToShow) && (
         <ul className="flex flex-col gap-2">
-          {snapshot.contexts.map((ctx) => (
+          {snapshot.contexts.filter(hasShiftToShow).map((ctx) => (
             <ShiftLine
               key={ctx.siteId}
               ctx={ctx}
@@ -117,6 +117,11 @@ export function ShiftHeader({
   );
 }
 
+/** A day off — nobody planned, nothing recorded — is not a shift worth a line (owner, 2026-09-13). */
+function hasShiftToShow(ctx: OverviewSiteContext): boolean {
+  return !!(ctx.current?.staffed || ctx.closingPrevious?.staffed || ctx.next?.staffed);
+}
+
 function ShiftLine({
   ctx,
   showSite,
@@ -127,7 +132,9 @@ function ShiftLine({
   readonly now: Date;
 }) {
   const c = overviewText();
-  const current = ctx.current;
+  const current = ctx.current?.staffed ? ctx.current : null;
+  const closing = ctx.closingPrevious?.staffed ? ctx.closingPrevious : null;
+  const next = ctx.next?.staffed ? ctx.next : null;
   const Icon = current?.isNight ? MoonIcon : SunIcon;
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
@@ -149,26 +156,24 @@ function ShiftLine({
             })}
           </span>
         </>
-      ) : (
-        <Muted>{c.noShift}</Muted>
-      )}
-      {ctx.closingPrevious && (
+      ) : null}
+      {closing && (
         <span className="inline-flex items-center gap-1">
           <StatusPill tone="warning">
             <Clock3Icon aria-hidden="true" className="size-3.5" />
             {format(c.closing, {
-              name: ctx.closingPrevious.name,
-              time: siteTime(ctx.closingPrevious.closesAt, ctx.timezone),
+              name: closing.name,
+              time: siteTime(closing.closesAt, ctx.timezone),
             })}
           </StatusPill>
           <InfoTip text={c.closingHint} />
         </span>
       )}
-      {ctx.next && (
+      {next && (
         <Muted>
           {format(c.nextShift, {
-            name: ctx.next.name,
-            time: siteTime(ctx.next.startsAt, ctx.timezone),
+            name: next.name,
+            time: siteTime(next.startsAt, ctx.timezone),
           })}
         </Muted>
       )}

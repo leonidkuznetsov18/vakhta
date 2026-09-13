@@ -210,12 +210,24 @@ export function composition(
 ): OverviewComposition {
   const queue =
     Object.values(permissions).some(Boolean) || !!snapshot?.terminals || !!snapshot?.staffing;
+  // A day off with nobody planned and nothing recorded has no health to report: hide the block
+  // rather than four "nothing" tiles (owner, 2026-09-13). Recorded facts still show it.
+  const shiftRuns = !!snapshot?.contexts.some(
+    (ctx) => ctx.current?.staffed || ctx.closingPrevious?.staffed,
+  );
+  const facts =
+    !!snapshot &&
+    ((snapshot.staffing?.planned ?? 0) + (snapshot.staffing?.present ?? 0) > 0 ||
+      (snapshot.timeToAction?.reported ?? 0) > 0 ||
+      (snapshot.downtime?.zoneMinutes ?? 0) + (snapshot.downtime?.incidents ?? 0) > 0 ||
+      (snapshot.handover?.decided ?? 0) + (snapshot.handover?.pending ?? 0) > 0);
   const health =
     !!snapshot &&
     [snapshot.staffing, snapshot.downtime, snapshot.timeToAction, snapshot.handover].some(
       (s) => s !== null,
-    );
-  const zones = !!snapshot?.zones;
+    ) &&
+    (shiftRuns || facts);
+  const zones = !!snapshot?.zones?.some((z) => z.status !== 'IDLE');
   const feed = !!snapshot && (snapshot.timeToAction !== null || snapshot.handover !== null);
   const setup = !!snapshot?.setup;
   return { queue, health, zones, feed, setup, linksOnly: !!snapshot && !queue && !zones };

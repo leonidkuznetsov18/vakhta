@@ -254,6 +254,39 @@ describe('overview query integration', () => {
     fireEvent.click(screen.getByRole('button', { name: `1 ${c.unpairedTerminals}` }));
     expect(location.hash).toBe('#/administration/terminals');
   });
+  it('does not show a shift line or empty health on a day off', async () => {
+    const window = {
+      templateId: 'a0000000-0000-4000-8000-0000000000d2',
+      code: 'NIGHT',
+      name: 'Ночная смена',
+      isNight: true,
+      businessDate: '2026-09-13',
+      startsAt: '2026-09-13T17:00:00.000Z',
+      endsAt: '2026-09-14T05:00:00.000Z',
+      closesAt: '2026-09-14T07:00:00.000Z',
+      staffed: false,
+    };
+    api.snapshot.mockResolvedValue(
+      snapshot({
+        contexts: [
+          {
+            siteId: SITE,
+            siteName: 'Plant 1',
+            timezone: 'Europe/Kyiv',
+            current: window,
+            closingPrevious: null,
+            next: null,
+          },
+        ],
+        staffing: { ...snapshot().staffing!, planned: 0, present: 0, expected: 0 },
+      }),
+    );
+    page();
+    await screen.findByText(new RegExp(c.checked.split('{')[0]!));
+    expect(screen.queryByText(/Ночная смена/)).toBeNull();
+    expect(screen.queryByText(c.healthTitle)).toBeNull();
+    expect(screen.queryByText(c.noPlan)).toBeNull();
+  });
   it('shows retry instead of zero when the shift snapshot fails (AC-019)', async () => {
     api.snapshot.mockRejectedValue(new Error('Unavailable'));
     page();

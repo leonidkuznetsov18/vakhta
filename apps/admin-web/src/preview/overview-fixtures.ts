@@ -51,8 +51,10 @@ export function overviewSnapshotFixture(
     startsAt: iso(s),
     endsAt: iso(s + 12 * 3_600_000),
     closesAt: iso(s + 14 * 3_600_000),
+    staffed: !dayOff,
   });
-  const clear = mode === 'clear';
+  const dayOff = mode === 'dayoff';
+  const clear = mode === 'clear' || dayOff;
   return {
     generatedAt: iso(now),
     lateGraceMinutes: 10,
@@ -83,8 +85,8 @@ export function overviewSnapshotFixture(
       },
     ],
     staffing: {
-      planned: clear ? 12 : 44,
-      present: clear ? 12 : 41,
+      planned: dayOff ? 0 : clear ? 12 : 44,
+      present: dayOff ? 0 : clear ? 12 : 41,
       notArrived: clear ? 0 : 2,
       expected: clear ? 0 : 1,
       unscheduled: clear ? 0 : 1,
@@ -146,7 +148,7 @@ export function overviewSnapshotFixture(
           awaitingBreached: 1,
         },
     handover: clear
-      ? { clean: 12, decided: 12, disputed: 0, pending: 0 }
+      ? { clean: dayOff ? 0 : 12, decided: dayOff ? 0 : 12, disputed: 0, pending: 0 }
       : { clean: 49, decided: 50, disputed: 1, pending: 3 },
     terminals: [
       {
@@ -158,67 +160,71 @@ export function overviewSnapshotFixture(
         critical: !clear,
       },
     ],
-    zones: [
-      ...(clear
-        ? []
-        : [
-            {
-              zoneId: ZONE,
-              zoneName: 'Токарний №2',
-              orgUnitId: UNIT,
-              orgUnitName: 'Цех Крышки',
-              siteId: SITE,
-              status: 'DOWNTIME' as const,
-              planned: 2,
-              present: 2,
-              since: iso(now - 32 * 60_000),
-            },
-            {
-              zoneId: 'a0000000-0000-4000-8000-0000000000z2',
-              zoneName: 'Пакувальна лінія',
-              orgUnitId: UNIT_2,
-              orgUnitName: 'Пакувальна дільниця',
-              siteId: SITE,
-              status: 'UNDERSTAFFED' as const,
-              planned: 3,
-              present: 2,
-              since: null,
-            },
-          ]),
-      {
-        zoneId: 'a0000000-0000-4000-8000-0000000000z3',
-        zoneName: 'Лінія 1',
-        orgUnitId: UNIT,
-        orgUnitName: 'Цех Крышки',
-        siteId: SITE,
-        status: 'WORKING',
-        planned: 4,
-        present: 4,
-        since: null,
-      },
-      {
-        zoneId: 'a0000000-0000-4000-8000-0000000000z4',
-        zoneName: 'Склад готової продукції з дуже довгою назвою для перевірки переносу',
-        orgUnitId: UNIT_2,
-        orgUnitName: 'Пакувальна дільниця',
-        siteId: SITE,
-        status: 'CLOSING',
-        planned: 1,
-        present: 1,
-        since: null,
-      },
-      {
-        zoneId: 'a0000000-0000-4000-8000-0000000000z5',
-        zoneName: 'Резервна лінія',
-        orgUnitId: UNIT,
-        orgUnitName: 'Цех Крышки',
-        siteId: SITE,
-        status: 'IDLE',
-        planned: 0,
-        present: 0,
-        since: null,
-      },
-    ],
+    zones: (
+      [
+        ...(clear
+          ? []
+          : [
+              {
+                zoneId: ZONE,
+                zoneName: 'Токарний №2',
+                orgUnitId: UNIT,
+                orgUnitName: 'Цех Крышки',
+                siteId: SITE,
+                status: 'DOWNTIME' as const,
+                planned: 2,
+                present: 2,
+                since: iso(now - 32 * 60_000),
+              },
+              {
+                zoneId: 'a0000000-0000-4000-8000-0000000000z2',
+                zoneName: 'Пакувальна лінія',
+                orgUnitId: UNIT_2,
+                orgUnitName: 'Пакувальна дільниця',
+                siteId: SITE,
+                status: 'UNDERSTAFFED' as const,
+                planned: 3,
+                present: 2,
+                since: null,
+              },
+            ]),
+        {
+          zoneId: 'a0000000-0000-4000-8000-0000000000z3',
+          zoneName: 'Лінія 1',
+          orgUnitId: UNIT,
+          orgUnitName: 'Цех Крышки',
+          siteId: SITE,
+          status: 'WORKING',
+          planned: 4,
+          present: 4,
+          since: null,
+        },
+        {
+          zoneId: 'a0000000-0000-4000-8000-0000000000z4',
+          zoneName: 'Склад готової продукції з дуже довгою назвою для перевірки переносу',
+          orgUnitId: UNIT_2,
+          orgUnitName: 'Пакувальна дільниця',
+          siteId: SITE,
+          status: 'CLOSING',
+          planned: 1,
+          present: 1,
+          since: null,
+        },
+        {
+          zoneId: 'a0000000-0000-4000-8000-0000000000z5',
+          zoneName: 'Резервна лінія',
+          orgUnitId: UNIT,
+          orgUnitName: 'Цех Крышки',
+          siteId: SITE,
+          status: 'IDLE',
+          planned: 0,
+          present: 0,
+          since: null,
+        },
+      ] as NonNullable<OverviewSnapshot['zones']>
+    ).map((z) =>
+      dayOff ? { ...z, status: 'IDLE' as const, planned: 0, present: 0, since: null } : z,
+    ),
     setup: { unlinkedEmployees: clear ? 0 : 93, unpairedTerminals: clear ? 0 : 1 },
   };
 }

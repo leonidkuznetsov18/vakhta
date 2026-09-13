@@ -57,6 +57,7 @@ const attention = buildAttention(
   now,
 );
 const snapshot = {
+  contexts: [],
   downtimeEscalationMinutes: 15,
   terminals: [],
   zones: [
@@ -160,6 +161,7 @@ describe('action queue priority (spec 004 D-08, AC-009–AC-012)', () => {
       overtime: false,
     };
     const bare = {
+      contexts: [],
       terminals: null,
       staffing: null,
       zones: null,
@@ -180,5 +182,46 @@ describe('action queue priority (spec 004 D-08, AC-009–AC-012)', () => {
       setup: true,
       linksOnly: false,
     });
+  });
+
+  it('hides shift health and zones on a day off with nobody planned or recorded', () => {
+    const window = (staffed: boolean) => ({
+      templateId: 't',
+      code: 'NIGHT',
+      name: 'Night',
+      isNight: true,
+      businessDate: '2026-09-13',
+      startsAt: '2026-09-13T17:00:00Z',
+      endsAt: '2026-09-14T05:00:00Z',
+      closesAt: '2026-09-14T07:00:00Z',
+      staffed,
+    });
+    const dayOff = {
+      contexts: [
+        {
+          siteId: 's',
+          siteName: 'Plant',
+          timezone: 'Europe/Kyiv',
+          current: window(false),
+          closingPrevious: window(false),
+          next: window(false),
+        },
+      ],
+      staffing: { planned: 0, present: 0 },
+      timeToAction: { reported: 0 },
+      downtime: { zoneMinutes: 0, incidents: 0 },
+      handover: { decided: 0, pending: 0 },
+      zones: [{ status: 'IDLE' }, { status: 'IDLE' }],
+      terminals: [],
+      setup: null,
+    } as unknown as OverviewSnapshot;
+    expect(composition(all, dayOff)).toMatchObject({ health: false, zones: false });
+    const running = {
+      ...dayOff,
+      contexts: [{ ...dayOff.contexts[0]!, current: window(true) }],
+    } as OverviewSnapshot;
+    expect(composition(all, running)).toMatchObject({ health: true });
+    const incident = { ...dayOff, timeToAction: { reported: 1 } } as unknown as OverviewSnapshot;
+    expect(composition(all, incident).health).toBe(true);
   });
 });

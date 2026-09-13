@@ -283,7 +283,13 @@ describe('overview snapshot (spec 004)', () => {
   it('AC-004/AC-014–AC-016/AC-020/AC-022: the enterprise view of the running day shift', async () => {
     const s = await service.snapshot(admin, {}, now);
     expect(s.contexts).toHaveLength(1);
-    expect(s.contexts[0]!.current).toMatchObject({ code: 'DAY', businessDate: '2026-09-13' });
+    expect(s.contexts[0]!.current).toMatchObject({
+      code: 'DAY',
+      businessDate: '2026-09-13',
+      staffed: true,
+    });
+    // Nobody is planned for tonight and nothing is recorded there: a day off is not shown as a shift.
+    expect(s.contexts[0]!.next).toMatchObject({ code: 'NIGHT', staffed: false });
     expect(s.staffing).toMatchObject({
       planned: 4,
       present: 2,

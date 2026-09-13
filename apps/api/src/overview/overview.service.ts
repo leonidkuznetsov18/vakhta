@@ -262,7 +262,11 @@ export class OverviewService {
           downtimeEscalationMinutes: this.options.downtimeEscalationMinutes,
           options,
           selection,
-          contexts: contexts.map(({ site, ctx }) => this.contextView(site, ctx)),
+          contexts: await Promise.all(
+            contexts.map(({ site, ctx }) =>
+              this.contextView(tx, site, ctx, reader, selection, now),
+            ),
+          ),
           staffing,
           downtime,
           timeToAction: reactions,
@@ -420,8 +424,15 @@ export class OverviewService {
     };
   }
 
-  private contextView(site: SiteRow, ctx: ReturnType<typeof shiftContext>): OverviewSiteContext {
-    const view = (w: ShiftWindow | null): ShiftWindowView | null =>
+  private async contextView(
+    tx: Db,
+    site: SiteRow,
+    ctx: ReturnType<typeof shiftContext>,
+    scope: AccessScope,
+    selection: Selection,
+    now: Date,
+  ): Promise<OverviewSiteContext> {
+    const view = async (w: ShiftWindow | null): Promise<ShiftWindowView | null> =>
       w
         ? {
             templateId: w.templateId,
@@ -432,16 +443,87 @@ export class OverviewService {
             startsAt: w.startsAt.toISOString(),
             endsAt: w.endsAt.toISOString(),
             closesAt: w.closesAt.toISOString(),
+            staffed: await this.staffed(tx, site.id, w, scope, selection, now),
           }
         : null;
+    const [current, closingPrevious, next] = await Promise.all([
+      view(ctx.current),
+      view(ctx.closingPrevious),
+      view(ctx.next),
+    ]);
     return {
       siteId: site.id,
       siteName: site.name,
       timezone: site.timezone,
-      current: view(ctx.current),
-      closingPrevious: view(ctx.closingPrevious),
-      next: view(ctx.next),
+      current,
+      closingPrevious,
+      next,
     };
+  }
+
+  /**
+   * Whether a shift window really happens: a PLANNED assignment of a published schedule overlaps it,
+   * or a shift was recorded in it (started, arrived or still open). A day off is neither.
+   */
+  private async staffed(
+    tx: Db,
+    siteId: string,
+    window: ShiftWindow,
+    scope: AccessScope,
+    selection: Selection,
+    now: Date,
+  ): Promise<boolean> {
+    const [plan] = await tx
+      .select({ id: shiftAssignments.id })
+      .from(shiftAssignments)
+      .innerJoin(
+        scheduleVersions,
+        and(
+          eq(shiftAssignments.scheduleVersionId, scheduleVersions.id),
+          eq(scheduleVersions.status, 'PUBLISHED'),
+        ),
+      )
+      .innerJoin(orgUnits, eq(shiftAssignments.orgUnitId, orgUnits.id))
+      .where(
+        and(
+          eq(shiftAssignments.status, 'PLANNED'),
+          eq(orgUnits.siteId, siteId),
+          lt(shiftAssignments.planStartAt, window.endsAt),
+          gt(shiftAssignments.planEndAt, window.startsAt),
+          selection.orgUnitId ? eq(shiftAssignments.orgUnitId, selection.orgUnitId) : undefined,
+          scopeCondition(scope, {
+            site: orgUnits.siteId,
+            unit: shiftAssignments.orgUnitId,
+            team: shiftAssignments.teamId,
+            zone: shiftAssignments.zoneId,
+          }),
+        ),
+      )
+      .limit(1);
+    if (plan) return true;
+    if (window.startsAt.getTime() > now.getTime()) return false;
+    const unit = shiftUnitSql();
+    const [recorded] = await tx
+      .select({ id: shiftSessions.id })
+      .from(shiftSessions)
+      .leftJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
+      .leftJoin(orgUnits, sql`${orgUnits.id} = ${unit}`)
+      .where(
+        and(
+          eq(orgUnits.siteId, siteId),
+          sql`coalesce(${shiftSessions.startedAt}, ${shiftSessions.createdAt}) < ${window.endsAt.toISOString()}::timestamptz`,
+          or(isNull(shiftSessions.endedAt), gt(shiftSessions.endedAt, window.startsAt)),
+          selection.orgUnitId ? sql`${unit} = ${selection.orgUnitId}` : undefined,
+          scopeCondition(scope, {
+            site: orgUnits.siteId,
+            unit,
+            team: shiftAssignments.teamId,
+            zone: shiftSessions.zoneId,
+          }),
+        ),
+      )
+      .limit(1);
+    return !!recorded;
   }
 
   /* ------------------------------------------------------------------ */

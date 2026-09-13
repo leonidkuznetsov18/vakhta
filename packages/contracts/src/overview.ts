@@ -18,6 +18,11 @@ export const ShiftWindowView = z.object({
   endsAt: IsoDateTime,
   /** End of the closing grace for the checklist and exit QR. */
   closesAt: IsoDateTime,
+  /**
+   * The shift really happens in the selected scope: someone is planned in a published schedule or a
+   * shift was recorded in its window. A day off with nobody planned and nobody present is false.
+   */
+  staffed: z.boolean(),
 });
 export type ShiftWindowView = z.infer<typeof ShiftWindowView>;
 

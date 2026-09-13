@@ -31,6 +31,9 @@ figure and card group has an ⓘ hint with its exact definition.
 - The **shift line** shows the running shift of each selected site, read from the site's shift
   templates in the site time zone: name and hours ("Денна 08:00–20:00"), the business date (a night
   shift keeps the date it started), time left ("до кінця 3 год 15 хв") and the next shift.
+- A shift is shown only when it really happens in the selected scope: someone is planned for it in a
+  published schedule or a shift was recorded in its window. On a day off with nobody planned and nobody
+  on site, the shift line is not shown at all (no "Ночная смена 20:00–08:00" for an empty night).
 - For two hours after a shift ends, an amber chip **"Закриття зміни «Денна» до 22:00"** says the
   previous shift may still submit its checklist and scan the exit QR.
 - On the right: a dot (green — updating live, red — live updates unavailable, the page checks every
@@ -77,7 +80,8 @@ the person or start the shift for them from Live shift.
 
 ## "Стан зміни": shift health
 
-Four figures for the current shift in the selected scope. A figure the reader's role cannot read is
+Four figures for the current shift in the selected scope. On a day off (no staffed shift and no recorded
+incidents, downtime or handover reports) the whole block is hidden instead of four empty tiles. A figure the reader's role cannot read is
 not shown; while loading it shows a spinner, after a failure "Повторити" — never a zero.
 
 - **"Явка за графіком"** — "41 з 44": present people among planned assignments of published schedule
@@ -95,6 +99,8 @@ not shown; while loading it shows a spinner, after a failure "Повторити
   are shown separately.
 
 ## "Зони зараз"
+
+The block appears only when at least one zone has a plan or people; when every zone is idle it is hidden.
 
 One card per active zone: status with text and duration, zone name, unit (when several units are
 shown) and "2 з 3 за графіком". Problem zones come first:
