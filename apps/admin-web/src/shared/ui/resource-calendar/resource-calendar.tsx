@@ -281,7 +281,9 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                 aria-pressed={selectedDate === date.id}
                 className={cn(
                   'min-h-11 min-w-11 flex-1 flex-col gap-0 px-1 text-xs leading-tight',
-                  date.today && 'border-2 border-emerald-600 font-bold dark:border-emerald-400',
+                  date.today &&
+                    selectedDate !== date.id &&
+                    'border-emerald-600 bg-emerald-600 font-bold text-white hover:bg-emerald-700 hover:text-white dark:border-emerald-500 dark:bg-emerald-500 dark:text-emerald-950',
                 )}
                 onClick={() => onDate(date.id)}
               >
@@ -345,7 +347,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                     className={cn(
                       'w-34 whitespace-normal px-2 py-1.5 text-center align-top',
                       date.today &&
-                        'border-x-2 border-t-2 border-emerald-600 bg-emerald-50/70 dark:border-emerald-400 dark:bg-emerald-950/40',
+                        'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-emerald-950',
                       date.readonly && 'bg-muted/40 text-muted-foreground',
                       date.holiday && 'bg-rose-50/70 dark:bg-rose-950/40',
                     )}
@@ -353,27 +355,38 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                     <span
                       className={cn(
                         'block font-medium',
-                        date.today
-                          ? 'font-bold text-emerald-800 dark:text-emerald-200'
-                          : 'text-foreground',
+                        date.today ? 'font-bold text-inherit' : 'text-foreground',
                       )}
                     >
                       {date.label}
                     </span>
                     {date.summary && (
-                      <span className="block text-[11px] font-normal text-muted-foreground tabular-nums">
+                      <span
+                        className={cn(
+                          'block text-[11px] font-normal tabular-nums',
+                          date.today ? 'text-inherit opacity-90' : 'text-muted-foreground',
+                        )}
+                      >
                         {date.summary}
                       </span>
                     )}
                     {date.holiday && (
-                      <span className="block text-[11px] font-normal text-rose-700 dark:text-rose-300">
+                      <span
+                        className={cn(
+                          'block text-[11px] font-normal',
+                          date.today ? 'text-inherit' : 'text-rose-700 dark:text-rose-300',
+                        )}
+                      >
                         🎉 {date.holiday}
                       </span>
                     )}
                     {date.events?.map((event) => (
                       <span
                         key={event}
-                        className="block text-[11px] font-normal text-violet-700 dark:text-violet-300 [overflow-wrap:anywhere]"
+                        className={cn(
+                          'block text-[11px] font-normal [overflow-wrap:anywhere]',
+                          date.today ? 'text-inherit' : 'text-violet-700 dark:text-violet-300',
+                        )}
                       >
                         {event}
                       </span>
@@ -402,11 +415,13 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                       key={cell.date}
                       className={cn(
                         'whitespace-normal p-1.5 align-top',
+                        // Wall-calendar slider: a solid frame drawn with inset shadows, which
+                        // neither the collapsed borders nor the rounded container can clip.
                         model.dates[index]?.today &&
-                          'border-x-2 border-emerald-600 bg-emerald-50/30 dark:border-emerald-400 dark:bg-emerald-950/20',
+                          'bg-emerald-50 shadow-[inset_3px_0_0_var(--color-emerald-600),inset_-3px_0_0_var(--color-emerald-600)] dark:bg-emerald-950/40 dark:shadow-[inset_3px_0_0_var(--color-emerald-500),inset_-3px_0_0_var(--color-emerald-500)]',
                         model.dates[index]?.today &&
                           rowIndex === rows.length - 1 &&
-                          'border-b-2 border-b-emerald-600 dark:border-b-emerald-400',
+                          'shadow-[inset_3px_0_0_var(--color-emerald-600),inset_-3px_0_0_var(--color-emerald-600),inset_0_-3px_0_var(--color-emerald-600)] dark:shadow-[inset_3px_0_0_var(--color-emerald-500),inset_-3px_0_0_var(--color-emerald-500),inset_0_-3px_0_var(--color-emerald-500)]',
                         model.dates[index]?.readonly && 'bg-muted/30',
                       )}
                     >
