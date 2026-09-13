@@ -41,9 +41,16 @@ import type {
   ImportEmployeesResult,
   RelinkTelegramCommand,
 } from '@vakhta/contracts';
-import type { Locale } from '@vakhta/domain';
+import type { AccessScope, Locale, ScopeTarget } from '@vakhta/domain';
 import { format } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
+import {
+  FULL_SCOPE,
+  assertInScope,
+  employeePlaceSql,
+  placeTarget,
+  scopeCondition,
+} from '../common/access-scope.js';
 import { isUniqueViolation } from '../common/pg-errors.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
@@ -517,7 +524,11 @@ export class EmployeesService {
     return { employeeId, fullName: employee.fullName };
   }
 
-  async list(limit = 200): Promise<EmployeeView[]> {
+  /**
+   * Directory reads are limited to the reader's scope by the employee's open assignment. An
+   * employee without one has no place, so only an enterprise-wide reader sees them (spec 005 A6).
+   */
+  async list(limit = 200, scope: AccessScope = FULL_SCOPE): Promise<EmployeeView[]> {
     const rows = await this.db
       .select({ employee: employees, linkId: telegramAccounts.id })
       .from(employees)
@@ -525,6 +536,7 @@ export class EmployeesService {
         telegramAccounts,
         and(eq(telegramAccounts.employeeId, employees.id), eq(telegramAccounts.status, 'ACTIVE')),
       )
+      .where(scopeCondition(scope, employeePlaceSql(employees.id)))
       .orderBy(desc(employees.createdAt))
       .limit(limit);
     const current = await this.currentPositions(rows.map((r) => r.employee.id));
@@ -533,10 +545,14 @@ export class EmployeesService {
     );
   }
 
-  async listPage(query: ListEmployeesPageQuery): Promise<EmployeesPage> {
+  async listPage(
+    query: ListEmployeesPageQuery,
+    scope: AccessScope = FULL_SCOPE,
+  ): Promise<EmployeesPage> {
+    const inScope = scopeCondition(scope, employeePlaceSql(employees.id));
     return this.db.transaction(
       async (tx) => {
-        const [collection] = await tx.select({ total: count() }).from(employees);
+        const [collection] = await tx.select({ total: count() }).from(employees).where(inScope);
         const rows = await tx
           .select({ employee: employees, linkId: telegramAccounts.id })
           .from(employees)
@@ -547,7 +563,7 @@ export class EmployeesService {
               eq(telegramAccounts.status, 'ACTIVE'),
             ),
           )
-          .where(query.after ? gt(employees.id, query.after) : undefined)
+          .where(and(inScope, query.after ? gt(employees.id, query.after) : undefined))
           .orderBy(asc(employees.id))
           .limit(query.limit + 1);
         const page = rows.slice(0, query.limit);
@@ -566,6 +582,69 @@ export class EmployeesService {
       },
       { isolationLevel: 'repeatable read', accessMode: 'read only' },
     );
+  }
+
+  /**
+   * Place of an employee for scope checks: the open assignment, as the directory filter uses.
+   * Null when the employee does not exist or has no open assignment.
+   */
+  async placeOf(employeeId: string, reader: DbOrTx = this.db): Promise<ScopeTarget | null> {
+    const [row] = await reader
+      .select({
+        siteId: orgUnits.siteId,
+        orgUnitId: employeePositions.orgUnitId,
+        teamId: employeePositions.teamId,
+      })
+      .from(employeePositions)
+      .innerJoin(orgUnits, eq(employeePositions.orgUnitId, orgUnits.id))
+      .where(and(eq(employeePositions.employeeId, employeeId), isNull(employeePositions.validTo)))
+      .orderBy(desc(employeePositions.validFrom))
+      .limit(1);
+    return row ? placeTarget(row) : null;
+  }
+
+  /**
+   * Whether the employee was ever scheduled inside the scope. A unit's calendar names people
+   * borrowed from other units; its readers may look those people up by identifier.
+   */
+  async scheduledInScope(scope: AccessScope, employeeId: string): Promise<boolean> {
+    if (scope.all) return true;
+    const [row] = await this.db
+      .select({ id: shiftAssignments.id })
+      .from(shiftAssignments)
+      .innerJoin(orgUnits, eq(shiftAssignments.orgUnitId, orgUnits.id))
+      .where(
+        and(
+          eq(shiftAssignments.employeeId, employeeId),
+          scopeCondition(scope, {
+            site: orgUnits.siteId,
+            unit: shiftAssignments.orgUnitId,
+            team: shiftAssignments.teamId,
+            zone: shiftAssignments.zoneId,
+          }),
+        ),
+      )
+      .limit(1);
+    return row !== undefined;
+  }
+
+  /**
+   * The place a scoped writer puts an employee (create, transfer) must be inside their scope, team
+   * included: a team-scoped writer cannot move a person out of their team. A missing unit is
+   * forbidden too, so identifiers cannot be probed.
+   */
+  async assertPlaceInScope(
+    scope: AccessScope,
+    orgUnitId: string,
+    teamId: string | null,
+  ): Promise<void> {
+    if (scope.all) return;
+    const [unit] = await this.db
+      .select({ siteId: orgUnits.siteId })
+      .from(orgUnits)
+      .where(eq(orgUnits.id, orgUnitId))
+      .limit(1);
+    assertInScope(scope, unit ? placeTarget({ siteId: unit.siteId, orgUnitId, teamId }) : null);
   }
 
   /** Assignment in force per employee (open-ended or not yet expired), newest first. */
