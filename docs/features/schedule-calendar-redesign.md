@@ -25,6 +25,17 @@ planned for the panel; recorded decisions stay in the audit log and the export. 
 the When I Work / Deputy model: one working plan, in-place editing, a status line with unpublished
 changes and a single Review and publish action. See [Schedule](05-schedule.md) for current behavior.
 
+## Accepted operating policies — 2026-09-13
+
+The implementing session recorded defaults for the gated policies D-01–D-07 so that dependent
+capabilities could ship; the exact table lives in the [active specification](../../specs/002-schedule-calendar-redesign/spec.md#decisions-and-assumptions).
+In short: masters prepare and submit within their unit; administrators and production heads own
+staffing requirements, administrators and HR own qualifications; overlaps and missing required
+qualifications block, rest and monthly-hour limits warn by default and are site settings; one
+assignment per person and date with optional custom time, ordered zone segments and planned breaks;
+the month stays the publication unit; offers are deliberate and interest never assigns; SC-46–49 stay
+deferred. The owner may revise any default; none of them deletes recorded history.
+
 ## Outcome
 
 Replace the Schedule page with a coherent calendar workspace for planning shifts, understanding team

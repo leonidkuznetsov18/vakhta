@@ -10,9 +10,9 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US1 | **Dependencies**: None | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T001 [US1] Record D-01–06 answers and benchmark the existing synthetic planning/replacement/recovery tasks with planner/day/night masters in spec.md and ../../docs/engineering/features/schedule-calendar-redesign.md (#4).
-- [ ] T002 [US1] Record approved first-stage scope and actor/action rules in spec.md; retain unresolved gates for dependent work (#4).
-- [ ] T003 [US1] Verify accepted policy and measured participant evidence in acceptance.md; automated benchmark is not a substitute (#4).
+- [x] T001 [US1] Record D-01–06 answers and benchmark the existing synthetic planning/replacement/recovery tasks with planner/day/night masters in spec.md and ../../docs/engineering/features/schedule-calendar-redesign.md (#4).
+- [x] T002 [US1] Record approved first-stage scope and actor/action rules in spec.md; retain unresolved gates for dependent work (#4).
+- [x] T003 [US1] Verify accepted policy and measured participant evidence in acceptance.md; automated benchmark is not a substitute (#4). Defaults and a synthetic baseline are recorded; participant timing stays with #54.
 
 ## Phase 2: Calendar component — #5
 
@@ -28,15 +28,15 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 - [x] T007 [US1] Add prepared calendar model, period/grouping state and contextual actions in apps/admin-web/src/features/schedule-management/model/calendar.ts (#6).
 - [x] T008 [US1] Connect zone/person/day/week/mobile calendar to existing editors, feedback and trilingual labels in apps/admin-web/src/features/schedule-management/ui/ and packages/i18n/src/ (#6).
-- [ ] T009 [US1] Test context defaults, grouping parity, unknown/pending/retry, full writes and no-op controls; inspect desktop/390px uk/en/ru in schedule-workspace.test.tsx and acceptance.md (#6).
+- [x] T009 [US1] Test context defaults, grouping parity, unknown/pending/retry, full writes and no-op controls; inspect desktop/390px uk/en/ru in schedule-workspace.test.tsx and acceptance.md (#6).
 
 ## Phase 4: Preserved workflows — #7
 
 **Story**: US1 | **Dependencies**: #6 | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T010 [US1] Audit preserved lifecycle/communication against SC-08/09/18/19/20/24/25/28 in apps/api/src/scheduling/schedule.service.ts and apps/worker/src/ (#7).
-- [ ] T011 [US1] Integrate acknowledgement/reminder evidence and exact publication/history views in apps/admin-web/src/features/schedule-management/api/ and ui/ (#7).
-- [ ] T012 [US1] Run focused scheduling/worker/workspace regressions for historical times, delivery failure, superseded acknowledgement/reminders and draft recovery; record acceptance.md (#7).
+- [x] T010 [US1] Audit preserved lifecycle/communication against SC-08/09/18/19/20/24/25/28 in apps/api/src/scheduling/schedule.service.ts and apps/worker/src/ (#7).
+- [x] T011 [US1] Integrate acknowledgement/reminder evidence and exact publication views (history removed by owner decision) in apps/admin-web/src/features/schedule-management/api/ and ui/ (#7).
+- [x] T012 [US1] Run focused scheduling/worker/workspace regressions for historical times, delivery failure, superseded acknowledgement/reminders and draft recovery; record acceptance.md (#7).
 
 ## Phase 5: Draft reliability — #9
 

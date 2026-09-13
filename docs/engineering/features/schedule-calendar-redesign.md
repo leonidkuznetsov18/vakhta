@@ -823,3 +823,21 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   hover add, create Sheet, unpublished card, publication review, mobile toolbar/date strip.
 - Lean: Simplify. One place for the plan, one primary action per state, no version vocabulary for a
   master. No new worker step. Remaining: cross-month reads (#10) and every other epic stream.
+
+## 2026-09-13 — Policy defaults and workspace acceptance (#4, #6, #7)
+
+- #4: the owner instructed completion of every open issue without answering the policy questions.
+  The session recorded D-01–D-07 defaults in the active spec and product document (reversible
+  configuration and bounded rules) and a synthetic interaction baseline for three standard tasks.
+  A real participant baseline is not claimed; it stays with the #54 pilot.
+- #6 acceptance after the redesign: desktop uk/en/ru week views, people grouping, month matrix,
+  hover add, create Sheet, unpublished marking, publication review; 390px day list with touch tap
+  opening the Sheet (Playwright `hasTouch`, real touch events); keyboard Enter opens the Sheet and
+  Escape returns focus to the originating card (asserted). Page width stays 390px. Unknown
+  coverage stays "not defined" until #11.
+- #7 acceptance after the redesign: batch rotation replace/fill previews show exact removals versus
+  fill-only additions; undo returns the plan; metadata-only publication diff, affected-recipient
+  notification, snapshot-bound acknowledgement, superseded reminder suppression and stored-instant
+  stability keep their earlier real-DB/worker/UI evidence. SC-19 is closed as not planned for the
+  panel by the owner's version-removal decision; audit history and the XLSX export keep the record.
+- Evidence files: `redesign-*.png` in `docs/engineering/evidence/schedule-ui-2026-09-13/`.

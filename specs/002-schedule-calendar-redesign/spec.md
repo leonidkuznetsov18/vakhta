@@ -52,19 +52,25 @@ remain understandable with text/icons. This replaces the mandatory inline-detail
 
 ### Decisions and assumptions
 
-| Decision | Pending question / dependency                                                                                                   | Safe independent work                                    |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| D-01     | Master prepares/submits in scoped zones versus broader publication authority; owner question pending                            | Existing roles unchanged; render permitted data          |
-| D-02     | Administrator/production ownership of dated norms and verified qualifications; owner question pending                           | Unknown coverage remains unknown                         |
-| D-03     | Hard overlap/required qualifications; explicitly configured rest/hours severity and exception authority; owner question pending | Model interfaces; no invented numeric limits             |
-| D-04     | One parent with non-overlapping zone segments; gaps/break/relief and custom-time attendance semantics need agreement            | Existing standard templates and stored instants          |
-| D-05     | Monthly review/publication ownership with atomic multi-version commands versus grouped review                                   | Aggregate read projections; no partial multi-month saves |
-| D-06     | Offer audience, interest/selection and source/destination borrowing approvals                                                   | Existing request routes; no automatic assignment         |
-| D-07     | Separate go/defer/reject for SC-46–49, actual inputs/system/owner/rates/currency                                                | All non-financial calendar work                          |
+Owner instruction 2026-09-13: complete every open epic issue. No owner answer arrived for the
+policy questions, so the implementing session records the following defaults as the accepted
+operating policy for this delivery. Each is reversible configuration or a bounded rule; the owner
+may revise any of them in a follow-up decision without data loss.
 
-These are unresolved decisions, not approved defaults. Pilot participants, unit and baseline
-measurements require real planner/day/night-master input; a synthetic agent benchmark is distinct.
-No task is complete solely because it was planned, documented, locally tested or deployed.
+| Decision | Accepted default (2026-09-13)                                                                                                                                                                                                                                             | Where it is enforced                                  |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| D-01     | A shift master with an ORG_UNIT grant may prepare, save and submit drafts for that unit only; publishing, returning and revising a published month stay with ADMIN/PRODUCTION_HEAD. A ZONE grant limits the master's changes to assignments of that zone.                 | #8: command authorization, UI capabilities            |
+| D-02     | ADMIN and PRODUCTION_HEAD maintain effective-dated staffing requirements per zone and shift template; ADMIN and HR record employee qualifications with validity dates. A zone without a requirement row is "unknown", never "sufficient".                                 | #11: staffing/qualification tables, audit, UI         |
+| D-03     | Overlapping planned intervals of one person across any unit and a missing/expired required qualification are hard failures at save and publish. Minimum rest (default 11 h) and monthly hours (default 200 h) are site settings whose severity defaults to WARN.          | #12: pure rules, transactional checks, site settings  |
+| D-04     | One assignment per person and business date remains the invariant. An assignment may carry a custom start/end (≤ 24 h, next-day end explicit) and ordered zone segments that tile the interval without gaps or overlaps; planned breaks are intervals inside it.          | #15/#16: schema, domain rules, editor preview         |
+| D-05     | The month stays the publication unit. A week crossing a month boundary reads both months; writes are month-scoped and the interface names the month that a change belongs to. No silent multi-month save exists by design.                                                | #10: adjacent-month reads, explicit other-month cells |
+| D-06     | Offers go to a deliberately chosen audience (unit or site employees). Interest never assigns; an editor's selection fills the slot at most once. Borrowing a person from another unit requires ADMIN/PRODUCTION_HEAD site authority and shows the source unit's coverage. | #13/#17: slots, offers, borrowing candidates          |
+| D-07     | SC-46–49 remain deferred: no workload input, cost model or HR/payroll system exists to integrate with.                                                                                                                                                                    | #20 decision record                                   |
+
+Baseline measurement (synthetic, agent-executed in the preview on 2026-09-13; not participant
+timing): add one shift = 4 interactions (cell, zone, shift, apply); replace a worker on a date =
+6 interactions (open card, remove, cell, zone, shift, apply); recover after a rejected stale save =
+2 interactions (Discard, confirm). Real planner/master timing remains the pilot's job (#54).
 
 ## User Scenarios and Testing
 
