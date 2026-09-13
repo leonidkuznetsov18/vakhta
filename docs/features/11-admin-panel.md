@@ -6,12 +6,9 @@ user; without one the panel draws a circle with the initials on a colour derived
 e-mail), shown in the sidebar and in the user list. Roles: ADMIN,
 PRODUCTION_HEAD, HR, PLANNER, SHIFT_MASTER, CLEANLINESS_CONTROLLER, ACCOUNTANT, AUDITOR, each with
 a scope (enterprise, site, unit, team, zone). The sidebar shows only the sections the role allows;
-"Обзор" is the landing page with what needs attention. Its checklist card counts all submitted or
-disputed reports awaiting a master decision, including before the acceptance deadline. SLA attention
-counts only open incidents without a recorded response; disabled terminals and inactive employees do
-not create activation warnings. Closed-without-checklist counts cover the last 24 hours. Cards clear
-conflicting destination filters and open the relevant row/tab. Shared list caches update cards after
-decisions; failed loads remain unknown with retry feedback, never a false all-clear.
+"Огляд" ("Обзор") is the landing page: the command center of the current shift with site and unit
+selectors, prioritised action cards, shift health, zones, schedule attention, recent events and setup
+debt, all limited to the reader's grants. See [Overview: the shift command center](overview-command-center.md).
 
 Administration tabs:
 

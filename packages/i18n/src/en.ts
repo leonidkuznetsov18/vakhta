@@ -1780,24 +1780,29 @@ export const en: Messages = {
       photoInspection: inspectionGuideEn,
       overview: {
         purpose:
-          'The landing page: what needs attention right now across the sections, one click away.',
+          'The command center of the current shift: what to do first, how the shift is going and what may stop it from closing — only in your sites and units.',
         steps: [
-          'Tiles show counters: open incidents, checklists awaiting a master decision (including before the deadline), requests for you, pending overtime, unlinked employees, unpaired terminals.',
-          'Press a tile: the section opens with the right filter already on.',
-          'Numbers refresh after decisions and every minute; the same counters sit next to the sections in the sidebar.',
+          'Pick the site and unit at the top: the lists hold only what your access allows. Below them: the running shift, its business date, time left, and for two hours after the end a “Closing” chip.',
+          '“Needs action now” shows cards by priority: Critical (breached SLA, safety incident, terminal not connected, long zone downtime), Attention and For information. Each card shows the count, age and deadline; a click opens the first record in its section with filters already set.',
+          '“Shift health” shows staffing against plan, time to action, zone downtime and handover acceptance; “Zones now” the state of each zone; “Recent events” the important events of the day; “Setup and onboarding” what does not block the shift.',
+          'Data updates live; when the live connection is unavailable the dot turns red and the page checks every minute.',
         ],
         faq: [
           {
-            q: 'Why is a tile empty or "All clear"?',
-            a: 'Nothing in that section is urgent: no open incidents, nothing overdue, no decisions waiting.',
+            q: 'Why are there no cards and it says “All clear”?',
+            a: 'Every source loaded and holds nothing to do. If a source did not answer, “Could not check” with “Retry” appears under the queue — a zero is never guessed.',
+          },
+          {
+            q: 'What does “Not arrived as planned” mean?',
+            a: 'The person is in the published schedule of this shift, the late grace has passed and no arrival is recorded. It is not an absence verdict: call them or start the shift for them in Live shift.',
+          },
+          {
+            q: 'Why is zone downtime smaller than person-minutes?',
+            a: 'When two people stood at one stopped zone, the zone’s stop counts once. Person-minutes are shown separately.',
           },
           {
             q: 'Who sees what?',
-            a: 'The overview shows only the sections your role can open: a master sees the shift and handovers, HR sees employees, accounting sees bonus and reports.',
-          },
-          {
-            q: 'How do I jump to a section or an employee quickly?',
-            a: 'Ctrl+K or ⌘K opens the quick search: type a section, an action, a surname, a checklist or a terminal.',
+            a: 'Each block reads its own section with your role and scope: a unit master sees only their unit; terminals are shown to roles that run operations.',
           },
         ],
       },
@@ -2305,7 +2310,8 @@ export const en: Messages = {
       directoriesDelete:
         'Only a record nothing refers to can be deleted; otherwise deactivate or reassign it.',
       usersGenerate: 'A random 16-character password; copy it and hand it to the user in person.',
-      overview: 'A summary for your role: only the queues you have access to.',
+      overview:
+        'The current shift in your sites: what to do first, shift health, zones and events.',
       tableSearch: 'Searches the visible columns of the current list.',
       profileTheme: 'Light, dark or as the system. Stored in this browser.',
       commandPalette: 'Ctrl+K or ⌘K: jump to a section or open an employee card by name.',

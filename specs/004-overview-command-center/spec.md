@@ -1,7 +1,7 @@
 # Feature Specification: Overview command center redesign
 
-**Change**: 004-overview-command-center | **Created**: 2026-09-13 | **Status**: Draft — accepted for issue publication, not yet for implementation
-**Baseline**: 0d4da70 | **Checkout**: master | **Authority**: Owner request 2026-09-13: detailed review and redesign of the Overview page; publish the specification and a new GitHub epic with child issues. Implementation is not yet authorized.
+**Change**: 004-overview-command-center | **Created**: 2026-09-13 | **Status**: Accepted and implemented (participant acceptance check open in #64)
+**Baseline**: 0d4da70 | **Checkout**: master | **Authority**: Owner request 2026-09-13: detailed review and redesign of the Overview page; publish the specification and a new GitHub epic with child issues. Implementation of the whole epic authorized by the owner on 2026-09-13.
 **Product document**: [01-overview](../../docs/features/01-overview.md), [admin panel](../../docs/features/11-admin-panel.md) (Overview section)
 **Engineering memory**: [Overview attention queues](../../docs/engineering/features/overview.md)
 

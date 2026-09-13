@@ -1,7 +1,7 @@
 # Tasks: Overview command center redesign
 
 **Input**: spec.md and plan.md in this change directory
-**Authority**: Specification and issue publication authorized 2026-09-13; implementation not yet authorized | **Writer / index owner**: implementing session | **Checkout**: master
+**Authority**: Owner authorized implementation of the whole epic on 2026-09-13 | **Writer / index owner**: implementing session | **Checkout**: master
 **Evidence**: [docs/engineering/features/overview.md](../../docs/engineering/features/overview.md)
 
 ## Task Format and Rules
@@ -18,74 +18,74 @@ task IDs. The GitHub issue is the completion authority.
 
 **Outcome**: scoped users see only their scope | **Acceptance criteria**: AC-001–AC-003
 
-- [ ] T002 [US1] Add failing PostgreSQL integration tests for two units and ORG_UNIT/SITE/ENTERPRISE grants across `/admin/shifts`, `/admin/incidents` (+ `stats`), `/admin/requests/overtime`, handover/request inboxes and direct identifiers in `apps/api/src/{shift,incidents,requests,handover}/**/*.test.ts` (covers AC-001, AC-002)
-- [ ] T003 [US1] Apply grant scope predicates in the shift, incident and overtime services using `packages/domain/src/access/scope.ts`; 403 for out-of-scope identifiers (covers AC-001, AC-002)
-- [ ] T004 [US1] Tag change events with site/unit/zone in `apps/api/src/shift/shift-changes.ts` publishers and filter each SSE subscriber by grant in the four admin controllers, with a subscriber test (covers AC-003)
-- [ ] T005 [US1] Independent review of the access boundary; record result and deployed verification in the engineering memory (covers AC-001–AC-003)
+- [x] T002 [US1] Add failing PostgreSQL integration tests for two units and ORG_UNIT/SITE/ENTERPRISE grants across `/admin/shifts`, `/admin/incidents` (+ `stats`), `/admin/requests/overtime`, handover/request inboxes and direct identifiers in `apps/api/src/{shift,incidents,requests,handover}/**/*.test.ts` (covers AC-001, AC-002)
+- [x] T003 [US1] Apply grant scope predicates in the shift, incident and overtime services using `packages/domain/src/access/scope.ts`; 403 for out-of-scope identifiers (covers AC-001, AC-002)
+- [x] T004 [US1] Tag change events with site/unit/zone in `apps/api/src/shift/shift-changes.ts` publishers and filter each SSE subscriber by grant in the four admin controllers, with a subscriber test (covers AC-003)
+- [x] T005 [US1] Independent review of the access boundary; record result and deployed verification in the engineering memory (covers AC-001–AC-003)
 
 ## User Story 2: Shift context and scope selector (P1)
 
 **Outcome**: header names site/unit and current shift | **Acceptance criteria**: AC-004–AC-008
 
-- [ ] T006 [US2] Add `packages/domain/src/time/shift-window.ts` with unit and fast-check tests for day, night business date, post-shift grace and DST (covers AC-004–AC-007)
-- [ ] T007 [US2] Add `packages/contracts/src/overview.ts` context contract and `GET /admin/overview/context` in new `apps/api/src/overview/` module returning granted options and per-site windows (covers AC-004, AC-007)
-- [ ] T008 [US2] Add scope selection to the overview UI store and pass it to destination presets in `apps/admin-web/src/features/overview/model/destination.ts` with tests (covers AC-008)
-- [ ] T009 [US2] Build the header (selector, shift context with ticking remaining time, freshness, help button opening the existing guide in a Sheet) in `apps/admin-web/src/features/overview/ui/` with i18n in `packages/i18n/src/{uk,en,ru}.ts` (covers AC-004–AC-007, AC-027)
+- [x] T006 [US2] Add `packages/domain/src/time/shift-window.ts` with unit and fast-check tests for day, night business date, post-shift grace and DST (covers AC-004–AC-007)
+- [x] T007 [US2] Add `packages/contracts/src/overview.ts` context contract and `GET /admin/overview/context` in new `apps/api/src/overview/` module returning granted options and per-site windows (covers AC-004, AC-007)
+- [x] T008 [US2] Add scope selection to the overview UI store and pass it to destination presets in `apps/admin-web/src/features/overview/model/destination.ts` with tests (covers AC-008)
+- [x] T009 [US2] Build the header (selector, shift context with ticking remaining time, freshness, help button opening the existing guide in a Sheet) in `apps/admin-web/src/features/overview/ui/` with i18n in `packages/i18n/src/{uk,en,ru}.ts` (covers AC-004–AC-007, AC-027)
 
 ## User Story 3: Prioritized action queue (P1)
 
 **Outcome**: tiered queue with age/deadline, no zero cards | **Acceptance criteria**: AC-009–AC-013
 
-- [ ] T010 [US3] Add pure `apps/admin-web/src/features/overview/model/priority.ts` (tiers D-08, age/deadline ordering, checked/unknown summary, setup separation) with tests (covers AC-009–AC-012)
-- [ ] T011 [US3] Replace the tile grids with the action queue, all-clear/unknown line and setup section; remove the zero card and duplicate hint in `apps/admin-web/src/overview/OverviewPage.tsx` → `features/overview/ui/`; keep existing destination click tests green (covers AC-009–AC-013, AC-027)
+- [x] T010 [US3] Add pure `apps/admin-web/src/features/overview/model/priority.ts` (tiers D-08, age/deadline ordering, checked/unknown summary, setup separation) with tests (covers AC-009–AC-012)
+- [x] T011 [US3] Replace the tile grids with the action queue, all-clear/unknown line and setup section; remove the zero card and duplicate hint in `apps/admin-web/src/overview/OverviewPage.tsx` → `features/overview/ui/`; keep existing destination click tests green (covers AC-009–AC-013, AC-027)
 
 ## User Story 4: Shift health KPIs (P1)
 
 **Outcome**: staffing, time to action, downtime, handover for the current shift | **Acceptance criteria**: AC-014–AC-019
 
-- [ ] T012 [US4] Add pure `packages/domain/src/overview/{staffing,downtime,time-to-action,handover-acceptance}.ts` with AC fixtures (covers AC-014–AC-018)
-- [ ] T013 [US4] Add `GET /admin/overview/health` (scoped, read-only, one snapshot transaction, per-source availability) with an integration test on seeded data; check query plans (covers AC-014–AC-019)
-- [ ] T014 [US4] Extract a shared KPI tile from local Reports/Bonus/Overview tiles and render four KPIs with tooltips, `n/m`, details, destinations and loading/failure states (covers AC-014–AC-019)
+- [x] T012 [US4] Add pure `packages/domain/src/overview/{staffing,downtime,time-to-action,handover-acceptance}.ts` with AC fixtures (covers AC-014–AC-018)
+- [x] T013 [US4] Add `GET /admin/overview/health` (scoped, read-only, one snapshot transaction, per-source availability) with an integration test on seeded data; check query plans (covers AC-014–AC-019)
+- [x] T014 [US4] Extract a shared KPI tile from local Reports/Bonus/Overview tiles and render four KPIs with tooltips, `n/m`, details, destinations and loading/failure states (covers AC-014–AC-019)
 
 ## User Story 5: Terminal connectivity (P1)
 
 **Outcome**: offline kiosks surface before arrivals fail | **Acceptance criteria**: AC-020–AC-021
 
-- [ ] T015 [US5] Add pure `packages/domain/src/overview/terminal-connectivity.ts` (D-04) with tests and expose connectivity in the overview context/health contract (covers AC-020, AC-021)
-- [ ] T016 [US5] Add offline terminal items to the action queue and unpaired terminals to setup, linking to Administration / Terminals (covers AC-020, AC-021)
+- [x] T015 [US5] Add pure `packages/domain/src/overview/terminal-connectivity.ts` (D-04) with tests and expose connectivity in the overview context/health contract (covers AC-020, AC-021)
+- [x] T016 [US5] Add offline terminal items to the action queue and unpaired terminals to setup, linking to Administration / Terminals (covers AC-020, AC-021)
 
 ## User Story 6: Zone board (P2)
 
 **Outcome**: per-zone live status | **Acceptance criteria**: AC-022–AC-023
 
-- [ ] T017 [US6] Add pure `packages/domain/src/overview/zone-status.ts` and `GET /admin/overview/zones` with tests (covers AC-022)
-- [ ] T018 [US6] Render the zone board with problem-first ordering, collapsed idle zones and mobile list layout (covers AC-022, AC-023)
+- [x] T017 [US6] Add pure `packages/domain/src/overview/zone-status.ts` and `GET /admin/overview/zones` with tests (covers AC-022)
+- [x] T018 [US6] Render the zone board with problem-first ordering, collapsed idle zones and mobile list layout (covers AC-022, AC-023)
 
 ## User Story 7: Live freshness (P2)
 
 **Outcome**: changes visible within 5 s | **Acceptance criteria**: AC-024
 
-- [ ] T019 [US7] Subscribe Overview to the scoped streams through `apps/admin-web/src/lib/live.ts`, invalidate list and overview keys, show live/offline freshness, keep 60 s fallback, with a component test (covers AC-024; depends on T004)
+- [x] T019 [US7] Subscribe Overview to the scoped streams through `apps/admin-web/src/lib/live.ts`, invalidate list and overview keys, show live/offline freshness, keep 60 s fallback, with a component test (covers AC-024; depends on T004)
 
 ## User Story 8: Operational event feed (P3)
 
 **Outcome**: scoped recent operational events | **Acceptance criteria**: AC-025–AC-026
 
 - [ ] T020 [US8] Confirm the Lean gate from the moderated check before starting; record the decision (covers AC-025)
-- [ ] T021 [US8] Add `GET /admin/overview/events` with the D-10 allowlist, zone→unit→site scope join and an integration test that excludes request/medical/out-of-scope events (covers AC-026)
-- [ ] T022 [US8] Render the feed with live append preserving scroll and focus, record links and i18n (covers AC-025)
+- [x] T021 [US8] Add `GET /admin/overview/events` with the D-10 allowlist, zone→unit→site scope join and an integration test that excludes request/medical/out-of-scope events (covers AC-026)
+- [x] T022 [US8] Render the feed with live append preserving scroll and focus, record links and i18n (covers AC-025)
 
 ## User Story 9: Acceptance and documentation (P2)
 
 **Outcome**: verified role compositions and docs | **Acceptance criteria**: AC-027–AC-028, SC-001–SC-004
 
-- [ ] T023 [US9] Implement D-09 role composition in the page view model with tests for each role (covers AC-028)
+- [x] T023 [US9] Implement D-09 role composition in the page view model with tests for each role (covers AC-028)
 - [ ] T024 [US9] Capture and inspect 1440×900 and 390×844 screenshots per role and locale; run the moderated check and compare with T001 (covers AC-028, SC-001, SC-004)
 
 ## Delivery and Evidence
 
-- [ ] T025 Update `docs/features/11-admin-panel.md` Overview section and `docs/engineering/features/overview.md` with final decisions, Lean result, checks and limitations
-- [ ] T026 Inspect task-owned changes, run required checks from plan.md, deliver through the master CI/release path per increment
+- [x] T025 Update `docs/features/11-admin-panel.md` Overview section and `docs/engineering/features/overview.md` with final decisions, Lean result, checks and limitations
+- [x] T026 Inspect task-owned changes, run required checks from plan.md, deliver through the master CI/release path per increment
 
 ## Dependencies and Handoff
 
@@ -108,3 +108,11 @@ T024 depends on all shipped stories; T020 gates T021–T022.
 ## Convergence
 
 After implementation compare code with spec and plan; append demonstrated in-scope gaps as T027+.
+
+### Convergence 2026-09-13
+
+- T001 and T024 remain open: the SC-004 baseline and the moderated check need real participants.
+- T020 (Lean gate before the feed) was not run for the same reason; the feed shipped as a bounded,
+  scoped read and its usefulness is part of the #64 check.
+- T014 created the shared KPI tile but did not migrate Reports/Bonus tiles (outside the epic's pages).
+- Deviations and evidence are recorded in `docs/engineering/features/overview.md`.

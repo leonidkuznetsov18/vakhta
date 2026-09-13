@@ -69,20 +69,63 @@ reports in the resulting queue. Desktop screenshot captured and inspected. No re
 
 ## Redesign: command center (spec 004)
 
-Updated: 2026-09-13. Specification, plan and tasks: `specs/004-overview-command-center/`.
-Status: specified and published as a GitHub epic; implementation not yet authorized.
+Updated: 2026-09-13. Specification, plan and tasks: `specs/004-overview-command-center/`. Product
+document: `docs/features/overview-command-center.md`. Epic #55; children #56–#63 delivered, #64 open for
+the participant acceptance check.
 
-Review findings at `0d4da70`: zero tiles carry no meaning; no current shift context; product KPIs
-(staffing, time to action, downtime, handover disputes) are absent; priority is flat and setup debt
-competes with live problems; terminals are checked by pairing, not the `lastSeenAt` heartbeat; the
-page polls every 60 s instead of SSE. Blocking finding: shift, incident, overtime, audit-event lists
-and all SSE streams enforce role but not grant scope, so a site/unit selector or event feed must wait
-for server-side scope enforcement (critical-reliability requirement 1).
+### Ownership
 
-Lean review: **Simplify, then proceed.** The value is shorter time to action for the shift master.
-Deliver scope enforcement, shift context with a tiered action queue, and fact-based shift health first.
-The operational event feed proceeds only if a moderated check shows masters still leave Overview to
-learn what just happened. Downtime is zone-minutes (no double counting); no OEE or availability claims.
-Measure: clicks/pages before opening the right record for an SLA breach, an offline terminal and
-not-arrived staff, baseline vs redesign on synthetic data. Guardrails: no zero or all-clear from
-unknown data; no cross-scope record; no new worker input.
+- Access: `packages/domain/src/access/scope.ts` (`accessScope`, `scopeCovers`) and
+  `apps/api/src/common/access-scope.ts` (`scopeCondition`, `assertInScope`, `assertFiltersInScope`,
+  `scopedEvents`). Shift, incident, request/overtime and handover controllers pass the reader scope;
+  services default to `FULL_SCOPE` only for bot/job callers.
+- Facts: pure `packages/domain/src/time/shift-window.ts` and `packages/domain/src/overview/*`
+  (staffing, zone-minute downtime, time to action, handover acceptance, terminal connectivity, zone
+  status). `apps/api/src/overview` reads one repeatable-read snapshot (`GET /admin/overview`) and the
+  allowlisted events (`GET /admin/overview/events`); each section uses the roles of its source and is
+  null when unreadable.
+- Panel: `features/overview/model` (attention lists with ages/deadlines, `priority.ts` queue and
+  composition, `snapshot.ts` queries and remembered selection) and `features/overview/ui` (header,
+  card queue, KPI tiles via shared `components/app/kpi-tile.tsx`, zone board, event feed, setup).
+  `lib/live.ts` accepts extra keys so one stream invalidates its list and the snapshot. The schedule
+  slice's `ScheduleAttentionCard` is mounted once per resolved site.
+
+### Decisions and deviations
+
+- D-01–D-10 shipped with the spec defaults: late grace SHIFT_GRACE_MINUTES (10), closing grace
+  AUTO_CLOSE_GRACE_MINUTES (120), offline after 3 × QR_ROTATION_SECONDS, critical within 60 minutes of a
+  boundary or with not-arrived staff, zone downtime critical after DOWNTIME_ESCALATION_MINUTES.
+- One snapshot endpoint instead of separate context/health/zones endpoints: one transaction gives
+  consistent figures and one cache key.
+- Terminal online/offline is derived, not a recorded event, so it is a queue card, not a feed row.
+- Queue cards from section lists (incidents, handovers, requests, overtime, closed without checklist)
+  count the whole grant scope; the selection narrows snapshot figures and destination filters.
+- Owner feedback 2026-09-13: queue, zones and setup render as compact card grids, not long rows.
+- User-visible access change: SITE grants are limited to their site; ENTERPRISE HR/AUDITOR now read
+  handover lists; out-of-scope identifiers and filters are 403.
+- Handover acceptance uses sessions whose planned end lies within two hours of the shift start.
+
+### Evidence (local, 2026-09-13)
+
+- API, PostgreSQL 16 testcontainers: `common/access-scope.test.ts` 5, `overview/overview.service.test.ts`
+  5, handover/incidents/requests/shift/app.e2e regressions 91 passed. Independent access review: four
+  defects found and fixed (see #56).
+- Domain: shift window 6 (incl. DST and a fast-check property), overview metrics 12, access 10.
+- Panel: overview queries/page 12, priority 4, attention 14, live invalidation 1; full panel suite 362 of
+  363 passed, the failure belongs to concurrent schedule work.
+- Screenshots (preview fixtures, desktop 1440 and mobile 390 via iframe; headless Chrome cannot size a
+  window below ~500 px): `docs/engineering/evidence/overview-2026-09-13/`, inspected: full page, first
+  viewport, all clear, snapshot failure, unit master, English, mobile first viewport and full page.
+- Commits: 13631b9/27109dd (scope work swept into schedule commits by a parallel session), 2f279cc,
+  64560d7, 75e2731 and the documentation delivery. CI on 2f279cc failed only in semantic-release on a
+  duplicate tag from concurrent pushes.
+
+### Lean result and remaining work
+
+- Recommendation stays **Simplify, then proceed**. Built from existing facts; no new worker input.
+- Not measured: SC-001/SC-004 moderated check with a real shift master and production head on the same
+  synthetic tasks, and the Lean gate for the event feed. No participant session was available; #64 stays
+  open for it. Do not infer the improvement from screenshots.
+- Not verified on the deployed panel with a live account in this session (preview fixtures only).
+- Follow-ups: migrate Reports/Bonus local tiles to `KpiTile`; narrow list-based queue cards by the
+  selection when their views carry a place; SSE scope refresh after grant revocation.

@@ -7,7 +7,8 @@ import { useNow } from '@/lib/clock';
 import { useLiveUpdates } from '@/lib/live';
 import { writeRoute } from '@/lib/route';
 import { setUiState } from '@/lib/ui-store';
-import { writeSchedulePreset } from '@/features/schedule-management';
+import { ScheduleAttentionCard, writeSchedulePreset } from '@/features/schedule-management';
+import { useEmployees } from '@/lib/org';
 import { useNavigation, type SectionKey } from '@/navigation';
 import { attentionPermissions, useAttention } from '../model/queries';
 import { attentionFilters, type OverviewSelection } from '../model/destination';
@@ -198,6 +199,22 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
     go('schedule');
   }
 
+  // Schedule attention (sick leave, unfilled shifts, birthdays) is owned by the schedule slice;
+  // the overview mounts it once per resolved site. Same cache key as the schedule workspace.
+  const roster = useEmployees(permissions.employees);
+  const nameOf = (id: string) => roster.employees.find((e) => e.id === id)?.fullName ?? '—';
+  const accessKey = JSON.stringify([
+    me.id,
+    me.roles
+      .map(({ role, scopeType, scopeId }) => JSON.stringify([role, scopeType, scopeId]))
+      .sort(),
+  ]);
+  const attentionSites = !snapshot
+    ? []
+    : selection.siteId
+      ? [selection.siteId]
+      : snapshot.contexts.map((ctx) => ctx.siteId);
+
   const snapshotState = snapshot ? 'ready' : snapshotQuery.isError ? 'failed' : 'loading';
   const queueLoading =
     attention.data.refreshedAt === null || (snapshotEnabled && snapshotQuery.isPending);
@@ -234,6 +251,18 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
       )}
       {blocks.zones && snapshot?.zones && (
         <ZoneBoard zones={snapshot.zones} now={now} onOpen={openZone} />
+      )}
+      {permissions.employees && attentionSites.length > 0 && (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {attentionSites.map((siteId) => (
+            <ScheduleAttentionCard
+              key={siteId}
+              accessKey={accessKey}
+              siteId={siteId}
+              employeeName={nameOf}
+            />
+          ))}
+        </div>
       )}
       {blocks.feed && <EventFeed me={me} selection={selection} now={now} />}
       {blocks.setup && (
