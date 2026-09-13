@@ -251,6 +251,67 @@ describe('calendar projections', () => {
   });
 });
 
+describe('cell ordering', () => {
+  const day = {
+    id: 'day',
+    siteId: 'site',
+    code: 'DAY',
+    name: 'Day',
+    localStart: '08:00',
+    localEnd: '20:00',
+    isNight: false,
+    isActive: true,
+  };
+  const worker = (id: string, fullName: string) => ({ ...base.employees[0]!, id, fullName });
+  const assign = (grid: CalendarInput['grid'], employeeId: string, templateId: string) =>
+    setAssignment(grid, {
+      employeeId,
+      businessDate: '2026-09-30',
+      templateId,
+      zoneId: 'zone',
+      kind: 'REGULAR',
+    });
+
+  it('lists cards by start time, then name, then open slots regardless of roster order', () => {
+    const grid = assign(assign(assign({ rows: [] }, 'zed', 'night'), 'bob', 'day'), 'ann', 'night');
+    const model = calendarModel({
+      ...base,
+      grid,
+      employees: [worker('zed', 'Zed'), worker('bob', 'Bob'), worker('ann', 'Ann')],
+      templates: [...base.templates, day],
+      slots: [
+        {
+          id: 'open-day',
+          siteId: 'site',
+          orgUnitId: 'unit',
+          zoneId: 'zone',
+          businessDate: '2026-09-30',
+          templateId: 'day',
+          status: 'OPEN',
+          createdAt: '2026-09-01T00:00:00Z',
+        } as unknown as NonNullable<CalendarInput['slots']>[number],
+      ],
+    });
+    const cell = model.resources[0]!.cells.find((c) => c.date === '2026-09-30')!;
+    expect(cell.items.map((item) => item.title)).toEqual(['Bob', 'Open slot', 'Ann', 'Zed']);
+  });
+
+  it('keeps the same order after a card moves into a cell with other cards', () => {
+    const moved = assign(
+      assign(assign({ rows: [] }, 'ann', 'night'), 'zed', 'night'),
+      'mid',
+      'night',
+    );
+    const model = calendarModel({
+      ...base,
+      grid: moved,
+      employees: [worker('mid', 'Mid'), worker('zed', 'Zed'), worker('ann', 'Ann')],
+    });
+    const cell = model.resources[0]!.cells.find((c) => c.date === '2026-09-30')!;
+    expect(cell.items.map((item) => item.title)).toEqual(['Ann', 'Mid', 'Zed']);
+  });
+});
+
 describe('cross-month and DST projections', () => {
   it('marks another month as read only and blocks creation there with the month named', () => {
     const model = calendarModel({

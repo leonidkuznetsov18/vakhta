@@ -135,6 +135,8 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
   const resourceId = (item: AssignmentInput) =>
     input.grouping === 'zones' ? (item.zoneId ?? UNASSIGNED_ZONE) : item.employeeId;
   const buckets = new Map<string, CalendarItem[]>();
+  /** Sort keys per item id: cells list cards by start time, then name, open slots last. */
+  const order = new Map<string, { readonly start: number; readonly slot: boolean }>();
   const minutesByResource = new Map<string, number | null>();
   const countsByResource = new Map<string, number>();
   const countsByDate = new Map<string, { day: number; night: number }>();
@@ -189,6 +191,10 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
         : undefined;
     const key = `${resourceId(item)}:${item.businessDate}`;
     const bucket = buckets.get(key) ?? [];
+    order.set(assignmentKey(item), {
+      start: plan ? plan.planStartAt.getTime() : Number.POSITIVE_INFINITY,
+      slot: false,
+    });
     const durationMinutes = plan
       ? (plan.planEndAt.getTime() - plan.planStartAt.getTime()) / 60000
       : null;
@@ -246,6 +252,10 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
         slot.offer?.interests.filter((item) => item.response === 'INTERESTED').length ?? 0;
       const key = `${slot.zoneId}:${slot.businessDate}`;
       const bucket = buckets.get(key) ?? [];
+      order.set(`slot:${slot.id}`, {
+        start: plan ? plan.planStartAt.getTime() : Number.POSITIVE_INFINITY,
+        slot: true,
+      });
       bucket.push({
         id: `slot:${slot.id}`,
         title: t.openSlot,
@@ -352,7 +362,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
           .filter(Boolean)
           .join(' · '),
         cells: input.dates.map((date) => {
-          const values = buckets.get(`${id}:${date}`) ?? [];
+          const values = sortCell(buckets.get(`${id}:${date}`) ?? [], order, input.locale);
           const note = cellNote(id, date);
           return {
             date,
@@ -499,4 +509,24 @@ export function eventFlags(
   if (events.birthdays.some((row) => row.employeeId === employeeId && row.date === date))
     flags.push({ label: `🎂 ${t.birthday}`, tone: 'info' });
   return flags;
+}
+
+/**
+ * Deterministic card order inside one cell so a moved card lands where the rule says: earlier
+ * start first (day before night), then the title alphabetically in the UI locale, then open slots
+ * after assignments that start at the same time.
+ */
+function sortCell(
+  values: readonly CalendarItem[],
+  order: ReadonlyMap<string, { readonly start: number; readonly slot: boolean }>,
+  locale: string,
+): CalendarItem[] {
+  const collator = new Intl.Collator(locale, { sensitivity: 'base', numeric: true });
+  return [...values].sort((a, b) => {
+    const left = order.get(a.id) ?? { start: Number.POSITIVE_INFINITY, slot: false };
+    const right = order.get(b.id) ?? { start: Number.POSITIVE_INFINITY, slot: false };
+    if (left.start !== right.start) return left.start < right.start ? -1 : 1;
+    if (left.slot !== right.slot) return left.slot ? 1 : -1;
+    return collator.compare(a.title, b.title) || collator.compare(a.id, b.id);
+  });
 }
