@@ -1,4 +1,5 @@
-import { businessDateOf, planInstants, type ShiftTemplateLocal } from './plan.js';
+import { DateTime } from 'luxon';
+import { planInstants, type ShiftTemplateLocal } from './plan.js';
 
 /** A site shift template as the overview reads it. */
 export interface SiteShiftTemplate extends ShiftTemplateLocal {
@@ -38,12 +39,10 @@ function occurrences(
   timezone: string,
   now: Date,
 ): ShiftWindow[] {
-  const day = 24 * 3_600_000;
-  const dates = [
-    ...new Set(
-      [-1, 0, 1].map((offset) => businessDateOf(new Date(now.getTime() + offset * day), timezone)),
-    ),
-  ];
+  // Calendar days in the site zone, not now ± 24 h: a DST night has 23 or 25 local hours, and a
+  // fixed 24 h step can skip the date whose night shift is running (29.03 → 30.03 in Kyiv).
+  const today = DateTime.fromJSDate(now, { zone: timezone }).startOf('day');
+  const dates = [-1, 0, 1].map((offset) => today.plus({ days: offset }).toISODate() as string);
   return templates.flatMap((t) =>
     dates.map((date) => {
       const plan = planInstants(date, t, timezone);

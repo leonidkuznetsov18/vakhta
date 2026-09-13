@@ -42,6 +42,14 @@ describe('shift context (spec 004 D-02, AC-004–AC-007)', () => {
     expect(minutesUntil(ctx.current!.endsAt, now)).toBe(6 * 60);
   });
 
+  it('DST forward night: the night that started before the change is running after local midnight', () => {
+    // fast-check counterexample: 2026-03-29T21:00Z = 30.03 00:00 EEST, one day after 29.03 03:00 DST
+    const now = new Date(1774818000000);
+    const ctx = shiftContext(TEMPLATES, TZ, now, GRACE);
+    expect(ctx.current).toMatchObject({ code: 'NIGHT', businessDate: '2026-03-29' });
+    expect(ctx.current!.endsAt.toISOString()).toBe('2026-03-30T05:00:00.000Z');
+  });
+
   it('no templates means no context', () => {
     expect(shiftContext([], TZ, new Date(), GRACE)).toEqual({
       current: null,
