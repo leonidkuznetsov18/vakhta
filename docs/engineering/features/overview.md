@@ -66,3 +66,23 @@ input or production employee actions are needed for this correction. Live releas
 Production confirmation: v0.73.7 on panel.vakhta.xyz shows six pending master decisions and a matching
 sidebar badge. Clicking the card opens the first report under /handover with exactly six submitted
 reports in the resulting queue. Desktop screenshot captured and inspected. No reports were changed.
+
+## Redesign: command center (spec 004)
+
+Updated: 2026-09-13. Specification, plan and tasks: `specs/004-overview-command-center/`.
+Status: specified and published as a GitHub epic; implementation not yet authorized.
+
+Review findings at `0d4da70`: zero tiles carry no meaning; no current shift context; product KPIs
+(staffing, time to action, downtime, handover disputes) are absent; priority is flat and setup debt
+competes with live problems; terminals are checked by pairing, not the `lastSeenAt` heartbeat; the
+page polls every 60 s instead of SSE. Blocking finding: shift, incident, overtime, audit-event lists
+and all SSE streams enforce role but not grant scope, so a site/unit selector or event feed must wait
+for server-side scope enforcement (critical-reliability requirement 1).
+
+Lean review: **Simplify, then proceed.** The value is shorter time to action for the shift master.
+Deliver scope enforcement, shift context with a tiered action queue, and fact-based shift health first.
+The operational event feed proceeds only if a moderated check shows masters still leave Overview to
+learn what just happened. Downtime is zone-minutes (no double counting); no OEE or availability claims.
+Measure: clicks/pages before opening the right record for an SLA breach, an offline terminal and
+not-arrived staff, baseline vs redesign on synthetic data. Guardrails: no zero or all-clear from
+unknown data; no cross-scope record; no new worker input.
