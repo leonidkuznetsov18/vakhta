@@ -1,3 +1,21 @@
+## [1.6.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.5.0...v1.6.0) (2026-09-13)
+
+### Features
+
+* **schedule:** notes with audience, linked records, retrospective report, print and export ([13631b9](https://github.com/leonidkuznetsov18/vakhta/commit/13631b9f9866809db8b95e2daec16a595d9a574a)), closes [#18](https://github.com/leonidkuznetsov18/vakhta/issues/18)
+* **schedule:** open slots with deliberate offers, bot interest and one selection ([0d4da70](https://github.com/leonidkuznetsov18/vakhta/commit/0d4da70377671275e5f777ad3254e20e1cb9e027)), closes [#13](https://github.com/leonidkuznetsov18/vakhta/issues/13)
+* **schedule:** presence, absence and request context with guarded borrowing ([2c90c93](https://github.com/leonidkuznetsov18/vakhta/commit/2c90c937bdaf7c0ed0381b05b308f5f3c0cfd9fd)), closes [#17](https://github.com/leonidkuznetsov18/vakhta/issues/17)
+* **schedule:** revocable personal calendar feed and reviewed allocation proposal ([27109dd](https://github.com/leonidkuznetsov18/vakhta/commit/27109ddc6708c3168ef8285582e14375138a1a51)), closes [#19](https://github.com/leonidkuznetsov18/vakhta/issues/19)
+
+### Bug fixes
+
+* **access:** forbid out-of-scope filters, photos, medical links and corrections ([2f279cc](https://github.com/leonidkuznetsov18/vakhta/commit/2f279cc30cd422ae9bb077e58d06c72632115e5e)), closes [#56](https://github.com/leonidkuznetsov18/vakhta/issues/56)
+
+### Documentation
+
+* **overview:** specify the command center redesign ([fb57fa8](https://github.com/leonidkuznetsov18/vakhta/commit/fb57fa8f49a55dcffce505bad22b9619a7001705))
+* **schedule:** record gated scope deferral, acceptance matrix and cutover hold ([#20](https://github.com/leonidkuznetsov18/vakhta/issues/20), [#54](https://github.com/leonidkuznetsov18/vakhta/issues/54)) ([437ca44](https://github.com/leonidkuznetsov18/vakhta/commit/437ca44c3b377c0a335248f88e10026a375caa2d))
+
 ## [1.5.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.4.0...v1.5.0) (2026-09-13)
 
 ### Features
