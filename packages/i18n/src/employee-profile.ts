@@ -64,6 +64,7 @@ export interface EmployeeProfileMessages {
   monthlySalary: string;
   referenceOnly: string;
   addEntry: string;
+  editCompensation: string;
   correct: string;
   reason: string;
   current: string;
@@ -146,6 +147,7 @@ export const employeeProfileEN: EmployeeProfileMessages = {
   monthlySalary: 'Monthly salary (UAH/month)',
   referenceOnly: 'Reference data. No payroll calculation.',
   addEntry: 'Add compensation entry',
+  editCompensation: 'Edit compensation terms',
   correct: 'Correct entry',
   reason: 'Correction reason',
   current: 'Current terms',
@@ -228,6 +230,7 @@ export const employeeProfileUK: EmployeeProfileMessages = {
   monthlySalary: 'Оклад (грн/міс)',
   referenceOnly: 'Довідкові дані. Зарплата не розраховується.',
   addEntry: 'Додати умови оплати',
+  editCompensation: 'Редагувати умови оплати',
   correct: 'Виправити запис',
   reason: 'Причина виправлення',
   current: 'Чинні умови',
@@ -310,6 +313,7 @@ export const employeeProfileRU: EmployeeProfileMessages = {
   monthlySalary: 'Оклад (грн/мес)',
   referenceOnly: 'Справочные данные. Зарплата не рассчитывается.',
   addEntry: 'Добавить условия оплаты',
+  editCompensation: 'Редактировать условия оплаты',
   correct: 'Исправить запись',
   reason: 'Причина исправления',
   current: 'Текущие условия',

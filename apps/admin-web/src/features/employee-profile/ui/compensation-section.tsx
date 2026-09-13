@@ -33,6 +33,7 @@ export function CompensationSection({ profile }: { profile: EmployeeProfileView 
     `profile-compensation-${profile.employee.id}`,
   );
   if (!data) return null;
+  const actionLabel = data.history.length > 0 ? t.editCompensation : t.addEntry;
   const rows = data.history.slice(pages.from - 1, pages.to);
   return (
     <section
@@ -45,7 +46,7 @@ export function CompensationSection({ profile }: { profile: EmployeeProfileView 
         </h2>
         {profile.access.compensation === 'WRITE' && (
           <Button variant="outline" onClick={() => setEditing({ entry: null })}>
-            {t.addEntry}
+            {actionLabel}
           </Button>
         )}
       </div>
@@ -95,6 +96,7 @@ export function CompensationSection({ profile }: { profile: EmployeeProfileView 
         <CompensationEditor
           profile={profile}
           entry={editing.entry}
+          title={editing.entry ? t.correct : actionLabel}
           onClose={() => setEditing(null)}
         />
       )}
@@ -117,10 +119,12 @@ function CompensationValues({ entry }: { entry: CompensationEntry }) {
 function CompensationEditor({
   profile,
   entry,
+  title,
   onClose,
 }: {
   profile: EmployeeProfileView;
   entry: CompensationEntry | null;
+  title: string;
   onClose: () => void;
 }) {
   const t = messages(currentLocale()).employeeProfile;
@@ -167,7 +171,7 @@ function CompensationEditor({
     >
       <SheetContent className="overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-lg">
         <SheetHeader>
-          <SheetTitle>{entry ? t.correct : t.addEntry}</SheetTitle>
+          <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{profile.employee.fullName}</SheetDescription>
         </SheetHeader>
         <form

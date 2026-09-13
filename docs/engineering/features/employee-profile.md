@@ -86,3 +86,5 @@ read-only inspection surface and a single addressable editing destination. Zone 
 of separately maintained; schedule is a short summary with a focused link. Explicit master warnings
 avoid assuming designation means panel access. Measure missing-master units and moderated attribute
 findability; do not claim adoption from automated tests alone.
+
+Owner label refinement (2026-09-13): compensation with recorded history uses “Edit compensation terms” for the primary button and editor title; empty history uses “Add compensation entry”. Ukrainian, English and Russian catalogs updated. Typecheck, scoped lint and 10 catalog tests passed; desktop/mobile labels inspected on synthetic profiles.
