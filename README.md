@@ -1,6 +1,27 @@
 # Vakhta
 
-Telegram bot for shift accounting and a web panel for continuous 24/7 production with two 12-hour shifts. Source of requirements: the customer's spec "Telegram-бот учета рабочих смен, MVP v1.0". Architecture and plan: [docs/architecture-and-plan.md](docs/architecture-and-plan.md).
+**Vakhta** («Вахта») is a Connected Worker / Frontline Operations platform for continuous 24/7
+production sites that run two 12-hour shifts. It digitises the working day of frontline staff:
+QR attendance at the gate, a shift state machine driven from a Telegram bot, downtime reporting with
+SLA escalation to the shift master, digital cleaning checklists and photo-backed zone handover,
+employee requests, and a deterministic bonus computed from recorded facts. Masters, planners, HR,
+cleanliness controllers, accounting and auditors work in a web panel.
+
+Why it exists: fewer and shorter unplanned stops, no blind spot between shifts, a timesheet and a
+bonus that nobody has to argue about, and adoption measured in days because workers keep using the
+messenger they already have. Vision, market category, roles, domain glossary and KPIs:
+[docs/product-vision.md](docs/product-vision.md).
+
+| Surface             | Who                                                                                | Where                    |
+| ------------------- | ---------------------------------------------------------------------------------- | ------------------------ |
+| Telegram worker bot | Frontline employees; the master for quick confirmations                            | `@vakhta_worker_bot`     |
+| QR kiosk            | A tablet at the checkpoint showing a rotating QR                                   | https://kiosk.vakhta.xyz |
+| Admin web panel     | Shift master, planner, production head, HR, controller, accounting, auditor, admin | https://panel.vakhta.xyz |
+
+Source of requirements: the customer's spec "Telegram-бот учета рабочих смен, MVP v1.0".
+Architecture and plan: [docs/architecture-and-plan.md](docs/architecture-and-plan.md).
+Behaviour per feature: [docs/features/](docs/features/README.md). Conventions for contributors and
+agents: [AGENTS.md](AGENTS.md).
 
 ## Layout
 

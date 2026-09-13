@@ -64,3 +64,9 @@ owner appends after merging work; parallel agents return proposed entries instea
 - A duplicate GitHub dispatch exposed source-version fallback risk; it was canceled before Pages.
   Bind rerun version resolution to the requested source, not the current branch or latest release.
   Resolver `1681a76` passed deployed CI `34483329441`, retaining v0.70.10 without a new release.
+
+## 2026-09-13 — Product positioning
+
+- Owner decision: Vakhta is positioned as a Connected Worker / Frontline Operations platform. The
+  canonical vocabulary, roles, KPIs and domain background live in `docs/product-vision.md`; README,
+  `AGENTS.md`, `CLAUDE.md` and the GitHub repository description follow it. Use its terms in new work.

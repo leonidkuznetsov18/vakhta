@@ -1,6 +1,16 @@
 # Vakhta: conventions for agents and people
 
-Product: Telegram bot for shift accounting + admin web panel, 24/7 production, two 12-hour shifts.
+## Product
+
+Vakhta («Вахта») is a Connected Worker / Frontline Operations platform for continuous 24/7 production
+with two 12-hour shifts. Workers use a Telegram bot and QR kiosks; shift masters, planners, production
+management, HR, cleanliness controllers, accounting and auditors use the admin web panel.
+Scope: QR attendance, the shift state machine and activity intervals, downtime and incidents with SLA
+escalation, cleaning checklists and photo-backed zone handover, employee requests, deterministic bonus,
+reports and audit. Goals: less unplanned downtime, shorter time to action on problems, frictionless
+shift handover, a timesheet and bonus computed from recorded facts, adoption in days.
+Vocabulary, roles, KPIs and domain background: `docs/product-vision.md`. Use its terms in code,
+specifications and conversations.
 Requirements: the customer's spec "ТЗ MVP v1.0" (references look like "spec 4.4", "FR-QR-03", "T-26", "AC-09").
 Architecture and plan: `docs/architecture-and-plan.md`. Decisions: `docs/adr/`.
 

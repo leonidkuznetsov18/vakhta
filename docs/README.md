@@ -1,5 +1,6 @@
 # Vakhta documentation
 
+- [Product vision and domain brief](product-vision.md): what Vakhta is, market category, roles, glossary, KPIs
 - [Project architecture and plan](architecture-and-plan.md)
 - [Engineering standards](engineering/standards.md)
 - [Onboarding audit and migration backlog](audits/2026-09-10/README.md)
