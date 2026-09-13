@@ -73,6 +73,12 @@ Desktop 1440 and mobile 390 screenshots were captured and visually inspected wit
 Schedule read responses and real local profile endpoints. Browser navigation and Back preserved
 14–20 September, Packaging and people grouping. The screenshots are `schedule-avatar-*.png`.
 
+Overview's Schedule Today card also reuses the employee identity link for birthdays and sick
+leave, preserving the recorded wellbeing answer. Idle-zone Show/Hide uses an outlined button.
+The card regression and i18n checks passed; `overview-avatar-desktop.png` and
+`overview-avatar-mobile.png` were inspected at 1440/390. Synthetic harness warnings in unrelated
+Overview feeds indicate unconfigured local endpoints, not a production check.
+
 ## Lean completion review
 
 Recommendation: **Simplify**, implemented. Removed the duplicate expanded editor; kept a quick

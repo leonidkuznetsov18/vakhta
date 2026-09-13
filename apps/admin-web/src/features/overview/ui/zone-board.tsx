@@ -68,7 +68,7 @@ export function ZoneBoard({
               <Button
                 type="button"
                 size="sm"
-                variant="ghost"
+                variant="outline"
                 aria-expanded={showIdle}
                 onClick={() => setShowIdle((v) => !v)}
               >

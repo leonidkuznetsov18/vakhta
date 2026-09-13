@@ -202,7 +202,6 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
   // Schedule attention (sick leave, unfilled shifts, birthdays) is owned by the schedule slice;
   // the overview mounts it once per resolved site. Same cache key as the schedule workspace.
   const roster = useEmployees(permissions.employees);
-  const nameOf = (id: string) => roster.employees.find((e) => e.id === id)?.fullName ?? '—';
   const accessKey = JSON.stringify([
     me.id,
     me.roles
@@ -259,7 +258,7 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
               key={siteId}
               accessKey={accessKey}
               siteId={siteId}
-              employeeName={nameOf}
+              employees={roster.employees}
             />
           ))}
         </div>

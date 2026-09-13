@@ -85,3 +85,5 @@ Compare code with the accepted spec and plan after implementation. Append only d
 within scope as new numbered tasks; preserve completed history.
 
 - [x] T028 Owner refinement (2026-09-13): show linked employee avatars in Schedule day/week and month views, retain calendar navigation context, verify desktop/mobile and attach proof to #71.
+
+- [x] T029 Owner refinement (2026-09-13): reuse linked avatars for Overview schedule birthdays/sick leave and outline the idle-zone Show/Hide button; verify desktop/mobile and record evidence.

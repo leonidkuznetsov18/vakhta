@@ -1,3 +1,5 @@
+import type { EmployeeView } from '@vakhta/contracts';
+import { EmployeeProfileLink } from '@/entities/employee';
 import { CalendarHeartIcon } from 'lucide-react';
 import { format, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -16,13 +18,25 @@ const t = messages(currentLocale()).scheduleWorkspace;
 export function ScheduleAttentionCard({
   accessKey,
   siteId,
-  employeeName,
+  employees,
 }: {
   readonly accessKey: string;
   readonly siteId: string;
-  readonly employeeName: (id: string) => string;
+  readonly employees: readonly Pick<EmployeeView, 'id' | 'fullName' | 'avatarVersion'>[];
 }) {
   const navigation = useNavigation();
+  const employeeById = new Map(employees.map((employee) => [employee.id, employee]));
+  function identity(id: string) {
+    const employee = employeeById.get(id);
+    return (
+      <EmployeeProfileLink
+        id={id}
+        name={employee?.fullName ?? t.unknownEmployee}
+        avatarVersion={employee?.avatarVersion}
+      />
+    );
+  }
+
   const query = useScheduleAttention({ accessKey, siteId });
   const data = query.data;
   const holiday = data?.holiday
@@ -50,29 +64,36 @@ export function ScheduleAttentionCard({
         </p>
       )}
       {data && data.birthdaysToday.length > 0 && (
-        <p className="text-sm text-violet-800 dark:text-violet-200">
-          {format(t.attentionBirthdays, {
-            names: data.birthdaysToday.map(employeeName).join(', '),
-          })}
-        </p>
+        <div className="space-y-2 text-sm text-violet-800 dark:text-violet-200">
+          <p>{t.attentionBirthdays}</p>
+          <ul className="space-y-2">
+            {data.birthdaysToday.map((id) => (
+              <li key={id}>{identity(id)}</li>
+            ))}
+          </ul>
+        </div>
       )}
       {sick.length > 0 && (
-        <p className="text-sm text-red-800 dark:text-red-200">
-          {format(t.attentionSick, {
-            names: sick
-              .map((row) => {
-                const answer = row.lastCheckin
-                  ? row.lastCheckin.answer === 'GOOD'
-                    ? t.checkinGood
-                    : row.lastCheckin.answer === 'SAME'
-                      ? t.checkinSame
-                      : t.checkinWorse
-                  : null;
-                return `${employeeName(row.employeeId)}${answer ? ` (${answer})` : ''}`;
-              })
-              .join(', '),
-          })}
-        </p>
+        <div className="space-y-2 text-sm text-red-800 dark:text-red-200">
+          <p>{t.attentionSick}</p>
+          <ul className="space-y-2">
+            {sick.map((row) => {
+              const answer = row.lastCheckin
+                ? row.lastCheckin.answer === 'GOOD'
+                  ? t.checkinGood
+                  : row.lastCheckin.answer === 'SAME'
+                    ? t.checkinSame
+                    : t.checkinWorse
+                : null;
+              return (
+                <li key={row.employeeId} className="space-y-1">
+                  {identity(row.employeeId)}
+                  {answer && <p className="pl-10">{answer}</p>}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
       {data && data.replacements.length > 0 && (
         <p className="text-sm text-orange-800 dark:text-orange-200">
