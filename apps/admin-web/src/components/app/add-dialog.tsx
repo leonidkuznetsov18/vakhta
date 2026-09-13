@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { autoFocusFirstField } from '@/components/app/focus';
+import { autoFocusFirstField } from '@/shared/lib/focus';
 import { InfoTip } from '@/components/app/info-tip';
 import { currentLocale } from '@/i18n';
 

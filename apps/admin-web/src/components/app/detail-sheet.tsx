@@ -9,7 +9,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { autoFocusFirstField } from '@/components/app/focus';
+import { autoFocusFirstField } from '@/shared/lib/focus';
 import { currentLocale } from '@/i18n';
 import { cn } from 'cn';
 

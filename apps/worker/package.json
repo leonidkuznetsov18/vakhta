@@ -31,7 +31,6 @@
     "@vakhta/config": "workspace:*",
     "concurrently": "^9.1.2",
     "pino-pretty": "^13.0.0",
-    "testcontainers": "^11.14.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.7"
   }

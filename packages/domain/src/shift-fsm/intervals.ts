@@ -109,16 +109,3 @@ export function checkIntervalInvariants(
 
   return violations;
 }
-
-/** Сума тривалостей за станом у мілісекундах. Відкритий інтервал рахується до `now`. */
-export function sumByState(
-  intervals: readonly ActivityInterval[],
-  now: number,
-): Partial<Record<ShiftState, number>> {
-  const out: Partial<Record<ShiftState, number>> = {};
-  for (const i of intervals) {
-    const end = i.endedAt ?? now;
-    out[i.state] = (out[i.state] ?? 0) + Math.max(0, end - i.startedAt);
-  }
-  return out;
-}

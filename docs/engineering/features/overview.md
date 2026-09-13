@@ -88,7 +88,7 @@ the participant acceptance check.
   composition, `snapshot.ts` queries and remembered selection) and `features/overview/ui` (header,
   card queue, KPI tiles via shared `components/app/kpi-tile.tsx`, zone board, event feed, setup).
   `lib/live.ts` accepts extra keys so one stream invalidates its list and the snapshot. The schedule
-  slice's `ScheduleAttentionCard` is mounted once per resolved site.
+  attention endpoint feeds the Overview-owned `TeamToday` section for the resolved sites.
 
 ### Decisions and deviations
 
@@ -105,7 +105,8 @@ the participant acceptance check.
   сьогодні" (`features/overview/model/team-today.ts`, `ui/team-today.tsx`) reading
   `/admin/schedules/staffing/attention` per site: sick leave with wellbeing (worse/unanswered first),
   unfilled shifts grouped by date with zone and unit, birthdays; holiday in the header. The schedule
-  slice keeps `ScheduleAttentionCard` for its own use.
+  slice's former `ScheduleAttentionCard` was unmounted and removed in the 2026-09-13 cleanup;
+  the active Overview query, endpoint and presentation remain unchanged.
 - User-visible access change: SITE grants are limited to their site; ENTERPRISE HR/AUDITOR now read
   handover lists; out-of-scope identifiers and filters are 403.
 - Handover acceptance uses sessions whose planned end lies within two hours of the shift start.

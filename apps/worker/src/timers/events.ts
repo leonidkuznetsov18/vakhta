@@ -1,7 +1,6 @@
 import {
   and,
   asc,
-  backgroundTasks,
   employeeLocale,
   employeePositions,
   employees,
@@ -225,13 +224,4 @@ function shift(date: string, days: number): string {
   const value = new Date(`${date}T00:00:00Z`);
   value.setUTCDate(value.getUTCDate() + days);
   return value.toISOString().slice(0, 10);
-}
-
-/** Exposed for tests: the admitted follow-up task of a greeting. */
-export async function nextGreetingTask(tx: Transaction, employeeId: string) {
-  return tx
-    .select({ dedupeKey: backgroundTasks.dedupeKey, dueAt: backgroundTasks.dueAt })
-    .from(backgroundTasks)
-    .where(eq(backgroundTasks.kind, 'BIRTHDAY_GREETING'))
-    .then((rows) => rows.filter((row) => row.dedupeKey.includes(employeeId)));
 }

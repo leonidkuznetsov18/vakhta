@@ -177,13 +177,3 @@ export function validateHandoverDraft(
   }
   return issues;
 }
-
-export function isRemarkComplete(answer: ChecklistAnswer): boolean {
-  return (
-    answer.ok ||
-    (Boolean(answer.remarkCategory) &&
-      Boolean(answer.remarkText?.trim()) &&
-      answer.safeToWork !== null &&
-      answer.safeToWork !== undefined)
-  );
-}

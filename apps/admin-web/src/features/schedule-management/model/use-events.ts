@@ -27,17 +27,3 @@ export function useCalendarEvents(input: {
     staleTime: 60_000,
   });
 }
-
-/** Today's holiday, birthdays, sick leaves and the week's replacement needs (Overview card). */
-export function useScheduleAttention(input: {
-  readonly accessKey: string;
-  readonly siteId: string;
-}) {
-  return useQuery({
-    queryKey: [...scheduleKeys.all(input.accessKey), 'attention', input.siteId],
-    queryFn: ({ signal }) => staffingApi.attention({ siteId: input.siteId }, signal),
-    enabled: !!input.siteId,
-    staleTime: 60_000,
-    refetchInterval: 5 * 60_000,
-  });
-}

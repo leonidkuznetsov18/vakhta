@@ -29,7 +29,6 @@ import {
 import {
   buildMonthPlan,
   diffSchedules,
-  formatLocal,
   nextScheduleStatus,
   type PlannedShift,
   type ScheduleAction,
@@ -1889,9 +1888,4 @@ export class ScheduleService {
       })),
     };
   }
-}
-
-/** Локальний час 'HH:mm' для текстів бота. */
-export function localTime(instant: Date, timezone: string): string {
-  return formatLocal(instant, timezone).local.slice(11, 16);
 }

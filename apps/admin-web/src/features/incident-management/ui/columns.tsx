@@ -8,30 +8,10 @@ import { Muted, StatusPill, type Tone } from '@/components/app/page';
 import { formatDateTime as formatTime } from '@/lib/format';
 import { currentLocale } from '@/i18n';
 import { IncidentSlaCell } from './incident-sla';
-import {
-  BanIcon,
-  CheckIcon,
-  CircleCheckIcon,
-  LockIcon,
-  PlayIcon,
-  RotateCcwIcon,
-  CopyIcon,
-  type LucideIcon,
-} from 'lucide-react';
 
 const all = messages(currentLocale());
 const i = all.admin.incidents;
 const hints = all.ui.hints;
-
-const TRANSITION_ICON: Record<IncidentStatus, LucideIcon> = {
-  REPORTED: RotateCcwIcon,
-  ACKNOWLEDGED: CheckIcon,
-  IN_PROGRESS: PlayIcon,
-  RESOLVED: CircleCheckIcon,
-  CLOSED: LockIcon,
-  DUPLICATE: CopyIcon,
-  REJECTED: BanIcon,
-};
 
 const SEVERITY_TONE: Record<IncidentSeverity, Tone> = {
   NORMAL: 'neutral',
@@ -137,4 +117,3 @@ export function incidentColumns(): Column<IncidentView>[] {
 
   return columns;
 }
-export { TRANSITION_ICON };

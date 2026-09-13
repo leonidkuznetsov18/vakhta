@@ -28,9 +28,3 @@ export function buildDeepLink(botUsername: string, token: string): string {
   if (!isValidStartParam(token)) throw new RangeError('Токен не є коректним start-параметром');
   return `https://t.me/${botUsername}?start=${token}`;
 }
-
-/** Рекомендовані значення ТЗ 18, п. 8: ротація 30–60 с, TTL 60–120 с. */
-export const QR_DEFAULTS = Object.freeze({
-  rotationSeconds: 45,
-  ttlSeconds: 90,
-});

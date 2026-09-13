@@ -1,5 +1,48 @@
 # Backend and frontend simplification review
 
+## Implementation — first cleanup delivery
+
+Owner authorized implementation after this audit. Baseline: `54bbb28` on `master`.
+Scope: D1–D7, the obsolete attention adapter from R4, and the migration shims from R7.
+Acceptance: delete only revalidated unreachable code/direct dependencies; retain active helpers,
+endpoints, tests, transaction/recovery behavior and current rendered UI. Update callers of forwarding
+modules to their existing public APIs. Keep bug fixes and larger architectural extractions separate.
+Verification: focused remaining domain/panel tests, affected workspace compilation/typechecks,
+changed-file lint/format, configured Knip and before/after panel build comparison. If generated CSS
+changes, inspect whether any reachable styling is affected before delivery.
+Status: D1–D7, the obsolete R4 adapter and R7 shims implemented and verified locally.
+The dated audit below remains baseline evidence; R1/R2/R3/R5/R6 and sections C/D remain pending.
+
+Evidence for this delivery:
+
+- Removed ten files, including two test files dedicated solely to removed orphan implementations;
+  all existing tests of retained behavior are unchanged. Removed eight unused domain declarations,
+  the unused incident icon map, Schedule `localTime` and test-only greeting query helper.
+- Removed only the API `bullmq`/`tsx` and worker direct `testcontainers` declarations. pnpm generated
+  a nine-line importer-only lockfile deletion, retaining all runtime/transitive versions; frozen
+  offline installation passed.
+- Domain: 31 suites / **201 tests passed**. Panel: five focused suites / **41 tests passed**
+  (incident periods, schedule calendar/planning, Overview query integration/team aggregation).
+- Fresh API, worker, admin-web, kiosk and domain typechecks plus prerequisite package builds passed:
+  **9 successful Turbo tasks, zero cache hits**. Changed TypeScript ESLint checks passed.
+- Before/after Vite production builds passed. CSS changed from **184,868 to 171,006 bytes**.
+  Selector-aware comparison found no declaration changes on retained utility selectors; 116 selectors
+  disappeared, plus only `--color-rose-300`, `--color-rose-700`, `--leading-normal` from theme variables.
+  The production build still reports its existing large-chunk warning; no bundle splitting was attempted.
+- Captured and visually inspected local fixture-preview screenshots of incidents, active Overview
+  team cards and Schedule at desktop and 390px mobile widths. Active controls, cards and calendar
+  remain rendered; mobile document width is 390px. This is preview QA, not authenticated production QA
+  or an exhaustive screenshot-diff proof. Temporary viewport override was reset.
+- A read-only independent review against `54bbb28` found no actionable defects and confirmed retained
+  runtime/preview consumers and lifecycle boundaries; it reused the valid test results.
+- Configured Knip now reports **zero unused files and zero runtime dependency candidates**. Remaining
+  three dev-dependency candidates are known runtime/release string references; no new Knip gate added.
+- Overview's existing test emits a nested-button HTML warning in its unchanged KPI/tooltip path.
+  It is recorded rather than repaired in a behavior-preserving deletion batch. No full local suite,
+  production employee actions or new database/recovery simulations were run.
+
+Delivery CI/release/announcement status is reported separately from these local results.
+
 Date: 2026-09-13. Inspected baseline: `6f347974856a17bea0c658e212bae328542e1123` (`master`).
 
 ## Scope and acceptance

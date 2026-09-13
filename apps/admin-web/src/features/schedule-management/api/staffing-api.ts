@@ -9,8 +9,6 @@ import {
   CalendarEventsView,
   EmployeeQualificationView,
   OperationsQuery,
-  ScheduleAttentionQuery,
-  ScheduleAttentionView,
   OperationsView,
   PlanContextView,
   QualificationView,
@@ -30,10 +28,6 @@ export const staffingApi = {
   async events(query: CalendarEventsQuery, signal: AbortSignal) {
     const params = new URLSearchParams(CalendarEventsQuery.parse(query));
     return CalendarEventsView.parse(await apiFetch(`${root}/events?${params}`, { signal }));
-  },
-  async attention(query: ScheduleAttentionQuery, signal: AbortSignal) {
-    const params = new URLSearchParams(ScheduleAttentionQuery.parse(query));
-    return ScheduleAttentionView.parse(await apiFetch(`${root}/attention?${params}`, { signal }));
   },
   async operations(query: OperationsQuery, signal: AbortSignal) {
     const params = new URLSearchParams(OperationsQuery.parse(query));

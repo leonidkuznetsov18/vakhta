@@ -57,11 +57,6 @@ export function nextScheduleStatus(
   }
 }
 
-/** Опубліковану версію редагувати не можна: лише нова версія-зміна (ТЗ 3.1, FR-SCH-03). */
-export function isEditableStatus(status: ScheduleStatus): boolean {
-  return status === 'DRAFT';
-}
-
 export function shiftMinutes(shift: Pick<PlannedShift, 'planStartAt' | 'planEndAt'>): number {
   return Math.round((shift.planEndAt.getTime() - shift.planStartAt.getTime()) / 60_000);
 }

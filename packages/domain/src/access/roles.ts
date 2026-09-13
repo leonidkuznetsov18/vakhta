@@ -37,12 +37,3 @@ export function primaryRole(grants: readonly RoleGrant[]): WebRole | null {
   }
   return null;
 }
-
-/** Ролі, яким дозволено вести довідники й облікові записи. */
-export const ADMIN_ROLES: readonly WebRole[] = ['ADMIN'];
-/** Ролі, яким дозволено кадрові картки, коди активації, перепривʼязку (ТЗ 2.2). */
-export const HR_ROLES: readonly WebRole[] = ['ADMIN', 'HR'];
-
-export function isEnterpriseScope(grant: RoleGrant): boolean {
-  return grant.scopeType === 'ENTERPRISE';
-}

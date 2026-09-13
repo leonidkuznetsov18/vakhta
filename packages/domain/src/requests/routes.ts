@@ -86,11 +86,6 @@ export const SCHEDULE_AFFECTING: readonly RequestType[] = [
 /** Типи з періодом дат; решта стосуються конкретної зміни або події. */
 export const PERIOD_TYPES: readonly RequestType[] = ['VACATION', 'DAY_OFF', 'SICK'];
 
-/** Медичні документи бачить лише HR (FR-REQ-02). */
-export function medicalOnly(type: RequestType): boolean {
-  return type === 'SICK';
-}
-
 const OPEN: readonly RequestStatus[] = ['SUBMITTED', 'IN_REVIEW'];
 
 export function isRequestOpen(status: RequestStatus): boolean {

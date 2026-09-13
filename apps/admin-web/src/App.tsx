@@ -57,7 +57,7 @@ import { HandoverPage } from './handover/HandoverPage.tsx';
 import { IncidentsPage } from './incidents/IncidentsPage.tsx';
 import { OperationsPage } from './operations/OperationsPage.tsx';
 import { OverviewPage } from './overview/OverviewPage.tsx';
-import { useAttention } from './overview/attention.ts';
+import { useAttention } from '@/features/overview';
 import { RequestsPage } from './requests/RequestsPage.tsx';
 import { ScheduleWorkspace as SchedulePage } from '@/features/schedule-management';
 import { useSession } from './auth/useSession.ts';

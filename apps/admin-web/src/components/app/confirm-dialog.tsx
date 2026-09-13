@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { focusFirstField } from '@/components/app/focus';
+import { focusFirstField } from '@/shared/lib/focus';
 import { currentLocale } from '@/i18n';
 
 export interface ConfirmOptions {

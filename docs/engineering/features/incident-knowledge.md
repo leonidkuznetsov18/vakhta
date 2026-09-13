@@ -58,8 +58,9 @@ and lifecycle APIs retain their existing permissions and semantics.
 
 ## Calendar and detail readability
 
-Both incident pages use CalendarPeriodField: an always-visible calendar trigger matching Schedule,
-day/month/year tabs inside the same popover, and an all-time reset. All-time remains the default.
+The incident workspace uses shared `DateField` controls for its From/To range and an all-time reset.
+The earlier `CalendarPeriodField` implementation became unused and was removed in the 2026-09-13
+cleanup. Its active `orderedRange` and `unitDate` model helpers remain. All-time remains the default.
 RowDetail provides a common bounded reading surface for every expanded table row and mobile card.
 Incident cause, solution and legacy text use DetailText (readable line length, preserved line breaks,
 long-word wrapping, keyboard-scrollable height limit). History metadata and prose occupy separate lines.
@@ -75,7 +76,7 @@ The owner refined the calendar requirement: day mode selects a date range; month
 From/To and retain All time. A draft is applied explicitly after both endpoints are selected; canceling
 or changing units does not fetch partial results. Selecting the same month/year twice selects one unit.
 
-Shared UI now lives in `shared/ui/calendar-period-field.tsx`, with isolated Zustand draft state and
+At that delivery, shared UI lived in `shared/ui/calendar-period-field.tsx`, with isolated Zustand draft state and
 reused local-calendar conversion helpers in `shared/lib`. Existing shadcn primitives are retained;
 DayPicker provides native range selection for days. Month/year grids reuse shadcn buttons because the
 installed DayPicker does not provide those selection surfaces. Legacy shared primitives remain in
