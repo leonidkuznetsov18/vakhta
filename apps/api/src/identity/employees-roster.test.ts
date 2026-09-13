@@ -61,11 +61,18 @@ describe('employee directory pagination', () => {
       expect(ListEmployeesPageQuery.safeParse(query).success).toBe(false);
     }
   });
-  it('retains the existing explicit directory read roles', () => {
+  it('allows the explicit profile reader roles, including accounting', () => {
     const roles: unknown = Reflect.getMetadata(
       'vakhta:roles',
       AdminEmployeesController.prototype.listPage,
     );
-    expect(roles).toEqual(['ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER']);
+    expect(roles).toEqual([
+      'ADMIN',
+      'HR',
+      'ACCOUNTANT',
+      'PRODUCTION_HEAD',
+      'PLANNER',
+      'SHIFT_MASTER',
+    ]);
   });
 });
