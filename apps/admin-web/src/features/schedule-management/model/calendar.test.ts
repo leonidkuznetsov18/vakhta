@@ -80,6 +80,35 @@ const allItems = (model: ReturnType<typeof calendarModel>) =>
   model.resources.flatMap((row) => row.cells.flatMap((cell) => cell.items));
 
 describe('calendar projections', () => {
+  it('shows custom hours and zone segments as parts and treats a changed time as unpublished', () => {
+    const custom = setAssignment(
+      { rows: [] },
+      {
+        employeeId: 'person',
+        businessDate: '2026-09-30',
+        templateId: 'night',
+        zoneId: 'zone',
+        kind: 'REGULAR',
+        customStart: '22:00',
+        customEnd: '06:00',
+        segments: [
+          { zoneId: 'zone', localStart: '22:00', localEnd: '02:00' },
+          { zoneId: 'empty', localStart: '02:00', localEnd: '06:00' },
+        ],
+      },
+    );
+    const item = allItems(calendarModel({ ...base, grid: custom, published: base.grid }))[0];
+    expect(item?.time).toContain('22:00');
+    expect(item?.time).toContain('06:00');
+    expect(item?.description).toContain('8 hr');
+    expect(item?.parts?.map((part) => part.label)).toEqual([
+      '22:00–02:00 · Z1',
+      '02:00–06:00 · Z2',
+    ]);
+    expect(item?.unpublished).toBe(true);
+    const same = allItems(calendarModel({ ...base, grid: custom, published: custom }))[0];
+    expect(same?.unpublished).toBe(false);
+  });
   it('distinguishes day and night by tone independently of publication status', () => {
     expect(allItems(calendarModel(base))[0]?.tone).toBe('indigo');
     const day = calendarModel({
@@ -146,6 +175,9 @@ describe('calendar projections', () => {
           kind: 'REGULAR',
           status: 'PLANNED',
           acknowledgedAt: null,
+          customStart: null,
+          customEnd: null,
+          segments: [],
         },
       ],
     });

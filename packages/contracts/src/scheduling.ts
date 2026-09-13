@@ -46,16 +46,42 @@ export const CreateScheduleVersionCommand = z.object({
 });
 export type CreateScheduleVersionCommand = z.infer<typeof CreateScheduleVersionCommand>;
 
-export const AssignmentInput = z.object({
-  employeeId: Uuid,
-  templateId: Uuid,
-  businessDate: BusinessDate,
-  positionId: Uuid.optional(),
-  teamId: Uuid.optional(),
-  zoneId: Uuid.optional(),
-  kind: ShiftKindSchema.default('REGULAR'),
+/** One zone part of a shift (SC-37); parts tile the planned interval in order. */
+export const AssignmentSegmentInput = z.object({
+  zoneId: Uuid,
+  localStart: LocalTime,
+  localEnd: LocalTime,
 });
+export type AssignmentSegmentInput = z.infer<typeof AssignmentSegmentInput>;
+
+export const AssignmentInput = z
+  .object({
+    employeeId: Uuid,
+    templateId: Uuid,
+    businessDate: BusinessDate,
+    positionId: Uuid.optional(),
+    teamId: Uuid.optional(),
+    zoneId: Uuid.optional(),
+    kind: ShiftKindSchema.default('REGULAR'),
+    /** Custom local start/end replacing the template times (SC-32); both or neither. */
+    customStart: LocalTime.optional(),
+    customEnd: LocalTime.optional(),
+    segments: z.array(AssignmentSegmentInput).max(8).optional(),
+  })
+  .refine((input) => (input.customStart === undefined) === (input.customEnd === undefined), {
+    path: ['customEnd'],
+    message: 'customStart and customEnd go together',
+  });
 export type AssignmentInput = z.infer<typeof AssignmentInput>;
+
+export const AssignmentSegmentView = z.object({
+  id: Uuid,
+  position: z.number().int().nonnegative(),
+  zoneId: Uuid,
+  localStart: LocalTime,
+  localEnd: LocalTime,
+});
+export type AssignmentSegmentView = z.infer<typeof AssignmentSegmentView>;
 
 /** Required at public mutation boundaries; domain-owned workflows use their owning transaction. */
 export const ScheduleRevisionPrecondition = z.object({
@@ -124,6 +150,9 @@ export const AssignmentView = z.object({
   kind: ShiftKindSchema,
   status: AssignmentStatusSchema,
   acknowledgedAt: IsoDateTime.nullable(),
+  customStart: LocalTime.nullable().default(null),
+  customEnd: LocalTime.nullable().default(null),
+  segments: z.array(AssignmentSegmentView).default([]),
 });
 export type AssignmentView = z.infer<typeof AssignmentView>;
 

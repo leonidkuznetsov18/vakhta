@@ -13,6 +13,7 @@ export function describeError(e: unknown): string {
     if (e.code === 'QUALIFICATION_REQUIRED') return t.scheduleWorkspace.qualificationRequiredError;
     if (e.code === 'SCHEDULE_ZONE_SCOPE') return t.scheduleWorkspace.zoneScopeError;
     if (e.code === 'SCHEDULE_ELIGIBILITY') return t.scheduleWorkspace.eligibilityError;
+    if (e.code?.startsWith('SEGMENT_')) return t.scheduleWorkspace.segmentError;
     if (e.status === 403) return t.admin.schedule.forbidden;
     if (e.status === 0) return t.admin.auth.networkError;
     if (e.code === 'INSPECTION_RULES_MISSING') return t.photoInspection.aiRulesMissing;

@@ -36,11 +36,48 @@ function assignment(over: Partial<ScheduleVersionDetail['assignments'][number]>)
     kind: 'REGULAR' as const,
     status: 'PLANNED' as const,
     acknowledgedAt: null,
+    customStart: null,
+    customEnd: null,
+    segments: [],
     ...over,
   };
 }
 
 describe('grid', () => {
+  it('keeps custom hours and zone segments through the PUT round trip and counts their change', () => {
+    const detail = {
+      version: {} as ScheduleVersionDetail['version'],
+      assignments: [
+        assignment({
+          customStart: '10:00',
+          customEnd: '22:00',
+          segments: [
+            { id: 's0', position: 0, zoneId: ZONE, localStart: '10:00', localEnd: '16:00' },
+            { id: 's1', position: 1, zoneId: OTHER, localStart: '16:00', localEnd: '22:00' },
+          ],
+        }),
+      ],
+      issues: [],
+    };
+    const grid = gridFromDetail(detail);
+    expect(gridToItems(grid)).toEqual([
+      {
+        employeeId: EMP,
+        templateId: TPL_DAY,
+        businessDate: '2026-09-07',
+        kind: 'REGULAR',
+        zoneId: ZONE,
+        customStart: '10:00',
+        customEnd: '22:00',
+        segments: [
+          { zoneId: ZONE, localStart: '10:00', localEnd: '16:00' },
+          { zoneId: OTHER, localStart: '16:00', localEnd: '22:00' },
+        ],
+      },
+    ]);
+    const plain = gridFromDetail({ ...detail, assignments: [assignment({})] });
+    expect(countChanges(plain, grid)).toBe(1);
+  });
   it('builds rows from assignments and returns them into the PUT command without loss', () => {
     const detail = {
       version: {} as ScheduleVersionDetail['version'],

@@ -1,4 +1,4 @@
-import { planInstants, type EligibilityReason } from '@vakhta/domain';
+import { assignmentInstants, type EligibilityReason } from '@vakhta/domain';
 import { messages, type Locale } from '@vakhta/i18n';
 import type {
   AssignmentInput,
@@ -129,13 +129,20 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
   for (const item of items) {
     const template = templates.get(item.templateId);
     const previous = saved.get(assignmentKey(item));
-    const sameTime = previous?.templateId === item.templateId;
+    const sameTime =
+      previous?.templateId === item.templateId &&
+      (previous?.customStart ?? null) === (item.customStart ?? null) &&
+      (previous?.customEnd ?? null) === (item.customEnd ?? null);
     const plan =
       sameTime && previous
         ? { planStartAt: new Date(previous.planStartAt), planEndAt: new Date(previous.planEndAt) }
         : template
-          ? planInstants(item.businessDate, template, input.timezone)
+          ? assignmentInstants({ ...item, template }, input.timezone)
           : null;
+    const parts = (item.segments ?? []).map((segment, index) => ({
+      id: `${assignmentKey(item)}:${index}`,
+      label: `${segment.localStart}–${segment.localEnd} · ${zones.get(segment.zoneId)?.code ?? zones.get(segment.zoneId)?.name ?? t.noZone}`,
+    }));
     const time = plan
       ? `${timeFormat.format(plan.planStartAt)}–${siteToday(input.timezone, plan.planEndAt) !== item.businessDate ? `${endDateFormat.format(plan.planEndAt)} ` : ''}${timeFormat.format(plan.planEndAt)}`
       : t.unknownTemplate;
@@ -185,6 +192,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
         .join(' · '),
       status: unpublished ? t.notPublished : '',
       unpublished,
+      ...(parts.length > 0 ? { parts } : {}),
       ...(foreign ? { readonly: true } : {}),
       ...(issue ? { issue } : {}),
       tone: template ? (template.isNight ? 'indigo' : 'amber') : 'neutral',

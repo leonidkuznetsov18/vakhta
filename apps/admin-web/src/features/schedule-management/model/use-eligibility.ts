@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   evaluatePlan,
-  planInstants,
+  assignmentInstants,
   reasonsFor,
   type EligibilityReason,
   type PlannedInterval,
@@ -74,7 +74,7 @@ export function planIssues(input: {
   const proposed: PlannedInterval[] = gridToItems(input.grid).flatMap((item) => {
     const template = templates.get(item.templateId);
     if (!template) return [];
-    const plan = planInstants(item.businessDate, template, input.timezone);
+    const plan = assignmentInstants({ ...item, template }, input.timezone);
     return [
       {
         employeeId: item.employeeId,

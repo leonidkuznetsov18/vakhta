@@ -1,22 +1,26 @@
 import { templateLabel } from '../lib/template-label';
-import { monthDates } from '@vakhta/domain';
+import { assignmentInstants, monthDates, resolveSegments } from '@vakhta/domain';
 import { useState } from 'react';
-import { AssignmentInput } from '@vakhta/contracts';
+import { AssignmentInput, type AssignmentSegmentInput } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
 import { qualifiedFor, requiredQualifications } from '@vakhta/domain';
+import { PlusIcon, XIcon } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { IconButton } from '@/shared/ui/icon-button';
 import { planIssues, reasonText, reasonsFor, useCandidates } from '../model/use-eligibility';
 import { setAssignment as placeAssignment } from '../model/grid';
 import { LoadingState } from '@/shared/ui/loading-state';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
-import { SelectField } from '@/components/app/fields';
+import { FormField, SelectField } from '@/components/app/fields';
 import { DateField } from '@/components/app/date-picker';
 import { Button } from '@/components/ui/button';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { Feedback } from '@/components/app/feedback';
 import { InfoTip } from '@/components/app/info-tip';
 import type { Workspace } from '../model/use-workspace';
-import { assignmentKey, gridToItems, setAssignment, setCell } from '../model/grid';
+import { assignmentKey, gridToItems, sameAssignment, setAssignment, setCell } from '../model/grid';
 import { zoneAllowed } from '../model/planning';
 const t = messages(currentLocale()).scheduleWorkspace;
 const s = messages(currentLocale()).admin.schedule;
@@ -46,12 +50,47 @@ export function AssignmentEditor({
   const [draft, setDraft] = useState({
     ...context,
     templateId: context.templateId ?? original?.templateId ?? '',
+    custom: !!original?.customStart && !!original.customEnd,
+    customStart: original?.customStart ?? '',
+    customEnd: original?.customEnd ?? '',
+    segments: (original?.segments ?? []) as readonly AssignmentSegmentInput[],
   });
+  const template = w.templates.find((item) => item.id === draft.templateId);
+  const { custom, customStart, customEnd, segments, ...fields } = draft;
   const candidate = AssignmentInput.safeParse({
     ...original,
-    ...draft,
+    ...fields,
     kind: original?.kind ?? 'REGULAR',
+    customStart: custom ? customStart : undefined,
+    customEnd: custom ? customEnd : undefined,
+    segments: segments.length > 0 ? segments : undefined,
   });
+  // Segments must tile the planned interval (SC-37); the server repeats this check on save.
+  const tiling =
+    template && segments.length > 0 && candidate.success
+      ? resolveSegments(
+          {
+            ...assignmentInstants(
+              {
+                businessDate: draft.businessDate,
+                template,
+                customStart: candidate.data.customStart,
+                customEnd: candidate.data.customEnd,
+              },
+              w.timezone,
+            ),
+            businessDate: draft.businessDate,
+          },
+          segments,
+          w.timezone,
+        )
+      : { segments: [] };
+  const segmentsInvalid = 'error' in tiling;
+  const setSegment = (index: number, patch: Partial<AssignmentSegmentInput>) =>
+    setDraft({
+      ...draft,
+      segments: segments.map((segment, at) => (at === index ? { ...segment, ...patch } : segment)),
+    });
   const occupied = gridToItems(w.grid).some(
     (item) =>
       item.employeeId === draft.employeeId &&
@@ -115,12 +154,7 @@ export function AssignmentEditor({
     unitName: (id: string) => w.units.find((unit) => unit.id === id)?.name ?? id,
     zoneName: (id: string) => w.zones.find((zone) => zone.id === id)?.name ?? id,
   };
-  const unchanged =
-    !!original &&
-    original.employeeId === draft.employeeId &&
-    original.businessDate === draft.businessDate &&
-    original.templateId === draft.templateId &&
-    original.zoneId === draft.zoneId;
+  const unchanged = !!original && candidate.success && sameAssignment(original, candidate.data);
   const valid =
     candidate.success &&
     active &&
@@ -128,6 +162,7 @@ export function AssignmentEditor({
     !occupied &&
     missingQualifications.length === 0 &&
     !blockedByRules &&
+    !segmentsInvalid &&
     !unchanged;
   function apply() {
     if (!valid || !candidate.success || !w.writable) return;
@@ -189,6 +224,131 @@ export function AssignmentEditor({
             }))}
         />
       </div>
+      <div className="space-y-3 rounded-md border p-3">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="assignment-custom-time"
+            checked={custom}
+            disabled={!w.writable}
+            onCheckedChange={(value) =>
+              setDraft({
+                ...draft,
+                custom: value === true,
+                customStart: customStart || template?.localStart || '',
+                customEnd: customEnd || template?.localEnd || '',
+              })
+            }
+          />
+          <label htmlFor="assignment-custom-time" className="text-sm font-medium">
+            {t.customTime}
+          </label>
+          <InfoTip text={t.customTimeHint} />
+        </div>
+        {custom && (
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label={t.customStart}>
+              {(id) => (
+                <Input
+                  id={id}
+                  type="time"
+                  step={60}
+                  value={customStart}
+                  disabled={!w.writable}
+                  onChange={(event) => setDraft({ ...draft, customStart: event.target.value })}
+                />
+              )}
+            </FormField>
+            <FormField label={t.customEnd}>
+              {(id) => (
+                <Input
+                  id={id}
+                  type="time"
+                  step={60}
+                  value={customEnd}
+                  disabled={!w.writable}
+                  onChange={(event) => setDraft({ ...draft, customEnd: event.target.value })}
+                />
+              )}
+            </FormField>
+          </div>
+        )}
+      </div>
+      <section className="space-y-2 rounded-md border p-3" aria-label={t.segments}>
+        <div className="flex items-center gap-1">
+          <h4 className="text-sm font-semibold">{t.segments}</h4>
+          <InfoTip text={t.segmentsHint} />
+        </div>
+        {segments.map((segment, index) => (
+          <div key={index} className="grid grid-cols-[1fr_auto] items-end gap-2">
+            <div className="grid gap-2 @min-[26rem]:grid-cols-3">
+              <SelectField
+                placeholder={t.select}
+                label={t.zone}
+                value={segment.zoneId}
+                disabled={!w.writable}
+                onChange={(zoneId) => setSegment(index, { zoneId })}
+                options={w.zones
+                  .filter((zone) => zone.isActive && zoneAllowed(w.rights.zones, zone.id))
+                  .map((zone) => ({ value: zone.id, label: zone.name }))}
+              />
+              <FormField label={t.customStart}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    type="time"
+                    step={60}
+                    value={segment.localStart}
+                    disabled={!w.writable}
+                    onChange={(event) => setSegment(index, { localStart: event.target.value })}
+                  />
+                )}
+              </FormField>
+              <FormField label={t.customEnd}>
+                {(id) => (
+                  <Input
+                    id={id}
+                    type="time"
+                    step={60}
+                    value={segment.localEnd}
+                    disabled={!w.writable}
+                    onChange={(event) => setSegment(index, { localEnd: event.target.value })}
+                  />
+                )}
+              </FormField>
+            </div>
+            <IconButton
+              icon={XIcon}
+              label={t.removeSegment}
+              tooltip={t.removeSegment}
+              variant="ghost"
+              size="icon"
+              disabled={!w.writable}
+              onClick={() =>
+                setDraft({ ...draft, segments: segments.filter((_, at) => at !== index) })
+              }
+            />
+          </div>
+        ))}
+        {segmentsInvalid && <Feedback error={t.segmentInvalid} />}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!w.writable || segments.length >= 8}
+          onClick={() => {
+            const last = segments.at(-1);
+            const start = last?.localEnd ?? (custom ? customStart : template?.localStart) ?? '';
+            const end = (custom ? customEnd : template?.localEnd) ?? '';
+            setDraft({
+              ...draft,
+              segments: [...segments, { zoneId: draft.zoneId, localStart: start, localEnd: end }],
+            });
+          }}
+        >
+          <PlusIcon aria-hidden="true" />
+          {t.addSegment}
+        </Button>
+      </section>
       {occupied && <Feedback error={t.occupied} />}
       {missingQualifications.length > 0 && (
         <Feedback

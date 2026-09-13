@@ -1,4 +1,4 @@
-import { planInstants } from '@vakhta/domain';
+import { assignmentInstants, planInstants } from '@vakhta/domain';
 import {
   ScheduleRevisionPrecondition,
   ScheduleWebCommand,
@@ -90,6 +90,20 @@ for (let day = 1; day <= 28; day++)
       kind: 'REGULAR',
     });
   }
+// One shift with custom hours split between two zones (SC-32, SC-37).
+const customShift = initialItems.find(
+  (item) => item.businessDate === `${month}-02` && item.zoneId === scheduleZoneId,
+);
+if (customShift && scheduleTemplates[0]) {
+  Object.assign(customShift, {
+    customStart: '10:00',
+    customEnd: '22:00',
+    segments: [
+      { zoneId: scheduleZoneId, localStart: '10:00', localEnd: '16:00' },
+      { zoneId: secondZone, localStart: '16:00', localEnd: '22:00' },
+    ],
+  });
+}
 initial.assignmentsCount = initialItems.length;
 assignments.set(initial.id, initialItems);
 // The next month is published too, so a week crossing the boundary shows both plans.
@@ -132,10 +146,17 @@ function detail(version: ScheduleVersionView): ScheduleVersionDetail {
     assignments: (assignments.get(version.id) ?? []).map((item) => {
       const template = scheduleTemplates.find((value) => value.id === item.templateId);
       if (!template) throw new Error('Preview template missing');
-      const instants = planInstants(item.businessDate, template, 'Europe/Kyiv');
+      const instants = assignmentInstants({ ...item, template }, 'Europe/Kyiv');
       return {
         ...item,
         id: crypto.randomUUID(),
+        customStart: item.customStart ?? null,
+        customEnd: item.customEnd ?? null,
+        segments: (item.segments ?? []).map((segment, position) => ({
+          id: crypto.randomUUID(),
+          position,
+          ...segment,
+        })),
         scheduleVersionId: version.id,
         templateCode: template?.code ?? 'DAY',
         planStartAt: instants.planStartAt.toISOString(),

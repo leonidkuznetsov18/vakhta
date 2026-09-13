@@ -173,6 +173,9 @@ function detail(status: string) {
         kind: 'REGULAR',
         status: 'PLANNED',
         acknowledgedAt: null,
+        customStart: null,
+        customEnd: null,
+        segments: [],
       },
     ],
   };
@@ -416,6 +419,13 @@ function mockApi(
             zoneId: item.zoneId ?? null,
             status: 'PLANNED',
             acknowledgedAt: null,
+            customStart: item.customStart ?? null,
+            customEnd: item.customEnd ?? null,
+            segments: (item.segments ?? []).map((segment, position) => ({
+              id: crypto.randomUUID(),
+              position,
+              ...segment,
+            })),
             planStartAt: `${item.businessDate}T05:00:00.000Z`,
             planEndAt: `${item.businessDate}T17:00:00.000Z`,
           })),
@@ -1891,6 +1901,60 @@ it('loads a saved pattern into the batch planner and saves the current input as 
     name: 'Fill 2/2',
     definition: { pattern: 'DAY_2_2', mode: 'fill', zoneId: ZONE },
   });
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('edits custom hours and zone segments locally and refuses a tiling that leaves a gap', async () => {
+  freshState();
+  mockApi({ status: 'DRAFT' });
+  admin();
+  await screen.findByText(t.draftState);
+  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+    fireEvent.click(screen.getByRole('button', { name: t.previous }));
+  }
+  fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 05/ }));
+  const sheet = await screen.findByRole('dialog');
+  fireEvent.click(within(sheet).getByRole('button', { name: t.editAssignment }));
+  const apply = () => within(sheet).getByRole('button', { name: t.apply });
+  expect(apply().hasAttribute('disabled')).toBe(true);
+  fireEvent.click(within(sheet).getByRole('checkbox', { name: t.customTime }));
+  const start = within(sheet).getByLabelText(t.customStart);
+  const end = within(sheet).getByLabelText(t.customEnd);
+  expect((start as HTMLInputElement).value).toBe('20:00');
+  fireEvent.change(start, { target: { value: '22:00' } });
+  fireEvent.change(end, { target: { value: '06:00' } });
+  expect(apply().hasAttribute('disabled')).toBe(false);
+  fireEvent.click(within(sheet).getByRole('button', { name: t.addSegment }));
+  const segments = within(sheet).getByRole('region', { name: t.segments });
+  expect(within(segments).queryByText(t.segmentInvalid)).toBeNull();
+  fireEvent.change(within(segments).getByLabelText(t.customEnd), { target: { value: '02:00' } });
+  expect(within(segments).getByText(t.segmentInvalid)).toBeTruthy();
+  expect(apply().hasAttribute('disabled')).toBe(true);
+  fireEvent.click(within(sheet).getByRole('button', { name: t.addSegment }));
+  expect(within(segments).queryByText(t.segmentInvalid)).toBeNull();
+  expect(apply().hasAttribute('disabled')).toBe(false);
+  fireEvent.click(apply());
+  await waitFor(() =>
+    expect(gridToItems(useScheduleDrafts.getState().drafts[DRAFT_KEY] ?? { rows: [] })).toEqual([
+      expect.objectContaining({
+        employeeId: EMP,
+        businessDate: '2026-09-05',
+        customStart: '22:00',
+        customEnd: '06:00',
+        segments: [
+          { zoneId: ZONE, localStart: '22:00', localEnd: '02:00' },
+          { zoneId: ZONE, localStart: '02:00', localEnd: '06:00' },
+        ],
+      }),
+    ]),
+  );
+  const card = await screen.findByRole('button', { name: /Кузнецов Леонид, 05/ });
+  expect(card.textContent).toContain('22:00');
+  expect(card.textContent).toContain('02:00');
+  expect(screen.getByRole('button', { name: `${s.save} (1)` }).hasAttribute('disabled')).toBe(
+    false,
+  );
   cleanup();
   vi.unstubAllGlobals();
 });

@@ -40,6 +40,10 @@ Counts describe assigned people, not required staffing or attendance.
   reasons. Saved patterns store a rotation, shift, mode and zone for the batch planner. Drag a shift
   to another date or row, or use Move in its details to change the person, date or zone; an invalid
   move leaves the plan unchanged and explains why.
+- **Custom hours and zone segments:** a shift keeps its template, but the editor can set its own
+  start and end for that day (an end time before the start belongs to the next day) and split the
+  shift into ordered zone segments that must cover the whole interval without gaps or overlaps.
+  The card shows the custom hours and each segment; reminders and coverage use the custom interval.
 - **Conflicts and candidates:** the plan is checked as you edit: overlapping shifts of one person
   in any unit, approved absences and missing required qualifications block saving and publishing;
   short rest and too many monthly hours warn or block according to the site rules; a worker's

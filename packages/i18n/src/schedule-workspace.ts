@@ -74,6 +74,18 @@ export const scheduleWorkspaceEn = {
   zoneScopeError: 'Some changes touch zones outside your access; nothing was saved.',
   eligibilityError:
     'The plan has blocking conflicts (overlap, absence or qualification); nothing was saved. Review the marked assignments.',
+  customTime: 'Custom time',
+  customTimeHint:
+    'Replace the template hours for this day only. The shift keeps its template, reminders and acknowledgement; start and end are local site time.',
+  customStart: 'Start',
+  customEnd: 'End',
+  segments: 'Zone segments',
+  segmentsHint:
+    'Split the shift across zones in order. Segments must cover the whole shift without gaps or overlaps; leave the list empty for one zone.',
+  addSegment: 'Add segment',
+  removeSegment: 'Remove segment',
+  segmentInvalid: 'Segments must cover the whole shift in order, without gaps or overlaps.',
+  segmentError: 'Zone segments of an assignment do not cover its shift; nothing was saved.',
   inForce: 'In force',
   staffing: 'Staffing requirements',
   staffingHint:
@@ -343,6 +355,18 @@ export const scheduleWorkspaceUk: ScheduleWorkspaceMessages = {
   zoneScopeError: 'Частина змін стосується зон поза вашим доступом; нічого не збережено.',
   eligibilityError:
     'У плані є блокувальні конфлікти (перетин, відсутність або кваліфікація); нічого не збережено. Перевірте позначені призначення.',
+  customTime: 'Власний час',
+  customTimeHint:
+    'Замінює години шаблону лише на цей день. Зміна зберігає шаблон, нагадування та ознайомлення; початок і кінець — місцевий час майданчика.',
+  customStart: 'Початок',
+  customEnd: 'Кінець',
+  segments: 'Сегменти зон',
+  segmentsHint:
+    'Розбийте зміну між зонами по черзі. Сегменти мають покривати всю зміну без проміжків і накладань; порожній список — одна зона.',
+  addSegment: 'Додати сегмент',
+  removeSegment: 'Прибрати сегмент',
+  segmentInvalid: 'Сегменти мають покривати всю зміну по черзі, без проміжків і накладань.',
+  segmentError: 'Сегменти зон призначення не покривають його зміну; нічого не збережено.',
   inForce: 'Діє',
   staffing: 'Потреба в персоналі',
   staffingHint:
@@ -614,6 +638,18 @@ export const scheduleWorkspaceRu: ScheduleWorkspaceMessages = {
   zoneScopeError: 'Часть изменений касается зон вне вашего доступа; ничего не сохранено.',
   eligibilityError:
     'В плане есть блокирующие конфликты (пересечение, отсутствие или квалификация); ничего не сохранено. Проверьте отмеченные назначения.',
+  customTime: 'Своё время',
+  customTimeHint:
+    'Заменяет часы шаблона только на этот день. Смена сохраняет шаблон, напоминания и ознакомление; начало и конец — местное время площадки.',
+  customStart: 'Начало',
+  customEnd: 'Конец',
+  segments: 'Сегменты зон',
+  segmentsHint:
+    'Разбейте смену между зонами по порядку. Сегменты должны покрывать всю смену без промежутков и наложений; пустой список — одна зона.',
+  addSegment: 'Добавить сегмент',
+  removeSegment: 'Убрать сегмент',
+  segmentInvalid: 'Сегменты должны покрывать всю смену по порядку, без промежутков и наложений.',
+  segmentError: 'Сегменты зон назначения не покрывают его смену; ничего не сохранено.',
   inForce: 'Действует',
   staffing: 'Потребность в персонале',
   staffingHint:

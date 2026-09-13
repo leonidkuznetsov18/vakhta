@@ -26,6 +26,18 @@ export function gridFromDetail(detail: ScheduleVersionDetail): GridState {
         ...(a.zoneId ? { zoneId: a.zoneId } : {}),
         ...(a.positionId ? { positionId: a.positionId } : {}),
         ...(a.teamId ? { teamId: a.teamId } : {}),
+        ...(a.customStart && a.customEnd
+          ? { customStart: a.customStart, customEnd: a.customEnd }
+          : {}),
+        ...(a.segments.length > 0
+          ? {
+              segments: a.segments.map((segment) => ({
+                zoneId: segment.zoneId,
+                localStart: segment.localStart,
+                localEnd: segment.localEnd,
+              })),
+            }
+          : {}),
       })),
   );
 }
@@ -163,6 +175,9 @@ function fingerprint(item: AssignmentInput | AssignmentView): string {
     item.kind,
     item.positionId ?? '',
     item.teamId ?? '',
+    item.customStart ?? '',
+    item.customEnd ?? '',
+    (item.segments ?? []).map((segment) => [segment.zoneId, segment.localStart, segment.localEnd]),
   ]);
 }
 export function sameAssignment(

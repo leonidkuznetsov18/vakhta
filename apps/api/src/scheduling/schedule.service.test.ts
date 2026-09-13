@@ -1692,6 +1692,169 @@ describe('scheduling: версії, валідація, публікація, о
     });
   });
 
+  describe('custom time and zone segments (#15, SC-32/SC-37, D-04)', () => {
+    it('plans custom instants, tiles segments, copies them on revision and rejects bad tilings', async () => {
+      const secondZone = (
+        await org.createZone(
+          {
+            siteId,
+            orgUnitId: unitId,
+            code: 'FILL_2',
+            name: 'Линия 2',
+            type: 'FILLING',
+            isShared: false,
+          },
+          PLANNER,
+        )
+      ).id;
+      const foreignZone = (
+        await org.createZone(
+          {
+            siteId,
+            orgUnitId: otherUnitId,
+            code: 'PACK_1',
+            name: 'Упаковка',
+            type: 'PACKAGING',
+            isShared: false,
+          },
+          PLANNER,
+        )
+      ).id;
+      const v1 = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      const base = {
+        employeeId: ivanov,
+        templateId: dayId,
+        businessDate: day(1),
+        zoneId,
+        kind: 'REGULAR' as const,
+      };
+      const bad = (
+        segments: { zoneId: string; localStart: string; localEnd: string }[],
+        custom?: [string, string],
+      ) =>
+        schedule.putAssignments(
+          v1.id,
+          {
+            items: [
+              custom
+                ? { ...base, customStart: custom[0], customEnd: custom[1], segments }
+                : { ...base, segments },
+            ],
+          },
+          PLANNER,
+        );
+      await expect(bad([{ zoneId, localStart: '08:00', localEnd: '14:00' }])).rejects.toMatchObject(
+        { code: 'SEGMENT_GAP' },
+      );
+      await expect(
+        bad([
+          { zoneId, localStart: '08:00', localEnd: '15:00' },
+          { zoneId: secondZone, localStart: '14:00', localEnd: '20:00' },
+        ]),
+      ).rejects.toMatchObject({ code: 'SEGMENT_OVERLAP' });
+      await expect(bad([{ zoneId, localStart: '07:00', localEnd: '20:00' }])).rejects.toMatchObject(
+        { code: 'SEGMENT_BOUNDS' },
+      );
+      await expect(
+        bad([{ zoneId: foreignZone, localStart: '08:00', localEnd: '20:00' }]),
+      ).rejects.toMatchObject({ code: 'ZONE_MISMATCH' });
+
+      const saved = await schedule.putAssignments(
+        v1.id,
+        {
+          items: [
+            {
+              ...base,
+              customStart: '10:00',
+              customEnd: '22:00',
+              segments: [
+                { zoneId, localStart: '10:00', localEnd: '16:00' },
+                { zoneId: secondZone, localStart: '16:00', localEnd: '22:00' },
+              ],
+            },
+            {
+              employeeId: petrova,
+              templateId: nightId,
+              businessDate: day(1),
+              zoneId,
+              kind: 'REGULAR',
+              segments: [
+                { zoneId, localStart: '20:00', localEnd: '02:00' },
+                { zoneId: secondZone, localStart: '02:00', localEnd: '08:00' },
+              ],
+            },
+          ],
+        },
+        PLANNER,
+      );
+      const custom = saved.assignments.find((a) => a.employeeId === ivanov);
+      expect(custom).toMatchObject({ customStart: '10:00', customEnd: '22:00' });
+      // 10:00 Kyiv = 07:00Z in summer time, 08:00Z after the autumn change.
+      expect(['07:00', '08:00']).toContain(custom!.planStartAt.slice(11, 16));
+      expect(custom!.segments.map((s) => [s.position, s.zoneId, s.localStart, s.localEnd])).toEqual(
+        [
+          [0, zoneId, '10:00', '16:00'],
+          [1, secondZone, '16:00', '22:00'],
+        ],
+      );
+      const night = saved.assignments.find((a) => a.employeeId === petrova);
+      expect(night).toMatchObject({ customStart: null, customEnd: null });
+      expect(night!.segments).toHaveLength(2);
+
+      await schedule.submit(v1.id, PLANNER);
+      await schedule.publish(v1.id, {}, HEAD);
+      const reminder = (await timerJobs()).find(
+        (job) => job.jobId.startsWith('shift-reminder.') && job.jobId.includes(custom!.id),
+      );
+      expect(reminder?.fireAt.toISOString()).toBe(
+        new Date(new Date(custom!.planStartAt).getTime() - 120 * 60_000).toISOString(),
+      );
+
+      const revised = await schedule.revise(
+        v1.id,
+        {
+          items: [
+            {
+              ...base,
+              customStart: '10:00',
+              customEnd: '22:00',
+              segments: [
+                { zoneId, localStart: '10:00', localEnd: '16:00' },
+                { zoneId: secondZone, localStart: '16:00', localEnd: '22:00' },
+              ],
+            },
+            {
+              employeeId: petrova,
+              templateId: nightId,
+              businessDate: day(1),
+              zoneId,
+              kind: 'REGULAR',
+            },
+          ],
+        },
+        HEAD,
+      );
+      const copy = (await schedule.detail(revised.id)).assignments.find(
+        (a) => a.employeeId === ivanov,
+      );
+      expect(copy).toMatchObject({ customStart: '10:00', customEnd: '22:00' });
+      expect(copy!.segments).toHaveLength(2);
+
+      const v3 = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      const inherited = (await schedule.detail(v3.id)).assignments.find(
+        (a) => a.employeeId === ivanov,
+      );
+      expect(inherited).toMatchObject({ customStart: '10:00', customEnd: '22:00' });
+      expect(inherited!.segments.map((s) => s.zoneId)).toEqual([zoneId, secondZone]);
+    });
+  });
+
   describe('master authority (D-01, #8)', () => {
     async function commandsFor(
       ...grants: { role: string; scopeType: string; scopeId: string | null }[]

@@ -23,13 +23,13 @@ import {
   type Transaction,
   employeeQualifications,
   zoneStaffingRequirements,
+  assignmentSegments,
 } from '@vakhta/db';
 import {
   buildMonthPlan,
   diffSchedules,
   formatLocal,
   nextScheduleStatus,
-  planInstants,
   type PlannedShift,
   type ScheduleAction,
   canActOn,
@@ -40,6 +40,8 @@ import {
   type RoleGrant,
   qualifiedFor,
   evaluatePlan,
+  assignmentInstants,
+  resolveSegments,
 } from '@vakhta/domain';
 import type {
   AcknowledgementStatusView,
@@ -110,11 +112,13 @@ const IN_USE = (versionId: unknown) => sql<boolean>`(
 type VersionRow = typeof scheduleVersions.$inferSelect;
 type AssignmentRow = typeof shiftAssignments.$inferSelect;
 
+type SegmentRow = typeof assignmentSegments.$inferSelect;
 interface AssignmentWithTemplate {
   readonly a: AssignmentRow;
   readonly templateCode: string;
   readonly isNight: boolean;
   readonly acknowledgedAt: Date | null;
+  readonly segments: readonly SegmentRow[];
 }
 
 export interface NextShift {
@@ -333,21 +337,52 @@ export class ScheduleService {
           ),
         );
       if (rows.length > 0) {
-        await tx.insert(shiftAssignments).values(
-          rows.map((a) => ({
-            scheduleVersionId: row.id,
-            employeeId: a.employeeId,
-            templateId: a.templateId,
-            businessDate: a.businessDate,
-            planStartAt: a.planStartAt,
-            planEndAt: a.planEndAt,
-            positionId: a.positionId,
-            orgUnitId: a.orgUnitId,
-            teamId: a.teamId,
-            zoneId: a.zoneId,
-            kind: a.kind,
-          })),
-        );
+        const copies = await tx
+          .insert(shiftAssignments)
+          .values(
+            rows.map((a) => ({
+              scheduleVersionId: row.id,
+              employeeId: a.employeeId,
+              templateId: a.templateId,
+              businessDate: a.businessDate,
+              planStartAt: a.planStartAt,
+              planEndAt: a.planEndAt,
+              positionId: a.positionId,
+              orgUnitId: a.orgUnitId,
+              teamId: a.teamId,
+              zoneId: a.zoneId,
+              kind: a.kind,
+              customStart: a.customStart,
+              customEnd: a.customEnd,
+            })),
+          )
+          .returning({
+            id: shiftAssignments.id,
+            employeeId: shiftAssignments.employeeId,
+            businessDate: shiftAssignments.businessDate,
+          });
+        const sourceSegments = await tx
+          .select()
+          .from(assignmentSegments)
+          .where(
+            inArray(
+              assignmentSegments.assignmentId,
+              rows.map((a) => a.id),
+            ),
+          );
+        if (sourceSegments.length > 0) {
+          const byOld = new Map(rows.map((a) => [a.id, `${a.employeeId}:${a.businessDate}`]));
+          const byKey = new Map(copies.map((c) => [`${c.employeeId}:${c.businessDate}`, c.id]));
+          await tx.insert(assignmentSegments).values(
+            sourceSegments.map((segment) => ({
+              assignmentId: byKey.get(byOld.get(segment.assignmentId) ?? '') as string,
+              position: segment.position,
+              zoneId: segment.zoneId,
+              localStart: segment.localStart,
+              localEnd: segment.localEnd,
+            })),
+          );
+        }
         copied = rows.length;
       }
     }
@@ -598,7 +633,13 @@ export class ScheduleService {
       activeEmployees.filter((e) => e.status === 'ACTIVE').map((e) => e.id),
     );
 
-    const zoneIds = [...new Set(cmd.items.map((i) => i.zoneId).filter((z): z is string => !!z))];
+    const zoneIds = [
+      ...new Set(
+        cmd.items
+          .flatMap((i) => [i.zoneId, ...(i.segments ?? []).map((segment) => segment.zoneId)])
+          .filter((z): z is string => !!z),
+      ),
+    ];
     const zones = zoneIds.length
       ? await tx.select().from(responsibilityZones).where(inArray(responsibilityZones.id, zoneIds))
       : [];
@@ -682,7 +723,36 @@ export class ScheduleService {
         );
       seen.add(key);
 
-      const plan = planInstants(item.businessDate, template, site.timezone);
+      const plan = assignmentInstants(
+        {
+          businessDate: item.businessDate,
+          template,
+          customStart: item.customStart,
+          customEnd: item.customEnd,
+        },
+        site.timezone,
+      );
+      const segmentInputs = item.segments ?? [];
+      for (const segment of segmentInputs) {
+        const zone = zoneMap.get(segment.zoneId);
+        if (!zone || zone.orgUnitId !== version.orgUnitId)
+          throw new DomainError(
+            'ZONE_MISMATCH',
+            422,
+            `Segment zone ${segment.zoneId} does not belong to the unit`,
+          );
+      }
+      const resolved = resolveSegments(
+        { ...plan, businessDate: item.businessDate },
+        segmentInputs,
+        site.timezone,
+      );
+      if ('error' in resolved)
+        throw new DomainError(
+          resolved.error,
+          422,
+          `Segment ${resolved.position + 1} of ${item.employeeId} on ${item.businessDate} does not tile the shift`,
+        );
       return {
         scheduleVersionId: version.id,
         employeeId: item.employeeId,
@@ -695,6 +765,9 @@ export class ScheduleService {
         teamId: item.teamId ?? null,
         zoneId: item.zoneId ?? null,
         kind: item.kind,
+        customStart: item.customStart ?? null,
+        customEnd: item.customEnd ?? null,
+        segments: resolved.segments,
       };
     });
 
@@ -738,7 +811,27 @@ export class ScheduleService {
         );
     }
     await tx.delete(shiftAssignments).where(eq(shiftAssignments.scheduleVersionId, version.id));
-    if (values.length > 0) await tx.insert(shiftAssignments).values(values);
+    if (values.length > 0) {
+      const inserted = await tx
+        .insert(shiftAssignments)
+        .values(values.map(({ segments: _segments, ...value }) => value))
+        .returning({
+          id: shiftAssignments.id,
+          employeeId: shiftAssignments.employeeId,
+          businessDate: shiftAssignments.businessDate,
+        });
+      const ids = new Map(inserted.map((row) => [`${row.employeeId}:${row.businessDate}`, row.id]));
+      const segmentRows = values.flatMap((value) =>
+        value.segments.map((segment) => ({
+          assignmentId: ids.get(`${value.employeeId}:${value.businessDate}`) as string,
+          position: segment.position,
+          zoneId: segment.zoneId,
+          localStart: segment.localStart,
+          localEnd: segment.localEnd,
+        })),
+      );
+      if (segmentRows.length > 0) await tx.insert(assignmentSegments).values(segmentRows);
+    }
     await tx
       .update(scheduleVersions)
       .set({ updatedAt: new Date() })
@@ -1516,7 +1609,24 @@ export class ScheduleService {
       )
       .where(eq(shiftAssignments.scheduleVersionId, versionId))
       .orderBy(asc(shiftAssignments.employeeId), asc(shiftAssignments.planStartAt));
-    return rows;
+    if (rows.length === 0) return [];
+    const segments = await tx
+      .select()
+      .from(assignmentSegments)
+      .where(
+        inArray(
+          assignmentSegments.assignmentId,
+          rows.map((row) => row.a.id),
+        ),
+      )
+      .orderBy(asc(assignmentSegments.assignmentId), asc(assignmentSegments.position));
+    const byAssignment = new Map<string, SegmentRow[]>();
+    for (const segment of segments) {
+      const list = byAssignment.get(segment.assignmentId) ?? [];
+      list.push(segment);
+      byAssignment.set(segment.assignmentId, list);
+    }
+    return rows.map((row) => ({ ...row, segments: byAssignment.get(row.a.id) ?? [] }));
   }
 
   /** Контекст валідації: опубліковані зміни тих самих працівників поза цією версією і її ключем. */
@@ -1589,6 +1699,15 @@ export class ScheduleService {
       kind: x.a.kind,
       status: x.a.status,
       acknowledgedAt: x.acknowledgedAt?.toISOString() ?? null,
+      customStart: x.a.customStart,
+      customEnd: x.a.customEnd,
+      segments: x.segments.map((segment) => ({
+        id: segment.id,
+        position: segment.position,
+        zoneId: segment.zoneId,
+        localStart: segment.localStart,
+        localEnd: segment.localEnd,
+      })),
     };
   }
 }

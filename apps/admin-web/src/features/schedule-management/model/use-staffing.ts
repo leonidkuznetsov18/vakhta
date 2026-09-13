@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { coverage, planInstants, zoneHasRequirement, type CoverageCell } from '@vakhta/domain';
+import {
+  assignmentInstants,
+  coverage,
+  planInstants,
+  zoneHasRequirement,
+  type CoverageCell,
+} from '@vakhta/domain';
 import type {
   CreateQualificationCommand,
   RecordAvailabilityCommand,
@@ -121,13 +127,14 @@ export function staffingCoverage(input: {
   const assignments = gridToItems(input.grid)
     .filter((item) => input.dates.includes(item.businessDate))
     .map((item) => {
-      const plan = interval(item.zoneId ?? '', item.templateId, item.businessDate);
+      const template = templates.get(item.templateId);
+      const plan = template ? assignmentInstants({ ...item, template }, input.timezone) : null;
       return {
         employeeId: item.employeeId,
         businessDate: item.businessDate,
         templateId: item.templateId,
         zoneId: item.zoneId,
-        ...(plan ? { startMs: plan.startMs, endMs: plan.endMs } : {}),
+        ...(plan ? { startMs: plan.planStartAt.getTime(), endMs: plan.planEndAt.getTime() } : {}),
       };
     });
   return {

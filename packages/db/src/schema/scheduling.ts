@@ -115,6 +115,9 @@ export const shiftAssignments = pgTable(
     kind: shiftKind('kind').notNull().default('REGULAR'),
     status: assignmentStatus('status').notNull().default('PLANNED'),
     replacesAssignmentId: uuid('replaces_assignment_id'),
+    /** Custom local start/end ('HH:MM') that replaced the template times; null means template. */
+    customStart: text('custom_start'),
+    customEnd: text('custom_end'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -296,4 +299,29 @@ export const schedulePatterns = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex('schedule_patterns_site_name_uq').on(t.siteId, t.name)],
+);
+
+/**
+ * Ordered zone segments of one assignment (SC-37, D-04): they tile the planned interval without
+ * gaps or overlaps; the parent assignment keeps identity, times and attendance links.
+ */
+export const assignmentSegments = pgTable(
+  'assignment_segments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    assignmentId: uuid('assignment_id')
+      .notNull()
+      .references(() => shiftAssignments.id, { onDelete: 'cascade' }),
+    position: integer('position').notNull(),
+    zoneId: uuid('zone_id')
+      .notNull()
+      .references(() => responsibilityZones.id),
+    localStart: text('local_start').notNull(),
+    localEnd: text('local_end').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('assignment_segments_position_uq').on(t.assignmentId, t.position),
+    check('assignment_segments_position_nonnegative', sql`${t.position} >= 0`),
+  ],
 );

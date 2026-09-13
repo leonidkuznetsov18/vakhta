@@ -980,3 +980,33 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   by position (a 31-day month onto a 30-day month drops the last source day).
 - Lean: Proceed. Repeating last week or last month becomes one reviewed action; small moves
   become one gesture with the same safeguards as the editor.
+
+## 2026-09-13 — Custom time and zone segments (#15, SC-32/SC-37, D-04)
+
+- Storage (migration `0044`): `shift_assignments.custom_start`/`custom_end` (local `HH:mm`, both or
+  neither) and `assignment_segments` (parent assignment, `position`, zone, local start/end, unique per
+  assignment/position, cascade with the assignment). One assignment per person and business date
+  stays the invariant; a segment is a part of that assignment, never a second assignment.
+- Domain `scheduling/segments.ts`: `assignmentInstants` derives the planned instants from the custom
+  time when present and from the template otherwise (template provenance is kept through
+  `template_id`; the stored instants keep the explicit end date and timezone); `resolveSegments`
+  places segment local times inside the planned interval (a start before the shift start belongs to
+  the next day) and rejects `SEGMENT_EMPTY`, `SEGMENT_BOUNDS`, `SEGMENT_OVERLAP` and `SEGMENT_GAP`.
+- API: `replaceAssignments` plans custom instants, validates segment zones against the unit and the
+  tiling, and writes segments with the assignment; new and revised versions copy custom fields and
+  segments; views expose `customStart`, `customEnd` and ordered `segments`. Reminders and
+  acknowledgement timers already run from the stored instants, so the custom start reaches them
+  without a consumer change; attendance keeps reading the assignment interval.
+- Panel: the editor discloses "Custom time" and "Zone segments" progressively (UX-07); segments are
+  checked locally with the same domain function and the server repeats the check. Cards show the
+  custom hours and each segment as a part; the details list the segments; coverage and eligibility
+  evaluate the custom interval; a changed time counts as a publication difference.
+- Verification: domain 3 tests; real-DB 1 case (bad tilings, foreign segment zone, custom instants,
+  reminder at custom start, copy on revise and on a new version); panel grid/calendar/workspace tests
+  (round trip, unpublished marker, editor with gap refusal); typecheck, ESLint, Prettier. Evidence:
+  `segments-week.png`, `segments-detail.png`, `segments-editor.png`, `segments-detail-mobile.png`,
+  `segments-editor-mobile.png`.
+- Limits: no split/link gestures on the card itself; the editor's segment list is the split/link
+  preview. Breaks and relief remain #16.
+- Lean: Proceed. Exceptional hours and a zone change mid-shift are recorded in one assignment with
+  the same validation and publication path, instead of second assignments or notes.

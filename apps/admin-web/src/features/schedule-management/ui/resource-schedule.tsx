@@ -220,6 +220,13 @@ export function ResourceSchedule({
                   )}
                   <p className="text-sm">{selectedView?.time}</p>
                   <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.description}</p>
+                  {selectedView?.parts && selectedView.parts.length > 0 && (
+                    <ul className="space-y-0.5 text-sm" aria-label={t.segments}>
+                      {selectedView.parts.map((part) => (
+                        <li key={part.id}>{part.label}</li>
+                      ))}
+                    </ul>
+                  )}
                   <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.status}</p>
                   <p className="text-sm">{acknowledgement}</p>
                   {reasonsFor(w.issues.reasons, selectedItem.employeeId, selectedItem.businessDate)

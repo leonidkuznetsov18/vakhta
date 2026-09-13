@@ -101,9 +101,9 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US3 | **Dependencies**: D-04/#10/#12 | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T034 [US3] Specify parent/segment identities, break/gap semantics and additive stable-history migration in scheduling contracts/schema; inventory dependent attendance/reminder/report consumers (#15).
-- [ ] T035 [US3] Implement whole/part preview, stored custom intervals/provenance and compatible consumer behavior in scheduling, domain, schedule-management and affected worker/attendance files (#15).
-- [ ] T036 [US3] Test midnight/DST, parent/hidden segment duration, stable historical assignment links, custom reminder/admission/closure and old-writer compatibility using DB/worker/UI tests (#15).
+- [x] T034 [US3] Specify parent/segment identities, break/gap semantics and additive stable-history migration in scheduling contracts/schema; inventory dependent attendance/reminder/report consumers (#15).
+- [x] T035 [US3] Implement whole/part preview, stored custom intervals/provenance and compatible consumer behavior in scheduling, domain, schedule-management and affected worker/attendance files (#15).
+- [x] T036 [US3] Test midnight/DST, parent/hidden segment duration, stable historical assignment links, custom reminder/admission/closure and old-writer compatibility using DB/worker/UI tests (#15).
 
 ## Phase 13: Workload and relief — #16
 
