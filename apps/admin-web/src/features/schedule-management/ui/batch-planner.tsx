@@ -19,7 +19,7 @@ import { QueryFeedback } from '@/components/app/query-feedback';
 import { Paginator, usePages } from '@/components/app/data-table';
 import { TableSearch } from '@/shared/ui/table-search';
 import type { Workspace } from '../model/use-workspace';
-import { batchPreview, type BatchInput } from '../model/planning';
+import { batchPreview, zoneAllowed, type BatchInput } from '../model/planning';
 import { ROTATION_PATTERNS } from '../model/grid';
 import { AssignmentChanges } from './assignment-changes';
 const t = messages(currentLocale()).scheduleWorkspace;
@@ -58,7 +58,9 @@ export function BatchPlanner({
     w.employeeResult.loaded &&
     input.employeeIds.every((id) => active.some((employee) => employee.id === id));
   const result =
-    validPeople && w.zones.some((zone) => zone.id === input.zoneId && zone.isActive)
+    validPeople &&
+    w.zones.some((zone) => zone.id === input.zoneId && zone.isActive) &&
+    zoneAllowed(w.rights.zones, input.zoneId)
       ? batchPreview(w.grid, input, w.month, w.templates)
       : null;
   function update(next: Partial<BatchInput>) {
@@ -147,7 +149,7 @@ export function BatchPlanner({
                   value={input.zoneId}
                   onChange={(value) => update({ zoneId: value })}
                   options={w.zones
-                    .filter((zone) => zone.isActive)
+                    .filter((zone) => zone.isActive && zoneAllowed(w.rights.zones, zone.id))
                     .map((zone) => ({ value: zone.id, label: zone.name }))}
                 />
                 <div className="grid grid-cols-2 gap-3">

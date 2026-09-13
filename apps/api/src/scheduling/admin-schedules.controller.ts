@@ -37,7 +37,13 @@ import {
   type ShiftTemplateView,
   type RemindResult,
 } from '@vakhta/contracts';
-import { canActOn, type ScopeTarget, type WebRole } from '@vakhta/domain';
+import {
+  canActOn,
+  SCHEDULE_APPROVE_ROLES,
+  SCHEDULE_EDIT_ROLES,
+  type ScopeTarget,
+  type WebRole,
+} from '@vakhta/domain';
 import { z } from 'zod';
 import {
   CurrentUser,
@@ -62,8 +68,10 @@ const ALL_PANEL_ROLES: WebRole[] = [
   'ACCOUNTANT',
   'AUDITOR',
 ];
-const EDITORS: WebRole[] = ['ADMIN', 'PLANNER'];
-const APPROVERS: WebRole[] = ['ADMIN', 'PRODUCTION_HEAD'];
+const EDITORS: WebRole[] = [...SCHEDULE_EDIT_ROLES];
+const APPROVERS: WebRole[] = [...SCHEDULE_APPROVE_ROLES];
+/** Reminder actions stay with unit-wide planning and approval roles. */
+const REMINDERS: WebRole[] = ['ADMIN', 'PLANNER', 'PRODUCTION_HEAD'];
 
 const SiteQuery = z.object({ siteId: z.uuid() });
 
@@ -124,11 +132,11 @@ export class AdminSchedulesController {
   @Post()
   @HttpCode(201)
   @Roles(...EDITORS)
-  create(
+  async create(
     @Body(new ZodValidationPipe(CreateScheduleVersionCommand)) body: CreateScheduleVersionCommand,
     @CurrentUser() user: WebUser,
   ): Promise<ScheduleVersionView> {
-    assertScope(user, EDITORS, { siteId: body.siteId, orgUnitId: body.orgUnitId });
+    await this.schedules.editorScope(user.grants, body, 'CREATE');
     return this.schedules.createVersion(body, webUserActor(user));
   }
 
@@ -183,10 +191,7 @@ export class AdminSchedulesController {
     @CurrentUser() user: WebUser,
   ): Promise<void> {
     const detail = await this.schedules.detail(id);
-    assertScope(user, EDITORS, {
-      siteId: detail.version.siteId,
-      orgUnitId: detail.version.orgUnitId,
-    });
+    await this.schedules.editorScope(user.grants, detail.version, 'DELETE');
     await this.schedules.deleteVersion(id, webUserActor(user), body.expectedRevision);
   }
 
@@ -199,8 +204,14 @@ export class AdminSchedulesController {
     @CurrentUser() user: WebUser,
   ): Promise<ScheduleVersionDetail> {
     const version = await this.schedules.requireVersion(id);
-    assertScope(user, EDITORS, { siteId: version.siteId, orgUnitId: version.orgUnitId });
-    return this.schedules.putAssignments(id, body, webUserActor(user), body.expectedRevision);
+    const restriction = await this.schedules.editorScope(user.grants, version, 'SAVE');
+    return this.schedules.putAssignments(
+      id,
+      body,
+      webUserActor(user),
+      body.expectedRevision,
+      restriction,
+    );
   }
 
   @Post(':id/submit')
@@ -212,7 +223,7 @@ export class AdminSchedulesController {
     @CurrentUser() user: WebUser,
   ): Promise<ScheduleVersionView> {
     const version = await this.schedules.requireVersion(id);
-    assertScope(user, EDITORS, { siteId: version.siteId, orgUnitId: version.orgUnitId });
+    await this.schedules.editorScope(user.grants, version, 'SUBMIT');
     return this.schedules.submit(id, webUserActor(user), body.expectedRevision);
   }
 
@@ -259,13 +270,13 @@ export class AdminSchedulesController {
   }
 
   @Post(':id/remind')
-  @Roles(...EDITORS, ...APPROVERS)
+  @Roles(...REMINDERS)
   async remind(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: WebUser,
   ): Promise<RemindResult> {
     const detail = await this.schedules.detail(id);
-    assertScope(user, [...EDITORS, ...APPROVERS], {
+    assertScope(user, REMINDERS, {
       siteId: detail.version.siteId,
       orgUnitId: detail.version.orgUnitId,
     });

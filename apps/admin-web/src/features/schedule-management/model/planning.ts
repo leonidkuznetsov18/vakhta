@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { canActOn, monthDates, planInstants, type RoleGrant } from '@vakhta/domain';
+import {
+  canActOn,
+  monthDates,
+  planInstants,
+  scheduleZoneScope,
+  SCHEDULE_APPROVE_ROLES,
+  type RoleGrant,
+} from '@vakhta/domain';
 import type {
   AssignmentInput,
   AssignmentView,
@@ -64,12 +71,30 @@ export function workingVersion(
       : ['PUBLISHED', 'IN_REVIEW', 'DRAFT'];
   return order.map(by).find((v) => v !== undefined) ?? versions[0] ?? null;
 }
-export function capabilities(grants: readonly RoleGrant[], siteId: string, orgUnitId: string) {
+/**
+ * Planning authority of the signed-in account for one unit (D-01). `zones` is null for unit-wide
+ * editors and the allowed zone set for a zone-scoped master; an empty set means read only.
+ */
+export function capabilities(
+  grants: readonly RoleGrant[],
+  siteId: string,
+  orgUnitId: string,
+  unitZoneIds: readonly string[] = [],
+) {
   const scope = { siteId, orgUnitId };
+  const zones = scheduleZoneScope(grants, scope, unitZoneIds);
   return {
-    edit: canActOn(grants, ['ADMIN', 'PLANNER'], scope),
-    publish: canActOn(grants, ['ADMIN', 'PRODUCTION_HEAD'], scope),
+    edit: zones === null || zones.size > 0,
+    publish: canActOn(grants, SCHEDULE_APPROVE_ROLES, scope),
+    zones,
   };
+}
+/** Whether an assignment (or a new one in `zoneId`) may be changed under the zone scope. */
+export function zoneAllowed(
+  zones: ReadonlySet<string> | null,
+  zoneId: string | null | undefined,
+): boolean {
+  return zones === null || (!!zoneId && zones.has(zoneId));
 }
 export function summarize(
   items: readonly AssignmentInput[],

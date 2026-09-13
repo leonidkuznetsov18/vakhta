@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import {
   and,
   asc,
@@ -30,6 +30,12 @@ import {
   planInstants,
   type PlannedShift,
   type ScheduleAction,
+  canActOn,
+  scheduleZoneScope,
+  zoneScopeViolations,
+  SCHEDULE_APPROVE_ROLES,
+  SCHEDULE_EDIT_ROLES,
+  type RoleGrant,
 } from '@vakhta/domain';
 import type {
   AcknowledgementStatusView,
@@ -137,6 +143,7 @@ export class ScheduleService {
     tx: Transaction,
     command: ScheduleWebCommand,
     actor: Actor,
+    restriction: ReadonlySet<string> | null = null,
   ): Promise<ScheduleCommandResult> {
     const commandId = command.commandId;
     switch (command.action) {
@@ -156,6 +163,7 @@ export class ScheduleService {
             command.payload,
             actor,
             command.expectedRevision,
+            restriction,
           ),
         };
       case 'DELETE':
@@ -476,10 +484,49 @@ export class ScheduleService {
     cmd: PutAssignmentsCommand,
     actor: Actor,
     expectedRevision?: number,
+    restriction: ReadonlySet<string> | null = null,
   ): Promise<ScheduleVersionDetail> {
     return this.db.transaction((tx) =>
-      this.putAssignmentsWithin(tx, id, cmd, actor, expectedRevision),
+      this.putAssignmentsWithin(tx, id, cmd, actor, expectedRevision, restriction),
     );
+  }
+
+  /**
+   * Scheduling authority for one unit (D-01): returns `null` for unit-wide editors, the allowed
+   * zones for a zone-scoped master, and throws when the actor may not perform the action here.
+   * Zone-scoped masters prepare, save and submit only; approval actions need approver roles.
+   */
+  async editorScope(
+    grants: readonly RoleGrant[],
+    target: { siteId: string; orgUnitId: string },
+    action: ScheduleWebCommand['action'],
+    tx: DbOrTx = this.db,
+  ): Promise<ReadonlySet<string> | null> {
+    const scope = { siteId: target.siteId, orgUnitId: target.orgUnitId };
+    if (action === 'RETURN' || action === 'PUBLISH' || action === 'REVISE') {
+      if (!canActOn(grants, SCHEDULE_APPROVE_ROLES, scope))
+        throw new ForbiddenException('Schedule approval is outside the current role scope');
+      return null;
+    }
+    if (canActOn(grants, SCHEDULE_EDIT_ROLES, scope)) {
+      const unitWide = scheduleZoneScope(grants, scope, []);
+      if (unitWide === null) return null;
+    }
+    const unitZones = await tx
+      .select({ id: responsibilityZones.id })
+      .from(responsibilityZones)
+      .where(eq(responsibilityZones.orgUnitId, target.orgUnitId));
+    const zones = scheduleZoneScope(
+      grants,
+      scope,
+      unitZones.map((zone) => zone.id),
+    );
+    if (zones === null) return null;
+    if (zones.size === 0)
+      throw new ForbiddenException('Schedule command is outside the current role scope');
+    if (action !== 'CREATE' && action !== 'SAVE' && action !== 'SUBMIT')
+      throw new ForbiddenException('A zone-scoped master may only prepare, save and submit');
+    return zones;
   }
 
   private async putAssignmentsWithin(
@@ -488,6 +535,7 @@ export class ScheduleService {
     cmd: PutAssignmentsCommand,
     actor: Actor,
     expectedRevision?: number,
+    restriction: ReadonlySet<string> | null = null,
   ): Promise<ScheduleVersionDetail> {
     const version = await this.lockVersion(id, tx, expectedRevision);
     if (version.status !== 'DRAFT') {
@@ -496,6 +544,18 @@ export class ScheduleService {
         409,
         'Редагувати можна лише чернетку; створіть нову версію',
       );
+    }
+    if (restriction) {
+      const current = (await this.loadAssignments(version.id, tx))
+        .filter((x) => x.a.status === 'PLANNED')
+        .map((x) => x.a);
+      const violations = zoneScopeViolations(current, cmd.items, restriction);
+      if (violations.length > 0)
+        throw new DomainError(
+          'SCHEDULE_ZONE_SCOPE',
+          403,
+          `Assignments outside the actor's zones: ${violations.slice(0, 5).join(', ')}`,
+        );
     }
     const count = await this.replaceAssignments(tx, version, cmd, actor);
     const assignments = await this.loadAssignments(version.id, tx);

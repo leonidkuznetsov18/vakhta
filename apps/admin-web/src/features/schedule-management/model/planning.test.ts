@@ -143,7 +143,7 @@ describe('zone planning', () => {
       ),
     ).toEqual({ assignments: 2, workers: 1, day: 1, night: 1, minutes: 1440 });
   });
-  it('requires a matching role and unit scope rather than merging unrelated grants', () => {
+  it('derives planning authority per unit, including zone-scoped masters', () => {
     expect(
       capabilities(
         [
@@ -153,14 +153,29 @@ describe('zone planning', () => {
         employeeId,
         zoneId,
       ),
-    ).toEqual({ edit: false, publish: false });
+    ).toEqual({ edit: true, publish: false, zones: null });
     expect(
       capabilities(
         [{ role: 'PRODUCTION_HEAD', scopeType: 'ORG_UNIT', scopeId: zoneId }],
         employeeId,
         zoneId,
       ),
-    ).toEqual({ edit: false, publish: true });
+    ).toEqual({ edit: false, publish: true, zones: new Set() });
+    expect(
+      capabilities(
+        [{ role: 'SHIFT_MASTER', scopeType: 'ZONE', scopeId: otherZone }],
+        employeeId,
+        zoneId,
+        [otherZone],
+      ),
+    ).toEqual({ edit: true, publish: false, zones: new Set([otherZone]) });
+    expect(
+      capabilities(
+        [{ role: 'PLANNER', scopeType: 'ORG_UNIT', scopeId: otherZone }],
+        employeeId,
+        zoneId,
+      ),
+    ).toEqual({ edit: false, publish: false, zones: new Set() });
   });
 });
 

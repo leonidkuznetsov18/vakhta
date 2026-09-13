@@ -72,7 +72,12 @@ export function useWorkspace() {
   const commandScope = scheduleCommandScope(actorId, siteId, orgUnitId, month);
   const commandQueue = useScheduleCommands();
   const pendingCommand = commandQueue.pending[commandScope];
-  const rights = capabilities(grants, siteId, orgUnitId);
+  const rights = capabilities(
+    grants,
+    siteId,
+    orgUnitId,
+    zones.map((zone) => zone.id),
+  );
   const [publishedView, setPublishedView] = useState<{ scope: string; value: boolean } | null>(
     null,
   );

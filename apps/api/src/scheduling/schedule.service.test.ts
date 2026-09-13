@@ -19,7 +19,7 @@ import {
   ScheduleCommandResult,
   type ScheduleVersionView,
 } from '@vakhta/contracts';
-import type { WebUser } from '../auth/web-auth.guard.js';
+import { webUserActor, type WebUser } from '../auth/web-auth.guard.js';
 import { RolesService } from '../auth/roles.service.js';
 import { ScheduleCommandService } from './schedule-command.service.js';
 import { backgroundTasks } from '@vakhta/db';
@@ -1377,6 +1377,239 @@ describe('scheduling: версії, валідація, публікація, о
     });
     expect((await schedule.detail(version.id)).version.status).toBe('IN_REVIEW');
   });
+  describe('master authority (D-01, #8)', () => {
+    async function commandsFor(
+      ...grants: { role: string; scopeType: string; scopeId: string | null }[]
+    ) {
+      const userId = randomUUID();
+      await testDb.db
+        .insert(authUser)
+        .values({ id: userId, name: 'Master', email: `${userId}@example.test` });
+      for (const grant of grants)
+        await testDb.db.insert(webUserRoles).values({
+          userId,
+          role: grant.role as 'ADMIN',
+          scopeType: grant.scopeType as 'ORG_UNIT',
+          scopeId: grant.scopeId,
+        });
+      const user: WebUser = {
+        id: userId,
+        name: 'Master',
+        email: `${userId}@example.test`,
+        twoFactorEnabled: true,
+        grants: [],
+      };
+      const roles = new RolesService(testDb.db, new EventStore(), new AuditLog());
+      return { user, commands: new ScheduleCommandService(testDb.db, schedule, roles) };
+    }
+    function created(result: ScheduleCommandResult): ScheduleVersionView {
+      if (result.kind !== 'VERSION') throw new Error('Expected a version result');
+      return result.version;
+    }
+    const item = (
+      employeeId: string,
+      businessDate: string,
+      zoneId: string,
+      templateId?: string,
+    ) => ({
+      employeeId,
+      businessDate,
+      templateId: templateId ?? dayId,
+      zoneId,
+      kind: 'REGULAR' as const,
+    });
+
+    it('lets a unit master prepare, save and submit but not publish, and denies another unit', async () => {
+      const { user, commands } = await commandsFor({
+        role: 'SHIFT_MASTER',
+        scopeType: 'ORG_UNIT',
+        scopeId: unitId,
+      });
+      const draft = created(
+        await commands.execute(
+          {
+            commandId: randomUUID(),
+            action: 'CREATE',
+            payload: { siteId, orgUnitId: unitId, periodMonth: MONTH },
+          },
+          user,
+        ),
+      );
+      const saved = await commands.execute(
+        {
+          commandId: randomUUID(),
+          action: 'SAVE',
+          versionId: draft.id,
+          expectedRevision: draft.revision,
+          payload: { items: [item(ivanov, day(3), zoneId)] },
+        },
+        user,
+      );
+      if (saved.kind !== 'DETAIL') throw new Error('Expected detail');
+      const submitted = created(
+        await commands.execute(
+          {
+            commandId: randomUUID(),
+            action: 'SUBMIT',
+            versionId: draft.id,
+            expectedRevision: saved.detail.version.revision,
+          },
+          user,
+        ),
+      );
+      expect(submitted.status).toBe('IN_REVIEW');
+      await expect(
+        commands.execute(
+          {
+            commandId: randomUUID(),
+            action: 'PUBLISH',
+            versionId: draft.id,
+            expectedRevision: submitted.revision,
+            payload: {},
+          },
+          user,
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+      await expect(
+        commands.execute(
+          {
+            commandId: randomUUID(),
+            action: 'CREATE',
+            payload: { siteId, orgUnitId: otherUnitId, periodMonth: MONTH },
+          },
+          user,
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+      expect((await testDb.db.select().from(scheduleVersions)).map((v) => v.status)).toEqual([
+        'IN_REVIEW',
+      ]);
+    });
+
+    it('limits a zone master to changes inside the zone through commands and the direct save path', async () => {
+      const otherZone = (
+        await org.createZone(
+          {
+            siteId,
+            orgUnitId: unitId,
+            code: 'PACK_1',
+            name: 'Упаковка',
+            type: 'PACKAGING',
+            isShared: false,
+          },
+          PLANNER,
+        )
+      ).id;
+      const planner = await commandsFor({
+        role: 'PLANNER',
+        scopeType: 'ORG_UNIT',
+        scopeId: unitId,
+      });
+      const draft = created(
+        await planner.commands.execute(
+          {
+            commandId: randomUUID(),
+            action: 'CREATE',
+            payload: { siteId, orgUnitId: unitId, periodMonth: MONTH },
+          },
+          planner.user,
+        ),
+      );
+      const seeded = await planner.commands.execute(
+        {
+          commandId: randomUUID(),
+          action: 'SAVE',
+          versionId: draft.id,
+          expectedRevision: draft.revision,
+          payload: { items: [item(ivanov, day(3), zoneId), item(petrova, day(3), otherZone)] },
+        },
+        planner.user,
+      );
+      if (seeded.kind !== 'DETAIL') throw new Error('Expected detail');
+      let revision = seeded.detail.version.revision;
+      const { user, commands } = await commandsFor({
+        role: 'SHIFT_MASTER',
+        scopeType: 'ZONE',
+        scopeId: otherZone,
+      });
+      // A change inside the zone with the other zone's assignment untouched succeeds.
+      const ok = await commands.execute(
+        {
+          commandId: randomUUID(),
+          action: 'SAVE',
+          versionId: draft.id,
+          expectedRevision: revision,
+          payload: {
+            items: [
+              item(ivanov, day(3), zoneId),
+              item(petrova, day(3), otherZone, nightId),
+              item(ivanov, day(5), otherZone),
+            ],
+          },
+        },
+        user,
+      );
+      if (ok.kind !== 'DETAIL') throw new Error('Expected detail');
+      revision = ok.detail.version.revision;
+      expect(ok.detail.assignments).toHaveLength(3);
+      // Touching the other zone (removal, move or template change) is rejected without writes.
+      for (const items of [
+        [item(petrova, day(3), otherZone, nightId), item(ivanov, day(5), otherZone)],
+        [
+          item(ivanov, day(3), zoneId, nightId),
+          item(petrova, day(3), otherZone, nightId),
+          item(ivanov, day(5), otherZone),
+        ],
+        [
+          item(ivanov, day(3), otherZone),
+          item(petrova, day(3), otherZone, nightId),
+          item(ivanov, day(5), otherZone),
+        ],
+      ]) {
+        await expect(
+          commands.execute(
+            {
+              commandId: randomUUID(),
+              action: 'SAVE',
+              versionId: draft.id,
+              expectedRevision: revision,
+              payload: { items },
+            },
+            user,
+          ),
+        ).rejects.toMatchObject({ status: 403, code: 'SCHEDULE_ZONE_SCOPE' });
+      }
+      const grants = await new RolesService(testDb.db, new EventStore(), new AuditLog()).grantsOf(
+        user.id,
+      );
+      await expect(
+        schedule.editorScope(grants, { siteId, orgUnitId: unitId }, 'DELETE'),
+      ).rejects.toMatchObject({ status: 403 });
+      const restriction = await schedule.editorScope(grants, { siteId, orgUnitId: unitId }, 'SAVE');
+      expect(restriction).toEqual(new Set([otherZone]));
+      await expect(
+        schedule.putAssignments(
+          draft.id,
+          {
+            items: [
+              item(ivanov, day(3), otherZone),
+              item(petrova, day(3), otherZone, nightId),
+              item(ivanov, day(5), otherZone),
+            ],
+          },
+          webUserActor({ ...user, grants }),
+          revision,
+          restriction,
+        ),
+      ).rejects.toMatchObject({ status: 403, code: 'SCHEDULE_ZONE_SCOPE' });
+      const stored = await testDb.db
+        .select()
+        .from(shiftAssignments)
+        .where(eq(shiftAssignments.scheduleVersionId, draft.id));
+      expect(stored).toHaveLength(3);
+      expect((await schedule.requireVersion(draft.id)).revision).toBe(revision);
+    });
+  });
+
   describe('durable web commands', () => {
     async function webCommands() {
       const userId = randomUUID();

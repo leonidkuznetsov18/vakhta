@@ -53,9 +53,9 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US1 | **Dependencies**: D-01/#7 | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T016 [US1] Refine accepted actor/zone/action matrix in spec.md; implement commit-time grant/scope checks in apps/api/src/scheduling/ and packages/domain/src/access/ (#8).
-- [ ] T017 [US1] Enable only accepted scoped proposal/prepare/submit UI through schedule-management/model/ and approval owner (#8).
-- [ ] T018 [US1] Test direct API denied scopes, withdrawn grants, field privacy, publication and attendance boundaries in apps/api/src/scheduling/ tests (#8).
+- [x] T016 [US1] Actor/zone/action matrix (D-01) implemented as domain `scheduling/authority.ts` and commit-time `editorScope` checks in apps/api/src/scheduling/ (#8).
+- [x] T017 [US1] Enable only accepted scoped proposal/prepare/submit UI through schedule-management/model/ and approval owner (#8).
+- [x] T018 [US1] Test direct API and command denied scopes, zone-scope violations and publication boundary in apps/api/src/scheduling/ real-DB tests; grants are re-read inside the command transaction (#8).
 
 ## Phase 7: Cross-month periods — #10
 

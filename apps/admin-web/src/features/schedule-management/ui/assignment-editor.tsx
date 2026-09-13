@@ -11,6 +11,7 @@ import { QueryFeedback } from '@/components/app/query-feedback';
 import { Feedback } from '@/components/app/feedback';
 import type { Workspace } from '../model/use-workspace';
 import { assignmentKey, gridToItems, setAssignment, setCell } from '../model/grid';
+import { zoneAllowed } from '../model/planning';
 const t = messages(currentLocale()).scheduleWorkspace;
 const s = messages(currentLocale()).admin.schedule;
 export interface AssignmentContext {
@@ -54,7 +55,8 @@ export function AssignmentEditor({
       (employee) => employee.id === draft.employeeId && employee.status === 'ACTIVE',
     ) &&
     w.templates.some((template) => template.id === draft.templateId && template.isActive) &&
-    w.zones.some((zone) => zone.id === draft.zoneId && zone.isActive);
+    w.zones.some((zone) => zone.id === draft.zoneId && zone.isActive) &&
+    zoneAllowed(w.rights.zones, draft.zoneId);
   const unchanged =
     !!original &&
     original.businessDate === draft.businessDate &&
@@ -108,7 +110,7 @@ export function AssignmentEditor({
           value={draft.zoneId}
           onChange={(zoneId) => setDraft({ ...draft, zoneId })}
           options={w.zones
-            .filter((zone) => zone.isActive)
+            .filter((zone) => zone.isActive && zoneAllowed(w.rights.zones, zone.id))
             .map((zone) => ({ value: zone.id, label: zone.name }))}
         />
         <SelectField

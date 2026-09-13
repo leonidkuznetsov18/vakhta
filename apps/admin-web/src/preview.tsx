@@ -1,6 +1,11 @@
 import './preview/locale';
 import { CalendarPrototype } from './preview/calendar-prototype';
-import { scheduleFixture, extraScheduleZone } from './preview/schedule-fixtures';
+import {
+  scheduleFixture,
+  extraScheduleZone,
+  scheduleUnitId,
+  scheduleZoneId,
+} from './preview/schedule-fixtures';
 import { reviewFixture, reviewPhotos } from './preview/review-fixtures';
 import { restoreLegacyRoute } from '@/lib/route';
 import { StrictMode } from 'react';
@@ -26,12 +31,15 @@ const me: { [k: string]: unknown; image: string | null; roles: Record<string, un
   name: 'Леонид Кузнецов',
   twoFactorEnabled: new URLSearchParams(window.location.search).get('profile') !== 'setup',
   image: null,
+  // `?role=master` previews a unit master, `?role=zone-master` a master limited to one zone.
   roles: [
     {
       id: 'g1',
-      role: 'ADMIN',
-      scopeType: 'ENTERPRISE',
-      scopeId: null,
+      ...(new URLSearchParams(window.location.search).get('role') === 'master'
+        ? { role: 'SHIFT_MASTER', scopeType: 'ORG_UNIT', scopeId: scheduleUnitId }
+        : new URLSearchParams(window.location.search).get('role') === 'zone-master'
+          ? { role: 'SHIFT_MASTER', scopeType: 'ZONE', scopeId: scheduleZoneId }
+          : { role: 'ADMIN', scopeType: 'ENTERPRISE', scopeId: null }),
       grantedAt: '2026-09-01T00:00:00Z',
     },
   ],

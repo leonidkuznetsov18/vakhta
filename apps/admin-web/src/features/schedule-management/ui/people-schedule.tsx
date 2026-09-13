@@ -35,7 +35,7 @@ import {
   setCell,
   removeRow,
 } from '../model/grid';
-import { summarize } from '../model/planning';
+import { summarize, zoneAllowed } from '../model/planning';
 import { calendarModel } from '../model/calendar';
 import { employeeLabel } from './assignment-changes';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
@@ -94,7 +94,7 @@ export function PeopleSchedule({
     timezone: w.timezone,
   });
   const readOnlyDetails =
-    editor && !w.writable
+    editor && (!w.writable || locked(editor.employeeId, editor.businessDate))
       ? calendarModel({
           ...w,
           dates: [editor.businessDate],
@@ -111,6 +111,13 @@ export function PeopleSchedule({
           item.employeeId === employeeId && item.businessDate === date && item.zoneId !== zoneId,
       )
     );
+  }
+  /** A zone-scoped master reads other zones' assignments but cannot change them (D-01). */
+  function locked(employeeId: string, date: string) {
+    const item = allItems.find(
+      (value) => value.employeeId === employeeId && value.businessDate === date,
+    );
+    return !!item && !zoneAllowed(w.rights.zones, item.zoneId);
   }
   function open(
     employeeId: string,
@@ -162,7 +169,7 @@ export function PeopleSchedule({
     if (!w.writable) return;
     const row = visible[rowIndex];
     const date = days[dayIndex];
-    if (!row || !date || outsideZone(row.employeeId, date)) return;
+    if (!row || !date || outsideZone(row.employeeId, date) || locked(row.employeeId, date)) return;
     if (event.key === 'Delete' || event.key === 'Backspace') {
       event.preventDefault();
       w.edit(setCell(w.grid, row.employeeId, date, ''));
@@ -346,7 +353,7 @@ export function PeopleSchedule({
           else document.getElementById(instance)?.focus();
         }}
       >
-        {editor && w.writable ? (
+        {editor && w.writable && !locked(editor.employeeId, editor.businessDate) ? (
           <AssignmentEditor
             key={`${editor.employeeId}:${editor.businessDate}:${editor.templateId}`}
             workspace={w}

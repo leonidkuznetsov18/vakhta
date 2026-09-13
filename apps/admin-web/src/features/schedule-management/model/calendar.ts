@@ -13,7 +13,7 @@ import type {
   CalendarViewModel,
 } from '@/shared/ui/resource-calendar';
 import { assignmentKey, sameAssignment, gridToItems, type GridState } from './grid';
-import { UNASSIGNED_ZONE } from './planning';
+import { UNASSIGNED_ZONE, zoneAllowed } from './planning';
 
 export type CalendarGrouping = 'zones' | 'people';
 export interface CalendarInput {
@@ -33,6 +33,8 @@ export interface CalendarInput {
   readonly today?: string;
   /** Dates of another month are shown from that month's plan and cannot be edited here. */
   readonly editableMonth?: string;
+  /** Zone scope of the editor (D-01); null means every zone of the unit. */
+  readonly allowedZones?: ReadonlySet<string> | null;
 }
 
 /** Business dates are calendar values, never browser-local instants. */
@@ -133,7 +135,9 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
       : t.unknownTemplate;
     const live = published.get(assignmentKey(item));
     const unpublished = !live || !sameAssignment(live, item);
-    const foreign = !!input.editableMonth && !item.businessDate.startsWith(input.editableMonth);
+    const foreign =
+      (!!input.editableMonth && !item.businessDate.startsWith(input.editableMonth)) ||
+      !zoneAllowed(input.allowedZones ?? null, item.zoneId);
     const key = `${resourceId(item)}:${item.businessDate}`;
     const bucket = buckets.get(key) ?? [];
     const durationMinutes = plan
@@ -220,6 +224,9 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
                   id !== UNASSIGNED_ZONE &&
                   !zones.get(id)?.isActive
                     ? { disabledReason: t.inactive }
+                    : {}),
+                  ...(input.grouping === 'zones' && !zoneAllowed(input.allowedZones ?? null, id)
+                    ? { disabledReason: t.zoneScope }
                     : {}),
                   ...(input.grouping === 'people' &&
                   occupiedDays.has(assignmentKey({ employeeId: id, businessDate: date }))

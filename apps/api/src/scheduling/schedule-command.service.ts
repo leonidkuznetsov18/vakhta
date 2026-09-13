@@ -1,8 +1,7 @@
 import { createHash } from 'node:crypto';
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, idempotencyKeys, sql, type Database } from '@vakhta/db';
 import { ScheduleCommandResult, ScheduleWebCommand, Month } from '@vakhta/contracts';
-import { canActOn, type RoleGrant, type WebRole } from '@vakhta/domain';
 import { z } from 'zod';
 import { RolesService } from '../auth/roles.service.js';
 import { webUserActor, type WebUser } from '../auth/web-auth.guard.js';
@@ -48,18 +47,6 @@ function fingerprint(
     .digest('hex');
 }
 
-function authorize(
-  grants: readonly RoleGrant[],
-  command: ScheduleWebCommand,
-  target: z.infer<typeof Target>,
-): void {
-  const roles: WebRole[] = ['RETURN', 'PUBLISH', 'REVISE'].includes(command.action)
-    ? ['ADMIN', 'PRODUCTION_HEAD']
-    : ['ADMIN', 'PLANNER'];
-  if (!canActOn(grants, roles, target))
-    throw new ForbiddenException('Schedule command is outside the current role scope');
-}
-
 /** Web commands own one transaction; internal request workflows retain their own transaction. */
 @Injectable()
 export class ScheduleCommandService {
@@ -95,7 +82,7 @@ export class ScheduleCommandService {
           );
         }
         const grants = await this.roles.grantsOf(user.id, tx);
-        authorize(grants, command, receipt.target);
+        await this.schedules.editorScope(grants, receipt.target, command.action, tx);
         return receipt.result;
       }
       const target = Target.parse(
@@ -106,13 +93,18 @@ export class ScheduleCommandService {
       // Read after both command and version locks, without checking revision before authorization.
       // Grant revocation is not serialized with the eventual commit.
       const grants = await this.roles.grantsOf(user.id, tx);
-      authorize(grants, command, target);
+      const restriction = await this.schedules.editorScope(grants, target, command.action, tx);
       if (command.action === 'CREATE' && command.payload.basedOnVersionId) {
         const source = await this.schedules.requireVersion(command.payload.basedOnVersionId, tx);
-        authorize(grants, command, source);
+        await this.schedules.editorScope(grants, source, command.action, tx);
       }
       const result = ScheduleCommandResult.parse(
-        await this.schedules.applyCommandWithin(tx, command, webUserActor({ ...user, grants })),
+        await this.schedules.applyCommandWithin(
+          tx,
+          command,
+          webUserActor({ ...user, grants }),
+          restriction,
+        ),
       );
       const receipt = Receipt.parse({ schemaVersion: 1, actorId: user.id, target, result });
       await tx.insert(idempotencyKeys).values({

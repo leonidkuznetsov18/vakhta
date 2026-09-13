@@ -786,7 +786,7 @@ describe('schedule workspace', () => {
     await waitFor(() => expect(saves(calls)).toHaveLength(1));
   });
 
-  it('starts with the published zone overview and hides mutation controls for masters', async () => {
+  it('lets a unit master prepare and submit a draft but never publish', async () => {
     const calls = mockApi({ status: 'PUBLISHED', created: true });
     render(
       <NavigationProvider
@@ -798,6 +798,25 @@ describe('schedule workspace', () => {
         <SchedulePage />
       </NavigationProvider>,
     );
+    expect(await screen.findByText(t.draftState)).toBeTruthy();
+    expect(screen.getByRole('button', { name: t.add })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: s.submit })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: t.reviewPublish })).toBeNull();
+    expect(screen.queryByRole('button', { name: s.returnToDraft })).toBeNull();
+    expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  });
+  it('starts with the published zone overview and hides mutation controls for readers', async () => {
+    const calls = mockApi({ status: 'PUBLISHED', created: true });
+    render(
+      <NavigationProvider
+        actorId={ACTOR}
+        go={() => undefined}
+        roles={['HR']}
+        grants={[{ role: 'HR', scopeType: 'ENTERPRISE', scopeId: null }]}
+      >
+        <SchedulePage />
+      </NavigationProvider>,
+    );
     expect(await screen.findByText(t.publishedState)).toBeTruthy();
     expect(screen.getByRole('radio', { name: t.zones }).getAttribute('aria-checked')).toBe('true');
     expect(screen.queryByRole('button', { name: t.add })).toBeNull();
@@ -805,6 +824,36 @@ describe('schedule workspace', () => {
     expect(screen.queryByRole('button', { name: t.reviewPublish })).toBeNull();
     expect(screen.queryByRole('button', { name: /^${t.add}:/ })).toBeNull();
     expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  });
+  it('limits a zone master to creating and editing inside the granted zone', async () => {
+    const OTHER_ZONE = 'a0000000-0000-4000-8000-000000000004';
+    mockApi(
+      { status: 'DRAFT' },
+      {
+        ...org,
+        zones: [...org.zones, { ...org.zones[0]!, id: OTHER_ZONE, code: 'L2', name: 'Линия 2' }],
+      },
+    );
+    render(
+      <NavigationProvider
+        actorId={ACTOR}
+        go={() => undefined}
+        roles={['SHIFT_MASTER']}
+        grants={[{ role: 'SHIFT_MASTER', scopeType: 'ZONE', scopeId: OTHER_ZONE }]}
+      >
+        <SchedulePage />
+      </NavigationProvider>,
+    );
+    await screen.findByText(t.draftState);
+    while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+      fireEvent.click(screen.getByRole('button', { name: t.previous }));
+    }
+    expect(screen.queryByRole('button', { name: `${t.add}: Линия 1, 2026-09-06` })).toBeNull();
+    expect(screen.getByRole('button', { name: `${t.add}: Линия 2, 2026-09-06` })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 05/ }));
+    const sheet = await screen.findByRole('dialog');
+    expect(within(sheet).queryByRole('button', { name: t.editAssignment })).toBeNull();
+    expect(within(sheet).getByText(t.zoneScope)).toBeTruthy();
   });
   it('retains selected assignment context when changing grouping and opens the existing editor', async () => {
     mockApi({ status: 'DRAFT' });
@@ -884,8 +933,8 @@ describe('schedule workspace', () => {
       <NavigationProvider
         actorId={ACTOR}
         go={() => undefined}
-        roles={['SHIFT_MASTER']}
-        grants={[{ role: 'SHIFT_MASTER', scopeType: 'ORG_UNIT', scopeId: UNIT }]}
+        roles={['HR']}
+        grants={[{ role: 'HR', scopeType: 'ENTERPRISE', scopeId: null }]}
       >
         <SchedulePage />
       </NavigationProvider>,

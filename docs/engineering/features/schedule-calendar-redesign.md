@@ -861,3 +861,29 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   `crossmonth-next-month.png`.
 - Lean: Simplify. Planners read the full week without switching months; edits remain
   unambiguous about their month. No new worker step.
+
+## 2026-09-13 — Master authority (#8, SC-10, D-01)
+
+- Domain `scheduling/authority.ts` defines the editing and approval roles and `scheduleZoneScope`:
+  administrators, planners and masters whose grant covers the unit edit the whole unit; a master
+  with ZONE grants edits only those zones; anyone else is read only. `zoneScopeViolations` lists
+  every added, removed or changed assignment whose old or new zone is outside the scope, so a
+  full-month payload may keep other zones' assignments unchanged.
+- API: `ScheduleService.editorScope` resolves the scope inside the command transaction and for
+  the legacy create/save/submit/delete endpoints; zone-scoped masters may prepare, save and submit
+  only; approval actions require ADMIN/PRODUCTION_HEAD; SAVE rejects out-of-scope differences
+  with `SCHEDULE_ZONE_SCOPE` (403) before any write. Reminders stay with unit-wide roles.
+- Panel: `capabilities` returns the zone scope; other zones are read only in the calendar
+  (muted cards, disabled creation with "Outside your zones"), the editor and batch planner offer
+  only allowed zones, the month matrix ignores keyboard edits on locked cells, and a unit master
+  sees Add assignments and Send for approval but never Review and publish. Preview supports
+  `?role=master` and `?role=zone-master`.
+- Verification: domain authority 3 tests; real-DB scheduling 2 new cases (unit master prepares,
+  saves and submits, publish and another unit denied; zone master's in-zone save succeeds while
+  removal, template change and move of another zone's assignment are rejected through commands and
+  the direct save path with no write and unchanged revision); panel suites 93 tests including unit
+  master, reader and zone master journeys. API and panel typecheck, ESLint and Prettier clean.
+  Evidence: `master-unit-week.png`, `master-unit-draft.png`, `master-zone-week.png`,
+  `master-zone-locked.png`.
+- Lean: Proceed. A master plans the routine changes of their own zone without waiting for a
+  planner; publication and cross-zone decisions keep their current owners. No new worker step.

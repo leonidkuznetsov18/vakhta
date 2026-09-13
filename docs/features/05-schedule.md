@@ -30,6 +30,11 @@ Counts describe assigned people, not required staffing or attendance.
   Changes always belong to the month you have open.
 - Local drafts are owned by the signed-in account. A changed server plan blocks a stale overwrite
   and keeps local work available for reconciliation. Filters never narrow the complete monthly write.
+- **Who may plan:** administrators and planners plan the whole unit. A shift master whose access
+  covers the unit prepares, saves and sends the draft for approval; a master limited to a zone
+  changes only that zone's shifts and reads the rest. Publishing, returning and revising a
+  published month stay with administrators and production heads. The server enforces the same
+  rules for direct API use.
 - Inactive records retain their historical names; only active workers, zones and templates can
   receive new assignments. Server assignment validation remains authoritative; rest, monthly-hour
   limits and cross-unit overlap are not checked on this page.

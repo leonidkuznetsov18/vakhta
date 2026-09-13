@@ -9,7 +9,7 @@ import { Paginator, usePages } from '@/components/app/data-table';
 import { calendarModel, type CalendarGrouping } from '../model/calendar';
 import { assignmentKey, gridFromItems, gridToItems } from '../model/grid';
 import type { AdjacentPlan } from '../model/use-adjacent';
-import { UNASSIGNED_ZONE } from '../model/planning';
+import { UNASSIGNED_ZONE, zoneAllowed } from '../model/planning';
 import type { Workspace } from '../model/use-workspace';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
 import { employeeLabel } from './assignment-changes';
@@ -53,6 +53,7 @@ export function ResourceSchedule({
     locale: currentLocale(),
     today,
     editableMonth: w.month,
+    allowedZones: w.rights.zones,
   });
   const items = gridToItems(w.grid);
   const selectedItem = items.find((item) => assignmentKey(item) === picked?.itemId);
@@ -102,8 +103,9 @@ export function ResourceSchedule({
         grouping === 'zones' && value.resourceId !== UNASSIGNED_ZONE ? value.resourceId : zoneId,
     });
   }
+  const editable = !!selectedItem && w.writable && zoneAllowed(w.rights.zones, selectedItem.zoneId);
   function edit() {
-    if (!selectedItem || !w.writable) return;
+    if (!selectedItem || !editable) return;
     setEditor({ ...selectedItem, zoneId: selectedItem.zoneId ?? '' });
   }
   return (
@@ -147,7 +149,10 @@ export function ResourceSchedule({
                 <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.status}</p>
                 <p className="text-sm">{acknowledgement}</p>
                 <p className="text-sm text-muted-foreground">{t.presenceUnknown}</p>
-                {w.writable && <Button onClick={edit}>{t.editAssignment}</Button>}
+                {editable && <Button onClick={edit}>{t.editAssignment}</Button>}
+                {w.writable && !editable && (
+                  <p className="text-sm text-muted-foreground">{t.zoneScope}</p>
+                )}
               </>
             ) : (
               <>
