@@ -56,7 +56,7 @@ import { BonusPage } from './bonus/BonusPage.tsx';
 import { HandoverPage } from './handover/HandoverPage.tsx';
 import { IncidentsPage } from './incidents/IncidentsPage.tsx';
 import { OperationsPage } from './operations/OperationsPage.tsx';
-import { OverviewPage } from './overview/OverviewPage.tsx';
+import { OverviewPage } from '@/pages/overview';
 import { useAttention } from '@/features/overview';
 import { RequestsPage } from './requests/RequestsPage.tsx';
 import { ScheduleWorkspace as SchedulePage } from '@/features/schedule-management';

@@ -3,17 +3,17 @@ import { act, cleanup, fireEvent, renderHook, waitFor, screen } from '@testing-l
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import type * as ApiModule from '@/api';
-import type { MeView, OverviewSnapshot } from '@vakhta/contracts';
+import type { ActiveShiftView, MeView, OverviewSnapshot } from '@vakhta/contracts';
 import { render } from '@/test-utils';
 import { keys } from '@/lib/query';
-import { OverviewPage } from '@/overview/OverviewPage';
+import { OverviewPage } from '@/pages/overview';
 import { format, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { NavigationProvider } from '@/navigation';
+import { NavigationProvider, type SectionKey } from '@/navigation';
 import { writeRoute } from '@/lib/route';
 import { clearPersistentState, setUiState, uiState } from '@/lib/ui-store';
-import { useAttention } from './queries';
+import { useAttention } from '@/features/overview';
 
 const api = vi.hoisted(() => ({
   shifts: vi.fn(),
@@ -99,10 +99,10 @@ function snapshot(overrides: Partial<OverviewSnapshot> = {}): OverviewSnapshot {
   };
 }
 const SITE = 'a0000000-0000-4000-8000-000000000001';
-function page(user = me) {
+function page(user = me, go: (section: SectionKey) => void = (section) => writeRoute(section)) {
   return render(
     <TooltipProvider>
-      <NavigationProvider go={(section) => writeRoute(section)}>
+      <NavigationProvider go={go}>
         <OverviewPage me={user} />
       </NavigationProvider>
     </TooltipProvider>,
@@ -332,3 +332,65 @@ describe('overview query integration', () => {
     expect(screen.getByRole('button', { name: `2 ${c.items.notArrived}` })).toBeTruthy();
   });
 });
+
+it.each(['unit-a', null])(
+  'hands only the selected %s workers to Schedule before navigating',
+  async (orgUnitId) => {
+    const person = {
+      id: 'shift-a',
+      employeeId: 'person-a',
+      fullName: 'Ada',
+      personnelNumber: '01',
+      orgUnitId,
+      orgUnitName: orgUnitId ? 'Production A' : null,
+      businessDate: '2026-09-30',
+      assignmentId: null,
+      state: 'WORKING',
+      endedAt: null,
+      startedAt: '2026-09-30T05:00:00Z',
+      stateSince: '2026-09-30T05:00:00Z',
+      zoneName: null,
+      zoneId: null,
+      stateMinutes: 0,
+    } satisfies Partial<ActiveShiftView>;
+    api.shifts.mockResolvedValue([
+      person,
+      {
+        ...person,
+        id: 'shift-other',
+        employeeId: 'other',
+        fullName: 'Other',
+        orgUnitId: 'unit-b',
+        orgUnitName: 'Production B',
+      },
+      {
+        ...person,
+        id: 'shift-c',
+        employeeId: 'person-c',
+        fullName: 'Cora',
+        businessDate: '2026-10-01',
+      },
+    ]);
+    setUiState({ 'schedule.orgUnitId': 'remembered-unit' });
+    const navigate = vi.fn((section: SectionKey) => {
+      expect(uiState('schedule.preset')).toEqual({
+        actorId: me.id,
+        orgUnitId,
+        month: '2026-09',
+        people: [
+          { id: 'person-a', name: 'Ada' },
+          { id: 'person-c', name: 'Cora' },
+        ],
+      });
+      expect(uiState('schedule.month')).toBe('2026-09');
+      expect(uiState('schedule.orgUnitId')).toBe(orgUnitId ?? 'remembered-unit');
+      writeRoute(section);
+    });
+    page(me, navigate);
+    const label = format(c.unscheduledUnit, {
+      unit: orgUnitId ? 'Production A' : messages(currentLocale()).admin.overview.noUnit,
+    });
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(label) }));
+    expect(navigate).toHaveBeenCalledExactlyOnceWith('schedule');
+  },
+);

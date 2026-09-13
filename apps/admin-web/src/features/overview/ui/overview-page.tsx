@@ -7,11 +7,14 @@ import { useNow } from '@/lib/clock';
 import { useLiveUpdates } from '@/lib/live';
 import { writeRoute } from '@/lib/route';
 import { setUiState } from '@/lib/ui-store';
-import { writeSchedulePreset } from '@/features/schedule-management';
 import { useEmployees } from '@/lib/org';
 import { useNavigation, type SectionKey } from '@/navigation';
 import { attentionPermissions, useAttention } from '../model/queries';
-import { attentionFilters, type OverviewSelection } from '../model/destination';
+import {
+  attentionFilters,
+  type OverviewPlanningTarget,
+  type OverviewSelection,
+} from '../model/destination';
 import {
   buildActionQueue,
   composition,
@@ -47,7 +50,13 @@ const QUEUE_SECTION: Partial<Record<QueueItem['key'], SectionKey>> = {
  * going; setup debt stays apart. Lists feed the queue through shared caches, the server snapshot
  * feeds the facts, and live streams mark both stale.
  */
-export function OverviewPage({ me }: { readonly me: MeView }) {
+export function OverviewPage({
+  me,
+  onPlanPeople,
+}: {
+  readonly me: MeView;
+  readonly onPlanPeople: (target: OverviewPlanningTarget) => void;
+}) {
   const c = overviewText();
   const old = messages(currentLocale()).admin.overview;
   const now = useNow();
@@ -189,16 +198,7 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
     const people = attention.data.unscheduledPeople.filter(
       (p) => (p.orgUnitId ?? null) === group.orgUnitId,
     );
-    const first = people[0];
-    if (first) {
-      writeSchedulePreset({
-        actorId: me.id,
-        orgUnitId: group.orgUnitId,
-        month: first.businessDate.slice(0, 7),
-        people: people.map((p) => ({ id: p.employeeId, name: p.fullName })),
-      });
-    }
-    go('schedule');
+    onPlanPeople({ orgUnitId: group.orgUnitId, people });
   }
 
   // People facts of the schedule slice (sick leave, unfilled shifts, birthdays), one read per site.

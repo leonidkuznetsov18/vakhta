@@ -1,5 +1,42 @@
 # Backend and frontend simplification review
 
+## Implementation — Schedule availability and Overview composition
+
+Owner authorized continuation. Baseline: `2eed585` on `master`. Scope: two bounded section C items.
+Acceptance: preserve command eligibility and disabled-reason precedence, draft recovery and published
+view behavior; retain Overview's actor, selected unit, source-person order and first-person month,
+write the preset before navigation, and leave existing presets untouched when no person is selected.
+No query keys, command persistence, response ownership, mutations, UI markup/classes or text change.
+Design: pure availability functions within Schedule, with the hook retaining state and dispatch;
+Overview emits a planning intent and the page composition writes Schedule's existing preset through
+its public API. No domain-specific state moves to shared, and no new runtime dependency is needed.
+Verification: retained workspace/Overview integration tests, targeted
+availability/intent tests, panel typecheck/build, changed-file lint/format and independent review.
+Status: implemented and verified locally; delivery CI remains a separate gate.
+
+Evidence:
+
+- **85 panel tests passed**: 60 existing Schedule workspace cases, 14 Overview/page cases
+  (12 retained plus two handoff regressions), and 11 availability cases. Prior assertions are unchanged.
+- Availability tests cover overlapping disabled-reason precedence, planner draft creation,
+  legacy/recovery blocking, revision zero, action-specific retry rights, unsaved-change gates,
+  and return/removal availability when rule conflicts block publication/saving.
+- Overview tests verify selected-unit isolation (including unassigned people), actor identity,
+  first-person month, stable person order, null-unit retention and preset writes before navigation.
+  The empty-person no-write branch is retained and independently reviewed, not newly exercised.
+- Panel TypeScript compilation, Vite production build, changed-file ESLint and formatting passed.
+  The generated CSS retains the previous build's `index-D4NjsGg0.css` asset name. Existing nested-button
+  test and third-party/large-chunk build warnings remain; no markup/style correction was mixed in.
+- Independent read-only review found no actionable defects, including command scope/ownership,
+  lifecycle guards and FSD public boundaries. The integration test moved to the page layer so it
+  tests both features without introducing an upward import into the Overview feature.
+- No backend code, production employee actions, authenticated production QA, new screenshots or full
+  local suite were involved. Rendered markup/classes remain unchanged; test success is not production
+  journey verification.
+- Previous delivery `6b1f55d`: CI run `34777786868` completed successfully, including release,
+  API/worker image builds, Pages publication and the existing Telegram release announcement job.
+  This does not substitute for runtime QA or the new delivery's CI.
+
 ## Implementation — shared date and read-query rules
 
 Owner authorized continuation. Baseline: `1cdf0e3` on `master`. Scope: R3 and R5.

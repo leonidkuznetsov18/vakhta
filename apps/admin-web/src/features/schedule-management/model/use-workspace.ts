@@ -1,3 +1,4 @@
+import { allowedPlanActions, planAvailability } from './availability';
 import { useState } from 'react';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ScheduleWebCommand, ScheduleVersionDetail } from '@vakhta/contracts';
@@ -272,64 +273,39 @@ export function useWorkspace() {
     networkMode: 'always',
   });
   const busy = write.isPending;
-  const commandsBlocked = busy || !!pendingCommand || commandQueue.recoveryError;
-  const canRetryCommand =
-    !!actorId &&
-    !!pendingCommand &&
-    !busy &&
-    (['RETURN', 'PUBLISH', 'REVISE'].includes(pendingCommand.action)
-      ? rights.publish
-      : rights.edit);
+  const {
+    commandsBlocked,
+    canRetryCommand,
+    commandReady,
+    canStartDraft,
+    writable,
+    readonlyReason,
+    canCreateDraft,
+    canRestoreDraft,
+  } = planAvailability(
+    {
+      actorId,
+      version,
+      rights,
+      canEdit,
+      viewingPublished,
+      hasDraft,
+      stale,
+      legacy,
+      orgUnitId,
+      busy,
+      pendingCommand,
+      recoveryError: commandQueue.recoveryError,
+      versionsQuery,
+      detailQuery,
+    },
+    t,
+  );
   async function dispatch(command: ScheduleWebCommand) {
     if (!actorId || busy) return;
     const queued = await scheduleCommands.getState().enqueue(commandScope, command);
     if (queued && ownsResponse()) write.mutate(queued);
   }
-  const commandReady =
-    !!actorId &&
-    !!version &&
-    version.revision > 0 &&
-    !commandsBlocked &&
-    !stale &&
-    !legacy &&
-    !detailQuery.isError;
-  // A planner cannot revise a published month directly: the first edit starts a draft copy.
-  const canStartDraft =
-    !!actorId &&
-    !!version &&
-    version.status === 'PUBLISHED' &&
-    !viewingPublished &&
-    rights.edit &&
-    !rights.publish &&
-    versionsQuery.isSuccess &&
-    !hasDraft;
-  const writable = (canEdit || canStartDraft) && commandReady;
-  /** Why the plan cannot be edited right now, in the planner's words; null when writable. */
-  const readonlyReason: string | null = writable
-    ? null
-    : viewingPublished
-      ? t.viewingPublished
-      : !version
-        ? null
-        : stale
-          ? t.publishBlockedStale
-          : legacy
-            ? t.editBlockedLegacy
-            : detailQuery.isError
-              ? t.editBlockedRead
-              : busy || pendingCommand || commandQueue.recoveryError
-                ? t.publishBlockedBusy
-                : version.status === 'IN_REVIEW'
-                  ? t.editBlockedReview
-                  : version.status === 'PUBLISHED' && rights.edit && !rights.publish && hasDraft
-                    ? t.editBlockedDraftExists
-                    : !rights.edit && !rights.publish
-                      ? t.editBlockedRights
-                      : null;
-  const canCreateDraft =
-    !!actorId && !commandsBlocked && rights.edit && !!orgUnitId && versionsQuery.isSuccess;
-  const canRestoreDraft =
-    legacy && !!version && canEdit && !commandsBlocked && detailQuery.isSuccess;
   function createDraft() {
     if (!canCreateDraft) return;
     if (versions.some((value) => value.status === 'DRAFT')) return;
@@ -372,26 +348,16 @@ export function useWorkspace() {
     staffing: staffing.data,
     context: contextQuery.data,
   });
-  const allowed = {
-    save: writable && canEdit && version?.status === 'DRAFT' && changes > 0 && !issues.blocked,
-    revise:
-      writable && canEdit && version?.status === 'PUBLISHED' && changes > 0 && !issues.blocked,
-    publish:
-      commandReady &&
-      rights.publish &&
-      version?.status === 'IN_REVIEW' &&
-      changes === 0 &&
-      !issues.blocked,
-    submit:
-      commandReady &&
-      rights.edit &&
-      version?.status === 'DRAFT' &&
-      changes === 0 &&
-      items > 0 &&
-      !issues.blocked,
-    return: commandReady && rights.publish && version?.status === 'IN_REVIEW' && changes === 0,
-    remove: commandReady && rights.edit && !!version?.deletable && version.status === 'DRAFT',
-  };
+  const allowed = allowedPlanActions({
+    version,
+    rights,
+    canEdit,
+    writable,
+    commandReady,
+    changes,
+    items,
+    blocked: issues.blocked,
+  });
   function commit(action: WriteAction, reason = '', snapshot = grid) {
     if (!version || !commandReady || snapshot !== grid) return;
     if (action === 'return' && reason.trim().length < 3) return;

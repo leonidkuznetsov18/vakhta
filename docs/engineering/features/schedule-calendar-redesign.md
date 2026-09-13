@@ -1268,3 +1268,10 @@ Schedule and Overview share `holidayLabel` from i18n. The two absence reads shar
 selection predicate while retaining their distinct projections and latest wellbeing evidence.
 No workflow, authority, layout or text changed. Tests and limits are recorded once in the
 [cleanup delivery](../../audits/2026-09-13/code-simplification-review.md).
+
+## 2026-09-13 — Pure action availability
+
+`model/availability.ts` owns command eligibility and read-only reason precedence. `use-workspace`
+retains query/draft ownership, response fencing, command persistence and mutation dispatch. The same
+computed gates still feed controls and submission guards. No authority or lifecycle rule changed.
+Verification and limits: [cleanup delivery](../../audits/2026-09-13/code-simplification-review.md).

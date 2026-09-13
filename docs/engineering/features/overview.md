@@ -135,3 +135,11 @@ the participant acceptance check.
 - Not verified on the deployed panel with a live account in this session (preview fixtures only).
 - Follow-ups: migrate Reports/Bonus local tiles to `KpiTile`; narrow list-based queue cards by the
   selection when their views carry a place; SSE scope refresh after grant revocation.
+
+## 2026-09-13 — Page-owned planning handoff
+
+The Overview feature now emits an `OverviewPlanningTarget`; `pages/overview` composes it with
+Schedule's public preset writer and existing navigation. The actor, selected-unit cohort, source
+order and first-person month are unchanged; preset state is written before navigation. The legacy
+forwarding page was removed and its integration tests now belong to the page. No rendered content
+or workflow changed. Verification and limits: [cleanup delivery](../../audits/2026-09-13/code-simplification-review.md).

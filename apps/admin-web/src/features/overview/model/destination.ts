@@ -1,3 +1,4 @@
+import type { ActiveShiftView } from '@vakhta/contracts';
 import type { Attention } from './attention';
 
 export type AttentionKey = keyof Omit<
@@ -77,4 +78,10 @@ export function attentionFilters(
     case 'unscheduled':
       return {};
   }
+}
+
+/** People selected in Overview; the page decides how to enter the planning workflow. */
+export interface OverviewPlanningTarget {
+  readonly orgUnitId: string | null;
+  readonly people: readonly Pick<ActiveShiftView, 'employeeId' | 'fullName' | 'businessDate'>[];
 }
