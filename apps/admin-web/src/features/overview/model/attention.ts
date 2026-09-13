@@ -31,6 +31,12 @@ export interface Attention {
    * the day with it or the list it opens is empty.
    */
   readonly firstDate: Readonly<Partial<Record<keyof Attention, string>>>;
+  /** When the oldest counted record started waiting (spec 004 AC-009): its age orders the queue. */
+  readonly oldestAt: Readonly<Partial<Record<keyof Attention, string>>>;
+  /** The nearest deadline among the counted records, if the queue has one. */
+  readonly deadlineAt: Readonly<Partial<Record<keyof Attention, string>>>;
+  /** Open safety incidents: a safety reason escalates at once and is critical by itself. */
+  readonly safetyIncidents: number | null;
   readonly closedNoChecklist: number | null;
   readonly inDowntime: number | null;
   readonly openIncidents: number | null;
@@ -47,15 +53,22 @@ export interface Attention {
 export interface AttentionSources {
   readonly shifts: readonly ActiveShiftView[] | null;
   readonly incidents:
-    | readonly Pick<
+    | readonly (Pick<
         IncidentView,
         'id' | 'status' | 'acknowledgedAt' | 'resolvedAt' | 'slaBreached'
-      >[]
+      > &
+        Partial<
+          Pick<IncidentView, 'openedAt' | 'slaDueAt' | 'severity' | 'siteId' | 'orgUnitId'>
+        >)[]
     | null;
   readonly handovers:
-    readonly Pick<HandoverListItemView, 'id' | 'status' | 'submittedByName' | 'zoneName'>[] | null;
+    | readonly (Pick<HandoverListItemView, 'id' | 'status' | 'submittedByName' | 'zoneName'> &
+        Partial<Pick<HandoverListItemView, 'submittedAt' | 'acceptDeadlineAt'>>)[]
+    | null;
   readonly requests:
-    readonly Pick<RequestView, 'id' | 'status' | 'employeeName' | 'overdue'>[] | null;
+    | readonly (Pick<RequestView, 'id' | 'status' | 'employeeName' | 'overdue'> &
+        Partial<Pick<RequestView, 'submittedAt' | 'stepDeadlineAt'>>)[]
+    | null;
   readonly overtime:
     readonly Pick<OvertimeView, 'shiftSessionId' | 'employeeName' | 'status'>[] | null;
   readonly employees:
@@ -90,8 +103,33 @@ export function buildAttention(source: AttentionSources, refreshedAt: Date | nul
   const noChecklist = (shifts ?? []).filter(
     (s) => s.endedAt !== null && s.autoCloseReason === 'NO_CHECKLIST',
   );
+  const earliest = (values: readonly (string | null | undefined)[]): string | undefined =>
+    values
+      .filter((v): v is string => !!v)
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0];
+  const safety = (incidents ?? []).filter((i) => i.severity === 'SAFETY' && !i.resolvedAt);
+  const overdue = (requests ?? []).filter((r) => r.overdue);
   return {
+    oldestAt: {
+      slaBreached: earliest(unansweredBreaches.map((i) => i.openedAt)),
+      safetyIncidents: earliest(safety.map((i) => i.openedAt)),
+      openIncidents: earliest((incidents ?? []).map((i) => i.openedAt)),
+      pendingHandovers: earliest((handovers ?? []).map((h) => h.submittedAt)),
+      requestsForMe: earliest((requests ?? []).map((r) => r.submittedAt)),
+      overdueRequests: earliest(overdue.map((r) => r.submittedAt)),
+    },
+    deadlineAt: {
+      slaBreached: earliest(unansweredBreaches.map((i) => i.slaDueAt)),
+      openIncidents: earliest(
+        (incidents ?? []).filter((i) => !i.acknowledgedAt).map((i) => i.slaDueAt),
+      ),
+      pendingHandovers: earliest((handovers ?? []).map((h) => h.acceptDeadlineAt)),
+      overdueRequests: earliest(overdue.map((r) => r.stepDeadlineAt)),
+      requestsForMe: earliest((requests ?? []).map((r) => r.stepDeadlineAt)),
+    },
+    safetyIncidents: incidents ? safety.length : null,
     people: {
+      safetyIncidents: [],
       onShift: onShiftNow.map((s) => person(s.id, s.fullName, s.orgUnitName)),
       unscheduled: unscheduledPeople.map((s) => person(s.id, s.fullName, s.orgUnitName)),
       closedNoChecklist: noChecklist.map((s) => person(s.id, s.fullName, s.businessDate)),
@@ -119,6 +157,7 @@ export function buildAttention(source: AttentionSources, refreshedAt: Date | nul
       inDowntime: onShiftNow.find((s) => s.state === 'DOWNTIME')?.id,
       openIncidents: incidents?.[0]?.id,
       slaBreached: unansweredBreaches[0]?.id,
+      safetyIncidents: safety[0]?.id,
       pendingHandovers: handovers?.[0]?.id,
       requestsForMe: requests?.[0]?.id,
       overdueRequests: requests?.find((r) => r.overdue)?.id,

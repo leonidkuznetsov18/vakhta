@@ -13,17 +13,20 @@ export function useLiveUpdates(
   url: string,
   event: string,
   invalidate: readonly unknown[],
+  /** Further query keys the same event makes stale, so one stream serves several caches. */
+  also: readonly (readonly unknown[])[] = [],
 ): boolean {
   const client = useQueryClient();
   const [live, setLive] = useState(false);
-  const key = JSON.stringify(invalidate);
+  const key = JSON.stringify([invalidate, ...also]);
   useEffect(() => {
     if (typeof EventSource === 'undefined') return;
     const source = new EventSource(url, { withCredentials: true });
     source.onopen = () => setLive(true);
     source.onerror = () => setLive(false);
     source.addEventListener(event, () => {
-      void client.invalidateQueries({ queryKey: JSON.parse(key) as unknown[] });
+      for (const queryKey of JSON.parse(key) as unknown[][])
+        void client.invalidateQueries({ queryKey });
     });
     return () => source.close();
   }, [url, event, key, client]);

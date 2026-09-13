@@ -324,6 +324,26 @@ export const incidentsApi = {
   streamUrl: () => `${API_URL}/admin/incidents/stream`,
 };
 
+// ---- огляд: командний центр зміни (spec 004) ----
+
+import type {
+  OverviewEvent,
+  OverviewEventsQuery,
+  OverviewQuery,
+  OverviewSnapshot,
+} from '@vakhta/contracts';
+
+export const overviewApi = {
+  snapshot: (q: OverviewQuery) =>
+    apiFetch<OverviewSnapshot>(
+      `/admin/overview${query({ siteId: q.siteId, orgUnitId: q.orgUnitId })}`,
+    ),
+  events: (q: Partial<OverviewEventsQuery>) =>
+    apiFetch<OverviewEvent[]>(
+      `/admin/overview/events${query({ siteId: q.siteId, orgUnitId: q.orgUnitId, limit: q.limit?.toString() })}`,
+    ),
+};
+
 // ---- чистота і передача (ТЗ 9.1) ----
 
 import type {

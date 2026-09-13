@@ -1,5 +1,6 @@
 import { scheduleExportEn } from './schedule-export.js';
 import { scheduleWorkspaceEn } from './schedule-workspace.js';
+import { overviewCenterEn } from './overview.js';
 import { photoRulesEn } from './checklist-photo-rules.js';
 import { photoLibraryEn, libraryGuideEn } from './photo-library.js';
 import { inspectionGuideEn } from './photo-inspection-guide.js';
@@ -10,6 +11,7 @@ import type { Messages } from './messages.js';
 export const en: Messages = {
   scheduleExport: scheduleExportEn,
   scheduleWorkspace: scheduleWorkspaceEn,
+  overviewCenter: overviewCenterEn,
   checklistPhotoRules: photoRulesEn,
   photoLibrary: photoLibraryEn,
   photoInspection: inspectionEn,

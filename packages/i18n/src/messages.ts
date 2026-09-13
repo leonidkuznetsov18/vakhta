@@ -1,5 +1,6 @@
 import type { ScheduleExportMessages } from './schedule-export.js';
 import type { ScheduleWorkspaceMessages } from './schedule-workspace.js';
+import type { OverviewCenterMessages } from './overview.js';
 import type { ChecklistPhotoRulesMessages } from './checklist-photo-rules.js';
 import type { PhotoLibraryMessages } from './photo-library.js';
 import type { PhotoInspectionMessages } from './photo-inspection.js';
@@ -69,6 +70,7 @@ export interface Messages {
   checklistPhotoRules: ChecklistPhotoRulesMessages;
   scheduleExport: ScheduleExportMessages;
   scheduleWorkspace: ScheduleWorkspaceMessages;
+  overviewCenter: OverviewCenterMessages;
   photoLibrary: PhotoLibraryMessages;
   readonly language: {
     /** Button on the home screen that opens the language picker. */

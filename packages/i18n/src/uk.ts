@@ -1,5 +1,6 @@
 import { scheduleExportUk } from './schedule-export.js';
 import { scheduleWorkspaceUk } from './schedule-workspace.js';
+import { overviewCenterUk } from './overview.js';
 import { photoRulesUk } from './checklist-photo-rules.js';
 import { photoLibraryUk, libraryGuideUk } from './photo-library.js';
 import { inspectionGuideUk } from './photo-inspection-guide.js';
@@ -10,6 +11,7 @@ import type { Messages } from './messages.js';
 export const uk: Messages = {
   scheduleExport: scheduleExportUk,
   scheduleWorkspace: scheduleWorkspaceUk,
+  overviewCenter: overviewCenterUk,
   checklistPhotoRules: photoRulesUk,
   photoLibrary: photoLibraryUk,
   photoInspection: inspectionUk,

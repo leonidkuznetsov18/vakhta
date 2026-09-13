@@ -3,11 +3,11 @@ import { act, cleanup, fireEvent, renderHook, waitFor, screen } from '@testing-l
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import type * as ApiModule from '@/api';
-import type { MeView } from '@vakhta/contracts';
+import type { MeView, OverviewSnapshot } from '@vakhta/contracts';
 import { render } from '@/test-utils';
 import { keys } from '@/lib/query';
 import { OverviewPage } from '@/overview/OverviewPage';
-import { messages } from '@vakhta/i18n';
+import { format, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { NavigationProvider } from '@/navigation';
@@ -23,13 +23,16 @@ const api = vi.hoisted(() => ({
   overtime: vi.fn(),
   employees: vi.fn(),
   org: vi.fn(),
+  snapshot: vi.fn(),
+  events: vi.fn(),
 }));
 vi.mock('@/api', async (importOriginal) => ({
   ...(await importOriginal<typeof ApiModule>()),
-  shiftsApi: { list: api.shifts },
-  incidentsApi: { list: api.incidents },
-  handoversApi: { list: api.handovers },
-  requestsApi: { list: api.requests, overtime: api.overtime },
+  shiftsApi: { list: api.shifts, streamUrl: () => '/s' },
+  incidentsApi: { list: api.incidents, streamUrl: () => '/i' },
+  handoversApi: { list: api.handovers, streamUrl: () => '/h' },
+  requestsApi: { list: api.requests, overtime: api.overtime, streamUrl: () => '/r' },
+  overviewApi: { snapshot: api.snapshot, events: api.events },
   employeesApi: { list: api.employees },
   orgApi: { snapshot: api.org },
 }));
@@ -58,6 +61,53 @@ const pending = Array.from({ length: 6 }, (_, n) => ({
   acceptDeadlineAt: '2026-09-10T19:00:00Z',
   overdue: false,
 }));
+const c = messages(currentLocale()).overviewCenter;
+function snapshot(overrides: Partial<OverviewSnapshot> = {}): OverviewSnapshot {
+  return {
+    generatedAt: '2026-09-13T08:45:00.000Z',
+    lateGraceMinutes: 10,
+    downtimeEscalationMinutes: 15,
+    options: { sites: [{ id: SITE, name: 'Plant 1' }], orgUnits: [] },
+    selection: { siteId: null, orgUnitId: null },
+    contexts: [],
+    staffing: {
+      planned: 3,
+      present: 2,
+      notArrived: 0,
+      expected: 1,
+      unscheduled: 0,
+      notArrivedPeople: [],
+      unscheduledPeople: [],
+      oldestNotArrivedSince: null,
+      businessDate: '2026-09-13',
+    },
+    downtime: { zoneMinutes: 0, personMinutes: 0, incidents: 0, topReason: null, byZone: [] },
+    timeToAction: {
+      reported: 0,
+      acknowledged: 0,
+      medianMinutes: null,
+      slaMet: 0,
+      slaMissed: 0,
+      awaiting: 0,
+      awaitingBreached: 0,
+    },
+    handover: { clean: 0, decided: 0, disputed: 0, pending: 0 },
+    terminals: [],
+    zones: [],
+    setup: { unlinkedEmployees: 0, unpairedTerminals: 0 },
+    ...overrides,
+  };
+}
+const SITE = 'a0000000-0000-4000-8000-000000000001';
+function page(user = me) {
+  return render(
+    <TooltipProvider>
+      <NavigationProvider go={(section) => writeRoute(section)}>
+        <OverviewPage me={user} />
+      </NavigationProvider>
+    </TooltipProvider>,
+  );
+}
 function mount(user = me) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: Infinity } },
@@ -81,6 +131,8 @@ beforeEach(() => {
   ])
     fn.mockResolvedValue([]);
   api.org.mockResolvedValue({ terminals: [] });
+  api.snapshot.mockResolvedValue(snapshot());
+  api.events.mockResolvedValue([]);
 });
 afterEach(cleanup);
 
@@ -140,45 +192,110 @@ describe('overview query integration', () => {
     expect(result.current.data.refreshedAt).toBeNull();
     for (const fn of Object.values(api)) expect(fn).not.toHaveBeenCalled();
   });
-  it('does not render all-clear when a required queue failed', async () => {
+  it('does not render all-clear when a required queue failed (AC-011)', async () => {
     api.handovers.mockRejectedValue(new Error('Unavailable'));
-    render(<OverviewPage me={me} />);
-    await screen.findByRole('alert');
-    expect(screen.queryByText(messages(currentLocale()).admin.overview.allClear)).toBeNull();
+    page();
+    const alert = await screen.findByText(new RegExp(c.items.pendingHandovers));
+    expect(alert.closest('[role="alert"]')).not.toBeNull();
+    expect(screen.queryByText(c.allClear)).toBeNull();
   });
-  it('opens the pending checklist row and clears filters that could hide it', async () => {
+  it('opens the pending checklist row and clears filters that could hide it (AC-013)', async () => {
     api.handovers.mockResolvedValue(pending);
     setUiState({
       'handover.date': '2026-09-09',
       'handover.siteId': 'other',
       'search.handover': 'old',
     });
-    render(
-      <TooltipProvider>
-        <NavigationProvider go={(section) => writeRoute(section)}>
-          <OverviewPage me={me} />
-        </NavigationProvider>
-      </TooltipProvider>,
-    );
-    const label = messages(currentLocale()).admin.overview.overdueAcceptances;
-    fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^6 ${label}`) }));
+    page();
+    fireEvent.click(await screen.findByRole('button', { name: `6 ${c.items.pendingHandovers}` }));
     expect(location.hash).toBe('#/handover/report-0');
     expect(uiState('handover.scope')).toBe('pending');
     expect(uiState('handover.date')).toBe('');
     expect(uiState('handover.siteId')).toBe('');
     expect(uiState('search.handover')).toBe('');
   });
-  it('preserves the terminals tab when the app navigates to administration', async () => {
-    api.org.mockResolvedValue({ terminals: [{ id: 'terminal', status: 'ACTIVE', paired: false }] });
-    render(
-      <TooltipProvider>
-        <NavigationProvider go={(section) => writeRoute(section)}>
-          <OverviewPage me={me} />
-        </NavigationProvider>
-      </TooltipProvider>,
+  it('carries the selected site into the destination filters (AC-008)', async () => {
+    api.handovers.mockResolvedValue(pending);
+    setUiState({ 'overview.selection': { siteId: SITE, orgUnitId: null } });
+    page();
+    fireEvent.click(await screen.findByRole('button', { name: `6 ${c.items.pendingHandovers}` }));
+    expect(uiState('handover.siteId')).toBe(SITE);
+    expect(api.snapshot).toHaveBeenCalledWith({ siteId: SITE });
+  });
+  it('orders a critical offline terminal before checklists and keeps setup debt apart (AC-009, AC-020)', async () => {
+    api.handovers.mockResolvedValue(pending);
+    api.snapshot.mockResolvedValue(
+      snapshot({
+        terminals: [
+          {
+            id: 'a0000000-0000-4000-8000-0000000000aa',
+            siteId: SITE,
+            name: 'Gate 1',
+            connectivity: 'OFFLINE',
+            lastSeenAt: '2026-09-13T08:39:00.000Z',
+            critical: true,
+          },
+        ],
+        setup: { unlinkedEmployees: 93, unpairedTerminals: 1 },
+      }),
     );
-    const label = messages(currentLocale()).admin.overview.unpairedTerminals;
-    fireEvent.click(await screen.findByRole('button', { name: `1 ${label}` }));
+    page();
+    const terminal = await screen.findByRole('button', { name: `1 ${c.items.terminalsOffline}` });
+    const checklists = screen.getByRole('button', { name: `6 ${c.items.pendingHandovers}` });
+    expect(
+      terminal.compareDocumentPosition(checklists) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(terminal.textContent).toContain(c.tiers.critical);
+    expect(checklists.textContent).toContain(c.tiers.warning);
+    expect(screen.getByRole('button', { name: `93 ${c.unlinkedEmployees}` })).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: new RegExp(`^93 ${c.items.notArrived}`) }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: `1 ${c.unpairedTerminals}` }));
     expect(location.hash).toBe('#/administration/terminals');
+  });
+  it('shows retry instead of zero when the shift snapshot fails (AC-019)', async () => {
+    api.snapshot.mockRejectedValue(new Error('Unavailable'));
+    page();
+    expect((await screen.findAllByRole('button', { name: c.retry })).length).toBeGreaterThan(0);
+    expect(screen.queryByText(c.noPlan)).toBeNull();
+    expect(screen.queryByText(format(c.staffingValue, { present: 0, planned: 0 }))).toBeNull();
+  });
+  it('states staffing with its numerator, denominator and the people not recorded (AC-014)', async () => {
+    api.snapshot.mockResolvedValue(
+      snapshot({
+        staffing: {
+          planned: 43,
+          present: 40,
+          notArrived: 2,
+          expected: 1,
+          unscheduled: 1,
+          notArrivedPeople: [
+            {
+              employeeId: 'a0000000-0000-4000-8000-0000000000b1',
+              fullName: 'Boris',
+              planStartAt: '2026-09-13T05:00:00.000Z',
+              zoneName: 'Lathe 1',
+            },
+            {
+              employeeId: 'a0000000-0000-4000-8000-0000000000b2',
+              fullName: 'Olha',
+              planStartAt: '2026-09-13T05:00:00.000Z',
+              zoneName: null,
+            },
+          ],
+          unscheduledPeople: [],
+          oldestNotArrivedSince: '2026-09-13T05:00:00.000Z',
+          businessDate: '2026-09-13',
+        },
+      }),
+    );
+    page();
+    expect(
+      await screen.findByText(format(c.staffingValue, { present: 40, planned: 43 })),
+    ).toBeTruthy();
+    expect(screen.getByText(format(c.notArrivedCount, { count: 2 }))).toBeTruthy();
+    expect(screen.getByText(format(c.unscheduledCount, { count: 1 }))).toBeTruthy();
+    expect(screen.getByRole('button', { name: `2 ${c.items.notArrived}` })).toBeTruthy();
   });
 });

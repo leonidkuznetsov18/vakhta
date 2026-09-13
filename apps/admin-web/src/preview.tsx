@@ -7,6 +7,7 @@ import {
   scheduleZoneId,
 } from './preview/schedule-fixtures';
 import { reviewFixture, reviewPhotos } from './preview/review-fixtures';
+import { overviewPreview } from './preview/overview-fixtures';
 import { restoreLegacyRoute } from '@/lib/route';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -229,6 +230,12 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const method = init?.method ?? 'GET';
   const review = reviewFixture(path, method, new URL(String(input), location.origin).search);
   if (review) return review;
+  const overview = overviewPreview(
+    path,
+    location.search,
+    new URLSearchParams(location.search).has('role'),
+  );
+  if (overview) return overview;
   if (path === '/me') return json(me);
   if (path.includes('attention')) return json(attention);
   if (path === '/admin/org') return json(org);
