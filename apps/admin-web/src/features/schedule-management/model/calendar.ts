@@ -440,15 +440,31 @@ function dateEvents(
   date: string,
   employees: ReadonlyMap<string, { readonly fullName: string }>,
   t: Messages['scheduleWorkspace'],
-): { holiday?: string; events?: string[] } {
+): { holiday?: string; events?: string[]; tone?: 'holiday' | 'absence' | 'birthday' } {
   if (!events) return {};
+  const name = (id: string) => employees.get(id)?.fullName ?? t.unknownEmployee;
   const holiday = events.holidays.find((row) => row.date === date);
-  const names = events.birthdays
+  const absent = events.absences
+    .filter((row) => row.status === 'APPROVED' && row.from <= date && date <= row.to)
+    .map(
+      (row) =>
+        `${row.type === 'SICK' ? '🤒' : row.type === 'VACATION' ? '🏖️' : '🏠'} ${name(row.employeeId)}`,
+    );
+  const birthdays = events.birthdays
     .filter((row) => row.date === date)
-    .map((row) => `🎂 ${employees.get(row.employeeId)?.fullName ?? t.unknownEmployee}`);
+    .map((row) => `🎂 ${name(row.employeeId)}`);
+  const lines = [...absent, ...birthdays];
+  const tone = holiday
+    ? 'holiday'
+    : absent.length > 0
+      ? 'absence'
+      : birthdays.length > 0
+        ? 'birthday'
+        : undefined;
   return {
     ...(holiday ? { holiday: holidayName(holiday.code, t) } : {}),
-    ...(names.length > 0 ? { events: names } : {}),
+    ...(lines.length > 0 ? { events: lines } : {}),
+    ...(tone ? { tone } : {}),
   };
 }
 

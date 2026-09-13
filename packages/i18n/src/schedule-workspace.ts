@@ -291,6 +291,11 @@ export const scheduleWorkspaceEn = {
   attentionReplacements: 'Shifts without a person in the next 7 days: {count}',
   attentionNone: 'Nothing needs attention today',
   openSchedule: 'Open schedule',
+  editBlockedReview: 'The plan is awaiting approval: return it to draft to edit.',
+  editBlockedDraftExists: 'A draft of this month already exists: switch to it to edit.',
+  editBlockedRights: 'Your role cannot edit this schedule.',
+  editBlockedRead: 'The plan could not be read: retry before editing.',
+  editBlockedLegacy: 'An older local draft needs review before editing continues.',
   inForce: 'In force',
   staffing: 'Staffing requirements',
   staffingHint:
@@ -779,6 +784,11 @@ export const scheduleWorkspaceUk: ScheduleWorkspaceMessages = {
   attentionReplacements: 'Змін без людини на найближчі 7 днів: {count}',
   attentionNone: 'Сьогодні нічого не потребує уваги',
   openSchedule: 'Відкрити графік',
+  editBlockedReview: 'План на погодженні: поверніть його в чернетку, щоб редагувати.',
+  editBlockedDraftExists: 'Чернетка цього місяця вже існує: перейдіть до неї, щоб редагувати.',
+  editBlockedRights: 'Ваша роль не може редагувати цей графік.',
+  editBlockedRead: 'План не вдалося прочитати: повторіть спробу перед редагуванням.',
+  editBlockedLegacy: 'Стара локальна чернетка потребує перегляду, перш ніж редагувати далі.',
   inForce: 'Діє',
   staffing: 'Потреба в персоналі',
   staffingHint:
@@ -1269,6 +1279,13 @@ export const scheduleWorkspaceRu: ScheduleWorkspaceMessages = {
   attentionReplacements: 'Смен без человека на ближайшие 7 дней: {count}',
   attentionNone: 'Сегодня ничего не требует внимания',
   openSchedule: 'Открыть график',
+  editBlockedReview: 'План на согласовании: верните его в черновик, чтобы редактировать.',
+  editBlockedDraftExists:
+    'Черновик этого месяца уже существует: перейдите к нему, чтобы редактировать.',
+  editBlockedRights: 'Ваша роль не может редактировать этот график.',
+  editBlockedRead: 'План не удалось прочитать: повторите попытку перед редактированием.',
+  editBlockedLegacy:
+    'Старый локальный черновик требует просмотра, прежде чем редактировать дальше.',
   inForce: 'Действует',
   staffing: 'Потребность в персонале',
   staffingHint:

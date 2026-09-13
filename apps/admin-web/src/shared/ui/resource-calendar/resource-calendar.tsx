@@ -52,6 +52,8 @@ interface ResourceCalendarProps {
   readonly detail?: ReactNode;
   readonly onDate: (date: string) => void;
   readonly onSelect: (selection: CalendarSelection) => void;
+  /** Closing the details drops the selection, so the pressed card style never outlives the panel. */
+  readonly onClearSelection?: () => void;
   readonly onCreate: (selection: CalendarSelection) => void;
   /** Items matching the emphasis get a ring and the rest fade, so a count becomes visible places. */
   readonly emphasis?: CalendarEmphasis | null;
@@ -62,6 +64,22 @@ interface ResourceCalendarProps {
   ) => void;
 }
 export type CalendarEmphasis = 'unpublished' | 'WARN' | 'BLOCK';
+/** Translucent column tints by day event; the header text and icons carry the meaning. */
+const HEADER_TINT = {
+  holiday: 'bg-rose-500/15 dark:bg-rose-400/20',
+  absence: 'bg-red-500/12 dark:bg-red-400/20',
+  birthday: 'bg-violet-500/15 dark:bg-violet-400/20',
+} as const;
+const COLUMN_TINT = {
+  holiday: 'bg-rose-500/6 dark:bg-rose-400/10',
+  absence: 'bg-red-500/5 dark:bg-red-400/10',
+  birthday: 'bg-violet-500/6 dark:bg-violet-400/10',
+} as const;
+const EVENT_TEXT = {
+  holiday: 'text-rose-700 dark:text-rose-300',
+  absence: 'text-red-700 dark:text-red-300',
+  birthday: 'text-violet-700 dark:text-violet-300',
+} as const;
 function emphasized(item: CalendarItem, emphasis: CalendarEmphasis): boolean {
   if (emphasis === 'unpublished') return !!item.unpublished && !item.readonly;
   return item.issue === emphasis;
@@ -284,12 +302,18 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                   date.today &&
                     selectedDate !== date.id &&
                     'border-2 border-emerald-600 font-bold text-emerald-700 dark:border-emerald-500 dark:text-emerald-300',
+                  date.tone && selectedDate !== date.id && HEADER_TINT[date.tone],
                 )}
                 onClick={() => onDate(date.id)}
               >
                 <span>{date.shortLabel}</span>
                 {date.summary && <span className="text-[10px] opacity-80">{date.summary}</span>}
                 {date.holiday && <span className="text-[10px]">🎉</span>}
+                {date.events && date.events.length > 0 && (
+                  <span className="text-[10px]">
+                    {date.events.map((event) => event.slice(0, 2)).join('')}
+                  </span>
+                )}
               </Button>
             ))}
           </div>
@@ -302,7 +326,13 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                   <span className="mr-2 text-rose-700 dark:text-rose-300">🎉 {day.holiday}</span>
                 )}
                 {day.events?.map((event) => (
-                  <span key={event} className="mr-2 text-violet-700 dark:text-violet-300">
+                  <span
+                    key={event}
+                    className={cn(
+                      'mr-2',
+                      event.startsWith('🎂') ? EVENT_TEXT.birthday : EVENT_TEXT.absence,
+                    )}
+                  >
                     {event}
                   </span>
                 ))}
@@ -347,9 +377,9 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                     className={cn(
                       'w-34 whitespace-normal px-2 py-1.5 text-center align-top',
                       date.today &&
-                        'shadow-[inset_3px_0_0_var(--color-emerald-600),inset_-3px_0_0_var(--color-emerald-600),inset_0_3px_0_var(--color-emerald-600)] dark:shadow-[inset_3px_0_0_var(--color-emerald-500),inset_-3px_0_0_var(--color-emerald-500),inset_0_3px_0_var(--color-emerald-500)]',
+                        'bg-emerald-500/15 shadow-[inset_3px_0_0_var(--color-emerald-600),inset_-3px_0_0_var(--color-emerald-600),inset_0_3px_0_var(--color-emerald-600)] dark:bg-emerald-400/20 dark:shadow-[inset_3px_0_0_var(--color-emerald-500),inset_-3px_0_0_var(--color-emerald-500),inset_0_3px_0_var(--color-emerald-500)]',
                       date.readonly && 'bg-muted/40 text-muted-foreground',
-                      date.holiday && 'bg-rose-50/70 dark:bg-rose-950/40',
+                      date.tone && !date.today && HEADER_TINT[date.tone],
                       // The container clips at its rounded corners; give the corner cells the same
                       // radius so a solid header or frame follows the curve instead of being cut.
                       index === model.dates.length - 1 && 'rounded-tr-lg',
@@ -390,7 +420,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                         key={event}
                         className={cn(
                           'block text-[11px] font-normal [overflow-wrap:anywhere]',
-                          'text-violet-700 dark:text-violet-300',
+                          event.startsWith('🎂') ? EVENT_TEXT.birthday : EVENT_TEXT.absence,
                         )}
                       >
                         {event}
@@ -420,13 +450,16 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                       key={cell.date}
                       className={cn(
                         'whitespace-normal p-1.5 align-top',
+                        model.dates[index]?.tone &&
+                          !model.dates[index]?.today &&
+                          COLUMN_TINT[model.dates[index].tone],
                         rowIndex === rows.length - 1 &&
                           index === row.cells.length - 1 &&
                           'rounded-br-lg',
                         // Wall-calendar slider: a solid frame drawn with inset shadows, which
                         // neither the collapsed borders nor the rounded container can clip.
                         model.dates[index]?.today &&
-                          'shadow-[inset_3px_0_0_var(--color-emerald-600),inset_-3px_0_0_var(--color-emerald-600)] dark:shadow-[inset_3px_0_0_var(--color-emerald-500),inset_-3px_0_0_var(--color-emerald-500)]',
+                          'bg-emerald-500/8 shadow-[inset_3px_0_0_var(--color-emerald-600),inset_-3px_0_0_var(--color-emerald-600)] dark:bg-emerald-400/10 dark:shadow-[inset_3px_0_0_var(--color-emerald-500),inset_-3px_0_0_var(--color-emerald-500)]',
                         model.dates[index]?.today &&
                           rowIndex === rows.length - 1 &&
                           'shadow-[inset_3px_0_0_var(--color-emerald-600),inset_-3px_0_0_var(--color-emerald-600),inset_0_-3px_0_var(--color-emerald-600)] dark:shadow-[inset_3px_0_0_var(--color-emerald-500),inset_-3px_0_0_var(--color-emerald-500),inset_0_-3px_0_var(--color-emerald-500)]',
@@ -448,7 +481,10 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
         open={detailOpen && !!selectedCell && !!detail}
         title={selectedResource?.title ?? model.label}
         description={selectedCell?.label}
-        onClose={() => setDetailOpen(false)}
+        onClose={() => {
+          setDetailOpen(false);
+          props.onClearSelection?.();
+        }}
         onRestoreFocus={() => {
           if (focusOrigin?.trigger.isConnected) focusOrigin.trigger.focus();
           else if (focusOrigin?.calendar instanceof HTMLElement) focusOrigin.calendar.focus();

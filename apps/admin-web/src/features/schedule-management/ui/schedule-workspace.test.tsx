@@ -1041,7 +1041,12 @@ describe('schedule workspace', () => {
     expect(
       within(sheet).getByRole('button', { name: t.editAssignment }).hasAttribute('disabled'),
     ).toBe(true);
-    expect(within(sheet).getByText(t.zoneScope)).toBeTruthy();
+    // The reason for the disabled actions lives in the information tip next to them.
+    expect(
+      within(sheet)
+        .getByRole('group', { name: t.wholeAssignment })
+        .querySelector('[data-info-tip]'),
+    ).not.toBeNull();
   });
   it('retains selected assignment context when changing grouping and opens the existing editor', async () => {
     mockApi({ status: 'DRAFT' });
@@ -1063,9 +1068,11 @@ describe('schedule workspace', () => {
     );
     await waitFor(() => expect(document.activeElement).toBe(origin));
     fireEvent.click(screen.getByRole('radio', { name: t.people }));
+    // Closing the details drops the selection; the card is pressed only while the panel is open.
     const assignment = screen.getByRole('button', { name: /Линия 1, 05/ });
-    expect(assignment.getAttribute('aria-pressed')).toBe('true');
+    expect(assignment.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(assignment);
+    expect(assignment.getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('heading', { name: t.wholeAssignment })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: t.editAssignment }));
     expect(screen.getByRole('combobox', { name: s.employee }).hasAttribute('disabled')).toBe(true);

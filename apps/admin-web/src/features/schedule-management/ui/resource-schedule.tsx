@@ -265,6 +265,10 @@ export function ResourceSchedule({
         selectedDate={selectedDate}
         selection={selection}
         onSelect={select}
+        onClearSelection={() => {
+          setPicked(null);
+          setEditor(null);
+        }}
         onCreate={create}
         onDate={(date) => {
           onDate(date);
@@ -383,7 +387,11 @@ export function ResourceSchedule({
                     zoneId={selectedItem.zoneId ?? null}
                     employeeId={selectedItem.employeeId}
                   />
-                  <div className="flex flex-wrap gap-2" role="group" aria-label={t.wholeAssignment}>
+                  <div
+                    className="flex flex-wrap items-center gap-2"
+                    role="group"
+                    aria-label={t.wholeAssignment}
+                  >
                     <IconButton
                       icon={PencilIcon}
                       label={t.editAssignment}
@@ -422,10 +430,17 @@ export function ResourceSchedule({
                       disabled={!editable || !locallyChanged}
                       onClick={revertSelected}
                     />
+                    {!editable && (
+                      <InfoTip
+                        text={
+                          w.readonlyReason ??
+                          (selectedItem && !zoneAllowed(w.rights.zones, selectedItem.zoneId)
+                            ? t.zoneScope
+                            : t.editBlockedRights)
+                        }
+                      />
+                    )}
                   </div>
-                  {w.writable && !editable && (
-                    <p className="text-sm text-muted-foreground">{t.zoneScope}</p>
-                  )}
                 </>
               ) : (
                 <>

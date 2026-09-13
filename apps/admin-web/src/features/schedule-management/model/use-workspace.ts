@@ -304,6 +304,28 @@ export function useWorkspace() {
     versionsQuery.isSuccess &&
     !hasDraft;
   const writable = (canEdit || canStartDraft) && commandReady;
+  /** Why the plan cannot be edited right now, in the planner's words; null when writable. */
+  const readonlyReason: string | null = writable
+    ? null
+    : viewingPublished
+      ? t.viewingPublished
+      : !version
+        ? null
+        : stale
+          ? t.publishBlockedStale
+          : legacy
+            ? t.editBlockedLegacy
+            : detailQuery.isError
+              ? t.editBlockedRead
+              : busy || pendingCommand || commandQueue.recoveryError
+                ? t.publishBlockedBusy
+                : version.status === 'IN_REVIEW'
+                  ? t.editBlockedReview
+                  : version.status === 'PUBLISHED' && rights.edit && !rights.publish && hasDraft
+                    ? t.editBlockedDraftExists
+                    : !rights.edit && !rights.publish
+                      ? t.editBlockedRights
+                      : null;
   const canCreateDraft =
     !!actorId && !commandsBlocked && rights.edit && !!orgUnitId && versionsQuery.isSuccess;
   const canRestoreDraft =
@@ -505,6 +527,7 @@ export function useWorkspace() {
       if (pending && ownsResponse()) write.mutate(pending);
     },
     writable,
+    readonlyReason,
     canEdit,
     canStartDraft,
     commandReady,

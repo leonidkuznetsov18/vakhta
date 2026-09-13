@@ -54,8 +54,10 @@ export interface CalendarDate {
   readonly readonly?: boolean;
   /** A public holiday of the site region; the column is tinted and named. */
   readonly holiday?: string;
-  /** Short event lines under the date, for example birthdays. */
+  /** Short event lines under the date, for example birthdays or people absent that day. */
   readonly events?: readonly string[];
+  /** Column tint for the most important event of the day; text and icons carry the meaning. */
+  readonly tone?: 'holiday' | 'absence' | 'birthday';
 }
 export interface CalendarViewModel {
   readonly label: string;
