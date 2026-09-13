@@ -1,8 +1,12 @@
+import type { ReactNode } from 'react';
+import { CommunicationProvider } from '@/features/employee-communications';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { setUiState } from '@/lib/ui-store';
 import { OperationsPage } from './OperationsPage.tsx';
-import { clickRowAction, render } from '../test-utils.tsx';
+import { clickRowAction, render as renderBase } from '../test-utils.tsx';
+
+const render = (ui: ReactNode) => renderBase(<CommunicationProvider>{ui}</CommunicationProvider>);
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const UNIT = 'a0000000-0000-4000-8000-000000000002';

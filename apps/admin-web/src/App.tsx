@@ -2,7 +2,6 @@ import { QueryActivity } from '@/shared/ui/query-activity';
 import { PhotoLibraryPage } from '@/pages/photo-library';
 import { MobileNavigation, MobileNavigationClose } from '@/features/mobile-navigation';
 import { MutationActivity } from '@/components/app/query-feedback';
-import { useState } from 'react';
 import {
   ActivityIcon,
   AlertTriangleIcon,
@@ -17,7 +16,6 @@ import {
   MonitorIcon,
   MoonIcon,
   ScrollTextIcon,
-  SendIcon,
   SettingsIcon,
   SunIcon,
   type LucideIcon,
@@ -44,7 +42,11 @@ import { LoadingState } from '@/shared/ui/loading-state';
 import { InfoTip } from '@/components/app/info-tip';
 import { UserAvatar } from '@/components/app/avatar';
 import { LogoMark } from '@/components/app/logo';
-import { MessageEmployeeDialog } from '@/components/app/message-employee';
+import {
+  CommunicationProvider,
+  CommunicationWorkspace,
+  CommunicationLauncher,
+} from '@/features/employee-communications';
 import { LoginScreen } from './auth/LoginScreen.tsx';
 import { ProfilePanel } from './auth/ProfilePanel.tsx';
 import { AdminPage } from './admin/AdminPage.tsx';
@@ -142,8 +144,6 @@ const EMPTY_ME: MeView = {
 export function App() {
   const { state, refresh, signOut } = useSession();
   const badges = useBadges(state.status === 'authenticated' ? state.me : null);
-  /** The "write to an employee" dialog, reachable from every section. */
-  const [writing, setWriting] = useState(false);
   /**
    * The section on screen is the address bar, read rather than copied: a link, the back button and
    * a click in the sidebar all say the same thing, so none of them needs to be kept in step with
@@ -206,181 +206,185 @@ export function App() {
       roles={me.roles.map((g) => g.role)}
       grants={me.roles}
     >
-      <SidebarProvider>
-        <MobileNavigation>
-          <MessageEmployeeDialog open={writing} onOpenChange={setWriting} />
-          <Sidebar collapsible="icon">
-            <div
-              data-navigation-swipe=""
-              className="flex h-full min-h-0 flex-col max-md:touch-pan-y max-md:touch-pinch-zoom"
-            >
-              <SidebarHeader className="flex-row items-center">
-                <MobileNavigationClose />
-                {/* The mark is the way home: it opens the overview. Collapsed, it shrinks to the rail's 32 px. */}
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-base font-semibold hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
-                  aria-label={t.admin.sections.overview}
-                  onClick={() => setActive('overview')}
-                >
-                  <LogoMark className="size-9 group-data-[collapsible=icon]:size-8" />
-                  <span className="truncate group-data-[collapsible=icon]:hidden">
-                    {t.admin.productName}
-                  </span>
-                </button>
-              </SidebarHeader>
-              <SidebarContent>
-                <SidebarGroup>
-                  <SidebarGroupContent>
-                    {/* Above the sections and outside them: writing to somebody is not a place in the
+      <CommunicationProvider>
+        <SidebarProvider>
+          <MobileNavigation>
+            <CommunicationWorkspace />
+            <Sidebar collapsible="icon">
+              <div
+                data-navigation-swipe=""
+                className="flex h-full min-h-0 flex-col max-md:touch-pan-y max-md:touch-pinch-zoom"
+              >
+                <SidebarHeader className="flex-row items-center">
+                  <MobileNavigationClose />
+                  {/* The mark is the way home: it opens the overview. Collapsed, it shrinks to the rail's 32 px. */}
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-base font-semibold hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
+                    aria-label={t.admin.sections.overview}
+                    onClick={() => setActive('overview')}
+                  >
+                    <LogoMark className="size-9 group-data-[collapsible=icon]:size-8" />
+                    <span className="truncate group-data-[collapsible=icon]:hidden">
+                      {t.admin.productName}
+                    </span>
+                  </button>
+                </SidebarHeader>
+                <SidebarContent>
+                  <SidebarGroup>
+                    <SidebarGroupContent>
+                      {/* Above the sections and outside them: writing to somebody is not a place in the
                     panel, it is something done from wherever the reader already is. */}
-                    <SidebarMenu>
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          tooltip={t.admin.message.title}
-                          onClick={() => setWriting(true)}
-                        >
-                          <SendIcon aria-hidden="true" />
-                          <span>{t.admin.message.title}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    </SidebarMenu>
-                    <SidebarSeparator className="my-2" />
-                    <SidebarMenu aria-label={t.ui.common.menu}>
-                      {visibleSections.map(({ key, icon: Icon }) => (
-                        <SidebarMenuItem key={key}>
-                          <SidebarMenuButton
-                            isActive={key === active}
-                            tooltip={t.admin.sections[key]}
-                            aria-current={key === active ? 'page' : undefined}
-                            onClick={() => setActive(key)}
-                          >
-                            <Icon aria-hidden="true" />
-                            <span>{t.admin.sections[key]}</span>
-                          </SidebarMenuButton>
-                          {badges[key] ? (
-                            <SidebarMenuBadge className="tabular-nums">
-                              {badges[key]}
-                            </SidebarMenuBadge>
-                          ) : null}
+                      <SidebarMenu>
+                        <SidebarMenuItem>
+                          <CommunicationLauncher />
                         </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </SidebarGroup>
-              </SidebarContent>
-              <SidebarFooter>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      size="lg"
-                      className="h-16 gap-3 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!"
-                      isActive={active === 'profile'}
-                      tooltip={t.admin.auth.profile}
-                      onClick={() => setActive('profile')}
-                    >
-                      {/* The menu button forces 16px on every svg; the avatar opts out. Collapsed, only the avatar stays, filling the rail. */}
-                      <UserAvatar
-                        name={me.name}
-                        email={me.email}
-                        image={me.image}
-                        className="size-12! shrink-0 group-data-[collapsible=icon]:size-8!"
-                      />
-                      <span className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
-                        <span className="truncate text-base font-medium">
-                          {me.name || me.email}
-                        </span>
-                        {primaryRole ? (
-                          <span className="truncate text-xs text-muted-foreground">
-                            {t.roles[primaryRole]}
+                      </SidebarMenu>
+                      <SidebarSeparator className="my-2" />
+                      <SidebarMenu aria-label={t.ui.common.menu}>
+                        {visibleSections.map(({ key, icon: Icon }) => (
+                          <SidebarMenuItem key={key}>
+                            <SidebarMenuButton
+                              isActive={key === active}
+                              tooltip={t.admin.sections[key]}
+                              aria-current={key === active ? 'page' : undefined}
+                              onClick={() => setActive(key)}
+                            >
+                              <Icon aria-hidden="true" />
+                              <span>{t.admin.sections[key]}</span>
+                            </SidebarMenuButton>
+                            {badges[key] ? (
+                              <SidebarMenuBadge className="tabular-nums">
+                                {badges[key]}
+                              </SidebarMenuBadge>
+                            ) : null}
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
+                    </SidebarGroupContent>
+                  </SidebarGroup>
+                </SidebarContent>
+                <SidebarFooter>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        size="lg"
+                        className="h-16 gap-3 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!"
+                        isActive={active === 'profile'}
+                        tooltip={t.admin.auth.profile}
+                        onClick={() => setActive('profile')}
+                      >
+                        {/* The menu button forces 16px on every svg; the avatar opts out. Collapsed, only the avatar stays, filling the rail. */}
+                        <UserAvatar
+                          name={me.name}
+                          email={me.email}
+                          image={me.image}
+                          className="size-12! shrink-0 group-data-[collapsible=icon]:size-8!"
+                        />
+                        <span className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
+                          <span className="truncate text-base font-medium">
+                            {me.name || me.email}
                           </span>
-                        ) : null}
-                      </span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      tooltip={t.admin.auth.signOut}
-                      onClick={() => void signOut()}
-                    >
-                      <LogOutIcon aria-hidden="true" />
-                      <span>{t.admin.auth.signOut}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-                <SidebarSeparator />
-                <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden">
-                  <LanguageSwitcher className="flex-1" />
-                  <InfoTip text={t.ui.hints.language} />
-                </div>
-                <ThemeSwitcher />
-                {/* Collapsed rail: the current language and theme as single icons; a click cycles them. */}
-                <div className="hidden flex-col items-center gap-1 group-data-[collapsible=icon]:flex">
-                  <CompactLanguageSwitcher />
-                  <CompactThemeSwitcher />
-                </div>
-                {version ? (
-                  <div className="px-2 text-xs text-muted-foreground tabular-nums group-data-[collapsible=icon]:hidden">
-                    {t.ui.common.version} {version}
+                          {primaryRole ? (
+                            <span className="truncate text-xs text-muted-foreground">
+                              {t.roles[primaryRole]}
+                            </span>
+                          ) : null}
+                        </span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        tooltip={t.admin.auth.signOut}
+                        onClick={() => void signOut()}
+                      >
+                        <LogOutIcon aria-hidden="true" />
+                        <span>{t.admin.auth.signOut}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                  <SidebarSeparator />
+                  <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden">
+                    <LanguageSwitcher className="flex-1" />
+                    <InfoTip text={t.ui.hints.language} />
                   </div>
+                  <ThemeSwitcher />
+                  {/* Collapsed rail: the current language and theme as single icons; a click cycles them. */}
+                  <div className="hidden flex-col items-center gap-1 group-data-[collapsible=icon]:flex">
+                    <CompactLanguageSwitcher />
+                    <CompactThemeSwitcher />
+                  </div>
+                  {version ? (
+                    <div className="px-2 text-xs text-muted-foreground tabular-nums group-data-[collapsible=icon]:hidden">
+                      {t.ui.common.version} {version}
+                    </div>
+                  ) : null}
+                </SidebarFooter>
+              </div>
+            </Sidebar>
+            <SidebarInset>
+              {newBuild && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-amber-50 px-4 py-2 text-sm dark:bg-amber-950/40">
+                  <span>{t.ui.common.newBuild}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => location.reload()}
+                  >
+                    {t.ui.common.newBuildReload}
+                  </Button>
+                </div>
+              )}
+              <header
+                data-navigation-swipe=""
+                className="sticky top-0 z-20 flex min-h-14 touch-pan-y touch-pinch-zoom items-center gap-2 border-b bg-background px-3 py-2 md:static md:h-14 md:px-4 md:py-0"
+              >
+                <SidebarTrigger aria-label={t.ui.common.menu} />
+                <h1 className="min-w-0 text-lg font-semibold max-md:text-base max-md:leading-snug">
+                  {title}
+                </h1>
+                <div className="ml-auto flex shrink-0 items-center gap-2">
+                  <CommunicationLauncher compact />
+                  <QueryActivity />
+                  {active !== 'profile' && <FaqButton guide={active} />}
+                  <CommandPalette
+                    sections={visibleSections}
+                    onSection={(key) => setActive(key)}
+                    canSeeEmployees={me.roles.some((g) =>
+                      ['ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER'].includes(
+                        g.role,
+                      ),
+                    )}
+                    canAdminister={me.roles.some((g) => g.role === 'ADMIN')}
+                    onTarget={(target) => {
+                      if (target.openKey && target.openId) {
+                        setUiState({ [target.openKey]: target.openId });
+                      }
+                      writeRoute(target.section, target.sub);
+                      setActive(target.section);
+                    }}
+                    onEmployee={(emp) => {
+                      writeRoute('administration', `employees/${emp.id}`);
+                      setActive('administration');
+                    }}
+                  />
+                </div>
+              </header>
+              <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
+                <MutationActivity />
+                {active === 'profile' ? (
+                  <ProfilePanel me={me} onChanged={() => void refresh()} />
+                ) : active === 'overview' ? (
+                  <OverviewPage me={me} />
+                ) : Page ? (
+                  <Page />
                 ) : null}
-              </SidebarFooter>
-            </div>
-          </Sidebar>
-          <SidebarInset>
-            {newBuild && (
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-amber-50 px-4 py-2 text-sm dark:bg-amber-950/40">
-                <span>{t.ui.common.newBuild}</span>
-                <Button type="button" size="sm" variant="outline" onClick={() => location.reload()}>
-                  {t.ui.common.newBuildReload}
-                </Button>
               </div>
-            )}
-            <header
-              data-navigation-swipe=""
-              className="sticky top-0 z-20 flex min-h-14 touch-pan-y touch-pinch-zoom items-center gap-2 border-b bg-background px-3 py-2 md:static md:h-14 md:px-4 md:py-0"
-            >
-              <SidebarTrigger aria-label={t.ui.common.menu} />
-              <h1 className="min-w-0 text-lg font-semibold max-md:text-base max-md:leading-snug">
-                {title}
-              </h1>
-              <div className="ml-auto flex shrink-0 items-center gap-2">
-                <QueryActivity />
-                {active !== 'profile' && <FaqButton guide={active} />}
-                <CommandPalette
-                  sections={visibleSections}
-                  onSection={(key) => setActive(key)}
-                  canSeeEmployees={me.roles.some((g) =>
-                    ['ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER'].includes(g.role),
-                  )}
-                  canAdminister={me.roles.some((g) => g.role === 'ADMIN')}
-                  onTarget={(target) => {
-                    if (target.openKey && target.openId) {
-                      setUiState({ [target.openKey]: target.openId });
-                    }
-                    writeRoute(target.section, target.sub);
-                    setActive(target.section);
-                  }}
-                  onEmployee={(emp) => {
-                    writeRoute('administration', `employees/${emp.id}`);
-                    setActive('administration');
-                  }}
-                />
-              </div>
-            </header>
-            <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
-              <MutationActivity />
-              {active === 'profile' ? (
-                <ProfilePanel me={me} onChanged={() => void refresh()} />
-              ) : active === 'overview' ? (
-                <OverviewPage me={me} />
-              ) : Page ? (
-                <Page />
-              ) : null}
-            </div>
-          </SidebarInset>
-        </MobileNavigation>
-      </SidebarProvider>
+            </SidebarInset>
+          </MobileNavigation>
+        </SidebarProvider>
+      </CommunicationProvider>
     </NavigationProvider>
   );
 }

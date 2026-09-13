@@ -1,3 +1,4 @@
+import { communicationsEn } from './communications.js';
 import { employeeProfileEN } from './employee-profile.js';
 import { scheduleExportEn } from './schedule-export.js';
 import { scheduleWorkspaceEn } from './schedule-workspace.js';
@@ -10,6 +11,7 @@ import type { Messages } from './messages.js';
 
 /** English catalog. Same keys and placeholders as `ru`; verified by catalogs.test.ts. */
 export const en: Messages = {
+  communications: communicationsEn,
   employeeProfile: employeeProfileEN,
   scheduleExport: scheduleExportEn,
   scheduleWorkspace: scheduleWorkspaceEn,

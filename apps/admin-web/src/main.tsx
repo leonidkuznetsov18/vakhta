@@ -1,3 +1,5 @@
+import { loadQuestionnaireBridge, QuestionnaireResponse } from '@/features/questionnaire-response';
+import { Uuid } from '@vakhta/contracts';
 import { restoreLegacyRoute } from '@/lib/route';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -22,14 +24,32 @@ document.documentElement.lang = currentLocale();
 const root = document.getElementById('root');
 if (!root) throw new Error('#root element not found');
 
-restoreLegacyRoute();
-createRoot(root).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider delayDuration={200}>
-        <App />
-        <Toaster richColors position="bottom-right" closeButton />
-      </TooltipProvider>
-    </QueryClientProvider>
-  </StrictMode>,
-);
+const questionnaireParameter = new URLSearchParams(location.search).get('questionnaire');
+const questionnaireId = Uuid.safeParse(questionnaireParameter);
+async function bootstrap(root: HTMLElement) {
+  let questionnaireLaunch = '';
+  if (questionnaireId.success) {
+    try {
+      questionnaireLaunch = await loadQuestionnaireBridge();
+    } catch {
+      questionnaireLaunch = '';
+    }
+  } else {
+    restoreLegacyRoute();
+  }
+  createRoot(root).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={200}>
+          {questionnaireId.success ? (
+            <QuestionnaireResponse id={questionnaireId.data} launch={questionnaireLaunch} />
+          ) : (
+            <App />
+          )}
+          <Toaster richColors position="bottom-right" closeButton />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </StrictMode>,
+  );
+}
+void bootstrap(root);

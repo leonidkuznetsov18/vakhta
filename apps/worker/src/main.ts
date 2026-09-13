@@ -1,3 +1,8 @@
+import {
+  dispatchCommunication,
+  PrivateCommunicationFiles,
+  TelegramCommunicationTransport,
+} from './communications/dispatch.js';
 import { CloudflareInspectionAnalyzer } from './photo-inspection/gemma.js';
 import { InspectionTaskRunner } from './photo-inspection/runner.js';
 import { Queue, Worker, type Job } from 'bullmq';
@@ -48,11 +53,28 @@ const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
 /* ------------------------------------------------------------------ */
 
 const sender = env.TELEGRAM_BOT_TOKEN ? TelegramSender.fromToken(env.TELEGRAM_BOT_TOKEN) : null;
+const communicationTransport = env.TELEGRAM_BOT_TOKEN
+  ? TelegramCommunicationTransport.fromToken(env.TELEGRAM_BOT_TOKEN)
+  : null;
+const communicationFiles = PrivateCommunicationFiles.fromEnv(env);
+let communicationRun: Promise<unknown> | null = null;
 let relayBusy = false;
 let relayTimer: NodeJS.Timeout | null = null;
 
 if (sender) {
   relayTimer = setInterval(() => {
+    if (communicationTransport && !communicationRun) {
+      communicationRun = dispatchCommunication(
+        db,
+        communicationTransport,
+        communicationFiles,
+        env.COMMUNICATIONS_WEB_URL,
+      )
+        .catch(() => logger.error('Communication dispatch failed; durable state retained'))
+        .finally(() => {
+          communicationRun = null;
+        });
+    }
     if (relayBusy) return;
     relayBusy = true;
     relayOnce(db, sender, { batch: env.OUTBOX_BATCH, maxAttempts: env.OUTBOX_MAX_ATTEMPTS })
@@ -262,6 +284,7 @@ async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'зупинка worker');
   if (relayTimer) clearInterval(relayTimer);
   await Promise.all([
+    communicationRun,
     mediaRunner.stop(),
     timerRunner.stop(),
     inspectionRunner.stop(),

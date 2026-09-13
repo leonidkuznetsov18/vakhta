@@ -29,3 +29,4 @@ export * from './photo-analysis-limits.js';
 export * from './overview.js';
 
 export * from './employee-profile.js';
+export * from './communications.js';

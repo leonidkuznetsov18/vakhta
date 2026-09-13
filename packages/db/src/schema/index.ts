@@ -15,3 +15,4 @@ export * from './background-tasks.js';
 export * from './photo-inspection.js';
 
 export * from './compensation.js';
+export * from './communications.js';

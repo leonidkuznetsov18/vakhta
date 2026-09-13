@@ -1,3 +1,4 @@
+import { CommunicationsModule } from './communications/communications.module.js';
 import { PhotoInspectionModule } from './photo-inspection/photo-inspection.module.js';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -37,6 +38,7 @@ import { SupportModule } from './support/support.module.js';
     QueueModule,
     EventsModule,
     NotificationsModule,
+    CommunicationsModule,
     AuthModule,
     HealthModule,
     MetricsModule,

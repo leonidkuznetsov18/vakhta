@@ -1,3 +1,4 @@
+import { useCommunicationDraft } from '@/features/employee-communications';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -113,6 +114,7 @@ function newKey(): string {
  * shift master actions with a mandatory comment and the "needs review" flag (FR-COR-01/04).
  */
 export function OperationsPage() {
+  const communicationDraft = useCommunicationDraft();
   const { org, queryState: orgQuery } = useOrg();
   const { active: activeEmployees } = useEmployees();
   const [siteId, setSiteId] = usePersistentState('operations.siteId', '');
@@ -226,16 +228,6 @@ export function OperationsPage() {
   });
   const refused = apply.data?.ok === false ? apply.data.error : null;
 
-  /** The comment as a message to the employee's bot: available on a closed shift too, which is
-      exactly when a master needs to ask why the checklist never came. */
-  const message = useMutation({
-    mutationFn: (v: { row: ActiveShiftView; text: string }) => shiftsApi.message(v.row.id, v.text),
-    onSuccess: (_result, v) => {
-      notifySuccess(format(o.messageSent, { employee: v.row.fullName }));
-      setComment((c) => ({ ...c, [v.row.id]: '' }));
-    },
-  });
-
   const ask = useMutation({
     mutationFn: (v: { row: ActiveShiftView; reason: string }) =>
       shiftsApi.clarify(v.row.id, v.reason),
@@ -260,9 +252,9 @@ export function OperationsPage() {
   });
   const refusedStart = begin.data?.ok === false ? begin.data.error : null;
 
-  const busy = apply.isPending || message.isPending || ask.isPending || begin.isPending;
+  const busy = apply.isPending || ask.isPending || begin.isPending;
   const error =
-    readError(apply.error ?? message.error ?? ask.error ?? begin.error) ??
+    readError(apply.error ?? ask.error ?? begin.error) ??
     (refused ? (refused === 'VERSION_CONFLICT' ? o.stale : all.errors[refused]) : null) ??
     (refusedStart ? all.errors[refusedStart] : null);
 
@@ -277,7 +269,10 @@ export function OperationsPage() {
 
   function sendMessage(row: ActiveShiftView) {
     const text = (comment[row.id] ?? '').trim();
-    if (text.length >= 3) message.mutate({ row, text });
+    communicationDraft.open(
+      { id: row.employeeId, fullName: row.fullName, personnelNumber: row.personnelNumber },
+      text,
+    );
   }
 
   async function clarify(row: ActiveShiftView) {

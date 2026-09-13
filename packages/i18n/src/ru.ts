@@ -1,3 +1,4 @@
+import { communicationsRu } from './communications.js';
 import { employeeProfileRU } from './employee-profile.js';
 import { scheduleExportRu } from './schedule-export.js';
 import { scheduleWorkspaceRu } from './schedule-workspace.js';
@@ -10,6 +11,7 @@ import type { Messages } from './messages.js';
 
 /** Base interface language (NFR-08). Button and state wording follows the spec, sections 4.3-4.4 and 5.1. */
 export const ru: Messages = {
+  communications: communicationsRu,
   employeeProfile: employeeProfileRU,
   scheduleExport: scheduleExportRu,
   scheduleWorkspace: scheduleWorkspaceRu,

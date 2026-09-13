@@ -1,3 +1,4 @@
+import { communicationsUk } from './communications.js';
 import { employeeProfileUK } from './employee-profile.js';
 import { scheduleExportUk } from './schedule-export.js';
 import { scheduleWorkspaceUk } from './schedule-workspace.js';
@@ -10,6 +11,7 @@ import type { Messages } from './messages.js';
 
 /** Ukrainian catalog. Same keys and placeholders as `ru`; verified by catalogs.test.ts. */
 export const uk: Messages = {
+  communications: communicationsUk,
   employeeProfile: employeeProfileUK,
   scheduleExport: scheduleExportUk,
   scheduleWorkspace: scheduleWorkspaceUk,

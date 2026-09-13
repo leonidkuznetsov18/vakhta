@@ -26,7 +26,7 @@ export class ApiError extends Error {
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
-    credentials: 'include',
+    credentials: init.credentials ?? 'include',
     headers: {
       // Fastify refuses an empty body under a JSON content type, so DELETE without a body sends none.
       ...(init.body !== undefined && init.body !== null
