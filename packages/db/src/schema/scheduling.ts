@@ -148,3 +148,78 @@ export const assignmentAcknowledgements = pgTable(
   },
   (t) => [index('assignment_acks_version_employee_idx').on(t.scheduleVersionId, t.employeeId)],
 );
+
+/** Qualification catalog per site (SC-04, D-02): what a requirement may demand from a person. */
+export const qualifications = pgTable(
+  'qualifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    siteId: uuid('site_id')
+      .notNull()
+      .references(() => sites.id),
+    code: text('code').notNull(),
+    name: text('name').notNull(),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('qualifications_site_code_uq').on(t.siteId, t.code)],
+);
+
+/** Evidence that a person holds a qualification for a period; expiry is explicit, never inferred. */
+export const employeeQualifications = pgTable(
+  'employee_qualifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    employeeId: uuid('employee_id')
+      .notNull()
+      .references(() => employees.id, { onDelete: 'cascade' }),
+    qualificationId: uuid('qualification_id')
+      .notNull()
+      .references(() => qualifications.id),
+    validFrom: date('valid_from').notNull(),
+    validUntil: date('valid_until'),
+    note: text('note'),
+    recordedBy: uuid('recorded_by'),
+    recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('employee_qualifications_employee_idx').on(t.employeeId, t.qualificationId),
+    check(
+      'employee_qualifications_valid_window',
+      sql`${t.validUntil} IS NULL OR ${t.validUntil} >= ${t.validFrom}`,
+    ),
+  ],
+);
+
+/**
+ * Effective-dated staffing demand per zone and shift template (SC-01, D-02). A row with a
+ * qualification counts only holders; a zone without rows has unknown demand.
+ */
+export const zoneStaffingRequirements = pgTable(
+  'zone_staffing_requirements',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    zoneId: uuid('zone_id')
+      .notNull()
+      .references(() => responsibilityZones.id, { onDelete: 'cascade' }),
+    templateId: uuid('template_id')
+      .notNull()
+      .references(() => shiftTemplates.id),
+    requiredCount: integer('required_count').notNull(),
+    qualificationId: uuid('qualification_id').references(() => qualifications.id),
+    effectiveFrom: date('effective_from').notNull(),
+    effectiveTo: date('effective_to'),
+    note: text('note'),
+    createdBy: uuid('created_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('zone_staffing_requirements_zone_idx').on(t.zoneId, t.templateId),
+    check('zone_staffing_requirements_count_positive', sql`${t.requiredCount} > 0`),
+    check(
+      'zone_staffing_requirements_window',
+      sql`${t.effectiveTo} IS NULL OR ${t.effectiveTo} >= ${t.effectiveFrom}`,
+    ),
+  ],
+);

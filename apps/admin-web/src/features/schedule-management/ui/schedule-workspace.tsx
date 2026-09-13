@@ -7,6 +7,7 @@ import {
   MoreHorizontalIcon,
   Trash2Icon,
   XIcon,
+  UsersIcon,
 } from 'lucide-react';
 import { currentLocale } from '@/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -43,6 +44,7 @@ import { BatchPlanner } from './batch-planner';
 import { PublicationReview } from './publication-review';
 import { ScheduleToolbar } from './schedule-toolbar';
 import { ScheduleExport } from './schedule-export';
+import { StaffingSheet } from './staffing-sheet';
 
 const t = messages(currentLocale()).scheduleWorkspace;
 const s = messages(currentLocale()).admin.schedule;
@@ -154,6 +156,8 @@ function WorkspaceView({
   const [zone, setZone] = useState('');
   const [batch, setBatch] = useState<{ zoneId: string; date: string } | null>(null);
   const [review, setReview] = useState<{ grid: GridState; versionId: string } | null>(null);
+  const [staffingOpen, setStaffingOpen] = useState(false);
+  const [staffingTrigger, setStaffingTrigger] = useState<HTMLElement | null>(null);
   const { confirm, dialog } = useConfirm();
   const version = w.version;
   const dates = periodDates(w.month, date, effectiveMode);
@@ -280,6 +284,17 @@ function WorkspaceView({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-48">
+              <DropdownMenuItem
+                onSelect={() => {
+                  setStaffingTrigger(
+                    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+                  );
+                  setStaffingOpen(true);
+                }}
+              >
+                <UsersIcon aria-hidden="true" />
+                {t.staffing}
+              </DropdownMenuItem>
               {w.hasDraft && (
                 <DropdownMenuItem
                   disabled={w.busy}
@@ -436,6 +451,15 @@ function WorkspaceView({
           onClose={() => setBatch(null)}
         />
       )}
+      <StaffingSheet
+        workspace={w}
+        open={staffingOpen}
+        onClose={() => setStaffingOpen(false)}
+        onRestoreFocus={() => {
+          if (staffingTrigger?.isConnected) staffingTrigger.focus();
+        }}
+        date={date}
+      />
       {review && (
         <PublicationReview
           workspace={w}

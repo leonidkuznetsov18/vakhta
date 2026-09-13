@@ -9,6 +9,7 @@ import { Paginator, usePages } from '@/components/app/data-table';
 import { calendarModel, type CalendarGrouping } from '../model/calendar';
 import { assignmentKey, gridFromItems, gridToItems } from '../model/grid';
 import type { AdjacentPlan } from '../model/use-adjacent';
+import { staffingCoverage } from '../model/use-staffing';
 import { UNASSIGNED_ZONE, zoneAllowed } from '../model/planning';
 import type { Workspace } from '../model/use-workspace';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
@@ -38,8 +39,20 @@ export function ResourceSchedule({
   const mobile = useIsMobile();
   const [picked, setPicked] = useState<CalendarSelection | null>(null);
   const [editor, setEditor] = useState<AssignmentContext | null>(null);
+  const displayGrid = adjacent.months.length
+    ? gridFromItems([...gridToItems(w.grid), ...gridToItems(adjacent.grid)])
+    : w.grid;
+  const coverage = staffingCoverage({
+    staffing: w.staffing,
+    grid: displayGrid,
+    templates: w.templates,
+    timezone: w.timezone,
+    dates,
+    zoneIds: w.zones.map((zone) => zone.id),
+  });
   const model = calendarModel({
     ...w,
+    coverage,
     grid: adjacent.months.length
       ? gridFromItems([...gridToItems(w.grid), ...gridToItems(adjacent.grid)])
       : w.grid,

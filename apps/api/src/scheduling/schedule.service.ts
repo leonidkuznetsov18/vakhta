@@ -21,6 +21,8 @@ import {
   type Database,
   type DbOrTx,
   type Transaction,
+  employeeQualifications,
+  zoneStaffingRequirements,
 } from '@vakhta/db';
 import {
   buildMonthPlan,
@@ -36,6 +38,7 @@ import {
   SCHEDULE_APPROVE_ROLES,
   SCHEDULE_EDIT_ROLES,
   type RoleGrant,
+  qualifiedFor,
 } from '@vakhta/domain';
 import type {
   AcknowledgementStatusView,
@@ -592,6 +595,30 @@ export class ScheduleService {
       : [];
     const zoneMap = new Map(zones.map((z) => [z.id, z]));
 
+    // D-03: a zone whose every effective requirement demands a qualification rejects unqualified people.
+    const rules = zoneIds.length
+      ? (
+          await tx
+            .select()
+            .from(zoneStaffingRequirements)
+            .where(inArray(zoneStaffingRequirements.zoneId, zoneIds))
+        ).map((row) => ({
+          id: row.id,
+          zoneId: row.zoneId,
+          templateId: row.templateId,
+          requiredCount: row.requiredCount,
+          qualificationId: row.qualificationId,
+          effectiveFrom: row.effectiveFrom,
+          effectiveTo: row.effectiveTo,
+        }))
+      : [];
+    const holdings =
+      rules.length && employeeIds.length
+        ? await tx
+            .select()
+            .from(employeeQualifications)
+            .where(inArray(employeeQualifications.employeeId, employeeIds))
+        : [];
     const seen = new Set<string>();
     const values = cmd.items.map((item) => {
       if (!activeSet.has(item.employeeId)) {
@@ -617,6 +644,13 @@ export class ScheduleService {
             `Зона ${item.zoneId} не належить підрозділу версії`,
           );
         }
+      }
+      if (item.zoneId && !qualifiedFor(rules, holdings, item)) {
+        throw new DomainError(
+          'QUALIFICATION_REQUIRED',
+          422,
+          `Employee ${item.employeeId} lacks a qualification required in zone ${item.zoneId} on ${item.businessDate}`,
+        );
       }
       if (!item.businessDate.startsWith(version.periodMonth)) {
         throw new DomainError(

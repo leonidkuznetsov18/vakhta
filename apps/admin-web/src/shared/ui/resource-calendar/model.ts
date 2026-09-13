@@ -13,11 +13,18 @@ export interface CalendarItem {
   readonly readonly?: boolean;
   readonly parts?: readonly { readonly id: string; readonly label: string }[];
 }
+export type CalendarNoteTone = 'danger' | 'ok' | 'muted';
+export interface CalendarNote {
+  readonly text: string;
+  readonly tone: CalendarNoteTone;
+}
 export interface CalendarCell {
   readonly date: string;
   readonly label: string;
   readonly items: readonly CalendarItem[];
   readonly summary: string;
+  /** Short state above the items, for example staffing coverage of the cell. */
+  readonly note?: CalendarNote;
   readonly create: { readonly label: string; readonly disabledReason?: string } | null;
 }
 export interface CalendarResource {
@@ -26,6 +33,8 @@ export interface CalendarResource {
   readonly description: string;
   /** Period totals of the row, for example shifts and planned hours. */
   readonly summary?: string;
+  /** Row-level state, for example missing coverage in the period. */
+  readonly badge?: CalendarNote;
   readonly cells: readonly CalendarCell[];
 }
 export interface CalendarDate {

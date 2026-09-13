@@ -18,6 +18,7 @@ export function CalendarDetailPanel({
   onClose,
   onRestoreFocus,
   children,
+  wide = false,
 }: {
   readonly open: boolean;
   readonly title: string;
@@ -25,6 +26,8 @@ export function CalendarDetailPanel({
   readonly onClose: () => void;
   readonly onRestoreFocus: () => void;
   readonly children: ReactNode;
+  /** Tables with several columns need the wider desktop panel. */
+  readonly wide?: boolean;
 }) {
   const closeLabel = messages(currentLocale()).ui.common.close;
   return (
@@ -37,7 +40,11 @@ export function CalendarDetailPanel({
       <SheetContent
         showCloseButton={false}
         overlayClassName="supports-backdrop-filter:backdrop-blur-none"
-        className="data-[side=right]:w-full data-[side=right]:sm:max-w-lg gap-0"
+        className={
+          wide
+            ? 'data-[side=right]:w-full data-[side=right]:sm:max-w-3xl gap-0'
+            : 'data-[side=right]:w-full data-[side=right]:sm:max-w-lg gap-0'
+        }
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           onRestoreFocus();

@@ -150,8 +150,101 @@ function detail(version: ScheduleVersionView): ScheduleVersionDetail {
     }),
   };
 }
+const qualificationId = 'e1000000-0000-4000-8000-000000000001';
+const staffing = {
+  qualifications: [
+    {
+      id: qualificationId,
+      siteId: scheduleSiteId,
+      code: 'OPERATOR',
+      name: 'Оператор лінії',
+      isActive: true,
+    },
+  ],
+  requirements: [
+    {
+      id: 'e2000000-0000-4000-8000-000000000001',
+      zoneId: scheduleZoneId,
+      templateId: scheduleTemplates[0]!.id,
+      requiredCount: 2,
+      qualificationId,
+      effectiveFrom: `${month}-01`,
+      effectiveTo: null,
+      note: null,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: 'e2000000-0000-4000-8000-000000000002',
+      zoneId: scheduleZoneId,
+      templateId: scheduleTemplates[1]!.id,
+      requiredCount: 1,
+      qualificationId: null,
+      effectiveFrom: `${month}-01`,
+      effectiveTo: null,
+      note: null,
+      updatedAt: new Date().toISOString(),
+    },
+  ],
+  holdings: [
+    {
+      id: 'e3000000-0000-4000-8000-000000000001',
+      employeeId: scheduleEmployees[0]!,
+      qualificationId,
+      validFrom: '2026-01-01',
+      validUntil: null,
+      note: null,
+      recordedAt: new Date().toISOString(),
+    },
+  ],
+};
 /** In-memory preview only: exercises the actual validated frontend contract, never production. */
 export function scheduleFixture(url: URL, method: string, body: unknown): unknown {
+  if (url.pathname.startsWith('/admin/schedules/staffing')) {
+    if (method === 'GET') return staffing;
+    if (url.pathname.endsWith('/requirements') && method === 'PUT') {
+      const input = body as (typeof staffing.requirements)[number] & { id?: string };
+      const row = {
+        ...input,
+        id: input.id ?? crypto.randomUUID(),
+        qualificationId: input.qualificationId ?? null,
+        effectiveTo: input.effectiveTo ?? null,
+        note: input.note ?? null,
+        updatedAt: new Date().toISOString(),
+      };
+      const index = staffing.requirements.findIndex((item) => item.id === row.id);
+      if (index >= 0) staffing.requirements[index] = row;
+      else staffing.requirements.push(row);
+      return row;
+    }
+    if (url.pathname.includes('/requirements/') && method === 'DELETE') {
+      const id = url.pathname.split('/').at(-1);
+      staffing.requirements = staffing.requirements.filter((item) => item.id !== id);
+      return {};
+    }
+    if (url.pathname.endsWith('/qualifications') && method === 'POST') {
+      const input = body as { siteId: string; code: string; name: string };
+      const row = { id: crypto.randomUUID(), ...input, isActive: true };
+      staffing.qualifications.push(row);
+      return row;
+    }
+    if (url.pathname.endsWith('/holdings') && method === 'POST') {
+      const input = body as (typeof staffing.holdings)[number];
+      const row = {
+        ...input,
+        id: crypto.randomUUID(),
+        validUntil: input.validUntil ?? null,
+        note: input.note ?? null,
+        recordedAt: new Date().toISOString(),
+      };
+      staffing.holdings.push(row);
+      return row;
+    }
+    if (url.pathname.includes('/holdings/') && method === 'DELETE') {
+      const id = url.pathname.split('/').at(-1);
+      staffing.holdings = staffing.holdings.filter((item) => item.id !== id);
+      return {};
+    }
+  }
   if (url.pathname === '/admin/schedules/commands') {
     const command = ScheduleWebCommand.parse(body);
     const stored = commandReceipts.get(command.commandId);

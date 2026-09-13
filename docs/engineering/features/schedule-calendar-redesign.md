@@ -887,3 +887,36 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   `master-zone-locked.png`.
 - Lean: Proceed. A master plans the routine changes of their own zone without waiting for a
   planner; publication and cross-zone decisions keep their current owners. No new worker step.
+
+## 2026-09-13 — Staffing demand and qualifications (#11, SC-01/SC-04, D-02/D-03)
+
+- Schema (migration `0041_staffing_demand`): `qualifications` per site, `employee_qualifications`
+  with validity dates and recorder, `zone_staffing_requirements` per zone and shift template with
+  required count, optional qualification and effective dates; SQL checks guard positive counts and
+  date windows. No existing table changed.
+- Domain `scheduling/coverage.ts`: effective requirement rows, holdings with validity,
+  `requiredQualifications`/`qualifiedFor` (mandatory only when every row of the zone and template
+  demands a qualification) and `coverage()` counting distinct eligible people once, qualified rows
+  first, with an interval check so a shorter planned interval does not cover a requirement.
+  A zone without rows is unknown, never covered.
+- API: `StaffingService` and `/admin/schedules/staffing` (view; requirements PUT/DELETE for
+  ADMIN/PRODUCTION_HEAD in site scope; catalog POST; holdings POST/DELETE for ADMIN/HR); every
+  change is audited. `replaceAssignments` rejects `QUALIFICATION_REQUIRED` (422) for an assignee
+  without a valid required qualification at save and revise.
+- Panel: staffing loads with the workspace; coverage is computed from the plan on screen including
+  unsaved edits. Zone rows show "Missing: N", "Covered" or "Staffing requirement not defined";
+  cells show `D e/r · N e/r` with a warning icon on shortage. The Staffing requirements Sheet
+  (actions menu) lists and edits requirements, the qualification catalog and qualification records
+  according to the role; the assignment editor blocks an unqualified worker with the required
+  qualification named. Preview fixtures include one qualified operator requirement.
+- Verification: domain coverage 4 tests (4 required/3 eligible → 1 missing, unknown zone,
+  expiry and effective window, one person per role and partial interval, mandatory-qualification
+  rule); real-DB scheduling 1 case (audited catalog/requirement/holding writes, duplicate code,
+  save blocked for an unqualified and an expired holder, mixed rows accept unqualified people,
+  removal); panel suites 98 tests including shortage badge/note and editor block; typecheck,
+  ESLint and Prettier clean for API and panel. Evidence: `staffing-coverage-week.png`,
+  `staffing-sheet.png`, `staffing-coverage-mobile.png`.
+- Limits: requirements are per template interval; custom per-assignment intervals (#15) plug into
+  the same interval check. Role-specific shortage uses qualifications, not positions.
+- Lean: Proceed. The planner sees the gap where the plan is edited and cannot plan an unqualified
+  person into a qualified post; no new worker step, no dashboard.

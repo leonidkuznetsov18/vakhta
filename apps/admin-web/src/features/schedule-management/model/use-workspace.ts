@@ -28,6 +28,7 @@ import { useScheduleDrafts } from './store';
 import { scheduleCommands, useScheduleCommands, commandWasRejected } from './commands';
 import { scheduleChain } from './chain';
 import { useScheduleRoster } from './roster';
+import { useStaffing } from './use-staffing';
 import { workspaceFeedback } from './feedback';
 import { PRESET_KEY, clearSchedulePreset, type SchedulePreset } from './preset';
 
@@ -94,6 +95,7 @@ export function useWorkspace() {
     queryFn: ({ signal }) => scheduleApi.list(listInput, signal),
     enabled: !!actorId && !!siteId && !!orgUnitId,
   });
+  const staffing = useStaffing({ accessKey, siteId, orgUnitId, enabled: !!actorId });
   const templatesQuery = useQuery({
     queryKey: scheduleKeys.templates(accessKey, siteId),
     queryFn: ({ signal }) => scheduleApi.templates(siteId, signal),
@@ -475,6 +477,8 @@ export function useWorkspace() {
     canPublishDraft,
     publishDraft,
     templates: templatesQuery.data ?? [],
+    staffing: staffing.data,
+    staffingState: staffing,
     error:
       (stale || !kept) &&
       write.error instanceof ApiError &&

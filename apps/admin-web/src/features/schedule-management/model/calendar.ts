@@ -9,9 +9,11 @@ import type {
 } from '@vakhta/contracts';
 import type {
   CalendarItem,
+  CalendarNote,
   CalendarResource,
   CalendarViewModel,
 } from '@/shared/ui/resource-calendar';
+import type { CoverageModel } from './use-staffing';
 import { assignmentKey, sameAssignment, gridToItems, type GridState } from './grid';
 import { UNASSIGNED_ZONE, zoneAllowed } from './planning';
 
@@ -35,6 +37,8 @@ export interface CalendarInput {
   readonly editableMonth?: string;
   /** Zone scope of the editor (D-01); null means every zone of the unit. */
   readonly allowedZones?: ReadonlySet<string> | null;
+  /** Staffing coverage of the visible plan; absent while staffing data is loading. */
+  readonly coverage?: CoverageModel;
 }
 
 /** Business dates are calendar values, never browser-local instants. */
@@ -183,6 +187,45 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
         ]
       : [...input.grid.rows.map((row) => row.employeeId)],
   );
+  const kinds = messages(input.locale).schedule.dayKinds;
+  const templateLabel = (templateId: string) =>
+    templates.get(templateId)?.isNight ? kinds.NIGHT : kinds.DAY;
+  const zoneBadge = (zoneId: string): CalendarNote | undefined => {
+    if (input.grouping !== 'zones' || zoneId === UNASSIGNED_ZONE) return undefined;
+    if (!input.coverage?.ready) return undefined;
+    if (!input.coverage.known.has(zoneId)) return { text: t.coverageUnknown, tone: 'muted' };
+    const missing = input.coverage.cells
+      .filter((cell) => cell.zoneId === zoneId)
+      .reduce((sum, cell) => sum + cell.missing, 0);
+    return missing > 0
+      ? { text: t.coverageShort.replace('{count}', String(missing)), tone: 'danger' }
+      : { text: t.coverageOk, tone: 'ok' };
+  };
+  const cellNote = (zoneId: string, date: string): CalendarNote | undefined => {
+    if (input.grouping !== 'zones' || !input.coverage?.ready) return undefined;
+    const rows = input.coverage.cells.filter(
+      (cell) => cell.zoneId === zoneId && cell.businessDate === date,
+    );
+    if (rows.length === 0) return undefined;
+    const byTemplate = new Map<string, { eligible: number; required: number }>();
+    for (const row of rows) {
+      const current = byTemplate.get(row.templateId) ?? { eligible: 0, required: 0 };
+      byTemplate.set(row.templateId, {
+        eligible: current.eligible + row.eligible,
+        required: current.required + row.required,
+      });
+    }
+    const short = rows.some((row) => row.missing > 0);
+    return {
+      text: [...byTemplate]
+        .map(
+          ([templateId, value]) =>
+            `${templateLabel(templateId)} ${value.eligible}/${value.required}`,
+        )
+        .join(' · '),
+      tone: short ? 'danger' : 'ok',
+    };
+  };
   const resources: CalendarResource[] = [...ids]
     .filter((id) => input.grouping !== 'zones' || !input.zoneId || id === input.zoneId)
     .map((id) => {
@@ -202,17 +245,20 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
             : (employeeMap.get(id)?.fullName ?? t.unknownEmployee),
         description:
           input.grouping === 'zones'
-            ? t.coverageUnknown
+            ? (zones.get(id)?.code ?? '')
             : (employeeMap.get(id)?.personnelNumber ?? ''),
+        ...(zoneBadge(id) ? { badge: zoneBadge(id) } : {}),
         summary: [t.shiftsCount.replace('{count}', String(count)), hours]
           .filter(Boolean)
           .join(' · '),
         cells: input.dates.map((date) => {
           const values = buckets.get(`${id}:${date}`) ?? [];
+          const note = cellNote(id, date);
           return {
             date,
             label: dateFormat.format(new Date(`${date}T00:00:00Z`)),
             items: values,
+            ...(note ? { note } : {}),
             summary: t.resourceItems.replace('{count}', String(values.length)),
             create: input.writable
               ? {

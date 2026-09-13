@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { CircleDashedIcon, PlusIcon } from 'lucide-react';
+import { CircleDashedIcon, PlusIcon, TriangleAlertIcon } from 'lucide-react';
 import { cn } from 'cn';
 import { CalendarDetailPanel } from './detail-panel';
 import { calendarItemColors, calendarInteraction } from './styles';
@@ -17,10 +17,32 @@ import { useTablePage } from '@/shared/lib/table-model';
 import type {
   CalendarCell,
   CalendarItem,
+  CalendarNote,
   CalendarResource,
   CalendarSelection,
   CalendarViewModel,
 } from './model';
+
+const NOTE_TONE = {
+  danger: 'text-red-700 dark:text-red-300',
+  ok: 'text-emerald-700 dark:text-emerald-300',
+  muted: 'text-muted-foreground',
+} as const;
+
+function Note({ note, className }: { readonly note: CalendarNote; readonly className?: string }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 text-[11px] leading-4',
+        NOTE_TONE[note.tone],
+        className,
+      )}
+    >
+      {note.tone === 'danger' && <TriangleAlertIcon aria-hidden className="size-3 shrink-0" />}
+      <span className="min-w-0 truncate">{note.text}</span>
+    </span>
+  );
+}
 
 interface ResourceCalendarProps {
   readonly model: CalendarViewModel;
@@ -78,6 +100,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
     const readonlyDate = !!model.dates.find((date) => date.id === cell.date)?.readonly;
     return (
       <div className="group/cell flex min-h-[4.75rem] min-w-0 flex-col gap-1.5">
+        {cell.note && <Note note={cell.note} className="px-0.5" />}
         {cell.items.slice(0, CELL_PREVIEW_LIMIT).map((item) => {
           const selected = cellSelected && selection?.itemId === item.id;
           return (
@@ -192,6 +215,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                     <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
                       {[row.description, row.summary].filter(Boolean).join(' · ')}
                     </p>
+                    {row.badge && <Note note={row.badge} />}
                   </div>
                   {cell ? cellContent(row, cell) : <p>{model.emptyLabel}</p>}
                 </section>
@@ -252,6 +276,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                         {row.summary}
                       </p>
                     )}
+                    {row.badge && <Note note={row.badge} className="mt-1" />}
                   </TableCell>
                   {row.cells.map((cell, index) => (
                     <TableCell

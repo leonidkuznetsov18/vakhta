@@ -22,6 +22,7 @@ import {
 import { webUserActor, type WebUser } from '../auth/web-auth.guard.js';
 import { RolesService } from '../auth/roles.service.js';
 import { ScheduleCommandService } from './schedule-command.service.js';
+import { StaffingService } from './staffing.service.js';
 import { backgroundTasks } from '@vakhta/db';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { assignmentAcknowledgements, shiftAssignments } from '@vakhta/db';
@@ -1377,6 +1378,158 @@ describe('scheduling: версії, валідація, публікація, о
     });
     expect((await schedule.detail(version.id)).version.status).toBe('IN_REVIEW');
   });
+  describe('staffing demand and qualifications (#11, SC-01/SC-04)', () => {
+    it('audits configuration and blocks an unqualified assignment where every row demands a qualification', async () => {
+      const staffing = new StaffingService(testDb.db, new AuditLog());
+      const operator = await staffing.createQualification(
+        { siteId, code: 'OPERATOR', name: 'Line operator' },
+        HEAD,
+      );
+      await expect(
+        staffing.createQualification({ siteId, code: 'OPERATOR', name: 'Duplicate' }, HEAD),
+      ).rejects.toMatchObject({ code: 'QUALIFICATION_EXISTS' });
+      const requirement = await staffing.setRequirement(
+        {
+          zoneId,
+          templateId: dayId,
+          requiredCount: 2,
+          qualificationId: operator.id,
+          effectiveFrom: day(1),
+        },
+        HEAD,
+      );
+      const updated = await staffing.setRequirement(
+        { ...requirement, id: requirement.id, requiredCount: 3, effectiveTo: day(20) },
+        HEAD,
+      );
+      expect(updated).toMatchObject({ id: requirement.id, requiredCount: 3, effectiveTo: day(20) });
+      await staffing.recordHolding(
+        {
+          employeeId: ivanov,
+          qualificationId: operator.id,
+          validFrom: day(1),
+          validUntil: day(10),
+        },
+        PLANNER,
+      );
+      const view = await staffing.view(siteId, unitId);
+      expect(view.requirements).toHaveLength(1);
+      expect(view.holdings).toHaveLength(1);
+      const audit = await testDb.db.select().from(auditLog);
+      expect(audit.map((row) => row.action)).toEqual(
+        expect.arrayContaining([
+          'staffing.qualification.create',
+          'staffing.requirement.set',
+          'staffing.qualification.record',
+        ]),
+      );
+      const draft = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      // Ivanov holds the qualification until day 10; Petrova never does.
+      await expect(
+        schedule.putAssignments(
+          draft.id,
+          {
+            items: [
+              {
+                employeeId: petrova,
+                templateId: dayId,
+                businessDate: day(3),
+                zoneId,
+                kind: 'REGULAR',
+              },
+            ],
+          },
+          PLANNER,
+          draft.revision,
+        ),
+      ).rejects.toMatchObject({ code: 'QUALIFICATION_REQUIRED', status: 422 });
+      await expect(
+        schedule.putAssignments(
+          draft.id,
+          {
+            items: [
+              {
+                employeeId: ivanov,
+                templateId: dayId,
+                businessDate: day(12),
+                zoneId,
+                kind: 'REGULAR',
+              },
+            ],
+          },
+          PLANNER,
+          draft.revision,
+        ),
+      ).rejects.toMatchObject({ code: 'QUALIFICATION_REQUIRED' });
+      const saved = await schedule.putAssignments(
+        draft.id,
+        {
+          items: [
+            {
+              employeeId: ivanov,
+              templateId: dayId,
+              businessDate: day(3),
+              zoneId,
+              kind: 'REGULAR',
+            },
+            {
+              employeeId: petrova,
+              templateId: nightId,
+              businessDate: day(3),
+              zoneId,
+              kind: 'REGULAR',
+            },
+            {
+              employeeId: petrova,
+              templateId: dayId,
+              businessDate: day(25),
+              zoneId,
+              kind: 'REGULAR',
+            },
+          ],
+        },
+        PLANNER,
+        draft.revision,
+      );
+      expect(saved.assignments).toHaveLength(3);
+      // A second row without a qualification makes the zone accept unqualified people again.
+      await staffing.setRequirement(
+        {
+          zoneId,
+          templateId: dayId,
+          requiredCount: 1,
+          qualificationId: null,
+          effectiveFrom: day(1),
+        },
+        HEAD,
+      );
+      const mixed = await schedule.putAssignments(
+        draft.id,
+        {
+          items: [
+            {
+              employeeId: petrova,
+              templateId: dayId,
+              businessDate: day(3),
+              zoneId,
+              kind: 'REGULAR',
+            },
+          ],
+        },
+        PLANNER,
+        saved.version.revision,
+      );
+      expect(mixed.assignments).toHaveLength(1);
+      await staffing.removeRequirement(requirement.id, HEAD);
+      await expect(staffing.removeRequirement(requirement.id, HEAD)).rejects.toMatchObject({
+        code: 'REQUIREMENT_NOT_FOUND',
+      });
+    });
+  });
+
   describe('master authority (D-01, #8)', () => {
     async function commandsFor(
       ...grants: { role: string; scopeType: string; scopeId: string | null }[]

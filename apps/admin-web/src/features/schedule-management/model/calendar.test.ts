@@ -112,7 +112,8 @@ describe('calendar projections', () => {
         .find((row) => row.id === 'empty')
         ?.cells.every((cell) => cell.items.length === 0),
     ).toBe(true);
-    expect(zones.resources[0]?.description).toBe('Staffing requirement not defined');
+    expect(zones.resources[0]?.description).toBe('Z1');
+    expect(zones.resources[0]?.badge).toBeUndefined();
     expect(base.grid.rows[0]?.cells['2026-09-30']).toBe('night');
   });
   it('labels an overnight end with its next date and explicit duration', () => {
@@ -250,5 +251,56 @@ describe('cross-month and DST projections', () => {
     expect(item?.time).toContain('20:00');
     expect(item?.time).toContain('10/25');
     expect(item?.description).toContain('13 hr');
+  });
+});
+
+describe('staffing coverage projection', () => {
+  const rule = {
+    id: 'rule',
+    zoneId: 'zone',
+    templateId: 'night',
+    requiredCount: 2,
+    qualificationId: null,
+    effectiveFrom: '2026-09-01',
+    effectiveTo: null,
+  };
+  it('shows unknown for a zone without requirements and a shortage with per-template counts', () => {
+    const model = calendarModel({
+      ...base,
+      coverage: {
+        ready: true,
+        known: new Set(['zone']),
+        cells: [
+          {
+            zoneId: 'zone',
+            businessDate: '2026-09-30',
+            templateId: 'night',
+            requirementId: rule.id,
+            qualificationId: null,
+            required: 2,
+            eligible: 1,
+            missing: 1,
+            status: 'SHORT',
+          },
+        ],
+      },
+    });
+    const zone = model.resources.find((row) => row.id === 'zone');
+    expect(zone?.badge).toEqual({ text: 'Missing: 1', tone: 'danger' });
+    expect(zone?.cells.find((cell) => cell.date === '2026-09-30')?.note).toEqual({
+      text: 'N 1/2',
+      tone: 'danger',
+    });
+    expect(model.resources.find((row) => row.id === 'empty')?.badge).toEqual({
+      text: 'Staffing requirement not defined',
+      tone: 'muted',
+    });
+    expect(
+      calendarModel({
+        ...base,
+        grouping: 'people',
+        coverage: { ready: true, known: new Set(['zone']), cells: [] },
+      }).resources[0]?.badge,
+    ).toBeUndefined();
   });
 });

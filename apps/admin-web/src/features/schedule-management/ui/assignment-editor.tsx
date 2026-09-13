@@ -2,6 +2,8 @@ import { templateLabel } from '../lib/template-label';
 import { monthDates } from '@vakhta/domain';
 import { useState } from 'react';
 import { AssignmentInput } from '@vakhta/contracts';
+import { format } from '@vakhta/i18n';
+import { qualifiedFor, requiredQualifications } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { SelectField } from '@/components/app/fields';
@@ -57,6 +59,20 @@ export function AssignmentEditor({
     w.templates.some((template) => template.id === draft.templateId && template.isActive) &&
     w.zones.some((zone) => zone.id === draft.zoneId && zone.isActive) &&
     zoneAllowed(w.rights.zones, draft.zoneId);
+  const rules = w.staffing?.requirements ?? [];
+  const missingQualifications =
+    draft.zoneId && draft.templateId && draft.businessDate && draft.employeeId
+      ? qualifiedFor(rules, w.staffing?.holdings ?? [], {
+          employeeId: draft.employeeId,
+          businessDate: draft.businessDate,
+          templateId: draft.templateId,
+          zoneId: draft.zoneId,
+        })
+        ? []
+        : requiredQualifications(rules, draft.zoneId, draft.templateId, draft.businessDate).map(
+            (id) => w.staffing?.qualifications.find((item) => item.id === id)?.name ?? id,
+          )
+      : [];
   const unchanged =
     !!original &&
     original.businessDate === draft.businessDate &&
@@ -67,6 +83,7 @@ export function AssignmentEditor({
     active &&
     draft.businessDate.startsWith(w.month) &&
     !occupied &&
+    missingQualifications.length === 0 &&
     !unchanged;
   function apply() {
     if (!valid || !candidate.success || !w.writable) return;
@@ -127,6 +144,11 @@ export function AssignmentEditor({
         />
       </div>
       {occupied && <Feedback error={t.occupied} />}
+      {missingQualifications.length > 0 && (
+        <Feedback
+          error={format(t.qualificationRequired, { names: missingQualifications.join(', ') })}
+        />
+      )}
       {!occupied && !unchanged && !valid && (
         <p className="text-sm text-muted-foreground">{t.invalid}</p>
       )}

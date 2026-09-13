@@ -8,16 +8,19 @@ import { SCHEDULE_OPTIONS, ScheduleService, type ScheduleOptions } from './sched
 import { ScheduleCommandService } from './schedule-command.service.js';
 import { TemplatesService } from './templates.service.js';
 import { ScheduleHistoryService } from './schedule-history.service.js';
+import { StaffingService } from './staffing.service.js';
+import { AdminStaffingController } from './admin-staffing.controller.js';
 
 @Module({
   imports: [OrgModule],
-  controllers: [AdminSchedulesController],
+  controllers: [AdminSchedulesController, AdminStaffingController],
   providers: [
     TemplatesService,
     ScheduleService,
     ScheduleCommandService,
     ScheduleHistoryService,
     ScheduleExportService,
+    StaffingService,
     {
       provide: SCHEDULE_OPTIONS,
       useFactory: (config: ConfigService<Env, true>): ScheduleOptions => ({
@@ -28,6 +31,6 @@ import { ScheduleHistoryService } from './schedule-history.service.js';
       inject: [ConfigService],
     },
   ],
-  exports: [ScheduleService, TemplatesService],
+  exports: [ScheduleService, TemplatesService, StaffingService],
 })
 export class SchedulingModule {}

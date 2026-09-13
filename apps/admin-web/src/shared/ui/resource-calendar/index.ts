@@ -3,6 +3,8 @@ export type {
   CalendarItem,
   CalendarCell,
   CalendarDate,
+  CalendarNote,
+  CalendarNoteTone,
   CalendarResource,
   CalendarSelection,
   CalendarViewModel,

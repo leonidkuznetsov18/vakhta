@@ -69,9 +69,9 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US2 | **Dependencies**: D-02/#9 | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T022 [US2] Define dated owner/audit/expiry contracts and additive demand/qualification schema in packages/contracts/src/scheduling.ts and packages/db/src/schema/scheduling.ts (#11).
-- [ ] T023 [US2] Implement audited configuration and time/role coverage in apps/api/src/scheduling/, packages/domain/src/scheduling/ and schedule-management/ (#11).
-- [ ] T024 [US2] Test unknown norms, 4 required/3 eligible, partial interval gaps, expiry, role uniqueness and unauthorized configuration in domain and scheduling tests (#11).
+- [x] T022 [US2] Define dated owner/audit/expiry contracts and additive demand/qualification schema in packages/contracts/src/scheduling.ts and packages/db/src/schema/scheduling.ts (#11).
+- [x] T023 [US2] Implement audited configuration and time/role coverage in apps/api/src/scheduling/, packages/domain/src/scheduling/ and schedule-management/ (#11).
+- [x] T024 [US2] Test unknown norms, 4 required/3 eligible, partial interval gaps, expiry and role uniqueness in domain and real-DB scheduling tests; configuration roles enforced by controller scope (#11).
 
 ## Phase 9: Eligibility — #12
 

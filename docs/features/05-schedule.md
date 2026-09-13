@@ -30,6 +30,11 @@ Counts describe assigned people, not required staffing or attendance.
   Changes always belong to the month you have open.
 - Local drafts are owned by the signed-in account. A changed server plan blocks a stale overwrite
   and keeps local work available for reconciliation. Filters never narrow the complete monthly write.
+- **Staffing coverage:** administrators and production heads define how many people each zone
+  needs per shift and which qualification they must hold (Staffing requirements in the actions
+  menu); administrators and HR record who holds which qualification and until when. Zone rows show
+  missing people or "not defined"; cells show eligible/required per shift. A zone whose every
+  requirement demands a qualification refuses an unqualified or expired worker at save.
 - **Who may plan:** administrators and planners plan the whole unit. A shift master whose access
   covers the unit prepares, saves and sends the draft for approval; a master limited to a zone
   changes only that zone's shifts and reads the rest. Publishing, returning and revising a

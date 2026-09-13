@@ -196,6 +196,11 @@ function mockApi(
     lostResponse?: boolean;
     savedDetail?: ScheduleVersionDetail;
     october?: ScheduleVersionDetail;
+    staffing?: {
+      requirements: unknown[];
+      qualifications: unknown[];
+      holdings: unknown[];
+    };
     readGate?: Promise<void>;
     templatesEmpty?: boolean;
     templatesFail?: boolean;
@@ -269,6 +274,8 @@ function mockApi(
         nextCursor: remaining.length > 200 ? items.at(-1)?.id : null,
       });
     }
+    if (path.startsWith('/admin/schedules/staffing'))
+      return json(state.staffing ?? { requirements: [], qualifications: [], holdings: [] });
     if (path.startsWith('/admin/schedules/templates'))
       return state.templatesFail
         ? json({ message: 'Template read failed' }, 500)
@@ -1492,6 +1499,109 @@ it('navigates past the month end, loads the next month and keeps the previous mo
   expect(screen.queryByRole('button', { name: `${t.add}: Линия 1, 2026-09-29` })).toBeNull();
   expect(screen.getByRole('button', { name: `${t.add}: Линия 1, 2026-10-02` })).toBeTruthy();
   expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('shows staffing shortage from requirements and blocks an unqualified assignment', async () => {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    revisions: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+  const QUALIFICATION = 'e1000000-0000-4000-8000-000000000001';
+  mockApi({
+    status: 'DRAFT',
+    staffing: {
+      qualifications: [
+        { id: QUALIFICATION, siteId: SITE, code: 'OP', name: 'Line operator', isActive: true },
+      ],
+      requirements: [
+        {
+          id: 'e2000000-0000-4000-8000-000000000001',
+          zoneId: ZONE,
+          templateId: TPL_NIGHT,
+          requiredCount: 2,
+          qualificationId: QUALIFICATION,
+          effectiveFrom: '2026-09-01',
+          effectiveTo: null,
+          note: null,
+          updatedAt: '2026-09-01T00:00:00.000Z',
+        },
+      ],
+      holdings: [
+        {
+          id: 'e3000000-0000-4000-8000-000000000001',
+          employeeId: EMP,
+          qualificationId: QUALIFICATION,
+          validFrom: '2026-01-01',
+          validUntil: null,
+          note: null,
+          recordedAt: '2026-09-01T00:00:00.000Z',
+        },
+      ],
+    },
+  });
+  admin();
+  await screen.findByText(t.draftState);
+  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+    fireEvent.click(screen.getByRole('button', { name: t.previous }));
+  }
+  // The qualified holder covers one of two required night operators on 5 September.
+  expect(await screen.findByText(t.coverageShort.replace('{count}', '11'))).toBeTruthy();
+  expect(screen.getByText(`${messages(currentLocale()).schedule.dayKinds.NIGHT} 1/2`)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: `${t.add}: Линия 1, 2026-09-05` }));
+  const sheet = await screen.findByRole('dialog');
+  fireEvent.change(within(sheet).getByRole('combobox', { name: s.employee }), {
+    target: { value: EMP2 },
+  });
+  fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_NIGHT } });
+  expect(within(sheet).getByText(/Line operator/)).toBeTruthy();
+  expect(within(sheet).getByRole('button', { name: t.apply }).hasAttribute('disabled')).toBe(true);
+  fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_DAY } });
+  expect(within(sheet).queryByText(/Line operator/)).toBeNull();
+  expect(within(sheet).getByRole('button', { name: t.apply }).hasAttribute('disabled')).toBe(false);
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('lets an administrator add a staffing requirement from the staffing sheet', async () => {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    revisions: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+  const calls = mockApi({ status: 'PUBLISHED' });
+  admin();
+  await screen.findByText(t.publishedState);
+  fireEvent.click(screen.getByRole('menuitem', { name: t.staffing }));
+  const sheet = await screen.findByRole('dialog');
+  const add = await within(sheet).findByRole('button', { name: t.addRequirement });
+  await waitFor(() => expect(add.hasAttribute('disabled')).toBe(false));
+  fireEvent.change(within(sheet).getByLabelText(t.requiredCount), { target: { value: '3' } });
+  fireEvent.click(add);
+  await waitFor(() =>
+    expect(
+      calls.some((call) => call.method === 'PUT' && call.path.endsWith('/staffing/requirements')),
+    ).toBe(true),
+  );
+  expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
+    zoneId: ZONE,
+    templateId: TPL_DAY,
+    requiredCount: 3,
+    qualificationId: null,
+    effectiveFrom: '2026-09-01',
+  });
   cleanup();
   vi.unstubAllGlobals();
 });
