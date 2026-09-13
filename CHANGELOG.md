@@ -1,3 +1,28 @@
+## [1.4.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.3.0...v1.4.0) (2026-09-13)
+
+### Features
+
+* **schedule:** copy periods, saved patterns and drag or Move with shared validation ([bda2518](https://github.com/leonidkuznetsov18/vakhta/commit/bda25181e013bd1632536c75ea3f0d8a8a20494d))
+* **schedule:** custom assignment hours and ordered zone segments ([9ae8643](https://github.com/leonidkuznetsov18/vakhta/commit/9ae8643d52663c717b4bd3f8e90993c0264e30ce)), closes [#15](https://github.com/leonidkuznetsov18/vakhta/issues/15)
+* **schedule:** enforce scoped master planning authority ([5dab3aa](https://github.com/leonidkuznetsov18/vakhta/commit/5dab3aa1a39e395666e7866c3c676d8a719518d6))
+* **schedule:** evaluate plan eligibility with explainable reasons ([d077a13](https://github.com/leonidkuznetsov18/vakhta/commit/d077a139c9fe907b5f7a99f989bd3737af2c9c71))
+* **schedule:** model staffing demand and qualification coverage ([6fb345e](https://github.com/leonidkuznetsov18/vakhta/commit/6fb345ed96c95e772073c86484d9bb0cab009bd4))
+* **schedule:** redesign the planning workspace and remove version UI ([4d98860](https://github.com/leonidkuznetsov18/vakhta/commit/4d98860c7cd3b37a8ce4257a68ad5005c448f85c))
+* **schedule:** show full weeks across month boundaries ([9198da8](https://github.com/leonidkuznetsov18/vakhta/commit/9198da831f532462568bcb292a8c6968485a4f5d))
+
+### Documentation
+
+* position Vakhta as a Connected Worker platform and add the product vision brief ([7d0c8d9](https://github.com/leonidkuznetsov18/vakhta/commit/7d0c8d940040b6a9e4fa8bf8a430efb396ff4bd4))
+* **schedule:** record policy defaults and workspace acceptance evidence ([911c993](https://github.com/leonidkuznetsov18/vakhta/commit/911c99331d6001bf7dbea87cdf89cb102015a329))
+
+### Tests
+
+* **api:** align the schedule command boundary with master authority ([fc07b6c](https://github.com/leonidkuznetsov18/vakhta/commit/fc07b6c0c40fb71a50b2213f7991b9ff4fc94b32))
+
+### Styles
+
+* **i18n:** format the schedule workspace catalog ([63bfb89](https://github.com/leonidkuznetsov18/vakhta/commit/63bfb890587636806772bea751d28420149fe058))
+
 ## [1.3.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.2.0...v1.3.0) (2026-09-13)
 
 ### Features
