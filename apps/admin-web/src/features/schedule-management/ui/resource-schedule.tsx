@@ -10,6 +10,7 @@ import { calendarModel, type CalendarGrouping } from '../model/calendar';
 import { assignmentKey, gridFromItems, gridToItems } from '../model/grid';
 import type { AdjacentPlan } from '../model/use-adjacent';
 import { staffingCoverage } from '../model/use-staffing';
+import { reasonText, reasonsFor } from '../model/use-eligibility';
 import { UNASSIGNED_ZONE, zoneAllowed } from '../model/planning';
 import type { Workspace } from '../model/use-workspace';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
@@ -53,6 +54,7 @@ export function ResourceSchedule({
   const model = calendarModel({
     ...w,
     coverage,
+    issues: w.issues.reasons,
     grid: adjacent.months.length
       ? gridFromItems([...gridToItems(w.grid), ...gridToItems(adjacent.grid)])
       : w.grid,
@@ -161,6 +163,30 @@ export function ResourceSchedule({
                 <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.description}</p>
                 <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.status}</p>
                 <p className="text-sm">{acknowledgement}</p>
+                {reasonsFor(w.issues.reasons, selectedItem.employeeId, selectedItem.businessDate)
+                  .length > 0 && (
+                  <ul className="space-y-1 text-sm" aria-label={t.conflict}>
+                    {reasonsFor(
+                      w.issues.reasons,
+                      selectedItem.employeeId,
+                      selectedItem.businessDate,
+                    ).map((reason, index) => (
+                      <li
+                        key={index}
+                        className={
+                          reason.severity === 'BLOCK'
+                            ? 'text-red-700 dark:text-red-300'
+                            : 'text-amber-700 dark:text-amber-300'
+                        }
+                      >
+                        {reasonText(reason, {
+                          unitName: (id) => w.units.find((unit) => unit.id === id)?.name ?? id,
+                          zoneName: (id) => w.zones.find((zone) => zone.id === id)?.name ?? id,
+                        })}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <p className="text-sm text-muted-foreground">{t.presenceUnknown}</p>
                 {editable && <Button onClick={edit}>{t.editAssignment}</Button>}
                 {w.writable && !editable && (

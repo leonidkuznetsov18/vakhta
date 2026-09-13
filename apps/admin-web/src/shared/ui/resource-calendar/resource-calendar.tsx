@@ -67,9 +67,20 @@ function ItemContent({ item }: { readonly item: CalendarItem }) {
       <span className="block min-w-0 truncate text-[11px] leading-4 tabular-nums">{item.time}</span>
       <span className="flex min-w-0 items-center gap-1.5 text-[11px] leading-4">
         <span className="min-w-0 truncate">{description}</span>
-        {item.status && (
-          <span className="ml-auto flex shrink-0 items-center" title={item.status}>
-            <CircleDashedIcon aria-hidden className="size-3.5" />
+        {(item.status || item.issue) && (
+          <span className="ml-auto flex shrink-0 items-center gap-1" title={item.status}>
+            {item.issue && (
+              <TriangleAlertIcon
+                aria-hidden
+                className={cn(
+                  'size-3.5',
+                  item.issue === 'BLOCK'
+                    ? 'text-red-700 dark:text-red-300'
+                    : 'text-amber-700 dark:text-amber-300',
+                )}
+              />
+            )}
+            {item.status && <CircleDashedIcon aria-hidden className="size-3.5" />}
             <span className="sr-only">{item.status}</span>
           </span>
         )}
@@ -108,7 +119,14 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
               key={item.id}
               variant="outline"
               aria-pressed={selected}
-              aria-label={[item.title, cell.label, item.time, item.description, item.status]
+              aria-label={[
+                item.title,
+                cell.label,
+                item.time,
+                item.description,
+                item.status,
+                item.issue ? model.issueLabels?.[item.issue] : '',
+              ]
                 .filter(Boolean)
                 .join(', ')}
               className={cn(
@@ -117,6 +135,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                 calendarInteraction,
                 item.unpublished && 'border-dashed border-current/50',
                 item.readonly && 'opacity-70',
+                item.issue === 'BLOCK' && 'inset-ring-2 inset-ring-red-500/70',
               )}
               onClick={(event) => {
                 openFrom(event.currentTarget);

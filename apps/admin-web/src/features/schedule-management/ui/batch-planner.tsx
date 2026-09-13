@@ -22,6 +22,8 @@ import type { Workspace } from '../model/use-workspace';
 import { batchPreview, zoneAllowed, type BatchInput } from '../model/planning';
 import { ROTATION_PATTERNS } from '../model/grid';
 import { AssignmentChanges } from './assignment-changes';
+import { planIssues, reasonText } from '../model/use-eligibility';
+import { Feedback } from '@/components/app/feedback';
 const t = messages(currentLocale()).scheduleWorkspace;
 const s = messages(currentLocale()).admin.schedule;
 export function BatchPlanner({
@@ -63,6 +65,26 @@ export function BatchPlanner({
     zoneAllowed(w.rights.zones, input.zoneId)
       ? batchPreview(w.grid, input, w.month, w.templates)
       : null;
+  const evaluation = result
+    ? planIssues({
+        grid: result.grid,
+        month: w.month,
+        orgUnitId: w.orgUnitId,
+        templates: w.templates,
+        timezone: w.timezone,
+        staffing: w.staffing,
+        context: w.context,
+      })
+    : null;
+  const affectedKeys = new Set(result?.changes.map((change) => change.key) ?? []);
+  const batchReasons = (evaluation?.reasons ?? []).filter((reason) =>
+    affectedKeys.has(`${reason.employeeId}:${reason.businessDate}`),
+  );
+  const batchBlocked = batchReasons.some((reason) => reason.severity === 'BLOCK');
+  const labels = {
+    unitName: (id: string) => w.units.find((unit) => unit.id === id)?.name ?? id,
+    zoneName: (id: string) => w.zones.find((zone) => zone.id === id)?.name ?? id,
+  };
   function update(next: Partial<BatchInput>) {
     setInput({ ...input, ...next });
     setReview(false);
@@ -223,6 +245,25 @@ export function BatchPlanner({
           )}
           {!result && <p className="text-sm text-muted-foreground">{t.invalid}</p>}
           {review && result && <AssignmentChanges changes={result.changes} labels={w} />}
+          {review && batchBlocked && <Feedback error={t.eligibilityError} />}
+          {review && batchReasons.length > 0 && (
+            <ul className="space-y-1 text-sm" aria-label={t.conflict}>
+              {batchReasons.slice(0, 20).map((reason, index) => (
+                <li
+                  key={index}
+                  className={
+                    reason.severity === 'BLOCK'
+                      ? 'text-red-700 dark:text-red-300'
+                      : 'text-amber-700 dark:text-amber-300'
+                  }
+                >
+                  {w.employees.find((employee) => employee.id === reason.employeeId)?.fullName ??
+                    reason.employeeId}{' '}
+                  · {reason.businessDate} · {reasonText(reason, labels)}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => (review ? setReview(false) : onClose())}>
@@ -230,9 +271,9 @@ export function BatchPlanner({
           </Button>
           {review ? (
             <Button
-              disabled={!result?.changes.length || !w.writable}
+              disabled={!result?.changes.length || !w.writable || batchBlocked}
               onClick={() => {
-                if (result?.changes.length && w.writable) {
+                if (result?.changes.length && w.writable && !batchBlocked) {
                   w.edit(result.grid);
                   onClose();
                 }

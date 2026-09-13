@@ -920,3 +920,39 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   the same interval check. Role-specific shortage uses qualifications, not positions.
 - Lean: Proceed. The planner sees the gap where the plan is edited and cannot plan an unqualified
   person into a qualified post; no new worker step, no dashboard.
+
+## 2026-09-13 — Eligibility rules (#12, SC-02/05/06/17/33, D-03)
+
+- Domain `scheduling/eligibility.ts`: one `evaluatePlan` over the complete proposed plan plus the
+  same people's context elsewhere. Overlaps block (adjacent intervals pass), rest and monthly
+  hours follow the site severity (defaults 11 h / 200 h, WARN), approved absences block, pending
+  ones and unavailable preferences warn, missing required qualifications block. Two individually
+  valid additions that conflict together are rejected as one batch.
+- Schema (migration `0042_scheduling_rules_availability`): `site_scheduling_rules` (one row per
+  site, audited upsert) and `employee_availability` (weekday or date, validity window).
+- API: `plan-context.ts` loads one working plan per unit and month for the same people (published
+  first), absence requests, preferences, rules and unit membership. `replaceAssignments` takes
+  per-person advisory locks in sorted order, evaluates the payload against the context inside the
+  transaction and rejects `SCHEDULE_ELIGIBILITY` (422) on any blocking reason, so concurrent
+  cross-unit saves cannot double-book a person. `/admin/schedules/staffing/context`,
+  `/candidates` (everyone active on the site evaluated for a zone, template and date; own unit
+  first, blocked reasons visible), `PUT /rules` and availability records complete the surface.
+- Panel: the workspace evaluates the plan on screen (including unsaved edits) with the server
+  context: cards carry a red mark for blocking conflicts and an amber one for warnings, the status
+  line counts them, save/submit/revise/publish are disabled while a blocking reason exists, the
+  Sheet and the editor list the reasons with units, hours and dates, the editor offers candidates
+  with reasons, the batch preview shows the reasons of the resulting batch and disables apply on a
+  block, and the staffing Sheet gains site rules and availability preferences by role.
+- Verification: domain eligibility 5 tests (cross-unit overlap versus adjacency, individually
+  valid conflict, overnight rest warn/block, month hours with other-unit context, absences,
+  preferences and qualification); real-DB 2 cases (two units saving the same person concurrently
+  commit once with the other rejected and adjacent night accepted; rest warn then block after
+  configuration, approved vacation block, candidates and context); panel suites 100 tests including
+  the conflict mark, reasons in the Sheet, editor recovery, candidate list and gating; typecheck,
+  ESLint, Prettier for API and panel. Evidence: `eligibility-conflicts-week.png`,
+  `eligibility-conflict-sheet.png`, `eligibility-candidates.png`, `eligibility-rules-sheet.png`.
+- Limits: candidate lists evaluate the person against saved plans, not against the unsaved local
+  draft of the same unit; the editor's own evaluation covers that. Preferences are recorded by
+  planners/HR in the panel; an employee self-service entry is not part of this increment.
+- Lean: Proceed. The planner sees why a person cannot take a shift before saving and gets an
+  ordered candidate list instead of calling around; the server keeps the final word.

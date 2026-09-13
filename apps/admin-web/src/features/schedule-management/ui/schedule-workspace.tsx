@@ -347,6 +347,21 @@ function WorkspaceView({
                   {t.localChanges}: {w.changes}
                 </Muted>
               )}
+              {w.issues.blocked && (
+                <StatusPill tone="danger">
+                  {format(t.conflictsCount, {
+                    count: w.issues.reasons.filter((reason) => reason.severity === 'BLOCK').length,
+                  })}
+                </StatusPill>
+              )}
+              {!w.issues.blocked &&
+                w.issues.reasons.some((reason) => reason.severity === 'WARN') && (
+                  <StatusPill tone="warning">
+                    {format(t.warningsCount, {
+                      count: w.issues.reasons.filter((reason) => reason.severity === 'WARN').length,
+                    })}
+                  </StatusPill>
+                )}
               {w.published?.publishedAt && (
                 <Muted>
                   {format(t.publishedAt, {

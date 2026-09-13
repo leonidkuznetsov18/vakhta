@@ -77,9 +77,9 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US2 | **Dependencies**: D-03/#10/#11 | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T025 [US2] Define one full-plan evaluation with stable eligible/warning/blocked/unknown reasons in packages/domain/src/scheduling/ and packages/contracts/src/scheduling.ts (#12).
-- [ ] T026 [US2] Implement overlap serialization, rest/hour configuration, dated preferences, complete candidate evaluation and explanations in apps/api/src/scheduling/ and schedule-management/ (#12).
-- [ ] T027 [US2] Test concurrent cross-unit overlap, adjacency, boundary periods, full-batch conflicts, expired qualifications/absence and stale evidence using real DB and pure tests (#12).
+- [x] T025 [US2] Define one full-plan evaluation with stable eligible/warning/blocked/unknown reasons in packages/domain/src/scheduling/ and packages/contracts/src/scheduling.ts (#12).
+- [x] T026 [US2] Implement overlap serialization, rest/hour configuration, dated preferences, complete candidate evaluation and explanations in apps/api/src/scheduling/ and schedule-management/ (#12).
+- [x] T027 [US2] Test concurrent cross-unit overlap, adjacency, boundary periods, full-batch conflicts, expired qualifications/absence and stale evidence using real DB and pure tests (#12).
 
 ## Phase 10: Open slots and interest — #13
 

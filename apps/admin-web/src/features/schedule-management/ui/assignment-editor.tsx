@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { AssignmentInput } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
 import { qualifiedFor, requiredQualifications } from '@vakhta/domain';
+import { planIssues, reasonText, reasonsFor, useCandidates } from '../model/use-eligibility';
+import { setAssignment as placeAssignment } from '../model/grid';
+import { LoadingState } from '@/shared/ui/loading-state';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { SelectField } from '@/components/app/fields';
@@ -11,6 +14,7 @@ import { DateField } from '@/components/app/date-picker';
 import { Button } from '@/components/ui/button';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { Feedback } from '@/components/app/feedback';
+import { InfoTip } from '@/components/app/info-tip';
 import type { Workspace } from '../model/use-workspace';
 import { assignmentKey, gridToItems, setAssignment, setCell } from '../model/grid';
 import { zoneAllowed } from '../model/planning';
@@ -73,6 +77,42 @@ export function AssignmentEditor({
             (id) => w.staffing?.qualifications.find((item) => item.id === id)?.name ?? id,
           )
       : [];
+  // The draft evaluated against the rest of the plan and the server context (SC-02/05/06).
+  const evaluated =
+    candidate.success && draft.employeeId && draft.templateId && draft.businessDate
+      ? reasonsFor(
+          planIssues({
+            grid: placeAssignment(
+              original ? setCell(w.grid, original.employeeId, original.businessDate, '') : w.grid,
+              candidate.data,
+            ),
+            month: w.month,
+            orgUnitId: w.orgUnitId,
+            templates: w.templates,
+            timezone: w.timezone,
+            staffing: w.staffing,
+            context: w.context,
+          }).reasons,
+          draft.employeeId,
+          draft.businessDate,
+        )
+      : [];
+  const blockedByRules = evaluated.some((reason) => reason.severity === 'BLOCK');
+  const candidateQuery =
+    !original && draft.zoneId && draft.templateId && draft.businessDate.startsWith(w.month)
+      ? {
+          siteId: w.siteId,
+          orgUnitId: w.orgUnitId,
+          zoneId: draft.zoneId,
+          templateId: draft.templateId,
+          businessDate: draft.businessDate,
+        }
+      : null;
+  const candidates = useCandidates(w.accessKey, candidateQuery, w.writable);
+  const labels = {
+    unitName: (id: string) => w.units.find((unit) => unit.id === id)?.name ?? id,
+    zoneName: (id: string) => w.zones.find((zone) => zone.id === id)?.name ?? id,
+  };
   const unchanged =
     !!original &&
     original.businessDate === draft.businessDate &&
@@ -84,6 +124,7 @@ export function AssignmentEditor({
     draft.businessDate.startsWith(w.month) &&
     !occupied &&
     missingQualifications.length === 0 &&
+    !blockedByRules &&
     !unchanged;
   function apply() {
     if (!valid || !candidate.success || !w.writable) return;
@@ -148,6 +189,86 @@ export function AssignmentEditor({
         <Feedback
           error={format(t.qualificationRequired, { names: missingQualifications.join(', ') })}
         />
+      )}
+      {evaluated.filter((reason) => reason.code !== 'QUALIFICATION').length > 0 && (
+        <ul className="space-y-1 text-sm" aria-label={t.conflict}>
+          {evaluated
+            .filter((reason) => reason.code !== 'QUALIFICATION')
+            .map((reason, index) => (
+              <li
+                key={index}
+                className={
+                  reason.severity === 'BLOCK'
+                    ? 'text-red-700 dark:text-red-300'
+                    : 'text-amber-700 dark:text-amber-300'
+                }
+              >
+                {reasonText(reason, labels)}
+              </li>
+            ))}
+        </ul>
+      )}
+      {candidateQuery && (
+        <section className="space-y-2" aria-label={t.candidates}>
+          <div className="flex items-center gap-1">
+            <h4 className="text-sm font-semibold">{t.candidates}</h4>
+            <InfoTip text={t.candidatesHint} />
+          </div>
+          {candidates.isPending && candidates.fetchStatus !== 'idle' && (
+            <LoadingState label={t.candidates} />
+          )}
+          {candidates.isError && <Feedback error={t.candidatesUnavailable} />}
+          {candidates.data && candidates.data.length === 0 && (
+            <p className="text-sm text-muted-foreground">{t.noCandidates}</p>
+          )}
+          {candidates.data && candidates.data.length > 0 && (
+            <ul className="max-h-64 space-y-1 overflow-y-auto rounded-md border p-1">
+              {candidates.data.slice(0, 50).map((item) => {
+                const employee = w.employees.find((value) => value.id === item.employeeId);
+                if (!employee) return null;
+                const tone =
+                  item.status === 'BLOCKED'
+                    ? 'text-red-700 dark:text-red-300'
+                    : item.status === 'WARNING'
+                      ? 'text-amber-700 dark:text-amber-300'
+                      : 'text-emerald-700 dark:text-emerald-300';
+                return (
+                  <li key={item.employeeId}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-auto w-full flex-col items-start gap-0.5 whitespace-normal py-1.5 text-left"
+                      aria-pressed={draft.employeeId === item.employeeId}
+                      disabled={item.status === 'BLOCKED'}
+                      onClick={() => setDraft({ ...draft, employeeId: item.employeeId })}
+                    >
+                      <span className="flex w-full items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate font-medium">
+                          {employee.fullName}
+                        </span>
+                        {!item.ownUnit && (
+                          <span className="text-xs text-muted-foreground">{t.otherUnit}</span>
+                        )}
+                        <span className={`text-xs ${tone}`}>
+                          {item.status === 'BLOCKED'
+                            ? t.blocked
+                            : item.status === 'WARNING'
+                              ? t.warning
+                              : t.eligible}
+                        </span>
+                      </span>
+                      {item.reasons.length > 0 && (
+                        <span className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                          {item.reasons.map((reason) => reasonText(reason, labels)).join(' · ')}
+                        </span>
+                      )}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       )}
       {!occupied && !unchanged && !valid && (
         <p className="text-sm text-muted-foreground">{t.invalid}</p>

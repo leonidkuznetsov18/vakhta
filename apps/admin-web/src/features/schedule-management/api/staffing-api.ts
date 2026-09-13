@@ -1,9 +1,17 @@
 import { apiFetch } from '@/api';
+import { z } from 'zod';
 import {
+  CandidateView,
+  CandidatesQuery,
   CreateQualificationCommand,
+  EmployeeAvailabilityView,
   EmployeeQualificationView,
+  PlanContextView,
   QualificationView,
+  RecordAvailabilityCommand,
   RecordEmployeeQualificationCommand,
+  SchedulingRulesView,
+  SetSchedulingRulesCommand,
   SetStaffingRequirementCommand,
   StaffingRequirementView,
   StaffingView,
@@ -46,5 +54,32 @@ export const staffingApi = {
   },
   async removeHolding(id: string) {
     await apiFetch(`${root}/holdings/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
+  async context(siteId: string, orgUnitId: string, periodMonth: string, signal: AbortSignal) {
+    const query = new URLSearchParams({ siteId, orgUnitId, periodMonth });
+    return PlanContextView.parse(await apiFetch(`${root}/context?${query}`, { signal }));
+  },
+  async candidates(input: CandidatesQuery, signal: AbortSignal) {
+    const query = new URLSearchParams(CandidatesQuery.parse(input));
+    return z.array(CandidateView).parse(await apiFetch(`${root}/candidates?${query}`, { signal }));
+  },
+  async setRules(input: SetSchedulingRulesCommand) {
+    return SchedulingRulesView.parse(
+      await apiFetch(`${root}/rules`, {
+        method: 'PUT',
+        body: JSON.stringify(SetSchedulingRulesCommand.parse(input)),
+      }),
+    );
+  },
+  async recordAvailability(input: RecordAvailabilityCommand) {
+    return EmployeeAvailabilityView.parse(
+      await apiFetch(`${root}/availability`, {
+        method: 'POST',
+        body: JSON.stringify(RecordAvailabilityCommand.parse(input)),
+      }),
+    );
+  },
+  async removeAvailability(id: string) {
+    await apiFetch(`${root}/availability/${encodeURIComponent(id)}`, { method: 'DELETE' });
   },
 };

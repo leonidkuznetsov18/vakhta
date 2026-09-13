@@ -11,6 +11,8 @@ export interface CalendarItem {
   readonly unpublished?: boolean;
   /** Shown for context only (for example another month's plan); selecting it opens details. */
   readonly readonly?: boolean;
+  /** A rule the item breaks: blocking conflicts get a red mark, warnings an amber one. */
+  readonly issue?: 'BLOCK' | 'WARN';
   readonly parts?: readonly { readonly id: string; readonly label: string }[];
 }
 export type CalendarNoteTone = 'danger' | 'ok' | 'muted';
@@ -54,6 +56,8 @@ export interface CalendarViewModel {
   readonly resources: readonly CalendarResource[];
   readonly emptyLabel: string;
   readonly moreItemsLabel: string;
+  /** Accessible names of item issues. */
+  readonly issueLabels?: Readonly<Record<'BLOCK' | 'WARN', string>>;
 }
 export interface CalendarSelection {
   readonly resourceId: string;

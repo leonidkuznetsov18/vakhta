@@ -13,12 +13,20 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  CandidatesQuery,
   CreateQualificationCommand,
+  PlanContextQuery,
+  RecordAvailabilityCommand,
   RecordEmployeeQualificationCommand,
+  SetSchedulingRulesCommand,
   SetStaffingRequirementCommand,
   StaffingQuery,
+  type CandidateView,
+  type EmployeeAvailabilityView,
   type EmployeeQualificationView,
+  type PlanContextView,
   type QualificationView,
+  type SchedulingRulesView,
   type StaffingRequirementView,
   type StaffingView,
 } from '@vakhta/contracts';
@@ -46,6 +54,9 @@ const READERS: WebRole[] = [
 /** D-02: administrators and production heads own demand; administrators and HR own evidence. */
 const DEMAND_OWNERS: WebRole[] = ['ADMIN', 'PRODUCTION_HEAD'];
 const EVIDENCE_OWNERS: WebRole[] = ['ADMIN', 'HR'];
+/** Availability preferences are recorded by the people who plan or keep personnel records. */
+const AVAILABILITY_OWNERS: WebRole[] = ['ADMIN', 'HR', 'PLANNER', 'PRODUCTION_HEAD'];
+const PLANNERS: WebRole[] = ['ADMIN', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER'];
 
 function assertScope(user: WebUser, roles: WebRole[], target: ScopeTarget): void {
   if (!canActOn(user.grants, roles, target))
@@ -66,6 +77,56 @@ export class AdminStaffingController {
   ): Promise<StaffingView> {
     assertScope(user, READERS, query);
     return this.staffing.view(query.siteId, query.orgUnitId);
+  }
+
+  @Get('context')
+  context(
+    @Query(new ZodValidationPipe(PlanContextQuery)) query: PlanContextQuery,
+    @CurrentUser() user: WebUser,
+  ): Promise<PlanContextView> {
+    assertScope(user, PLANNERS, query);
+    return this.staffing.context(query.siteId, query.orgUnitId, query.periodMonth);
+  }
+
+  @Get('candidates')
+  candidates(
+    @Query(new ZodValidationPipe(CandidatesQuery)) query: CandidatesQuery,
+    @CurrentUser() user: WebUser,
+  ): Promise<CandidateView[]> {
+    assertScope(user, PLANNERS, query);
+    return this.staffing.candidates(query);
+  }
+
+  @Put('rules')
+  @HttpCode(200)
+  @Roles(...DEMAND_OWNERS)
+  setRules(
+    @Body(new ZodValidationPipe(SetSchedulingRulesCommand)) body: SetSchedulingRulesCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<SchedulingRulesView> {
+    assertScope(user, DEMAND_OWNERS, { siteId: body.siteId });
+    return this.staffing.setRules(body, webUserActor(user));
+  }
+
+  @Post('availability')
+  @HttpCode(201)
+  @Roles(...AVAILABILITY_OWNERS)
+  recordAvailability(
+    @Body(new ZodValidationPipe(RecordAvailabilityCommand)) body: RecordAvailabilityCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<EmployeeAvailabilityView> {
+    return this.staffing.recordAvailability(body, webUserActor(user));
+  }
+
+  @Delete('availability/:id')
+  @HttpCode(204)
+  @Roles(...AVAILABILITY_OWNERS)
+  async removeAvailability(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: WebUser,
+  ): Promise<void> {
+    await this.staffing.availabilityEmployee(id);
+    await this.staffing.removeAvailability(id, webUserActor(user));
   }
 
   @Post('qualifications')

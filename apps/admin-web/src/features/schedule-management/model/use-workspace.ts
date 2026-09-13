@@ -29,6 +29,7 @@ import { scheduleCommands, useScheduleCommands, commandWasRejected } from './com
 import { scheduleChain } from './chain';
 import { useScheduleRoster } from './roster';
 import { useStaffing } from './use-staffing';
+import { planIssues, usePlanContext } from './use-eligibility';
 import { workspaceFeedback } from './feedback';
 import { PRESET_KEY, clearSchedulePreset, type SchedulePreset } from './preset';
 
@@ -96,6 +97,7 @@ export function useWorkspace() {
     enabled: !!actorId && !!siteId && !!orgUnitId,
   });
   const staffing = useStaffing({ accessKey, siteId, orgUnitId, enabled: !!actorId });
+  const contextQuery = usePlanContext({ accessKey, siteId, orgUnitId, month, enabled: !!actorId });
   const templatesQuery = useQuery({
     queryKey: scheduleKeys.templates(accessKey, siteId),
     queryFn: ({ signal }) => scheduleApi.templates(siteId, signal),
@@ -335,12 +337,34 @@ export function useWorkspace() {
     });
   }
   const items = gridToItems(grid).length;
+  const timezone = org?.sites.find((site) => site.id === siteId)?.timezone ?? 'UTC';
+  // Blocking rule conflicts stop saving and publication; the server re-evaluates at commit.
+  const issues = planIssues({
+    grid,
+    month,
+    orgUnitId,
+    templates: templatesQuery.data ?? [],
+    timezone,
+    staffing: staffing.data,
+    context: contextQuery.data,
+  });
   const allowed = {
-    save: writable && canEdit && version?.status === 'DRAFT' && changes > 0,
-    revise: writable && canEdit && version?.status === 'PUBLISHED' && changes > 0,
-    publish: commandReady && rights.publish && version?.status === 'IN_REVIEW' && changes === 0,
+    save: writable && canEdit && version?.status === 'DRAFT' && changes > 0 && !issues.blocked,
+    revise:
+      writable && canEdit && version?.status === 'PUBLISHED' && changes > 0 && !issues.blocked,
+    publish:
+      commandReady &&
+      rights.publish &&
+      version?.status === 'IN_REVIEW' &&
+      changes === 0 &&
+      !issues.blocked,
     submit:
-      commandReady && rights.edit && version?.status === 'DRAFT' && changes === 0 && items > 0,
+      commandReady &&
+      rights.edit &&
+      version?.status === 'DRAFT' &&
+      changes === 0 &&
+      items > 0 &&
+      !issues.blocked,
     return: commandReady && rights.publish && version?.status === 'IN_REVIEW' && changes === 0,
     remove: commandReady && rights.edit && !!version?.deletable && version.status === 'DRAFT',
   };
@@ -401,6 +425,12 @@ export function useWorkspace() {
       ? [{ query: employeeResult.queryState, errorMessage: t.rosterUnavailable }]
       : []),
     ...(actorId && id ? [{ query: detailQuery }] : []),
+    ...(actorId && siteId && orgUnitId
+      ? [
+          { query: staffing.query, errorMessage: t.staffingUnavailable },
+          { query: contextQuery, errorMessage: t.contextUnavailable },
+        ]
+      : []),
     ...(canReadEmployees && employeeResult.loaded
       ? extraQueries.map((query) => ({ query, errorMessage: t.namesUnavailable }))
       : []),
@@ -451,8 +481,11 @@ export function useWorkspace() {
     legacy,
     localGrid,
     readOnlyChanges,
-    timezone: org?.sites.find((site) => site.id === siteId)?.timezone ?? 'UTC',
+    timezone,
     recorded: detail?.assignments ?? [],
+    context: contextQuery.data,
+    contextQuery,
+    issues,
     restoreLegacy() {
       if (canRestoreDraft && version) store.restore(draftKey, grid, baseline, version.revision);
     },

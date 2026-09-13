@@ -201,6 +201,8 @@ function mockApi(
       qualifications: unknown[];
       holdings: unknown[];
     };
+    context?: { intervals: unknown[]; absences: unknown[]; otherUnitEmployees: unknown[] };
+    candidates?: unknown[];
     readGate?: Promise<void>;
     templatesEmpty?: boolean;
     templatesFail?: boolean;
@@ -274,8 +276,23 @@ function mockApi(
         nextCursor: remaining.length > 200 ? items.at(-1)?.id : null,
       });
     }
+    if (path.startsWith('/admin/schedules/staffing/context'))
+      return json(state.context ?? { intervals: [], absences: [], otherUnitEmployees: [] });
+    if (path.startsWith('/admin/schedules/staffing/candidates'))
+      return json(state.candidates ?? []);
     if (path.startsWith('/admin/schedules/staffing'))
-      return json(state.staffing ?? { requirements: [], qualifications: [], holdings: [] });
+      return json({
+        rules: {
+          siteId: SITE,
+          minRestMinutes: 660,
+          maxMonthMinutes: 12000,
+          restSeverity: 'WARN',
+          hoursSeverity: 'WARN',
+          configured: false,
+        },
+        availability: [],
+        ...(state.staffing ?? { requirements: [], qualifications: [], holdings: [] }),
+      });
     if (path.startsWith('/admin/schedules/templates'))
       return state.templatesFail
         ? json({ message: 'Template read failed' }, 500)
@@ -1602,6 +1619,120 @@ it('lets an administrator add a staffing requirement from the staffing sheet', a
     qualificationId: null,
     effectiveFrom: '2026-09-01',
   });
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('marks a cross-unit overlap as a blocking conflict, explains it and disables saving', async () => {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    revisions: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+  const OTHER_UNIT = 'a0000000-0000-4000-8000-000000000012';
+  mockApi({
+    status: 'DRAFT',
+    context: {
+      intervals: [
+        {
+          employeeId: EMP,
+          businessDate: '2026-09-05',
+          startAt: '2026-09-05T18:00:00.000Z',
+          endAt: '2026-09-06T02:00:00.000Z',
+          orgUnitId: OTHER_UNIT,
+          status: 'PUBLISHED',
+        },
+      ],
+      absences: [
+        {
+          employeeId: EMP2,
+          from: '2026-09-07',
+          to: '2026-09-08',
+          type: 'VACATION',
+          status: 'PENDING',
+        },
+      ],
+      otherUnitEmployees: [],
+    },
+  });
+  admin();
+  await screen.findByText(t.draftState);
+  expect(await screen.findByText(t.conflictsCount.replace('{count}', '1'))).toBeTruthy();
+  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+    fireEvent.click(screen.getByRole('button', { name: t.previous }));
+  }
+  const card = screen.getByRole('button', { name: /Кузнецов Леонид, 05/ });
+  expect(card.getAttribute('aria-label')).toContain(t.conflict);
+  fireEvent.click(card);
+  const sheet = await screen.findByRole('dialog');
+  expect(within(sheet).getByText(/2026-09-05/)).toBeTruthy();
+  expect(within(sheet).getByRole('list', { name: t.conflict }).textContent).toContain('2026-09-05');
+  fireEvent.click(within(sheet).getByRole('button', { name: t.editAssignment }));
+  fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_DAY } });
+  // Moving to the day shift removes the overlap with the other unit's evening shift.
+  expect(within(sheet).getByRole('button', { name: t.apply }).hasAttribute('disabled')).toBe(false);
+  fireEvent.click(within(sheet).getByRole('button', { name: t.apply }));
+  await waitFor(() =>
+    expect(screen.queryByText(t.conflictsCount.replace('{count}', '1'))).toBeNull(),
+  );
+  expect(screen.getByRole('button', { name: `${s.save} (1)` }).hasAttribute('disabled')).toBe(
+    false,
+  );
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('lists candidates with reasons when creating a shift and blocks an absent worker', async () => {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    revisions: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+  mockApi({
+    status: 'DRAFT',
+    candidates: [
+      { employeeId: EMP2, orgUnitId: UNIT, ownUnit: true, status: 'ELIGIBLE', reasons: [] },
+      {
+        employeeId: EMP,
+        orgUnitId: UNIT,
+        ownUnit: true,
+        status: 'BLOCKED',
+        reasons: [
+          {
+            code: 'ABSENCE',
+            severity: 'BLOCK',
+            employeeId: EMP,
+            businessDate: '2026-09-06',
+            detail: { type: 'VACATION', from: '2026-09-06', to: '2026-09-06' },
+          },
+        ],
+      },
+    ],
+  });
+  admin();
+  await screen.findByText(t.draftState);
+  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
+    fireEvent.click(screen.getByRole('button', { name: t.previous }));
+  }
+  fireEvent.click(screen.getByRole('button', { name: `${t.add}: Линия 1, 2026-09-06` }));
+  const sheet = await screen.findByRole('dialog');
+  fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_DAY } });
+  const list = await within(sheet).findByRole('list');
+  const blocked = within(list).getByRole('button', { name: /Кузнецов Леонид/ });
+  expect(blocked.hasAttribute('disabled')).toBe(true);
+  expect(blocked.textContent).toContain('VACATION');
+  fireEvent.click(within(list).getByRole('button', { name: /Сидоров Пётр/ }));
+  expect(within(sheet).getByRole('button', { name: t.apply }).hasAttribute('disabled')).toBe(false);
   cleanup();
   vi.unstubAllGlobals();
 });

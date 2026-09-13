@@ -25,7 +25,7 @@ import { ScheduleCommandService } from './schedule-command.service.js';
 import { StaffingService } from './staffing.service.js';
 import { backgroundTasks } from '@vakhta/db';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { assignmentAcknowledgements, shiftAssignments } from '@vakhta/db';
+import { assignmentAcknowledgements, requests, shiftAssignments } from '@vakhta/db';
 import { eq, notificationOutbox, scheduleVersions, sql, telegramAccounts } from '@vakhta/db';
 import { addMonths, businessDateOf } from '@vakhta/domain';
 import { AuditLog } from '../events/audit-log.js';
@@ -1399,7 +1399,15 @@ describe('scheduling: версії, валідація, публікація, о
         HEAD,
       );
       const updated = await staffing.setRequirement(
-        { ...requirement, id: requirement.id, requiredCount: 3, effectiveTo: day(20) },
+        {
+          id: requirement.id,
+          zoneId,
+          templateId: dayId,
+          requiredCount: 3,
+          qualificationId: operator.id,
+          effectiveFrom: day(1),
+          effectiveTo: day(20),
+        },
         HEAD,
       );
       expect(updated).toMatchObject({ id: requirement.id, requiredCount: 3, effectiveTo: day(20) });
@@ -1527,6 +1535,124 @@ describe('scheduling: версії, валідація, публікація, о
       await expect(staffing.removeRequirement(requirement.id, HEAD)).rejects.toMatchObject({
         code: 'REQUIREMENT_NOT_FOUND',
       });
+    });
+  });
+
+  describe('eligibility rules (#12, SC-02/05/06/17/33)', () => {
+    const item = (employeeId: string, businessDate: string, templateId: string, zone = true) => ({
+      employeeId,
+      templateId,
+      businessDate,
+      ...(zone ? { zoneId } : {}),
+      kind: 'REGULAR' as const,
+    });
+    it('rejects a cross-unit overlap even when two units save concurrently, and keeps adjacent shifts', async () => {
+      const first = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      const second = await schedule.createVersion(
+        { siteId, orgUnitId: otherUnitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      const results = await Promise.allSettled([
+        schedule.putAssignments(
+          first.id,
+          { items: [item(ivanov, day(3), dayId)] },
+          PLANNER,
+          first.revision,
+        ),
+        schedule.putAssignments(
+          second.id,
+          { items: [item(ivanov, day(3), dayId, false)] },
+          PLANNER,
+          second.revision,
+        ),
+      ]);
+      const fulfilled = results.filter((result) => result.status === 'fulfilled');
+      const rejected = results.filter((result) => result.status === 'rejected');
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({
+        code: 'SCHEDULE_ELIGIBILITY',
+        status: 422,
+      });
+      const stored = await testDb.db.select().from(shiftAssignments);
+      expect(stored).toHaveLength(1);
+      // The night after the day shift ends exactly when it starts elsewhere: adjacent, not overlapping.
+      const winner = fulfilled[0]?.status === 'fulfilled' ? fulfilled[0].value.version : null;
+      const loser = winner?.id === first.id ? second : first;
+      const loserVersion = await schedule.requireVersion(loser.id);
+      const saved = await schedule.putAssignments(
+        loser.id,
+        { items: [item(ivanov, day(3), nightId, loser.id === first.id)] },
+        PLANNER,
+        loserVersion.revision,
+      );
+      expect(saved.assignments).toHaveLength(1);
+    });
+    it('warns about short rest by default, blocks when the site configures it, and blocks approved absences', async () => {
+      const staffing = new StaffingService(testDb.db, new AuditLog());
+      const draft = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      const tight = { items: [item(ivanov, day(3), nightId), item(ivanov, day(4), dayId)] };
+      const saved = await schedule.putAssignments(draft.id, tight, PLANNER, draft.revision);
+      expect(saved.assignments).toHaveLength(2);
+      const rules = await staffing.setRules(
+        {
+          siteId,
+          minRestMinutes: 660,
+          maxMonthMinutes: 12_000,
+          restSeverity: 'BLOCK',
+          hoursSeverity: 'WARN',
+        },
+        HEAD,
+      );
+      expect(rules.configured).toBe(true);
+      await expect(
+        schedule.putAssignments(
+          draft.id,
+          { items: [...tight.items, item(petrova, day(5), dayId)] },
+          PLANNER,
+          saved.version.revision,
+        ),
+      ).rejects.toMatchObject({ code: 'SCHEDULE_ELIGIBILITY' });
+      await testDb.db.insert(requests).values({
+        type: 'VACATION',
+        employeeId: petrova,
+        status: 'APPROVED',
+        periodFrom: day(10),
+        periodTo: day(12),
+        payload: {},
+      });
+      await expect(
+        schedule.putAssignments(
+          draft.id,
+          { items: [item(petrova, day(11), dayId)] },
+          PLANNER,
+          saved.version.revision,
+        ),
+      ).rejects.toMatchObject({ code: 'SCHEDULE_ELIGIBILITY' });
+      const candidates = await staffing.candidates({
+        siteId,
+        orgUnitId: unitId,
+        zoneId,
+        templateId: dayId,
+        businessDate: day(11),
+      });
+      const petrovaCandidate = candidates.find((candidate) => candidate.employeeId === petrova);
+      expect(petrovaCandidate?.status).toBe('BLOCKED');
+      expect(petrovaCandidate?.reasons.map((reason) => reason.code)).toEqual(['ABSENCE']);
+      expect(candidates.find((candidate) => candidate.employeeId === ivanov)?.status).toBe(
+        'ELIGIBLE',
+      );
+      const context = await staffing.context(siteId, otherUnitId, MONTH);
+      expect(context.intervals.filter((row) => row.orgUnitId === unitId)).toHaveLength(2);
+      expect(context.absences).toEqual([
+        expect.objectContaining({ employeeId: petrova, status: 'APPROVED', type: 'VACATION' }),
+      ]);
     });
   });
 

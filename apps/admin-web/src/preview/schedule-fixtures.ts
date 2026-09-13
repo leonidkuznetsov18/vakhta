@@ -196,10 +196,139 @@ const staffing = {
       recordedAt: new Date().toISOString(),
     },
   ],
+  rules: {
+    siteId: scheduleSiteId,
+    minRestMinutes: 660,
+    maxMonthMinutes: 12000,
+    restSeverity: 'WARN' as 'WARN' | 'BLOCK',
+    hoursSeverity: 'WARN' as 'WARN' | 'BLOCK',
+    configured: false,
+  },
+  availability: [
+    {
+      id: 'e4000000-0000-4000-8000-000000000001',
+      employeeId: scheduleEmployees[1]!,
+      kind: 'UNAVAILABLE' as 'UNAVAILABLE' | 'PREFERRED',
+      weekday: 0,
+      date: null,
+      validFrom: '2026-01-01',
+      validTo: null,
+      note: null,
+    },
+  ],
+};
+// One approved vacation and one plan in another unit make conflicts visible in the preview.
+const planContext = {
+  intervals: [
+    {
+      employeeId: scheduleEmployees[2]!,
+      businessDate: `${month}-09`,
+      startAt: planInstants(
+        `${month}-09`,
+        scheduleTemplates[0]!,
+        'Europe/Kyiv',
+      ).planStartAt.toISOString(),
+      endAt: planInstants(
+        `${month}-09`,
+        scheduleTemplates[0]!,
+        'Europe/Kyiv',
+      ).planEndAt.toISOString(),
+      orgUnitId: 'a0000000-0000-4000-8000-000000000012',
+      status: 'PUBLISHED' as const,
+    },
+  ],
+  absences: [
+    {
+      employeeId: scheduleEmployees[1]!,
+      from: `${month}-15`,
+      to: `${month}-16`,
+      type: 'VACATION',
+      status: 'APPROVED' as const,
+    },
+  ],
+  otherUnitEmployees: [] as { employeeId: string; orgUnitId: string }[],
 };
 /** In-memory preview only: exercises the actual validated frontend contract, never production. */
 export function scheduleFixture(url: URL, method: string, body: unknown): unknown {
   if (url.pathname.startsWith('/admin/schedules/staffing')) {
+    if (url.pathname.endsWith('/context') && method === 'GET') return planContext;
+    if (url.pathname.endsWith('/candidates') && method === 'GET') {
+      const businessDate = url.searchParams.get('businessDate') ?? '';
+      return scheduleEmployees.map((employeeId, index) => {
+        const absence = planContext.absences.find(
+          (item) =>
+            item.employeeId === employeeId && item.from <= businessDate && businessDate <= item.to,
+        );
+        const busy = (assignments.get(initial.id) ?? []).some(
+          (item) => item.employeeId === employeeId && item.businessDate === businessDate,
+        );
+        const reasons = absence
+          ? [
+              {
+                code: 'ABSENCE',
+                severity: 'BLOCK',
+                employeeId,
+                businessDate,
+                detail: { type: absence.type, from: absence.from, to: absence.to },
+              },
+            ]
+          : busy
+            ? [
+                {
+                  code: 'OVERLAP',
+                  severity: 'BLOCK',
+                  employeeId,
+                  businessDate,
+                  detail: { withDate: businessDate },
+                },
+              ]
+            : index === 1
+              ? [
+                  {
+                    code: 'REST',
+                    severity: 'WARN',
+                    employeeId,
+                    businessDate,
+                    detail: { restMinutes: 480, minRestMinutes: 660, withDate: businessDate },
+                  },
+                ]
+              : [];
+        return {
+          employeeId,
+          orgUnitId: scheduleUnitId,
+          ownUnit: true,
+          status: reasons.some((r) => r.severity === 'BLOCK')
+            ? 'BLOCKED'
+            : reasons.length
+              ? 'WARNING'
+              : 'ELIGIBLE',
+          reasons,
+        };
+      });
+    }
+    if (url.pathname.endsWith('/rules') && method === 'PUT') {
+      const input = body as typeof staffing.rules;
+      staffing.rules = { ...staffing.rules, ...input, configured: true };
+      return staffing.rules;
+    }
+    if (url.pathname.endsWith('/availability') && method === 'POST') {
+      const input = body as (typeof staffing.availability)[number];
+      const row = {
+        ...input,
+        id: crypto.randomUUID(),
+        weekday: input.weekday ?? null,
+        date: input.date ?? null,
+        validTo: input.validTo ?? null,
+        note: input.note ?? null,
+      };
+      staffing.availability.push(row);
+      return row;
+    }
+    if (url.pathname.includes('/availability/') && method === 'DELETE') {
+      const id = url.pathname.split('/').at(-1);
+      staffing.availability = staffing.availability.filter((item) => item.id !== id);
+      return {};
+    }
     if (method === 'GET') return staffing;
     if (url.pathname.endsWith('/requirements') && method === 'PUT') {
       const input = body as (typeof staffing.requirements)[number] & { id?: string };

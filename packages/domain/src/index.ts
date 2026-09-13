@@ -16,6 +16,7 @@ export * from './scheduling/calendar.js';
 export * from './scheduling/changes.js';
 export * from './scheduling/authority.js';
 export * from './scheduling/coverage.js';
+export * from './scheduling/eligibility.js';
 export * from './attendance/window.js';
 export * from './notifications/payload.js';
 export * from './bonus/rules.js';

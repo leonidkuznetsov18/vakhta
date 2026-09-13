@@ -223,3 +223,60 @@ export const zoneStaffingRequirements = pgTable(
     ),
   ],
 );
+
+export const eligibilitySeverity = pgEnum('eligibility_severity', ['BLOCK', 'WARN']);
+
+/** Rest and monthly-hour limits per site (D-03): configured, versioned by audit, never invented. */
+export const siteSchedulingRules = pgTable(
+  'site_scheduling_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    siteId: uuid('site_id')
+      .notNull()
+      .references(() => sites.id),
+    minRestMinutes: integer('min_rest_minutes').notNull().default(660),
+    maxMonthMinutes: integer('max_month_minutes').notNull().default(12000),
+    restSeverity: eligibilitySeverity('rest_severity').notNull().default('WARN'),
+    hoursSeverity: eligibilitySeverity('hours_severity').notNull().default('WARN'),
+    updatedBy: uuid('updated_by'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('site_scheduling_rules_site_uq').on(t.siteId),
+    check('site_scheduling_rules_rest_nonnegative', sql`${t.minRestMinutes} >= 0`),
+    check('site_scheduling_rules_hours_positive', sql`${t.maxMonthMinutes} > 0`),
+  ],
+);
+
+export const availabilityKind = pgEnum('availability_kind', ['UNAVAILABLE', 'PREFERRED']);
+
+/** A person's own availability preference (SC-33): distinct from approved absence. */
+export const employeeAvailability = pgTable(
+  'employee_availability',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    employeeId: uuid('employee_id')
+      .notNull()
+      .references(() => employees.id, { onDelete: 'cascade' }),
+    kind: availabilityKind('kind').notNull(),
+    /** 0 = Sunday … 6 = Saturday for a recurring preference; null when `date` is set. */
+    weekday: integer('weekday'),
+    date: date('date'),
+    validFrom: date('valid_from').notNull(),
+    validTo: date('valid_to'),
+    note: text('note'),
+    recordedBy: uuid('recorded_by'),
+    recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('employee_availability_employee_idx').on(t.employeeId),
+    check(
+      'employee_availability_target',
+      sql`(${t.weekday} IS NULL) <> (${t.date} IS NULL) AND (${t.weekday} IS NULL OR ${t.weekday} BETWEEN 0 AND 6)`,
+    ),
+    check(
+      'employee_availability_window',
+      sql`${t.validTo} IS NULL OR ${t.validTo} >= ${t.validFrom}`,
+    ),
+  ],
+);

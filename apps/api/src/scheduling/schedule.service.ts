@@ -39,6 +39,7 @@ import {
   SCHEDULE_EDIT_ROLES,
   type RoleGrant,
   qualifiedFor,
+  evaluatePlan,
 } from '@vakhta/domain';
 import type {
   AcknowledgementStatusView,
@@ -68,6 +69,14 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import { OrgService } from '../org/org.service.js';
 import { TemplatesService } from './templates.service.js';
 import { acknowledgementSnapshot, type AcknowledgementScope } from './acknowledgement-snapshot.js';
+import {
+  loadAbsences,
+  loadContextIntervals,
+  loadPreferences,
+  loadRules,
+  monthContextRange,
+  toPlannedIntervals,
+} from './plan-context.js';
 
 export interface ScheduleOptions {
   readonly shiftReminderMinutes: number;
@@ -619,6 +628,11 @@ export class ScheduleService {
             .from(employeeQualifications)
             .where(inArray(employeeQualifications.employeeId, employeeIds))
         : [];
+    // Serialize concurrent writers per person (SC-05) before reading their plans elsewhere.
+    for (const employeeId of [...employeeIds].sort())
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`schedule-employee:${employeeId}`}, 0))`,
+      );
     const seen = new Set<string>();
     const values = cmd.items.map((item) => {
       if (!activeSet.has(item.employeeId)) {
@@ -684,6 +698,45 @@ export class ScheduleService {
       };
     });
 
+    if (values.length > 0) {
+      const range = monthContextRange(version.periodMonth);
+      const context = toPlannedIntervals(
+        await loadContextIntervals(tx, {
+          siteId: version.siteId,
+          employeeIds,
+          from: range.from,
+          to: range.to,
+          exclude: { orgUnitId: version.orgUnitId, periodMonth: version.periodMonth },
+        }),
+      );
+      const reasons = evaluatePlan({
+        proposed: values.map((value) => ({
+          employeeId: value.employeeId,
+          businessDate: value.businessDate,
+          startMs: value.planStartAt.getTime(),
+          endMs: value.planEndAt.getTime(),
+          templateId: value.templateId,
+          zoneId: value.zoneId,
+          orgUnitId: version.orgUnitId,
+        })),
+        context,
+        absences: await loadAbsences(tx, { employeeIds, from: range.from, to: range.to }),
+        preferences: await loadPreferences(tx, employeeIds),
+        rules: await loadRules(tx, version.siteId),
+        staffing: { requirements: rules, holdings },
+        month: version.periodMonth,
+      });
+      const blocking = reasons.filter((reason) => reason.severity === 'BLOCK');
+      if (blocking.length > 0)
+        throw new DomainError(
+          'SCHEDULE_ELIGIBILITY',
+          422,
+          `Blocking conflicts: ${blocking
+            .slice(0, 5)
+            .map((reason) => `${reason.code} ${reason.employeeId} ${reason.businessDate}`)
+            .join('; ')}`,
+        );
+    }
     await tx.delete(shiftAssignments).where(eq(shiftAssignments.scheduleVersionId, version.id));
     if (values.length > 0) await tx.insert(shiftAssignments).values(values);
     await tx

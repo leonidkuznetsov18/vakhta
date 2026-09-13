@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { coverage, planInstants, zoneHasRequirement, type CoverageCell } from '@vakhta/domain';
 import type {
   CreateQualificationCommand,
+  RecordAvailabilityCommand,
   RecordEmployeeQualificationCommand,
+  SetSchedulingRulesCommand,
   SetStaffingRequirementCommand,
   ShiftTemplateView,
   StaffingView,
@@ -50,7 +52,22 @@ export function useStaffing(input: {
     mutationFn: (id: string) => staffingApi.removeHolding(id),
     ...options,
   });
+  const setRules = useMutation({
+    mutationFn: (command: SetSchedulingRulesCommand) => staffingApi.setRules(command),
+    ...options,
+  });
+  const recordAvailability = useMutation({
+    mutationFn: (command: RecordAvailabilityCommand) => staffingApi.recordAvailability(command),
+    ...options,
+  });
+  const removeAvailability = useMutation({
+    mutationFn: (id: string) => staffingApi.removeAvailability(id),
+    ...options,
+  });
   return {
+    setRules,
+    recordAvailability,
+    removeAvailability,
     query,
     data: query.data,
     setRequirement,
@@ -63,7 +80,10 @@ export function useStaffing(input: {
       removeRequirement.isPending ||
       createQualification.isPending ||
       recordHolding.isPending ||
-      removeHolding.isPending,
+      removeHolding.isPending ||
+      setRules.isPending ||
+      recordAvailability.isPending ||
+      removeAvailability.isPending,
   };
 }
 

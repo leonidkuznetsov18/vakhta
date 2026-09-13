@@ -1,4 +1,4 @@
-import { planInstants } from '@vakhta/domain';
+import { planInstants, type EligibilityReason } from '@vakhta/domain';
 import { messages, type Locale } from '@vakhta/i18n';
 import type {
   AssignmentInput,
@@ -39,6 +39,8 @@ export interface CalendarInput {
   readonly allowedZones?: ReadonlySet<string> | null;
   /** Staffing coverage of the visible plan; absent while staffing data is loading. */
   readonly coverage?: CoverageModel;
+  /** Rule evaluation of the visible plan; blocking reasons mark the card. */
+  readonly issues?: readonly EligibilityReason[];
 }
 
 /** Business dates are calendar values, never browser-local instants. */
@@ -142,6 +144,15 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
     const foreign =
       (!!input.editableMonth && !item.businessDate.startsWith(input.editableMonth)) ||
       !zoneAllowed(input.allowedZones ?? null, item.zoneId);
+    const own = (input.issues ?? []).filter(
+      (reason) =>
+        reason.employeeId === item.employeeId && reason.businessDate === item.businessDate,
+    );
+    const issue = own.some((reason) => reason.severity === 'BLOCK')
+      ? 'BLOCK'
+      : own.length > 0
+        ? 'WARN'
+        : undefined;
     const key = `${resourceId(item)}:${item.businessDate}`;
     const bucket = buckets.get(key) ?? [];
     const durationMinutes = plan
@@ -175,6 +186,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
       status: unpublished ? t.notPublished : '',
       unpublished,
       ...(foreign ? { readonly: true } : {}),
+      ...(issue ? { issue } : {}),
       tone: template ? (template.isNight ? 'indigo' : 'amber') : 'neutral',
     });
     buckets.set(key, bucket);
@@ -303,5 +315,6 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
     resources,
     emptyLabel: t.noAssignments,
     moreItemsLabel: t.resourceMoreItems,
+    issueLabels: { BLOCK: t.conflict, WARN: t.warning },
   };
 }

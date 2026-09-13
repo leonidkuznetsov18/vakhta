@@ -101,6 +101,7 @@ export function PeopleSchedule({
           grouping: 'people',
           locale: currentLocale(),
           published: w.publicationBaseline,
+          issues: w.issues.reasons,
         }).resources.find((row) => row.id === editor.employeeId)?.cells[0]?.items[0]
       : null;
   function outsideZone(employeeId: string, date: string) {
