@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { isBlank, isUnchanged } from '@/lib/forms';
-import type { OrgSnapshot, WebUserView } from '@vakhta/contracts';
+import type { OrgSnapshot } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -36,7 +36,6 @@ export type DirectoryEdit =
 interface FormProps {
   readonly edit: DirectoryEdit;
   readonly org: OrgSnapshot;
-  readonly users: readonly WebUserView[];
   readonly onClose: () => void;
   readonly onSaved: () => void;
 }
@@ -52,7 +51,6 @@ export function EditDirectoryDialog({
 }: {
   readonly edit: DirectoryEdit | null;
   readonly org: OrgSnapshot;
-  readonly users: readonly WebUserView[];
   readonly onClose: () => void;
   readonly onSaved: () => void;
 }) {
@@ -65,14 +63,11 @@ export function EditDirectoryDialog({
   );
 }
 
-function DirectoryForm({ edit, org, users, onClose, onSaved }: FormProps) {
+function DirectoryForm({ edit, org, onClose, onSaved }: FormProps) {
   const [name, setName] = useState(edit.row.name);
   const [timezone, setTimezone] = useState(edit.kind === 'sites' ? edit.row.timezone : '');
   const [parentId, setParentId] = useState(
     edit.kind === 'orgUnits' ? (edit.row.parentId ?? '') : '',
-  );
-  const [masterUserId, setMasterUserId] = useState(
-    edit.kind === 'orgUnits' ? (edit.row.masters[0]?.id ?? '') : '',
   );
   const [orgUnitId, setOrgUnitId] = useState(edit.kind === 'teams' ? edit.row.orgUnitId : '');
   const [type, setType] = useState<(typeof ZONE_TYPES)[number]>(
@@ -92,11 +87,10 @@ function DirectoryForm({ edit, org, users, onClose, onSaved }: FormProps) {
         );
       case 'orgUnits':
         return isUnchanged(
-          { name, parentId: parentId || null, masterUserId: masterUserId || null },
+          { name, parentId: parentId || null },
           {
             name: edit.row.name,
             parentId: edit.row.parentId ?? null,
-            masterUserId: edit.row.masters[0]?.id ?? null,
           },
         );
       case 'teams':
@@ -128,7 +122,6 @@ function DirectoryForm({ edit, org, users, onClose, onSaved }: FormProps) {
           return adminOrgApi.updateOrgUnit(edit.row.id, {
             name,
             parentId: parentId || null,
-            masterUserId: masterUserId || null,
           });
         case 'teams':
           return adminOrgApi.updateTeam(edit.row.id, { name, orgUnitId });
@@ -200,14 +193,6 @@ function DirectoryForm({ edit, org, users, onClose, onSaved }: FormProps) {
               options={org.orgUnits
                 .filter((u) => u.siteId === edit.row.siteId && u.id !== edit.row.id)
                 .map((u) => ({ value: u.id, label: u.name }))}
-            />
-            <SelectField
-              label={d.unitMaster}
-              hint={d.noMasterNotice}
-              value={masterUserId}
-              onChange={setMasterUserId}
-              placeholder={t.common.none}
-              options={users.map((u) => ({ value: u.id, label: u.name || u.email }))}
             />
           </>
         )}

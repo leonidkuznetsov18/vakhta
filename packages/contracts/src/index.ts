@@ -27,3 +27,5 @@ export * from './checklist-photo-rules.js';
 export * from './photo-objects.js';
 export * from './photo-analysis-limits.js';
 export * from './overview.js';
+
+export * from './employee-profile.js';

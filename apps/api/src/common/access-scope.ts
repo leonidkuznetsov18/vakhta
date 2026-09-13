@@ -123,7 +123,7 @@ export function employeePlaceSql(employeeId: AnyColumn): {
     sql<
       string | null
     >`(select ${column} from employee_positions p join org_units u on u.id = p.org_unit_id
-      where p.employee_id = ${person} and p.valid_to is null order by p.valid_from desc limit 1)`;
+      where p.employee_id = ${person} and p.valid_from <= now() and (p.valid_to is null or p.valid_to > now()) order by p.valid_from desc limit 1)`;
   return {
     site: current(sql.raw('u.site_id')),
     unit: current(sql.raw('p.org_unit_id')),

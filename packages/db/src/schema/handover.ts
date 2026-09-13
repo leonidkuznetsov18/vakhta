@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm';
 import {
-  bigint,
   boolean,
   index,
   integer,
@@ -8,7 +7,6 @@ import {
   pgEnum,
   pgTable,
   primaryKey,
-  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -18,9 +16,10 @@ import type {
   ChecklistItemDefinition,
   HandoverResolution,
   HandoverStatus,
-  MediaQualityStatus,
   RemarkNeed,
 } from '@vakhta/domain';
+import { mediaObjects } from './media.js';
+export { mediaObjects, mediaQuality } from './media.js';
 import { employees } from './identity.js';
 import { positions, responsibilityZones, zoneType } from './org.js';
 import { shiftSessions } from './shift.js';
@@ -40,19 +39,9 @@ const RESOLUTION_VALUES = [
   'RESOLVED_ISSUE_CONFIRMED',
   'RESOLVED_NO_FAULT',
 ] as const satisfies readonly HandoverResolution[];
-const QUALITY_VALUES = [
-  'PENDING',
-  'OK',
-  'LOW_RES',
-  'DARK',
-  'CORRUPT',
-  'DUPLICATE_SUSPECT',
-  'MANUAL_REVIEW',
-] as const satisfies readonly MediaQualityStatus[];
 
 export const handoverStatus = pgEnum('handover_status', HANDOVER_STATUS_VALUES);
 export const handoverResolution = pgEnum('handover_resolution', RESOLUTION_VALUES);
-export const mediaQuality = pgEnum('media_quality', QUALITY_VALUES);
 export const reviewDecision = pgEnum('review_decision', ['ACCEPTED', 'ISSUE']);
 
 /**
@@ -98,42 +87,6 @@ export const checklistDefinitionPositions = pgTable(
   (t) => [
     primaryKey({ columns: [t.definitionId, t.positionId] }),
     uniqueIndex('checklist_definition_positions_position_uq').on(t.positionId),
-  ],
-);
-
-/**
- * Фото у приватному сховищі (FR-PHO-02, ADR-0006): Telegram-ідентифікатори, метрики після
- * перенесення, статус технічної перевірки. Видача лише через підписані посилання.
- */
-export const mediaObjects = pgTable(
-  'media_objects',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    telegramFileId: text('telegram_file_id').notNull(),
-    telegramFileUniqueId: text('telegram_file_unique_id').notNull(),
-    uploadedBy: uuid('uploaded_by').references(() => employees.id),
-    purpose: text('purpose').notNull(),
-    storageKey: text('storage_key'),
-    contentType: text('content_type'),
-    sizeBytes: bigint('size_bytes', { mode: 'number' }),
-    width: integer('width'),
-    height: integer('height'),
-    sha256: text('sha256'),
-    phash: text('phash'),
-    brightness: smallint('brightness'),
-    quality: mediaQuality('quality').notNull().default('PENDING'),
-    qualityNotes: text('quality_notes'),
-    duplicateOfId: uuid('duplicate_of_id'),
-    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
-    processedAt: timestamp('processed_at', { withTimezone: true }),
-    attempts: integer('attempts').notNull().default(0),
-    lastError: text('last_error'),
-    retentionUntil: timestamp('retention_until', { withTimezone: true }),
-  },
-  (t) => [
-    index('media_objects_sha_idx').on(t.sha256),
-    index('media_objects_received_idx').on(t.receivedAt),
-    index('media_objects_unique_file_idx').on(t.telegramFileUniqueId),
   ],
 );
 

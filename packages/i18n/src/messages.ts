@@ -1,3 +1,4 @@
+import type { EmployeeProfileMessages } from './employee-profile.js';
 import type { ScheduleExportMessages } from './schedule-export.js';
 import type { ScheduleWorkspaceMessages } from './schedule-workspace.js';
 import type { OverviewCenterMessages } from './overview.js';
@@ -66,6 +67,7 @@ export interface SectionGuide {
 }
 
 export interface Messages {
+  employeeProfile: EmployeeProfileMessages;
   photoInspection: PhotoInspectionMessages;
   checklistPhotoRules: ChecklistPhotoRulesMessages;
   scheduleExport: ScheduleExportMessages;

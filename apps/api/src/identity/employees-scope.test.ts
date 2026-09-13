@@ -197,17 +197,8 @@ describe('employee directory access scope (spec 005 US1)', () => {
     expect(await assignments.history(person.A, master(unit.A))).toHaveLength(1);
   });
 
-  it('lets a unit reader look up a person scheduled in their unit from another unit', async () => {
-    const borrowed = await directory.get(person.borrowed, master(unit.A));
-    expect(borrowed).toMatchObject({
-      fullName: 'Worker borrowed',
-      phone: null,
-      email: null,
-      telegramUsername: null,
-      birthDate: null,
-    });
-    expect((await directory.get(person.A, master(unit.A))).phone).toBe('+380671234567');
-    expect((await directory.get(person.borrowed, head(site1))).phone).toBe('+380671234567');
+  it('does not expose a borrowed employee profile outside the current assignment scope', async () => {
+    await forbidden(directory.get(person.borrowed, master(unit.A)));
     await forbidden(directory.get(person.borrowed, master(unit.C)));
     await forbidden(assignments.history(person.borrowed, master(unit.A)));
   });
@@ -215,9 +206,18 @@ describe('employee directory access scope (spec 005 US1)', () => {
   it('keeps writes and messages inside the writer’s scope', async () => {
     const hr = unitHr(unit.A);
     await forbidden(directory.update(person.B, { fullName: 'Changed B' }, hr));
-    expect((await directory.update(person.A, { fullName: 'Worker A' }, hr)).fullName).toBe(
-      'Worker A',
-    );
+    expect(
+      (
+        await directory.update(
+          person.A,
+          {
+            fullName: 'Worker A',
+            expectedVersion: (await service.getById(person.A))?.updatedAt.toISOString(),
+          },
+          hr,
+        )
+      ).fullName,
+    ).toBe('Worker A');
     await forbidden(directory.changeStatus(person.B, { status: 'BLOCKED', reason: 'test' }, hr));
     await forbidden(directory.remove(person.B, { reason: 'out of scope' }, hr));
     await forbidden(directory.issueCode(person.B, hr));

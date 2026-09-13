@@ -351,6 +351,13 @@
       "when": 1789293915386,
       "tag": "0049_calendar_events",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1789295495149,
+      "tag": "0050_employee_profile",
+      "breakpoints": true
     }
   ]
 }

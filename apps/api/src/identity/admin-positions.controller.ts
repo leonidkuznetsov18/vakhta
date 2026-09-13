@@ -35,7 +35,7 @@ export class AdminPositionsController {
   ) {}
 
   @Get()
-  @Roles('ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER')
+  @Roles('ADMIN', 'HR', 'ACCOUNTANT', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER')
   async history(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: WebUser,
@@ -58,6 +58,6 @@ export class AdminPositionsController {
       assertInScope(scope, await this.employees.placeOf(id));
       await this.employees.assertPlaceInScope(scope, body.orgUnitId, body.teamId ?? null);
     }
-    return this.positions.assign(id, body, webUserActor(user));
+    return this.positions.assign(id, body, webUserActor(user), scope);
   }
 }

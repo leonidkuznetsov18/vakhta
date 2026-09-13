@@ -9,12 +9,13 @@ import { confirmLeave } from '@/lib/unsaved';
 export interface Route {
   readonly section: string;
   readonly sub: string;
+  readonly detail?: string;
 }
 
 export function readRoute(): Route {
   const hash = location.hash.replace(/^#\/?/, '');
-  const [section = '', sub = ''] = hash.split('/');
-  return { section, sub };
+  const [section = '', sub = '', detail = ''] = hash.split('/');
+  return { section, sub, ...(detail ? { detail } : {}) };
 }
 
 /** Retired knowledge-base bookmarks open the same records in the complete incident list. */
@@ -67,8 +68,8 @@ export function useRoute(): Route {
     () => location.hash,
     () => '',
   );
-  const [section = '', sub = ''] = hash.replace(/^#\/?/, '').split('/');
-  return { section, sub };
+  const [section = '', sub = '', detail = ''] = hash.replace(/^#\/?/, '').split('/');
+  return { section, sub, ...(detail ? { detail } : {}) };
 }
 
 /** The sub-path of the current section (a tab), kept in the hash and in step with the UI. */

@@ -142,6 +142,11 @@ export const OrgUnitView = z.object({
   /** Panel users holding the shift-master role scoped to this unit; they review its checklists.
    * Empty means the unit has no master. */
   masters: z.array(z.object({ id: Uuid, name: z.string() })),
+  masterEmployeeId: Uuid.nullable().optional(),
+  designatedMaster: z
+    .object({ id: Uuid, name: z.string(), status: z.enum(['ACTIVE', 'BLOCKED', 'TERMINATED']) })
+    .nullable()
+    .optional(),
 });
 export const TeamView = z.object({ id: Uuid, orgUnitId: Uuid, name: z.string() });
 export const PositionView = z.object({ id: Uuid, code: z.string(), name: z.string() });

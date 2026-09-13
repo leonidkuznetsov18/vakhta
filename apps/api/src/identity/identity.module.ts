@@ -1,3 +1,10 @@
+import { EmployeeAvatarCleanupService } from './employee-avatar-cleanup.service.js';
+import { EmployeeAvatarController } from './employee-avatar.controller.js';
+import { EmployeeAvatarService } from './employee-avatar.service.js';
+import { ObjectStorageModule } from '../infra/object-storage.js';
+import { EmployeeProfileController } from './employee-profile.controller.js';
+import { EmployeeProfileService } from './employee-profile.service.js';
+import { EmployeeCompensationService } from './employee-compensation.service.js';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.js';
@@ -13,10 +20,19 @@ import { EmployeesService } from './employees.service.js';
 import { PositionsService } from './positions.service.js';
 
 @Module({
-  imports: [OrgModule],
-  controllers: [AdminEmployeesController, AdminPositionsController],
+  imports: [OrgModule, ObjectStorageModule],
+  controllers: [
+    AdminEmployeesController,
+    AdminPositionsController,
+    EmployeeProfileController,
+    EmployeeAvatarController,
+  ],
   providers: [
     EmployeesService,
+    EmployeeProfileService,
+    EmployeeAvatarService,
+    EmployeeAvatarCleanupService,
+    EmployeeCompensationService,
     ActivationService,
     PositionsService,
     {

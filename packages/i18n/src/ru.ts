@@ -1,3 +1,4 @@
+import { employeeProfileRU } from './employee-profile.js';
 import { scheduleExportRu } from './schedule-export.js';
 import { scheduleWorkspaceRu } from './schedule-workspace.js';
 import { overviewCenterRu } from './overview.js';
@@ -9,6 +10,7 @@ import type { Messages } from './messages.js';
 
 /** Base interface language (NFR-08). Button and state wording follows the spec, sections 4.3-4.4 and 5.1. */
 export const ru: Messages = {
+  employeeProfile: employeeProfileRU,
   scheduleExport: scheduleExportRu,
   scheduleWorkspace: scheduleWorkspaceRu,
   overviewCenter: overviewCenterRu,
@@ -2060,14 +2062,14 @@ export const ru: Messages = {
           'Карточки сотрудников: табельный номер, ФИО, должность и подразделение, привязка Telegram, статус и чек-лист должности.',
         steps: [
           'Добавьте сотрудника вручную или через «Импорт из CSV» (табельный номер, ФИО).',
-          'Откройте карточку: назначьте подразделение, должность и бригаду («Назначить должность»); история назначений сохраняется.',
+          'Нажмите строку для просмотра, имя или кнопку в Sheet — для перехода в профиль. «Редактировать» открывает личные данные и назначение должности.',
           'Выдайте код активации (или QR): сотрудник вводит его в боте один раз. Столбец «Telegram» показывает, привязан ли аккаунт.',
-          'Блок «Чек-лист должности» показывает, что бот спросит при передаче зоны: «Заменить» или «Убрать».',
+          'Чек-лист должности настраивается на вкладке «Чек-листы». В профиле также доступны мастер, зона и опубликованный график.',
         ],
         faq: [
           {
             q: 'Сотрудник не может активироваться.',
-            a: 'Код действует ограниченное время и один раз. Выдайте новый в карточке; «Перепривязать Telegram», если телефон сменился.',
+            a: 'Код действует ограниченное время и один раз. Выдайте новый через меню строки; «Перепривязать Telegram», если телефон сменился.',
           },
           {
             q: 'Что значит «Нет чек-листа»?',

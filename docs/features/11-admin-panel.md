@@ -12,29 +12,32 @@ debt, all limited to the reader's grants. See [Overview: the shift command cente
 
 Administration tabs:
 
-- "Сотрудники": cards, CSV import, activation codes and QR, position assignment (unit, position,
-  team; a transfer keeps the history), checklists of the position, block / unblock / terminate,
-  relink Telegram. The creation form takes the personnel number and the full name plus optional
-  contacts (e-mail, phone, Telegram username) and an optional first assignment (unit and position
-  together, a team of that unit); every field has a placeholder, an ⓘ hint and inline validation
-  (the phone is normalized to +380…, the username is stored without "@"). A row click expands the
-  employee card under the row in two columns: details and activation on the left, position and
-  checklist on the right. The card shows the contacts as mail / call / t.me links; "Изменить данные" turns them into a form
-  (personnel number, full name, e-mail, phone, Telegram, same hints and validation, save only
-  when something changed; every edit lands in the audit with before / after). The collapsible
-  "Активация в боте" block holds the steps for the administrator, "Выдать код активации" and
-  the last issued code with copy, the bot link and the QR;
-  the row action "Код активации" opens the card with a fresh code. "Удалить сотрудника" (row menu
-  and card, reason required) removes a card that has no worked history together with its planned
-  shifts, codes and Telegram link; a card with shifts, check-ins, points or requests is refused
-  with `EMPLOYEE_HAS_HISTORY` and is terminated instead, so history and reports stay.
+- "Сотрудники": scoped employee directory, CSV import, activation codes, position assignment and
+  reasoned block / unblock / terminate actions. A row opens a read-only Sheet; the name and the
+  Sheet's profile button open `administration/employees/:employeeId`. There is no expanded editor
+  or disclosure chevron. Returning keeps the list filters, selected page and scroll position.
+  The profile shows identity, contacts with call/mail/Telegram/copy actions, work assignment and
+  its history, designated unit master with missing/inactive/access warnings, derived current or
+  next published zone, and a published schedule summary with a focused Schedule link.
+  One Edit button opens identity, contacts, birth date and marital status, plus avatar and work
+  assignment controls. Save is disabled for unchanged data; validation is inline; a concurrent
+  change keeps the draft and requires acknowledging current values before retrying. Terminated
+  profiles are read-only apart from existing reasoned status actions.
+  ADMIN/HR can edit personal data and dated compensation reference entries; ACCOUNTANT can read
+  compensation. Other profile readers receive no compensation or marital status and only birthday
+  day/month. Compensation is append-only: corrections need a reason and preserve the original.
+  Avatars are private, normalized to 512 px WebP and accessed through scoped endpoints.
+  Activation codes and Telegram relinking remain in the row menu. Position checklists are managed
+  on the Checklists tab. Hard deletion requires a reason and refuses recorded history, including
+  compensation or designated-master references; termination preserves those records.
 - "Пользователи и роли": create panel users (a generated password is shown once); the user card
   edits the name, lists the roles with "Заменить" (grant the new one, revoke the old) and
   "Отозвать", grants a new role with a scope, and deletes the user ("Удалить пользователя":
   sessions, second factor and roles go with it, the audit keeps the history). Nobody deletes
   themselves and the last administrator stays.
 - "Справочники": sites (time zone), units, teams, positions, zones (type, shared, active), reason
-  codes; every table has add, edit and delete with a reason.
+  codes; every table has add, edit and delete with a reason. Units have an explicit employee master
+  picker and a "needs a master" filter. Designation does not grant panel access.
 - "Терминалы": register, then everything else in the terminal card (row click): the
   "Подключение планшета" block with the three pairing steps, "Код подключения" and the issued
   code with the tablet link and copy buttons; edit, enable / disable and delete in the card
@@ -81,7 +84,8 @@ results remain distinct.
 ## Shared table interaction
 
 Tables and filters follow the [site-wide standard](../engineering/table-filter-standard.md).
-Record inspection opens inline; explicit actions initiate editing. Mobile cards preserve sorting,
+Record inspection follows the workflow: employees use a read-only Sheet and a dedicated profile;
+other records may open inline. Explicit actions initiate editing. Mobile cards preserve sorting,
 selection, totals and existing actions. Keyboard users can reach controls with Tab, open records
 with Enter/Space and close inline details with Escape. Counts describe the filtered dataset; capped
 archives disclose loaded-subset limits rather than claiming a complete archive count.

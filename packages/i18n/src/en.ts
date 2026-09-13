@@ -1,3 +1,4 @@
+import { employeeProfileEN } from './employee-profile.js';
 import { scheduleExportEn } from './schedule-export.js';
 import { scheduleWorkspaceEn } from './schedule-workspace.js';
 import { overviewCenterEn } from './overview.js';
@@ -9,6 +10,7 @@ import type { Messages } from './messages.js';
 
 /** English catalog. Same keys and placeholders as `ru`; verified by catalogs.test.ts. */
 export const en: Messages = {
+  employeeProfile: employeeProfileEN,
   scheduleExport: scheduleExportEn,
   scheduleWorkspace: scheduleWorkspaceEn,
   overviewCenter: overviewCenterEn,
@@ -2058,14 +2060,14 @@ export const en: Messages = {
           'Employee cards: personnel number, full name, position and unit, Telegram link, status and the position checklist.',
         steps: [
           'Add an employee by hand or through "Import from CSV" (personnel number, full name).',
-          'Open the card: assign the unit, position and team ("Assign position"); the assignment history is kept.',
+          'Click a row to inspect it; the name or Sheet button opens the profile. Edit opens personal data and position assignment controls.',
           'Issue an activation code (or QR): the employee enters it in the bot once. The "Telegram" column shows whether the account is linked.',
-          'The "Position checklist" block shows what the bot asks at the zone handover: "Replace" or "Remove".',
+          'Manage the position checklist on the Checklists tab. The profile also shows the master, zone and published schedule.',
         ],
         faq: [
           {
             q: 'The employee cannot activate.',
-            a: 'The code is valid for a limited time and once. Issue a new one in the card; "Relink Telegram" when the phone changed.',
+            a: 'The code is valid for a limited time and once. Issue a new one through the row menu; use Relink Telegram when the phone changed.',
           },
           {
             q: 'What does "No checklist" mean?',

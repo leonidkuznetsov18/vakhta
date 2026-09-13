@@ -74,7 +74,21 @@ export const UpdateEmployeeCommand = z.object({
   email: z.preprocess(blankToNull, EmployeeEmail.nullable().optional()),
   phone: z.preprocess(blankToNull, EmployeePhone.nullable().optional()),
   telegramUsername: z.preprocess(blankToNull, TelegramUsername.nullable().optional()),
-  birthDate: z.preprocess(blankToNull, BusinessDate.nullable().optional()),
+  birthDate: z.preprocess(
+    blankToNull,
+    BusinessDate.refine(
+      (date) => {
+        const now = new Date();
+        const limit = `${now.getUTCFullYear() - 14}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+        return date <= limit;
+      },
+      { message: 'Employee must be at least 14 years old' },
+    )
+      .nullable()
+      .optional(),
+  ),
+  maritalStatus: z.enum(['SINGLE', 'MARRIED', 'DIVORCED', 'WIDOWED']).nullable().optional(),
+  expectedVersion: IsoDateTime.optional(),
 });
 export type UpdateEmployeeCommand = z.infer<typeof UpdateEmployeeCommand>;
 
@@ -137,6 +151,8 @@ export const EmployeeView = z.object({
   currentPosition: z
     .object({ positionId: Uuid, orgUnitId: Uuid, teamId: Uuid.nullable() })
     .nullable(),
+  avatarVersion: Uuid.nullable().optional(),
+  updatedAt: IsoDateTime.optional(),
   createdAt: IsoDateTime,
 });
 export type EmployeeView = z.infer<typeof EmployeeView>;

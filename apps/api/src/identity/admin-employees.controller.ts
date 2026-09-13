@@ -36,7 +36,7 @@ import {
   webUserActor,
   type WebUser,
 } from '../auth/web-auth.guard.js';
-import { scopeCovers, type WebRole } from '@vakhta/domain';
+import { type WebRole } from '@vakhta/domain';
 import { DomainError } from '../common/domain-error.js';
 import { assertInScope, scopeOf } from '../common/access-scope.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
@@ -49,6 +49,7 @@ import { IdentityExceptionFilter } from './identity-exception.filter.js';
 export const EMPLOYEE_READERS: readonly WebRole[] = [
   'ADMIN',
   'HR',
+  'ACCOUNTANT',
   'PRODUCTION_HEAD',
   'PLANNER',
   'SHIFT_MASTER',
@@ -72,18 +73,26 @@ export class AdminEmployeesController {
   ) {}
 
   @Get()
-  @Roles('ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER')
-  list(@CurrentUser() user: WebUser): Promise<EmployeeView[]> {
-    return this.employees.list(200, scopeOf(user, EMPLOYEE_READERS));
+  @Roles('ADMIN', 'HR', 'ACCOUNTANT', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER')
+  async list(@CurrentUser() user: WebUser): Promise<EmployeeView[]> {
+    return Promise.all(
+      (await this.employees.list(200, scopeOf(user, EMPLOYEE_READERS))).map((row) =>
+        this.employees.restrictView(row, user),
+      ),
+    );
   }
 
   @Get('page')
-  @Roles('ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER')
-  listPage(
+  @Roles('ADMIN', 'HR', 'ACCOUNTANT', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER')
+  async listPage(
     @Query(new ZodValidationPipe(ListEmployeesPageQuery)) query: ListEmployeesPageQuery,
     @CurrentUser() user: WebUser,
   ): Promise<EmployeesPage> {
-    return this.employees.listPage(query, scopeOf(user, EMPLOYEE_READERS));
+    const page = await this.employees.listPage(query, scopeOf(user, EMPLOYEE_READERS));
+    return {
+      ...page,
+      items: await Promise.all(page.items.map((row) => this.employees.restrictView(row, user))),
+    };
   }
 
   @Post()
@@ -138,27 +147,13 @@ export class AdminEmployeesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER')
+  @Roles('ADMIN', 'HR', 'ACCOUNTANT', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER')
   async get(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: WebUser,
   ): Promise<EmployeeView> {
-    const scope = scopeOf(user, EMPLOYEE_READERS);
-    let contacts = true;
-    if (!scope.all) {
-      const place = await this.employees.placeOf(id);
-      if (place === null || !scopeCovers(scope, place)) {
-        if (!(await this.employees.scheduledInScope(scope, id))) {
-          throw outOfScope('The record is outside your access scope');
-        }
-        // Someone else's employee in this unit's calendar: enough to name them, no personal data.
-        contacts = false;
-      }
-    }
-    const view = await this.employees.viewOf(id);
-    return contacts
-      ? view
-      : { ...view, email: null, phone: null, telegramUsername: null, birthDate: null };
+    await this.assertEmployees(user, EMPLOYEE_READERS, [id]);
+    return this.employees.restrictView(await this.employees.viewOf(id), user);
   }
 
   @Patch(':id')
@@ -168,7 +163,7 @@ export class AdminEmployeesController {
     @CurrentUser() user: WebUser,
   ): Promise<EmployeeView> {
     await this.assertEmployees(user, EMPLOYEE_WRITERS, [id]);
-    await this.employees.update(id, body, webUserActor(user));
+    await this.employees.update(id, body, webUserActor(user), user);
     return this.employees.viewOf(id);
   }
 

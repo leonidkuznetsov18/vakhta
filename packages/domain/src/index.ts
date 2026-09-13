@@ -39,3 +39,8 @@ export * from './shift-fsm/corrections.js';
 
 export * from './bonus/month-nominations.js';
 export * from './shift-fsm/estimated-closure.js';
+
+export * from './employee-profile/compensation.js';
+export * from './employee-profile/master-state.js';
+export * from './employee-profile/field-access.js';
+export * from './employee-profile/zone.js';

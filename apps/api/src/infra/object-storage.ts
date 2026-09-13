@@ -1,12 +1,19 @@
 import { Inject, Injectable, Module, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  GetObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { Env } from '../config/env.js';
 
 /** Порт видачі фото: лише короткоживучі підписані GET (FR-PHO-06). */
 export interface ObjectStorage {
   presignGet(key: string, ttlSeconds: number): Promise<string>;
+  put?(key: string, body: Uint8Array, contentType: string): Promise<void>;
+  delete?(key: string): Promise<void>;
 }
 
 export const OBJECT_STORAGE = Symbol('OBJECT_STORAGE');
@@ -17,6 +24,17 @@ export class S3ObjectStorage implements ObjectStorage {
     private readonly bucket: string,
   ) {}
 
+  async put(key: string, body: Uint8Array, contentType: string): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: contentType }),
+      { abortSignal: AbortSignal.timeout(15_000) },
+    );
+  }
+  async delete(key: string): Promise<void> {
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }), {
+      abortSignal: AbortSignal.timeout(15_000),
+    });
+  }
   presignGet(key: string, ttlSeconds: number): Promise<string> {
     return getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
       expiresIn: ttlSeconds,

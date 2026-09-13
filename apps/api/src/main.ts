@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import multipart from '@fastify/multipart';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module.js';
@@ -24,6 +25,7 @@ async function bootstrap(): Promise<void> {
     new FastifyAdapter({ logger: false, trustProxy: true }),
     { logger: ['error', 'warn'] },
   );
+  await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 1 } });
   app.enableShutdownHooks();
   // Порядок має значення: Nest перевіряє фільтри з кінця, тож DomainErrorFilter іде останнім.
   app.useGlobalFilters(new UnexpectedErrorFilter(app.getHttpAdapter()), new DomainErrorFilter());

@@ -1,10 +1,14 @@
+import { ProfilePage, restoreEmployeeList } from '@/features/employee-profile';
+import { writeSchedulePreset } from '@/features/schedule-management';
+import { useRoute } from '@/lib/route';
+import { useSession } from '@/auth/useSession';
 import { messages } from '@vakhta/i18n';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { ChecklistsTab } from './ChecklistsTab.tsx';
 import { DirectoriesTab } from './DirectoriesTab.tsx';
-import { EmployeesTab } from './EmployeesTab.tsx';
+import { EmployeesTab, PositionPanel } from './EmployeesTab.tsx';
 import { TerminalsTab } from './TerminalsTab.tsx';
 import { UsersTab } from './UsersTab.tsx';
 import { currentLocale } from '../i18n.tsx';
@@ -19,6 +23,36 @@ const TABS = Object.keys(t.tabs) as Tab[];
 export function AdminPage() {
   const [tab, setTab] = useRouteSub<Tab>('administration', TABS, 'employees');
   const { org, queryState } = useOrg();
+  const route = useRoute();
+  const { state: session } = useSession();
+  if (route.sub === 'employees' && route.detail)
+    return (
+      <ProfilePage
+        employeeId={route.detail}
+        renderWorkEditor={(profile) =>
+          org ? (
+            <PositionPanel
+              employee={profile.employee}
+              org={org}
+              onAssigned={() => {
+                void queryState.refetch();
+              }}
+            />
+          ) : (
+            <QueryFeedback query={queryState} />
+          )
+        }
+        onOpenSchedule={(profile) => {
+          writeSchedulePreset({
+            actorId: session.status === 'authenticated' ? session.me.id : '',
+            orgUnitId: profile.work.unit?.id ?? null,
+            month: profile.schedule.month,
+            people: [{ id: profile.employee.id, name: profile.employee.fullName }],
+          });
+          location.hash = '#/schedule';
+        }}
+      />
+    );
 
   return (
     <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
@@ -34,7 +68,9 @@ export function AdminPage() {
       {org ? (
         <>
           <TabsContent value="employees">
-            <EmployeesTab org={org} />
+            <div ref={restoreEmployeeList}>
+              <EmployeesTab org={org} />
+            </div>
           </TabsContent>
           <TabsContent value="users">
             <UsersTab org={org} />

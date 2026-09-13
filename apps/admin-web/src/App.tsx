@@ -362,9 +362,7 @@ export function App() {
                     setActive(target.section);
                   }}
                   onEmployee={(emp) => {
-                    // The employees tab reads its open row from the store, so the card opens on arrival.
-                    setUiState({ 'employees.openId': emp.id });
-                    writeRoute('administration', 'employees');
+                    writeRoute('administration', `employees/${emp.id}`);
                     setActive('administration');
                   }}
                 />

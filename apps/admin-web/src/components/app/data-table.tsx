@@ -88,6 +88,7 @@ interface DataTableProps<T> {
   readonly searchPlaceholder?: string;
   readonly rowClassName?: (row: T) => string | undefined;
   /** Extra full-width row rendered under a data row (details, inline forms). */
+  readonly detailTrigger?: 'icon' | 'row-menu';
   readonly expanded?: (row: T) => ReactNode | null;
   /** Main action of a row: clicking anywhere on it (outside controls) triggers this. */
   readonly onRowClick?: (row: T) => void;
@@ -343,6 +344,7 @@ export function DataTable<T extends object>({
   searchPlaceholder,
   rowClassName,
   expanded,
+  detailTrigger = 'icon',
   onRowClick,
   rowActions,
   summary,
@@ -459,7 +461,7 @@ export function DataTable<T extends object>({
     document.getElementById(`${instanceId}-open-${rowKey(row)}`)?.focus({ preventScroll: true });
   };
   const disclosure = (row: T, isOpen: boolean) =>
-    onRowClick ? (
+    onRowClick && detailTrigger === 'icon' ? (
       <Button
         type="button"
         variant="ghost"

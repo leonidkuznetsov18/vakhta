@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, isNull } from '@vakhta/db';
+import { and, asc, eq, isNull, inArray } from '@vakhta/db';
 import {
   orgUnits,
+  employees,
   positions,
   qrTerminals,
   reasonCodes,
@@ -489,6 +490,13 @@ export class OrgService {
         .where(and(eq(webUserRoles.role, 'SHIFT_MASTER'), eq(webUserRoles.scopeType, 'ORG_UNIT')))
         .orderBy(asc(authUser.name)),
     ]);
+    const masterIds = u.flatMap((unit) => (unit.masterEmployeeId ? [unit.masterEmployeeId] : []));
+    const designated = masterIds.length
+      ? await this.db
+          .select({ id: employees.id, name: employees.fullName, status: employees.status })
+          .from(employees)
+          .where(inArray(employees.id, masterIds))
+      : [];
     const mastersByUnit = new Map<string, { id: string; name: string }[]>();
     for (const m of masters) {
       if (!m.scopeId) continue;
@@ -498,7 +506,9 @@ export class OrgService {
     }
     return {
       sites: s.map(({ id, code, name, timezone }) => ({ id, code, name, timezone })),
-      orgUnits: u.map(({ id, siteId, parentId, name }) => ({
+      orgUnits: u.map(({ id, siteId, parentId, name, masterEmployeeId }) => ({
+        masterEmployeeId,
+        designatedMaster: designated.find((employee) => employee.id === masterEmployeeId) ?? null,
         id,
         siteId,
         parentId,

@@ -1,16 +1,24 @@
+import { useSession } from '@/auth/useSession';
+import {
+  avatarUrl,
+  rememberEmployeeList,
+  employeeListReturnId,
+  ProfileSheet,
+  profileDirectory,
+  canEditEmployee,
+} from '@/features/employee-profile';
+import { UserAvatar } from '@/components/app/avatar';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isBlank, isUnchanged } from '@/lib/forms';
 import type {
-  ChecklistDefinitionView,
   ActivationCodeIssued,
   EmployeePositionView,
   EmployeeView,
   OrgSnapshot,
 } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/shared/ui/icon-button';
 import {
@@ -22,7 +30,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { CopyButton } from '@/components/app/copy-button';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { notifyPromise, notifySuccess } from '@/lib/toast';
 import { DataTable, type Column, type RowAction } from '@/components/app/data-table';
@@ -30,33 +37,26 @@ import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill, type Tone } from '@/components/app/page';
-import { formatDateTime } from '@/lib/format';
-import { ApiError, adminEmployeesApi, checklistsApi, employeesApi } from '../api.ts';
+import { ApiError, adminEmployeesApi, checklistsApi } from '../api.ts';
 import { describeError, readError } from '../errors.ts';
 import { keys } from '@/lib/query';
 import { currentLocale } from '../i18n.tsx';
 import { setUiState, usePersistentState } from '@/lib/ui-store';
-import { cn } from 'cn';
 import { AddDialog } from '@/components/app/add-dialog';
 import {
   BanIcon,
   CircleCheckIcon,
   IdCardIcon,
-  ChevronRightIcon,
-  ClipboardListIcon,
   KeyRoundIcon,
-  PencilIcon,
   Trash2Icon,
   Link2Icon,
   UserCheckIcon,
   UserXIcon,
 } from 'lucide-react';
 import { ImportDialog } from './ImportDialog.tsx';
-import { QrCode } from '@/components/app/qr-code';
 import { UploadIcon } from 'lucide-react';
 import { validateWith, type FieldErrors } from '@/lib/validation';
-import { CreateEmployeeCommand, UpdateEmployeeCommand } from '@vakhta/contracts';
-import { CREATE_FOR_KEY } from './ChecklistsTab.tsx';
+import { CreateEmployeeCommand } from '@vakhta/contracts';
 import { CodeSheet } from './CodeSheet.tsx';
 import { PrinterIcon } from 'lucide-react';
 
@@ -86,7 +86,6 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const [newOrgUnitId, setNewOrgUnitId] = usePersistentState('employees.newOrgUnit', '');
   const [newPositionId, setNewPositionId] = usePersistentState('employees.newPosition', '');
   const [newTeamId, setNewTeamId] = usePersistentState('employees.newTeam', '');
-  const [issued, setIssued] = useState<ActivationCodeIssued | null>(null);
   const [creating, setCreating] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const checklists =
@@ -103,7 +102,13 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const [relinkFor, setRelinkFor] = useState<EmployeeView | null>(null);
   const { confirm, dialog } = useConfirm();
   const client = useQueryClient();
-  const roster = useQuery({ queryKey: keys.employees, queryFn: () => employeesApi.list() });
+  const { state: session } = useSession();
+  const roles = session.status === 'authenticated' ? session.me.roles : [];
+  const writable = roles.some((grant) => grant.role === 'ADMIN' || grant.role === 'HR');
+  const roster = useQuery({
+    queryKey: [...keys.employees, 'complete-directory'],
+    queryFn: ({ signal }) => profileDirectory(signal),
+  });
   const list = roster.data ?? [];
   /** One roster on the server; every card that changes re-reads it rather than patching a copy. */
   const reload = () => client.invalidateQueries({ queryKey: keys.employees });
@@ -145,7 +150,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
 
   const issue = useMutation({
     mutationFn: (emp: EmployeeView) => adminEmployeesApi.issueCode(emp.id),
-    onSuccess: (code) => setIssued(code),
+    onSuccess: (code) => setSheet([code]),
   });
 
   const setStatus = useMutation({
@@ -238,7 +243,9 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sheet, setSheet] = useState<ActivationCodeIssued[] | null>(null);
-  const selectable = list.filter((x) => selected.has(x.id) && x.status === 'ACTIVE');
+  const selectable = list.filter(
+    (x) => canEditEmployee(x, org, roles) && selected.has(x.id) && x.status === 'ACTIVE',
+  );
 
   function issueSelected() {
     if (selectable.length > 0) issueMany.mutate(selectable.map((x) => x.id));
@@ -261,7 +268,9 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   });
 
   async function deleteSelected() {
-    const ids = [...selected];
+    const ids = list
+      .filter((employee) => selected.has(employee.id) && canEditEmployee(employee, org, roles))
+      .map((employee) => employee.id);
     if (ids.length === 0) return;
     const reason = await confirm({
       title: e.deleteSelected,
@@ -304,7 +313,20 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     {
       key: 'name',
       header: e.fullName,
-      cell: (emp) => emp.fullName,
+      cell: (emp) => (
+        <a
+          onClick={(event) => rememberEmployeeList(event.currentTarget, emp.id)}
+          href={`#/administration/employees/${emp.id}`}
+          className="flex min-w-0 items-center gap-2 rounded hover:underline focus-visible:outline-2"
+        >
+          <UserAvatar
+            name={emp.fullName}
+            email={emp.id}
+            image={avatarUrl(emp.id, emp.avatarVersion)}
+          />
+          <span className="min-w-0 break-words">{emp.fullName}</span>
+        </a>
+      ),
       sortValue: (emp) => emp.fullName,
     },
     {
@@ -368,11 +390,11 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const rowActions = (emp: EmployeeView): RowAction[] => [
     {
       key: 'position',
-      label: e.position,
+      label: all.employeeProfile.title,
       icon: IdCardIcon,
       onSelect: () => setOpenId(openId === emp.id ? null : emp.id),
     },
-    ...(emp.status === 'ACTIVE'
+    ...(canEditEmployee(emp, org, roles) && emp.status === 'ACTIVE'
       ? [
           {
             key: 'code',
@@ -383,7 +405,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           },
         ]
       : []),
-    ...(emp.telegramLinked && emp.status === 'ACTIVE'
+    ...(canEditEmployee(emp, org, roles) && emp.telegramLinked && emp.status === 'ACTIVE'
       ? [
           {
             key: 'relink',
@@ -394,7 +416,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           },
         ]
       : []),
-    ...(emp.status === 'ACTIVE'
+    ...(canEditEmployee(emp, org, roles) && emp.status === 'ACTIVE'
       ? [
           {
             key: 'block',
@@ -406,7 +428,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           },
         ]
       : []),
-    ...(emp.status === 'BLOCKED'
+    ...(canEditEmployee(emp, org, roles) && emp.status === 'BLOCKED'
       ? [
           {
             key: 'unblock',
@@ -418,7 +440,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           },
         ]
       : []),
-    ...(emp.status === 'TERMINATED'
+    ...(canEditEmployee(emp, org, roles) && emp.status === 'TERMINATED'
       ? [
           {
             key: 'reinstate',
@@ -430,7 +452,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           },
         ]
       : []),
-    ...(emp.status !== 'TERMINATED'
+    ...(canEditEmployee(emp, org, roles) && emp.status !== 'TERMINATED'
       ? [
           {
             key: 'terminate',
@@ -442,46 +464,20 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           },
         ]
       : []),
-    {
-      key: 'delete',
-      label: e.deleteEmployee,
-      icon: Trash2Icon,
-      disabled: busy,
-      destructive: true,
-      separator: true,
-      onSelect: () => void deleteEmployee(emp),
-    },
+    ...(canEditEmployee(emp, org, roles)
+      ? [
+          {
+            key: 'delete',
+            label: e.deleteEmployee,
+            icon: Trash2Icon,
+            disabled: busy,
+            destructive: true,
+            separator: true,
+            onSelect: () => void deleteEmployee(emp),
+          },
+        ]
+      : []),
   ];
-
-  /** The card under its row: details and activation on the left, position and checklist on the right. */
-  function renderCard(emp: EmployeeView) {
-    return (
-      <div className="flex flex-col gap-3 py-1" data-testid="employee-card">
-        <div className="grid min-w-0 items-start gap-6 lg:grid-cols-2">
-          <div className="flex min-w-0 flex-col gap-4">
-            <EmployeeDetailsForm key={emp.id} employee={emp} onSaved={reload} />
-            <ActivationPanel
-              employee={emp}
-              issued={issued?.employeeId === emp.id ? issued : null}
-              busy={busy}
-              onIssue={() => issueCode(emp)}
-            />
-          </div>
-          <div className="flex min-w-0 flex-col gap-4">
-            <PositionPanel employee={emp} org={org} onAssigned={reload} />
-            {emp.currentPosition && (
-              <ChecklistPanel
-                positionId={emp.currentPosition.positionId}
-                positionName={positionName(emp.currentPosition.positionId)}
-                checklists={checklists}
-                onChanged={() => client.invalidateQueries({ queryKey: keys.checklists })}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -489,162 +485,164 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         title={t.tabs.employees}
         hint={hints.employeesActivation}
         actions={
-          <>
-            <IconButton
-              icon={UploadIcon}
-              label={e.import}
-              tooltip={e.import}
-              size="icon"
-              variant="outline"
-              onClick={() => setImporting(true)}
-            />
-            <AddDialog
-              title={e.create}
-              trigger={e.create}
-              open={creating}
-              onOpenChange={setCreating}
-            >
-              <form className="flex flex-col gap-4" onSubmit={create} noValidate>
-                <FormField
-                  label={e.personnelNumber}
-                  hint={hints.employeesPersonnelNumber}
-                  error={fieldErrors.personnelNumber}
-                >
-                  {(id) => (
-                    <Input
-                      id={id}
-                      value={personnelNumber}
-                      placeholder={e.personnelNumberPlaceholder}
-                      autoComplete="off"
-                      onChange={(ev) => setPersonnelNumber(ev.target.value)}
-                    />
-                  )}
-                </FormField>
-                <FormField
-                  label={e.fullName}
-                  hint={hints.employeesFullName}
-                  error={fieldErrors.fullName}
-                >
-                  {(id) => (
-                    <Input
-                      id={id}
-                      value={fullName}
-                      placeholder={e.fullNamePlaceholder}
-                      autoComplete="off"
-                      onChange={(ev) => setFullName(ev.target.value)}
-                    />
-                  )}
-                </FormField>
-                <FormField
-                  label={e.email}
-                  hint={hints.employeesEmail}
-                  error={fieldErrors.email}
-                  optional
-                >
-                  {(id) => (
-                    <Input
-                      id={id}
-                      type="email"
-                      inputMode="email"
-                      value={email}
-                      placeholder={e.emailPlaceholder}
-                      autoComplete="off"
-                      onChange={(ev) => setEmail(ev.target.value)}
-                    />
-                  )}
-                </FormField>
-                <FormField
-                  label={e.phone}
-                  hint={hints.employeesPhone}
-                  error={fieldErrors.phone}
-                  optional
-                >
-                  {(id) => (
-                    <Input
-                      id={id}
-                      type="tel"
-                      inputMode="tel"
-                      value={phone}
-                      placeholder={e.phonePlaceholder}
-                      autoComplete="off"
-                      onChange={(ev) => setPhone(ev.target.value)}
-                    />
-                  )}
-                </FormField>
-                <FormField
-                  label={e.telegramUsername}
-                  hint={hints.employeesTelegram}
-                  error={fieldErrors.telegramUsername}
-                  optional
-                >
-                  {(id) => (
-                    <Input
-                      id={id}
-                      value={telegramUsername}
-                      placeholder={e.telegramPlaceholder}
-                      autoComplete="off"
-                      onChange={(ev) => setTelegramUsername(ev.target.value)}
-                    />
-                  )}
-                </FormField>
-                <FormField label={e.birthDate} error={fieldErrors.birthDate} optional>
-                  {(id) => (
-                    <Input
-                      id={id}
-                      type="date"
-                      value={birthDate}
-                      autoComplete="off"
-                      onChange={(ev) => setBirthDate(ev.target.value)}
-                    />
-                  )}
-                </FormField>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <SelectField
-                    label={e.newOrgUnit}
-                    hint={hints.employeesNewAssignment}
-                    value={newOrgUnitId}
-                    onChange={(v) => {
-                      setNewOrgUnitId(v);
-                      setNewTeamId('');
-                    }}
-                    placeholder={e.notChosen}
-                    options={org.orgUnits.map((u) => ({ value: u.id, label: u.name }))}
-                  />
-                  <SelectField
-                    label={e.newPosition}
-                    value={newPositionId}
-                    onChange={setNewPositionId}
-                    placeholder={e.notChosen}
-                    error={fieldErrors.positionId}
-                    options={org.positions.map((p) => ({ value: p.id, label: p.name }))}
-                  />
-                  <SelectField
-                    label={e.newTeam}
-                    value={newTeamId}
-                    onChange={setNewTeamId}
-                    placeholder={e.notChosen}
-                    disabled={!newOrgUnitId}
-                    options={org.teams
-                      .filter((tm) => tm.orgUnitId === newOrgUnitId)
-                      .map((tm) => ({ value: tm.id, label: tm.name }))}
-                  />
-                </div>
-                <Muted className="text-xs">{e.newAssignmentHint}</Muted>
-                <Feedback error={error} />
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setCreating(false)}>
-                    {t.common.cancel}
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={busy || isBlank(personnelNumber) || isBlank(fullName)}
+          writable ? (
+            <>
+              <IconButton
+                icon={UploadIcon}
+                label={e.import}
+                tooltip={e.import}
+                size="icon"
+                variant="outline"
+                onClick={() => setImporting(true)}
+              />
+              <AddDialog
+                title={e.create}
+                trigger={e.create}
+                open={creating}
+                onOpenChange={setCreating}
+              >
+                <form className="flex flex-col gap-4" onSubmit={create} noValidate>
+                  <FormField
+                    label={e.personnelNumber}
+                    hint={hints.employeesPersonnelNumber}
+                    error={fieldErrors.personnelNumber}
                   >
-                    {t.common.add}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </AddDialog>
-          </>
+                    {(id) => (
+                      <Input
+                        id={id}
+                        value={personnelNumber}
+                        placeholder={e.personnelNumberPlaceholder}
+                        autoComplete="off"
+                        onChange={(ev) => setPersonnelNumber(ev.target.value)}
+                      />
+                    )}
+                  </FormField>
+                  <FormField
+                    label={e.fullName}
+                    hint={hints.employeesFullName}
+                    error={fieldErrors.fullName}
+                  >
+                    {(id) => (
+                      <Input
+                        id={id}
+                        value={fullName}
+                        placeholder={e.fullNamePlaceholder}
+                        autoComplete="off"
+                        onChange={(ev) => setFullName(ev.target.value)}
+                      />
+                    )}
+                  </FormField>
+                  <FormField
+                    label={e.email}
+                    hint={hints.employeesEmail}
+                    error={fieldErrors.email}
+                    optional
+                  >
+                    {(id) => (
+                      <Input
+                        id={id}
+                        type="email"
+                        inputMode="email"
+                        value={email}
+                        placeholder={e.emailPlaceholder}
+                        autoComplete="off"
+                        onChange={(ev) => setEmail(ev.target.value)}
+                      />
+                    )}
+                  </FormField>
+                  <FormField
+                    label={e.phone}
+                    hint={hints.employeesPhone}
+                    error={fieldErrors.phone}
+                    optional
+                  >
+                    {(id) => (
+                      <Input
+                        id={id}
+                        type="tel"
+                        inputMode="tel"
+                        value={phone}
+                        placeholder={e.phonePlaceholder}
+                        autoComplete="off"
+                        onChange={(ev) => setPhone(ev.target.value)}
+                      />
+                    )}
+                  </FormField>
+                  <FormField
+                    label={e.telegramUsername}
+                    hint={hints.employeesTelegram}
+                    error={fieldErrors.telegramUsername}
+                    optional
+                  >
+                    {(id) => (
+                      <Input
+                        id={id}
+                        value={telegramUsername}
+                        placeholder={e.telegramPlaceholder}
+                        autoComplete="off"
+                        onChange={(ev) => setTelegramUsername(ev.target.value)}
+                      />
+                    )}
+                  </FormField>
+                  <FormField label={e.birthDate} error={fieldErrors.birthDate} optional>
+                    {(id) => (
+                      <Input
+                        id={id}
+                        type="date"
+                        value={birthDate}
+                        autoComplete="off"
+                        onChange={(ev) => setBirthDate(ev.target.value)}
+                      />
+                    )}
+                  </FormField>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <SelectField
+                      label={e.newOrgUnit}
+                      hint={hints.employeesNewAssignment}
+                      value={newOrgUnitId}
+                      onChange={(v) => {
+                        setNewOrgUnitId(v);
+                        setNewTeamId('');
+                      }}
+                      placeholder={e.notChosen}
+                      options={org.orgUnits.map((u) => ({ value: u.id, label: u.name }))}
+                    />
+                    <SelectField
+                      label={e.newPosition}
+                      value={newPositionId}
+                      onChange={setNewPositionId}
+                      placeholder={e.notChosen}
+                      error={fieldErrors.positionId}
+                      options={org.positions.map((p) => ({ value: p.id, label: p.name }))}
+                    />
+                    <SelectField
+                      label={e.newTeam}
+                      value={newTeamId}
+                      onChange={setNewTeamId}
+                      placeholder={e.notChosen}
+                      disabled={!newOrgUnitId}
+                      options={org.teams
+                        .filter((tm) => tm.orgUnitId === newOrgUnitId)
+                        .map((tm) => ({ value: tm.id, label: tm.name }))}
+                    />
+                  </div>
+                  <Muted className="text-xs">{e.newAssignmentHint}</Muted>
+                  <Feedback error={error} />
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setCreating(false)}>
+                      {t.common.cancel}
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={busy || isBlank(personnelNumber) || isBlank(fullName)}
+                    >
+                      {t.common.add}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </AddDialog>
+            </>
+          ) : undefined
         }
       >
         <div className="flex flex-wrap items-end gap-3">
@@ -689,15 +687,16 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
           `${emp.fullName} ${emp.personnelNumber} ${emp.email ?? ''} ${emp.phone ?? ''} ${emp.telegramUsername ?? ''}`
         }
         searchPlaceholder={e.search}
-        activeKey={openId}
+        activeKey={openId ?? employeeListReturnId()}
         empty={t.common.empty}
         storageKey="employees"
         caption={all.admin.sections.administration + ': ' + t.tabs.employees}
         primaryKey="name"
+        detailTrigger="row-menu"
         rowLabel={(emp) => `${emp.fullName} · ${emp.personnelNumber}`}
         resetKey={`${statusFilter}:${telegramFilter}`}
-        selectedKeys={selected}
-        onSelectionChange={setSelected}
+        selectedKeys={writable ? selected : undefined}
+        onSelectionChange={writable ? setSelected : undefined}
         selectionBar={
           <div className="flex items-center gap-1">
             <Button
@@ -724,15 +723,21 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         }
         loading={roster.isPending}
         emptyAction={
-          <Button type="button" variant="outline" onClick={() => setCreating(true)}>
-            {e.create}
-          </Button>
+          writable ? (
+            <Button type="button" variant="outline" onClick={() => setCreating(true)}>
+              {e.create}
+            </Button>
+          ) : undefined
         }
-        onRowClick={(emp) => setOpenId(openId === emp.id ? null : emp.id)}
-        expanded={(emp) => (emp.id === openId ? renderCard(emp) : null)}
+        onRowClick={(emp) => {
+          const main = document.querySelector('main');
+          if (main) rememberEmployeeList(main, emp.id);
+          setOpenId(emp.id);
+        }}
         rowActions={rowActions}
         rowClassName={(emp) => (emp.status !== 'ACTIVE' ? 'text-muted-foreground' : undefined)}
       />
+      {openId && <ProfileSheet employeeId={openId} onClose={() => setOpenId(null)} />}
       <CodeSheet codes={sheet} employees={list} onClose={() => setSheet(null)} />
       <ImportDialog open={importing} onOpenChange={setImporting} onImported={reload} />
       {dialog}
@@ -827,7 +832,7 @@ function RelinkDialog({
   );
 }
 
-function PositionPanel({
+export function PositionPanel({
   employee,
   org,
   onAssigned,
@@ -840,7 +845,13 @@ function PositionPanel({
     queryKey: keys.employeePositions(employee.id),
     queryFn: () => adminEmployeesApi.positions(employee.id),
   });
-  const current = history.data?.find((h) => h.validTo === null) ?? null;
+  const now = history.dataUpdatedAt;
+  const current =
+    history.data?.find(
+      (assignment) =>
+        Date.parse(assignment.validFrom) <= now &&
+        (assignment.validTo === null || Date.parse(assignment.validTo) > now),
+    ) ?? null;
   const unitName = (id: string) => org.orgUnits.find((u) => u.id === id)?.name ?? id;
   const positionName = (id: string) => org.positions.find((p) => p.id === id)?.name ?? id;
 
@@ -895,6 +906,7 @@ function AssignPositionForm({
     onSuccess: async () => {
       notifySuccess(e.positionAssigned);
       await client.invalidateQueries({ queryKey: keys.employeePositions(employeeId) });
+      await client.invalidateQueries({ queryKey: keys.employees });
       onAssigned();
     },
   });
@@ -903,6 +915,17 @@ function AssignPositionForm({
 
   function assign(ev: FormEvent) {
     ev.preventDefault();
+    if (
+      busy ||
+      !orgUnitId ||
+      !positionId ||
+      (current &&
+        isUnchanged(
+          { orgUnitId, positionId, teamId: teamId || null },
+          { orgUnitId: current.orgUnitId, positionId: current.positionId, teamId: current.teamId },
+        ))
+    )
+      return;
     move.mutate();
   }
 
@@ -911,6 +934,7 @@ function AssignPositionForm({
       <form className="flex flex-wrap items-end gap-3" onSubmit={assign}>
         <SelectField
           label={t.common.orgUnit}
+          disabled={busy}
           value={orgUnitId}
           onChange={(v) => {
             setOrgUnitId(v);
@@ -921,6 +945,7 @@ function AssignPositionForm({
         />
         <SelectField
           label={e.position}
+          disabled={busy}
           value={positionId}
           onChange={setPositionId}
           options={org.positions.map((p) => ({ value: p.id, label: p.name }))}
@@ -928,6 +953,7 @@ function AssignPositionForm({
         />
         <SelectField
           label={t.common.team}
+          disabled={busy}
           value={teamId}
           onChange={setTeamId}
           placeholder={t.common.none}
@@ -957,497 +983,5 @@ function AssignPositionForm({
       </form>
       <Feedback error={error} />
     </>
-  );
-}
-
-/**
- * The checklist of the employee's position (ADR-0012): one per position. It can be replaced by
- * another existing checklist or removed; nothing is copied.
- */
-/**
- * Activation inside the card: what the administrator does, the button, then the code, the link
- * and the QR of the last issued code for this employee.
- */
-function ActivationPanel({
-  employee,
-  issued,
-  busy,
-  onIssue,
-}: {
-  readonly employee: EmployeeView;
-  readonly issued: ActivationCodeIssued | null;
-  readonly busy: boolean;
-  readonly onIssue: () => void;
-}) {
-  const canIssue = employee.status === 'ACTIVE';
-  // Collapsed by default: the block is long, and most cards are opened for something else.
-  const [open, setOpen] = usePersistentState(ACTIVATION_OPEN, false);
-  return (
-    <div className="flex flex-col gap-3 rounded-lg border p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className="flex min-w-0 items-center gap-1 text-left text-sm font-medium"
-          aria-expanded={open}
-          onClick={() => setOpen((v) => !v)}
-        >
-          <ChevronRightIcon
-            className={cn('size-4 transition-transform', open && 'rotate-90')}
-            aria-hidden="true"
-          />
-          <KeyRoundIcon className="size-4" aria-hidden="true" />
-          {e.activation}
-        </button>
-        <InfoTip text={hints.employeesActivation} />
-        <StatusPill tone={employee.telegramLinked ? 'success' : 'warning'}>
-          {employee.telegramLinked ? e.linked : e.notLinked}
-        </StatusPill>
-        {canIssue && !employee.telegramLinked && (
-          <Button
-            type="button"
-            size="sm"
-            variant={issued ? 'outline' : 'default'}
-            className="ml-auto"
-            disabled={busy}
-            onClick={onIssue}
-          >
-            <KeyRoundIcon aria-hidden="true" />
-            {issued ? e.reissueCodeButton : e.issueCodeButton}
-          </Button>
-        )}
-      </div>
-      {!open ? null : employee.telegramLinked ? (
-        <Muted>{e.activationLinked}</Muted>
-      ) : !canIssue ? (
-        <Muted>{e.activationUnavailable}</Muted>
-      ) : (
-        <>
-          <Muted>{e.activationIntro}</Muted>
-          <ol className="flex list-decimal flex-col gap-0.5 pl-5 text-sm text-muted-foreground">
-            {e.activationSteps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-        </>
-      )}
-      {open && issued && (
-        <div className="flex flex-col gap-3 rounded-md border bg-muted/40 p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-muted-foreground">{e.issueCode}:</span>
-            <code className="rounded bg-background px-2 py-1 font-mono text-xl font-semibold tracking-widest">
-              {issued.code}
-            </code>
-            <CopyButton value={issued.code} />
-            <Muted className="text-xs">
-              {format(e.codeValidUntil, { expires: formatDateTime(issued.expiresAt) })}
-            </Muted>
-          </div>
-          <div className="flex flex-wrap items-start gap-4">
-            <QrCode value={issued.deepLink} size={144} label={e.deepLink} />
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm text-muted-foreground">{e.deepLink}:</span>
-                <code className="rounded bg-background px-1.5 py-0.5 text-xs break-all">
-                  {issued.deepLink}
-                </code>
-                <CopyButton value={issued.deepLink} />
-              </div>
-              <Muted className="flex items-center gap-1 text-xs">
-                {e.qrHint}
-                <InfoTip text={hints.employeesQr} />
-              </Muted>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Editable card: number, name and contacts with the same hints, placeholders and validation as
- * the creation form; the save button wakes up only when something changed. The contacts also
- * render as links, so the card stays usable without editing.
- */
-function EmployeeDetailsForm({
-  employee,
-  onSaved,
-}: {
-  readonly employee: EmployeeView;
-  readonly onSaved: () => void;
-}) {
-  const initial = {
-    personnelNumber: employee.personnelNumber,
-    fullName: employee.fullName,
-    email: employee.email ?? '',
-    phone: employee.phone ?? '',
-    telegramUsername: employee.telegramUsername ?? '',
-    birthDate: employee.birthDate ?? '',
-  };
-  const [draft, setDraft] = useState(initial);
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [editing, setEditing] = useState(false);
-  const unchanged = isUnchanged(draft, initial);
-
-  const save = useMutation({
-    mutationFn: (cmd: UpdateEmployeeCommand) => adminEmployeesApi.update(employee.id, cmd),
-    onSuccess: () => {
-      notifySuccess(e.detailsSaved);
-      setEditing(false);
-      onSaved();
-    },
-  });
-  const busy = save.isPending;
-  const error = readError(save.error);
-
-  function submit(ev: FormEvent) {
-    ev.preventDefault();
-    const checked = validateWith(UpdateEmployeeCommand, draft);
-    const next: FieldErrors = { ...checked.errors };
-    if (next.phone) next.phone = e.invalidPhone;
-    if (next.telegramUsername) next.telegramUsername = e.invalidTelegram;
-    setErrors(next);
-    if (checked.ok) save.mutate(checked.data);
-  }
-
-  const field = (key: keyof typeof draft) => (value: string) =>
-    setDraft((d) => ({ ...d, [key]: value }));
-
-  if (!editing) {
-    return (
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1 text-sm font-medium">
-            {e.details}
-            <InfoTip text={e.detailsHint} />
-          </span>
-          <IconButton
-            icon={PencilIcon}
-            label={e.editDetails}
-            tooltip={e.editDetails}
-            type="button"
-            size="icon-sm"
-            variant="outline"
-            className="ml-auto"
-            onClick={() => setEditing(true)}
-          />
-        </div>
-        <ContactsRow employee={employee} />
-      </div>
-    );
-  }
-  return (
-    <form className="flex flex-col gap-3 rounded-lg border p-3" onSubmit={submit} noValidate>
-      <span className="flex items-center gap-1 text-sm font-medium">
-        {e.details}
-        <InfoTip text={e.detailsHint} />
-      </span>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <FormField
-          label={e.personnelNumber}
-          hint={hints.employeesPersonnelNumber}
-          error={errors.personnelNumber}
-        >
-          {(id) => (
-            <Input
-              id={id}
-              value={draft.personnelNumber}
-              placeholder={e.personnelNumberPlaceholder}
-              onChange={(ev) => field('personnelNumber')(ev.target.value)}
-            />
-          )}
-        </FormField>
-        <FormField label={e.fullName} hint={hints.employeesFullName} error={errors.fullName}>
-          {(id) => (
-            <Input
-              id={id}
-              value={draft.fullName}
-              placeholder={e.fullNamePlaceholder}
-              onChange={(ev) => field('fullName')(ev.target.value)}
-            />
-          )}
-        </FormField>
-        <FormField label={e.email} hint={hints.employeesEmail} error={errors.email} optional>
-          {(id) => (
-            <Input
-              id={id}
-              type="email"
-              inputMode="email"
-              value={draft.email}
-              placeholder={e.emailPlaceholder}
-              onChange={(ev) => field('email')(ev.target.value)}
-            />
-          )}
-        </FormField>
-        <FormField label={e.phone} hint={hints.employeesPhone} error={errors.phone} optional>
-          {(id) => (
-            <Input
-              id={id}
-              type="tel"
-              inputMode="tel"
-              value={draft.phone}
-              placeholder={e.phonePlaceholder}
-              onChange={(ev) => field('phone')(ev.target.value)}
-            />
-          )}
-        </FormField>
-        <FormField label={e.birthDate} error={errors.birthDate} optional>
-          {(id) => (
-            <Input
-              id={id}
-              type="date"
-              value={draft.birthDate}
-              onChange={(ev) => field('birthDate')(ev.target.value)}
-            />
-          )}
-        </FormField>
-        <FormField
-          label={e.telegramUsername}
-          hint={hints.employeesTelegram}
-          error={errors.telegramUsername}
-          optional
-        >
-          {(id) => (
-            <Input
-              id={id}
-              value={draft.telegramUsername}
-              placeholder={e.telegramPlaceholder}
-              onChange={(ev) => field('telegramUsername')(ev.target.value)}
-            />
-          )}
-        </FormField>
-      </div>
-      <Feedback error={error} />
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setDraft(initial);
-            setErrors({});
-            setEditing(false);
-          }}
-        >
-          {t.common.cancel}
-        </Button>
-        <Button type="submit" size="sm" disabled={busy || unchanged}>
-          {all.ui.common.save}
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-/** Opens the checklists tab with the create dialog and this position ticked (hash change switches the tab). */
-function createChecklistFor(positionId: string): void {
-  try {
-    setUiState({ [CREATE_FOR_KEY]: positionId });
-  } catch {
-    // Storage unavailable: the tab still opens, without the preset.
-  }
-  location.hash = '#/administration/checklists';
-}
-
-/** Optional contacts of the card as links: mail, call, open the Telegram profile. */
-function ContactsRow({ employee }: { readonly employee: EmployeeView }) {
-  const items: { key: string; label: string; href?: string; text: string }[] = [];
-  if (employee.email)
-    items.push({
-      key: 'email',
-      label: e.email,
-      href: `mailto:${employee.email}`,
-      text: employee.email,
-    });
-  if (employee.phone)
-    items.push({
-      key: 'phone',
-      label: e.phone,
-      href: `tel:${employee.phone}`,
-      text: employee.phone,
-    });
-  if (employee.birthDate)
-    items.push({ key: 'birthDate', label: e.birthDate, text: employee.birthDate });
-  if (employee.telegramUsername)
-    items.push({
-      key: 'telegram',
-      label: e.telegramUsername,
-      href: `https://t.me/${employee.telegramUsername}`,
-      text: `@${employee.telegramUsername}`,
-    });
-  return (
-    <div className="flex flex-col gap-1 text-sm">
-      <span className="font-medium">{e.contacts}</span>
-      {items.length === 0 ? (
-        <Muted>{e.noContacts}</Muted>
-      ) : (
-        <ul className="flex flex-wrap gap-x-4 gap-y-1">
-          {items.map((item) => (
-            <li key={item.key} className="flex items-center gap-1">
-              <Muted>{item.label}:</Muted>
-              {item.href ? (
-                <a
-                  href={item.href}
-                  target={item.key === 'telegram' ? '_blank' : undefined}
-                  rel="noreferrer"
-                  className="underline-offset-4 hover:underline"
-                >
-                  {item.text}
-                </a>
-              ) : (
-                <span>{item.text}</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function ChecklistPanel({
-  positionId,
-  positionName,
-  checklists,
-  onChanged,
-}: {
-  readonly positionId: string;
-  readonly positionName: string;
-  readonly checklists: readonly ChecklistDefinitionView[];
-  readonly onChanged: () => void;
-}) {
-  const [pick, setPick] = useState('');
-  const [replacing, setReplacing] = useState(false);
-  const { confirm, dialog } = useConfirm();
-  const current =
-    checklists.find((c) => c.isActive && c.positions.some((p) => p.id === positionId)) ?? null;
-  const available = checklists.filter((c) => c.isActive && c.id !== current?.id);
-
-  const attachTo = useMutation({
-    mutationFn: (checklistId: string) => checklistsApi.addPosition(checklistId, positionId),
-    onSuccess: () => {
-      notifySuccess(current ? e.checklistReplaced : e.checklistAdded);
-      setPick('');
-      setReplacing(false);
-      onChanged();
-    },
-  });
-  const detach = useMutation({
-    mutationFn: (checklistId: string) => checklistsApi.removePosition(checklistId, positionId),
-    onSuccess: () => {
-      notifySuccess(e.checklistRemoved);
-      onChanged();
-    },
-  });
-  const busy = attachTo.isPending || detach.isPending;
-  const error = readError(attachTo.error ?? detach.error);
-
-  async function attach(ev: FormEvent) {
-    ev.preventDefault();
-    if (!pick) return;
-    if (current) {
-      const ok = await confirm({
-        title: e.replaceChecklist,
-        description: format(e.replaceConfirm, { name: current.name }),
-        confirmLabel: e.replaceChecklist,
-      });
-      if (ok === false) return;
-    }
-    attachTo.mutate(pick);
-  }
-
-  async function remove() {
-    if (!current) return;
-    const ok = await confirm({
-      title: e.removeChecklist,
-      description: format(e.removeConfirm, { name: current.name }),
-      confirmLabel: e.removeChecklist,
-      destructive: true,
-    });
-    if (ok === false) return;
-    detach.mutate(current.id);
-  }
-
-  return (
-    <div className="flex flex-col gap-3 border-t pt-4">
-      <p className="flex items-center gap-1 text-sm font-medium">
-        {e.checklists} · {positionName}
-        <InfoTip text={`${hints.employeesChecklists} ${e.onePerPosition}`} />
-      </p>
-      {current ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm">
-          <span className="min-w-0 flex-1 truncate font-medium">{current.name}</span>
-          <Muted>
-            {format(t.checklists.itemsSummary, {
-              items: current.items.length,
-              photos: current.items.filter((i) => i.kind === 'PHOTO').length,
-            })}
-          </Muted>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={busy}
-            aria-expanded={replacing}
-            onClick={() => setReplacing((v) => !v)}
-          >
-            {e.replaceChecklist}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={busy}
-            onClick={() => void remove()}
-          >
-            {e.removeChecklist}
-          </Button>
-        </div>
-      ) : (
-        <Alert>
-          <AlertTitle>{e.noChecklist}</AlertTitle>
-          <AlertDescription>
-            <p>{e.noChecklistHint}</p>
-            <Button type="button" size="sm" onClick={() => createChecklistFor(positionId)}>
-              <ClipboardListIcon aria-hidden="true" />
-              {e.createChecklistFor}
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-      {(!current || replacing) && available.length === 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Muted className="text-xs">{e.noOtherChecklists}</Muted>
-          {current && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => createChecklistFor(positionId)}
-            >
-              <ClipboardListIcon aria-hidden="true" />
-              {e.createChecklistFor}
-            </Button>
-          )}
-        </div>
-      )}
-      {(!current || replacing) && available.length > 0 && (
-        <form className="flex flex-wrap items-end gap-3" onSubmit={attach}>
-          <SelectField
-            label={current ? e.replaceChecklist : e.addChecklist}
-            value={pick}
-            onChange={setPick}
-            placeholder="…"
-            options={available.map((c) => ({ value: c.id, label: c.name }))}
-            className="w-64"
-          />
-          <Button type="submit" variant="secondary" disabled={busy || !pick}>
-            {current ? e.replaceChecklist : t.common.add}
-          </Button>
-        </form>
-      )}
-      <Feedback error={error} />
-      {dialog}
-    </div>
   );
 }

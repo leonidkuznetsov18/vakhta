@@ -1,0 +1,187 @@
+{
+  "employee": {
+    "id": "75107b13-9a03-4f25-8af1-ffe5a5ec2867",
+    "personnelNumber": "QA-001",
+    "fullName": "Коваленко Олена Вікторівна",
+    "status": "ACTIVE",
+    "telegramLinked": false,
+    "email": "olena.kovalenko@example.test",
+    "phone": "+380670000001",
+    "telegramUsername": "qa_olena",
+    "currentPosition": {
+      "positionId": "7796864f-df3c-47f2-8ab4-8187a3608c57",
+      "orgUnitId": "2f3d97b6-de02-4576-8640-1f90cd22e206",
+      "teamId": null
+    },
+    "avatarVersion": null,
+    "updatedAt": "2026-09-13T10:51:22.100Z",
+    "createdAt": "2026-09-13T10:51:22.100Z"
+  },
+  "version": "2026-09-13T10:51:22.100Z",
+  "access": {
+    "personalEdit": true,
+    "maritalStatus": true,
+    "birthDate": "FULL",
+    "compensation": "WRITE"
+  },
+  "birthDate": "1990-03-14",
+  "maritalStatus": "MARRIED",
+  "avatarVersion": null,
+  "work": {
+    "position": {
+      "id": "7796864f-df3c-47f2-8ab4-8187a3608c57",
+      "name": "Оператор пакувальної лінії"
+    },
+    "unit": { "id": "2f3d97b6-de02-4576-8640-1f90cd22e206", "name": "Пакування" },
+    "team": null,
+    "master": {
+      "employee": {
+        "id": "ba50b5de-9f15-4669-8c28-4cbbd214db9e",
+        "name": "Петренко Віктор Олександрович"
+      },
+      "state": "NO_PANEL_ACCESS",
+      "isSelf": false,
+      "canOpen": true
+    },
+    "masterOf": [],
+    "zone": {
+      "current": {
+        "id": "bf56f124-2bd5-461e-b0e8-84645b5b89d9",
+        "name": "Пакувальна лінія № 2",
+        "available": true
+      },
+      "source": "NEXT_SHIFT",
+      "monthZones": [
+        {
+          "id": "bf56f124-2bd5-461e-b0e8-84645b5b89d9",
+          "name": "Пакувальна лінія № 2",
+          "available": true
+        }
+      ]
+    },
+    "history": [
+      {
+        "id": "44c12f73-d7cb-4aff-bc11-02eebacd102c",
+        "position": "Оператор пакувальної лінії",
+        "unit": "Пакування",
+        "validFrom": "2026-01-01T00:00:00.000Z",
+        "validTo": null
+      }
+    ]
+  },
+  "schedule": {
+    "month": "2026-09",
+    "timezone": "Europe/Kyiv",
+    "published": true,
+    "shiftCount": 5,
+    "plannedMinutes": 3600,
+    "nextShifts": [
+      {
+        "id": "eec40845-bbee-4d48-a133-33750c85c081",
+        "date": "2026-09-14",
+        "startAt": "2026-09-14T05:00:00.000Z",
+        "endAt": "2026-09-14T17:00:00.000Z",
+        "template": "Денна зміна",
+        "timezone": "Europe/Kyiv",
+        "zone": {
+          "id": "bf56f124-2bd5-461e-b0e8-84645b5b89d9",
+          "name": "Пакувальна лінія № 2",
+          "available": true
+        }
+      },
+      {
+        "id": "93007a27-3f8f-4e55-b968-d2df2b24be43",
+        "date": "2026-09-16",
+        "startAt": "2026-09-16T05:00:00.000Z",
+        "endAt": "2026-09-16T17:00:00.000Z",
+        "template": "Денна зміна",
+        "timezone": "Europe/Kyiv",
+        "zone": {
+          "id": "bf56f124-2bd5-461e-b0e8-84645b5b89d9",
+          "name": "Пакувальна лінія № 2",
+          "available": true
+        }
+      },
+      {
+        "id": "117a8360-f8ce-4418-b93a-8f264cd83e43",
+        "date": "2026-09-18",
+        "startAt": "2026-09-18T05:00:00.000Z",
+        "endAt": "2026-09-18T17:00:00.000Z",
+        "template": "Денна зміна",
+        "timezone": "Europe/Kyiv",
+        "zone": {
+          "id": "bf56f124-2bd5-461e-b0e8-84645b5b89d9",
+          "name": "Пакувальна лінія № 2",
+          "available": true
+        }
+      },
+      {
+        "id": "65979834-4263-44bd-8573-d4d31cda7080",
+        "date": "2026-09-20",
+        "startAt": "2026-09-20T05:00:00.000Z",
+        "endAt": "2026-09-20T17:00:00.000Z",
+        "template": "Денна зміна",
+        "timezone": "Europe/Kyiv",
+        "zone": {
+          "id": "bf56f124-2bd5-461e-b0e8-84645b5b89d9",
+          "name": "Пакувальна лінія № 2",
+          "available": true
+        }
+      },
+      {
+        "id": "5a617d86-7cf9-4d69-92f5-7a445c31a515",
+        "date": "2026-09-22",
+        "startAt": "2026-09-22T05:00:00.000Z",
+        "endAt": "2026-09-22T17:00:00.000Z",
+        "template": "Денна зміна",
+        "timezone": "Europe/Kyiv",
+        "zone": {
+          "id": "bf56f124-2bd5-461e-b0e8-84645b5b89d9",
+          "name": "Пакувальна лінія № 2",
+          "available": true
+        }
+      }
+    ]
+  },
+  "compensation": {
+    "asOf": "2026-09-13",
+    "current": {
+      "id": "50686cd0-e34b-45db-b750-6e606d8f5402",
+      "effectiveFrom": "2026-09-01",
+      "employmentRate": "1.00",
+      "hourlyRate": "95.00",
+      "monthlySalary": "18000.00",
+      "currency": "UAH",
+      "correctsEntryId": null,
+      "reason": null,
+      "createdAt": "2026-09-13T10:51:22.116Z",
+      "state": "EFFECTIVE"
+    },
+    "history": [
+      {
+        "id": "ecc98b49-4d09-442b-b8bf-355a3786e9dc",
+        "effectiveFrom": "2026-10-01",
+        "employmentRate": "1.00",
+        "hourlyRate": "110.00",
+        "monthlySalary": "21000.00",
+        "currency": "UAH",
+        "correctsEntryId": null,
+        "reason": null,
+        "createdAt": "2026-09-13T10:51:22.126Z",
+        "state": "SCHEDULED"
+      },
+      {
+        "id": "50686cd0-e34b-45db-b750-6e606d8f5402",
+        "effectiveFrom": "2026-09-01",
+        "employmentRate": "1.00",
+        "hourlyRate": "95.00",
+        "monthlySalary": "18000.00",
+        "currency": "UAH",
+        "correctsEntryId": null,
+        "reason": null,
+        "createdAt": "2026-09-13T10:51:22.116Z",
+        "state": "EFFECTIVE"
+      }
+    ]
+  }
+}

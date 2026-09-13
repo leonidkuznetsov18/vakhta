@@ -1,7 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, isNull } from '@vakhta/db';
-import { employeePositions, type Database } from '@vakhta/db';
+import { employees, employeePositions, type Database } from '@vakhta/db';
 import type { AssignPositionCommand, EmployeePositionView } from '@vakhta/contracts';
+import type { AccessScope } from '@vakhta/domain';
+import { assertInScope } from '../common/access-scope.js';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -27,11 +29,23 @@ export class PositionsService {
     employeeId: string,
     cmd: AssignPositionCommand,
     actor: Actor,
+    scope?: AccessScope,
   ): Promise<EmployeePositionView> {
     const validFrom = cmd.validFrom ? new Date(cmd.validFrom) : new Date();
     return this.db.transaction(async (tx) => {
-      await this.employees.requireById(employeeId, tx);
-      await this.org.requireOrgUnit(cmd.orgUnitId, undefined, tx);
+      await tx
+        .select({ id: employees.id })
+        .from(employees)
+        .where(eq(employees.id, employeeId))
+        .for('update');
+      const employee = await this.employees.requireById(employeeId, tx);
+      if (scope && !scope.all) {
+        assertInScope(scope, await this.employees.placeOf(employeeId, tx));
+        await this.employees.assertPlaceInScope(scope, cmd.orgUnitId, cmd.teamId ?? null, tx);
+      }
+      if (employee.status === 'TERMINATED')
+        throw new DomainError('EMPLOYEE_READ_ONLY', 409, 'Terminated employee is read-only');
+      const unit = await this.org.requireOrgUnit(cmd.orgUnitId, undefined, tx);
       await this.org.requirePosition(cmd.positionId, tx);
       if (cmd.teamId) await this.org.requireTeam(cmd.teamId, cmd.orgUnitId, tx);
       if (cmd.managerEmployeeId) {
@@ -68,7 +82,7 @@ export class PositionsService {
           orgUnitId: cmd.orgUnitId,
           positionId: cmd.positionId,
           teamId: cmd.teamId ?? null,
-          managerEmployeeId: cmd.managerEmployeeId ?? null,
+          managerEmployeeId: cmd.managerEmployeeId ?? unit.masterEmployeeId,
           validFrom,
         })
         .returning();

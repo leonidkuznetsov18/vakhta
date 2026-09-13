@@ -1,7 +1,7 @@
 # Feature Specification: Employee profile
 
-**Change**: 005-employee-profile | **Created**: 2026-09-13 | **Status**: Draft — accepted for issue publication, not yet for implementation
-**Baseline**: 64560d7 | **Checkout**: master | **Authority**: Owner request 2026-09-13: an employee profile with full name, avatar, rate, birthday, phone, Telegram, e-mail, salary, marital status, schedule, position, unit, zone and master; describe the feature and publish a GitHub epic with issues. Owner decisions recorded below. Implementation is not yet authorized.
+**Change**: 005-employee-profile | **Created**: 2026-09-13 | **Status**: Implementation authorized — in progress
+**Baseline**: 64560d7 | **Checkout**: master | **Authority**: Owner request 2026-09-13: an employee profile with full name, avatar, rate, birthday, phone, Telegram, e-mail, salary, marital status, schedule, position, unit, zone and master; describe the feature and publish a GitHub epic with issues. Owner decisions recorded below. Implementation authorized by the owner on 2026-09-13 in the epic implementation task.
 **Product document**: [admin panel](../../docs/features/11-admin-panel.md) (Employees section)
 **Engineering memory**: [Employee profile](../../docs/engineering/features/employee-profile.md)
 
@@ -42,7 +42,7 @@ profile screen.
 **Outcome.** Every employee has one profile in the admin panel that answers: who is this person and
 how to reach them, where they work (position, unit, team, zone from the schedule) and who their master is, when
 they work (published schedule), and — only for permitted roles — their employment rate, tariff,
-salary and marital status. HR edits it section by section with validation and audit.
+salary and marital status. HR uses one Edit action on the profile, with validation and audit.
 
 **Target composition** (desktop two columns; mobile one column in the same order):
 
@@ -149,8 +149,9 @@ without opening other pages.
 
 **Acceptance scenarios**:
 
-- **AC-005**: Given the employee list, when a user clicks a row or name, then the profile opens on its
-  own address (shareable, browser back returns to the list with filters, page and scroll kept).
+- **AC-005**: Given the employee list, when a user clicks a row, a read-only Sheet opens without a disclosure chevron.
+  The employee name and the Sheet deep-link button open the profile on its own shareable address.
+  Browser back returns to the list with filters, page and scroll kept (owner refinement, 2026-09-13).
 - **AC-006**: Given a profile, then the header shows avatar (or initials), full name, personnel number,
   status, Telegram link state, position, unit, zone (D-05) and master; contacts offer copy, `tel:`,
   `mailto:` and Telegram link actions.
@@ -165,12 +166,12 @@ without opening other pages.
 
 ### US3: Edit personal data, contacts and avatar (Priority: P1)
 
-HR updates a person's data in the section where it is read.
+HR opens one editor on the profile for identity, contacts and personal fields. Avatar and work assignment controls are available in that editing context; compensation keeps its dated add/correct workflow.
 
 **Acceptance scenarios**:
 
 - **AC-011**: Given `HR`, when they edit full name, birth date, phone, Telegram username, e-mail or
-  marital status in a section editor, then invalid input shows inline errors (existing phone and
+  marital status in the unified profile editor, then invalid input shows inline errors (existing phone and
   username normalization; birth date not in the future and at least 14 years ago) and save stays
   disabled until the draft differs from the saved values.
 - **AC-012**: Given a valid save, then one audit entry records before/after of changed fields (subject

@@ -1,6 +1,6 @@
-import { QueryFeedback } from '@/components/app/query-feedback';
+import { UnitMasterPicker } from '@/features/employee-profile';
 import { useState, type FormEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { OrgSnapshot } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill } from '@/components/app/page';
-import { adminOrgApi, usersApi } from '../api.ts';
+import { adminOrgApi } from '../api.ts';
 import { readError } from '../errors.ts';
 import { currentLocale } from '../i18n.tsx';
 import { keys } from '@/lib/query';
@@ -24,7 +24,6 @@ import { DialogFooter } from '@/components/ui/dialog';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { PencilIcon, Trash2Icon } from 'lucide-react';
 import { EditDirectoryDialog, type DirectoryEdit } from './EditDirectoryDialog.tsx';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ApiError } from '../api.ts';
 
 const all = messages(currentLocale());
@@ -47,12 +46,13 @@ interface Props {
 
 /** Enterprise directories: sites, units, teams, positions, zones (spec 9.1). */
 export function DirectoriesTab({ org }: Props) {
+  const [masterUnit, setMasterUnit] = useState<OrgSnapshot['orgUnits'][number] | null>(null);
+  const [needsMaster, setNeedsMaster] = useState(false);
+  const profileText = all.employeeProfile;
   const [dlg, setDlg] = useState<'sites' | 'orgUnits' | 'teams' | 'positions' | 'zones' | null>(
     null,
   );
   const [editing, setEditing] = useState<DirectoryEdit | null>(null);
-  const usersQuery = useQuery({ queryKey: keys.users, queryFn: () => usersApi.list() });
-  const users = usersQuery.data ?? [];
   const { confirm, dialog } = useConfirm();
   const client = useQueryClient();
   /** Every directory on this page lives in one snapshot, so every change re-reads that one thing. */
@@ -135,7 +135,6 @@ export function DirectoriesTab({ org }: Props) {
     siteId: org.sites[0]?.id ?? '',
     parentId: '',
     name: '',
-    masterUserId: '',
   });
   const [team, setTeam] = usePersistentState('directories.team', {
     orgUnitId: org.orgUnits[0]?.id ?? '',
@@ -174,12 +173,14 @@ export function DirectoriesTab({ org }: Props) {
     {
       key: 'master',
       header: d.unitMaster,
-      cell: (u) =>
-        u.masters.length > 0 ? (
-          <span>{u.masters.map((m) => m.name).join(', ')}</span>
-        ) : (
-          <StatusPill tone="danger">{d.noMaster}</StatusPill>
-        ),
+      cell: (u) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <span>{u.designatedMaster?.name ?? profileText.missingMaster}</span>
+          <Button size="sm" variant="outline" onClick={() => setMasterUnit(u)}>
+            {profileText.setMaster}
+          </Button>
+        </div>
+      ),
     },
   ];
   const teamColumns: Column<OrgSnapshot['teams'][number]>[] = [
@@ -220,7 +221,6 @@ export function DirectoriesTab({ org }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <Feedback error={error} />
-      <QueryFeedback query={usersQuery} />
 
       <Section
         title={d.sites}
@@ -323,7 +323,6 @@ export function DirectoriesTab({ org }: Props) {
                       siteId: unit.siteId,
                       name: unit.name,
                       parentId: unit.parentId || null,
-                      masterUserId: unit.masterUserId || null,
                     }),
                   () => setUnit({ ...unit, name: '' }),
                   unit.name,
@@ -345,14 +344,6 @@ export function DirectoriesTab({ org }: Props) {
                 options={org.orgUnits
                   .filter((u) => u.siteId === unit.siteId)
                   .map((u) => ({ value: u.id, label: u.name }))}
-              />
-              <SelectField
-                label={d.unitMaster}
-                hint={d.noMasterNotice}
-                value={unit.masterUserId}
-                onChange={(v) => setUnit({ ...unit, masterUserId: v })}
-                placeholder={t.common.none}
-                options={users.map((u) => ({ value: u.id, label: u.name || u.email }))}
               />
               <FormField label={t.common.name}>
                 {(id) => (
@@ -377,20 +368,20 @@ export function DirectoriesTab({ org }: Props) {
           </AddDialog>
         }
       >
-        {org.orgUnits.some((u) => u.masters.length === 0) && (
-          <Alert variant="destructive" className="mb-3">
-            <AlertDescription>
-              {format(d.noMasterNotice, {
-                n: org.orgUnits.filter((u) => u.masters.length === 0).length,
-              })}
-            </AlertDescription>
-          </Alert>
-        )}
+        {masterUnit && <UnitMasterPicker unit={masterUnit} onClose={() => setMasterUnit(null)} />}
+        <label className="mb-3 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={needsMaster}
+            onChange={(event) => setNeedsMaster(event.target.checked)}
+          />
+          {profileText.needsMaster}
+        </label>
         <DataTable
           columns={unitColumns}
           rowActions={(u) => rowMenu('orgUnits', u, { kind: 'orgUnits', row: u })}
           searchText={(u) => u.name}
-          rows={org.orgUnits}
+          rows={needsMaster ? org.orgUnits.filter((unit) => !unit.masterEmployeeId) : org.orgUnits}
           rowKey={(u) => u.id}
           empty={t.common.empty}
           pageSize={10}
@@ -658,7 +649,6 @@ export function DirectoriesTab({ org }: Props) {
       <EditDirectoryDialog
         edit={editing}
         org={org}
-        users={users}
         onClose={() => setEditing(null)}
         onSaved={() => {
           setEditing(null);

@@ -11,7 +11,11 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+import { mediaObjects } from './media.js';
 import { orgUnits, positions, teams } from './org.js';
+
+export const maritalStatus = pgEnum('marital_status', ['SINGLE', 'MARRIED', 'DIVORCED', 'WIDOWED']);
 
 export const employeeStatus = pgEnum('employee_status', ['ACTIVE', 'BLOCKED', 'TERMINATED']);
 /** Interface languages; mirrors LOCALES in @vakhta/domain. */
@@ -31,6 +35,8 @@ export const employees = pgTable('employees', {
   telegramUsername: text('telegram_username'),
   /** Calendar overlay and greeting; optional HR data, never shown to other employees. */
   birthDate: date('birth_date'),
+  maritalStatus: maritalStatus('marital_status'),
+  avatarMediaId: uuid('avatar_media_id').references((): AnyPgColumn => mediaObjects.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

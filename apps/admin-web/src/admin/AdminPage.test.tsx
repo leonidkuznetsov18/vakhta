@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { AdminPage } from './AdminPage.tsx';
 import { clickRowAction, render } from '../test-utils.tsx';
 
@@ -38,6 +38,13 @@ function mockApi() {
       const method = init?.method ?? 'GET';
       const body = init?.body ? JSON.parse(String(init.body)) : null;
       calls.push({ method, path, body });
+      if (path === '/me')
+        return json({
+          id: USER,
+          roles: [{ role: 'ADMIN', scopeType: 'ENTERPRISE', scopeId: null }],
+        });
+      if (path === '/admin/employees/page')
+        return json({ items: employees, total: employees.length, nextCursor: null });
       if (path === '/admin/org') return json(org);
       if (path === '/admin/employees' && method === 'GET') return json(employees);
       if (path === '/admin/employees' && method === 'POST') {
@@ -48,7 +55,10 @@ function mockApi() {
           status: 'ACTIVE',
           telegramLinked: false,
           currentPosition: null,
-          createdAt: 'x',
+          createdAt: '2026-09-13T00:00:00.000Z',
+          email: null,
+          phone: null,
+          telegramUsername: null,
         };
         employees.unshift(created);
         return json(created, 201);
@@ -72,7 +82,7 @@ function mockApi() {
             name: 'Мастер',
             twoFactorEnabled: false,
             roles: [],
-            createdAt: 'x',
+            createdAt: '2026-09-13T00:00:00.000Z',
           },
         ]);
       }
@@ -127,14 +137,10 @@ describe('AdminPage', () => {
       status: 'ACTIVE',
     });
 
-    // The row action opens the card, where the activation block shows the code, the link and the steps.
+    // Activation remains a separate action; the directory details sheet never mutates a card.
     await clickRowAction('Код активации');
-    const sheet = await screen.findByTestId('employee-card');
-    expect(await within(sheet).findByText('ABCD2345')).toBeTruthy();
-    expect(
-      within(sheet).getByText('https://t.me/vakhta_worker_bot?start=act-ABCD2345'),
-    ).toBeTruthy();
-    expect(within(sheet).getByText(/Выдать новый код/)).toBeTruthy();
+    expect(await screen.findByText('ABCD2345')).toBeTruthy();
+    expect(screen.queryByTestId('employee-card')).toBeNull();
   });
 
   it('grants a role scoped to a unit', async () => {

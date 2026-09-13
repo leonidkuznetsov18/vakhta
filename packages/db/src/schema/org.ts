@@ -10,6 +10,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 
+import { employees } from './identity.js';
+
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 
 /** Майданчик із власним часовим поясом IANA (ТЗ 6.1, 18 п. 1). */
@@ -28,6 +30,9 @@ export const orgUnits = pgTable(
     siteId: uuid('site_id')
       .notNull()
       .references(() => sites.id),
+    masterEmployeeId: uuid('master_employee_id').references((): AnyPgColumn => employees.id),
+    masterAssignedAt: timestamp('master_assigned_at', { withTimezone: true }),
+    masterAssignedBy: uuid('master_assigned_by'),
     parentId: uuid('parent_id').references((): AnyPgColumn => orgUnits.id),
     name: text('name').notNull(),
     createdAt: createdAt(),

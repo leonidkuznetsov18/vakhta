@@ -1,5 +1,8 @@
+import type { WebUser } from '../auth/web-auth.guard.js';
+import { employeeProfileAccess } from './employee-profile-access.js';
+import { DomainError } from '../common/domain-error.js';
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { and, asc, count, desc, eq, isNull, or, gt, inArray, sites } from '@vakhta/db';
+import { and, asc, count, desc, eq, isNull, or, gt, inArray, sites, sql, lte } from '@vakhta/db';
 import {
   activationCodes,
   assignmentAcknowledgements,
@@ -7,6 +10,7 @@ import {
   bonusShiftScores,
   downtimeReports,
   employeePositions,
+  employeeCompensationEntries,
   employees,
   handoverRecords,
   handoverReviews,
@@ -98,7 +102,13 @@ export class EmployeesService {
       .from(employeePositions)
       .innerJoin(orgUnits, eq(orgUnits.id, employeePositions.orgUnitId))
       .innerJoin(sites, eq(sites.id, orgUnits.siteId))
-      .where(and(eq(employeePositions.employeeId, employeeId), isNull(employeePositions.validTo)))
+      .where(
+        and(
+          eq(employeePositions.employeeId, employeeId),
+          sql`${employeePositions.validFrom} <= now()`,
+          or(isNull(employeePositions.validTo), gt(employeePositions.validTo, new Date())),
+        ),
+      )
       .limit(1);
     const timezone = place?.timezone ?? 'Europe/Kyiv';
     const date = nextAnniversary(birthDate, businessDateOf(now, timezone));
@@ -159,10 +169,32 @@ export class EmployeesService {
   }
 
   /** HR edits the card: number, name and contacts; every change lands in the audit with before/after. */
-  async update(id: string, cmd: UpdateEmployeeCommand, actor: Actor): Promise<EmployeeRecord> {
+  async update(
+    id: string,
+    cmd: UpdateEmployeeCommand,
+    actor: Actor,
+    user?: WebUser,
+  ): Promise<EmployeeRecord> {
     try {
       return await this.db.transaction(async (tx) => {
-        const before = await this.requireById(id, tx);
+        const [locked] = await tx
+          .select()
+          .from(employees)
+          .where(eq(employees.id, id))
+          .for('update');
+        if (!locked) throw new DomainError('EMPLOYEE_NOT_FOUND', 404, 'Employee not found');
+        if (user) await employeeProfileAccess(tx, id, user, ['ADMIN', 'HR']);
+        const before = locked;
+        if (before.status === 'TERMINATED')
+          throw new DomainError('EMPLOYEE_READ_ONLY', 409, 'Terminated employee is read-only');
+        if (user && !cmd.expectedVersion)
+          throw new DomainError('EMPLOYEE_VERSION_REQUIRED', 400, 'Employee version required');
+        if (cmd.expectedVersion && cmd.expectedVersion !== before.updatedAt.toISOString())
+          throw new DomainError(
+            'EMPLOYEE_VERSION_CONFLICT',
+            409,
+            'Employee changed; reload before saving',
+          );
         const set: Partial<typeof employees.$inferInsert> = { updatedAt: new Date() };
         if (cmd.personnelNumber !== undefined) set.personnelNumber = cmd.personnelNumber;
         if (cmd.fullName !== undefined) set.fullName = cmd.fullName;
@@ -170,6 +202,7 @@ export class EmployeesService {
         if (cmd.phone !== undefined) set.phone = cmd.phone;
         if (cmd.telegramUsername !== undefined) set.telegramUsername = cmd.telegramUsername;
         if (cmd.birthDate !== undefined) set.birthDate = cmd.birthDate;
+        if (cmd.maritalStatus !== undefined) set.maritalStatus = cmd.maritalStatus;
         const [after] = await tx.update(employees).set(set).where(eq(employees.id, id)).returning();
         if (!after) throw new IdentityError('EMPLOYEE_NOT_FOUND', `Працівника ${id} не знайдено`);
         if (after.birthDate && after.birthDate !== before.birthDate)
@@ -181,11 +214,17 @@ export class EmployeesService {
           'phone',
           'telegramUsername',
           'birthDate',
+          'maritalStatus',
         ] as const;
         const changed = fields.filter((f) => before[f] !== after[f]);
         if (changed.length === 0) return after;
         const pick = (row: EmployeeRecord) =>
-          Object.fromEntries(changed.map((f) => [f, row[f]])) as Record<string, unknown>;
+          Object.fromEntries(
+            changed.map((f) => [
+              f,
+              f === 'maritalStatus' || f === 'birthDate' ? '[REDACTED]' : row[f],
+            ]),
+          ) as Record<string, unknown>;
         await this.events.append(tx, {
           type: 'EMPLOYEE_UPDATED',
           source: 'WEB',
@@ -221,8 +260,29 @@ export class EmployeesService {
    */
   async deleteEmployee(id: string, cmd: DeleteEmployeeCommand, actor: Actor): Promise<void> {
     await this.db.transaction(async (tx) => {
+      await tx
+        .select({ id: employees.id })
+        .from(employees)
+        .where(eq(employees.id, id))
+        .for('no key update');
       const before = await this.requireById(id, tx);
       const history: [string, Promise<{ id: string }[]>][] = [
+        [
+          'employee_compensation_entries',
+          tx
+            .select({ id: employeeCompensationEntries.id })
+            .from(employeeCompensationEntries)
+            .where(eq(employeeCompensationEntries.employeeId, id))
+            .limit(1),
+        ],
+        [
+          'org_units.master',
+          tx
+            .select({ id: orgUnits.id })
+            .from(orgUnits)
+            .where(eq(orgUnits.masterEmployeeId, id))
+            .limit(1),
+        ],
         [
           'shift_sessions',
           tx
@@ -368,6 +428,11 @@ export class EmployeesService {
             eq(notificationOutbox.recipientId, id),
           ),
         );
+      if (before.avatarMediaId)
+        await tx
+          .update(mediaObjects)
+          .set({ retentionUntil: new Date() })
+          .where(eq(mediaObjects.id, before.avatarMediaId));
       await tx.delete(employees).where(eq(employees.id, id));
       await this.events.append(tx, {
         type: 'EMPLOYEE_DELETED',
@@ -528,6 +593,13 @@ export class EmployeesService {
    * Directory reads are limited to the reader's scope by the employee's open assignment. An
    * employee without one has no place, so only an enterprise-wide reader sees them (spec 005 A6).
    */
+  async restrictView(view: EmployeeView, user: WebUser): Promise<EmployeeView> {
+    const access = await employeeProfileAccess(this.db, view.id, user);
+    if (access.birthDate === 'FULL') return view;
+    const { birthDate: _birthDate, ...safe } = view;
+    return safe;
+  }
+
   async list(limit = 200, scope: AccessScope = FULL_SCOPE): Promise<EmployeeView[]> {
     const rows = await this.db
       .select({ employee: employees, linkId: telegramAccounts.id })
@@ -597,7 +669,13 @@ export class EmployeesService {
       })
       .from(employeePositions)
       .innerJoin(orgUnits, eq(employeePositions.orgUnitId, orgUnits.id))
-      .where(and(eq(employeePositions.employeeId, employeeId), isNull(employeePositions.validTo)))
+      .where(
+        and(
+          eq(employeePositions.employeeId, employeeId),
+          sql`${employeePositions.validFrom} <= now()`,
+          or(isNull(employeePositions.validTo), gt(employeePositions.validTo, new Date())),
+        ),
+      )
       .orderBy(desc(employeePositions.validFrom))
       .limit(1);
     return row ? placeTarget(row) : null;
@@ -637,9 +715,10 @@ export class EmployeesService {
     scope: AccessScope,
     orgUnitId: string,
     teamId: string | null,
+    reader: DbOrTx = this.db,
   ): Promise<void> {
     if (scope.all) return;
-    const [unit] = await this.db
+    const [unit] = await reader
       .select({ siteId: orgUnits.siteId })
       .from(orgUnits)
       .where(eq(orgUnits.id, orgUnitId))
@@ -666,6 +745,7 @@ export class EmployeesService {
       .where(
         and(
           inArray(employeePositions.employeeId, [...employeeIds]),
+          lte(employeePositions.validFrom, now),
           or(isNull(employeePositions.validTo), gt(employeePositions.validTo, now)),
         ),
       )
@@ -914,6 +994,8 @@ export class EmployeesService {
       phone: row.phone,
       telegramUsername: row.telegramUsername,
       birthDate: row.birthDate,
+      avatarVersion: row.avatarMediaId,
+      updatedAt: row.updatedAt.toISOString(),
       currentPosition,
       createdAt: row.createdAt.toISOString(),
     };

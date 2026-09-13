@@ -21,6 +21,7 @@ export function corsOptions(origins: readonly string[]): FastifyCorsOptions {
       'x-device-token',
       'idempotency-key',
       'x-locale',
+      'if-match',
     ],
     maxAge: 600,
   };

@@ -53,6 +53,23 @@ describe('DataTable: the row the address points at', () => {
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', behavior: 'smooth' });
   });
 
+  it('omits the disclosure icon when the row menu owns opening a sheet', () => {
+    const open = vi.fn();
+    render(
+      <DataTable
+        columns={columns}
+        rows={[{ id: 'one', name: 'Employee' }]}
+        rowKey={(row) => row.id}
+        empty="Empty"
+        detailTrigger="row-menu"
+        onRowClick={open}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /Employee/ })).toBeNull();
+    fireEvent.click(screen.getByText('Employee'));
+    expect(open).toHaveBeenCalledOnce();
+  });
+
   it('keeps mobile details open while reading their text', () => {
     vi.mocked(useIsMobile).mockReturnValue(true);
     const toggle = vi.fn();

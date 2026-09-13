@@ -1,3 +1,4 @@
+import { employeeProfileUK } from './employee-profile.js';
 import { scheduleExportUk } from './schedule-export.js';
 import { scheduleWorkspaceUk } from './schedule-workspace.js';
 import { overviewCenterUk } from './overview.js';
@@ -9,6 +10,7 @@ import type { Messages } from './messages.js';
 
 /** Ukrainian catalog. Same keys and placeholders as `ru`; verified by catalogs.test.ts. */
 export const uk: Messages = {
+  employeeProfile: employeeProfileUK,
   scheduleExport: scheduleExportUk,
   scheduleWorkspace: scheduleWorkspaceUk,
   overviewCenter: overviewCenterUk,
@@ -2062,14 +2064,14 @@ export const uk: Messages = {
           'Картки працівників: табельний номер, ПІБ, посада та підрозділ, прив’язка Telegram, статус і чек-лист посади.',
         steps: [
           'Додайте працівника вручну або через «Імпорт із CSV» (табельний номер, ПІБ).',
-          'Відкрийте картку: призначте підрозділ, посаду та бригаду («Призначити посаду»); історія призначень зберігається.',
+          'Натисніть рядок для перегляду, а ім’я або кнопку в Sheet — для переходу в профіль. «Редагувати» відкриває особисті дані та призначення посади.',
           'Видайте код активації (або QR): працівник вводить його в боті один раз. Стовпець «Telegram» показує, чи прив’язаний акаунт.',
-          'Блок «Чек-лист посади» показує, що бот спитає при передачі зони: «Замінити» або «Прибрати».',
+          'Чек-лист посади налаштовується на вкладці «Чек-листи». У профілі також доступні майстер, зона й опублікований графік.',
         ],
         faq: [
           {
             q: 'Працівник не може активуватися.',
-            a: 'Код діє обмежений час і один раз. Видайте новий у картці; «Переприв’язати Telegram», якщо телефон змінився.',
+            a: 'Код діє обмежений час і один раз. Видайте новий через меню рядка; «Переприв’язати Telegram», якщо телефон змінився.',
           },
           {
             q: 'Що означає «Немає чек-листа»?',

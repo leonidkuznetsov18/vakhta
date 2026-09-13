@@ -46,7 +46,7 @@ describe('CORS for the panel', () => {
       headers: {
         origin: PANEL,
         'access-control-request-method': 'PUT',
-        'access-control-request-headers': 'content-type,x-locale',
+        'access-control-request-headers': 'content-type,x-locale,if-match',
       },
     });
     expect(res.statusCode).toBeLessThan(300);
@@ -58,6 +58,7 @@ describe('CORS for the panel', () => {
     const allowed = String(res.headers['access-control-allow-headers']).toLowerCase();
     expect(allowed).toContain('content-type');
     expect(allowed).toContain('x-locale');
+    expect(allowed).toContain('if-match');
   });
 
   it('the actual PUT returns allow-origin; a foreign origin does not get it', async () => {
