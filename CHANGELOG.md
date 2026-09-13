@@ -1,3 +1,13 @@
+## [1.7.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.6.0...v1.7.0) (2026-09-13)
+
+### Features
+
+* **overview:** scoped current-shift snapshot and operational events API ([64560d7](https://github.com/leonidkuznetsov18/vakhta/commit/64560d78833f6f89eebd68b81af7a2d3b448d61e)), closes [#57](https://github.com/leonidkuznetsov18/vakhta/issues/57) [#59](https://github.com/leonidkuznetsov18/vakhta/issues/59) [#60](https://github.com/leonidkuznetsov18/vakhta/issues/60) [#61](https://github.com/leonidkuznetsov18/vakhta/issues/61) [#63](https://github.com/leonidkuznetsov18/vakhta/issues/63)
+
+### Bug fixes
+
+* **schedule:** distinct highlightable status pills, publish reason, Sheet actions and hints ([ba7307d](https://github.com/leonidkuznetsov18/vakhta/commit/ba7307d177c06fd8d24e6f6d62e19eb320e05f6e))
+
 ## [1.6.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.5.0...v1.6.0) (2026-09-13)
 
 ### Features
