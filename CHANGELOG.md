@@ -1,3 +1,19 @@
+## [1.12.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.11.1...v1.12.0) (2026-09-13)
+
+### Features
+
+* **communications:** add global messaging and questionnaires ([aebd1ea](https://github.com/leonidkuznetsov18/vakhta/commit/aebd1ea488428f2ec605084eb662c00f9585ee10))
+* **communications:** refine recipient search and sheet controls ([1cdf0e3](https://github.com/leonidkuznetsov18/vakhta/commit/1cdf0e32bea974e9d9c146dea0cfcdac77e3fa3d))
+
+### Bug fixes
+
+* **communications:** isolate the embeddable questionnaire entry ([54bbb28](https://github.com/leonidkuznetsov18/vakhta/commit/54bbb28b60bff30f48f52745e0c963a0f21d4b63))
+
+### Refactoring
+
+* **cleanup:** remove unused code and legacy adapters ([2ce8e0f](https://github.com/leonidkuznetsov18/vakhta/commit/2ce8e0f2b56f78ada7ffce61dec910edd94cf58d))
+* **cleanup:** reuse calendar and shift read rules ([6b1f55d](https://github.com/leonidkuznetsov18/vakhta/commit/6b1f55d631b8ae4adb794dcb629cc6a1102d8087))
+
 ## [1.11.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.11.0...v1.11.1) (2026-09-13)
 
 ### Bug fixes
