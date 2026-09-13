@@ -1,3 +1,14 @@
+## [1.10.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.9.0...v1.10.0) (2026-09-13)
+
+### Features
+
+* **overview:** group people and schedule today into clear sections ([e3e2d87](https://github.com/leonidkuznetsov18/vakhta/commit/e3e2d870fcf720d07c3a8e2f90d13be43bf89a23))
+
+### Bug fixes
+
+* **overview:** find the running night shift on the DST-forward night ([b268fd6](https://github.com/leonidkuznetsov18/vakhta/commit/b268fd6d73c5408a957a433611fb4917fcb94600)), closes [#57](https://github.com/leonidkuznetsov18/vakhta/issues/57)
+* **schedule:** issue list rows open the shift; no fade when nothing visible matches ([6194e5a](https://github.com/leonidkuznetsov18/vakhta/commit/6194e5a503b5292f4c5d119ff1763016f7dcda2d))
+
 ## [1.9.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.8.0...v1.9.0) (2026-09-13)
 
 ### Features
