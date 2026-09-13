@@ -1,3 +1,9 @@
+## [1.11.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.10.0...v1.11.0) (2026-09-13)
+
+### Features
+
+* **overview:** hide shifts nobody works and empty health on days off ([f9648c2](https://github.com/leonidkuznetsov18/vakhta/commit/f9648c2654cff08953f7bab40a469a31dbe33408))
+
 ## [1.10.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.9.0...v1.10.0) (2026-09-13)
 
 ### Features
