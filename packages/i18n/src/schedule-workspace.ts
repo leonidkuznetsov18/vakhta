@@ -1,4 +1,7 @@
 export const scheduleWorkspaceEn = {
+  otherMonth: 'Another month: {month}. Open it to make changes.',
+  loadingAdjacent: 'Loading the neighbouring month…',
+  adjacentUnavailable: 'The neighbouring month could not be loaded. Its dates are shown empty; retry later.',
   published: 'Published',
   notPublished: 'Not published',
   unpublishedChanges: 'Unpublished changes: {count}',
@@ -156,6 +159,9 @@ export const scheduleWorkspaceEn = {
 };
 export type ScheduleWorkspaceMessages = { [K in keyof typeof scheduleWorkspaceEn]: string };
 export const scheduleWorkspaceUk: ScheduleWorkspaceMessages = {
+  otherMonth: 'Інший місяць — {month}. Відкрийте його, щоб змінити.',
+  loadingAdjacent: 'Завантаження сусіднього місяця…',
+  adjacentUnavailable: 'Сусідній місяць не вдалося завантажити. Його дати показано порожніми; спробуйте пізніше.',
   published: 'Опубліковано',
   notPublished: 'Не опубліковано',
   unpublishedChanges: 'Неопубліковані зміни: {count}',
@@ -314,6 +320,9 @@ export const scheduleWorkspaceUk: ScheduleWorkspaceMessages = {
   localChanges: 'Локальні правки',
 };
 export const scheduleWorkspaceRu: ScheduleWorkspaceMessages = {
+  otherMonth: 'Другой месяц — {month}. Откройте его, чтобы изменить.',
+  loadingAdjacent: 'Загрузка соседнего месяца…',
+  adjacentUnavailable: 'Соседний месяц не удалось загрузить. Его даты показаны пустыми; попробуйте позже.',
   published: 'Опубликовано',
   notPublished: 'Не опубликовано',
   unpublishedChanges: 'Неопубликованные изменения: {count}',

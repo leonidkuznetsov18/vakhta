@@ -25,6 +25,9 @@ Counts describe assigned people, not required staffing or attendance.
   saves the draft and sends it for approval, and the approver publishes or returns it with a comment.
   A planner editing a published month starts a draft copy on the first change. Publication queues
   worker notifications; it does not prove delivery. Download XLSX exports the complete saved plan.
+- **Across months:** a week keeps all seven dates. Dates of the neighbouring month show that month's
+  plan muted and read only, with one note naming it; navigating onto such a date opens that month.
+  Changes always belong to the month you have open.
 - Local drafts are owned by the signed-in account. A changed server plan blocks a stale overwrite
   and keeps local work available for reconciliation. Filters never narrow the complete monthly write.
 - Inactive records retain their historical names; only active workers, zones and templates can

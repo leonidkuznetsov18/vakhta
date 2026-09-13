@@ -43,10 +43,8 @@ export function DateField({
 }: FieldProps & { readonly selection?: 'day' | 'week' }) {
   const [open, setOpen] = useState(false);
   const selected = fromIsoDate(value);
-  const monthEnd = selected
-    ? toIsoDate(new Date(selected.getFullYear(), selected.getMonth() + 1, 0))
-    : undefined;
-  const range = weekDateRange(value, minDate ?? `${value.slice(0, 7)}-01`, maxDate ?? monthEnd);
+  // A week keeps its seven dates unless the caller bounds it explicitly.
+  const range = weekDateRange(value, minDate, maxDate);
   function choose(day: Date | undefined) {
     if (!day) return;
     onChange(toIsoDate(day));

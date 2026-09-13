@@ -92,6 +92,30 @@ for (let day = 1; day <= 28; day++)
   }
 initial.assignmentsCount = initialItems.length;
 assignments.set(initial.id, initialItems);
+// The next month is published too, so a week crossing the boundary shows both plans.
+const nextMonth = new Date(`${month}-01T00:00:00Z`);
+nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
+const following = create(scheduleUnitId, nextMonth.toISOString().slice(0, 7));
+following.id = 'd0000000-0000-4000-8000-000000000009';
+following.status = 'PUBLISHED';
+following.deletable = false;
+following.publishedAt = new Date().toISOString();
+const followingItems: AssignmentInput[] = [];
+for (let day = 1; day <= 7; day++)
+  for (const [index, employeeId] of scheduleEmployees.entries()) {
+    const template = scheduleTemplates[(day + index + 1) % 2];
+    if (!template || (day + index) % 3 === 0) continue;
+    followingItems.push({
+      employeeId,
+      businessDate: `${following.periodMonth}-${String(day).padStart(2, '0')}`,
+      templateId: template.id,
+      zoneId: index === 2 ? secondZone : scheduleZoneId,
+      kind: 'REGULAR',
+    });
+  }
+following.assignmentsCount = followingItems.length;
+assignments.set(following.id, followingItems);
+versions.push(following);
 export const extraScheduleZone = {
   id: secondZone,
   siteId: scheduleSiteId,

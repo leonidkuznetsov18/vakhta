@@ -31,6 +31,8 @@ import { recordedTime } from '../lib/labels';
 import { scheduleAccessKey } from '../model/ownership';
 import { useWorkspace, type Workspace } from '../model/use-workspace';
 import { periodDates, type PeriodMode } from '../model/planning';
+import { useAdjacentPlan } from '../model/use-adjacent';
+import { LoadingState } from '@/shared/ui/loading-state';
 import { assignmentChanges, type GridState } from '../model/grid';
 import { calendarWeek, siteToday, type CalendarGrouping } from '../model/calendar';
 import { CommandRecovery } from './command-recovery';
@@ -44,6 +46,12 @@ import { ScheduleExport } from './schedule-export';
 
 const t = messages(currentLocale()).scheduleWorkspace;
 const s = messages(currentLocale()).admin.schedule;
+const monthLabel = (month: string) =>
+  new Intl.DateTimeFormat(currentLocale(), {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${month}-01T00:00:00Z`));
 
 export function ScheduleWorkspace() {
   const { actorId, grants } = useNavigation();
@@ -76,7 +84,7 @@ function WorkspaceContent() {
       )}
       {w.store.recoveryError && <Feedback error={t.recovery} />}
       <WorkspaceView
-        key={w.scope}
+        key={`${w.accessKey}|${w.siteId}|${w.orgUnitId}`}
         workspace={w}
         mode={periodMode}
         onMode={setPeriodMode}
@@ -149,9 +157,8 @@ function WorkspaceView({
   const { confirm, dialog } = useConfirm();
   const version = w.version;
   const dates = periodDates(w.month, date, effectiveMode);
-  const resourceDates = mobile
-    ? calendarWeek(date).filter((value) => value.startsWith(w.month))
-    : dates;
+  const resourceDates = mobile ? calendarWeek(date) : dates;
+  const adjacent = useAdjacentPlan({ ...w, dates: effectiveMode === 'month' ? [] : resourceDates });
   const primary = primaryAction(w);
   const state = planState(w);
   async function discard() {
@@ -214,7 +221,6 @@ function WorkspaceView({
         onMonth={w.changeMonth}
         date={date}
         onDate={onDate}
-        dates={dates}
         today={today}
         busy={w.busy}
       >
@@ -348,7 +354,12 @@ function WorkspaceView({
                 />
               )}
               {w.writable && !mobile && <Muted>{t.planningHint}</Muted>}
+              {adjacent.months.map((month) => (
+                <Muted key={month}>{format(t.otherMonth, { month: monthLabel(month) })}</Muted>
+              ))}
+              {adjacent.loading && <LoadingState label={t.loadingAdjacent} />}
             </div>
+            {adjacent.failed && <Feedback error={t.adjacentUnavailable} />}
             {w.viewingPublished && (
               <p className="text-sm text-muted-foreground">{t.viewingPublished}</p>
             )}
@@ -411,6 +422,7 @@ function WorkspaceView({
                 selectedDate={date}
                 onDate={onDate}
                 today={today}
+                adjacent={adjacent}
               />
             )}
           </>

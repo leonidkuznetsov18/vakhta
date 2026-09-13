@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { AssignmentInput, ShiftTemplateView } from '@vakhta/contracts';
 import {
+  adjacentMonth,
   batchPreview,
   capabilities,
   EMPTY_GRID,
   periodDates,
+  shiftDate,
   summarize,
   type BatchInput,
 } from './planning';
@@ -109,8 +111,9 @@ describe('zone planning', () => {
       batchPreview(EMPTY_GRID, { ...input, pattern: 'NIGHT_2_2' }, '2026-09', [night])?.changes,
     ).toHaveLength(2);
   });
-  it('clips weeks to the month and counts people separately from assignments', () => {
+  it('keeps all seven week dates across month and year boundaries and counts people separately', () => {
     expect(periodDates('2026-09', '2026-09-01', 'week')).toEqual([
+      '2026-08-31',
       '2026-09-01',
       '2026-09-02',
       '2026-09-03',
@@ -118,6 +121,20 @@ describe('zone planning', () => {
       '2026-09-05',
       '2026-09-06',
     ]);
+    expect(periodDates('2026-12', '2026-12-31', 'week')).toEqual([
+      '2026-12-28',
+      '2026-12-29',
+      '2026-12-30',
+      '2026-12-31',
+      '2027-01-01',
+      '2027-01-02',
+      '2027-01-03',
+    ]);
+    expect(periodDates('2026-09', '2026-09-30', 'day')).toEqual(['2026-09-30']);
+    expect(shiftDate('2026-09-28', 7)).toBe('2026-10-05');
+    expect(shiftDate('2027-01-01', -1)).toBe('2026-12-31');
+    expect(adjacentMonth('2026-12', 1)).toBe('2027-01');
+    expect(adjacentMonth('2026-01', -1)).toBe('2025-12');
     expect(
       summarize(
         [item, { ...item, templateId: night.id, businessDate: '2026-09-02' }],

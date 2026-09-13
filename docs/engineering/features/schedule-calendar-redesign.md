@@ -841,3 +841,23 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   stability keep their earlier real-DB/worker/UI evidence. SC-19 is closed as not planned for the
   panel by the owner's version-removal decision; audit history and the XLSX export keep the record.
 - Evidence files: `redesign-*.png` in `docs/engineering/evidence/schedule-ui-2026-09-13/`.
+
+## 2026-09-13 — Cross-month reads (#10, SC-22, D-05)
+
+- Week and day navigation cross month and year boundaries. A week keeps all seven dates; dates
+  of a neighbouring month are read from that month's plan with the same role rule
+  (`useAdjacentPlan`, reads only) and rendered muted with creation disabled and a single note
+  naming the month. Navigating onto a date of another month makes it the loaded month, so the
+  other side of the week becomes the read-only context; grouping and zone filter survive the switch.
+- Writes stay month-scoped by decision D-05: the editor and batch planner bound dates to the
+  loaded month, and the interface names the month a change belongs to. There is no multi-version
+  command, so a partial cross-month save cannot happen. The preview fixture now publishes the
+  following month so the boundary is visible.
+- Verification: planning/calendar/workspace suites 134 tests, including seven-date weeks across
+  month and year boundaries, DST night duration (13 h on 2026-10-24 in Europe/Kyiv), other-month
+  read-only projection with the named reason, and a workspace journey that navigates three weeks
+  forward, loads October, keeps September's shift visible and non-editable and issues no writes.
+  Typecheck, ESLint and Prettier clean. Evidence: `crossmonth-week-boundary.png`,
+  `crossmonth-next-month.png`.
+- Lean: Simplify. Planners read the full week without switching months; edits remain
+  unambiguous about their month. No new worker step.

@@ -7,7 +7,8 @@ import { ResourceCalendar, type CalendarSelection } from '@/shared/ui/resource-c
 import { Button } from '@/components/ui/button';
 import { Paginator, usePages } from '@/components/app/data-table';
 import { calendarModel, type CalendarGrouping } from '../model/calendar';
-import { assignmentKey, gridToItems } from '../model/grid';
+import { assignmentKey, gridFromItems, gridToItems } from '../model/grid';
+import type { AdjacentPlan } from '../model/use-adjacent';
 import { UNASSIGNED_ZONE } from '../model/planning';
 import type { Workspace } from '../model/use-workspace';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
@@ -21,6 +22,7 @@ export function ResourceSchedule({
   selectedDate,
   onDate,
   today,
+  adjacent,
 }: {
   readonly workspace: Workspace;
   readonly dates: readonly string[];
@@ -29,6 +31,8 @@ export function ResourceSchedule({
   readonly selectedDate: string;
   readonly onDate: (date: string) => void;
   readonly today: string;
+  /** Neighbouring months touched by the visible week; displayed, never written. */
+  readonly adjacent: AdjacentPlan;
 }) {
   const t = messages(currentLocale()).scheduleWorkspace;
   const mobile = useIsMobile();
@@ -36,12 +40,19 @@ export function ResourceSchedule({
   const [editor, setEditor] = useState<AssignmentContext | null>(null);
   const model = calendarModel({
     ...w,
+    grid: adjacent.months.length
+      ? gridFromItems([...gridToItems(w.grid), ...gridToItems(adjacent.grid)])
+      : w.grid,
+    published: adjacent.months.length
+      ? gridFromItems([...gridToItems(w.publicationBaseline), ...gridToItems(adjacent.published)])
+      : w.publicationBaseline,
+    recorded: adjacent.months.length ? [...w.recorded, ...adjacent.recorded] : w.recorded,
     dates,
     grouping,
     zoneId,
     locale: currentLocale(),
-    published: w.publicationBaseline,
     today,
+    editableMonth: w.month,
   });
   const items = gridToItems(w.grid);
   const selectedItem = items.find((item) => assignmentKey(item) === picked?.itemId);

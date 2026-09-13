@@ -195,6 +195,7 @@ function mockApi(
     saveGate?: Promise<void>;
     lostResponse?: boolean;
     savedDetail?: ScheduleVersionDetail;
+    october?: ScheduleVersionDetail;
     readGate?: Promise<void>;
     templatesEmpty?: boolean;
     templatesFail?: boolean;
@@ -274,6 +275,9 @@ function mockApi(
         : json(state.templatesEmpty ? [] : templates);
     if (path.startsWith('/admin/schedules?')) {
       if (state.listFail) return json({ message: 'Version read failed' }, 500);
+      const periodMonth = url.searchParams.get('periodMonth');
+      if (periodMonth !== '2026-09')
+        return json(periodMonth === '2026-10' && state.october ? [state.october.version] : []);
       const list =
         state.status === 'EMPTY' && !state.created
           ? []
@@ -346,6 +350,8 @@ function mockApi(
         lineage: { supersedes: null, supersededBy: null },
       });
     }
+    if (state.october && path === `/admin/schedules/${state.october.version.id}`)
+      return json(state.october);
     if (path === `/admin/schedules/${VERSION}`) {
       const result = state.savedDetail ?? detail(state.status);
       return json({
@@ -1379,6 +1385,63 @@ it('shows the draft as the working plan and lets a reader switch to the publishe
   expect(screen.queryByRole('button', { name: t.add })).toBeNull();
   fireEvent.click(screen.getByRole('menuitem', { name: t.showDraft }));
   expect(await screen.findByText(t.draftState)).toBeTruthy();
+  expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('navigates past the month end, loads the next month and keeps the previous month read only', async () => {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    revisions: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+  const september = ScheduleVersionDetail.parse(detail('PUBLISHED'));
+  const original = september.assignments[0];
+  if (!original) throw new Error('Missing assignment fixture');
+  september.assignments = [
+    original,
+    { ...original, id: EMP2, businessDate: '2026-09-30', templateId: TPL_DAY, templateCode: 'DAY' },
+  ];
+  const OCTOBER = 'd0000000-0000-4000-8000-000000000003';
+  const october = ScheduleVersionDetail.parse({
+    version: { ...version('PUBLISHED'), id: OCTOBER, periodMonth: '2026-10' },
+    assignments: [
+      {
+        ...original,
+        id: ZONE,
+        scheduleVersionId: OCTOBER,
+        employeeId: EMP2,
+        businessDate: '2026-10-01',
+        planStartAt: '2026-10-01T17:00:00.000Z',
+        planEndAt: '2026-10-02T05:00:00.000Z',
+      },
+    ],
+  });
+  const calls = mockApi({ status: 'PUBLISHED', savedDetail: september, october });
+  admin();
+  await screen.findByText(t.publishedState);
+  const next = screen.getByRole('button', { name: t.next });
+  expect(next.hasAttribute('disabled')).toBe(false);
+  fireEvent.click(next);
+  fireEvent.click(next);
+  fireEvent.click(next);
+  // The selected date is now 4 October: October becomes the loaded month, September stays visible.
+  await waitFor(() =>
+    expect(calls.some((call) => call.path.includes('periodMonth=2026-10'))).toBe(true),
+  );
+  const septemberCard = await screen.findByRole('button', { name: /Кузнецов Леонид, 30\.09/ });
+  expect(septemberCard.className).toContain('opacity-70');
+  expect(await screen.findByRole('button', { name: /Сидоров Пётр, 01\.10/ })).toBeTruthy();
+  const reason = t.otherMonth.split('{month}')[0] ?? '';
+  expect(screen.getAllByText(new RegExp(reason.trim())).length).toBeGreaterThan(0);
+  expect(screen.queryByRole('button', { name: `${t.add}: Линия 1, 2026-09-29` })).toBeNull();
+  expect(screen.getByRole('button', { name: `${t.add}: Линия 1, 2026-10-02` })).toBeTruthy();
   expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
   cleanup();
   vi.unstubAllGlobals();

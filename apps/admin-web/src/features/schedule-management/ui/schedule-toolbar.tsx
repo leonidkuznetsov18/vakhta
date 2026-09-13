@@ -1,13 +1,12 @@
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { messages } from '@vakhta/i18n';
-import { monthDates } from '@vakhta/domain';
 import { currentLocale } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { SelectField } from '@/components/app/fields';
 import { MonthField, DateField } from '@/components/app/date-picker';
 import { IconButton } from '@/shared/ui/icon-button';
 import { StateFilter } from '@/shared/ui/state-filter';
-import type { PeriodMode } from '../model/planning';
+import { shiftDate, type PeriodMode } from '../model/planning';
 import type { CalendarGrouping } from '../model/calendar';
 
 const t = messages(currentLocale()).scheduleWorkspace;
@@ -34,7 +33,6 @@ export function ScheduleToolbar({
   onMonth,
   date,
   onDate,
-  dates,
   today,
   busy,
   children,
@@ -58,18 +56,12 @@ export function ScheduleToolbar({
   readonly onMonth: (month: string) => void;
   readonly date: string;
   readonly onDate: (date: string) => void;
-  /** Dates of the visible period; navigation stops at the loaded month. */
-  readonly dates: readonly string[];
   readonly today: string;
   readonly busy: boolean;
   readonly children?: React.ReactNode;
 }) {
+  // Navigation crosses month and year boundaries; the owner of the target month loads on arrival.
   const step = mode === 'week' ? 7 : 1;
-  const days = monthDates(month);
-  const shift = (offset: number) => {
-    const index = Math.max(0, days.indexOf(date));
-    return days[Math.max(0, Math.min(days.length - 1, index + offset))] ?? date;
-  };
   return (
     <div className="flex flex-wrap items-end gap-3">
       {sites.length > 1 && (
@@ -108,8 +100,8 @@ export function ScheduleToolbar({
             icon={ChevronLeftIcon}
             label={t.previous}
             tooltip={t.previous}
-            disabled={busy || dates[0] === days[0]}
-            onClick={() => onDate(shift(-step))}
+            disabled={busy}
+            onClick={() => onDate(shiftDate(date, -step))}
           />
         )}
         {mode === 'month' ? (
@@ -138,8 +130,8 @@ export function ScheduleToolbar({
             icon={ChevronRightIcon}
             label={t.next}
             tooltip={t.next}
-            disabled={busy || dates.at(-1) === days.at(-1)}
-            onClick={() => onDate(shift(step))}
+            disabled={busy}
+            onClick={() => onDate(shiftDate(date, step))}
           />
         )}
         {mode !== 'month' && (

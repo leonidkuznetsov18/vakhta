@@ -75,6 +75,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
   function cellContent(row: CalendarResource, cell: CalendarCell) {
     const cellSelected = selection?.resourceId === row.id && selection.date === cell.date;
     const empty = cell.items.length === 0;
+    const readonlyDate = !!model.dates.find((date) => date.id === cell.date)?.readonly;
     return (
       <div className="group/cell flex min-h-[4.75rem] min-w-0 flex-col gap-1.5">
         {cell.items.slice(0, CELL_PREVIEW_LIMIT).map((item) => {
@@ -92,6 +93,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                 calendarItemColors[item.tone],
                 calendarInteraction,
                 item.unpublished && 'border-dashed border-current/50',
+                item.readonly && 'opacity-70',
               )}
               onClick={(event) => {
                 openFrom(event.currentTarget);
@@ -145,7 +147,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
             {cell.create.label}
           </Button>
         )}
-        {cell.create?.disabledReason && empty && (
+        {cell.create?.disabledReason && empty && !readonlyDate && (
           <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
             {cell.create.disabledReason}
           </p>
@@ -213,9 +215,11 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                   <TableHead
                     key={date.id}
                     aria-current={date.today ? 'date' : undefined}
+                    title={date.readonly ? date.label : undefined}
                     className={cn(
                       'w-34 whitespace-normal px-2 py-1.5 text-center align-top',
                       date.today && 'bg-emerald-50/70 dark:bg-emerald-950/40',
+                      date.readonly && 'bg-muted/40 text-muted-foreground',
                     )}
                   >
                     <span
@@ -255,6 +259,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                       className={cn(
                         'whitespace-normal p-1.5 align-top',
                         model.dates[index]?.today && 'bg-emerald-50/30 dark:bg-emerald-950/20',
+                        model.dates[index]?.readonly && 'bg-muted/30',
                       )}
                     >
                       {cellContent(row, cell)}

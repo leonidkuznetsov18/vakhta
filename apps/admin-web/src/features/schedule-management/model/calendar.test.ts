@@ -216,3 +216,39 @@ describe('calendar projections', () => {
     expect(gridToItems(grid)).toHaveLength(2);
   });
 });
+
+describe('cross-month and DST projections', () => {
+  it('marks another month as read only and blocks creation there with the month named', () => {
+    const model = calendarModel({
+      ...base,
+      dates: calendarDates('2026-09-28', 7),
+      editableMonth: '2026-10',
+    });
+    const item = allItems(model)[0];
+    expect(item?.readonly).toBe(true);
+    const september = model.resources[0]?.cells.find((cell) => cell.date === '2026-09-30');
+    expect(september?.create?.disabledReason).toContain('September 2026');
+    const october = model.resources[0]?.cells.find((cell) => cell.date === '2026-10-01');
+    expect(october?.create?.disabledReason).toBeUndefined();
+  });
+  it('shows the elapsed duration of a night shift across the DST transition', () => {
+    const model = calendarModel({
+      ...base,
+      grid: setAssignment(
+        { rows: [] },
+        {
+          employeeId: 'person',
+          businessDate: '2026-10-24',
+          templateId: 'night',
+          zoneId: 'zone',
+          kind: 'REGULAR',
+        },
+      ),
+      dates: calendarDates('2026-10-19', 7),
+    });
+    const item = allItems(model)[0];
+    expect(item?.time).toContain('20:00');
+    expect(item?.time).toContain('10/25');
+    expect(item?.description).toContain('13 hr');
+  });
+});

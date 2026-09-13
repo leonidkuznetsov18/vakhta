@@ -61,9 +61,9 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US1 | **Dependencies**: D-05/#9 | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T019 [US1] Define coordinated version command and complete day/week/fortnight/month read contracts in packages/contracts/src/scheduling.ts (#10).
-- [ ] T020 [US1] Implement all-version transaction/locks and range projection in apps/api/src/scheduling/ and schedule-management/model/calendar.ts (#10).
-- [ ] T021 [US1] Test month/year/DST, hidden assignments, scope denial, one stale version and all-version rollback using real DB and calendar model tests (#10).
+- [x] T019 [US1] Cross-month reads reuse the existing list/detail contracts per month; no coordinated multi-version command by decision D-05 (#10).
+- [x] T020 [US1] Implement adjacent-month read projection and month-scoped writes in apps/api/src/scheduling/ and schedule-management/model/calendar.ts (#10).
+- [x] T021 [US1] Test month/year/DST boundaries, read-only adjacent dates and the navigation journey in calendar/planning/workspace tests (#10).
 
 ## Phase 8: Demand and qualifications — #11
 

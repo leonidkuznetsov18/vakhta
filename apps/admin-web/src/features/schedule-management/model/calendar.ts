@@ -31,6 +31,8 @@ export interface CalendarInput {
   readonly zoneId?: string;
   readonly writable: boolean;
   readonly today?: string;
+  /** Dates of another month are shown from that month's plan and cannot be edited here. */
+  readonly editableMonth?: string;
 }
 
 /** Business dates are calendar values, never browser-local instants. */
@@ -98,6 +100,13 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
     month: '2-digit',
     timeZone: input.timezone,
   });
+  const monthFormat = new Intl.DateTimeFormat(input.locale, {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+  const monthLabel = (date: string) =>
+    monthFormat.format(new Date(`${date.slice(0, 7)}-01T00:00:00Z`));
   const durationFormat = new Intl.NumberFormat(input.locale, {
     style: 'unit',
     unit: 'hour',
@@ -124,6 +133,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
       : t.unknownTemplate;
     const live = published.get(assignmentKey(item));
     const unpublished = !live || !sameAssignment(live, item);
+    const foreign = !!input.editableMonth && !item.businessDate.startsWith(input.editableMonth);
     const key = `${resourceId(item)}:${item.businessDate}`;
     const bucket = buckets.get(key) ?? [];
     const durationMinutes = plan
@@ -156,6 +166,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
         .join(' · '),
       status: unpublished ? t.notPublished : '',
       unpublished,
+      ...(foreign ? { readonly: true } : {}),
       tone: template ? (template.isNight ? 'indigo' : 'amber') : 'neutral',
     });
     buckets.set(key, bucket);
@@ -202,6 +213,9 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
             create: input.writable
               ? {
                   label: t.add,
+                  ...(input.editableMonth && !date.startsWith(input.editableMonth)
+                    ? { disabledReason: t.otherMonth.replace('{month}', monthLabel(date)) }
+                    : {}),
                   ...(input.grouping === 'zones' &&
                   id !== UNASSIGNED_ZONE &&
                   !zones.get(id)?.isActive
@@ -230,6 +244,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
           .replace('{day}', String(counts.day))
           .replace('{night}', String(counts.night)),
         today: id === input.today,
+        readonly: !!input.editableMonth && !id.startsWith(input.editableMonth),
       };
     }),
     resources,

@@ -9,6 +9,8 @@ export interface CalendarItem {
   readonly tone: 'info' | 'warning' | 'danger' | 'neutral' | 'amber' | 'indigo';
   /** Rendered with a dashed border so an unpublished shift is recognizable without color. */
   readonly unpublished?: boolean;
+  /** Shown for context only (for example another month's plan); selecting it opens details. */
+  readonly readonly?: boolean;
   readonly parts?: readonly { readonly id: string; readonly label: string }[];
 }
 export interface CalendarCell {
@@ -33,6 +35,8 @@ export interface CalendarDate {
   /** Column totals, for example day/night counts. */
   readonly summary?: string;
   readonly today?: boolean;
+  /** The date belongs to another plan and is shown for context only. */
+  readonly readonly?: boolean;
 }
 export interface CalendarViewModel {
   readonly label: string;
