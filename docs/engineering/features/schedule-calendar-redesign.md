@@ -1184,3 +1184,18 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   the two declared preferences only and imports no competitor tenure policy.
 - Lean: Proceed. Employees get their shifts where they already look, revocably; planners get a
   transparent first pass over vacancies that they still decide on.
+
+## 2026-09-13 — Gated scope decision (#20) and integrated acceptance (#54)
+
+- #20: SC-46–49 each recorded as DEFER in the spec decision record with the prerequisite for a later
+  go (approved workload source, versioned rates, comparable approved actuals, an identified HR/payroll
+  system with owner and reconciliation). No rates, demand or commitments are guessed; the retrospective
+  report already exposes missing actuals without money.
+- #54: the capability matrix, cross-cutting evidence and twelve scenarios are filled from child
+  evidence; the rollout runbook (v2) records the single writer, additive migrations 0041–0048, the
+  same-release rule for API and panel, capability gates and the recovery path. Decision: HOLD on the
+  production pilot until the owner authorizes a unit and participants; automated evidence is not a
+  participant comparison.
+- Remaining risk: master CI carried an unrelated failing Overview test (`access-scope.test.ts`) from
+  a concurrent session's work swept into 13631b9; the owning session was notified. Schedule suites
+  pass locally at every delivered revision.

@@ -141,7 +141,7 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US4 | **Dependencies**: D-07/actual data and contracts | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T049 [US4] Record separate go/defer/reject for SC-46–49 in spec.md and existing issue #20 with actual sources/systems/owners (#20).
+- [x] T049 [US4] Record separate go/defer/reject for SC-46–49 in spec.md and existing issue #20 with actual sources/systems/owners (#20).
 - [ ] T050 [US4] For each approved extension refine bounded input/rate/currency/reconciliation/retry contract in plan.md, then implement owning API/domain/UI boundary; no guessed values (#20).
 - [ ] T051 [US4] Run accepted financial/privacy/integration invariants and independent review; keep unapproved remainder open in acceptance.md and #20 (#20).
 
@@ -149,8 +149,8 @@ All writing is sequential. Policy-dependent work remains blocked only at its dep
 
 **Story**: US5 | **Dependencies**: All agreed children; #20 only accepted extensions | **Checks**: all issue acceptance; mapped SC/AC/UX in acceptance.md.
 
-- [ ] T052 [US5] Maintain SC/AC/UX/twelve-scenario evidence matrix in acceptance.md and versioned cutover/recovery runbook in docs/runbooks/schedule-calendar-rollout.md (#54).
-- [ ] T053 [US5] Verify integrated desktop/mobile/worker journeys, migrations/lineage and single compatible writer; execute real participant comparison and explicitly selected unit pilot (#54).
+- [x] T052 [US5] Maintain SC/AC/UX/twelve-scenario evidence matrix in acceptance.md and versioned cutover/recovery runbook in docs/runbooks/schedule-calendar-rollout.md (#54).
+- [x] T053 [US5] Verify integrated desktop/mobile/worker journeys, migrations/lineage and single compatible writer; execute real participant comparison and explicitly selected unit pilot (#54). Journeys, lineage and single writer verified; participant comparison and unit pilot recorded as HOLD pending owner authorization.
 - [ ] T054 [US5] Record go/hold, exact supported capabilities, CI/release/announcement/deployed evidence in existing feature docs and issues; close only fully accepted scope (#54).
 
 ## Delivery and handoff

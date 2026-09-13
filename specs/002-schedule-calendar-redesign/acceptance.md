@@ -55,45 +55,45 @@ historical evidence and are not automatically accepted for this redesign.
 | SC-43      | #18   | T043 / T044 / T045 | Export uses the requested complete scope and states filters/version/units; it does not expose hidden records or execute spreadsheet formulas  | XLSX metadata states scope/version/units; explicit cell types, no formulas; #18 accepted                                      |
 | SC-44      | #19   | T046 / T047 / T048 | Only the employee's published assignments are exposed; access is revocable, updates retain identity and sync delay is explained               | Hashed revocable token, own published events only, stable UID/SEQUENCE, PT3H refresh, redacted logs; #19 accepted             |
 | SC-45      | #19   | T046 / T047 / T048 | A person reviews an explainable diff; infeasible slots remain explicit and no automatic publication or AI decision occurs                     | Local proposal filters blocks, explains warnings, keeps unresolved, skip per pick, applies via slot select; #19 accepted      |
-| SC-46      | #20   | T049 / T050 / T051 | **Separate scope approval:** define input quality and approved norms; missing workload data never becomes invented demand                     | Decision pending                                                                                                              |
-| SC-47      | #20   | T049 / T050 / T051 | **Separate scope approval:** version rates/rules, currencies and access; estimates are not payroll calculations                               | Decision pending                                                                                                              |
-| SC-48      | #20   | T049 / T050 / T051 | **Separate scope approval:** comparable approved inputs expose missing/unapproved actuals instead of misleading totals                        | Decision pending                                                                                                              |
-| SC-49      | #20   | T049 / T050 / T051 | **Separate scope approval:** identify the actual system, contract, owner, reconciliation and retry behavior before integration                | Decision pending                                                                                                              |
+| SC-46      | #20   | T049 / T050 / T051 | **Separate scope approval:** define input quality and approved norms; missing workload data never becomes invented demand                     | DEFER recorded in spec.md decision record (#20, D-07); no input system, rate model or HR/payroll contract exists              |
+| SC-47      | #20   | T049 / T050 / T051 | **Separate scope approval:** version rates/rules, currencies and access; estimates are not payroll calculations                               | DEFER recorded in spec.md decision record (#20, D-07); no input system, rate model or HR/payroll contract exists              |
+| SC-48      | #20   | T049 / T050 / T051 | **Separate scope approval:** comparable approved inputs expose missing/unapproved actuals instead of misleading totals                        | DEFER recorded in spec.md decision record (#20, D-07); no input system, rate model or HR/payroll contract exists              |
+| SC-49      | #20   | T049 / T050 / T051 | **Separate scope approval:** identify the actual system, contract, owner, reconciliation and retry behavior before integration                | DEFER recorded in spec.md decision record (#20, D-07); no input system, rate model or HR/payroll contract exists              |
 | SC-50      | #18   | T043 / T044 / T045 | Each field has a defined meaning/type/audience; historical values remain interpretable and standard shifts need no unnecessary input          | Field catalog documented with type and audience; standard shift needs four fields; #18 accepted                               |
 
 ## Cross-cutting evidence
 
-| Criteria                 | Required evidence owner                                        | Status                                                                  |
-| ------------------------ | -------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| AC-01, AC-06, AC-10      | #7 preservation, #15 migration, #54 integrated journeys        | Pending                                                                 |
-| AC-02, AC-07             | #10 time, #11/#12 coverage, #15/#16 segments/relief            | Pending                                                                 |
-| AC-03                    | #8/#12/#17 scope and field privacy; all export/feed boundaries | Pending                                                                 |
-| AC-04, AC-05             | #9/#10/#12/#13/#17 DB concurrency, receipts and rollback       | Pending                                                                 |
-| AC-08                    | #6/#9 draft/offline/uncertain save; #54 mobile recovery        | Pending                                                                 |
-| AC-09                    | #5/#6 desktop/390px uk/en/ru screenshots, keyboard and touch   | Pending                                                                 |
-| AC-11                    | #4 baseline and #54 actual participant pilot                   | Synthetic agent baseline recorded (#4); participant pilot pending (#54) |
-| UX-01, UX-03, UX-12      | #11/#12/#13 eligibility and unknown shortage                   | Pending                                                                 |
-| UX-02, UX-04             | #7/#17 publication/acknowledgement/presence                    | Pending                                                                 |
-| UX-05–08, UX-10/11/13/14 | #5/#6 common resource views/mobile/actions/recovery            | Pending                                                                 |
-| UX-09                    | #15/#16 whole-versus-part preview                              | Pending                                                                 |
-| UX-15                    | #14 batch/copy/exception diff                                  | Pending                                                                 |
+| Criteria                 | Required evidence owner                                        | Status                                                                                                                                               |
+| ------------------------ | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC-01, AC-06, AC-10      | #7 preservation, #15 migration, #54 integrated journeys        | Versions/history preserved (#7); additive migrations 0041–0048 with lineage; integrated journeys in child evidence (#54)                             |
+| AC-02, AC-07             | #10 time, #11/#12 coverage, #15/#16 segments/relief            | Stored instants and custom times (#10/#15); coverage with requirements, qualifications, breaks and relief (#11/#12/#16)                              |
+| AC-03                    | #8/#12/#17 scope and field privacy; all export/feed boundaries | Zone-scoped masters (#8), field privacy in context/absences (#12/#17), name-read roles in exports, feed own-data-only (#19)                          |
+| AC-04, AC-05             | #9/#10/#12/#13/#17 DB concurrency, receipts and rollback       | Row locks and revision checks in real-DB tests: stale saves (#9), advisory employee locks (#10/#12), slot fills once (#13), presence read-only (#17) |
+| AC-08                    | #6/#9 draft/offline/uncertain save; #54 mobile recovery        | Draft recovery and uncertain save receipts (#6/#9); mobile day view with the same recovery path (#54 evidence)                                       |
+| AC-09                    | #5/#6 desktop/390px uk/en/ru screenshots, keyboard and touch   | Desktop and 390px screenshots uk/en/ru with keyboard and touch in docs/engineering/evidence/schedule-ui-2026-09-13 (#5/#6/#54)                       |
+| AC-11                    | #4 baseline and #54 actual participant pilot                   | Synthetic agent baseline recorded (#4); participant pilot pending (#54)                                                                              |
+| UX-01, UX-03, UX-12      | #11/#12/#13 eligibility and unknown shortage                   | Eligibility reasons and candidates (#12), unknown coverage never sufficient (#11), slots counted apart (#13)                                         |
+| UX-02, UX-04             | #7/#17 publication/acknowledgement/presence                    | Publication chips and acknowledgement (#7); presence evidence with freshness, never a no-show (#17)                                                  |
+| UX-05–08, UX-10/11/13/14 | #5/#6 common resource views/mobile/actions/recovery            | Zones/people views, mobile day list, actions menu, Sheet details and recovery (#5/#6/#9); 24-hour times with explicit end date                       |
+| UX-09                    | #15/#16 whole-versus-part preview                              | Custom time, segments and breaks disclosed progressively with whole/part preview (#15/#16)                                                           |
+| UX-15                    | #14 batch/copy/exception diff                                  | Batch, copy and pattern previews show exact diffs (#14)                                                                                              |
 
 ## Twelve integrated scenarios (#54)
 
-| Scenario                                      | Owner       | Evidence/status                                                                              |
-| --------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------- |
-| Standard day/night creation                   | #6/#7       | Verified in redesigned preview (create Sheet, batch fill/replace, undo)                      |
-| Partial required interval                     | #11/#16     | Pending                                                                                      |
-| Missing/expired qualification                 | #11/#12     | Pending                                                                                      |
-| Individually valid previews conflict together | #12/#14     | Pending                                                                                      |
-| Concurrent replacement selection              | #12/#13/#17 | #13: slots fill once; #17: replacement commits through whole-month validation with revision  |
-| Week crosses month/year                       | #10         | Pending                                                                                      |
-| Night shift and DST                           | #10/#15     | #15: overnight segments resolve to the next day; API test in Europe/Kyiv                     |
-| One visible linked part                       | #15         | #15: segments render inside the parent card; filters never hide a part                       |
-| Filtered save / breaks omission               | #9/#14/#16  | #9/#14 full-month writes; #16: the editor replaces one assignment's break list shown in full |
-| Timeout after committed change                | #9          | Pending                                                                                      |
-| Publication commits, delivery fails           | #7          | Pending                                                                                      |
-| Phone/keyboard/weak network                   | #5/#6/#9    | Pending                                                                                      |
+| Scenario                                      | Owner       | Evidence/status                                                                                                                                     |
+| --------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Standard day/night creation                   | #6/#7       | Verified in redesigned preview (create Sheet, batch fill/replace, undo)                                                                             |
+| Partial required interval                     | #11/#16     | Coverage counts only assignments containing the requirement interval; a custom shorter interval or unrelieved break drops cover (#11/#15/#16 tests) |
+| Missing/expired qualification                 | #11/#12     | Effective-dated holdings; unqualified or expired worker refused at save (#11/#12 real-DB tests)                                                     |
+| Individually valid previews conflict together | #12/#14     | Whole-plan evaluation in batch/copy previews and at commit; two valid changes that overlap fail together (#12/#14)                                  |
+| Concurrent replacement selection              | #12/#13/#17 | #13: slots fill once; #17: replacement commits through whole-month validation with revision                                                         |
+| Week crosses month/year                       | #10         | Adjacent month read-only in the week grid; DST boundary tests (#10)                                                                                 |
+| Night shift and DST                           | #10/#15     | #15: overnight segments resolve to the next day; API test in Europe/Kyiv                                                                            |
+| One visible linked part                       | #15         | #15: segments render inside the parent card; filters never hide a part                                                                              |
+| Filtered save / breaks omission               | #9/#14/#16  | #9/#14 full-month writes; #16: the editor replaces one assignment's break list shown in full                                                        |
+| Timeout after committed change                | #9          | Durable command receipts replay the first outcome; uncertain saves resolve after remount (#9 real-DB tests)                                         |
+| Publication commits, delivery fails           | #7          | Outbox rows are written in the publication transaction; the relay retries with backoff (worker tests); receipts survive (#7/#9)                     |
+| Phone/keyboard/weak network                   | #5/#6/#9    | Mobile day view, keyboard Move, offline/paused surfaces and retained drafts (#5/#6/#9 screenshots and tests)                                        |
 
 ## Pilot/cutover decision
 
@@ -108,9 +108,19 @@ acceptance remain open. T005 is now complete for its controlled rendering protot
 keyboard Move/conflict, measured constraints and screenshots are recorded in research.md.
 No DB concurrency, production operation, human baseline, full SC acceptance or pilot is inferred.
 
-HOLD for full cutover: incremental releases exist, but participant baseline and unit pilot are not accepted. Preserve current operational
-Schedule behavior. See planned docs/runbooks/schedule-calendar-rollout.md; automatic local checks
-cannot substitute for measured participant tasks or an explicit production pilot decision.
+### Integrated acceptance record — 2026-09-13 (#54)
+
+All implementation children (#5–#19) are closed with evidence; #20 holds the deferred gated scope.
+The capability matrix above maps SC-01–45 and SC-50 to delivered evidence; AC-01–11 and UX-01–15 are
+covered by child evidence as recorded in the cross-cutting table. Local suites at the last delivered
+revision: API real-DB scheduling 59 cases, panel schedule 117 tests, domain scheduling suites; CI is
+the integration gate for the exact revision (see the runbook for the deployed-revision rule).
+
+Decision: **HOLD on the production pilot.** No participant comparison has been run and no unit has
+been authorized by the owner; automated and preview evidence is not a substitute for measured
+participant tasks. The first release ships the redesigned calendar as the working editor while the
+month version model, publication, acknowledgement, history and bot paths stay unchanged; the
+cutover runbook records what is safe now and what needs the owner's go.
 
 ### Complete roster read evidence — #9
 

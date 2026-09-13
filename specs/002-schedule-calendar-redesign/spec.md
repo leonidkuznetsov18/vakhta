@@ -72,6 +72,21 @@ timing): add one shift = 4 interactions (cell, zone, shift, apply); replace a wo
 6 interactions (open card, remove, cell, zone, shift, apply); recover after a rejected stale save =
 2 interactions (Discard, confirm). Real planner/master timing remains the pilot's job (#54).
 
+### Decision record for gated scope (#20, D-07) — 2026-09-13
+
+Each gated capability has its own decision. None is silently marked delivered; a "go" needs a
+separate owner approval with the named input system, accountable owner and reconciliation rule.
+
+| Capability | Decision | Reason and prerequisites for a later "go"                                                                                                                                                                   | Accountable owner |
+| ---------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| SC-46      | DEFER    | No workload/orders input exists (orders, output and OEE are outside the MVP). A go needs an approved workload source, its data-quality rule and staffing norms per zone; missing data never becomes demand. | Product owner     |
+| SC-47      | DEFER    | No approved rate card, currency policy or access rule for pay data. A go needs versioned rates/rules with effective dates and an explicit statement that estimates are not payroll.                         | Product owner     |
+| SC-48      | DEFER    | Depends on SC-47 and on approved actuals; the retrospective report (#18) already exposes missing/unapproved actuals without money. A go needs comparable approved inputs and a reconciliation rule.         | Product owner     |
+| SC-49      | DEFER    | No HR/payroll system, contract or owner is identified. A go needs the actual system, its contract, the record owner, reconciliation and retry behaviour before any integration work.                        | Product owner     |
+
+The first calendar release is delivered without SC-46–49; removing them from the epic would need an
+explicit scope decision, which this record does not make.
+
 ## User Scenarios and Testing
 
 ### US1: Plan and communicate reliably (Priority: P1)
