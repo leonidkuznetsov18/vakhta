@@ -273,6 +273,9 @@ export async function dispatchCommunication(
         .parse(claimed.payload);
       const url = new URL(webUrl);
       if (url.protocol !== 'https:') throw new Error('Questionnaire requires HTTPS');
+      url.pathname = '/questionnaire';
+      url.search = '';
+      url.hash = '';
       url.searchParams.set('questionnaire', payload.communicationId);
       outgoing = {
         kind: claimed.kind,

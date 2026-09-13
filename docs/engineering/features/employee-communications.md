@@ -28,6 +28,12 @@ source commit and CI run; local checks below do not imply live delivery.
   The isolated web entry reads SDK initData before admin hash restoration, omits panel credentials,
   and authenticates HMAC/freshness/unique fields plus exact active recipient/account binding. Draft
   revisions and close/save row locking protect stale writes and immutable final responses.
+- Deployment preflight found the panel-wide `X-Frame-Options: DENY` blocked Telegram Web embedding.
+  Invitations now use `/questionnaire`; only that exact address replaces DENY with CSP
+  `frame-ancestors https://web.telegram.org`. Missing/malformed IDs never render the admin app there.
+  Two entry regressions and the ordered invitation test cover routing. Cloudflare's deployed headers
+  must be checked after publication. Sources: [Telegram iframe events](https://core.telegram.org/api/web-events),
+  [Cloudflare header detachment](https://developers.cloudflare.com/pages/configuration/headers/).
 - Uploads use the existing private ObjectStorage port, immutable key/hash, 24-hour staging cleanup
   and locked adoption. sharp decodes images; pdf-lib and music-metadata check other supported formats.
   This is format validation, not antivirus scanning. Committed files retain history indefinitely under

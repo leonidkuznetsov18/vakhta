@@ -109,7 +109,7 @@ it('sends ordered parts once and uses an inline private Mini App invitation', as
     f.telegramUserId,
     expect.objectContaining({
       kind: 'QUESTIONNAIRE',
-      url: expect.stringContaining('?questionnaire='),
+      url: expect.stringContaining('https://panel.example.test/questionnaire?questionnaire='),
       button: expect.any(String),
     }),
   ]);
