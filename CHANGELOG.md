@@ -1,3 +1,13 @@
+## [1.5.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.4.0...v1.5.0) (2026-09-13)
+
+### Features
+
+* **schedule:** planned breaks with relief, coverage during breaks and workload ([451bee0](https://github.com/leonidkuznetsov18/vakhta/commit/451bee0b690dcfba59220d2e78ed0fe707454f01)), closes [#16](https://github.com/leonidkuznetsov18/vakhta/issues/16)
+
+### Documentation
+
+* **schedule:** record planned breaks, relief and workload evidence ([#16](https://github.com/leonidkuznetsov18/vakhta/issues/16)) ([7da0f26](https://github.com/leonidkuznetsov18/vakhta/commit/7da0f263c9f35ce68ae65935e44b1fecfba18b03))
+
 ## [1.4.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.3.0...v1.4.0) (2026-09-13)
 
 ### Features
