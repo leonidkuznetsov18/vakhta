@@ -101,6 +101,11 @@ the participant acceptance check.
 - Queue cards from section lists (incidents, handovers, requests, overtime, closed without checklist)
   count the whole grant scope; the selection narrows snapshot figures and destination filters.
 - Owner feedback 2026-09-13: queue, zones and setup render as compact card grids, not long rows.
+- Owner feedback 2026-09-13: the schedule attention block is an Overview-owned section "Люди і графік
+  сьогодні" (`features/overview/model/team-today.ts`, `ui/team-today.tsx`) reading
+  `/admin/schedules/staffing/attention` per site: sick leave with wellbeing (worse/unanswered first),
+  unfilled shifts grouped by date with zone and unit, birthdays; holiday in the header. The schedule
+  slice keeps `ScheduleAttentionCard` for its own use.
 - User-visible access change: SITE grants are limited to their site; ENTERPRISE HR/AUDITOR now read
   handover lists; out-of-scope identifiers and filters are 403.
 - Handover acceptance uses sessions whose planned end lies within two hours of the shift start.

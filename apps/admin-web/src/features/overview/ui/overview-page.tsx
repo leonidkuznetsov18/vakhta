@@ -7,7 +7,7 @@ import { useNow } from '@/lib/clock';
 import { useLiveUpdates } from '@/lib/live';
 import { writeRoute } from '@/lib/route';
 import { setUiState } from '@/lib/ui-store';
-import { ScheduleAttentionCard, writeSchedulePreset } from '@/features/schedule-management';
+import { writeSchedulePreset } from '@/features/schedule-management';
 import { useEmployees } from '@/lib/org';
 import { useNavigation, type SectionKey } from '@/navigation';
 import { attentionPermissions, useAttention } from '../model/queries';
@@ -20,12 +20,14 @@ import {
   type SetupItem,
 } from '../model/priority';
 import { useOverviewSelection, useOverviewSnapshot } from '../model/snapshot';
+import { useTeamToday } from '../model/team-today';
 import { overviewText } from '../model/time';
 import { ActionQueue } from './action-queue';
 import { EventFeed } from './event-feed';
 import { SetupSection, type UnscheduledGroup } from './setup-section';
 import { ShiftHeader } from './shift-header';
 import { ShiftHealth, type HealthTarget } from './shift-health';
+import { TeamToday } from './team-today';
 import { ZoneBoard } from './zone-board';
 
 const QUEUE_SECTION: Partial<Record<QueueItem['key'], SectionKey>> = {
@@ -199,20 +201,15 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
     go('schedule');
   }
 
-  // Schedule attention (sick leave, unfilled shifts, birthdays) is owned by the schedule slice;
-  // the overview mounts it once per resolved site. Same cache key as the schedule workspace.
+  // People facts of the schedule slice (sick leave, unfilled shifts, birthdays), one read per site.
   const roster = useEmployees(permissions.employees);
-  const accessKey = JSON.stringify([
-    me.id,
-    me.roles
-      .map(({ role, scopeType, scopeId }) => JSON.stringify([role, scopeType, scopeId]))
-      .sort(),
-  ]);
   const attentionSites = !snapshot
     ? []
     : selection.siteId
       ? [selection.siteId]
       : snapshot.contexts.map((ctx) => ctx.siteId);
+
+  const teamToday = useTeamToday(attentionSites, permissions.employees);
 
   const snapshotState = snapshot ? 'ready' : snapshotQuery.isError ? 'failed' : 'loading';
   const queueLoading =
@@ -252,16 +249,15 @@ export function OverviewPage({ me }: { readonly me: MeView }) {
         <ZoneBoard zones={snapshot.zones} now={now} onOpen={openZone} />
       )}
       {permissions.employees && attentionSites.length > 0 && (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {attentionSites.map((siteId) => (
-            <ScheduleAttentionCard
-              key={siteId}
-              accessKey={accessKey}
-              siteId={siteId}
-              employees={roster.employees}
-            />
-          ))}
-        </div>
+        <TeamToday
+          team={teamToday.team}
+          loading={teamToday.loading}
+          failed={teamToday.failed}
+          employees={roster.employees}
+          snapshot={snapshot}
+          onOpenSchedule={() => go('schedule')}
+          onRetry={() => void teamToday.refetch()}
+        />
       )}
       {blocks.feed && <EventFeed me={me} selection={selection} now={now} />}
       {blocks.setup && (

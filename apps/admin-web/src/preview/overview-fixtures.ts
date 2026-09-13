@@ -98,7 +98,7 @@ export function overviewSnapshotFixture(
               zoneName: 'Токарний №2',
             },
             {
-              employeeId: 'b0000000-0000-4000-8000-0000000000a2',
+              employeeId: 'b0000000-0000-4000-8000-000000000003',
               fullName: 'Петренко Ірина',
               planStartAt: iso(start),
               zoneName: 'Пакувальна лінія',
@@ -278,6 +278,74 @@ export function overviewPreview(
       return json({ statusCode: 503, code: 'UNAVAILABLE', message: 'Unavailable' }, 503);
     if (mode === 'loading') return new Promise<Response>(() => undefined);
     return json(overviewSnapshotFixture(mode, unitScoped));
+  }
+  if (path === '/admin/schedules/staffing/attention') {
+    const day = (offset: number) =>
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Kyiv' }).format(
+        new Date(Date.now() + offset * 86_400_000),
+      );
+    return json(
+      mode === 'clear'
+        ? { today: day(0), holiday: null, birthdaysToday: [], onSickLeave: [], replacements: [] }
+        : {
+            today: day(0),
+            holiday: null,
+            birthdaysToday: ['b0000000-0000-4000-8000-000000000002'],
+            onSickLeave: [
+              {
+                requestId: 'a0000000-0000-4000-8000-0000000000c1',
+                employeeId: 'b0000000-0000-4000-8000-000000000001',
+                type: 'SICK',
+                status: 'APPROVED',
+                from: day(-2),
+                to: day(3),
+                lastCheckin: {
+                  businessDate: day(0),
+                  answer: 'WORSE',
+                  answeredAt: new Date().toISOString(),
+                },
+              },
+              {
+                requestId: 'a0000000-0000-4000-8000-0000000000c2',
+                employeeId: 'b0000000-0000-4000-8000-000000000003',
+                type: 'SICK',
+                status: 'PENDING',
+                from: day(0),
+                to: day(1),
+                lastCheckin: null,
+              },
+            ],
+            replacements: [
+              {
+                assignmentId: 'a0000000-0000-4000-8000-0000000000d1',
+                employeeId: 'b0000000-0000-4000-8000-000000000001',
+                businessDate: day(1),
+                zoneId: ZONE,
+                orgUnitId: UNIT,
+                requestId: 'a0000000-0000-4000-8000-0000000000c1',
+                type: 'SICK',
+              },
+              {
+                assignmentId: 'a0000000-0000-4000-8000-0000000000d2',
+                employeeId: 'b0000000-0000-4000-8000-000000000001',
+                businessDate: day(2),
+                zoneId: ZONE,
+                orgUnitId: UNIT,
+                requestId: 'a0000000-0000-4000-8000-0000000000c1',
+                type: 'SICK',
+              },
+              {
+                assignmentId: 'a0000000-0000-4000-8000-0000000000d3',
+                employeeId: 'b0000000-0000-4000-8000-000000000003',
+                businessDate: day(1),
+                zoneId: null,
+                orgUnitId: UNIT_2,
+                requestId: 'a0000000-0000-4000-8000-0000000000c2',
+                type: 'SICK',
+              },
+            ],
+          },
+    );
   }
   if (path === '/admin/overview/events')
     return json(mode === 'clear' ? [] : overviewEventsFixture());

@@ -15,8 +15,7 @@ OEE or equipment states.
 2. **"Потребує дії зараз"** (Needs action now): priority cards.
 3. **"Стан зміни"** (Shift health): four key figures of the current shift.
 4. **"Зони зараз"** (Zones now): the live state of every zone.
-5. **"Графік сьогодні"**: sick leave with the last check-in answer, shifts without a person for the
-   next seven days, birthdays and today's holiday (from the Schedule section).
+5. **"Люди і графік сьогодні"**: sick leave, shifts without a person this week and birthdays.
 6. **"Останні події"** (Recent events): important operational events of the last 24 hours.
 7. **"Налаштування та онбординг"** (Setup and onboarding): debt that does not block the shift.
 
@@ -110,6 +109,23 @@ shown) and "2 з 3 за графіком". Problem zones come first:
 
 Planned people follow the assignment zone or, for split assignments, the segment that is current at
 the site's local time. A zone card opens Live shift for that unit, searched by the zone name.
+
+## "Люди і графік сьогодні"
+
+People facts from the Schedule section for the selected sites, in three separate groups with their
+counts. A holiday of the day appears as a green chip next to "Відкрити графік".
+
+- **"На лікарняному"**: each person with a link to the profile, the end of the sick leave ("до 16.09"),
+  whether it is approved or still pending, and the latest answer in the bot to "How are you?" as a
+  coloured label with text ("Гірше", "Так само", "Краще") and its date. People who feel worse or have
+  not answered yet come first.
+- **"Зміни без людини · 7 днів"**: planned shifts of the coming week whose person is on an approved
+  absence, grouped by date ("пн 14.09 · змін: 2"); each row says whom the shift replaces and where
+  (zone and unit). "Знайти заміну" opens Schedule.
+- **"Дні народження"**: today's birthdays with links to profiles.
+
+An empty group says so in one line ("Сьогодні ніхто не на лікарняному"); long lists scroll inside the
+group. The section refreshes with the page and every five minutes.
 
 ## "Останні події"
 
