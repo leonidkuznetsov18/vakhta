@@ -17,6 +17,7 @@ import { KioskModule } from './kiosk/kiosk.module.js';
 import { MetricsModule } from './metrics/metrics.module.js';
 import { NotificationsModule } from './notifications/notifications.service.js';
 import { OrgModule } from './org/org.module.js';
+import { OverviewModule } from './overview/overview.module.js';
 import { ReportsModule } from './reports/reports.module.js';
 import { RequestsModule } from './requests/requests.module.js';
 import { SchedulingModule } from './scheduling/scheduling.module.js';
@@ -45,6 +46,7 @@ import { SupportModule } from './support/support.module.js';
     AttendanceModule,
     ShiftModule,
     IncidentsModule,
+    OverviewModule,
     HandoverModule,
     PhotoInspectionModule,
     RequestsModule,
