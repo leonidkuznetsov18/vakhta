@@ -1,3 +1,19 @@
+## [1.9.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.8.0...v1.9.0) (2026-09-13)
+
+### Features
+
+* **employee-profile:** add scoped profiles and dated compensation ([3ed98a8](https://github.com/leonidkuznetsov18/vakhta/commit/3ed98a87f862ebaa41025434d7123a956c0aa787)), closes [#65](https://github.com/leonidkuznetsov18/vakhta/issues/65) [#66](https://github.com/leonidkuznetsov18/vakhta/issues/66) [#67](https://github.com/leonidkuznetsov18/vakhta/issues/67) [#68](https://github.com/leonidkuznetsov18/vakhta/issues/68) [#69](https://github.com/leonidkuznetsov18/vakhta/issues/69) [#70](https://github.com/leonidkuznetsov18/vakhta/issues/70) [#71](https://github.com/leonidkuznetsov18/vakhta/issues/71) [#72](https://github.com/leonidkuznetsov18/vakhta/issues/72)
+* **overview:** show linked avatars in schedule attention ([24d775f](https://github.com/leonidkuznetsov18/vakhta/commit/24d775f6915fb541eacab4f75d7a5a1fa1fad79b)), closes [#65](https://github.com/leonidkuznetsov18/vakhta/issues/65) [#67](https://github.com/leonidkuznetsov18/vakhta/issues/67) [#71](https://github.com/leonidkuznetsov18/vakhta/issues/71) [#72](https://github.com/leonidkuznetsov18/vakhta/issues/72)
+* **schedule:** link employee avatars to profiles ([169746e](https://github.com/leonidkuznetsov18/vakhta/commit/169746ea6c080ead4a39eae07697553d4f6f9b08)), closes [#65](https://github.com/leonidkuznetsov18/vakhta/issues/65) [#67](https://github.com/leonidkuznetsov18/vakhta/issues/67) [#71](https://github.com/leonidkuznetsov18/vakhta/issues/71)
+
+### Bug fixes
+
+* **employee-profile:** restrict master metadata in organization snapshots ([1b1cea4](https://github.com/leonidkuznetsov18/vakhta/commit/1b1cea417082c29bd1c1fc1180e1f6a0d545e57b)), closes [#66](https://github.com/leonidkuznetsov18/vakhta/issues/66) [#69](https://github.com/leonidkuznetsov18/vakhta/issues/69) [#72](https://github.com/leonidkuznetsov18/vakhta/issues/72)
+
+### Tests
+
+* **employee-profile:** include accounting in directory reader expectations ([4c0d2ac](https://github.com/leonidkuznetsov18/vakhta/commit/4c0d2ac3df102d26baa2fd7c96ba2ed57e1e3c49)), closes [#66](https://github.com/leonidkuznetsov18/vakhta/issues/66) [#72](https://github.com/leonidkuznetsov18/vakhta/issues/72)
+
 ## [1.8.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.7.0...v1.8.0) (2026-09-13)
 
 ### Features
