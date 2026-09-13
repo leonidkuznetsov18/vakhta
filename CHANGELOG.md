@@ -1,3 +1,29 @@
+## [1.2.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.1.0...v1.2.0) (2026-09-13)
+
+### Features
+
+* **schedule:** expose scoped read-only decision history ([00571de](https://github.com/leonidkuznetsov18/vakhta/commit/00571ded433927dbc42204fe5296f0e0aeb424c5)), closes [#7](https://github.com/leonidkuznetsov18/vakhta/issues/7)
+
+### Bug fixes
+
+* **schedule:** bind acknowledgement buttons to viewed plans ([7b07887](https://github.com/leonidkuznetsov18/vakhta/commit/7b078875c5eb67094774897eea79ccfb0ec7fc2b)), closes [#7](https://github.com/leonidkuznetsov18/vakhta/issues/7)
+* **schedule:** clarify publication and acknowledgement evidence ([93deec4](https://github.com/leonidkuznetsov18/vakhta/commit/93deec4c3adfd99b0fbb6eb726b15df18aafeaff)), closes [#6](https://github.com/leonidkuznetsov18/vakhta/issues/6) [#7](https://github.com/leonidkuznetsov18/vakhta/issues/7)
+* **schedule:** notify workers about assignment metadata changes ([762bf3a](https://github.com/leonidkuznetsov18/vakhta/commit/762bf3ade82b05cb441a762d102443cb1e08ee87)), closes [#7](https://github.com/leonidkuznetsov18/vakhta/issues/7)
+* **schedule:** suppress obsolete acknowledgement reminders ([f443b6e](https://github.com/leonidkuznetsov18/vakhta/commit/f443b6e3a8e77ecf86033e1925c1af24e7343c38)), closes [#7](https://github.com/leonidkuznetsov18/vakhta/issues/7)
+* **schedule:** unify loading and action availability ([190d9ae](https://github.com/leonidkuznetsov18/vakhta/commit/190d9ae49a69585c6c310b744cde6c7af8132cac)), closes [#6](https://github.com/leonidkuznetsov18/vakhta/issues/6)
+
+### Documentation
+
+* **schedule:** record cached offline calendar evidence ([67b978b](https://github.com/leonidkuznetsov18/vakhta/commit/67b978b7b07d5ffdd261186c58c21bd31025cb55))
+
+### Maintenance
+
+* **release:** integrate v1.1.0 metadata ([0756304](https://github.com/leonidkuznetsov18/vakhta/commit/0756304dd542cd2794cca3610ff9562a8a2b8c9b))
+
+### Styles
+
+* **worker:** format acknowledgement relay tests ([b207b9c](https://github.com/leonidkuznetsov18/vakhta/commit/b207b9c4c715ad59e6da29491853eb16155ecc19))
+
 ## [1.1.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.0.1...v1.1.0) (2026-09-12)
 
 ### Features
