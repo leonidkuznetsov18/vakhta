@@ -51,7 +51,12 @@ import type {
   ReportView,
 } from '@vakhta/contracts';
 import { DEFAULT_LOCALE, type AccessScope, type Locale, type ScopeTarget } from '@vakhta/domain';
-import { FULL_SCOPE, placeTarget, scopeCondition } from '../common/access-scope.js';
+import {
+  FULL_SCOPE,
+  assertFiltersInScope,
+  placeTarget,
+  scopeCondition,
+} from '../common/access-scope.js';
 import { messages } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
@@ -922,6 +927,33 @@ export class IncidentsService {
         and(eq(reasonCodes.kind, 'DOWNTIME'), eq(reasonCodes.code, downtimeIncidents.reasonCode)),
       )
       .$dynamic();
+  }
+
+  /** Filters by identifier must lie inside the reader's scope (spec 004 AC-002). */
+  assertFilters(
+    scope: AccessScope,
+    filters: {
+      siteId?: string | undefined;
+      orgUnitId?: string | undefined;
+      zoneId?: string | undefined;
+    },
+  ): Promise<void> {
+    return assertFiltersInScope(this.db, scope, filters);
+  }
+
+  /** Where a report photo belongs (its incident); `{}` when it is not an incident photo. */
+  async mediaPlace(mediaId: string): Promise<ScopeTarget> {
+    const [row] = await this.db
+      .select({
+        siteId: downtimeIncidents.siteId,
+        orgUnitId: downtimeIncidents.orgUnitId,
+        zoneId: downtimeIncidents.zoneId,
+      })
+      .from(downtimeReports)
+      .innerJoin(downtimeIncidents, eq(downtimeReports.incidentId, downtimeIncidents.id))
+      .where(eq(downtimeReports.mediaObjectId, mediaId))
+      .limit(1);
+    return row ? placeTarget(row) : {};
   }
 
   /** Where an incident belongs, for scope checks on its identifier. */

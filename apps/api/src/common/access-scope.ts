@@ -1,9 +1,14 @@
 import {
+  eq,
   getTableName,
   inArray,
   or,
+  orgUnits,
+  responsibilityZones,
   sql,
+  teams,
   type AnyColumn,
+  type Database,
   type SQL,
   type SQLWrapper,
 } from '@vakhta/db';
@@ -125,4 +130,76 @@ export function employeePlaceSql(employeeId: AnyColumn): {
     team: current(sql.raw('p.team_id')),
     zone: sql<string | null>`null::uuid`,
   };
+}
+
+/**
+ * A filter the reader asks for by identifier (site, unit, zone) must lie inside the scope or
+ * contain a granted place: a unit master may filter by their own site, never by another one.
+ * Outside the scope it is forbidden rather than answered with an empty list (spec 004 AC-002).
+ */
+export async function assertFiltersInScope(
+  db: Database,
+  scope: AccessScope,
+  filters: {
+    readonly siteId?: string | undefined;
+    readonly orgUnitId?: string | undefined;
+    readonly zoneId?: string | undefined;
+  },
+): Promise<void> {
+  if (scope.all) return;
+  const forbid = () => {
+    throw new DomainError('OUT_OF_SCOPE', 403, 'The filter is outside your access scope');
+  };
+  const [grantedZones, grantedTeams, grantedUnits] = await Promise.all([
+    scope.zoneIds.length
+      ? db
+          .select({ siteId: responsibilityZones.siteId, orgUnitId: responsibilityZones.orgUnitId })
+          .from(responsibilityZones)
+          .where(inArray(responsibilityZones.id, [...scope.zoneIds]))
+      : [],
+    scope.teamIds.length
+      ? db
+          .select({ orgUnitId: teams.orgUnitId, siteId: orgUnits.siteId })
+          .from(teams)
+          .innerJoin(orgUnits, eq(teams.orgUnitId, orgUnits.id))
+          .where(inArray(teams.id, [...scope.teamIds]))
+      : [],
+    scope.orgUnitIds.length
+      ? db
+          .select({ siteId: orgUnits.siteId })
+          .from(orgUnits)
+          .where(inArray(orgUnits.id, [...scope.orgUnitIds]))
+      : [],
+  ]);
+  if (filters.siteId) {
+    const sitesInScope = new Set([
+      ...scope.siteIds,
+      ...grantedUnits.map((u) => u.siteId),
+      ...grantedZones.map((z) => z.siteId),
+      ...grantedTeams.map((t) => t.siteId),
+    ]);
+    if (!sitesInScope.has(filters.siteId)) forbid();
+  }
+  if (filters.orgUnitId) {
+    const [unit] = await db
+      .select({ siteId: orgUnits.siteId })
+      .from(orgUnits)
+      .where(eq(orgUnits.id, filters.orgUnitId))
+      .limit(1);
+    const reachable =
+      !!unit &&
+      (scope.siteIds.includes(unit.siteId) ||
+        scope.orgUnitIds.includes(filters.orgUnitId) ||
+        grantedZones.some((z) => z.orgUnitId === filters.orgUnitId) ||
+        grantedTeams.some((t) => t.orgUnitId === filters.orgUnitId));
+    if (!reachable) forbid();
+  }
+  if (filters.zoneId) {
+    const [zone] = await db
+      .select({ siteId: responsibilityZones.siteId, orgUnitId: responsibilityZones.orgUnitId })
+      .from(responsibilityZones)
+      .where(eq(responsibilityZones.id, filters.zoneId))
+      .limit(1);
+    if (!zone || !scopeCovers(scope, { ...zone, zoneId: filters.zoneId })) forbid();
+  }
 }

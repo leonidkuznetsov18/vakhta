@@ -71,7 +71,12 @@ import { summaryLines } from '../telegram/screens.js';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor, type Actor } from '../common/actor.js';
 import { lockEmployee } from '../common/employee-lock.js';
-import { FULL_SCOPE, placeTarget, scopeCondition } from '../common/access-scope.js';
+import {
+  FULL_SCOPE,
+  assertFiltersInScope,
+  placeTarget,
+  scopeCondition,
+} from '../common/access-scope.js';
 import { DomainError } from '../common/domain-error.js';
 import { isUniqueViolation } from '../common/pg-errors.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -306,6 +311,18 @@ export class ShiftService {
       .orderBy(asc(shiftSessions.startedAt));
 
     return rows.map((r) => this.toActiveView(r, now));
+  }
+
+  /** Filters by identifier must lie inside the reader's scope (spec 004 AC-002). */
+  assertFilters(
+    scope: AccessScope,
+    filters: {
+      siteId?: string | undefined;
+      orgUnitId?: string | undefined;
+      zoneId?: string | undefined;
+    },
+  ): Promise<void> {
+    return assertFiltersInScope(this.db, scope, filters);
   }
 
   /** Where an employee currently belongs (open position), for scope checks by employee id. */

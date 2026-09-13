@@ -108,11 +108,16 @@ export class AdminRequestsController {
   @Post('corrections/:sessionId')
   @HttpCode(200)
   @Roles('ADMIN', 'PRODUCTION_HEAD', 'SHIFT_MASTER')
-  correct(
+  async correct(
     @Param('sessionId', ParseUUIDPipe) sessionId: string,
     @Body(new ZodValidationPipe(ApplyCorrectionCommand)) body: ApplyCorrectionCommand,
     @CurrentUser() user: WebUser,
   ): Promise<CorrectionResultView> {
+    const scope = scopeOf(user, ['ADMIN', 'PRODUCTION_HEAD', 'SHIFT_MASTER']);
+    if (!scope.all) {
+      const place = await this.requests.sessionPlace(sessionId);
+      if (place) assertInScope(scope, place);
+    }
     return this.corrections.apply(sessionId, body, webUserActor(user));
   }
 
@@ -126,10 +131,11 @@ export class AdminRequestsController {
   }
 
   @Get(':id/medical/link')
-  medical(
+  async medical(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: WebUser,
   ): Promise<MediaLinkView> {
+    await this.assertRequest(user, VIEWERS, id);
     return this.requests.medicalLink(id, decider(user));
   }
 

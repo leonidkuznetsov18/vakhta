@@ -417,7 +417,7 @@ export class RequestsService {
             ? and(eq(shiftSummaries.overtimePending, true), isNull(overtimeApprovals.id))
             : eq(shiftSummaries.overtimePending, true),
           scopeCondition(access, {
-            site: person.site,
+            site: sql`coalesce((select site_id from org_units where id = ${shiftAssignments.orgUnitId}), ${person.site})`,
             unit: sql`coalesce(${shiftAssignments.orgUnitId}, ${person.unit})`,
             team: sql`coalesce(${shiftAssignments.teamId}, ${person.team})`,
             zone: shiftSessions.zoneId,

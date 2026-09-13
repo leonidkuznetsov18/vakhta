@@ -61,11 +61,13 @@ export class AdminIncidentsController {
   ) {}
 
   @Get()
-  list(
+  async list(
     @Query(new ZodValidationPipe(IncidentsQuery)) q: IncidentsQuery,
     @CurrentUser() user: WebUser,
   ): Promise<IncidentView[]> {
-    return this.incidents.list(q, new Date(), scopeOf(user, VIEWERS));
+    const scope = scopeOf(user, VIEWERS);
+    await this.incidents.assertFilters(scope, q);
+    return this.incidents.list(q, new Date(), scope);
   }
 
   @Sse('stream')
@@ -80,20 +82,24 @@ export class AdminIncidentsController {
   }
 
   @Get('stats')
-  stats(
+  async stats(
     @Query(new ZodValidationPipe(IncidentStatsQuery)) q: IncidentStatsQuery,
     @RequestLocale() locale: Locale,
     @CurrentUser() user: WebUser,
   ): Promise<IncidentStatsView> {
-    return this.incidents.stats(q, locale, new Date(), scopeOf(user, VIEWERS));
+    const scope = scopeOf(user, VIEWERS);
+    await this.incidents.assertFilters(scope, q);
+    return this.incidents.stats(q, locale, new Date(), scope);
   }
 
   /** The photo of a report, behind a signed short-lived link like every other photo (FR-PHO-06). */
   @Get('media/:id/link')
-  link(
+  async link(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: WebUser,
   ): Promise<MediaLinkView> {
+    const scope = scopeOf(user, VIEWERS);
+    if (!scope.all) assertInScope(scope, await this.incidents.mediaPlace(id));
     return this.media.link(id, webUserActor(user));
   }
 

@@ -58,11 +58,13 @@ export class AdminShiftsController {
   ) {}
 
   @Get()
-  list(
+  async list(
     @Query(new ZodValidationPipe(ActiveShiftsQuery)) q: ActiveShiftsQuery,
     @CurrentUser() user: WebUser,
   ): Promise<ActiveShiftView[]> {
-    return this.shifts.listActive(q, new Date(), scopeOf(user, VIEWERS));
+    const scope = scopeOf(user, VIEWERS);
+    await this.shifts.assertFilters(scope, q);
+    return this.shifts.listActive(q, new Date(), scope);
   }
 
   /** SSE: панель перечитує список при кожній зміні стану; ping тримає зʼєднання. */

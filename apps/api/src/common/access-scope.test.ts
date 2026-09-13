@@ -259,6 +259,38 @@ describe('access scope of overview sources (spec 004 US1)', () => {
     expect(await shifts.placeOf('a0000000-0000-4000-8000-00000000dead')).toBeNull();
   });
 
+  it('AC-002: query filters outside the scope are forbidden, own site and unit are allowed', async () => {
+    const scope = master(place.A.unit);
+    await expect(
+      shifts.assertFilters(scope, {
+        siteId: place.A.site,
+        orgUnitId: place.A.unit,
+        zoneId: place.A.zone,
+      }),
+    ).resolves.toBeUndefined();
+    for (const filters of [
+      { siteId: place.C.site },
+      { orgUnitId: place.B.unit },
+      { zoneId: place.B.zone },
+    ]) {
+      await expect(shifts.assertFilters(scope, filters)).rejects.toMatchObject({
+        code: 'OUT_OF_SCOPE',
+        status: 403,
+      });
+    }
+    await expect(
+      incidents.assertFilters(head(place.A.site), { orgUnitId: place.B.unit }),
+    ).resolves.toBeUndefined();
+    await expect(
+      incidents.assertFilters({ all: true }, { siteId: place.C.site }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('AC-002: a photo that is not an incident report photo has no place for a scoped reader', async () => {
+    expect(await incidents.mediaPlace('a0000000-0000-4000-8000-00000000beef')).toEqual({});
+    expect(() => assertInScope(master(place.A.unit), {})).toThrow(DomainError);
+  });
+
   it('AC-003: a scoped subscriber receives only events placed in its scope', async () => {
     const bus = new Subject<{ incidentId: string }>();
     const received = firstValueFrom(

@@ -56,11 +56,13 @@ export class AdminHandoverController {
   ) {}
 
   @Get()
-  list(
+  async list(
     @Query(new ZodValidationPipe(HandoverListQuery)) q: HandoverListQuery,
     @CurrentUser() user: WebUser,
   ): Promise<HandoverListItemView[]> {
-    return this.handovers.list(q, new Date(), scopeOf(user, VIEWERS));
+    const scope = scopeOf(user, VIEWERS);
+    await this.handovers.assertFilters(scope, q);
+    return this.handovers.list(q, new Date(), scope);
   }
 
   @Sse('stream')
@@ -75,10 +77,12 @@ export class AdminHandoverController {
   }
 
   @Get('media/:id/link')
-  link(
+  async link(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: WebUser,
   ): Promise<MediaLinkView> {
+    const scope = scopeOf(user, VIEWERS);
+    if (!scope.all) assertInScope(scope, await this.handovers.mediaPlace(id));
     return this.media.link(id, webUserActor(user));
   }
 

@@ -65,7 +65,12 @@ import type {
 import { InspectionReview } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
-import { FULL_SCOPE, placeTarget, scopeCondition } from '../common/access-scope.js';
+import {
+  FULL_SCOPE,
+  assertFiltersInScope,
+  placeTarget,
+  scopeCondition,
+} from '../common/access-scope.js';
 import { DomainError } from '../common/domain-error.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore, type EventSource } from '../events/event-store.js';
@@ -799,6 +804,36 @@ export class HandoverService {
       void issues;
     }
     return out;
+  }
+
+  /** Filters by identifier must lie inside the reader's scope (spec 004 AC-002). */
+  assertFilters(
+    scope: AccessScope,
+    filters: {
+      siteId?: string | undefined;
+      orgUnitId?: string | undefined;
+      zoneId?: string | undefined;
+    },
+  ): Promise<void> {
+    return assertFiltersInScope(this.db, scope, filters);
+  }
+
+  /** Where a handover photo belongs (report item or review); `{}` when it is not one. */
+  async mediaPlace(mediaId: string): Promise<ScopeTarget> {
+    const [row] = await this.db
+      .select({
+        siteId: responsibilityZones.siteId,
+        orgUnitId: responsibilityZones.orgUnitId,
+        zoneId: handoverRecords.zoneId,
+      })
+      .from(handoverRecords)
+      .leftJoin(responsibilityZones, eq(handoverRecords.zoneId, responsibilityZones.id))
+      .where(
+        sql`${handoverRecords.id} in (select handover_id from handover_media where media_object_id = ${mediaId}
+          union select handover_id from handover_reviews where media_object_id = ${mediaId})`,
+      )
+      .limit(1);
+    return row ? placeTarget(row) : {};
   }
 
   /** Where a handover belongs (its zone), for scope checks on its identifier. */
