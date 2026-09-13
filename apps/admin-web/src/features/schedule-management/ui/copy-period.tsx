@@ -16,7 +16,7 @@ import { Feedback } from '@/components/app/feedback';
 import { LoadingState } from '@/shared/ui/loading-state';
 import type { Workspace } from '../model/use-workspace';
 import { copyPeriod, type CopySkip } from '../model/batch';
-import { addDays, adjacentMonth } from '../model/planning';
+import { addDays, adjacentMonth } from '../model/business-dates';
 import { gridFromItems, gridToItems } from '../model/grid';
 import { useAdjacentPlan } from '../model/use-adjacent';
 import { planIssues, reasonText } from '../model/use-eligibility';

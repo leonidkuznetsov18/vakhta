@@ -1,5 +1,5 @@
 import type { EmployeeView, OverviewSnapshot, ReplacementNeedView } from '@vakhta/contracts';
-import { format, messages } from '@vakhta/i18n';
+import { format, holidayLabel } from '@vakhta/i18n';
 import {
   CakeIcon,
   CalendarXIcon,
@@ -55,7 +55,6 @@ export function TeamToday({
   readonly onRetry: () => void;
 }) {
   const c = overviewText().today;
-  const holidays = messages(currentLocale()).scheduleWorkspace as unknown as Record<string, string>;
   const byId = new Map(employees.map((e) => [e.id, e]));
   const person = (id: string) => {
     const e = byId.get(id);
@@ -73,7 +72,7 @@ export function TeamToday({
     [r.zoneId ? zoneName.get(r.zoneId) : null, unitName.get(r.orgUnitId)]
       .filter(Boolean)
       .join(' · ');
-  const holiday = team?.holiday ? (holidays[`holiday${team.holiday}`] ?? team.holiday) : null;
+  const holiday = team?.holiday ? holidayLabel(team.holiday, currentLocale()) : null;
 
   return (
     <Section

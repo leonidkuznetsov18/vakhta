@@ -17,6 +17,13 @@ export function messages(locale: Locale = DEFAULT_LOCALE): Messages {
   return catalogs[locale];
 }
 
+/** Localizes a holiday code; unknown codes remain visible until the catalogs catch up. */
+export function holidayLabel(code: string, locale: Locale = DEFAULT_LOCALE): string {
+  const labels: Readonly<Partial<Record<`holiday${string}`, string>>> =
+    catalogs[locale].scheduleWorkspace;
+  return labels[`holiday${code}`] ?? code;
+}
+
 export function actionLabel(action: ShiftAction, locale: Locale = DEFAULT_LOCALE): string {
   return catalogs[locale].actions[action];
 }

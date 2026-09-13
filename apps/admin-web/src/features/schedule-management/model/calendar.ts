@@ -1,5 +1,5 @@
 import { assignmentInstants, type EligibilityReason } from '@vakhta/domain';
-import { format, messages, type Locale, type Messages } from '@vakhta/i18n';
+import { format, holidayLabel, messages, type Locale, type Messages } from '@vakhta/i18n';
 import type {
   AbsenceView,
   CalendarEventsView,
@@ -55,20 +55,6 @@ export interface CalendarInput {
   readonly events?: CalendarEventsView;
 }
 
-/** Business dates are calendar values, never browser-local instants. */
-export function calendarDates(date: string, days: number): string[] {
-  const start = new Date(`${date}T00:00:00Z`);
-  return Array.from({ length: days }, (_, index) => {
-    const value = new Date(start);
-    value.setUTCDate(value.getUTCDate() + index);
-    return value.toISOString().slice(0, 10);
-  });
-}
-export function calendarWeek(date: string): string[] {
-  const day = new Date(`${date}T00:00:00Z`);
-  day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
-  return calendarDates(day.toISOString().slice(0, 10), 7);
-}
 export function siteToday(timezone: string, now = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,
@@ -408,7 +394,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
           .replace('{night}', String(counts.night)),
         today: id === input.today,
         readonly: !!input.editableMonth && !id.startsWith(input.editableMonth),
-        ...dateEvents(input.events, id, employeeMap, t),
+        ...dateEvents(input.events, id, employeeMap, t, input.locale),
       };
     }),
     resources,
@@ -440,16 +426,12 @@ function presenceMarker(
   }
 }
 
-function holidayName(code: string, t: Messages['scheduleWorkspace']): string {
-  const value = (t as unknown as Record<string, unknown>)[`holiday${code}`];
-  return typeof value === 'string' ? value : code;
-}
-
 function dateEvents(
   events: CalendarEventsView | undefined,
   date: string,
   employees: ReadonlyMap<string, { readonly fullName: string }>,
   t: Messages['scheduleWorkspace'],
+  locale: Locale,
 ): { holiday?: string; events?: string[]; tone?: 'holiday' | 'absence' | 'birthday' } {
   if (!events) return {};
   const name = (id: string) => employees.get(id)?.fullName ?? t.unknownEmployee;
@@ -472,7 +454,7 @@ function dateEvents(
         ? 'birthday'
         : undefined;
   return {
-    ...(holiday ? { holiday: holidayName(holiday.code, t) } : {}),
+    ...(holiday ? { holiday: holidayLabel(holiday.code, locale) } : {}),
     ...(lines.length > 0 ? { events: lines } : {}),
     ...(tone ? { tone } : {}),
   };

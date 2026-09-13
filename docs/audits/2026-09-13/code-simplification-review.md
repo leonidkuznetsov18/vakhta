@@ -1,5 +1,42 @@
 # Backend and frontend simplification review
 
+## Implementation — shared date and read-query rules
+
+Owner authorized continuation. Baseline: `1cdf0e3` on `master`. Scope: R3 and R5.
+Acceptance: preserve UTC business-date arithmetic, Monday-first full weeks, month fallback,
+all holiday labels and unknown-code fallback; preserve SQL projection/joins/decoders, list scope,
+ordering, detail errors, inclusive absence overlap, pending status and latest wellbeing evidence.
+No writes, authorization policy, transaction boundaries, UI markup/classes or dependencies change.
+Design: one pure business-date module inside Schedule; holiday labels in the existing i18n package;
+one private Shift read query and one local absence predicate, with caller-specific filters/mapping
+remaining explicit. Browser-local DayPicker dates stay separate.
+Verification: characterize read results and date boundaries before extraction; rerun affected
+existing tests unchanged (import-only relocations allowed), real-PostgreSQL scope/absence/shift tests,
+affected typechecks/builds, lint/format and one independent read-only review. No production records
+will be created for this internal refactor. Status: implemented and verified locally, including independent review.
+
+Evidence:
+
+- Before extraction: 25 calendar/planning tests and eight selected real-PostgreSQL tests passed,
+  including new characterization cases for month fallback, list/detail parity and absence boundaries.
+- After extraction: **98 panel tests**, **22 real-PostgreSQL tests** (19 shift/access plus three
+  targeted scheduling cases) and **13 localization tests** passed. Existing assertions are unchanged;
+  relocated date helpers required import/name updates only. New tests cover leap day, month fallback,
+  inclusive overlap, pending states, empty/selected cohorts, list/detail equality and missing IDs.
+- Holiday tests cover all three catalogs and preserve the generic label for an empty code as well as
+  unknown-code fallback. The initial new test incorrectly expected 11 prefixed keys; the catalog
+  also contains the generic `holiday` key. Its expectations were corrected to match existing behavior.
+- API/panel typechecks, i18n compilation, panel production build and changed-file ESLint passed.
+  The build reports third-party Zod annotation and large-chunk warnings. The existing Overview
+  nested-button test warning remains outside this refactor.
+- Independent read-only review found no actionable defects and reused the verification evidence.
+- No JSX structure, classes, translations, API payloads, mutations, transaction boundaries or
+  authorization policy changed. No new dependency, generic repository or cross-feature import added.
+  No new visual screenshots, authenticated production journeys or full local suite were run for
+  this internal extraction. Local evidence does not establish deployed behavior.
+
+CI/release/announcement status is reported separately from local verification.
+
 ## Implementation — first cleanup delivery
 
 Owner authorized implementation after this audit. Baseline: `54bbb28` on `master`.
@@ -11,7 +48,8 @@ Verification: focused remaining domain/panel tests, affected workspace compilati
 changed-file lint/format, configured Knip and before/after panel build comparison. If generated CSS
 changes, inspect whether any reachable styling is affected before delivery.
 Status: D1–D7, the obsolete R4 adapter and R7 shims implemented and verified locally.
-The dated audit below remains baseline evidence; R1/R2/R3/R5/R6 and sections C/D remain pending.
+The dated audit below remains baseline evidence; R3/R5 are addressed in the next delivery above.
+R1/R2/R6 and sections C/D remain pending.
 
 Evidence for this delivery:
 

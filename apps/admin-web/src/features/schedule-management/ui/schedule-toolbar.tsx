@@ -6,7 +6,8 @@ import { SelectField } from '@/components/app/fields';
 import { MonthField, DateField } from '@/components/app/date-picker';
 import { IconButton } from '@/shared/ui/icon-button';
 import { StateFilter } from '@/shared/ui/state-filter';
-import { shiftDate, type PeriodMode } from '../model/planning';
+import type { PeriodMode } from '../model/planning';
+import { addDays } from '../model/business-dates';
 import type { CalendarGrouping } from '../model/calendar';
 
 const t = messages(currentLocale()).scheduleWorkspace;
@@ -101,7 +102,7 @@ export function ScheduleToolbar({
             label={t.previous}
             tooltip={t.previous}
             disabled={busy}
-            onClick={() => onDate(shiftDate(date, -step))}
+            onClick={() => onDate(addDays(date, -step))}
           />
         )}
         {mode === 'month' ? (
@@ -131,7 +132,7 @@ export function ScheduleToolbar({
             label={t.next}
             tooltip={t.next}
             disabled={busy}
-            onClick={() => onDate(shiftDate(date, step))}
+            onClick={() => onDate(addDays(date, step))}
           />
         )}
         {mode !== 'month' && (

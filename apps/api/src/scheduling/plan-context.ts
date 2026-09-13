@@ -45,6 +45,23 @@ import {
 
 const ABSENCE_TYPES = ['VACATION', 'SICK', 'DAY_OFF'] as const;
 
+interface AbsenceRange {
+  readonly employeeIds?: readonly string[];
+  readonly from: string;
+  readonly to: string;
+}
+
+/** Shared selection only: callers retain their distinct rule and calendar projections. */
+function absencesInRange(input: AbsenceRange) {
+  return and(
+    inArray(requests.type, [...ABSENCE_TYPES]),
+    inArray(requests.status, ['APPROVED', 'SUBMITTED', 'IN_REVIEW']),
+    lte(requests.periodFrom, input.to),
+    gte(requests.periodTo, input.from),
+    ...(input.employeeIds ? [inArray(requests.employeeId, [...input.employeeIds])] : []),
+  );
+}
+
 export interface ContextRow {
   readonly employeeId: string;
   readonly businessDate: string;
@@ -126,10 +143,7 @@ export function toPlannedIntervals(rows: readonly ContextRow[]): PlannedInterval
 }
 
 /** Approved absences block, submitted or reviewed ones warn (SC-03 states stay distinct). */
-export async function loadAbsences(
-  tx: DbOrTx,
-  input: { readonly employeeIds?: readonly string[]; readonly from: string; readonly to: string },
-): Promise<AbsenceWindow[]> {
+export async function loadAbsences(tx: DbOrTx, input: AbsenceRange): Promise<AbsenceWindow[]> {
   if (input.employeeIds && input.employeeIds.length === 0) return [];
   const rows = await tx
     .select({
@@ -140,15 +154,7 @@ export async function loadAbsences(
       status: requests.status,
     })
     .from(requests)
-    .where(
-      and(
-        inArray(requests.type, [...ABSENCE_TYPES]),
-        inArray(requests.status, ['APPROVED', 'SUBMITTED', 'IN_REVIEW']),
-        lte(requests.periodFrom, input.to),
-        gte(requests.periodTo, input.from),
-        ...(input.employeeIds ? [inArray(requests.employeeId, [...input.employeeIds])] : []),
-      ),
-    );
+    .where(absencesInRange(input));
   return rows.flatMap((row) =>
     row.from && row.to
       ? [
@@ -398,7 +404,7 @@ export async function loadOperationalRequests(
 /** Approved and pending absence requests touching the range, with the latest sick-leave answer. */
 export async function loadAbsenceEvents(
   tx: DbOrTx,
-  input: { readonly employeeIds?: readonly string[]; readonly from: string; readonly to: string },
+  input: AbsenceRange,
 ): Promise<AbsenceEventView[]> {
   if (input.employeeIds && input.employeeIds.length === 0) return [];
   const rows = await tx
@@ -411,15 +417,7 @@ export async function loadAbsenceEvents(
       status: requests.status,
     })
     .from(requests)
-    .where(
-      and(
-        inArray(requests.type, [...ABSENCE_TYPES]),
-        inArray(requests.status, ['APPROVED', 'SUBMITTED', 'IN_REVIEW']),
-        lte(requests.periodFrom, input.to),
-        gte(requests.periodTo, input.from),
-        ...(input.employeeIds ? [inArray(requests.employeeId, [...input.employeeIds])] : []),
-      ),
-    );
+    .where(absencesInRange(input));
   const ids = rows.map((row) => row.id);
   const checkins =
     ids.length > 0

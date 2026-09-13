@@ -1,12 +1,11 @@
+import { adjacentMonth, addDays } from './business-dates';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { AssignmentInput, ShiftTemplateView } from '@vakhta/contracts';
 import {
-  adjacentMonth,
   batchPreview,
   capabilities,
   EMPTY_GRID,
   periodDates,
-  shiftDate,
   summarize,
   type BatchInput,
 } from './planning';
@@ -131,8 +130,8 @@ describe('zone planning', () => {
       '2027-01-03',
     ]);
     expect(periodDates('2026-09', '2026-09-30', 'day')).toEqual(['2026-09-30']);
-    expect(shiftDate('2026-09-28', 7)).toBe('2026-10-05');
-    expect(shiftDate('2027-01-01', -1)).toBe('2026-12-31');
+    expect(addDays('2026-09-28', 7)).toBe('2026-10-05');
+    expect(addDays('2027-01-01', -1)).toBe('2026-12-31');
     expect(adjacentMonth('2026-12', 1)).toBe('2027-01');
     expect(adjacentMonth('2026-01', -1)).toBe('2025-12');
     expect(
@@ -212,4 +211,20 @@ it('reconciles a legacy row without losing kind, position, team or per-date zone
   expect(legacy.rows[0]?.cells['2026-09-01']).toBe(night.id);
   useScheduleDrafts.getState().restore('legacy', restored, baseline, 1);
   expect(useScheduleDrafts.getState().baselines.legacy).toEqual(baseline);
+});
+
+it('falls back to the loaded month when the selected date belongs elsewhere', () => {
+  expect(periodDates('2024-02', '2024-03-10', 'day')).toEqual(['2024-02-01']);
+  expect(periodDates('2024-02', '', 'week')).toEqual([
+    '2024-01-29',
+    '2024-01-30',
+    '2024-01-31',
+    '2024-02-01',
+    '2024-02-02',
+    '2024-02-03',
+    '2024-02-04',
+  ]);
+  expect(periodDates('2024-02', '2024-03-10', 'month')).toHaveLength(29);
+  expect(addDays('2024-02-28', 1)).toBe('2024-02-29');
+  expect(addDays('2024-02-29', 1)).toBe('2024-03-01');
 });

@@ -1259,3 +1259,12 @@ api-build,api-typecheck,lint,format-final}.log`. Synthetic actual-service workbo
   until they are edited).
 - Lean: Proceed. The planner sees who cannot come before the shift starts; the employee hears
   from the company on the days that matter, without a separate HR tool.
+
+## 2026-09-13 — Internal reuse cleanup (R3/R5)
+
+UTC business-date arithmetic now lives in the Schedule slice's `model/business-dates.ts`; both
+period selection and calendar navigation reuse it. Browser-local picker adapters stay separate.
+Schedule and Overview share `holidayLabel` from i18n. The two absence reads share their inclusive
+selection predicate while retaining their distinct projections and latest wellbeing evidence.
+No workflow, authority, layout or text changed. Tests and limits are recorded once in the
+[cleanup delivery](../../audits/2026-09-13/code-simplification-review.md).

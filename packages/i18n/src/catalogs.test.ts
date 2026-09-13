@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LOCALES } from '@vakhta/domain';
-import { catalogs, format, messages } from './index.js';
+import { catalogs, format, holidayLabel, messages } from './index.js';
 
 type Tree = Record<string, unknown>;
 
@@ -52,4 +52,17 @@ describe('message catalogs', () => {
     expect(format(messages('en').shift.summaryLate, { minutes: 7 })).toBe('Late: 7 min.');
     expect(format('{a} {missing}', { a: 1 })).toBe('1 {missing}');
   });
+});
+
+it.each(LOCALES)('%s preserves every holiday label and unknown-code fallback', (locale) => {
+  const labels = Object.entries(catalogs[locale].scheduleWorkspace).filter(([key]) =>
+    key.startsWith('holiday'),
+  );
+  expect(labels).toHaveLength(12);
+  for (const [key, text] of labels) {
+    expect(holidayLabel(key.slice('holiday'.length), locale)).toBe(text);
+  }
+  expect(holidayLabel('FUTURE_HOLIDAY', locale)).toBe('FUTURE_HOLIDAY');
+  expect(holidayLabel('', locale)).toBe(catalogs[locale].scheduleWorkspace.holiday);
+  expect(holidayLabel('__proto__', locale)).toBe('__proto__');
 });

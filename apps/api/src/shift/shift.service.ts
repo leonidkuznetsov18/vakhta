@@ -241,6 +241,41 @@ export class ShiftService {
       order by p.valid_from desc limit 1))`;
   }
 
+  /** Shared list/detail projection; each caller retains its own scope and identity filters. */
+  private activeReadQuery() {
+    return this.db
+      .select({
+        s: shiftSessions,
+        fullName: employees.fullName,
+        personnelNumber: employees.personnelNumber,
+        orgUnitId: orgUnits.id,
+        orgUnitName: orgUnits.name,
+        planStartAt:
+          sql<Date | null>`coalesce(${shiftSessions.planStartAt}, ${shiftAssignments.planStartAt})`.mapWith(
+            (v: unknown) => (v ? new Date(v as string) : null),
+          ),
+        planEndAt:
+          sql<Date | null>`coalesce(${shiftSessions.planEndAt}, ${shiftAssignments.planEndAt})`.mapWith(
+            (v: unknown) => (v ? new Date(v as string) : null),
+          ),
+        zoneName: responsibilityZones.name,
+        presenceSince: presenceSessions.arrivedAt,
+        stateSince: this.stateSinceSql(),
+      })
+      .from(shiftSessions)
+      .innerJoin(employees, eq(shiftSessions.employeeId, employees.id))
+      .leftJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
+      .leftJoin(orgUnits, sql`${orgUnits.id} = ${this.unitOfShift()}`)
+      .leftJoin(responsibilityZones, eq(shiftSessions.zoneId, responsibilityZones.id))
+      .leftJoin(
+        presenceSessions,
+        and(
+          eq(presenceSessions.employeeId, shiftSessions.employeeId),
+          eq(presenceSessions.status, 'OPEN'),
+        ),
+      );
+  }
+
   /** Оперативний екран (ТЗ 9.2): незакриті зміни, за вибором — закриті або конкретний день. */
   async listActive(
     q: ActiveShiftsQuery,
@@ -276,37 +311,7 @@ export class ShiftService {
       }),
     );
 
-    const rows = await this.db
-      .select({
-        s: shiftSessions,
-        fullName: employees.fullName,
-        personnelNumber: employees.personnelNumber,
-        orgUnitId: orgUnits.id,
-        orgUnitName: orgUnits.name,
-        planStartAt:
-          sql<Date | null>`coalesce(${shiftSessions.planStartAt}, ${shiftAssignments.planStartAt})`.mapWith(
-            (v: unknown) => (v ? new Date(v as string) : null),
-          ),
-        planEndAt:
-          sql<Date | null>`coalesce(${shiftSessions.planEndAt}, ${shiftAssignments.planEndAt})`.mapWith(
-            (v: unknown) => (v ? new Date(v as string) : null),
-          ),
-        zoneName: responsibilityZones.name,
-        presenceSince: presenceSessions.arrivedAt,
-        stateSince: this.stateSinceSql(),
-      })
-      .from(shiftSessions)
-      .innerJoin(employees, eq(shiftSessions.employeeId, employees.id))
-      .leftJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
-      .leftJoin(orgUnits, sql`${orgUnits.id} = ${this.unitOfShift()}`)
-      .leftJoin(responsibilityZones, eq(shiftSessions.zoneId, responsibilityZones.id))
-      .leftJoin(
-        presenceSessions,
-        and(
-          eq(presenceSessions.employeeId, shiftSessions.employeeId),
-          eq(presenceSessions.status, 'OPEN'),
-        ),
-      )
+    const rows = await this.activeReadQuery()
       .where(and(...conditions))
       .orderBy(asc(shiftSessions.startedAt));
 
@@ -359,39 +364,7 @@ export class ShiftService {
   }
 
   async detail(sessionId: string, now: Date = new Date()): Promise<ShiftDetailView> {
-    const [row] = await this.db
-      .select({
-        s: shiftSessions,
-        fullName: employees.fullName,
-        personnelNumber: employees.personnelNumber,
-        orgUnitId: orgUnits.id,
-        orgUnitName: orgUnits.name,
-        planStartAt:
-          sql<Date | null>`coalesce(${shiftSessions.planStartAt}, ${shiftAssignments.planStartAt})`.mapWith(
-            (v: unknown) => (v ? new Date(v as string) : null),
-          ),
-        planEndAt:
-          sql<Date | null>`coalesce(${shiftSessions.planEndAt}, ${shiftAssignments.planEndAt})`.mapWith(
-            (v: unknown) => (v ? new Date(v as string) : null),
-          ),
-        zoneName: responsibilityZones.name,
-        presenceSince: presenceSessions.arrivedAt,
-        stateSince: this.stateSinceSql(),
-      })
-      .from(shiftSessions)
-      .innerJoin(employees, eq(shiftSessions.employeeId, employees.id))
-      .leftJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
-      .leftJoin(orgUnits, sql`${orgUnits.id} = ${this.unitOfShift()}`)
-      .leftJoin(responsibilityZones, eq(shiftSessions.zoneId, responsibilityZones.id))
-      .leftJoin(
-        presenceSessions,
-        and(
-          eq(presenceSessions.employeeId, shiftSessions.employeeId),
-          eq(presenceSessions.status, 'OPEN'),
-        ),
-      )
-      .where(eq(shiftSessions.id, sessionId))
-      .limit(1);
+    const [row] = await this.activeReadQuery().where(eq(shiftSessions.id, sessionId)).limit(1);
     if (!row) throw new DomainError('SHIFT_NOT_FOUND', 404, 'Зміну не знайдено');
 
     const [intervals, summary, events] = await Promise.all([

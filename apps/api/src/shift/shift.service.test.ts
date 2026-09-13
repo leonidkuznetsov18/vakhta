@@ -219,6 +219,31 @@ describe('shift: машина станів зміни в транзакції (�
     expect(again).toMatchObject({ ok: false, error: 'ALREADY_STARTED' });
   });
 
+  it('keeps the same recorded shift, plan and presence in list and detail reads', async () => {
+    await arrive(ivanov);
+    const started = await service.start(ivanov, { idempotencyKey: key() }, meta(ivanov));
+    expect(started.ok).toBe(true);
+    if (!started.ok) throw new Error('Expected the fixture shift to start');
+    const now = new Date();
+    const detail = await service.detail(started.session.id, now);
+    const rows = await service.listActive({ scope: 'OPEN' }, now);
+    expect(rows).toEqual([detail.session]);
+    expect(detail.session).toMatchObject({
+      employeeId: ivanov,
+      fullName: 'Иванов Иван',
+      personnelNumber: '1',
+      orgUnitName: 'Цех',
+      zoneName: 'Линия 1',
+      planStartAt: planStart.toISOString(),
+      planEndAt: planEnd.toISOString(),
+    });
+    expect(detail.session.presenceSince).not.toBeNull();
+    expect(detail.session.stateSince).not.toBeNull();
+    await expect(service.detail('00000000-0000-4000-8000-000000000000', now)).rejects.toMatchObject(
+      { code: 'SHIFT_NOT_FOUND', status: 404 },
+    );
+  });
+
   it('ідемпотентність: той самий ключ повертає збережену відповідь без другого переходу', async () => {
     await arrive(ivanov);
     const k = key();

@@ -1,3 +1,4 @@
+import { loadAbsences, loadAbsenceEvents } from './plan-context.js';
 import * as XLSX from 'xlsx';
 import { messages } from '@vakhta/i18n';
 import {
@@ -2607,6 +2608,76 @@ describe('scheduling: версії, валідація, публікація, о
   });
 
   describe('calendar events: holidays, birthdays, absences, replacements', () => {
+    it('keeps inclusive absence boundaries, pending states and employee selection in both views', async () => {
+      await testDb.db.insert(requests).values([
+        {
+          type: 'SICK',
+          employeeId: ivanov,
+          status: 'APPROVED',
+          periodFrom: day(1),
+          periodTo: day(5),
+        },
+        {
+          type: 'VACATION',
+          employeeId: ivanov,
+          status: 'SUBMITTED',
+          periodFrom: day(8),
+          periodTo: day(12),
+        },
+        {
+          type: 'DAY_OFF',
+          employeeId: petrova,
+          status: 'IN_REVIEW',
+          periodFrom: day(6),
+          periodTo: day(6),
+        },
+        {
+          type: 'SICK',
+          employeeId: ivanov,
+          status: 'REJECTED',
+          periodFrom: day(5),
+          periodTo: day(8),
+        },
+        {
+          type: 'SICK',
+          employeeId: ivanov,
+          status: 'APPROVED',
+          periodFrom: day(1),
+          periodTo: day(4),
+        },
+        {
+          type: 'SICK',
+          employeeId: ivanov,
+          status: 'APPROVED',
+          periodFrom: day(9),
+          periodTo: day(12),
+        },
+      ]);
+      const range = { from: day(5), to: day(8) };
+      const expected = [
+        { employeeId: ivanov, type: 'SICK', status: 'APPROVED', from: day(1), to: day(5) },
+        { employeeId: ivanov, type: 'VACATION', status: 'PENDING', from: day(8), to: day(12) },
+        { employeeId: petrova, type: 'DAY_OFF', status: 'PENDING', from: day(6), to: day(6) },
+      ];
+      const windows = await loadAbsences(testDb.db, range);
+      expect(windows).toHaveLength(3);
+      expect(windows).toEqual(expect.arrayContaining(expected));
+      const events = await loadAbsenceEvents(testDb.db, range);
+      expect(events).toHaveLength(3);
+      expect(events).toEqual(
+        expect.arrayContaining(expected.map((row) => expect.objectContaining(row))),
+      );
+      for (const employeeIds of [[], [ivanov]]) {
+        const selected = expected.filter((row) => employeeIds.includes(row.employeeId));
+        expect(await loadAbsences(testDb.db, { ...range, employeeIds })).toEqual(selected);
+        const selectedEvents = await loadAbsenceEvents(testDb.db, { ...range, employeeIds });
+        expect(selectedEvents).toHaveLength(selected.length);
+        expect(selectedEvents).toEqual(
+          expect.arrayContaining(selected.map((row) => expect.objectContaining(row))),
+        );
+      }
+    });
+
     it('overlays the site region holidays, birthdays and approved absences with replacement needs', async () => {
       const staffing = new StaffingService(testDb.db, new AuditLog());
       const [position] = await testDb.db

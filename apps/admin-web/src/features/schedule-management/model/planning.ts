@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { calendarWeek } from './business-dates';
 import {
   canActOn,
   monthDates,
@@ -28,17 +29,6 @@ import {
 export const EMPTY_GRID: GridState = { rows: [] };
 export const UNASSIGNED_ZONE = '__unassigned__';
 export type PeriodMode = 'day' | 'week' | 'month';
-/** Calendar arithmetic on business dates; never browser-local instants. */
-export function addDays(date: string, offset: number): string {
-  const value = new Date(`${date}T00:00:00Z`);
-  value.setUTCDate(value.getUTCDate() + offset);
-  return value.toISOString().slice(0, 10);
-}
-export function adjacentMonth(month: string, offset: number): string {
-  const value = new Date(`${month}-01T00:00:00Z`);
-  value.setUTCMonth(value.getUTCMonth() + offset);
-  return value.toISOString().slice(0, 7);
-}
 /**
  * Dates of the visible period. A week keeps all seven dates even across a month or year boundary;
  * dates outside the loaded month come from the adjacent month's plan and are read only there.
@@ -49,11 +39,7 @@ export function periodDates(month: string, date: string, mode: PeriodMode): stri
   const selected = days.includes(date) ? date : days[0];
   if (!selected) return [];
   if (mode === 'day') return [selected];
-  const monday = addDays(selected, -((new Date(`${selected}T00:00:00Z`).getUTCDay() + 6) % 7));
-  return Array.from({ length: 7 }, (_, index) => addDays(monday, index));
-}
-export function shiftDate(date: string, offset: number): string {
-  return addDays(date, offset);
+  return calendarWeek(selected);
 }
 /**
  * The plan a person works with: editors continue the unpublished month, approvers see what awaits
