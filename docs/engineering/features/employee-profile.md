@@ -7,7 +7,8 @@ Implementation is complete locally; delivery and moderated acceptance are tracke
 
 - Employee reads and writes use each applicable role's current assignment scope. Unassigned employees
   need enterprise scope. Restricted fields are omitted server-side; mixed grants cannot borrow a
-  privileged role from another unit. Birth year is limited to ADMIN/HR/ACCOUNTANT.
+  privileged role from another unit. The shared organization snapshot exposes designated employee
+  identifiers/name/status only to ADMIN grants covering that unit; profiles use their own scoped read. Birth year is limited to ADMIN/HR/ACCOUNTANT.
 - ADMIN/HR write compensation; ACCOUNTANT reads it. Other roles receive no compensation or marital
   status. Restricted audit entries contain field names/entry identifiers, never their values.
 - Migration 0050 follows the delivered 0049 birth-date migration. Compensation is append-only with
@@ -39,11 +40,12 @@ Implementation is complete locally; delivery and moderated acceptance are tracke
 
 - Domain: 11 tests passed, including order-independent effective compensation and zone precedence.
 - PostgreSQL migration invariants: 3 tests passed (precision, append-only and correction constraints).
-- Scope integration: 8 tests passed. Profile integration: 15 tests passed, including role serialization,
+- Scope integration: 8 tests passed. Profile integration: 16 tests passed, including role serialization,
   conflicts, compensation concurrency, master states, draft exclusion, avatar failure/recovery and
   history-preserving deletion. CORS: 2 tests passed, including cross-origin If-Match uploads.
   HTTP avatar delivery: 1 regression test passed for an explicit 302 redirect (Nest otherwise kept 200).
-- Independent access/privacy review approved the final boundary changes and cleanup recovery.
+- Independent access/privacy review approved the final boundary changes, cleanup recovery and the
+  follow-up organization-snapshot privacy restriction.
 - API and panel typechecks and builds passed; scoped ESLint passed. i18n: 10 tests; contracts: 11 tests passed. Panel suite: 59 files / 372 tests passed, including 5 profile
   journeys (read-only Sheet, unified edit/no-op, pending lock, conflict draft, restricted/terminated).
 - Browser: real Nest controllers/services with PostgreSQL and synthetic records at localhost:5185.

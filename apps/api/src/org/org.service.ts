@@ -1,4 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { canActOn } from '@vakhta/domain';
+import type { WebUser } from '../auth/web-auth.guard.js';
 import { and, asc, eq, isNull, inArray } from '@vakhta/db';
 import {
   orgUnits,
@@ -470,7 +472,7 @@ export class OrgService {
     return row;
   }
 
-  async snapshot(): Promise<OrgSnapshot> {
+  async snapshot(user?: WebUser): Promise<OrgSnapshot> {
     const [s, u, t, p, z, term, r, masters] = await Promise.all([
       this.db.select().from(sites).orderBy(asc(sites.code)),
       this.db.select().from(orgUnits).orderBy(asc(orgUnits.name)),
@@ -507,8 +509,13 @@ export class OrgService {
     return {
       sites: s.map(({ id, code, name, timezone }) => ({ id, code, name, timezone })),
       orgUnits: u.map(({ id, siteId, parentId, name, masterEmployeeId }) => ({
-        masterEmployeeId,
-        designatedMaster: designated.find((employee) => employee.id === masterEmployeeId) ?? null,
+        ...(!user || canActOn(user.grants, ['ADMIN'], { siteId, orgUnitId: id })
+          ? {
+              masterEmployeeId,
+              designatedMaster:
+                designated.find((employee) => employee.id === masterEmployeeId) ?? null,
+            }
+          : {}),
         id,
         siteId,
         parentId,

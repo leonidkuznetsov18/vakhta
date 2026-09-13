@@ -22,6 +22,7 @@ import type { WebUser } from '../auth/web-auth.guard.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { OrgService } from '../org/org.service.js';
 import { UnitMasterService } from '../org/unit-master.service.js';
 import { EmployeesService } from './employees.service.js';
 import { EmployeeProfileService } from './employee-profile.service.js';
@@ -406,6 +407,22 @@ describe('employee profile integration', () => {
     failedKey = null;
     await cleanup.cleanupOnce();
   });
+  it('does not leak designated employee data through the shared organization directory', async () => {
+    const org = new OrgService(db, new EventStore(), new AuditLog());
+    await masters.set(a, personA, admin);
+    await masters.set(b, personB, admin);
+    const unitAdmin = await org.snapshot(scoped('ADMIN', a));
+    expect(unitAdmin.orgUnits.find((unit) => unit.id === a)?.designatedMaster?.id).toBe(personA);
+    expect(unitAdmin.orgUnits.find((unit) => unit.id === b)).not.toHaveProperty('designatedMaster');
+    expect(unitAdmin.orgUnits.find((unit) => unit.id === b)).not.toHaveProperty('masterEmployeeId');
+    const masterReader = await org.snapshot(scoped('SHIFT_MASTER', a));
+    expect(masterReader.orgUnits.every((unit) => !('designatedMaster' in unit))).toBe(true);
+    const enterpriseAdmin = await org.snapshot(admin);
+    expect(enterpriseAdmin.orgUnits.find((unit) => unit.id === b)?.designatedMaster?.id).toBe(
+      personB,
+    );
+  });
+
   it('preserves compensation and designated-master history when deletion is requested', async () => {
     await expect(
       directory.deleteEmployee(personB, { reason: 'Synthetic deletion attempt' }, actor),

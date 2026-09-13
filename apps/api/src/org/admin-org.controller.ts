@@ -67,8 +67,8 @@ export class AdminOrgController {
     'ACCOUNTANT',
     'AUDITOR',
   )
-  snapshot(): Promise<OrgSnapshot> {
-    return this.org.snapshot();
+  snapshot(@CurrentUser() user: WebUser): Promise<OrgSnapshot> {
+    return this.org.snapshot(user);
   }
 
   @Post('sites')
