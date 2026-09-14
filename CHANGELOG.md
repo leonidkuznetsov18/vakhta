@@ -1,3 +1,9 @@
+## [1.14.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.13.0...v1.14.0) (2026-09-14)
+
+### Features
+
+* **photo-inspection:** link directly to checklist rule editing ([5c0ac04](https://github.com/leonidkuznetsov18/vakhta/commit/5c0ac044ea0128335764eea6e57a900ab90d94e7))
+
 ## [1.13.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.12.1...v1.13.0) (2026-09-14)
 
 ### Features
