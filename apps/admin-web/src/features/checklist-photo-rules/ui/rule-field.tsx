@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { InfoTip } from '@/components/app/info-tip';
 import { IconButton } from '@/shared/ui/icon-button';
+import { DictionaryDetails } from './dictionary-details';
 import type { RuleDraft } from '../model/rules-draft';
 
 const t = messages(currentLocale()).checklistPhotoRules;
@@ -16,12 +17,18 @@ export function RuleField({
   busy,
   change,
   remove,
+  lookup,
+  exclude,
+  clearDictionary,
 }: {
   rule: RuleDraft;
   name: string;
   busy: boolean;
   change: (objectId: string, note: string) => void;
   remove: (objectId: string) => void;
+  lookup: () => void;
+  exclude: (name: string) => void;
+  clearDictionary: () => void;
 }) {
   const noteId = `rule-note-${rule.objectId}`;
   return (
@@ -42,8 +49,31 @@ export function RuleField({
           </span>
         </IconButton>
       </div>
+      <div className="mt-2 flex min-w-0 flex-col gap-2">
+        {rule.dictionary && (
+          <DictionaryDetails value={rule.dictionary} onExclude={exclude} disabled={busy} />
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={lookup}>
+            {messages(currentLocale()).photoDictionary.lookup}
+          </Button>
+          {rule.dictionary && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={clearDictionary}
+            >
+              {messages(currentLocale()).photoDictionary.clear}
+            </Button>
+          )}
+        </div>
+      </div>
       {rule.note && (
-        <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">{rule.note}</p>
+        <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+          {rule.note}
+        </p>
       )}
       <Collapsible className="mt-1">
         <CollapsibleTrigger asChild>

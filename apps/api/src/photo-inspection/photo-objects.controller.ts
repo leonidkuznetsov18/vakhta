@@ -1,14 +1,50 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { CreatePhotoObject, UpdatePhotoObject, Uuid } from '@vakhta/contracts';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Query,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  CreatePhotoObject,
+  UpdatePhotoObject,
+  Uuid,
+  DictionarySearchQuery,
+  DictionaryDetailsQuery,
+  DictionaryId,
+} from '@vakhta/contracts';
 import { CurrentUser, Roles, WebAuthGuard, type WebUser } from '../auth/web-auth.guard.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
+import { PhotoObjectDictionaryService } from './photo-object-dictionary.service.js';
 import { PhotoObjectsService } from './photo-objects.service.js';
 
 @Controller('admin/photo-objects')
 @UseGuards(WebAuthGuard)
 @Roles('ADMIN', 'PRODUCTION_HEAD', 'SHIFT_MASTER', 'CLEANLINESS_CONTROLLER', 'AUDITOR', 'HR')
 export class PhotoObjectsController {
-  constructor(private readonly objects: PhotoObjectsService) {}
+  constructor(
+    private readonly objects: PhotoObjectsService,
+    private readonly dictionary: PhotoObjectDictionaryService,
+  ) {}
+  @Get('dictionary')
+  searchDictionary(
+    @Query(new ZodValidationPipe(DictionarySearchQuery))
+    query: import('zod').infer<typeof DictionarySearchQuery>,
+  ) {
+    return this.dictionary.search(query.q, query.locale);
+  }
+  @Get('dictionary/:id')
+  dictionaryDetails(
+    @Param('id', new ZodValidationPipe(DictionaryId)) id: string,
+    @Query(new ZodValidationPipe(DictionaryDetailsQuery))
+    _query: import('zod').infer<typeof DictionaryDetailsQuery>,
+  ) {
+    return this.dictionary.details(id);
+  }
   @Get()
   list(@CurrentUser() user: WebUser) {
     return this.objects.list(user);

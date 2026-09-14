@@ -1,7 +1,12 @@
 import { WorkflowSection } from '@/shared/ui/workflow-section';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { type ChecklistPhotoRulesView, type PhotoObjectView } from '@vakhta/contracts';
+import {
+  type ChecklistPhotoRulesView,
+  type PhotoObjectView,
+  type DictionarySnapshot,
+  MAX_PHOTO_RULES,
+} from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { CheckIcon, PencilIcon, PlusIcon, SaveIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,7 +20,19 @@ import { ApiError } from '@/api';
 import { readError } from '@/errors';
 import { photoObjectsKey, rulesApi, rulesKey } from '../api/rules-api';
 import { registerUnsaved } from '@/lib/unsaved';
-import { catalogChoices, rulesDraft, rulesDraftState, toggleRule } from '../model/rules-draft';
+import {
+  catalogChoices,
+  rulesDraft,
+  rulesDraftState,
+  toggleRule,
+  enrichRule,
+  dictionaryCatalogMatch,
+  ruleDisplayName,
+  excludeRuleVariant,
+  clearRuleDictionary,
+} from '../model/rules-draft';
+import { DictionaryPicker } from './dictionary-picker';
+import { DictionaryDetails } from './dictionary-details';
 import { RuleField } from './rule-field';
 
 const t = messages(currentLocale()).checklistPhotoRules;
@@ -87,6 +104,7 @@ function RulesEditor({
   const [saved, setSaved] = useState(initial);
   const [draft, setDraft] = useState(() => rulesDraft(initial));
   const [newName, setNewName] = useState('');
+  const [lookupTarget, setLookupTarget] = useState<string | null>(null);
   const [editingRules, setEditingRules] = useState(initialMode === 'edit');
   const client = useQueryClient();
   const { payload, valid, dirty, changes } = rulesDraftState(draft, saved);
@@ -108,15 +126,18 @@ function RulesEditor({
     },
   });
   const create = useMutation({
-    mutationFn: () => rulesApi.createObject({ name: newName }),
+    mutationFn: (input: { name: string; dictionary?: DictionarySnapshot }) =>
+      rulesApi.createObject({ name: input.name }),
     retry: false,
-    onSuccess: (object) => {
+    onSuccess: (object, input) => {
       setNewName('');
       void client.invalidateQueries({ queryKey: photoObjectsKey });
       setDraft((current) =>
-        current.some((rule) => rule.objectId === object.id)
-          ? current
-          : toggleRule(current, object.id),
+        input.dictionary
+          ? enrichRule(current, object.id, input.dictionary)
+          : current.some((rule) => rule.objectId === object.id)
+            ? current
+            : toggleRule(current, object.id),
       );
     },
   });
@@ -160,6 +181,7 @@ function RulesEditor({
     if (busy || ((dirty || catalogDirty) && !window.confirm(t.discard))) return;
     setDraft(rulesDraft(saved));
     setNewName('');
+    setLookupTarget(null);
     setRenames({});
     setEditing(false);
     setEditingRules(false);
@@ -171,8 +193,11 @@ function RulesEditor({
         <ul className="flex flex-col gap-2 text-sm">
           {saved.rules.map((rule) => (
             <li key={rule.objectId}>
-              {nameOf(rule.objectId)}
-              {rule.note ? ` — ${rule.note}` : ''}
+              <span className="break-words">
+                {ruleDisplayName(rule, nameOf(rule.objectId), currentLocale())}
+                {rule.note ? ` — ${rule.note}` : ''}
+              </span>
+              {rule.dictionary && <DictionaryDetails value={rule.dictionary} />}
             </li>
           ))}
           {!saved.rules.length && <li>{t.empty}</li>}
@@ -311,7 +336,13 @@ function RulesEditor({
                 size="sm"
                 aria-pressed={object.selected}
                 disabled={busy}
-                onClick={() => setDraft((current) => toggleRule(current, object.id))}
+                onClick={() => {
+                  if (lookupTarget === object.id) {
+                    setLookupTarget(null);
+                    setNewName('');
+                  }
+                  setDraft((current) => toggleRule(current, object.id));
+                }}
               >
                 {object.selected ? null : <PlusIcon aria-hidden="true" />}
                 {object.name}
@@ -322,34 +353,46 @@ function RulesEditor({
           <p className="text-sm text-muted-foreground">{t.catalogEmpty}</p>
         )}
         {canCreate && (
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-              {t.newObject}
-              <Input
-                value={newName}
-                maxLength={100}
-                placeholder={t.newObjectPlaceholder}
-                disabled={busy}
-                onChange={(event) => setNewName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && newName.trim()) {
-                    event.preventDefault();
-                    create.mutate();
-                  }
-                }}
-              />
-            </label>
-            <IconButton
-              icon={PlusIcon}
-              label={t.createObject}
-              tooltip={t.createObject}
-              type="button"
-              variant="outline"
-              size="icon"
-              disabled={busy || !newName.trim()}
-              onClick={() => create.mutate()}
-            />
-          </div>
+          <DictionaryPicker
+            key={lookupTarget ?? 'new-object'}
+            value={newName}
+            onChange={setNewName}
+            disabled={busy || (!lookupTarget && draft.length >= MAX_PHOTO_RULES)}
+            allowManual={!lookupTarget}
+            onManual={(name) => {
+              if (!busy && draft.length < MAX_PHOTO_RULES) create.mutate({ name });
+            }}
+            onChoose={(dictionary) => {
+              if (busy || (lookupTarget && !draft.some((rule) => rule.objectId === lookupTarget)))
+                return;
+              const existingId = lookupTarget ?? dictionaryCatalogMatch(objects, dictionary)?.id;
+              if (existingId) {
+                setDraft((current) => enrichRule(current, existingId, dictionary));
+                setNewName('');
+                setLookupTarget(null);
+              } else if (draft.length < MAX_PHOTO_RULES)
+                create.mutate({ name: dictionary.englishName, dictionary });
+            }}
+          />
+        )}
+        {lookupTarget && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="self-start"
+            disabled={busy}
+            onClick={() => {
+              setLookupTarget(null);
+              setNewName('');
+            }}
+          >
+            {messages(currentLocale()).photoDictionary.cancelled}
+          </Button>
+        )}
+        {draft.length >= MAX_PHOTO_RULES && (
+          <p className="text-sm text-muted-foreground">
+            {messages(currentLocale()).photoDictionary.limit}
+          </p>
         )}
         {create.isError && (
           <p role="alert" className="text-sm text-destructive">
@@ -363,14 +406,38 @@ function RulesEditor({
           <RuleField
             key={rule.objectId}
             rule={rule}
-            name={nameOf(rule.objectId)}
+            name={ruleDisplayName(rule, nameOf(rule.objectId), currentLocale())}
             busy={busy}
+            lookup={() => {
+              setLookupTarget(rule.objectId);
+              setNewName(nameOf(rule.objectId));
+            }}
+            exclude={(name) =>
+              setDraft((current) =>
+                current.map((item) =>
+                  item.objectId === rule.objectId ? excludeRuleVariant(item, name) : item,
+                ),
+              )
+            }
+            clearDictionary={() =>
+              setDraft((current) =>
+                current.map((item) =>
+                  item.objectId === rule.objectId ? clearRuleDictionary(item) : item,
+                ),
+              )
+            }
             change={(objectId, note) =>
               setDraft((current) =>
                 current.map((item) => (item.objectId === objectId ? { ...item, note } : item)),
               )
             }
-            remove={(objectId) => setDraft((current) => toggleRule(current, objectId))}
+            remove={(objectId) => {
+              if (lookupTarget === objectId) {
+                setLookupTarget(null);
+                setNewName('');
+              }
+              setDraft((current) => toggleRule(current, objectId));
+            }}
           />
         ))}
       </div>

@@ -1,3 +1,5 @@
+import { PhotoObjectDictionaryService } from './photo-object-dictionary.service.js';
+import { DICTIONARY_SOURCE, WikidataDictionarySource } from './photo-object-dictionary-source.js';
 import { ConfigService } from '@nestjs/config';
 import { PHOTO_ANALYSIS_CONFIG, PhotoAnalysisConfigSchema } from '../config/photo-analysis.js';
 import type { Env } from '../config/env.js';
@@ -20,6 +22,8 @@ import { PhotoInspectionService } from './photo-inspection.service.js';
     PhotoObjectsController,
   ],
   providers: [
+    PhotoObjectDictionaryService,
+    { provide: DICTIONARY_SOURCE, useFactory: () => new WikidataDictionarySource() },
     {
       provide: PHOTO_ANALYSIS_CONFIG,
       useFactory: (config: ConfigService<Env, true>) =>

@@ -46,3 +46,5 @@ export function format(
     return value === undefined ? match : String(value);
   });
 }
+
+export { photoObjectVocabulary } from './photo-object-vocabulary.js';

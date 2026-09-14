@@ -1,3 +1,4 @@
+import type { PhotoDictionaryMessages } from './photo-object-dictionary.js';
 import type { communicationsRu } from './communications.js';
 import type { EmployeeProfileMessages } from './employee-profile.js';
 import type { ScheduleExportMessages } from './schedule-export.js';
@@ -71,6 +72,7 @@ export interface Messages {
   readonly communications: typeof communicationsRu;
   employeeProfile: EmployeeProfileMessages;
   photoInspection: PhotoInspectionMessages;
+  photoDictionary: PhotoDictionaryMessages;
   checklistPhotoRules: ChecklistPhotoRulesMessages;
   scheduleExport: ScheduleExportMessages;
   scheduleWorkspace: ScheduleWorkspaceMessages;

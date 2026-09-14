@@ -1,3 +1,4 @@
+import { dictionaryFixture, dictionaryPreviewObjects } from './photo-dictionary-fixture';
 import {
   ChecklistDefinitionView,
   HandoverPhotoView,
@@ -87,6 +88,8 @@ const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
 /** Read-only fixtures; writes deliberately fail so preview never pretends to persist work. */
 export function reviewFixture(path: string, method: string, search = ''): Response | null {
+  const dictionary = dictionaryFixture(path, search);
+  if (dictionary) return dictionary;
   if (path === '/admin/photo-inspections' && method === 'GET') {
     const query = PhotoLibraryQuery.parse(Object.fromEntries(new URLSearchParams(search)));
     const entries = reviewPhotos.map((photo, index) => ({
@@ -142,7 +145,7 @@ export function reviewFixture(path: string, method: string, search = ''): Respon
   if (method !== 'GET')
     return json({ code: 'PREVIEW_READ_ONLY', message: 'Preview does not persist changes' }, 405);
   if (path === '/admin/org/checklists') return json([reviewChecklist]);
-  if (path === '/admin/photo-objects') return json(reviewObjects);
+  if (path === '/admin/photo-objects') return json(dictionaryPreviewObjects(reviewObjects));
   if (path.endsWith('/photo-rules')) return json(reviewRules);
   const photo = reviewPhotos.find((item) => path.includes(item.media.id));
   if (!photo) return json({ message: 'Preview photo not found' }, 404);

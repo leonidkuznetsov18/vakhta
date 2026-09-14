@@ -3,6 +3,8 @@ import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { render } from '@/test-utils';
+import { DictionarySnapshot } from '@vakhta/contracts';
+import { dictionaryApi } from '../api/dictionary-api';
 import { rulesApi } from '../api/rules-api';
 import { ChecklistPhotoRules } from './checklist-photo-rules';
 vi.mock('../api/rules-api', () => ({
@@ -16,7 +18,15 @@ vi.mock('../api/rules-api', () => ({
   rulesKey: (d: string) => ['rules', d],
   photoObjectsKey: ['photo-objects'],
 }));
+vi.mock('../api/dictionary-api', () => ({
+  dictionaryApi: { search: vi.fn().mockResolvedValue({ items: [] }), details: vi.fn() },
+  dictionaryKeys: {
+    search: (q: string) => ['dictionary', q],
+    details: (id: string) => ['dictionary-detail', id],
+  },
+}));
 const t = messages(currentLocale()).checklistPhotoRules;
+const d = messages(currentLocale()).photoDictionary;
 const RAG = '40000000-0000-4000-8000-000000000001';
 const CUP = '40000000-0000-4000-8000-000000000002';
 const catalog = {
@@ -69,19 +79,20 @@ it('creates a catalog object once and adds it to the checklist list', async () =
   vi.mocked(rulesApi.get).mockResolvedValue({ version: 0, rules: [], canEdit: true });
   vi.mocked(rulesApi.createObject).mockResolvedValue({
     id: CUP,
-    name: 'Піддони',
+    name: 'pallet',
     active: true,
     color: '#0a84ff',
   });
   render(<ChecklistPhotoRules definitionId="definition" />);
   fireEvent.click(await screen.findByRole('button', { name: t.editRules }));
   await screen.findByText(t.catalogEmpty);
-  expect(screen.getByRole('button', { name: t.createObject }).hasAttribute('disabled')).toBe(true);
-  fireEvent.change(screen.getByRole('textbox', { name: t.newObject }), {
-    target: { value: 'Піддони' },
+  fireEvent.click(screen.getByRole('button', { name: d.manual }));
+  expect(screen.getByRole('button', { name: d.add }).hasAttribute('disabled')).toBe(true);
+  fireEvent.change(screen.getByRole('textbox', { name: d.englishName }), {
+    target: { value: 'pallet' },
   });
-  fireEvent.click(screen.getByRole('button', { name: t.createObject }));
-  await waitFor(() => expect(rulesApi.createObject).toHaveBeenCalledWith({ name: 'Піддони' }));
+  fireEvent.click(screen.getByRole('button', { name: d.add }));
+  await waitFor(() => expect(rulesApi.createObject).toHaveBeenCalledWith({ name: 'pallet' }));
   await waitFor(() =>
     expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(false),
   );
@@ -94,7 +105,7 @@ it('shows a read-only list for viewers', async () => {
     canEdit: false,
   });
   render(<ChecklistPhotoRules definitionId="definition" />);
-  expect((await screen.findByText('Стаканчики — крім гнізд машини')).tagName).toBe('LI');
+  expect((await screen.findByText('Стаканчики — крім гнізд машини')).closest('li')).not.toBeNull();
   expect(screen.queryByRole('button', { name: t.save })).toBeNull();
 });
 it('renames and retires catalog objects from the edit mode after confirmation', async () => {
@@ -146,7 +157,7 @@ it('starts with saved rules and protects both rule and catalog drafts when finis
   expect(screen.queryByRole('textbox')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: t.editRules }));
   expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(true);
-  fireEvent.change(screen.getByRole('textbox', { name: t.newObject }), {
+  fireEvent.change(screen.getByRole('combobox', { name: d.search }), {
     target: { value: 'Unfinished object' },
   });
   fireEvent.click(screen.getByRole('button', { name: t.viewRules }));
@@ -162,7 +173,7 @@ it('starts with saved rules and protects both rule and catalog drafts when finis
   fireEvent.click(screen.getByRole('button', { name: t.viewRules }));
   expect(screen.getByText('Стаканчики — Saved note')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: t.editRules }));
-  expect(screen.getByRole('textbox', { name: t.newObject }).getAttribute('value')).toBe('');
+  expect(screen.getByRole('combobox', { name: d.search }).getAttribute('value')).toBe('');
   expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(true);
   expect(rulesApi.save).not.toHaveBeenCalled();
   confirm.mockRestore();
@@ -217,4 +228,46 @@ it('keeps server-denied rules read-only even when a direct link requests edit mo
   await screen.findByText(t.empty);
   expect(screen.queryByRole('button', { name: t.save })).toBeNull();
   expect(screen.queryByRole('button', { name: t.editRules })).toBeNull();
+});
+
+it('stores the selected English name and dictionary snapshot after multilingual search', async () => {
+  const ball = DictionarySnapshot.parse({
+    conceptId: 'Q18545',
+    englishName: 'ball',
+    labels: { ru: 'Мяч', uk: 'М’яч' },
+    description: {},
+    source: 'CURATED',
+    aliases: [],
+    variants: [],
+    coverage: 'CURATED',
+    retrievedAt: '2026-09-14T00:00:00Z',
+  });
+  vi.mocked(rulesApi.objects).mockResolvedValue({ objects: [], canEdit: true });
+  vi.mocked(rulesApi.get).mockResolvedValue({ version: 0, rules: [], canEdit: true });
+  vi.mocked(dictionaryApi.search).mockResolvedValue({ items: [ball] });
+  vi.mocked(dictionaryApi.details).mockResolvedValue(ball);
+  vi.mocked(rulesApi.createObject).mockResolvedValue({
+    id: RAG,
+    name: 'ball',
+    active: true,
+    color: '#0a84ff',
+  });
+  vi.mocked(rulesApi.save).mockRejectedValue(new Error('Offline'));
+  render(<ChecklistPhotoRules definitionId="definition" initialMode="edit" />);
+  fireEvent.change(await screen.findByRole('combobox', { name: d.search }), {
+    target: { value: 'мяч' },
+  });
+  fireEvent.click(await screen.findByRole('option'));
+  fireEvent.click(await screen.findByRole('button', { name: d.choose }));
+  await waitFor(() => expect(rulesApi.createObject).toHaveBeenCalledWith({ name: 'ball' }));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(false),
+  );
+  fireEvent.click(screen.getByRole('button', { name: t.save }));
+  await waitFor(() =>
+    expect(rulesApi.save).toHaveBeenCalledWith('definition', {
+      version: 0,
+      rules: [{ objectId: RAG, note: '', dictionary: ball }],
+    }),
+  );
 });

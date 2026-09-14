@@ -264,6 +264,58 @@ describe('photo inspection persistence and access', () => {
       service.analyze(id, { requestId: randomUUID(), version: 0 }, master),
     ).rejects.toMatchObject({ code: 'INSPECTION_RULES_MISSING' });
   });
+  it('persists English dictionary meaning and snapshots accepted variants without changing a local exception', async () => {
+    const dictionary = {
+      conceptId: 'Q1567420',
+      englishName: 'rag',
+      labels: { uk: 'Ганчірка' },
+      description: {},
+      source: 'CURATED' as const,
+      aliases: ['cleaning rag'],
+      variants: [{ englishName: 'cotton rag', labels: {} }],
+      coverage: 'CURATED' as const,
+      retrievedAt: '2026-09-14T00:00:00Z',
+    };
+    const ruleService = new ChecklistPhotoRulesService(fixture.db, new AuditLog());
+    const [definition] = await fixture.db.select().from(checklistDefinitions);
+    if (!definition) throw new Error('Missing checklist fixture');
+    const current = await ruleService.get(definition.id, master);
+    const saved = await ruleService.save(
+      definition.id,
+      {
+        version: current.version,
+        rules: [{ objectId: RAG_ID, note: 'Allowed inside storage', dictionary }],
+      },
+      master,
+    );
+    expect(saved.rules[0]).toMatchObject({
+      objectId: RAG_ID,
+      note: 'Allowed inside storage',
+      dictionary,
+    });
+    await service.analyze(id, { requestId: randomUUID(), version: 0 }, master);
+    const [run] = await fixture.db.select().from(photoInspectionRuns);
+    expect(JSON.parse(run?.guidance ?? '[]')[0]).toMatchObject({
+      dictionary,
+      note: 'Allowed inside storage',
+    });
+    await ruleService.save(
+      definition.id,
+      {
+        version: saved.version,
+        rules: [
+          {
+            objectId: RAG_ID,
+            note: 'Changed afterward',
+            dictionary: { ...dictionary, variants: [] },
+          },
+        ],
+      },
+      master,
+    );
+    const [unchanged] = await fixture.db.select().from(photoInspectionRuns);
+    expect(unchanged?.guidance).toBe(run?.guidance);
+  });
   it('admits one durable run for simultaneous requests and immutable request replays', async () => {
     const request = { requestId: randomUUID(), version: 0 };
     await Promise.all([service.analyze(id, request, master), service.analyze(id, request, master)]);

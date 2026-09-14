@@ -1,3 +1,4 @@
+import { photoDictionaryUk } from './photo-object-dictionary.js';
 import { communicationsUk } from './communications.js';
 import { employeeProfileUK } from './employee-profile.js';
 import { scheduleExportUk } from './schedule-export.js';
@@ -16,6 +17,7 @@ export const uk: Messages = {
   scheduleExport: scheduleExportUk,
   scheduleWorkspace: scheduleWorkspaceUk,
   overviewCenter: overviewCenterUk,
+  photoDictionary: photoDictionaryUk,
   checklistPhotoRules: photoRulesUk,
   photoLibrary: photoLibraryUk,
   photoInspection: inspectionUk,

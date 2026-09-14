@@ -6,7 +6,7 @@ export const photoRulesEn = {
   hint: 'Choose the objects from the shared catalog. One list per checklist, shared by all its versions; AI analysis in the photo editor searches only for these objects. Name every object in the singular ("Cup", not "Cups"): AI looks for every instance anyway, and a plural next to a singular makes the same object get boxed twice.',
   catalog: 'Catalog objects',
   catalogHint:
-    'One entry per object type, shared by all checklists, always in the singular: "Cup", "Wire", "Pallet". Choose a spelling that everyone recognizes; the same type must not be added twice, neither as a plural nor as a synonym. Describe variants in the note.',
+    'One entry per object type, shared by all checklists, always in the singular: "Cup", "Wire", "Pallet". Choose a spelling that everyone recognizes; the same type must not be added twice, neither as a plural nor as a synonym. Use the dictionary to fill English meanings and variants; keep local exceptions in the note.',
   selected: 'Selected for this checklist',
   newObject: 'New object',
   newObjectPlaceholder: 'For example: pallet',
@@ -79,7 +79,7 @@ export const photoRulesRu: ChecklistPhotoRulesMessages = {
   hint: 'Выберите объекты из общего каталога. Один список на чек-лист, общий для всех его версий; анализ с AI в редакторе фото ищет только эти объекты. Названия пишите в единственном числе («Стаканчик», а не «Стаканчики»): AI и так ищет все экземпляры, а множественное число рядом с единственным даёт двойные рамки на одном предмете.',
   catalog: 'Объекты каталога',
   catalogHint:
-    'Одна запись на тип объекта, общая для всех чек-листов, всегда в единственном числе: «Стаканчик», «Провод», «Поддон». Выбирайте написание, которое все узнают; один тип не добавляют дважды ни во множественном числе, ни синонимом. Варианты описывайте в уточнении.',
+    'Одна запись на тип объекта, общая для всех чек-листов, всегда в единственном числе: «Стаканчик», «Провод», «Поддон». Выбирайте написание, которое все узнают; один тип не добавляют дважды ни во множественном числе, ни синонимом. Словарь заполняет английское значение и разновидности; местные исключения оставляйте в уточнении.',
   selected: 'Выбрано для этого чек-листа',
   newObject: 'Новый объект',
   newObjectPlaceholder: 'Например: поддон',

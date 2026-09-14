@@ -932,3 +932,59 @@ and is a manually invoked browser regression, not a CI browser runner. Delayed s
 failed saves, zoom/annotator identity, focus refresh and explicit image retry are covered in Vitest.
 Live authenticated saves and physical pinch gestures were not exercised. Release/hosting checks
 remain separate from this local evidence.
+
+## Photo object dictionary — 2026-09-14
+
+Owner-authorized [spec, plan and tasks](../../../specs/007-photo-object-dictionary/spec.md);
+[primary-source research](../../../specs/007-photo-object-dictionary/research.md), GitHub #73–80.
+Search belongs to the existing checklist-photo-rules FSD slice and guarded Nest photo-inspection
+module. Reused cmdk, Query, Zod, existing catalog/rule APIs and JSONB snapshots; extracted the existing
+abortable search delay into domain-independent shared code. No migration or new dependency.
+
+The selected design is Wikidata CC0 plus 14 reviewed multilingual object families. Live search
+hydrates English labels and requires bounded positive physical-object ancestry; ladder graph and
+Möbius ladder were observed false matches before filtering and rejected afterward. Scope: five
+ancestry levels, 80 visited entities, batches of 40, eight-second ancestry budget; each request has
+six-second timeout, 1 MiB response limit, two concurrent requests, one-hour/256-entry cache and
+provider cooldown. Full entity validation happens before caching, including immediate recovery from
+malformed hydration. Queries contain object terms only. No sensitive operational payload is sent.
+
+New catalog entries use canonical English names; existing IDs/names remain. Rule dictionary JSON
+holds English aliases, included and explicitly excluded variants, localized display labels,
+description, provenance and coverage. Names/exceptions flow into immutable admission snapshots and
+workplace-v5-dictionary prompts. A parent remains one target. Local note is independent. Exclusions
+are disjoint exceptions, not just hidden positive examples. Installed machine components remain
+excluded while explicitly configured loose cables/hoses can be sought.
+
+Lean recommendation: proceed. One meaning selection removes repeated translation/variant entry;
+reviewable details and preserved notes prevent rework. The manual path avoids dependence on the
+public service. Measure valid rule selection/correction time separately from model recall. No worker,
+kiosk or Telegram interaction changed and no operational AI runs were made for QA.
+
+Verification on the shared master checkout: 3 contract tests, 9 provider tests, 21 existing API
+PostgreSQL integration tests (including dictionary snapshot immutability), 16 panel/draft/debounce
+tests and 3 worker prompt tests passed. Contracts/i18n/API builds, affected API/panel/worker typechecks,
+panel production build and focused ESLint passed (one type-only preview import corrected). Existing
+Vite bundle-size and dependency-annotation warnings remain. Independent read-only review found and
+resolved malformed-cache recovery, subtype retry, deleted-target ownership, abstract categories,
+loose-cable prompt conflict and explicit exclusion semantics. Browser testing found and fixed a
+blur-triggered layout shift that swallowed the first manual-entry click.
+
+Desktop 1440×1000 and mobile 390×844 synthetic Administration screenshots captured and visually
+inspected: `test-results/photo-dictionary-{desktop,mobile,failure}.png`. Keyboard ArrowDown/Enter
+selects a meaning; mobile adds ball and excludes tennis ball; page width stays 390 px. The provider
+failure view preserves explicit recovery and English manual entry is enabled for door. Fixtures
+never persist; API integration tests establish storage, not these screenshots. Live provider probe
+for Ukrainian ladder returned only Q168639 after the filter. Existing UI changes committed by other
+sessions were preserved. No production employee actions or paid analysis occurred.
+
+Remaining limits: public-service availability, multilingual coverage and ontology depth remain
+bounded; reviewed seeds cover common cases rather than every object. Latin-script validation is
+not proof of English for manual text. True recall/false-positive improvement requires a separate
+paired photo experiment. Authenticated production writes are intentionally outside smoke scope.
+Delivery evidence is tracked in [issue mapping](../../../specs/007-photo-object-dictionary/issues.md).
+
+Spec Kit convergence assessed 9 FR, 11 acceptance cases, 4 success criteria, 7 design decisions and
+5 governing principles against current code. No remaining buildable gap; existing T008 tracks
+post-push delivery evidence without a duplicate task. No extension hooks are configured. The six
+requested stages have run; delivery verification is separate from the converged implementation.

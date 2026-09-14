@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DictionarySnapshot } from './photo-object-dictionary.js';
 import { Uuid } from './common.js';
 import { PhotoObjectColor } from './photo-objects.js';
 
@@ -7,6 +8,8 @@ export const MAX_PHOTO_RULE_NOTE = 300;
 /** A prohibited object type for one checklist family and zone, referencing the shared catalog. */
 export const PhotoRule = z.object({
   objectId: Uuid,
+  /** Accepted dictionary meaning; absent on legacy/manual rules. */
+  dictionary: DictionarySnapshot.optional(),
   /** Optional wording for the master and the model: appearance, placement, allowed cases. */
   note: z.string().trim().max(MAX_PHOTO_RULE_NOTE).default(''),
 });

@@ -1,0 +1,3 @@
+# Dictionary snapshot model
+
+The catalog UUID remains the annotation identity. A dictionary concept carries source QID, English name, localized label, definition, aliases and variants. A rule optionally persists `dictionary`, including source, retrieval timestamp and coverage. The variant list is the user-approved subset; optional excludedVariants records deliberately excluded subtypes as disjoint exceptions passed to AI. No new SQL column: existing validated rule JSON and immutable run snapshot carry the object. Removing the dictionary returns the rule to its legacy meaning; updating external data requires a deliberate new selection. The operational `note` remains independent. See the TypeScript/Zod contracts for exact technical bounds.

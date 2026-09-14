@@ -256,3 +256,26 @@ Usage refreshes after every analysis request and periodically while the editor i
 data is unavailable, analysis is blocked with an explanation and retry; failed refreshes preserve
 cached usage. Once older runs leave the rolling window, a fresh response re-enables the action.
 The API enforces the same configured limits immediately, including concurrent users' requests.
+
+## Dictionary-assisted object rules
+
+Administration → Checklists → Objects that must not appear in the photo offers a dictionary search
+in Ukrainian, Russian and English. Choose a meaning to populate an English canonical name,
+localized explanation, English aliases and available variants. New dictionary-created catalog
+objects store the English name, for example `мяч` → `ball` and `дверь` → `door`. The form keeps
+localized labels visible. Existing objects retain their IDs and catalog names; dictionary enrichment
+on an existing rule stores its English meaning without renaming historical annotations.
+
+The free dictionary combines reviewed common objects with Wikidata. The displayed variants are
+bounded examples or available direct subtypes, never an exhaustive list. Inspect the meaning before
+applying it. Excluding a variant records an explicit exception to the broader object rule. The
+reviewer's optional clarification remains separate and is never overwritten. Choose the dictionary
+meaning again to restore its original variant set, or remove dictionary details to return to the
+legacy rule. Save applies the complete draft with the existing version/conflict safeguards.
+
+Saved English names, aliases, included/excluded variants and the local clarification reach the
+existing AI analyzer through a fixed run snapshot. Later dictionary changes do not rewrite old runs.
+This improves the consistency of configuration; improved photo recognition has not been measured.
+When search is unavailable or a name is unknown, retry or enter an English name manually. An unknown
+word is not automatically translated. No subscription is required and no photos, notes or employee
+data are sent to the dictionary service.
