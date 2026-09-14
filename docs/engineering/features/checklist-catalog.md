@@ -43,3 +43,32 @@ passed. Desktop/mobile directory screenshots with the unit explanation were capt
 inspected. Live Telegram was not exercised for this label-only change. The owner has not yet supplied
 a specific swapped-label example; do not claim an unobserved unit/zone data mapping bug was fixed.
 Lean: proceed; explain the distinction on demand without repeated inline text or additional steps.
+
+## Direct photo-rule editing — 2026-09-14
+
+Owner request/spec: from Photo inspection, provide one-click editing of the displayed checklist's
+rules. The edit shortcut must work with an empty rule list and historical checklist versions,
+respect existing role permissions, protect unsaved reviews, and work on desktop/mobile. No changes
+to analysis, saved reviews, checklist versions or backend authorization.
+
+Design: the rules header links to `#/administration/checklists/<definitionId>` through the existing
+navigation provider. Administration composes the public checklist-photo-rules feature in edit mode
+on a focused, width-bounded page; it does not require searching or expanding the catalog. The existing
+rules API resolves historical definition IDs to the family-wide current rules, whereas the catalog
+only lists latest definitions. Server `canEdit` remains authoritative. Ordinary catalog expansion
+still starts in view mode. Cross-section navigation preserves browser Back; unsaved photo edits use
+the existing discard guard and in-flight save/analysis disables the shortcut. Existing localized
+edit copy and IconButton are reused. No new dependencies or cross-feature imports.
+
+Lean: Proceed. Removes closing the photo, finding Administration, searching the checklist and opening
+its rule editor. No additional worker task or production record. Guardrails are draft protection,
+correct family identity and unchanged server permissions. Verify the click-to-editor journey rather
+than claim measured shop-floor time savings.
+
+Verification: 19 focused tests passed (inspection navigation, rule editor, Administration and route
+history), including cancelled/confirmed discard, an empty list, historical definition identity,
+read-only server responses and initial no-op Save. Panel typecheck and changed-file ESLint passed.
+Local synthetic preview screenshots captured and visually inspected at 1440×900 and 390×844:
+header shortcut, direct editable form, focus on its heading and browser Back to the photo library.
+Only unrelated wallet-extension console errors were observed. No production rule/review writes were
+performed. CI/release and deployed smoke verification follow the direct-master push.

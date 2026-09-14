@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { messages } from '@vakhta/i18n';
+import { currentLocale } from '@/i18n';
+import { reviewFixture } from '@/preview/review-fixtures';
 import { AdminPage } from './AdminPage.tsx';
 import { clickRowAction, render } from '../test-utils.tsx';
 
@@ -38,6 +41,8 @@ function mockApi() {
       const method = init?.method ?? 'GET';
       const body = init?.body ? JSON.parse(String(init.body)) : null;
       calls.push({ method, path, body });
+      const photoRules = reviewFixture(path, method);
+      if (photoRules) return photoRules;
       if (path === '/me')
         return json({
           id: USER,
@@ -177,4 +182,20 @@ describe('AdminPage', () => {
     expect(screen.getByText(/Введите его на экране терминала/)).toBeTruthy();
     expect(screen.queryByText(/dev-token/)).toBeNull();
   });
+});
+
+it('opens the linked historical checklist rules directly without needing a catalog row', async () => {
+  const calls = mockApi();
+  const definitionId = '90000000-0000-4000-8000-000000000001';
+  location.hash = `#/administration/checklists/${definitionId}`;
+  render(<AdminPage />);
+  const t = messages(currentLocale()).checklistPhotoRules;
+  await screen.findByRole('heading', { name: t.editRules });
+  expect(calls.some((call) => call.path === `/admin/checklists/${definitionId}/photo-rules`)).toBe(
+    true,
+  );
+  expect(calls.some((call) => call.path === '/admin/org/checklists')).toBe(false);
+  expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(true);
+  cleanup();
+  vi.unstubAllGlobals();
 });

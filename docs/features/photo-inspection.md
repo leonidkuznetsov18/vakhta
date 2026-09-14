@@ -50,6 +50,11 @@ The outcome is displayed, not chosen. Request AI when the checklist object list 
 suggestions, reject wrong ones with a reason → save the human review. The object list is the only
 thing the model searches for; it must not invent workplace rules.
 
+The pencil next to **Inspection rules** opens the corresponding checklist's rule editor directly,
+including from older checklist photos and when no rules exist. Unsaved photo edits require confirmation
+before leaving. Browser Back returns to the source section. Rule editing retains the existing role
+permissions and applies to the checklist family.
+
 ## Pilot
 
 Up to 50 photos/day initially. Keep human confirmation. Observe missed issues, false alarms and

@@ -1,3 +1,6 @@
+import { ChecklistPhotoRules } from '@/features/checklist-photo-rules';
+import { Button } from '@/components/ui/button';
+import { ArrowLeftIcon } from 'lucide-react';
 import { ProfilePage, restoreEmployeeList } from '@/features/employee-profile';
 import { writeSchedulePreset } from '@/features/schedule-management';
 import { useRoute } from '@/lib/route';
@@ -52,6 +55,17 @@ export function AdminPage() {
           location.hash = '#/schedule';
         }}
       />
+    );
+
+  if (route.section === 'administration' && route.sub === 'checklists' && route.detail)
+    return (
+      <div className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-4">
+        <Button variant="outline" className="self-start" onClick={() => setTab('checklists')}>
+          <ArrowLeftIcon aria-hidden="true" />
+          {t.tabs.checklists}
+        </Button>
+        <ChecklistPhotoRules key={route.detail} definitionId={route.detail} initialMode="edit" />
+      </div>
     );
 
   return (

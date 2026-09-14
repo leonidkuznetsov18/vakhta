@@ -19,6 +19,7 @@ import { catalogChoices, rulesDraft, rulesDraftState, toggleRule } from '../mode
 import { RuleField } from './rule-field';
 
 const t = messages(currentLocale()).checklistPhotoRules;
+const focusEditor = (element: HTMLHeadingElement | null) => element?.focus();
 /**
  * Attached only while the draft differs from what is saved: collapsing the row, switching sections
  * or closing the tab then asks first. Detaching (a save or a revert) withdraws the question.
@@ -26,14 +27,26 @@ const t = messages(currentLocale()).checklistPhotoRules;
 const guardUnsaved = (element: HTMLDivElement | null) =>
   element ? registerUnsaved(() => true, t.discard) : undefined;
 /** One object list per checklist; it is shown as saved the moment the checklist is expanded. */
-export function ChecklistPhotoRules({ definitionId }: { definitionId: string }) {
+export function ChecklistPhotoRules({
+  definitionId,
+  initialMode = 'view',
+}: {
+  definitionId: string;
+  initialMode?: 'view' | 'edit';
+}) {
   return (
     <WorkflowSection title={t.title} hint={<InfoTip text={t.hint} />} emphasis="action">
-      <RulesQuery definitionId={definitionId} />
+      <RulesQuery definitionId={definitionId} initialMode={initialMode} />
     </WorkflowSection>
   );
 }
-function RulesQuery({ definitionId }: { definitionId: string }) {
+function RulesQuery({
+  definitionId,
+  initialMode,
+}: {
+  definitionId: string;
+  initialMode: 'view' | 'edit';
+}) {
   const query = useQuery({
     queryKey: rulesKey(definitionId),
     queryFn: ({ signal }) => rulesApi.get(definitionId, signal),
@@ -49,6 +62,7 @@ function RulesQuery({ definitionId }: { definitionId: string }) {
       {query.data && objects.data && (
         <RulesEditor
           definitionId={definitionId}
+          initialMode={initialMode}
           initial={query.data}
           objects={objects.data.objects}
           canCreate={objects.data.canEdit}
@@ -62,16 +76,18 @@ function RulesEditor({
   initial,
   objects,
   canCreate,
+  initialMode,
 }: {
   definitionId: string;
   initial: ChecklistPhotoRulesView;
   objects: readonly PhotoObjectView[];
   canCreate: boolean;
+  initialMode: 'view' | 'edit';
 }) {
   const [saved, setSaved] = useState(initial);
   const [draft, setDraft] = useState(() => rulesDraft(initial));
   const [newName, setNewName] = useState('');
-  const [editingRules, setEditingRules] = useState(false);
+  const [editingRules, setEditingRules] = useState(initialMode === 'edit');
   const client = useQueryClient();
   const { payload, valid, dirty, changes } = rulesDraftState(draft, saved);
   const choices = catalogChoices(objects, draft);
@@ -177,7 +193,9 @@ function RulesEditor({
   return (
     <div ref={dirty || catalogDirty ? guardUnsaved : undefined} className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <strong className="text-sm">{t.editRules}</strong>
+        <h4 ref={focusEditor} tabIndex={-1} className="text-sm font-semibold outline-none">
+          {t.editRules}
+        </h4>
         <IconButton
           icon={XIcon}
           label={t.viewRules}

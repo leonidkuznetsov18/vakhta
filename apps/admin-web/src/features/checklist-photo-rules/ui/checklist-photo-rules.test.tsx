@@ -198,3 +198,23 @@ it('shows refreshed catalog names when returning to saved rules after a rename',
   fireEvent.click(screen.getByRole('button', { name: t.viewRules }));
   expect(screen.getByText('Стаканчик — Saved note')).toBeTruthy();
 });
+
+it('opens directly in edit mode without a second click and keeps Save disabled until changed', async () => {
+  vi.mocked(rulesApi.objects).mockResolvedValue(catalog);
+  vi.mocked(rulesApi.get).mockResolvedValue({ version: 0, rules: [], canEdit: true });
+  render(<ChecklistPhotoRules definitionId="historical-definition" initialMode="edit" />);
+  const save = await screen.findByRole('button', { name: t.save });
+  expect(save.hasAttribute('disabled')).toBe(true);
+  expect(rulesApi.get).toHaveBeenCalledWith('historical-definition', expect.any(AbortSignal));
+  fireEvent.click(screen.getByRole('button', { name: 'Ганчірки' }));
+  expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(false);
+});
+
+it('keeps server-denied rules read-only even when a direct link requests edit mode', async () => {
+  vi.mocked(rulesApi.objects).mockResolvedValue(catalog);
+  vi.mocked(rulesApi.get).mockResolvedValue({ version: 0, rules: [], canEdit: false });
+  render(<ChecklistPhotoRules definitionId="definition" initialMode="edit" />);
+  await screen.findByText(t.empty);
+  expect(screen.queryByRole('button', { name: t.save })).toBeNull();
+  expect(screen.queryByRole('button', { name: t.editRules })).toBeNull();
+});

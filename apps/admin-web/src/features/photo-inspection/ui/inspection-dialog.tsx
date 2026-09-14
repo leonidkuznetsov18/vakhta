@@ -1,3 +1,5 @@
+import { HANDOVER_REVIEW_ROLES } from '@vakhta/domain';
+import { useNavigation } from '@/navigation';
 import { WorkflowSection } from '@/shared/ui/workflow-section';
 import { AnalysisLimits } from './analysis-limits';
 import { analysisLimitsView } from '../model/analysis-limits';
@@ -106,6 +108,8 @@ export function PhotoInspectionDialog({
   photos?: HandoverPhotoView[];
   onPhotoChange?: (photo: HandoverPhotoView) => void;
 }) {
+  const { go, roles } = useNavigation();
+  const canEditRules = HANDOVER_REVIEW_ROLES.some((role) => roles.includes(role));
   const id = { handoverId, mediaId: photo.media.id, itemKey: photo.itemKey };
   const client = useQueryClient();
   const query = useQuery({
@@ -123,6 +127,14 @@ export function PhotoInspectionDialog({
   });
   const [generation, setGeneration] = useState(0);
   const [editor, setEditor] = useState<InspectionEditor | null>(null);
+  const editRules = () => {
+    if (
+      !query.data ||
+      (editor && hasReviewChanges(editor.store.getState()) && !window.confirm(t.discard))
+    )
+      return;
+    go('administration', `checklists/${query.data.context.checklistDefinitionId}`);
+  };
   const close = () => {
     if (!editor || !hasReviewChanges(editor.store.getState()) || window.confirm(t.discard))
       onClose();
@@ -194,6 +206,7 @@ export function PhotoInspectionDialog({
             initial={query.data}
             latest={query.data}
             navigation={navigation}
+            onEditRules={canEditRules ? editRules : undefined}
             register={setEditor}
             reload={() => setGeneration((n) => n + 1)}
           />
@@ -210,6 +223,7 @@ function InspectionSession({
   register,
   reload: resetSession,
   navigation,
+  onEditRules,
 }: {
   id: InspectionIdentity;
   initial: PhotoInspectionView;
@@ -217,6 +231,7 @@ function InspectionSession({
   register: (editor: InspectionEditor | null) => void;
   reload: () => void;
   navigation?: PhotoNavigation;
+  onEditRules?: (() => void) | undefined;
 }) {
   const client = useQueryClient();
   const [{ editor, store, mount, attachViewport, attachOwner }] = useState(() => {
@@ -517,7 +532,18 @@ function InspectionSession({
             onRate={(runId, rating) => rate.mutate({ runId, rating })}
             disabled={busy || !initial.canEdit || state.imageStatus !== 'ready'}
           />
-          <InspectionRules rules={latest.rules} />
+          <InspectionRules
+            rules={latest.rules}
+            edit={
+              onEditRules
+                ? {
+                    href: `#/administration/checklists/${latest.context.checklistDefinitionId}`,
+                    onNavigate: onEditRules,
+                    disabled: busy,
+                  }
+                : undefined
+            }
+          />
         </div>
       </div>
       <div className="flex shrink-0 flex-col gap-2 border-t bg-background pt-3">
