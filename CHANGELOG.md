@@ -1,3 +1,14 @@
+## [1.15.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.14.0...v1.15.0) (2026-09-14)
+
+### Features
+
+* **photo-inspection:** add multilingual object dictionary ([ee5e83e](https://github.com/leonidkuznetsov18/vakhta/commit/ee5e83ebec4c13d50ffa526233eeabcda34efd98)), closes [#73](https://github.com/leonidkuznetsov18/vakhta/issues/73) [#74](https://github.com/leonidkuznetsov18/vakhta/issues/74) [#75](https://github.com/leonidkuznetsov18/vakhta/issues/75) [#76](https://github.com/leonidkuznetsov18/vakhta/issues/76) [#77](https://github.com/leonidkuznetsov18/vakhta/issues/77) [#78](https://github.com/leonidkuznetsov18/vakhta/issues/78) [#79](https://github.com/leonidkuznetsov18/vakhta/issues/79) [#80](https://github.com/leonidkuznetsov18/vakhta/issues/80)
+
+### Bug fixes
+
+* **admin-web:** keep columns stable when expanding table rows ([73290f7](https://github.com/leonidkuznetsov18/vakhta/commit/73290f74a00d287f86dd060f61fcc97df1362389))
+* **photo-inspection:** keep photo geometry stable during review ([84d0c5e](https://github.com/leonidkuznetsov18/vakhta/commit/84d0c5ed94e37883dbb6e6bc5adda95a6d785f5a))
+
 ## [1.14.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.13.0...v1.14.0) (2026-09-14)
 
 ### Features
