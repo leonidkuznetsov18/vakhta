@@ -896,3 +896,39 @@ and annotation saves were not exercised; the annotation editor itself is unchang
   and focused ESLint passed.
   Desktop 1440×900 and mobile 390×844 preview screenshots captured and visually inspected; no page
   overflow on mobile and photo opening confirmed. Preview is synthetic and does not verify live writes.
+
+## Stable photo geometry during review — 2026-09-14
+
+Accepted bug-fix scope: the owner reported flickering/resizing during form edits and saves.
+Recon: the actual desktop preview shrinks a 621 px portrait to 565 px when dirty/validation
+messages enter the global footer, and to 535 px after a save failure adds a global error.
+The aspect ratio is correct; the available viewport height changes.
+
+Acceptance: edits, validation, quota refresh and save pending/success/failure retain image size,
+zoom and annotation identity; recovery remains available; desktop and mobile photos fit without
+distortion. Explicit photo changes/reload may reset the viewer. No API or persistence changes.
+Design: retain the existing photo-inspection FSD slice, Query remote ownership and Zustand editor.
+Move variable review feedback into the scrollable form column; leave only actions in the footer.
+Keep a loaded media link fresh for the open session; reopening or explicit retry refreshes it.
+Regression: reusable browser geometry assertions on the synthetic preview plus component checks
+for delayed/failed/successful saves, draft preservation, image identity and focus refresh.
+Lean recommendation: proceed; preserve the reviewer's visual reference while editing, without
+adding steps or changing evidence. Measure unchanged photo bounds rather than render counts.
+
+Verification: 73 focused inspection tests passed, then the added explicit image-retry regression
+passed with the other three stability tests (74 total across these runs). Panel typecheck and
+changed-file ESLint passed. Intermediate typecheck failures came from concurrently edited dictionary
+catalog declarations; a later fresh run passed. Production and synthetic-preview bundles built;
+Vite reports existing bundle-size and dependency-comment warnings.
+The browser geometry scenario failed before the fix and passed after it at 1440×900 and 390×844:
+portrait stayed 365.06×649 px / 217.73×387.08 px through invalid, valid, failed-save and reverted
+states; mobile landscape stayed 302×169.88 px. Desktop/mobile screenshots were captured and visually
+inspected in `test-results/photo-stability-{desktop,mobile}.png`. No horizontal page overflow at
+390 px. The save spinner replaces its icon at the same spacing so pending does not widen the action.
+`apps/admin-web/qa/photo-inspection-layout.mjs` exports `checkPhotoInspectionLayout(tab)` for the
+connected browser: open a photo in local `preview.html?lang=uk#/photoLibrary`, then run at each
+viewport. It deliberately asserts the preview's rejected save, never writes production reviews,
+and is a manually invoked browser regression, not a CI browser runner. Delayed successful saves,
+failed saves, zoom/annotator identity, focus refresh and explicit image retry are covered in Vitest.
+Live authenticated saves and physical pinch gestures were not exercised. Release/hosting checks
+remain separate from this local evidence.

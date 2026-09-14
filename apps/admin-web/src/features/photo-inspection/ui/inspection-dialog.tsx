@@ -18,6 +18,7 @@ import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { ApiError } from '@/api';
 import {
+  AlertCircleIcon,
   PentagonIcon,
   SquareIcon,
   ZoomInIcon,
@@ -41,6 +42,7 @@ import {
 } from '@/components/ui/dialog';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { LoadingState } from '@/shared/ui/loading-state';
+import { Alert, AlertTitle } from '@/components/ui/alert';
 import { notifySuccess } from '@/lib/toast';
 import {
   downloadJson,
@@ -244,7 +246,9 @@ function InspectionSession({
   const link = useQuery({
     queryKey: [...inspectionKey(id), 'link'],
     queryFn: ({ signal }) => inspectionApi.link(id, signal),
-    staleTime: 0,
+    // A loaded immutable photo needs no new transport URL when the window regains focus.
+    // Reopening (gcTime: 0) and the explicit failed-image retry still request a fresh link.
+    staleTime: Infinity,
     gcTime: 0,
   });
   const limits = useQuery({
@@ -430,25 +434,8 @@ function InspectionSession({
           </IconButton>
         )}
       </div>
-      {error && (
-        <div role="alert" className="rounded-md border border-destructive p-3 text-sm">
-          {errorText(error)}
-          {error instanceof ApiError && error.code === 'INSPECTION_CONFLICT' && (
-            <IconButton
-              variant="outline"
-              size="sm"
-              icon={RefreshCwIcon}
-              label={t.reload}
-              tooltip={t.hints.reload}
-              onClick={() => void reload()}
-            >
-              {t.reload}
-            </IconButton>
-          )}
-        </div>
-      )}
-      {/* Wide screens: the photo and the form share the dialog's remaining height. The photo fits
-          that height at 100% zoom and the form is the single scrolling column; no scroll nests. */}
+      {/* Variable feedback belongs to the scrolling form: the photo must not refit when a
+          validation message, quota result or save error appears. Only actions occupy the footer. */}
       <div className="grid min-h-0 min-w-0 flex-1 gap-4 overflow-y-auto [container-type:size] lg:overflow-hidden lg:grid-cols-[minmax(0,2fr)_minmax(22rem,1fr)] lg:grid-rows-[minmax(0,1fr)]">
         <div className="relative flex min-w-0 flex-col gap-2 lg:min-h-0">
           <QueryFeedback
@@ -510,6 +497,46 @@ function InspectionSession({
         {/* On wide screens the form column is as tall as the photo viewport and scrolls inside;
             the action footer is a separate sibling and never participates in this scroll. */}
         <div className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+          {error && (
+            <Alert variant="destructive" role="alert">
+              <AlertCircleIcon />
+              <AlertTitle>{errorText(error)}</AlertTitle>
+              {error instanceof ApiError && error.code === 'INSPECTION_CONFLICT' && (
+                <IconButton
+                  variant="outline"
+                  size="sm"
+                  icon={RefreshCwIcon}
+                  label={t.reload}
+                  tooltip={t.hints.reload}
+                  onClick={() => void reload()}
+                >
+                  {t.reload}
+                </IconButton>
+              )}
+            </Alert>
+          )}
+          {hasReviewChanges(state) && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {t.dirty}: {changes.total}
+            </p>
+          )}
+          {feedback && initial.canEdit && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {t.validation[feedback.key]}
+              {feedback.regions.length ? ` ${feedback.regions.join(', ')}` : ''}
+            </p>
+          )}
+          <AnalysisLimits
+            view={quota}
+            retry={() => {
+              void limits.refetch();
+            }}
+          />
+          {paused && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {messages(currentLocale()).ui.common.waitingConnection}
+            </p>
+          )}
           <WorkflowSection
             title={messages(currentLocale()).ui.workflow.photoReview}
             emphasis={initial.canEdit ? 'action' : 'neutral'}
@@ -547,33 +574,22 @@ function InspectionSession({
         </div>
       </div>
       <div className="flex shrink-0 flex-col gap-2 border-t bg-background pt-3">
-        {hasReviewChanges(state) && (
-          <p role="status" className="text-sm text-muted-foreground">
-            {t.dirty}: {changes.total}
-          </p>
-        )}
-        {feedback && initial.canEdit && (
-          <p role="status" className="text-sm text-muted-foreground">
-            {t.validation[feedback.key]}
-            {feedback.regions.length ? ` ${feedback.regions.join(', ')}` : ''}
-          </p>
-        )}
-        <AnalysisLimits
-          view={quota}
-          retry={() => {
-            void limits.refetch();
-          }}
-        />
         {initial.canEdit && (
           <div className="flex flex-wrap gap-2">
             <IconButton
               disabled={busy || !canSaveReview(state)}
+              aria-busy={save.isPending && !save.isPaused}
+              className="[&[aria-busy=true]>svg]:hidden"
               icon={SaveIcon}
               label={t.save}
               tooltip={t.hints.save}
               onClick={() => save.mutate()}
             >
-              {save.isPending && !save.isPaused ? <LoadingState label={t.save} /> : t.save}
+              {save.isPending && !save.isPaused ? (
+                <LoadingState label={t.save} className="gap-1.5 text-inherit" />
+              ) : (
+                t.save
+              )}
             </IconButton>
             <AnalyzeButton
               disabled={busy || pending || latest.rules.length === 0}
@@ -583,11 +599,6 @@ function InspectionSession({
               onAnalyze={() => analyze.mutate()}
             />
           </div>
-        )}
-        {paused && (
-          <p role="status" className="text-sm text-muted-foreground">
-            {messages(currentLocale()).ui.common.waitingConnection}
-          </p>
         )}
       </div>
     </div>
