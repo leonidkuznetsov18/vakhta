@@ -131,6 +131,9 @@ Preserve and propagate it; this audit does not report it as a defect on those pa
 - **T3 — Width and alignment:** text starts at the leading edge, numeric comparisons align at the
   trailing edge, units remain visible, status stays with its label. Assign bounded space by content
   role. Use existing table scrolling when necessary instead of crushing names into tiny columns.
+  Opening/closing details or loading their photos/nested tables must not resize parent columns.
+  Keep detail intrinsic width isolated through RowDetail and reserve the page scrollbar gutter;
+  preserve natural detail height, responsive sizing and complete scrollable evidence.
 - **T4 — Text:** previews use TextPreview or bounded wrapping; full content uses ScrollableText or
   DetailText with preserved line breaks, bounded width/height and vertical scrolling. Never truncate
   the only accessible version. Technical identifiers also wrap without stretching the page.

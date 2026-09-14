@@ -136,6 +136,8 @@
   }
   html {
     @apply font-sans;
+    /* Expanding a record must not narrow the page when a classic scrollbar appears. */
+    scrollbar-gutter: stable;
   }
 }
 

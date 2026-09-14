@@ -84,6 +84,8 @@ results remain distinct.
 ## Shared table interaction
 
 Tables and filters follow the [site-wide standard](../engineering/table-filter-standard.md).
+Opening or closing row details, including photos and nested evidence tables, preserves the parent
+column widths and mobile card width. Details grow vertically without shifting the surrounding columns.
 Record inspection follows the workflow: employees use a read-only Sheet and a dedicated profile;
 other records may open inline. Explicit actions initiate editing. Mobile cards preserve sorting,
 selection, totals and existing actions. Keyboard users can reach controls with Tab, open records

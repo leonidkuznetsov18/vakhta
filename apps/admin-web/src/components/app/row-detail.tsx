@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 
-/** One reading surface for expanded desktop rows and mobile cards. */
+/** Details keep natural height without contributing to the parent table's column widths. */
 export function RowDetail({ children }: { children: ReactNode }) {
   return (
     <div
       data-row-detail=""
-      className="w-full min-w-0 max-w-none rounded-lg border bg-background p-3 text-base leading-relaxed md:text-sm whitespace-normal [overflow-wrap:anywhere] sm:p-5 [&_form]:min-w-0 [&_form]:max-w-2xl [&_p]:max-w-prose"
+      className="w-full min-w-0 max-w-none rounded-lg border bg-background p-3 text-base leading-relaxed md:text-sm whitespace-normal [contain:inline-size] [overflow-wrap:anywhere] sm:p-5 [&_form]:min-w-0 [&_form]:max-w-2xl [&_p]:max-w-prose"
     >
       {children}
     </div>

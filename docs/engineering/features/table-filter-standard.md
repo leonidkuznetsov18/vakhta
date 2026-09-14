@@ -80,6 +80,68 @@ search differences do not enable Search. Rules are recorded in AGENTS.md and eng
 Verification: nine focused library model/component tests, panel TypeScript, affected-file ESLint and
 Prettier passed. Browser and deployment verification is reported with the delivery.
 
+## Stable expanded-row geometry — 2026-09-14
+
+Status: accepted owner request. Baseline: `5c0ac04`. Writer/integration owner: Codex.
+
+### Recon and specification
+
+The current inventory has 31 production DataTable declarations, including 11 `expanded` callbacks:
+Operations, Handover, Incidents/knowledge, Requests/overtime, Reports intervals, Audit/events,
+Checklists, Users and Terminals. Other declarations are Bonus (3), directories (5), Employees,
+Import, photo library, incident statistics, report summary and Schedule sheets (7). Native exceptions
+are Audit field/payload tables and the two Schedule matrices; neither matrix expands table rows.
+All record expansions already share RowDetail. In the 1440 px local Handover preview, opening five
+fixed-dimension photos changed the zone column from 203 to 185.578 px while the table stayed 1134 px.
+The colspan detail's intrinsic width participates in automatic table layout.
+
+Acceptance: opening, closing or loading details preserves parent column widths and horizontal
+positions (within 1 CSS px at a fixed viewport). This includes long text, photos and nested tables.
+Details retain natural height, complete evidence, keyboard access and mobile card width; page-level
+horizontal overflow must not appear. Actual dataset/viewport changes may still resize columns.
+No animation that masks a width change, fixed row heights, column-width snapshots, business changes,
+new dependencies or table architecture migration are in scope.
+
+### Design and verification plan
+
+Apply inline-size containment to the existing RowDetail block, never to a table/cell. Keep automatic
+column sizing from summary rows and natural detail height. Reserve the root scrollbar gutter so a
+newly taller page does not reduce the available inline width on systems with classic scrollbars.
+Existing shared legacy ownership is retained; no new frontend slice, lifecycle hook or state is needed.
+This follows [CSS inline-size containment](https://www.w3.org/TR/css-contain-3/#containment-inline-size)
+and [scrollbar gutters](https://www.w3.org/TR/css-overflow-3/#scrollbar-gutter-property).
+
+Run the existing DataTable regression suite and affected TypeScript/lint/format checks. Browser
+regression measurements cover all available expansion variants, repeated toggles, photo completion,
+nested evidence tables, narrow desktop and mobile; capture and inspect desktop/mobile screenshots.
+Record unavailable fixture/live coverage explicitly. CI remains the broad integration gate.
+
+Lean recommendation: **Proceed**. Keep the master's visual reference point while inspecting a record,
+removing reorientation without adding any actions. Measure column coordinates before/after disclosure;
+preserve evidence, drafts, permissions and focus. Verification results follow below.
+
+### Results
+
+- Chrome, local preview, fictitious administrator data: all 11 expansion declarations measured
+  **0 px** change in parent column widths/positions at 1440 × 900 and **0 px** card width/position
+  change at 390 × 844. Page scroll width matched the viewport in every case. Handover also passed
+  at 1024 × 900 with the existing table-local horizontal scrolling. Loaded photos and long event
+  payloads remained readable; desktop/mobile screenshots were captured and visually inspected.
+- The formerly empty event preview now includes long text/unbroken references in the actual nested
+  payload table. The report fixture needed current completeness metadata and a valid interval UUID
+  before its existing runtime validation would allow the interval expansion to be exercised.
+- Existing DataTable suite: **20 tests passed**, including keyboard disclosure, focus, mobile details,
+  query states, paging and retention during refresh. Panel typecheck, affected-file ESLint, Prettier
+  and diff whitespace checks passed. Real-browser measurements are the CSS regression check;
+  jsdom does not prove geometry. No new browser runner/dependency was added.
+- Local evidence: `test-results/table-layout/measurements.json` and the adjacent desktop/mobile PNGs.
+  Reproduce with `preview.html?lang=uk`: measure header cell widths/x positions, toggle the detail,
+  remeasure, then repeat in mobile cards. The Audit events fixture specifically covers nested tables.
+- Limits: this is fixture-based browser coverage, not production employee activity. Physical devices,
+  Safari/Firefox and classic-scrollbar systems were not exercised. The root gutter follows the CSS
+  standard; Chrome here uses overlay scrollbars. CI/release/production verification is reported with
+  delivery. Lean outcome: no extra worker steps; the demonstrated horizontal reorientation is removed.
+
 ## Remaining work
 
 ### Admin UX audit — 2026-09-12

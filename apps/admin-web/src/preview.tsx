@@ -8,6 +8,7 @@ import {
 } from './preview/schedule-fixtures';
 import { reviewFixture, reviewPhotos } from './preview/review-fixtures';
 import { overviewPreview } from './preview/overview-fixtures';
+import { tableLayoutEvent } from './preview/table-layout-fixtures';
 import { restoreLegacyRoute } from '@/lib/route';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -276,7 +277,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
         reason: 'Preview: verify the full audit evidence remains accessible inline.',
       },
     ]);
-  if (path === '/admin/audit/events') return json([]);
+  if (path === '/admin/audit/events') return json([tableLayoutEvent]);
   if (/^\/admin\/employees\/[^/]+\/positions$/.test(path)) return json([]);
   if (path === '/admin/employees' || path === '/admin/employees/page') {
     const roster = [
@@ -612,7 +613,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       intervals: category
         ? [
             {
-              id: 'iv1',
+              id: 'd0000000-0000-4000-8000-000000000002',
               businessDate: '2026-09-08',
               employeeId: 'b0000000-0000-4000-8000-000000000001',
               employeeName: 'Гринько Юлія',
@@ -629,6 +630,10 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
           ]
         : [],
       intervalsTotal: category ? 1 : 0,
+      intervalsLimit: 1000,
+      intervalsTruncated: false,
+      exportLimit: 20000,
+      asOf: new Date().toISOString(),
       generatedAt: new Date().toISOString(),
     });
   }
