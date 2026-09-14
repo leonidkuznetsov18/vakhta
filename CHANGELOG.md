@@ -1,3 +1,9 @@
+## [1.15.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.0...v1.15.1) (2026-09-14)
+
+### Documentation
+
+* **photo-inspection:** record dictionary delivery evidence ([b35c570](https://github.com/leonidkuznetsov18/vakhta/commit/b35c57022ec26e9e05f9bb47fe0e3208abbfa1da)), closes [#80](https://github.com/leonidkuznetsov18/vakhta/issues/80)
+
 ## [1.15.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.14.0...v1.15.0) (2026-09-14)
 
 ### Features
