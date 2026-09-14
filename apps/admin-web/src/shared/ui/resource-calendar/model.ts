@@ -17,7 +17,11 @@ export interface CalendarItem {
   /** Operational state under the card, for example presence evidence; text plus tone, never color alone. */
   readonly marker?: { readonly label: string; readonly tone: 'ok' | 'muted' | 'danger' };
   /** Event chips on the card, for example "Sick leave · needs replacement"; text plus tone. */
-  readonly flags?: readonly { readonly label: string; readonly tone: 'danger' | 'warn' | 'info' }[];
+  /** Chips under the text: absence is a neutral fact, warn asks for attention, info is a greeting. */
+  readonly flags?: readonly {
+    readonly label: string;
+    readonly tone: 'absence' | 'warn' | 'info';
+  }[];
 }
 export type CalendarNoteTone = 'danger' | 'ok' | 'muted';
 export interface CalendarNote {

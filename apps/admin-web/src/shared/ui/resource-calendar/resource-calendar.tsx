@@ -70,17 +70,17 @@ export type CalendarEmphasis = 'unpublished' | 'WARN' | 'BLOCK';
 /** Translucent column tints by day event; the header text and icons carry the meaning. */
 const HEADER_TINT = {
   holiday: 'bg-sky-500/15 dark:bg-sky-400/20',
-  absence: 'bg-red-500/12 dark:bg-red-400/20',
+  absence: 'bg-slate-500/12 dark:bg-slate-400/20',
   birthday: 'bg-violet-500/15 dark:bg-violet-400/20',
 } as const;
 const COLUMN_TINT = {
   holiday: 'bg-sky-500/6 dark:bg-sky-400/10',
-  absence: 'bg-red-500/5 dark:bg-red-400/10',
+  absence: 'bg-slate-500/6 dark:bg-slate-400/10',
   birthday: 'bg-violet-500/6 dark:bg-violet-400/10',
 } as const;
 const EVENT_TEXT = {
   holiday: 'text-sky-700 dark:text-sky-300',
-  absence: 'text-red-700 dark:text-red-300',
+  absence: 'text-slate-600 dark:text-slate-300',
   birthday: 'text-violet-700 dark:text-violet-300',
 } as const;
 function emphasized(item: CalendarItem, emphasis: CalendarEmphasis): boolean {
@@ -123,7 +123,8 @@ function ItemContent({ item }: { readonly item: CalendarItem }) {
           key={flag.label}
           className={cn(
             'mt-0.5 mr-1 inline-block max-w-full truncate rounded px-1 text-[10px] leading-4 font-medium',
-            flag.tone === 'danger' && 'bg-red-600 text-white dark:bg-red-500 dark:text-red-950',
+            flag.tone === 'absence' &&
+              'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100',
             flag.tone === 'warn' &&
               'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-100',
             flag.tone === 'info' &&

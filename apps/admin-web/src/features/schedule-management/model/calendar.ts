@@ -291,7 +291,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
       messages(input.locale).requests.types[absence.type as keyof Messages['requests']['types']] ??
       absence.type;
     return absence.status === 'APPROVED'
-      ? { text: format(t.absenceApproved, { type }), tone: 'danger' }
+      ? { text: format(t.absenceApproved, { type }), tone: 'muted' }
       : { text: format(t.absencePending, { type }), tone: 'muted' };
   };
   const cellNote = (zoneId: string, date: string): CalendarNote | undefined => {
@@ -466,9 +466,9 @@ export function eventFlags(
   employeeId: string,
   date: string,
   t: Messages['scheduleWorkspace'],
-): { label: string; tone: 'danger' | 'warn' | 'info' }[] {
+): { label: string; tone: 'absence' | 'warn' | 'info' }[] {
   if (!events) return [];
-  const flags: { label: string; tone: 'danger' | 'warn' | 'info' }[] = [];
+  const flags: { label: string; tone: 'absence' | 'warn' | 'info' }[] = [];
   const absence = events.absences.find(
     (row) => row.employeeId === employeeId && row.from <= date && date <= row.to,
   );
@@ -483,9 +483,11 @@ export function eventFlags(
       (row) => row.employeeId === employeeId && row.businessDate === date,
     );
     flags.push(
-      absence.status === 'APPROVED'
-        ? { label: replacement ? `${type} · ${t.needsReplacement}` : type, tone: 'danger' }
-        : { label: `${type} · ${t.absencePendingShort}`, tone: 'warn' },
+      absence.status !== 'APPROVED'
+        ? { label: `${type} · ${t.absencePendingShort}`, tone: 'warn' }
+        : replacement
+          ? { label: `${type} · ${t.needsReplacement}`, tone: 'warn' }
+          : { label: type, tone: 'absence' },
     );
   }
   if (events.birthdays.some((row) => row.employeeId === employeeId && row.date === date))
