@@ -25,7 +25,7 @@
 
 - [x] T006 Run affected contract/API/panel/worker checks and capture/inspect desktop/mobile Administration screenshots; record live provider versus fixture evidence and independent review in `docs/engineering/features/photo-inspection-dataset.md` (AC-001–011).
 - [x] T007 Update `docs/features/photo-inspection.md` and existing engineering memory with research decisions, Lean review and limitations; run Spec Kit convergence against this spec/plan and append only demonstrated gaps to `specs/007-photo-object-dictionary/tasks.md`.
-- [ ] T008 Deliver task-owned changes through one normal commit/push to `origin master`, verify CI/release/announcement and relevant deployed endpoint, and reconcile GitHub tasks with evidence in `specs/007-photo-object-dictionary/issues.md`.
+- [x] T008 Deliver task-owned changes through one normal commit/push to `origin master`, verify CI/release/announcement and relevant deployed endpoint, and reconcile GitHub tasks with evidence in `specs/007-photo-object-dictionary/issues.md`.
 
 ## Dependencies and Handoff
 

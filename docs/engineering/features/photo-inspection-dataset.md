@@ -988,3 +988,14 @@ Spec Kit convergence assessed 9 FR, 11 acceptance cases, 4 success criteria, 7 d
 5 governing principles against current code. No remaining buildable gap; existing T008 tracks
 post-push delivery evidence without a duplicate task. No extension hooks are configured. The six
 requested stages have run; delivery verification is separate from the converged implementation.
+
+Delivery: runtime `ee5e83e` shipped as v1.15.0. [CI/CD 34888358597](https://github.com/leonidkuznetsov18/vakhta/actions/runs/34888358597)
+passed every job, including full checks, both images, Cloudflare publication and the existing Telegram
+announcement. Railway API `a1f9af78-7029-4b32-97be-8976407a8bc1` and worker
+`9e983baf-147b-4f0b-b83e-4bee99dafb6d` reached SUCCESS for that commit. API health was ok at
+19:59:25 UTC. The existing authenticated administrator session on production confirmed v1.15.0,
+ball with eight reviewed variants, Russian door lookup, and live Wikidata ladder search/details.
+The latter returned 31 bounded entries, including component-like names: unreviewed ontology results
+still require meaning review and exclusions. No save or AI run was submitted; the search was cleared
+and saved-rule view restored. All eight GitHub tasks are closed. This final documentation-only update
+records completed delivery; it changes no runtime behavior and does not repeat full application tests.
