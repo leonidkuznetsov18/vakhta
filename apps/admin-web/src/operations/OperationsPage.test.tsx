@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { CommunicationProvider } from '@/features/employee-communications';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
-import { setUiState } from '@/lib/ui-store';
+import { setUiState, uiState } from '@/lib/ui-store';
+import { todayIso } from '@/lib/format';
 import { OperationsPage } from './OperationsPage.tsx';
 import { clickRowAction, render as renderBase } from '../test-utils.tsx';
 
@@ -212,6 +213,18 @@ describe('OperationsPage', () => {
       expect(calls.filter((c) => c.path === '/admin/shifts').length).toBe(before + 1),
     );
     expect(await screen.findByText('Основная работа')).toBeTruthy();
+  });
+
+  it('offers a Today shortcut that is disabled while the list already stands on today', async () => {
+    mockApi({ rows: [row('BREAK')] });
+    setUiState({ 'operations.day': '2026-09-01' });
+    render(<OperationsPage />);
+    expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
+    const today = screen.getByRole('button', { name: 'Сегодня' });
+    expect(today.hasAttribute('disabled')).toBe(false);
+    fireEvent.click(today);
+    expect(today.hasAttribute('disabled')).toBe(true);
+    expect(uiState('operations.day')).toBe(todayIso());
   });
 
   it('a master action carries a comment and the current version; a version conflict is explained', async () => {

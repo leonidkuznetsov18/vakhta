@@ -729,6 +729,7 @@ export const en: Messages = {
       scope: 'Shifts',
       scopes: { OPEN: 'Open', CLOSED: 'Closed', ALL: 'All' },
       date: 'Date',
+      today: 'Today',
       live: 'Updating in real time',
       offline: 'No live connection, refresh the page',
       employee: 'Employee',

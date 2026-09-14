@@ -532,6 +532,15 @@ export function OperationsPage() {
           hint={hints.operationsDate}
           className="w-44"
         />
+        <Button
+          type="button"
+          variant="outline"
+          className="self-end"
+          disabled={date === todayIso()}
+          onClick={() => setDate(todayIso())}
+        >
+          {o.today}
+        </Button>
         <SelectField
           label={o.scope}
           value={scope}

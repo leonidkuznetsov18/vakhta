@@ -727,6 +727,7 @@ export const ru: Messages = {
       scope: 'Смены',
       scopes: { OPEN: 'Открытые', CLOSED: 'Закрытые', ALL: 'Все' },
       date: 'Дата',
+      today: 'Сегодня',
       live: 'Обновляется в реальном времени',
       offline: 'Нет живого соединения, обновите страницу',
       employee: 'Сотрудник',

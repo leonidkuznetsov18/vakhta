@@ -729,6 +729,7 @@ export const uk: Messages = {
       scope: 'Зміни',
       scopes: { OPEN: 'Відкриті', CLOSED: 'Закриті', ALL: 'Усі' },
       date: 'Дата',
+      today: 'Сьогодні',
       live: 'Оновлюється в реальному часі',
       offline: 'Немає живого зʼєднання, оновіть сторінку',
       employee: 'Працівник',
