@@ -9,7 +9,7 @@ import {
   ScheduleWebCommand,
   ScheduleCommandResult,
 } from '@vakhta/contracts';
-import { setUiState } from '@/lib/ui-store';
+import { setUiState, uiState } from '@/lib/ui-store';
 import { gridFromDetail, gridToItems, setAssignment, setCell } from '../model/grid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -33,6 +33,10 @@ import { notifySuccess } from '@/lib/toast';
 import { NavigationProvider } from '@/navigation';
 
 beforeEach(() => {
+  // The fixtures plan September 2026 around "today" = 13 September (the week 7–13 on screen,
+  // 5 September one step back); only the clock is faked so timers and waits stay real.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-09-13T09:00:00+03:00'));
   vi.stubGlobal('navigator', {
     locks: { request: async (_name: string, action: () => unknown) => action() },
   });
@@ -44,6 +48,7 @@ vi.mock('@/lib/toast', () => ({ notifySuccess: vi.fn() }));
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 const viewport = vi.hoisted(() => ({ mobile: false }));
@@ -639,6 +644,24 @@ function account(actorId = ACTOR, go: (section: string) => void = () => undefine
     </NavigationProvider>
   );
 }
+/**
+ * Walks the period back until a card with this name is on screen. Each click is awaited: the
+ * toolbar ignores clicks while a week loads, and a synchronous loop would spin forever there.
+ */
+async function showWeekOf(name: RegExp): Promise<HTMLElement> {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    // The card may arrive a tick after the week does (the plan of a touched month loads).
+    const found = await screen.findByRole('button', { name }, { timeout: 600 }).catch(() => null);
+    if (found) return found;
+    const previous = screen.getByRole('button', { name: t.previous });
+    const before = previous.parentElement?.textContent;
+    fireEvent.click(previous);
+    await waitFor(() => expect(previous.parentElement?.textContent).not.toBe(before)).catch(
+      () => undefined,
+    );
+  }
+  return screen.findByRole('button', { name });
+}
 function admin(go?: (section: string) => void) {
   return render(account(ACTOR, go));
 }
@@ -1031,9 +1054,7 @@ describe('schedule workspace', () => {
       </NavigationProvider>,
     );
     await screen.findByText(t.draftState);
-    while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-      fireEvent.click(screen.getByRole('button', { name: t.previous }));
-    }
+    await showWeekOf(/Кузнецов Леонид, 05/);
     expect(screen.queryByRole('button', { name: `${t.add}: Линия 1, 2026-09-06` })).toBeNull();
     expect(screen.getByRole('button', { name: `${t.add}: Линия 2, 2026-09-06` })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 05/ }));
@@ -1052,11 +1073,7 @@ describe('schedule workspace', () => {
     mockApi({ status: 'DRAFT' });
     admin();
     await screen.findByText(t.draftState);
-    while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-      const previous = screen.getByRole('button', { name: t.previous });
-      if (previous.hasAttribute('disabled')) break;
-      fireEvent.click(previous);
-    }
+    await showWeekOf(/Кузнецов Леонид, 05/);
     const calendar = screen.getByRole('table', { name: t.calendar });
     const rowCount = within(calendar).getAllByRole('row').length;
     const origin = screen.getByRole('button', { name: /Кузнецов Леонид, 05/ });
@@ -1782,9 +1799,7 @@ it('shows staffing shortage from requirements and blocks an unqualified assignme
   });
   admin();
   await screen.findByText(t.draftState);
-  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-    fireEvent.click(screen.getByRole('button', { name: t.previous }));
-  }
+  await showWeekOf(/Кузнецов Леонид, 05/);
   // The qualified holder covers one of two required night operators on 5 September.
   expect(await screen.findByText(t.coverageShort.replace('{count}', '11'))).toBeTruthy();
   expect(screen.getByText(`${messages(currentLocale()).schedule.dayKinds.NIGHT} 1/2`)).toBeTruthy();
@@ -1879,9 +1894,7 @@ it('marks a cross-unit overlap as a blocking conflict, explains it and disables 
   admin();
   await screen.findByText(t.draftState);
   expect(await screen.findByText(t.conflictsCount.replace('{count}', '1'))).toBeTruthy();
-  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-    fireEvent.click(screen.getByRole('button', { name: t.previous }));
-  }
+  await showWeekOf(/Кузнецов Леонид, 05/);
   const card = screen.getByRole('button', { name: /Кузнецов Леонид, 05/ });
   expect(card.getAttribute('aria-label')).toContain(t.conflict);
   fireEvent.click(card);
@@ -1937,9 +1950,7 @@ it('lists candidates with reasons when creating a shift and blocks an absent wor
   });
   admin();
   await screen.findByText(t.draftState);
-  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-    fireEvent.click(screen.getByRole('button', { name: t.previous }));
-  }
+  await showWeekOf(/Кузнецов Леонид, 05/);
   fireEvent.click(screen.getByRole('button', { name: `${t.add}: Линия 1, 2026-09-06` }));
   const sheet = await screen.findByRole('dialog');
   fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_DAY } });
@@ -1971,9 +1982,7 @@ it('moves a shift by drag to another date and refuses an occupied target without
   mockApi({ status: 'DRAFT' });
   admin();
   await screen.findByText(t.draftState);
-  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-    fireEvent.click(screen.getByRole('button', { name: t.previous }));
-  }
+  await showWeekOf(/Кузнецов Леонид, 05/);
   const card = screen.getByRole('button', { name: /Кузнецов Леонид, 05/ });
   expect(card.getAttribute('draggable')).toBe('true');
   fireEvent.dragStart(card);
@@ -2008,9 +2017,7 @@ it('opens the explicit Move editor with the person changeable and the same valid
   mockApi({ status: 'DRAFT' });
   admin();
   await screen.findByText(t.draftState);
-  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-    fireEvent.click(screen.getByRole('button', { name: t.previous }));
-  }
+  await showWeekOf(/Кузнецов Леонид, 05/);
   fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 05/ }));
   const sheet = await screen.findByRole('dialog');
   fireEvent.click(within(sheet).getByRole('button', { name: t.moveAssignment }));
@@ -2110,9 +2117,7 @@ it('edits custom hours and zone segments locally and refuses a tiling that leave
   mockApi({ status: 'DRAFT' });
   admin();
   await screen.findByText(t.draftState);
-  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-    fireEvent.click(screen.getByRole('button', { name: t.previous }));
-  }
+  await showWeekOf(/Кузнецов Леонид, 05/);
   fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 05/ }));
   const sheet = await screen.findByRole('dialog');
   fireEvent.click(within(sheet).getByRole('button', { name: t.editAssignment }));
@@ -2177,9 +2182,7 @@ it('plans a break with relief from the same date, refuses one outside the shift 
   });
   admin();
   await screen.findByText(t.draftState);
-  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-    fireEvent.click(screen.getByRole('button', { name: t.previous }));
-  }
+  await showWeekOf(/Кузнецов Леонид, 05/);
   fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 05/ }));
   const sheet = await screen.findByRole('dialog');
   fireEvent.click(within(sheet).getByRole('button', { name: t.editAssignment }));
@@ -2225,9 +2228,7 @@ it('creates an internal open slot, offers it, lists responses and selects one pe
   const calls = mockApi({ status: 'DRAFT' });
   admin();
   await screen.findByText(t.draftState);
-  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-    fireEvent.click(screen.getByRole('button', { name: t.previous }));
-  }
+  await showWeekOf(/Кузнецов Леонид, 05/);
   fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${t.add}: .*2026-09-06`) }));
   const sheet = await screen.findByRole('dialog');
   fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_DAY } });
@@ -2292,6 +2293,7 @@ it('overlays presence evidence and request context on a published shift and open
           startedAt: '2026-09-05T17:02:00.000Z',
           endedAt: null,
           sessionState: 'WORKING',
+          sessionId: 'c7000000-0000-4000-8000-000000000001',
         },
       ],
       requests: [
@@ -2319,9 +2321,7 @@ it('overlays presence evidence and request context on a published shift and open
   const go = vi.fn();
   admin(go);
   await screen.findByText(t.publishedState);
-  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-    fireEvent.click(screen.getByRole('button', { name: t.previous }));
-  }
+  await showWeekOf(/Кузнецов Леонид, 05/);
   const card = await screen.findByRole('button', { name: /Кузнецов Леонид, 05/ });
   await waitFor(() => expect(card.getAttribute('aria-label')).toContain('20:02'));
   fireEvent.click(card);
@@ -2332,6 +2332,16 @@ it('overlays presence evidence and request context on a published shift and open
   expect(requestsSection.textContent).toContain('Сидоров');
   fireEvent.click(within(requestsSection).getByRole('button', { name: t.openRequests }));
   expect(go).toHaveBeenCalledWith('requests');
+  // A related request opens its own record; the shift record opens on the Operations screen
+  // standing on that day with every shift visible, so the row is there to be highlighted.
+  fireEvent.click(within(requestsSection).getByRole('button', { name: /MASTER/ }));
+  expect(go).toHaveBeenLastCalledWith('requests', 'a7000000-0000-4000-8000-000000000001');
+  expect(uiState('requests.scope')).toBe('all');
+  fireEvent.click(within(sheet).getByRole('button', { name: t.openShiftRecord }));
+  expect(go).toHaveBeenLastCalledWith('operations', 'c7000000-0000-4000-8000-000000000001');
+  expect(uiState('operations.day')).toBe('2026-09-05');
+  expect(uiState('operations.scope')).toBe('ALL');
+  expect(uiState('operations.siteId')).toBe(SITE);
   fireEvent.click(within(sheet).getByRole('button', { name: t.findReplacement }));
   const candidates = await within(sheet).findByRole('region', { name: t.candidates });
   expect(await within(candidates).findByText('Сидоров Пётр')).toBeTruthy();
@@ -2345,9 +2355,7 @@ it('adds a note with an explicit audience to the selected shift and lists it', a
   const calls = mockApi({ status: 'DRAFT' });
   admin();
   await screen.findByText(t.draftState);
-  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-    fireEvent.click(screen.getByRole('button', { name: t.previous }));
-  }
+  await showWeekOf(/Кузнецов Леонид, 05/);
   fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 05/ }));
   const sheet = await screen.findByRole('dialog');
   const notes = within(sheet).getByRole('region', { name: t.notes });
@@ -2392,9 +2400,7 @@ it('prints the visible plan with version identity and marks an unpublished draft
   const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
   admin();
   await screen.findByText(t.draftState);
-  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-    fireEvent.click(screen.getByRole('button', { name: t.previous }));
-  }
+  await showWeekOf(/Кузнецов Леонид, 05/);
   fireEvent.click(screen.getByRole('menuitem', { name: t.print }));
   expect(open).toHaveBeenCalled();
   const html = written.join('');
@@ -2535,9 +2541,7 @@ it('turns the conflicts pill into a highlight toggle with a list and explains th
   fireEvent.pointerMove(tip as HTMLElement);
   fireEvent.pointerEnter(tip as HTMLElement);
   expect((await screen.findByRole('tooltip')).textContent).toContain(t.publishBlockedConflicts);
-  while (!screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })) {
-    fireEvent.click(screen.getByRole('button', { name: t.previous }));
-  }
+  await showWeekOf(/Кузнецов Леонид, 05/);
   const card = screen.getByRole('button', { name: /Кузнецов Леонид, 05/ });
   expect(card.getAttribute('data-emphasized')).toBeNull();
   fireEvent.mouseEnter(pill);

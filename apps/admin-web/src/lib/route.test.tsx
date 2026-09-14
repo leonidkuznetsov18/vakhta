@@ -45,3 +45,17 @@ it('normalizes old links during navigation without leaving a stale selected row'
   act(() => writeRoute('incidentKnowledge', 'next'));
   expect(screen.getByText('incidents/next')).toBeTruthy();
 });
+
+it('pushes a history entry when the section changes and replaces it within a section', () => {
+  history.replaceState(null, '', '#/schedule');
+  const before = history.length;
+  writeRoute('operations', 'session-1');
+  expect(location.hash).toBe('#/operations/session-1');
+  expect(history.length).toBe(before + 1);
+  writeRoute('operations', 'session-2');
+  expect(location.hash).toBe('#/operations/session-2');
+  expect(history.length).toBe(before + 1);
+  writeRoute('operations');
+  expect(location.hash).toBe('#/operations');
+  expect(history.length).toBe(before + 1);
+});

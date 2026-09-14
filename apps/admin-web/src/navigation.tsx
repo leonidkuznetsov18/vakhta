@@ -6,8 +6,11 @@ export type SectionKey = keyof Messages['admin']['sections'];
 
 interface Navigation {
   readonly actorId: string | null;
-  /** Switch the panel to a section; pages use it for "go and fix this first" shortcuts. */
-  readonly go: (section: SectionKey) => void;
+  /**
+   * Switch the panel to a section, optionally straight to one record inside it (`#/<section>/<id>`);
+   * pages use it for "go and fix this first" shortcuts and for opening the record behind a fact.
+   */
+  readonly go: (section: SectionKey, sub?: string) => void;
   /** Roles of the signed-in user (scope ignored: the API enforces it); pages hide what a role cannot do. */
   readonly roles: readonly string[];
   readonly grants: readonly RoleGrant[];
@@ -27,7 +30,7 @@ export function NavigationProvider({
   grants = [],
   children,
 }: {
-  readonly go: (section: SectionKey) => void;
+  readonly go: (section: SectionKey, sub?: string) => void;
   readonly actorId?: string | null;
   readonly roles?: readonly string[];
   readonly grants?: readonly RoleGrant[];

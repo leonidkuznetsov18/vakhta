@@ -137,9 +137,10 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 - Owner rule, 2026-09-13 — one hue means one thing: different states or event kinds never share a
   colour on the same screen, and a colour is never the only signal (pair it with text or an icon).
   Schedule palette: day shift amber, night shift indigo, today emerald, public holiday sky,
-  approved absence red, pending absence orange, birthday violet, open slot teal, blocking conflict
-  red ring, warning orange, unpublished change neutral grey with a dashed icon, hover/selection
-  highlight sky ring. Pick a new hue for a new meaning instead of reusing one from this list.
+  approved absence slate (a calm fact, never red), pending absence and needed replacement orange,
+  birthday violet, open slot teal, blocking conflict red ring, warning orange, unpublished change
+  a dashed outline with no fill, hover/selection highlight sky ring. Red means danger or a block
+  only. Pick a new hue for a new meaning instead of reusing one from this list.
 - Inline errors and warnings share one typography: the shared Alert with its icon and title,
   red for blocking, orange for warnings. Never render a reason as loose coloured text next to an
   alert box; different font sizes or weights for messages of the same kind are a defect.
@@ -151,6 +152,11 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
   is secondary (why a button is disabled, a section hint), use the icon + tooltip only. Do not add
   a native `title` next to a tooltip either.
 - Every interactive element has visible hover, active and focus states. The interface must be usable without a manual.
+- Owner rule, 2026-09-14 — a link to a record is a link to the record: any "open X" action that
+  leaves the current section deep-links `#/<section>/<id>` through `useNavigation().go(section, id)`,
+  first sets the target page's filters (site, unit, day, scope) so the row is actually listed, and
+  the target page highlights and scrolls to that row. Section changes push a history entry so the
+  browser's Back returns to where the user came from; tabs and open rows only replace the address.
 - Choose a Sheet, dialog, dedicated view or inline details according to the task. Sub-rows are not
   mandatory; avoid expanding the calendar to accommodate an editor when a focused panel better
   preserves context. Keep selection and scroll position, restore keyboard focus, and adapt to mobile.

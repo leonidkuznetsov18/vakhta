@@ -202,7 +202,7 @@ export function App() {
     <NavigationProvider
       key={me.id}
       actorId={me.id}
-      go={(section: SectionKey) => setActive(section)}
+      go={(section: SectionKey, sub?: string) => writeRoute(section, sub)}
       roles={me.roles.map((g) => g.role)}
       grants={me.roles}
     >

@@ -45,18 +45,27 @@ function subscribe(onChange: () => void): () => void {
     onChange();
   };
   window.addEventListener('hashchange', handleHashChange);
+  window.addEventListener('popstate', handleHashChange);
   return () => {
     listeners.delete(onChange);
     window.removeEventListener('hashchange', handleHashChange);
+    window.removeEventListener('popstate', handleHashChange);
   };
 }
 
+/**
+ * Moving to another section is a step the browser's Back button must be able to undo, so it
+ * pushes a history entry; a tab or an open row inside the same section only refines the address
+ * and replaces it, so Back never has to walk through every row someone opened.
+ */
 export function writeRoute(section: string, sub?: string): void {
   const next = `#/${section}${sub ? `/${sub}` : ''}`;
   if (location.hash === next) return;
   // A section or tab change unmounts whatever form is open; unsaved edits get a say first.
   if (!confirmLeave()) return;
-  history.replaceState(null, '', next);
+  const sectionChanged = readRoute().section !== section;
+  if (sectionChanged) history.pushState(null, '', next);
+  else history.replaceState(null, '', next);
   restoreLegacyRoute();
   for (const listener of listeners) listener();
 }

@@ -1,6 +1,7 @@
 import { EmployeeProfileLink } from '@/entities/employee';
 import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { useState } from 'react';
+import { setUiState } from '@/lib/ui-store';
 import {
   PencilIcon,
   MoveIcon,
@@ -8,6 +9,7 @@ import {
   ActivityIcon,
   InboxIcon,
   Undo2Icon,
+  ChevronRightIcon,
 } from 'lucide-react';
 import { format, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -393,8 +395,23 @@ export function ResourceSchedule({
                     item={selectedItem}
                     presence={selectedView?.marker?.label ?? null}
                     query={operations}
-                    onOpenRequests={() => navigation.go('requests')}
-                    onOpenOperations={() => navigation.go('operations')}
+                    onOpenRequests={(requestId) => {
+                      if (!requestId) return navigation.go('requests');
+                      setUiState({ 'requests.scope': 'all' });
+                      navigation.go('requests', requestId);
+                    }}
+                    onOpenOperations={(sessionId) => {
+                      // The Operations screen lists one day and one scope; point it at this
+                      // shift's day with every shift visible, then open the record itself.
+                      setUiState({
+                        'operations.siteId': w.siteId,
+                        'operations.orgUnitId': w.orgUnitId,
+                        'operations.day': selectedItem.businessDate,
+                        'operations.scope': 'ALL',
+                        'operations.group': 'ALL',
+                      });
+                      navigation.go('operations', sessionId);
+                    }}
                   />
                   <NotesSection
                     workspace={w}
@@ -515,8 +532,8 @@ function OperationalContext({
   readonly item: { readonly employeeId: string; readonly businessDate: string };
   readonly presence: string | null;
   readonly query: ReturnType<typeof useOperations>;
-  readonly onOpenRequests: () => void;
-  readonly onOpenOperations: () => void;
+  readonly onOpenRequests: (requestId?: string) => void;
+  readonly onOpenOperations: (sessionId: string) => void;
 }) {
   const t = messages(currentLocale()).scheduleWorkspace;
   const catalog = messages(currentLocale()).requests;
@@ -554,7 +571,7 @@ function OperationalContext({
         </p>
       )}
       {sessionId && (
-        <Button variant="outline" size="sm" onClick={onOpenOperations}>
+        <Button variant="outline" size="sm" onClick={() => onOpenOperations(sessionId)}>
           <ActivityIcon aria-hidden="true" />
           {t.openShiftRecord}
         </Button>
@@ -567,26 +584,35 @@ function OperationalContext({
         {related.length > 0 && (
           <ul className="space-y-1 text-sm">
             {related.map((request) => (
-              <li key={request.id} className="[overflow-wrap:anywhere]">
-                {catalog.types[request.type as keyof typeof catalog.types] ?? request.type} ·{' '}
-                {catalog.statuses[request.status as keyof typeof catalog.statuses] ??
-                  request.status}
-                {request.currentStepKey
-                  ? ` · ${format(t.requestStep, {
-                      step: request.currentStep + 1,
-                      total: request.totalSteps,
-                      key: request.currentStepKey,
-                    })}`
-                  : ''}
-                {request.counterpartEmployeeId
-                  ? ` · ${employeeLabel(w, request.employeeId)} ⇄ ${employeeLabel(w, request.counterpartEmployeeId)}`
-                  : ''}
+              <li key={request.id}>
+                <button
+                  type="button"
+                  className={`${selectableRow} flex w-full items-center gap-2 px-2 py-1 text-left [overflow-wrap:anywhere]`}
+                  onClick={() => onOpenRequests(request.id)}
+                >
+                  <span className="min-w-0 flex-1">
+                    {catalog.types[request.type as keyof typeof catalog.types] ?? request.type} ·{' '}
+                    {catalog.statuses[request.status as keyof typeof catalog.statuses] ??
+                      request.status}
+                    {request.currentStepKey
+                      ? ` · ${format(t.requestStep, {
+                          step: request.currentStep + 1,
+                          total: request.totalSteps,
+                          key: request.currentStepKey,
+                        })}`
+                      : ''}
+                    {request.counterpartEmployeeId
+                      ? ` · ${employeeLabel(w, request.employeeId)} ⇄ ${employeeLabel(w, request.counterpartEmployeeId)}`
+                      : ''}
+                  </span>
+                  <ChevronRightIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                </button>
               </li>
             ))}
           </ul>
         )}
         {related.length > 0 && (
-          <Button variant="outline" size="sm" onClick={onOpenRequests}>
+          <Button variant="outline" size="sm" onClick={() => onOpenRequests()}>
             <InboxIcon aria-hidden="true" />
             {t.openRequests}
           </Button>
