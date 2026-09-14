@@ -1,3 +1,14 @@
+## [1.13.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.12.1...v1.13.0) (2026-09-14)
+
+### Features
+
+* **operations:** Today shortcut next to the date filter ([b207a73](https://github.com/leonidkuznetsov18/vakhta/commit/b207a73cefb97e86a8d8016a032f8986624d46fb))
+
+### Bug fixes
+
+* **admin-web:** deep links open the record and Back returns to the previous section ([8db7fe1](https://github.com/leonidkuznetsov18/vakhta/commit/8db7fe10b65d41667e0b927a8a497f33bba10779))
+* **schedule:** approved absences in neutral slate, red kept for danger ([070ef83](https://github.com/leonidkuznetsov18/vakhta/commit/070ef83ec31fd5820a528688b58ae7d03dca74f0))
+
 ## [1.12.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.12.0...v1.12.1) (2026-09-13)
 
 ### Refactoring
