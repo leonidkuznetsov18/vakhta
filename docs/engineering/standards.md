@@ -47,6 +47,57 @@ Use TanStack Table, Virtual and Router for their respective needs. Check compati
 installed versions and React Compiler. Table row models and virtualization are separate concerns.
 Do not introduce a router or virtualizer to a screen that has no corresponding requirement.
 
+## React, TanStack and Zustand practices
+
+Owner rule, 2026-09-15: the panel scales by applying the same patterns everywhere. New and changed
+code follows this list; legacy code migrates by coherent slice. Items marked _lint_ are enforced.
+
+Components and state
+
+- Keys come from record identity, never the array index. _lint_
+- Define components and hooks at module top level, never inside another component. _lint_
+- Store the minimal state; derive everything else while rendering. Reset a child's state by changing
+  its `key`, not by syncing props into state.
+- Model a UI status as one discriminated union, not several booleans that allow impossible combinations.
+- Run logic in the event handler or named action that caused it, not in reaction to a render.
+- Each route/section renders inside an error boundary with a localized retry, so one failed widget
+  does not blank the panel.
+
+TanStack Query
+
+- Each query is defined once as a `queryOptions` factory next to its feature/entity API function;
+  call sites use `useQuery(employeeQueries.detail(id))` and never inline `queryKey` arrays. _lint_
+- Keys are hierarchical `as const` tuples: entity, access scope, then typed filters. Every variable the
+  `queryFn` reads is in the key (_lint_), never an `unknown` blob.
+- A `queryFn` returns data or throws. _lint_ Keep option order stable for inference. _lint_
+- Every mutation invalidates, or sets, exactly the factory prefixes it affects, and awaits the
+  invalidation when the next screen needs fresh data. No automatic mutation retries.
+- Do not rest-destructure query results or pass whole query objects into deps or props. _lint_
+- Shape data with a stable top-level `select` function instead of copying results into state.
+- Declare the global error type once through `Register { defaultError: ApiError }`.
+
+TanStack Router and Table
+
+- Read route data with `from: route.id`, not `strict: false`, so types and wrong-route failures are
+  checked. _lint_ Navigate through `useNavigation().go` or typed `Link`; never build hash strings.
+- Access guards and redirects live in `beforeLoad`; loaders use `queryClient.ensureQueryData(options)`
+  when data is required before render. Keep route option order stable. _lint_
+- Filters, tabs and periods that must survive reload or Back on a new screen live in validated search
+  params with Zod `.catch` defaults. Existing Zustand filter stores migrate with their slice.
+- Define table features and column definitions at module scope. Server-processed tables set the
+  `manual*` options and the server total row count and omit client row models.
+
+Zustand
+
+- Select atomic values or use `useShallow` with the fields read; never subscribe to the whole store. _lint_
+- One store per feature workflow. Export selector hooks and named actions, not the raw store; actions
+  live inside the store. Never mirror Query data into a store.
+
+Testing
+
+- Test query and mutation behavior through the real hooks with a fresh `QueryClient` per test
+  (`retry: false`) and MSW responses, not by mocking `useQuery`.
+
 ## Feature-Sliced Design and reuse
 
 The frontend dependency direction is `app -> pages -> widgets -> features -> entities -> shared`.
@@ -73,6 +124,9 @@ use `unknown` with narrowing rather than `any`, unsafe assertions or non-null as
 and API types. Avoid boolean flag combinations that represent impossible states, mutable shared
 objects and swallowed errors. Document public contracts, invariants and non-obvious tradeoffs, not
 self-evident lines of code. Do not weaken type or lint settings to make a check pass.
+The shared base also enables `noImplicitReturns`, `noFallthroughCasesInSwitch`, and rejects unreachable
+code and unused labels. `apps/admin-web` still disables `exactOptionalPropertyTypes` (74 errors on
+2026-09-15); that is recorded debt, not a precedent for other packages.
 
 ## Code clarity
 
@@ -102,6 +156,16 @@ established best practice and prefer the plain version over the clever or compac
 - Pure logic is separated from I/O and UI so it can be unit-tested without mocks.
 - Reviewers treat violations as defects, not style preferences. When touching existing code that breaks
   these rules, simplify the affected function rather than extending the problem.
+
+`scripts/lint/clean-code.mjs` enforces what a linter can: nested ternaries, `any` and unsafe `any`
+flows, non-null assertions, nesting depth (2), cyclomatic complexity (10), function length (80 lines),
+more than three parameters, `await` in loops, linear scans inside loops or iteration callbacks, raw
+`UPPER_SNAKE` code literals in comparisons and `case`s, TypeScript `enum`, floating or misused promises,
+unnecessary conditions and non-exhaustive switches. Type-aware rules use the TypeScript project service.
+Comment quality is a review rule only. Violations that existed on 2026-09-15 are recorded per file in
+`eslint-suppressions.json`; a file may not gain new ones. After fixing suppressed code run
+`pnpm lint:prune` and commit the smaller file. Never add to it with `--suppress-all` to pass a check;
+a justified exception is an inline `eslint-disable-next-line <rule> -- <reason>`.
 
 ## Interface and verification
 
@@ -152,6 +216,19 @@ evidence of browser or Telegram visual coverage.
 - [Zustand](https://zustand.docs.pmnd.rs/getting-started/introduction)
 - [FSD layers](https://fsd.how/docs/reference/layers/)
 - [TypeScript strict checks](https://www.typescriptlang.org/tsconfig/strict.html)
+- [Rules of React](https://react.dev/reference/rules),
+  [Choosing the state structure](https://react.dev/learn/choosing-the-state-structure),
+  [You might not need an effect](https://react.dev/learn/you-might-not-need-an-effect)
+- [Query keys](https://tanstack.com/query/latest/docs/framework/react/guides/query-keys),
+  [queryOptions](https://tkdodo.eu/blog/the-query-options-api),
+  [Invalidation from mutations](https://tanstack.com/query/latest/docs/framework/react/guides/invalidations-from-mutations),
+  [Query testing](https://tanstack.com/query/latest/docs/framework/react/guides/testing),
+  [TanStack Query ESLint plugin](https://tanstack.com/query/latest/docs/eslint/eslint-plugin-query)
+- [Router search params](https://tanstack.com/router/latest/docs/framework/react/guide/search-params),
+  [External data loading](https://tanstack.com/router/latest/docs/framework/react/guide/external-data-loading)
+- [Zustand useShallow](https://zustand.docs.pmnd.rs/hooks/use-shallow)
+- [typescript-eslint strict-type-checked](https://typescript-eslint.io/users/configs#strict-type-checked),
+  [ESLint bulk suppressions](https://eslint.org/docs/latest/use/suppressions)
 
 ## HTTP contracts, forms and persisted preferences
 

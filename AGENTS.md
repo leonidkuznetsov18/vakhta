@@ -69,6 +69,9 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
   statuses, kinds and roles is one enum-like `as const` object (`ShiftState.READY_TO_CLOSE`) with its
   derived type, `z.enum` and `pgEnum`; code references the constant, never a raw `'READY_TO_CLOSE'`.
   Do not use TypeScript `enum`. Comments are short and plain: explain why, not what; no long essays.
+- **[C10]** C8/C9 and the React/TanStack/Zustand practices are enforced by `scripts/lint/clean-code.mjs`.
+  Pre-existing violations live in `eslint-suppressions.json`: never grow it; prune after fixing.
+  Panel code follows `docs/engineering/standards.md` → React, TanStack and Zustand practices.
 - Codes of states, actions, reasons and statuses: `UPPER_SNAKE_CASE`, as in the spec.
 - **[C7]** Never log the bot token, QR tokens, presigned URLs or the content of medical documents.
 - TypeScript, React and NestJS best practices.
