@@ -90,6 +90,15 @@ established best practice and prefer the plain version over the clever or compac
   `filter`, `includes` or `indexOf` over a collection inside a loop over another; build a `Map`/`Set`
   index once. Do not query the database per row (N+1); batch or join. Do not repeat the same derivation
   on every render or iteration when it can be computed once.
+- No magic strings for codes. Each set of states, actions, reasons, statuses, kinds or roles has one
+  enum-like source: an `as const` object whose keys equal the codes (`ShiftState.READY_TO_CLOSE`),
+  its derived union type, and the `z.enum` / `pgEnum` built from its values. Compare, switch and assign
+  through the constant, never a raw string literal. Do not add TypeScript `enum` or `const enum`: they
+  do not fit `verbatimModuleSyntax`, `z.enum` or `pgEnum`. Migrate existing `as const` arrays and raw
+  literals when touching the affected slice, not in unrelated bulk edits.
+- Comments are short and plain. Name things so the code explains what it does; a comment explains
+  why — an invariant, a spec reference, a non-obvious tradeoff — in one or two sentences. No restating
+  the code, no multi-paragraph essays, no commented-out code, no history that belongs in Git.
 - Pure logic is separated from I/O and UI so it can be unit-tested without mocks.
 - Reviewers treat violations as defects, not style preferences. When touching existing code that breaks
   these rules, simplify the affected function rather than extending the problem.

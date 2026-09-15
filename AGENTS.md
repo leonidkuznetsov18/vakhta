@@ -65,6 +65,10 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
   `find`/`filter` inside loops or N+1 queries — index with a `Map`/`Set` or query in one batch.
   Clever or compact code that is harder to read than the plain version is a defect. Details:
   `docs/engineering/standards.md` → Code clarity.
+- **[C9]** Owner rule, 2026-09-15 — no magic strings for codes: every set of states, actions, reasons,
+  statuses, kinds and roles is one enum-like `as const` object (`ShiftState.READY_TO_CLOSE`) with its
+  derived type, `z.enum` and `pgEnum`; code references the constant, never a raw `'READY_TO_CLOSE'`.
+  Do not use TypeScript `enum`. Comments are short and plain: explain why, not what; no long essays.
 - Codes of states, actions, reasons and statuses: `UPPER_SNAKE_CASE`, as in the spec.
 - **[C7]** Never log the bot token, QR tokens, presigned URLs or the content of medical documents.
 - TypeScript, React and NestJS best practices.
