@@ -1,3 +1,13 @@
+## [1.15.3](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.2...v1.15.3) (2026-09-15)
+
+### Refactoring
+
+* **navigation:** replace custom routing with tanstack router ([c3b38f2](https://github.com/leonidkuznetsov18/vakhta/commit/c3b38f2eab9b67208ed5da444f38264510cf03aa))
+
+### Documentation
+
+* **architecture:** audit standardization opportunities ([be779fc](https://github.com/leonidkuznetsov18/vakhta/commit/be779fce85e9b71d1bbf02940bf315f9f14a77e0))
+
 ## [1.15.2](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.1...v1.15.2) (2026-09-15)
 
 ### Bug fixes
