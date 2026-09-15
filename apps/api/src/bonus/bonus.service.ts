@@ -1,3 +1,4 @@
+import { serializeCsv } from '../common/csv.js';
 import { readMonthNominations } from './bonus-month-nominations.js';
 import { createHash } from 'node:crypto';
 import * as XLSX from 'xlsx';
@@ -1318,20 +1319,15 @@ export class BonusService {
     });
     const filename = `vakhta-bonus-history-${q.from}-${q.to}.${format}`;
     if (format === 'csv') {
-      const cell = (v: string | number | undefined) => {
-        const text = String(v);
-        return /[";\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
-      };
-      const lines = [header.map(cell).join(';'), ...matrix.map((r) => r.map(cell).join(';'))];
       return {
-        body: Buffer.from(`\uFEFF${lines.join('\n')}`, 'utf8'),
+        body: Buffer.from(serializeCsv([header, ...matrix], { bom: true }), 'utf8'),
         contentType: 'text/csv; charset=utf-8',
         filename,
       };
     }
     const sheet = XLSX.utils.aoa_to_sheet([header, ...matrix]);
     const book = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(book, sheet, 'history');
+    XLSX.utils.book_append_sheet(book, sheet, 'Bonus history');
     return {
       body: XLSX.write(book, { type: 'buffer', bookType: 'xlsx' }) as Buffer,
       contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -1774,23 +1770,45 @@ export class BonusService {
             'Вивантаження доступне лише для закритого періоду',
           );
         const view = await this.periodWithin(tx, period.siteId, period.month, undefined, now);
-        const lines = [
-          `# vakhta bonus export;period=${period.month};site=${period.siteId};rules=${view.ruleLabel ?? ''};generated=${now.toISOString()}`,
-          'employee_id;personnel_number;full_name;shifts;evaluated;pending;s_month;base_amount;bonus_amount',
-          ...view.employees.map((e) =>
+        const metadata = serializeCsv(
+          [
             [
+              '# vakhta bonus export',
+              `period=${period.month}`,
+              `site=${period.siteId}`,
+              `rules=${view.ruleLabel ?? ''}`,
+              `generated=${now.toISOString()}`,
+            ],
+          ],
+          { bom: false },
+        );
+        const csv = serializeCsv(
+          [
+            [
+              'employee_id',
+              'personnel_number',
+              'full_name',
+              'shifts',
+              'evaluated',
+              'pending',
+              's_month',
+              'base_amount',
+              'bonus_amount',
+            ],
+            ...view.employees.map((e) => [
               e.employeeId,
               e.personnelNumber,
-              csv(e.employeeName),
+              e.employeeName,
               e.shifts,
               e.evaluatedShifts,
               e.pendingShifts,
               e.sMonth ?? '',
               e.baseAmount ?? '',
               e.bonusAmount ?? '',
-            ].join(';'),
-          ),
-        ];
+            ]),
+          ],
+          { bom: false },
+        );
         await this.audit.record(tx, {
           actor,
           action: 'bonus.export',
@@ -1798,7 +1816,7 @@ export class BonusService {
           objectId: periodId,
           after: { rows: view.employees.length, generatedAt: now.toISOString() },
         });
-        return lines.join('\n');
+        return `${metadata}\n${csv}`;
       },
       { isolationLevel: 'repeatable read' },
     );
@@ -1965,8 +1983,4 @@ function toAdjustmentView(a: typeof bonusAdjustments.$inferSelect): AdjustmentVi
     secondApproverId: a.secondApproverId,
     createdAt: a.createdAt.toISOString(),
   };
-}
-
-function csv(value: string): string {
-  return /[;"\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }

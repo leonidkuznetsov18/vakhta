@@ -26,6 +26,14 @@ with its filters, actual row count and times.
 
 Technical decisions and verification: [loss report integrity](../engineering/features/loss-reports.md).
 
+## Download compatibility
+
+Time-loss and bonus CSV exports use semicolons and preserve numeric values. Formula-like text is
+prefixed with an apostrophe so spreadsheet software treats it as text; this can be visible when a
+file is read as raw CSV. Quoted separators, quotes and line breaks remain part of their original cell.
+Bonus history XLSX uses the worksheet name `Bonus history`; `History` is reserved by Excel.
+The report contents and financial calculations are unchanged.
+
 ## Audit
 
 The audit page lists panel and bot actions. It identifies the actor by email or employee name and

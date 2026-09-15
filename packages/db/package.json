@@ -31,9 +31,9 @@
     "postgres": "^3.4.5"
   },
   "devDependencies": {
-    "@types/node": "^22.15.0",
+    "@types/node": "catalog:",
     "@vakhta/config": "workspace:*",
     "drizzle-kit": "^0.31.0",
-    "typescript": "^5.8.3"
+    "typescript": "catalog:"
   }
 }

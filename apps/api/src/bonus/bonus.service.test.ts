@@ -1,4 +1,5 @@
 import { setImmediate } from 'node:timers/promises';
+import * as XLSX from 'xlsx';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   domainEvents,
@@ -431,6 +432,16 @@ describe('bonus: оцінка зміни, коригування, закритт
     const xlsxFile = await bonus.exportHistory({ ...range, groupBy: 'year' }, 'xlsx', HEAD);
     expect(xlsxFile.contentType).toContain('spreadsheetml');
     expect(xlsxFile.body.byteLength).toBeGreaterThan(0);
+    const book = XLSX.read(xlsxFile.body, { type: 'buffer' });
+    expect(book.SheetNames).toEqual(['Bonus history']);
+    const exportedSheet = book.Sheets['Bonus history'];
+    if (!exportedSheet) throw new Error('Missing bonus history sheet');
+    const exportedRows = XLSX.utils.sheet_to_json<Array<string | number>>(exportedSheet, {
+      header: 1,
+    });
+    expect(exportedRows).toHaveLength(4);
+    expect(exportedSheet['D2']).toMatchObject({ t: 's', v: '1' });
+    expect(exportedSheet['G2']).toMatchObject({ t: 'n', v: 1 });
 
     // Filters narrow the same query without changing its shape.
     expect((await bonus.history({ ...range, groupBy: 'year', siteId })).buckets).toHaveLength(1);
@@ -698,6 +709,35 @@ describe('bonus: оцінка зміни, коригування, закритт
     // після закриття перерахунок не переписує підтверджену оцінку
     const after = await bonus.evaluate(sessionId);
     expect(after?.status).toBe('CONFIRMED');
+  });
+
+  it('exports formula-like employee text safely without changing numeric bonus values', async () => {
+    await bonus.createRuleVersion(
+      {
+        label: 'QA;\n=1+1',
+        validFrom: new Date(planStart.getTime() - 86_400_000).toISOString(),
+        rules: {},
+      },
+      HEAD,
+    );
+    const sessionId = await fullShift();
+    await bonus.evaluate(sessionId);
+    await testDb.db
+      .update(employees)
+      .set({ personnelNumber: '=1+1', fullName: '+SUM(1;2)' })
+      .where(eq(employees.id, ivanov));
+    const closed = await bonus.closePeriod(siteId, month, { comment: 'Export regression' }, HEAD);
+    if (!closed.id) throw new Error('Closed period has no identifier');
+    await bonus.setBaseAmounts(
+      closed.id,
+      { items: [{ employeeId: ivanov, baseAmount: 5000 }] },
+      HR,
+    );
+    const csv = await bonus.exportCsv(closed.id, HR);
+    expect(csv).toContain(';"rules=QA;\n=1+1";generated=');
+    expect(csv).toContain('\'=1+1;"\'+SUM(1;2)";1;1;0;100;5000;5000');
+    expect(csv.startsWith('\uFEFF')).toBe(false);
+    expect(csv.endsWith('\n')).toBe(false);
   });
 
   it('a closed period can be reopened: scores go back to PRELIMINARY, points can change, base is kept', async () => {

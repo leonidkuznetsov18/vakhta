@@ -1,3 +1,4 @@
+import { serializeCsv } from '../common/csv.js';
 import { Inject, Injectable } from '@nestjs/common';
 import * as XLSX from 'xlsx';
 import {
@@ -158,8 +159,7 @@ export class LossesService {
         let body: Buffer;
         let contentType: string;
         if (format === 'csv') {
-          const lines = [header, ...matrix].map((row) => row.map(csvCell).join(';'));
-          body = Buffer.from(`\uFEFF${lines.join('\n')}`, 'utf8');
+          body = Buffer.from(serializeCsv([header, ...matrix], { bom: true }), 'utf8');
           contentType = 'text/csv; charset=utf-8';
         } else {
           const book = XLSX.utils.book_new();
@@ -360,9 +360,4 @@ function toBars(raw: readonly Omit<LossBar, 'share' | 'cumulative'>[], total: nu
       cumulative += share;
       return { ...row, share, cumulative };
     });
-}
-
-function csvCell(value: string | number): string {
-  const text = String(value);
-  return /[";\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }

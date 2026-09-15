@@ -54,7 +54,7 @@ import {
   UserCheckIcon,
   UserXIcon,
 } from 'lucide-react';
-import { ImportDialog } from './ImportDialog.tsx';
+import { ImportDialog } from '@/features/employee-import';
 import { UploadIcon } from 'lucide-react';
 import { validateWith, type FieldErrors } from '@/lib/validation';
 import { CreateEmployeeCommand } from '@vakhta/contracts';
@@ -94,7 +94,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   /** Active checklists of a position: what the bot will ask this employee for (ADR-0012). */
   const checklistsOf = (positionId: string) =>
     checklists.filter((c) => c.isActive && c.positions.some((p) => p.id === positionId));
-  const [importing, setImporting] = useState(false);
+  const [importing, setImporting] = useState<HTMLButtonElement | null>(null);
   const [statusFilter, setStatusFilter] = usePersistentState<'' | EmployeeView['status']>(
     'employees.status',
     '',
@@ -497,7 +497,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
                 tooltip={e.import}
                 size="icon"
                 variant="outline"
-                onClick={() => setImporting(true)}
+                onClick={(event) => setImporting(event.currentTarget)}
               />
               <AddDialog
                 title={e.create}
@@ -743,7 +743,14 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       />
       {openId && <ProfileSheet employeeId={openId} onClose={() => setOpenId(null)} />}
       <CodeSheet codes={sheet} employees={list} onClose={() => setSheet(null)} />
-      <ImportDialog open={importing} onOpenChange={setImporting} onImported={reload} />
+      <ImportDialog
+        open={importing !== null}
+        returnFocusTo={importing}
+        onOpenChange={(open) => {
+          if (!open) setImporting(null);
+        }}
+        onImported={reload}
+      />
       {dialog}
       <RelinkDialog
         employee={relinkFor}

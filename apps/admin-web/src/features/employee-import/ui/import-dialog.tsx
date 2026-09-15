@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import type { ImportEmployeesResult } from '@vakhta/contracts';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useStore } from 'zustand';
 import { format, messages } from '@vakhta/i18n';
 import { DownloadIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -20,65 +20,66 @@ import { Feedback } from '@/components/app/feedback';
 import { FormField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, ROW_DANGER, StatusPill } from '@/components/app/page';
-import { employeesFromCsv, type EmployeeRow } from '@/lib/csv';
-import { adminEmployeesApi } from '../api.ts';
-import { readError } from '../errors.ts';
-import { currentLocale } from '../i18n.tsx';
+import { employeeCsvTemplate, type EmployeeRow } from '../model/preview';
+import { createFileSelection } from '../model/file-selection';
+import { LoadingState } from '@/shared/ui/loading-state';
+import { importEmployees } from '../api/import-employees';
+import { readError } from '@/errors';
+import { currentLocale } from '@/i18n';
 
 const all = messages(currentLocale());
 const t = all.admin.administration;
 const e = t.employees;
 
-const TEMPLATE = `${e.personnelNumber};${e.fullName}\n0001;Иванов Иван Иванович\n0002;Петрова Анна Сергеевна\n`;
-
-/** CSV import of employee cards: pick a file, check the preview, import, read the report. */
-export function ImportDialog({
-  open,
-  onOpenChange,
-  onImported,
-}: {
+const IMPORT_MUTATION_KEY = ['employee-import'];
+interface ImportDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onImported: () => Promise<void>;
-}) {
-  const [rows, setRows] = useState<EmployeeRow[]>([]);
-  const [fileName, setFileName] = useState('');
-  const [result, setResult] = useState<ImportEmployeesResult | null>(null);
-  const valid = rows.filter((r) => r.error === null);
-  const invalid = rows.length - valid.length;
+  readonly returnFocusTo?: HTMLElement | null;
+}
 
-  async function pick(file: File | undefined) {
-    setResult(null);
-    if (!file) {
-      setRows([]);
-      setFileName('');
-      return;
-    }
-    setFileName(file.name);
-    setRows(employeesFromCsv(await file.text(), e.importReasons.INVALID));
-  }
+/** Each opening owns a fresh file selection and mutation report. */
+export function ImportDialog(props: ImportDialogProps) {
+  return props.open ? <ImportSession {...props} /> : null;
+}
 
-  // The report below is the feedback; no toast needed.
+function ImportSession({ onOpenChange, onImported, returnFocusTo }: ImportDialogProps) {
+  const [selection] = useState(createFileSelection);
+  const state = useStore(selection.store);
+  const [ownLifecycle] = useState(() => (node: HTMLDivElement | null) => {
+    if (node) return () => selection.reset();
+  });
+  const client = useQueryClient();
   const send = useMutation({
-    mutationFn: () =>
-      adminEmployeesApi.importMany({
-        items: valid.map((r) => ({ personnelNumber: r.personnelNumber, fullName: r.fullName })),
-      }),
-    onSuccess: async (res) => {
-      setResult(res);
-      setRows([]);
+    mutationKey: IMPORT_MUTATION_KEY,
+    mutationFn: importEmployees,
+    retry: false,
+    onSuccess: async () => {
+      selection.reset();
       await onImported();
     },
   });
   const busy = send.isPending;
-  const error = readError(send.error);
+  const preview = state.status === 'ready' ? state.preview : null;
+  const rows = preview?.rows ?? [];
+  const count = preview?.command?.items.length ?? 0;
+  const result = send.data;
+  const error = state.status === 'error' ? e.importReadErrors[state.error] : readError(send.error);
 
+  function pick(file: File | undefined) {
+    if (client.isMutating({ mutationKey: IMPORT_MUTATION_KEY })) return;
+    send.reset();
+    void selection.select(file);
+  }
+  function submit() {
+    if (client.isMutating({ mutationKey: IMPORT_MUTATION_KEY })) return;
+    const current = selection.store.getState();
+    if (current.status === 'ready' && current.preview.command) send.mutate(current.preview.command);
+  }
   function reset(next: boolean) {
-    if (!next) {
-      setRows([]);
-      setFileName('');
-      setResult(null);
-    }
+    if (client.isMutating({ mutationKey: IMPORT_MUTATION_KEY })) return;
+    if (!next) selection.reset();
     onOpenChange(next);
   }
 
@@ -95,18 +96,28 @@ export function ImportDialog({
       header: e.status,
       cell: (r) =>
         r.error ? (
-          <StatusPill tone="danger">{r.error}</StatusPill>
+          <StatusPill tone="danger">{e.importReasons.INVALID}</StatusPill>
         ) : (
           <StatusPill tone="success">{all.ui.common.yes}</StatusPill>
         ),
     },
   ];
 
-  const templateHref = `data:text/csv;charset=utf-8,${encodeURIComponent('\uFEFF' + TEMPLATE)}`;
+  const templateHref = `data:text/csv;charset=utf-8,${encodeURIComponent(employeeCsvTemplate(e.personnelNumber, e.fullName, e.importExampleName))}`;
 
   return (
-    <Dialog open={open} onOpenChange={reset}>
-      <DialogContent className="sm:max-w-3xl">
+    <Dialog open onOpenChange={reset}>
+      <DialogContent
+        ref={ownLifecycle}
+        onCloseAutoFocus={(event) => {
+          if (returnFocusTo?.isConnected) {
+            event.preventDefault();
+            returnFocusTo.focus();
+          }
+        }}
+        showCloseButton={!busy}
+        className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-w-3xl"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-1">
             {e.import}
@@ -114,15 +125,19 @@ export function ImportDialog({
           </DialogTitle>
           <DialogDescription>{e.importHint}</DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-4">
+        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
           <div className="flex flex-wrap items-end gap-3">
-            <FormField label={e.importFile} className="min-w-64 flex-1">
+            <FormField label={e.importFile} className="min-w-0 basis-64 flex-1">
               {(id) => (
                 <Input
                   id={id}
                   type="file"
                   accept=".csv,text/csv"
-                  onChange={(ev) => void pick(ev.target.files?.[0])}
+                  disabled={busy}
+                  onChange={(ev) => {
+                    pick(ev.target.files?.[0]);
+                    ev.target.value = '';
+                  }}
                 />
               )}
             </FormField>
@@ -139,10 +154,13 @@ export function ImportDialog({
               </a>
             </IconButton>
           </div>
+          {state.status === 'reading' && <LoadingState label={e.importReading} />}
+          {preview && rows.length === 0 && <p role="status">{e.importEmpty}</p>}
           {rows.length > 0 && (
             <>
               <Muted>
-                {fileName} · {format(e.importSummary, { rows: valid.length, invalid })}
+                {state.status === 'ready' ? state.fileName : ''} ·{' '}
+                {format(e.importSummary, { rows: count, invalid: preview?.invalidCount ?? 0 })}
               </Muted>
               <DataTable
                 storageKey="employee-import-preview"
@@ -179,11 +197,11 @@ export function ImportDialog({
           <Feedback error={error} />
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => reset(false)}>
+          <Button type="button" variant="outline" disabled={busy} onClick={() => reset(false)}>
             {all.ui.common.close}
           </Button>
-          <Button type="button" disabled={busy || valid.length === 0} onClick={() => send.mutate()}>
-            {e.importRun} ({valid.length})
+          <Button type="button" disabled={busy || count === 0} onClick={submit}>
+            {busy ? <LoadingState label={all.ui.common.saving} /> : `${e.importRun} (${count})`}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1448,6 +1448,17 @@ export const en: Messages = {
         importHint:
           'A file with the columns personnel number and full name; the first row may be a header.',
         importFile: 'CSV file',
+        importReading: 'Reading CSV…',
+        importEmpty: 'The file has no employee rows.',
+        importExampleName: 'Anna Kovalenko',
+        importReadErrors: {
+          MALFORMED:
+            'The CSV could not be parsed. Check quotes and use a comma or semicolon separator.',
+          TOO_MANY_ROWS:
+            'The file contains more than 1,000 employee rows. Split it into smaller files.',
+          READ_FAILED: 'The file could not be read. Select it again.',
+          FILE_TOO_LARGE: 'The CSV is larger than 2 MiB. Select a smaller file.',
+        },
         importPreview: 'Preview',
         importSummary: 'Rows to import: {rows}, with errors: {invalid}.',
         importRun: 'Import',

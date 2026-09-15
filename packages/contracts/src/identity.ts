@@ -113,6 +113,7 @@ export const BulkDeleteEmployeesResult = z.object({
 export type BulkDeleteEmployeesResult = z.infer<typeof BulkDeleteEmployeesResult>;
 
 /** Bulk creation from a CSV: every row is validated, duplicates are reported, not created. */
+export const EMPLOYEE_IMPORT_MAX_ITEMS = 1000;
 export const ImportEmployeesCommand = z.object({
   items: z
     .array(
@@ -122,7 +123,7 @@ export const ImportEmployeesCommand = z.object({
       }),
     )
     .min(1)
-    .max(1000),
+    .max(EMPLOYEE_IMPORT_MAX_ITEMS),
 });
 export type ImportEmployeesCommand = z.infer<typeof ImportEmployeesCommand>;
 

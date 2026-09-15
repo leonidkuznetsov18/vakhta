@@ -44,6 +44,20 @@ Administration tabs:
   footer (a terminal with history is hidden and disabled, its records stay).
 - "Чек-листы": see the checklists doc.
 
+### Employee CSV import
+
+Choose a UTF-8 CSV file up to 2 MiB and 1,000 employee rows. Commas and semicolons are supported,
+including quoted separators, escaped quotes and multiline names. The first two columns contain
+personnel number and full name; a recognized header is optional and extra columns are ignored.
+Personnel numbers retain leading zeros. The downloaded template matches the current UI language.
+
+The preview shows valid and invalid rows with pagination and the full count. Import submits only
+valid rows. Broken CSV syntax, read failures and exceeded limits block import with a clear message;
+empty files are identified explicitly. Choosing a new file replaces the previous preview immediately.
+After a request failure, the preview remains available for an explicit retry. The result reports
+created and skipped employees. File selection and closing are disabled during submission; closing
+afterward returns keyboard focus to the import button. The preview scrolls inside the mobile dialog.
+
 Every section (and every administration tab) has a "Как это работает" block, collapsed by default
 with explicit expand/collapse choices remembered per section:
 one sentence on what the section is for and the numbered steps of normal use; "Вопросы и ответы"

@@ -20,9 +20,7 @@ import { addMonths } from '@vakhta/domain';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
 import { DATABASE } from '../infra/database.module.js';
-
-/** Calendar clients poll; three hours keeps them close to publication without hammering the API. */
-export const FEED_REFRESH = 'PT3H';
+import { serializeCalendarFeed } from './calendar-feed.js';
 
 /**
  * Personal calendar feed (SC-44): a revocable token per employee that exposes only their own
@@ -153,65 +151,10 @@ export class FeedService {
         ),
       )
       .orderBy(asc(shiftAssignments.planStartAt));
-    const lines = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//Vakhta//Schedule//EN',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      'X-WR-CALNAME:Vakhta',
-      `REFRESH-INTERVAL;VALUE=DURATION:${FEED_REFRESH}`,
-      `X-PUBLISHED-TTL:${FEED_REFRESH}`,
-    ];
-    for (const row of rows) {
-      const stamp = row.publishedAt ?? row.planStartAt;
-      lines.push(
-        'BEGIN:VEVENT',
-        `UID:${row.employeeId}-${row.businessDate}@vakhta`,
-        `DTSTAMP:${stampOf(stamp)}`,
-        `LAST-MODIFIED:${stampOf(stamp)}`,
-        `SEQUENCE:${row.versionNo}`,
-        `DTSTART:${stampOf(row.planStartAt)}`,
-        `DTEND:${stampOf(row.planEndAt)}`,
-        `SUMMARY:${escape(`${row.isNight ? 'Night' : 'Day'} shift${row.zoneName ? ` · ${row.zoneName}` : ''}`)}`,
-        `DESCRIPTION:${escape(`${row.siteName} · ${row.unitName}`)}`,
-        'END:VEVENT',
-      );
-    }
-    lines.push('END:VCALENDAR');
-    return lines.map(fold).join('\r\n') + '\r\n';
+    return serializeCalendarFeed(rows);
   }
 }
 
 function hash(token: string): string {
   return createHash('sha256').update(token).digest('hex');
-}
-
-function stampOf(instant: Date): string {
-  return instant
-    .toISOString()
-    .replace(/[-:]/g, '')
-    .replace(/\.\d{3}Z$/, 'Z');
-}
-
-function escape(value: string): string {
-  return value
-    .replace(/\\/g, '\\\\')
-    .replace(/;/g, '\\;')
-    .replace(/,/g, '\\,')
-    .replace(/\n/g, '\\n');
-}
-
-/** RFC 5545 line folding at 75 octets. */
-function fold(line: string): string {
-  const parts: string[] = [];
-  let rest = line;
-  while (Buffer.byteLength(rest) > 75) {
-    let cut = 75;
-    while (cut > 0 && Buffer.byteLength(rest.slice(0, cut)) > 75) cut -= 1;
-    parts.push(rest.slice(0, cut));
-    rest = ` ${rest.slice(cut)}`;
-  }
-  parts.push(rest);
-  return parts.join('\r\n');
 }

@@ -100,3 +100,63 @@ Local verification passed:
 Application tests, build and product visual/live QA are inapplicable to this tooling/documentation
 change. No employee actions were performed. CI/release and deployment evidence are separate from
 these local checks; the existing pipeline remains the integration gate.
+
+## Architecture standardization: 2026-09-15, first increment
+
+[Spec, plan and tasks](../../../specs/009-architecture-standardization/spec.md) own the full program.
+Baseline: `be779fc`; the first increment replaces file protocols and centralizes dependency versions.
+Form/API pilots, typed persistence, architecture gates, network/browser tooling and operational
+contracts remain pending (T018–T030). Existing frameworks and pure business rules remain authoritative.
+
+Implemented:
+
+- Employee import is an FSD feature with Papa Parse 5.7.0, shared Zod validation, explicit Zustand
+  read ownership and Query mutations without automatic retry. It accepts at most 2 MiB/1,000 data
+  rows, keeps leading zeros and invalid-row previews, and rejects broken/oversize files visibly.
+  New selection/close invalidates reads. Failed submissions retain the preview. A clicked opener
+  owns keyboard-focus return; desktop/mobile dialog content scrolls independently of its actions.
+- `csv-stringify` 6.8.3 handles losses, bonus history, closed-period records and metadata. Existing
+  delimiter/newline/BOM policies stay intact. Formula-like strings are protected; actual numbers
+  retain their representation. Delimiters/newlines in rule labels stay inside their metadata cell.
+- `ical-generator` 11.1.1 owns escaping and Unicode folding. Feed queries, tokens, UID, revision,
+  timestamps, UTC and three-hour refresh remain intact. The library also emits standard NAME.
+- SheetJS uses the official 0.20.3 tarball with a verified SHA-512 in the lockfile. The bonus sheet
+  is `Bonus history`: Excel reserves `History`, which the supported library rejects. Other workbook
+  semantics are retained. pnpm catalogs centralize 18 shared direct dependencies at current versions;
+  comparison confirmed all 147 direct resolutions unchanged by catalog consolidation.
+
+Fresh local evidence:
+
+- Employee-import parser/store/UI plus AdminPage: 30 tests passed; includes three-language template
+  round trips, stale reads, read/submit failure, retry, duplicate-submit guards and focus restoration.
+- CSV/calendar adapters: 16 tests passed. PostgreSQL losses: 16 passed; bonus: 25 passed after the
+  SheetJS compatibility correction. Scheduling: 10 relevant saved-version export, retrospective and
+  personal-feed cases passed; 51 unrelated cases were deliberately deselected. i18n: 13 passed.
+- Contracts/i18n builds, API typecheck/build and panel typecheck/production build passed. Changed-source
+  ESLint, authored-file Prettier and frozen-lock installation passed. The SheetJS digest remains in
+  the lockfile after installation. Existing Docker build contexts already copy the catalog file.
+- Real browser fixture journey at 1440×1000 and 390×844: valid/invalid rows, paging, malformed/empty
+  files, created/skipped result, disabled submit and Escape/focus return. Screenshots captured and
+  visually inspected under ignored `test-results/architecture-standardization/`. Read failures are
+  injected in automated tests. No real employee was imported and no production request was submitted.
+- Independent read-only review covered exports/feed/import boundaries. Its missing tarball-integrity
+  finding was resolved; the final metadata-quoting delta also passed review without further findings.
+
+Limits and remaining verification:
+
+- The final metadata-quoting change extends the existing real bonus export test. Its two-case rerun
+  could not start PostgreSQL: Docker returned a containerd temporary-directory I/O error after the
+  host ran out of disk space. Earlier bonus results do not claim execution of that final assertion.
+  CI must run it before T009/T017 are closed. Existing serializer fixtures cover delimiter/newline
+  quoting; no transaction or calculation changed in that delta.
+- Panel build retains upstream Zod annotation and large-chunk warnings. The local preview logged
+  missing GET /preview.html fixtures during dev reloads, with no import runtime errors. A stale ignored
+  preview entry also caused a dev dependency-scan warning. Neither is production verification.
+- Low host disk space interrupted one repeat build/i18n start; removing only this task's generated
+  panel output/cache allowed both to pass. Other Docker workloads/data were preserved.
+- Post-push full CI, release/announcement and deployed import/export checks are separate pending
+  evidence. Do not infer deployment from local tests or close the whole program after this increment.
+
+Lean recommendation: Proceed with the bounded increment. Keep select → preview → import → report;
+catch broken/stale files early and keep mobile actions reachable. No extra worker step or permission
+ceremony was added. Correctness is demonstrated with fixtures, not claimed as measured time savings.

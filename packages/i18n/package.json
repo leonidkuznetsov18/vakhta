@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@vakhta/config": "workspace:*",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.0"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

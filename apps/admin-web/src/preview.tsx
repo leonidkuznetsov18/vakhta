@@ -1,4 +1,5 @@
 import './preview/locale';
+import { ImportEmployeesCommand } from '@vakhta/contracts';
 import { CalendarPrototype } from './preview/calendar-prototype';
 import {
   scheduleFixture,
@@ -277,6 +278,13 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       },
     ]);
   if (path === '/admin/audit/events') return json([tableLayoutEvent]);
+  if (path === '/admin/employees/import' && method === 'POST') {
+    const command = ImportEmployeesCommand.parse(JSON.parse(String(init?.body)));
+    const skipped = command.items
+      .filter((employee) => employee.personnelNumber === '0001')
+      .map((employee) => ({ personnelNumber: employee.personnelNumber, reason: 'DUPLICATE' }));
+    return json({ created: command.items.length - skipped.length, skipped });
+  }
   if (/^\/admin\/employees\/[^/]+\/positions$/.test(path)) return json([]);
   if (path === '/admin/employees' || path === '/admin/employees/page') {
     const roster = [

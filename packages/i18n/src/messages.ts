@@ -1148,6 +1148,12 @@ export interface Messages {
         readonly import: string;
         readonly importHint: string;
         readonly importFile: string;
+        readonly importReading: string;
+        readonly importEmpty: string;
+        readonly importExampleName: string;
+        readonly importReadErrors: Readonly<
+          Record<'MALFORMED' | 'TOO_MANY_ROWS' | 'READ_FAILED' | 'FILE_TOO_LARGE', string>
+        >;
         readonly importPreview: string;
         /** Placeholders: {rows}, {invalid} */
         readonly importSummary: string;

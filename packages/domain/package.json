@@ -24,13 +24,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "luxon": "^3.6.1"
+    "luxon": "catalog:"
   },
   "devDependencies": {
-    "@types/luxon": "^3.6.2",
+    "@types/luxon": "catalog:",
     "@vakhta/config": "workspace:*",
     "fast-check": "^4.1.1",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.0"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

@@ -118,8 +118,6 @@ import type {
   DirectoryKind,
   EmployeePositionView,
   GrantRoleCommand,
-  ImportEmployeesCommand,
-  ImportEmployeesResult,
   OrgUnitView,
   PositionView,
   RegisterTerminalCommand,
@@ -162,8 +160,6 @@ export const adminEmployeesApi = {
   positions: (id: string) => apiFetch<EmployeePositionView[]>(`/admin/employees/${id}/positions`),
   issueCodes: (employeeIds: string[]) =>
     post<ActivationCodeIssued[]>('/admin/employees/activation-codes', { employeeIds }),
-  importMany: (cmd: ImportEmployeesCommand) =>
-    post<ImportEmployeesResult>('/admin/employees/import', cmd),
   assignPosition: (id: string, cmd: AssignPositionCommand) =>
     post<EmployeePositionView>(`/admin/employees/${id}/positions`, cmd),
 };

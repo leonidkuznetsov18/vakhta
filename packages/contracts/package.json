@@ -21,11 +21,11 @@
   },
   "dependencies": {
     "@vakhta/domain": "workspace:*",
-    "zod": "^4.0.0"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@vakhta/config": "workspace:*",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.0"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
