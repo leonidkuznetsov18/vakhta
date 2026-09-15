@@ -59,11 +59,11 @@ export function ProfilePanel({ me, onChanged }: Props) {
   const backupCodes = enable.data?.backupCodes ?? [];
   const busy = enable.isPending || verify.isPending;
   const error = enable.error
-    ? enable.error instanceof ApiError
+    ? enable.error instanceof ApiError && enable.error.kind === 'http'
       ? t.invalidCredentials
       : t.networkError
     : verify.error
-      ? verify.error instanceof ApiError
+      ? verify.error instanceof ApiError && verify.error.kind === 'http'
         ? t.invalidCode
         : t.networkError
       : null;
@@ -102,7 +102,7 @@ export function ProfilePanel({ me, onChanged }: Props) {
   });
   const profileBusy = saveProfile.isPending || choosePhoto.isPending;
   const profileError = saveProfile.error
-    ? saveProfile.error instanceof ApiError
+    ? saveProfile.error instanceof ApiError && saveProfile.error.kind === 'http'
       ? saveProfile.error.message
       : t.networkError
     : choosePhoto.error

@@ -18,6 +18,10 @@ client.interceptors.request.use((config) => {
   if (!config.headers.has('x-locale')) config.headers.set('x-locale', currentLocale());
   // Fastify refuses a JSON content type with no body. FormData needs the browser's boundary.
   if (config.data == null || config.data instanceof FormData) config.headers.setContentType(false);
+  // The fetch adapter adds `User-Agent: axios/x` unless the header is already set. Chromium drops
+  // it, but Safari sends it, so the CORS preflight asks for a header the API does not allow and
+  // every cross-origin request from an iPhone is blocked. `false` keeps the browser's own value.
+  config.headers.set('User-Agent', false);
   return config;
 });
 client.interceptors.response.use((response: AxiosResponse<unknown>) => {

@@ -20,7 +20,7 @@ export function useSession() {
     ? { status: 'loading' }
     : query.data
       ? { status: 'authenticated', me: query.data }
-      : { status: 'anonymous', offline: !(query.error instanceof ApiError) };
+      : { status: 'anonymous', offline: !(query.error instanceof ApiError && query.error.kind === 'http') };
 
   const refresh = () => client.invalidateQueries({ queryKey: keys.me });
   /**

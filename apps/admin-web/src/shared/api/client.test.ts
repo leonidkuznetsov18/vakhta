@@ -34,6 +34,19 @@ describe('shared Axios transport', () => {
     expect(request?.headers.get('if-match')).toBe('revision');
     expect(await request?.text()).toBe('{"name":"Test"}');
   });
+  it('adds no User-Agent header that would fail the CORS preflight in Safari', async () => {
+    let request: Request | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: Request) => {
+        request = input;
+        return json({});
+      }),
+    );
+    await apiFetch('/auth/sign-in/email', { method: 'POST', body: '{}' });
+    expect(request?.headers.has('user-agent')).toBe(false);
+  });
+
   it('omits cookies for Telegram questionnaire authentication', async () => {
     let request: Request | undefined;
     vi.stubGlobal(

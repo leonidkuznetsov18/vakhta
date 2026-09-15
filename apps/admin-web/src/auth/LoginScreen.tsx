@@ -51,7 +51,7 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
       ? offline
         ? t.networkError
         : null
-      : failed instanceof ApiError
+      : failed instanceof ApiError && failed.kind === 'http'
         ? signIn.error
           ? t.invalidCredentials
           : t.invalidCode
