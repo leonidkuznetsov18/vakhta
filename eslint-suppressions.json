@@ -1,0 +1,3988 @@
+{
+  ".railway/railway.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/e2e/profile.spec.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/App.navigation.test.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/admin/AdminPage.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 8
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 7
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/admin-web/src/admin/AdminPage.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/admin/ChecklistsTab.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    },
+    "no-restricted-syntax": {
+      "count": 8
+    }
+  },
+  "apps/admin-web/src/admin/ChecklistsTab.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "apps/admin-web/src/admin/DirectoriesTab.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/admin/EditDirectoryDialog.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/admin/EmployeesTab.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 3
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 17
+    }
+  },
+  "apps/admin-web/src/admin/TerminalsTab.tsx": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-call": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "apps/admin-web/src/admin/UsersTab.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 10
+    }
+  },
+  "apps/admin-web/src/app/ui/panel-shell.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/audit/AuditPage.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/audit/AuditPage.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 2
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/auth/LoginScreen.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/auth/ProfilePanel.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 3
+    }
+  },
+  "apps/admin-web/src/auth/useSession.test.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/auth/useSession.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/bonus/BonusPage.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 3
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/canonical.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/components/app/avatar.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "apps/admin-web/src/components/app/command-palette.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/components/app/confirm-dialog.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/components/app/data-table.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 12
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/components/app/data-table.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 5
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 5
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 6
+    },
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "apps/admin-web/src/components/app/date-picker.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/components/app/deadline.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/components/app/fields.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/components/app/kpi-tile.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/components/app/photo.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/components/app/qr-code.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/components/ui/calendar.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/components/ui/chart.tsx": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 3
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/components/ui/sidebar.tsx": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-param-reassign": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/components/ui/sonner.tsx": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/components/ui/toggle-group.tsx": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 4
+    }
+  },
+  "apps/admin-web/src/entities/employee/api/generated/models/index.ts": {
+    "@typescript-eslint/consistent-type-exports": {
+      "count": 8
+    }
+  },
+  "apps/admin-web/src/errors.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 11
+    }
+  },
+  "apps/admin-web/src/features/checklist-photo-rules/model/rules-draft.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/checklist-photo-rules/ui/checklist-photo-rules.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 3
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/admin-web/src/features/checklist-photo-rules/ui/dictionary-details.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/checklist-photo-rules/ui/dictionary-picker.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/checklist-photo-rules/ui/rule-field.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/employee-communications/api/communications.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/employee-communications/model/draft.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/employee-communications/model/results.ts": {
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "apps/admin-web/src/features/employee-communications/ui/audience.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/employee-communications/ui/compose.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 17
+    }
+  },
+  "apps/admin-web/src/features/employee-communications/ui/history.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 4
+    },
+    "no-restricted-syntax": {
+      "count": 10
+    }
+  },
+  "apps/admin-web/src/features/employee-communications/ui/questionnaire-editor.tsx": {
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "apps/admin-web/src/features/employee-communications/ui/recipient-combobox.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/employee-communications/ui/workspace.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/employee-import/ui/import-dialog.test.tsx": {
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/employee-import/ui/import-dialog.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/employee-profile/model/directory.ts": {
+    "no-await-in-loop": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/employee-profile/model/use-section-editor.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/employee-profile/ui/compensation-section.tsx": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/employee-profile/ui/profile-page.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 3
+    }
+  },
+  "apps/admin-web/src/features/employee-profile/ui/profile-sheet.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/employee-profile/ui/profile.test.tsx": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/employee-profile/ui/section-editor.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 3
+    }
+  },
+  "apps/admin-web/src/features/employee-profile/ui/unit-master-picker.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/incident-management/model/detail.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/incident-management/model/period.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/incident-management/model/sla.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/admin-web/src/features/incident-management/model/workspace.ts": {
+    "@tanstack/query/exhaustive-deps": {
+      "count": 1
+    },
+    "@tanstack/query/prefer-query-options": {
+      "count": 4
+    },
+    "complexity": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 9
+    }
+  },
+  "apps/admin-web/src/features/incident-management/ui/columns.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/incident-management/ui/incident-detail.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/incident-management/ui/incident-statistics.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/incident-management/ui/incident-workspace.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/mobile-navigation/model/edge-swipe.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/mobile-navigation/model/gesture.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/overview/model/attention.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 10
+    }
+  },
+  "apps/admin-web/src/features/overview/model/destination.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/overview/model/priority.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 2
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/overview/model/priority.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "apps/admin-web/src/features/overview/model/queries.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 7
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/overview/model/snapshot.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/overview/model/team-today.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/overview/model/time.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    }
+  },
+  "apps/admin-web/src/features/overview/ui/event-feed.tsx": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/overview/ui/overview-page.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/overview/ui/shift-header.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/overview/ui/shift-health.tsx": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 3
+    }
+  },
+  "apps/admin-web/src/features/overview/ui/team-today.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/overview/ui/zone-board.tsx": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/model/delete-shortcut.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/model/delete-shortcut.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/model/editor.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/model/editor.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 12
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/model/region-navigation.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/model/review-changes.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/model/review-feedback.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/model/suggestions.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/model/viewport.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/model/viewport.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/ui/analyze-button.tsx": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/ui/inspection-dialog.tsx": {
+    "@tanstack/query/exhaustive-deps": {
+      "count": 2
+    },
+    "@tanstack/query/no-rest-destructuring": {
+      "count": 2
+    },
+    "@tanstack/query/prefer-query-options": {
+      "count": 10
+    },
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 17
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/ui/inspection-photo.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/ui/photo-note.tsx": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/ui/prediction-panel.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 5
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/ui/prediction-panel.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/ui/region-fields.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/photo-inspection/ui/review-fields.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/questionnaire-response/model/response.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/questionnaire-response/ui/questionnaire.tsx": {
+    "@tanstack/query/exhaustive-deps": {
+      "count": 1
+    },
+    "@tanstack/query/prefer-query-options": {
+      "count": 3
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 13
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/api/schedule-api.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 9
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/api/schedule-export.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 3
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/api/staffing-api.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/lib/template-label.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/acknowledgement.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/availability.ts": {
+    "complexity": {
+      "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 9
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/batch.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/batch.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/calendar.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 5
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/calendar.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 5
+    },
+    "complexity": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 11
+    },
+    "no-restricted-syntax": {
+      "count": 25
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/commands.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/feedback.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/grid.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 2
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 7
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/grid.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/ownership.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/planning.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 14
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/print.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "max-nested-callbacks": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/proposal.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/roster.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/store.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/use-adjacent.ts": {
+    "@tanstack/query/no-rest-destructuring": {
+      "count": 2
+    },
+    "@tanstack/query/prefer-query-options": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/use-eligibility.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 12
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/use-events.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/use-notes.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/use-open-slots.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/use-operations.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/use-patterns.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/use-retrospective.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/use-staffing.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/model/use-workspace.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 5
+    },
+    "@typescript-eslint/no-floating-promises": {
+      "count": 8
+    },
+    "complexity": {
+      "count": 3
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 20
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/assignment-changes.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/assignment-editor.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 4
+    },
+    "no-restricted-syntax": {
+      "count": 18
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/batch-planner.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 13
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/copy-period.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/notes-section.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/people-schedule.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 3
+    },
+    "max-depth": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/proposal-sheet.tsx": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/publication-review.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/reason-alerts.tsx": {
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/resource-schedule.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 3
+    },
+    "complexity": {
+      "count": 4
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 5
+    },
+    "no-restricted-syntax": {
+      "count": 10
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/retrospective-sheet.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/schedule-export.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/schedule-toolbar.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/schedule-workspace.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 5
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 48
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/schedule-workspace.tsx": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 4
+    },
+    "no-restricted-syntax": {
+      "count": 23
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/slot-details.tsx": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 16
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/staffing-sheet.tsx": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 9
+    }
+  },
+  "apps/admin-web/src/features/schedule-management/ui/workload-sheet.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/handover/HandoverPage.test.tsx": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/admin-web/src/handover/HandoverPage.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 3
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "apps/admin-web/src/i18n.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/incidents/IncidentsPage.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    },
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/lib/build-check.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/lib/clock.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/lib/live.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/lib/live.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/lib/org.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/lib/ui-store.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/operations/OperationsPage.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 3
+    },
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "apps/admin-web/src/operations/OperationsPage.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 3
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 23
+    }
+  },
+  "apps/admin-web/src/pages/overview/ui/overview-page.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/pages/photo-library/api/library-api.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/pages/photo-library/model/use-library.ts": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/pages/photo-library/ui/photo-library-page.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/preview.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 7
+    }
+  },
+  "apps/admin-web/src/preview/calendar-prototype.tsx": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/preview/overview-fixtures.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/preview/photo-dictionary-fixture.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/preview/review-fixtures.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 7
+    }
+  },
+  "apps/admin-web/src/preview/schedule-fixtures.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 24
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 11
+    },
+    "complexity": {
+      "count": 4
+    },
+    "max-depth": {
+      "count": 9
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 9
+    },
+    "no-restricted-syntax": {
+      "count": 47
+    }
+  },
+  "apps/admin-web/src/reports/ReportsPage.test.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/admin-web/src/reports/ReportsPage.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/reports/report-presentation.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/requests/RequestsPage.test.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "apps/admin-web/src/requests/RequestsPage.tsx": {
+    "@tanstack/query/prefer-query-options": {
+      "count": 5
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 16
+    }
+  },
+  "apps/admin-web/src/shared/api/api-error.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/shared/api/index.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    }
+  },
+  "apps/admin-web/src/shared/lib/calendar-range.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/shared/lib/table-model.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/shared/ui/icon-button.tsx": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/shared/ui/query-activity.test.tsx": {
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/admin-web/src/shared/ui/resource-calendar/resource-calendar.tsx": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 5
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 6
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "apps/admin-web/src/shared/ui/sparkle-burst.tsx": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/shared/ui/week-calendar.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/shared/ui/zoomable-photo.tsx": {
+    "max-lines-per-function": {
+      "count": 1
+    }
+  },
+  "apps/admin-web/src/test-setup.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 5
+    }
+  },
+  "apps/admin-web/src/test/fetch-fixture.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/api/src/app.e2e.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 11
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 3
+    },
+    "no-await-in-loop": {
+      "count": 9
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/attendance/attendance.service.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 13
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/api/src/attendance/attendance.service.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 2
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 13
+    }
+  },
+  "apps/api/src/auth/auth.routes.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/auth/auth.service.ts": {
+    "no-await-in-loop": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/api/src/auth/auth.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/auth/roles.service.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    }
+  },
+  "apps/api/src/bonus/admin-bonus.controller.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/api/src/bonus/bonus-month-close.service.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 1
+    }
+  },
+  "apps/api/src/bonus/bonus-month.service.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 23
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/api/src/bonus/bonus-month.service.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/bonus/bonus-task-dispatcher.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    }
+  },
+  "apps/api/src/bonus/bonus-tasks.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 5
+    }
+  },
+  "apps/api/src/bonus/bonus.service.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 34
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 4
+    },
+    "no-await-in-loop": {
+      "count": 4
+    },
+    "no-restricted-syntax": {
+      "count": 14
+    }
+  },
+  "apps/api/src/bonus/bonus.service.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 9
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 8
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 9
+    },
+    "max-depth": {
+      "count": 4
+    },
+    "max-lines-per-function": {
+      "count": 6
+    },
+    "no-await-in-loop": {
+      "count": 14
+    },
+    "no-nested-ternary": {
+      "count": 5
+    },
+    "no-restricted-syntax": {
+      "count": 59
+    }
+  },
+  "apps/api/src/cli/set-webhook.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/common/access-scope.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 2
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 21
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 10
+    }
+  },
+  "apps/api/src/common/access-scope.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "apps/api/src/common/locale.decorator.ts": {
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    }
+  },
+  "apps/api/src/communications/communications.controller.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/api/src/communications/communications.service.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 3
+    }
+  },
+  "apps/api/src/communications/communications.service.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 2
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 3
+    },
+    "no-await-in-loop": {
+      "count": 4
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "apps/api/src/communications/media.service.test.ts": {
+    "no-await-in-loop": {
+      "count": 1
+    }
+  },
+  "apps/api/src/communications/media.service.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/api/src/communications/questionnaire-auth.test.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/api/src/communications/questionnaire-auth.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "apps/api/src/communications/questionnaire.service.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "apps/api/src/config/env.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "apps/api/src/events/event-store.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "apps/api/src/handover/admin-handover.controller.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "apps/api/src/handover/handover.repository.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/handover/handover.service.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 31
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    },
+    "no-await-in-loop": {
+      "count": 4
+    },
+    "no-restricted-syntax": {
+      "count": 12
+    }
+  },
+  "apps/api/src/handover/handover.service.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 5
+    },
+    "max-lines-per-function": {
+      "count": 6
+    },
+    "no-await-in-loop": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 26
+    }
+  },
+  "apps/api/src/handover/media.service.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/api/src/handover/media.service.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    }
+  },
+  "apps/api/src/identity/activation.service.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/identity/activation.service.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 9
+    }
+  },
+  "apps/api/src/identity/admin-employees.controller.ts": {
+    "no-await-in-loop": {
+      "count": 1
+    }
+  },
+  "apps/api/src/identity/employee-avatar-cleanup.service.ts": {
+    "no-await-in-loop": {
+      "count": 1
+    }
+  },
+  "apps/api/src/identity/employee-avatar.controller.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/identity/employee-avatar.service.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/api/src/identity/employee-compensation.service.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "apps/api/src/identity/employee-contracts.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    }
+  },
+  "apps/api/src/identity/employee-profile-access.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "apps/api/src/identity/employee-profile-schema.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 1
+    }
+  },
+  "apps/api/src/identity/employee-profile.service.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "apps/api/src/identity/employee-profile.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "apps/api/src/identity/employees-roster.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/api/src/identity/employees-scope.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 3
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 13
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 2
+    }
+  },
+  "apps/api/src/identity/employees.service.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 3
+    },
+    "no-await-in-loop": {
+      "count": 5
+    },
+    "no-restricted-syntax": {
+      "count": 12
+    }
+  },
+  "apps/api/src/identity/positions.service.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/api/src/incidents/admin-incidents.controller.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "apps/api/src/incidents/incidents.service.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 24
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 5
+    },
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "apps/api/src/incidents/incidents.service.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 6
+    },
+    "max-lines-per-function": {
+      "count": 6
+    },
+    "no-await-in-loop": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 28
+    }
+  },
+  "apps/api/src/infra/object-storage.ts": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "apps/api/src/infra/timers.queue.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/api/src/infra/timers.queue.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/api/src/kiosk/kiosk.service.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/api/src/load/shift-boundary.load.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 8
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/logger.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/api/src/main.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/api/src/metrics/metrics.module.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/notifications/notifications.service.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/observability/sentry.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    }
+  },
+  "apps/api/src/observability/sentry.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/org/admin-org.controller.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/org/checklists.service.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 16
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/api/src/org/checklists.service.ts": {
+    "no-await-in-loop": {
+      "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/org/org.service.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 9
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "apps/api/src/org/unit-master.service.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/overview/overview.service.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 78
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/overview/overview.service.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 5
+    },
+    "max-depth": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 6
+    },
+    "no-await-in-loop": {
+      "count": 7
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 31
+    }
+  },
+  "apps/api/src/photo-inspection/analysis-limits.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/photo-inspection/checklist-photo-rules.service.ts": {
+    "no-param-reassign": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/api/src/photo-inspection/photo-inspection.controller.ts": {
+    "no-restricted-syntax": {
+      "count": 7
+    }
+  },
+  "apps/api/src/photo-inspection/photo-inspection.service.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 5
+    }
+  },
+  "apps/api/src/photo-inspection/photo-inspection.service.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 3
+    },
+    "max-depth": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 7
+    }
+  },
+  "apps/api/src/photo-inspection/photo-library.service.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "apps/api/src/photo-inspection/photo-object-dictionary-source.ts": {
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 2
+    },
+    "max-depth": {
+      "count": 5
+    },
+    "no-await-in-loop": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/photo-inspection/photo-object-dictionary.service.ts": {
+    "no-nested-ternary": {
+      "count": 2
+    }
+  },
+  "apps/api/src/photo-inspection/photo-objects.service.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/api/src/photo-inspection/photo-objects.service.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/api/src/reports/admin-reports.controller.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/reports/losses.service.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/api/src/reports/losses.service.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 4
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "apps/api/src/requests/admin-requests.controller.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "apps/api/src/requests/corrections.service.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 13
+    }
+  },
+  "apps/api/src/requests/requests.service.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 15
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/api/src/requests/requests.service.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 3
+    },
+    "complexity": {
+      "count": 8
+    },
+    "max-depth": {
+      "count": 4
+    },
+    "max-lines-per-function": {
+      "count": 4
+    },
+    "no-await-in-loop": {
+      "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 42
+    }
+  },
+  "apps/api/src/scheduling/acknowledgement-snapshot.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/scheduling/admin-schedules.controller.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/api/src/scheduling/open-slots.service.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 14
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-await-in-loop": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 15
+    }
+  },
+  "apps/api/src/scheduling/plan-context.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 5
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 11
+    }
+  },
+  "apps/api/src/scheduling/retrospective.service.ts": {
+    "complexity": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/api/src/scheduling/schedule-command.service.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/api/src/scheduling/schedule-export.service.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/api/src/scheduling/schedule-history.service.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/api/src/scheduling/schedule.service.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 31
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-return": {
+      "count": 2
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 4
+    },
+    "no-await-in-loop": {
+      "count": 9
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 34
+    }
+  },
+  "apps/api/src/scheduling/schedule.service.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 3
+    },
+    "complexity": {
+      "count": 6
+    },
+    "max-depth": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 6
+    },
+    "no-await-in-loop": {
+      "count": 7
+    },
+    "no-restricted-syntax": {
+      "count": 48
+    }
+  },
+  "apps/api/src/scheduling/staffing.service.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "apps/api/src/shift/admin-shifts.controller.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 2
+    }
+  },
+  "apps/api/src/shift/shift-auto-close.service.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/api/src/shift/shift-auto-close.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 11
+    }
+  },
+  "apps/api/src/shift/shift.service.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 47
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "apps/api/src/shift/shift.service.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 4
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 11
+    },
+    "max-depth": {
+      "count": 5
+    },
+    "max-lines-per-function": {
+      "count": 6
+    },
+    "no-await-in-loop": {
+      "count": 8
+    },
+    "no-nested-ternary": {
+      "count": 6
+    },
+    "no-restricted-syntax": {
+      "count": 48
+    }
+  },
+  "apps/api/src/support/support-bot.factory.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "apps/api/src/support/support-bot.service.ts": {
+    "max-depth": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 2
+    }
+  },
+  "apps/api/src/support/support.service.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/telegram/bot.factory.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 8
+    },
+    "max-depth": {
+      "count": 7
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 7
+    },
+    "no-restricted-syntax": {
+      "count": 65
+    }
+  },
+  "apps/api/src/telegram/home-pusher.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/telegram/qr-departure.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 4
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 2
+    },
+    "no-await-in-loop": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/api/src/telegram/schedule-acknowledgement.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/telegram/screens.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 13
+    }
+  },
+  "apps/api/src/telegram/screens.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 6
+    },
+    "max-depth": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 8
+    },
+    "no-restricted-syntax": {
+      "count": 52
+    }
+  },
+  "apps/api/src/telegram/telegram.service.ts": {
+    "max-depth": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/api/src/telegram/update-dedup.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/qr-kiosk/src/main.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unsafe-return": {
+      "count": 2
+    }
+  },
+  "apps/worker/src/background-tasks.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 2
+    }
+  },
+  "apps/worker/src/communications/dispatch.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/worker/src/communications/dispatch.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "apps/worker/src/event-timers.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 13
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/worker/src/handover-timers.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 14
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 1
+    }
+  },
+  "apps/worker/src/incident-sla.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "apps/worker/src/main.ts": {
+    "@typescript-eslint/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "apps/worker/src/media-tasks.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/worker/src/media.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/worker/src/media/adapters.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/worker/src/media/process.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "apps/worker/src/media/tasks.ts": {
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/worker/src/outbox/relay.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 2
+    },
+    "max-depth": {
+      "count": 3
+    },
+    "max-lines-per-function": {
+      "count": 2
+    },
+    "no-await-in-loop": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/worker/src/photo-inspection/gemma.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-argument": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 3
+    },
+    "no-await-in-loop": {
+      "count": 4
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "apps/worker/src/photo-inspection/tasks.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 8
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 2
+    }
+  },
+  "apps/worker/src/photo-inspection/tasks.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 10
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 7
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "apps/worker/src/shift-reminders.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/worker/src/shift-timers.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 5
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/worker/src/timer-tasks.test.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 1
+    }
+  },
+  "apps/worker/src/timers/events.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 2
+    },
+    "complexity": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "apps/worker/src/timers/handover-timers.ts": {
+    "complexity": {
+      "count": 2
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "apps/worker/src/timers/incident-sla.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "apps/worker/src/timers/recovery.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-await-in-loop": {
+      "count": 2
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 11
+    }
+  },
+  "apps/worker/src/timers/shift-timers.ts": {
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 3
+    },
+    "complexity": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 7
+    }
+  },
+  "apps/worker/src/timers/tasks.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 11
+    }
+  },
+  "apps/worker/src/worker.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 26
+    },
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "packages/contracts/src/auth.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/contracts/src/bonus.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/contracts/src/communications.ts": {
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "packages/contracts/src/photo-inspection.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 8
+    }
+  },
+  "packages/contracts/src/photo-object-dictionary.ts": {
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/contracts/src/photo-objects.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/contracts/src/timer-tasks.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 10
+    }
+  },
+  "packages/db/src/background-tasks.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "@typescript-eslint/prefer-optional-chain": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/db/src/bonus-tasks.ts": {
+    "no-await-in-loop": {
+      "count": 5
+    }
+  },
+  "packages/db/src/media-tasks.ts": {
+    "no-await-in-loop": {
+      "count": 1
+    }
+  },
+  "packages/db/src/seed.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 7
+    },
+    "no-await-in-loop": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/access/roles.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/access/scope.ts": {
+    "no-restricted-syntax": {
+      "count": 12
+    }
+  },
+  "packages/domain/src/bonus/evaluate.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 13
+    }
+  },
+  "packages/domain/src/bonus/evaluate.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 16
+    }
+  },
+  "packages/domain/src/employee-profile/compensation.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/employee-profile/field-access.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/domain/src/employee-profile/master-state.ts": {
+    "no-nested-ternary": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/employee-profile/profile.test.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "packages/domain/src/employee-profile/zone.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/handover/checklist.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "packages/domain/src/handover/handover.test.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/domain/src/handover/lifecycle.ts": {
+    "no-restricted-syntax": {
+      "count": 10
+    }
+  },
+  "packages/domain/src/identity/activation.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/domain/src/incidents/lifecycle.ts": {
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/domain/src/media/phash.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 7
+    },
+    "complexity": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/media/quality.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 2
+    }
+  },
+  "packages/domain/src/overview/downtime.ts": {
+    "max-depth": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/overview/handover-acceptance.ts": {
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "packages/domain/src/overview/overview.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/overview/staffing.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/overview/terminal-connectivity.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/overview/time-to-action.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 6
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/overview/zone-status.ts": {
+    "no-nested-ternary": {
+      "count": 4
+    }
+  },
+  "packages/domain/src/qr/pairing.test.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/domain/src/qr/pairing.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/requests/routes.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 5
+    }
+  },
+  "packages/domain/src/requests/routes.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/domain/src/scheduling/authority.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 9
+    }
+  },
+  "packages/domain/src/scheduling/authority.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 7
+    }
+  },
+  "packages/domain/src/scheduling/breaks.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/domain/src/scheduling/calendar.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/domain/src/scheduling/changes.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/domain/src/scheduling/coverage.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/scheduling/coverage.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 8
+    },
+    "no-restricted-syntax": {
+      "count": 6
+    }
+  },
+  "packages/domain/src/scheduling/eligibility.test.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/domain/src/scheduling/eligibility.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 4
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 11
+    },
+    "max-lines-per-function": {
+      "count": 1
+    },
+    "no-nested-ternary": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "packages/domain/src/scheduling/proposal.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "packages/domain/src/scheduling/scheduling.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/domain/src/scheduling/types.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 10
+    }
+  },
+  "packages/domain/src/shift-fsm/actions.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/shift-fsm/corrections.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/shift-fsm/corrections.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 9
+    },
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "packages/domain/src/shift-fsm/intervals.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    },
+    "complexity": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/shift-fsm/machine.test.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
+  "packages/domain/src/shift-fsm/machine.ts": {
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "packages/domain/src/shift-fsm/states.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/domain/src/shift-fsm/summary.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/domain/src/time/holidays.ts": {
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    },
+    "max-depth": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/time/plan.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/domain/src/time/shift-window.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 9
+    }
+  },
+  "packages/domain/src/time/shift-window.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/i18n/src/catalogs.test.ts": {
+    "@typescript-eslint/no-non-null-assertion": {
+      "count": 1
+    }
+  }
+}
