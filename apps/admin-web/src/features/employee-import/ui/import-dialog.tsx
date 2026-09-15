@@ -48,7 +48,8 @@ function ImportSession({ onOpenChange, onImported, returnFocusTo }: ImportDialog
   const [selection] = useState(createFileSelection);
   const state = useStore(selection.store);
   const [ownLifecycle] = useState(() => (node: HTMLDivElement | null) => {
-    if (node) return () => selection.reset();
+    if (!node) return undefined;
+    return () => selection.reset();
   });
   const client = useQueryClient();
   const send = useMutation({

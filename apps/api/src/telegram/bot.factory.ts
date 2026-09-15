@@ -402,7 +402,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
 
   bot.callbackQuery(/^lang:(uk|en|ru)$/, async (ctx) => {
     const locale = ctx.match[1];
-    if (!isLocale(locale)) return ctx.answerCallbackQuery();
+    if (!isLocale(locale)) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
     if (ctx.employee) await deps.employees.setLocale(ctx.employee.id, locale);
     ctx.locale = locale;
     ctx.t = messages(locale);
@@ -506,7 +509,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   });
 
   bot.callbackQuery(/^sh:zone:(\d+)$/, async (ctx) => {
-    if (ctx.access !== 'ALLOWED' || !ctx.employee) return ctx.answerCallbackQuery();
+    if (ctx.access !== 'ALLOWED' || !ctx.employee) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
     try {
       await deps.shift.acceptZone(ctx.employee.id, employeeActor(ctx.employee.id));
       await ctx.answerCallbackQuery({ text: ctx.t.shift.zoneAccepted });
@@ -669,7 +675,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   });
 
   bot.callbackQuery(/^hv:ok:([A-Z][A-Z0-9_]{1,31})$/, async (ctx) => {
-    if (!guardEmployee(ctx)) return ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
     try {
       await deps.handover.answer(
         ctx.employee.id,
@@ -1145,7 +1154,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
 
   // Consent or refusal of the second employee in a swap (COUNTERPART step).
   bot.callbackQuery(/^rq:(ok|no):([0-9a-f-]{36})$/, async (ctx) => {
-    if (!guardEmployee(ctx)) return ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
     try {
       await deps.requests.decide(
         ctx.match[2] ?? '',
@@ -1171,7 +1183,10 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       return;
     }
     const action = ctx.match[1] ?? '';
-    if (!isShiftAction(action)) return ctx.answerCallbackQuery({ text: ctx.t.bot.notReady });
+    if (!isShiftAction(action)) {
+      await ctx.answerCallbackQuery({ text: ctx.t.bot.notReady });
+      return;
+    }
     const version = Number(ctx.match[2]);
     const extra = ctx.match[3];
     const meta = { actor: employeeActor(ctx.employee.id), source: 'TELEGRAM' as const };

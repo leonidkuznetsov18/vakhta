@@ -74,13 +74,22 @@ export function createSupportBot(token: string, deps: SupportBotDeps): Bot {
   bot.on('message:voice', async (ctx) => {
     const { allowed, locale } = await deps.support.access(user(ctx));
     const tt = t(ctx, locale);
-    if (!allowed) return ctx.reply(tt.support.noAccess);
-    if (!deps.support.voiceEnabled) return ctx.reply(tt.support.voiceOff);
+    if (!allowed) {
+      await ctx.reply(tt.support.noAccess);
+      return;
+    }
+    if (!deps.support.voiceEnabled) {
+      await ctx.reply(tt.support.voiceOff);
+      return;
+    }
     try {
       await ctx.replyWithChatAction('typing');
       const audio = await downloadVoice(ctx, token);
       const question = await deps.support.transcribe(audio, locale);
-      if (!question) return ctx.reply(tt.support.notHeard);
+      if (!question) {
+        await ctx.reply(tt.support.notHeard);
+        return;
+      }
       await ctx.reply(format(tt.support.transcribed, { text: question }));
       const result = await deps.support.ask(user(ctx), question);
       if (!result.ok) {
