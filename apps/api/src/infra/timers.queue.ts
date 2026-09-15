@@ -1,4 +1,4 @@
-import { Global, Injectable, Module } from '@nestjs/common';
+import { Global, Injectable, Module, Logger } from '@nestjs/common';
 import {
   timerTaskIntent,
   type DowntimeEscalationJob,
@@ -12,8 +12,11 @@ export const TIMER_SCHEDULER = Symbol('TIMER_SCHEDULER');
 /** Source-owned PostgreSQL admission. Stale tasks are harmless; never cancel under business locks. */
 @Injectable()
 export class TimerScheduler {
+  private readonly logger = new Logger(TimerScheduler.name);
+
   private async enqueue(tx: Transaction, task: TimerTask): Promise<void> {
-    await enqueueBackgroundTask(tx, timerTaskIntent(task));
+    const admitted = await enqueueBackgroundTask(tx, timerTaskIntent(task));
+    this.logger.log({ event: 'task_intent_staged', taskId: admitted.id, kind: task.kind });
   }
 
   scheduleShiftReminder(tx: Transaction, assignmentId: string, fireAt: Date): Promise<void> {

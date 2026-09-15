@@ -2,7 +2,7 @@
 
 Authority: [accepted spec](spec.md). Design: [plan](plan.md). Writer/index owner: root Codex, master.
 Evidence: [development workflow](../../docs/engineering/features/development-workflow.md).
-Program remains in progress until subsequent pilots/evaluations are resolved. All writes are sequential.
+Implementation and conditional evaluations are complete; the final delivery gate is tracked below. All writes are sequential.
 
 ## First delivery: protocol adapters and dependency foundation
 
@@ -14,7 +14,7 @@ Program remains in progress until subsequent pilots/evaluations are resolved. Al
 - [x] T006 [US1] Move ImportDialog into apps/admin-web/src/features/employee-import/ui/import-dialog.tsx, expose index.ts, update EmployeesTab.tsx and delete lib/csv.ts (AC-004,010).
 - [x] T007 [US1] Add three-language import feedback in packages/i18n/src/{messages,en,uk,ru}.ts and UI regression tests in features/employee-import/ui/import-dialog.test.tsx (AC-002–004).
 - [x] T008 [US2] Implement/test apps/api/src/common/csv.ts and csv.test.ts; integrate losses.service.ts and bonus.service.ts serializers (AC-005,010).
-- [ ] T009 [US2] Finish verification of the extended real export regression in apps/api/src/bonus/bonus.service.test.ts for formula-like personnel/name text and quoted rule metadata (AC-005). The implementation and 25 bonus/16 losses tests passed before the final metadata refinement; the two affected reruns await CI because Docker cannot create a container (host disk/I/O failure).
+- [x] T009 [US2] Verify the real bonus export metadata regression (AC-005). CI exposed a fixture effective-date mismatch; corrected to the period boundary and the focused PostgreSQL case passed. Colima recovered without deleting database volumes.
 - [x] T010 [US3] Implement/test apps/api/src/scheduling/calendar-feed.ts and integrate feed.service.ts; delete handwritten encoding (AC-007,010).
 - [x] T011 [US2] Update apps/api/package.json SheetJS source and verify existing scheduling/losses/bonus XLSX round trips (AC-006).
 - [x] T012 [US3] Run existing personal feed integration cases in apps/api/src/scheduling/schedule.service.test.ts (AC-008).
@@ -26,29 +26,38 @@ Program remains in progress until subsequent pilots/evaluations are resolved. Al
 
 ## Following delivery: forms and contracts
 
-- [ ] T018 [US5] Select ordinary form and representative CRUD/paginated resource from live source; refine exact acceptance/allowed paths in specs/009-architecture-standardization/plan.md before editing (AC-011).
-- [ ] T019 [US5] Implement TanStack Form/Zod pilot in the selected feature model/ui with edit-revert, conflict/error and compiler tests; record paths/evidence in plan.md (A2, AC-011).
-- [ ] T020 [US5] Implement compatible Nest/Zod/OpenAPI and generated transport pilot with runtime validation, cancellation and retained errors; record exact paths/generation checks in plan.md (A1, AC-011).
-- [ ] T021 [US5] Verify desktop/mobile and endpoint compatibility; remove superseded pilot code and document selected standards in docs/engineering/standards.md (AC-011).
+- [x] T018 [US5] Select ordinary form and representative CRUD/paginated resource from live source; refine exact acceptance/allowed paths in specs/009-architecture-standardization/plan.md before editing (AC-011).
+- [x] T019 [US5] Implement TanStack Form/Zod pilot in the selected feature model/ui with edit-revert, conflict/error and compiler tests; record paths/evidence in plan.md (A2, AC-011).
+- [x] T020 [US5] Implement compatible Nest/Zod/OpenAPI and generated transport pilot with runtime validation, cancellation and retained errors; record exact paths/generation checks in plan.md (A1, AC-011).
+- [x] T021 [US5] Verify desktop/mobile and endpoint compatibility; remove superseded pilot code and document selected standards in docs/engineering/standards.md (AC-011).
 
 ## Following delivery: enforce ownership and verification
 
-- [ ] T022 [US6] Specify/migrate first generic persisted UI state slice with actor/schema/version/recovery tests; retain exact owned paths in plan.md (A3, AC-012).
-- [ ] T023 [US6] Add scoped architecture/public-API/hook checks in eslint.config.js and assess Steiger/Knip with explicit legacy/runtime entrypoints (A4,A14, AC-012).
-- [ ] T024 [US6] Introduce MSW fixtures and minimal Playwright/axe journeys for pilot surfaces; record exact configs/scripts in plan.md (A7, AC-012).
-- [ ] T025 [US6] Codify date/time, query-options and SSE ownership in docs/engineering/standards.md and implement demonstrated pilot gaps with tests (A13, AC-012).
+- [x] T022 [US6] Specify/migrate first generic persisted UI state slice with actor/schema/version/recovery tests; retain exact owned paths in plan.md (A3, AC-012).
+- [x] T023 [US6] Add scoped architecture/public-API/hook checks in eslint.config.js and assess Steiger/Knip with explicit legacy/runtime entrypoints (A4,A14, AC-012).
+- [x] T024 [US6] Introduce MSW fixtures and minimal Playwright/axe journeys for pilot surfaces; record exact configs/scripts in plan.md (A7, AC-012).
+- [x] T025 [US6] Codify date/time, query-options and SSE ownership in docs/engineering/standards.md and implement demonstrated pilot gaps with tests (A13, AC-012).
 
 ## Following delivery: operational contracts and conditional choices
 
-- [ ] T026 [US7] Refine logging/correlation scope in plan.md and integrate redacted nestjs-pino request/task context with tests (A8, AC-013).
-- [ ] T027 [US7] Specify inbox/outbox/idempotency failure guarantees in plan.md; implement independently reviewed recovery changes with PostgreSQL fault tests (A9, AC-013).
-- [ ] T028 [US7] Evaluate pg-boss against those tested guarantees and record adopt/retain outcome in docs/engineering/features/development-workflow.md before any queue migration (A10, AC-013).
-- [ ] T029 [US7] Evaluate dnd kit, i18next and conditional virtualization against actual workflows; record pilot/retain/defer decisions and evidence in plan.md (A11,A12,A13, AC-014).
-- [ ] T030 Reconcile all audit A1–A14 outcomes and remaining migrations in specs/009-architecture-standardization/tasks.md; finish program only after the accepted outcomes and required evidence exist.
+- [x] T026 [US7] Refine logging/correlation scope in plan.md and integrate redacted nestjs-pino request/task context with tests (A8, AC-013).
+- [x] T027 [US7] Specify inbox/outbox/idempotency failure guarantees in plan.md; implement independently reviewed recovery changes with PostgreSQL fault tests (A9, AC-013).
+- [x] T028 [US7] Evaluate pg-boss against those tested guarantees and record adopt/retain outcome in docs/engineering/features/development-workflow.md before any queue migration (A10, AC-013).
+- [x] T029 [US7] Evaluate dnd kit, i18next and conditional virtualization against actual workflows; record pilot/retain/defer decisions and evidence in plan.md (A11,A12,A13, AC-014).
+- [x] T030 Reconcile all audit A1–A14 outcomes and remaining migrations in specs/009-architecture-standardization/tasks.md; finish program only after the accepted outcomes and required evidence exist.
 
 ## Dependencies and Convergence
 
 T003→T004→T005→T006→T007; T008→T009; T010→T012; T002 precedes dependency consumers.
-T011 precedes final XLSX checks; T013 precedes T014; T014/T015→T016→T017. Subsequent deliveries refine
-their source scope before implementation and remain pending after T017. Preserve completed evidence;
+T011 precedes final XLSX checks; T013 precedes T014; T014/T015→T016→T017. Subsequent scopes were refined before implementation; decisions and evidence are recorded in plan.md
+and development-workflow.md. T017 remains the final remote integration/release gate. Preserve completed evidence;
 append numbered tasks only for demonstrated gaps. No parallel writers or automatic intermediate releases.
+
+## Final reconciliation
+
+All A1–A14 have an implemented pilot or explicit retain/defer decision in the engineering evidence
+table. Remaining migrations are boundaries of the accepted incremental plan, not silently completed
+work: legacy endpoint wrappers/forms/persistence, full-panel FSD, durable payload inbox and legacy
+command receipts. pg-boss, dnd kit, i18next and virtualization require the recorded adoption triggers.
+No end-to-end exactly-once or production employee journey is claimed. T017 closes only after the
+final source passes CI and its release announcement is verified.

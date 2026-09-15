@@ -13,5 +13,6 @@ export default defineConfig({
   // VITE_* variables are read from the monorepo root .env, not from the app folder.
   envDir: fileURLToPath(new URL('../../', import.meta.url)),
   server: { port: 5173, strictPort: true },
+  optimizeDeps: { entries: ['index.html', 'preview.html', 'e2e/profile.html'] },
   build: { outDir: 'dist', sourcemap: true },
 });

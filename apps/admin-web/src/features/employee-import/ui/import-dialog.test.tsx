@@ -1,3 +1,4 @@
+import { stubFetch } from '@/test/stub-fetch';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { messages } from '@vakhta/i18n';
@@ -79,7 +80,7 @@ describe('employee import dialog', () => {
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ created: 1, skipped: [] }), { status: 200 }),
       );
-    vi.stubGlobal('fetch', request);
+    stubFetch(request);
     const { props } = mount();
     choose(file(async () => 'personnel_number;full_name\n0001;  Анна Коваль  \n0002;A'));
     const submit = await screen.findByRole('button', { name: `${e.importRun} (1)` });
@@ -109,7 +110,7 @@ describe('employee import dialog', () => {
           finish = resolve;
         }),
     );
-    vi.stubGlobal('fetch', request);
+    stubFetch(request);
     const { props } = mount();
     choose(file(async () => '0001;Анна Коваль'));
     const submit = await screen.findByRole('button', { name: `${e.importRun} (1)` });

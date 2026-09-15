@@ -3,8 +3,8 @@ import {
   UpdateEmployeeProfileCommand,
   AddCompensationEntryCommand,
 } from '@vakhta/contracts';
-import { apiFetch, API_URL, ApiError } from '@/api';
-import { currentLocale } from '@/i18n';
+import { apiFetch } from '@/api';
+import { apiRequest } from '@/shared/api';
 import { keys } from '@/lib/query';
 import type { QueryClient } from '@tanstack/react-query';
 
@@ -30,22 +30,12 @@ export const profileApi = {
   async avatar(id: string, file: File | null, version: string) {
     const body = file ? new FormData() : undefined;
     if (file && body) body.append('avatar', file);
-    const response = await fetch(`${API_URL}/admin/employees/${id}/avatar`, {
+    await apiRequest({
+      url: `/admin/employees/${id}/avatar`,
       method: file ? 'PUT' : 'DELETE',
-      credentials: 'include',
-      headers: { 'if-match': version, 'x-locale': currentLocale() },
-      ...(body ? { body } : {}),
+      headers: { 'if-match': version },
+      ...(body ? { data: body } : {}),
     });
-    if (!response.ok) {
-      const error: unknown = await response.json();
-      throw new ApiError(
-        response.status,
-        error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
-          ? error.code
-          : null,
-        'Avatar request failed',
-      );
-    }
   },
 };
 export async function refreshProfiles(client: QueryClient) {

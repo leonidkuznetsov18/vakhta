@@ -715,7 +715,8 @@ describe('bonus: оцінка зміни, коригування, закритт
     await bonus.createRuleVersion(
       {
         label: 'QA;\n=1+1',
-        validFrom: new Date(planStart.getTime() - 86_400_000).toISOString(),
+        // Period closure selects the rule effective at the start of its month.
+        validFrom: `${month}-01T00:00:00.000Z`,
         rules: {},
       },
       HEAD,

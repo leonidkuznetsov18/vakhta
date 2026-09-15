@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   assignmentAcknowledgements,
   employees,
@@ -86,6 +86,70 @@ describe('worker: релей аутбоксу і нагадування (ADR-8, 
     return row!;
   }
 
+  it('commits earlier delivery receipts when a later accepted message cannot be recorded', async () => {
+    const first = await enqueue(linkedEmployeeId, 'first-commits', new Date(Date.now() - 120_000));
+    const second = await enqueue(linkedEmployeeId, 'fault-second');
+    await testDb.db
+      .execute(sql`CREATE FUNCTION reject_test_receipt() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN IF NEW.status = 'SENT' AND OLD.dedupe_key = 'fault-second' THEN
+        RAISE EXCEPTION 'injected receipt failure'; END IF; RETURN NEW; END $$`);
+    await testDb.db.execute(
+      sql`CREATE TRIGGER reject_test_receipt BEFORE UPDATE ON notification_outbox FOR EACH ROW EXECUTE FUNCTION reject_test_receipt()`,
+    );
+    const sender = new FakeSender();
+    try {
+      await expect(relayOnce(testDb.db, sender)).rejects.toThrow();
+      const rows = await testDb.db.select().from(notificationOutbox);
+      expect(rows.find((row) => row.id === first.id)).toMatchObject({
+        status: 'SENT',
+        telegramMessageId: 1001,
+      });
+      expect(rows.find((row) => row.id === second.id)).toMatchObject({
+        status: 'PENDING',
+        telegramMessageId: null,
+      });
+      expect(sender.sent).toHaveLength(2);
+    } finally {
+      await testDb.db.execute(sql`DROP TRIGGER reject_test_receipt ON notification_outbox`);
+      await testDb.db.execute(sql`DROP FUNCTION reject_test_receipt()`);
+    }
+    // Telegram acceptance is not atomic with PostgreSQL. Only the ambiguous second row is replayed.
+    expect(await relayOnce(testDb.db, sender)).toMatchObject({ sent: 1 });
+    expect(sender.sent).toHaveLength(3);
+    const [retained] = await testDb.db
+      .select()
+      .from(notificationOutbox)
+      .where(eq(notificationOutbox.id, first.id));
+    expect(retained?.telegramMessageId).toBe(1001);
+  });
+
+  it('excludes an in-flight row from a concurrent relay pass', async () => {
+    await enqueue(linkedEmployeeId, 'concurrent-relay');
+    let accept: (() => void) | undefined;
+    let started: (() => void) | undefined;
+    const sending = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const accepted = new Promise<void>((resolve) => {
+      accept = resolve;
+    });
+    const sender: OutboxSender = {
+      async send() {
+        started?.();
+        await accepted;
+        return { messageId: 42 };
+      },
+    };
+    const first = relayOnce(testDb.db, sender);
+    await sending;
+    try {
+      expect(await relayOnce(testDb.db, sender)).toMatchObject({ sent: 0 });
+    } finally {
+      accept?.();
+    }
+    expect(await first).toMatchObject({ sent: 1 });
+  });
+
   it('надсилає PENDING у чат за активною привʼязкою і позначає SENT; без привʼязки SKIPPED', async () => {
     await enqueue(linkedEmployeeId, 'n1');
     await enqueue(unlinkedEmployeeId, 'n2');
@@ -142,6 +206,21 @@ describe('worker: релей аутбоксу і нагадування (ADR-8, 
       .from(notificationOutbox)
       .where(eq(notificationOutbox.dedupeKey, 'n3'));
     expect(row).toMatchObject({ status: 'FAILED', attempts: 2 });
+  });
+
+  it('attempts each notification only once per pass even with zero retry_after', async () => {
+    const now = new Date('2026-09-05T10:00:00Z');
+    await enqueue(linkedEmployeeId, 'zero-retry', now);
+    const send = vi.fn(async () => {
+      throw new SendError('RETRY', 'rate limited', 0);
+    });
+    expect(await relayOnce(testDb.db, { send }, { now: () => now })).toMatchObject({
+      retried: 1,
+      failed: 0,
+    });
+    expect(send).toHaveBeenCalledOnce();
+    expect(await relayOnce(testDb.db, { send }, { now: () => now })).toMatchObject({ retried: 1 });
+    expect(send).toHaveBeenCalledTimes(2);
   });
 
   it('429 чекає retry_after, 403 відкладає назавжди', async () => {

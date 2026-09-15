@@ -1,3 +1,4 @@
+import { stubFetch } from '@/test/stub-fetch';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { EmployeeProfileView } from '@vakhta/contracts';
@@ -20,10 +21,7 @@ afterEach(() => {
 
 describe('employee profile journeys', () => {
   it('keeps the directory sheet read-only with a direct profile link', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => json(profile)),
-    );
+    stubFetch(vi.fn(async () => json(profile)));
     render(<ProfileSheet employeeId={profile.employee.id} onClose={vi.fn()} />);
     const link = await screen.findByRole('link', { name: t.openProfile });
     expect(new URL(link.getAttribute('href') ?? '', location.href).hash).toBe(
@@ -52,8 +50,7 @@ describe('employee profile journeys', () => {
   });
   it('locks the draft and cancellation while a save is pending', async () => {
     let finish: ((response: Response) => void) | undefined;
-    vi.stubGlobal(
-      'fetch',
+    stubFetch(
       vi.fn(
         () =>
           new Promise<Response>((resolve) => {
@@ -81,7 +78,7 @@ describe('employee profile journeys', () => {
     const fetch = vi.fn(async (_url: unknown, init?: RequestInit) =>
       init?.method === 'PATCH' ? json({ code: 'EMPLOYEE_VERSION_CONFLICT' }, 409) : json(latest),
     );
-    vi.stubGlobal('fetch', fetch);
+    stubFetch(fetch);
     render(<SectionEditor profile={profile} section="all" onClose={vi.fn()} />);
     fireEvent.change(screen.getByLabelText(t.fullName), { target: { value: 'My unsaved draft' } });
     fireEvent.click(screen.getByRole('button', { name: t.save }));
@@ -93,6 +90,13 @@ describe('employee profile journeys', () => {
       expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(false),
     );
     expect((screen.getByLabelText(t.fullName) as HTMLInputElement).value).toBe('My unsaved draft');
+    fireEvent.click(
+      screen.getByRole('button', { name: messages(currentLocale()).ui.common.reset }),
+    );
+    await waitFor(() =>
+      expect((screen.getByLabelText(t.fullName) as HTMLInputElement).value).toBe('Saved elsewhere'),
+    );
+    expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(true);
   });
   it('hides privileged fields and actions for a master and all editing for a terminated employee', () => {
     const { compensation: _compensation, maritalStatus: _marital, ...publicProfile } = profile;
@@ -129,12 +133,49 @@ describe('employee profile journeys', () => {
 });
 
 it('returns from the employee profile to the directory without inheriting the employee ID', async () => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => json(profile)),
-  );
+  stubFetch(vi.fn(async () => json(profile)));
   history.replaceState(null, '', `#/administration/employees/${profile.employee.id}`);
   await renderRouted(<ProfilePage employeeId={profile.employee.id} onOpenSchedule={vi.fn()} />);
   fireEvent.click(await screen.findByRole('link', { name: `← ${t.back}` }));
   await waitFor(() => expect(location.hash).toBe('#/administration/employees'));
+});
+
+it('resets a changed form and disables reset again', () => {
+  render(<SectionEditor profile={profile} section="all" onClose={vi.fn()} />);
+  const reset = screen.getByRole('button', { name: messages(currentLocale()).ui.common.reset });
+  expect(reset.hasAttribute('disabled')).toBe(true);
+  fireEvent.change(screen.getByLabelText(t.fullName), { target: { value: 'New draft' } });
+  expect(reset.hasAttribute('disabled')).toBe(false);
+  fireEvent.click(reset);
+  expect(screen.getByLabelText(t.fullName)).toHaveProperty('value', profile.employee.fullName);
+  expect(reset.hasAttribute('disabled')).toBe(true);
+  expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(true);
+});
+
+it('shows a contract validation error and sends no invalid command', async () => {
+  const fetch = vi.fn();
+  stubFetch(fetch);
+  render(<SectionEditor profile={profile} section="all" onClose={vi.fn()} />);
+  fireEvent.change(screen.getByLabelText(t.email), { target: { value: 'not-an-email' } });
+  fireEvent.click(screen.getByRole('button', { name: t.save }));
+  expect(await screen.findByRole('alert')).toBeTruthy();
+  expect(screen.getByLabelText(t.email).getAttribute('aria-invalid')).toBe('true');
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it('preserves a failed draft and sends only one command until an explicit retry', async () => {
+  const fetch = vi.fn(async () => json({ code: 'UNAVAILABLE' }, 503));
+  stubFetch(fetch);
+  const close = vi.fn();
+  render(<SectionEditor profile={profile} section="all" onClose={close} />);
+  fireEvent.change(screen.getByLabelText(t.fullName), { target: { value: 'Preserved draft' } });
+  fireEvent.click(screen.getByRole('button', { name: t.save }));
+  expect(await screen.findByText(t.failed)).toBeTruthy();
+  expect(screen.getByLabelText(t.fullName)).toHaveProperty('value', 'Preserved draft');
+  expect(fetch).toHaveBeenCalledOnce();
+  expect(close).not.toHaveBeenCalled();
+  fetch.mockResolvedValue(json({}));
+  fireEvent.click(screen.getByRole('button', { name: t.save }));
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  expect(fetch).toHaveBeenCalledTimes(2);
 });

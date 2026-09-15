@@ -1,5 +1,5 @@
-import { ApiError, API_URL, apiFetch } from '@/api';
-import { currentLocale } from '@/i18n';
+import { apiFetch } from '@/api';
+import { apiBlob } from '@/shared/api';
 import { RetrospectiveQuery, RetrospectiveView } from '@vakhta/contracts';
 
 const root = '/admin/schedules/reports/retrospective';
@@ -13,15 +13,14 @@ export const retrospectiveApi = {
   },
   async download(query: RetrospectiveQuery): Promise<Blob> {
     const params = new URLSearchParams(RetrospectiveQuery.parse(query));
-    const response = await fetch(`${API_URL}${root}/export?${params}`, {
-      credentials: 'include',
-      headers: { 'x-locale': currentLocale() },
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!response.ok) throw new ApiError(response.status, null, 'Retrospective export failed');
-    if (response.headers.get('content-type')?.split(';')[0]?.trim() !== MIME)
+    const response = await apiBlob({ url: `${root}/export?${params}`, timeout: 30_000 });
+    if (
+      String(response.headers['content-type'] ?? '')
+        .split(';')[0]
+        ?.trim() !== MIME
+    )
       throw new Error('Retrospective export returned an unexpected file type');
-    return response.blob();
+    return response.data;
   },
 };
 

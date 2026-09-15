@@ -1,3 +1,4 @@
+import { fetchFixture } from './test/fetch-fixture';
 import './preview/locale';
 import { ImportEmployeesCommand } from '@vakhta/contracts';
 import { CalendarPrototype } from './preview/calendar-prototype';
@@ -226,7 +227,7 @@ const hoursReport = {
 };
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
-window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+window.fetch = fetchFixture(async (input, init) => {
   const path = new URL(String(input), location.origin).pathname;
   const method = init?.method ?? 'GET';
   const review = reviewFixture(path, method, new URL(String(input), location.origin).search);
@@ -848,7 +849,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   // looking like a bug in the panel.
   console.warn(`[preview] no fixture for ${method} ${path} — answering 404`);
   return json({ code: 'PREVIEW_NO_FIXTURE', message: `${method} ${path}` }, 404);
-};
+});
 const params = new URLSearchParams(location.search);
 // `?avatar=1` gives the fixture user a photo (a 1×1 PNG stretched by the browser is enough for layout).
 if (params.get('avatar') === '1') {

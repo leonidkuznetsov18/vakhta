@@ -1,3 +1,4 @@
+import { stubFetch } from '@/test/stub-fetch';
 import type { ReactNode } from 'react';
 import { CommunicationProvider } from '@/features/employee-communications';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -104,8 +105,7 @@ function mockApi(state: { rows: ReturnType<typeof row>[] }) {
   const calls: Call[] = [];
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
-  vi.stubGlobal(
-    'fetch',
+  stubFetch(
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input));
       const method = init?.method ?? 'GET';

@@ -1,5 +1,5 @@
 import { messages } from '@vakhta/i18n';
-import { ApiError } from './api.ts';
+import { ApiError } from '@/shared/api';
 import { currentLocale } from './i18n.tsx';
 
 const t = messages(currentLocale());
@@ -7,6 +7,8 @@ const t = messages(currentLocale());
 /** User-facing text: 403 → "insufficient permissions", known domain codes → catalog, otherwise the server message. */
 export function describeError(e: unknown): string {
   if (e instanceof ApiError) {
+    if (e.kind === 'timeout') return t.admin.auth.requestTimeout;
+    if (e.kind === 'response') return t.admin.auth.invalidResponse;
     if (e.code === 'SCHEDULE_SOURCE_SCOPE_MISMATCH') return t.scheduleWorkspace.sourceScopeMismatch;
     if (e.code === 'IDEMPOTENCY_CONFLICT') return t.scheduleWorkspace.commandIdentityConflict;
     if (e.code === 'SCHEDULE_REVISION_CONFLICT') return t.scheduleWorkspace.stale;
@@ -23,7 +25,7 @@ export function describeError(e: unknown): string {
     if (e.code === 'INCIDENT_RESOLUTION_REQUIRED') return t.admin.incidents.requiredSolution;
     if (e.code === 'INCIDENT_CAUSE_REQUIRED') return t.admin.incidents.requiredCause;
     const known = (t.errors as Record<string, string>)[e.code ?? ''];
-    return known ?? e.message;
+    return known ?? (e.code === null ? t.admin.auth.requestFailed : e.message);
   }
   if (e instanceof TypeError) return t.admin.auth.networkError;
   return e instanceof Error ? e.message : String(e);

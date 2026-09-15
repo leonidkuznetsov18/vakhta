@@ -1,3 +1,4 @@
+import { stubFetch } from '@/test/stub-fetch';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { renderRouted as render } from '../test-utils.tsx';
@@ -25,8 +26,7 @@ const entries = [
 function mockApi() {
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
-  vi.stubGlobal(
-    'fetch',
+  stubFetch(
     vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(String(input));
       if (url.pathname === '/admin/audit') return json(entries);

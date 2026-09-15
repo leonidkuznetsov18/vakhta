@@ -141,3 +141,152 @@ explicit ordered work, not required user input for this increment. Verify APIs a
 - [SheetJS official distribution](https://docs.sheetjs.com/docs/getting-started/installation/nodejs/)
 - [Excel reserved worksheet names](https://support.microsoft.com/en-us/excel/rename-a-worksheet)
 - [pnpm 10 catalogs](https://pnpm.io/10.x/catalogs)
+
+## DESIGN: Forms, contracts and HTTP transport (T018–T025)
+
+Owner steering on 2026-09-15 explicitly prioritizes selecting a maintained HTTP client. Adopt exact
+Axios 1.20.0 for panel API transport. npm's last-month endpoint (2026-08-13–2026-09-11) reports
+454,819,837 Axios downloads, 100,704,707 ofetch, 26,684,400 Ky and 932,115 Wretch downloads.
+These include transitive/automated downloads, not unique applications. Axios leads this comparison;
+selection also depends on AbortSignal support, typed error discrimination and Orval's custom Axios
+mutator integration. Ky/ofetch are credible smaller fetch-oriented alternatives, but introduce no
+clear advantage for this application. Do not add another retry library: Query owns query retries;
+mutations retain retry:false. Native fetch was previously retained as an existing thin adapter,
+not selected by a comparative transport evaluation.
+
+Transport ownership: `shared/api/{api-error,index}.ts` owns Axios, credentials, locale,
+cancellation and normalized transport/domain failures. `shared/config/locale.ts` owns the existing
+locale lookup extracted from legacy `i18n.tsx`; the latter re-exports it for compatibility. Root
+`api.ts` keeps a narrow RequestInit compatibility function delegating to the shared client while
+existing endpoint wrappers migrate by slice. Existing ApiError consumers retain status/code.
+Axios's maintained fetch adapter uses standard Request objects and resolves current global fetch.
+Adapt legacy preview/test fixtures through a test-only Request reader; keep production Request and
+Response constructors intact so cookie credentials and multipart encoding remain browser-owned. Preserve FormData boundaries and no-body DELETE,
+HTTP status/domain errors for JSON and non-JSON failures, empty responses, binary exports, and
+AbortSignal cancellation. Malformed successful JSON is a response failure, never usable data.
+Do not log Axios configuration or response objects. No automatic mutation retry or token refresh.
+Migrate all four direct authenticated panel fetch callers (profile avatars, communication attachments,
+schedule and retrospective exports); build-check's static HTML fetch and SSE remain separate protocols.
+Focused tests cover actual transport behavior and existing affected feature suites. UI behavior is
+unchanged by this transport substitution; pilot form changes below need separate visual evidence.
+
+Form pilot: `features/employee-profile/{model/editor,ui/section-editor}.ts(x)` already has real
+expectedVersion conflicts and explicit latest-version acknowledgement. TanStack Form owns draft,
+field validation and submission; shared Zod contracts remain the rule source, Query owns requests.
+Retain normalized edit/revert detection, pending guards, failed draft preservation and conflict
+acknowledgement. Add meaningful reset behavior and compiler-enabled regressions in the existing
+profile suite. Never replace conflict handling with unconditional overwrite.
+
+Contract pilot: real `AdminEmployeesController` GET `/admin/employees/page` and POST
+`/admin/employees/import`. Nest/Zod DTO metadata must derive OpenAPI from the actual controller;
+preserve guards, scope restrictions, status codes and existing error envelopes. Generate transport
+into an employee-owned FSD API segment, use the shared Axios mutator, and retain runtime Zod
+response validation. Cover pagination, cancellation, malformed responses and import compatibility.
+Document reproducible generation and drift checks; do not hand-maintain a second request schema.
+
+Sources: [Axios configuration](https://axios-http.com/docs/req_config),
+[Axios cancellation](https://axios-http.com/docs/cancellation),
+[Orval custom Axios](https://orval.dev/docs/guides/custom-axios/),
+[npm download counts API](https://github.com/npm/registry/blob/main/docs/download-counts.md).
+
+### Executable contracts and test tooling
+
+Use nestjs-zod 5.5.0 and Swagger 11.4.7 (compatible with Nest 11), OpenAPI 3.1, Orval 8.33.0
+with axios-functions and the real shared API public entrypoint. `employee-dto.ts` derives four DTOs
+from shared contracts. Only the two pilot methods use the maintained validation/serialization
+integration. Retain legacy validation envelope and role/scope guards. The reflection-only exporter
+under `apps/api/scripts/` imports built production controllers without starting DB/network services.
+`entities/employee/api/directory.ts` validates generated responses and exposes the two operations;
+remove the import feature's redundant transport and use the generated page operation in profile
+lookup. Reject repeated pagination cursors, including cycles longer than one page.
+
+T024 adds MSW 2.15.0 to exercise the real Axios adapter and generated operations with HTTP fixtures.
+Playwright 1.63.0 + axe-core/playwright 4.13.0 cover the actual profile editor on desktop/mobile:
+normalized no-op, invalid input, reset, failed save preservation, conflict acknowledgement and retry.
+A dedicated fixture entry renders the real form/providers with non-production fixture data; no
+employee mutation is performed against production. CI runs the Chromium journey and retains failure
+artifacts. Generated contract drift is checked after the build. Test-only fetch fixture adapters
+preserve existing legacy suites while new HTTP fixtures use MSW.
+
+### Typed persistence pilot (T022)
+
+Migrate AuditPage's three facet filters (action/object type/event type), which have no cross-feature
+preset writers, into `features/audit-filters/model`. Zustand persist owns a versioned, Zod-validated
+map keyed by authenticated actor UUID. The actor is supplied from the existing session query; no
+server data or authentication authority is copied into the store. Unknown/unowned legacy `vakhta.ui`
+values are not imported. Malformed JSON/schema, unsupported versions and unavailable storage fall
+back to defaults/in-memory operation with a safe diagnostic. Version 0 of this actor-owned shape has
+an explicit migration; unsupported future versions reset. Keep search/open-row legacy state outside
+this bounded pilot and document that wider session/cache migration remains separate. Test actor
+switching, reload, corruption, version migration and failed writes before using the new model.
+
+### Architecture guardrails (T023)
+
+Use maintained eslint-plugin-boundaries 7.2.0 with TypeScript alias resolution for the migrated
+employee, audit-filter and transport slices. Enforce downward imports and public feature/entity
+entrypoints; document existing root API/UI adapters as explicit transitional dependencies. Add
+scoped restrictions against named/aliased/namespace React lifecycle hooks. Knip 6.35.1 and Steiger
+0.6.0 are report-only repository assessments; explicitly include previews, scripts, workers, bot,
+kiosk and migration entrypoints. Findings require human validation and never trigger auto-deletion.
+
+## DESIGN: Operational contracts (T026–T029)
+
+T026 uses nestjs-pino 4.6.1 (compatible with Nest 11/Pino 9), one Nest request logger and Fastify's
+separate logger disabled. Validate/generate UUID request IDs. Request/response/error serializers use
+allowlisted identifiers, method/status and error classification; never raw URL/query, headers,
+cookies, payloads or upstream error messages. API task-admission logs carry the durable task UUID,
+kind and `task_intent_staged` (not proof of commit). Worker outcome logs carry the same task UUID,
+kind, attempt and completion/retry/lease-loss classification. No new distributed tracing claim.
+
+T027 fixes demonstrated outbox batch-wide replay: each locked notification row commits independently,
+so failure after a later Telegram send cannot roll back an earlier SENT receipt. Preserve SKIP LOCKED,
+retry/429/skip behavior and reminder revalidation. Network I/O stays inside each row transaction in
+this bounded change. Acceptance by Telegram followed by failed receipt persistence can still cause
+one-row replay; explicitly test and document this external-system ambiguity.
+
+Telegram admission remains at-most-once because handlers mix non-idempotent database/Redis/Telegram
+effects. Persist safe PROCESSING/COMPLETED/FAILED outcomes in the existing result column; distinguish
+handler failure from failure to record completion. Do not delete claims or automatically replay.
+Interrupted PROCESSING is ambiguous, not completed. Outcome records are not a durable payload inbox;
+automatic replay needs a separate per-handler recovery design. Tests inject database faults and
+exercise middleware outcomes; independent review precedes delivery.
+
+The existing transactional schedule command receipts (actor, canonical payload hash, authorization
+recheck, effect/event/task/receipt transaction) become the command standard. Existing legacy domain
+receipts remain an explicit migration inventory. Evaluate pg-boss against current fenced task leases
+and immutable intent; retain unless it demonstrably removes equivalent machinery. Evaluate dnd kit,
+i18next and virtualization against the inspected workflows, with explicit adoption triggers rather
+than dependency installation without a measured requirement.
+
+### Final conditional decisions and migration boundaries (T025, T028, T029)
+
+- **pg-boss: retain current engine.** Existing immutable task intent, per-attempt fencing, database-clock
+  expiry and effect/completion transaction are tested locally. Official pg-boss adapters support
+  transactional Drizzle operations, but public job-ID completion/heartbeat APIs do not demonstrate
+  equivalent per-attempt fencing. This is a source-based evaluation, not an executed pg-boss spike.
+  Reconsider only with a fault-tested replacement proving stale-owner rejection and atomic effects
+  while materially deleting custom machinery. Sources: [adapters](https://pgboss.io/api/adapters),
+  [jobs](https://pgboss.io/api/jobs).
+- **dnd kit: defer adoption.** Calendar native drag has an explicit Move editor serving keyboard/mobile
+  workflows. A library migration needs a real touch/keyboard-drag requirement and a focused pilot
+  preserving scroll, focus, permissions and read-only published history. Adding sensors now would
+  duplicate the current editor without demonstrated benefit. [Keyboard sensors](https://dndkit.com/extend/sensors/keyboard-sensor/).
+- **i18next: retain current catalogs.** Typed three-locale catalogs and explicit-locale formatting serve
+  the current application. Reconsider for maintained plural rules, lazy namespaces or translator tools;
+  preserve concurrent backend locale isolation rather than global changeLanguage. No translation
+  runtime added solely for popularity. [Types](https://www.i18next.com/overview/typescript),
+  [plurals](https://www.i18next.com/translation-function/plurals).
+- **TanStack Virtual: defer.** Calendar currently pages 20 resources and previews three cards per cell.
+  No measured unbounded-list bottleneck justifies a virtualizer. Reconsider after profiling a concrete
+  workflow; preserve row focus, expansion geometry and full filtered counts.
+- **Dates/query/SSE: retain existing tools, codify ownership.** Luxon/domain rules own timezone/DST,
+  panel helpers own display, Query owns server state, EventSource signals invalidation. Add a reusable
+  employee-directory queryOptions factory and cursor-cycle regression. The old live adapter remains
+  documented hook/lifecycle migration debt; no duplicate event cache or new date framework.
+
+Allowed files now also include the audit-filter slice, profile model/public API/EmployeesTab query
+factory, shared transport/config, generated employee entity, API employee DTO/controller/exporter,
+logger/timer producer, Telegram dedup, worker relay/timer consumer, scoped ESLint scripts, Knip config,
+Playwright/MSW fixtures, dependency manifests/lock, CI checks, and canonical engineering evidence.
+The shared transport implementation lives directly in `shared/api/index.ts`: Orval must inspect the
+actual mutator signature to infer its cancellation options; no forwarding-only client barrel remains.

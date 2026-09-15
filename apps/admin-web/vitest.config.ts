@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     react({
       include:
-        /\/(?:App\.tsx|app\/.*\.tsx?|features\/mobile-navigation\/ui\/mobile-navigation\.tsx)$/,
+        /\/(?:App\.tsx|app\/.*\.tsx?|features\/mobile-navigation\/ui\/mobile-navigation\.tsx|features\/employee-profile\/.*\.tsx?)$/,
       babel: { plugins: [['babel-plugin-react-compiler', { target: '19' }]] },
     }),
   ],

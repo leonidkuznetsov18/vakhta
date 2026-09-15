@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { UpdateEmployeeProfileCommand, type EmployeeProfileView } from '@vakhta/contracts';
 import { ApiError } from '@/api';
 import { messages } from '@vakhta/i18n';
@@ -71,4 +72,15 @@ export function profileError(error: unknown) {
     if (error.code === 'AVATAR_TOO_LARGE') return t.avatarLarge;
   }
   return t.failed;
+}
+
+/** Standard Schema adapter: form strings are checked against the existing command contract. */
+export function profileFormSchema(section: ProfileSection, version: string) {
+  return z.record(z.enum(sectionFields.all), z.string()).superRefine((draft, context) => {
+    const command = sectionCommand(section, draft, version);
+    if (!command.success) {
+      for (const issue of command.error.issues)
+        context.addIssue({ code: 'custom', path: issue.path, message: issue.message });
+    }
+  });
 }

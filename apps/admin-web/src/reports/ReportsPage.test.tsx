@@ -1,3 +1,4 @@
+import { stubFetch } from '@/test/stub-fetch';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { render, renderRouted } from '../test-utils.tsx';
@@ -38,8 +39,7 @@ function mockApi(
   const calls: string[] = [];
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
-  vi.stubGlobal(
-    'fetch',
+  stubFetch(
     vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(String(input));
       calls.push(url.pathname + url.search);
@@ -210,8 +210,7 @@ describe('ReportsPage and AuditPage', () => {
   });
 
   it('keeps downloads disabled when the response cannot prove completeness', async () => {
-    vi.stubGlobal(
-      'fetch',
+    stubFetch(
       vi.fn(async (input: RequestInfo | URL) => {
         const url = new URL(String(input));
         return new Response(

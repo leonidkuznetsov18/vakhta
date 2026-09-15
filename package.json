@@ -24,7 +24,12 @@
     "db:migrate": "pnpm --filter @vakhta/db migrate",
     "db:seed": "pnpm --filter @vakhta/db... build && pnpm --filter @vakhta/db seed",
     "db:migrate:js": "pnpm --filter @vakhta/db... build && pnpm --filter @vakhta/db migrate:js",
-    "qa:with-secrets": "op run --env-file=.env.e2e --"
+    "qa:with-secrets": "op run --env-file=.env.e2e --",
+    "api:generate": "pnpm --filter api build && node apps/api/scripts/export-employee-openapi.mjs && pnpm --filter admin-web api:generate && prettier --write contracts/openapi/employees.json",
+    "api:check": "pnpm api:generate && git diff --exit-code -- contracts/openapi/employees.json apps/admin-web/src/entities/employee/api/generated",
+    "test:architecture": "node --test scripts/architecture/*.test.mjs",
+    "audit:unused": "knip --no-exit-code",
+    "audit:fsd": "steiger apps/admin-web/src"
   },
   "devDependencies": {
     "@eslint/js": "^9.28.0",
@@ -34,11 +39,15 @@
     "conventional-changelog-conventionalcommits": "^8.0.0",
     "eslint": "^9.28.0",
     "eslint-config-prettier": "^10.1.0",
+    "eslint-import-resolver-typescript": "4.4.5",
+    "eslint-plugin-boundaries": "7.2.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^16.2.0",
+    "knip": "6.35.1",
     "prettier": "^3.5.3",
     "railway": "^3.11.0",
     "semantic-release": "^25.0.9",
+    "steiger": "0.6.0",
     "turbo": "^2.5.0",
     "typescript": "catalog:",
     "typescript-eslint": "^8.33.0"

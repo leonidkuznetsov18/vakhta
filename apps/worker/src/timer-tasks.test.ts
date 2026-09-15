@@ -153,7 +153,17 @@ describe('durable timers and legacy recovery', () => {
       sql`UPDATE background_tasks SET lease_until = clock_timestamp() - interval '1 second' WHERE id = ${lease.id}`,
     );
     expect((await recoverTimerTasks(testDb.db)).admitted).toBe(0);
-    expect(await dispatchTimerTasks(testDb.db)).toMatchObject({ completed: 1, retried: 0 });
+    const observe = vi.fn();
+    expect(await dispatchTimerTasks(testDb.db, {}, observe)).toMatchObject({
+      completed: 1,
+      retried: 0,
+    });
+    expect(observe).toHaveBeenCalledWith({
+      taskId: lease.id,
+      kind: 'RETURN_REMINDER',
+      attempt: 2,
+      outcome: 'completed',
+    });
     const [after] = await testDb.db
       .select()
       .from(backgroundTasks)
@@ -197,8 +207,9 @@ describe('durable timers and legacy recovery', () => {
     await testDb.db.execute(
       sql`CREATE TRIGGER reject_timer_completion BEFORE UPDATE ON background_tasks FOR EACH ROW EXECUTE FUNCTION reject_timer_completion()`,
     );
+    const observe = vi.fn();
     try {
-      expect((await dispatchTimerTasks(testDb.db)).retried).toBe(1);
+      expect((await dispatchTimerTasks(testDb.db, {}, observe)).retried).toBe(1);
       expect(await testDb.db.select().from(notificationOutbox)).toHaveLength(0);
     } finally {
       await testDb.db.execute(sql`DROP TRIGGER reject_timer_completion ON background_tasks`);
@@ -207,8 +218,30 @@ describe('durable timers and legacy recovery', () => {
     await testDb.db.execute(
       sql`UPDATE background_tasks SET available_at = due_at WHERE status = 'PENDING'`,
     );
-    expect((await dispatchTimerTasks(testDb.db)).completed).toBe(1);
+    expect((await dispatchTimerTasks(testDb.db, {}, observe)).completed).toBe(1);
+    const [task] = await testDb.db.select().from(backgroundTasks);
+    expect(observe.mock.calls).toEqual([
+      [{ taskId: task?.id, kind: 'RETURN_REMINDER', attempt: 1, outcome: 'retried' }],
+      [{ taskId: task?.id, kind: 'RETURN_REMINDER', attempt: 2, outcome: 'completed' }],
+    ]);
     expect(await testDb.db.select().from(notificationOutbox)).toHaveLength(1);
+  });
+
+  it('retains completion when the diagnostic observer throws', async () => {
+    await interval();
+    await recoverTimerTasks(testDb.db);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      expect(
+        await dispatchTimerTasks(testDb.db, {}, () => {
+          throw new Error('observer failed');
+        }),
+      ).toMatchObject({ completed: 1, retried: 0 });
+      expect(warn).toHaveBeenCalledWith('Timer task observer failed after persistence');
+      expect(await testDb.db.select().from(notificationOutbox)).toHaveLength(1);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('rejects mismatched interval ownership and suppresses overdue auto-close reminders', async () => {

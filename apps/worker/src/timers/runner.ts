@@ -4,9 +4,10 @@ import {
   type LegacyTimerReader,
   type TimerRecoveryOptions,
 } from './recovery.js';
-import { dispatchTimerTasks } from './tasks.js';
+import { dispatchTimerTasks, type TimerTaskOutcome } from './tasks.js';
 
 export interface TimerTaskObserver {
+  task?(event: TimerTaskOutcome): void;
   dispatched(result: Awaited<ReturnType<typeof dispatchTimerTasks>>): void;
   recovered(result: Awaited<ReturnType<typeof recoverTimerTasks>>): void;
   failed(stage: 'RECOVERY' | 'DISPATCH'): void;
@@ -56,9 +57,13 @@ export class TimerTaskRunner {
     if (this.stopped) return;
     try {
       this.observer.dispatched(
-        await dispatchTimerTasks(this.db, {
-          autoCloseGraceMinutes: this.options.autoCloseGraceMinutes,
-        }),
+        await dispatchTimerTasks(
+          this.db,
+          {
+            autoCloseGraceMinutes: this.options.autoCloseGraceMinutes,
+          },
+          (event) => this.observer.task?.(event),
+        ),
       );
     } catch {
       this.observer.failed('DISPATCH');

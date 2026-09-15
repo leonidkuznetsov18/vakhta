@@ -9,40 +9,25 @@ import { currentLocale } from './i18n.tsx';
 import { messages } from '@vakhta/i18n';
 import { LossesView as LossesViewSchema } from '@vakhta/contracts';
 
-export const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
+import { apiRequest, API_URL, ApiError } from '@/shared/api';
+export { API_URL, ApiError } from '@/shared/api';
 
-export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string | null,
-    message: string,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
-
-/** Усі запити з cookie сесії; помилки зводяться до ApiError із кодом сервера. */
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    credentials: init.credentials ?? 'include',
+/** Legacy endpoint compatibility. New feature APIs use apiRequest and validated contracts. */
+type LegacyRequestOptions = Omit<RequestInit, 'credentials'> & {
+  credentials?: 'include' | 'omit';
+};
+export function apiFetch<T>(path: string, init: LegacyRequestOptions = {}): Promise<T> {
+  return apiRequest<T>({
+    url: path,
+    ...(init.method ? { method: init.method } : {}),
+    ...(init.body != null ? { data: init.body } : {}),
     headers: {
-      // Fastify refuses an empty body under a JSON content type, so DELETE without a body sends none.
-      ...(init.body !== undefined && init.body !== null
-        ? { 'content-type': 'application/json' }
-        : {}),
-      'x-locale': currentLocale(),
-      ...(init.headers ?? {}),
+      ...(init.body != null ? { 'content-type': 'application/json' } : {}),
+      ...Object.fromEntries(new Headers(init.headers)),
     },
+    ...(init.signal ? { signal: init.signal } : {}),
+    ...(init.credentials ? { withCredentials: init.credentials === 'include' } : {}),
   });
-  const text = await res.text();
-  const body = text ? (JSON.parse(text) as unknown) : null;
-  if (!res.ok) {
-    const b = (body ?? {}) as { code?: string; message?: string };
-    throw new ApiError(res.status, b.code ?? null, b.message ?? res.statusText);
-  }
-  return body as T;
 }
 
 export interface SignInResult {

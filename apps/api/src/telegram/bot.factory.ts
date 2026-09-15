@@ -247,11 +247,9 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
 
   // ADR-3, level 1: a redelivered update_id (webhook or polling) never reaches the handlers.
   bot.use(async (ctx, next) => {
-    if (!(await deps.dedup.claim(ctx.update.update_id))) {
+    const outcome = await deps.dedup.run(ctx.update.update_id, next);
+    if (outcome === 'DUPLICATE')
       deps.logger.debug({ updateId: ctx.update.update_id }, 'duplicate update skipped');
-      return;
-    }
-    await next();
   });
 
   // FR-AUTH-01: who writes and whether they have access. Only an active link yields an employee.

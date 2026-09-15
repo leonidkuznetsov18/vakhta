@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { processedTelegramUpdates, type Database } from '@vakhta/db';
+import { eq, processedTelegramUpdates, type Database } from '@vakhta/db';
 import { DATABASE } from '../infra/database.module.js';
 
 /**
@@ -14,9 +14,28 @@ export class UpdateDedup {
   async claim(updateId: number): Promise<boolean> {
     const rows = await this.db
       .insert(processedTelegramUpdates)
-      .values({ updateId })
+      .values({ updateId, result: { status: 'PROCESSING' } })
       .onConflictDoNothing()
       .returning({ updateId: processedTelegramUpdates.updateId });
     return rows.length > 0;
+  }
+  /** At-most-once admission with visible outcomes; this is not automatic replay or a payload inbox. */
+  async run(updateId: number, handle: () => Promise<void>): Promise<'DUPLICATE' | 'COMPLETED'> {
+    if (!(await this.claim(updateId))) return 'DUPLICATE';
+    try {
+      await handle();
+    } catch (error) {
+      await this.db
+        .update(processedTelegramUpdates)
+        .set({ result: { status: 'FAILED', code: 'HANDLER_FAILED' } })
+        .where(eq(processedTelegramUpdates.updateId, updateId));
+      throw error;
+    }
+    // A failure here leaves PROCESSING: effects may have completed, so replay would be unsafe.
+    await this.db
+      .update(processedTelegramUpdates)
+      .set({ result: { status: 'COMPLETED' } })
+      .where(eq(processedTelegramUpdates.updateId, updateId));
+    return 'COMPLETED';
   }
 }

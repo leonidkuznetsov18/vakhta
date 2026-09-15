@@ -1,7 +1,10 @@
 import { CommunicationsModule } from './communications/communications.module.js';
 import { PhotoInspectionModule } from './photo-inspection/photo-inspection.module.js';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { LoggerModule } from 'nestjs-pino';
+import { httpLoggerOptions } from './logger.js';
+import type { Env } from './config/env.js';
 import { AttendanceModule } from './attendance/attendance.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BonusModule } from './bonus/bonus.module.js';
@@ -32,6 +35,15 @@ import { SupportModule } from './support/support.module.js';
       isGlobal: true,
       ignoreEnvFile: true,
       validate: (config) => loadEnv(config),
+    }),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => ({
+        pinoHttp: httpLoggerOptions({
+          LOG_LEVEL: config.get('LOG_LEVEL', { infer: true }),
+          NODE_ENV: config.get('NODE_ENV', { infer: true }),
+        }),
+      }),
     }),
     DatabaseModule,
     RedisModule,

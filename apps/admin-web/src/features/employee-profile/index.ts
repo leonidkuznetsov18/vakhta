@@ -6,4 +6,4 @@ export {
   employeeListReturnId,
 } from './model/navigation';
 export { ProfileSheet } from './ui/profile-sheet';
-export { profileDirectory, canEditEmployee } from './model/directory';
+export { profileDirectory, profileDirectoryOptions, canEditEmployee } from './model/directory';

@@ -1,3 +1,4 @@
+import { stubFetch } from '@/test/stub-fetch';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { render } from '../../test-utils.tsx';
@@ -11,8 +12,7 @@ describe('CommandPalette', () => {
   });
 
   it('opens on click, lists the sections and navigates on select', async () => {
-    vi.stubGlobal(
-      'fetch',
+    stubFetch(
       vi.fn(async () => new Response('[]', { headers: { 'content-type': 'application/json' } })),
     );
     const onSection = vi.fn();

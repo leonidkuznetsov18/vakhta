@@ -1,3 +1,4 @@
+import { stubFetch } from '@/test/stub-fetch';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { HandoverPage } from './HandoverPage.tsx';
@@ -112,8 +113,7 @@ function mockApi(state: { status: string }) {
   const calls: { method: string; path: string; body: unknown }[] = [];
   const json = (data: unknown, status = 200) =>
     new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
-  vi.stubGlobal(
-    'fetch',
+  stubFetch(
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input));
       const method = init?.method ?? 'GET';

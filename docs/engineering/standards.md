@@ -123,3 +123,93 @@ evidence of browser or Telegram visual coverage.
 - [Zustand](https://zustand.docs.pmnd.rs/getting-started/introduction)
 - [FSD layers](https://fsd.how/docs/reference/layers/)
 - [TypeScript strict checks](https://www.typescriptlang.org/tsconfig/strict.html)
+
+## HTTP contracts, forms and persisted preferences
+
+Axios is the panel HTTP transport. `shared/api` owns credentials, locale, cancellation, binary
+responses and normalized `ApiError` values. Feature/entity APIs own endpoints and Zod boundary
+validation. Use `apiRequest`/`apiBlob`; the root `apiFetch` is a compatibility adapter for existing
+callers. Never create a second interceptor stack or log Axios request/config/response objects.
+Pass Query's AbortSignal through generated and ordinary requests; retain cancellation rather than
+turning it into a user error. Query owns retries: mutations have no automatic retry. Keep HTTP status
+and stable domain code; localize by code/kind and use a generic localized fallback for unknown errors.
+
+For migrated REST resources, derive Nest DTO/OpenAPI metadata from `@vakhta/contracts` through
+nestjs-zod, then generate Axios functions with Orval. Do not edit generated code. Run `pnpm api:generate`
+after changing the actual controller/contracts; CI `pnpm api:check` rejects drift. The initial resource
+is employee pagination/import. Generated TypeScript is not runtime validation: parse responses in the
+entity API, and preserve server guards, scope filtering and expected status/error envelopes.
+
+TanStack Form owns ordinary form values, field metadata and validation. Reuse Zod command contracts;
+Query owns the submission, and the feature model owns version conflicts. Baselines follow explicitly
+acknowledged saved versions; Reset restores that baseline. Keep failed drafts and require an explicit
+retry. Never silently overwrite a newer version. Use named model actions and prepared field feedback.
+The profile section editor is the reference; compound scheduling workflows retain their domain models.
+
+Persist client preferences through a feature-owned Zustand persist store with versioned Zod schemas,
+explicit actor scope and a migration policy. Unavailable/corrupt storage falls back to memory/defaults
+with safe diagnostics. Do not import legacy unowned values into a new actor's scope. The audit facet
+store is the reference. Browser preferences never establish authorization or mirror Query server data.
+
+## Dates, queries and live updates
+
+Distinguish instants (ISO timestamp/Date), business dates (`YYYY-MM-DD` in the site's IANA timezone),
+local clock times and durations. Use the existing pure domain time functions in `packages/domain/src/time`
+(`businessDateOf`, shift planning/window functions) with explicit timezone for business rules. Luxon
+already owns those conversions and DST behavior. Reuse existing display/date-fns helpers in the panel;
+do not derive a business day with UTC `toISOString().slice(0, 10)` or add another date library.
+A duration carries its unit via `formatDuration` unless a column header already supplies the unit.
+
+Co-locate reusable `queryOptions` factories with feature/entity API models; use the existing key
+factories and explicit filters in identity. The complete employee directory factory preserves its
+existing invalidation prefix, consumes the signal and rejects repeated cursor cycles. Paginated
+requests must not silently show a partial roster as complete. Keep cached data during refresh and
+expose loading, offline/paused, error/retry and successful-empty states separately.
+
+SSE is an invalidation signal, not a second data cache or an Axios JSON request. The existing
+`lib/live.ts` EventSource adapter owns cookie credentials, reconnect status and close-on-unsubscribe;
+its application-owned effect is explicit legacy debt and is not permission to add hooks elsewhere.
+When migrating that slice, require one subscription owner per cache scope, cleanup on logout/scope
+change, bounded reconnect behavior, and Query invalidation/refetch after a connection gap. Do not
+claim EventSource reconnection replays missed domain events without a server replay contract.
+
+## Logging, commands and delivery guarantees
+
+Nest request logs use nestjs-pino; Fastify supplies a validated/generated UUID and Pino reuses it.
+Allowlist request ID/method and response status, redact credentials, and sanitize both `err` and
+`error`, including Pino's implicit message extraction. Keep structured event names and safe identifiers;
+never pass payloads, raw URLs or arbitrary upstream messages as free-form log text. Background work
+correlates by durable task UUID: admission is `task_intent_staged`, not proof of transaction commit;
+worker outcomes include task UUID, kind, attempt and persisted completed/retried/lost classification.
+Diagnostic observer failure cannot change a successfully persisted task outcome.
+
+Use scheduling command receipts as the reference for consequential commands: authenticate/authorize,
+canonicalize and fingerprint the actor-bound input, serialize matching idempotency keys, commit
+business effects/events/task intents/validated receipt together, reject mismatched key reuse, and
+recheck authorization on replay. Do not introduce one generic receipt abstraction across incompatible
+legacy flows. Requests/Incidents receipt migrations remain explicit debt.
+
+Each outbox notification commits independently under SKIP LOCKED; a pass attempts each row at most
+once even for zero retry_after. Revalidate reminder eligibility at delivery. Earlier SENT receipts
+survive later failures. Telegram acceptance followed by receipt persistence failure is ambiguous and
+can duplicate that one notification on retry; database locks do not provide exactly-once delivery.
+
+Telegram update records distinguish PROCESSING, COMPLETED and FAILED without saving private payloads.
+COMPLETED means the middleware returned, not proof every requested business outcome succeeded.
+Interrupted PROCESSING is ambiguous. Retain at-most-once admission and no automatic replay while
+handlers contain non-idempotent effects. This is diagnostic outcome tracking, not a durable replayable
+inbox; a future inbox must define each handler's transactional/recovery boundary and admission failure
+response before changing webhook acknowledgement behavior.
+
+## Architecture and verification tooling
+
+Scoped ESLint boundaries enforce downward dependencies, feature/entity public APIs and the hook policy
+for employee import/profile, audit filters, employee entity, shared API and locale config. Legacy root
+API/UI adapters remain explicit migration dependencies; these rules do not certify the entire panel.
+`pnpm test:architecture` exercises prohibited imports/aliases. Expand the scope with coherent migrations.
+
+Use MSW for new transport fixtures and Playwright/axe for complete browser journeys. The profile fixture
+uses real UI/providers with synthetic HTTP responses; it is not part of the production entrypoint.
+CI checks generated contract drift and runs desktop/mobile Chromium journeys. `pnpm audit:unused`
+(Knip) and `pnpm audit:fsd` (Steiger) are advisory inventories: check dynamic entrypoints, previews,
+workers, migrations, public APIs and domain ownership before removing anything.

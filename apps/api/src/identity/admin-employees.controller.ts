@@ -1,3 +1,12 @@
+import { ApiCookieAuth, ApiOperation, ApiBody } from '@nestjs/swagger';
+import { ZodResponse, ZodSerializerInterceptor } from 'nestjs-zod';
+import { ContractValidationPipe } from '../common/contract-validation.pipe.js';
+import {
+  EmployeePageDto,
+  EmployeePageQueryDto,
+  EmployeeImportDto,
+  EmployeeImportResultDto,
+} from './employee-dto.js';
 import {
   Body,
   Controller,
@@ -11,9 +20,9 @@ import {
   Query,
   UseFilters,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
-  ListEmployeesPageQuery,
   type EmployeesPage,
   ChangeEmployeeStatusCommand,
   CreateEmployeeCommand,
@@ -24,7 +33,6 @@ import {
   RelinkTelegramCommand,
   type ActivationCodeIssued,
   type EmployeeView,
-  ImportEmployeesCommand,
   type ImportEmployeesResult,
   IssueActivationCodesCommand,
   UpdateEmployeeCommand,
@@ -83,9 +91,13 @@ export class AdminEmployeesController {
   }
 
   @Get('page')
+  @ApiOperation({ operationId: 'listEmployeePage' })
+  @ApiCookieAuth()
+  @ZodResponse({ status: 200, type: EmployeePageDto })
+  @UseInterceptors(ZodSerializerInterceptor)
   @Roles('ADMIN', 'HR', 'ACCOUNTANT', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER')
   async listPage(
-    @Query(new ZodValidationPipe(ListEmployeesPageQuery)) query: ListEmployeesPageQuery,
+    @Query(new ContractValidationPipe(EmployeePageQueryDto)) query: EmployeePageQueryDto,
     @CurrentUser() user: WebUser,
   ): Promise<EmployeesPage> {
     const page = await this.employees.listPage(query, scopeOf(user, EMPLOYEE_READERS));
@@ -134,9 +146,13 @@ export class AdminEmployeesController {
   }
 
   @Post('import')
-  @HttpCode(201)
+  @ApiOperation({ operationId: 'importEmployeeBatch' })
+  @ApiCookieAuth()
+  @ApiBody({ type: EmployeeImportDto })
+  @ZodResponse({ status: 201, type: EmployeeImportResultDto })
+  @UseInterceptors(ZodSerializerInterceptor)
   async importMany(
-    @Body(new ZodValidationPipe(ImportEmployeesCommand)) body: ImportEmployeesCommand,
+    @Body(new ContractValidationPipe(EmployeeImportDto)) body: EmployeeImportDto,
     @CurrentUser() user: WebUser,
   ): Promise<ImportEmployeesResult> {
     // Imported cards have no assignment, so only an enterprise-wide writer could see them again.

@@ -7,8 +7,8 @@ import {
   type CommunicationAudienceQuery,
   type CreateCommunication,
 } from '@vakhta/contracts';
-import { apiFetch, API_URL, ApiError } from '@/api';
-import { currentLocale } from '@/i18n';
+import { apiFetch } from '@/api';
+import { apiRequest } from '@/shared/api';
 import { waitForAudienceSearch } from './search-delay';
 export const communicationKey = (actor: string) => ['communications', actor] as const;
 function search(query: CommunicationAudienceQuery) {
@@ -61,22 +61,13 @@ export const communicationApi = {
   async upload(file: File, signal: AbortSignal) {
     const body = new FormData();
     body.append('file', file);
-    const response = await fetch(`${API_URL}/admin/communications/attachments`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'x-locale': currentLocale() },
-      body,
-      signal,
-    });
-    const data: unknown = await response.json();
-    if (!response.ok) {
-      const parsed = z.object({ code: z.string().optional() }).safeParse(data);
-      throw new ApiError(
-        response.status,
-        parsed.success ? (parsed.data.code ?? null) : null,
-        'Upload failed',
-      );
-    }
-    return CommunicationAttachment.parse(data);
+    return CommunicationAttachment.parse(
+      await apiRequest({
+        url: '/admin/communications/attachments',
+        method: 'POST',
+        data: body,
+        signal,
+      }),
+    );
   },
 };

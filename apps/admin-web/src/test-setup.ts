@@ -1,8 +1,11 @@
+import { Blob as NativeBlob } from 'node:buffer';
 import { configure } from '@testing-library/react';
 import { beforeEach, vi } from 'vitest';
 import { clearPersistentState } from './lib/ui-store.ts';
 import { installZodLocale } from './lib/validation.ts';
 
+// Response/Request use Node's Fetch implementation; use its Blob for matching response bodies.
+Object.assign(globalThis, { Blob: NativeBlob });
 installZodLocale();
 // Tests assert the Russian catalog regardless of the jsdom navigator language.
 try {

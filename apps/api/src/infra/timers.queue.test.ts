@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { Logger } from '@nestjs/common';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { backgroundTasks, employees, eq, sql } from '@vakhta/db';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
 import { TimerScheduler } from './timers.queue.js';
@@ -52,5 +53,36 @@ describe('durable timer source admission', () => {
     expect(await testDb.db.select().from(employees).where(eq(employees.id, EMPLOYEE))).toHaveLength(
       0,
     );
+  });
+  it('logs the durable task identity as staged while preserving rollback semantics', async () => {
+    const log = vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    const scheduler = new TimerScheduler();
+    const employeeId = 'a0000000-0000-4000-8000-000000000001';
+    const fireAt = new Date('2026-09-01T00:00:00Z');
+    try {
+      await testDb.db.transaction((tx) =>
+        scheduler.scheduleBirthdayGreeting(tx, employeeId, fireAt),
+      );
+      const [task] = await testDb.db.select().from(backgroundTasks);
+      expect(log).toHaveBeenLastCalledWith({
+        event: 'task_intent_staged',
+        taskId: task?.id,
+        kind: 'BIRTHDAY_GREETING',
+      });
+      await expect(
+        testDb.db.transaction(async (tx) => {
+          await scheduler.scheduleBirthdayGreeting(
+            tx,
+            'a0000000-0000-4000-8000-000000000002',
+            fireAt,
+          );
+          throw new Error('rollback');
+        }),
+      ).rejects.toThrow('rollback');
+      expect(await testDb.db.select().from(backgroundTasks)).toHaveLength(1);
+      expect(log).toHaveBeenCalledTimes(2);
+    } finally {
+      log.mockRestore();
+    }
   });
 });

@@ -5,7 +5,7 @@ import {
   rememberEmployeeList,
   employeeListReturnId,
   ProfileSheet,
-  profileDirectory,
+  profileDirectoryOptions,
   canEditEmployee,
 } from '@/features/employee-profile';
 import { UserAvatar } from '@/components/app/avatar';
@@ -106,10 +106,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const { state: session } = useSession();
   const roles = session.status === 'authenticated' ? session.me.roles : [];
   const writable = roles.some((grant) => grant.role === 'ADMIN' || grant.role === 'HR');
-  const roster = useQuery({
-    queryKey: [...keys.employees, 'complete-directory'],
-    queryFn: ({ signal }) => profileDirectory(signal),
-  });
+  const roster = useQuery(profileDirectoryOptions());
   const list = roster.data ?? [];
   /** One roster on the server; every card that changes re-reads it rather than patching a copy. */
   const reload = () => client.invalidateQueries({ queryKey: keys.employees });

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/**/*.mjs", "eslint.config.js"],
+      "project": ["scripts/**/*.mjs", "eslint.config.js"]
+    },
+    "apps/admin-web": {
+      "entry": [
+        "src/main.tsx",
+        "src/preview.tsx",
+        "src/**/*.test.{ts,tsx}",
+        "src/**/*.fixture.tsx",
+        "e2e/**/*.ts",
+        "*.config.ts"
+      ],
+      "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts", "*.config.ts"]
+    },
+    "apps/api": {
+      "entry": ["src/main.ts", "src/cli/*.ts", "src/**/*.test.ts", "scripts/*.mjs"],
+      "project": ["src/**/*.ts", "test/**/*.ts", "scripts/*.mjs"]
+    },
+    "apps/worker": {
+      "entry": ["src/main.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
+    "apps/kiosk": {
+      "entry": ["src/main.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/*": {
+      "entry": ["src/index.ts", "src/cli/**/*.ts", "src/**/*.test.ts", "drizzle.config.ts"],
+      "project": ["src/**/*.ts", "drizzle.config.ts"]
+    },
+    "packages/db": {
+      "entry": [
+        "src/index.ts",
+        "src/migrate.ts",
+        "src/seed.ts",
+        "src/**/*.test.ts",
+        "drizzle.config.ts"
+      ],
+      "project": ["src/**/*.ts", "drizzle.config.ts"]
+    }
+  }
+}

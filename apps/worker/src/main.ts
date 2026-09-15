@@ -155,6 +155,9 @@ const timerRunner = new TimerTaskRunner(
     autoCloseGraceMinutes: env.AUTO_CLOSE_GRACE_MINUTES,
   }),
   {
+    task(event) {
+      logger.info(event, 'durable timer outcome');
+    },
     dispatched(result) {
       if (result.claimed) logger.info(result, 'durable timer batch');
     },

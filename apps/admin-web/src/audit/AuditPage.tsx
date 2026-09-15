@@ -1,3 +1,5 @@
+import { useAuditFilters } from '@/features/audit-filters';
+import { useSession } from '@/auth/useSession';
 import { DetailText, ScrollableText, TextPreview } from '@/components/app/row-detail';
 import { useQuery } from '@tanstack/react-query';
 import type { AuditEntryView, DomainEventView } from '@vakhta/contracts';
@@ -149,9 +151,10 @@ export function AuditPage() {
   const setTab = (tab: 'audit' | 'events') => {
     void navigate({ to: '/audit/{-$tab}', params: { tab }, replace: true, resetScroll: false });
   };
-  const [action, setAction] = usePersistentState('audit.action', '');
-  const [objectType, setObjectType] = usePersistentState('audit.objectType', '');
-  const [type, setType] = usePersistentState('audit.type', '');
+  const { state: session } = useSession();
+  const { action, setAction, objectType, setObjectType, type, setType } = useAuditFilters(
+    session.status === 'authenticated' ? session.me.id : undefined,
+  );
   const [open, setOpen] = usePersistentState<string | null>('audit.open', null);
 
   // The last 200 entries per tab; the filters narrow them on the client, so the selects can list

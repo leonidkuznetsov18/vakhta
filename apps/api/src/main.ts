@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import multipart from '@fastify/multipart';
 import { NestFactory } from '@nestjs/core';
+import { Logger } from 'nestjs-pino';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module.js';
 import { AUTH } from './auth/auth.service.js';
@@ -10,7 +11,7 @@ import { DomainErrorFilter } from './common/domain-error.js';
 import { corsOptions } from './config/cors.js';
 import { loadEnv } from './config/env.js';
 import { UnexpectedErrorFilter } from './common/unexpected-error.filter.js';
-import { createLogger } from './logger.js';
+import { createLogger, requestId } from './logger.js';
 import { MetricsService } from './metrics/metrics.module.js';
 import { initSentry, Sentry } from './observability/sentry.js';
 
@@ -22,9 +23,10 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: false, trustProxy: true }),
-    { logger: ['error', 'warn'] },
+    new FastifyAdapter({ logger: false, genReqId: requestId, trustProxy: true }),
+    { bufferLogs: true },
   );
+  app.useLogger(app.get(Logger));
   await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 1 } });
   app.enableShutdownHooks();
   // Порядок має значення: Nest перевіряє фільтри з кінця, тож DomainErrorFilter іде останнім.

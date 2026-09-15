@@ -5,6 +5,7 @@ import {
   eq,
   lte,
   notificationOutbox,
+  notInArray,
   sql,
   telegramAccounts,
   type Database,
@@ -91,8 +92,9 @@ export function backoffSeconds(attempt: number): number {
 }
 
 /**
- * Один прохід релею (ADR-8): забирає PENDING через SKIP LOCKED, шле, оновлює статус.
- * Кілька інстансів воркера не надішлють один рядок двічі: рядки заблоковані до коміту.
+ * Process a bounded pass with one transaction per notification. Earlier SENT receipts survive
+ * a later failure. SKIP LOCKED excludes concurrent owners, but acceptance followed by failed
+ * receipt persistence remains ambiguous and can cause a duplicate on retry.
  */
 export async function relayOnce(
   db: Database,
@@ -106,21 +108,26 @@ export async function relayOnce(
   const dueBefore = options.now ? now() : sql`now()`;
   const result: RelayResult = { sent: 0, skipped: 0, failed: 0, retried: 0, deferred: 0 };
 
-  await db.transaction(async (tx) => {
-    const rows = await tx
-      .select()
-      .from(notificationOutbox)
-      .where(
-        and(
-          eq(notificationOutbox.status, 'PENDING'),
-          lte(notificationOutbox.nextAttemptAt, dueBefore),
-        ),
-      )
-      .orderBy(asc(notificationOutbox.nextAttemptAt))
-      .limit(batch)
-      .for('update', { skipLocked: true });
+  const visited: string[] = [];
+  for (let processed = 0; processed < batch; processed++) {
+    const handled = await db.transaction(async (tx) => {
+      const rows = await tx
+        .select()
+        .from(notificationOutbox)
+        .where(
+          and(
+            eq(notificationOutbox.status, 'PENDING'),
+            visited.length ? notInArray(notificationOutbox.id, visited) : undefined,
+            lte(notificationOutbox.nextAttemptAt, dueBefore),
+          ),
+        )
+        .orderBy(asc(notificationOutbox.nextAttemptAt))
+        .limit(1)
+        .for('update', { skipLocked: true });
 
-    for (const row of rows) {
+      const row = rows[0];
+      if (!row) return false;
+      visited.push(row.id);
       const skip = async (reason: string) => {
         await tx
           .update(notificationOutbox)
@@ -131,7 +138,7 @@ export async function relayOnce(
 
       if (row.recipientType !== 'EMPLOYEE') {
         await skip(`канал для ${row.recipientType} не підтримується`);
-        continue;
+        return true;
       }
       const [link] = await tx
         .select({ telegramUserId: telegramAccounts.telegramUserId })
@@ -145,7 +152,7 @@ export async function relayOnce(
         .limit(1);
       if (!link) {
         await skip('немає активної привʼязки Telegram');
-        continue;
+        return true;
       }
 
       let payload = row.payload;
@@ -158,7 +165,7 @@ export async function relayOnce(
         const reminder = id.success ? await readShiftReminder(tx, id.data, deliveryTime) : null;
         if (!reminder || reminder.employeeId !== row.recipientId) {
           await skip('Shift reminder is no longer applicable');
-          continue;
+          return true;
         }
         // Old timers/outbox entries may predate the 30-minute policy. Defer without using a retry.
         if (reminder.sendAt > deliveryTime) {
@@ -167,7 +174,7 @@ export async function relayOnce(
             .set({ nextAttemptAt: reminder.sendAt })
             .where(eq(notificationOutbox.id, row.id));
           result.deferred += 1;
-          continue;
+          return true;
         }
         payload = reminder.payload;
       }
@@ -181,30 +188,19 @@ export async function relayOnce(
             : null;
         if (!reminder) {
           await skip('Acknowledgement reminder is no longer applicable');
-          continue;
+          return true;
         }
         payload = reminder;
       }
 
+      let receipt: { messageId: number | null };
       try {
-        const { messageId } = await sender.send(link.telegramUserId, payload);
-        await tx
-          .update(notificationOutbox)
-          .set({
-            status: 'SENT',
-            sentAt: now(),
-            telegramMessageId: messageId,
-            attempts: row.attempts + 1,
-            lastError: null,
-            payload,
-          })
-          .where(eq(notificationOutbox.id, row.id));
-        result.sent += 1;
+        receipt = await sender.send(link.telegramUserId, payload);
       } catch (error) {
         const err = error instanceof SendError ? error : new SendError('RETRY', String(error));
         if (err.kind === 'SKIP') {
           await skip(err.message);
-          continue;
+          return true;
         }
         const attempts = row.attempts + 1;
         if (attempts >= maxAttempts) {
@@ -225,9 +221,25 @@ export async function relayOnce(
             .where(eq(notificationOutbox.id, row.id));
           result.retried += 1;
         }
+        return true;
       }
-    }
-  });
+      // Persistence failures remain ambiguous; do not classify them as failed sends.
+      await tx
+        .update(notificationOutbox)
+        .set({
+          status: 'SENT',
+          sentAt: now(),
+          telegramMessageId: receipt.messageId,
+          attempts: row.attempts + 1,
+          lastError: null,
+          payload,
+        })
+        .where(eq(notificationOutbox.id, row.id));
+      result.sent += 1;
+      return true;
+    });
+    if (!handled) break;
+  }
 
   return result;
 }

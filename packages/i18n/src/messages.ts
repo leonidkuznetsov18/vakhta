@@ -493,6 +493,9 @@ export interface Messages {
       readonly verify: string;
       readonly invalidCode: string;
       readonly networkError: string;
+      readonly requestTimeout: string;
+      readonly invalidResponse: string;
+      readonly requestFailed: string;
       readonly profile: string;
       readonly name: string;
       readonly roles: string;

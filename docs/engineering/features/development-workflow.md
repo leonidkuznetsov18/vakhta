@@ -160,3 +160,87 @@ Limits and remaining verification:
 Lean recommendation: Proceed with the bounded increment. Keep select → preview → import → report;
 catch broken/stale files early and keep mobile actions reachable. No extra worker step or permission
 ceremony was added. Correctness is demonstrated with fixtures, not claimed as measured time savings.
+
+## Architecture standardization: completed implementation and evaluations
+
+Active feature remains `specs/009-architecture-standardization`. This section supersedes the earlier
+pending-pilot and host-Docker notes. The earlier source `87fc017` reached CI run `34969938815`, whose
+bonus metadata assertion exposed an invalid fixture effective date. The fixture now starts at the
+period boundary used by closePeriod; the focused real PostgreSQL export case passed. No bonus rule
+or financial calculation changed. Existing Colima was started successfully; no database volume was
+removed. Final delivery/CI evidence is recorded separately below.
+
+| Audit | Outcome                                  | Implemented boundary / remaining migration                                                                                                                                                                              |
+| ----- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A1    | Adopt Axios + Nest/Zod/OpenAPI + Orval   | Panel domain API calls use the shared Axios transport; employee page/import are generated and runtime validated. Legacy endpoint wrappers remain thin compatibility callers, migrating by resource.                     |
+| A2    | Adopt TanStack Form + Zod                | Profile section form retains normalized no-op/reset, failed draft, version acknowledgement and explicit retry. Complex Schedule workflows retain domain models.                                                         |
+| A3    | Adopt typed Zustand persistence          | Audit facets are actor-keyed, versioned and validated with corruption/storage recovery. Generic legacy search/open-row/session persistence remains separate migration work.                                             |
+| A4    | Adopt scoped ESLint boundaries           | Employee import/profile, audit filters, employee entity and shared API/config are enforced. Legacy root dependencies remain inventoried.                                                                                |
+| A5    | Adopt Papa Parse / csv-stringify         | First delivery replaced handwritten CSV import and report serialization.                                                                                                                                                |
+| A6    | Adopt ical-generator / supported SheetJS | First delivery replaced feed encoding and unsupported distribution; bonus sheet name compatibility documented above.                                                                                                    |
+| A7    | Adopt MSW / Playwright / axe             | Real transport fixtures and desktop/mobile profile journeys run in CI; no production employee actions.                                                                                                                  |
+| A8    | Adopt nestjs-pino                        | Safe HTTP IDs and durable timer producer/worker identity. Broader legacy worker logging and distributed tracing remain outside this pilot.                                                                              |
+| A9    | Adopt explicit recovery contracts        | Per-row outbox commit/fault tests, Telegram diagnostic outcomes, scheduling command receipt reference. Full payload inbox, legacy Requests/Incidents receipts and external exactly-once are not implemented or claimed. |
+| A10   | Retain current task engine               | pg-boss source evaluation did not establish equivalent per-attempt fencing without custom machinery. No unverified queue migration.                                                                                     |
+| A11   | Defer dnd kit                            | Existing explicit Move editor serves keyboard/mobile. Reconsider for a demonstrated sensor/drag requirement and equivalent workflow tests.                                                                              |
+| A12   | Retain typed locale catalogs             | Reconsider i18next for plural/namespace/translator requirements; retain explicit locale isolation.                                                                                                                      |
+| A13   | Standardize existing tools               | Domain Luxon/time rules, reusable employee queryOptions and cursor-cycle rejection, EventSource invalidation ownership. Virtualization awaits a measured bottleneck.                                                    |
+| A14   | Adopt catalogs / advisory Knip           | Existing resolutions retained; entrypoints include previews, worker/bot/kiosk, scripts and DB migration/seed. No automatic deletions.                                                                                   |
+
+Why Axios: the preceding increment reused the existing apiFetch and had not performed a transport
+comparison. The owner's follow-up prompted the comparative evaluation recorded in plan.md. Axios led
+npm's measured monthly downloads among Axios/ofetch/Ky/Wretch and supplies maintained cancellation,
+HTTP error discrimination and Orval integration. Query still owns retries; no axios-retry or second
+server cache was added. Four direct authenticated fetch paths now use the shared transport. Static
+build-version HTML checks and EventSource remain distinct protocols. ApiError preserves HTTP/domain
+identity without retaining unsafe Axios configuration/payloads.
+
+The generated client uses the actual shared mutator entrypoint so Orval infers signal/timeout options.
+Generation applies repository Prettier after Orval and commits the OpenAPI 3.1 document/models. Nest
+serialization validates output; client entity APIs also validate unknown responses. The pilot keeps
+existing status codes, authorization/scope behavior and error envelopes. Contract generation is a
+reflection-only process without a live server or database.
+
+Advisory assessment: Knip reported 84 file groups: 113 exported values, 24 types, four development
+packages, three duplicate exports, three unlisted packages and two external binaries; no unresolved
+imports or unused runtime dependencies. Known dynamic uses include Pino's pino-pretty target, the
+release preset and Railway config. `op`/ffmpeg are external tools; release/doc scripts access nested or
+workspace dependencies. These are review leads, not deletion authority. Generated/public contract
+exports and shadcn APIs remain deliberate. Steiger reported eight findings: seven insignificant-slice
+suggestions miss legacy callers or conflict with coherent feature ownership; app/ui composition is
+accepted project structure. Its missing shared/config entrypoint was fixed. Scoped ESLint supplies the
+blocking boundary gate while these whole-tree tools remain advisory.
+
+Fresh verification for this increment:
+
+- Full panel suite: 77 files, 500 tests passed. Subsequent baseline-reset/persistence/query refinements:
+  21 focused tests passed. Transport includes 16 cases; generated MSW API five; API contract/auth/output
+  validation eight; persistence seven. No mocked type-only guarantee substitutes for boundary parsing.
+- Profile browser journeys: four desktop/mobile Chromium tests passed with axe checks; screenshots
+  captured under `apps/admin-web/test-results/browser` and inspected for validation, failed drafts and
+  conflict disclosure. Keyboard/desktop/mobile behavior is fixture evidence, not authenticated production QA.
+- Outbox and timer suites: 41 PostgreSQL tests passed, including partial-batch receipt failure,
+  concurrent relay, zero-delay retry, stable task IDs across retry/recovery, and observer failure after
+  persistence. Telegram outcome tests: five passed; existing QR departure/bot compatibility: 16 passed.
+- Logger and task producer: five tests passed, proving concurrent ID isolation, both error-key
+  redaction, implicit-message sanitization, persisted task identity and rollback semantics. Independent
+  reviews found a stale Reset baseline and a missing HTTP error serializer; both were corrected and
+  covered by focused regression checks. Reviewers did not duplicate the writer's test execution.
+- Architecture rule fixtures: three passed. Root ESLint and affected API/worker/panel typechecks passed.
+  API, panel and worker production builds passed; generated output formatting was aligned with the
+  repository formatter. Five existing PostgreSQL scheduling receipt/replay/fault cases also passed.
+  Generated contract drift check passed after staging; remote CI status is recorded at delivery,
+  not inferred from local results.
+
+Operational limits: a Telegram-accepted message whose receipt cannot commit remains ambiguous and may
+repeat once on retry. Each send still holds a database row transaction. PROCESSING after interruption
+is not success; FAILED does not automatically replay partially applied effects. The existing webhook
+still acknowledges handler/admission failures according to its previous policy; a replayable durable
+inbox needs per-handler recovery and a safe admission-failure response. New outcomes improve diagnosis
+without closing the older critical-reliability #4. No production fault injection, real notification
+send, browser login, or live employee save was performed for this standardization change.
+
+Lean recommendation: Proceed. Keep the existing user paths, preserve drafts and accountable version
+acknowledgement, and remove duplicated transport/protocol mechanics. Conditional dependencies are
+explicit decisions with adoption triggers in plan.md. Do not equate additional libraries or green
+fixtures with measured worker productivity or completed migration of every legacy module.

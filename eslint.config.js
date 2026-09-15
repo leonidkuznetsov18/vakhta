@@ -1,3 +1,4 @@
+import { architectureConfig } from './scripts/architecture/eslint.mjs';
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
@@ -50,5 +51,6 @@ export default tseslint.config(
     files: ['infra/load/**/*.js'],
     languageOptions: { globals: { __ENV: 'readonly' } },
   },
+  architectureConfig,
   prettier,
 );

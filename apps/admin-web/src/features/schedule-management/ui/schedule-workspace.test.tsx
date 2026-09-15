@@ -1,3 +1,4 @@
+import { stubFetch } from '@/test/stub-fetch';
 import { AssignmentChanges } from './assignment-changes';
 import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { messages } from '@vakhta/i18n';
@@ -614,7 +615,7 @@ function mockApi(
     }
     return json({ code: 'NOT_FOUND', message: path }, 404);
   });
-  vi.stubGlobal('fetch', fetchMock);
+  stubFetch(fetchMock);
   return calls;
 }
 

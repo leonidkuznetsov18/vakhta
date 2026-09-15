@@ -23,7 +23,7 @@ import { Muted, ROW_DANGER, StatusPill } from '@/components/app/page';
 import { employeeCsvTemplate, type EmployeeRow } from '../model/preview';
 import { createFileSelection } from '../model/file-selection';
 import { LoadingState } from '@/shared/ui/loading-state';
-import { importEmployees } from '../api/import-employees';
+import { importEmployees } from '@/entities/employee';
 import { readError } from '@/errors';
 import { currentLocale } from '@/i18n';
 

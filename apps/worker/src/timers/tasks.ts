@@ -73,9 +73,17 @@ export function executeTimerWithin(
   }
 }
 
+export interface TimerTaskOutcome {
+  taskId: string;
+  kind: string;
+  attempt: number;
+  outcome: 'completed' | 'retried' | 'lost';
+}
+
 export async function dispatchTimerTasks(
   db: Database,
   input: Partial<z.infer<typeof DispatchOptions>> = {},
+  observe?: (event: TimerTaskOutcome) => void,
 ) {
   const options = DispatchOptions.parse(input);
   const tasks = await claimBackgroundTasks(db, {
@@ -86,6 +94,7 @@ export async function dispatchTimerTasks(
   const results = await Promise.allSettled(
     tasks.map(async (task) => {
       let errorCode: BackgroundTaskErrorCode = 'EXECUTION_FAILED';
+      let outcome: TimerTaskOutcome['outcome'];
       try {
         if (task.payloadVersion !== 1) {
           errorCode = 'UNSUPPORTED_VERSION';
@@ -103,13 +112,21 @@ export async function dispatchTimerTasks(
         await runBackgroundTask(db, task, (tx) =>
           executeTimerWithin(tx, parsed.data, undefined, options.autoCloseGraceMinutes),
         );
-        return 'completed';
+        outcome = 'completed';
       } catch (error) {
-        if (error instanceof BackgroundTaskLeaseLostError) return 'lost';
-        return (await retryBackgroundTask(db, task, { delayMs: options.retryMs, errorCode }))
-          ? 'retried'
-          : 'lost';
+        outcome =
+          error instanceof BackgroundTaskLeaseLostError
+            ? 'lost'
+            : (await retryBackgroundTask(db, task, { delayMs: options.retryMs, errorCode }))
+              ? 'retried'
+              : 'lost';
       }
+      try {
+        observe?.({ taskId: task.id, kind: task.kind, attempt: task.attempts, outcome });
+      } catch {
+        console.warn('Timer task observer failed after persistence');
+      }
+      return outcome;
     }),
   );
   if (results.some((result) => result.status === 'rejected'))
