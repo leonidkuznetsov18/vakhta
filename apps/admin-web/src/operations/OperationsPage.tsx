@@ -116,7 +116,11 @@ function newKey(): string {
 export function OperationsPage() {
   const communicationDraft = useCommunicationDraft();
   const { org, queryState: orgQuery } = useOrg();
-  const { active: activeEmployees } = useEmployees();
+  const {
+    active: activeEmployees,
+    loaded: employeesLoaded,
+    queryState: employeesQuery,
+  } = useEmployees();
   const [siteId, setSiteId] = usePersistentState('operations.siteId', '');
   const [orgUnitId, setOrgUnitId] = usePersistentState('operations.orgUnitId', '');
   const [scope, setScope] = usePersistentState<ShiftScope>('operations.scope', 'OPEN');
@@ -574,12 +578,14 @@ export function OperationsPage() {
                 </DialogTitle>
               </DialogHeader>
               <form className="flex flex-col gap-4" onSubmit={startShift}>
+                <QueryFeedback query={employeesQuery} />
                 <SelectField
                   label={o.employee}
                   value={startFor}
                   onChange={setStartFor}
                   placeholder="…"
                   required
+                  disabled={!employeesLoaded}
                   options={activeEmployees.map((e) => ({
                     value: e.id,
                     label: `${e.fullName} · ${e.personnelNumber}`,
@@ -643,7 +649,10 @@ export function OperationsPage() {
         {GROUPS.filter((g) => g !== 'CLOSED' || scope !== 'OPEN').map((g) => (
           <ToggleGroupItem key={g} value={g} className="gap-1">
             {o.groups[g]}
-            <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">{counts[g]}</span>
+            {/* No count until the list arrives: a zero would claim nobody is in that state. */}
+            {shifts.data !== undefined && (
+              <span className="rounded-full bg-muted px-1.5 text-xs tabular-nums">{counts[g]}</span>
+            )}
           </ToggleGroupItem>
         ))}
       </ToggleGroup>

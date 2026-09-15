@@ -21,6 +21,7 @@ import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill, Toolbar } from '@/components/app/page';
 import { usePersistentState } from '@/lib/ui-store';
 import { useOrg } from '@/lib/org';
+import { LoadingState } from '@/shared/ui/loading-state';
 import { keys } from '@/lib/query';
 import { formatDateTime, formatDuration } from '@/lib/format';
 import { reportsApi } from '../api.ts';
@@ -248,7 +249,8 @@ export function ReportsPage() {
           <ExportButton query={presentation.exportQuery} format="xlsx" label={r.exportXlsx} />
         </div>
       </Toolbar>
-      <QueryFeedback query={report} />
+      {/* The first read's loader sits inside the section it fills. */}
+      {!(report.isPending && report.isFetching) && <QueryFeedback query={report} />}
       {presentation.exportWarning && <p role="status">{presentation.exportWarning}</p>}
       {presentation.asOf && <Muted>{presentation.asOf}</Muted>}
 
@@ -263,18 +265,26 @@ export function ReportsPage() {
             </Button>
           </div>
         )}
-        <dl className="mb-4 grid gap-3 sm:grid-cols-3">
-          <Tile label={r.lossTotal} value={formatDuration(data?.totalMinutes ?? 0)} />
-          <Tile label={r.lossLost} value={formatDuration(data?.lostMinutes ?? 0)} tone="warning" />
-          <Tile
-            label={r.lossExplained}
-            value={`${Math.round((data?.explainedShare ?? 0) * 100)}%`}
-            hint={r.lossExplainedHint}
-            tone={(data?.explainedShare ?? 0) < 0.5 ? 'danger' : undefined}
-          />
-        </dl>
+        {/* Without a report the feedback above speaks; zeros would read as a measured result. */}
+        {!data ? (
+          report.isPending &&
+          report.isFetching && (
+            <LoadingState label={all.ui.common.loading} className="w-full py-8" />
+          )
+        ) : (
+          <dl className="mb-4 grid gap-3 sm:grid-cols-3">
+            <Tile label={r.lossTotal} value={formatDuration(data.totalMinutes)} />
+            <Tile label={r.lossLost} value={formatDuration(data.lostMinutes)} tone="warning" />
+            <Tile
+              label={r.lossExplained}
+              value={`${Math.round(data.explainedShare * 100)}%`}
+              hint={r.lossExplainedHint}
+              tone={data.explainedShare < 0.5 ? 'danger' : undefined}
+            />
+          </dl>
+        )}
 
-        {bars.length === 0 ? (
+        {!data ? null : bars.length === 0 ? (
           <Muted>{r.lossEmpty}</Muted>
         ) : (
           <>

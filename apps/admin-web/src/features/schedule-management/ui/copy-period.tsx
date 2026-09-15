@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { SelectField } from '@/components/app/fields';
 import { Feedback } from '@/components/app/feedback';
-import { LoadingState } from '@/shared/ui/loading-state';
+import { QueryFeedback } from '@/components/app/query-feedback';
 import type { Workspace } from '../model/use-workspace';
 import { copyPeriod, type CopySkip } from '../model/batch';
 import { addDays, adjacentMonth } from '../model/business-dates';
@@ -21,6 +21,7 @@ import { gridFromItems, gridToItems } from '../model/grid';
 import { useAdjacentPlan } from '../model/use-adjacent';
 import { planIssues, reasonText } from '../model/use-eligibility';
 import { AssignmentChanges, employeeLabel } from './assignment-changes';
+import { RulesContextFeedback } from './rules-context-feedback';
 
 const t = messages(currentLocale()).scheduleWorkspace;
 
@@ -58,7 +59,7 @@ export function CopyPeriodDialog({
     ...gridToItems(w.grid).filter((item) => sourceDates.includes(item.businessDate)),
     ...gridToItems(adjacent.grid),
   ]);
-  const ready = !adjacent.loading && !adjacent.failed;
+  const ready = adjacent.ready;
   const result = ready
     ? copyPeriod({
         grid: w.grid,
@@ -102,7 +103,8 @@ export function CopyPeriodDialog({
       INACTIVE_TEMPLATE: t.skipInactiveTemplate,
       OCCUPIED: t.skipOccupied,
     })[skip.reason];
-  const canApply = !!result && result.changes.length > 0 && w.writable && !blocked;
+  const canApply =
+    !!result && result.changes.length > 0 && w.writable && !!evaluation?.ready && !blocked;
   return (
     <Dialog
       open
@@ -147,8 +149,8 @@ export function CopyPeriodDialog({
               </p>
             </div>
           )}
-          {adjacent.loading && <LoadingState label={t.loadingAdjacent} />}
-          {adjacent.failed && <Feedback error={t.adjacentUnavailable} />}
+          <QueryFeedback query={adjacent.feedback} errorMessage={t.adjacentUnavailable} />
+          {review && evaluation && !evaluation.ready && <RulesContextFeedback workspace={w} />}
           {review && result && (
             <>
               <AssignmentChanges changes={result.changes} labels={w} />

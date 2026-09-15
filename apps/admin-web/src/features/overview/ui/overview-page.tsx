@@ -2,6 +2,7 @@ import type { ActiveShiftView, MeView, OverviewZone } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { handoversApi, incidentsApi, requestsApi, shiftsApi } from '@/api';
 import { Muted } from '@/components/app/page';
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { currentLocale } from '@/i18n';
 import { useNow } from '@/lib/clock';
 import { useLiveUpdates } from '@/lib/live';
@@ -205,12 +206,22 @@ export function OverviewPage({
 
   const teamToday = useTeamToday(attentionSites, permissions.employees);
 
-  const snapshotState = snapshot ? 'ready' : snapshotQuery.isError ? 'failed' : 'loading';
+  // Offline reads wait instead of spinning: the tiles offer retry and the page says why.
+  const snapshotWaiting = !snapshot && snapshotQuery.fetchStatus === 'paused';
+  const snapshotState = snapshot
+    ? 'ready'
+    : snapshotQuery.isError || snapshotWaiting
+      ? 'failed'
+      : 'loading';
+  // Loading lasts while a first read is in flight; a list that failed or waits for the network is
+  // reported as unchecked by the queue, never as an endless loader.
   const queueLoading =
-    attention.data.refreshedAt === null || (snapshotEnabled && snapshotQuery.isPending);
+    (attention.queryState.isPending && attention.queryState.isFetching) ||
+    (snapshotEnabled && snapshotQuery.isPending && snapshotQuery.isFetching);
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      {snapshotWaiting && <QueryFeedback query={snapshotQuery} />}
       <ShiftHeader
         snapshot={snapshot}
         selection={selection}

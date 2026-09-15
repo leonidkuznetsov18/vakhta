@@ -223,6 +223,7 @@ function mockApi(
     templatesEmpty?: boolean;
     templatesFail?: boolean;
     listFail?: boolean;
+    contextFail?: boolean;
   },
   snapshot: typeof org = org,
   roster = employees,
@@ -431,7 +432,9 @@ function mockApi(
         },
       );
     if (path.startsWith('/admin/schedules/staffing/context'))
-      return json(state.context ?? { intervals: [], absences: [], otherUnitEmployees: [] });
+      return state.contextFail
+        ? json({ message: 'Context read failed' }, 500)
+        : json(state.context ?? { intervals: [], absences: [], otherUnitEmployees: [] });
     if (path.startsWith('/admin/schedules/staffing/candidates'))
       return json(state.candidates ?? []);
     if (path.startsWith('/admin/schedules/staffing'))
@@ -800,6 +803,20 @@ describe('schedule workspace', () => {
       screen.getByRole('button', { name: messages(currentLocale()).ui.common.retry }),
     );
     await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
+    client.clear();
+  });
+  it('reports a failed first version list read instead of an empty month', async () => {
+    mockApi({ status: 'EMPTY', listFail: true });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    renderRaw(account(), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      ),
+    });
+    expect(
+      await screen.findByRole('button', { name: messages(currentLocale()).ui.common.retry }),
+    ).toBeTruthy();
+    expect(screen.queryByText(t.empty)).toBeNull();
     client.clear();
   });
   it('isolates local edits and server reads when the signed-in account changes', async () => {
@@ -1823,6 +1840,40 @@ it('shows staffing shortage from requirements and blocks an unqualified assignme
   fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_DAY } });
   expect(within(sheet).queryByText(/Line operator/)).toBeNull();
   expect(within(sheet).getByRole('button', { name: t.apply }).hasAttribute('disabled')).toBe(false);
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('keeps Apply disabled with a retry while the plan context is unavailable', async () => {
+  clearPersistentState();
+  useScheduleDrafts.setState({
+    drafts: {},
+    baselines: {},
+    revisions: {},
+    past: {},
+    future: {},
+    recoveryError: false,
+  });
+  setUiState({ 'schedule.month': '2026-09' });
+  const state = { status: 'DRAFT', contextFail: true };
+  mockApi(state);
+  admin();
+  await screen.findByText(t.draftState);
+  await showWeekOf(/Кузнецов Леонид, 05/);
+  fireEvent.click(screen.getByRole('button', { name: `${t.add}: Линия 1, 2026-09-05` }));
+  const sheet = await screen.findByRole('dialog');
+  fireEvent.change(within(sheet).getByRole('combobox', { name: s.employee }), {
+    target: { value: EMP2 },
+  });
+  fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_DAY } });
+  const apply = () => within(sheet).getByRole('button', { name: t.apply });
+  expect(await within(sheet).findByText(t.contextUnavailable)).toBeTruthy();
+  expect(apply().hasAttribute('disabled')).toBe(true);
+  state.contextFail = false;
+  fireEvent.click(
+    within(sheet).getByRole('button', { name: messages(currentLocale()).ui.common.retry }),
+  );
+  await waitFor(() => expect(apply().hasAttribute('disabled')).toBe(false));
   cleanup();
   vi.unstubAllGlobals();
 });

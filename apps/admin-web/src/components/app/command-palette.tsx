@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { IconButton } from '@/shared/ui/icon-button';
+import { LoadingState } from '@/shared/ui/loading-state';
 import {
   CommandDialog,
   CommandEmpty,
@@ -84,6 +85,10 @@ export function CommandPalette({
   });
   const checklists = checklistsQuery.data ?? [];
   const { orgOrEmpty, queryState: orgQuery } = useOrg(open && canAdminister);
+  const reads = [
+    ...(canSeeEmployees ? [employeesQuery] : []),
+    ...(canAdminister ? [checklistsQuery, orgQuery] : []),
+  ];
   const terminals = orgOrEmpty.terminals;
 
   const go = (fn: () => void) => {
@@ -126,15 +131,19 @@ export function CommandPalette({
       <CommandDialog open={open} onOpenChange={setOpen} title={c.commandPalette}>
         <CommandInput placeholder={c.commandPlaceholder} />
         <CommandList>
-          {canSeeEmployees && <QueryFeedback query={employeesQuery} />}
-          {canAdminister && <QueryFeedback query={checklistsQuery} />}
-          {canAdminister && <QueryFeedback query={orgQuery} />}
-          {!employeesQuery.isFetching &&
-            !checklistsQuery.isFetching &&
-            !orgQuery.isFetching &&
-            !employeesQuery.isError &&
-            !checklistsQuery.isError &&
-            !orgQuery.isError && <CommandEmpty>{c.noResults}</CommandEmpty>}
+          {reads.map(
+            (query, index) =>
+              (query.isError || query.fetchStatus === 'paused') && (
+                <QueryFeedback key={index} query={query} />
+              ),
+          )}
+          {reads.some((query) => query.isPending && query.isFetching) && (
+            <LoadingState className="w-full py-3" />
+          )}
+          {/* "No results" only once every read has settled successfully. */}
+          {reads.every(
+            (query) => !query.isFetching && query.fetchStatus !== 'paused' && !query.isError,
+          ) && <CommandEmpty>{c.noResults}</CommandEmpty>}
           <CommandGroup heading={c.commandSections}>
             {sections.map(({ key, icon: Icon }) => (
               <CommandItem

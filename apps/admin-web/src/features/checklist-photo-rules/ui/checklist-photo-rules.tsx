@@ -74,8 +74,9 @@ function RulesQuery({
   });
   return (
     <>
+      {/* One loader at a time: the dictionary reports its own state once the rules have arrived. */}
       <QueryFeedback query={query} />
-      <QueryFeedback query={objects} />
+      {query.data && <QueryFeedback query={objects} />}
       {query.data && objects.data && (
         <RulesEditor
           definitionId={definitionId}

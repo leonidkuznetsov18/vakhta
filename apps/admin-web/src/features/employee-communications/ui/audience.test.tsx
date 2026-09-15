@@ -21,7 +21,17 @@ const bob = {
   personnelNumber: '002',
 };
 vi.mock('@/lib/org', () => ({
-  useOrg: () => ({ orgOrEmpty: { sites: [], orgUnits: [], teams: [] } }),
+  useOrg: () => ({
+    orgOrEmpty: { sites: [], orgUnits: [], teams: [] },
+    queryState: {
+      isPending: false,
+      isFetching: false,
+      isError: false,
+      fetchStatus: 'idle',
+      error: null,
+      refetch: async () => undefined,
+    },
+  }),
 }));
 afterEach(() => {
   cleanup();

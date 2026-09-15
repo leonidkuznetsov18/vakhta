@@ -8,7 +8,17 @@ import { communicationApi } from '../api/communications';
 import { CommunicationLauncher, CommunicationWorkspace } from './workspace';
 const t = messages('ru').communications;
 vi.mock('@/lib/org', () => ({
-  useOrg: () => ({ orgOrEmpty: { sites: [], orgUnits: [], teams: [] } }),
+  useOrg: () => ({
+    orgOrEmpty: { sites: [], orgUnits: [], teams: [] },
+    queryState: {
+      isPending: false,
+      isFetching: false,
+      isError: false,
+      fetchStatus: 'idle',
+      error: null,
+      refetch: async () => undefined,
+    },
+  }),
 }));
 vi.mock('@/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof NavigationModule>()),

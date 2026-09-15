@@ -541,6 +541,9 @@ function InspectionSession({
             title={messages(currentLocale()).ui.workflow.photoReview}
             emphasis={initial.canEdit ? 'action' : 'neutral'}
           >
+            {(objects.isError || objects.fetchStatus === 'paused') && (
+              <QueryFeedback query={objects} />
+            )}
             {initial.canEdit ? (
               <EditableReview
                 editor={editor}

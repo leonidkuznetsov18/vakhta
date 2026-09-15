@@ -48,6 +48,7 @@ import { useNotes } from '../model/use-notes';
 import { NotesSection } from './notes-section';
 import { useNavigation } from '@/navigation';
 import { InfoTip } from '@/components/app/info-tip';
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { recordedTime } from '../lib/labels';
 import type { OpenSlots } from '../model/use-open-slots';
 import type { CalendarEventsView } from '@vakhta/contracts';
@@ -558,13 +559,11 @@ function OperationalContext({
     <div className="space-y-2">
       <div className="flex items-center gap-1 text-sm">
         <span className="text-muted-foreground">{t.detailPresence}:</span>
-        <span>
-          {query.isError
-            ? t.presenceUnavailable
-            : (presence ?? (published && query.isPending ? '…' : t.presenceUnknown))}
-        </span>
+        {/* Without evidence yet the value stays blank; QueryFeedback below says why. */}
+        <span>{presence ?? (query.isSuccess || !published ? t.presenceUnknown : null)}</span>
         <InfoTip text={t.presenceHint} />
       </div>
+      <QueryFeedback query={query} errorMessage={t.presenceUnavailable} />
       {query.data && (
         <p className="text-xs text-muted-foreground">
           {format(t.presenceAsOf, { time: recordedTime(query.data.fetchedAt, w.timezone) })}
@@ -578,7 +577,7 @@ function OperationalContext({
       )}
       <section className="space-y-1" aria-label={t.requestsContext}>
         <h4 className="text-sm font-semibold">{t.requestsContext}</h4>
-        {related.length === 0 && (
+        {query.isSuccess && related.length === 0 && (
           <p className="text-sm text-muted-foreground">{t.noRequestsContext}</p>
         )}
         {related.length > 0 && (

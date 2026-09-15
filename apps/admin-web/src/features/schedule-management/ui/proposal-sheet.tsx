@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SelectField } from '@/components/app/fields';
 import { Feedback } from '@/components/app/feedback';
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { InfoTip } from '@/components/app/info-tip';
 import { CalendarDetailPanel } from '@/shared/ui/resource-calendar';
 import { readError } from '@/errors';
@@ -61,8 +62,10 @@ export function ProposalSheet({
   };
   const kept = result.picks.filter((pick) => !skipped.has(pick.slotId));
   const draftReady = !!w.version && w.version.status === 'DRAFT' && w.writable && w.changes === 0;
+  const canApply =
+    draftReady && slots.query.isSuccess && result.ready && kept.length > 0 && !applying;
   async function apply() {
-    if (!w.version || !draftReady || kept.length === 0) return;
+    if (!w.version || !canApply) return;
     setApplying(true);
     let revision = w.version.revision;
     let applied = 0;
@@ -131,7 +134,8 @@ export function ProposalSheet({
           </label>
           <InfoTip text={t.proposalHint} />
         </div>
-        {result.scope.slots === 0 && (
+        <QueryFeedback query={slots.query} />
+        {slots.query.isSuccess && result.scope.slots === 0 && (
           <p className="text-sm text-muted-foreground">{t.proposalNothing}</p>
         )}
         {result.picks.length > 0 && (
@@ -199,10 +203,7 @@ export function ProposalSheet({
           </p>
         )}
         <div className="flex flex-wrap gap-2">
-          <Button
-            disabled={!draftReady || kept.length === 0 || applying || !result.ready}
-            onClick={() => void apply()}
-          >
+          <Button disabled={!canApply} onClick={() => void apply()}>
             {format(t.applyProposal, { count: kept.length })}
           </Button>
           <Button variant="outline" onClick={onClose}>

@@ -6,6 +6,7 @@ import { currentLocale } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { SelectField } from '@/components/app/fields';
 import { Feedback } from '@/components/app/feedback';
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { InfoTip } from '@/components/app/info-tip';
 import { readError } from '@/errors';
 import { recordedTime } from '../lib/labels';
@@ -114,6 +115,7 @@ export function SlotDetails({
           {slot.offer && slot.offer.interests.length === 0 && (
             <p className="text-sm text-muted-foreground">{t.noResponses}</p>
           )}
+          {interested.length > 0 && <QueryFeedback query={candidates} />}
           {manage && !draftReady && interested.length > 0 && (
             <p className="text-sm text-muted-foreground">{t.slotNeedsDraft}</p>
           )}
@@ -123,6 +125,9 @@ export function SlotDetails({
                 (value) => value.employeeId === item.employeeId,
               );
               const blocked = candidate?.status === 'BLOCKED';
+              // Eligibility must be known before a person can fill the slot.
+              const canSelect =
+                draftReady && !!w.version && candidates.isSuccess && !blocked && !slots.busy;
               return (
                 <li
                   key={item.employeeId}
@@ -144,9 +149,9 @@ export function SlotDetails({
                     <Button
                       size="sm"
                       className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-emerald-950 dark:hover:bg-emerald-400"
-                      disabled={!draftReady || blocked || slots.busy || !w.version}
+                      disabled={!canSelect}
                       onClick={() => {
-                        if (!w.version) return;
+                        if (!w.version || !canSelect) return;
                         slots.select.mutate(
                           {
                             id: slot.id,

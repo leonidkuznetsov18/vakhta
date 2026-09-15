@@ -22,7 +22,6 @@ import { IconButton } from '@/shared/ui/icon-button';
 import { selectableRow } from '@/shared/ui/resource-calendar';
 import { planIssues, reasonText, reasonsFor, useCandidates } from '../model/use-eligibility';
 import { setAssignment as placeAssignment } from '../model/grid';
-import { LoadingState } from '@/shared/ui/loading-state';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { FormField, SelectField } from '@/components/app/fields';
@@ -31,6 +30,7 @@ import { Button } from '@/components/ui/button';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { Feedback } from '@/components/app/feedback';
 import { ReasonAlerts } from './reason-alerts';
+import { RulesContextFeedback } from './rules-context-feedback';
 import { InfoTip } from '@/components/app/info-tip';
 import type { Workspace } from '../model/use-workspace';
 import { assignmentKey, gridToItems, sameAssignment, setAssignment, setCell } from '../model/grid';
@@ -173,25 +173,26 @@ export function AssignmentEditor({
           )
       : [];
   // The draft evaluated against the rest of the plan and the server context (SC-02/05/06).
-  const evaluated =
+  const evaluation =
     candidate.success && draft.employeeId && draft.templateId && draft.businessDate
-      ? reasonsFor(
-          planIssues({
-            grid: placeAssignment(
-              original ? setCell(w.grid, original.employeeId, original.businessDate, '') : w.grid,
-              candidate.data,
-            ),
-            month: w.month,
-            orgUnitId: w.orgUnitId,
-            templates: w.templates,
-            timezone: w.timezone,
-            staffing: w.staffing,
-            context: w.context,
-          }).reasons,
-          draft.employeeId,
-          draft.businessDate,
-        )
-      : [];
+      ? planIssues({
+          grid: placeAssignment(
+            original ? setCell(w.grid, original.employeeId, original.businessDate, '') : w.grid,
+            candidate.data,
+          ),
+          month: w.month,
+          orgUnitId: w.orgUnitId,
+          templates: w.templates,
+          timezone: w.timezone,
+          staffing: w.staffing,
+          context: w.context,
+        })
+      : null;
+  // Without staffing and plan context the rules are unknown, so the draft cannot be applied yet.
+  const evaluationPending = !!evaluation && !evaluation.ready;
+  const evaluated = evaluation
+    ? reasonsFor(evaluation.reasons, draft.employeeId, draft.businessDate)
+    : [];
   const blockedByRules = evaluated.some((reason) => reason.severity === 'BLOCK');
   const candidateQuery =
     (!original || context.move) &&
@@ -230,6 +231,7 @@ export function AssignmentEditor({
     !blockedByRules &&
     !segmentsInvalid &&
     !breaksInvalid &&
+    !evaluationPending &&
     !unchanged;
   function apply() {
     if (!valid || !candidate.success || !w.writable) return;
@@ -516,11 +518,8 @@ export function AssignmentEditor({
             <h4 className="text-sm font-semibold">{t.candidates}</h4>
             <InfoTip text={t.candidatesHint} />
           </div>
-          {candidates.isPending && candidates.fetchStatus !== 'idle' && (
-            <LoadingState label={t.candidates} />
-          )}
-          {candidates.isError && <Feedback error={t.candidatesUnavailable} />}
-          {candidates.data && candidates.data.length === 0 && (
+          <QueryFeedback query={candidates} errorMessage={t.candidatesUnavailable} />
+          {candidates.isSuccess && candidates.data.length === 0 && (
             <p className="text-sm text-muted-foreground">{t.noCandidates}</p>
           )}
           {candidates.data && candidates.data.length > 0 && (
@@ -575,7 +574,8 @@ export function AssignmentEditor({
           )}
         </section>
       )}
-      {!occupied && !unchanged && !valid && (
+      {evaluationPending && <RulesContextFeedback workspace={w} />}
+      {!occupied && !unchanged && !valid && !evaluationPending && (
         <p className="text-sm text-muted-foreground">{t.invalid}</p>
       )}
       <div className="flex flex-wrap gap-2">

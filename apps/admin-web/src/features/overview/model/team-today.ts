@@ -26,8 +26,11 @@ export function useTeamToday(siteIds: readonly string[], enabled: boolean) {
   const views = results.flatMap((r) => (r.data ? [r.data] : []));
   return {
     team: views.length > 0 ? buildTeamToday(views) : null,
-    loading: results.some((r) => r.isPending),
-    failed: results.some((r) => r.isError) && views.length < results.length,
+    loading: results.some((r) => r.isPending && r.isFetching),
+    /** A site read that failed or waits for the network while nothing else could be shown. */
+    failed:
+      results.some((r) => r.isError || (r.isPending && r.fetchStatus === 'paused')) &&
+      views.length < results.length,
     refetch: () => Promise.all(results.map((r) => r.refetch())),
   };
 }

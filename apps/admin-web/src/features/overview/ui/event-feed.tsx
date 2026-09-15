@@ -1,6 +1,6 @@
 import type { MeView } from '@vakhta/contracts';
 import { EmptyState, Muted, Section } from '@/components/app/page';
-import { Button } from '@/components/ui/button';
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { formatTime } from '@/lib/format';
 import { setUiState } from '@/lib/ui-store';
 import { useNavigation } from '@/navigation';
@@ -23,15 +23,12 @@ export function EventFeed({
   const events = useOverviewEvents(me, selection, true);
   return (
     <Section title={c.feedTitle} hint={c.feedHint}>
-      {events.isPending ? (
-        <LoadingState className="py-4" />
-      ) : events.isError && !events.data ? (
-        <div role="alert" className="flex items-center gap-2 text-sm">
-          <span>{c.unknown.replace('{list}', c.feedTitle)}</span>
-          <Button type="button" size="sm" variant="outline" onClick={() => void events.refetch()}>
-            {c.retry}
-          </Button>
-        </div>
+      {!events.data ? (
+        events.isError || events.fetchStatus === 'paused' ? (
+          <QueryFeedback query={events} errorMessage={c.unknown.replace('{list}', c.feedTitle)} />
+        ) : (
+          <LoadingState className="py-4" />
+        )
       ) : events.data.length === 0 ? (
         <EmptyState text={c.feedEmpty} />
       ) : (

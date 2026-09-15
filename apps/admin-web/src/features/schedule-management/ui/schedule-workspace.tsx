@@ -100,14 +100,18 @@ function WorkspaceContent() {
     setSelectedDate(value);
     if (!value.startsWith(w.month)) w.changeMonth(value.slice(0, 7));
   }
-  // A failed list read on an empty month shows the empty state with creation disabled, not a loader.
-  const empty = !!w.orgUnitId && !w.versionsQuery.isPending && !w.versions.length;
+  // Only a received list proves the month has no plan. A failed first read keeps its alert and
+  // retry; a failed refresh keeps the last known empty state with creation disabled.
+  const empty = !!w.orgUnitId && w.versionsQuery.data !== undefined && !w.versions.length;
+  // Until a plan is on screen the calendar area itself carries the one loader.
+  const loadingPlan =
+    !w.version && !empty && w.feedback.query.isPending && w.feedback.query.isFetching;
   return (
     <div className="min-w-0 space-y-4">
       <div className="hidden md:block">
         <HowItWorks guide="schedule" />
       </div>
-      <QueryFeedback {...w.feedback} />
+      {!loadingPlan && <QueryFeedback {...w.feedback} />}
       <Feedback error={readError(w.error)} />
       <CommandRecovery workspace={w} />
       {w.unownedDraft && (
@@ -124,6 +128,7 @@ function WorkspaceContent() {
         selectedDate={selectedDate}
         onDate={selectDate}
         empty={empty}
+        loading={loadingPlan}
       />
     </div>
   );
@@ -179,6 +184,7 @@ function WorkspaceView({
   selectedDate,
   onDate,
   empty,
+  loading,
 }: {
   workspace: Workspace;
   mode: PeriodMode | null;
@@ -186,6 +192,7 @@ function WorkspaceView({
   selectedDate: string | null;
   onDate: (date: string) => void;
   empty: boolean;
+  loading: boolean;
 }) {
   const mobile = useIsMobile();
   const effectiveMode = mobile && mode === 'month' ? 'week' : (mode ?? (mobile ? 'day' : 'week'));
@@ -542,7 +549,14 @@ function WorkspaceView({
           </DropdownMenu>
         )}
       </ScheduleToolbar>
-      {empty ? (
+      {loading ? (
+        <LoadingState
+          label={messages(currentLocale()).ui.common.loading}
+          className="w-full py-12"
+        />
+      ) : w.org && !w.orgUnitId ? (
+        <EmptyState text={t.emptyHint} />
+      ) : empty ? (
         <EmptyState
           text={t.empty}
           description={w.rights.edit ? undefined : t.emptyHint}

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { FormField, SelectField } from '@/components/app/fields';
 import { Feedback } from '@/components/app/feedback';
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { InfoTip } from '@/components/app/info-tip';
 import { ScrollableText } from '@/components/app/row-detail';
 import { IconButton } from '@/shared/ui/icon-button';
@@ -59,8 +60,8 @@ export function NotesSection({
         <h4 className="text-sm font-semibold">{t.notes}</h4>
         <InfoTip text={t.notesHint} />
       </div>
-      {notes.query.isError && <Feedback error={readError(notes.query.error)} />}
-      {visible.length === 0 && !notes.query.isError && (
+      <QueryFeedback query={notes.query} />
+      {notes.query.isSuccess && visible.length === 0 && (
         <p className="text-sm text-muted-foreground">{t.noNotes}</p>
       )}
       <ul className="space-y-2">

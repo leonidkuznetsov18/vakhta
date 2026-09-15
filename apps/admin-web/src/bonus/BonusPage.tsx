@@ -289,101 +289,109 @@ export function BonusPage() {
             </div>
           )}
 
-          <Section title={b.summary} hint={b.pointsHint}>
-            <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Tile label={b.employee} value={rows.length} />
-              <Tile label={b.approved} value={totalApproved} />
-              <Tile
-                label={b.remarks}
-                value={totalRemarks}
-                tone={totalRemarks > 0 ? 'warning' : undefined}
-              />
-              <Tile label={b.points} value={totalPoints} />
-            </dl>
-          </Section>
-
-          <Section title={b.unitLeaderboard}>
-            {units.length === 0 ? (
-              <Muted>{b.noLeaderboard}</Muted>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {units.map((u, i) => (
-                  <li
-                    key={u.orgUnitId ?? 'none'}
-                    className="flex flex-wrap items-center gap-3 rounded-md border px-3 py-2"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="size-3 shrink-0 rounded-full"
-                      style={{ background: `var(--chart-${(i % 8) + 1})` }}
-                    />
-                    <span className="font-medium">{u.orgUnitName ?? b.noUnit}</span>
-                    <Muted>
-                      {b.unitMasters}: {u.masters.length > 0 ? u.masters.join(', ') : '—'}
-                    </Muted>
-                    <span className="ml-auto flex items-center gap-4 tabular-nums">
-                      <span>
-                        {b.approved}: {u.approved}
-                      </span>
-                      <span className="font-semibold">
-                        {b.points}: {u.points}
-                      </span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-
-          <Section title={b.leaderboard} className="print:break-inside-avoid">
-            {chartData.length === 0 ? (
-              <Muted>{b.noLeaderboard}</Muted>
-            ) : (
-              <ChartContainer config={chartConfig} className="h-64 w-full">
-                <BarChart data={chartData} margin={{ left: 8, right: 8 }}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="name"
-                    tickLine={false}
-                    axisLine={false}
-                    interval={0}
-                    height={56}
-                    angle={-20}
-                    textAnchor="end"
-                    fontSize={11}
+          {/* Totals and leaderboards wait for the month's points; the table below owns their
+              loader, failure and retry, so a missing read never reads as zero. */}
+          {data && (
+            <>
+              <Section title={b.summary} hint={b.pointsHint}>
+                <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <Tile label={b.employee} value={rows.length} />
+                  <Tile label={b.approved} value={totalApproved} />
+                  <Tile
+                    label={b.remarks}
+                    value={totalRemarks}
+                    tone={totalRemarks > 0 ? 'warning' : undefined}
                   />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    width={32}
-                    fontSize={11}
-                    allowDecimals={false}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar dataKey="points" radius={4} maxBarSize={72}>
-                    {chartData.map((d) => (
-                      <Cell key={d.name} fill={d.fill} />
+                  <Tile label={b.points} value={totalPoints} />
+                </dl>
+              </Section>
+
+              <Section title={b.unitLeaderboard}>
+                {units.length === 0 ? (
+                  <Muted>{b.noLeaderboard}</Muted>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {units.map((u, i) => (
+                      <li
+                        key={u.orgUnitId ?? 'none'}
+                        className="flex flex-wrap items-center gap-3 rounded-md border px-3 py-2"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="size-3 shrink-0 rounded-full"
+                          style={{ background: `var(--chart-${(i % 8) + 1})` }}
+                        />
+                        <span className="font-medium">{u.orgUnitName ?? b.noUnit}</span>
+                        <Muted>
+                          {b.unitMasters}: {u.masters.length > 0 ? u.masters.join(', ') : '—'}
+                        </Muted>
+                        <span className="ml-auto flex items-center gap-4 tabular-nums">
+                          <span>
+                            {b.approved}: {u.approved}
+                          </span>
+                          <span className="font-semibold">
+                            {b.points}: {u.points}
+                          </span>
+                        </span>
+                      </li>
                     ))}
-                  </Bar>
-                </BarChart>
-              </ChartContainer>
-            )}
-          </Section>
+                  </ul>
+                )}
+              </Section>
 
-          <Section title={b.detailTitle}>
-            <DataTable
-              queryState={points}
-              columns={columns}
-              rows={rows}
-              storageKey="bonus-points"
-              resetKey={`${site}:${unitId}:${month}`}
-              searchText={(r) => `${r.employeeName} ${r.personnelNumber}`}
-              rowKey={(r) => r.employeeId}
-              empty={b.empty}
-              loading={points.isPending}
-            />
-          </Section>
+              <Section title={b.leaderboard} className="print:break-inside-avoid">
+                {chartData.length === 0 ? (
+                  <Muted>{b.noLeaderboard}</Muted>
+                ) : (
+                  <ChartContainer config={chartConfig} className="h-64 w-full">
+                    <BarChart data={chartData} margin={{ left: 8, right: 8 }}>
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="name"
+                        tickLine={false}
+                        axisLine={false}
+                        interval={0}
+                        height={56}
+                        angle={-20}
+                        textAnchor="end"
+                        fontSize={11}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        width={32}
+                        fontSize={11}
+                        allowDecimals={false}
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <ChartLegend content={<ChartLegendContent />} />
+                      <Bar dataKey="points" radius={4} maxBarSize={72}>
+                        {chartData.map((d) => (
+                          <Cell key={d.name} fill={d.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ChartContainer>
+                )}
+              </Section>
+            </>
+          )}
+
+          {(data || !orgQuery.isPending) && (
+            <Section title={b.detailTitle}>
+              <DataTable
+                queryState={points}
+                columns={columns}
+                rows={rows}
+                storageKey="bonus-points"
+                resetKey={`${site}:${unitId}:${month}`}
+                searchText={(r) => `${r.employeeName} ${r.personnelNumber}`}
+                rowKey={(r) => r.employeeId}
+                empty={b.empty}
+                loading={points.isPending}
+              />
+            </Section>
+          )}
         </TabsContent>
         <TabsContent value="history" className="flex flex-col gap-4">
           <Toolbar>

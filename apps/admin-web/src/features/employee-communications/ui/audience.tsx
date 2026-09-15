@@ -28,7 +28,7 @@ export function Audience() {
   const [orgUnitId, setUnit] = useState('');
   const [teamId, setTeam] = useState('');
   const [selectedOnly, setSelectedOnly] = useState(false);
-  const { orgOrEmpty: org } = useOrg();
+  const { orgOrEmpty: org, queryState: orgQuery } = useOrg();
   const filters = {
     search,
     page,
@@ -167,6 +167,7 @@ export function Audience() {
             <summary className="cursor-pointer py-2 text-sm font-medium">
               {t.audienceFilters}
             </summary>
+            <QueryFeedback query={orgQuery} />
             <div className="grid gap-2 sm:grid-cols-2">
               <SelectField
                 label={common.operations.site}

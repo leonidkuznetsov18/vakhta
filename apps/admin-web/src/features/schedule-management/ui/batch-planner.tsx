@@ -22,6 +22,7 @@ import type { Workspace } from '../model/use-workspace';
 import { batchPreview, zoneAllowed, type BatchInput } from '../model/planning';
 import { ROTATION_PATTERNS } from '../model/grid';
 import { AssignmentChanges } from './assignment-changes';
+import { RulesContextFeedback } from './rules-context-feedback';
 import { usePatterns } from '../model/use-patterns';
 import { useConfirm } from '@/components/app/confirm-dialog';
 import { notifySuccess } from '@/lib/toast';
@@ -108,6 +109,7 @@ export function BatchPlanner({
     affectedKeys.has(`${reason.employeeId}:${reason.businessDate}`),
   );
   const batchBlocked = batchReasons.some((reason) => reason.severity === 'BLOCK');
+  const canApply = !!result?.changes.length && w.writable && !!evaluation?.ready && !batchBlocked;
   const labels = {
     unitName: (id: string) => w.units.find((unit) => unit.id === id)?.name ?? id,
     zoneName: (id: string) => w.zones.find((zone) => zone.id === id)?.name ?? id,
@@ -298,6 +300,7 @@ export function BatchPlanner({
           )}
           {!result && <p className="text-sm text-muted-foreground">{t.invalid}</p>}
           {review && result && <AssignmentChanges changes={result.changes} labels={w} />}
+          {review && evaluation && !evaluation.ready && <RulesContextFeedback workspace={w} />}
           {review && batchBlocked && <Feedback error={t.eligibilityError} />}
           {review && batchReasons.length > 0 && (
             <ul className="space-y-1 text-sm" aria-label={t.conflict}>
@@ -344,9 +347,9 @@ export function BatchPlanner({
           </Button>
           {review ? (
             <Button
-              disabled={!result?.changes.length || !w.writable || batchBlocked}
+              disabled={!canApply}
               onClick={() => {
-                if (result?.changes.length && w.writable && !batchBlocked) {
+                if (canApply && result) {
                   w.edit(result.grid);
                   onClose();
                 }

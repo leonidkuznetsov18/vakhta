@@ -64,7 +64,7 @@ export function UnitMasterPicker({
           className="space-y-5 p-4"
           onSubmit={(event) => {
             event.preventDefault();
-            if (changed && !mutation.isPending) mutation.mutate();
+            if (changed && roster.data && !mutation.isPending) mutation.mutate();
           }}
         >
           <QueryFeedback query={roster} />
@@ -73,6 +73,8 @@ export function UnitMasterPicker({
             id="unit-master"
             className="h-10 w-full rounded border bg-background px-3"
             value={selected}
+            // The current master is only nameable once the roster arrives; until then it cannot change.
+            disabled={!roster.data}
             onChange={(event) => setSelected(event.target.value)}
           >
             <option value="">{t.notAssigned}</option>
@@ -90,7 +92,7 @@ export function UnitMasterPicker({
             </p>
           )}
           <div className="flex gap-3">
-            <Button disabled={!changed || mutation.isPending || roster.isPending}>
+            <Button disabled={!changed || mutation.isPending || !roster.data}>
               {mutation.isPending ? <LoadingState /> : t.save}
             </Button>
             <Button type="button" variant="outline" disabled={mutation.isPending} onClick={onClose}>

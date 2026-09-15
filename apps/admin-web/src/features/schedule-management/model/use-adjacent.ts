@@ -16,6 +16,17 @@ export interface AdjacentPlan {
   readonly versions: readonly { readonly month: string; readonly version: ScheduleVersionView }[];
   readonly loading: boolean;
   readonly failed: boolean;
+  /** Combined query state for QueryFeedback: first failure with retry, paused, initial loading. */
+  readonly feedback: {
+    readonly isPending: boolean;
+    readonly isFetching: boolean;
+    readonly isError: boolean;
+    readonly fetchStatus: 'fetching' | 'paused' | 'idle';
+    readonly error: unknown;
+    readonly refetch: () => Promise<unknown>;
+  };
+  /** Every enabled read settled successfully, so the neighbouring plan is complete. */
+  readonly ready: boolean;
 }
 
 /**
@@ -72,13 +83,29 @@ export function useAdjacentPlan(input: {
   });
   const recorded = versions.flatMap((entry) => detailOf(entry.version.id)?.assignments ?? []);
   const queries = [...lists, ...details];
+  const failedQueries = queries.filter((query) => query.isError);
+  const fetching = queries.some((query) => query.isFetching);
+  const loading = queries.some((query) => query.isPending && query.fetchStatus !== 'idle');
   return {
     months,
     grid: workingItems.length ? gridFromItems(workingItems) : EMPTY_GRID,
     published: publishedItems.length ? gridFromItems(publishedItems) : EMPTY_GRID,
     recorded,
     versions,
-    loading: queries.some((query) => query.isPending && query.fetchStatus !== 'idle'),
-    failed: queries.some((query) => query.isError),
+    loading,
+    failed: failedQueries.length > 0,
+    feedback: {
+      isPending: queries.some((query) => query.isPending && query.isFetching),
+      isFetching: fetching,
+      isError: failedQueries.length > 0,
+      fetchStatus: queries.some((query) => query.fetchStatus === 'paused')
+        ? 'paused'
+        : fetching
+          ? 'fetching'
+          : 'idle',
+      error: failedQueries[0]?.error ?? null,
+      refetch: () => Promise.all(failedQueries.map((query) => query.refetch())),
+    },
+    ready: !loading && failedQueries.length === 0,
   };
 }

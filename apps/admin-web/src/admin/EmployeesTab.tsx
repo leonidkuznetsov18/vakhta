@@ -89,11 +89,14 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
   const [newTeamId, setNewTeamId] = usePersistentState('employees.newTeam', '');
   const [creating, setCreating] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const checklists =
-    useQuery({ queryKey: keys.checklists, queryFn: () => checklistsApi.list() }).data ?? [];
+  const checklistsQuery = useQuery({
+    queryKey: keys.checklists,
+    queryFn: () => checklistsApi.list(),
+  });
+  const checklists = checklistsQuery.data ?? null;
   /** Active checklists of a position: what the bot will ask this employee for (ADR-0012). */
   const checklistsOf = (positionId: string) =>
-    checklists.filter((c) => c.isActive && c.positions.some((p) => p.id === positionId));
+    (checklists ?? []).filter((c) => c.isActive && c.positions.some((p) => p.id === positionId));
   const [importing, setImporting] = useState<HTMLButtonElement | null>(null);
   const [statusFilter, setStatusFilter] = usePersistentState<'' | EmployeeView['status']>(
     'employees.status',
@@ -360,7 +363,8 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       ),
       cell: (emp) => {
         if (!emp.currentPosition) return <Muted>{e.noPosition}</Muted>;
-        if (checklists === null) return <Muted>…</Muted>;
+        // Unknown until the list arrives: never claim a position has no checklist.
+        if (checklists === null) return <Muted>—</Muted>;
         const own = checklistsOf(emp.currentPosition.positionId);
         return own.length > 0 ? (
           <span>{own.map((c) => c.name).join(', ')}</span>
@@ -679,6 +683,9 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
         <Feedback error={error} />
       </Section>
 
+      {(checklistsQuery.isError || checklistsQuery.fetchStatus === 'paused') && (
+        <QueryFeedback query={checklistsQuery} />
+      )}
       <DataTable
         queryState={roster}
         columns={columns}

@@ -227,9 +227,18 @@ const hoursReport = {
 };
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
+// `?latency=<ms>` delays and `?fail=<path fragment>` fails section reads, to inspect async states.
+const previewParams = new URLSearchParams(location.search);
 window.fetch = fetchFixture(async (input, init) => {
   const path = new URL(String(input), location.origin).pathname;
   const method = init?.method ?? 'GET';
+  if (path !== '/me') {
+    const latency = Number(previewParams.get('latency') ?? 0);
+    if (latency > 0) await new Promise((resolve) => setTimeout(resolve, latency));
+    const fail = previewParams.get('fail');
+    if (fail && path.includes(fail))
+      return json({ code: 'INTERNAL', message: 'Preview failure' }, 500);
+  }
   const review = reviewFixture(path, method, new URL(String(input), location.origin).search);
   if (review) return review;
   const overview = overviewPreview(
