@@ -74,6 +74,26 @@ and API types. Avoid boolean flag combinations that represent impossible states,
 objects and swallowed errors. Document public contracts, invariants and non-obvious tradeoffs, not
 self-evident lines of code. Do not weaken type or lint settings to make a check pass.
 
+## Code clarity
+
+Owner rule, 2026-09-15: code is written to be read, tested and changed by the next person. Follow
+established best practice and prefer the plain version over the clever or compact one.
+
+- No nested ternaries. One ternary for a simple value is fine; more branches become an early return,
+  a named helper, a lookup map or an exhaustive `switch`.
+- No `any`, including `as any` and `any[]`. Use `unknown` with narrowing, generics or the shared type.
+- Keep nesting shallow: guard clauses and early returns instead of `if`/`else` pyramids; no more than
+  two levels of nested blocks or loops in one function. Extract a named function instead.
+- One function does one thing at one level of abstraction. Long parameter lists and boolean flags that
+  switch behavior become an options object or separate functions.
+- Keep complexity proportional to the data. Avoid O(n²) work that can be O(n): do not call `find`,
+  `filter`, `includes` or `indexOf` over a collection inside a loop over another; build a `Map`/`Set`
+  index once. Do not query the database per row (N+1); batch or join. Do not repeat the same derivation
+  on every render or iteration when it can be computed once.
+- Pure logic is separated from I/O and UI so it can be unit-tested without mocks.
+- Reviewers treat violations as defects, not style preferences. When touching existing code that breaks
+  these rules, simplify the affected function rather than extending the problem.
+
 ## Interface and verification
 
 Disable actions that would make no change. Save/apply require a meaningful difference from the

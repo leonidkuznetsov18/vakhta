@@ -58,6 +58,13 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
   operations screen, or by the end-of-day job. No bot screen may draw a close button; a test asserts that.
 - **[C5]** New tables: `snake_case`, `timestamptz` for instants, `uuid` for identifiers, invariants enforced in SQL, not only in code.
 - **[C6]** `domain_events` and `audit_log` are append-only. A migration that adds UPDATE/DELETE on them does not pass review.
+- **[C8]** Owner rule, 2026-09-15 — write simple, readable code that is easy to test and maintain:
+  no nested ternaries, no `any` (use `unknown` with narrowing), no deeply nested `if`/`else` or loops.
+  Prefer early returns, guard clauses, small named functions, lookup maps and exhaustive `switch`
+  over discriminated unions. Choose an efficient algorithm: no avoidable O(n²) scans, repeated
+  `find`/`filter` inside loops or N+1 queries — index with a `Map`/`Set` or query in one batch.
+  Clever or compact code that is harder to read than the plain version is a defect. Details:
+  `docs/engineering/standards.md` → Code clarity.
 - Codes of states, actions, reasons and statuses: `UPPER_SNAKE_CASE`, as in the spec.
 - **[C7]** Never log the bot token, QR tokens, presigned URLs or the content of medical documents.
 - TypeScript, React and NestJS best practices.
