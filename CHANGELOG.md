@@ -1,3 +1,9 @@
+## [1.15.5](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.4...v1.15.5) (2026-09-15)
+
+### Documentation
+
+* **workspace:** use English descriptions and close standardization plan ([805b931](https://github.com/leonidkuznetsov18/vakhta/commit/805b9314b4963c4ead60d002b6594514e6761f3d))
+
 ## [1.15.4](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.3...v1.15.4) (2026-09-15)
 
 ### Refactoring
