@@ -1,3 +1,26 @@
+## [1.15.6](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.5...v1.15.6) (2026-09-15)
+
+### Bug fixes
+
+* **admin-web:** return to the sign-in screen right after signing out ([8933b95](https://github.com/leonidkuznetsov18/vakhta/commit/8933b9534704fa0ce5229e07576f962ed022f1bb))
+* **admin-web:** show loading, failure and offline feedback on every surface ([4e86ce8](https://github.com/leonidkuznetsov18/vakhta/commit/4e86ce8f330dbb476f65863161754733d6b14c91))
+* **admin-web:** stop axios User-Agent from blocking Safari sign-in ([b650740](https://github.com/leonidkuznetsov18/vakhta/commit/b65074060cadebb1f27cfdad1c9fa58075fc423c))
+
+### Documentation
+
+* **workspace:** add React, TanStack and Zustand practices and lint policy ([7285df8](https://github.com/leonidkuznetsov18/vakhta/commit/7285df80e629a872486d0f06c2dd01da632c1677))
+* **workspace:** require enum-like constants and short comments ([76f48a5](https://github.com/leonidkuznetsov18/vakhta/commit/76f48a581c73b92b37ad8c4c0c573b4cc01a2d0b))
+* **workspace:** require simple, readable and efficient code ([e8cef90](https://github.com/leonidkuznetsov18/vakhta/commit/e8cef9041aa0c1e0bea94975ede5ee3e00ef96aa))
+
+### Styles
+
+* **admin-web:** format session offline check ([1b77ea1](https://github.com/leonidkuznetsov18/vakhta/commit/1b77ea1258f0c645d309cef41f6abee930d3da7d))
+
+### Build
+
+* **config:** enable noImplicitReturns and switch fallthrough checks ([088524d](https://github.com/leonidkuznetsov18/vakhta/commit/088524deed8fe4b19b8866cb86a1b3b01ad40076))
+* **lint:** enforce clean code and TanStack rules with a suppression baseline ([e3465d5](https://github.com/leonidkuznetsov18/vakhta/commit/e3465d5dcf17ba3bea4ce16fb27694421f228ca2))
+
 ## [1.15.5](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.4...v1.15.5) (2026-09-15)
 
 ### Documentation
