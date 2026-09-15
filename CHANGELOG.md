@@ -1,3 +1,10 @@
+## [1.15.4](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.3...v1.15.4) (2026-09-15)
+
+### Refactoring
+
+* **architecture:** standardize file formats and dependencies ([87fc017](https://github.com/leonidkuznetsov18/vakhta/commit/87fc017a7bb008c05ea66827cd6ce1e20c1101cb))
+* **architecture:** standardize transport contracts and recovery ([331009a](https://github.com/leonidkuznetsov18/vakhta/commit/331009a8e472937717d9a303618b9256f88426ea))
+
 ## [1.15.3](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.2...v1.15.3) (2026-09-15)
 
 ### Refactoring
