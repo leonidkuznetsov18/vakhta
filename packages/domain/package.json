@@ -2,7 +2,7 @@
   "name": "@vakhta/domain",
   "version": "0.1.0",
   "private": true,
-  "description": "Чиста доменна логіка Вахти: FSM зміни, облік інтервалів, час, QR challenge, правила бонусу",
+  "description": "Pure Vakhta domain logic for shift transitions, activity intervals, time, QR challenges, and bonus rules.",
   "type": "module",
   "exports": {
     ".": {

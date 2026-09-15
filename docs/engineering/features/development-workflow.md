@@ -244,3 +244,18 @@ Lean recommendation: Proceed. Keep the existing user paths, preserve drafts and 
 acknowledgement, and remove duplicated transport/protocol mechanics. Conditional dependencies are
 explicit decisions with adoption triggers in plan.md. Do not equate additional libraries or green
 fixtures with measured worker productivity or completed migration of every legacy module.
+
+### Delivery evidence
+
+Implementation source `331009a` passed every check in [run 34973454627](https://github.com/leonidkuznetsov18/vakhta/actions/runs/34973454627):
+frozen installation, build, typecheck, lint, formatting, full tests, architecture fixtures, generated
+API drift and desktop/mobile browser journeys. Release [v1.15.4](https://github.com/leonidkuznetsov18/vakhta/releases/tag/v1.15.4)
+was published; the existing `Post to the Telegram group` step succeeded. This satisfies T017 without
+claiming that release publication proves all deployments or real employee workflows. Images and Pages
+continue under that run; Railway API/worker deployment metadata identifies the same source.
+
+The owner subsequently requested readable English package descriptions after a JSON rewrite escaped
+the existing Ukrainian admin-web description. All ten workspace descriptions now use plain English;
+only metadata changed. The Knip kiosk entrypoint now names the actual `apps/qr-kiosk` workspace. Its
+rerun retains the advisory counts above. Formatting and JSON parsing passed. This correction and the
+final plan status are delivered together; no runtime or business behavior changed.

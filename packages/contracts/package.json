@@ -2,7 +2,7 @@
   "name": "@vakhta/contracts",
   "version": "0.1.0",
   "private": true,
-  "description": "zod-схеми команд, відповідей і подій, спільні для бота, API, воркера і панелі",
+  "description": "Shared Zod schemas for commands, responses, and events across Vakhta applications.",
   "type": "module",
   "exports": {
     ".": {

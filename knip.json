@@ -24,7 +24,7 @@
       "entry": ["src/main.ts", "src/**/*.test.ts"],
       "project": ["src/**/*.ts", "test/**/*.ts"]
     },
-    "apps/kiosk": {
+    "apps/qr-kiosk": {
       "entry": ["src/main.ts", "src/**/*.test.ts"],
       "project": ["src/**/*.ts"]
     },

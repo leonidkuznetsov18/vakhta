@@ -3,7 +3,7 @@
   "version": "1.15.4",
   "private": true,
   "type": "module",
-  "description": "Вахта: Telegram-бот обліку робочих змін і веб-панель для безперервного виробництва 24/7",
+  "description": "Vakhta Connected Worker platform for shift operations in continuous manufacturing.",
   "packageManager": "pnpm@10.9.0",
   "engines": {
     "node": ">=22.12"

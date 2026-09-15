@@ -2,7 +2,7 @@
   "name": "@vakhta/i18n",
   "version": "0.1.0",
   "private": true,
-  "description": "Тексти бота, панелі і терміналу. Базова мова ru (NFR-08)",
+  "description": "Localized messages for the Vakhta bot, admin panel, and kiosk; Russian is the default locale.",
   "type": "module",
   "exports": {
     ".": {

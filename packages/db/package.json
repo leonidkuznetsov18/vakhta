@@ -2,7 +2,7 @@
   "name": "@vakhta/db",
   "version": "0.1.0",
   "private": true,
-  "description": "Drizzle-схема PostgreSQL, міграції і клієнт бази даних Вахти",
+  "description": "Vakhta PostgreSQL schema, migrations, and database client built with Drizzle.",
   "type": "module",
   "exports": {
     ".": {

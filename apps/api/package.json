@@ -2,7 +2,7 @@
   "name": "api",
   "version": "0.1.0",
   "private": true,
-  "description": "HTTP API, Telegram webhook і SSE Вахти на NestJS",
+  "description": "Vakhta NestJS HTTP API, Telegram webhook, and server-sent events.",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

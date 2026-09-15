@@ -2,7 +2,7 @@
   "name": "worker",
   "version": "0.1.0",
   "private": true,
-  "description": "Фонові процеси Вахти: аутбокс, таймери, фото-пайплайн, перерахунок бонусу",
+  "description": "Vakhta background worker for notifications, timers, photo processing, and bonus recalculation.",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

@@ -2,7 +2,7 @@
 
 Authority: [accepted spec](spec.md). Design: [plan](plan.md). Writer/index owner: root Codex, master.
 Evidence: [development workflow](../../docs/engineering/features/development-workflow.md).
-Implementation and conditional evaluations are complete; the final delivery gate is tracked below. All writes are sequential.
+Implementation, conditional evaluations and the delivery gate are complete; evidence is recorded below. All writes are sequential.
 
 ## First delivery: protocol adapters and dependency foundation
 
@@ -22,7 +22,7 @@ Implementation and conditional evaluations are complete; the final delivery gate
 - [x] T014 Run affected typecheck, lint, formatting and builds; record outcomes in docs/engineering/features/development-workflow.md.
 - [x] T015 [US1] Capture and visually inspect desktop/mobile import screenshots with fixture data under test-results/architecture-standardization (AC-004).
 - [x] T016 Independently review export compatibility and resolve demonstrated findings; update specs/009-architecture-standardization/tasks.md and existing product/evidence docs.
-- [ ] T017 Deliver verified first batch through master CI/release/announcement; report the source revision/run in the task report; keep docs/engineering/features/development-workflow.md explicit about locally verified and pending checks.
+- [x] T017 Deliver verified implementation through master check/release/announcement: source `331009a`, run `34973454627`, release `v1.15.4`; the full check job and Telegram post step succeeded. See development-workflow.md for local versus deployment evidence.
 
 ## Following delivery: forms and contracts
 
@@ -50,7 +50,7 @@ Implementation and conditional evaluations are complete; the final delivery gate
 
 T003→T004→T005→T006→T007; T008→T009; T010→T012; T002 precedes dependency consumers.
 T011 precedes final XLSX checks; T013 precedes T014; T014/T015→T016→T017. Subsequent scopes were refined before implementation; decisions and evidence are recorded in plan.md
-and development-workflow.md. T017 remains the final remote integration/release gate. Preserve completed evidence;
+and development-workflow.md. T017 passed the remote integration/release gate. Preserve completed evidence;
 append numbered tasks only for demonstrated gaps. No parallel writers or automatic intermediate releases.
 
 ## Final reconciliation
@@ -59,5 +59,5 @@ All A1–A14 have an implemented pilot or explicit retain/defer decision in the 
 table. Remaining migrations are boundaries of the accepted incremental plan, not silently completed
 work: legacy endpoint wrappers/forms/persistence, full-panel FSD, durable payload inbox and legacy
 command receipts. pg-boss, dnd kit, i18next and virtualization require the recorded adoption triggers.
-No end-to-end exactly-once or production employee journey is claimed. T017 closes only after the
-final source passes CI and its release announcement is verified.
+No end-to-end exactly-once or production employee journey is claimed. T017 is backed by the successful full check job, published release and verified announcement step
+for source `331009a`.

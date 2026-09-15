@@ -2,7 +2,7 @@
   "name": "qr-kiosk",
   "version": "0.1.0",
   "private": true,
-  "description": "Екран терміналу на контрольній точці: динамічний QR приходу і відходу (FR-QR-01)",
+  "description": "Vakhta checkpoint kiosk displaying dynamic arrival and departure QR codes.",
   "type": "module",
   "scripts": {
     "dev": "vite --port 5174",
