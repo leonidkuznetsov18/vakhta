@@ -1,3 +1,4 @@
+import { Link, useMatchRoute } from '@tanstack/react-router';
 import { UserAvatar } from '@/components/app/avatar';
 import { avatarUrl } from '../api/avatar';
 
@@ -10,15 +11,19 @@ export function EmployeeProfileLink({
   readonly name: string;
   readonly avatarVersion?: string | null;
 }) {
+  const matchRoute = useMatchRoute();
   return (
-    <a
-      href={`#/administration/employees/${id}`}
+    <Link
+      to="/administration/{-$tab}/{-$detail}"
+      params={{ tab: 'employees', detail: id }}
+      replace={!!matchRoute({ to: '/administration/{-$tab}/{-$detail}', fuzzy: true })}
+      resetScroll={false}
       className="flex min-w-0 items-center gap-2 rounded-md font-semibold hover:text-primary hover:underline active:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
       <span aria-hidden="true" className="shrink-0">
         <UserAvatar name={name} email={id} image={avatarUrl(id, avatarVersion)} />
       </span>
       <span className="min-w-0 [overflow-wrap:anywhere]">{name}</span>
-    </a>
+    </Link>
   );
 }

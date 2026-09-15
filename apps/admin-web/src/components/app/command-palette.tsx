@@ -33,8 +33,6 @@ export interface PaletteTarget {
   readonly section: SectionKey;
   readonly sub?: string;
   /** localStorage key (without the `vakhta.ui.` prefix) that the page reads to open a row. */
-  readonly openKey?: string;
-  readonly openId?: string;
 }
 
 interface Props {
@@ -199,9 +197,7 @@ export function CommandPalette({
                       go(() =>
                         onTarget({
                           section: 'administration',
-                          sub: 'checklists',
-                          openKey: 'checklists.open',
-                          openId: cl.id,
+                          sub: `checklists/${cl.id}`,
                         }),
                       )
                     }

@@ -49,7 +49,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { HowItWorks } from '@/components/app/how-it-works';
-import { useDeepLinkedId } from '@/lib/route';
+import { useNavigate, useParams } from '@tanstack/react-router';
 
 const all = messages(currentLocale());
 const o = all.admin.operations;
@@ -123,7 +123,17 @@ export function OperationsPage() {
   // The screen always stands on a day, and by default on today: an empty field meant "the live
   // picture", which read as a filter that had not been set rather than as a choice.
   const [date, setDate] = usePersistentState('operations.day', todayIso);
-  const [openId, setOpenId] = useDeepLinkedId('operations', 'operations.openId');
+  const { id } = useParams({ strict: false });
+  const openId = id ?? null;
+  const navigate = useNavigate();
+  const setOpenId = (id: string | null) => {
+    void navigate({
+      to: '/operations/{-$id}',
+      params: { id: id ?? undefined },
+      replace: true,
+      resetScroll: false,
+    });
+  };
   const [startFor, setStartFor] = useState('');
   const [startOpen, setStartOpen] = useState(false);
   const [group, setGroup] = usePersistentState<StateGroup>('operations.group', 'ALL');

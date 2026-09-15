@@ -1,3 +1,4 @@
+import { useRouter } from '@tanstack/react-router';
 import { useState, type PointerEvent, type ReactNode } from 'react';
 import { XIcon } from 'lucide-react';
 import { messages } from '@vakhta/i18n';
@@ -11,6 +12,7 @@ import { bindEdgeSwipe } from './bind-edge-swipe';
 /** Extend the existing shadcn shell; gestures are optional alongside keyboard and menu buttons. */
 export function MobileNavigation({ children }: { children: ReactNode }) {
   const { isMobile, openMobile, setOpenMobile } = useSidebar();
+  const router = useRouter();
   const [gesture] = useState(createNavigationGesture);
   function start(event: PointerEvent<HTMLDivElement>) {
     const target = event.target;
@@ -46,7 +48,14 @@ export function MobileNavigation({ children }: { children: ReactNode }) {
     <div
       className="flex min-h-svh w-full min-w-0"
       ref={(node) => {
-        if (node && isMobile && !openMobile) return bindEdgeSwipe(node, () => setOpenMobile(true));
+        if (!node) return;
+        const unsubscribe = router.subscribe('onResolved', () => setOpenMobile(false));
+        const releaseSwipe =
+          isMobile && !openMobile ? bindEdgeSwipe(node, () => setOpenMobile(true)) : undefined;
+        return () => {
+          unsubscribe();
+          releaseSwipe?.();
+        };
       }}
       onPointerDownCapture={start}
       onPointerUpCapture={finish}

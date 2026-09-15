@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeftIcon } from 'lucide-react';
 import { ProfilePage, restoreEmployeeList } from '@/features/employee-profile';
 import { writeSchedulePreset } from '@/features/schedule-management';
-import { useRoute } from '@/lib/route';
+import { useNavigate, useParams } from '@tanstack/react-router';
 import { useSession } from '@/auth/useSession';
 import { messages } from '@vakhta/i18n';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,7 +16,6 @@ import { TerminalsTab } from './TerminalsTab.tsx';
 import { UsersTab } from './UsersTab.tsx';
 import { currentLocale } from '../i18n.tsx';
 import { useOrg } from '@/lib/org';
-import { useRouteSub } from '@/lib/route';
 
 const t = messages(currentLocale()).admin.administration;
 type Tab = keyof typeof t.tabs;
@@ -24,14 +23,23 @@ const TABS = Object.keys(t.tabs) as Tab[];
 
 /** "Administration" section: tabs per spec 9.1 over one shared snapshot of the directories. */
 export function AdminPage() {
-  const [tab, setTab] = useRouteSub<Tab>('administration', TABS, 'employees');
+  const { tab: routeTab, detail } = useParams({ strict: false });
+  const tab = TABS.find((key) => key === routeTab) ?? 'employees';
+  const navigate = useNavigate();
+  const setTab = (tab: Tab) => {
+    void navigate({
+      to: '/administration/{-$tab}/{-$detail}',
+      params: { tab, detail: undefined },
+      replace: true,
+      resetScroll: false,
+    });
+  };
   const { org, queryState } = useOrg();
-  const route = useRoute();
   const { state: session } = useSession();
-  if (route.sub === 'employees' && route.detail)
+  if (routeTab === 'employees' && detail)
     return (
       <ProfilePage
-        employeeId={route.detail}
+        employeeId={detail}
         renderWorkEditor={(profile) =>
           org ? (
             <PositionPanel
@@ -52,19 +60,19 @@ export function AdminPage() {
             month: profile.schedule.month,
             people: [{ id: profile.employee.id, name: profile.employee.fullName }],
           });
-          location.hash = '#/schedule';
+          void navigate({ to: '/schedule' });
         }}
       />
     );
 
-  if (route.section === 'administration' && route.sub === 'checklists' && route.detail)
+  if (routeTab === 'checklists' && detail)
     return (
       <div className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-4">
         <Button variant="outline" className="self-start" onClick={() => setTab('checklists')}>
           <ArrowLeftIcon aria-hidden="true" />
           {t.tabs.checklists}
         </Button>
-        <ChecklistPhotoRules key={route.detail} definitionId={route.detail} initialMode="edit" />
+        <ChecklistPhotoRules key={detail} definitionId={detail} initialMode="edit" />
       </div>
     );
 

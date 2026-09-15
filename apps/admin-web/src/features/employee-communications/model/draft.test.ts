@@ -1,3 +1,4 @@
+import { createMemoryHistory } from '@tanstack/react-router';
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { createCommunicationDraft, draftCommand } from './draft';
 const person = {
@@ -8,7 +9,7 @@ const person = {
 afterEach(() => vi.restoreAllMocks());
 describe('global communication draft', () => {
   it('preserves text and request identity when minimized and reopened', () => {
-    const draft = createCommunicationDraft();
+    const draft = createCommunicationDraft(createMemoryHistory());
     draft.open(person);
     draft.change({ text: 'Shift briefing' });
     const id = draft.store.getState().requestId;
@@ -23,7 +24,7 @@ describe('global communication draft', () => {
     expect(draftCommand(draft.store.getState())?.text).toBe('Shift briefing');
   });
   it('requires explicit replacement when opening another employee', () => {
-    const draft = createCommunicationDraft();
+    const draft = createCommunicationDraft(createMemoryHistory());
     draft.open(person);
     draft.change({ text: 'Keep this draft' });
     draft.open({ ...person, id: 'b0000000-0000-4000-8000-000000000002' }, 'New text');
@@ -33,7 +34,7 @@ describe('global communication draft', () => {
     expect(draft.store.getState().text).toBe('New text');
   });
   it('freezes content and recipients while the accepted outcome is unknown', () => {
-    const draft = createCommunicationDraft();
+    const draft = createCommunicationDraft(createMemoryHistory());
     draft.open(person);
     draft.change({ text: 'Original' });
     const command = draftCommand(draft.store.getState());
@@ -44,7 +45,7 @@ describe('global communication draft', () => {
     expect(draftCommand(draft.store.getState())).toEqual(command);
   });
   it('ignores late uploads after removal and account disposal', () => {
-    const draft = createCommunicationDraft();
+    const draft = createCommunicationDraft(createMemoryHistory());
     const file = draft.addFile(new File(['content'], 'brief.pdf', { type: 'application/pdf' }));
     if (!file) throw new Error('Missing upload');
     draft.removeFile(file.id);
@@ -55,4 +56,30 @@ describe('global communication draft', () => {
     draft.update({ text: 'Old account response' });
     expect(draft.store.getState().text).toBe('');
   });
+});
+
+it('uses the router history for mobile Back without losing the draft or skipping a page', () => {
+  const history = createMemoryHistory({
+    initialEntries: ['/overview', '/schedule'],
+    initialIndex: 1,
+  });
+  const media = window.matchMedia('(max-width: 767px)');
+  vi.spyOn(window, 'matchMedia').mockReturnValue({ ...media, matches: true });
+  const draft = createCommunicationDraft(history);
+  draft.activate();
+  draft.open(person);
+  draft.change({ text: 'Keep this mobile draft' });
+  expect(history.location.state.communicationDock).toBe(true);
+  expect(history.location.state.__TSR_index).toBe(2);
+  history.back();
+  expect(history.location.pathname).toBe('/schedule');
+  expect(history.location.state.__TSR_index).toBe(1);
+  expect(draft.store.getState()).toMatchObject({ open: false, text: 'Keep this mobile draft' });
+  draft.open();
+  draft.minimize();
+  expect(history.location.state.__TSR_index).toBe(1);
+  history.back();
+  expect(history.location.pathname).toBe('/overview');
+  draft.dispose();
+  history.destroy();
 });

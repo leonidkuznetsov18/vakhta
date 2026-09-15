@@ -1,3 +1,4 @@
+import { Link, useMatchRoute } from '@tanstack/react-router';
 import { ApiError } from '@/api';
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -26,6 +27,7 @@ export function ProfilePage({
   onOpenSchedule: (profile: EmployeeProfileView) => void;
   renderWorkEditor?: (profile: EmployeeProfileView) => ReactNode;
 }) {
+  const matchRoute = useMatchRoute();
   const query = useQuery({
     queryKey: profileKey(employeeId),
     queryFn: ({ signal }) => profileApi.get(employeeId, signal),
@@ -35,12 +37,15 @@ export function ProfilePage({
     query.error instanceof ApiError && [403, 404].includes(query.error.status) ? null : query.data;
   return (
     <div className="mx-auto min-w-0 max-w-6xl space-y-5" data-profile-page>
-      <a
-        href="#/administration/employees"
+      <Link
+        to="/administration/{-$tab}/{-$detail}"
+        params={{ tab: 'employees', detail: undefined }}
+        replace={!!matchRoute({ to: '/administration/{-$tab}/{-$detail}', fuzzy: true })}
+        resetScroll={false}
         className="inline-flex rounded text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2"
       >
         ← {t.back}
-      </a>
+      </Link>
       <QueryFeedback query={query} />
       {visibleProfile && (
         <ProfileContent
@@ -316,6 +321,7 @@ function Contact({
   );
 }
 function Master({ profile }: { profile: EmployeeProfileView }) {
+  const matchRoute = useMatchRoute();
   const t = messages(currentLocale()).employeeProfile;
   const master = profile.work.master;
   return (
@@ -323,12 +329,15 @@ function Master({ profile }: { profile: EmployeeProfileView }) {
       <span className="text-muted-foreground">{t.master}: </span>
       {master.employee ? (
         master.canOpen ? (
-          <a
+          <Link
             className="rounded font-medium underline-offset-4 hover:underline focus-visible:outline-2"
-            href={`#/administration/employees/${master.employee.id}`}
+            to="/administration/{-$tab}/{-$detail}"
+            params={{ tab: 'employees', detail: master.employee.id }}
+            replace={!!matchRoute({ to: '/administration/{-$tab}/{-$detail}', fuzzy: true })}
+            resetScroll={false}
           >
             {master.employee.name}
-          </a>
+          </Link>
         ) : (
           <span className="font-medium">{master.employee.name}</span>
         )

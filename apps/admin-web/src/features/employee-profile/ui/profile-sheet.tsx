@@ -1,3 +1,4 @@
+import { Link, useMatchRoute } from '@tanstack/react-router';
 import { avatarUrl } from '@/entities/employee';
 import { ApiError } from '@/api';
 import { useQuery } from '@tanstack/react-query';
@@ -18,6 +19,7 @@ import { profileApi, profileKey } from '../model/api';
 
 /** A scoped reading surface. All employee changes belong to the dedicated profile. */
 export function ProfileSheet({ employeeId, onClose }: { employeeId: string; onClose: () => void }) {
+  const matchRoute = useMatchRoute();
   const t = messages(currentLocale()).employeeProfile;
   const query = useQuery({
     queryKey: profileKey(employeeId),
@@ -90,14 +92,17 @@ export function ProfileSheet({ employeeId, onClose }: { employeeId: string; onCl
                   </div>
                 ))}
               </dl>
-              <a
-                href={`#/administration/employees/${employee.id}`}
+              <Link
+                to="/administration/{-$tab}/{-$detail}"
+                params={{ tab: 'employees', detail: employee.id }}
+                replace={!!matchRoute({ to: '/administration/{-$tab}/{-$detail}', fuzzy: true })}
+                resetScroll={false}
                 onClick={onClose}
                 className={buttonVariants({ variant: 'default' })}
               >
                 <ExternalLinkIcon aria-hidden="true" />
                 {t.openProfile}
-              </a>
+              </Link>
             </>
           )}
         </div>

@@ -1,10 +1,5 @@
 import { QueryActivity } from '@/shared/ui/query-activity';
-import { PhotoLibraryPage } from '@/pages/photo-library';
-import {
-  MobileNavigation,
-  MobileNavigationClose,
-  NavigationLink,
-} from '@/features/mobile-navigation';
+import { MobileNavigation, MobileNavigationClose } from '@/features/mobile-navigation';
 import { MutationActivity } from '@/components/app/query-feedback';
 import {
   ActivityIcon,
@@ -51,29 +46,19 @@ import {
   CommunicationWorkspace,
   CommunicationLauncher,
 } from '@/features/employee-communications';
-import { LoginScreen } from './auth/LoginScreen.tsx';
-import { ProfilePanel } from './auth/ProfilePanel.tsx';
-import { AdminPage } from './admin/AdminPage.tsx';
-import { AuditPage } from './audit/AuditPage.tsx';
-import { ReportsPage } from './reports/ReportsPage.tsx';
-import { BonusPage } from './bonus/BonusPage.tsx';
-import { HandoverPage } from './handover/HandoverPage.tsx';
-import { IncidentsPage } from './incidents/IncidentsPage.tsx';
-import { OperationsPage } from './operations/OperationsPage.tsx';
-import { OverviewPage } from '@/pages/overview';
+import { LoginScreen } from '@/auth/LoginScreen.tsx';
 import { useAttention } from '@/features/overview';
-import { RequestsPage } from './requests/RequestsPage.tsx';
-import { ScheduleWorkspace as SchedulePage } from '@/features/schedule-management';
-import { useSession } from './auth/useSession.ts';
+import { useSession } from '@/auth/useSession.ts';
 import { cn } from 'cn';
 import { Button } from '@/components/ui/button';
 import { SELECTED_TOGGLE } from '@/components/app/page';
 import { useNewBuild } from '@/lib/build-check';
-import { CompactLanguageSwitcher, LanguageSwitcher, currentLocale } from './i18n.tsx';
+import { CompactLanguageSwitcher, LanguageSwitcher, currentLocale } from '@/i18n.tsx';
 import { useAppearance, type Theme } from '@/lib/theme';
-import { NavigationProvider, type SectionKey } from './navigation.tsx';
-import { useRoute, writeRoute } from '@/lib/route';
-import { setUiState } from '@/lib/ui-store';
+import { NavigationProvider, type SectionKey } from '@/navigation.tsx';
+import { Link, Outlet, useBlocker, useMatches, useNavigate } from '@tanstack/react-router';
+import { confirmLeave } from '@/lib/unsaved';
+import { navigationOptions } from '../router/navigation-options';
 import { useDocumentTitle } from '@/lib/title';
 import { CommandPalette } from '@/components/app/command-palette';
 import { FaqButton } from '@/components/app/how-it-works';
@@ -108,19 +93,6 @@ const ROLE_ORDER = [
   'AUDITOR',
 ] as const;
 
-const PAGES: Partial<Record<SectionKey, () => React.ReactElement>> = {
-  operations: OperationsPage,
-  schedule: SchedulePage,
-  incidents: IncidentsPage,
-  handover: HandoverPage,
-  photoLibrary: PhotoLibraryPage,
-  requests: RequestsPage,
-  bonus: BonusPage,
-  reports: ReportsPage,
-  administration: AdminPage,
-  audit: AuditPage,
-};
-
 /**
  * Panel shell: the nine sections of spec 9.1 behind a better-auth session in a shadcn sidebar;
  * the profile lets the user enable TOTP. The URL owns the selected section.
@@ -145,20 +117,24 @@ const EMPTY_ME: MeView = {
   createdAt: '',
 };
 
-export function App() {
+export function PanelShell() {
   const { state, refresh, signOut } = useSession();
   const badges = useBadges(state.status === 'authenticated' ? state.me : null);
-  /**
-   * The section on screen is the address bar, read rather than copied: a link, the back button and
-   * a click in the sidebar all say the same thing, so none of them needs to be kept in step with
-   * the others. Only the section is written here; pages with tabs append their own sub-path.
-   */
-  const { section } = useRoute();
-  const active: ActiveKey =
-    section in PAGES || section === 'profile' || section === 'overview'
-      ? (section as ActiveKey)
-      : 'overview';
-  const setActive = (key: ActiveKey) => writeRoute(key);
+  const active = useMatches({
+    select: (matches) => matches.at(-1)?.staticData.section ?? 'overview',
+  });
+  const navigate = useNavigate();
+  const go = (section: ActiveKey, sub?: string) => {
+    void navigate({
+      ...navigationOptions(section, sub),
+      replace: section === active,
+      resetScroll: section !== active,
+    });
+  };
+  useBlocker({
+    shouldBlockFn: ({ current, next }) => current.pathname !== next.pathname && !confirmLeave(),
+    enableBeforeUnload: false, // The shared form registry already owns beforeunload.
+  });
   // Hooks stay above the early returns (React keeps their order between renders). The tab title
   // names the section once signed in; the login screen sets its own.
   useDocumentTitle(
@@ -200,13 +176,12 @@ export function App() {
   const primaryRole = ROLE_ORDER.find((r) => me.roles.some((g) => g.role === r)) ?? null;
   const title = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];
   const version = import.meta.env['VITE_APP_VERSION'];
-  const Page = active === 'profile' || active === 'overview' ? null : PAGES[active];
 
   return (
     <NavigationProvider
       key={me.id}
       actorId={me.id}
-      go={(section: SectionKey, sub?: string) => writeRoute(section, sub)}
+      go={go}
       roles={me.roles.map((g) => g.role)}
       grants={me.roles}
     >
@@ -222,8 +197,9 @@ export function App() {
                 <SidebarHeader className="flex-row items-center">
                   <MobileNavigationClose />
                   {/* The mark is the way home: it opens the overview. Collapsed, it shrinks to the rail's 32 px. */}
-                  <NavigationLink
-                    section="overview"
+                  <Link
+                    to="/overview"
+                    replace={active === 'overview'}
                     className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-base font-semibold hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
                     aria-label={t.admin.sections.overview}
                   >
@@ -231,7 +207,7 @@ export function App() {
                     <span className="truncate group-data-[collapsible=icon]:hidden">
                       {t.admin.productName}
                     </span>
-                  </NavigationLink>
+                  </Link>
                 </SidebarHeader>
                 <SidebarContent>
                   <SidebarGroup>
@@ -247,16 +223,16 @@ export function App() {
                       <SidebarMenu aria-label={t.ui.common.menu}>
                         {visibleSections.map(({ key, icon: Icon }) => (
                           <SidebarMenuItem key={key}>
-                            <SidebarMenuButton
-                              asChild
-                              isActive={key === active}
-                              tooltip={t.admin.sections[key]}
-                              aria-current={key === active ? 'page' : undefined}
-                            >
-                              <NavigationLink section={key}>
+                            <SidebarMenuButton asChild tooltip={t.admin.sections[key]}>
+                              <Link
+                                {...navigationOptions(key)}
+                                replace={key === active}
+                                activeOptions={{ includeSearch: false }}
+                                activeProps={{ 'data-active': true }}
+                              >
                                 <Icon aria-hidden="true" />
                                 <span>{t.admin.sections[key]}</span>
-                              </NavigationLink>
+                              </Link>
                             </SidebarMenuButton>
                             {badges[key] ? (
                               <SidebarMenuBadge className="tabular-nums">
@@ -276,11 +252,13 @@ export function App() {
                         asChild
                         size="lg"
                         className="h-16 gap-3 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!"
-                        isActive={active === 'profile'}
                         tooltip={t.admin.auth.profile}
-                        aria-current={active === 'profile' ? 'page' : undefined}
                       >
-                        <NavigationLink section="profile">
+                        <Link
+                          to="/profile"
+                          replace={active === 'profile'}
+                          activeProps={{ 'data-active': true }}
+                        >
                           {/* The menu button forces 16px on every svg; the avatar opts out. Collapsed, only the avatar stays, filling the rail. */}
                           <UserAvatar
                             name={me.name}
@@ -298,7 +276,7 @@ export function App() {
                               </span>
                             ) : null}
                           </span>
-                        </NavigationLink>
+                        </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
@@ -358,7 +336,7 @@ export function App() {
                   {active !== 'profile' && <FaqButton guide={active} />}
                   <CommandPalette
                     sections={visibleSections}
-                    onSection={(key) => setActive(key)}
+                    onSection={(key) => go(key)}
                     canSeeEmployees={me.roles.some((g) =>
                       ['ADMIN', 'HR', 'PRODUCTION_HEAD', 'PLANNER', 'SHIFT_MASTER'].includes(
                         g.role,
@@ -366,26 +344,17 @@ export function App() {
                     )}
                     canAdminister={me.roles.some((g) => g.role === 'ADMIN')}
                     onTarget={(target) => {
-                      if (target.openKey && target.openId) {
-                        setUiState({ [target.openKey]: target.openId });
-                      }
-                      writeRoute(target.section, target.sub);
+                      go(target.section, target.sub);
                     }}
                     onEmployee={(emp) => {
-                      writeRoute('administration', `employees/${emp.id}`);
+                      go('administration', `employees/${emp.id}`);
                     }}
                   />
                 </div>
               </header>
               <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
                 <MutationActivity />
-                {active === 'profile' ? (
-                  <ProfilePanel me={me} onChanged={() => void refresh()} />
-                ) : active === 'overview' ? (
-                  <OverviewPage me={me} />
-                ) : Page ? (
-                  <Page />
-                ) : null}
+                <Outlet />
               </div>
             </SidebarInset>
           </MobileNavigation>

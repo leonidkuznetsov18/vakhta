@@ -71,17 +71,12 @@ export function CommunicationWorkspace() {
     media.addEventListener('change', adapt);
     window.visualViewport?.addEventListener('resize', adapt);
     window.visualViewport?.addEventListener('scroll', adapt);
-    const back = () => {
-      if (media.matches && !window.history.state?.communicationDock) draft.minimize();
-    };
-    window.addEventListener('popstate', back);
     return () => {
       if (background) background.inert = false;
       document.body.style.overflow = previousOverflow;
       media.removeEventListener('change', adapt);
       window.visualViewport?.removeEventListener('resize', adapt);
       window.visualViewport?.removeEventListener('scroll', adapt);
-      window.removeEventListener('popstate', back);
     };
   });
   if (!roles.some((role) => ['ADMIN', 'HR', 'PRODUCTION_HEAD', 'SHIFT_MASTER'].includes(role)))

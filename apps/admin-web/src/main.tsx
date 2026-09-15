@@ -3,19 +3,20 @@ import {
   questionnaireEntry,
   QuestionnaireResponse,
 } from '@/features/questionnaire-response';
-import { restoreLegacyRoute } from '@/lib/route';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { App } from './App.tsx';
+import { App, createPanelRouter } from './app/index';
 import { redirectToCanonicalOrigin } from './canonical.ts';
 import { currentLocale } from './i18n.tsx';
 import { queryClient } from '@/lib/query';
 import { applyStoredAppearance } from '@/lib/theme';
 import { installZodLocale } from '@/lib/validation';
 import './index.css';
+
+const router = createPanelRouter();
 
 installZodLocale();
 applyStoredAppearance();
@@ -36,8 +37,6 @@ async function bootstrap(root: HTMLElement) {
     } catch {
       questionnaireLaunch = '';
     }
-  } else if (entry.kind === 'admin') {
-    restoreLegacyRoute();
   }
   createRoot(root).render(
     <StrictMode>
@@ -46,7 +45,7 @@ async function bootstrap(root: HTMLElement) {
           {entry.kind === 'questionnaire' ? (
             <QuestionnaireResponse id={entry.id} launch={questionnaireLaunch} />
           ) : (
-            <App />
+            <App router={router} />
           )}
           <Toaster richColors position="bottom-right" closeButton />
         </TooltipProvider>

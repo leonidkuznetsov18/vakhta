@@ -1,3 +1,4 @@
+import type { RouterHistory } from '@tanstack/react-router';
 import { createStore } from 'zustand/vanilla';
 import {
   CreateCommunication,
@@ -64,9 +65,15 @@ export const newQuestion = (): QuestionnaireQuestion => ({
   prompt: '',
   required: true,
 });
-export function createCommunicationDraft() {
+declare module '@tanstack/react-router' {
+  interface HistoryState {
+    communicationDock?: boolean;
+  }
+}
+export function createCommunicationDraft(history: RouterHistory) {
   let opener: HTMLElement | null = null;
   let active = true;
+  let unsubscribe: (() => void) | undefined;
   const store = createStore<CommunicationDraft>()(empty);
   const update = (patch: Partial<CommunicationDraft>) => {
     if (active) store.setState(patch);
@@ -83,11 +90,7 @@ export function createCommunicationDraft() {
       opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       const state = store.getState();
       if (!state.open && window.matchMedia('(max-width: 767px)').matches)
-        window.history.pushState(
-          { ...window.history.state, communicationDock: true },
-          '',
-          window.location.href,
-        );
+        history.push(history.location.href, { ...history.location.state, communicationDock: true });
       if (!editable()) {
         update({ open: true, view: 'compose' });
         return;
@@ -109,7 +112,7 @@ export function createCommunicationDraft() {
     },
     minimize() {
       update({ open: false });
-      if (window.history.state?.communicationDock) window.history.back();
+      if (history.location.state.communicationDock) history.back();
       const background = document.querySelector<HTMLElement>('[data-communications-background]');
       if (background) background.inert = false;
       if (opener?.isConnected) opener.focus();
@@ -173,11 +176,22 @@ export function createCommunicationDraft() {
     },
     dispose() {
       active = false;
+      unsubscribe?.();
+      unsubscribe = undefined;
       store.getState().files.forEach(release);
       store.setState(empty());
     },
     activate() {
       active = true;
+      unsubscribe?.();
+      unsubscribe = history.subscribe(({ location }) => {
+        if (
+          store.getState().open &&
+          !location.state.communicationDock &&
+          window.matchMedia('(max-width: 767px)').matches
+        )
+          this.minimize();
+      });
     },
   };
 }

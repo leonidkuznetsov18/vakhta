@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen } from '@testing-library/react';
-import { render } from '../test-utils.tsx';
+import { render, renderRouted } from '../test-utils.tsx';
 import { ReportsPage } from './ReportsPage.tsx';
 import { AuditPage } from '../audit/AuditPage.tsx';
 import type { LossesView } from '@vakhta/contracts';
@@ -252,7 +252,8 @@ describe('ReportsPage and AuditPage', () => {
 
   it('audit shows actions with before/after and the event log with a link to the corrected event', async () => {
     mockApi();
-    render(<AuditPage />);
+    history.replaceState(null, '', '#/audit');
+    await renderRouted(<AuditPage />);
     // The action shows its label with the raw code beside it.
     expect((await screen.findAllByText('Выгрузка отчёта')).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('report.export')).toBeTruthy();

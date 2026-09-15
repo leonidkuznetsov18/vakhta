@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { HandoverPage } from './HandoverPage.tsx';
-import { clickRowAction, render } from '../test-utils.tsx';
+import { clickRowAction, renderRouted as render } from '../test-utils.tsx';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const HV = 'c0000000-0000-4000-8000-000000000001';
@@ -183,6 +183,7 @@ function mockApi(state: { status: string }) {
 
 describe('HandoverPage', () => {
   beforeEach(() => {
+    history.replaceState(null, '', '#/handover');
     vi.stubGlobal('EventSource', FakeEventSource);
   });
   afterEach(() => {
@@ -193,7 +194,7 @@ describe('HandoverPage', () => {
   it('shows the checklist, the note and a signed photo link; the decision carries a comment', async () => {
     const state = { status: 'DISPUTED' };
     const calls = mockApi(state);
-    render(<HandoverPage />);
+    await render(<HandoverPage />);
     expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
     await clickRowAction('Подробности');
     // The note is shown as text.
@@ -231,7 +232,7 @@ describe('HandoverPage', () => {
 
   it('an overdue acceptance is flagged and the master can approve the checklist outright', async () => {
     const calls = mockApi({ status: 'SUBMITTED' });
-    render(<HandoverPage />);
+    await render(<HandoverPage />);
     expect(await screen.findByText(/^просрочено на/)).toBeTruthy();
     await clickRowAction('Подробности');
     // Approving needs no text: the employee is thanked and earns the point.
@@ -246,7 +247,7 @@ describe('HandoverPage', () => {
 
   it('a remark on a submitted report: the button waits for the text, then sends it', async () => {
     const calls = mockApi({ status: 'SUBMITTED' });
-    render(<HandoverPage />);
+    await render(<HandoverPage />);
     await clickRowAction('Подробности');
 
     const remark = await screen.findByRole('button', { name: 'Замечание' });
@@ -269,7 +270,7 @@ describe('HandoverPage', () => {
   });
   it('shows a completed report and its decision without editing controls', async () => {
     mockApi({ status: 'RESOLVED_ACCEPTED' });
-    render(<HandoverPage />);
+    await render(<HandoverPage />);
     await clickRowAction('Подробности');
     const decision = await screen.findByText('Master approved the clean station');
     expect(

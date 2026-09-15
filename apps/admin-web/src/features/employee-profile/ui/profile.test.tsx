@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { EmployeeProfileView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
-import { render } from '@/test-utils';
+import { render, renderRouted } from '@/test-utils';
 import { currentLocale } from '@/i18n';
 import fixture from '../model/__fixtures__/profile.json';
-import { ProfileContent } from './profile-page';
+import { ProfileContent, ProfilePage } from './profile-page';
 import { ProfileSheet } from './profile-sheet';
 import { SectionEditor } from './section-editor';
 
@@ -26,7 +26,9 @@ describe('employee profile journeys', () => {
     );
     render(<ProfileSheet employeeId={profile.employee.id} onClose={vi.fn()} />);
     const link = await screen.findByRole('link', { name: t.openProfile });
-    expect(link.getAttribute('href')).toBe(`#/administration/employees/${profile.employee.id}`);
+    expect(new URL(link.getAttribute('href') ?? '', location.href).hash).toBe(
+      `#/administration/employees/${profile.employee.id}`,
+    );
     expect(screen.queryAllByRole('textbox')).toHaveLength(0);
     expect(screen.queryByRole('button', { name: t.edit })).toBeNull();
     expect(screen.queryByText(t.addEntry)).toBeNull();
@@ -124,4 +126,15 @@ describe('employee profile journeys', () => {
     expect(screen.queryByRole('button', { name: t.edit })).toBeNull();
     expect(screen.queryByRole('button', { name: t.addEntry })).toBeNull();
   });
+});
+
+it('returns from the employee profile to the directory without inheriting the employee ID', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => json(profile)),
+  );
+  history.replaceState(null, '', `#/administration/employees/${profile.employee.id}`);
+  await renderRouted(<ProfilePage employeeId={profile.employee.id} onOpenSchedule={vi.fn()} />);
+  fireEvent.click(await screen.findByRole('link', { name: `← ${t.back}` }));
+  await waitFor(() => expect(location.hash).toBe('#/administration/employees'));
 });

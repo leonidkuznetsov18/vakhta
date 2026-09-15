@@ -33,7 +33,6 @@ export function attentionFilters(
         'handover.date': '',
         'handover.siteId': selection.siteId ?? '',
         'search.handover': '',
-        'handover.openId': data.firstId[key] ?? null,
       };
     case 'openIncidents':
     case 'safetyIncidents':
@@ -43,7 +42,6 @@ export function attentionFilters(
         'incidents.period': 'all',
         'incidents.siteId': selection.siteId ?? '',
         'search.incidents': '',
-        'incidents.openId': data.firstId[key] ?? null,
       };
     case 'requestsForMe':
     case 'overdueRequests':
@@ -52,7 +50,6 @@ export function attentionFilters(
         'requests.scope': 'inbox',
         'search.requests': '',
         'search.requests-overtime': '',
-        'requests.openId': data.firstId[key] ?? null,
       };
     case 'onShift':
     case 'inDowntime':
@@ -64,7 +61,6 @@ export function attentionFilters(
         'operations.orgUnitId': selection.orgUnitId ?? '',
         'operations.group': key === 'inDowntime' ? 'DOWNTIME' : 'ALL',
         'search.operations': '',
-        'operations.openId': data.firstId[key] ?? null,
       };
     case 'unlinkedEmployees':
       return {

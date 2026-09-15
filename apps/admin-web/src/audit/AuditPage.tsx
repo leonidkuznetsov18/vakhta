@@ -20,7 +20,7 @@ import { Muted, StatusPill, Toolbar } from '@/components/app/page';
 import { formatDateTimeSeconds } from '@/lib/format';
 import { reportsApi } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
-import { useRouteSub } from '@/lib/route';
+import { useNavigate, useParams } from '@tanstack/react-router';
 import { usePersistentState } from '@/lib/ui-store';
 import { keys } from '@/lib/query';
 import { HowItWorks } from '@/components/app/how-it-works';
@@ -143,7 +143,12 @@ function actionLabel(code: string): string {
 
 /** "Audit" (spec 9.1, 13): immutable history of manual actions and the event log with filters. */
 export function AuditPage() {
-  const [tab, setTab] = useRouteSub<'audit' | 'events'>('audit', ['audit', 'events'], 'audit');
+  const { tab: routeTab } = useParams({ strict: false });
+  const tab = routeTab === 'events' ? 'events' : 'audit';
+  const navigate = useNavigate();
+  const setTab = (tab: 'audit' | 'events') => {
+    void navigate({ to: '/audit/{-$tab}', params: { tab }, replace: true, resetScroll: false });
+  };
   const [action, setAction] = usePersistentState('audit.action', '');
   const [objectType, setObjectType] = usePersistentState('audit.objectType', '');
   const [type, setType] = usePersistentState('audit.type', '');

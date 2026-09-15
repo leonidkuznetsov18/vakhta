@@ -46,19 +46,16 @@ export function EventFeed({
                     setUiState({
                       'operations.scope': 'ALL',
                       'operations.day': e.target.businessDate ?? '',
-                      'operations.openId': e.target.id,
                     });
                   if (e.target.section === 'incidents')
                     setUiState({
                       'incidents.scope': 'all',
                       'incidents.period': 'all',
-                      'incidents.openId': e.target.id,
                     });
                   if (e.target.section === 'handover')
                     setUiState({
                       'handover.scope': 'all',
                       'handover.date': '',
-                      'handover.openId': e.target.id,
                     });
                   go(e.target.section, e.target.id ?? undefined);
                 }}

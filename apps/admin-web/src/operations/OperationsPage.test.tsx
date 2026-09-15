@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { CommunicationProvider } from '@/features/employee-communications';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { setUiState, uiState } from '@/lib/ui-store';
 import { todayIso } from '@/lib/format';
 import { OperationsPage } from './OperationsPage.tsx';
-import { clickRowAction, render as renderBase } from '../test-utils.tsx';
+import { clickRowAction, renderRouted as renderBase } from '../test-utils.tsx';
 
 const render = (ui: ReactNode) => renderBase(<CommunicationProvider>{ui}</CommunicationProvider>);
 
@@ -180,6 +180,7 @@ function mockApi(state: { rows: ReturnType<typeof row>[] }) {
 
 describe('OperationsPage', () => {
   beforeEach(() => {
+    history.replaceState(null, '', '#/operations');
     FakeEventSource.instances = [];
     vi.stubGlobal('EventSource', FakeEventSource);
   });
@@ -188,10 +189,30 @@ describe('OperationsPage', () => {
     vi.unstubAllGlobals();
   });
 
+  it('uses only the URL for the selected row and clears selection when the URL has no ID', async () => {
+    mockApi({ rows: [row('BREAK')] });
+    setUiState({ 'operations.openId': SESSION });
+    const view = await render(<OperationsPage />);
+    await screen.findByText('Кузнецов Леонид');
+    expect(screen.queryByText('SHIFT_STARTED')).toBeNull();
+    await clickRowAction('Подробности');
+    await screen.findByText('SHIFT_STARTED');
+    expect(location.hash).toBe(`#/operations/${SESSION}`);
+    await act(async () => {
+      await view.router.navigate({
+        to: '/operations/{-$id}',
+        params: { id: undefined },
+        replace: true,
+      });
+    });
+    await waitFor(() => expect(screen.queryByText('SHIFT_STARTED')).toBeNull());
+    expect(location.hash).toBe('#/operations');
+  });
+
   it('shows shifts with state and duration and refreshes on an SSE event', async () => {
     const state = { rows: [row('BREAK')] };
     const calls = mockApi(state);
-    render(<OperationsPage />);
+    await render(<OperationsPage />);
     expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
     // The state appears as a KPI chip with its count and as the pill in the row.
     expect(screen.getAllByText('Перерыв').length).toBeGreaterThanOrEqual(2);
@@ -218,7 +239,7 @@ describe('OperationsPage', () => {
   it('offers a Today shortcut that is disabled while the list already stands on today', async () => {
     mockApi({ rows: [row('BREAK')] });
     setUiState({ 'operations.day': '2026-09-01' });
-    render(<OperationsPage />);
+    await render(<OperationsPage />);
     expect(await screen.findByText('Кузнецов Леонид')).toBeTruthy();
     const today = screen.getByRole('button', { name: 'Сегодня' });
     expect(today.hasAttribute('disabled')).toBe(false);
@@ -230,7 +251,7 @@ describe('OperationsPage', () => {
   it('a master action carries a comment and the current version; a version conflict is explained', async () => {
     const state = { rows: [row('BREAK')] };
     const calls = mockApi(state);
-    render(<OperationsPage />);
+    await render(<OperationsPage />);
     await clickRowAction('Подробности');
     expect(await screen.findByText('SHIFT_STARTED')).toBeTruthy();
 
@@ -254,7 +275,7 @@ describe('OperationsPage', () => {
   it('the emergency exit asks for a reason from the directory, and only then', async () => {
     const state = { rows: [row('WORKING')] };
     const calls = mockApi(state);
-    render(<OperationsPage />);
+    await render(<OperationsPage />);
     await clickRowAction('Подробности');
     expect(await screen.findByText('SHIFT_STARTED')).toBeTruthy();
 
@@ -282,7 +303,7 @@ describe('OperationsPage', () => {
 
   it('offers only the actions this shift can take next', async () => {
     mockApi({ rows: [row('HANDOVER')] });
-    render(<OperationsPage />);
+    await render(<OperationsPage />);
     await clickRowAction('Подробности');
     expect(await screen.findByText('SHIFT_STARTED')).toBeTruthy();
 
@@ -301,7 +322,7 @@ describe('OperationsPage', () => {
     async (state) => {
       setUiState({ 'operations.scope': 'ALL' });
       mockApi({ rows: [row(state)] });
-      render(<OperationsPage />);
+      await render(<OperationsPage />);
       await clickRowAction('Подробности');
       const detail = await screen.findByTestId('shift-detail');
       expect(detail.querySelector('textarea, select, form, button[type="submit"]')).toBeNull();

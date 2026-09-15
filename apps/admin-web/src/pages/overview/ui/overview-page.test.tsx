@@ -11,7 +11,6 @@ import { format, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { NavigationProvider, type SectionKey } from '@/navigation';
-import { writeRoute } from '@/lib/route';
 import { clearPersistentState, setUiState, uiState } from '@/lib/ui-store';
 import { useAttention } from '@/features/overview';
 
@@ -99,12 +98,16 @@ function snapshot(overrides: Partial<OverviewSnapshot> = {}): OverviewSnapshot {
   };
 }
 const SITE = 'a0000000-0000-4000-8000-000000000001';
-function page(user = me, go: (section: SectionKey, sub?: string) => void = writeRoute) {
+function page(user = me, go?: (section: SectionKey, sub?: string) => void) {
   return render(
     <TooltipProvider>
-      <NavigationProvider go={go}>
+      {go ? (
+        <NavigationProvider go={go}>
+          <OverviewPage me={user} />
+        </NavigationProvider>
+      ) : (
         <OverviewPage me={user} />
-      </NavigationProvider>
+      )}
     </TooltipProvider>,
   );
 }
@@ -120,7 +123,7 @@ function mount(user = me) {
 beforeEach(() => {
   vi.clearAllMocks();
   clearPersistentState();
-  writeRoute('overview');
+  history.replaceState(null, '', '#/overview');
   for (const fn of [
     api.shifts,
     api.incidents,
@@ -208,7 +211,7 @@ describe('overview query integration', () => {
     });
     page();
     fireEvent.click(await screen.findByRole('button', { name: `6 ${c.items.pendingHandovers}` }));
-    expect(location.hash).toBe('#/handover/report-0');
+    await waitFor(() => expect(location.hash).toBe('#/handover/report-0'));
     expect(uiState('handover.scope')).toBe('pending');
     expect(uiState('handover.date')).toBe('');
     expect(uiState('handover.siteId')).toBe('');
@@ -252,7 +255,7 @@ describe('overview query integration', () => {
       screen.queryByRole('button', { name: new RegExp(`^93 ${c.items.notArrived}`) }),
     ).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: `1 ${c.unpairedTerminals}` }));
-    expect(location.hash).toBe('#/administration/terminals');
+    await waitFor(() => expect(location.hash).toBe('#/administration/terminals'));
   });
   it('does not show a shift line or empty health on a day off', async () => {
     const window = {
@@ -372,7 +375,7 @@ it.each(['unit-a', null])(
       },
     ]);
     setUiState({ 'schedule.orgUnitId': 'remembered-unit' });
-    const navigate = vi.fn((section: SectionKey) => {
+    const navigate = vi.fn((_section: SectionKey) => {
       expect(uiState('schedule.preset')).toEqual({
         actorId: me.id,
         orgUnitId,
@@ -384,7 +387,6 @@ it.each(['unit-a', null])(
       });
       expect(uiState('schedule.month')).toBe('2026-09');
       expect(uiState('schedule.orgUnitId')).toBe(orgUnitId ?? 'remembered-unit');
-      writeRoute(section);
     });
     page(me, navigate);
     const label = format(c.unscheduledUnit, {

@@ -196,3 +196,50 @@ and navigation retries; no manufacturing time or throughput improvement is claim
 Lean completion: Simplify achieved for demonstrated problems: one transition per action, no
 navigation from a help tap, and no forced menu reopening after canceling. No new routing framework,
 page cache, required worker action or state synchronization layer was introduced.
+
+## 2026-09-15 — TanStack Router migration
+
+Owner authorization/specification and ordered plan: [008-tanstack-routing](../../../specs/008-tanstack-routing/spec.md),
+[plan](../../../specs/008-tanstack-routing/plan.md). Baseline: `5689729`.
+
+- TanStack Router 1.170.36 owns hash history, route matching and rendering. Explicit code-based routes
+  live in `src/app/router`; app shell renders Outlet. Standard Link owns link semantics/active status.
+  The handwritten route module, manual page map and custom NavigationLink are deleted.
+- Existing `useNavigation().go` remains a stateless cross-feature intent API; app composition translates
+  section/subpath to typed TanStack navigation options. It has no subscriptions, storage or route state.
+  Lower layers call TanStack APIs directly; legacy business pages retain their existing locations.
+- URL owns tabs and route-linked record selection. Operations/Handover/Requests/Incidents no longer
+  reopen an old persisted ID when the URL has none. Incident statistics keeps the queue return ID in
+  validated URL search state. Contextual directory sheets/configuration editors remain local UI.
+- Native router links cover sidebar, profile and employee links. Checklist search links directly to
+  its existing detail route. Optional detail parameters are explicitly cleared on list/tab links,
+  because TanStack otherwise inherits omitted parameters. Section transitions push; refinements
+  replace and preserve scroll. Router scroll restoration handles browser history.
+- One documented useBlocker integrates existing dirty checks, including Back/Forward. Existing form
+  registry owns beforeunload. Mobile drawer closure listens for router resolution on its DOM lifecycle;
+  canceled transitions leave it open. Communications uses the same TanStack history instance, with
+  subscription cleanup and preserved draft/focus behavior.
+- Root authentication gating and Query ownership are unchanged; questionnaire entry remains separate.
+  No forbidden React hooks, route cache workarounds or parallel route store were introduced.
+
+Lean: **Simplify**. Workers retain the same actions; maintained router mechanisms replace custom
+infrastructure and stale record fallback. No added worker steps or data collection. The original
+intermittent production mismatch remains unproven; this is the requested complete routing migration.
+
+Independent read-only review found an inherited optional-detail bug; explicit clearing and actual
+profile/checklist Back regressions fix it. Review found no remaining concrete code blockers.
+
+Browser evidence (local preview, real components, synthetic data): five mobile Overview/Schedule
+transitions agree across URL, h1 and the single selected menu item; mobile calendar visible; Back/Forward
+works. Mobile communications Back closes its window, retains typed draft and leaves the current page;
+reopen retains text, and the next page Back returns to Overview. Desktop Enter navigation, terminal-tab
+reload and Back to Schedule passed; no console errors or horizontal page overflow observed.
+Inspected screenshots: `test-results/navigation/router-mobile-menu.png`, `router-mobile-schedule.png`,
+`router-desktop-schedule.png`. Physical devices are not tested. The earlier Chrome session was no longer
+available; this QA used the in-app Chromium browser. The production browser currently shows sign-in; authenticated post-deployment navigation requires
+a new QA session and is not covered by these local results.
+
+Local checks: 442 panel tests in 70 files passed; typecheck, changed-file ESLint and production build
+passed. Build retains the existing large-bundle warning (3.87 MB uncompressed); no code-splitting
+migration is included. Deployment results are reported in this delivery's final response; CI remains
+the complete integration gate.

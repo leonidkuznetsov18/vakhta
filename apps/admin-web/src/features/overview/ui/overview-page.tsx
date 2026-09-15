@@ -130,10 +130,9 @@ export function OverviewPage({
       'operations.orgUnitId': selection.orgUnitId ?? '',
       'operations.group': 'ALL',
       'search.operations': '',
-      'operations.openId': openId,
       ...values,
     });
-    go('operations');
+    go('operations', openId ?? undefined);
   }
 
   function openQueue(item: QueueItem): void {
@@ -168,7 +167,6 @@ export function OverviewPage({
       setUiState({
         'incidents.scope': 'all',
         'incidents.period': 'today',
-        'incidents.openId': null,
       });
       return go('incidents');
     }

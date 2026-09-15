@@ -4,7 +4,7 @@ import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { reviewFixture } from '@/preview/review-fixtures';
 import { AdminPage } from './AdminPage.tsx';
-import { clickRowAction, render } from '../test-utils.tsx';
+import { clickRowAction, renderRouted as render } from '../test-utils.tsx';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const UNIT = 'a0000000-0000-4000-8000-000000000002';
@@ -126,7 +126,7 @@ describe('AdminPage', () => {
 
   it('creates an employee and issues an activation code with a link', async () => {
     const calls = mockApi();
-    render(<AdminPage />);
+    await render(<AdminPage />);
     // Creation lives in a dialog behind the "Add employee" button.
     fireEvent.click(await screen.findByRole('button', { name: 'Добавить сотрудника' }));
     fireEvent.change(await screen.findByLabelText('Табельный номер'), {
@@ -150,7 +150,7 @@ describe('AdminPage', () => {
 
   it('grants a role scoped to a unit', async () => {
     const calls = mockApi();
-    render(<AdminPage />);
+    await render(<AdminPage />);
     fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Пользователи и роли' }));
     expect(await screen.findByText('master@vakhta.com')).toBeTruthy();
     await clickRowAction('Выдать роль');
@@ -170,7 +170,7 @@ describe('AdminPage', () => {
 
   it('registers a terminal and shows a pairing code instead of a device token', async () => {
     mockApi();
-    render(<AdminPage />);
+    await render(<AdminPage />);
     fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Терминалы' }));
     // The register button exists in the header and in the empty state; either opens the dialog.
     fireEvent.click(
@@ -188,7 +188,7 @@ it('opens the linked historical checklist rules directly without needing a catal
   const calls = mockApi();
   const definitionId = '90000000-0000-4000-8000-000000000001';
   location.hash = `#/administration/checklists/${definitionId}`;
-  render(<AdminPage />);
+  await render(<AdminPage />);
   const t = messages(currentLocale()).checklistPhotoRules;
   await screen.findByRole('heading', { name: t.editRules });
   expect(calls.some((call) => call.path === `/admin/checklists/${definitionId}/photo-rules`)).toBe(
@@ -196,6 +196,13 @@ it('opens the linked historical checklist rules directly without needing a catal
   );
   expect(calls.some((call) => call.path === '/admin/org/checklists')).toBe(false);
   expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(true);
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: messages(currentLocale()).admin.administration.tabs.checklists,
+    }),
+  );
+  await waitFor(() => expect(location.hash).toBe('#/administration/checklists'));
+  expect(screen.queryByRole('heading', { name: t.editRules })).toBeNull();
   cleanup();
   vi.unstubAllGlobals();
 });

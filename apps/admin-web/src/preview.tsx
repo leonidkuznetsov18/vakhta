@@ -9,10 +9,9 @@ import {
 import { reviewFixture, reviewPhotos } from './preview/review-fixtures';
 import { overviewPreview } from './preview/overview-fixtures';
 import { tableLayoutEvent } from './preview/table-layout-fixtures';
-import { restoreLegacyRoute } from '@/lib/route';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App.tsx';
+import { App, createPanelRouter } from './app/index';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -849,6 +848,8 @@ if (params.get('avatar') === '1') {
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 }
 setUiState({ theme: params.get('theme') ?? 'light' });
+const router = createPanelRouter();
+
 installZodLocale();
 applyStoredAppearance();
 // Nothing here reaches a server: `fetch` is stubbed above and every answer is a fixture. Without
@@ -862,12 +863,12 @@ applyStoredAppearance();
     'font:600 12px/1.6 system-ui,sans-serif;text-align:center;padding:4px 8px';
   document.body.append(banner);
 }
-restoreLegacyRoute();
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delayDuration={200}>
-        {params.get('calendar') === 'spike' ? <CalendarPrototype /> : <App />}
+        {params.get('calendar') === 'spike' ? <CalendarPrototype /> : <App router={router} />}
         <Toaster richColors position="bottom-right" closeButton />
       </TooltipProvider>
     </QueryClientProvider>

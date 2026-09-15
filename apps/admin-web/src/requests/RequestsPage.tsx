@@ -35,7 +35,7 @@ import { Deadline } from '@/components/app/deadline';
 import { Textarea } from '@/components/ui/textarea';
 import { EyeIcon } from 'lucide-react';
 import { HowItWorks } from '@/components/app/how-it-works';
-import { useDeepLinkedId } from '@/lib/route';
+import { useNavigate, useParams } from '@tanstack/react-router';
 
 const all = messages(currentLocale());
 const r = all.admin.requests;
@@ -64,7 +64,17 @@ function when(req: RequestView): string {
 /** "Requests" (spec 9.1): the inbox by role, decisions with a comment, overtime, interval corrections. */
 export function RequestsPage() {
   const [scope, setScope] = usePersistentState<'inbox' | 'all'>('requests.scope', 'inbox');
-  const [openId, setOpenId] = useDeepLinkedId('requests', 'requests.openId');
+  const { id } = useParams({ strict: false });
+  const openId = id ?? null;
+  const navigate = useNavigate();
+  const setOpenId = (id: string | null) => {
+    void navigate({
+      to: '/requests/{-$id}',
+      params: { id: id ?? undefined },
+      replace: true,
+      resetScroll: false,
+    });
+  };
   const [comment, setComment] = useState('');
   const [approvedMinutes, setApprovedMinutes] = useState('');
   const [proposalKind, setProposalKind] = useState<ProposalKind>('CLOSE_SHIFT_AT');

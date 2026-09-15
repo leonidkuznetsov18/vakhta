@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { avatarUrl } from '@/entities/employee';
 import { useSession } from '@/auth/useSession';
 import {
@@ -314,9 +315,12 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
       key: 'name',
       header: e.fullName,
       cell: (emp) => (
-        <a
+        <Link
           onClick={(event) => rememberEmployeeList(event.currentTarget, emp.id)}
-          href={`#/administration/employees/${emp.id}`}
+          to="/administration/{-$tab}/{-$detail}"
+          params={{ tab: 'employees', detail: emp.id }}
+          replace
+          resetScroll={false}
           className="flex min-w-0 items-center gap-2 rounded hover:underline focus-visible:outline-2"
         >
           <UserAvatar
@@ -325,7 +329,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
             image={avatarUrl(emp.id, emp.avatarVersion)}
           />
           <span className="min-w-0 break-words">{emp.fullName}</span>
-        </a>
+        </Link>
       ),
       sortValue: (emp) => emp.fullName,
     },

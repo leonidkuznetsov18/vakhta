@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
-import { render } from '../test-utils.tsx';
+import { renderRouted as render } from '../test-utils.tsx';
 import { AuditPage } from './AuditPage.tsx';
 
 const ENTRY = 'e0000000-0000-4000-8000-000000000001';
@@ -45,7 +45,7 @@ describe('AuditPage', () => {
 
   it('names the actor, opens details from a visible button and lists the changed fields', async () => {
     mockApi();
-    render(<AuditPage />);
+    await render(<AuditPage />);
     expect((await screen.findAllByText('admin@example.com')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Терминал изменён').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: /^Подробности: Терминал изменён/ }));

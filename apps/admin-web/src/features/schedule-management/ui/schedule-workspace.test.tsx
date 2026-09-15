@@ -1126,9 +1126,12 @@ describe('schedule workspace', () => {
     fireEvent.click(screen.getByRole('radio', { name: t.month }));
     fireEvent.change(screen.getByRole('combobox', { name: t.zone }), { target: { value: ZONE } });
     expect(screen.getByRole('region', { name: t.people })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Кузнецов Леонид' }).getAttribute('href')).toBe(
-      `#/administration/employees/${EMP}`,
-    );
+    expect(
+      new URL(
+        screen.getByRole('link', { name: 'Кузнецов Леонид' }).getAttribute('href') ?? '',
+        location.href,
+      ).hash,
+    ).toBe(`#/administration/employees/${EMP}`);
     expect(screen.getByText(t.outsideZone)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Кузнецов Леонид, 2026-09-06/ })).toBeNull();
     expect(gridToItems(useScheduleDrafts.getState().drafts[DRAFT_KEY] ?? { rows: [] })).toEqual(
@@ -1159,9 +1162,12 @@ describe('schedule workspace', () => {
     fireEvent.click(screen.getByRole('radio', { name: t.month }));
     expect(screen.queryByRole('radio', { name: t.zones })).toBeNull();
     expect(screen.getByRole('region', { name: t.people })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Кузнецов Леонид' }).getAttribute('href')).toBe(
-      `#/administration/employees/${EMP}`,
-    );
+    expect(
+      new URL(
+        screen.getByRole('link', { name: 'Кузнецов Леонид' }).getAttribute('href') ?? '',
+        location.href,
+      ).hash,
+    ).toBe(`#/administration/employees/${EMP}`);
     expect(screen.queryByRole('button', { name: t.date })).toBeNull();
     const cell = await screen.findByRole('button', { name: /Кузнецов Леонид, 2026-09-05/ });
     expect(cell.textContent).toBe(messages(currentLocale()).schedule.dayKinds.NIGHT);
@@ -1220,7 +1226,9 @@ describe('schedule workspace', () => {
       await screen.findByText(t.publishedState);
       fireEvent.click(screen.getByRole('radio', { name: t.people }));
       const link = await screen.findByRole('link', { name: 'Кузнецов Леонид' });
-      expect(link.getAttribute('href')).toBe(`#/administration/employees/${EMP}`);
+      expect(new URL(link.getAttribute('href') ?? '', location.href).hash).toBe(
+        `#/administration/employees/${EMP}`,
+      );
       if (mobile) expect(link.querySelector('svg')).toBeTruthy();
       else
         expect(link.querySelector('img')?.getAttribute('src')).toContain(

@@ -1,18 +1,21 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { messages } from '@vakhta/i18n';
-import { App } from './App';
+import { App, createPanelRouter } from './app/index';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { registerUnsaved } from '@/lib/unsaved';
-import { writeRoute } from '@/lib/route';
+import { setUiState, uiState } from '@/lib/ui-store';
 
 const t = messages('ru');
-const { mobile } = vi.hoisted(() => ({ mobile: { value: true } }));
+const { mobile, sessionStatus } = vi.hoisted(() => ({
+  mobile: { value: true },
+  sessionStatus: { value: 'authenticated' },
+}));
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => mobile.value }));
 vi.mock('./auth/useSession.ts', () => ({
   useSession: () => ({
     state: {
-      status: 'authenticated',
+      status: sessionStatus.value,
       me: {
         id: 'qa',
         name: 'QA',
@@ -55,7 +58,9 @@ vi.mock('./handover/HandoverPage.tsx', () => ({ HandoverPage: () => null }));
 vi.mock('./incidents/IncidentsPage.tsx', () => ({ IncidentsPage: () => null }));
 vi.mock('./requests/RequestsPage.tsx', () => ({ RequestsPage: () => null }));
 vi.mock('@/pages/photo-library', () => ({ PhotoLibraryPage: () => null }));
-vi.mock('./auth/LoginScreen.tsx', () => ({ LoginScreen: () => null }));
+vi.mock('./auth/LoginScreen.tsx', () => ({
+  LoginScreen: () => <div data-testid="login">Login</div>,
+}));
 vi.mock('./auth/ProfilePanel.tsx', () => ({ ProfilePanel: () => null }));
 vi.mock('@/components/app/command-palette', () => ({
   CommandPalette: ({
@@ -69,20 +74,28 @@ vi.mock('@/components/app/command-palette', () => ({
   ),
 }));
 
+let router: ReturnType<typeof createPanelRouter>;
 beforeEach(() => {
   mobile.value = true;
+  sessionStatus.value = 'authenticated';
   history.replaceState(null, '', '#/overview');
 });
 afterEach(() => {
   cleanup();
+  router?.history.destroy();
   vi.restoreAllMocks();
 });
-function mount() {
-  render(
-    <TooltipProvider>
-      <App />
-    </TooltipProvider>,
-  );
+async function mount(hash?: string) {
+  if (hash) history.replaceState(null, '', hash);
+  router = createPanelRouter();
+  await act(async () => {
+    render(
+      <TooltipProvider>
+        <App router={router} />
+      </TooltipProvider>,
+    );
+  });
+  await screen.findByRole('heading', { level: 1 });
 }
 function menu() {
   return screen.getByRole('list', { name: t.ui.common.menu });
@@ -102,33 +115,39 @@ function assertPage(section: 'overview' | 'schedule' | 'operations' | 'administr
   ).toBe('page');
   expect(menu().querySelectorAll('[aria-current="page"]')).toHaveLength(1);
 }
-
-it('keeps mobile page, URL and reopened sidebar selection in step over repeated transitions', () => {
-  mount();
+it('keeps mobile page, URL and reopened sidebar selection in step over repeated transitions', async () => {
+  await mount();
   openMenu();
   assertPage('overview');
   for (const section of ['schedule', 'overview', 'operations', 'schedule', 'overview'] as const) {
-    fireEvent.click(within(menu()).getByRole('link', { name: t.admin.sections[section] }));
-    expect(screen.queryByRole('dialog')).toBeNull();
+    await act(async () => {
+      fireEvent.click(within(menu()).getByRole('link', { name: t.admin.sections[section] }));
+    });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     openMenu();
     assertPage(section);
   }
 });
-it('preserves the exact destination from quick navigation', () => {
-  mount();
-  fireEvent.click(screen.getByRole('button', { name: 'Open terminals' }));
+it('preserves the exact destination from quick navigation', async () => {
+  await mount();
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Open terminals' }));
+  });
   expect(location.hash).toBe('#/administration/terminals');
   expect(screen.getByTestId('administration-page')).toBeTruthy();
 });
-it('keeps the current mobile menu and page when leaving an unsaved form is canceled', () => {
-  mount();
+it('keeps the current mobile menu and page when leaving an unsaved form is canceled', async () => {
+  await mount();
   openMenu();
   const unregister = registerUnsaved(() => true);
-  vi.spyOn(window, 'confirm').mockReturnValue(false);
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
   try {
-    fireEvent.click(within(menu()).getByRole('link', { name: t.admin.sections.schedule }));
+    await act(async () => {
+      fireEvent.click(within(menu()).getByRole('link', { name: t.admin.sections.schedule }));
+    });
     expect(screen.queryByRole('dialog')).not.toBeNull();
     assertPage('overview');
+    expect(confirm).toHaveBeenCalledTimes(1);
   } finally {
     unregister();
   }
@@ -137,45 +156,76 @@ it.each([false, true])(
   'keeps selection and page synchronized through Back and Forward (mobile: %s)',
   async (isMobile) => {
     mobile.value = isMobile;
-    mount();
+    await mount();
+    await act(async () => {
+      await router.navigate({ to: '/schedule' });
+    });
+    await act(async () => {
+      await router.navigate({ to: '/operations/{-$id}' });
+    });
     if (isMobile) openMenu();
-    act(() => writeRoute('schedule'));
-    act(() => writeRoute('operations'));
     assertPage('operations');
     await act(async () => {
       history.back();
-      await new Promise((resolve) => window.setTimeout(resolve, 30));
     });
-    await waitFor(() => assertPage('schedule'));
+    await waitFor(() => expect(screen.getByTestId('schedule-page')).toBeTruthy());
+    if (isMobile) openMenu();
+    assertPage('schedule');
     await act(async () => {
       history.forward();
-      await new Promise((resolve) => window.setTimeout(resolve, 30));
     });
-    await waitFor(() => assertPage('operations'));
+    await waitFor(() => expect(screen.getByTestId('operations-page')).toBeTruthy());
+    if (isMobile) openMenu();
+    assertPage('operations');
   },
 );
-
-it('uses the latest route after rapid transitions and a fresh mount', () => {
-  mount();
-  act(() => {
-    writeRoute('schedule');
-    writeRoute('overview');
-    writeRoute('operations');
-    writeRoute('schedule');
+it('blocks browser Back without changing the page and permits it after confirmation', async () => {
+  await mount();
+  await act(async () => {
+    await router.navigate({ to: '/schedule' });
+  });
+  const unregister = registerUnsaved(() => true);
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  try {
+    await act(async () => {
+      history.back();
+    });
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(location.hash).toBe('#/schedule'));
+    expect(screen.getByTestId('schedule-page')).toBeTruthy();
+    confirm.mockReturnValue(true);
+    await act(async () => {
+      history.back();
+    });
+    await waitFor(() => expect(screen.getByTestId('overview-page')).toBeTruthy());
+    expect(confirm).toHaveBeenCalledTimes(2);
+  } finally {
+    unregister();
+  }
+});
+it('uses the latest route after rapid transitions and a fresh mount', async () => {
+  await mount();
+  await act(async () => {
+    await Promise.all([
+      router.navigate({ to: '/schedule' }),
+      router.navigate({ to: '/overview' }),
+      router.navigate({ to: '/operations/{-$id}' }),
+      router.navigate({ to: '/schedule' }),
+    ]);
   });
   openMenu();
   assertPage('schedule');
   cleanup();
-  mount();
+  router.history.destroy();
+  await mount();
   openMenu();
   assertPage('schedule');
 });
-it('retains native modified-link behavior without changing the page or closing the menu', () => {
-  mount();
+it('retains native modified-link behavior without changing the page or closing the menu', async () => {
+  await mount();
   openMenu();
   const link = within(menu()).getByRole('link', { name: t.admin.sections.schedule });
-  expect(link.getAttribute('href')).toBe('#/schedule');
-  // Stop jsdom's unsupported new-tab default after verifying the application did not intercept it.
+  expect(new URL(link.getAttribute('href') ?? '', location.href).hash).toBe('#/schedule');
   let prevented = true;
   document.addEventListener(
     'click',
@@ -189,12 +239,77 @@ it('retains native modified-link behavior without changing the page or closing t
   expect(prevented).toBe(false);
   assertPage('overview');
 });
-it('closes the mobile menu when selecting the current page without adding a history entry', () => {
-  mount();
+it('closes the mobile menu when selecting the current page without adding history', async () => {
+  await mount();
   openMenu();
   const entries = history.length;
-  fireEvent.click(within(menu()).getByRole('link', { name: t.admin.sections.overview }));
-  expect(screen.queryByRole('dialog')).toBeNull();
+  await act(async () => {
+    fireEvent.click(within(menu()).getByRole('link', { name: t.admin.sections.overview }));
+  });
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(history.length).toBe(entries);
   expect(location.hash).toBe('#/overview');
 });
+it.each(['#/', '#/not-a-page'])('canonicalizes %s to Overview', async (hash) => {
+  await mount(hash);
+  openMenu();
+  assertPage('overview');
+});
+it('normalizes retired incident links and their visibility filters', async () => {
+  setUiState({ 'incidents.scope': 'open', 'incidents.period': 'day', 'incidents.siteId': 'other' });
+  await mount('#/incidentKnowledge/incident-id');
+  await waitFor(() => expect(location.hash).toBe('#/incidents/incident-id'));
+  expect(uiState('incidents.scope')).toBe('all');
+  expect(uiState('incidents.period')).toBe('all');
+  expect(uiState('incidents.siteId')).toBe('');
+});
+it('replaces tabs and record selections without growing section history', async () => {
+  await mount();
+  await act(async () => {
+    await router.navigate({
+      to: '/administration/{-$tab}/{-$detail}',
+      params: { tab: 'terminals' },
+    });
+  });
+  const length = history.length;
+  await act(async () => {
+    await router.navigate({
+      to: '/administration/{-$tab}/{-$detail}',
+      params: { tab: 'employees', detail: 'employee / one' },
+      replace: true,
+    });
+  });
+  expect(location.hash).toBe('#/administration/employees/employee%20%2F%20one');
+  expect(history.length).toBe(length);
+  await act(async () => {
+    history.back();
+  });
+  await waitFor(() => expect(screen.getByTestId('overview-page')).toBeTruthy());
+});
+it.each([
+  ['#/administration/invalid', '#/administration/employees'],
+  ['#/audit/invalid', '#/audit/audit'],
+])('canonicalizes invalid tabs: %s', async (source, destination) => {
+  await mount(source);
+  await waitFor(() => expect(location.hash).toBe(destination));
+});
+
+it.each(['loading', 'anonymous'])(
+  'keeps protected routes behind the %s session gate',
+  async (status) => {
+    sessionStatus.value = status;
+    history.replaceState(null, '', '#/schedule');
+    router = createPanelRouter();
+    await act(async () => {
+      render(
+        <TooltipProvider>
+          <App router={router} />
+        </TooltipProvider>,
+      );
+    });
+    if (status === 'anonymous') expect(await screen.findByTestId('login')).toBeTruthy();
+    else expect(document.querySelector('main[aria-busy="true"]')).not.toBeNull();
+    expect(screen.queryByTestId('schedule-page')).toBeNull();
+    expect(screen.queryByRole('list', { name: t.ui.common.menu })).toBeNull();
+  },
+);

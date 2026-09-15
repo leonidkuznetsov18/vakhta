@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { setUiState } from '@/lib/ui-store';
 import { IncidentsPage } from './IncidentsPage.tsx';
-import { clickRowAction, render } from '../test-utils.tsx';
+import { clickRowAction, renderRouted as render } from '../test-utils.tsx';
 
 const SITE = 'a0000000-0000-4000-8000-000000000001';
 const INC = 'c0000000-0000-4000-8000-000000000001';
@@ -151,6 +151,7 @@ function mockApi(state: {
 
 describe('IncidentsPage', () => {
   beforeEach(() => {
+    history.replaceState(null, '', '#/incidents');
     FakeEventSource.instances = [];
     vi.stubGlobal('EventSource', FakeEventSource);
   });
@@ -161,7 +162,7 @@ describe('IncidentsPage', () => {
 
   it('separates breakdowns and preserves the open incident draft across tabs', async () => {
     mockApi({ rows: [incident(INC, 'REPORTED')] });
-    render(<IncidentsPage />);
+    await render(<IncidentsPage />);
     await screen.findByText('Поломка');
     await clickRowAction('Подробности');
     fireEvent.change(await screen.findByLabelText('Причина'), {
@@ -172,7 +173,7 @@ describe('IncidentsPage', () => {
     expect(screen.getAllByRole('table')).toHaveLength(1);
     expect(screen.getByRole('table', { name: 'По причинам' })).toBeTruthy();
     expect(screen.queryByRole('radio', { name: 'Открытые' })).toBeNull();
-    expect(location.hash).toBe('#/incidents/statistics');
+    expect(location.hash).toBe(`#/incidents/statistics?queueId=${INC}`);
     fireEvent.click(screen.getByRole('radio', { name: 'По зонам' }));
     expect(screen.getByRole('table', { name: 'По зонам' })).toBeTruthy();
     expect(screen.getAllByRole('region', { name: 'Итоги выбранного периода' })).toHaveLength(1);
@@ -184,7 +185,7 @@ describe('IncidentsPage', () => {
   it('opens the statistics bookmark without fetching a queue or a statistics incident', async () => {
     location.hash = '#/incidents/statistics';
     const calls = mockApi({ rows: [] });
-    render(<IncidentsPage />);
+    await render(<IncidentsPage />);
     expect(await screen.findByRole('table', { name: 'По причинам' })).toBeTruthy();
     expect(calls.some((call) => call.path === '/admin/incidents')).toBe(false);
     expect(calls.some((call) => call.path === '/admin/incidents/statistics')).toBe(false);
@@ -194,7 +195,7 @@ describe('IncidentsPage', () => {
     location.hash = '#/incidents/statistics';
     const state = { rows: [], statsError: true };
     mockApi(state);
-    render(<IncidentsPage />);
+    await render(<IncidentsPage />);
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Итоги выбранного периода' })).toBeNull();
     state.statsError = false;
@@ -207,7 +208,7 @@ describe('IncidentsPage', () => {
       rows: [incident(INC, 'REPORTED'), incident(INC2, 'REPORTED', { zoneName: 'Линия B' })],
     };
     const calls = mockApi(state);
-    render(<IncidentsPage />);
+    await render(<IncidentsPage />);
     await waitFor(() => expect(screen.getAllByText('Поломка').length).toBeGreaterThanOrEqual(2));
     expect(screen.getAllByText('Сообщено')).toHaveLength(2);
     expect(screen.queryByRole('region', { name: 'Итоги выбранного периода' })).toBeNull();
@@ -242,7 +243,7 @@ describe('IncidentsPage', () => {
         duplicateOfId: null,
       },
     });
-    render(<IncidentsPage />);
+    await render(<IncidentsPage />);
     await screen.findAllByText('Поломка');
     await clickRowAction('Подробности');
 
@@ -257,7 +258,7 @@ describe('IncidentsPage', () => {
       rows: [incident(INC, 'REPORTED'), incident(INC2, 'REPORTED', { zoneName: 'Линия B' })],
     };
     const calls = mockApi(state);
-    render(<IncidentsPage />);
+    await render(<IncidentsPage />);
     await screen.findAllByText('Поломка');
     await clickRowAction('Подробности');
     fireEvent.change(await screen.findByLabelText('Статус'), { target: { value: 'DUPLICATE' } });
@@ -279,7 +280,7 @@ describe('IncidentsPage', () => {
   });
   it('requires both solution fields before resolving and submits structured notes', async () => {
     const calls = mockApi({ rows: [incident(INC, 'IN_PROGRESS')] });
-    render(<IncidentsPage />);
+    await render(<IncidentsPage />);
     await clickRowAction('Решено');
     const cause = await screen.findByLabelText('Причина');
     fireEvent.change(cause, { target: { value: 'Worn belt' } });
@@ -306,7 +307,7 @@ describe('IncidentsPage', () => {
       ],
     });
     setUiState({ 'incidents.scope': 'all' });
-    render(<IncidentsPage />);
+    await render(<IncidentsPage />);
     await screen.findByText('Worn belt');
     fireEvent.click(screen.getByText('Worn belt'));
     expect(await screen.findByText('Сообщения сотрудников')).toBeTruthy();
@@ -316,7 +317,7 @@ describe('IncidentsPage', () => {
   it('applies the selected calendar period to the incident list and statistics', async () => {
     setUiState({ 'incidents.date': '2026-10-25', 'incidents.period': 'day' });
     const calls = mockApi({ rows: [incident(INC, 'REPORTED')] });
-    render(<IncidentsPage />);
+    await render(<IncidentsPage />);
     await waitFor(() => {
       const list = calls.find((call) => call.path === '/admin/incidents');
       expect(new URLSearchParams(list?.search).get('from')).toBe('2026-10-24T21:00:00.000Z');
@@ -347,7 +348,7 @@ describe('IncidentsPage', () => {
       'incidents.endDate': '2026-10-25',
     });
     const calls = mockApi({ rows: [incident(INC, 'REPORTED')] });
-    render(<IncidentsPage />);
+    await render(<IncidentsPage />);
     expect(screen.getByRole('button', { name: 'От' }).textContent).toContain('—');
     expect(screen.getByRole('button', { name: 'До' }).textContent).toContain('25');
     await waitFor(() => {
@@ -370,7 +371,7 @@ describe('IncidentsPage', () => {
       mockApi({
         rows: [incident(INC, status, { rootCause: 'Worn belt', resolution: 'Replaced belt' })],
       });
-      render(<IncidentsPage />);
+      await render(<IncidentsPage />);
       await clickRowAction('Подробности');
       const detail = await screen.findByTestId('incident-detail');
       expect(detail.querySelector('textarea, select, form, button[type="submit"]')).toBeNull();

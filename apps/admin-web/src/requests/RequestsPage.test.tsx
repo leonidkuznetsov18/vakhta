@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { RequestsPage } from './RequestsPage.tsx';
-import { clickRowAction, render } from '../test-utils.tsx';
+import { clickRowAction, renderRouted as render } from '../test-utils.tsx';
 
 const REQ = 'c0000000-0000-4000-8000-000000000001';
 const SESSION = 'd0000000-0000-4000-8000-000000000001';
@@ -114,6 +114,7 @@ function mockApi(state: { row: ReturnType<typeof request> }) {
 
 describe('RequestsPage', () => {
   beforeEach(() => {
+    history.replaceState(null, '', '#/requests');
     vi.stubGlobal('EventSource', FakeEventSource);
   });
   afterEach(() => {
@@ -124,7 +125,7 @@ describe('RequestsPage', () => {
   it('inbox: lateness is approved with a comment and approved minutes; overtime is decided separately', async () => {
     const state = { row: request('LATE') };
     const calls = mockApi(state);
-    render(<RequestsPage />);
+    await render(<RequestsPage />);
     expect(await screen.findByText('Опоздаю')).toBeTruthy();
     expect(screen.getByText(/^просрочено на/)).toBeTruthy();
     await clickRowAction('Подробности');
@@ -158,7 +159,7 @@ describe('RequestsPage', () => {
     fireEvent.keyDown(document.body, { key: 'Escape' });
     // The overtime decision opens under its row, like every other decision in the panel.
     fireEvent.click(screen.getByText('45'));
-    fireEvent.change(screen.getAllByLabelText('Комментарий (обязательно)').at(-1)!, {
+    fireEvent.change((await screen.findAllByLabelText('Комментарий (обязательно)')).at(-1)!, {
       target: { value: 'Замена заболевшего' },
     });
     fireEvent.click(screen.getAllByRole('button', { name: 'Одобрить' }).at(-1)!);
@@ -173,7 +174,7 @@ describe('RequestsPage', () => {
   it('correction: the master sets a close-shift proposal and approves', async () => {
     const state = { row: request('CORRECTION', 'SUBMITTED', { assignmentDate: null }) };
     const calls = mockApi(state);
-    render(<RequestsPage />);
+    await render(<RequestsPage />);
     await clickRowAction('Подробности');
     const sheet = await screen.findByTestId('request-detail');
     const kind = (await within(sheet).findByLabelText('Тип коррекции')) as HTMLSelectElement;

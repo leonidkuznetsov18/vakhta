@@ -260,7 +260,6 @@ describe('overview destination filters', () => {
       'handover.date': '',
       'handover.siteId': '',
       'search.handover': '',
-      'handover.openId': 'pending-0',
     });
   });
   it.each(['slaBreached', 'openIncidents'] as const)(

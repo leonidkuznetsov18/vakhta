@@ -1,3 +1,4 @@
+import type * as NavigationModule from '@/navigation';
 import { afterEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { messages } from '@vakhta/i18n';
@@ -9,7 +10,10 @@ const t = messages('ru').communications;
 vi.mock('@/lib/org', () => ({
   useOrg: () => ({ orgOrEmpty: { sites: [], orgUnits: [], teams: [] } }),
 }));
-vi.mock('@/navigation', () => ({ useNavigation: () => ({ roles: ['ADMIN'], actorId: 'qa' }) }));
+vi.mock('@/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof NavigationModule>()),
+  useNavigation: () => ({ roles: ['ADMIN'], actorId: 'qa' }),
+}));
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();

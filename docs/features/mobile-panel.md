@@ -21,3 +21,9 @@ The counter and keyboard navigation remain available; desktop galleries retain t
 
 Overview information tips open their explanations without following the card’s navigation action.
 Quick navigation preserves the selected tab or record in the address.
+
+Routing uses one shared URL-based navigation system on desktop and mobile. Existing `#/…` links still
+work. Changing section adds a browser history step; changing a tab or selected row replaces the current
+step. Back and Forward respect unsaved-change confirmation. A link with no record ID opens the list
+without restoring a previously selected record. Incident statistics retains its queue return record
+in the URL. Returning from employee/checklist details clears the detail ID and opens the list.

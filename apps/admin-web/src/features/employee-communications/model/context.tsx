@@ -1,8 +1,10 @@
+import { useRouter } from '@tanstack/react-router';
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { createCommunicationDraft, type DraftController } from './draft';
 const DraftContext = createContext<DraftController | null>(null);
 export function CommunicationProvider({ children }: { children: ReactNode }) {
-  const [draft] = useState(createCommunicationDraft);
+  const { history } = useRouter();
+  const [draft] = useState(() => createCommunicationDraft(history));
   const [ownLifecycle] = useState(() => (element: HTMLDivElement | null) => {
     if (!element) return;
     draft.activate();

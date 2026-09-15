@@ -1,5 +1,4 @@
 import { WorkflowSection } from '@/shared/ui/workflow-section';
-import { confirmLeave } from '@/lib/unsaved';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { DetailText } from '@/components/app/row-detail';
 import { useState } from 'react';
@@ -42,7 +41,7 @@ import { CheckIcon, EyeIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { InspectionPhoto, PhotoInspectionDialog } from '@/features/photo-inspection';
 import { HowItWorks } from '@/components/app/how-it-works';
-import { useDeepLinkedId } from '@/lib/route';
+import { useNavigate, useParams } from '@tanstack/react-router';
 
 const all = messages(currentLocale());
 const h = all.admin.handover;
@@ -87,7 +86,17 @@ export function HandoverPage() {
     'handover.scope',
     'pending',
   );
-  const [openId, setOpenId] = useDeepLinkedId('handover', 'handover.openId');
+  const { id } = useParams({ strict: false });
+  const openId = id ?? null;
+  const navigate = useNavigate();
+  const setOpenId = (id: string | null) => {
+    void navigate({
+      to: '/handover/{-$id}',
+      params: { id: id ?? undefined },
+      replace: true,
+      resetScroll: false,
+    });
+  };
   /**
    * The comment belongs to the report it is written for, not to the page: one shared string carried
    * a half-typed remark over to whatever row was opened next. Keyed by report id, like every other
@@ -420,7 +429,7 @@ export function HandoverPage() {
           `${row.submittedByName} ${row.zoneName ?? ''} ${all.handover.statuses[row.status]}`
         }
         onRowClick={(row) => {
-          if (confirmLeave()) setOpenId(openId === row.id ? null : row.id);
+          setOpenId(openId === row.id ? null : row.id);
         }}
         rowActions={(row) => [
           {
@@ -428,7 +437,7 @@ export function HandoverPage() {
             label: h.detail,
             icon: EyeIcon,
             onSelect: () => {
-              if (confirmLeave()) setOpenId(openId === row.id ? null : row.id);
+              setOpenId(openId === row.id ? null : row.id);
             },
           },
         ]}

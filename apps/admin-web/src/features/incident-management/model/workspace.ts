@@ -13,7 +13,7 @@ import { incidentsApi } from '@/api';
 import { readError } from '@/errors';
 import { currentLocale } from '@/i18n';
 import { usePersistentState, useUiStore, setUiState } from '@/lib/ui-store';
-import { useRoute, writeRoute } from '@/lib/route';
+import { useNavigate, useParams, useSearch, useMatchRoute } from '@tanstack/react-router';
 import { useLiveUpdates } from '@/lib/live';
 import { useOrg } from '@/lib/org';
 import { keys } from '@/lib/query';
@@ -48,7 +48,7 @@ function setField(id: string, key: keyof Draft, value: string) {
   }));
 }
 
-/** Query owns records; Zustand owns only filters, selection and unsaved decisions. */
+/** Query owns records; URL owns selection; Zustand owns filters and unsaved decisions. */
 export function useIncidentWorkspace() {
   const prefix = 'incidents';
   const { org, queryState: orgQuery } = useOrg();
@@ -57,24 +57,37 @@ export function useIncidentWorkspace() {
   const [periodMode] = usePersistentState<PeriodMode>(`${prefix}.period`, 'all');
   const [date] = usePersistentState(`${prefix}.date`, todayIso);
   const [endDate] = usePersistentState(`${prefix}.endDate`, date);
-  const route = useRoute();
-  const view = route.section === prefix && route.sub === 'statistics' ? 'statistics' : 'queue';
-  const [storedOpenId, setStoredOpenId] = usePersistentState<string | null>(
-    `${prefix}.openId`,
-    null,
-  );
-  const openId =
-    route.section === prefix && route.sub && view === 'queue' ? route.sub : storedOpenId;
+  const { id } = useParams({ strict: false });
+  const { queueId } = useSearch({ strict: false });
+  const matchRoute = useMatchRoute();
+  const view = matchRoute({ to: '/incidents/statistics' }) ? 'statistics' : 'queue';
+  const openId = id ?? null;
+  const navigate = useNavigate();
   const setOpenId = (id: string | null) => {
-    setStoredOpenId(id);
-    writeRoute(prefix, id ?? undefined);
+    void navigate({
+      to: '/incidents/{-$id}',
+      params: { id: id ?? undefined },
+      replace: true,
+      resetScroll: false,
+    });
   };
   const setView = (value: string) => {
     if (value === 'statistics') {
-      setStoredOpenId(openId);
-      writeRoute(prefix, 'statistics');
+      void navigate({
+        to: '/incidents/statistics',
+        search: { queueId: openId ?? undefined },
+        replace: true,
+        resetScroll: false,
+      });
     }
-    if (value === 'queue') writeRoute(prefix, storedOpenId ?? undefined);
+    if (value === 'queue') {
+      void navigate({
+        to: '/incidents/{-$id}',
+        params: { id: queueId },
+        replace: true,
+        resetScroll: false,
+      });
+    }
   };
   const { drafts, lightbox } = useWorkspaceState(useShallow((state) => state));
   const client = useQueryClient();
