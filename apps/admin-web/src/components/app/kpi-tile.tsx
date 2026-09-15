@@ -57,7 +57,9 @@ export function KpiTile({
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Icon aria-hidden="true" className="size-4 shrink-0" />
         <span className="min-w-0 flex-1 break-words">{title}</span>
-        <InfoTip text={hint} />
+        <span className="relative z-10">
+          <InfoTip text={hint} />
+        </span>
       </div>
       {state === 'loading' ? (
         <LoadingState className="justify-start py-2" />
@@ -92,20 +94,18 @@ export function KpiTile({
   );
   if (!onOpen || state !== 'ready') return <div className={frame}>{body}</div>;
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={openLabel}
-      className={cn(
-        frame,
-        'group relative cursor-pointer transition-shadow outline-none hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 active:shadow-sm',
-      )}
-    >
+    <div className={cn(frame, 'group relative')}>
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={openLabel ?? title}
+        className="absolute inset-0 cursor-pointer rounded-[inherit] transition-shadow outline-none hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50 active:shadow-sm"
+      />
       {body}
       <ChevronRightIcon
         aria-hidden="true"
-        className="absolute right-3 bottom-3 size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+        className="pointer-events-none absolute right-3 bottom-3 size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
       />
-    </button>
+    </div>
   );
 }

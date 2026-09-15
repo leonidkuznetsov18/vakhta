@@ -7,7 +7,8 @@ reading areas. Completed records remain read-only.
 Open navigation with the menu button or swipe right starting anywhere in the leftmost 60 px of the
 page, at the top, middle or bottom of the viewport, including after scrolling. The existing gesture
 across free header space remains available. Close with the close button, Escape, outside tap or swipe
-left across free sidebar space. Selecting a menu entry closes the sidebar. Taps and vertical scrolling
+left across free sidebar space. Navigation entries are links: the address, page title and selected entry refer to the same section.
+An accepted navigation closes the sidebar; canceling an unsaved-change prompt keeps the page and menu open. Taps and vertical scrolling
 in the edge zone remain native; horizontal movement from that zone opens navigation. Horizontal
 scrolling outside that zone remains available.
 
@@ -17,3 +18,6 @@ rules remain unchanged. Engineering evidence and device limits: [mobile panel](.
 
 Mobile photo galleries show the current photo and previous/next buttons without a thumbnail strip.
 The counter and keyboard navigation remain available; desktop galleries retain thumbnails.
+
+Overview information tips open their explanations without following the card’s navigation action.
+Quick navigation preserves the selected tab or record in the address.

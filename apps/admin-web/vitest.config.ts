@@ -1,7 +1,16 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+  // Navigation regressions run with the production compiler, including the real mobile shell.
+  plugins: [
+    react({
+      include:
+        /\/(?:App\.tsx|lib\/route\.ts|features\/mobile-navigation\/ui\/(?:mobile-navigation|navigation-link)\.tsx)$/,
+      babel: { plugins: [['babel-plugin-react-compiler', { target: '19' }]] },
+    }),
+  ],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   test: {
     environment: 'jsdom',

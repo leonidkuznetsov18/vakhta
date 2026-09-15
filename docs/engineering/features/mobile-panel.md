@@ -115,3 +115,84 @@ a 100-photo mobile gallery, wraparound/keyboard navigation and retained desktop 
 Both focused tests passed. Screenshots at 320px, 390px and 1440px were captured and inspected using
 synthetic photos: mobile navigation fits without page overflow, Enter advances the photo, and desktop
 thumbnails remain visible. Changed-file lint passed; physical-device coverage is not claimed.
+
+## 2026-09-15 — Navigation consistency
+
+### RECON and SPEC
+
+Status: accepted owner request; baseline `fbc357d`. The owner reports intermittent mobile
+Overview → Schedule mismatches between content and selected navigation. Repeated transitions and
+Back/Forward on production v1.15.1 did not reproduce that exact symptom. Regression tests did
+reproduce two related defects: App's quick navigation writes the full destination then erases its
+sub-path with a second write; the mobile wrapper closes the menu even when navigation is canceled.
+Overview shortcuts also perform two writes per action. Query caching is not proven to cause either.
+
+Acceptance criteria:
+
+- URL, heading, rendered page and exactly one current sidebar link agree after repeated mobile
+  and desktop transitions, Back/Forward, direct links and reload.
+- A navigation action writes its complete destination once; record/tab targets remain intact.
+- Canceled navigation preserves the page, address and open menu. Accepted navigation closes the
+  mobile menu. Modified link clicks retain ordinary browser behavior.
+- Existing hash URLs, section history entries, within-section replacement, legacy incident links,
+  filter presets and query ownership remain compatible.
+
+Non-goals: data cache changes, new page persistence, auth/business-rule changes, and a bulk migration
+of legacy pages. The intermittent owner-reported symptom remains unconfirmed unless reproduced by
+these checks or additional device evidence.
+
+### DESIGN and IMPLEMENT
+
+Keep the address as the sole route state. React documents `useSyncExternalStore` for browser-state
+subscriptions; the existing subscription already updates the page and sidebar from the same value.
+No evidence justifies replacing it or introducing a second route cache. Use native anchors inside
+shadcn's `asChild` menu buttons, with one guarded route write for an ordinary click. A successful
+navigation explicitly closes the drawer; canceled/modified clicks do not. Remove redundant writes
+in App/Overview. Keep the coherent mobile link integration in `features/mobile-navigation` with
+its public entry point; the legacy shell and route utility retain their existing boundaries.
+
+One writer/index owner: Codex. Regression tests use the actual App, URL subscription and mobile
+Sheet, with synthetic page bodies and session. Compile the routing modules in tests using the same
+React Compiler configuration as production. Retain existing route-level history and legacy-link checks.
+
+Sources: [React external-store subscriptions](https://react.dev/reference/react/useSyncExternalStore),
+[shadcn Sidebar composition](https://ui.shadcn.com/docs/components/radix/sidebar),
+[MDN links](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a).
+
+### VERIFY, HARDEN and Lean review
+
+Baseline: 4 App integration tests run; 2 passed, 2 failed on lost quick-navigation sub-path and
+canceled navigation closing the mobile menu. Focused route/App/Overview tests, panel typecheck,
+changed-file lint, and desktop/mobile screenshots are required after implementation. Production
+navigation changes do not require worker, attendance or Telegram workflow actions.
+
+Lean: Simplify. One link and one destination per action remove hidden writes and needless reopening
+of a canceled menu. Preserve shortcuts, filters and drafts. Measure agreement between URL/menu/content
+and navigation retries; no manufacturing time or throughput improvement is claimed.
+
+### Final implementation and local evidence
+
+- Added native sidebar/logo/profile links with a single accepted navigation and preserved Radix
+  event composition, modifier keys and canceled-leave behavior. `writeRoute` now returns whether
+  navigation was accepted; its URL/history/subscription behavior is unchanged.
+- Removed App/Overview duplicate writes. Also reproduced an Overview KPI help click invoking its
+  surrounding navigation button. The help control and tile navigation are now sibling controls,
+  with the help button above the tile click surface. The regression failed before this change.
+- 36 focused tests passed across App navigation, route compatibility, Overview integration, KPI
+  desktop/touch help and existing gesture tests. The App suite runs the routing code with React
+  Compiler enabled. Panel typecheck, changed-code lint and production build passed. Build warnings
+  concern existing bundle size and third-party Zod annotations, not navigation errors.
+- Local `preview.html` uses real App/Overview/Schedule components and labeled synthetic records.
+  Chrome 390×844 (touch emulation) and 1440×1000 screenshots were captured and visually inspected:
+  `test-results/navigation/{mobile-menu,mobile-schedule,mobile-tip,desktop-schedule,desktop-overview}.png`.
+  Repeated Overview/Schedule navigation, menu reopening, Enter activation, direct Schedule load,
+  reload and Back/Forward passed. Quick navigation selected `#/administration/terminals` and its
+  actual tab; Back returned to Overview and Forward restored Terminals. The touch help popover
+  opened with Overview still selected. No document overflow or app console errors were observed.
+- Physical iOS/Android and the original intermittent menu mismatch were not reproduced. No claim
+  that API caching caused it; fixtures do not establish authenticated production data behavior.
+  CI/release/Pages and post-deployment verification follow the direct-master push.
+
+Lean completion: Simplify achieved for demonstrated problems: one transition per action, no
+navigation from a help tap, and no forced menu reopening after canceling. No new routing framework,
+page cache, required worker action or state synchronization layer was introduced.

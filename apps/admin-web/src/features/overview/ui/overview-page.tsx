@@ -5,7 +5,6 @@ import { Muted } from '@/components/app/page';
 import { currentLocale } from '@/i18n';
 import { useNow } from '@/lib/clock';
 import { useLiveUpdates } from '@/lib/live';
-import { writeRoute } from '@/lib/route';
 import { setUiState } from '@/lib/ui-store';
 import { useEmployees } from '@/lib/org';
 import { useNavigation, type SectionKey } from '@/navigation';
@@ -146,8 +145,7 @@ export function OverviewPage({
       item.key !== 'notArrived'
     ) {
       setUiState(attentionFilters(item.key, attention.data, selection));
-      go(section);
-      writeRoute(section, attention.data.firstId[item.key]);
+      go(section, attention.data.firstId[item.key]);
       return;
     }
     if (item.key === 'terminalsOffline') return openTerminals();
@@ -158,8 +156,7 @@ export function OverviewPage({
 
   function openTerminals(): void {
     setUiState({ 'search.terminals': '', 'terminals.openId': null });
-    go('administration');
-    writeRoute('administration', 'terminals');
+    go('administration', 'terminals');
   }
 
   function openHealth(target: HealthTarget): void {
@@ -190,8 +187,7 @@ export function OverviewPage({
   function openSetup(item: SetupItem): void {
     if (item.key === 'unpairedTerminals') return openTerminals();
     setUiState(attentionFilters('unlinkedEmployees', attention.data, selection));
-    go('administration');
-    writeRoute('administration', 'employees');
+    go('administration', 'employees');
   }
 
   function planFor(group: UnscheduledGroup): void {

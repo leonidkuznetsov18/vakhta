@@ -1,6 +1,10 @@
 import { QueryActivity } from '@/shared/ui/query-activity';
 import { PhotoLibraryPage } from '@/pages/photo-library';
-import { MobileNavigation, MobileNavigationClose } from '@/features/mobile-navigation';
+import {
+  MobileNavigation,
+  MobileNavigationClose,
+  NavigationLink,
+} from '@/features/mobile-navigation';
 import { MutationActivity } from '@/components/app/query-feedback';
 import {
   ActivityIcon,
@@ -119,7 +123,7 @@ const PAGES: Partial<Record<SectionKey, () => React.ReactElement>> = {
 
 /**
  * Panel shell: the nine sections of spec 9.1 behind a better-auth session in a shadcn sidebar;
- * the profile lets the user enable TOTP. Section state lives in memory, there is no router.
+ * the profile lets the user enable TOTP. The URL owns the selected section.
  */
 /** Counts on the sidebar entries: open incidents, pending handovers, requests on my step. */
 function useBadges(me: MeView | null): Partial<Record<SectionKey, number>> {
@@ -218,17 +222,16 @@ export function App() {
                 <SidebarHeader className="flex-row items-center">
                   <MobileNavigationClose />
                   {/* The mark is the way home: it opens the overview. Collapsed, it shrinks to the rail's 32 px. */}
-                  <button
-                    type="button"
+                  <NavigationLink
+                    section="overview"
                     className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-base font-semibold hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
                     aria-label={t.admin.sections.overview}
-                    onClick={() => setActive('overview')}
                   >
                     <LogoMark className="size-9 group-data-[collapsible=icon]:size-8" />
                     <span className="truncate group-data-[collapsible=icon]:hidden">
                       {t.admin.productName}
                     </span>
-                  </button>
+                  </NavigationLink>
                 </SidebarHeader>
                 <SidebarContent>
                   <SidebarGroup>
@@ -245,13 +248,15 @@ export function App() {
                         {visibleSections.map(({ key, icon: Icon }) => (
                           <SidebarMenuItem key={key}>
                             <SidebarMenuButton
+                              asChild
                               isActive={key === active}
                               tooltip={t.admin.sections[key]}
                               aria-current={key === active ? 'page' : undefined}
-                              onClick={() => setActive(key)}
                             >
-                              <Icon aria-hidden="true" />
-                              <span>{t.admin.sections[key]}</span>
+                              <NavigationLink section={key}>
+                                <Icon aria-hidden="true" />
+                                <span>{t.admin.sections[key]}</span>
+                              </NavigationLink>
                             </SidebarMenuButton>
                             {badges[key] ? (
                               <SidebarMenuBadge className="tabular-nums">
@@ -268,29 +273,32 @@ export function App() {
                   <SidebarMenu>
                     <SidebarMenuItem>
                       <SidebarMenuButton
+                        asChild
                         size="lg"
                         className="h-16 gap-3 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!"
                         isActive={active === 'profile'}
                         tooltip={t.admin.auth.profile}
-                        onClick={() => setActive('profile')}
+                        aria-current={active === 'profile' ? 'page' : undefined}
                       >
-                        {/* The menu button forces 16px on every svg; the avatar opts out. Collapsed, only the avatar stays, filling the rail. */}
-                        <UserAvatar
-                          name={me.name}
-                          email={me.email}
-                          image={me.image}
-                          className="size-12! shrink-0 group-data-[collapsible=icon]:size-8!"
-                        />
-                        <span className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
-                          <span className="truncate text-base font-medium">
-                            {me.name || me.email}
-                          </span>
-                          {primaryRole ? (
-                            <span className="truncate text-xs text-muted-foreground">
-                              {t.roles[primaryRole]}
+                        <NavigationLink section="profile">
+                          {/* The menu button forces 16px on every svg; the avatar opts out. Collapsed, only the avatar stays, filling the rail. */}
+                          <UserAvatar
+                            name={me.name}
+                            email={me.email}
+                            image={me.image}
+                            className="size-12! shrink-0 group-data-[collapsible=icon]:size-8!"
+                          />
+                          <span className="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
+                            <span className="truncate text-base font-medium">
+                              {me.name || me.email}
                             </span>
-                          ) : null}
-                        </span>
+                            {primaryRole ? (
+                              <span className="truncate text-xs text-muted-foreground">
+                                {t.roles[primaryRole]}
+                              </span>
+                            ) : null}
+                          </span>
+                        </NavigationLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
@@ -362,11 +370,9 @@ export function App() {
                         setUiState({ [target.openKey]: target.openId });
                       }
                       writeRoute(target.section, target.sub);
-                      setActive(target.section);
                     }}
                     onEmployee={(emp) => {
                       writeRoute('administration', `employees/${emp.id}`);
-                      setActive('administration');
                     }}
                   />
                 </div>

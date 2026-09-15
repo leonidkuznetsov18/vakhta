@@ -2,7 +2,6 @@ import type { MeView } from '@vakhta/contracts';
 import { EmptyState, Muted, Section } from '@/components/app/page';
 import { Button } from '@/components/ui/button';
 import { formatTime } from '@/lib/format';
-import { writeRoute } from '@/lib/route';
 import { setUiState } from '@/lib/ui-store';
 import { useNavigation } from '@/navigation';
 import { LoadingState } from '@/shared/ui/loading-state';
@@ -61,8 +60,7 @@ export function EventFeed({
                       'handover.date': '',
                       'handover.openId': e.target.id,
                     });
-                  go(e.target.section);
-                  writeRoute(e.target.section, e.target.id ?? undefined);
+                  go(e.target.section, e.target.id ?? undefined);
                 }}
               >
                 <time dateTime={e.at} className="w-12 shrink-0 text-muted-foreground tabular-nums">

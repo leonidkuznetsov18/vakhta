@@ -58,7 +58,7 @@ export function MobileNavigation({ children }: { children: ReactNode }) {
           openMobile &&
           !event.defaultPrevented &&
           event.target instanceof Element &&
-          event.target.closest('[data-sidebar="menu-button"]')
+          event.target.closest('button[data-sidebar="menu-button"]')
         )
           setOpenMobile(false);
       }}

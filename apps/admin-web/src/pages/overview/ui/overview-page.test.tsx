@@ -99,7 +99,7 @@ function snapshot(overrides: Partial<OverviewSnapshot> = {}): OverviewSnapshot {
   };
 }
 const SITE = 'a0000000-0000-4000-8000-000000000001';
-function page(user = me, go: (section: SectionKey) => void = (section) => writeRoute(section)) {
+function page(user = me, go: (section: SectionKey, sub?: string) => void = writeRoute) {
   return render(
     <TooltipProvider>
       <NavigationProvider go={go}>
