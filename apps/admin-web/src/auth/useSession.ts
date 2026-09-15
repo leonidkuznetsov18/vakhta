@@ -23,12 +23,18 @@ export function useSession() {
       : { status: 'anonymous', offline: !(query.error instanceof ApiError) };
 
   const refresh = () => client.invalidateQueries({ queryKey: keys.me });
-  /** Everything read under the old session goes with it: the next person is not this one. */
+  /**
+   * Everything read under the old session goes with it: the next person is not this one.
+   * `clear()` alone drops the cache without notifying mounted observers, so the shell would keep
+   * the old `me` until a reload. Resetting `me` first re-reads it (now 401), which swaps the shell
+   * to the sign-in screen and unmounts the pages; only then is the rest of the cache dropped.
+   */
   const signOut = async () => {
     try {
       await authApi.signOut();
     } finally {
-      client.clear();
+      await client.resetQueries({ queryKey: keys.me, exact: true });
+      client.removeQueries({ predicate: (query) => query.queryKey[0] !== keys.me[0] });
     }
   };
 
