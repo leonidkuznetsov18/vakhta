@@ -1,3 +1,9 @@
+## [1.15.2](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.1...v1.15.2) (2026-09-15)
+
+### Bug fixes
+
+* **navigation:** preserve destinations and mobile menu state ([cce4ed1](https://github.com/leonidkuznetsov18/vakhta/commit/cce4ed1c41bd41ae0d7987548245f5a6070b1308))
+
 ## [1.15.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.0...v1.15.1) (2026-09-14)
 
 ### Documentation
