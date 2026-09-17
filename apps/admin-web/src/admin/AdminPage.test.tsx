@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
-import { reviewFixture } from '@/preview/review-fixtures';
+import { setUiState } from '@/lib/ui-store';
+import { reviewChecklist, reviewFixture } from '@/preview/review-fixtures';
 import { AdminPage } from './AdminPage.tsx';
 import { clickRowAction, renderRouted as render } from '../test-utils.tsx';
 
@@ -29,7 +30,7 @@ interface Call {
   body: unknown;
 }
 
-function mockApi() {
+function mockApi(familyId = reviewChecklist.familyId) {
   const calls: Call[] = [];
   // The roster is re-read after every change, so the mock keeps what it was told, like a server.
   const employees: unknown[] = [];
@@ -41,6 +42,8 @@ function mockApi() {
       const method = init?.method ?? 'GET';
       const body = init?.body ? JSON.parse(String(init.body)) : null;
       calls.push({ method, path, body });
+      if (path.endsWith('/photo-rules'))
+        return json({ familyId, version: 0, rules: [], canEdit: true });
       const photoRules = reviewFixture(path, method);
       if (photoRules) return photoRules;
       if (path === '/me')
@@ -184,25 +187,39 @@ describe('AdminPage', () => {
   });
 });
 
-it('opens the linked historical checklist rules directly without needing a catalog row', async () => {
-  const calls = mockApi();
+it.each([reviewChecklist.id, '90000000-0000-4000-8000-000000000001'])(
+  'opens rules inside the catalog for current or historical selection %s',
+  async (definitionId) => {
+    const calls = mockApi();
+    setUiState({ 'checklists.open': definitionId, 'checklists.editRules': definitionId });
+    location.hash = '#/administration/checklists';
+    await render(<AdminPage />);
+    const t = messages(currentLocale()).checklistPhotoRules;
+    await screen.findByRole('heading', { name: t.editRules });
+    expect(screen.getByRole('tab', { name: 'Чек-листы' })).toBeTruthy();
+    expect(screen.getByTestId('checklist-detail')).toBeTruthy();
+    expect(screen.getByText(reviewChecklist.name)).toBeTruthy();
+    expect(calls.some((call) => call.path === '/admin/org/checklists')).toBe(true);
+    expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(true);
+    fireEvent.click(screen.getByText(reviewChecklist.name));
+    expect(screen.queryByTestId('checklist-detail')).toBeNull();
+    fireEvent.click(screen.getByText(reviewChecklist.name));
+    expect(await screen.findByTestId('checklist-detail')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: t.editRules })).toBeNull();
+    cleanup();
+    vi.unstubAllGlobals();
+  },
+);
+
+it('keeps the catalog usable when the linked family has no current row', async () => {
+  mockApi('80000000-0000-4000-8000-000000000001');
   const definitionId = '90000000-0000-4000-8000-000000000001';
-  location.hash = `#/administration/checklists/${definitionId}`;
+  setUiState({ 'checklists.open': definitionId, 'checklists.editRules': definitionId });
+  location.hash = '#/administration/checklists';
   await render(<AdminPage />);
-  const t = messages(currentLocale()).checklistPhotoRules;
-  await screen.findByRole('heading', { name: t.editRules });
-  expect(calls.some((call) => call.path === `/admin/checklists/${definitionId}/photo-rules`)).toBe(
-    true,
-  );
-  expect(calls.some((call) => call.path === '/admin/org/checklists')).toBe(false);
-  expect(screen.getByRole('button', { name: t.save }).hasAttribute('disabled')).toBe(true);
-  fireEvent.click(
-    screen.getByRole('button', {
-      name: messages(currentLocale()).admin.administration.tabs.checklists,
-    }),
-  );
-  await waitFor(() => expect(location.hash).toBe('#/administration/checklists'));
-  expect(screen.queryByRole('heading', { name: t.editRules })).toBeNull();
+  await screen.findByText(messages(currentLocale()).admin.administration.checklists.linkedNotFound);
+  expect(screen.getByText(reviewChecklist.name)).toBeTruthy();
+  expect(screen.queryByTestId('checklist-detail')).toBeNull();
   cleanup();
   vi.unstubAllGlobals();
 });

@@ -1311,6 +1311,7 @@ export interface Messages {
         readonly statuses: Readonly<Record<'ACTIVE' | 'DISABLED', string>>;
       };
       readonly checklists: {
+        readonly linkedNotFound: string;
         readonly intro: string;
         readonly position: string;
         readonly positions: string;

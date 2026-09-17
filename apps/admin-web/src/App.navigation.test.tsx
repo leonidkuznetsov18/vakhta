@@ -313,3 +313,22 @@ it.each(['loading', 'anonymous'])(
     expect(screen.queryByRole('list', { name: t.ui.common.menu })).toBeNull();
   },
 );
+
+it('redirects checklist rule links into the catalog and preserves Back', async () => {
+  const definitionId = '90000000-0000-4000-8000-000000000001';
+  setUiState({ 'search.checklists': 'unrelated search', 'checklists.createFor': 'position' });
+  await mount('#/overview');
+  await act(async () => {
+    await router.navigate({
+      to: '/administration/{-$tab}/{-$detail}',
+      params: { tab: 'checklists', detail: definitionId },
+    });
+  });
+  await waitFor(() => expect(location.hash).toBe('#/administration/checklists'));
+  expect(uiState('checklists.open')).toBe(definitionId);
+  expect(uiState('checklists.editRules')).toBe(definitionId);
+  expect(uiState('search.checklists')).toBe('');
+  expect(uiState('checklists.createFor')).toBeNull();
+  await act(async () => router.history.back());
+  await waitFor(() => expect(location.hash).toBe('#/overview'));
+});

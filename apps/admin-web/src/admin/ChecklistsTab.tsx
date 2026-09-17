@@ -1,5 +1,6 @@
 import { WorkflowSection } from '@/shared/ui/workflow-section';
-import { ChecklistPhotoRules } from '@/features/checklist-photo-rules';
+import { ChecklistPhotoRules, checklistRulesQuery } from '@/features/checklist-photo-rules';
+import { QueryFeedback } from '@/components/app/query-feedback';
 import { confirmLeave } from '@/lib/unsaved';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -112,7 +113,21 @@ export function ChecklistsTab({ org }: Props) {
   const list = useQuery({ queryKey: keys.checklists, queryFn: () => checklistsApi.list() });
   const rows = list.data ?? null;
   const { confirm, dialog } = useConfirm();
-  const [openId, setOpenId] = usePersistentState<string | null>('checklists.open', null);
+  const [selectedId, setOpenId] = usePersistentState<string | null>('checklists.open', null);
+  const [editRulesId, setEditRulesId] = usePersistentState<string | null>(
+    'checklists.editRules',
+    null,
+  );
+  const historicalSelection = Boolean(
+    selectedId && rows && !rows.some((row) => row.id === selectedId),
+  );
+  const linkedRules = useQuery({
+    ...checklistRulesQuery(selectedId ?? ''),
+    enabled: historicalSelection,
+  });
+  const openId = historicalSelection
+    ? (rows?.find((row) => row.familyId === linkedRules.data?.familyId)?.id ?? null)
+    : selectedId;
   /**
    * "Create a checklist for this position", handed over by an employee card: the tab opens the
    * create dialog with that position ticked. Read during render and cleared when the dialog is
@@ -294,6 +309,10 @@ export function ChecklistsTab({ org }: Props) {
       >
         <Feedback error={error} />
       </Section>
+      {historicalSelection && <QueryFeedback query={linkedRules} />}
+      {historicalSelection && linkedRules.isSuccess && !openId && (
+        <Feedback error={c.linkedNotFound} />
+      )}
       <DataTable
         queryState={list}
         columns={columns}
@@ -311,7 +330,9 @@ export function ChecklistsTab({ org }: Props) {
         }
         activeKey={openId}
         onRowClick={(r) => {
-          if (confirmLeave()) setOpenId(openId === r.id ? null : r.id);
+          if (!confirmLeave()) return;
+          setEditRulesId(null);
+          setOpenId(openId === r.id ? null : r.id);
         }}
         expanded={(row) =>
           row.id === openId ? (
@@ -327,7 +348,10 @@ export function ChecklistsTab({ org }: Props) {
                     kind: item.kind,
                   }))}
                 />
-                <ChecklistPhotoRules definitionId={row.id} />
+                <ChecklistPhotoRules
+                  definitionId={row.id}
+                  initialMode={selectedId === editRulesId ? 'edit' : 'view'}
+                />
               </div>
               <div className="flex flex-wrap gap-2 border-t pt-4">
                 {actions(row).map((action) => (

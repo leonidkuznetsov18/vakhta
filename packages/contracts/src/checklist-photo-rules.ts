@@ -28,6 +28,8 @@ export const ChecklistPhotoRuleView = PhotoRule.extend({
 });
 export type ChecklistPhotoRuleView = z.infer<typeof ChecklistPhotoRuleView>;
 export const ChecklistPhotoRulesView = z.object({
+  /** Resolves historical photo references to the current catalog row. */
+  familyId: Uuid.optional(),
   version: z.number().int().nonnegative(),
   rules: z.array(ChecklistPhotoRuleView).max(MAX_PHOTO_RULES),
   canEdit: z.boolean(),

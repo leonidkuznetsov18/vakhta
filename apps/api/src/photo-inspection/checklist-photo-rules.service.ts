@@ -78,7 +78,11 @@ export class ChecklistPhotoRulesService {
   async get(definitionId: string, user: WebUser): Promise<ChecklistPhotoRulesView> {
     const source = await this.source(definitionId, user);
     const loaded = await loadPhotoRules(this.db, source.definition.familyId);
-    return ChecklistPhotoRulesView.parse({ ...loaded, canEdit: source.canEdit });
+    return ChecklistPhotoRulesView.parse({
+      ...loaded,
+      familyId: source.definition.familyId,
+      canEdit: source.canEdit,
+    });
   }
   async save(definitionId: string, input: SaveChecklistPhotoRules, user: WebUser) {
     input = SaveChecklistPhotoRules.parse(input);

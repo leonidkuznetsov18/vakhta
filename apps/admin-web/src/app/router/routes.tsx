@@ -112,6 +112,18 @@ const administration = createRoute({
   component: AdminPage,
   staticData: { section: 'administration' },
   beforeLoad: ({ params }) => {
+    if (params.tab === 'checklists' && params.detail) {
+      setUiState({
+        'checklists.open': params.detail,
+        'checklists.editRules': params.detail,
+        'checklists.createFor': null,
+        'search.checklists': '',
+      });
+      throw redirect({
+        to: '/administration/{-$tab}/{-$detail}',
+        params: { tab: 'checklists', detail: undefined },
+      });
+    }
     if (
       params.tab &&
       !Object.hasOwn(messages(currentLocale()).admin.administration.tabs, params.tab)

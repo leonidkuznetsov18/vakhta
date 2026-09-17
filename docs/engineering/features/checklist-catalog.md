@@ -72,3 +72,29 @@ Local synthetic preview screenshots captured and visually inspected at 1440×900
 header shortcut, direct editable form, focus on its heading and browser Back to the photo library.
 Only unrelated wallet-extension console errors were observed. No production rule/review writes were
 performed. CI/release and deployed smoke verification follow the direct-master push.
+
+## Rule editing in the catalog — 2026-09-17
+
+Owner-approved spec: remove the standalone photo-rule screen. The inspection shortcut and existing
+`#/administration/checklists/<definitionId>` links redirect to `#/administration/checklists`, clear
+the stored search/create preset and expand the selected row with rules already editable. Back returns
+to the source section; ordinary row expansion stays read-only until Edit. No separate checklist
+section, employee binding changes or production record writes.
+
+Design: reuse the existing catalog selection store and DataTable pagination/scroll behavior. TanStack
+Router `beforeLoad` owns the legacy redirect. Administration retains its legacy composition; the
+rules query is exposed through the feature public API. The rules response now includes familyId so
+historical definitions resolve to the current catalog row; the contract accepts its absence during
+rolling deployment, but historical resolution requires the updated API. Query owns fetching/retry;
+an unavailable family shows a localized error beside the usable catalog. Existing role checks and
+discard guards are unchanged. Source: https://tanstack.com/router/latest/docs/guide/navigation.
+
+Lean: Simplify. One click reaches the existing catalog editor with worker checklist context visible.
+No new worker step. Verify the actual shortcut and draft protection; no measured time savings claimed.
+
+Verification: focused panel tests, panel/API typechecks and changed-file lint pass. Browser preview
+with synthetic data: inspection shortcut reaches the list/editor, disabled unchanged Save, screenshots
+captured and visually inspected at desktop 1440x900 and mobile 390x844. No application errors; preview
+build polling emitted one expected missing-fixture warning. Independent read-only review found no
+blockers. API integration execution was blocked before tests by Docker containerd temporary-directory
+I/O failure; CI remains the integration gate. Production verification follows delivery.

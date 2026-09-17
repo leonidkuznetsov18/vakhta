@@ -1,6 +1,3 @@
-import { ChecklistPhotoRules } from '@/features/checklist-photo-rules';
-import { Button } from '@/components/ui/button';
-import { ArrowLeftIcon } from 'lucide-react';
 import { ProfilePage, restoreEmployeeList } from '@/features/employee-profile';
 import { writeSchedulePreset } from '@/features/schedule-management';
 import { useNavigate, useParams } from '@tanstack/react-router';
@@ -63,17 +60,6 @@ export function AdminPage() {
           void navigate({ to: '/schedule' });
         }}
       />
-    );
-
-  if (routeTab === 'checklists' && detail)
-    return (
-      <div className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-4">
-        <Button variant="outline" className="self-start" onClick={() => setTab('checklists')}>
-          <ArrowLeftIcon aria-hidden="true" />
-          {t.tabs.checklists}
-        </Button>
-        <ChecklistPhotoRules key={detail} definitionId={detail} initialMode="edit" />
-      </div>
     );
 
   return (

@@ -1633,6 +1633,7 @@ export const en: Messages = {
         statuses: { ACTIVE: 'Active', DISABLED: 'Disabled' },
       },
       checklists: {
+        linkedNotFound: 'The linked checklist is no longer available in the catalog.',
         intro:
           'What the employee checks and photographs before handing the zone over. A checklist is bound to a position: the employee gets the checklist of their position, and a position without one gets neither a checklist nor photo requests in the bot. A photo is mandatory in every checklist.',
         position: 'Position',

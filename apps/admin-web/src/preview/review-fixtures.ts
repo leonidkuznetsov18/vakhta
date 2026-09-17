@@ -26,6 +26,7 @@ const notes = [
   'Зелене, червоне, чорне, біле; з водою або порожнє.',
 ];
 export const reviewRules = {
+  familyId: id,
   version: 1,
   canEdit: true,
   rules: reviewObjects.objects.map((object, index) => ({

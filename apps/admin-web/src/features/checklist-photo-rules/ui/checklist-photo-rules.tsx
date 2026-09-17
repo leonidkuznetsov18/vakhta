@@ -19,6 +19,7 @@ import { currentLocale } from '@/i18n';
 import { ApiError } from '@/api';
 import { readError } from '@/errors';
 import { photoObjectsKey, rulesApi, rulesKey } from '../api/rules-api';
+import { checklistRulesQuery } from '../api/rules-queries';
 import { registerUnsaved } from '@/lib/unsaved';
 import {
   catalogChoices,
@@ -64,10 +65,7 @@ function RulesQuery({
   definitionId: string;
   initialMode: 'view' | 'edit';
 }) {
-  const query = useQuery({
-    queryKey: rulesKey(definitionId),
-    queryFn: ({ signal }) => rulesApi.get(definitionId, signal),
-  });
+  const query = useQuery(checklistRulesQuery(definitionId));
   const objects = useQuery({
     queryKey: photoObjectsKey,
     queryFn: ({ signal }) => rulesApi.objects(signal),

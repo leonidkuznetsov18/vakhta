@@ -19,6 +19,11 @@ ticked. The employees table has a
 "Чек-лист" column; "Нет чек-листа" means the bot will ask nothing at the end of the shift for that
 employee.
 
+From **Photo inspection → Edit rules**, the panel opens this checklist list with the relevant
+checklist expanded and its photo rules already in edit mode. Old direct editor links redirect to
+the same list. Photos from previous checklist versions resolve to the current checklist in that
+family. Existing unsaved-change confirmation and rule-editing permissions still apply.
+
 ## How the employee fills it
 
 After "Уборка завершена" the shift screen shows "📋 Чек-лист и фото" (only when the position has

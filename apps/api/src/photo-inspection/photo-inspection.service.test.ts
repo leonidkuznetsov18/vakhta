@@ -280,6 +280,7 @@ describe('photo inspection persistence and access', () => {
     const [definition] = await fixture.db.select().from(checklistDefinitions);
     if (!definition) throw new Error('Missing checklist fixture');
     const current = await ruleService.get(definition.id, master);
+    expect(current.familyId).toBe(definition.familyId);
     const saved = await ruleService.save(
       definition.id,
       {
