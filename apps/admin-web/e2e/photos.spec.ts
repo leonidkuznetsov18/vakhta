@@ -166,6 +166,8 @@ test('switching keeps the current photo until decoded and latest rapid selection
   await page.getByRole('button', { name: t.next, exact: true }).click();
   await expect(dialog.getByRole('img', { name: second.label, exact: true })).toBeVisible();
   expect(await originalDialog?.evaluate((element) => element.isConnected)).toBe(true);
+  // Cached pixels appear before metadata replaces the read-only preview with the editor.
+  await expect(page.getByRole('button', { name: t.rectangle, exact: true })).toBeEnabled();
   await expectStableFrame(frame, before);
   await page.getByRole('button', { name: t.previous, exact: true }).click();
   await expect(dialog.getByRole('img', { name: first.label, exact: true })).toBeVisible();

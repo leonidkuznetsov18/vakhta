@@ -179,3 +179,8 @@ concrete issue. Production verification remains separate from local evidence.
 
 Lean: Simplify. Reuse the existing dialog lifecycle and keep the same photo through its exit;
 one close path replaces immediate parent cleanup and avoids extra render orchestration.
+
+CI exposed a geometry-test race: boundingBox resolved the read-only preview just before fresh
+metadata replaced it with the editor. The trace shows metadata completion during that measurement.
+Wait for the editor's enabled tool before measuring its settled geometry; delayed-metadata tests
+still cover the preview frame separately. Twenty repeated desktop/mobile navigation cases pass.
