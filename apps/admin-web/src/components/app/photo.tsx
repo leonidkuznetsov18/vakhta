@@ -8,7 +8,13 @@ import { ChevronLeftIcon, ChevronRightIcon, ExpandIcon } from 'lucide-react';
 import type { MediaObjectView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Muted } from '@/components/app/page';
 import { currentLocale } from '@/i18n';
 import { keys } from '@/lib/query';
@@ -145,6 +151,14 @@ export interface LightboxImage {
   readonly label: string;
 }
 
+function neighborImageQueries(images: readonly LightboxImage[], index: number) {
+  if (images.length <= 2) return [];
+  return [
+    images[(index + images.length - 1) % images.length],
+    images[(index + 1) % images.length],
+  ].flatMap((image) => (image ? [photoImageQuery(image.url)] : []));
+}
+
 /**
  * Full-size view. Two images render side by side (comparing the handover with the receiver's
  * photo); three or more become a gallery with previous/next navigation starting at `start`.
@@ -164,6 +178,7 @@ export function Lightbox({
 }) {
   const t = messages(currentLocale());
   const isMobile = useIsMobile();
+  const [open, setOpen] = useState(true);
   const client = useQueryClient();
   // Which of these images is on screen. Remembered against the set it belongs to, so a new set —
   // another row's photos — opens at its own starting image instead of the previous one's index.
@@ -185,19 +200,21 @@ export function Lightbox({
     onChange: (next) => setChosen({ of: images, index: next }),
   });
   const gallery = images.length > 2;
-  useQueries({
-    queries: (gallery
-      ? [images[(index + images.length - 1) % images.length], images[(index + 1) % images.length]]
-      : []
-    ).flatMap((image) => (image ? [photoImageQuery(image.url)] : [])),
-  });
+  useQueries({ queries: neighborImageQueries(images, index) });
   const shown = gallery ? [images[Math.min(index, images.length - 1)]!] : images;
   const step = (delta: number) =>
     preparation.select((preparation.selected + delta + images.length) % images.length);
   return (
-    <Dialog open={images.length > 0} onOpenChange={(open) => !open && onClose()}>
+    <Dialog
+      open={open && images.length > 0}
+      onOpenChange={(value) => {
+        if (!value) preparation.cancel();
+        setOpen(value);
+      }}
+    >
       <DialogContent
-        className="animate-none! flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col sm:max-w-5xl"
+        onCloseAutoFocus={() => onClose()}
+        className="data-open:animate-none! motion-reduce:animate-none! flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col sm:max-w-5xl"
         onKeyDown={(e) => {
           if (!gallery || e.defaultPrevented) return;
           if (e.key === 'ArrowRight') step(1);
@@ -276,9 +293,11 @@ export function Lightbox({
         )}
         {extra}
         <div className="flex justify-end">
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t.ui.common.close}
-          </Button>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              {t.ui.common.close}
+            </Button>
+          </DialogClose>
         </div>
       </DialogContent>
     </Dialog>

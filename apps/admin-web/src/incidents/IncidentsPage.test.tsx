@@ -1,6 +1,6 @@
 import { stubFetch } from '@/test/stub-fetch';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { setUiState } from '@/lib/ui-store';
 import { IncidentsPage } from './IncidentsPage.tsx';
 import { clickRowAction, renderRouted as render } from '../test-utils.tsx';
@@ -230,7 +230,7 @@ describe('IncidentsPage', () => {
     expect((await screen.findAllByText('Подтверждён')).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('the photo of a report is shown, not the word "photo"', async () => {
+  it('shows report photos and reopens the viewer after closing', async () => {
     mockApi({
       rows: [incident(INC, 'REPORTED')],
       media: {
@@ -251,6 +251,14 @@ describe('IncidentsPage', () => {
     const thumb = await screen.findByAltText(/Кузнецов Леонид/);
     expect(thumb.getAttribute('src')).toBe('https://storage.example/incident.jpg?signed=1');
     expect(screen.queryByText(/· фото ·/)).toBeNull();
+    fireEvent.click(thumb);
+    const dialog = await screen.findByRole('dialog');
+    const close = within(dialog).getAllByRole('button', { name: 'Закрыть' }).at(-1);
+    if (!close) throw new Error('Missing viewer close button');
+    fireEvent.click(close);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(thumb);
+    expect(await screen.findByRole('dialog')).toBeTruthy();
   });
 
   it('a duplicate requires choosing the primary incident; an SSE event re-reads the list', async () => {

@@ -120,7 +120,9 @@ export function IncidentWorkspace() {
           }
         />
       </TabsContent>
-      <Lightbox images={lightbox} onClose={model.closeLightbox} title={i.photo} />
+      {lightbox.length > 0 && (
+        <Lightbox images={lightbox} onClose={model.closeLightbox} title={i.photo} />
+      )}
 
       <TabsContent value="statistics" className="min-w-0">
         <IncidentStatistics

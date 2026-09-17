@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { HandoverPhotoView, PhotoInspectionView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -62,7 +62,7 @@ it('lets the reviewer skip a photo when its initial inspection request fails', a
   expect(onPhotoChange).toHaveBeenCalledWith(next);
 });
 
-async function renderRuleShortcut(roles: string[] = ['SHIFT_MASTER']) {
+async function renderRuleShortcut(roles: string[] = ['SHIFT_MASTER'], onClose = vi.fn()) {
   const photo = reviewPhotos[0];
   if (!photo) throw new Error('Missing preview photo');
   const response = reviewFixture(
@@ -82,7 +82,7 @@ async function renderRuleShortcut(roles: string[] = ['SHIFT_MASTER']) {
         sessionId="test-session"
         handoverId="hv1"
         photo={photo}
-        onClose={vi.fn()}
+        onClose={onClose}
       />
     </NavigationProvider>,
   );
@@ -126,4 +126,19 @@ it('does not offer rule editing to an auditor', async () => {
   expect(
     screen.queryByRole('link', { name: messages(currentLocale()).checklistPhotoRules.editRules }),
   ).toBeNull();
+});
+
+it('keeps a canceled close open and completes an accepted close once', async () => {
+  const onClose = vi.fn();
+  await renderRuleShortcut(undefined, onClose);
+  const t = messages(currentLocale());
+  fireEvent.click(screen.getByRole('checkbox', { name: t.photoInspection.notAssessable }));
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  fireEvent.click(screen.getByRole('button', { name: t.ui.common.close }));
+  expect(screen.getByRole('dialog')).toBeTruthy();
+  expect(onClose).not.toHaveBeenCalled();
+  confirm.mockReturnValue(true);
+  fireEvent.click(screen.getByRole('button', { name: t.ui.common.close }));
+  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  expect(screen.queryByRole('dialog')).toBeNull();
 });

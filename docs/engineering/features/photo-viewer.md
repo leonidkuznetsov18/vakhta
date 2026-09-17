@@ -158,3 +158,24 @@ remaining concrete defect. Production deployment verification remains a separate
 
 Lean: Simplify. Reuse prepared evidence and remove the network wait from photo navigation. A review
 still waits for its current server data; image loading feedback remains only for missing pixels.
+
+## 2026-09-17 — Preserve photos during dialog exit
+
+Reproduction: closing removed the entire dialog while its state was still open, bypassing Radix's
+exit animation. Desktop/mobile regression cases failed before the fix. Keep the dialog's local open
+state until Radix finishes closing, then clear the parent's selection through onCloseAutoFocus.
+Both gallery close buttons use the same Dialog close primitive; Escape and outside clicks follow
+the same path. Detach pending photo navigation before closing. Keep dirty-review confirmation.
+IncidentWorkspace mounts the viewer only for a selected image set, so reopening starts a fresh
+dialog session. No timers, effects or custom animation lifecycle were added.
+
+Verification: 38 photo browser cases passed, including exit image retention, close/reopen, Escape,
+outside clicks and close during pending navigation. After the gallery host/footer correction,
+all four affected desktop/mobile gallery cases passed again. The real incident reopen regression
+failed before its fix; 18 incident/gallery component tests and nine inspection component tests pass.
+Captured and visually inspected desktop/mobile closing and closed screenshots in
+`test-results/photo-close-2026-09-17/` (ignored). Independent recovery review found no remaining
+concrete issue. Production verification remains separate from local evidence.
+
+Lean: Simplify. Reuse the existing dialog lifecycle and keep the same photo through its exit;
+one close path replaces immediate parent cleanup and avoids extra render orchestration.

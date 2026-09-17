@@ -120,6 +120,7 @@ export function PhotoInspectionDialog({
   photos?: HandoverPhotoView[];
   onPhotoChange?: (photo: HandoverPhotoView) => void;
 }) {
+  const [open, setOpen] = useState(true);
   const { go, roles } = useNavigation();
   const canEditRules = HANDOVER_REVIEW_ROLES.some((role) => roles.includes(role));
   const id = { handoverId, mediaId: photo.media.id, itemKey: photo.itemKey };
@@ -160,8 +161,9 @@ export function PhotoInspectionDialog({
     go('administration', `checklists/${query.data.context.checklistDefinitionId}`);
   };
   const close = () => {
-    if (!editor || !hasReviewChanges(editor.store.getState()) || window.confirm(t.discard))
-      onClose();
+    if (editor && hasReviewChanges(editor.store.getState()) && !window.confirm(t.discard)) return;
+    preparation.cancel();
+    setOpen(false);
   };
   const selected = preparation.selected;
   const index =
@@ -187,7 +189,7 @@ export function PhotoInspectionDialog({
       : undefined;
   return (
     <Dialog
-      open
+      open={open}
       onOpenChange={(open) => {
         if (!open) close();
       }}
@@ -195,7 +197,8 @@ export function PhotoInspectionDialog({
       <DialogContent
         showCloseButton={false}
         onOpenAutoFocus={focusInspectionHeading}
-        className="animate-none! flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-3 overflow-hidden p-3 sm:max-w-7xl sm:p-5"
+        onCloseAutoFocus={() => onClose()}
+        className="data-open:animate-none! motion-reduce:animate-none! flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-3 overflow-hidden p-3 sm:max-w-7xl sm:p-5"
       >
         <div className="absolute top-2 right-2">
           <IconButton

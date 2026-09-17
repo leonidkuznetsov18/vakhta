@@ -22,6 +22,7 @@ export function usePreparedPhoto<T>({
   return {
     selected: request.isPending ? request.variables : current,
     loading,
+    cancel: request.reset,
     select: (next: T) => {
       if (isReady(next)) {
         request.reset();

@@ -498,3 +498,114 @@ test('offline navigation to an uncached photo keeps the visible photo and resume
       .getByRole('img', { name: reviewPhotos[1]?.label, exact: true }),
   ).toBeVisible();
 });
+
+test('closing inspection retains its photo through the exit animation without reopening', async ({
+  page,
+}, info) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/e2e/photos.html');
+  await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
+  await expect(page.getByRole('button', { name: t.rectangle, exact: true })).toBeEnabled();
+  const dialog = page.getByRole('dialog');
+  const photo = await dialog.getByRole('img').elementHandle();
+  const duringClose = await dialog.evaluate(async (element) => {
+    const close = element.querySelector<HTMLButtonElement>('[data-slot="dialog-close"]');
+    if (!close) throw new Error('Missing close button');
+    close.click();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    for (const animation of document.getAnimations()) {
+      animation.pause();
+      animation.currentTime = 50;
+    }
+    return {
+      connected: element.isConnected,
+      state: element.getAttribute('data-state'),
+      imageVisible: Boolean(element.querySelector('img')),
+      animation: getComputedStyle(element).animationName,
+    };
+  });
+  expect(duringClose).toMatchObject({ connected: true, state: 'closed', imageVisible: true });
+  expect(duringClose.animation).not.toBe('none');
+  await page.screenshot({ path: info.outputPath('inspection-closing.png'), animations: 'allow' });
+  await page.evaluate(() => document.getAnimations().forEach((animation) => animation.play()));
+  await expect(dialog).toHaveCount(0);
+  expect(await photo?.evaluate((element) => element.isConnected)).toBe(false);
+  await expect(page.locator('[data-slot="dialog-overlay"]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Inspect photos', exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('inspection-closed.png') });
+  await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await page.mouse.click(1, 1);
+  await expect(dialog).toHaveCount(0);
+});
+
+test('closing during an uncached photo request cannot reopen the inspection', async ({ page }) => {
+  const second = reviewPhotos[1];
+  if (!second) throw new Error('Missing fixture');
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(`**/photos/${second.media.id}/*/inspection/link`, async (route) => {
+    await gate;
+    await route.fallback();
+  });
+  await page.goto('/e2e/photos.html?without-thumbnails');
+  await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
+  await expect(page.getByRole('button', { name: t.rectangle, exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: t.next, exact: true }).click();
+  await expectPhotoLoader(page.getByTestId('inspection-image-viewport'));
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const response = page.waitForResponse(
+    (result) => result.url().includes(second.media.id) && result.url().endsWith('/inspection/link'),
+  );
+  release();
+  await response;
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByTestId('page-activity').getByRole('status')).toHaveCount(0);
+});
+
+test('shared gallery closes with its current image intact', async ({ page }, info) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.route('**/test-photo/*.svg', (route) =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1280"><rect width="100%" height="100%" fill="silver"/></svg>',
+    }),
+  );
+  await page.goto('/e2e/photos.html');
+  await page.getByRole('button', { name: 'View gallery', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('img', { name: reviewPhotos[0]?.label, exact: true })).toHaveCSS(
+    'opacity',
+    '1',
+  );
+  const closing = await dialog.evaluate(async (element) => {
+    const close = element.querySelector<HTMLButtonElement>('[data-slot="dialog-close"].absolute');
+    if (!close) throw new Error('Missing close button');
+    close.click();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    return { connected: element.isConnected, state: element.getAttribute('data-state') };
+  });
+  expect(closing).toEqual({ connected: true, state: 'closed' });
+  await expect(dialog).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('gallery-closed.png') });
+  await page.getByRole('button', { name: 'View gallery', exact: true }).click();
+  await expect(dialog).toBeVisible();
+  const footerClosing = await dialog.evaluate(async (element) => {
+    const close = element.querySelector<HTMLButtonElement>(
+      'button[data-slot="dialog-close"]:not(.absolute)',
+    );
+    if (!close) throw new Error('Missing gallery close button');
+    close.click();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    return { connected: element.isConnected, state: element.getAttribute('data-state') };
+  });
+  expect(footerClosing).toEqual({ connected: true, state: 'closed' });
+  await expect(dialog).toHaveCount(0);
+});
