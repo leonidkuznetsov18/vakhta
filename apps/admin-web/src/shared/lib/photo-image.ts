@@ -1,9 +1,11 @@
+import { localActivity } from '@/shared/api/activity';
 import { queryOptions } from '@tanstack/react-query';
 
 /** Decode before replacing visible evidence, using the browser's native image cache. */
 export const photoImageQuery = (url: string) =>
   queryOptions({
     queryKey: ['photo-image', url] as const,
+    meta: localActivity,
     queryFn: async () => {
       const image = new Image();
       image.src = url;

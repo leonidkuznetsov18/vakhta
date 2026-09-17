@@ -1,4 +1,4 @@
-import { photoImageQuery } from '@/shared/lib/photo-image';
+import { usePreparedPhoto } from '@/shared/lib/use-prepared-photo';
 import {
   InspectionLoading,
   inspectionLayoutClass,
@@ -54,6 +54,7 @@ import {
   downloadJson,
   inspectionApi,
   inspectionQueries,
+  prepareInspectionPhoto,
   inspectionKey,
   analysisLimitsKey,
   photoObjectsKey,
@@ -142,19 +143,20 @@ export function PhotoInspectionDialog({
       query.state.data?.runs.some((r) => r.status === 'PENDING') ? 2000 : false,
   });
   useQuery(inspectionQueries.link(id, sessionId));
-  const preparation = useMutation({
-    mutationFn: async (next: HandoverPhotoView) => {
-      const nextId = { handoverId, mediaId: next.media.id, itemKey: next.itemKey };
-      await Promise.all([
-        client.fetchQuery({ ...inspectionQueries.detail(nextId), staleTime: 0 }),
-        client
-          .fetchQuery(inspectionQueries.link(nextId, sessionId))
-          .then((link) => client.fetchQuery(photoImageQuery(link.url))),
-      ]);
-    },
-    retry: false,
+  const preparation = usePreparedPhoto({
+    current: photo,
+    prepare: (next) =>
+      prepareInspectionPhoto(
+        client,
+        {
+          handoverId,
+          mediaId: next.media.id,
+          itemKey: next.itemKey,
+        },
+        sessionId,
+      ),
+    onChange: (next) => onPhotoChange?.(next),
   });
-  const switching = preparation.isPending;
   const [generation, setGeneration] = useState(0);
   const [editor, setEditor] = useState<InspectionEditor | null>(null);
   const editRules = () => {
@@ -169,7 +171,7 @@ export function PhotoInspectionDialog({
     if (!editor || !hasReviewChanges(editor.store.getState()) || window.confirm(t.discard))
       onClose();
   };
-  const selected = switching ? preparation.variables : photo;
+  const selected = preparation.selected;
   const index =
     photos?.findIndex(
       (item) => item.media.id === selected.media.id && item.itemKey === selected.itemKey,
@@ -184,8 +186,7 @@ export function PhotoInspectionDialog({
         onPhotoChange?.(next);
         return;
       }
-      // Per-call callbacks run only for the latest observed request and never after unmount.
-      preparation.mutate(next, { onSettled: () => onPhotoChange?.(next) });
+      preparation.select(next);
     }
   };
   const navigation =
@@ -246,8 +247,7 @@ export function PhotoInspectionDialog({
             latest={query.data}
             navigation={navigation}
             sessionId={sessionId}
-            switching={switching}
-            switchingPaused={preparation.isPaused}
+            loading={preparation.loading}
             queryFeedback={<QueryFeedback query={query} errorMessage={errorText(query.error)} />}
             onEditRules={canEditRules ? editRules : undefined}
             register={setEditor}
@@ -267,14 +267,12 @@ function InspectionSession({
   reload: resetSession,
   navigation,
   onEditRules,
-  switching,
-  switchingPaused,
+  loading,
   sessionId,
   queryFeedback,
 }: {
   sessionId: string;
-  switching: boolean;
-  switchingPaused: boolean;
+  loading: string | undefined;
   queryFeedback: ReactNode;
   id: InspectionIdentity;
   initial: PhotoInspectionView;
@@ -290,6 +288,7 @@ function InspectionSession({
     session.editor.useColors(colorSources(initial.rules, cachedObjects(client)));
     return session;
   });
+  const switching = Boolean(loading);
   const state = useStore(store);
   const changes = reviewChanges(state);
   const link = useQuery(inspectionQueries.link(id, sessionId));
@@ -506,11 +505,8 @@ function InspectionSession({
               <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-3 [&_button]:pointer-events-auto">
                 {switching ? (
                   <LoadingState
-                    label={
-                      switchingPaused
-                        ? messages(currentLocale()).ui.common.waitingConnection
-                        : undefined
-                    }
+                    label={loading}
+                    className="rounded-md bg-background/95 px-3 py-2 text-foreground shadow-sm"
                   />
                 ) : (
                   <>

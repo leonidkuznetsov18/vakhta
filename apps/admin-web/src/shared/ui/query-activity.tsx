@@ -1,3 +1,4 @@
+import { hasGlobalActivity } from '@/shared/api/activity';
 import { useIsFetching } from '@tanstack/react-query';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -7,7 +8,7 @@ import { LoadingState } from './loading-state';
 export function QueryActivity() {
   const refreshing = useIsFetching({
     type: 'active',
-    predicate: (query) => query.state.status === 'success',
+    predicate: (query) => query.state.status === 'success' && hasGlobalActivity(query),
   });
   const label = messages(currentLocale()).ui.common.refreshing;
   return (

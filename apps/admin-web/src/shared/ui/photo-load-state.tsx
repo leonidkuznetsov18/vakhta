@@ -9,10 +9,12 @@ export function PhotoLoadState({
   failed,
   retry,
   paused = false,
+  label,
 }: {
   failed: boolean;
   retry: () => void;
   paused?: boolean;
+  label?: string | undefined;
 }) {
   const t = messages(currentLocale());
   if (paused)
@@ -33,7 +35,10 @@ export function PhotoLoadState({
           </Button>
         </Alert>
       ) : (
-        <LoadingState />
+        <LoadingState
+          label={label ?? t.ui.common.loading}
+          className="rounded-md bg-background/95 px-3 py-2 text-foreground shadow-sm"
+        />
       )}
     </div>
   );

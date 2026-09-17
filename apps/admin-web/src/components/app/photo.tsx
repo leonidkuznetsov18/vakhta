@@ -1,8 +1,9 @@
+import { usePreparedPhoto } from '@/shared/lib/use-prepared-photo';
 import { photoImageQuery } from '@/shared/lib/photo-image';
 import { PhotoLoadState } from '@/shared/ui/photo-load-state';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { useState, type ReactNode } from 'react';
-import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeftIcon, ChevronRightIcon, ExpandIcon } from 'lucide-react';
 import type { MediaObjectView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
@@ -171,24 +172,18 @@ export function Lightbox({
     readonly index: number;
   } | null>(null);
   const index = chosen?.of === images ? chosen.index : start;
-  const preparation = useMutation({
-    mutationFn: async (next: number) => {
+  const preparation = usePreparedPhoto({
+    current: index,
+    prepare: async (next) => {
       const image = images[next];
       if (image) await client.fetchQuery(photoImageQuery(image.url));
     },
-    retry: false,
+    onChange: (next) => setChosen({ of: images, index: next }),
   });
-  const setIndex = (next: number) =>
-    preparation.mutate(next, {
-      onSettled: () => setChosen({ of: images, index: next }),
-    });
   const gallery = images.length > 2;
   const shown = gallery ? [images[Math.min(index, images.length - 1)]!] : images;
   const step = (delta: number) =>
-    setIndex(
-      ((preparation.isPending ? preparation.variables : index) + delta + images.length) %
-        images.length,
-    );
+    preparation.select((preparation.selected + delta + images.length) % images.length);
   return (
     <Dialog open={images.length > 0} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
@@ -220,8 +215,7 @@ export function Lightbox({
               key={img.url}
               url={img.url}
               label={img.label}
-              pending={preparation.isPending}
-              pendingPaused={preparation.isPaused}
+              loading={preparation.loading}
             />
           ))}
         </div>
@@ -248,7 +242,7 @@ export function Lightbox({
                       'size-12 overflow-hidden rounded border transition-opacity hover:opacity-100',
                       i === index ? 'ring-2 ring-ring' : 'opacity-60',
                     )}
-                    onClick={() => setIndex(i)}
+                    onClick={() => preparation.select(i)}
                     aria-label={img.label}
                     aria-current={i === index}
                   >

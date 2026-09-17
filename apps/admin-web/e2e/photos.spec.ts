@@ -123,10 +123,16 @@ test('switching keeps the current photo until decoded and latest rapid selection
   const originalDialog = await dialog.elementHandle();
   const frame = page.getByTestId('inspection-image-viewport');
   const before = await frame.boundingBox();
+  const pageBefore = await page.getByTestId('page-content').boundingBox();
   await page.getByRole('button', { name: t.next, exact: true }).click();
   await expect(frame).toHaveAttribute('aria-busy', 'true');
   await expect(dialog.getByRole('img', { name: first.label, exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath('switching.png') });
+  await expect(frame.getByRole('status')).toHaveCount(1);
+  await expect(page.getByTestId('page-activity').locator('[role="status"]')).toHaveCount(0);
+  await expect(page.getByTestId('page-header').locator('[role="status"]')).toHaveCount(0);
+  await expectStableFrame(page.getByTestId('page-content'), pageBefore);
+  await expectStableFrame(frame, before);
   await page.getByRole('button', { name: t.previous, exact: true }).click();
   await expect(frame).toHaveAttribute('aria-busy', 'false');
   release();
@@ -214,6 +220,9 @@ test('shared gallery retains pixels while switching and tall mobile photos can s
   await page.getByRole('button', { name: labels.nextPhoto, exact: true }).click();
   await expect(image).toHaveCSS('opacity', '1');
   await page.screenshot({ path: info.outputPath('gallery-switching.png') });
+  await expect(frame.getByRole('status')).toHaveCount(1);
+  await expect(page.getByTestId('page-activity').locator('[role="status"]')).toHaveCount(0);
+  await expect(page.getByTestId('page-header').locator('[role="status"]')).toHaveCount(0);
   release();
   const next = dialog.getByRole('img', { name: reviewPhotos[1]?.label, exact: true });
   await expect(next).toHaveCSS('opacity', '1');

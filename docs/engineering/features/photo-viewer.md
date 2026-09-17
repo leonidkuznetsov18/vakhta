@@ -90,3 +90,33 @@ Verification (2026-09-17):
 
 Lean completion: Proceed. Photos and actions stay in place, thumbnails preserve all evidence,
 and mobile users can inspect the complete image without widening or shrinking the dialog.
+
+## 2026-09-17 — Keep photo loading local
+
+Reproduction: the first browser fixture omitted PanelShell's QueryActivity and MutationActivity.
+Photo preparation used a mutation observed by the global saving indicator; inserting its status row
+shifted page content behind the dialog. The corrected fixture includes both real indicators and the
+page content layout. The new desktop/mobile assertion failed before the fix (one global status
+instead of zero).
+
+Accepted scope: switching shows exactly one readable loader inside the unchanged photo frame, with
+no photo-related page/header indicator or page movement. Preserve normal save and refresh feedback,
+latest-selection behavior, offline recovery, natural proportions and the existing review rules.
+
+Implementation: standard TanStack operation metadata declares locally owned feedback; global
+activity filters exclude only that explicit opt-out. Photo decoding, inspection metadata/links and
+navigation opt out. The small shared usePreparedPhoto hook owns asynchronous preparation and latest
+selection; the inspection API owns its metadata/link/decode sequence. Views receive one loading
+label instead of separate pending/paused flags. Loader contrast is independent of image colors.
+This uses the library's existing mutation observer, not another cache, timer or request state machine.
+See [TanStack filters](https://tanstack.com/query/latest/docs/framework/react/guides/filters).
+
+Verification: 26 browser cases pass with the real page indicators present, including exactly one
+local loader and unchanged frame/page coordinates during a delayed switch. Fifteen focused component
+and model tests pass, including concurrent real-save feedback and locally owned background reads.
+Desktop/mobile screenshots before and after were captured and visually inspected in
+`test-results/photo-local-loading-2026-09-17/` (ignored). Production browser interaction was interrupted
+by concurrent user activity; no production decisions or reviews were changed.
+
+Lean: Simplify. Keep status beside the evidence being loaded, avoid misleading saving feedback and
+reorientation, and share the small navigation behavior between inspection and the gallery.

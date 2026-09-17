@@ -1,3 +1,4 @@
+import { hasGlobalActivity } from '@/shared/api/activity';
 import { useIsMutating } from '@tanstack/react-query';
 import { messages } from '@vakhta/i18n';
 import { AlertCircleIcon, RefreshCwIcon } from 'lucide-react';
@@ -58,6 +59,6 @@ export function QueryFeedback({
 
 /** Shared mutation feedback also covers dialogs and forms outside a table. */
 export function MutationActivity() {
-  const pending = useIsMutating();
+  const pending = useIsMutating({ predicate: hasGlobalActivity });
   return pending ? <LoadingState label={messages(currentLocale()).ui.common.saving} /> : null;
 }

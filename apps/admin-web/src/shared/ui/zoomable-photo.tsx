@@ -12,13 +12,11 @@ import { createPhotoZoom } from '@/shared/lib/photo-zoom';
 export function ZoomablePhoto({
   url,
   label,
-  pending = false,
-  pendingPaused = false,
+  loading,
 }: {
   readonly url: string;
   readonly label: string;
-  readonly pending?: boolean;
-  readonly pendingPaused?: boolean;
+  readonly loading?: string | undefined;
 }) {
   const image = useQuery(photoImageQuery(url));
   const t = messages(currentLocale()).admin.handover;
@@ -92,10 +90,11 @@ export function ZoomablePhoto({
         aria-describedby={hintId}
         className="relative h-[min(55dvh,36rem)] shrink-0 overflow-auto rounded-md bg-muted/30 outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {(!image.data || pending) && (
+        {(!image.data || loading) && (
           <PhotoLoadState
             failed={image.isError}
-            paused={pendingPaused || image.fetchStatus === 'paused'}
+            paused={image.fetchStatus === 'paused'}
+            label={loading}
             retry={() => void image.refetch()}
           />
         )}

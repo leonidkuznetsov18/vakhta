@@ -1,4 +1,6 @@
-import { queryOptions } from '@tanstack/react-query';
+import { queryOptions, type QueryClient } from '@tanstack/react-query';
+import { localActivity } from '@/shared/api/activity';
+import { photoImageQuery } from '@/shared/lib/photo-image';
 import {
   CreatePhotoObject,
   PhotoAnalysisLimits,
@@ -89,11 +91,13 @@ export const inspectionQueries = {
   detail: (id: InspectionIdentity) =>
     queryOptions({
       queryKey: inspectionKey(id),
+      meta: localActivity,
       queryFn: ({ signal }) => inspectionApi.get(id, signal),
     }),
   link: (id: InspectionIdentity, sessionId: string) =>
     queryOptions({
       queryKey: [...inspectionKey(id), sessionId, 'link'] as const,
+      meta: localActivity,
       queryFn: ({ signal }) => inspectionApi.link(id, signal),
       staleTime: (query) => {
         if (!query.state.data) return 0;
@@ -112,3 +116,16 @@ export const inspectionQueries = {
       retry: false,
     }),
 };
+
+export async function prepareInspectionPhoto(
+  client: QueryClient,
+  id: InspectionIdentity,
+  sessionId: string,
+): Promise<void> {
+  await Promise.all([
+    client.fetchQuery({ ...inspectionQueries.detail(id), staleTime: 0 }),
+    client
+      .fetchQuery(inspectionQueries.link(id, sessionId))
+      .then((link) => client.fetchQuery(photoImageQuery(link.url))),
+  ]);
+}

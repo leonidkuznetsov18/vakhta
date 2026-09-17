@@ -1930,11 +1930,6 @@
       "count": 1
     }
   },
-  "apps/admin-web/src/shared/ui/query-activity.test.tsx": {
-    "no-restricted-syntax": {
-      "count": 4
-    }
-  },
   "apps/admin-web/src/shared/ui/resource-calendar/resource-calendar.tsx": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1

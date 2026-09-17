@@ -6,6 +6,8 @@ import { Lightbox, PhotoThumb } from '@/components/app/photo';
 import { reviewPhotos } from './review-fixtures';
 import { apiFetch } from '@/api';
 import { MediaLinkView } from '@vakhta/contracts';
+import { QueryActivity } from '@/shared/ui/query-activity';
+import { MutationActivity } from '@/components/app/query-feedback';
 import '@/index.css';
 
 if (!import.meta.env.DEV) throw new Error('Photo fixture is development-only');
@@ -25,21 +27,35 @@ function Fixture() {
   const [lightbox, setLightbox] = useState(false);
   return (
     <QueryClientProvider client={client}>
-      <button onClick={() => open(reviewPhotos[0])}>Inspect photos</button>
-      <button onClick={() => setLightbox(true)}>View gallery</button>
-      <div className="grid grid-cols-3 gap-4">
-        {reviewPhotos.map((item) => (
-          <PhotoThumb
-            key={item.media.id}
-            media={item.media}
-            label={item.label}
-            loadLink={async (id) =>
-              MediaLinkView.parse(await apiFetch(`/admin/handovers/media/${id}/link`))
-            }
-            onOpen={() => open(item)}
-          />
-        ))}
-      </div>
+      <header
+        data-testid="page-header"
+        className="flex h-14 items-center justify-between border-b px-4"
+      >
+        <h1>Photos</h1>
+        <QueryActivity />
+      </header>
+      <main className="flex flex-col gap-6 p-4 md:p-6">
+        <div data-testid="page-activity">
+          <MutationActivity />
+        </div>
+        <div data-testid="page-content">
+          <button onClick={() => open(reviewPhotos[0])}>Inspect photos</button>
+          <button onClick={() => setLightbox(true)}>View gallery</button>
+          <div className="grid grid-cols-3 gap-4">
+            {reviewPhotos.map((item) => (
+              <PhotoThumb
+                key={item.media.id}
+                media={item.media}
+                label={item.label}
+                loadLink={async (id) =>
+                  MediaLinkView.parse(await apiFetch(`/admin/handovers/media/${id}/link`))
+                }
+                onOpen={() => open(item)}
+              />
+            ))}
+          </div>
+        </div>
+      </main>
       {inspection && (
         <PhotoInspectionDialog
           handoverId="hv1"
