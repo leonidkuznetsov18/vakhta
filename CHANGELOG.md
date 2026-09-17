@@ -1,3 +1,10 @@
+## [1.15.8](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.7...v1.15.8) (2026-09-17)
+
+### Bug fixes
+
+* **photos:** anchor loading feedback outside image scrolling ([ad0da95](https://github.com/leonidkuznetsov18/vakhta/commit/ad0da95f139b06431926b4055c62f664b016bd43))
+* **photos:** keep navigation loading inside the photo viewport ([9ffbe35](https://github.com/leonidkuznetsov18/vakhta/commit/9ffbe35f9c320dd94ec69fe0f827b31bc3069acb))
+
 ## [1.15.7](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.6...v1.15.7) (2026-09-17)
 
 ### Bug fixes
