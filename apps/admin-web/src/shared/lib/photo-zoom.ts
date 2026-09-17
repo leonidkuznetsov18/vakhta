@@ -26,10 +26,23 @@ export function createPhotoZoom() {
         panOnlyWhenZoomed: true,
         pinchAndPan: true,
         animate: false,
+        overflow: 'auto',
+        touchAction: 'pan-y',
+        handleStartEvent: (event) => {
+          if (instance.getScale() > 1) event.preventDefault();
+        },
       });
       api = instance;
-      const update = () => store.setState({ scale: instance.getScale() });
+      const update = () => {
+        const scale = instance.getScale();
+        instance.setOptions({ touchAction: scale > 1 ? 'none' : 'pan-y' });
+        store.setState({ scale });
+      };
       const wheel = (event: WheelEvent) => {
+        // At base scale, tall full-width photos use native vertical scrolling.
+        const viewport = element.parentElement;
+        if (instance.getScale() <= 1 && viewport && element.clientHeight > viewport.clientHeight)
+          return;
         // Preserve the browser's own accessibility zoom shortcuts.
         if (!event.ctrlKey && !event.metaKey) instance.zoomWithWheel(event, { animate: false });
       };

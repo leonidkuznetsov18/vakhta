@@ -13,6 +13,12 @@ in the checklist for this zone, and then adds each suggestion to the review or r
 
 ## Scope and acceptance criteria
 
+- Initial loading, image errors and photo switching preserve the dialog and photo frame geometry.
+  The previous photo remains visible until the replacement is ready. Rapid navigation follows the
+  latest selection; returning to a prepared photo reuses it within the open inspection session.
+- Photos preserve their original proportions. On phones, they fill the available modal content
+  width, with vertical scrolling for tall images and navigation outside the image transform.
+
 - Annotorious supports multiple selectable/editable/deletable regions, comments and zoom on desktop
   and touch devices. Original media bytes and existing handover decisions remain unchanged.
 - Reviews attach to handover, checklist item and immutable media identity, with checklist/zone

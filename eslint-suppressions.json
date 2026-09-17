@@ -333,9 +333,6 @@
     }
   },
   "apps/admin-web/src/components/app/photo.tsx": {
-    "@tanstack/query/prefer-query-options": {
-      "count": 1
-    },
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
     },
@@ -959,13 +956,10 @@
   },
   "apps/admin-web/src/features/photo-inspection/ui/inspection-dialog.tsx": {
     "@tanstack/query/exhaustive-deps": {
-      "count": 2
-    },
-    "@tanstack/query/no-rest-destructuring": {
-      "count": 2
+      "count": 1
     },
     "@tanstack/query/prefer-query-options": {
-      "count": 10
+      "count": 9
     },
     "complexity": {
       "count": 2
@@ -977,7 +971,7 @@
       "count": 3
     },
     "no-restricted-syntax": {
-      "count": 17
+      "count": 16
     }
   },
   "apps/admin-web/src/features/photo-inspection/ui/inspection-photo.tsx": {

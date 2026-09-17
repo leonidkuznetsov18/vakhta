@@ -184,9 +184,10 @@ export function PhotoLibraryPage() {
       )}
       {model.selected && (
         <PhotoInspectionDialog
-          key={model.selected.id}
-          handoverId={model.selected.handoverId}
-          photo={model.selected.photo}
+          key={model.selected.sessionId}
+          sessionId={model.selected.sessionId}
+          handoverId={model.selected.entry.handoverId}
+          photo={model.selected.entry.photo}
           onClose={() => model.select(null)}
         />
       )}

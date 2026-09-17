@@ -1,3 +1,4 @@
+import { queryOptions } from '@tanstack/react-query';
 import {
   CreatePhotoObject,
   PhotoAnalysisLimits,
@@ -83,3 +84,31 @@ export function downloadJson(value: unknown, mediaId: string): void {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+export const inspectionQueries = {
+  detail: (id: InspectionIdentity) =>
+    queryOptions({
+      queryKey: inspectionKey(id),
+      queryFn: ({ signal }) => inspectionApi.get(id, signal),
+    }),
+  link: (id: InspectionIdentity, sessionId: string) =>
+    queryOptions({
+      queryKey: [...inspectionKey(id), sessionId, 'link'] as const,
+      queryFn: ({ signal }) => inspectionApi.link(id, signal),
+      staleTime: (query) => {
+        if (!query.state.data) return 0;
+        return Math.max(
+          0,
+          Math.min(
+            4 * 60_000,
+            Date.parse(query.state.data.expiresAt) - query.state.dataUpdatedAt - 30_000,
+          ),
+        );
+      },
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchOnMount: true,
+      retry: false,
+    }),
+};

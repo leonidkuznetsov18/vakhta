@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { HandoverPhotoView } from '@vakhta/contracts';
@@ -37,6 +37,7 @@ it('keeps untouched and AI-only photos unhighlighted and clickable', async () =>
   const open = show(null);
   const button = await screen.findByRole('button', { name: 'Workplace' });
   expect(button.className).not.toContain('ring-chart-1/60');
+  await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false));
   fireEvent.click(button);
   expect(open).toHaveBeenCalledOnce();
 });

@@ -151,6 +151,7 @@ export function HandoverPage() {
   }
 
   const [inspection, setInspection] = useState<{
+    sessionId: string;
     handoverId: string;
     photo: HandoverPhotoView;
     photos: HandoverPhotoView[];
@@ -284,6 +285,7 @@ export function HandoverPage() {
                       badge={all.handover.quality[p.media.quality]}
                       onOpen={() =>
                         setInspection({
+                          sessionId: crypto.randomUUID(),
                           handoverId: detail.handover.id,
                           photo: p,
                           photos: detail.handover.photos,
@@ -449,7 +451,8 @@ export function HandoverPage() {
       />
       {inspection && (
         <PhotoInspectionDialog
-          key={`${inspection.handoverId}:${inspection.photo.media.id}:${inspection.photo.itemKey}`}
+          key={inspection.sessionId}
+          sessionId={inspection.sessionId}
           handoverId={inspection.handoverId}
           photo={inspection.photo}
           photos={inspection.photos}

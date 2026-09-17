@@ -14,15 +14,16 @@ vi.mock('@annotorious/annotorious', () => ({
   ShapeType: { RECTANGLE: 'RECTANGLE', POLYGON: 'POLYGON' },
   UserSelectAction: { EDIT: 'EDIT', SELECT: 'SELECT' },
 }));
-vi.mock('../api/inspection-api', async (importOriginal) => ({
-  ...(await importOriginal<typeof InspectionApiModule>()),
-  inspectionApi: {
+vi.mock('../api/inspection-api', async (importOriginal) => {
+  const original = await importOriginal<typeof InspectionApiModule>();
+  Object.assign(original.inspectionApi, {
     get: vi.fn(),
     link: vi.fn(() => new Promise(() => undefined)),
     limits: vi.fn(() => new Promise(() => undefined)),
     objects: vi.fn(async () => ({ objects: [], canEdit: false })),
-  },
-}));
+  });
+  return original;
+});
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -47,6 +48,7 @@ it('lets the reviewer skip a photo when its initial inspection request fails', a
   const onPhotoChange = vi.fn();
   render(
     <PhotoInspectionDialog
+      sessionId="test-session"
       handoverId="handover"
       photo={photo}
       photos={[photo, next]}
@@ -76,7 +78,12 @@ async function renderRuleShortcut(roles: string[] = ['SHIFT_MASTER']) {
   const go = vi.fn();
   render(
     <NavigationProvider roles={roles} go={go}>
-      <PhotoInspectionDialog handoverId="hv1" photo={photo} onClose={vi.fn()} />
+      <PhotoInspectionDialog
+        sessionId="test-session"
+        handoverId="hv1"
+        photo={photo}
+        onClose={vi.fn()}
+      />
     </NavigationProvider>,
   );
   await screen.findByTestId('photo-inspection');

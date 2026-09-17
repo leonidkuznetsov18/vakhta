@@ -26,11 +26,14 @@ vi.mock('@annotorious/annotorious', () => ({
   ShapeType: { RECTANGLE: 'RECTANGLE', POLYGON: 'POLYGON' },
   UserSelectAction: { EDIT: 'EDIT', SELECT: 'SELECT' },
 }));
-vi.mock('../api/inspection-api', async (importOriginal) => ({
-  ...(await importOriginal<typeof InspectionApiModule>()),
-  inspectionApi: {
+vi.mock('../api/inspection-api', async (importOriginal) => {
+  const original = await importOriginal<typeof InspectionApiModule>();
+  Object.assign(original.inspectionApi, {
     get: vi.fn(),
-    link: vi.fn(async () => ({ url: 'https://example.test/photo.svg' })),
+    link: vi.fn(async () => ({
+      url: 'https://example.test/photo.svg',
+      expiresAt: '2099-01-01T00:00:00Z',
+    })),
     limits: vi.fn(async () => ({
       windowHours: 24,
       perPhoto: { used: 1, limit: 5 },
@@ -38,8 +41,9 @@ vi.mock('../api/inspection-api', async (importOriginal) => ({
     })),
     objects: vi.fn(async () => ({ objects: [], canEdit: false })),
     save: vi.fn(),
-  },
-}));
+  });
+  return original;
+});
 afterEach(() => {
   cleanup();
   focusManager.setFocused(undefined);
@@ -72,7 +76,12 @@ async function openPhoto() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   render(
     <QueryClientProvider client={client}>
-      <PhotoInspectionDialog handoverId="hv1" photo={photo} onClose={vi.fn()} />
+      <PhotoInspectionDialog
+        sessionId="test-session"
+        handoverId="hv1"
+        photo={photo}
+        onClose={vi.fn()}
+      />
     </QueryClientProvider>,
   );
   const image = await screen.findByRole('img', { name: photo.label });

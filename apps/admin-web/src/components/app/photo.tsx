@@ -1,12 +1,13 @@
+import { photoImageQuery } from '@/shared/lib/photo-image';
+import { PhotoLoadState } from '@/shared/ui/photo-load-state';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { useState, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeftIcon, ChevronRightIcon, ExpandIcon } from 'lucide-react';
 import type { MediaObjectView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { LoadingState } from '@/shared/ui/loading-state';
 import { Muted } from '@/components/app/page';
 import { currentLocale } from '@/i18n';
 import { keys } from '@/lib/query';
@@ -16,7 +17,15 @@ import { ZoomablePhoto } from '@/shared/ui/zoomable-photo';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 type LinkLoader = (mediaId: string) => Promise<{ url: string }>;
-
+const thumbnailQuery = (mediaId: string, loadLink: LinkLoader) =>
+  queryOptions({
+    queryKey: keys.media(mediaId),
+    queryFn: () => loadLink(mediaId),
+    staleTime: 0,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
 /**
  * Thumbnail behind a signed, short-lived link (FR-PHO-06). The link is fetched when the
  * thumbnail mounts, so every view still lands in the audit log; a click opens the lightbox.
@@ -46,36 +55,24 @@ export function PhotoThumb({
   readonly onOpen?: (url: string) => void;
   readonly className?: string;
 }) {
-  const t = messages(currentLocale()).admin.handover;
-  // Nothing is kept: a link is signed for minutes, and asking for it again is the audit entry
-  // that says the photo was looked at. So this query is stale the moment it lands.
-  const link = useQuery({
-    queryKey: keys.media(media.id),
-    queryFn: () => loadLink(media.id),
-    staleTime: 0,
-    gcTime: 0,
-  });
+  const link = useQuery(thumbnailQuery(media.id, loadLink));
   const url = link.data?.url ?? null;
-  if (link.isError || link.fetchStatus === 'paused') return <QueryFeedback query={link} />;
-  if (!url) {
-    return (
-      <div className={cn('flex aspect-[4/3] items-center justify-center', className)}>
-        <LoadingState label={t.photoLoading} />
-      </div>
-    );
-  }
+  const image = useQuery({ ...photoImageQuery(url ?? ''), enabled: Boolean(url) });
   const photoButton = (
     <button
       type="button"
       className={cn(
-        'group relative w-full overflow-hidden rounded-md border bg-muted transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+        'group relative aspect-[4/3] w-full overflow-hidden rounded-md border bg-muted transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
         highlightDescription &&
           'border-chart-1/60 bg-chart-1/10 ring-2 ring-chart-1/60 ring-offset-2 ring-offset-background',
       )}
-      onClick={() => onOpen?.(url)}
+      disabled={!url}
+      onClick={() => {
+        if (url) onOpen?.(url);
+      }}
       aria-label={highlightDescription ? `${label}. ${highlightDescription}` : label}
     >
-      <img src={url} alt={label} className="aspect-[4/3] w-full object-cover" loading="lazy" />
+      {url && <img src={url} alt={label} className="absolute inset-0 size-full object-contain" />}
       {badge && (
         <span className="absolute top-1.5 left-1.5 rounded-md bg-background/85 px-1.5 py-0.5 text-[11px] font-medium">
           {badge}
@@ -102,20 +99,37 @@ export function PhotoThumb({
         className,
       )}
     >
-      {highlightDescription ? (
-        <TooltipProvider delayDuration={200}>
-          <Tooltip>
-            <TooltipTrigger asChild>{photoButton}</TooltipTrigger>
-            <TooltipContent>{highlightDescription}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      ) : (
-        photoButton
-      )}
+      <div className="relative aspect-[4/3]">
+        {url && !image.data && (
+          <PhotoLoadState
+            failed={image.isError}
+            paused={image.fetchStatus === 'paused'}
+            retry={() => {
+              void link.refetch();
+              void image.refetch();
+            }}
+          />
+        )}
+        {!url && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center p-2">
+            <QueryFeedback query={link} />
+          </div>
+        )}
+        {highlightDescription ? (
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>{photoButton}</TooltipTrigger>
+              <TooltipContent>{highlightDescription}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          photoButton
+        )}
+      </div>
 
       {showCaption && (
         <figcaption
-          className="line-clamp-2 text-xs leading-snug text-muted-foreground"
+          className="line-clamp-2 h-8 text-xs leading-snug text-muted-foreground"
           title={label}
         >
           {label}
@@ -149,6 +163,7 @@ export function Lightbox({
 }) {
   const t = messages(currentLocale());
   const isMobile = useIsMobile();
+  const client = useQueryClient();
   // Which of these images is on screen. Remembered against the set it belongs to, so a new set —
   // another row's photos — opens at its own starting image instead of the previous one's index.
   const [chosen, setChosen] = useState<{
@@ -156,14 +171,28 @@ export function Lightbox({
     readonly index: number;
   } | null>(null);
   const index = chosen?.of === images ? chosen.index : start;
-  const setIndex = (next: number) => setChosen({ of: images, index: next });
+  const preparation = useMutation({
+    mutationFn: async (next: number) => {
+      const image = images[next];
+      if (image) await client.fetchQuery(photoImageQuery(image.url));
+    },
+    retry: false,
+  });
+  const setIndex = (next: number) =>
+    preparation.mutate(next, {
+      onSettled: () => setChosen({ of: images, index: next }),
+    });
   const gallery = images.length > 2;
   const shown = gallery ? [images[Math.min(index, images.length - 1)]!] : images;
-  const step = (delta: number) => setIndex((index + delta + images.length) % images.length);
+  const step = (delta: number) =>
+    setIndex(
+      ((preparation.isPending ? preparation.variables : index) + delta + images.length) %
+        images.length,
+    );
   return (
     <Dialog open={images.length > 0} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="sm:max-w-5xl"
+        className="animate-none! flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col sm:max-w-5xl"
         onKeyDown={(e) => {
           if (!gallery || e.defaultPrevented) return;
           if (e.key === 'ArrowRight') step(1);
@@ -180,9 +209,20 @@ export function Lightbox({
             )}
           </DialogTitle>
         </DialogHeader>
-        <div className={cn('grid gap-3', shown.length > 1 && 'md:grid-cols-2')}>
+        <div
+          className={cn(
+            'grid min-h-0 flex-1 gap-3 overflow-y-auto',
+            shown.length > 1 && 'md:grid-cols-2',
+          )}
+        >
           {shown.map((img) => (
-            <ZoomablePhoto key={img.url} url={img.url} label={img.label} />
+            <ZoomablePhoto
+              key={img.url}
+              url={img.url}
+              label={img.label}
+              pending={preparation.isPending}
+              pendingPaused={preparation.isPaused}
+            />
           ))}
         </div>
         {gallery && (
@@ -212,7 +252,7 @@ export function Lightbox({
                     aria-label={img.label}
                     aria-current={i === index}
                   >
-                    <img src={img.url} alt="" className="size-full object-cover" />
+                    <img src={img.url} alt="" className="size-full object-contain" />
                   </button>
                 ))}
               </div>

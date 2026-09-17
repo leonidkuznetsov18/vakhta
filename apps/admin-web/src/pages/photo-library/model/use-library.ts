@@ -35,7 +35,12 @@ function parseFilters(filters: typeof initialFilters) {
 export function useLibrary() {
   const [state, setState] = useState({ filters: initialFilters, applied: initialQuery });
   const { filters, applied } = state;
-  const [selected, select] = useState<PhotoLibraryEntry | null>(null);
+  const [selected, setSelected] = useState<{
+    entry: PhotoLibraryEntry;
+    sessionId: string;
+  } | null>(null);
+  const select = (entry: PhotoLibraryEntry | null) =>
+    setSelected(entry ? { entry, sessionId: crypto.randomUUID() } : null);
   const query = useQuery({
     queryKey: ['photo-library', applied],
     queryFn: async ({ signal }) => {

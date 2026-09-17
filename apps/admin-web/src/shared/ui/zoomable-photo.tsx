@@ -1,3 +1,6 @@
+import { useQuery } from '@tanstack/react-query';
+import { photoImageQuery } from '@/shared/lib/photo-image';
+import { PhotoLoadState } from './photo-load-state';
 import { useId, useState } from 'react';
 import { useStore } from 'zustand';
 import { RotateCcwIcon, ZoomInIcon, ZoomOutIcon } from 'lucide-react';
@@ -6,14 +9,25 @@ import { Button } from '@/components/ui/button';
 import { currentLocale } from '@/i18n';
 import { createPhotoZoom } from '@/shared/lib/photo-zoom';
 
-export function ZoomablePhoto({ url, label }: { readonly url: string; readonly label: string }) {
+export function ZoomablePhoto({
+  url,
+  label,
+  pending = false,
+  pendingPaused = false,
+}: {
+  readonly url: string;
+  readonly label: string;
+  readonly pending?: boolean;
+  readonly pendingPaused?: boolean;
+}) {
+  const image = useQuery(photoImageQuery(url));
   const t = messages(currentLocale()).admin.handover;
   const [{ store, attach, zoomIn, zoomOut, reset, pan }] = useState(createPhotoZoom);
   const scale = useStore(store, (state) => state.scale);
   const hintId = useId();
   return (
     <figure
-      className="flex min-w-0 flex-col gap-2"
+      className="flex min-h-0 min-w-0 flex-col gap-2"
       onKeyDown={(event) => {
         if (event.ctrlKey || event.metaKey || event.altKey) return;
         if (event.key === '+' || event.key === '=') zoomIn();
@@ -76,17 +90,25 @@ export function ZoomablePhoto({ url, label }: { readonly url: string; readonly l
         role="group"
         aria-label={label}
         aria-describedby={hintId}
-        className="h-[min(55dvh,36rem)] overflow-hidden rounded-md bg-muted/30 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="relative h-[min(55dvh,36rem)] shrink-0 overflow-auto rounded-md bg-muted/30 outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
+        {(!image.data || pending) && (
+          <PhotoLoadState
+            failed={image.isError}
+            paused={pendingPaused || image.fetchStatus === 'paused'}
+            retry={() => void image.refetch()}
+          />
+        )}
         <img
-          ref={attach}
+          ref={image.data ? attach : undefined}
           src={url}
           alt={label}
           draggable={false}
-          className="size-full object-contain"
+          className="h-auto w-full object-contain lg:size-full"
+          style={{ opacity: image.data ? 1 : 0 }}
         />
       </div>
-      <figcaption className="max-h-20 overflow-y-auto text-sm whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">
+      <figcaption className="h-10 shrink-0 overflow-y-auto text-sm whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">
         {label}
       </figcaption>
       <p id={hintId} className="text-xs text-muted-foreground">

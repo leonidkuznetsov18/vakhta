@@ -143,6 +143,7 @@ describe('saved photo library', () => {
     });
     render(<PhotoLibraryPage />);
     const open = await screen.findByRole('button', { name: 'Photo 1' });
+    await waitFor(() => expect(open.hasAttribute('disabled')).toBe(false));
     open.focus();
     expect(document.activeElement).toBe(open);
     expect(open.tagName).toBe('BUTTON');

@@ -1,10 +1,16 @@
+import { photoImageQuery } from '@/shared/lib/photo-image';
+import {
+  InspectionLoading,
+  inspectionLayoutClass,
+  inspectionViewportClass,
+} from './inspection-loading';
 import { HANDOVER_REVIEW_ROLES } from '@vakhta/domain';
 import { useNavigation } from '@/navigation';
 import { WorkflowSection } from '@/shared/ui/workflow-section';
 import { AnalysisLimits } from './analysis-limits';
 import { analysisLimitsView } from '../model/analysis-limits';
 import { hasReviewChanges, reviewChanges } from '../model/review-changes';
-import { useState } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useStore } from 'zustand';
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -47,6 +53,7 @@ import { notifySuccess } from '@/lib/toast';
 import {
   downloadJson,
   inspectionApi,
+  inspectionQueries,
   inspectionKey,
   analysisLimitsKey,
   photoObjectsKey,
@@ -99,12 +106,14 @@ function focusInspectionHeading(event: Event) {
 
 export function PhotoInspectionDialog({
   handoverId,
+  sessionId,
   photo,
   onClose,
   photos,
   onPhotoChange,
 }: {
   handoverId: string;
+  sessionId: string;
   photo: HandoverPhotoView;
   onClose: () => void;
   photos?: HandoverPhotoView[];
@@ -115,18 +124,37 @@ export function PhotoInspectionDialog({
   const id = { handoverId, mediaId: photo.media.id, itemKey: photo.itemKey };
   const client = useQueryClient();
   const query = useQuery({
-    queryKey: inspectionKey(id),
+    ...inspectionQueries.detail(id),
     queryFn: async ({ signal }) => {
       const view = await inspectionApi.get(id, signal);
       // The answer to this session's analysis lands in the draft as soon as it is fetched, and
       // fresh rules recolor the boxes so they keep matching the chips.
-      editor?.analysisResolved(view);
-      editor?.useColors(colorSources(view.rules, cachedObjects(client)));
+      if (
+        editor?.initial.context.mediaId === view.context.mediaId &&
+        editor.initial.context.itemKey === view.context.itemKey
+      ) {
+        editor.analysisResolved(view);
+        editor.useColors(colorSources(view.rules, cachedObjects(client)));
+      }
       return view;
     },
     refetchInterval: (query) =>
       query.state.data?.runs.some((r) => r.status === 'PENDING') ? 2000 : false,
   });
+  useQuery(inspectionQueries.link(id, sessionId));
+  const preparation = useMutation({
+    mutationFn: async (next: HandoverPhotoView) => {
+      const nextId = { handoverId, mediaId: next.media.id, itemKey: next.itemKey };
+      await Promise.all([
+        client.fetchQuery({ ...inspectionQueries.detail(nextId), staleTime: 0 }),
+        client
+          .fetchQuery(inspectionQueries.link(nextId, sessionId))
+          .then((link) => client.fetchQuery(photoImageQuery(link.url))),
+      ]);
+    },
+    retry: false,
+  });
+  const switching = preparation.isPending;
   const [generation, setGeneration] = useState(0);
   const [editor, setEditor] = useState<InspectionEditor | null>(null);
   const editRules = () => {
@@ -141,17 +169,24 @@ export function PhotoInspectionDialog({
     if (!editor || !hasReviewChanges(editor.store.getState()) || window.confirm(t.discard))
       onClose();
   };
+  const selected = switching ? preparation.variables : photo;
   const index =
     photos?.findIndex(
-      (item) => item.media.id === photo.media.id && item.itemKey === photo.itemKey,
+      (item) => item.media.id === selected.media.id && item.itemKey === selected.itemKey,
     ) ?? -1;
   const navigate = (delta: number) => {
     const next = photos?.[index + delta];
     if (
       next &&
       (!editor || !hasReviewChanges(editor.store.getState()) || window.confirm(t.discard))
-    )
-      onPhotoChange?.(next);
+    ) {
+      if (!query.data) {
+        onPhotoChange?.(next);
+        return;
+      }
+      // Per-call callbacks run only for the latest observed request and never after unmount.
+      preparation.mutate(next, { onSettled: () => onPhotoChange?.(next) });
+    }
   };
   const navigation =
     photos && photos.length > 1 && onPhotoChange
@@ -167,7 +202,7 @@ export function PhotoInspectionDialog({
       <DialogContent
         showCloseButton={false}
         onOpenAutoFocus={focusInspectionHeading}
-        className="flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] flex-col gap-3 overflow-hidden p-3 sm:max-w-7xl sm:p-5"
+        className="animate-none! flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-3 overflow-hidden p-3 sm:max-w-7xl sm:p-5"
       >
         <div className="absolute top-2 right-2">
           <IconButton
@@ -190,16 +225,18 @@ export function PhotoInspectionDialog({
               <FaqButton guide="photoInspection" />
             </div>
           </div>
-          <DialogDescription>{photo.label}</DialogDescription>
+          <DialogDescription className="h-10 overflow-y-auto [overflow-wrap:anywhere]">
+            {photo.label}
+          </DialogDescription>
         </DialogHeader>
 
-        <QueryFeedback
-          query={{ ...query, error: query.error ? new Error(errorText(query.error)) : null }}
-        />
-        {!query.data && navigation && (
-          <div className="relative min-h-12">
-            <InspectionPhotoNavigation navigation={navigation} />
-          </div>
+        {!query.data && (
+          <InspectionLoading
+            photo={photo}
+            navigation={navigation}
+            query={query}
+            errorMessage={errorText(query.error)}
+          />
         )}
         {query.data && (
           <InspectionSession
@@ -208,6 +245,10 @@ export function PhotoInspectionDialog({
             initial={query.data}
             latest={query.data}
             navigation={navigation}
+            sessionId={sessionId}
+            switching={switching}
+            switchingPaused={preparation.isPaused}
+            queryFeedback={<QueryFeedback query={query} errorMessage={errorText(query.error)} />}
             onEditRules={canEditRules ? editRules : undefined}
             register={setEditor}
             reload={() => setGeneration((n) => n + 1)}
@@ -226,7 +267,15 @@ function InspectionSession({
   reload: resetSession,
   navigation,
   onEditRules,
+  switching,
+  switchingPaused,
+  sessionId,
+  queryFeedback,
 }: {
+  sessionId: string;
+  switching: boolean;
+  switchingPaused: boolean;
+  queryFeedback: ReactNode;
   id: InspectionIdentity;
   initial: PhotoInspectionView;
   latest: PhotoInspectionView;
@@ -243,14 +292,7 @@ function InspectionSession({
   });
   const state = useStore(store);
   const changes = reviewChanges(state);
-  const link = useQuery({
-    queryKey: [...inspectionKey(id), 'link'],
-    queryFn: ({ signal }) => inspectionApi.link(id, signal),
-    // A loaded immutable photo needs no new transport URL when the window regains focus.
-    // Reopening (gcTime: 0) and the explicit failed-image retry still request a fresh link.
-    staleTime: Infinity,
-    gcTime: 0,
-  });
+  const link = useQuery(inspectionQueries.link(id, sessionId));
   const limits = useQuery({
     queryKey: analysisLimitsKey(id),
     queryFn: ({ signal }) => inspectionApi.limits(id, signal),
@@ -343,6 +385,13 @@ function InspectionSession({
     // Reload is explicit; ordinary background updates never overwrite an unsaved review.
     resetSession();
   };
+  const imageWidth = state.imageSize?.width ?? initial.context.encodedWidth;
+  const imageHeight = state.imageSize?.height ?? initial.context.encodedHeight;
+  const imageStyle: CSSProperties & { '--photo-ratio': number } = {
+    '--photo-ratio': imageWidth / imageHeight,
+    aspectRatio: `${imageWidth} / ${imageHeight}`,
+    opacity: state.imageStatus === 'ready' ? 1 : 0,
+  };
   return (
     <div
       ref={attachOwner}
@@ -350,7 +399,11 @@ function InspectionSession({
       data-testid="photo-inspection"
       onKeyDownCapture={(event) => deleteSelectedOnKeyDown(event.nativeEvent, editor, busy)}
     >
-      <div className="flex flex-wrap gap-2">
+      <div
+        data-testid="inspection-tools"
+        inert={switching}
+        className="flex h-11 shrink-0 gap-2 overflow-x-auto [&>*]:shrink-0"
+      >
         {initial.canEdit && (
           <>
             {(['rectangle', 'polygon'] as const).map((tool) => (
@@ -419,7 +472,7 @@ function InspectionSession({
         >
           <span className="sr-only">{t.export}</span>
         </IconButton>
-        {link.data && (
+        <span className={link.data ? undefined : 'invisible'}>
           <IconButton
             icon={ExternalLinkIcon}
             label={t.original}
@@ -428,57 +481,66 @@ function InspectionSession({
             variant="outline"
             asChild
           >
-            <a href={link.data.url} target="_blank" rel="noreferrer">
+            <a href={link.data?.url} target="_blank" rel="noreferrer">
               <span className="sr-only">{t.original}</span>
             </a>
           </IconButton>
-        )}
+        </span>
       </div>
       {/* Variable feedback belongs to the scrolling form: the photo must not refit when a
           validation message, quota result or save error appears. Only actions occupy the footer. */}
-      <div className="grid min-h-0 min-w-0 flex-1 gap-4 overflow-y-auto [container-type:size] lg:overflow-hidden lg:grid-cols-[minmax(0,2fr)_minmax(22rem,1fr)] lg:grid-rows-[minmax(0,1fr)]">
+      <div className={inspectionLayoutClass}>
         <div className="relative flex min-w-0 flex-col gap-2 lg:min-h-0">
-          <QueryFeedback
-            query={{ ...link, error: link.error ? new Error(errorText(link.error)) : null }}
-          />
-          {link.data && (
-            <div
-              data-testid="inspection-image-viewport"
-              tabIndex={0}
-              role="group"
-              aria-label={initial.context.photoLabel}
-              style={{
-                aspectRatio: `${state.imageSize?.width ?? initial.context.encodedWidth} / ${state.imageSize?.height ?? initial.context.encodedHeight}`,
-              }}
-              className={`h-auto max-h-[min(48dvh,calc(100cqh-3rem))] shrink-0 overflow-auto rounded-md border bg-muted p-2 [container-type:size] outline-none focus-visible:ring-2 focus-visible:ring-ring data-[panning=true]:cursor-grabbing lg:max-h-none lg:min-h-0 lg:flex-1 lg:aspect-auto! ${state.tool === 'select' ? 'touch-none cursor-grab' : ''}`}
-            >
-              {state.imageStatus === 'loading' && <LoadingState />}
-              {state.imageStatus === 'failed' && (
-                <p role="alert">
-                  {t.imageFailed}{' '}
-                  <IconButton
-                    variant="outline"
-                    icon={RefreshCwIcon}
-                    label={t.refresh}
-                    tooltip={t.hints.refresh}
-                    onClick={() => void link.refetch()}
-                  >
-                    {t.refresh}
-                  </IconButton>
-                </p>
-              )}
+          <div
+            data-testid="inspection-image-viewport"
+            tabIndex={0}
+            role="group"
+            aria-label={initial.context.photoLabel}
+            aria-busy={switching || link.isPending || state.imageStatus === 'loading'}
+            style={{
+              aspectRatio: `${state.imageSize?.width ?? initial.context.encodedWidth} / ${state.imageSize?.height ?? initial.context.encodedHeight}`,
+            }}
+            className={`${inspectionViewportClass} ${state.tool === 'select' ? 'touch-none cursor-grab' : ''}`}
+          >
+            {(switching || !link.data || state.imageStatus !== 'ready') && (
+              <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-3 [&_button]:pointer-events-auto">
+                {switching ? (
+                  <LoadingState
+                    label={
+                      switchingPaused
+                        ? messages(currentLocale()).ui.common.waitingConnection
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <>
+                    <QueryFeedback query={link} errorMessage={errorText(link.error)} />
+                    {link.data && state.imageStatus === 'loading' && <LoadingState />}
+                    {link.data && state.imageStatus === 'failed' && (
+                      <Alert variant="destructive" role="alert">
+                        <AlertCircleIcon />
+                        <AlertTitle>{t.imageFailed}</AlertTitle>
+                        <IconButton
+                          variant="outline"
+                          icon={RefreshCwIcon}
+                          label={t.refresh}
+                          tooltip={t.hints.refresh}
+                          onClick={() => void link.refetch()}
+                        >
+                          {t.refresh}
+                        </IconButton>
+                      </Alert>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+            {link.data && (
               <div
                 ref={attachViewport}
-                className="relative mx-auto origin-top-left [&>div]:align-top"
-                style={
-                  state.imageSize
-                    ? {
-                        aspectRatio: `${state.imageSize.width} / ${state.imageSize.height}`,
-                        width: `min(100cqw, calc(100cqh * ${state.imageSize.width / state.imageSize.height}))`,
-                        marginBlock: `max(0px, calc((100cqh - min(100cqh, calc(100cqw / ${state.imageSize.width / state.imageSize.height}))) / 2))`,
-                      }
-                    : undefined
-                }
+                inert={switching}
+                className="relative mx-auto w-full origin-top-left [&>div]:align-top lg:w-[min(100cqw,calc(100cqh*var(--photo-ratio)))] lg:my-[max(0px,calc((100cqh-min(100cqh,calc(100cqw/var(--photo-ratio))))/2))]"
+                style={imageStyle}
               >
                 <img
                   key={`${link.data.url}:${link.dataUpdatedAt}`}
@@ -490,13 +552,17 @@ function InspectionSession({
                 />
                 <RegionNumbers editor={editor} colors={colors} />
               </div>
-            </div>
-          )}
+            )}
+          </div>
           {navigation && <InspectionPhotoNavigation navigation={navigation} />}
         </div>
         {/* On wide screens the form column is as tall as the photo viewport and scrolls inside;
             the action footer is a separate sibling and never participates in this scroll. */}
-        <div className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+        <div
+          inert={switching}
+          className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1"
+        >
+          {queryFeedback}
           {error && (
             <Alert variant="destructive" role="alert">
               <AlertCircleIcon />
@@ -576,9 +642,12 @@ function InspectionSession({
           />
         </div>
       </div>
-      <div className="flex shrink-0 flex-col gap-2 border-t bg-background pt-3">
+      <div
+        inert={switching}
+        className="flex h-20 shrink-0 flex-col gap-2 border-t bg-background pt-3 sm:h-14"
+      >
         {initial.canEdit && (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex [&>*]:min-w-0 [&_button]:w-full [&_button]:h-auto [&_button]:min-h-10 [&_button]:min-w-0 [&_button]:whitespace-normal sm:[&_button]:min-h-8">
             <IconButton
               disabled={busy || !canSaveReview(state)}
               aria-busy={save.isPending && !save.isPaused}
