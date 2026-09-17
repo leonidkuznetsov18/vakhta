@@ -1,3 +1,9 @@
+## [1.15.9](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.8...v1.15.9) (2026-09-17)
+
+### Bug fixes
+
+* **photos:** reuse loaded previews for instant navigation ([9b9305d](https://github.com/leonidkuznetsov18/vakhta/commit/9b9305da7123e1bf92152788f168a00aed35947f))
+
 ## [1.15.8](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.7...v1.15.8) (2026-09-17)
 
 ### Bug fixes
