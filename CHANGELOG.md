@@ -1,3 +1,9 @@
+## [1.15.7](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.6...v1.15.7) (2026-09-17)
+
+### Bug fixes
+
+* **photos:** stabilize loading and preserve image proportions ([aed4832](https://github.com/leonidkuznetsov18/vakhta/commit/aed48321e42c1458a5e03729ac6ebb973164874a))
+
 ## [1.15.6](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.5...v1.15.6) (2026-09-15)
 
 ### Bug fixes
