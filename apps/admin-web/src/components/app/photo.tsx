@@ -3,7 +3,7 @@ import { photoImageQuery } from '@/shared/lib/photo-image';
 import { PhotoLoadState } from '@/shared/ui/photo-load-state';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { useState, type ReactNode } from 'react';
-import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeftIcon, ChevronRightIcon, ExpandIcon } from 'lucide-react';
 import type { MediaObjectView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
@@ -174,6 +174,10 @@ export function Lightbox({
   const index = chosen?.of === images ? chosen.index : start;
   const preparation = usePreparedPhoto({
     current: index,
+    isReady: (next) => {
+      const image = images[next];
+      return Boolean(image && client.getQueryData(photoImageQuery(image.url).queryKey));
+    },
     prepare: async (next) => {
       const image = images[next];
       if (image) await client.fetchQuery(photoImageQuery(image.url));
@@ -181,6 +185,12 @@ export function Lightbox({
     onChange: (next) => setChosen({ of: images, index: next }),
   });
   const gallery = images.length > 2;
+  useQueries({
+    queries: (gallery
+      ? [images[(index + images.length - 1) % images.length], images[(index + 1) % images.length]]
+      : []
+    ).flatMap((image) => (image ? [photoImageQuery(image.url)] : [])),
+  });
   const shown = gallery ? [images[Math.min(index, images.length - 1)]!] : images;
   const step = (delta: number) =>
     preparation.select((preparation.selected + delta + images.length) % images.length);

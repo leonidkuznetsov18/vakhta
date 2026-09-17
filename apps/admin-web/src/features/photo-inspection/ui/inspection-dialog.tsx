@@ -1,4 +1,5 @@
-import { usePreparedPhoto } from '@/shared/lib/use-prepared-photo';
+import { useInspectionImage, type InspectionImage } from '../model/use-inspection-image';
+import { useInspectionNavigation } from '../model/use-inspection-navigation';
 import {
   InspectionLoading,
   inspectionLayoutClass,
@@ -54,7 +55,6 @@ import {
   downloadJson,
   inspectionApi,
   inspectionQueries,
-  prepareInspectionPhoto,
   inspectionKey,
   analysisLimitsKey,
   photoObjectsKey,
@@ -142,20 +142,12 @@ export function PhotoInspectionDialog({
     refetchInterval: (query) =>
       query.state.data?.runs.some((r) => r.status === 'PENDING') ? 2000 : false,
   });
-  useQuery(inspectionQueries.link(id, sessionId));
-  const preparation = usePreparedPhoto({
+  const image = useInspectionImage(id, sessionId);
+  const preparation = useInspectionNavigation({
+    handoverId,
+    sessionId,
     current: photo,
-    prepare: (next) =>
-      prepareInspectionPhoto(
-        client,
-        {
-          handoverId,
-          mediaId: next.media.id,
-          itemKey: next.itemKey,
-        },
-        sessionId,
-      ),
-    onChange: (next) => onPhotoChange?.(next),
+    onChange: onPhotoChange,
   });
   const [generation, setGeneration] = useState(0);
   const [editor, setEditor] = useState<InspectionEditor | null>(null);
@@ -183,7 +175,7 @@ export function PhotoInspectionDialog({
       (!editor || !hasReviewChanges(editor.store.getState()) || window.confirm(t.discard))
     ) {
       if (!query.data) {
-        onPhotoChange?.(next);
+        preparation.skip(next);
         return;
       }
       preparation.select(next);
@@ -234,6 +226,7 @@ export function PhotoInspectionDialog({
         {!query.data && (
           <InspectionLoading
             photo={photo}
+            image={image}
             navigation={navigation}
             query={query}
             errorMessage={errorText(query.error)}
@@ -246,7 +239,7 @@ export function PhotoInspectionDialog({
             initial={query.data}
             latest={query.data}
             navigation={navigation}
-            sessionId={sessionId}
+            image={image}
             loading={preparation.loading}
             queryFeedback={<QueryFeedback query={query} errorMessage={errorText(query.error)} />}
             onEditRules={canEditRules ? editRules : undefined}
@@ -268,10 +261,10 @@ function InspectionSession({
   navigation,
   onEditRules,
   loading,
-  sessionId,
+  image,
   queryFeedback,
 }: {
-  sessionId: string;
+  image: InspectionImage;
   loading: string | undefined;
   queryFeedback: ReactNode;
   id: InspectionIdentity;
@@ -291,7 +284,7 @@ function InspectionSession({
   const switching = Boolean(loading);
   const state = useStore(store);
   const changes = reviewChanges(state);
-  const link = useQuery(inspectionQueries.link(id, sessionId));
+  const link = image.query;
   const limits = useQuery({
     queryKey: analysisLimitsKey(id),
     queryFn: ({ signal }) => inspectionApi.limits(id, signal),
@@ -490,7 +483,7 @@ function InspectionSession({
           validation message, quota result or save error appears. Only actions occupy the footer. */}
       <div className={inspectionLayoutClass}>
         <div className="relative flex min-w-0 flex-col gap-2 lg:min-h-0">
-          {(switching || !link.data || state.imageStatus !== 'ready') && (
+          {(switching || !image.url || state.imageStatus !== 'ready') && (
             <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-3 [&_button]:pointer-events-auto">
               {switching ? (
                 <LoadingState
@@ -499,9 +492,11 @@ function InspectionSession({
                 />
               ) : (
                 <>
-                  <QueryFeedback query={link} errorMessage={errorText(link.error)} />
-                  {link.data && state.imageStatus === 'loading' && <LoadingState />}
-                  {link.data && state.imageStatus === 'failed' && (
+                  {!image.url && (
+                    <QueryFeedback query={link} errorMessage={errorText(link.error)} />
+                  )}
+                  {image.url && state.imageStatus === 'loading' && <LoadingState />}
+                  {image.url && state.imageStatus === 'failed' && (
                     <Alert variant="destructive" role="alert">
                       <AlertCircleIcon />
                       <AlertTitle>{t.imageFailed}</AlertTitle>
@@ -510,7 +505,7 @@ function InspectionSession({
                         icon={RefreshCwIcon}
                         label={t.refresh}
                         tooltip={t.hints.refresh}
-                        onClick={() => void link.refetch()}
+                        onClick={image.retry}
                       >
                         {t.refresh}
                       </IconButton>
@@ -525,13 +520,13 @@ function InspectionSession({
             tabIndex={0}
             role="group"
             aria-label={initial.context.photoLabel}
-            aria-busy={switching || link.isPending || state.imageStatus === 'loading'}
+            aria-busy={switching || !image.url || state.imageStatus === 'loading'}
             style={{
               aspectRatio: `${state.imageSize?.width ?? initial.context.encodedWidth} / ${state.imageSize?.height ?? initial.context.encodedHeight}`,
             }}
             className={`${inspectionViewportClass} ${state.tool === 'select' ? 'touch-none cursor-grab' : ''}`}
           >
-            {link.data && (
+            {image.url && (
               <div
                 ref={attachViewport}
                 inert={switching}
@@ -539,9 +534,9 @@ function InspectionSession({
                 style={imageStyle}
               >
                 <img
-                  key={`${link.data.url}:${link.dataUpdatedAt}`}
+                  key={`${image.url}:${image.revision}`}
                   ref={mount}
-                  src={link.data.url}
+                  src={image.url}
                   alt={initial.context.photoLabel}
                   draggable={false}
                   className="block h-auto w-full max-w-none"
@@ -559,6 +554,9 @@ function InspectionSession({
           className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1"
         >
           {queryFeedback}
+          {image.url && link.isError && (
+            <QueryFeedback query={link} errorMessage={errorText(link.error)} />
+          )}
           {error && (
             <Alert variant="destructive" role="alert">
               <AlertCircleIcon />

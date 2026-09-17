@@ -11,6 +11,7 @@ import { MutationActivity } from '@/components/app/query-feedback';
 import '@/index.css';
 
 if (!import.meta.env.DEV) throw new Error('Photo fixture is development-only');
+const showThumbnails = !new URLSearchParams(location.search).has('without-thumbnails');
 const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 const images = reviewPhotos.map((photo) => ({
   url: `/test-photo/${photo.media.id}.svg`,
@@ -42,17 +43,18 @@ function Fixture() {
           <button onClick={() => open(reviewPhotos[0])}>Inspect photos</button>
           <button onClick={() => setLightbox(true)}>View gallery</button>
           <div className="grid grid-cols-3 gap-4">
-            {reviewPhotos.map((item) => (
-              <PhotoThumb
-                key={item.media.id}
-                media={item.media}
-                label={item.label}
-                loadLink={async (id) =>
-                  MediaLinkView.parse(await apiFetch(`/admin/handovers/media/${id}/link`))
-                }
-                onOpen={() => open(item)}
-              />
-            ))}
+            {showThumbnails &&
+              reviewPhotos.map((item) => (
+                <PhotoThumb
+                  key={item.media.id}
+                  media={item.media}
+                  label={item.label}
+                  loadLink={async (id) =>
+                    MediaLinkView.parse(await apiFetch(`/admin/handovers/media/${id}/link`))
+                  }
+                  onOpen={() => open(item)}
+                />
+              ))}
           </div>
         </div>
       </main>

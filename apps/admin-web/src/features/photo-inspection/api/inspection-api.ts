@@ -1,4 +1,5 @@
 import { queryOptions, type QueryClient } from '@tanstack/react-query';
+import { keys } from '@/lib/query';
 import { localActivity } from '@/shared/api/activity';
 import { photoImageQuery } from '@/shared/lib/photo-image';
 import {
@@ -117,15 +118,27 @@ export const inspectionQueries = {
     }),
 };
 
+/** Reuse the full image already decoded for the table or this inspection opening. */
+export function cachedInspectionPhoto(
+  client: QueryClient,
+  id: InspectionIdentity,
+  sessionId: string,
+) {
+  const thumbnail = client.getQueryData<{ url: string }>(keys.media(id.mediaId));
+  const link = client.getQueryData(inspectionQueries.link(id, sessionId).queryKey);
+  for (const source of [thumbnail, link]) {
+    if (!source) continue;
+    const image = client.getQueryData(photoImageQuery(source.url).queryKey);
+    if (image) return image;
+  }
+  return undefined;
+}
+
 export async function prepareInspectionPhoto(
   client: QueryClient,
   id: InspectionIdentity,
   sessionId: string,
 ): Promise<void> {
-  await Promise.all([
-    client.fetchQuery({ ...inspectionQueries.detail(id), staleTime: 0 }),
-    client
-      .fetchQuery(inspectionQueries.link(id, sessionId))
-      .then((link) => client.fetchQuery(photoImageQuery(link.url))),
-  ]);
+  const link = await client.fetchQuery(inspectionQueries.link(id, sessionId));
+  await client.fetchQuery(photoImageQuery(link.url));
 }

@@ -84,6 +84,7 @@ async function openPhoto() {
       />
     </QueryClientProvider>,
   );
+  await screen.findByTestId('photo-inspection');
   const image = await screen.findByRole('img', { name: photo.label });
   Object.defineProperties(image, {
     naturalWidth: { value: 720 },

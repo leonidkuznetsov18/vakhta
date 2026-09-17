@@ -1,4 +1,5 @@
 import { test, expect, type Locator } from '@playwright/test';
+import { PhotoInspectionView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { reviewFixture, reviewPhotos, reviewObjects } from '../src/preview/review-fixtures';
 const t = messages('en').photoInspection;
@@ -129,11 +130,14 @@ test('switching keeps the current photo until decoded and latest rapid selection
       body: '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720"><rect width="1280" height="720" fill="skyblue"/></svg>',
     });
   });
-  await page.goto('/e2e/photos.html');
+  await page.goto('/e2e/photos.html?without-thumbnails');
   await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(page.getByRole('button', { name: t.rectangle, exact: true })).toBeEnabled();
   const originalDialog = await dialog.elementHandle();
+  const originalImage = await dialog
+    .getByRole('img', { name: first.label, exact: true })
+    .elementHandle();
   const frame = page.getByTestId('inspection-image-viewport');
   const before = await frame.boundingBox();
   const pageBefore = await page.getByTestId('page-content').boundingBox();
@@ -156,6 +160,7 @@ test('switching keeps the current photo until decoded and latest rapid selection
   await expectStableFrame(frame, before);
   await page.getByRole('button', { name: t.previous, exact: true }).click();
   await expect(frame).toHaveAttribute('aria-busy', 'false');
+  expect(await originalImage?.evaluate((element) => element.isConnected)).toBe(true);
   release();
   await expect(dialog.getByRole('img', { name: first.label, exact: true })).toBeVisible();
   await page.getByRole('button', { name: t.next, exact: true }).click();
@@ -168,6 +173,131 @@ test('switching keeps the current photo until decoded and latest rapid selection
   await expect(dialog.getByRole('img', { name: second.label, exact: true })).toBeVisible();
   expect(secondLinkCalls).toBe(1);
   await page.screenshot({ path: info.outputPath('landscape.png') });
+});
+
+test('loaded previews switch immediately while inspection data and access refresh in the background', async ({
+  page,
+}, info) => {
+  const first = reviewPhotos[0];
+  const second = reviewPhotos[1];
+  if (!first || !second) throw new Error('Missing fixtures');
+  let linkCalls = 0;
+  let imageRequests = 0;
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(`**/photos/${second.media.id}/*/inspection{,/link}`, async (route) => {
+    if (route.request().url().endsWith('/link')) {
+      linkCalls++;
+      await gate;
+      await route.fulfill({
+        json: {
+          url: 'http://127.0.0.1:5183/test-photo/fresh-signed.svg',
+          expiresAt: '2099-01-01T00:00:00Z',
+        },
+      });
+      return;
+    }
+    await gate;
+    await route.fallback();
+  });
+  await page.route('**/test-photo/fresh-signed.svg', async (route) => {
+    imageRequests++;
+    await route.fulfill({
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720"/>',
+    });
+  });
+  await page.goto('/e2e/photos.html');
+  const preview = page.getByRole('button', { name: second.label, exact: true }).getByRole('img');
+  await expect
+    .poll(() =>
+      preview.evaluate(
+        (image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0,
+      ),
+    )
+    .toBe(true);
+  const previewUrl = await preview.getAttribute('src');
+  await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
+  await expect(page.getByRole('button', { name: t.rectangle, exact: true })).toBeEnabled();
+  const frame = page.getByTestId('inspection-image-viewport');
+  const before = await frame.boundingBox();
+  await page.getByRole('button', { name: t.next, exact: true }).click();
+  await expect(frame.getByRole('img', { name: second.label, exact: true })).toBeVisible();
+  await expect(frame.locator('..').getByRole('status')).toHaveCount(0);
+  await expectStableFrame(frame, before);
+  await page.screenshot({ path: info.outputPath('cached-preview-switch.png') });
+  release();
+  await expect(page.getByRole('button', { name: t.rectangle, exact: true })).toBeEnabled();
+  await expect(frame.getByRole('img', { name: second.label, exact: true })).toHaveAttribute(
+    'src',
+    previewUrl ?? '',
+  );
+  await expectStableFrame(frame, before);
+  expect(linkCalls).toBe(1);
+  expect(imageRequests).toBe(0);
+});
+
+test('returning to a cached photo shows pixels before fresh review permissions', async ({
+  page,
+}, info) => {
+  const first = reviewPhotos[0];
+  if (!first) throw new Error('Missing fixture');
+  await page.goto('/e2e/photos.html');
+  await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
+  await expect(page.getByRole('button', { name: t.rectangle, exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: t.next, exact: true }).click();
+  await expect(page.getByRole('button', { name: t.rectangle, exact: true })).toBeEnabled();
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(`**/photos/${first.media.id}/*/inspection`, async (route) => {
+    await gate;
+    const response = reviewFixture(new URL(route.request().url()).pathname, 'GET');
+    if (!response) throw new Error('Missing inspection');
+    const view = PhotoInspectionView.parse(await response.json());
+    await route.fulfill({ json: { ...view, canEdit: false, version: view.version + 1 } });
+  });
+  await page.getByRole('button', { name: t.previous, exact: true }).click();
+  const frame = page.getByTestId('inspection-image-viewport');
+  await expect(frame.getByRole('img', { name: first.label, exact: true })).toBeVisible();
+  await expect(frame.locator('..').getByRole('status')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: t.rectangle, exact: true })).toHaveCount(0);
+  release();
+  await expect(page.getByTestId('photo-inspection')).toBeVisible();
+  await expect(page.getByRole('button', { name: t.rectangle, exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: t.save, exact: true })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('cached-photo-fresh-review.png') });
+});
+
+test('cached inspection photos remain navigable offline without a photo loader', async ({
+  page,
+  context,
+}) => {
+  const second = reviewPhotos[1];
+  if (!second) throw new Error('Missing fixture');
+  await page.goto('/e2e/photos.html');
+  await expect
+    .poll(() =>
+      page
+        .getByRole('button', { name: second.label, exact: true })
+        .getByRole('img')
+        .evaluate(
+          (image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0,
+        ),
+    )
+    .toBe(true);
+  await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
+  await expect(page.getByRole('button', { name: t.rectangle, exact: true })).toBeEnabled();
+  await context.setOffline(true);
+  await page.getByRole('button', { name: t.next, exact: true }).click();
+  const frame = page.getByTestId('inspection-image-viewport');
+  await expect(frame.getByRole('img', { name: second.label, exact: true })).toBeVisible();
+  await expect(frame.locator('..').getByRole('status')).toHaveCount(0);
+  await context.setOffline(false);
+  await expect(page.getByRole('button', { name: t.rectangle, exact: true })).toBeEnabled();
 });
 
 test('image failure retains the frame and explicit retry recovers', async ({ page }, info) => {
@@ -188,7 +318,7 @@ test('image failure retains the frame and explicit retry recovers', async ({ pag
       body: '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1280"><rect width="720" height="1280" fill="silver"/></svg>',
     });
   });
-  await page.goto('/e2e/photos.html');
+  await page.goto('/e2e/photos.html?without-thumbnails');
   await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
   await expect(page.getByText(t.imageFailed, { exact: true })).toBeVisible();
   const frame = page.getByTestId('inspection-image-viewport');
@@ -344,11 +474,11 @@ test('narrow Ukrainian mobile retains its loading frame and reachable actions', 
     expect(tools[index]?.left).toBeGreaterThanOrEqual(tools[index - 1]?.right ?? 0);
 });
 
-test('offline navigation keeps the visible photo and resumes without losing the selection', async ({
+test('offline navigation to an uncached photo keeps the visible photo and resumes without losing the selection', async ({
   page,
   context,
 }) => {
-  await page.goto('/e2e/photos.html');
+  await page.goto('/e2e/photos.html?without-thumbnails');
   await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
   await expect(page.getByRole('button', { name: t.rectangle, exact: true })).toBeEnabled();
   await context.setOffline(true);

@@ -1,3 +1,5 @@
+import { PhotoLoadState } from '@/shared/ui/photo-load-state';
+import type { InspectionImage } from '../model/use-inspection-image';
 import type { HandoverPhotoView } from '@vakhta/contracts';
 import { QueryFeedback, type QueryFeedbackState } from '@/components/app/query-feedback';
 import { InspectionPhotoNavigation, type PhotoNavigation } from './photo-navigation';
@@ -9,12 +11,14 @@ export const inspectionViewportClass =
 
 export function InspectionLoading({
   photo,
+  image,
   query,
   navigation,
   errorMessage,
 }: {
   errorMessage?: string;
   photo: HandoverPhotoView;
+  image: InspectionImage;
   query: QueryFeedbackState;
   navigation?: PhotoNavigation;
 }) {
@@ -23,16 +27,37 @@ export function InspectionLoading({
       <div className="h-11 shrink-0" />
       <div className={inspectionLayoutClass}>
         <div className="relative flex min-w-0 flex-col gap-2 lg:min-h-0">
+          {image.url && !image.pixels.data && (
+            <PhotoLoadState
+              failed={image.pixels.isError}
+              paused={image.pixels.fetchStatus === 'paused'}
+              retry={image.retry}
+            />
+          )}
           <div
             data-testid="inspection-image-viewport"
             className={inspectionViewportClass}
             style={{ aspectRatio: `${photo.media.width ?? 4} / ${photo.media.height ?? 3}` }}
           >
-            <div className="absolute inset-0 flex items-center justify-center p-3">
-              <QueryFeedback query={query} errorMessage={errorMessage} />
-            </div>
+            {image.url ? (
+              <img
+                src={image.url}
+                alt={photo.label}
+                className="block h-auto w-full lg:size-full lg:object-contain"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center p-3">
+                <QueryFeedback query={image.query} errorMessage={errorMessage} />
+              </div>
+            )}
           </div>
           {navigation && <InspectionPhotoNavigation navigation={navigation} />}
+        </div>
+        <div className="min-w-0">
+          <QueryFeedback query={query} errorMessage={errorMessage} />
+          {image.url && image.query.isError && (
+            <QueryFeedback query={image.query} errorMessage={errorMessage} />
+          )}
         </div>
       </div>
       <div className="h-20 shrink-0 border-t sm:h-14" />

@@ -75,6 +75,19 @@ describe('Lightbox navigation', () => {
     expect(screen.getByRole('status', { name: labels.zoomLevel }).textContent).toBe('100%');
   });
 
+  it('switches to a prepared neighbor synchronously without a loading indicator', async () => {
+    vi.mocked(useIsMobile).mockReturnValue(true);
+    render(<Lightbox images={images.slice(0, 3)} title="Photos" onClose={() => undefined} />);
+    await waitFor(() =>
+      expect(screen.getByRole('img', { name: 'Photo 1' }).style.opacity).toBe('1'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: labels.nextPhoto }));
+    await screen.findByRole('img', { name: 'Photo 2' });
+    fireEvent.click(screen.getByRole('button', { name: labels.prevPhoto }));
+    expect(screen.getByRole('img', { name: 'Photo 1' })).toBeTruthy();
+    expect(screen.queryByText(messages(currentLocale()).ui.common.loading)).toBeNull();
+  });
+
   it('retains direct thumbnail navigation on desktop', async () => {
     render(<Lightbox images={images.slice(0, 3)} title="Photos" onClose={() => undefined} />);
     expect(document.querySelectorAll('img')).toHaveLength(4);

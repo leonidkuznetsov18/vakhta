@@ -7,10 +7,12 @@ import { localActivity } from '@/shared/api/activity';
 export function usePreparedPhoto<T>({
   current,
   prepare,
+  isReady,
   onChange,
 }: {
   current: T;
   prepare: (next: T) => Promise<unknown>;
+  isReady: (next: T) => boolean;
   onChange: (next: T) => void;
 }) {
   const request = useMutation({ mutationFn: prepare, meta: localActivity, retry: false });
@@ -20,6 +22,13 @@ export function usePreparedPhoto<T>({
   return {
     selected: request.isPending ? request.variables : current,
     loading,
-    select: (next: T) => request.mutate(next, { onSettled: () => onChange(next) }),
+    select: (next: T) => {
+      if (isReady(next)) {
+        request.reset();
+        onChange(next);
+        return;
+      }
+      request.mutate(next, { onSettled: () => onChange(next) });
+    },
   };
 }

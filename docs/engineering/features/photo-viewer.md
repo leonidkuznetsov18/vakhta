@@ -128,3 +128,33 @@ center; the final 26 browser cases verify its center after scrolling as well as 
 geometry. Screenshots now wait for the loading state before capture. Focused UI tests, typecheck and
 lint passed again after this DOM-only adjustment. The superseded CI run was canceled before release
 so both fixes publish together.
+
+## 2026-09-17 — Reuse loaded photos before preparing more work
+
+Accepted scope: a decoded table preview or gallery image switches immediately without a photo
+loader or another image download. A cold image retains local loading and recovery. Keep frame
+geometry, latest selection, natural proportions, scoped access checks and audit requests intact.
+
+The thumbnail already contains the full image. Reuse its existing Query cache entry instead of
+waiting for a newly signed URL and review metadata. The shared navigation hook has a synchronous
+ready path; only a cache miss enters asynchronous preparation. The gallery prepares its two
+neighbors through existing image queries. Inspection image selection/retry and navigation belong
+to small feature model hooks; rendering consumes their results. No new cache, timer or dependency.
+
+Metadata remains separate: show cached pixels read-only while fetching the selected review. Drop
+only an inactive target's old detail before creating its editor, so cached annotations/permissions
+cannot become its editing baseline. Returning from a pending selection to the still-visible photo
+preserves its editor. The scoped link observer remains mounted across loading/editor replacement,
+and explicit retry switches to a fresh signed source for that media only.
+
+Verification: the new delayed-metadata test failed on desktop/mobile before implementation. All
+32 photo browser cases and 12 focused component cases now pass; panel typecheck and changed-file
+ESLint pass. Tests cover no new image download when an audited link changes, offline cached
+navigation, fresh permissions on return, current-image retention on canceled navigation, cold-image
+retry, proportions and stable geometry. Captured and visually inspected desktop/mobile screenshots
+in `test-results/photo-cache-reuse-2026-09-17/` (ignored). An independent recovery review found stale
+editor initialization and retry identity issues; both were corrected and the follow-up found no
+remaining concrete defect. Production deployment verification remains a separate delivery check.
+
+Lean: Simplify. Reuse prepared evidence and remove the network wait from photo navigation. A review
+still waits for its current server data; image loading feedback remains only for missing pixels.
