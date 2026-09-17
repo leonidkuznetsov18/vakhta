@@ -1,3 +1,13 @@
+## [1.15.11](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.10...v1.15.11) (2026-09-17)
+
+### Bug fixes
+
+* **checklists:** open photo rules in the checklist catalog ([be668b6](https://github.com/leonidkuznetsov18/vakhta/commit/be668b6948f3f2c8c1f26b45cea4a629604d6010))
+
+### Maintenance
+
+* **skills:** add engineering specialists and scope lean reviews ([04a428d](https://github.com/leonidkuznetsov18/vakhta/commit/04a428dd21093e72b5db1fef487c95c5895cbd8b))
+
 ## [1.15.10](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.9...v1.15.10) (2026-09-17)
 
 ### Bug fixes
