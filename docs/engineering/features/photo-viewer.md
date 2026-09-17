@@ -120,3 +120,11 @@ by concurrent user activity; no production decisions or reviews were changed.
 
 Lean: Simplify. Keep status beside the evidence being loaded, avoid misleading saving feedback and
 reorientation, and share the small navigation behavior between inspection and the gallery.
+
+Final visual check exposed another placement issue: an overlay inside the scrolling element can
+scroll out of view with a tall image. Loader feedback now belongs to the stationary photo wrapper,
+while only the image viewport scrolls. A new failing mobile assertion caught the loader's displaced
+center; the final 26 browser cases verify its center after scrolling as well as stable page/frame
+geometry. Screenshots now wait for the loading state before capture. Focused UI tests, typecheck and
+lint passed again after this DOM-only adjustment. The superseded CI run was canceled before release
+so both fixes publish together.

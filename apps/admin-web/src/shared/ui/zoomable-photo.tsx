@@ -83,29 +83,31 @@ export function ZoomablePhoto({
           <RotateCcwIcon aria-hidden="true" />
         </Button>
       </div>
-      <div
-        tabIndex={0}
-        role="group"
-        aria-label={label}
-        aria-describedby={hintId}
-        className="relative h-[min(55dvh,36rem)] shrink-0 overflow-auto rounded-md bg-muted/30 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
+      <div className="relative shrink-0">
         {(!image.data || loading) && (
           <PhotoLoadState
-            failed={image.isError}
+            failed={!loading && image.isError}
             paused={image.fetchStatus === 'paused'}
             label={loading}
             retry={() => void image.refetch()}
           />
         )}
-        <img
-          ref={image.data ? attach : undefined}
-          src={url}
-          alt={label}
-          draggable={false}
-          className="h-auto w-full object-contain lg:size-full"
-          style={{ opacity: image.data ? 1 : 0 }}
-        />
+        <div
+          tabIndex={0}
+          role="group"
+          aria-label={label}
+          aria-describedby={hintId}
+          className="relative h-[min(55dvh,36rem)] shrink-0 overflow-auto rounded-md bg-muted/30 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <img
+            ref={image.data ? attach : undefined}
+            src={url}
+            alt={label}
+            draggable={false}
+            className="h-auto w-full object-contain lg:size-full"
+            style={{ opacity: image.data ? 1 : 0 }}
+          />
+        </div>
       </div>
       <figcaption className="h-10 shrink-0 overflow-y-auto text-sm whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">
         {label}

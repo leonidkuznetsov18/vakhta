@@ -490,6 +490,36 @@ function InspectionSession({
           validation message, quota result or save error appears. Only actions occupy the footer. */}
       <div className={inspectionLayoutClass}>
         <div className="relative flex min-w-0 flex-col gap-2 lg:min-h-0">
+          {(switching || !link.data || state.imageStatus !== 'ready') && (
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-3 [&_button]:pointer-events-auto">
+              {switching ? (
+                <LoadingState
+                  label={loading}
+                  className="rounded-md bg-background/95 px-3 py-2 text-foreground shadow-sm"
+                />
+              ) : (
+                <>
+                  <QueryFeedback query={link} errorMessage={errorText(link.error)} />
+                  {link.data && state.imageStatus === 'loading' && <LoadingState />}
+                  {link.data && state.imageStatus === 'failed' && (
+                    <Alert variant="destructive" role="alert">
+                      <AlertCircleIcon />
+                      <AlertTitle>{t.imageFailed}</AlertTitle>
+                      <IconButton
+                        variant="outline"
+                        icon={RefreshCwIcon}
+                        label={t.refresh}
+                        tooltip={t.hints.refresh}
+                        onClick={() => void link.refetch()}
+                      >
+                        {t.refresh}
+                      </IconButton>
+                    </Alert>
+                  )}
+                </>
+              )}
+            </div>
+          )}
           <div
             data-testid="inspection-image-viewport"
             tabIndex={0}
@@ -501,36 +531,6 @@ function InspectionSession({
             }}
             className={`${inspectionViewportClass} ${state.tool === 'select' ? 'touch-none cursor-grab' : ''}`}
           >
-            {(switching || !link.data || state.imageStatus !== 'ready') && (
-              <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-3 [&_button]:pointer-events-auto">
-                {switching ? (
-                  <LoadingState
-                    label={loading}
-                    className="rounded-md bg-background/95 px-3 py-2 text-foreground shadow-sm"
-                  />
-                ) : (
-                  <>
-                    <QueryFeedback query={link} errorMessage={errorText(link.error)} />
-                    {link.data && state.imageStatus === 'loading' && <LoadingState />}
-                    {link.data && state.imageStatus === 'failed' && (
-                      <Alert variant="destructive" role="alert">
-                        <AlertCircleIcon />
-                        <AlertTitle>{t.imageFailed}</AlertTitle>
-                        <IconButton
-                          variant="outline"
-                          icon={RefreshCwIcon}
-                          label={t.refresh}
-                          tooltip={t.hints.refresh}
-                          onClick={() => void link.refetch()}
-                        >
-                          {t.refresh}
-                        </IconButton>
-                      </Alert>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
             {link.data && (
               <div
                 ref={attachViewport}

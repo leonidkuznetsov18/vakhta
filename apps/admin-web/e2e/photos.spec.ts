@@ -13,6 +13,19 @@ async function expectStableFrame(
     expect(Math.abs(after[dimension] - before[dimension])).toBeLessThan(1);
 }
 
+async function expectPhotoLoader(frame: Locator) {
+  const loader = frame.locator('..').getByRole('status');
+  await expect(loader).toHaveCount(1);
+  await expect
+    .poll(async () => {
+      const area = await frame.boundingBox();
+      const status = await loader.boundingBox();
+      if (!area || !status) return Infinity;
+      return Math.abs(status.y + status.height / 2 - area.y - area.height / 2);
+    })
+    .toBeLessThan(1);
+}
+
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(() => localStorage.setItem('vakhta.locale', 'en'));
@@ -124,11 +137,19 @@ test('switching keeps the current photo until decoded and latest rapid selection
   const frame = page.getByTestId('inspection-image-viewport');
   const before = await frame.boundingBox();
   const pageBefore = await page.getByTestId('page-content').boundingBox();
+  if (info.project.name === 'mobile') {
+    if (!before) throw new Error('Missing viewport');
+    await page.mouse.move(before.x + before.width - 10, before.y + before.height - 30);
+    await page.mouse.down();
+    await page.mouse.move(before.x + before.width - 10, before.y + 30, { steps: 10 });
+    await page.mouse.up();
+    await expect.poll(() => frame.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  }
   await page.getByRole('button', { name: t.next, exact: true }).click();
   await expect(frame).toHaveAttribute('aria-busy', 'true');
   await expect(dialog.getByRole('img', { name: first.label, exact: true })).toBeVisible();
+  await expectPhotoLoader(frame);
   await page.screenshot({ path: info.outputPath('switching.png') });
-  await expect(frame.getByRole('status')).toHaveCount(1);
   await expect(page.getByTestId('page-activity').locator('[role="status"]')).toHaveCount(0);
   await expect(page.getByTestId('page-header').locator('[role="status"]')).toHaveCount(0);
   await expectStableFrame(page.getByTestId('page-content'), pageBefore);
@@ -219,8 +240,8 @@ test('shared gallery retains pixels while switching and tall mobile photos can s
   await page.screenshot({ path: info.outputPath('gallery-portrait.png') });
   await page.getByRole('button', { name: labels.nextPhoto, exact: true }).click();
   await expect(image).toHaveCSS('opacity', '1');
+  await expectPhotoLoader(frame);
   await page.screenshot({ path: info.outputPath('gallery-switching.png') });
-  await expect(frame.getByRole('status')).toHaveCount(1);
   await expect(page.getByTestId('page-activity').locator('[role="status"]')).toHaveCount(0);
   await expect(page.getByTestId('page-header').locator('[role="status"]')).toHaveCount(0);
   release();
