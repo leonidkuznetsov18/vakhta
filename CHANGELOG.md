@@ -1,3 +1,13 @@
+## [1.15.10](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.9...v1.15.10) (2026-09-17)
+
+### Bug fixes
+
+* **photos:** preserve images through dialog close ([bfc5752](https://github.com/leonidkuznetsov18/vakhta/commit/bfc57527ff47a78483d365fe4cffd25647387363))
+
+### Tests
+
+* **photos:** await editor readiness before measuring geometry ([60814aa](https://github.com/leonidkuznetsov18/vakhta/commit/60814aa4d6b7d6918b5bdebb37a4183a2ebcd780))
+
 ## [1.15.9](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.8...v1.15.9) (2026-09-17)
 
 ### Bug fixes
