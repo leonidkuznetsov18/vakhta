@@ -94,8 +94,12 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
   view models and connect named actions; business rules belong outside UI.
 - Apply Feature-Sliced Design to frontend feature ownership and dependency boundaries. Preserve the
   pure domain and backend module boundaries. Follow the migration rules in the engineering standard.
-- For feature or workflow work, use `.agents/skills/vakhta-lean-review/SKILL.md` during design and
-  before completion. Record the Lean recommendation in the feature's engineering memory.
+- Select skills by the current task and engineering stage using `docs/engineering/skills.md`:
+  frontend development, backend development, UI/UX design, architecture and QA have distinct skills.
+  Load only applicable skills and references; a feature does not require every specialist.
+- Use `.agents/skills/vakhta-lean-review/SKILL.md` only when the owner requests Lean expertise or
+  Lean process analysis. Lean is a high-level advisory role, not a routine implementation, UI/UX,
+  architecture or QA gate. Record a Lean recommendation only when that review was requested.
 - Keep one product document per feature in `docs/features/` and its technical decisions, evidence and
   remaining work in `docs/engineering/features/`. Use `docs/templates/feature-memory.md`.
 - Unit and integration tests protect domain and state behavior; E2E tests protect complete user journeys.

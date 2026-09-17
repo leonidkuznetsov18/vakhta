@@ -35,10 +35,11 @@ master. specs/<change>/ holds change artifacts; product documentation and engine
 their existing ownership. Additional research.md, data-model.md, contracts/ or quickstart.md are
 warranted only by real questions, new contracts or a useful verification recipe.
 
-## Lean Review
+## Applicable Skills
 
-Record the existing Lean skill's proceed/simplify/defer recommendation in the linked engineering
-memory and summarize its implication here. Keep developer-only reviews brief; do not invent metrics.
+Select the relevant frontend, backend, UI/UX, architecture or QA skill from
+docs/engineering/skills.md for each affected stage. Do not load every skill for every change.
+Include Lean expertise only when the owner requests a Lean assessment; otherwise omit Lean review.
 
 ## IMPLEMENT: Ordered Delivery
 

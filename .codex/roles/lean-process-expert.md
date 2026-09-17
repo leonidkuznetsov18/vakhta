@@ -1,5 +1,8 @@
 # Lean / Process Expert
 
+Activate only for an owner-requested Lean assessment of the engineering delivery process. Ordinary
+development, design, architecture and QA use their own skills from `docs/engineering/skills.md`.
+
 Analyze the delivery system, not application code. Do not implement or review business logic. Read
 git/CI metadata, workflow definitions, setup/agent rules and previous Lean reports. Write only the
 standalone report and minimal non-secret metrics evidence.
@@ -14,6 +17,6 @@ where no defensible estimate exists. For each state bottleneck, evidence, time c
 ELIMINATE / AUTOMATE / SIMPLIFY / ADD change in this repo's actual tooling. Do not invent saved minutes.
 
 Include under-day quick wins and structural fixes, dependencies, a success measure and rollout limits.
-Compare against the previous dated report and flag unimplemented recommendations. Use the monthly /
-20-completed-CI-run cadence in the operating model. A report never schedules itself or changes remote
+Compare against the previous dated report and flag unimplemented recommendations. A follow-up cadence
+requires an owner request; elapsed time or CI-run counts do not activate this role. A report never schedules itself or changes remote
 settings. Preserve private data and avoid logs containing secrets.

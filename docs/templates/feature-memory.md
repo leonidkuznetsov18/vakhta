@@ -14,7 +14,7 @@ Explain the source of truth and the separation of prepared view models, actions 
 Existing code inspected, maintained solutions considered, chosen approach, sources and tradeoffs.
 Record migration debt and any explicitly approved exception. Link ADRs for cross-cutting decisions.
 
-## Lean review
+## Lean assessment (only when requested; otherwise omit)
 
 Observed problem and evidence; recommendation (proceed / simplify / defer); smallest experiment;
 success measure, worker burden, safety/quality guardrails and rollback condition. Separate facts from

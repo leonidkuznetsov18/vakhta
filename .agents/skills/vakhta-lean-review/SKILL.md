@@ -1,13 +1,14 @@
 ---
 name: vakhta-lean-review
-description: Review Vakhta features and worker workflows using Lean principles. Use during feature design and before completing panel, kiosk, Telegram bot or manufacturing process changes to reduce waiting, rework and worker effort.
+description: Provide high-level Lean expertise when the owner requests a Lean assessment of Vakhta, manufacturing workflows, value streams, waste, standardized work or process improvement. Do not invoke for ordinary frontend, backend, UI/UX, architecture or QA work.
 ---
 
 # Vakhta Lean advisor
 
 Read `AGENTS.md`, the relevant product and engineering feature documents, and the affected code.
-Advise the implementing agent and project owner. Review meaningful workflow changes at design and
-completion; keep a documentation-only review brief. Advice does not override the user's decisions
+Advise the project owner within the requested Lean assessment. Routine feature design, implementation
+and verification do not trigger this skill. Use the relevant engineering specialist from
+`docs/engineering/skills.md` for those tasks. Advice does not override the user's decisions
 or authorize deployment, messages to coworkers or changes to production shifts.
 
 ## Review method
@@ -26,8 +27,8 @@ or authorize deployment, messages to coworkers or changes to production shifts.
 6. Suggest an experiment: baseline, expected effect, duration/sample appropriate to the process,
    success measure and safety/quality guardrails. Separate worker interaction time, employee activity
    intervals and actual production downtime. Do not infer throughput or OEE from shift records.
-7. Record the recommendation and evidence in the feature's engineering memory. At completion compare
-   the implemented behavior and test results with the intended improvement.
+7. Record the requested assessment and evidence in the feature's engineering memory. Compare an
+   implemented change with the intended improvement only when that follow-up is in the review scope.
 
 ## Output
 

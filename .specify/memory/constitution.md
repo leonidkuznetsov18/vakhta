@@ -37,8 +37,9 @@ cached, CI and deployed evidence separately. A completed task checkbox is not ve
 ### V. Worker value and accessible interaction
 
 Product changes MUST preserve clear worker flows, the three localization catalogs and accessible
-desktop/mobile behavior under [AGENTS.md](../../AGENTS.md). Use the existing Lean review skill for
-feature/workflow design and completion; record its recommendation in the existing feature memory.
+desktop/mobile behavior under [AGENTS.md](../../AGENTS.md). Select task-specific engineering skills
+using [the skill guide](../../docs/engineering/skills.md). Lean expertise is used only for an
+owner-requested Lean assessment, not as a routine feature design or completion gate.
 Only changed product surfaces need visual or live QA. Developer setup MUST NOT manufacture employee
 actions or add work to an operational user journey.
 
@@ -81,4 +82,4 @@ development-workflow engineering memory. Use MAJOR for incompatible governance c
 new principles and PATCH for clarifications; this version is independent of the product release.
 Constitution checks MUST evaluate applicable requirements without adding another approval ceremony.
 
-**Version**: 1.0.0 | **Ratified**: 2026-09-12 | **Last Amended**: 2026-09-12
+**Version**: 2.0.0 | **Ratified**: 2026-09-12 | **Last Amended**: 2026-09-17

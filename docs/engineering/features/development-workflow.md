@@ -14,7 +14,9 @@ memory, unfinished behavior and agent instructions live outside it. No user-faci
 is needed for this developer-only workflow.
 
 The Lean review skill is `.agents/skills/vakhta-lean-review/SKILL.md`; the Claude subagent points to
-that same source. Feature memory uses `../../templates/feature-memory.md`. The React hook ban is an
+that same source. Since 2026-09-17 it is used only for owner-requested Lean expertise; the earlier
+assessments below are historical. [Skill selection](../skills.md) routes engineering work to its own
+specialists. Feature memory uses `../../templates/feature-memory.md`. The React hook ban is an
 explicit project policy; React 19 has not deprecated those APIs. Existing hook usage and legacy
 non-FSD folders remain migration debt. New work and touched slices follow the standard; the current
 ESLint configuration does not enforce all these architecture rules automatically.
@@ -259,3 +261,46 @@ the existing Ukrainian admin-web description. All ten workspace descriptions now
 only metadata changed. The Knip kiosk entrypoint now names the actual `apps/qr-kiosk` workspace. Its
 rerun retains the advisory counts above. Formatting and JSON parsing passed. This correction and the
 final plan status are delivered together; no runtime or business behavior changed.
+
+## Task-specific skills: 2026-09-17
+
+Owner-authorized scope: stop using Lean for routine development, research reusable popular GitHub
+skills before making changes, and install distinct frontend, backend, UI/UX, architecture and QA
+expertise. Baseline: `be668b6`. Non-goals: application behavior, dependency/framework migrations,
+global skill replacement, new agent orchestration or scheduled Lean reviews.
+
+Acceptance criteria: all five roles have a discoverable project-local skill; Lean is explicitly
+requested rather than automatic; active instructions and templates agree; imported sources are pinned,
+licensed and checked. The research and role-to-skill matrix live once in [the skill guide](../skills.md).
+
+Nine skills were installed into `.agents/skills` from exact commits of Vercel, Anthropic, wshobson,
+Kadajett and Supabase repositories. Existing global specialists were verified and retained. Repository
+stars informed the shortlist, while stack fit determined the final selection. The smaller NestJS
+source was selected for framework-specific guidance; broad senior-backend interviews, Jest/Next.js
+scaffolding and a competing full development framework were not adopted.
+
+Each imported entrypoint has a short project compatibility note. Upstream examples and references
+remain available, license files are preserved or copied from their source repository, and
+`.agents/skills/upstream-lock.json` records revisions, source paths, local adaptations and tree hashes.
+No imported helper runs automatically. Reuse the existing TypeScript test/browser runners.
+
+Updated AGENTS, operating roles, Claude Lean description, Codex invocation policy, Spec Kit templates
+and constitution. Constitution 2.0.0 records the incompatible governance change that removes the
+blanket Lean gate. Historical completed Lean assessments remain intact; new feature memories omit
+the section unless requested. No Lean assessment was performed for this setup.
+
+Verification:
+
+- Skill Creator validation passed for all nine imports and the revised Lean skill.
+- All nine installed tree digests matched; 187 imported files and explicitly named skill resources
+  were checked. Python resources parse; the browser helper's `--help` completed successfully.
+- Lean metadata has `allow_implicit_invocation: false`. Active instructions now distinguish normal
+  engineering work from owner-requested Lean expertise.
+- Focused Prettier and authored-diff whitespace checks passed. Imported upstream whitespace is
+  preserved with the pinned snapshots; those trees are intentionally outside formatting checks.
+- Application tests and browser screenshots are not applicable: no product code or UI changed.
+  Imported example scripts were not used against the application or production.
+
+Remaining evidence: automatic skill selection must be observed on subsequent real tasks; static
+validation does not prove routing quality. CI/release/announcement outcomes are separate from these
+local checks. New skill discovery is expected from the next turn.

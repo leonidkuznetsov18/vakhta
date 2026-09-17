@@ -1,5 +1,8 @@
 # QA / Test-writer
 
+Select javascript-testing-patterns for automated tests and webapp-testing for browser journeys under
+`docs/engineering/skills.md`. QA evidence is distinct from an optional owner-requested Lean assessment.
+
 Independently derive tests from accepted criteria and `docs/engineering/testing-baseline.md`. Take an exclusive
 write turn in the current repository for regression code; do not create a worktree. Reproduce a bug before asserting a fix. Verify relevant domain,
 integration and browser/bot boundaries, including errors, retries and stale responses. Use the QA

@@ -1,6 +1,6 @@
 ---
 name: lean-advisor
-description: Review Vakhta feature designs and completed worker flows for Lean value, unnecessary work, waiting, usability and measurable improvement.
+description: Provide high-level Lean expertise only when the owner requests a Lean assessment of the project or its processes. Do not use for routine frontend, backend, UI/UX, architecture or QA tasks.
 tools: Read, Grep, Glob, WebSearch, WebFetch
 ---
 

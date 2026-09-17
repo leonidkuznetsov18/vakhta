@@ -3,20 +3,27 @@
 Use roles to define responsibility, not five mandatory meetings for every edit. For non-trivial work,
 follow RECON → SPEC → DESIGN → IMPLEMENT → VERIFY → HARDEN → REPORT. The approved request and recorded
 acceptance criteria form the implementation authority. A small docs correction needs only a scoped
-writer and proportional review.
+writer and proportional review. Select the current role's skills from [the skill guide](skills.md).
+Roles describe responsibility; skills supply reusable expertise. Neither implies a separate agent
+or a mandatory handoff for every edit.
 
 | Role                | Input and permitted work                                                                                                             | Output and handoff                                                                                  |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
 | Architect/Planner   | Inspect source, request and constraints; write specification/design only. No implementation code.                                    | Accepted criteria, non-goals, FSD/backend placement, risks, test plan and allowed files.            |
-| Implementer         | Execute accepted scope inside one feature boundary in the current repository; write implementation and developer tests.              | Fixed base/head, change summary, criteria evidence, questions and regression results.               |
+| Frontend Developer  | Implement React/Vite features, FSD slices, state and accessible interaction within accepted scope.                                   | Working frontend changes and focused regression evidence.                                           |
+| Backend Developer   | Implement Nest/Fastify modules, pure domain rules, worker flows and database changes within accepted scope.                          | Validated contracts, preserved invariants and relevant integration evidence.                        |
+| UI/UX Designer      | Design information hierarchy, interactions, responsive layouts and accessible visual states for the affected surface.                | Reviewable design, implementation guidance and inspected desktop/mobile evidence.                   |
 | QA/Test-writer      | Independently derive cases from criteria and gaps; add tests during an exclusive write turn, reproduce failures, test user journeys. | Reproduction evidence, independent regression commit, limitations and tested revision.              |
 | Reviewer            | Inspect fixed diff plus spec, run proportionate checks; do not silently expand or rewrite implementation.                            | Blockers mapped to criteria, architecture/type/access/async concerns, DoD verdict.                  |
 | Lean/Process Expert | Analyze delivery metadata, workflow definitions and handoff artifacts only. Does not implement or review application code.           | Separate measured value stream, ranked waste, concrete tooling changes and before/after comparison. |
 
 Scoped prompts live in `.codex/roles/`. They are handoff instructions, not an automatically installed
 agent runtime configuration. Keep inherited model settings unless the owner requests a specific model.
-The existing `vakhta-lean-review` skill remains a **manufacturing product/workflow advisor**. It examines
-worker value and UX; the delivery Lean expert examines how engineering work moves through this repo.
+Frontend and Backend Developers use the shared Implementer handoff contract. UI/UX design and QA use
+their own skills; they are not Lean reviews. The `vakhta-lean-review` skill provides high-level
+manufacturing/product-process expertise only when the owner requests a Lean assessment. The delivery
+Lean expert examines engineering flow only when that distinct analysis is requested. Neither is an
+automatic design, implementation or completion stage.
 
 ## Session boundaries
 
@@ -25,7 +32,7 @@ small and context is healthy; the Architect phase must finish before code starts
 no separate roles or review cycle. High-risk changes use one independent fresh-context reviewer after
 a fixed implementation revision exists, following `testing-baseline.md`. Separate QA is needed only
 for a concrete evidence gap; it is not a mandatory extra stage for every change.
-The Lean expert uses a separate scoped context because its evidence and responsibilities differ.
+When requested, the Lean expert uses a separate scoped context because its evidence and responsibilities differ.
 Parallel read-only discovery is useful. All writes occur sequentially in the current repository on
 `master`; no PRs, additional worktrees or topic branches. Explicitly hand over owned files and the index
 before another writer starts, and never include another task's uncommitted edits in your commit.
@@ -59,10 +66,11 @@ the implementer's valid results; do not repeat a full suite or review at each ha
 commits into a coherent push, with no extra delivery for intermediate documentation. Preserve existing
 semantic-release and Telegram changelog delivery; record deployment evidence once in the feature memory.
 
-## Lean cadence
+## Requested Lean follow-up
 
-Run monthly or after 20 completed CI runs, whichever comes first. This is an operating recommendation,
-not an installed automation. Measure commit/push/check/release/deploy stages; PR timing is inapplicable
+There is no automatic Lean cadence. Agree on a follow-up only when the owner requests a Lean process
+assessment; elapsed time and completed CI counts do not activate the expert. Measure
+commit/push/check/release/deploy stages; PR timing is inapplicable
 to the selected direct-master workflow.
 Use the same sampling definitions, compare the prior report and metric JSON, and mark each recommendation
 implemented / pending / rejected with evidence. Do not claim savings from overlapping CI jobs as if

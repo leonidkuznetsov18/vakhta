@@ -32,7 +32,7 @@ Preserve useful tests and never weaken a failed check.
 ## Delivery and Evidence
 
 - [ ] T004 Update the linked product document if behavior changes and the existing engineering memory
-      with decisions, Lean recommendation, exact checks and limitations.
+      with decisions, exact checks and limitations. Include Lean findings only if that assessment was requested.
 - [ ] T005 Inspect task-owned changes, run remaining required checks, and deliver one coherent
       commit/push through the existing master CI/release/announcement path.
 

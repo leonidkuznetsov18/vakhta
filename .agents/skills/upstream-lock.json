@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "reviewedOn": "2026-09-17",
+  "skills": [
+    {
+      "name": "vercel-react-best-practices",
+      "repository": "https://github.com/vercel-labs/agent-skills",
+      "revision": "063bee94c3f4df8453406c830b0a7df0f2860278",
+      "sourcePath": "skills/react-best-practices",
+      "starsAtReview": 31280,
+      "license": "MIT declared in upstream SKILL.md; no separate license file in the source tree",
+      "upstreamTreeSha256": "e3f2294574b469c7c198373a443a86571012769d0bbeed68854bd55642ec0d7b",
+      "installedTreeSha256": "05c4a3fcc604de93f8f1f19d21268213d185cd1a4be2696fd6977e7a6b8dc163",
+      "localChanges": ["SKILL.md: leading Vakhta compatibility section"],
+      "extraLicenseFiles": []
+    },
+    {
+      "name": "vercel-composition-patterns",
+      "repository": "https://github.com/vercel-labs/agent-skills",
+      "revision": "063bee94c3f4df8453406c830b0a7df0f2860278",
+      "sourcePath": "skills/composition-patterns",
+      "starsAtReview": 31280,
+      "license": "MIT declared in upstream SKILL.md; no separate license file in the source tree",
+      "upstreamTreeSha256": "646f870906914c3787efa7403ec4716dfddf78fc17a12ec1f0556caf2143ac66",
+      "installedTreeSha256": "6841f66f73e7ea5d37332e0b59019cc282985f4ec679482745c6bc1c3d5c6b30",
+      "localChanges": ["SKILL.md: leading Vakhta compatibility section"],
+      "extraLicenseFiles": []
+    },
+    {
+      "name": "frontend-design",
+      "repository": "https://github.com/anthropics/skills",
+      "revision": "34040c9c568585f6929bedeaad110ad08f079624",
+      "sourcePath": "skills/frontend-design",
+      "starsAtReview": 176859,
+      "license": "Apache-2.0; bundled LICENSE.txt preserved",
+      "upstreamTreeSha256": "7e9c2af00fd5b3144f49ce6fb1b16037b392ab9c2f049423b0b6114d99381ba2",
+      "installedTreeSha256": "4f55bb7977ec03d177914a88c5172f9ecf99de826e3a1b359a3322a05eae5527",
+      "localChanges": ["SKILL.md: leading Vakhta compatibility section"],
+      "extraLicenseFiles": []
+    },
+    {
+      "name": "webapp-testing",
+      "repository": "https://github.com/anthropics/skills",
+      "revision": "34040c9c568585f6929bedeaad110ad08f079624",
+      "sourcePath": "skills/webapp-testing",
+      "starsAtReview": 176859,
+      "license": "Apache-2.0; bundled LICENSE.txt preserved",
+      "upstreamTreeSha256": "abfaf4cc6cf572346e22fed42dc0cfaacd2f64c5d9667f44a94b02ea0d3b1342",
+      "installedTreeSha256": "4d032113ecbfde24bf5dd26fbb84fc06370cfe85c72c12b07f198afde45f3e29",
+      "localChanges": ["SKILL.md: leading Vakhta compatibility section"],
+      "extraLicenseFiles": []
+    },
+    {
+      "name": "architecture-patterns",
+      "repository": "https://github.com/wshobson/agents",
+      "revision": "4236bb91f8395b0435f1d8b8baf9e8e4c69a8620",
+      "sourcePath": "plugins/backend-development/skills/architecture-patterns",
+      "starsAtReview": 39758,
+      "license": "MIT; root LICENSE copied as UPSTREAM-LICENSE",
+      "upstreamTreeSha256": "250d7547452d3b33d18bdf3d5dc8fec874c9eaa02b2def1ee9d04933624e053c",
+      "installedTreeSha256": "13ba03e644e2f6d38c6eaf2097ad39b9d6ceb7dd58de737953e85a35dfd2a7bf",
+      "localChanges": ["SKILL.md: leading Vakhta compatibility section"],
+      "extraLicenseFiles": [
+        {
+          "sourcePath": "LICENSE",
+          "installedPath": "UPSTREAM-LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "architecture-decision-records",
+      "repository": "https://github.com/wshobson/agents",
+      "revision": "4236bb91f8395b0435f1d8b8baf9e8e4c69a8620",
+      "sourcePath": "plugins/documentation-generation/skills/architecture-decision-records",
+      "starsAtReview": 39758,
+      "license": "MIT; root LICENSE copied as UPSTREAM-LICENSE",
+      "upstreamTreeSha256": "aae8098292356e7237b6f3b5f3e736d2bdb544eb70a20e7288e3298edec46686",
+      "installedTreeSha256": "65fe735c77d7a7da223a00dab1f64e0f0e1a0e0f01297aad55a57dc0ed6a8b14",
+      "localChanges": ["SKILL.md: leading Vakhta compatibility section"],
+      "extraLicenseFiles": [
+        {
+          "sourcePath": "LICENSE",
+          "installedPath": "UPSTREAM-LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "javascript-testing-patterns",
+      "repository": "https://github.com/wshobson/agents",
+      "revision": "4236bb91f8395b0435f1d8b8baf9e8e4c69a8620",
+      "sourcePath": "plugins/javascript-typescript/skills/javascript-testing-patterns",
+      "starsAtReview": 39758,
+      "license": "MIT; root LICENSE copied as UPSTREAM-LICENSE",
+      "upstreamTreeSha256": "46493add3cfe4c180402a56ac8bafb33257c274b9d38f55b686f1a9672324652",
+      "installedTreeSha256": "3567b5fd4e6a08f36a3e00cb21f1d82512e533074e9592103b06d50d10a480a2",
+      "localChanges": ["SKILL.md: leading Vakhta compatibility section"],
+      "extraLicenseFiles": [
+        {
+          "sourcePath": "LICENSE",
+          "installedPath": "UPSTREAM-LICENSE"
+        }
+      ]
+    },
+    {
+      "name": "nestjs-best-practices",
+      "repository": "https://github.com/Kadajett/agent-nestjs-skills",
+      "revision": "3986e0cede33958e000f959031cbee0cd83c2941",
+      "sourcePath": "skills/nestjs-best-practices",
+      "starsAtReview": 276,
+      "license": "MIT declared in upstream SKILL.md; no separate license file in the source tree",
+      "upstreamTreeSha256": "077c77bffb04833e147bcd29d63dce015cd9f86305afd36b97f1d56d37e70d4d",
+      "installedTreeSha256": "59f5a7e3935e6adc33258a7292b823baaa5871625b264a9445bbd48ca20f8c9f",
+      "localChanges": ["SKILL.md: leading Vakhta compatibility section"],
+      "extraLicenseFiles": []
+    },
+    {
+      "name": "supabase-postgres-best-practices",
+      "repository": "https://github.com/supabase/agent-skills",
+      "revision": "8331f910845103c08d51f6ca1d86ebb7d1f745e3",
+      "sourcePath": "skills/supabase-postgres-best-practices",
+      "starsAtReview": 2626,
+      "license": "MIT; root LICENSE copied as UPSTREAM-LICENSE",
+      "upstreamTreeSha256": "a714d433362542f2d52e8b7958d1691c49fa4f43c9645c9a647895fb3ca85f92",
+      "installedTreeSha256": "17f3595a742450788b087c7cc371cd6fae3d3352f390f9ccf21a22fe255e8f8c",
+      "localChanges": ["SKILL.md: leading Vakhta compatibility section"],
+      "extraLicenseFiles": [
+        {
+          "sourcePath": "LICENSE",
+          "installedPath": "UPSTREAM-LICENSE"
+        }
+      ]
+    }
+  ]
+}

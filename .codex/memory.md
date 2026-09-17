@@ -70,3 +70,12 @@ owner appends after merging work; parallel agents return proposed entries instea
 - Owner decision: Vakhta is positioned as a Connected Worker / Frontline Operations platform. The
   canonical vocabulary, roles, KPIs and domain background live in `docs/product-vision.md`; README,
   `AGENTS.md`, `CLAUDE.md` and the GitHub repository description follow it. Use its terms in new work.
+
+## 2026-09-17 — Skills match engineering responsibilities
+
+- Owner decision; integration owner: Codex; baseline `be668b6`. Use distinct frontend, backend,
+  UI/UX, architecture and QA skills from `docs/engineering/skills.md`. Nine upstream skills are
+  project-local and pinned in `.agents/skills/upstream-lock.json`; existing global specialists remain.
+- Lean expertise is only for an owner-requested process assessment. No routine feature/design/QA
+  gate or automatic cadence; this supersedes earlier broad Lean instructions and templates.
+- Exact decisions, checks and remaining evidence: `docs/engineering/features/development-workflow.md`.

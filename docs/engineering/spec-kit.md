@@ -26,15 +26,15 @@ rules rather than establishing another independent rulebook.
 
 ## Artifacts and Sources of Truth
 
-| Location                                 | Owns                                                           |
-| ---------------------------------------- | -------------------------------------------------------------- |
-| `.specify/memory/constitution.md`        | Spec Kit entry point to accepted repository principles         |
-| `.specify/templates/overrides/`          | Project-specific spec, plan and task templates                 |
-| `specs/<change>/spec.md`                 | Requirements, non-goals and acceptance criteria for one change |
-| `specs/<change>/plan.md`                 | Design, ownership, ordered approach and verification plan      |
-| `specs/<change>/tasks.md`                | Execution status and evidence links                            |
-| `docs/features/<feature>.md`             | Current behavior for product/support readers                   |
-| `docs/engineering/features/<feature>.md` | Durable decisions, Lean review, evidence and remaining work    |
+| Location                                 | Owns                                                                         |
+| ---------------------------------------- | ---------------------------------------------------------------------------- |
+| `.specify/memory/constitution.md`        | Spec Kit entry point to accepted repository principles                       |
+| `.specify/templates/overrides/`          | Project-specific spec, plan and task templates                               |
+| `specs/<change>/spec.md`                 | Requirements, non-goals and acceptance criteria for one change               |
+| `specs/<change>/plan.md`                 | Design, ownership, ordered approach and verification plan                    |
+| `specs/<change>/tasks.md`                | Execution status and evidence links                                          |
+| `docs/features/<feature>.md`             | Current behavior for product/support readers                                 |
+| `docs/engineering/features/<feature>.md` | Durable decisions, requested expert assessments, evidence and remaining work |
 
 The three change artifacts collectively follow `docs/templates/spec.md`; do not create another copy
 of the same specification. Link existing feature documents. Developer-only workflow work uses the
