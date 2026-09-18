@@ -54,7 +54,11 @@ for (const width of [320, 390, 430, 1440]) {
       expect(item.left).toBeGreaterThanOrEqual(0);
       expect(item.right).toBeLessThanOrEqual(width);
     });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    const documentWidth = await page.evaluate(() => ({
+      content: document.documentElement.scrollWidth,
+      viewport: document.documentElement.clientWidth,
+    }));
+    expect(documentWidth.content).toBe(documentWidth.viewport);
 
     const lastTick = ticks.last();
     await lastTick.scrollIntoViewIfNeeded();
