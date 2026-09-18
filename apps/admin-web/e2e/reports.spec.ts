@@ -58,7 +58,8 @@ for (const width of [320, 390, 430, 1440]) {
       content: document.documentElement.scrollWidth,
       viewport: document.documentElement.clientWidth,
     }));
-    expect(documentWidth.content).toBe(documentWidth.viewport);
+    // A stable scrollbar gutter may leave content narrower than the viewport.
+    expect(documentWidth.content).toBeLessThanOrEqual(documentWidth.viewport);
 
     const lastTick = ticks.last();
     await lastTick.scrollIntoViewIfNeeded();
