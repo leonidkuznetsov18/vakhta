@@ -1,9 +1,149 @@
-import { test, expect, type Locator } from '@playwright/test';
-import { PhotoInspectionView } from '@vakhta/contracts';
+import { test, expect, type Locator, type Page } from '@playwright/test';
+import { PhotoInspectionView, SaveInspection } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { reviewFixture, reviewPhotos, reviewObjects } from '../src/preview/review-fixtures';
 const t = messages('en').photoInspection;
+const httpMethod = { POST: 'POST' } as const;
 const photosByFilename = new Map(reviewPhotos.map((photo) => [`${photo.media.id}.svg`, photo]));
+
+for (const locale of ['en', 'uk', 'ru'] as const) {
+  test(`footer save width stays stable through edits, saving and AI analysis (${locale})`, async ({
+    page,
+  }, info) => {
+    const labels = messages(locale).photoInspection;
+    await page.addInitScript((value) => localStorage.setItem('vakhta.locale', value), locale);
+    const photo = reviewPhotos[0];
+    if (!photo) throw new Error('Missing photo fixture');
+    const response = reviewFixture(
+      `/admin/handovers/hv1/photos/${photo.media.id}/${photo.itemKey}/inspection`,
+      'GET',
+    );
+    if (!response) throw new Error('Missing inspection fixture');
+    let view = PhotoInspectionView.parse(await response.json());
+    let releaseSave = () => {};
+    const saving = new Promise<void>((resolve) => {
+      releaseSave = resolve;
+    });
+    let releaseAnalysis = () => {};
+    const analyzing = new Promise<void>((resolve) => {
+      releaseAnalysis = resolve;
+    });
+    await page.route('**/inspection', async (route) => {
+      if (route.request().method() === httpMethod.POST) {
+        const input = SaveInspection.parse(route.request().postDataJSON());
+        await saving;
+        view = { ...view, version: view.version + 1, review: input.review };
+      }
+      await route.fulfill({ json: view });
+    });
+    await page.route('**/inspection/analyze', async (route) => {
+      await analyzing;
+      const run = view.runs[0];
+      if (!run) throw new Error('Missing analysis fixture');
+      view = { ...view, runs: [{ ...run, status: 'PENDING', errorCode: null, completedAt: null }] };
+      await route.fulfill({ json: view });
+    });
+    await page.goto('/e2e/photos.html');
+    await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
+    const save = buttonWithText(page, labels.save);
+    const analyze = page.getByRole('button', { name: labels.analyze, exact: true });
+    await expect(save).toBeDisabled();
+    await expect(analyze).toBeEnabled();
+    const before = await save.boundingBox();
+    if (!before) throw new Error('Missing save button');
+    await page.getByRole('button', { name: labels.addNote, exact: true }).click();
+    const note = page.getByRole('textbox', { name: labels.reviewComment });
+    await note.fill('Review note');
+    await expect(save).toBeEnabled();
+    await page.screenshot({ path: info.outputPath('footer-enabled.png') });
+    await expectStableWidth(save, before.width);
+    await note.fill('');
+    await expect(save).toBeDisabled();
+    await expectStableWidth(save, before.width);
+    await note.fill('Review note');
+    await save.click();
+    await expect(save).toHaveAttribute('aria-busy', 'true');
+    await expect(save).toBeDisabled();
+    await expectStableWidth(save, before.width);
+    await page.screenshot({ path: info.outputPath('footer-saving.png') });
+    releaseSave();
+    await expect(save).toHaveAttribute('aria-busy', 'false');
+    await expect(save).toBeDisabled();
+    await expectStableWidth(save, before.width);
+    await note.fill('Another note');
+    await expect(save).toBeEnabled();
+    await analyze.click();
+    const pending = buttonWithText(page, labels.aiPending);
+    await expect(pending).toHaveAttribute('aria-busy', 'true');
+    await expect(save).toBeDisabled();
+    await expectStableWidth(save, before.width);
+    releaseAnalysis();
+    await expect(save).toBeEnabled();
+    await expect(pending).toBeDisabled();
+    await expectStableWidth(save, before.width);
+    await page.screenshot({ path: info.outputPath('footer-analysis.png') });
+    const run = view.runs[0];
+    if (!run) throw new Error('Missing pending analysis');
+    view = {
+      ...view,
+      runs: [
+        {
+          ...run,
+          status: 'SUCCEEDED',
+          completedAt: new Date().toISOString(),
+          prediction: { status: 'COMPLIANT', summary: '', limitations: '', findings: [] },
+        },
+      ],
+    };
+    await expect(analyze).toBeEnabled();
+    await expectStableWidth(save, before.width);
+    await page.screenshot({ path: info.outputPath('footer-complete.png') });
+  });
+}
+
+for (const width of [320, 639, 640, 768, 1024, 1440]) {
+  test(`footer uses the intended responsive width at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.addInitScript(() => localStorage.setItem('vakhta.locale', 'uk'));
+    const labels = messages('uk').photoInspection;
+    await page.goto('/e2e/photos.html');
+    await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
+    const save = buttonWithText(page, labels.save);
+    const analyze = page.getByRole('button', { name: labels.analyze, exact: true });
+    await expect(analyze).toBeEnabled();
+    await page.getByRole('button', { name: labels.addNote, exact: true }).click();
+    const note = page.getByRole('textbox', { name: labels.reviewComment });
+
+    const before = await save.boundingBox();
+    if (!before) throw new Error('Missing save button');
+    await note.fill('Review note');
+    await expect(save).toBeEnabled();
+    await expectStableWidth(save, before.width);
+    const secondary = await analyze.boundingBox();
+    const dialog = await page.getByRole('dialog').boundingBox();
+    if (!secondary || !dialog) throw new Error('Missing footer');
+    expect(secondary.x).toBeGreaterThanOrEqual(before.x + before.width);
+    expect(secondary.x + secondary.width).toBeLessThanOrEqual(dialog.x + dialog.width);
+    if (width < 640) expect(Math.abs(before.width - secondary.width)).toBeLessThan(1);
+    else expect(before.width).toBeLessThan(dialog.width / 2);
+    await note.fill('');
+    await expect(save).toBeDisabled();
+  });
+}
+
+function buttonWithText(page: Page, text: string) {
+  return page.getByRole('button').filter({ hasText: text });
+}
+
+async function expectStableWidth(button: Locator, width: number) {
+  await expect
+    .poll(async () => {
+      const bounds = await button.boundingBox();
+      return bounds ? Math.abs(bounds.width - width) : Infinity;
+    })
+    .toBeLessThan(1);
+}
+
 async function expectStableFrame(
   frame: Locator,
   before: Awaited<ReturnType<Locator['boundingBox']>>,

@@ -999,3 +999,24 @@ The latter returned 31 bounded entries, including component-like names: unreview
 still require meaning review and exclusions. No save or AI run was submitted; the search was cleared
 and saved-rule view restored. All eight GitHub tasks are closed. This final documentation-only update
 records completed delivery; it changes no runtime behavior and does not repeat full application tests.
+
+## Predictable footer action width — 2026-09-18
+
+Scope: preserve content-based Save changes sizing across disabled, edited, saving and AI-analysis
+states, using the owner's compact desktop screenshot as the reference. Keep the existing explicit
+mobile layout: two equal columns below 640 px. No review, API, permission or shared-button changes.
+
+The browser regression reproduced an enabled Ukrainian Save button growing by 1092.875 px at
+1440 px. The footer applied `w-full` to every descendant button, including its desktop flex layout.
+Disabled IconButton controls have a tooltip wrapper; enabling Save removes that wrapper and makes
+its 100% width resolve against the entire action row, pushing Analyze outside the dialog.
+The inspection slice now overrides button width with `sm:[&_button]:w-auto`.
+
+Verification: the regression fails with the original style and passes with the override. The browser
+matrix covers English/Ukrainian/Russian on desktop and emulated mobile, edits/reverts, delayed save,
+AI request/pending/completion and widths 320/639/640/768/1024/1440 px. Screenshots of desktop/mobile
+editing, saving and pending analysis were captured and visually inspected. All 24 selected browser checks (18 new footer
+cases plus loading/read-only/narrow-layout regressions), 75 focused inspection unit/component tests,
+panel typecheck, production build and changed-file lint/format checks passed. The build retains
+existing large-bundle and third-party annotation warnings. These are local
+synthetic-fixture checks; production saves, real AI execution and physical devices were not exercised.

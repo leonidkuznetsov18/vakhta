@@ -644,7 +644,7 @@ function InspectionSession({
         className="flex h-20 shrink-0 flex-col gap-2 border-t bg-background pt-3 sm:h-14"
       >
         {initial.canEdit && (
-          <div className="grid grid-cols-2 gap-2 sm:flex [&>*]:min-w-0 [&_button]:w-full [&_button]:h-auto [&_button]:min-h-10 [&_button]:min-w-0 [&_button]:whitespace-normal sm:[&_button]:min-h-8">
+          <div className="grid grid-cols-2 gap-2 sm:flex [&>*]:min-w-0 [&_button]:w-full sm:[&_button]:w-auto [&_button]:h-auto [&_button]:min-h-10 [&_button]:min-w-0 [&_button]:whitespace-normal sm:[&_button]:min-h-8">
             <IconButton
               disabled={busy || !canSaveReview(state)}
               aria-busy={save.isPending && !save.isPaused}
