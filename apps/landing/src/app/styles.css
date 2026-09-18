@@ -660,6 +660,8 @@ details p {
   margin-inline: auto;
 }
 .portrait {
+  min-width: 0;
+  overflow: hidden;
   position: absolute;
   width: 112px;
   height: 112px;
@@ -715,7 +717,7 @@ details p {
   }
   .portrait-field {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 12px;
     max-width: 540px;
     margin: 36px auto 0;

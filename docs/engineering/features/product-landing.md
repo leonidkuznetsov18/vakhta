@@ -57,6 +57,12 @@ photos support what the interface looks like, not a numerical downtime-reduction
   Escape closes and returns focus; mobile 100% mode renders the 1184px source with internal scrolling.
 - Public screen captions distinguish synthetic overviews from real cases. Mail recipient inspected,
   no test email sent. No production worker actions manufactured for a demonstration.
+- Native FAQ expansion and anchor navigation also work with JavaScript disabled. Blocking all
+  product/portrait images exposed a mobile grid overflow; bounded portrait tracks now keep both
+  clientWidth and scrollWidth at 390px. The failure screenshot and corrected result were inspected.
+- Focused existing reports browser tests passed at 320/390/430/1440px (4 applicable, 4 skipped by
+  project). Their no-overflow assertion permits the panel's reserved scrollbar gutter. No report
+  behavior changed. The bonus source was recaptured after chart animation completed.
 - Full integration belongs to existing GitHub CI; do not report local checks as CI or deployment.
 
 ## Delivery and rollback
