@@ -1,3 +1,4 @@
+import type { LandingMessages } from './landing.js';
 import type { PhotoDictionaryMessages } from './photo-object-dictionary.js';
 import type { communicationsRu } from './communications.js';
 import type { EmployeeProfileMessages } from './employee-profile.js';
@@ -69,6 +70,7 @@ export interface SectionGuide {
 }
 
 export interface Messages {
+  landing: LandingMessages;
   readonly communications: typeof communicationsRu;
   employeeProfile: EmployeeProfileMessages;
   photoInspection: PhotoInspectionMessages;

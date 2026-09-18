@@ -1,0 +1,30 @@
+{
+  "date": "2026-09-18",
+  "tool": "Built-in image_gen",
+  "prompts": [
+    {
+      "key": "machine-operator",
+      "prompt": "Use case: photorealistic-natural. Asset type: square editorial portrait avatar for the Vakhta manufacturing landing page. Subject: a woman CNC machine operator in her thirties in navy workwear and clear safety glasses, softly blurred CNC workshop behind her. One fictional adult person only, waist-up portrait, natural confident expression, face unobstructed and comfortably centered with generous headroom, looking slightly toward camera. Authentic European manufacturing workplace, natural daylight, restrained colors, realistic skin texture, consistent professional editorial photography. Square composition suitable for cropping to a small rounded-square portrait. No text, numbers, logos, branding, watermarks, interface, collage, or visible personal badge information. No dangerous work activity. This illustrates a profession, not a real customer or testimonial."
+    },
+    {
+      "key": "maintenance-technician",
+      "prompt": "Use case: photorealistic-natural. Asset type: square editorial portrait avatar for the Vakhta manufacturing landing page. Subject: a man maintenance technician in his forties in grey workwear with subtle orange accents, safely standing in an industrial maintenance area. One fictional adult person only, waist-up portrait, natural confident expression, face unobstructed and comfortably centered with generous headroom, looking slightly toward camera. Authentic European manufacturing workplace, natural daylight, restrained colors, realistic skin texture, consistent professional editorial photography. Square composition suitable for cropping to a small rounded-square portrait. No text, numbers, logos, branding, watermarks, interface, collage, or visible personal badge information. No dangerous work activity. This illustrates a profession, not a real customer or testimonial."
+    },
+    {
+      "key": "quality-inspector",
+      "prompt": "Use case: photorealistic-natural. Asset type: square editorial portrait avatar for the Vakhta manufacturing landing page. Subject: a woman quality inspector in her forties wearing a blue factory coat and clear protective glasses, softly blurred clean manufacturing quality laboratory. One fictional adult person only, waist-up portrait, natural confident expression, face unobstructed and comfortably centered with generous headroom, looking slightly toward camera. Authentic European manufacturing workplace, natural daylight, restrained colors, realistic skin texture, consistent professional editorial photography. Square composition suitable for cropping to a small rounded-square portrait. No text, numbers, logos, branding, watermarks, interface, collage, or visible personal badge information. No dangerous work activity. This illustrates a profession, not a real customer or testimonial."
+    },
+    {
+      "key": "shift-supervisor",
+      "prompt": "Use case: photorealistic-natural. Asset type: square editorial portrait avatar for the Vakhta manufacturing landing page. Subject: a man shift supervisor in his fifties wearing a white hard hat and a navy work jacket, softly blurred factory floor. One fictional adult person only, waist-up portrait, natural confident expression, face unobstructed and comfortably centered with generous headroom, looking slightly toward camera. Authentic European manufacturing workplace, natural daylight, restrained colors, realistic skin texture, consistent professional editorial photography. Square composition suitable for cropping to a small rounded-square portrait. No text, numbers, logos, branding, watermarks, interface, collage, or visible personal badge information. No dangerous work activity. This illustrates a profession, not a real customer or testimonial."
+    },
+    {
+      "key": "packaging-operator",
+      "prompt": "Use case: photorealistic-natural. Asset type: square editorial portrait avatar for the Vakhta manufacturing landing page. Subject: a woman packaging line operator in her twenties in teal workwear, softly blurred modern packaging production line. One fictional adult person only, waist-up portrait, natural confident expression, face unobstructed and comfortably centered with generous headroom, looking slightly toward camera. Authentic European manufacturing workplace, natural daylight, restrained colors, realistic skin texture, consistent professional editorial photography. Square composition suitable for cropping to a small rounded-square portrait. No text, numbers, logos, branding, watermarks, interface, collage, or visible personal badge information. No dangerous work activity. This illustrates a profession, not a real customer or testimonial."
+    },
+    {
+      "key": "industrial-electrician",
+      "prompt": "Use case: photorealistic-natural. Asset type: square editorial portrait avatar for the Vakhta manufacturing landing page. Subject: a man industrial electrician in his thirties wearing navy protective workwear, safely standing away from closed electrical cabinets. One fictional adult person only, waist-up portrait, natural confident expression, face unobstructed and comfortably centered with generous headroom, looking slightly toward camera. Authentic European manufacturing workplace, natural daylight, restrained colors, realistic skin texture, consistent professional editorial photography. Square composition suitable for cropping to a small rounded-square portrait. No text, numbers, logos, branding, watermarks, interface, collage, or visible personal badge information. No dangerous work activity. This illustrates a profession, not a real customer or testimonial."
+    }
+  ]
+}

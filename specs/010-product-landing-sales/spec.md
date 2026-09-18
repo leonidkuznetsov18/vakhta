@@ -1,6 +1,6 @@
 # Feature Specification: Product Landing Page and Sales Handoff
 
-**Change**: 010-product-landing-sales | **Created**: 2026-09-18 | **Status**: Draft for implementation
+**Change**: 010-product-landing-sales | **Created**: 2026-09-18 | **Status**: Implemented; delivery and Sales rehearsal tracked separately
 **Baseline**: 811003a | **Checkout**: master
 **Authority**: Owner requests a trilingual landing-page plan and specification for Sales to present
 Vakhta to business owners and prospective investors.
@@ -13,7 +13,7 @@ child issues; see [task mapping](tasks.md#future-implementation).
 
 Vakhta is a Connected Worker / Frontline Operations platform. Its established domain is continuous
 manufacturing with shift teams. Workers use Telegram and QR kiosks; managers use a web panel.
-This checkout has no dedicated marketing application. Operational documentation does not provide
+At the planning baseline this checkout had no dedicated marketing application. The implementation now lives in `apps/landing`. Operational documentation does not provide
 a standalone sales narrative or evidence of commercial traction.
 
 | Capability               | Evidence in the current checkout                                                                              | Presentation boundary                                                                                 |
@@ -163,8 +163,9 @@ remain with workforce epic #3 and never become current-feature claims or landing
 
 ### US4: Buyer or investor contacts Sales (P1)
 
-- **AC-009**: All three contact intents reach verified destinations with appropriate context. A visible
-  copyable contact remains available when no email client is configured.
+- **AC-009**: All three contact intents open the owner-approved recipient with appropriate context.
+  Per the owner's explicit override, the email address is hidden from visible copy and appears in the
+  composer. A configured email application is required; do not claim a fallback delivery service.
 - **AC-010**: A contact click never displays a submission-success message. No placeholder address,
   unverified booking availability or invented response deadline appears publicly.
 
@@ -240,3 +241,17 @@ conversion targets, customer counts or machine-downtime savings.
 Current delivery: source/link review, formatting, translation parity and visual review of exported
 documents. No behavior change means no application build, domain tests or employee-action QA.
 The implementation plan defines future UI and release verification.
+
+## Accepted implementation refinements (2026-09-18)
+
+- Use [accepted inputs](publication-inputs.md), including the owner-maintained demand protocol.
+- Lead with reducing downtime and incident recurrence, not merely recording problems.
+- Show all twelve current capability groups on their own localized pages, with screenshot, steps
+  and value. Provide six selectable kiosk/Telegram/panel scenarios and twenty FAQ answers.
+- Show actual equipment-photo handover and resolved incident cases alongside clearly labelled
+  demo panel overviews. Portraits are original generated manufacturing professions.
+- **AC-017**: Image expansion stays on the page in a viewport-filling dialog, loads the full asset,
+  supports 100% size and scrolling, closes with Escape, and restores trigger focus. Scenario
+  expansion shows the selected scenario. Core content remains available without JavaScript.
+- Screenshots currently show the Ukrainian product UI; explanatory copy and controls are trilingual.
+  Translated screenshot sets and a complete live worker rehearsal are tracked gaps, not claimed done.

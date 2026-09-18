@@ -1,9 +1,9 @@
 # Product landing page
 
-Status: planned, 2026-09-18. No landing implementation or campaign is included in this change.
+Status: implemented, 2026-09-18. Publication verification is recorded in engineering memory; no demand campaign has started.
 
 Owner refinement: focus only on manufacturing and test whether production businesses need Vakhta.
-The page leads with recurring downtime/time-loss reasons, faster incident response, personnel
+The page leads with reducing downtime and repeated incidents through faster response, personnel
 checklists and evidence-backed handover. Scheduling, QR, requests, communications and bonus are
 supporting capabilities rather than the headline.
 
@@ -22,3 +22,8 @@ downtime reduction requires separate pilot evidence and is not a guaranteed outc
 - [Implementation plan](../../specs/010-product-landing-sales/plan.md)
 - [GitHub epic #81](https://github.com/leonidkuznetsov18/vakhta/issues/81)
 - [Evidence and remaining work](../engineering/features/product-landing.md)
+
+The site contains twelve localized feature pages, six selectable three-interface scenarios, twenty
+FAQ answers, original manufacturing profession portraits and expandable product screenshots.
+Real incident and equipment-photo handover cases are distinguished from demo overview records.
+The owner accepted the [publication inputs and experiment protocol](../../specs/010-product-landing-sales/publication-inputs.md).

@@ -2,96 +2,80 @@
 
 ## Status and scope
 
-2026-09-18; baseline `811003a`; owner: project owner; writer: Codex.
-Planning and sales-content delivery only. No application, DNS or hosting changes.
-Active feature: `specs/010-product-landing-sales`, existing `master` checkout.
+2026-09-18; active feature `specs/010-product-landing-sales`, current `master` checkout.
+Implementation for [epic #81](https://github.com/leonidkuznetsov18/vakhta/issues/81). Publication
+and campaign outcomes are separate. No operational feature, employee record or bot action changed.
 
 ## Decisions
 
-- Owner refinement: manufacturing only; lead with recurring downtime/time-loss reasons, faster
-  incident response, personnel checklists and handover. The earlier adjacent-industry positioning
-  is superseded and excluded from this campaign.
-- Owner selected all three contact paths: demo, business pilot and investment. Contact links and a visible address
-  avoid a new form service, lead database or tracking cookies in v1. Emphasize the manufacturing
-  pilot; investor interest remains separate from customer demand.
-- Future static marketing app reuses React/Vite and i18n; it does not migrate the operational panel.
-- Claims need source evidence and a rehearsed demo. No inferred ROI, customer metrics, market size,
-  certification or autonomous Master agent.
-- Ukrainian/English/Russian handoffs are external exports; repository documents are English.
-  Runtime translations are future i18n work.
+- Manufacturing only. Lead with reducing downtime and recurring incidents; recording is a means.
+- Approved operator Vakhta, email behind composer buttons only. Pilot primary; demo and investment
+  secondary. No lead service, tracking cookies, pricing promise or invented traction.
+- Root is Ukrainian; three direct locale routes and twelve feature pages per locale (40 documents).
+- React 19/Vite/Tailwind build-time rendering, typed i18n copy, no shipped React runtime. FSD page
+  owns presentation and prepared content; three small features own contact, language anchors and
+  image/scenario expansion. No operational app imports or runtime routing framework.
+- Six selectable scenarios, twenty FAQ answers, three public-only text handouts. Native HTML works
+  without JavaScript. The dialog is a full viewport overlay, not browser chrome fullscreen: full
+  source image, scrolling, 100% toggle, Escape and focus restoration. No unsolicited new tab.
+- Original generated portraits follow the Connecteam composition reference; no competitor assets.
+  Prompts are tracked in the spec folder. Portraits are labelled illustrations, not testimonials.
+- Owner accepted the experiment and keeps the record. See publication-inputs.md. No outreach,
+  campaign start, qualified conversation, pilot or saving is claimed from implementation.
 
-## Evidence
+## Media evidence
 
-The [spec inventory](../../../specs/010-product-landing-sales/spec.md) lists source references.
-Schedule documentation contains stale statements; selected public demo paths require release checks.
-Source inspection is not fresh production QA or measured customer outcomes.
+All public assets live in `apps/landing/public/`; working captures are ignored under
+`apps/landing/test-results/visual/`. Screens show the Ukrainian product UI with trilingual surrounding
+copy. The owner explicitly authorized real product/problem screenshots and the kiosk QR.
 
-Planning validation passed: scoped Prettier, local Markdown link resolution, claim/acceptance review
-and translated structural parity. The manufacturing refinement replaces the initial six-page exports
-with five-page handoffs in each language; all 15 final pages were rendered and visually inspected.
-Exports are in `Documents/Vakhta/landing-sales-2026-09-18/`; the tracked English source is
-[sales-brief.en.md](../../../specs/010-product-landing-sales/sales-brief.en.md).
-No app build/tests or live product QA were run because this delivery changes documentation only.
-The landing is not implemented; no new marketing contact, domain or publication is claimed.
-CI/release/announcement status is reported in the delivery handoff, not inferred from local checks.
+| Asset                                                                                                                                              | Provenance and boundary                                                                                                                                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `overview-uk`, `overview-full-uk`, `schedule-full-uk`, `bonus-full-uk`, `panel-losses-uk`, operations, requests, administration, checklists, audit | Actual panel components at local `/preview.html?lang=uk`; synthetic demo records. Caption identifies demo data, not customer outcomes. Full overview contains all lower sections; bonus includes the table. |
+| `communications-uk`                                                                                                                                | Actual panel composer with a local demonstration draft; no message sent.                                                                                                                                    |
+| `kiosk-uk`                                                                                                                                         | Live paired kiosk captured read-only. QR was transient and expired before publication; no attendance scan.                                                                                                  |
+| `telegram-uk`                                                                                                                                      | Actual native Telegram bot menu. Personal greeting concealed; private calendar link excluded. This is a menu capture, not proof of a rehearsed active-shift flow.                                           |
+| `incident-live-uk`                                                                                                                                 | Actual resolved glue-shortage case, 2026-09-15. Crop shows recorded cause and resolution; employee fields excluded. No record edited.                                                                       |
+| `handover-live-uk`                                                                                                                                 | Actual 2026-09-15 handover reviewed on 2026-09-16: checklist, three equipment photos and recorded master remarks. Crop excludes employee row. No decision made during capture.                              |
+| `photos-live-uk`                                                                                                                                   | Actual photo-review dialog from that handover, showing equipment and existing suggestions for a cup/rag. No analysis or save triggered. Suggestions are not a final decision or model accuracy evidence.    |
+| `people/*.webp`                                                                                                                                    | Six original AI-generated fictional manufacturing profession portraits, visually inspected.                                                                                                                 |
 
-## Remaining work
+Live case captures were read-only in the current authenticated production panel. Captures and crops
+were visually inspected. Demo screenshots are not represented as current customer data. Real-case
+photos support what the interface looks like, not a numerical downtime-reduction claim.
 
-### GitHub backlog publication
+## Verification
 
-Owner request, 2026-09-18: publish a separate implementation epic and issues for later execution.
-Created [epic #81](https://github.com/leonidkuznetsov18/vakhta/issues/81) and nine native children
-[#82–#90](../../../specs/010-product-landing-sales/tasks.md#future-implementation). T07–T13 are
-covered; T10 is split into static foundation, page composition and conversion/download journeys.
-Completed planning work was not recreated, and no product implementation was started.
-The owner then narrowed the existing epic/children to manufacturing demand validation; preserve IDs.
+- `pnpm --filter landing... run build`: passed; includes strict TypeScript. Forty static HTML pages,
+  404, sitemap, robots and localized text handouts. Client JS approximately 1.14 KB gzip, no React runtime.
+- `pnpm --filter landing lint`: passed.
+- `pnpm --filter landing test`: 13 passed, including full-asset dialog, selected scenario, 100% toggle,
+  close/focus restoration, all routes, localized contact intents and public handout boundaries.
+- `pnpm --filter @vakhta/i18n test`: 13 passed.
+- Real Chrome: desktop 1440px and mobile 390px screenshot capture AND visual inspection of hero,
+  product/scenario expansion and feature presentation. Image expansion keeps URL unchanged, native
+  Escape closes and returns focus; mobile 100% mode renders the 1184px source with internal scrolling.
+- Public screen captions distinguish synthetic overviews from real cases. Mail recipient inspected,
+  no test email sent. No production worker actions manufactured for a demonstration.
+- Full integration belongs to existing GitHub CI; do not report local checks as CI or deployment.
 
-The existing roadmap naming and stable body markers take precedence over generic task-ID titles.
-All ten issues have `area:landing` and one status label. #82 needs an owner/Sales decision; the
-epic and other children start in backlog. No individual assignees, deadlines or priorities were invented.
-Each child records its responsible role, source task, dependencies, scope, acceptance and verification.
-The initial source was `a4a5ff3a258e941a21ca28a5e955e815ebaf999d`; refinement links and hashes are
-recorded in the publication receipt.
+## Delivery and rollback
 
-Live API readback passed: exact titles/labels, open states, nine native parent-child links, parent
-checklist, unique markers across all open/closed issues, source links, dependencies, T07–T13 and
-AC-001–014 coverage after the manufacturing refinement. Prelaunch protocol AC-012 is distinct from
-postlaunch review AC-013–014, avoiding a circular launch dependency. Full-body hashes and IDs are retained in
-[publication.json](../../../specs/010-product-landing-sales/publication.json). This is a historical
-receipt, not an automatic synchronizer; preserve later edits and use GitHub for live status.
+Cloudflare Pages project `vakhta-landing` created with production branch master; `vakhta.xyz`
+associated. Existing panel/kiosk projects remain separate. CI builds and deploys landing using the
+existing Pages credentials. No duplicate release notification path or manual Telegram message.
 
-No application code, runtime translations, hosting, prospect outreach or operational data changed.
-Local publication checks cover Markdown/JSON formatting, link resolution and diff whitespace only.
+Before the first apex record, DNS had MX/TXT and no A/AAAA/CNAME. Add only the marketing CNAME,
+preserving mail. Read back the domain status and verify HTTPS/locales/404/assets after deployment.
+For rollback, redeploy the prior verified landing deployment in Pages or revert this feature commit
+normally on master. Do not modify panel/kiosk routes, mail records or operational data. First-launch
+rollback may remove only the newly added marketing CNAME if no earlier landing deployment exists.
 
-### Implementation inputs
+## Remaining work and honest limits
 
-Confirm contact, operator, hostname, media permissions and commercial wording. Review translations
-with Sales, prepare demo assets, implement, verify and publish the page. The
-[plan](../../../specs/010-product-landing-sales/plan.md) defines owners, acceptance and rollback.
-
-## Manufacturing demand refinement
-
-The page is an experiment, not proof of market need. Before launch, record manufacturing cohort,
-channel, observation window, review date and continue/adapt/stop thresholds. Separate contacts,
-qualified recurring problems, held demos and concrete pilot commitments; include refusal/no-fit
-evidence. Investor/test activity is separate. Insufficient reach means inconclusive, not no demand.
-No conversion rate without a reliable denominator. Reporting identifies recorded loss patterns for
-investigation, not automatic machine bottlenecks or proven root causes; never aggregate overlapping
-employee intervals into machine downtime. Product effectiveness requires separate pilot evidence.
-
-## Connecteam design direction
-
-Owner decision, 2026-09-18: apply Connecteam's presentation and adoption approach while retaining
-manufacturing demand validation. The [design brief](../../../specs/010-product-landing-sales/design-reference.md)
-records three official public sources, desktop home/forms visual review and the forms mobile hero
-at 390 × 844. No authenticated competitor app, full responsive/a11y audit or market-leadership
-verification was performed. Existing deep product research is reused as a dated input.
-
-The brief adds original visual tokens, page composition, readable worker/manager evidence, role
-explanations and adoption steps. AC-015–016 map to existing content/design/page/acceptance issues;
-AC-013–014 remain postlaunch demand outcomes. Product candidates reuse #41/#42/#43/#47/#53 under #3
-and are not advertised as available or required for landing launch. Existing Sales export copy is unchanged.
-
-Verification scope: scoped formatting, local links, acceptance/issue mapping, exact GitHub section
-readback and preserved issue metadata/native children. No application behavior changed; no app tests,
-product UI screenshots or production actions are required for this documentation refinement.
+- #88: human Sales/business-reader rehearsal, full per-section all-locale a11y matrix and complete
+  live Telegram worker walkthrough. Native Telegram automation exposed the menu but did not reliably
+  activate historical chat controls. Do not claim a complete worker journey was exercised.
+- Screenshots currently use Ukrainian UI; translated explanatory pages do not imply translated media.
+- #90: real demand campaign, dated start/review, refusals and pilot commitments, owned by the user.
+- No actual machine telemetry, OEE, ERP/MES integration, autonomous master decisions or measured ROI.

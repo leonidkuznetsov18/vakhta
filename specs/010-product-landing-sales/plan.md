@@ -15,7 +15,7 @@ keep the authenticated operations panel unchanged. Contact links avoid an unnece
 - Existing stack: pnpm 10.9.0, Turborepo, React `^19.1.0`, Vite from the workspace catalog, strict
   TypeScript, React Compiler and Tailwind 4. Recheck installed versions before implementation.
 - `apps/admin-web` owns operations; `apps/qr-kiosk` owns the vanilla kiosk. Neither owns marketing.
-- `packages/i18n/src/{messages,en,uk,ru}.ts` and `index.ts` provide typed catalogs. Future production
+- `packages/i18n/src/{messages,en,uk,ru}.ts` and `index.ts` provide typed catalogs. Production
   copy belongs in a deliberate `landing` namespace in all three catalogs.
 - Current `.github/workflows/ci.yml` deploys panel/kiosk to Cloudflare Pages. Verify the marketing
   destination and hostname ownership before adding routes or changing DNS.
@@ -35,14 +35,14 @@ implementation spike does not block content/design planning.
 
 [Google's localized-page guidance](https://developers.google.com/search/docs/specialty/international/localized-versions)
 provides the basis for separate language URLs with reciprocal alternate links. Each locale gets a
-self-canonical URL and reciprocal `hreflang` entries; root is the `x-default` language selector.
+self-canonical URL and reciprocal `hreflang` entries; root is the complete Ukrainian `x-default` page.
 
 ## Constitution Check
 
 No operational behavior changes. English repository docs coexist with the requested external sales
 translations; production copy will use i18n. Proposed FSD ownership has deliberate public APIs and no
 prohibited hooks. No lead endpoint means no transaction or async-delivery design is needed. Work
-stays serialized on master. Checks are documentation-only now and UI-focused during implementation.
+stays serialized on master. Checks are scoped to the static marketing app and its public journeys.
 Post-design check: no exceptions required. Missing publication inputs do not block this planning task.
 
 ## DESIGN: Ownership and Behavior
@@ -60,9 +60,8 @@ create empty FSD layers. Render content models; keep validation/URL decisions ou
 
 ### Locale and navigation contract
 
-Generate `/uk/index.html`, `/en/index.html`, `/ru/index.html` and a root language selector. Locale is
-owned by the path, with no duplicated client state. Root lists all native language names and may
-highlight browser preference, but never forces a redirect. Unknown language paths produce a 404 with
+Generate `/uk/index.html`, `/en/index.html`, `/ru/index.html` and a complete Ukrainian root document. Locale is
+owned by the path, with no duplicated client state. Root offers all native language names and never forces a redirect. Unknown language paths produce a 404 with
 working locale links. Shared `DEFAULT_LOCALE` stays Russian for missing/invalid internal values.
 
 Use normal document/anchor links. Switching locale preserves a recognized spec section anchor;
@@ -76,7 +75,7 @@ prices or testimonials. Validate generated HTML with JavaScript disabled.
 ### Contact and measurement
 
 Demo, pilot and investor are separate intents, as requested by the owner. Require owner-confirmed contact configuration before launch.
-Use localized subjects and a visible copyable email alongside a verified email/booking link. A click
+Use localized subjects and the approved email behind composer buttons only, per the owner override. A click
 never means delivery. No asynchronous submission exists in v1, so retries, cancellation, idempotency
 and persisted leads are inapplicable. A later form requires its own validation, storage, delivery,
 spam controls and privacy design before implementation.
@@ -140,12 +139,9 @@ velocity, free pilot or fixed deployment duration is promised. Batch implementat
 
 ## VERIFY and HARDEN
 
-**Now**: review claim inventory and translated meaning, local links, scoped Prettier and
-`git diff --check`; render and inspect every exported document page. No application behavior tests.
-
-**Later**: establish scripts in `apps/landing`, then run `pnpm --filter landing build`,
-`pnpm --filter landing typecheck`, `pnpm --filter landing lint`, `pnpm --filter landing test` and
-`pnpm --filter landing test:browser`. These are future checks, not checks claimed in this delivery.
+**Implementation checks**: scoped build (includes typecheck), lint, focused landing tests and i18n
+parity tests. Browser checks use the current local/static or deployed site; capture and visually
+inspect desktop/mobile screenshots. Record results and remaining Sales rehearsal in engineering memory.
 
 | Acceptance         | Evidence                                                                                                                        |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -166,14 +162,22 @@ state, without modifying operational services or data.
 
 ## REPORT and Documentation
 
-Record planning evidence now and implementation/hosting evidence later in engineering memory.
-The product document must remain marked **planned** until the site exists and is verified. Separate
+Record implementation/hosting evidence and remaining checks in engineering memory. Separate
 source-supported capabilities, demonstrated behavior, deployed status and measured outcomes.
 
 ## Open Decisions
 
-Launch inputs: real sales destination/operator, intended hostname, media/case permissions, commercial
-offer and any investor figures cleared for disclosure. Defaults: three visible conversion choices,
+Contact, operator, hostname, media permissions and demand protocol are accepted in
+[publication-inputs.md](publication-inputs.md). Commercial terms remain case-specific; no investor figures are published. Defaults: three visible conversion choices,
 manufacturing-only scope, downtime/time-loss and response positioning. The pilot CTA has strongest
 emphasis; investor contact remains available but secondary. These inputs do not block planning; site publication requires them.
 Master-agent autonomy remains a separate product decision.
+
+## Implementation decisions
+
+`apps/landing` uses React static rendering via a bounded Vite build script (40 known documents),
+without a browser React runtime. `features/switch-language` owns anchor preservation;
+`features/expand-media` progressively enhances links with a native viewport-filling dialog.
+The full asset, zoom state and selected scenario belong to that dialog only; no parallel route state.
+Asset metadata and public captions are prepared in the page model. See engineering memory for
+actual verification and outstanding Sales/worker rehearsal.

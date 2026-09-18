@@ -48,3 +48,5 @@ export function format(
 }
 
 export { photoObjectVocabulary } from './photo-object-vocabulary.js';
+
+export type { LandingMessages } from './landing.js';
