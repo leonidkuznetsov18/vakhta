@@ -1,18 +1,23 @@
 # Product landing page
 
-Status: planned, 2026-09-18. No landing implementation is included in this change.
+Status: planned, 2026-09-18. No landing implementation or campaign is included in this change.
 
-The proposed page introduces Vakhta as a Connected Worker / Frontline Operations platform. Workers
-use Telegram and QR attendance; managers connect schedules, shift execution, incidents, photo-backed
-handover and recorded decisions in a web panel.
+Owner refinement: focus only on manufacturing and test whether production businesses need Vakhta.
+The page leads with recurring downtime/time-loss reasons, faster incident response, personnel
+checklists and evidence-backed handover. Scheduling, QR, requests, communications and bonus are
+supporting capabilities rather than the headline.
 
-Manufacturing is the primary audience. Hotels, warehouses and facility services are discovery
-segments requiring process-fit validation. Visitors can request a demonstration, discuss a business pilot or discuss investment. Ukrainian, English and Russian versions carry equivalent content. No customer
-outcomes, integrations, prices or autonomous AI decisions are implied without evidence.
+All three languages (Ukrainian, English, Russian) retain demo, pilot and investment contact paths.
+The manufacturing pilot is emphasized; investor contact is secondary and does not count as customer
+demand. Other industries and expansion messaging are excluded from this campaign.
 
-Sales material includes positioning, landing copy, buyer/investor scripts, qualification, objections
-and pilot measures. Contact, public media permissions and commercial terms are launch dependencies.
+Sales qualifies a concrete production problem, current workaround, responsible buyer and agreed next
+step. Before launch, owner/Sales define the cohort, acquisition channel, observation window and
+continue/adapt/stop thresholds. The first review can be inconclusive when reach/evidence is insufficient.
+Visits and compliments are not demand proof. Recorded employee time is not machine downtime or OEE;
+downtime reduction requires separate pilot evidence and is not a guaranteed outcome.
 
-- [Specification](../../specs/010-product-landing-sales/spec.md)
-- [Plan](../../specs/010-product-landing-sales/plan.md)
+- [Specification and demand protocol](../../specs/010-product-landing-sales/spec.md)
+- [Implementation plan](../../specs/010-product-landing-sales/plan.md)
+- [GitHub epic #81](https://github.com/leonidkuznetsov18/vakhta/issues/81)
 - [Evidence and remaining work](../engineering/features/product-landing.md)

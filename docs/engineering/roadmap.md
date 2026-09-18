@@ -96,7 +96,7 @@ implementation approval. Publication evidence lives in [Connecteam engineering m
 
 ## Labels and status
 
-- `area:schedule`, `area:ai-master`, `area:workforce`: primary roadmap area.
+- `area:schedule`, `area:ai-master`, `area:workforce`, `area:landing`: primary roadmap area.
 - `type:epic`, `type:feature`, `type:decision`, `type:discovery`: kind of work.
 - `status:backlog`: planned, not started; prerequisite links remain visible.
 - `status:needs-decision`: the next deliverable is a concrete policy or technical choice.
@@ -144,6 +144,33 @@ not additional commitments. The same source capability may inform more than one 
 | M6 Targeted communication           | [#44](https://github.com/leonidkuznetsov18/vakhta/issues/44), [#45](https://github.com/leonidkuznetsov18/vakhta/issues/45), [#52](https://github.com/leonidkuznetsov18/vakhta/issues/52)                                                                                                                             | Relevant Telegram audiences; sending does not prove reading.                        |
 | M7 Reviewed allocation              | [#40](https://github.com/leonidkuznetsov18/vakhta/issues/40), [#19](https://github.com/leonidkuznetsov18/vakhta/issues/19)                                                                                                                                                                                           | Later; depends on qualifications and coverage, with human publication.              |
 | M8 Operational AI                   | [#47](https://github.com/leonidkuznetsov18/vakhta/issues/47), [#53](https://github.com/leonidkuznetsov18/vakhta/issues/53), [#2](https://github.com/leonidkuznetsov18/vakhta/issues/2)                                                                                                                               | Scoped evidence and current answers; separate product help from operational review. |
+
+## Product Landing
+
+Epic: [#81](https://github.com/leonidkuznetsov18/vakhta/issues/81). Scope: a Ukrainian, English and
+Russian public landing page to validate manufacturing demand for downtime/time-loss visibility,
+faster incident response, personnel checklists and handover. Demo, pilot and investment paths remain.
+Specification and sales drafts exist; implementation remains future work.
+
+| Issue                                                        | Capability and outcome                                                        | Initial status | Source task |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------- | -------------- | ----------- |
+| [#82](https://github.com/leonidkuznetsov18/vakhta/issues/82) | Launch inputs — Define manufacturing demand experiment and publication inputs | needs-decision | T07         |
+| [#83](https://github.com/leonidkuznetsov18/vakhta/issues/83) | Content and proof — Prepare equivalent copy and demo assets                   | backlog        | T08         |
+| [#84](https://github.com/leonidkuznetsov18/vakhta/issues/84) | Responsive design — Prioritize manufacturing problems and pilot discussion    | backlog        | T09         |
+| [#85](https://github.com/leonidkuznetsov18/vakhta/issues/85) | Static foundation — Build locale pages and search metadata                    | backlog        | T10         |
+| [#86](https://github.com/leonidkuznetsov18/vakhta/issues/86) | Landing experience — Present workflow, capabilities and evidence              | backlog        | T10         |
+| [#87](https://github.com/leonidkuznetsov18/vakhta/issues/87) | Contact journeys — Connect demo, pilot, investment and downloads              | backlog        | T10         |
+| [#88](https://github.com/leonidkuznetsov18/vakhta/issues/88) | Acceptance — Verify locales, accessibility, claims and Sales rehearsal        | backlog        | T11         |
+| [#89](https://github.com/leonidkuznetsov18/vakhta/issues/89) | Release — Verify live routes, existing services and rollback                  | backlog        | T12         |
+| [#90](https://github.com/leonidkuznetsov18/vakhta/issues/90) | Manufacturing demand — Review qualified need and pilot commitment             | backlog        | T13         |
+
+[Specification](../../specs/010-product-landing-sales/spec.md),
+[implementation plan](../../specs/010-product-landing-sales/plan.md),
+[source tasks and issue mapping](../../specs/010-product-landing-sales/tasks.md), and
+[publication receipt](../../specs/010-product-landing-sales/publication.json).
+Native children show implementation progress. All are initially open; publication is not delivery.
+Manufacturing is the only current campaign audience. No demand, downtime savings or autonomous AI
+capability is inferred from page publication.
 
 ## Execution with Spec Kit
 

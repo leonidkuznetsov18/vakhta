@@ -6,7 +6,7 @@
 
 ## Summary
 
-Deliver planning and trilingual sales material now. Subsequently build an independent public marketing
+Refocus planning and trilingual sales material on manufacturing demand validation. Subsequently build an independent public marketing
 app with complete static HTML in each language. Reuse the React/Vite workspace and i18n catalogs;
 keep the authenticated operations panel unchanged. Contact links avoid an unnecessary lead backend.
 
@@ -24,7 +24,7 @@ keep the authenticated operations panel unchanged. Contact links avoid an unnece
 ### Research and evidence
 
 The spec inventories source evidence. Schedule documentation contains stale statements; demonstrate
-selected capabilities against the intended release before publication. No customer traction or fresh
+selected capabilities against the intended release before publication. No manufacturing demand, downtime reduction, customer traction or fresh
 production QA was established by this planning task.
 
 [Vite's SSR guide](https://vite.dev/guide/ssr) supports build-time prerendering of static content and
@@ -82,16 +82,18 @@ and persisted leads are inapplicable. A later form requires its own validation, 
 spam controls and privacy design before implementation.
 
 No third-party analytics or tracking cookies in the baseline. Sales records qualified conversations
-and pilot starts manually. If tracking is approved later, `demo_contact_click`, `pilot_contact_click`, `investor_contact_click`
+and pilot starts manually using the spec's manufacturing-demand protocol. Before launch, record the
+cohort, channel, observation window/review date and decision thresholds. Capture recent loss/incident
+examples, current workaround, buying role, objections and concrete pilot commitments. Distinguish
+customer demand from investor interest and clicks; absent traffic denominators prohibit conversion-rate claims. If tracking is approved later, `demo_contact_click`, `pilot_contact_click`, `investor_contact_click`
 and `sales_material_download` may include locale/section, never names, emails or message text. Clicks
 are not submitted leads. Do not create an analytics service for this page.
 
 ### Design and evidence assets
 
 Prepare desktop/mobile wireframes. Use authorized real product screenshots with synthetic/demo records:
-schedule, incident, handover/photo review, and reports if readable. Record source revision, capture date,
-locale and permission. Remove employee details and tokens. Label conceptual industry scenes as
-illustrations, never customer evidence. Do not depict unimplemented features as screenshots.
+incident/response, personnel checklist, handover/photo review and loss-report reasons. Scheduling is secondary. Record source revision, capture date,
+locale and permission. Remove employee details and tokens. Use manufacturing scenes only; label conceptual scenes as illustrations, never customer evidence. Do not depict unimplemented features as screenshots.
 
 Keep main content in HTML. Images need dimensions, responsive variants, alt text and captions;
 lazy-load secondary media. No autoplay; respect reduced motion. FAQ can use native details. Mobile
@@ -100,7 +102,8 @@ uses a single reading column. Inspect longest translations, focus and keyboard b
 ## Project Structure and Allowed Files
 
 This task owns `.specify/feature.json`, `specs/010-product-landing-sales/`,
-`docs/features/product-landing.md`, `docs/engineering/features/product-landing.md`.
+`docs/features/product-landing.md`, `docs/engineering/features/product-landing.md`, and the scoped
+Product Landing entry in `docs/engineering/roadmap.md`.
 External exports: `Documents/Vakhta/landing-sales-2026-09-18/`. Preserve pre-existing
 `.claude/launch.json`. Codex is the writer/index owner. No branch, PR or worktree.
 
@@ -115,16 +118,16 @@ Future design: `frontend-design` or `impeccable`; React: `vercel-react-best-prac
 
 ## IMPLEMENT: Ordered Delivery
 
-| Stage                    | Owner             | Dependency              | Exit evidence                                                                     |
-| ------------------------ | ----------------- | ----------------------- | --------------------------------------------------------------------------------- |
-| 0. Planning package      | Planner + owner   | Repository recon        | Specification, plan, three equivalent sales handoffs                              |
-| 1. Publication inputs    | Owner + Sales     | Stage 0                 | Confirm contact, operator, hostname, commercial wording, public proof permissions |
-| 2. Content and proof     | Sales + owner     | Stage 1                 | Review translations, rehearse demo, approve sanitized media                       |
-| 3. UX and visual design  | Designer          | Stage 2                 | Desktop/mobile design, localized captions and complete contact journey            |
-| 4. Static implementation | Frontend          | Stages 2–3              | Adapter spike, i18n, locale HTML, responsive page and metadata                    |
-| 5. Acceptance            | QA + Sales        | Stage 4                 | Content, language, links, keyboard, visual evidence and rehearsal                 |
-| 6. Release               | Integration owner | Stage 5 + launch inputs | Hosting, canonical routes, CI/release/announce status, live checks, rollback      |
-| 7. Commercial learning   | Sales + owner     | Live page               | Qualified conversations and pilot findings inform the next revision               |
+| Stage                    | Owner             | Dependency              | Exit evidence                                                                                   |
+| ------------------------ | ----------------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
+| 0. Planning package      | Planner + owner   | Repository recon        | Specification, plan, three equivalent sales handoffs                                            |
+| 1. Publication inputs    | Owner + Sales     | Stage 0                 | Confirm contact, operator, hostname, permissions and pre-recorded manufacturing demand protocol |
+| 2. Content and proof     | Sales + owner     | Stage 1                 | Review translations, rehearse demo, approve sanitized media                                     |
+| 3. UX and visual design  | Designer          | Stage 2                 | Desktop/mobile design, localized captions and complete contact journey                          |
+| 4. Static implementation | Frontend          | Stages 2–3              | Adapter spike, i18n, locale HTML, responsive page and metadata                                  |
+| 5. Acceptance            | QA + Sales        | Stage 4                 | Content, language, links, keyboard, visual evidence and rehearsal                               |
+| 6. Release               | Integration owner | Stage 5 + launch inputs | Hosting, canonical routes, CI/release/announce status, live checks, rollback                    |
+| 7. Commercial learning   | Sales + owner     | Live page               | First bounded manufacturing-demand review yields continue/adapt/stop/inconclusive with evidence |
 
 Estimate cost and timing after assets, destination and build adapter are known. No manufactured
 velocity, free pilot or fixed deployment duration is promised. Batch implementation delivery.
@@ -138,15 +141,16 @@ velocity, free pilot or fixed deployment duration is promised. Batch implementat
 `pnpm --filter landing typecheck`, `pnpm --filter landing lint`, `pnpm --filter landing test` and
 `pnpm --filter landing test:browser`. These are future checks, not checks claimed in this delivery.
 
-| Acceptance         | Evidence                                                                                                                |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| AC-001–003, AC-011 | Sales content review, capability traceability and rehearsed demo; no unsupported metrics                                |
-| AC-004–005         | Matching trilingual exports, buyer and investor rehearsal with demo data                                                |
-| AC-006–008         | Locale parity check; direct URLs, language/anchor/Back, root and 404 browser tests                                      |
-| AC-009–010         | Verify destination and fallback; assert contact click does not claim delivery                                           |
-| FR-007             | Keyboard/a11y; capture AND inspect all sections at 390px and 1440px in each locale; 320px and 200% zoom boundary checks |
-| Static/SEO         | No-JS HTML, canonical/alternate/sitemap validation and preview indexing control                                         |
-| Media              | Permission, privacy, truthful captions and legibility of every asset                                                    |
+| Acceptance         | Evidence                                                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| AC-001–003, AC-011 | Sales content review, capability traceability and rehearsed demo; no unsupported metrics                                        |
+| AC-004–005         | Matching trilingual exports, buyer and investor rehearsal with demo data                                                        |
+| AC-006–008         | Locale parity check; direct URLs, language/anchor/Back, root and 404 browser tests                                              |
+| AC-012–014         | Inspect the pre-recorded demand protocol and first review; separate exposure, qualified manufacturing need and pilot commitment |
+| AC-009–010         | Verify destination and fallback; assert contact click does not claim delivery                                                   |
+| FR-007             | Keyboard/a11y; capture AND inspect all sections at 390px and 1440px in each locale; 320px and 200% zoom boundary checks         |
+| Static/SEO         | No-JS HTML, canonical/alternate/sitemap validation and preview indexing control                                                 |
+| Media              | Permission, privacy, truthful captions and legibility of every asset                                                            |
 
 Existing CI remains the full integration gate. After release verify all locale/contact URLs, assets,
 canonical host and unaffected panel/kiosk routing. Check release and the existing Telegram announcement
@@ -162,6 +166,7 @@ source-supported capabilities, demonstrated behavior, deployed status and measur
 ## Open Decisions
 
 Launch inputs: real sales destination/operator, intended hostname, media/case permissions, commercial
-offer and any investor figures cleared for disclosure. Defaults: three visible conversion choices, manufacturing-first,
-conditional adjacent-sector examples. These inputs do not block planning; site publication requires them.
+offer and any investor figures cleared for disclosure. Defaults: three visible conversion choices,
+manufacturing-only scope, downtime/time-loss and response positioning. The pilot CTA has strongest
+emphasis; investor contact remains available but secondary. These inputs do not block planning; site publication requires them.
 Master-agent autonomy remains a separate product decision.
