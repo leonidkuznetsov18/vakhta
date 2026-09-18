@@ -1,3 +1,27 @@
+## [1.16.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.11...v1.16.0) (2026-09-18)
+
+### Features
+
+* **landing:** present manufacturing workflows and full product screens ([363c154](https://github.com/leonidkuznetsov18/vakhta/commit/363c154af5da69398e0a774eb7afa99c228ce910)), closes [#81](https://github.com/leonidkuznetsov18/vakhta/issues/81) [#82](https://github.com/leonidkuznetsov18/vakhta/issues/82) [#83](https://github.com/leonidkuznetsov18/vakhta/issues/83) [#84](https://github.com/leonidkuznetsov18/vakhta/issues/84) [#85](https://github.com/leonidkuznetsov18/vakhta/issues/85) [#86](https://github.com/leonidkuznetsov18/vakhta/issues/86) [#87](https://github.com/leonidkuznetsov18/vakhta/issues/87) [#88](https://github.com/leonidkuznetsov18/vakhta/issues/88) [#89](https://github.com/leonidkuznetsov18/vakhta/issues/89)
+
+### Bug fixes
+
+* **landing:** capture the completed bonus chart ([e5b2604](https://github.com/leonidkuznetsov18/vakhta/commit/e5b26043279ed36ff697d4b27cce9b032ec6e840)), closes [#83](https://github.com/leonidkuznetsov18/vakhta/issues/83) [#86](https://github.com/leonidkuznetsov18/vakhta/issues/86)
+* **landing:** contain unavailable portrait images on mobile ([5103d6d](https://github.com/leonidkuznetsov18/vakhta/commit/5103d6d3eb7820e8049cbfb737a07646825a4f6b)), closes [#88](https://github.com/leonidkuznetsov18/vakhta/issues/88)
+* **photo-inspection:** keep save action width stable ([1cb8b1e](https://github.com/leonidkuznetsov18/vakhta/commit/1cb8b1ea97573ebb3bae486e7983f1f2a21c1068))
+* **reports:** keep Pareto labels readable on mobile ([811003a](https://github.com/leonidkuznetsov18/vakhta/commit/811003ae47bfb3d168c044510af95de6c5744a0f))
+
+### Documentation
+
+* **landing:** adapt connecteam presentation and product patterns ([9e56438](https://github.com/leonidkuznetsov18/vakhta/commit/9e564385436e5c2815d8cccce9f186c158a40839)), closes [#81](https://github.com/leonidkuznetsov18/vakhta/issues/81) [#3](https://github.com/leonidkuznetsov18/vakhta/issues/3)
+* **landing:** define trilingual landing and sales plan ([a4a5ff3](https://github.com/leonidkuznetsov18/vakhta/commit/a4a5ff3a258e941a21ca28a5e955e815ebaf999d))
+* **landing:** publish manufacturing demand validation backlog ([9c3cad3](https://github.com/leonidkuznetsov18/vakhta/commit/9c3cad3a4c2f0e411797a85c9c8f18ce520eded0)), closes [#81](https://github.com/leonidkuznetsov18/vakhta/issues/81)
+
+### Tests
+
+* **reports:** allow the reserved scrollbar gutter ([9fa0896](https://github.com/leonidkuznetsov18/vakhta/commit/9fa08961d61bac52d19f2ec942f8a1bebb74dc6b)), closes [#89](https://github.com/leonidkuznetsov18/vakhta/issues/89)
+* **reports:** measure overflow against the content viewport ([0988c2c](https://github.com/leonidkuznetsov18/vakhta/commit/0988c2ce68257faa94a5d0997c6ef789f3a530de)), closes [#89](https://github.com/leonidkuznetsov18/vakhta/issues/89)
+
 ## [1.15.11](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.10...v1.15.11) (2026-09-17)
 
 ### Bug fixes
