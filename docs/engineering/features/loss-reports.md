@@ -102,3 +102,33 @@ and deployment verification. The kiosk and worker bot are unchanged by report re
 must not manufacture attendance events. Authorization grant filters are handled in the separate
 access-boundary fix and must apply to the same historical department fields. Saved immutable report
 snapshots and streaming exports beyond the explicit limit are outside this bounded correction.
+
+## Mobile Pareto readability — 2026-09-18
+
+The authorized scope is the Reports Pareto and reason drilldown: labels must not overlap at
+320–430px, full labels stay available in tooltips, the legend wraps, and desktop remains usable.
+The original `interval={0}` squeezed every category into the available width; a browser regression
+reproduced overlapping labels at 320px before the fix.
+
+- Keep every category visible in a horizontally scrollable, keyboard-focusable chart region.
+  Reserve 112px per category plus the existing two Y axes and margins; the chart still fills
+  available desktop width and retains its 256px height, values, colors and drilldown actions.
+- Reuse Recharts `Text` with a 96px, single-line ellipsis tick. Keep the original label in chart
+  data for the tooltip. Rotation and additional axis height are unnecessary with these bounds.
+- On mobile, use Recharts' click tooltip and portal into the visible chart frame so scrolling
+  cannot clip the full label. Desktop retains hover. Legend text wraps while swatches keep size.
+- This is a bounded correction in the existing legacy Reports page, with no state/domain/API
+  migration or new dependency. Existing FSD migration debt remains outside this presentation fix.
+- Reuse the existing preview fixtures and Playwright runner. `e2e/reports.spec.ts` covers
+  320, 390, 430 and 1440px, tick spacing, no page overflow, desktop without chart scrolling,
+  legend bounds, touch/hover tooltip visibility and full reason labels after drilldown.
+
+Local verification: four browser cases and five report/audit component tests passed; panel
+TypeScript, affected-file ESLint and formatting passed. Mobile and desktop screenshots were
+visually inspected. The jsdom component suite emits Recharts zero-size warnings because it does
+not lay out SVG; real browser geometry is covered separately. These are local fixture checks,
+not authenticated production or physical-device verification.
+
+References: [Recharts XAxis](https://recharts.github.io/en-US/api/XAxis/),
+[Text](https://recharts.github.io/en-US/api/Text/), and the installed Recharts 3.8.0 tick and tooltip
+implementations (custom Text props and portal positioning).

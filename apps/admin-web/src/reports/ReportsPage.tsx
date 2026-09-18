@@ -1,10 +1,21 @@
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { ScrollableText, TextPreview } from '@/components/app/row-detail';
 import { useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useQuery } from '@tanstack/react-query';
 import type { LossesQuery, LossesView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
-import { Bar, CartesianGrid, Cell, ComposedChart, Line, XAxis, YAxis } from 'recharts';
+import {
+  Bar,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  Line,
+  Text,
+  XAxis,
+  YAxis,
+  type XAxisTickContentProps,
+} from 'recharts';
 import { ArrowLeftIcon, DownloadIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,6 +41,28 @@ import { reportPresentation } from './report-presentation';
 
 const all = messages(currentLocale());
 const r = all.admin.reports;
+
+const CATEGORY_WIDTH = 112;
+const AXES_WIDTH = 92;
+const TICK_WIDTH = 96;
+
+function CategoryTick({ x, y, payload, className }: XAxisTickContentProps) {
+  return (
+    <Text
+      x={x}
+      y={y}
+      className={className}
+      width={TICK_WIDTH}
+      maxLines={1}
+      breakAll
+      fontSize={11}
+      textAnchor="middle"
+      verticalAnchor="start"
+    >
+      {String(payload.value)}
+    </Text>
+  );
+}
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -71,6 +104,8 @@ function zoneOf(cumulative: number): Zone {
  * sits next to the totals rather than in a footnote.
  */
 export function ReportsPage() {
+  const isMobile = useIsMobile();
+  const [tooltipPortal, setTooltipPortal] = useState<HTMLDivElement | null>(null);
   const [openInterval, setOpenInterval] = useState<string | null>(null);
   const { org, queryState: orgQuery } = useOrg();
   const [from, setFrom] = usePersistentState('losses.from', monthStart);
@@ -288,59 +323,96 @@ export function ReportsPage() {
           <Muted>{r.lossEmpty}</Muted>
         ) : (
           <>
-            <ChartContainer config={config} className="mb-4 h-64 w-full">
-              <ComposedChart data={chart} margin={{ left: 8, right: 8 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  fontSize={11}
-                  interval={0}
-                />
-                <YAxis yAxisId="left" tickLine={false} axisLine={false} width={40} fontSize={11} />
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  domain={[0, 100]}
-                  tickLine={false}
-                  axisLine={false}
-                  width={36}
-                  fontSize={11}
-                  unit="%"
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar yAxisId="left" dataKey="minutes" radius={4} maxBarSize={72}>
-                  {chart.map((b) => (
-                    <Cell
-                      key={b.key}
-                      fill={ZONE_FILL[b.zone]}
-                      cursor="pointer"
-                      onClick={() => !category && setCategory(b.key)}
+            <div ref={setTooltipPortal} className="relative mb-4 min-w-0">
+              <div
+                role="region"
+                aria-label={r.lossTitle}
+                tabIndex={0}
+                className="overflow-x-auto rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                <ChartContainer
+                  config={config}
+                  className="h-64 w-full"
+                  style={{ minWidth: chart.length * CATEGORY_WIDTH + AXES_WIDTH }}
+                >
+                  <ComposedChart data={chart} margin={{ left: 8, right: 8 }}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      tickLine={false}
+                      axisLine={false}
+                      fontSize={11}
+                      interval={0}
+                      tick={CategoryTick}
                     />
-                  ))}
-                </Bar>
-                {/* The cumulative share is a reference, not a series: black keeps the hues free
+                    <YAxis
+                      yAxisId="left"
+                      tickLine={false}
+                      axisLine={false}
+                      width={40}
+                      fontSize={11}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      domain={[0, 100]}
+                      tickLine={false}
+                      axisLine={false}
+                      width={36}
+                      fontSize={11}
+                      unit="%"
+                    />
+                    <ChartTooltip
+                      portal={isMobile ? tooltipPortal : undefined}
+                      wrapperStyle={
+                        isMobile
+                          ? {
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              pointerEvents: 'none',
+                              zIndex: 1,
+                            }
+                          : undefined
+                      }
+                      trigger={isMobile ? 'click' : 'hover'}
+                      content={
+                        <ChartTooltipContent className="max-w-56 [overflow-wrap:anywhere]" />
+                      }
+                    />
+                    <Bar yAxisId="left" dataKey="minutes" radius={4} maxBarSize={72}>
+                      {chart.map((b) => (
+                        <Cell
+                          key={b.key}
+                          fill={ZONE_FILL[b.zone]}
+                          cursor="pointer"
+                          onClick={() => !category && setCategory(b.key)}
+                        />
+                      ))}
+                    </Bar>
+                    {/* The cumulative share is a reference, not a series: black keeps the hues free
                     to mean the zones. */}
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="cumulative"
-                  stroke="var(--foreground)"
-                  dot={false}
-                  strokeWidth={2}
-                />
-              </ComposedChart>
-            </ChartContainer>
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="cumulative"
+                      stroke="var(--foreground)"
+                      dot={false}
+                      strokeWidth={2}
+                    />
+                  </ComposedChart>
+                </ChartContainer>
+              </div>
+            </div>
             <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
               {ZONES.map((zone) => (
-                <span key={zone} className="inline-flex items-center gap-1.5">
+                <span key={zone} className="inline-flex min-w-0 items-start gap-1.5">
                   <span
                     aria-hidden="true"
-                    className="size-2.5 rounded-full"
+                    className="mt-0.5 size-2.5 shrink-0 rounded-full"
                     style={{ background: ZONE_FILL[zone] }}
                   />
-                  {r.lossZones[zone]}
+                  <span className="min-w-0 [overflow-wrap:anywhere]">{r.lossZones[zone]}</span>
                 </span>
               ))}
             </div>
