@@ -10,7 +10,7 @@
       "url": "https://github.com/leonidkuznetsov18/vakhta/issues/81",
       "title": "Product Landing | Epic | Validate manufacturing demand for downtime reduction and faster incident response",
       "labels": ["area:landing", "type:epic", "status:backlog"],
-      "body_sha256": "63b3be33468b1bfcce4707579773cf764f528cdc2ea6da70ef87cd77c4a95c9f"
+      "body_sha256": "07fcd857d8d94b1df2f9a794db172a0c144e399e78c4ddb11d6941135beaec3b"
     },
     {
       "key": "inputs",
@@ -34,9 +34,20 @@
       "labels": ["area:landing", "type:feature", "status:backlog"],
       "source_task": "T08",
       "publication_id": "LP-02",
-      "acceptance_ids": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-011", "FR-008"],
+      "acceptance_ids": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-011",
+        "FR-008",
+        "AC-015",
+        "AC-016",
+        "FR-010"
+      ],
       "dependencies": [82],
-      "body_sha256": "87e2ddf8c765a4f4e3691466d7e2edc94dd42cb5b10246165a3e5fce6eebc9f2"
+      "body_sha256": "9b55c63bdfe6bc9d4ca14058629012921c968b6fea7e8f18710226a942850b78"
     },
     {
       "key": "design",
@@ -47,9 +58,18 @@
       "labels": ["area:landing", "type:feature", "status:backlog"],
       "source_task": "T09",
       "publication_id": "LP-03",
-      "acceptance_ids": ["AC-001", "AC-006", "AC-007", "AC-009", "FR-007"],
+      "acceptance_ids": [
+        "AC-001",
+        "AC-006",
+        "AC-007",
+        "AC-009",
+        "FR-007",
+        "AC-015",
+        "AC-016",
+        "FR-010"
+      ],
       "dependencies": [83],
-      "body_sha256": "28f4c3932e69376c4d91ec6840f4afe8a4d9d89ff795c9acdd2e5ee3352e4b43"
+      "body_sha256": "1cf0d09ef9d631abad9d6e07090f6757cda4ce7d01eaf6501344780b1f8ef07c"
     },
     {
       "key": "foundation",
@@ -73,9 +93,20 @@
       "labels": ["area:landing", "type:feature", "status:backlog"],
       "source_task": "T10 (page composition and evidence)",
       "publication_id": "LP-05",
-      "acceptance_ids": ["AC-001", "AC-002", "AC-003", "AC-006", "AC-011", "FR-007", "FR-008"],
+      "acceptance_ids": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-006",
+        "AC-011",
+        "FR-007",
+        "FR-008",
+        "AC-015",
+        "AC-016",
+        "FR-010"
+      ],
       "dependencies": [83, 84, 85],
-      "body_sha256": "5842207674c3338a5e7766d2267fb1f8ca4704df5c1b8b6863295f9cdef37e04"
+      "body_sha256": "d67b2485c8a7921841aad41884764f01c4c6b053e3048debdbe510c97fd92b96"
     },
     {
       "key": "conversion",
@@ -114,10 +145,13 @@
         "FR-007",
         "FR-008",
         "AC-012",
-        "FR-009"
+        "FR-009",
+        "AC-015",
+        "AC-016",
+        "FR-010"
       ],
       "dependencies": [86, 87],
-      "body_sha256": "d9653a26ff557d50ac001e5b30f499897034551dff7fe6247a6a6863edba4964"
+      "body_sha256": "1992c22c59d9ac54de8da4c915e92aa144f11fa3ec27292a122f0f9d2bef637c"
     },
     {
       "key": "release",
@@ -158,7 +192,7 @@
   ],
   "epic": 81,
   "verification": {
-    "verified_at": "2026-09-18T13:24:58.148425+00:00",
+    "verified_at": "2026-09-18T14:33:05.528724+00:00",
     "open_issues_checked": 10,
     "native_children": 9,
     "duplicate_markers": 0,
@@ -178,10 +212,13 @@
       "AC-012",
       "AC-013",
       "AC-014",
+      "AC-015",
+      "AC-016",
       "FR-004",
       "FR-007",
       "FR-008",
       "FR-009",
+      "FR-010",
       "SC-003",
       "SC-004",
       "SC-005"
@@ -194,11 +231,66 @@
       "source links, dependency references and acceptance coverage",
       "full issue body SHA-256 snapshots",
       "manufacturing-only refinement exact-body readback",
-      "AC-012 prelaunch protocol and AC-013–014 postlaunch review separated"
+      "AC-012 prelaunch protocol and AC-013–014 postlaunch review separated",
+      "Connecteam design sections exact readback and metadata preservation",
+      "workforce epic #3 cross-link without duplicate issues or changed child relations"
     ]
   },
   "refined_at": "2026-09-18T13:24:56.273960+00:00",
   "initial_source_commit": "a4a5ff3a258e941a21ca28a5e955e815ebaf999d",
   "source_ref": "master",
-  "refinement": "Manufacturing-only demand validation; downtime/time loss, incident response, personnel checklists and handover."
+  "refinement": "Manufacturing-only demand validation; downtime/time loss, incident response, personnel checklists and handover.",
+  "design_reference_update": {
+    "reference": "https://connecteam.com/",
+    "date": "2026-09-18",
+    "brief": "design-reference.md",
+    "updates": [
+      {
+        "number": 81,
+        "url": "https://github.com/leonidkuznetsov18/vakhta/issues/81",
+        "body_sha256": "07fcd857d8d94b1df2f9a794db172a0c144e399e78c4ddb11d6941135beaec3b",
+        "metadata_preserved": true,
+        "updated_at": "2026-09-18T14:32:51Z"
+      },
+      {
+        "number": 83,
+        "url": "https://github.com/leonidkuznetsov18/vakhta/issues/83",
+        "body_sha256": "9b55c63bdfe6bc9d4ca14058629012921c968b6fea7e8f18710226a942850b78",
+        "metadata_preserved": true,
+        "updated_at": "2026-09-18T14:32:54Z"
+      },
+      {
+        "number": 84,
+        "url": "https://github.com/leonidkuznetsov18/vakhta/issues/84",
+        "body_sha256": "1cf0d09ef9d631abad9d6e07090f6757cda4ce7d01eaf6501344780b1f8ef07c",
+        "metadata_preserved": true,
+        "updated_at": "2026-09-18T14:32:56Z"
+      },
+      {
+        "number": 86,
+        "url": "https://github.com/leonidkuznetsov18/vakhta/issues/86",
+        "body_sha256": "d67b2485c8a7921841aad41884764f01c4c6b053e3048debdbe510c97fd92b96",
+        "metadata_preserved": true,
+        "updated_at": "2026-09-18T14:32:58Z"
+      },
+      {
+        "number": 88,
+        "url": "https://github.com/leonidkuznetsov18/vakhta/issues/88",
+        "body_sha256": "1992c22c59d9ac54de8da4c915e92aa144f11fa3ec27292a122f0f9d2bef637c",
+        "metadata_preserved": true,
+        "updated_at": "2026-09-18T14:33:01Z"
+      },
+      {
+        "number": 3,
+        "url": "https://github.com/leonidkuznetsov18/vakhta/issues/3",
+        "body_sha256": "bf1c7d7a90e1b67f0921fb0ca1f598f9f5131f8f80c0a747b7ef594043828a38",
+        "metadata_preserved": true,
+        "updated_at": "2026-09-18T14:33:03Z"
+      }
+    ],
+    "native_children_preserved": {
+      "3": 18,
+      "81": 9
+    }
+  }
 }

@@ -18,6 +18,7 @@ Visits and compliments are not demand proof. Recorded employee time is not machi
 downtime reduction requires separate pilot evidence and is not a guaranteed outcome.
 
 - [Specification and demand protocol](../../specs/010-product-landing-sales/spec.md)
+- [Connecteam design reference and Vakhta adaptation](../../specs/010-product-landing-sales/design-reference.md)
 - [Implementation plan](../../specs/010-product-landing-sales/plan.md)
 - [GitHub epic #81](https://github.com/leonidkuznetsov18/vakhta/issues/81)
 - [Evidence and remaining work](../engineering/features/product-landing.md)

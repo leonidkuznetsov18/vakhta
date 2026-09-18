@@ -91,6 +91,12 @@ are not submitted leads. Do not create an analytics service for this page.
 
 ### Design and evidence assets
 
+The [Connecteam adaptation brief](design-reference.md) is the design input for #83/#84/#86/#88.
+Use its original token proposal, split hero, worker/manager evidence composition, role explanations,
+progressive enhancement rules and product-candidate ownership. Validate tokens with real trilingual
+copy; do not introduce a carousel, role-tab state or video requirement when static sections suffice.
+Product candidates in epic #3 are not landing dependencies. No competitor assets enter the build.
+
 Prepare desktop/mobile wireframes. Use authorized real product screenshots with synthetic/demo records:
 incident/response, personnel checklist, handover/photo review and loss-report reasons. Scheduling is secondary. Record source revision, capture date,
 locale and permission. Remove employee details and tokens. Use manufacturing scenes only; label conceptual scenes as illustrations, never customer evidence. Do not depict unimplemented features as screenshots.
@@ -148,6 +154,7 @@ velocity, free pilot or fixed deployment duration is promised. Batch implementat
 | AC-006–008         | Locale parity check; direct URLs, language/anchor/Back, root and 404 browser tests                                              |
 | AC-012–014         | Inspect the pre-recorded demand protocol and first review; separate exposure, qualified manufacturing need and pilot commitment |
 | AC-009–010         | Verify destination and fallback; assert contact click does not claim delivery                                                   |
+| AC-015–016         | Inspect the design-reference mapping, role comprehension and current proof; verify all locale/mobile media fallbacks            |
 | FR-007             | Keyboard/a11y; capture AND inspect all sections at 390px and 1440px in each locale; 320px and 200% zoom boundary checks         |
 | Static/SEO         | No-JS HTML, canonical/alternate/sitemap validation and preview indexing control                                                 |
 | Media              | Permission, privacy, truthful captions and legibility of every asset                                                            |

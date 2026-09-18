@@ -78,3 +78,20 @@ evidence. Investor/test activity is separate. Insufficient reach means inconclus
 No conversion rate without a reliable denominator. Reporting identifies recorded loss patterns for
 investigation, not automatic machine bottlenecks or proven root causes; never aggregate overlapping
 employee intervals into machine downtime. Product effectiveness requires separate pilot evidence.
+
+## Connecteam design direction
+
+Owner decision, 2026-09-18: apply Connecteam's presentation and adoption approach while retaining
+manufacturing demand validation. The [design brief](../../../specs/010-product-landing-sales/design-reference.md)
+records three official public sources, desktop home/forms visual review and the forms mobile hero
+at 390 × 844. No authenticated competitor app, full responsive/a11y audit or market-leadership
+verification was performed. Existing deep product research is reused as a dated input.
+
+The brief adds original visual tokens, page composition, readable worker/manager evidence, role
+explanations and adoption steps. AC-015–016 map to existing content/design/page/acceptance issues;
+AC-013–014 remain postlaunch demand outcomes. Product candidates reuse #41/#42/#43/#47/#53 under #3
+and are not advertised as available or required for landing launch. Existing Sales export copy is unchanged.
+
+Verification scope: scoped formatting, local links, acceptance/issue mapping, exact GitHub section
+readback and preserved issue metadata/native children. No application behavior changed; no app tests,
+product UI screenshots or production actions are required for this documentation refinement.

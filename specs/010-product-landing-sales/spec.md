@@ -103,6 +103,14 @@ Lead with loss reasons, incident response, checklists and handover. Scheduling, 
 requests, communications and bonus remain discoverable supporting capabilities, not the hero.
 Use real authorized product evidence, no invented savings, machine telemetry or customer stories.
 
+### Owner design reference
+
+Owner decision, 2026-09-18: use Connecteam as a reference for understandable benefit-led presentation,
+product evidence, role relevance and adoption. The [design brief](design-reference.md) records freshly
+observed public patterns, original Vakhta visual choices and their issue ownership. Preserve the
+manufacturing-only experiment, three languages and all three contact intents. Product candidates
+remain with workforce epic #3 and never become current-feature claims or landing launch dependencies.
+
 ### Demand-validation protocol
 
 - **H1 Problem:** multiple independent manufacturing prospects describe recurring downtime/time-loss
@@ -175,6 +183,14 @@ Use real authorized product evidence, no invented savings, machine telemetry or 
 - **AC-014**: The review reaches an evidence-backed continue/adapt/stop/inconclusive decision. Missing
   reach or outcomes are explicitly unknown. No demand or downtime-saving claim is inferred from a page launch.
 
+### US7: Manufacturing visitor understands the product visually (P1)
+
+- **AC-015**: The page implements the design brief's benefit/evidence structure, worker/manager
+  explanation, role relevance and adoption steps using an original Vakhta composition.
+- **AC-016**: Every core workflow has readable, authorized Vakhta proof and an adjacent text
+  explanation in all three languages; proposed product features remain distinct. Mobile content and
+  contact actions are unobstructed, and essential meaning is available without animation or scripts.
+
 ### Edge Cases
 
 - No JavaScript: core copy, language links, FAQ and contact remain accessible.
@@ -198,6 +214,7 @@ Use real authorized product evidence, no invented savings, machine telemetry or 
   and mobile layouts across all visitor journeys.
 - **FR-008**: Publish only authorized media and attributable claims (AC-002, AC-005, AC-011).
 - **FR-009**: Apply the manufacturing-only campaign and demand-validation protocol (AC-012–014).
+- **FR-010**: Apply the owner-selected Connecteam reference through the Vakhta design brief (AC-015–016).
 
 ### Key Entities
 

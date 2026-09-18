@@ -15,6 +15,8 @@
 - [x] No invented metrics, pricing, certification or rollout promises.
 - [x] Manufacturing demand protocol separates interest, qualified need and pilot commitment.
 - [x] Employee time-loss evidence is distinct from machine downtime, OEE and measured savings.
+- [x] Connecteam reference has original design decisions, current-evidence rules and existing product owners.
+- [x] AC-015–016 cover benefit/evidence composition and trilingual mobile readability.
 - [x] No unresolved requirement marker blocks planning.
 - [x] Constitution check preserves master, i18n, FSD and proportionate verification.
 

@@ -36,10 +36,10 @@ obtain or regenerate the localized handoffs; no GitHub issue depends on a privat
 Receipts and initial readback evidence: [publication.json](publication.json).
 
 - [ ] T07 Owner/Sales define the manufacturing demand protocol (cohort/channel/window/review/thresholds) and supply publication inputs (AC-009–012).
-- [ ] T08 Sales verify advertised scenarios and prepare sanitized demo assets (AC-002–005).
-- [ ] T09 Designer prepares desktop/mobile layouts for all three languages (FR-007).
-- [ ] T10 Frontend chooses the bounded static-build adapter and implements locale pages, content, metadata and three contact intents (AC-001, AC-006–010).
-- [ ] T11 QA/Sales complete the plan's browser, visual, language, content and presentation checks (AC-001–012); campaign outcomes AC-013–014 are completed in T13 after launch.
+- [ ] T08 Sales verify advertised scenarios and prepare sanitized worker/manager demo assets from the design brief (AC-002–005, AC-016).
+- [ ] T09 Designer applies the Connecteam adaptation brief to original desktop/mobile layouts for all three languages (AC-015–016, FR-007).
+- [ ] T10 Frontend chooses the bounded static-build adapter and implements locale pages, content, metadata and three contact intents and the accepted design brief (AC-001, AC-006–010, AC-015–016).
+- [ ] T11 QA/Sales complete the plan's browser, visual, language, content and presentation checks (AC-001–012, AC-015–016); campaign outcomes AC-013–014 are completed in T13 after launch.
 - [ ] T12 Integration owner publishes, verifies live routes and rollback, and checks the existing release announcement.
 - [ ] T13 Sales record qualified manufacturing need, objections and pilot commitments; complete the bounded demand review (AC-012–014) before claiming demand or savings.
 
@@ -47,3 +47,6 @@ Dependencies are sequential as shown, except asset preparation and design may ov
 inputs are fixed. All writes remain serialized. No tasks authorize operational feature expansion,
 prospect outreach or fabricated employee actions. Evidence belongs in the
 [engineering memory](../../docs/engineering/features/product-landing.md).
+
+Design input: [Connecteam adaptation brief](design-reference.md). Product adoption candidates reuse
+existing workforce issues; their delivery is not required to implement or launch this landing.
