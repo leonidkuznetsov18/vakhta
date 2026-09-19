@@ -10,7 +10,7 @@ try {
     build: { ssr: 'src/app/render.tsx', outDir: '.render', copyPublicDir: false },
   });
   const { renderPages } = await import('../.render/render.js');
-  const { pages, notFound, briefs } = renderPages(
+  const { pages, notFound, briefs, templates } = renderPages(
     process.env.LANDING_EMAIL,
     process.env.LANDING_OPERATOR,
   );
@@ -26,7 +26,11 @@ try {
         .replace('<!--landing-body-->', page.body),
     );
   }
-  for (const brief of briefs) await writeFile(resolve(root, 'dist', brief.file), brief.content);
+  for (const file of [...briefs, ...templates]) {
+    const destination = resolve(root, 'dist', file.file);
+    await mkdir(dirname(destination), { recursive: true });
+    await writeFile(destination, file.content);
+  }
   await writeFile(
     resolve(root, 'dist/404.html'),
     template

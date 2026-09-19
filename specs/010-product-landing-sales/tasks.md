@@ -39,7 +39,7 @@ Receipts and initial readback evidence: [publication.json](publication.json).
 - [x] T09 Designer applies the Connecteam adaptation brief to original desktop/mobile layouts for all three languages (AC-015–016, FR-007).
 - [x] T10 Frontend chooses the bounded static-build adapter and implements locale pages, content, metadata and three contact intents and the accepted design brief (AC-001, AC-006–010, AC-015–016).
 - [ ] T11 QA/Sales complete the plan's browser, visual, language, content and presentation checks (AC-001–012, AC-015–016); campaign outcomes AC-013–014 are completed in T13 after launch.
-- [ ] T12 Integration owner publishes, verifies live routes and rollback, and checks the existing release announcement.
+- [x] T12 Integration owner publishes, verifies live routes and rollback, and checks the existing release announcement.
 - [ ] T13 Sales record qualified manufacturing need, objections and pilot commitments; complete the bounded demand review (AC-012–014) before claiming demand or savings.
 
 Dependencies are sequential as shown, except asset preparation and design may overlap after their
@@ -49,3 +49,16 @@ prospect outreach or fabricated employee actions. Evidence belongs in the
 
 Design input: [Connecteam adaptation brief](design-reference.md). Product adoption candidates reuse
 existing workforce issues; their delivery is not required to implement or launch this landing.
+
+## SEO execution tasks — 2026-09-20
+
+- [x] T14 Implement one canonical Ukrainian home, legacy redirects and consistent alternate URLs.
+- [x] T15 Expand five manufacturing capability explanations in uk/en/ru and add useful metadata.
+- [x] T16 Publish two localized resource templates per language with native downloads and internal links.
+- [x] T17 Prepare minimal truthful structured data and social image references without new tracking.
+- [ ] T18 Verify focused checks, desktop/mobile views and deployed redirects/resources.
+- [ ] T19 Verify GSC ownership, submit the sitemap and record indexing/search baseline (owner access required).
+- [ ] T20 Obtain PageSpeed/CrUX baseline (public API quota blocked); optimize measured bottlenecks only.
+- [ ] T21 Complete authorized worker demo/rehearsal and obtain actual demand evidence; preserve T08/T11/T13.
+
+T14–T18 are one delivery. T19/T20 are independent external checks, not invented completion signals.

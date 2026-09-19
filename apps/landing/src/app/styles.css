@@ -1291,3 +1291,40 @@ html:has(.media-dialog[open]) {
     padding: 8px 12px;
   }
 }
+
+.feature-explanation {
+  max-width: 76ch;
+  margin-block: 48px;
+}
+.feature-explanation section + section {
+  margin-top: 36px;
+}
+.resource-links {
+  padding-block: 36px;
+}
+.resource-links p,
+.resource-page > p {
+  max-width: 72ch;
+}
+.resource-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+.resource-list article {
+  padding: 24px;
+  border: 1px solid var(--line, #dbe3ee);
+  border-radius: 16px;
+}
+.template-fields {
+  display: grid;
+  gap: 10px;
+  padding-left: 24px;
+  margin-bottom: 28px;
+}
+.feature-explanation p,
+.resource-list p,
+.resource-page li {
+  overflow-wrap: anywhere;
+}

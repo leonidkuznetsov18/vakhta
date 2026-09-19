@@ -85,3 +85,25 @@ rollback may remove only the newly added marketing CNAME if no earlier landing d
 - Screenshots currently use Ukrainian UI; translated explanatory pages do not imply translated media.
 - #90: real demand campaign, dated start/review, refusals and pilot commitments, owned by the user.
 - No actual machine telemetry, OEE, ERP/MES integration, autonomous master decisions or measured ROI.
+
+## SEO execution — 2026-09-20
+
+Owner authorized independent SEO-plan implementation. One Ukrainian home now owns `/`; exact legacy
+home paths redirect permanently, while feature/download routes retain locale prefixes. Shared app
+metadata emits canonical/alternate URLs, social image references and minimal Organization/WebSite
+plus inner-page breadcrumbs. No invented business identity, pricing, ratings or analytics.
+Five feature explanations and two practical resource guides/templates are localized in all catalogs.
+The output is 45 canonical HTML documents plus 404 and nine text downloads. Static resource UI stays
+in the existing page slice; no dependency or rendering-framework migration.
+
+Search Console was inspected in the current authenticated account: Vakhta is not listed. No ownership
+or DNS verification was added. Public PageSpeed API returned HTTP 429; field/lab performance is unknown.
+The empty weekly-review CSV contains no customer records or invented campaign results. External
+publication/outreach, live worker demo and the broader Sales rehearsal remain separate work.
+
+Local SEO verification: landing build (including strict TypeScript), landing lint and 15 landing
+tests passed; all 13 i18n catalog tests passed. Chrome screenshots of the expanded feature page,
+resource guide and home resource links were captured and visually inspected at desktop/mobile sizes.
+Resource language navigation preserves the guide; the mobile page has no horizontal overflow.
+Generated-route tests cover reciprocal alternatives, structured-data parsing, internal HTML links
+and six localized template journeys. CI/deployed checks are recorded in epic #81 after delivery.

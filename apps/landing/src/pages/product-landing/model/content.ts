@@ -2,10 +2,14 @@ import { messages, type Locale } from '@vakhta/i18n';
 import { ContactIntent, contactHref, type SalesContact } from '../../../features/contact-sales';
 
 export const languageLinks = [
-  { locale: 'uk', label: messages('uk').landing.languageNames.uk, path: '/uk/' },
+  { locale: 'uk', label: messages('uk').landing.languageNames.uk, path: '/' },
   { locale: 'en', label: messages('en').landing.languageNames.en, path: '/en/' },
   { locale: 'ru', label: messages('ru').landing.languageNames.ru, path: '/ru/' },
 ] as const;
+
+export function homePath(locale: Locale) {
+  return locale === 'uk' ? '/' : `/${locale}/`;
+}
 
 export function landingModel(locale: Locale, contact: SalesContact | null) {
   const copy = messages(locale).landing;
@@ -50,6 +54,7 @@ export function landingModel(locale: Locale, contact: SalesContact | null) {
     const asset = images[feature.id] ?? { name: feature.id, width: 1185, height: 800 };
     return {
       ...feature,
+      detail: copy.seo.details[feature.id],
       caption: asset.name.endsWith('-live') ? copy.tour.liveEvidence : copy.tour.evidence,
       image: `/product/${asset.name}-uk.webp`,
       width: asset.width,
@@ -60,6 +65,12 @@ export function landingModel(locale: Locale, contact: SalesContact | null) {
   const capabilities = [copy.losses, copy.incidents, copy.checklists, copy.handover];
   return {
     copy,
+    home: homePath(locale),
+    resources: copy.seo.resources.map((resource) => ({
+      ...resource,
+      href: `/${locale}/resources/${resource.id}/`,
+      downloadHref: `/${locale}/resources/${resource.id}/template.txt`,
+    })),
     actions,
     portraits,
     features,

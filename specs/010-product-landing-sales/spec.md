@@ -255,3 +255,21 @@ The implementation plan defines future UI and release verification.
   expansion shows the selected scenario. Core content remains available without JavaScript.
 - Screenshots currently show the Ukrainian product UI; explanatory copy and controls are trilingual.
   Translated screenshot sets and a complete live worker rehearsal are tracked gaps, not claimed done.
+
+## SEO execution refinement — 2026-09-20
+
+The owner authorized executing the SEO plan wherever no owner participation is required. Preserve
+manufacturing-only positioning, current SSG and the hidden email composer contact. This refinement
+adds no tracking service, customer claims, operational actions or machine telemetry.
+
+- AC-018: `/` is the sole Ukrainian home; `/uk`, `/uk/` and `/uk/index.html` permanently redirect
+  to it. Other locale homes and all feature URLs remain stable. Canonical, hreflang, internal links
+  and sitemap agree. Query strings and anchors survive the legacy redirect.
+- AC-019: incidents, handover, checklists, schedule and reports explain a concrete situation,
+  accountable roles, proposed pilot evaluation and limits in all three catalogs. Two useful
+  manufacturing guides per locale provide native downloadable templates without a lead form.
+- AC-020: all published pages expose descriptive metadata, social image references and truthful
+  Organization/WebSite structured data in initial HTML. Inner pages include a breadcrumb matching
+  their visible home link and page title. No price, rating, affiliation or legal identity is invented.
+- AC-021: record automated route/locale/download checks and desktop/mobile visual evidence. GSC
+  ownership, indexing, CWV and lead outcomes remain unknown until verified by their own sources.

@@ -1,3 +1,4 @@
+import { ResourceLinks } from './resources';
 import type { LandingModel } from '../model/content';
 
 type Feature = LandingModel['features'][number];
@@ -177,20 +178,34 @@ export function WorkerBot({ model }: { model: LandingModel }) {
   );
 }
 
+function FeatureExplanation({ feature }: { feature: Feature }) {
+  if (!feature.detail) return null;
+  return (
+    <div className="feature-explanation">
+      {feature.detail.sections.map((section) => (
+        <section key={section.title}>
+          <h2>{section.title}</h2>
+          <p>{section.body}</p>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 export function FeaturePage({ model, feature }: { model: LandingModel; feature: Feature }) {
   const copy = model.copy.tour;
   return (
     <>
       {' '}
       <main className="feature-page wrap">
-        <a className="text-link" href={`/${model.locale}/#capabilities`}>
+        <a className="text-link" href={`${model.home}#capabilities`}>
           ← {model.copy.backHome}
         </a>
         <nav className="languages" aria-label={model.copy.language}>
           {model.languages.map((language) => (
             <a
               key={language.locale}
-              href={`${language.path}features/${feature.id}/`}
+              href={`/${language.locale}/features/${feature.id}/`}
               lang={language.locale}
               aria-current={language.locale === model.locale ? 'page' : undefined}
             >
@@ -235,6 +250,8 @@ export function FeaturePage({ model, feature }: { model: LandingModel; feature: 
             </a>
           </div>
         </div>
+        <FeatureExplanation feature={feature} />
+        <ResourceLinks model={model} />
         <nav className="feature-nav" aria-label={copy.more}>
           {model.features
             .filter((item) => item.id !== feature.id)

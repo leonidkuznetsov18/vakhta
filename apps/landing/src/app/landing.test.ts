@@ -8,21 +8,20 @@ import { localizedHref } from '../features/switch-language';
 const { pages, notFound } = renderPages(null, null);
 
 describe('static landing journeys', () => {
-  it('renders the complete Ukrainian landing at the root and all three direct locale routes', () => {
-    expect(pages.slice(0, 4).map((page) => page.file)).toEqual([
+  it('renders the complete Ukrainian landing at the root and the other two direct locale routes', () => {
+    expect(pages.slice(0, 3).map((page) => page.file)).toEqual([
       'index.html',
-      'uk/index.html',
       'en/index.html',
       'ru/index.html',
     ]);
-    for (const page of pages.slice(0, 4)) {
+    for (const page of pages.slice(0, 3)) {
       const document = new DOMParser().parseFromString(
         `<head>${page.head}</head><body>${page.body}</body>`,
         'text/html',
       );
       const copy = messages(page.locale).landing;
       expect(document.querySelector('h1')?.textContent).toBe(copy.hero);
-      expect(document.querySelectorAll('main section')).toHaveLength(13);
+      expect(document.querySelectorAll('main section')).toHaveLength(14);
       expect(document.querySelectorAll('#faq details')).toHaveLength(20);
       expect(document.querySelectorAll('[data-locale-path]')).toHaveLength(6);
       expect(document.querySelector('#contact')?.textContent).toContain(copy.contactPending);
@@ -44,7 +43,7 @@ describe('static landing journeys', () => {
 
   it('exposes three truthful, distinct mail intents when real publication inputs are supplied', () => {
     const { pages: configured } = renderPages('sales@example.org', 'Example operator');
-    for (const page of configured.slice(0, 4)) {
+    for (const page of configured.slice(0, 3)) {
       const document = new DOMParser().parseFromString(page.body, 'text/html');
       const links = [...document.querySelectorAll('#top a[href^="mailto:"]')];
       expect(links).toHaveLength(3);
@@ -63,7 +62,7 @@ describe('static landing journeys', () => {
   it('provides useful native links in every language on the 404 page', () => {
     const document = new DOMParser().parseFromString(notFound, 'text/html');
     expect([...document.querySelectorAll('a')].map((link) => link.getAttribute('href'))).toEqual([
-      '/uk/',
+      '/',
       '/en/',
       '/ru/',
     ]);
@@ -104,7 +103,7 @@ describe('native locale navigation', () => {
 describe('visual product catalog', () => {
   it('provides every feature in every language with a reachable screenshot and contact', () => {
     const rendered = renderPages();
-    expect(rendered.pages).toHaveLength(40);
+    expect(rendered.pages).toHaveLength(45);
     const routeFiles = new Set(
       rendered.pages.map((page) => `/${page.file.replace('index.html', '')}`),
     );
@@ -121,7 +120,7 @@ describe('visual product catalog', () => {
       );
       expect(document.querySelector('a[href^="mailto:gitmrche@gmail.com"]')).not.toBeNull();
     }
-    for (const page of rendered.pages.slice(0, 4)) {
+    for (const page of rendered.pages.slice(0, 3)) {
       const document = new DOMParser().parseFromString(page.body, 'text/html');
       const controls = [...document.querySelectorAll('input[name="process"]')];
       expect(controls.map((control) => control.getAttribute('value'))).toEqual([
@@ -153,3 +152,67 @@ describe('visual product catalog', () => {
     }
   });
 });
+
+describe('search discovery and resource journeys', () => {
+  it('uses one canonical home and reciprocal alternatives for every published page', () => {
+    const rendered = renderPages();
+    const documents = new Map(
+      rendered.pages.map((page) => [
+        `https://vakhta.xyz/${page.file.replace('index.html', '')}`,
+        new DOMParser().parseFromString(
+          `<head>${page.head}</head><body>${page.body}</body>`,
+          'text/html',
+        ),
+      ]),
+    );
+    expect(documents.has('https://vakhta.xyz/uk/')).toBe(false);
+    for (const [url, document] of documents) {
+      expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(url);
+      const alternatives = [...document.querySelectorAll('link[rel="alternate"]')];
+      expect(alternatives).toHaveLength(4);
+      for (const link of alternatives) {
+        const target = documents.get(link.getAttribute('href') ?? '');
+        expect(target, `Unpublished alternate on ${url}`).toBeDefined();
+        expect(
+          [...(target?.querySelectorAll('link[rel="alternate"]') ?? [])].map((item) =>
+            item.getAttribute('href'),
+          ),
+        ).toContain(url);
+      }
+      expect(document.querySelector('meta[property="og:url"]')?.getAttribute('content')).toBe(url);
+      expect(document.querySelector('meta[property="og:image"]')?.getAttribute('content')).toMatch(
+        /^https:\/\/vakhta.xyz\/product\//,
+      );
+      const data: unknown = JSON.parse(
+        document.querySelector('script[type="application/ld+json"]')?.textContent ?? 'null',
+      );
+      expect(data).toHaveProperty('@context', 'https://schema.org');
+      expect(data).toHaveProperty('@graph');
+      assertPublishedLinks(document, documents);
+    }
+  });
+
+  it('delivers useful localized templates from the resource pages without a lead form', () => {
+    const rendered = renderPages();
+    const downloads = new Map(rendered.templates.map((file) => [`/${file.file}`, file.content]));
+    expect(downloads.size).toBe(6);
+    const resources = rendered.pages.filter((item) => item.file.split('/')[1] === 'resources');
+    for (const page of resources) {
+      const document = new DOMParser().parseFromString(page.body, 'text/html');
+      const href = document.querySelector('a[download]')?.getAttribute('href') ?? '';
+      expect(downloads.get(href)).toContain(document.querySelector('h1')?.textContent);
+      expect(document.querySelector('form')).toBeNull();
+      expect(document.querySelector('a[href*="/features/"]')).not.toBeNull();
+    }
+  });
+});
+
+function assertPublishedLinks(document: Document, documents: Map<string, Document>) {
+  for (const link of document.querySelectorAll('a[href]')) {
+    const href = link.getAttribute('href') ?? '';
+    if (!href.startsWith('/') || href.endsWith('.txt') || href.endsWith('.webp')) continue;
+    expect(documents.has(new URL(href.split('#')[0] ?? '/', 'https://vakhta.xyz').href), href).toBe(
+      true,
+    );
+  }
+}

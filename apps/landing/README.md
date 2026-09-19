@@ -1,7 +1,7 @@
 # Vakhta manufacturing landing
 
 [Implementation epic #81](https://github.com/leonidkuznetsov18/vakhta/issues/81).
-Root is Ukrainian; `/uk/`, `/en/`, `/ru/` contain complete static documents. Twelve feature pages
+Root is Ukrainian; `/en/` and `/ru/` contain the other home documents. `/uk/` redirects permanently to `/`. Twelve feature pages
 per language explain current capabilities, steps and manufacturing value. Six selectable scenarios
 connect kiosk, worker Telegram and the panel. Twenty FAQ answers describe capabilities and limits.
 
@@ -22,8 +22,14 @@ Approved defaults are Vakhta and the owner-supplied sales email. `LANDING_EMAIL`
 mark documents noindex. The address is in mailto links, not visible page copy; this is not encryption.
 Three localized public-only `.txt` handouts are generated. Internal Sales notes are not published.
 
-Vite builds assets and a temporary React server entry; `renderToStaticMarkup` produces 40 documents
+Vite builds assets and a temporary React server entry; `renderToStaticMarkup` produces 45 documents
 and removes the server entry. No runtime router or rendering framework is required. Cloudflare Pages
 project `vakhta-landing` serves the root domain. Existing panel and kiosk projects remain separate.
 The CI Pages job builds and deploys all three. See the feature engineering memory for delivery evidence,
 media provenance, QA limitations and rollback. The historical Pages origin is marked noindex.
+
+Two practical resources per language include downloadable text templates, reachable from home and
+feature pages. Five core capabilities include scenario, responsibilities, pilot evaluation and scope.
+Canonical URLs, reciprocal language alternatives, Open Graph previews and Organization/WebSite plus
+inner-page breadcrumbs are emitted in initial HTML. Cloudflare `_redirects` owns legacy home URLs;
+Vite preview does not emulate edge redirects, so verify those in Pages after deployment.

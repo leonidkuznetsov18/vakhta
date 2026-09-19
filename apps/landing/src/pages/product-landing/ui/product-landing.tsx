@@ -1,3 +1,4 @@
+import { ResourceLinks } from './resources';
 import type { LandingModel } from '../model/content';
 import { FeatureCatalog, ProcessTour, WorkerBot, ProductImage, MediaDialog } from './product-tour';
 
@@ -315,6 +316,7 @@ export function ProductLanding({ model, preview }: { model: LandingModel; previe
         <Pilot model={model} />
         <Trust model={model} />
         <Investors model={model} />
+        <ResourceLinks model={model} />
         <Questions model={model} />
         <Contact model={model} />
       </main>

@@ -181,3 +181,18 @@ without a browser React runtime. `features/switch-language` owns anchor preserva
 The full asset, zoom state and selected scenario belong to that dialog only; no parallel route state.
 Asset metadata and public captions are prepared in the page model. See engineering memory for
 actual verification and outstanding Sales/worker rehearsal.
+
+## SEO execution — 2026-09-20
+
+Reuse the page slice and i18n catalogs. `homePath` owns canonical home navigation; app metadata
+owns the shared HTML head and JSON-LD. Resource pages are static presentations of translated content;
+the build generates their downloadable templates. No runtime route state or new dependency is needed.
+The site becomes 45 canonical documents: three homes, 36 feature pages and six resource pages.
+
+Sequence: canonical URL correction and metadata; trilingual capability copy; resources/downloads;
+focused route/schema tests; build/lint; desktop/mobile visual checks; one master delivery and live
+redirect/download verification. Retain previous Pages deployment as rollback. No database migration.
+
+Search Console has no Vakhta property in the current signed-in account; ownership/access and sitemap
+submission remain external prerequisites. Public PageSpeed API returned 429; no CWV result is claimed.
+Prepare the empty weekly review template; actual contact records and results belong to the owner.

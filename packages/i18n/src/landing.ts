@@ -1,8 +1,10 @@
+import { seoUk, seoEn, seoRu, type LandingSeo } from './landing-seo.js';
 import { faqUk, faqEn, faqRu } from './landing-faq.js';
 import { tourUk, tourEn, tourRu, type LandingTour } from './landing-tour.js';
 type TextBlock = { title: string; body: string };
 export type LandingMessages = {
   tour: LandingTour;
+  seo: LandingSeo;
   download: string;
   portraits: string[];
   portraitNote: string;
@@ -82,6 +84,7 @@ export type LandingMessages = {
 export const landingEn: LandingMessages = {
   download: 'Download the team overview (.txt)',
   tour: tourEn,
+  seo: seoEn,
   portraits: [
     'Machine operator',
     'Maintenance technician',
@@ -108,7 +111,7 @@ export const landingEn: LandingMessages = {
       'Actual checklist and handover review with synthetic demo records. Ukrainian interface.',
     openImage: 'Open screenshot at full size',
   },
-  title: 'Vakhta — See lost production time. Act on incidents faster.',
+  title: 'Manufacturing shift operations and downtime response — Vakhta',
   description:
     'Connect worker reports, incident response, personnel checklists and shift handover. Explore recurring time loss in manufacturing and discuss a focused pilot.',
   skip: 'Skip to content',
@@ -287,6 +290,7 @@ export const landingEn: LandingMessages = {
 export const landingUk: LandingMessages = {
   download: 'Завантажити огляд для команди (.txt)',
   tour: tourUk,
+  seo: seoUk,
   portraits: [
     'Оператор верстата',
     'Технік з обслуговування',
@@ -314,7 +318,7 @@ export const landingUk: LandingMessages = {
       'Справжня перевірка чекліста й передачі з вигаданими демозаписами. Український інтерфейс.',
     openImage: 'Відкрити знімок у повному розмірі',
   },
-  title: 'Вахта — Знайдіть втрати часу. Реагуйте на простої швидше.',
+  title: 'Управління змінами та простоями на виробництві — Vakhta',
   description:
     'Повідомлення працівників, реагування на інциденти, чеклісти персоналу й передача зміни в одному процесі. Дослідіть повторювані втрати часу та обговоріть пілот.',
   skip: 'Перейти до змісту',
@@ -493,6 +497,7 @@ export const landingUk: LandingMessages = {
 export const landingRu: LandingMessages = {
   download: 'Скачать обзор для команды (.txt)',
   tour: tourRu,
+  seo: seoRu,
   portraits: [
     'Оператор станка',
     'Техник по обслуживанию',
@@ -520,7 +525,7 @@ export const landingRu: LandingMessages = {
       'Настоящая проверка чек-листа и передачи с вымышленными демозаписями. Украинский интерфейс.',
     openImage: 'Открыть снимок в полном размере',
   },
-  title: 'Вахта — Найдите потери времени. Реагируйте на простои быстрее.',
+  title: 'Управление сменами и простоями на производстве — Vakhta',
   description:
     'Сообщения работников, реагирование на инциденты, чек-листы персонала и передача смены в одном процессе. Исследуйте повторяющиеся потери времени и обсудите пилот.',
   skip: 'Перейти к содержанию',

@@ -1,74 +1,105 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { messages, type Locale } from '@vakhta/i18n';
-import { ProductLanding, FeaturePage, landingModel, languageLinks } from '../pages/product-landing';
+import {
+  ProductLanding,
+  FeaturePage,
+  ResourcePage,
+  landingModel,
+  languageLinks,
+  homePath,
+} from '../pages/product-landing';
 import { readSalesContact, SALES_EMAIL } from '../features/contact-sales';
+import { PageHead, locales } from './metadata';
 
-const origin = 'https://vakhta.xyz';
-const locales: Locale[] = ['uk', 'en', 'ru'];
+type Model = ReturnType<typeof landingModel>;
 
-function PageHead({ locale, path, preview }: { locale: Locale; path: string; preview: boolean }) {
+function homePage(model: Model) {
+  const { locale, copy } = model;
+  const path = model.home;
+  return {
+    locale,
+    file: `${path.slice(1)}index.html`,
+    head: renderToStaticMarkup(
+      <PageHead
+        locale={locale}
+        path={path}
+        title={copy.title}
+        description={copy.description}
+        preview={!model.contact}
+        imageAlt={copy.tour.overview}
+      />,
+    ),
+    body: renderToStaticMarkup(<ProductLanding model={model} preview={!model.contact} />),
+  };
+}
+
+function featurePages(model: Model) {
+  return model.features.map((feature) => ({
+    locale: model.locale,
+    file: `${model.locale}/features/${feature.id}/index.html`,
+    head: renderToStaticMarkup(
+      <PageHead
+        locale={model.locale}
+        path={feature.href}
+        title={feature.detail?.title ?? `${feature.label} · Vakhta`}
+        description={feature.body}
+        preview={!model.contact}
+        image={feature.image}
+        imageAlt={feature.label}
+        suffix={`features/${feature.id}`}
+      />,
+    ),
+    body: renderToStaticMarkup(<FeaturePage model={model} feature={feature} />),
+  }));
+}
+
+function resourcePages(model: Model) {
+  return model.resources.map((resource) => ({
+    locale: model.locale,
+    file: `${resource.href.slice(1)}index.html`,
+    head: renderToStaticMarkup(
+      <PageHead
+        locale={model.locale}
+        path={resource.href}
+        title={`${resource.title} — Vakhta`}
+        description={resource.intro}
+        preview={!model.contact}
+        imageAlt={model.copy.tour.overview}
+        suffix={`resources/${resource.id}`}
+      />,
+    ),
+    body: renderToStaticMarkup(<ResourcePage model={model} resource={resource} />),
+  }));
+}
+
+function publicBrief(locale: Locale) {
   const copy = messages(locale).landing;
-  return (
-    <>
-      <title>{copy.title}</title>
-      <meta name="description" content={copy.description} />
-      <meta name="robots" content={preview ? 'noindex, nofollow' : 'index, follow'} />
-      <link rel="canonical" href={`${origin}${path}`} />
-      {locales.map((language) => (
-        <link key={language} rel="alternate" hrefLang={language} href={`${origin}/${language}/`} />
-      ))}
-      <link rel="alternate" hrefLang="x-default" href={`${origin}/`} />
-      <meta property="og:type" content="website" />
-      <meta property="og:site_name" content="Vakhta" />
-      <meta property="og:title" content={copy.title} />
-      <meta property="og:description" content={copy.description} />
-      <meta property="og:url" content={`${origin}${path}`} />
-      <meta property="og:locale" content={{ uk: 'uk_UA', en: 'en_US', ru: 'ru_RU' }[locale]} />
-    </>
-  );
+  return {
+    file: `${locale}/brief.txt`,
+    content: [
+      `Vakhta — ${copy.hero}`,
+      copy.intro,
+      ...copy.tour.features.map(
+        (feature) =>
+          `${feature.label}\n${feature.body}\n${feature.steps.map((step, index) => `${index + 1}. ${step}`).join('\n')}\n${feature.value}\nhttps://vakhta.xyz/${locale}/features/${feature.id}/`,
+      ),
+      copy.pilot.title,
+      copy.pilot.body,
+      copy.pilotNote,
+      copy.lossLimit,
+      `${copy.contact.title}\nhttps://vakhta.xyz${homePath(locale)}#contact`,
+    ].join('\n\n'),
+  };
 }
 
 export function renderPages(email: unknown = SALES_EMAIL, operator: unknown = 'Vakhta') {
   const contact = readSalesContact(email, operator);
-  const preview = !contact;
-  const routes: { locale: Locale; path: string; file: string }[] = [
-    { locale: 'uk', path: '/', file: 'index.html' },
-    ...locales.map((locale) => ({ locale, path: `/${locale}/`, file: `${locale}/index.html` })),
+  const models = locales.map((locale) => landingModel(locale, contact));
+  const pages = [
+    ...models.map(homePage),
+    ...models.flatMap(featurePages),
+    ...models.flatMap(resourcePages),
   ];
-  const pages = routes.map(({ locale, path, file }) => ({
-    locale,
-    file,
-    head: renderToStaticMarkup(<PageHead locale={locale} path={path} preview={preview} />),
-    body: renderToStaticMarkup(
-      <ProductLanding model={landingModel(locale, contact)} preview={preview} />,
-    ),
-  }));
-  for (const locale of locales) {
-    const model = landingModel(locale, contact);
-    for (const feature of model.features) {
-      pages.push({
-        locale,
-        file: `${locale}/features/${feature.id}/index.html`,
-        head: renderToStaticMarkup(
-          <>
-            <title>{`${feature.label} · Vakhta`}</title>
-            <meta name="description" content={feature.body} />
-            <meta name="robots" content={preview ? 'noindex, nofollow' : 'index, follow'} />
-            <link rel="canonical" href={`${origin}${feature.href}`} />
-            {locales.map((language) => (
-              <link
-                key={language}
-                rel="alternate"
-                hrefLang={language}
-                href={`${origin}/${language}/features/${feature.id}/`}
-              />
-            ))}
-          </>,
-        ),
-        body: renderToStaticMarkup(<FeaturePage model={model} feature={feature} />),
-      });
-    }
-  }
   const notFound = renderToStaticMarkup(
     <main className="not-found wrap">
       <h1>404</h1>
@@ -82,24 +113,18 @@ export function renderPages(email: unknown = SALES_EMAIL, operator: unknown = 'V
       ))}
     </main>,
   );
-  const briefs = locales.map((locale) => {
-    const copy = messages(locale).landing;
-    return {
-      file: `${locale}/brief.txt`,
+  const templates = models.flatMap((model) =>
+    model.resources.map((resource) => ({
+      file: resource.downloadHref.slice(1),
       content: [
-        `Vakhta — ${copy.hero}`,
-        copy.intro,
-        ...copy.tour.features.map(
-          (feature) =>
-            `${feature.label}\n${feature.body}\n${feature.steps.map((step, index) => `${index + 1}. ${step}`).join('\n')}\n${feature.value}\nhttps://vakhta.xyz/${locale}/features/${feature.id}/`,
-        ),
-        copy.pilot.title,
-        copy.pilot.body,
-        copy.pilotNote,
-        copy.lossLimit,
-        `${copy.contact.title}\nhttps://vakhta.xyz/${locale}/#contact`,
+        resource.title,
+        resource.intro,
+        ...resource.sections.map((section) => `${section.title}\n${section.body}`),
+        model.copy.seo.templateTitle,
+        ...resource.fields.map((field) => `${field}: ____________________`),
+        `https://vakhta.xyz${resource.href}`,
       ].join('\n\n'),
-    };
-  });
-  return { pages, notFound, briefs };
+    })),
+  );
+  return { pages, notFound, briefs: locales.map(publicBrief), templates };
 }
