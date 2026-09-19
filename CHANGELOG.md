@@ -1,3 +1,9 @@
+## [1.17.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.16.0...v1.17.0) (2026-09-19)
+
+### Features
+
+* **landing:** add search metadata and manufacturing resources ([8b71671](https://github.com/leonidkuznetsov18/vakhta/commit/8b71671832615cf1071b93ec0db97daa5bc9bc9f)), closes [#81](https://github.com/leonidkuznetsov18/vakhta/issues/81) [#83](https://github.com/leonidkuznetsov18/vakhta/issues/83) [#85](https://github.com/leonidkuznetsov18/vakhta/issues/85) [#86](https://github.com/leonidkuznetsov18/vakhta/issues/86) [#88](https://github.com/leonidkuznetsov18/vakhta/issues/88)
+
 ## [1.16.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.15.11...v1.16.0) (2026-09-18)
 
 ### Features
