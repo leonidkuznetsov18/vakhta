@@ -258,8 +258,9 @@ export function planScreen(
   return { text: lines.join('\n'), keyboard };
 }
 
-export function welcomeScreen(t: Messages): Screen {
-  return { text: `${t.bot.welcome}\n\n${t.bot.askCode}` };
+/** `company` is the tenant display name (spec AC-019). */
+export function welcomeScreen(t: Messages, company: string): Screen {
+  return { text: `${format(t.bot.welcome, { company })}\n\n${t.bot.askCode}` };
 }
 
 export function accessDeniedScreen(

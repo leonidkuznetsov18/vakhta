@@ -25,6 +25,9 @@ export const TenantPublicConfig = z.object({
 });
 export type TenantPublicConfig = z.infer<typeof TenantPublicConfig>;
 
+/** Error code of a route whose tenant module is switched off (spec AC-017, AC-018). */
+export const TenantErrorCode = { MODULE_DISABLED: 'MODULE_DISABLED' } as const;
+
 /** Every queued job may name its tenant; the worker rejects unknown tenants in registry mode. */
 export const TenantJobFields = { tenantId: Uuid.optional() } as const;
 

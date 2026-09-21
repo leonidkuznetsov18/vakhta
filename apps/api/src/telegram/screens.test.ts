@@ -7,6 +7,7 @@ import {
   reasonPickerScreen,
   shiftScreen,
   incidentPhotoScreen,
+  welcomeScreen,
 } from './screens.js';
 
 const t = messages('ru');
@@ -460,4 +461,14 @@ it('requires a breakdown photo in all locales without a skip action', () => {
     expect(buttons(required).flat()).toEqual(['inc:cancel']);
     expect(buttons(incidentPhotoScreen(messages(locale))).flat()).toContain('inc:skip');
   }
+});
+
+describe('bot greeting (spec 011 AC-019)', () => {
+  it('names the tenant in every catalog language', () => {
+    for (const locale of ['uk', 'en', 'ru'] as const) {
+      const text = welcomeScreen(messages(locale), 'SuperFactory').text;
+      expect(text).toContain('SuperFactory');
+      expect(text).not.toContain('{company}');
+    }
+  });
 });

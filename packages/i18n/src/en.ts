@@ -35,7 +35,7 @@ export const en: Messages = {
   },
   bot: {
     welcome:
-      'This is Vakhta, the shift tracking bot. To start, open the activation link from HR or send the activation code as a message.',
+      '{company}: the Vakhta shift tracking bot. To start, open the activation link from HR or send the activation code as a message.',
     askCode: 'Enter the activation code from the HR message: 8 characters, for example ABCD2345.',
     alreadyRegistered: 'You are already registered. No new code is needed.',
     notReady: 'This feature is still in development.',

@@ -45,6 +45,8 @@ import {
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { ChecklistsService } from './checklists.service.js';
 import { OrgService } from './org.service.js';
+import { RequiresModule } from '../infra/module-guard.js';
+import { TenantModule } from '@vakhta/domain';
 
 /** Довідники для розділу «Администрирование» (ТЗ 9.1). Читати можуть усі ролі панелі. */
 @Controller('admin/org')
@@ -180,6 +182,7 @@ export class AdminOrgController {
   }
 
   @Post('terminals')
+  @RequiresModule(TenantModule.QR_KIOSK)
   @HttpCode(201)
   registerTerminal(
     @Body(new ZodValidationPipe(RegisterTerminalCommand)) body: RegisterTerminalCommand,
@@ -189,6 +192,7 @@ export class AdminOrgController {
   }
 
   @Post('terminals/:id/pairing')
+  @RequiresModule(TenantModule.QR_KIOSK)
   @HttpCode(201)
   issuePairing(
     @Param('id', ParseUUIDPipe) id: string,
@@ -198,6 +202,7 @@ export class AdminOrgController {
   }
 
   @Patch('terminals/:id')
+  @RequiresModule(TenantModule.QR_KIOSK)
   async updateTerminal(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(UpdateTerminalCommand)) body: UpdateTerminalCommand,
@@ -207,6 +212,7 @@ export class AdminOrgController {
   }
 
   @Delete('terminals/:id')
+  @RequiresModule(TenantModule.QR_KIOSK)
   @HttpCode(204)
   async deleteTerminal(
     @Param('id', ParseUUIDPipe) id: string,
@@ -217,6 +223,7 @@ export class AdminOrgController {
   }
 
   @Patch('terminals/:id/status')
+  @RequiresModule(TenantModule.QR_KIOSK)
   async setTerminalStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(SetTerminalStatusCommand)) body: SetTerminalStatusCommand,

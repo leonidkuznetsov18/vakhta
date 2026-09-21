@@ -3188,12 +3188,6 @@
     }
   },
   "apps/api/src/telegram/telegram.service.ts": {
-    "max-depth": {
-      "count": 1
-    },
-    "no-await-in-loop": {
-      "count": 2
-    },
     "no-restricted-syntax": {
       "count": 1
     }

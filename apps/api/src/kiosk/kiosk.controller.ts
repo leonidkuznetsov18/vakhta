@@ -6,9 +6,12 @@ import {
 } from '@vakhta/contracts';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { KioskService } from './kiosk.service.js';
+import { RequiresModule } from '../infra/module-guard.js';
+import { TenantModule } from '@vakhta/domain';
 
 /** Reachable from the site network; authentication is the device token or a one-time pairing code. */
 @Controller('kiosk')
+@RequiresModule(TenantModule.QR_KIOSK)
 export class KioskController {
   constructor(private readonly kiosk: KioskService) {}
 

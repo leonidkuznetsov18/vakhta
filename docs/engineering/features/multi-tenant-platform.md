@@ -267,6 +267,20 @@ Railway CLI and Cloudflare credentials supplied the deployment operations.
   cross-field check, rebuild-to-defaults, unlogged audit failure, draft loss on refetch and
   uncleanable invalid rows; all fixed before delivery.
 
+## Module switches in the tenant API (T031 part, 2026-09-21)
+
+- `@RequiresModule` (`apps/api/src/infra/module-guard.ts`) answers 403 `MODULE_DISABLED`
+  (`TenantErrorCode`) for kiosk and terminal routes without `QR_KIOSK`, and for activation codes,
+  Telegram relink and Mini App questionnaires without `WORKER_BOT`. It reads the host-bound
+  tenant, so a switch applies within one registry refresh. The env tenant always has both.
+- Webhooks of a tenant without `WORKER_BOT` verify the secret and acknowledge with 200, dropping the
+  update: a 403 would make Telegram queue retries and replay stale messages when re-enabled.
+  The API starts no bot (polling or webhook) for such a tenant.
+- The bot welcome names the tenant display name in all three catalogs.
+- Evidence: isolation e2e "closes kiosk and bot routes..." (disable, other tenant unaffected,
+  re-enable), screens test for the greeting; independent review approved after its questionnaire,
+  polling and webhook-retry findings were fixed.
+
 ## Remaining work
 
 Next: T031 module/branding surfaces and remaining

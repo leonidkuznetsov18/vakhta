@@ -27,6 +27,8 @@ import { CommunicationsService } from './communications.service.js';
 import { CommunicationMediaService } from './media.service.js';
 import { QuestionnaireService } from './questionnaire.service.js';
 import { questionnaireIdentity } from './questionnaire-auth.js';
+import { TenantModule } from '@vakhta/domain';
+import { RequiresModule } from '../infra/module-guard.js';
 
 @Controller('admin/communications')
 @UseGuards(WebAuthGuard)
@@ -105,6 +107,7 @@ export class CommunicationsController {
 
 /** Telegram identity is separate from admin cookies and never creates a panel session. */
 @Controller('questionnaires')
+@RequiresModule(TenantModule.WORKER_BOT)
 export class QuestionnaireController {
   constructor(
     private readonly service: QuestionnaireService,

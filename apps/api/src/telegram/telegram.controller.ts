@@ -11,7 +11,9 @@ import {
 } from '@nestjs/common';
 import type { Update } from 'grammy/types';
 import { currentTenant } from '../infra/tenant-context.js';
-import { TelegramService } from './telegram.service.js';
+import { secretMatches, TelegramService } from './telegram.service.js';
+import { tenantHasModule } from '@vakhta/registry';
+import { TenantModule } from '@vakhta/domain';
 
 @Controller('telegram')
 export class TelegramController {
@@ -45,6 +47,13 @@ export class TelegramController {
     secret: string | undefined,
     update: Update,
   ): Promise<{ ok: true }> {
+    const tenant = currentTenant().tenant;
+    // A switched-off bot acknowledges and drops genuine updates, so Telegram keeps no retry queue
+    // that would replay stale messages once the module is enabled again (spec AC-018).
+    if (!tenantHasModule(tenant, TenantModule.WORKER_BOT)) {
+      if (!secretMatches(tenant.webhookSecret, secret)) throw new UnauthorizedException();
+      return { ok: true };
+    }
     if (!this.telegram.verifySecret(tenantId, secret)) throw new UnauthorizedException();
     await this.telegram.handleUpdate(tenantId, update);
     return { ok: true };

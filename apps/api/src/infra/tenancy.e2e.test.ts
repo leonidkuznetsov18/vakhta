@@ -11,15 +11,18 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import {
+  and,
   createDatabase,
   eq,
+  inArray,
   migrateTenantDatabase,
   qrTerminals,
   seedTenantDefaults,
   settings,
   sql,
 } from '@vakhta/db';
-import { TENANT_SETTING_DEFAULTS } from '@vakhta/contracts';
+import { TENANT_SETTING_DEFAULTS, TenantErrorCode } from '@vakhta/contracts';
+import { ModuleStatus, TenantModule } from '@vakhta/domain';
 import { hashDeviceToken } from '@vakhta/domain/node';
 import {
   SecretCipher,
@@ -27,6 +30,7 @@ import {
   generateSecretKeyHex,
   migrateRegistry,
   registerExistingTenant,
+  tenantModules,
   tenants,
   type RegistryDatabase,
 } from '@vakhta/registry';
@@ -332,6 +336,52 @@ describe('tenancy: every request is bound to exactly one tenant', () => {
     const { DATABASE } = await import('./database.module.js');
     const db = app.get<{ select: unknown }>(DATABASE);
     expect(() => db.select).toThrow(/No tenant is bound/);
+  });
+
+  it('closes kiosk and bot routes of a tenant whose module is off, without a deploy (AC-017, AC-018)', async () => {
+    const { TenantRuntimeRegistry } = await import('./tenant-runtime.js');
+    const setModules = async (status: ModuleStatus) => {
+      await registry
+        .update(tenantModules)
+        .set({ status })
+        .where(
+          and(
+            eq(tenantModules.tenantId, b.id),
+            inArray(tenantModules.module, [TenantModule.QR_KIOSK, TenantModule.WORKER_BOT]),
+          ),
+        );
+      await registry
+        .update(tenants)
+        .set({ updatedAt: sql`now()` })
+        .where(eq(tenants.id, b.id));
+      await app.get(TenantRuntimeRegistry).source.refresh();
+    };
+    const kiosk = (tenant: TenantFixture) =>
+      app.inject({
+        method: 'GET',
+        url: '/kiosk/challenge',
+        headers: { host: tenant.apiHost, 'x-device-token': 'unknown-device-token-0000' },
+      });
+    const webhook = (tenant: TenantFixture, secret: string) =>
+      app.inject({
+        method: 'POST',
+        url: '/telegram/webhook',
+        headers: { host: tenant.apiHost, 'x-telegram-bot-api-secret-token': secret },
+        payload: { update_id: 1 },
+      });
+
+    await setModules(ModuleStatus.DISABLED);
+    const closedKiosk = await kiosk(b);
+    expect(closedKiosk.statusCode).toBe(403);
+    expect(closedKiosk.json()).toMatchObject({ code: TenantErrorCode.MODULE_DISABLED });
+    // A switched-off bot still rejects a wrong secret and drops genuine updates with 200.
+    expect((await webhook(b, 'wrong-secret')).statusCode).toBe(401);
+    expect((await webhook(b, 'webhook-secret-bravo-0000')).statusCode).toBe(200);
+    // The other tenant still reaches its own checks behind the guard.
+    expect((await kiosk(a)).statusCode).toBe(401);
+
+    await setModules(ModuleStatus.ENABLED);
+    expect((await kiosk(b)).statusCode).toBe(401);
   });
 
   it('refuses a suspended tenant within one refresh (AC-005, AC-023)', async () => {

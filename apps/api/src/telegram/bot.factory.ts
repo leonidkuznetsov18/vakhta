@@ -70,6 +70,7 @@ import {
   type Screen,
 } from './screens.js';
 import type { UpdateDedup } from './update-dedup.js';
+import { currentTenant } from '../infra/tenant-context.js';
 
 /** Unfinished handover and acceptance steps; live in Redis next to the problem report. */
 type PendingHandover =
@@ -288,7 +289,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   async function buildHome(ctx: BotContext): Promise<Screen> {
     if (ctx.access !== 'ALLOWED' || !ctx.employee) {
       return ctx.access === 'NOT_REGISTERED' || ctx.access === 'ALLOWED'
-        ? welcomeScreen(ctx.t)
+        ? welcomeScreen(ctx.t, currentTenant().tenant.branding.displayName)
         : accessDeniedScreen(ctx.t, ctx.access);
     }
     return renderHomeScreen(deps, ctx.t, ctx.employee);

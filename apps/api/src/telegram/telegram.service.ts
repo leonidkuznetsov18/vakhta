@@ -7,9 +7,9 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DEFAULT_LOCALE, LOCALES, TenancyMode } from '@vakhta/domain';
+import { DEFAULT_LOCALE, LOCALES, TenancyMode, TenantModule } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
-import type { TenantRuntimeConfig } from '@vakhta/registry';
+import { tenantHasModule, type TenantRuntimeConfig } from '@vakhta/registry';
 import type { Bot } from 'grammy';
 import type { Update } from 'grammy/types';
 import type { Subscription } from 'rxjs';
@@ -125,7 +125,9 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
   private async reconcile(): Promise<void> {
     const wanted = new Map<string, TenantRuntimeConfig>();
     for (const tenant of this.tenants.source.active()) {
-      if (tenant.botToken) wanted.set(tenant.id, tenant);
+      if (tenant.botToken && tenantHasModule(tenant, TenantModule.WORKER_BOT)) {
+        wanted.set(tenant.id, tenant);
+      }
     }
     const stale = [...this.bots.values()].filter(
       (entry) => wanted.get(entry.tenantId)?.botToken !== entry.token,
@@ -296,11 +298,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
   }
 
   verifySecret(tenantId: string, header: string | undefined): boolean {
-    const expected = this.bots.get(tenantId)?.secret;
-    if (!expected || !header) return false;
-    const a = Buffer.from(expected, 'utf8');
-    const b = Buffer.from(header, 'utf8');
-    return a.length === b.length && timingSafeEqual(a, b);
+    return secretMatches(this.bots.get(tenantId)?.secret, header);
   }
 
   /** Вхід із webhook; у режимі polling оновлення сюди не приходять. */
@@ -315,4 +313,15 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       this.logger.error({ err: error, updateId: update.update_id }, 'помилка обробки оновлення');
     }
   }
+}
+
+/** Constant-time comparison of the Telegram webhook secret header. */
+export function secretMatches(
+  expected: string | null | undefined,
+  header: string | undefined,
+): boolean {
+  if (!expected || !header) return false;
+  const a = Buffer.from(expected, 'utf8');
+  const b = Buffer.from(header, 'utf8');
+  return a.length === b.length && timingSafeEqual(a, b);
 }

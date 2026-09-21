@@ -44,7 +44,7 @@ import {
   webUserActor,
   type WebUser,
 } from '../auth/web-auth.guard.js';
-import { type WebRole } from '@vakhta/domain';
+import { TenantModule, type WebRole } from '@vakhta/domain';
 import { DomainError } from '../common/domain-error.js';
 import { assertInScope, scopeOf } from '../common/access-scope.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
@@ -52,6 +52,7 @@ import { ActivationService } from './activation.service.js';
 import { EmployeesService } from './employees.service.js';
 import { PositionsService } from './positions.service.js';
 import { IdentityExceptionFilter } from './identity-exception.filter.js';
+import { RequiresModule } from '../infra/module-guard.js';
 
 /** Roles that read the directory; writes stay with ADMIN and HR. */
 export const EMPLOYEE_READERS: readonly WebRole[] = [
@@ -136,6 +137,7 @@ export class AdminEmployeesController {
   }
 
   @Post('activation-codes')
+  @RequiresModule(TenantModule.WORKER_BOT)
   @HttpCode(201)
   async issueCodes(
     @Body(new ZodValidationPipe(IssueActivationCodesCommand)) body: IssueActivationCodesCommand,
@@ -231,6 +233,7 @@ export class AdminEmployeesController {
   }
 
   @Post(':id/activation-codes')
+  @RequiresModule(TenantModule.WORKER_BOT)
   @HttpCode(201)
   async issueCode(
     @Param('id', ParseUUIDPipe) id: string,
@@ -241,6 +244,7 @@ export class AdminEmployeesController {
   }
 
   @Post(':id/telegram/relink')
+  @RequiresModule(TenantModule.WORKER_BOT)
   async relink(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(RelinkTelegramCommand)) body: RelinkTelegramCommand,
