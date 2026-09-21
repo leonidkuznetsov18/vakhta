@@ -94,6 +94,17 @@ implementation approval. Publication evidence lives in [Connecteam engineering m
 | [#52](https://github.com/leonidkuznetsov18/vakhta/issues/52) | Organization and access — Validate targeting and directory gaps within existing scopes | discovery      | CT-81, CT-82, CT-83, CT-84, CT-85 |
 | [#53](https://github.com/leonidkuznetsov18/vakhta/issues/53) | Automation and delivery — Prioritize reliable notifications before platform expansion  | discovery      | CT-86, CT-87, CT-88, CT-89, CT-90 |
 
+## Platform: multi-tenant control plane
+
+Planned program, 2026-09-21: [specification](../../specs/011-multi-tenant-control-plane/spec.md),
+[plan](../../specs/011-multi-tenant-control-plane/plan.md), [tasks](../../specs/011-multi-tenant-control-plane/tasks.md)
+and [ADR-0015](../adr/0015-database-per-tenant-with-control-plane.md). Four bounded deliveries:
+foundation (tenant context, registry, env-mode compatibility, pilot cutover), control panel
+(operators, tenants, modules, provisioning jobs, audit), tenant surfaces (per-tenant bots, module
+gating, branding, runtime configuration) and operations (backups, suspend/resume, rotation, client
+domains). GitHub issues are not created yet; publish them only on owner request after the plan's
+open decisions are confirmed. Evidence: [engineering memory](features/multi-tenant-platform.md).
+
 ## Labels and status
 
 - `area:schedule`, `area:ai-master`, `area:workforce`, `area:landing`: primary roadmap area.

@@ -79,3 +79,13 @@ owner appends after merging work; parallel agents return proposed entries instea
 - Lean expertise is only for an owner-requested process assessment. No routine feature/design/QA
   gate or automatic cadence; this supersedes earlier broad Lean instructions and templates.
 - Exact decisions, checks and remaining evidence: `docs/engineering/features/development-workflow.md`.
+
+## 2026-09-21 — Multi-tenant platform direction
+
+- Owner decision; writer: Claude; baseline `0566952`. Vakhta becomes a platform: database per
+  tenant on a shared cluster, shared API/worker with a fail-closed tenant context, one bot per
+  tenant, tenant hostnames, a separate control service and control panel for operators, modules
+  `ADMIN_PANEL`/`WORKER_BOT`/`QR_KIOSK` as registry switches. `TENANCY_MODE=env` keeps the pilot
+  and CI unchanged until cutover. See `specs/011-multi-tenant-control-plane/` and ADR-0015 (proposed).
+- Unresolved (owner): hostname scheme, separate control service, one Postgres cluster, pilot slug,
+  control panel languages. Implementation starts with delivery 1 after confirmation.

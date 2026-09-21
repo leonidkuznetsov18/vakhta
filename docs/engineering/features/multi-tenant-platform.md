@@ -1,0 +1,45 @@
+# Multi-tenant platform engineering memory
+
+## Outcome and scope
+
+2026-09-21; active feature `specs/011-multi-tenant-control-plane`, baseline `0566952`, current
+`master` checkout. Owner request: each client plant gets its own database, bot, kiosk and branded
+interface, created from a platform control panel that assigns modules. This entry records the
+planning package; no code, schema, deployment or employee record changed.
+
+## Current behavior and ownership
+
+Single-customer deployment: one `DATABASE_URL`, one bot token, one panel and kiosk host, one
+migration and backup target. Facts and file references: spec RECON. Product document:
+[Multi-tenant platform](../../features/multi-tenant-platform.md) (planned).
+
+## Decisions and reuse
+
+- Isolation model: database per tenant on a shared cluster, shared stateless API and worker with
+  an `AsyncLocalStorage` tenant context that fails closed, one bot per tenant, tenant hostnames,
+  prefixed storage and Redis keys. Rejected: one deployment per tenant (cost, deploy per client)
+  and `tenant_id` columns (contradicts the requirement, access risk). ADR-0015 (proposed).
+- Control plane: separate `control-api` service and `control-web` app with their own registry
+  database, operator auth with mandatory TOTP, encrypted tenant secrets, durable resumable
+  provisioning jobs, append-only control audit. Provider tokens never enter the tenant API process.
+- Compatibility: `TENANCY_MODE=env` keeps the pilot, local development and CI unchanged until the
+  registry cutover; rollback is an env change with no data movement.
+- Panel and kiosk remain single builds and read tenant configuration at runtime by host from a
+  public control endpoint with a browser-storage cache.
+- Modules `ADMIN_PANEL`, `WORKER_BOT`, `QR_KIOSK` are registry switches enforced by the API;
+  `SUPPORT_BOT` and `PHOTO_INSPECTION` are reserved codes.
+- Telegram offers no bot-creation API; operators paste BotFather tokens, validated with `getMe`.
+- Open owner decisions are listed in plan.md (hostname scheme, separate control service, one
+  cluster, pilot slug, control panel languages).
+
+## Verification
+
+Planning only. Checks performed on 2026-09-21: Prettier format check on the new and edited Markdown
+files; relative links inspected. No application build, tests or live QA were required or run.
+Research rows marked **verify** in research.md are not yet confirmed.
+
+## Remaining work
+
+Owner confirmation of the plan's Open Decisions; then delivery 1 tasks T010–T018 in tasks.md.
+Provisioning time per tenant is to be measured when the first non-pilot tenant is created. GitHub
+issues for the deliveries are not created; run the issue publication only on owner request.
