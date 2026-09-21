@@ -41,6 +41,7 @@ exact files in this document before their own coding starts.
 - [x] T001 Inspect the current deployment topology, database binding, auth, bot, worker, migrations, backups and static builds (spec RECON).
 - [x] T002 Compare isolation options and record the decision and provider facts to verify in research.md; draft the registry data model.
 - [x] T003 Write spec.md, plan.md, this file, the requirements checklist, ADR-0015, the planned product document, the engineering memory, the roadmap section and the handoff entry; set `.specify/feature.json`.
+- [x] T004 Build the [clickable prototype](https://claude.ai/artifact/L1PPyJSknGCxWZYR7Ffm72) (six artboards: architecture, tenant list, quick create, provisioning job with onboarding link, workspace tabs, welcome page); owner reviewed it on 2026-09-21 and authorized implementation to start.
 
 ## Delivery 1: Foundation (US2, US3, US4)
 

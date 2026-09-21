@@ -179,8 +179,8 @@ FSD: `app/` (router, providers), `pages/tenants`, `pages/tenant-workspace`, `pag
 `features/manage-domains`, `features/manage-secrets`, `features/manage-invitations`,
 `features/delete-tenant`, `entities/tenant`, `entities/provisioning-job`, `shared/`.
 
-Screens: **Tenants** (table: name, slug, status, modules, health, last job; filters; quick-create
-button). **Quick create** (one form, then the live job view with the onboarding link and copy
+Screens follow the [owner-reviewed prototype](https://claude.ai/artifact/L1PPyJSknGCxWZYR7Ffm72) of 2026-09-21 (structure and flow, not final
+visual design). **Tenants** (table: name, slug, status, modules, health, last job; filters; quick-create button). **Quick create** (one form, then the live job view with the onboarding link and copy
 buttons on success). **Tenant workspace** with tabs: Overview (status, health, addresses, pending
 manual steps, onboarding link), Modules (cards with switch and config form), Database (host, name,
 schema version, size, last backup, connection check, migrate and backup actions), Bot (username,

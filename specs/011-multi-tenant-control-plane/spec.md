@@ -12,7 +12,10 @@ under "Open Decisions" in [plan.md](plan.md).
 **Product document**: [Multi-tenant platform](../../docs/features/multi-tenant-platform.md) (planned)
 **Engineering memory**: [Multi-tenant platform](../../docs/engineering/features/multi-tenant-platform.md)
 **Companions**: [research.md](research.md), [data-model.md](data-model.md),
-[ADR-0015](../../docs/adr/0015-database-per-tenant-with-control-plane.md)
+[ADR-0015](../../docs/adr/0015-database-per-tenant-with-control-plane.md),
+[clickable prototype](https://claude.ai/artifact/L1PPyJSknGCxWZYR7Ffm72) (private Claude artifact, owner-reviewed 2026-09-21: architecture diagram,
+tenant list, quick-create form, live provisioning with the onboarding link, tenant workspace tabs,
+welcome page on a phone)
 
 ## RECON: Current Behavior
 

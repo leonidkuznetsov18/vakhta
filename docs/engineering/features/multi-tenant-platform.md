@@ -44,6 +44,16 @@ Planning only. Checks performed on 2026-09-21: Prettier format check on the new 
 files; relative links inspected. No application build, tests or live QA were required or run.
 Research rows marked **verify** in research.md are not yet confirmed.
 
+## Prototype
+
+2026-09-21: [clickable prototype](https://claude.ai/artifact/L1PPyJSknGCxWZYR7Ffm72) (private Claude Design artifact; share from its page to
+show others). Six artboards: architecture, tenant list, quick-create form, live provisioning with
+onboarding link and a manual DNS step, tenant workspace with switchable tabs (overview, modules,
+database, bot, kiosk, parameters, danger zone), welcome page at phone width. Data on the screens is
+invented; the artifact fixes screen structure and flow, not final visual design. The owner reviewed
+it and told implementation to proceed; decisions delegated to the recommended defaults are recorded
+in #92.
+
 ## GitHub publication
 
 2026-09-21, on owner request: epic [#91](https://github.com/leonidkuznetsov18/vakhta/issues/91) with fifteen native sub-issues #92–#106, label
