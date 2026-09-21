@@ -1,4 +1,4 @@
-import { SHIFT_REMINDER_LEAD_MINUTES } from '@vakhta/domain';
+import { SHIFT_REMINDER_LEAD_MINUTES, TENANCY_MODES, TenancyMode } from '@vakhta/domain';
 import { z } from 'zod';
 
 const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
@@ -16,6 +16,19 @@ export const WorkerEnvSchema = z.object({
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('info'),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
+  /** `env`: one tenant from these variables; `registry`: tenants from the control database. */
+  TENANCY_MODE: z.enum(TENANCY_MODES).default(TenancyMode.ENV),
+  CONTROL_DATABASE_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  CONTROL_ENCRYPTION_KEY: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(/^[0-9a-fA-F]{64}$/)
+      .optional(),
+  ),
+  /** Pool size per tenant database. */
+  TENANT_POOL_MAX: z.coerce.number().int().min(1).max(50).default(5),
+  REGISTRY_REFRESH_SECONDS: z.coerce.number().int().min(2).default(15),
   /** Без токена релей аутбоксу вимкнений: рядки чекають у PENDING. */
   TELEGRAM_BOT_TOKEN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   COMMUNICATIONS_WEB_URL: z.string().url().default('https://panel.vakhta.xyz'),
@@ -66,9 +79,7 @@ export function loadWorkerEnv(source: Record<string, unknown>): WorkerEnv {
 /** У продакшені воркер без бота або сховища марний: аутбокс і фото зависають у PENDING. */
 export function assertProductionReady(env: WorkerEnv): void {
   if (env.NODE_ENV !== 'production') return;
-  const problems: string[] = [];
-  if (!env.TELEGRAM_BOT_TOKEN)
-    problems.push('TELEGRAM_BOT_TOKEN обовʼязковий: інакше релей аутбоксу вимкнений');
+  const problems: string[] = tenancyProblems(env);
   if (!env.S3_BUCKET || !env.S3_ACCESS_KEY || !env.S3_SECRET_KEY) {
     problems.push(
       'S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY обовʼязкові: інакше фото лишаються PENDING',
@@ -77,4 +88,18 @@ export function assertProductionReady(env: WorkerEnv): void {
   if (problems.length > 0) {
     throw new Error(`Конфігурація worker не готова до продакшену: ${problems.join('; ')}`);
   }
+}
+
+/** Env mode needs the single bot token; registry mode needs the control database and key. */
+function tenancyProblems(env: WorkerEnv): string[] {
+  if (env.TENANCY_MODE === TenancyMode.ENV) {
+    return env.TELEGRAM_BOT_TOKEN
+      ? []
+      : ['TELEGRAM_BOT_TOKEN обовʼязковий: інакше релей аутбоксу вимкнений'];
+  }
+  const problems: string[] = [];
+  if (!env.CONTROL_DATABASE_URL) problems.push('CONTROL_DATABASE_URL required in registry mode');
+  if (!env.CONTROL_ENCRYPTION_KEY)
+    problems.push('CONTROL_ENCRYPTION_KEY required in registry mode');
+  return problems;
 }

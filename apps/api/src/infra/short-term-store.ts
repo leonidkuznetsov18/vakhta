@@ -73,3 +73,24 @@ export class InMemoryShortTermStore implements ShortTermStore {
     this.items.delete(key);
   }
 }
+
+/** Namespaces every key of one tenant inside the shared Redis (spec: `t:<tenantId>:`). */
+export class PrefixedShortTermStore implements ShortTermStore {
+  constructor(
+    private readonly inner: ShortTermStore,
+    private readonly prefix: string,
+  ) {}
+
+  incr(key: string, ttlSeconds: number): Promise<number> {
+    return this.inner.incr(this.prefix + key, ttlSeconds);
+  }
+  get(key: string): Promise<string | null> {
+    return this.inner.get(this.prefix + key);
+  }
+  set(key: string, value: string, ttlSeconds: number): Promise<void> {
+    return this.inner.set(this.prefix + key, value, ttlSeconds);
+  }
+  del(key: string): Promise<void> {
+    return this.inner.del(this.prefix + key);
+  }
+}

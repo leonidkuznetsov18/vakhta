@@ -47,11 +47,12 @@ describe('e2e: межі доступу панелі', () => {
     // ConfigModule.forRoot читає process.env під час імпорту модуля, тому AppModule імпортується динамічно.
     const { AppModule } = await import('./app.module.js');
     const { AuthService } = await import('./auth/auth.service.js');
-    const { DATABASE } = await import('./infra/database.module.js');
     app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), {
       logger: false,
       abortOnError: false,
     });
+    const { bindTenancy } = await import('./infra/tenant-hook.js');
+    bindTenancy(app);
     app.useGlobalFilters(new DomainErrorFilter());
     app.enableCors(corsOptions(['http://localhost:5173']));
     const { registerAuthRoutes } = await import('./auth/auth.routes.js');
@@ -59,7 +60,13 @@ describe('e2e: межі доступу панелі', () => {
     registerAuthRoutes(app.getHttpAdapter().getInstance(), app.get(AUTH));
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
-    db = app.get<Database>(DATABASE);
+    // Direct service calls in tests run outside a request: bind them to the env tenant explicitly.
+    const { TenantRuntimeRegistry } = await import('./infra/tenant-runtime.js');
+    const { runWithTenant } = await import('./infra/tenant-context.js');
+    const { ENV_TENANT_ID } = await import('@vakhta/registry');
+    const runtime = app.get(TenantRuntimeRegistry).byId(ENV_TENANT_ID);
+    if (!runtime) throw new Error('env tenant runtime missing');
+    db = runtime.db;
 
     const auth = app.get(AuthService);
     for (const [email, role] of [
@@ -70,14 +77,16 @@ describe('e2e: межі доступу панелі', () => {
       ['planner@e2e.test', null],
       ['auditor@e2e.test', 'AUDITOR'],
     ] as const) {
-      await auth.createUser(
-        {
-          email,
-          name: email,
-          password: PASSWORD,
-          roles: role ? [{ role, scopeType: 'ENTERPRISE' }] : [],
-        },
-        SYSTEM,
+      await runWithTenant(runtime, () =>
+        auth.createUser(
+          {
+            email,
+            name: email,
+            password: PASSWORD,
+            roles: role ? [{ role, scopeType: 'ENTERPRISE' }] : [],
+          },
+          SYSTEM,
+        ),
       );
       const res = await app.inject({
         method: 'POST',

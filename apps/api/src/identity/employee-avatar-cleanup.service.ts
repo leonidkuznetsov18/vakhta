@@ -8,6 +8,7 @@ import {
 import { and, asc, employees, eq, isNotNull, lte, mediaObjects, type Database } from '@vakhta/db';
 import { DATABASE } from '../infra/database.module.js';
 import { OBJECT_STORAGE, type ObjectStorage } from '../infra/object-storage.js';
+import { TenantRuntimeRegistry } from '../infra/tenant-runtime.js';
 
 /** Expiry on each staged/retired media row is durable retry state, including process crashes. */
 @Injectable()
@@ -18,6 +19,7 @@ export class EmployeeAvatarCleanupService implements OnModuleInit, OnApplication
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage | null,
+    private readonly tenants: TenantRuntimeRegistry,
   ) {}
   onModuleInit() {
     this.timer = setInterval(() => {
@@ -39,7 +41,19 @@ export class EmployeeAvatarCleanupService implements OnModuleInit, OnApplication
     if (this.timer) clearInterval(this.timer);
     await this.running;
   }
-  async cleanupOnce() {
+  /** Visits every serving tenant; the first failure is rethrown after the others were tried. */
+  async cleanupOnce(): Promise<void> {
+    const failures: unknown[] = [];
+    await this.tenants.forEachActive(
+      () => this.cleanupTenant(),
+      (error, tenant) => {
+        this.logger.warn({ tenant: tenant.slug }, 'Employee avatar cleanup failed');
+        failures.push(error);
+      },
+    );
+    if (failures.length > 0) throw failures[0];
+  }
+  async cleanupTenant() {
     if (!this.storage?.delete) return;
     const storage = this.storage;
     const candidates = await this.db

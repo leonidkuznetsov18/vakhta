@@ -1,4 +1,5 @@
 import { messages } from '@vakhta/i18n';
+import { singleTenantRegistry } from '../../test/tenants.js';
 import { CorrectionsService } from '../requests/corrections.service.js';
 import { orderedShiftIntervals } from './shift-intervals.js';
 import { ConfigService } from '@nestjs/config';
@@ -554,6 +555,7 @@ describe('Estimated closure preserves observed history without scanner-delay min
         LOG_LEVEL: 'silent',
         AUTO_CLOSE_SCAN_MINUTES: 10,
       }),
+      singleTenantRegistry(),
     );
     vi.useFakeTimers();
     try {

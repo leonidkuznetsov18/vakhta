@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TenantJobFields } from './tenant.js';
 import { BusinessDate, IsoDateTime, Uuid } from './common.js';
 
 /**
@@ -16,14 +17,24 @@ export const QUEUES = Object.freeze({
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 
-export const ShiftReminderJob = z.object({ assignmentId: Uuid, fireAt: IsoDateTime });
+export const ShiftReminderJob = z.object({
+  ...TenantJobFields,
+  assignmentId: Uuid,
+  fireAt: IsoDateTime,
+});
 export type ShiftReminderJob = z.infer<typeof ShiftReminderJob>;
 
-export const AckReminderJob = z.object({ versionId: Uuid, employeeId: Uuid, fireAt: IsoDateTime });
+export const AckReminderJob = z.object({
+  ...TenantJobFields,
+  versionId: Uuid,
+  employeeId: Uuid,
+  fireAt: IsoDateTime,
+});
 export type AckReminderJob = z.infer<typeof AckReminderJob>;
 
 /** Нагадування повернутись: воркер перевіряє, що інтервал ще відкритий (ADR-8). */
 export const ReturnReminderJob = z.object({
+  ...TenantJobFields,
   sessionId: Uuid,
   intervalId: Uuid,
   state: z.enum(['BREAK', 'MEAL', 'SERVICE_TIME']),
@@ -33,6 +44,7 @@ export const ReturnReminderJob = z.object({
 export type ReturnReminderJob = z.infer<typeof ReturnReminderJob>;
 
 export const DowntimeEscalationJob = z.object({
+  ...TenantJobFields,
   sessionId: Uuid,
   intervalId: Uuid,
   thresholdMinutes: z.number().int().positive(),
@@ -50,25 +62,42 @@ export const ListScheduleVersionsQuery = z.object({
 });
 export type ListScheduleVersionsQuery = z.infer<typeof ListScheduleVersionsQuery>;
 
-export const IncidentSlaJob = z.object({ incidentId: Uuid, fireAt: IsoDateTime });
+export const IncidentSlaJob = z.object({
+  ...TenantJobFields,
+  incidentId: Uuid,
+  fireAt: IsoDateTime,
+});
 export type IncidentSlaJob = z.infer<typeof IncidentSlaJob>;
 
 /** Перенесення фото з Telegram у сховище і технічна перевірка (ADR-0006). */
-export const MediaJob = z.object({ mediaObjectId: Uuid });
+export const MediaJob = z.object({ ...TenantJobFields, mediaObjectId: Uuid });
 export type MediaJob = z.infer<typeof MediaJob>;
 
-export const HandoverTimeoutJob = z.object({ handoverId: Uuid, fireAt: IsoDateTime });
+export const HandoverTimeoutJob = z.object({
+  ...TenantJobFields,
+  handoverId: Uuid,
+  fireAt: IsoDateTime,
+});
 export type HandoverTimeoutJob = z.infer<typeof HandoverTimeoutJob>;
 
-export const CleaningReminderJob = z.object({ sessionId: Uuid, fireAt: IsoDateTime });
+export const CleaningReminderJob = z.object({
+  ...TenantJobFields,
+  sessionId: Uuid,
+  fireAt: IsoDateTime,
+});
 export type CleaningReminderJob = z.infer<typeof CleaningReminderJob>;
 
 /** Yearly greeting; the worker re-enqueues next year after sending (calendar events, #61). */
-export const BirthdayGreetingJob = z.object({ employeeId: Uuid, fireAt: IsoDateTime });
+export const BirthdayGreetingJob = z.object({
+  ...TenantJobFields,
+  employeeId: Uuid,
+  fireAt: IsoDateTime,
+});
 export type BirthdayGreetingJob = z.infer<typeof BirthdayGreetingJob>;
 
 /** One "how are you" per sick-leave day; the worker rechecks the request is still approved. */
 export const AbsenceCheckinJob = z.object({
+  ...TenantJobFields,
   requestId: Uuid,
   businessDate: BusinessDate,
   fireAt: IsoDateTime,
@@ -76,5 +105,9 @@ export const AbsenceCheckinJob = z.object({
 export type AbsenceCheckinJob = z.infer<typeof AbsenceCheckinJob>;
 
 /** The day before a vacation ends: remind the plan that follows. */
-export const AbsenceReturnJob = z.object({ requestId: Uuid, fireAt: IsoDateTime });
+export const AbsenceReturnJob = z.object({
+  ...TenantJobFields,
+  requestId: Uuid,
+  fireAt: IsoDateTime,
+});
 export type AbsenceReturnJob = z.infer<typeof AbsenceReturnJob>;

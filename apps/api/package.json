@@ -29,6 +29,7 @@
     "@vakhta/db": "workspace:*",
     "@vakhta/domain": "workspace:*",
     "@vakhta/i18n": "workspace:*",
+    "@vakhta/registry": "workspace:*",
     "better-auth": "^1.7.2",
     "csv-stringify": "6.8.3",
     "fastify": "^5.3.0",

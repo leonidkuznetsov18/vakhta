@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.js';
+import { singleTenantRegistry } from '../../test/tenants.js';
 import { BonusMonthCloseService } from './bonus-month-close.service.js';
 
 describe('monthly nomination startup catch-up', () => {
@@ -18,6 +19,7 @@ describe('monthly nomination startup catch-up', () => {
     const service = new BonusMonthCloseService(
       { closeDueMonths },
       new ConfigService<Env, true>({ LOG_LEVEL: 'silent', NODE_ENV: 'test' }),
+      singleTenantRegistry(),
     );
     service.onModuleInit();
     expect(closeDueMonths).toHaveBeenCalledTimes(1);

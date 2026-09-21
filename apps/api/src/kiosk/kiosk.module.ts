@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.js';
+import { currentTenant, lateBound } from '../infra/tenant-context.js';
 import { KioskController } from './kiosk.controller.js';
 import { KIOSK_OPTIONS, KioskService, type KioskOptions } from './kiosk.service.js';
 
@@ -9,12 +10,16 @@ import { KIOSK_OPTIONS, KioskService, type KioskOptions } from './kiosk.service.
   providers: [
     KioskService,
     {
+      // The deep link must open the tenant's own bot; QR timing stays a platform default for now.
       provide: KIOSK_OPTIONS,
-      useFactory: (config: ConfigService<Env, true>): KioskOptions => ({
-        rotationSeconds: config.get('QR_ROTATION_SECONDS', { infer: true }),
-        ttlSeconds: config.get('QR_TTL_SECONDS', { infer: true }),
-        botUsername: config.get('TELEGRAM_BOT_USERNAME', { infer: true }),
-      }),
+      useFactory: (config: ConfigService<Env, true>): KioskOptions =>
+        lateBound(() => ({
+          rotationSeconds: config.get('QR_ROTATION_SECONDS', { infer: true }),
+          ttlSeconds: config.get('QR_TTL_SECONDS', { infer: true }),
+          botUsername:
+            currentTenant().tenant.botUsername ??
+            config.get('TELEGRAM_BOT_USERNAME', { infer: true }),
+        })),
       inject: [ConfigService],
     },
   ],

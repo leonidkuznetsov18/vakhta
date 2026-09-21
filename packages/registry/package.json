@@ -1,0 +1,40 @@
+{
+  "name": "@vakhta/registry",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Vakhta control registry: tenants, modules, domains and encrypted secrets shared by the control service, the tenant API and the worker.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "drizzle"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "generate": "drizzle-kit generate",
+    "migrate:js": "node --env-file-if-exists=../../.env dist/cli/migrate.js",
+    "register-tenant": "node --env-file-if-exists=../../.env dist/cli/register-tenant.js"
+  },
+  "dependencies": {
+    "@vakhta/domain": "workspace:*",
+    "drizzle-orm": "^0.44.0",
+    "postgres": "^3.4.5",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "catalog:",
+    "@types/node": "catalog:",
+    "@vakhta/config": "workspace:*",
+    "drizzle-kit": "^0.31.0",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

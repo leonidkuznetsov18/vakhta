@@ -1,4 +1,7 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
+import type { FastifyRequest } from 'fastify';
+import { tenantOrigins } from '@vakhta/registry';
+import type { RequestWithTenant } from '../infra/tenant-hook.js';
 
 type FastifyCorsOptions = NonNullable<Parameters<NestFastifyApplication['enableCors']>[0]>;
 
@@ -25,4 +28,20 @@ export function corsOptions(origins: readonly string[]): FastifyCorsOptions {
     ],
     maxAge: 600,
   };
+}
+
+/**
+ * Per-request CORS: the tenant bound by the host hook allows only its own verified panel and
+ * kiosk origins (spec AC-010). The env tenant keeps the configured CORS_ORIGINS list.
+ */
+export function corsDelegate(
+  fallbackOrigins: readonly string[],
+  scheme: 'https' | 'http',
+): FastifyCorsOptions {
+  const delegator = async (request: FastifyRequest): Promise<FastifyCorsOptions> => {
+    const tenant = (request as RequestWithTenant).tenantRuntime?.tenant;
+    const origins = tenant?.redisPrefix ? tenantOrigins(tenant, scheme) : fallbackOrigins;
+    return corsOptions(origins);
+  };
+  return { delegator };
 }

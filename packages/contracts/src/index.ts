@@ -32,3 +32,5 @@ export * from './employee-profile.js';
 export * from './communications.js';
 
 export * from './photo-object-dictionary.js';
+
+export * from './tenant.js';

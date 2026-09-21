@@ -23,10 +23,12 @@
     "migrate": "drizzle-kit migrate",
     "seed": "node --env-file-if-exists=../../.env dist/seed.js",
     "studio": "drizzle-kit studio",
-    "migrate:js": "node --env-file-if-exists=../../.env dist/migrate.js"
+    "migrate:js": "node --env-file-if-exists=../../.env dist/migrate.js",
+    "migrate:tenants": "node --env-file-if-exists=../../.env dist/migrate-tenants.js"
   },
   "dependencies": {
     "@vakhta/domain": "workspace:*",
+    "@vakhta/registry": "workspace:*",
     "drizzle-orm": "^0.44.0",
     "postgres": "^3.4.5"
   },

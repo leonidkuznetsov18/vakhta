@@ -17,6 +17,7 @@ import { IncidentsModule } from './incidents/incidents.module.js';
 import { DatabaseModule } from './infra/database.module.js';
 import { RedisModule } from './infra/redis.module.js';
 import { QueueModule } from './infra/timers.queue.js';
+import { TenancyModule } from './infra/tenancy.module.js';
 import { KioskModule } from './kiosk/kiosk.module.js';
 import { MetricsModule } from './metrics/metrics.module.js';
 import { NotificationsModule } from './notifications/notifications.service.js';
@@ -45,8 +46,9 @@ import { SupportModule } from './support/support.module.js';
         }),
       }),
     }),
-    DatabaseModule,
     RedisModule,
+    TenancyModule,
+    DatabaseModule,
     QueueModule,
     EventsModule,
     NotificationsModule,

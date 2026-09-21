@@ -18,6 +18,7 @@
     "@vakhta/db": "workspace:*",
     "@vakhta/domain": "workspace:*",
     "@vakhta/i18n": "workspace:*",
+    "@vakhta/registry": "workspace:*",
     "bullmq": "^5.50.0",
     "grammy": "catalog:",
     "ioredis": "catalog:",

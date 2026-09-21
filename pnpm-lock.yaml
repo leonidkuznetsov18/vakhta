@@ -324,6 +324,9 @@ importers:
       '@vakhta/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@vakhta/registry':
+        specifier: workspace:*
+        version: link:../../packages/registry
       better-auth:
         specifier: ^1.7.2
         version: 1.7.2(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@3.2.7(@types/node@22.20.1)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(msw@2.15.0(@types/node@22.20.1)(typescript@5.9.3))(tsx@4.23.13)(yaml@2.9.0))
@@ -516,6 +519,9 @@ importers:
       '@vakhta/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@vakhta/registry':
+        specifier: workspace:*
+        version: link:../../packages/registry
       bullmq:
         specifier: ^5.50.0
         version: 5.81.4
@@ -583,6 +589,9 @@ importers:
       '@vakhta/domain':
         specifier: workspace:*
         version: link:../domain
+      '@vakhta/registry':
+        specifier: workspace:*
+        version: link:../registry
       drizzle-orm:
         specifier: ^0.44.0
         version: 0.44.7(@opentelemetry/api@1.9.1)(kysely@0.29.5)(postgres@3.4.9)
@@ -634,6 +643,40 @@ importers:
       '@vakhta/config':
         specifier: workspace:*
         version: link:../config
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(msw@2.15.0(@types/node@22.20.1)(typescript@5.9.3))(tsx@4.23.13)(yaml@2.9.0)
+
+  packages/registry:
+    dependencies:
+      '@vakhta/domain':
+        specifier: workspace:*
+        version: link:../domain
+      drizzle-orm:
+        specifier: ^0.44.0
+        version: 0.44.7(@opentelemetry/api@1.9.1)(kysely@0.29.5)(postgres@3.4.9)
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.9
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@testcontainers/postgresql':
+        specifier: 'catalog:'
+        version: 11.14.0
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.1
+      '@vakhta/config':
+        specifier: workspace:*
+        version: link:../config
+      drizzle-kit:
+        specifier: ^0.31.0
+        version: 0.31.10
       typescript:
         specifier: 'catalog:'
         version: 5.9.3

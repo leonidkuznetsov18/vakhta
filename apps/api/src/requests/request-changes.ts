@@ -1,16 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Subject, type Observable } from 'rxjs';
 import type { RequestChangedEvent } from '@vakhta/contracts';
+import { TenantChanges } from '../infra/tenant-changes.js';
 
 @Injectable()
-export class RequestChanges {
-  private readonly subject = new Subject<RequestChangedEvent>();
-
-  publish(event: RequestChangedEvent): void {
-    this.subject.next(event);
-  }
-
-  stream(): Observable<RequestChangedEvent> {
-    return this.subject.asObservable();
-  }
-}
+export class RequestChanges extends TenantChanges<RequestChangedEvent> {}

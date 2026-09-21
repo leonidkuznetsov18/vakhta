@@ -1,34 +1,18 @@
-import { Global, Inject, Injectable, Module, type OnApplicationShutdown } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { createDatabase } from '@vakhta/db';
-import type { Env } from '../config/env.js';
+import { Global, Module } from '@nestjs/common';
+import type { Database } from '@vakhta/db';
+import { currentTenant, lateBound } from './tenant-context.js';
 
-/** Токен для інʼєкції Drizzle-клієнта: `@Inject(DATABASE) private readonly db: Database`. */
+/**
+ * Injection token of the Drizzle client: `@Inject(DATABASE) private readonly db: Database`.
+ * The value follows the tenant bound to the current request or job (TenancyModule); using it
+ * outside a tenant context throws TENANT_CONTEXT_MISSING instead of touching a default database.
+ */
 export const DATABASE = Symbol('DATABASE');
-const DATABASE_HANDLE = Symbol('DATABASE_HANDLE');
-
-type Handle = ReturnType<typeof createDatabase>;
-
-@Injectable()
-class DatabaseShutdown implements OnApplicationShutdown {
-  constructor(@Inject(DATABASE_HANDLE) private readonly handle: Handle) {}
-
-  async onApplicationShutdown(): Promise<void> {
-    await this.handle.client.end({ timeout: 5 });
-  }
-}
 
 @Global()
 @Module({
   providers: [
-    {
-      provide: DATABASE_HANDLE,
-      useFactory: (config: ConfigService<Env, true>) =>
-        createDatabase(config.get('DATABASE_URL', { infer: true })),
-      inject: [ConfigService],
-    },
-    { provide: DATABASE, useFactory: (handle: Handle) => handle.db, inject: [DATABASE_HANDLE] },
-    DatabaseShutdown,
+    { provide: DATABASE, useFactory: (): Database => lateBound(() => currentTenant().db) },
   ],
   exports: [DATABASE],
 })

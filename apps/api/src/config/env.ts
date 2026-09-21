@@ -1,5 +1,5 @@
 import { PhotoAnalysisConfigSchema } from './photo-analysis.js';
-import { SHIFT_REMINDER_LEAD_MINUTES } from '@vakhta/domain';
+import { SHIFT_REMINDER_LEAD_MINUTES, TENANCY_MODES, TenancyMode } from '@vakhta/domain';
 import { z } from 'zod';
 
 const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
@@ -25,6 +25,22 @@ export const EnvSchema = z.object({
   CORS_ORIGINS: commaList.default(['http://localhost:5173', 'http://localhost:5174']),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
+  /** `env`: one tenant from these variables; `registry`: tenants from the control database. */
+  TENANCY_MODE: z.enum(TENANCY_MODES).default(TenancyMode.ENV),
+  CONTROL_DATABASE_URL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  /** 32 bytes as hex; decrypts tenant secrets at rest. Never logged. */
+  CONTROL_ENCRYPTION_KEY: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(/^[0-9a-fA-F]{64}$/)
+      .optional(),
+  ),
+  /** Pool size per tenant database; budget = tenants × (api replicas × this + worker pools). */
+  TENANT_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
+  REGISTRY_REFRESH_SECONDS: z.coerce.number().int().min(2).default(15),
+  /** Registry mode: which tenant the support assistant bot belongs to. */
+  SUPPORT_TENANT_SLUG: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   TELEGRAM_BOT_TOKEN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   TELEGRAM_BOT_USERNAME: z.string().default('VakhtaBot'),
   /** Public address of the user guide; the bot offers it under /help and the Help button. */
@@ -154,8 +170,14 @@ export function assertProductionReady(env: Env): void {
     if (!origin.startsWith('https://')) problems.push(`CORS_ORIGINS: ${origin} має бути https`);
   }
   if (telegramMode(env) !== 'webhook') problems.push('TELEGRAM_MODE має бути webhook');
-  if (!env.TELEGRAM_BOT_TOKEN) problems.push('TELEGRAM_BOT_TOKEN обовʼязковий');
-  if (!env.TELEGRAM_WEBHOOK_SECRET) problems.push('TELEGRAM_WEBHOOK_SECRET обовʼязковий');
+  if (env.TENANCY_MODE === TenancyMode.ENV) {
+    if (!env.TELEGRAM_BOT_TOKEN) problems.push('TELEGRAM_BOT_TOKEN обовʼязковий');
+    if (!env.TELEGRAM_WEBHOOK_SECRET) problems.push('TELEGRAM_WEBHOOK_SECRET обовʼязковий');
+  } else {
+    if (!env.CONTROL_DATABASE_URL) problems.push('CONTROL_DATABASE_URL required in registry mode');
+    if (!env.CONTROL_ENCRYPTION_KEY)
+      problems.push('CONTROL_ENCRYPTION_KEY required in registry mode');
+  }
   if (PLACEHOLDER.test(env.AUTH_SECRET)) problems.push('AUTH_SECRET схожий на заглушку');
   if (PLACEHOLDER.test(env.ACTIVATION_PEPPER))
     problems.push('ACTIVATION_PEPPER схожий на заглушку');

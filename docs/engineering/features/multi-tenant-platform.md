@@ -38,11 +38,59 @@ migration and backup target. Facts and file references: spec RECON. Product docu
 - Open owner decisions are listed in plan.md (hostname scheme, separate control service, one
   cluster, pilot slug, control panel languages).
 
+## Delivery 1 implementation decisions (2026-09-21)
+
+- `packages/registry` owns the control schema (tenants, branding, modules, domains, encrypted
+  secrets, append-only control audit), its migrations, AES-256-GCM `SecretCipher` with key
+  versions, `TenantRuntimeConfig`, `EnvTenantSource` and `RegistryTenantSource` (snapshot refreshed
+  by `max(updated_at)` and row count). `registerExistingTenant` and the `register-tenant` CLI cover
+  the pilot cutover; drizzle-kit loads the schema through CommonJS, so enum arrays mirror the domain
+  constants with a test asserting equality.
+- The API binds tenants with `AsyncLocalStorage`: a Fastify `onRequest` hook (registered before
+  routes by `bindTenancy`) resolves the tenant by host and runs the request inside its context. The
+  global `DATABASE`, `AUTH`, `AUTH_CONFIG`, `SHORT_TERM_STORE` and `KIOSK_OPTIONS` tokens are late-bound
+  proxies over the current tenant runtime; without a context they throw `TENANT_CONTEXT_MISSING`,
+  except for framework inspection keys (Nest lifecycle discovery, `then`, inspection symbols) that
+  answer "absent". Verified end to end by the existing access-boundary e2e suite (env mode) and the
+  new two-tenant isolation suite (registry mode).
+- The env tenant has the fixed id `00000000-0000-4000-8000-000000000001`, slug `default`, no Redis
+  or storage prefix, and answers every host, which keeps the pilot, local development and CI
+  unchanged. Registry tenants get `t:<id>:` Redis keys and `tenants/<slug>/` media keys.
+- Change buses (`ShiftChanges` and the handover, request and incident buses) tag events with the
+  producing tenant; `stream()` filters by the caller's tenant, `streamAll()` serves process-wide
+  subscribers that re-enter the context (the home-screen pusher keys by tenant and employee).
+- Background loops (bonus recovery and dispatch, month close, avatar cleanup, shift auto-close,
+  metrics scrape) visit every serving tenant sequentially through `TenantRuntimeRegistry.forEachActive`;
+  one tenant's failure is logged and never stops the others.
+- Telegram: one grammY bot per tenant with a token, reconciled on every registry refresh; webhook
+  paths `/telegram/webhook` (host-bound tenant) and `/telegram/webhook/:tenantId` (must match);
+  polling handlers run inside the owning tenant's context. The support bot binds to the env tenant
+  or to `SUPPORT_TENANT_SLUG` in registry mode.
+- Worker: `TenantWorkerPool` runs one media, inspection and timer runner plus outbox relay per
+  serving tenant and restarts a worker when its secrets or hosts change; legacy BullMQ jobs carry
+  an optional `tenantId` (required in registry mode; env mode maps it to the only tenant).
+- `packages/db` exports `seedTenantDefaults` (first site, DAY/NIGHT templates, positions, reason
+  codes) and `migrateTenantDatabase`; `migrate-tenants.js` is the Railway pre-deploy command.
+- Provider facts marked **verify** in research.md remain unverified; env mode does not depend on
+  them and no hostname automation was built yet.
+
 ## Verification
 
-Planning only. Checks performed on 2026-09-21: Prettier format check on the new and edited Markdown
-files; relative links inspected. No application build, tests or live QA were required or run.
-Research rows marked **verify** in research.md are not yet confirmed.
+2026-09-21, local checkout after the delivery-1 changes (baseline `758ec91`), Colima Docker:
+
+- `pnpm build`, `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test:architecture`,
+  `pnpm api:check`: pass.
+- `packages/registry`: 13 tests (secrets round-trip and rotation, env source, enum mirror,
+  registration with encrypted secrets and audit, duplicate slug/reserved slug/duplicate bot token
+  refusal, snapshot by host/id/slug, refresh on `updated_at`, append-only audit for the app role).
+- `packages/domain`: tenant rules incl. a property test on slug suggestion; `packages/contracts`: 17.
+- `apps/api`: full suite 50 files / 450 tests in env mode, plus `infra/tenancy.e2e.test.ts` with
+  two real tenant databases in registry mode: unknown host 404, cross-tenant cookie 401, cross-tenant
+  device token 401, webhook host/secret checks, CORS per tenant, proxy without context throws,
+  suspended tenant 403 after refresh (7 tests).
+- `apps/worker`: 14 files / 142 tests.
+- Not done: independent review (T017), pilot cutover and live QA (T018), provider fact checks (T010).
+  No production variable, deployment or employee record changed.
 
 ## Prototype
 
@@ -64,5 +112,7 @@ pinned sources. Receipts with body hashes: `specs/011-multi-tenant-control-plane
 
 ## Remaining work
 
-Owner answers in [#92](https://github.com/leonidkuznetsov18/vakhta/issues/92); then delivery 1 (#93–#97). Provisioning time per tenant is to be
-measured when the first non-pilot tenant is created (#104).
+Delivery 1 code is in master (T011–T016). Next: independent review of the tenant-context boundary,
+secrets handling and migrator (#97, T017), the provider fact checks (#92, T010), then the pilot
+cutover with live QA (T018). Delivery 2 (#98–#101) starts after the cutover is verified.
+Provisioning time per tenant is to be measured when the first non-pilot tenant is created (#104).

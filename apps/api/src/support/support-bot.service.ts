@@ -12,6 +12,9 @@ import type { Bot } from 'grammy';
 import type { Update } from 'grammy/types';
 import { telegramMode, type Env } from '../config/env.js';
 import { createLogger } from '../logger.js';
+import { runWithTenant } from '../infra/tenant-context.js';
+import { TenantRuntimeRegistry } from '../infra/tenant-runtime.js';
+import { TenancyMode } from '@vakhta/domain';
 import { createSupportBot } from './support-bot.factory.js';
 import { SupportService } from './support.service.js';
 
@@ -22,12 +25,14 @@ import { SupportService } from './support.service.js';
 @Injectable()
 export class SupportBotService implements OnModuleInit, OnApplicationShutdown {
   private bot: Bot | null = null;
+  private tenantId: string | null = null;
   private polling = false;
   private readonly logger;
 
   constructor(
     private readonly config: ConfigService<Env, true>,
     private readonly support: SupportService,
+    private readonly tenants: TenantRuntimeRegistry,
   ) {
     this.logger = createLogger({
       LOG_LEVEL: this.config.get('LOG_LEVEL', { infer: true }),
@@ -38,12 +43,24 @@ export class SupportBotService implements OnModuleInit, OnApplicationShutdown {
   async onModuleInit(): Promise<void> {
     const token = this.config.get('TELEGRAM_SUPPORT_BOT_TOKEN', { infer: true });
     if (!token) return;
+    const tenantId = this.supportTenantId();
+    if (!tenantId) {
+      this.logger.warn(
+        'support bot: set SUPPORT_TENANT_SLUG in registry mode; the bot stays disabled',
+      );
+      return;
+    }
+    this.tenantId = tenantId;
     if (!this.support.enabled) {
       this.logger.warn(
         'support bot: ANTHROPIC_API_KEY is not set, the assistant will say it is unavailable',
       );
     }
-    const bot = createSupportBot(token, { support: this.support, logger: this.logger });
+    const bot = createSupportBot(token, {
+      support: this.support,
+      logger: this.logger,
+      runInContext: (fn) => this.inTenant(fn),
+    });
     await bot.init();
     this.bot = bot;
     await this.registerCommands(bot);
@@ -68,6 +85,21 @@ export class SupportBotService implements OnModuleInit, OnApplicationShutdown {
         'support bot: webhook mode',
       );
     }
+  }
+
+  /** Env mode: the only tenant; registry mode: the tenant named by SUPPORT_TENANT_SLUG. */
+  private supportTenantId(): string | null {
+    if (this.config.get('TENANCY_MODE', { infer: true }) === TenancyMode.ENV) {
+      return this.tenants.source.all()[0]?.id ?? null;
+    }
+    const slug = this.config.get('SUPPORT_TENANT_SLUG', { infer: true });
+    return slug ? (this.tenants.source.bySlug(slug)?.id ?? null) : null;
+  }
+
+  private inTenant<T>(fn: () => Promise<T>): Promise<T> {
+    const runtime = this.tenantId ? this.tenants.byId(this.tenantId) : null;
+    if (!runtime) throw new ServiceUnavailableException('Support tenant is not served');
+    return runWithTenant(runtime, fn);
   }
 
   private async registerCommands(bot: Bot): Promise<void> {
@@ -107,8 +139,9 @@ export class SupportBotService implements OnModuleInit, OnApplicationShutdown {
 
   async handleUpdate(update: Update): Promise<void> {
     if (!this.bot) throw new ServiceUnavailableException('Support bot is disabled');
+    const bot = this.bot;
     try {
-      await this.bot.handleUpdate(update);
+      await this.inTenant(() => bot.handleUpdate(update));
     } catch (error) {
       this.logger.error({ err: error, updateId: update.update_id }, 'support bot: update failed');
     }

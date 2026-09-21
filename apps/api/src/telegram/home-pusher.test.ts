@@ -1,19 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShiftChangedEvent } from '@vakhta/contracts';
 import { HomeScreenPusher } from './home-pusher.js';
+import type { TenantChange } from '../infra/tenant-changes.js';
+
+const TENANT = 'd0000000-0000-4000-8000-000000000001';
 
 const EMP = 'b0000000-0000-4000-8000-000000000001';
 const OTHER = 'b0000000-0000-4000-8000-000000000002';
 
-function change(over: Partial<ShiftChangedEvent> = {}): ShiftChangedEvent {
+function change(over: Partial<ShiftChangedEvent> = {}): TenantChange<ShiftChangedEvent> {
   return {
-    sessionId: 'c0000000-0000-4000-8000-000000000001',
-    employeeId: EMP,
-    state: 'PREPARATION',
-    version: 1,
-    at: '2026-09-06T12:00:00.000Z',
-    source: 'WEB',
-    ...over,
+    tenantId: TENANT,
+    event: {
+      sessionId: 'c0000000-0000-4000-8000-000000000001',
+      employeeId: EMP,
+      state: 'PREPARATION',
+      version: 1,
+      at: '2026-09-06T12:00:00.000Z',
+      source: 'WEB',
+      ...over,
+    },
   };
 }
 
@@ -26,7 +32,7 @@ describe('HomeScreenPusher', () => {
   });
 
   it('pushes one screen per employee after a burst of changes made outside the bot', async () => {
-    const send = vi.fn(async (_employeeId: string) => undefined);
+    const send = vi.fn(async (_target: { tenantId: string; employeeId: string }) => undefined);
     const pusher = new HomeScreenPusher(send, { warn: vi.fn() }, 1000);
     pusher.onChange(change({ state: 'PREPARATION' }));
     pusher.onChange(change({ state: 'WORKING', version: 2 }));
@@ -34,7 +40,8 @@ describe('HomeScreenPusher', () => {
     expect(pusher.waiting).toBe(2);
     await vi.advanceTimersByTimeAsync(1000);
     expect(send).toHaveBeenCalledTimes(2);
-    expect(send.mock.calls.map((c) => c[0]).sort()).toEqual([EMP, OTHER]);
+    expect(send.mock.calls.map((c) => c[0].employeeId).sort()).toEqual([EMP, OTHER]);
+    expect(send.mock.calls[0]?.[0].tenantId).toBe(TENANT);
     expect(pusher.waiting).toBe(0);
   });
 
@@ -53,7 +60,7 @@ describe('HomeScreenPusher', () => {
   });
 
   it('stop() drops everything still waiting', async () => {
-    const send = vi.fn(async (_employeeId: string) => undefined);
+    const send = vi.fn(async (_target: { employeeId: string }) => undefined);
     const pusher = new HomeScreenPusher(send, { warn: vi.fn() }, 100);
     pusher.onChange(change());
     pusher.stop();

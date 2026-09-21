@@ -15,6 +15,7 @@ COPY --chown=node:node packages/contracts/package.json packages/contracts/
 COPY --chown=node:node packages/db/package.json packages/db/
 COPY --chown=node:node packages/domain/package.json packages/domain/
 COPY --chown=node:node packages/i18n/package.json packages/i18n/
+COPY --chown=node:node packages/registry/package.json packages/registry/
 COPY --chown=node:node apps/api/package.json apps/api/
 COPY --chown=node:node apps/worker/package.json apps/worker/
 COPY --chown=node:node apps/admin-web/package.json apps/admin-web/
@@ -34,6 +35,8 @@ COPY --from=build --chown=node:node /repo/packages/db/dist packages/db/dist
 COPY --from=build --chown=node:node /repo/packages/db/drizzle packages/db/drizzle
 COPY --from=build --chown=node:node /repo/packages/domain/dist packages/domain/dist
 COPY --from=build --chown=node:node /repo/packages/i18n/dist packages/i18n/dist
+COPY --from=build --chown=node:node /repo/packages/registry/dist packages/registry/dist
+COPY --from=build --chown=node:node /repo/packages/registry/drizzle packages/registry/drizzle
 COPY --from=build --chown=node:node /repo/apps/worker/dist apps/worker/dist
 USER node
 # Воркер без публічного порту: живість видно в логах («worker запущено») і в BullMQ.

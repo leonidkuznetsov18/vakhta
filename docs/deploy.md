@@ -4,17 +4,17 @@ Checklist of what exists and how it is operated. Cloudflare Pages hosts the stat
 
 ## 1. Two environments
 
-| What           | dev (local)                                             | prod                                                                                                     |
-| -------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Configuration  | `.env` from `.env.example`; `node --env-file-if-exists` | Railway service variables (template: `.env.production.example`); no `.env*` files in the container       |
-| Startup check  | `change-me` placeholders allowed                        | `NODE_ENV=production` requires https, webhook, real secrets, `S3_*`, `METRICS_TOKEN`                     |
-| Infrastructure | `pnpm infra:up`: Postgres, Redis, MinIO in Docker       | Railway Postgres 18 and Redis on the private network, Cloudflare R2                                      |
-| Telegram       | `TELEGRAM_MODE=polling`, no public address              | `TELEGRAM_MODE=webhook`, `TELEGRAM_WEBHOOK_SECRET`, webhook set from inside the container                |
-| Panel cookie   | http, `SameSite=Lax`                                    | https, `Secure`; `AUTH_COOKIE_SAME_SITE=lax` under one domain, `none` while on `pages.dev`/`railway.app` |
-| Migrations     | `pnpm db:migrate` (drizzle-kit)                         | `node packages/db/dist/migrate.js` as the Railway pre-deploy command, same journal                       |
-| `/metrics`     | open                                                    | only with `Authorization: Bearer <METRICS_TOKEN>`                                                        |
-| Errors         | pino-pretty in the console                              | pino JSON in Railway logs, Sentry when `SENTRY_DSN` is set                                               |
-| Build          | `pnpm dev` (tsc --watch, Vite)                          | `apps/api/Dockerfile`, `apps/worker/Dockerfile` built by Railway; Vite `dist` uploaded to Pages          |
+| What           | dev (local)                                             | prod                                                                                                                                                                               |
+| -------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Configuration  | `.env` from `.env.example`; `node --env-file-if-exists` | Railway service variables (template: `.env.production.example`); no `.env*` files in the container                                                                                 |
+| Startup check  | `change-me` placeholders allowed                        | `NODE_ENV=production` requires https, webhook, real secrets, `S3_*`, `METRICS_TOKEN`                                                                                               |
+| Infrastructure | `pnpm infra:up`: Postgres, Redis, MinIO in Docker       | Railway Postgres 18 and Redis on the private network, Cloudflare R2                                                                                                                |
+| Telegram       | `TELEGRAM_MODE=polling`, no public address              | `TELEGRAM_MODE=webhook`, `TELEGRAM_WEBHOOK_SECRET`, webhook set from inside the container                                                                                          |
+| Panel cookie   | http, `SameSite=Lax`                                    | https, `Secure`; `AUTH_COOKIE_SAME_SITE=lax` under one domain, `none` while on `pages.dev`/`railway.app`                                                                           |
+| Migrations     | `pnpm db:migrate` (drizzle-kit)                         | `node packages/db/dist/migrate-tenants.js` as the Railway pre-deploy command (env mode: the single database; registry mode: the control database, then every tenant), same journal |
+| `/metrics`     | open                                                    | only with `Authorization: Bearer <METRICS_TOKEN>`                                                                                                                                  |
+| Errors         | pino-pretty in the console                              | pino JSON in Railway logs, Sentry when `SENTRY_DSN` is set                                                                                                                         |
+| Build          | `pnpm dev` (tsc --watch, Vite)                          | `apps/api/Dockerfile`, `apps/worker/Dockerfile` built by Railway; Vite `dist` uploaded to Pages                                                                                    |
 
 ## 2. What exists
 

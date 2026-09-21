@@ -1,17 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Subject, type Observable } from 'rxjs';
 import type { HandoverChangedEvent } from '@vakhta/contracts';
+import { TenantChanges } from '../infra/tenant-changes.js';
 
 /** Шина змін передач для SSE панелі «Чистота и передача». */
 @Injectable()
-export class HandoverChanges {
-  private readonly subject = new Subject<HandoverChangedEvent>();
-
-  publish(event: HandoverChangedEvent): void {
-    this.subject.next(event);
-  }
-
-  stream(): Observable<HandoverChangedEvent> {
-    return this.subject.asObservable();
-  }
-}
+export class HandoverChanges extends TenantChanges<HandoverChangedEvent> {}

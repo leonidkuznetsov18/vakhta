@@ -36,6 +36,7 @@
       "entry": [
         "src/index.ts",
         "src/migrate.ts",
+        "src/migrate-tenants.ts",
         "src/seed.ts",
         "src/**/*.test.ts",
         "drizzle.config.ts"

@@ -44,3 +44,5 @@ export * from './employee-profile/compensation.js';
 export * from './employee-profile/master-state.js';
 export * from './employee-profile/field-access.js';
 export * from './employee-profile/zone.js';
+
+export * from './tenant/tenant.js';

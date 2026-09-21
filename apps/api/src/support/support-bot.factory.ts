@@ -7,6 +7,8 @@ import type { SupportService } from './support.service.js';
 export interface SupportBotDeps {
   readonly support: SupportService;
   readonly logger: Logger;
+  /** Runs handlers inside the owning tenant's context (polling has no request to inherit it from). */
+  readonly runInContext?: (<T>(fn: () => Promise<T>) => Promise<T>) | undefined;
 }
 
 /** Telegram voice notes are fetched through the file API with the bot token in the path. */
@@ -24,6 +26,8 @@ async function downloadVoice(ctx: Context, token: string): Promise<Uint8Array> {
  */
 export function createSupportBot(token: string, deps: SupportBotDeps): Bot {
   const bot = new Bot(token);
+  const runInContext = deps.runInContext;
+  if (runInContext) bot.use((_ctx, next) => runInContext(() => next()));
 
   const t = (ctx: Context, locale?: Locale): Messages =>
     messages(locale ?? resolveLocale(ctx.from?.language_code));

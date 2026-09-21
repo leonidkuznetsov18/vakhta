@@ -50,7 +50,8 @@ export default defineRailway(() => {
       watchPatterns: ['apps/api/**', 'packages/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml'],
     },
     deploy: {
-      preDeployCommand: ['node packages/db/dist/migrate.js'],
+      // Control registry first, then every tenant database (env mode: the single DATABASE_URL).
+      preDeployCommand: ['node packages/db/dist/migrate-tenants.js'],
       healthcheckPath: '/health',
       healthcheckTimeout: 120,
       restartPolicyType: 'ON_FAILURE',
@@ -59,6 +60,12 @@ export default defineRailway(() => {
     replicas: { [region]: 1 },
     env: {
       ACTIVATION_PEPPER: preserve(),
+      TENANCY_MODE: preserve(),
+      CONTROL_DATABASE_URL: preserve(),
+      CONTROL_ENCRYPTION_KEY: preserve(),
+      TENANT_POOL_MAX: preserve(),
+      REGISTRY_REFRESH_SECONDS: preserve(),
+      SUPPORT_TENANT_SLUG: preserve(),
       API_HOST: preserve(),
       API_PORT: preserve(),
       PORT: preserve(),
@@ -101,6 +108,11 @@ export default defineRailway(() => {
     env: {
       CLOUDFLARE_AI_ACCOUNT_ID: preserve(),
       CLOUDFLARE_AI_TOKEN: preserve(),
+      TENANCY_MODE: preserve(),
+      CONTROL_DATABASE_URL: preserve(),
+      CONTROL_ENCRYPTION_KEY: preserve(),
+      TENANT_POOL_MAX: preserve(),
+      REGISTRY_REFRESH_SECONDS: preserve(),
       DATABASE_URL: preserve(),
       LOG_LEVEL: preserve(),
       NODE_ENV: preserve(),

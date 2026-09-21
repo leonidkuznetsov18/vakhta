@@ -13,3 +13,5 @@ export * from 'drizzle-orm';
 export { migrate } from 'drizzle-orm/postgres-js/migrator';
 
 export * from './bonus-tasks.js';
+export * from './seed-defaults.js';
+export * from './migrations.js';

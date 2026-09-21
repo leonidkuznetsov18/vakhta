@@ -27,6 +27,7 @@ import {
 import { OPEN_INCIDENT_STATUSES, TERMINAL_STATES } from '@vakhta/domain';
 import { Counter, Gauge, Histogram, Registry, collectDefaultMetrics } from 'prom-client';
 import { DATABASE } from '../infra/database.module.js';
+import { TenantRuntimeRegistry } from '../infra/tenant-runtime.js';
 
 /**
  * Метрики Prometheus (ТЗ 12, NFR-01): тривалість запитів за маршрутом, стан аутбоксу,
@@ -64,7 +65,10 @@ export class MetricsService implements OnModuleInit {
     registers: [this.registry],
   });
 
-  constructor(@Inject(DATABASE) private readonly db: Database) {}
+  constructor(
+    @Inject(DATABASE) private readonly db: Database,
+    private readonly tenants: TenantRuntimeRegistry,
+  ) {}
 
   onModuleInit(): void {
     collectDefaultMetrics({ register: this.registry });
@@ -74,25 +78,36 @@ export class MetricsService implements OnModuleInit {
     this.httpDuration.labels(method, route, String(status)).observe(seconds);
   }
 
-  /** Стан із БД рахується при скрейпі: дешеві count-запити раз на інтервал Prometheus. */
+  /** Стан із БД рахується при скрейпі: дешеві count-запити раз на інтервал Prometheus, сума по тенантах. */
   async render(): Promise<string> {
-    const [[outbox], [shifts], [incidents]] = await Promise.all([
-      this.db
-        .select({ n: count() })
-        .from(notificationOutbox)
-        .where(eq(notificationOutbox.status, 'PENDING')),
-      this.db
-        .select({ n: count() })
-        .from(shiftSessions)
-        .where(notInArray(shiftSessions.state, [...TERMINAL_STATES])),
-      this.db
-        .select({ n: count() })
-        .from(downtimeIncidents)
-        .where(and(inArray(downtimeIncidents.status, [...OPEN_INCIDENT_STATUSES]))),
-    ]);
-    this.outboxPending.set(outbox?.n ?? 0);
-    this.shiftsActive.set(shifts?.n ?? 0);
-    this.incidentsOpen.set(incidents?.n ?? 0);
+    const totals = { outbox: 0, shifts: 0, incidents: 0 };
+    await this.tenants.forEachActive(
+      async () => {
+        const [[outbox], [shifts], [incidents]] = await Promise.all([
+          this.db
+            .select({ n: count() })
+            .from(notificationOutbox)
+            .where(eq(notificationOutbox.status, 'PENDING')),
+          this.db
+            .select({ n: count() })
+            .from(shiftSessions)
+            .where(notInArray(shiftSessions.state, [...TERMINAL_STATES])),
+          this.db
+            .select({ n: count() })
+            .from(downtimeIncidents)
+            .where(and(inArray(downtimeIncidents.status, [...OPEN_INCIDENT_STATUSES]))),
+        ]);
+        totals.outbox += outbox?.n ?? 0;
+        totals.shifts += shifts?.n ?? 0;
+        totals.incidents += incidents?.n ?? 0;
+      },
+      () => {
+        // A tenant whose database is unreachable is reported by its own health, not by the scrape.
+      },
+    );
+    this.outboxPending.set(totals.outbox);
+    this.shiftsActive.set(totals.shifts);
+    this.incidentsOpen.set(totals.incidents);
     return this.registry.metrics();
   }
 }

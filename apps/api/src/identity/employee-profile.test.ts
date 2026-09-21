@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { singleTenantRegistry } from '../../test/tenants.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 import {
@@ -84,7 +85,7 @@ describe('employee profile integration', () => {
       },
     };
     avatars = new EmployeeAvatarService(db, storage, audit);
-    cleanup = new EmployeeAvatarCleanupService(db, storage);
+    cleanup = new EmployeeAvatarCleanupService(db, storage, singleTenantRegistry());
     const [site] = await db
       .insert(sites)
       .values({ code: 'profile-test', name: 'Site', timezone: 'Europe/Kyiv' })

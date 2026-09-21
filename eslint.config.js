@@ -15,6 +15,7 @@ export default tseslint.config(
       '**/.turbo/**',
       '**/test-results/**',
       'packages/db/drizzle/**',
+      'packages/registry/drizzle/**',
     ],
   },
   js.configs.recommended,

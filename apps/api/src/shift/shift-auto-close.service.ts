@@ -2,6 +2,7 @@ import { Injectable, type OnApplicationShutdown, type OnModuleInit } from '@nest
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.js';
 import { createLogger } from '../logger.js';
+import { TenantRuntimeRegistry } from '../infra/tenant-runtime.js';
 import { ShiftService } from './shift.service.js';
 
 /**
@@ -20,6 +21,7 @@ export class ShiftAutoCloseService implements OnModuleInit, OnApplicationShutdow
   constructor(
     private readonly shifts: ShiftService,
     config: ConfigService<Env, true>,
+    private readonly tenants: TenantRuntimeRegistry,
   ) {
     this.logger = createLogger({
       LOG_LEVEL: config.get('LOG_LEVEL', { infer: true }),
@@ -43,10 +45,14 @@ export class ShiftAutoCloseService implements OnModuleInit, OnApplicationShutdow
     if (this.busy) return;
     this.busy = true;
     try {
-      const closed = await this.shifts.autoCloseStale();
-      if (closed > 0) this.logger.info({ closed }, 'auto-closed stale shifts');
-    } catch (err) {
-      this.logger.error({ err }, 'auto-close scan failed');
+      await this.tenants.forEachActive(
+        async ({ tenant }) => {
+          const closed = await this.shifts.autoCloseStale();
+          if (closed > 0)
+            this.logger.info({ closed, tenant: tenant.slug }, 'auto-closed stale shifts');
+        },
+        (err, tenant) => this.logger.error({ err, tenant: tenant.slug }, 'auto-close scan failed'),
+      );
     } finally {
       this.busy = false;
     }

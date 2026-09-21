@@ -8,7 +8,8 @@ import { AUTH } from './auth/auth.service.js';
 import { registerAuthRoutes } from './auth/auth.routes.js';
 import type { Auth } from './auth/auth.config.js';
 import { DomainErrorFilter } from './common/domain-error.js';
-import { corsOptions } from './config/cors.js';
+import { corsDelegate } from './config/cors.js';
+import { bindTenancy } from './infra/tenant-hook.js';
 import { loadEnv } from './config/env.js';
 import { UnexpectedErrorFilter } from './common/unexpected-error.filter.js';
 import { createLogger, requestId } from './logger.js';
@@ -32,9 +33,13 @@ async function bootstrap(): Promise<void> {
   // Порядок має значення: Nest перевіряє фільтри з кінця, тож DomainErrorFilter іде останнім.
   app.useGlobalFilters(new UnexpectedErrorFilter(app.getHttpAdapter()), new DomainErrorFilter());
 
+  // Every request is bound to one tenant by its host before CORS, auth routes and Nest routes.
+  bindTenancy(app);
   // Панель і термінал живуть на інших origin; у продакшені список задається явно.
   // CORS має бути зареєстрований до маршрутів better-auth.
-  app.enableCors(corsOptions(env.CORS_ORIGINS));
+  app.enableCors(
+    corsDelegate(env.CORS_ORIGINS, env.PUBLIC_BASE_URL.startsWith('https://') ? 'https' : 'http'),
+  );
 
   registerAuthRoutes(app.getHttpAdapter().getInstance(), app.get<Auth>(AUTH));
 

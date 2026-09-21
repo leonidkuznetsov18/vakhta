@@ -42,6 +42,8 @@ export interface MediaStore {
 export interface ProcessOptions {
   readonly thresholds: QualityThresholds;
   readonly retentionDays: number;
+  /** Tenant storage prefix (`tenants/<slug>/`); the env tenant keeps its historical flat keys. */
+  readonly keyPrefix?: string;
   readonly duplicateLookbackDays?: number;
   readonly now?: () => Date;
 }
@@ -185,7 +187,8 @@ export async function prepareMedia(
 
   const contentType = analysed?.contentType ?? fetchedType ?? 'application/octet-stream';
   const ext = contentType === 'image/png' ? 'png' : 'jpg';
-  const key = `${row.purpose}/${row.receivedAt.toISOString().slice(0, 7)}/${row.id}.${ext}`;
+  const prefix = deps.options.keyPrefix ?? '';
+  const key = `${prefix}${row.purpose}/${row.receivedAt.toISOString().slice(0, 7)}/${row.id}.${ext}`;
   signal?.throwIfAborted();
   await deps.store.put(key, buffer, contentType, signal);
   signal?.throwIfAborted();

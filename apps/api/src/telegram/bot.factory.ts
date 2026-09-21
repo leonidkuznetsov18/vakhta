@@ -182,6 +182,8 @@ export interface BotDeps {
   readonly dedup: UpdateDedup;
   readonly defaultTimezone: string;
   readonly logger: Logger;
+  /** Runs handlers inside the owning tenant's context (polling has no request to inherit it from). */
+  readonly runInContext?: (<T>(fn: () => Promise<T>) => Promise<T>) | undefined;
 }
 
 /** What the home screen needs; a subset of the bot dependencies so the server can render it too. */
@@ -244,6 +246,9 @@ export async function renderHomeScreen(
  */
 export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   const bot = new Bot<BotContext>(token);
+
+  const runInContext = deps.runInContext;
+  if (runInContext) bot.use((_ctx, next) => runInContext(() => next()));
 
   // ADR-3, level 1: a redelivered update_id (webhook or polling) never reaches the handlers.
   bot.use(async (ctx, next) => {

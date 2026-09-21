@@ -225,3 +225,35 @@ Run `34692945641` stopped before release because the shared help test still asse
 copy. The test now verifies the current catalog's steps and questions while preserving its collapse,
 expand and FAQ interaction assertions. The release pipeline correctly withheld publication after the
 failed check; semantic-release tag creation and the existing Telegram announcement path are unchanged.
+
+## Multi-tenant foundation, 2026-09-21
+
+Source: `specs/011-multi-tenant-control-plane` (delivery 1). The API and worker bind every request
+and every background pass to one tenant. `TENANCY_MODE` selects where tenants come from:
+
+| Mode       | Tenants                                                                                                                                            | Required variables                                                                                                                             |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `env`      | One tenant built from `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `PUBLIC_BASE_URL`, `CORS_ORIGINS` (default; current production, local development, CI) | Unchanged                                                                                                                                      |
+| `registry` | Tenants, hosts, modules and encrypted secrets from the control database                                                                            | `CONTROL_DATABASE_URL`, `CONTROL_ENCRYPTION_KEY` (32 bytes hex), optional `TENANT_POOL_MAX`, `REGISTRY_REFRESH_SECONDS`, `SUPPORT_TENANT_SLUG` |
+
+In registry mode the API answers 404 `TENANT_NOT_FOUND` on an unknown host and 403
+`TENANT_SUSPENDED` on a suspended tenant; `/health` and `/metrics` stay tenant-free. Each tenant's
+bot receives updates on `/telegram/webhook/<tenantId>` at that tenant's API host. The pre-deploy
+command `node packages/db/dist/migrate-tenants.js` migrates the control database and then every
+non-archived tenant under an advisory lock; the first failure stops the deploy and names the tenant.
+
+Pilot cutover (planned, not executed yet; spec AC-011–013):
+
+1. Deploy with `TENANCY_MODE=env` and confirm no behavior change.
+2. Create `vakhta_control` on the cluster; run `pnpm --filter @vakhta/registry migrate:js` with
+   `CONTROL_DATABASE_URL` set; generate `CONTROL_ENCRYPTION_KEY` with `openssl rand -hex 32` and
+   store it in 1Password and Railway.
+3. Register the pilot: `pnpm --filter @vakhta/registry register-tenant -- --slug pilot --name "…"
+--database-url "$DATABASE_URL" --api-host api.vakhta.xyz --panel-host panel.vakhta.xyz
+--kiosk-host kiosk.vakhta.xyz --bot-token "$TELEGRAM_BOT_TOKEN" --bot-username
+vakhta_worker_bot --webhook-secret "$TELEGRAM_WEBHOOK_SECRET" --storage-prefix ""`.
+   The empty storage prefix keeps the pilot's historical media keys.
+4. Set `TENANCY_MODE=registry`, `CONTROL_DATABASE_URL`, `CONTROL_ENCRYPTION_KEY` on `api` and
+   `worker`; redeploy; run `pnpm --filter api telegram:set-webhook` so the bot posts to the
+   per-tenant path; verify the live journeys listed in the spec with the QA account.
+5. Rollback: restore `TENANCY_MODE=env` and rerun `telegram:set-webhook`; no data changes either way.

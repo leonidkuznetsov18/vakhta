@@ -2,7 +2,8 @@ import { Global, Inject, Injectable, Module, type OnApplicationShutdown } from '
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
 import type { Env } from '../config/env.js';
-import { RedisShortTermStore, SHORT_TERM_STORE } from './short-term-store.js';
+import { SHORT_TERM_STORE, type ShortTermStore } from './short-term-store.js';
+import { currentTenant, lateBound } from './tenant-context.js';
 
 export const REDIS = Symbol('REDIS');
 
@@ -28,9 +29,9 @@ class RedisShutdown implements OnApplicationShutdown {
       inject: [ConfigService],
     },
     {
+      // Keys are namespaced per tenant by the runtime behind the current context.
       provide: SHORT_TERM_STORE,
-      useFactory: (redis: Redis) => new RedisShortTermStore(redis),
-      inject: [REDIS],
+      useFactory: (): ShortTermStore => lateBound(() => currentTenant().store),
     },
     RedisShutdown,
   ],

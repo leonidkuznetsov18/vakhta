@@ -2,6 +2,7 @@ import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@ne
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.js';
 import { createLogger } from '../logger.js';
+import { TenantRuntimeRegistry } from '../infra/tenant-runtime.js';
 import { BonusMonthService } from './bonus-month.service.js';
 
 /** Once an hour is enough: the close happens on one day of the month and is idempotent. */
@@ -23,6 +24,7 @@ export class BonusMonthCloseService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(BonusMonthService) private readonly months: Pick<BonusMonthService, 'closeDueMonths'>,
     config: ConfigService<Env, true>,
+    private readonly tenants: TenantRuntimeRegistry,
   ) {
     this.logger = createLogger({
       LOG_LEVEL: config.get('LOG_LEVEL', { infer: true }),
@@ -51,15 +53,16 @@ export class BonusMonthCloseService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private async tick(): Promise<void> {
-    try {
-      const outcomes = await this.months.closeDueMonths();
-      for (const outcome of outcomes) {
-        if (outcome.awarded > 0 || outcome.cards > 0)
-          this.logger.info(outcome, 'bonus month closed');
-      }
-    } catch (err) {
-      this.logger.error({ err }, 'bonus month close failed');
-    }
+  private tick(): Promise<void> {
+    return this.tenants.forEachActive(
+      async () => {
+        const outcomes = await this.months.closeDueMonths();
+        for (const outcome of outcomes) {
+          if (outcome.awarded > 0 || outcome.cards > 0)
+            this.logger.info(outcome, 'bonus month closed');
+        }
+      },
+      (err, tenant) => this.logger.error({ err, tenant: tenant.slug }, 'bonus month close failed'),
+    );
   }
 }
