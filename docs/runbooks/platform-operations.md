@@ -228,6 +228,58 @@ failed check; semantic-release tag creation and the existing Telegram announceme
 
 ## Multi-tenant foundation, 2026-09-21
 
+### Control hosting and operator access
+
+The operator panel is `https://control.vakhta.xyz`; its separate API is
+`https://control-api.vakhta.xyz`. The frontend is the Cloudflare Pages Direct Upload project
+`vakhta-control`. Repository variables `CONTROL_API_URL=https://control-api.vakhta.xyz` and
+`CONTROL_PAGES_ENABLED=true` enable its existing CI deployment step.
+
+Railway production service `control-api` builds `apps/control-api/Dockerfile` from `master`,
+waits for GitHub checks on subsequent pushes, runs
+`node packages/registry/dist/cli/migrate.js` before deployment and checks `/health` on port 3100.
+Its registry database is `vakhta_control`, owned by the dedicated `vakhta_control_owner` role.
+It uses the existing PostgreSQL cluster; creating another PostgreSQL service is unnecessary.
+
+Required configuration:
+
+| Variable                                   | Production value or purpose                                               |
+| ------------------------------------------ | ------------------------------------------------------------------------- |
+| `NODE_ENV`                                 | `production`                                                              |
+| `CONTROL_HOST`, `CONTROL_PORT`, `PORT`     | `0.0.0.0`, `3100`, `3100`                                                 |
+| `CONTROL_DATABASE_URL`                     | Private network URL for `vakhta_control_owner` and `vakhta_control`       |
+| `CONTROL_ENCRYPTION_KEY`                   | 32 random bytes encoded as hex; preserve it to decrypt tenant secrets     |
+| `CONTROL_AUTH_SECRET`                      | Separate control authentication secret; never reuse the tenant API secret |
+| `CONTROL_PUBLIC_BASE_URL`                  | `https://control-api.vakhta.xyz` (the auth API origin)                    |
+| `CONTROL_CORS_ORIGINS`                     | `https://control.vakhta.xyz`                                              |
+| `AUTH_COOKIE_SAME_SITE`, `PLATFORM_SCHEME` | `lax`, `https`                                                            |
+| `PROVISION_DATABASE_ADMIN_URL`             | Cluster administrator URL; only the control service receives it           |
+
+The encryption key, auth secret and registry password are stored in 1Password Private as
+**Vakhta Control — production secrets**. The first operator's login is stored as
+**Vakhta Control — superadmin**. Retrieve credentials through 1Password; never paste them into
+Git, reports or shell arguments. First sign-in requires the owner to enroll TOTP and save the
+backup codes. A password-only session cannot access control routes.
+
+DNS records belong to Cloudflare. `control.vakhta.xyz` must be associated with the Pages project
+as a custom domain as well as having its CNAME. `control-api.vakhta.xyz` is a Railway custom domain
+targeting port 3100, with its provider-supplied CNAME and ownership TXT record. Verify certificates
+normally; do not bypass certificate errors while issuance is pending.
+
+For a control-hosting rollback, roll back only the affected Pages/Railway deployment. Preserve
+the registry and its encryption key. Control hosting does not switch the pilot to registry mode.
+Before applying `.railway/railway.ts`, inspect the plan: creating the control service does not
+authorize incidental Redis or pilot API configuration changes.
+
+Tenant creation runs from the control panel and records provisioning progress. Host registration
+is still manual: associate each hostname with its Railway/Pages service, create the requested
+DNS records and retry the domain step. Skipping that step does not verify a hostname. Customer
+welcome, runtime configuration, pilot cutover and full second-tenant acceptance remain separate
+tasks in `specs/011-multi-tenant-control-plane/tasks.md`; an ACTIVE record alone does not prove
+that the customer can sign in.
+
+### Tenant runtime and pilot cutover
+
 Source: `specs/011-multi-tenant-control-plane` (delivery 1). The API and worker bind every request
 and every background pass to one tenant. `TENANCY_MODE` selects where tenants come from:
 

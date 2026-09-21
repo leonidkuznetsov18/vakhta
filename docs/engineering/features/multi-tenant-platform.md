@@ -10,7 +10,8 @@ interface, created from a platform control panel that assigns modules. The found
 ## Current behavior and ownership
 
 Production remains the single pilot in env mode. The API and worker support registry mode in
-code; the operator control service and panel have been exercised locally. Facts and file references: spec RECON. Product document:
+code; the operator control service and panel are now hosted separately. Local authenticated
+acceptance passed; owner production TOTP enrollment remains pending. Facts and file references: spec RECON. Product document:
 [Multi-tenant platform](../../features/multi-tenant-platform.md) (implementation in progress).
 
 ## Decisions and reuse
@@ -189,13 +190,53 @@ five API-boundary tests rather than suppressing the missing-test failure.
   control-api service yet. Neither CONTROL_PAGES_ENABLED nor CONTROL_API_URL repository variable
   is set. The service declaration in `.railway/railway.ts` is not evidence of deployed hosting.
 
+## Control hosting deployment (2026-09-21)
+
+The owner authorized Cloudflare/Railway setup and Chrome Private browser use. The extension
+confirmed the requested profile, Cloudflare browser sign-in worked, and the existing authenticated
+Railway CLI and Cloudflare credentials supplied the deployment operations.
+
+- Created Railway `control-api` service `bbb31de2-6508-47ed-a434-0837f7bfbbeb` with its existing
+  Dockerfile, registry pre-deploy migration and health check on port 3100. Deployment
+  `0c4c58a2-e00c-45ec-ac60-dcde421aa962` at source `26de4b3` reached SUCCESS. GitHub check-suite
+  gating is enabled for subsequent pushes. Restart policy is ON_FAILURE, at most ten retries.
+- Created `vakhta_control` on the existing PostgreSQL cluster with a dedicated login/owner.
+  Applied registry migrations through 0002. The control service uses the private registry URL;
+  its provisioning administrator URL is separate and is not copied to API/worker.
+- Created Pages project `vakhta-control`, deployed production assets from `26de4b3` as
+  `cf9fdb23.vakhta-control.pages.dev`, associated `control.vakhta.xyz` and activated its certificate.
+  Set repository variables CONTROL_API_URL and CONTROL_PAGES_ENABLED for future CI uploads.
+- Registered `control-api.vakhta.xyz` on Railway, port 3100, with its CNAME and ownership TXT in
+  Cloudflare. The API certificate is valid and public HTTPS /health returns the control service.
+  GET /auth/get-session returns null with the exact frontend CORS origin and credentials enabled;
+  unauthenticated GET /control/tenants returns 401.
+- Created the first PLATFORM_ADMIN for the owner-provided email. Its generated password is in
+  1Password Private, **Vakhta Control — superadmin**. Registry/encryption/auth secrets are in
+  **Vakhta Control — production secrets**, with a successful read-back comparison. No values are
+  included in this report. Owner TOTP enrollment and backup-code custody remain pending.
+- The control hostname is active on authoritative DNS, Cloudflare and Google public resolvers.
+  HTTPS HTML returned 200 with the expected title/assets using an authoritative address and normal
+  certificate validation. The local router resolver still returned NXDOMAIN, so Chrome Private
+  could not complete live panel acceptance in this check. No TLS checks or browser protections
+  were bypassed. Local authenticated screenshots remain separate evidence.
+- Independent review found no blocking control-hosting configuration issue. The Railway plan
+  initially proposed deleting api.USER_GUIDE_URL; added preserve() for that existing variable and
+  the new control host/cookie settings. Applied only the new service's intended changes; did not
+  apply unrelated Redis/pilot changes from the full project plan.
+- Pilot API/worker remain in env mode; no production employee actions or tenant cutover occurred.
+  Control hosting does not complete the welcome flow, runtime configuration or automatic DNS.
+
 ## Remaining work
 
 Next: T023 tenant settings and the parameters tab; T030 welcome; T031 module/branding surfaces;
 T032 runtime configuration. Complete the unimplemented workspace actions, branding/operator edits,
-FSD ownership and table pagination (T027), and deploy control hosting (T028). T026 has browser and
+FSD ownership and table pagination (T027). Complete the owner's first production TOTP sign-in and
+authenticated browser acceptance of the deployed control hosting (T028). T026 has browser and
 current auth/provisioning review evidence; settings-write review remains dependent on T023.
 Then rehearse rollback, complete T018 pilot cutover and T033 first non-pilot live acceptance.
-Delivery 4 backups/domain lifecycle/deletion remain pending. No production cutover, provider DNS
-mutation or production employee action was performed by this continuation. CI/deployment results
-for the new source must be reported separately after the push.
+Delivery 4 backups/domain lifecycle/deletion remain pending. No production cutover or production
+employee action was performed. Source 26de4b3 passed all jobs in CI run 35611224093 and released
+v1.19.0; the existing Telegram announcement step succeeded. All three images and the existing
+Pages uploads succeeded. That already-running workflow skipped control-web because its variable
+snapshot preceded enablement; control-web was deployed explicitly as recorded above. The next
+workflow starts with the control deployment variables present.

@@ -93,6 +93,7 @@ export default defineRailway(() => {
       TELEGRAM_BOT_USERNAME: preserve(),
       TELEGRAM_MODE: preserve(),
       TELEGRAM_WEBHOOK_SECRET: preserve(),
+      USER_GUIDE_URL: preserve(),
     },
   });
 
@@ -152,12 +153,14 @@ export default defineRailway(() => {
     replicas: { [region]: 1 },
     env: {
       CONTROL_PORT: preserve(),
+      CONTROL_HOST: preserve(),
       PORT: preserve(),
       CONTROL_DATABASE_URL: preserve(),
       CONTROL_ENCRYPTION_KEY: preserve(),
       CONTROL_AUTH_SECRET: preserve(),
       CONTROL_PUBLIC_BASE_URL: preserve(),
       CONTROL_CORS_ORIGINS: preserve(),
+      AUTH_COOKIE_SAME_SITE: preserve(),
       PROVISION_DATABASE_ADMIN_URL: preserve(),
       PANEL_HOST_PATTERN: preserve(),
       KIOSK_HOST_PATTERN: preserve(),

@@ -1,6 +1,6 @@
 # Multi-tenant platform and control panel
 
-Status: **implementation in progress; control panel not deployed**. Owner: product owner. Recorded: 2026-09-21.
+Status: **control hosting deployed; tenant rollout in progress**. Owner: product owner. Recorded: 2026-09-21.
 Authority: the owner asked for an architecture where every client plant has its own database, bot,
 kiosk and branded interface, created and managed from a platform control panel that assigns
 modules. The tenant foundation and initial control panel are implemented; the pilot still uses env mode.
@@ -17,10 +17,13 @@ Implemented in the repository: tenant-scoped API and worker, encrypted registry,
 with session-bound TOTP, tenant creation, module switches, domain records, bot-token validation,
 resumable provisioning, invitation generation, audit and the initial trilingual control panel.
 The operator panel has been checked locally against the real API at desktop and mobile widths.
+Control hosting is deployed at `https://control.vakhta.xyz`, with the separate control API and
+registry on Railway. The first operator has been created; owner TOTP enrollment is required at
+first sign-in. Credentials are in the owner's private 1Password vault.
 Read-only operators cannot retrieve administrator invitation tokens. Required provisioning steps
 cannot be skipped; a manual DNS step can be skipped without marking its domains verified.
 
-Not yet available: production control-api/control-web hosting, tenant operational settings, the
+Not yet available: tenant operational settings, the
 client welcome page and runtime surface configuration, complete workspace actions and table
 pagination, per-tenant backups/deletion, and the pilot cutover. An invitation link is generated,
 but its client welcome flow is still pending. Do not distribute it as a working onboarding journey.

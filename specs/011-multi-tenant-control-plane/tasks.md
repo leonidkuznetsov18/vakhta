@@ -73,7 +73,7 @@ AC-025, AC-026–032, AC-034, public config endpoint for AC-020.
 - [ ] T026 (initial UI screenshots and auth/provisioning review completed; settings-write review waits for T023) Desktop and mobile screenshots of the tenant list, wizard, job view and every workspace tab; independent review of auth, secrets, settings writes and provisioning transactions; engineering memory update.
 
 - [ ] T027 Convergence: complete AC-026–031 workspace details and inline actions, branding/operator edits, catalog, pagination/counts, role-aware controls and coherent frontend FSD ownership. The initial T025 screens do not establish complete acceptance for these requirements.
-- [ ] T028 Deploy the actual control-api service and registry in Railway, create the control Pages project, configure its API URL, then enable and verify control-web hosting. Source configuration alone is not a deployed service.
+- [x] T028 Deploy the actual control-api service and registry in Railway, create the control Pages project, configure its API URL, then enable and verify control-web hosting. Production health, TLS, CORS and unauthenticated rejection verified; first operator created with owner TOTP enrollment pending. Local-network DNS delayed the Chrome acceptance check; see engineering evidence.
 
 ## Delivery 3: Tenant surfaces (US1 remainder, US5)
 
@@ -107,7 +107,8 @@ view), AC-022, AC-023, AC-024, AC-035, client-owned domains.
 from `426cd1f` fixes failed CI, session-bound MFA, provisioning recovery, database ownership and
 invitation access. T026 desktop/mobile screenshots of all implemented tabs and independent review
 are complete; its settings-write checks still wait for T023. T027 records demonstrated gaps in the
-initial workspace rather than claiming full AC-026–031 acceptance. T028 records absent live hosting.
+initial workspace rather than claiming full AC-026–031 acceptance. T028 hosting is deployed;
+owner TOTP enrollment and authenticated production browser acceptance remain explicit follow-ups.
 
 Next: T023, T030–T032 and control hosting; then rollback rehearsal and T018 pilot cutover. The
 owner-approved continuation implements control/surface code before cutover, superseding the earlier
