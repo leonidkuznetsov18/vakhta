@@ -273,20 +273,29 @@ authorize incidental Redis or pilot API configuration changes.
 
 Tenant creation runs from the control panel and records provisioning progress. Host registration
 is still manual: associate each hostname with its Railway/Pages service, create the requested
-DNS records and retry the domain step. Skipping that step does not verify a hostname. Customer
-welcome, runtime configuration, pilot cutover and full second-tenant acceptance remain separate
-tasks in `specs/011-multi-tenant-control-plane/tasks.md`; an ACTIVE record alone does not prove
-that the customer can sign in.
+DNS records and retry the domain step. Railway can assign a domain-specific CNAME different from
+the generic instruction; use the provider's actual target and ownership TXT. A strict CNAME check
+cannot verify proxied records or that different target. In those cases, verify the provider
+association, public DNS and HTTPS certificate, then record an audited domain-verification
+checkpoint before retrying. Skipping the step does not verify a hostname. Cloudflare provides a
+[domain validation retry](https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/domains/methods/edit/)
+after the records are created. Do not change the global API CNAME target for one tenant.
+
+Welcome and runtime configuration are deployed in v1.20.0; the pilot uses registry mode and
+SuperFactory is ACTIVE. The operator copies the invitation from the tenant overview; the recipient
+sets a password on that tenant's panel. A missing bot token does not block panel-first onboarding.
+Device/Telegram acceptance and the owner's first-password action are tracked separately in
+`specs/011-multi-tenant-control-plane/tasks.md`; an ACTIVE record alone does not prove sign-in.
 
 ### Tenant runtime and pilot cutover
 
 Source: `specs/011-multi-tenant-control-plane` (delivery 1). The API and worker bind every request
 and every background pass to one tenant. `TENANCY_MODE` selects where tenants come from:
 
-| Mode       | Tenants                                                                                                                                            | Required variables                                                                                                                             |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `env`      | One tenant built from `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `PUBLIC_BASE_URL`, `CORS_ORIGINS` (default; current production, local development, CI) | Unchanged                                                                                                                                      |
-| `registry` | Tenants, hosts, modules and encrypted secrets from the control database                                                                            | `CONTROL_DATABASE_URL`, `CONTROL_ENCRYPTION_KEY` (32 bytes hex), optional `TENANT_POOL_MAX`, `REGISTRY_REFRESH_SECONDS`, `SUPPORT_TENANT_SLUG` |
+| Mode       | Tenants                                                                                                                                  | Required variables                                                                                                                             |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `env`      | One tenant built from `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `PUBLIC_BASE_URL`, `CORS_ORIGINS` (default; rollback, local development, CI) | Unchanged                                                                                                                                      |
+| `registry` | Tenants, hosts, modules and encrypted secrets from the control database                                                                  | `CONTROL_DATABASE_URL`, `CONTROL_ENCRYPTION_KEY` (32 bytes hex), optional `TENANT_POOL_MAX`, `REGISTRY_REFRESH_SECONDS`, `SUPPORT_TENANT_SLUG` |
 
 In registry mode the API answers 404 `TENANT_NOT_FOUND` on an unknown host and 403
 `TENANT_SUSPENDED` on a suspended tenant; `/health` and `/metrics` stay tenant-free. Each tenant's
@@ -294,7 +303,7 @@ bot receives updates on `/telegram/webhook/<tenantId>` at that tenant's API host
 command `node packages/db/dist/migrate-tenants.js` migrates the control database and then every
 non-archived tenant under an advisory lock; the first failure stops the deploy and names the tenant.
 
-Pilot cutover (planned, not executed yet; spec AC-011–013):
+Pilot cutover procedure (production switched on 2026-09-21; spec AC-011–013):
 
 1. Deploy with `TENANCY_MODE=env` and confirm no behavior change.
 2. Create `vakhta_control` on the cluster; run `pnpm --filter @vakhta/registry migrate:js` with
@@ -306,9 +315,11 @@ Pilot cutover (planned, not executed yet; spec AC-011–013):
 vakhta_worker_bot --webhook-secret "$TELEGRAM_WEBHOOK_SECRET" --storage-prefix ""`.
    The empty storage prefix keeps the pilot's historical media keys.
 4. Set `TENANCY_MODE=registry`, `CONTROL_DATABASE_URL`, `CONTROL_ENCRYPTION_KEY` on `api` and
-   `worker`; redeploy; run `pnpm --filter api telegram:set-webhook` so the bot posts to the
-   per-tenant path; verify the live journeys listed in the spec with the QA account.
-5. Rollback: restore `TENANCY_MODE=env` and rerun `telegram:set-webhook`; no data changes either way.
+   `worker`; redeploy and verify the live journeys listed in the spec with the QA account.
+   The existing host-bound `/telegram/webhook` remains supported in registry mode; preserve it
+   during cutover and inspect `getWebhookInfo`. Moving to the per-tenant path is optional afterward.
+5. Rollback: restore `TENANCY_MODE=env`; restore the host-bound webhook if its path changed.
+   No tenant data moves in either direction.
 
 ### Tenant surface release ordering
 

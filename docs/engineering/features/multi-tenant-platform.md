@@ -9,9 +9,10 @@ interface, created from a platform control panel that assigns modules. The found
 
 ## Current behavior and ownership
 
-Production remains the single pilot in env mode. The API and worker support registry mode in
-code; the operator control service and panel are now hosted separately. Local authenticated
-acceptance passed; owner production TOTP enrollment remains pending. Facts and file references: spec RECON. Product document:
+Production API and worker use registry mode. Pilot and SuperFactory are active with separate
+databases and addresses; control hosting and owner TOTP sign-in are verified. SuperFactory starts
+with its panel, with bot setup explicitly deferred by the owner. The first-password page is open
+for the owner; password submission is not claimed as verified. Facts and file references: spec RECON. Product document:
 [Multi-tenant platform](../../features/multi-tenant-platform.md) (implementation in progress).
 
 ## Decisions and reuse
@@ -241,18 +242,13 @@ Railway CLI and Cloudflare credentials supplied the deployment operations.
 
 ## Remaining work
 
-Next: T023 tenant settings and the parameters tab; T030 welcome; T031 module/branding surfaces;
-T032 runtime configuration. Complete the unimplemented workspace actions, branding/operator edits,
-FSD ownership and table pagination (T027). Complete the owner's first production TOTP sign-in and
-authenticated browser acceptance of the deployed control hosting (T028). T026 has browser and
-current auth/provisioning review evidence; settings-write review remains dependent on T023.
-Then rehearse rollback, complete T018 pilot cutover and T033 first non-pilot live acceptance.
-Delivery 4 backups/domain lifecycle/deletion remain pending. No production cutover or production
-employee action was performed. Source 26de4b3 passed all jobs in CI run 35611224093 and released
-v1.19.0; the existing Telegram announcement step succeeded. All three images and the existing
-Pages uploads succeeded. That already-running workflow skipped control-web because its variable
-snapshot preceded enablement; control-web was deployed explicitly as recorded above. The next
-workflow starts with the control deployment variables present.
+Next: T023 tenant settings and the parameters tab, T031 module/branding surfaces, and remaining
+workspace actions, branding/operator edits, FSD ownership and table pagination (T027). T026 has
+browser and auth/provisioning review evidence; settings-write review depends on T023. The runtime,
+welcome page, control hosting and production registry cutover are deployed. T018/T033 retain the
+unperformed physical-device/Telegram journeys and owner password acceptance. Automatic provider
+adapters and domain/deletion lifecycle remain pending; tenant backup code is recorded above.
+No production employee action was manufactured during acceptance.
 
 ## Runtime and first-login continuation (2026-09-21)
 
@@ -286,3 +282,36 @@ The owner chose panel first, with the bot token to be added later in the control
   3 terminals). Registered pilot with the reserved env identity, original database/bot secrets and
   verified canonical hosts/Pages aliases. Migrated pilot and SuperFactory through 0052. API and
   worker still use env mode at this checkpoint. Provider routing and final cutover are pending.
+
+## Production registry and SuperFactory rollout (2026-09-21)
+
+- Delivery `1a0ca90` plus kiosk environment-value fix `370b1e1` passed all jobs in
+  [CI 35618156827](https://github.com/leonidkuznetsov18/vakhta/actions/runs/35618156827), released
+  v1.20.0 and published all four Pages projects and three images. The existing Telegram release
+  announcement succeeded. The first attempt failed kiosk lint; the corrected run is the evidence.
+- Deployed control-api `577737f8-a342-44c0-a94c-7c42a1063c77` from `1a0ca90` before Pages. Its
+  live pilot runtime contract passed before publication. API `d8f5fdb4-6281-4c12-bd36-c5c33937ea3b`
+  and worker `e1880734-993b-44bd-b925-cb2007a3cb60` redeployed the existing `26de4b3` images with
+  registry variables. The API's next pre-deploy command is the tenant migrator; both databases
+  had already received 0052. Image publication is not a claim that Railway deployed that image.
+- Backed up all 323 outstanding legacy timer jobs, paused the queue with zero active jobs,
+  validated their type, added the reserved pilot tenant ID without changing IDs/delays, and
+  resumed it. Rechecked and briefly paused for worker cutover, then resumed in verified registry
+  mode. Receipts and backups remain in restricted ignored `test-results/control-cutover/`.
+- Pilot health returned 200, anonymous session null, protected overview 401, and an unknown host 404. Its existing host-bound webhook was preserved: zero pending updates and no Telegram error.
+  Chrome Private loaded the authenticated pilot overview on v1.20.0 without signing in again.
+- Associated SuperFactory panel/kiosk domains with their Pages projects and its API domain with
+  Railway port 3000. Created CNAMEs and Railway ownership TXT. Provider associations, public DNS,
+  certificates and HTTPS 200 were checked before setting registry domains VERIFIED with audit.
+  Railway's domain-specific target differs from the generic manual instruction; no DNS step was
+  skipped and no global target was changed. Future tenants still require provider setup.
+- Retried REGISTER_DOMAINS through the authenticated control UI; one transient JOB_BUSY response
+  was safely retried. The job finished DONE at 15:45:01 UTC: six DONE steps and BOT_WEBHOOK SKIPPED
+  because no token exists, as requested by the owner. Elapsed time from creation was 63m35s,
+  including the manual deployment/DNS pause; this is not a fast-provisioning benchmark.
+- Public configuration returns SuperFactory's own API/kiosk origins and ACTIVE status. Its
+  protected API returns 401. Chrome Private shows the Ukrainian production welcome form with
+  SuperFactory branding and the invitation's administrator email. Password entry/submission is
+  handed to the owner. Live control screenshots were inspected on desktop and at 390px with no
+  document overflow. Kiosk HTTPS passes with public DNS and normal certificate validation;
+  Chrome's local resolver still returned NXDOMAIN, so that browser/device journey is not claimed.

@@ -56,7 +56,7 @@ unchanged; the pilot is registered and cut over. **Acceptance**: AC-005–016, A
 - [x] T015 `packages/db/src/migrate.ts --tenants` under `pg_advisory_lock` with `schema_version` recording; export `seedTenantDefaults` from `packages/db/src/seed.ts`; `.railway/railway.ts` preDeploy sequence and new env keys with `preserve()`; `.env.example` and `infra/compose` control database. Depends on T011 (covers AC-021 migrator part, AC-012).
 - [x] T016 Isolation suite with a testcontainers helper `withTenants(2)`: unknown host, suspended tenant, cross-tenant cookie, cross-tenant device token, webhook secret, CORS, proxy without context, worker loop isolation and job rejection; run existing suites in env mode. Depends on T012–T015 (covers SC-003, AC-012).
 - [x] T017 Independent review of the tenant-context boundary, secrets handling and migrator (reviewer is not the writer); resolve findings.
-- [ ] T018 Cutover: deploy in env mode, create `vakhta_control`, register the pilot with the `register-existing-tenant` CLI, switch `api` and `worker` to registry mode, re-set the webhook, verify the listed live journeys with the QA account, record versions and evidence; rehearse rollback on a non-production environment first (covers AC-011, AC-013).
+- [ ] T018 (production registry cutover and local rollback rehearsal completed; physical-device/Telegram journeys remain) Cutover: deploy in env mode, create `vakhta_control`, register the pilot with the `register-existing-tenant` CLI, switch `api` and `worker` to registry mode, preserve/verify the supported host-bound webhook, verify the listed live journeys with the QA account, record versions and evidence; rehearse rollback on a non-production environment first (covers AC-011, AC-013).
 
 ## Delivery 2: Control panel (US1 without bot and invite, AC-025)
 
@@ -73,7 +73,7 @@ AC-025, AC-026–032, AC-034, public config endpoint for AC-020.
 - [ ] T026 (initial UI screenshots and auth/provisioning review completed; settings-write review waits for T023) Desktop and mobile screenshots of the tenant list, wizard, job view and every workspace tab; independent review of auth, secrets, settings writes and provisioning transactions; engineering memory update.
 
 - [ ] T027 Convergence: complete AC-026–031 workspace details and inline actions, branding/operator edits, catalog, pagination/counts, role-aware controls and coherent frontend FSD ownership. The initial T025 screens do not establish complete acceptance for these requirements.
-- [x] T028 Deploy the actual control-api service and registry in Railway, create the control Pages project, configure its API URL, then enable and verify control-web hosting. Production health, TLS, CORS and unauthenticated rejection verified; first operator created; owner TOTP enrollment confirmed in the registry and phone UI. Local-network DNS delayed the Chrome acceptance check; see engineering evidence.
+- [x] T028 Deploy the actual control-api service and registry in Railway, create the control Pages project, configure its API URL, then enable and verify control-web hosting. Production health, TLS, CORS and unauthenticated rejection verified; first operator created; owner TOTP enrollment and authenticated Chrome Private acceptance confirmed; see engineering evidence.
 
 ## Delivery 3: Tenant surfaces (US1 remainder, US5)
 
@@ -83,7 +83,7 @@ AC-003, AC-004, AC-017–020.
 - [x] T030 (implementation and local acceptance; production invitation acceptance is an owner action) `BOT_WEBHOOK` and `INVITE_ADMIN` steps; token validation with `getMe`; trilingual welcome page on the tenant panel (`#/welcome/<token>`): password setup, bot deep link with QR, kiosk pairing steps, "bot is being connected" state; tests (covers AC-003, AC-033, AC-034).
 - [ ] T031 Module guard on kiosk, terminal, activation, relink and webhook routes; `MeView.tenant`; panel navigation and action gating with tooltips; kiosk notice screen; bot greeting with the display name; i18n in three catalogs.
 - [x] T032 (implementation and local acceptance; hosting rollout tracked in T033) Runtime configuration in `apps/admin-web/src/shared/config` and the kiosk bootstrap: fetch, zod validation, `localStorage` cache, fallback, canonical host from config; remove `VITE_CANONICAL_ORIGIN` usage; keep `VITE_API_URL` for local dev.
-- [ ] T033 Provision the first non-pilot tenant end to end; record provisioning time; browser checks on panel, kiosk and bot for both tenants; independent review; documentation updates.
+- [ ] T033 (SuperFactory ACTIVE with its own addresses; production welcome ready for owner password entry; bot deferred by owner; kiosk browser blocked by local DNS cache) Provision the first non-pilot tenant end to end; record provisioning time; browser checks on panel, kiosk and bot for both tenants; independent review; documentation updates.
 
 ## Delivery 4: Operations (US6)
 
@@ -107,12 +107,12 @@ view), AC-022, AC-023, AC-024, AC-035, client-owned domains.
 from `426cd1f` fixes failed CI, session-bound MFA, provisioning recovery, database ownership and
 invitation access. T026 desktop/mobile screenshots of all implemented tabs and independent review
 are complete; its settings-write checks still wait for T023. T027 records demonstrated gaps in the
-initial workspace rather than claiming full AC-026–031 acceptance. T028 hosting is deployed;
-owner TOTP enrollment and authenticated production browser acceptance remain explicit follow-ups.
+initial workspace rather than claiming full AC-026–031 acceptance. T028 hosting, owner TOTP and
+authenticated production browser acceptance are complete.
 
-Next: T023, T030–T032 and control hosting; then rollback rehearsal and T018 pilot cutover. The
-owner-approved continuation implements control/surface code before cutover, superseding the earlier
-cutover-first dependency ordering. T033 verifies the first non-pilot tenant before delivery 4.
+Next: T023 and T031 plus the remaining T027 workspace actions. T030/T032 are deployed in v1.20.0;
+the pilot uses registry mode and SuperFactory is active. T018/T033 retain only the unperformed
+live journeys and owner password acceptance, with the bot explicitly deferred for panel-first use.
 Writes and Git operations remain serialized on current master.
 
 ## Convergence
