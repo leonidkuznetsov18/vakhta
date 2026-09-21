@@ -62,6 +62,8 @@ import type {
   ScheduleCommandResult,
 } from '@vakhta/contracts';
 import { format, type Messages } from '@vakhta/i18n';
+import { AssignmentStatusSchema, EmployeeStatusSchema } from '@vakhta/contracts';
+import { assignmentContent } from './assignment-content.js';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
 import { isForeignKeyViolation } from '../common/pg-errors.js';
@@ -750,8 +752,11 @@ export class ScheduleService {
           .where(inArray(employees.id, employeeIds))
       : [];
     const activeSet = new Set(
-      activeEmployees.filter((e) => e.status === 'ACTIVE').map((e) => e.id),
+      activeEmployees.filter((e) => e.status === EmployeeStatusSchema.enum.ACTIVE).map((e) => e.id),
     );
+    const retained = employeeIds.some((id) => !activeSet.has(id))
+      ? await this.publishedAssignmentContents(tx, version)
+      : new Set<string>();
 
     const zoneIds = [
       ...new Set(
@@ -796,13 +801,6 @@ export class ScheduleService {
       );
     const seen = new Set<string>();
     const values = cmd.items.map((item) => {
-      if (!activeSet.has(item.employeeId)) {
-        throw new DomainError(
-          'EMPLOYEE_NOT_ACTIVE',
-          422,
-          `Працівник ${item.employeeId} не активний або не існує`,
-        );
-      }
       const template = templates.get(item.templateId);
       if (!template)
         throw new DomainError(
@@ -852,6 +850,13 @@ export class ScheduleService {
         },
         site.timezone,
       );
+      if (!activeSet.has(item.employeeId) && !retained.has(assignmentContent(item, plan))) {
+        throw new DomainError(
+          'EMPLOYEE_NOT_ACTIVE',
+          422,
+          `Employee ${item.employeeId} is inactive or missing; only unchanged published assignments may be retained`,
+        );
+      }
       const segmentInputs = item.segments ?? [];
       for (const segment of segmentInputs) {
         const zone = zoneMap.get(segment.zoneId);
@@ -1062,6 +1067,25 @@ export class ScheduleService {
       this.reviseWithin(tx, id, cmd, actor, new Date(), expectedRevision),
     );
     return result;
+  }
+
+  private async publishedAssignmentContents(
+    tx: Transaction,
+    version: VersionRow,
+  ): Promise<ReadonlySet<string>> {
+    const published = await this.publishedFor(
+      version.siteId,
+      version.orgUnitId,
+      version.periodMonth,
+      tx,
+    );
+    if (!published) return new Set();
+    const assignments = await this.loadAssignments(published.id, tx);
+    return new Set(
+      assignments
+        .filter(({ a }) => a.status === AssignmentStatusSchema.enum.PLANNED)
+        .map((row) => assignmentContent(this.toAssignmentInput(row), row.a)),
+    );
   }
 
   /** Revise a published schedule and admit reminders in the owning workflow transaction. */

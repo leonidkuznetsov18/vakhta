@@ -1275,3 +1275,28 @@ No workflow, authority, layout or text changed. Tests and limits are recorded on
 retains query/draft ownership, response fencing, command persistence and mutation dispatch. The same
 computed gates still feed controls and submission guards. No authority or lifecycle rule changed.
 Verification and limits: [cleanup delivery](../../audits/2026-09-13/code-simplification-review.md).
+
+## 2026-09-21 — Retain unchanged assignments after employee deactivation
+
+- RECON: the reported publication failed with `EMPLOYEE_NOT_ACTIVE` while adding six shifts for
+  other workers. Read-only inspection of the reported employee's production profile confirmed a
+  terminated worker with assignments still in the published month. `replaceAssignments` validated
+  every full-month entry as a new assignment, including unchanged published entries.
+- SPEC: allow unchanged planned assignments from the current published site/unit/month through
+  both direct revision and draft saving. Reject new or modified assignments for inactive workers;
+  allow explicit removal. Preserve history, access checks, full-month writes and transaction rollback.
+  No automatic employee reactivation, assignment deletion, UI change or production publication.
+- DESIGN/IMPLEMENT: reuse `publishedFor`, `loadAssignments` and `toAssignmentInput` inside the
+  existing transaction. A scheduling-local content key includes every assignment input field,
+  ordered segments/breaks and effective instants; optional empty arrays and null relief normalize.
+  Only `PLANNED` entries qualify. Other template, scope, qualification and plan validations remain.
+  No dependency or schema change; domain `diffSchedules` is insufficient for this comparison because
+  it does not include all segment/break metadata.
+- VERIFY/HARDEN: real PostgreSQL regressions cover blocked/terminated retention, draft save and
+  publication, field changes, additions, explicit removal, wrong-unit scope, old history and rollback
+  of versions/events/notifications/tasks. Effective template time changes are also rejected.
+  The service suite passed 75 tests before the final edge case was added; the final focused command
+  `pnpm --filter api test src/scheduling/schedule.service.test.ts -t 'publication with inactive employees'`
+  passed all 15 regressions (61 unrelated tests skipped). API typecheck, changed-file ESLint,
+  Prettier and diff checks passed. Independent read-only review found no blockers. Deployment status
+  is reported with delivery; no production schedule or employee status was changed during verification.

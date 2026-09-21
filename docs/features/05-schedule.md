@@ -25,6 +25,9 @@ Counts describe assigned people, not required staffing or attendance.
   saves the draft and sends it for approval, and the approver publishes or returns it with a comment.
   A planner editing a published month starts a draft copy on the first change. Publication queues
   worker notifications; it does not prove delivery. Download XLSX exports the complete saved plan.
+  A blocked or terminated worker's unchanged assignments from the current published month can be
+  retained while editing other workers, or explicitly removed. New or changed assignments for an
+  inactive worker are rejected; publication never reactivates the worker or silently drops history.
 - **Across months:** a week keeps all seven dates. Dates of the neighbouring month show that month's
   plan muted and read only, with one note naming it; navigating onto such a date opens that month.
   Changes always belong to the month you have open.

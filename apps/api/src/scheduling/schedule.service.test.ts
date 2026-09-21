@@ -19,6 +19,7 @@ import {
   ScheduleWebCommand,
   ScheduleCommandResult,
   type ScheduleVersionView,
+  type AssignmentInput,
 } from '@vakhta/contracts';
 import { webUserActor, type WebUser } from '../auth/web-auth.guard.js';
 import { RolesService } from '../auth/roles.service.js';
@@ -1157,6 +1158,215 @@ describe('scheduling: версії, валідація, публікація, о
       .from(notificationOutbox)
       .where(eq(notificationOutbox.template, 'ACK_REMINDER'));
     expect(queued).toHaveLength(1);
+  });
+
+  describe('publication with inactive employees already in the schedule', () => {
+    async function publishedAssignment() {
+      const item: AssignmentInput = {
+        employeeId: ivanov,
+        templateId: dayId,
+        businessDate: day(1),
+        kind: 'REGULAR',
+        zoneId,
+        customStart: '09:00',
+        customEnd: '18:00',
+        segments: [{ zoneId, localStart: '09:00', localEnd: '18:00' }],
+        breaks: [{ localStart: '12:00', localEnd: '12:30' }],
+      };
+      const version = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      await schedule.putAssignments(version.id, { items: [item] }, PLANNER);
+      await schedule.submit(version.id, PLANNER);
+      await schedule.publish(version.id, {}, HEAD);
+      return { version, item };
+    }
+
+    const activeAssignment = (): AssignmentInput => ({
+      employeeId: petrova,
+      templateId: dayId,
+      businessDate: day(26),
+      kind: 'REGULAR',
+    });
+
+    it.each(['BLOCKED', 'TERMINATED'] as const)(
+      'revises another employee while retaining the complete assignment of a %s employee',
+      async (status) => {
+        const { version, item } = await publishedAssignment();
+        const original = await schedule.detail(version.id);
+        await testDb.db.update(employees).set({ status }).where(eq(employees.id, ivanov));
+
+        const revised = await schedule.revise(
+          version.id,
+          { items: [item, activeAssignment()] },
+          HEAD,
+        );
+
+        expect(revised).toMatchObject({ status: 'PUBLISHED', assignmentsCount: 2 });
+        const detail = await schedule.detail(revised.id);
+        expect(detail.assignments.find((a) => a.employeeId === ivanov)).toMatchObject({
+          ...item,
+          breaks: [{ ...item.breaks?.[0], reliefEmployeeId: null }],
+        });
+        expect((await schedule.detail(version.id)).assignments).toEqual(original.assignments);
+        const changedNotifications = await testDb.db
+          .select()
+          .from(notificationOutbox)
+          .where(eq(notificationOutbox.template, 'SCHEDULE_CHANGED'));
+        expect(changedNotifications.map((row) => row.recipientId)).not.toContain(ivanov);
+      },
+    );
+
+    it('saves and publishes a copied draft after an employee is terminated', async () => {
+      const { version, item } = await publishedAssignment();
+      await testDb.db
+        .update(employees)
+        .set({ status: 'TERMINATED' })
+        .where(eq(employees.id, ivanov));
+      const draft = await schedule.createVersion(
+        { siteId, orgUnitId: unitId, periodMonth: MONTH, basedOnVersionId: version.id },
+        PLANNER,
+      );
+      await schedule.putAssignments(draft.id, { items: [item, activeAssignment()] }, PLANNER);
+      await schedule.submit(draft.id, PLANNER);
+      expect(await schedule.publish(draft.id, {}, HEAD)).toMatchObject({
+        status: 'PUBLISHED',
+        assignmentsCount: 2,
+      });
+    });
+
+    const changes: { name: string; patch: () => Partial<AssignmentInput> }[] = [
+      { name: 'date', patch: () => ({ businessDate: day(2) }) },
+      { name: 'template', patch: () => ({ templateId: nightId }) },
+      { name: 'kind', patch: () => ({ kind: 'REPLACEMENT' }) },
+      { name: 'position', patch: () => ({ positionId: randomUUID() }) },
+      { name: 'team', patch: () => ({ teamId: randomUUID() }) },
+      { name: 'custom time', patch: () => ({ customEnd: '19:00' }) },
+      { name: 'segments', patch: () => ({ segments: [] }) },
+      { name: 'breaks', patch: () => ({ breaks: [] }) },
+      {
+        name: 'relief worker',
+        patch: () => ({
+          breaks: [{ localStart: '12:00', localEnd: '12:30', reliefEmployeeId: petrova }],
+        }),
+      },
+    ];
+
+    it.each(changes)(
+      'rejects a changed $name and rolls back publication effects',
+      async ({ patch }) => {
+        const { version, item } = await publishedAssignment();
+        await testDb.db
+          .update(employees)
+          .set({ status: 'TERMINATED' })
+          .where(eq(employees.id, ivanov));
+        const original = await schedule.detail(version.id);
+        const eventsBefore = await testDb.db.select().from(domainEvents);
+        const notificationsBefore = await testDb.db.select().from(notificationOutbox);
+        const tasksBefore = await testDb.db.select().from(backgroundTasks);
+
+        await expect(
+          schedule.revise(
+            version.id,
+            {
+              items: [{ ...item, ...patch() }, activeAssignment()],
+            },
+            HEAD,
+          ),
+        ).rejects.toMatchObject({ code: 'EMPLOYEE_NOT_ACTIVE' });
+
+        expect(await schedule.detail(version.id)).toEqual(original);
+        expect(await schedule.list({ siteId, orgUnitId: unitId, periodMonth: MONTH })).toHaveLength(
+          1,
+        );
+        expect(await testDb.db.select().from(domainEvents)).toEqual(eventsBefore);
+        expect(await testDb.db.select().from(notificationOutbox)).toEqual(notificationsBefore);
+        expect(await testDb.db.select().from(backgroundTasks)).toEqual(tasksBefore);
+      },
+    );
+
+    it('rejects removing a zone or changing the effective template times', async () => {
+      const { version, item } = await publishedAssignment();
+      await testDb.db
+        .update(employees)
+        .set({ status: 'TERMINATED' })
+        .where(eq(employees.id, ivanov));
+      const { zoneId: _zone, ...withoutZone } = item;
+      await expect(
+        schedule.revise(version.id, { items: [withoutZone] }, HEAD),
+      ).rejects.toMatchObject({ code: 'EMPLOYEE_NOT_ACTIVE' });
+
+      // A non-custom assignment must not acquire new hours through template edits.
+      await testDb.db.update(employees).set({ status: 'ACTIVE' }).where(eq(employees.id, ivanov));
+      const regular = {
+        employeeId: ivanov,
+        templateId: dayId,
+        businessDate: day(1),
+        kind: item.kind,
+      };
+      const revised = await schedule.revise(version.id, { items: [regular] }, HEAD);
+      await testDb.db
+        .update(employees)
+        .set({ status: 'TERMINATED' })
+        .where(eq(employees.id, ivanov));
+      await testDb.db
+        .update(shiftTemplates)
+        .set({ localStart: '09:00' })
+        .where(eq(shiftTemplates.id, dayId));
+      await expect(schedule.revise(revised.id, { items: [regular] }, HEAD)).rejects.toMatchObject({
+        code: 'EMPLOYEE_NOT_ACTIVE',
+      });
+    });
+
+    it('allows explicit removal but rejects adding another shift for the inactive employee', async () => {
+      const { version, item } = await publishedAssignment();
+      await testDb.db
+        .update(employees)
+        .set({ status: 'TERMINATED' })
+        .where(eq(employees.id, ivanov));
+      await expect(
+        schedule.revise(
+          version.id,
+          {
+            items: [item, { ...item, businessDate: day(2) }],
+          },
+          HEAD,
+        ),
+      ).rejects.toMatchObject({ code: 'EMPLOYEE_NOT_ACTIVE' });
+      const revised = await schedule.revise(version.id, { items: [activeAssignment()] }, HEAD);
+      expect((await schedule.detail(revised.id)).assignments.map((a) => a.employeeId)).toEqual([
+        petrova,
+      ]);
+    });
+
+    it('does not reuse an assignment from another unit as an inactive employee exception', async () => {
+      const { item } = await publishedAssignment();
+      await testDb.db
+        .update(employees)
+        .set({ status: 'TERMINATED' })
+        .where(eq(employees.id, ivanov));
+      const draft = await schedule.createVersion(
+        { siteId, orgUnitId: otherUnitId, periodMonth: MONTH },
+        PLANNER,
+      );
+      await expect(
+        schedule.putAssignments(
+          draft.id,
+          {
+            items: [
+              {
+                employeeId: item.employeeId,
+                templateId: item.templateId,
+                businessDate: item.businessDate,
+                kind: item.kind,
+              },
+            ],
+          },
+          PLANNER,
+        ),
+      ).rejects.toMatchObject({ code: 'EMPLOYEE_NOT_ACTIVE' });
+    });
   });
 
   it('revise publishes an edited copy of the published month in one step and rolls back on errors', async () => {
