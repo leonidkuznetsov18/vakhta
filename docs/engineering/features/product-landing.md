@@ -116,6 +116,13 @@ host we already use, and reports visits, referrers, paths, countries, devices an
 Zone-level edge analytics (requests, unique visitors, countries) is already available in the
 Cloudflare dashboard without any setup. The landing CSP now allows the beacon script host
 `static.cloudflareinsights.com` and the beacon endpoints (`'self'` for automatic injection,
-`cloudflareinsights.com` for a manual snippet). Enablement lives in the dashboard: Web Analytics →
-add `vakhta.xyz` with automatic setup; no API token in 1Password or the Wrangler OAuth session has
-RUM permission, so it is not automated. The "no tracking cookies" decision above still holds.
+`cloudflareinsights.com` for a manual snippet). Automatic injection was already enabled zone-wide
+(panel, kiosk and control were reporting); the landing was the only hostname missing because its
+CSP blocked the beacon. The injected script carries an `integrity` hash and reports to same-origin
+`/cdn-cgi/rum`. No API token in 1Password or the Wrangler OAuth session has RUM permission; manage
+the site in the dashboard. The "no tracking cookies" decision above still holds.
+Delivery: `3da67a9` pushed to master, but the CI runs at `f32001a` failed on timeouts in unrelated
+control-web and schedule-workspace tests, so the Pages job was skipped. With owner authorization
+the landing was published from a local build of the same revision with `wrangler pages deploy`
+(deployment `c65c4b0a`, 87 files already identical, only `_headers` and `_redirects` re-uploaded).
+The next green master run redeploys the same output.
