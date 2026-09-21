@@ -1,3 +1,10 @@
+## [1.21.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.21.0...v1.21.1) (2026-09-21)
+
+### Bug fixes
+
+* **scheduling:** mark terminated workers and protect their assignments ([40d973b](https://github.com/leonidkuznetsov18/vakhta/commit/40d973b733d3ca316a81009005d8412735f2da4f))
+* **scheduling:** retain unchanged assignments for inactive employees ([9ccb542](https://github.com/leonidkuznetsov18/vakhta/commit/9ccb5427fed9698625f1632f61040c2f9f1f3dc1))
+
 ## [1.21.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.20.0...v1.21.0) (2026-09-21)
 
 ### Features
