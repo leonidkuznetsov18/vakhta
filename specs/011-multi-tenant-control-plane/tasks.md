@@ -90,7 +90,7 @@ AC-003, AC-004, AC-017–020.
 **Outcome**: the platform is operable for many tenants. **Acceptance**: AC-021 (control panel
 view), AC-022, AC-023, AC-024, AC-035, client-owned domains.
 
-- [ ] T040 Multi-database backup in `scripts/db/backup.sh` and `db-backup.yml`; per-tenant restore section in `docs/runbooks/recovery.md`; one restore drill into a scratch database with recorded evidence.
+- [x] T040 (scripts, workflow, runbook and a local restore drill; a production drill is owner-scheduled) Multi-database backup in `scripts/db/backup.sh` and `db-backup.yml`; per-tenant restore section in `docs/runbooks/recovery.md`; one restore drill into a scratch database with recorded evidence.
 - [ ] T041 Suspend and resume jobs with runtime eviction and worker skip; bot token rotation job; tenant health and schema version in the control panel.
 - [ ] T042 Client-owned domain registration and verification (`PENDING` → `VERIFIED`), TLS and DNS instructions, API serving only verified hosts; tests.
 - [ ] T043 Tenant deletion: slug confirmation, `FINAL_BACKUP`, suspension, `tenant_deletions` with retention window, restore within the window, scheduled `DROP_DATABASE` and `DROP_STORAGE`; tests (covers AC-035).

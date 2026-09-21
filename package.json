@@ -11,8 +11,9 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "test": "pnpm test:release && turbo run test",
+    "test": "pnpm test:release && pnpm test:db-scripts && turbo run test",
     "test:release": "node --test scripts/release/*.test.mjs",
+    "test:db-scripts": "node --test scripts/db/*.test.mjs",
     "typecheck": "turbo run typecheck",
     "lint": "eslint . --pass-on-unpruned-suppressions",
     "lint:prune": "eslint . --prune-suppressions",

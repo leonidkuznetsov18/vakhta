@@ -226,6 +226,19 @@ Railway CLI and Cloudflare credentials supplied the deployment operations.
 - Pilot API/worker remain in env mode; no production employee actions or tenant cutover occurred.
   Control hosting does not complete the welcome flow, runtime configuration or automatic DNS.
 
+## Tenant backups (T040, 2026-09-21)
+
+- `scripts/db/backup.sh` keeps the pilot dump and its key, then lists `vakhta_control` and
+  `vakhta_t_*` on the cluster and dumps each to `postgres/<database>/`. One failed tenant dump
+  does not stop the others; the job fails at the end. `BACKUP_ALL_DATABASES=false` disables it.
+  The nightly workflow passes the PostgreSQL 18 `psql` alongside `pg_dump`.
+- `scripts/db/restore.sh` accepts `RESTORE_ROLE`: the administrator restores on behalf of the
+  tenant role, so objects stay owned by it (provisioning creates the database owned by the role and
+  migrates as the role). Extension entries are skipped because the script creates them first.
+- Evidence: `scripts/db/backup.test.mjs` (4 tests with fake tools, part of `pnpm test`) and a local
+  PostgreSQL 16 drill recorded in `docs/runbooks/recovery.md`: counts identical after restore, no
+  foreign-owned objects, the tenant URL works after the rename swap. Production drill not run.
+
 ## Remaining work
 
 Next: T023 tenant settings and the parameters tab; T030 welcome; T031 module/branding surfaces;

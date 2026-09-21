@@ -1,6 +1,8 @@
 name: DB backup
 
 # Nightly pg_dump of the production database into a private R2/S3 bucket (docs/runbooks/recovery.md).
+# The same run dumps the control registry and every tenant database on the cluster (specs/011, T040);
+# PROD_DATABASE_URL must be a role that can connect to them (the cluster administrator).
 # Repository secrets: PROD_DATABASE_URL, BACKUP_S3_ENDPOINT, BACKUP_S3_BUCKET,
 # BACKUP_S3_ACCESS_KEY, BACKUP_S3_SECRET_KEY. Old copies are rotated by the bucket lifecycle rule.
 on:
@@ -35,4 +37,5 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_KEY }}
           AWS_DEFAULT_REGION: auto
           PG_DUMP: /usr/lib/postgresql/18/bin/pg_dump
+          PSQL: /usr/lib/postgresql/18/bin/psql
         run: scripts/db/backup.sh
