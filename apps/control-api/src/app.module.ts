@@ -1,3 +1,5 @@
+import { AdministratorsController } from './administrators/administrators.controller.js';
+import { AdministratorsService } from './administrators/administrators.service.js';
 import { OnboardingController } from './public/onboarding.controller.js';
 import { OnboardingService } from './public/onboarding.service.js';
 import { Module } from '@nestjs/common';
@@ -30,6 +32,7 @@ import { TenantsService } from './tenants/tenants.service.js';
     ControlAuthModule,
   ],
   controllers: [
+    AdministratorsController,
     BrandingController,
     PublicLogoController,
     HealthController,
@@ -41,6 +44,7 @@ import { TenantsService } from './tenants/tenants.service.js';
     OperatorsController,
   ],
   providers: [
+    AdministratorsService,
     BrandingService,
     LogoStorage,
     ControlAudit,

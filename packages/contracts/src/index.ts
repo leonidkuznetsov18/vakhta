@@ -38,3 +38,4 @@ export * from './tenant.js';
 export * from './control.js';
 export * from './tenant-settings.js';
 export * from './branding.js';
+export * from './tenant-administrators.js';

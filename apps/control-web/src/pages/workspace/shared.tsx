@@ -43,7 +43,7 @@ export function CopyButton({ value }: { value: string }) {
   return (
     <Button
       type="button"
-      size="sm"
+      className="bg-sky-700 text-white hover:bg-sky-800 active:bg-sky-900"
       onClick={() => {
         void navigator.clipboard.writeText(value).then(() => setCopied(true));
       }}

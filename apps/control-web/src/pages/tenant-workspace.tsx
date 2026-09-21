@@ -2,7 +2,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import type { ProvisioningJobView, TenantDetailView } from '@vakhta/contracts';
 import { JobStatus, TenantStatus } from '@vakhta/domain';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Menu, Check } from 'lucide-react';
+import { DropdownMenu } from 'radix-ui';
+import { Button } from '@/components/ui/button';
 import { TenantStatusDot } from '@/entities/tenant';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { controlApi, queryKeys } from '@/shared/api';
@@ -49,8 +51,6 @@ function hasLiveJob(jobs: ProvisioningJobView[] | undefined): boolean {
 
 /** The single place where every configuration of a tenant is visible and editable (spec US7). */
 export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab }) {
-  const m = t();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const tenant = useQuery({
     queryKey: queryKeys.tenant(id),
@@ -101,18 +101,61 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
       {tenant.isError ? <FailureState onRetry={() => void tenant.refetch()} /> : null}
       <WorkspaceBreadcrumbs name={detail.name} />
       <WorkspaceHeader detail={detail} />
-      <Tabs
-        value={tab}
-        onValueChange={(next) =>
-          void navigate({
-            to: '/tenants/$id',
-            params: { id },
-            search: { tab: next as WorkspaceTab },
-            replace: true,
-          })
-        }
-      >
-        <TabsList className="max-w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto max-md:overflow-visible max-md:group-data-horizontal/tabs:h-auto">
+      <WorkspaceNavigation id={id} tab={tab} />
+      {panels[tab]()}
+    </div>
+  );
+}
+
+function WorkspaceNavigation({ id, tab }: { id: string; tab: WorkspaceTab }) {
+  const m = t();
+  const navigate = useNavigate();
+  const select = (value: string) => {
+    const next = WORKSPACE_TABS.find((key) => key === value);
+    if (next)
+      void navigate({ to: '/tenants/$id', params: { id }, search: { tab: next }, replace: true });
+  };
+  return (
+    <>
+      <div className="md:hidden">
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3"
+              aria-label={`${m.nav.menu}: ${m.workspace.tabs[tab]}`}
+            >
+              <Menu aria-hidden="true" />
+              {m.workspace.tabs[tab]}
+            </Button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              align="start"
+              sideOffset={6}
+              className="z-50 max-h-[var(--radix-dropdown-menu-content-available-height)] w-[var(--radix-dropdown-menu-trigger-width)] min-w-56 overflow-y-auto rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg"
+            >
+              {WORKSPACE_TABS.map((key) => (
+                <DropdownMenu.Item key={key} asChild>
+                  <Link
+                    to="/tenants/$id"
+                    params={{ id }}
+                    search={{ tab: key }}
+                    replace
+                    aria-current={key === tab ? 'page' : undefined}
+                    className="flex min-h-11 items-center justify-between gap-3 rounded-md px-3 text-sm outline-none hover:bg-accent focus:bg-accent active:bg-accent data-highlighted:bg-accent"
+                  >
+                    {m.workspace.tabs[key]}
+                    {key === tab ? <Check aria-hidden="true" className="size-4" /> : null}
+                  </Link>
+                </DropdownMenu.Item>
+              ))}
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      </div>
+      <Tabs value={tab} onValueChange={select} className="hidden md:block">
+        <TabsList className="max-w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto">
           {WORKSPACE_TABS.map((key) => (
             <TabsTrigger key={key} value={key} className="h-9 flex-none px-3">
               {m.workspace.tabs[key]}
@@ -120,8 +163,7 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
           ))}
         </TabsList>
       </Tabs>
-      {panels[tab]()}
-    </div>
+    </>
   );
 }
 

@@ -1,3 +1,9 @@
+import {
+  tenantAdministratorsEn,
+  tenantAdministratorsUk,
+  tenantAdministratorsRu,
+  type TenantAdministratorMessages,
+} from './tenant-administrators.js';
 import { brandingUk, brandingEn, brandingRu, type BrandingMessages } from './branding.js';
 /** Mirrors the keys of TenantSettings in @vakhta/contracts; the i18n parity test keeps catalogs complete. */
 type TenantSettingName =
@@ -31,6 +37,7 @@ type TenantSettingGroupName =
 
 /** Control panel (Vakhta Control) texts: operators only, still trilingual (AGENTS.md). */
 export interface ControlMessages {
+  administrators: TenantAdministratorMessages;
   readonly branding: BrandingMessages;
   readonly productName: string;
   readonly nav: {
@@ -133,6 +140,8 @@ export interface ControlMessages {
       | 'danger',
       string
     >;
+    onboardingFirstStep: string;
+    onboardingTasks: string;
     onboardingTitle: string;
     onboardingHint: string;
     onboardingMissing: string;
@@ -263,6 +272,7 @@ export interface ControlMessages {
 }
 
 export const controlUk: ControlMessages = {
+  administrators: tenantAdministratorsUk,
   branding: brandingUk,
   productName: 'Vakhta Control',
   nav: {
@@ -388,9 +398,11 @@ export const controlUk: ControlMessages = {
       branding: brandingUk.title,
       danger: 'Небезпечна зона',
     },
-    onboardingTitle: 'Посилання для клієнта',
+    onboardingFirstStep: 'Почніть звідси',
+    onboardingTasks: 'Відкрити кроки налаштування',
+    onboardingTitle: 'Налаштуйте доступ адміністратора',
     onboardingHint:
-      'Одне посилання: адміністратор встановлює пароль, бачить бота і кроки для кіоску. Діє 7 днів, пароль встановлюється один раз.',
+      'Спочатку адміністратор має встановити пароль для входу в панель. Передайте йому це посилання: воно також містить інструкції для бота й кіоску. Діє 7 днів; пароль встановлюється один раз.',
     onboardingMissing: 'Посилання з’явиться після кроку «Запросити адміністратора».',
     copy: 'Копіювати',
     copied: 'Скопійовано',
@@ -566,6 +578,7 @@ export const controlUk: ControlMessages = {
 };
 
 export const controlEn: ControlMessages = {
+  administrators: tenantAdministratorsEn,
   branding: brandingEn,
   productName: 'Vakhta Control',
   nav: {
@@ -691,9 +704,11 @@ export const controlEn: ControlMessages = {
       branding: brandingEn.title,
       danger: 'Danger zone',
     },
-    onboardingTitle: 'Link for the client',
+    onboardingFirstStep: 'Start here',
+    onboardingTasks: 'Open setup tasks',
+    onboardingTitle: 'Set up administrator access',
     onboardingHint:
-      'One link: the administrator sets a password, sees the bot and the kiosk steps. Valid for 7 days; the password is set once.',
+      'First, the administrator needs to set a password to sign in to the panel. Share this link with them; it also includes bot and kiosk instructions. Valid for 7 days; the password is set once.',
     onboardingMissing: 'The link appears after the “Invite administrator” step.',
     copy: 'Copy',
     copied: 'Copied',
@@ -868,6 +883,7 @@ export const controlEn: ControlMessages = {
 };
 
 export const controlRu: ControlMessages = {
+  administrators: tenantAdministratorsRu,
   branding: brandingRu,
   productName: 'Vakhta Control',
   nav: {
@@ -993,9 +1009,11 @@ export const controlRu: ControlMessages = {
       branding: brandingRu.title,
       danger: 'Опасная зона',
     },
-    onboardingTitle: 'Ссылка для клиента',
+    onboardingFirstStep: 'Начните здесь',
+    onboardingTasks: 'Открыть шаги настройки',
+    onboardingTitle: 'Настройте доступ администратора',
     onboardingHint:
-      'Одна ссылка: администратор задаёт пароль, видит бота и шаги для киоска. Действует 7 дней, пароль задаётся один раз.',
+      'Сначала администратору нужно задать пароль для входа в панель. Передайте ему эту ссылку: она также содержит инструкции для бота и киоска. Действует 7 дней; пароль задаётся один раз.',
     onboardingMissing: 'Ссылка появится после шага «Пригласить администратора».',
     copy: 'Копировать',
     copied: 'Скопировано',

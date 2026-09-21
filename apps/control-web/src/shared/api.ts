@@ -34,7 +34,11 @@ export class ControlApiError extends Error {
   }
 }
 
-async function request<T>(schema: z.ZodType<T>, path: string, init: RequestInit = {}): Promise<T> {
+export async function request<T>(
+  schema: z.ZodType<T>,
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
   const response = await fetch(`${CONTROL_API_URL}${path}`, {
     ...init,
     credentials: 'include',

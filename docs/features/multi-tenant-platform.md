@@ -73,6 +73,13 @@ authenticator code.
   schedules exactly as today. The link works once for the password and expires after seven days;
   the operator can issue a new one. If the bot token is added later, the page says the bot is being
   connected.
+- **Tenant administrators.** Overview lists every administrator with their login email and MFA
+  status. After initial password setup the onboarding card disappears. Platform administrators
+  can set a new password, generate one with Reset password, or delete administrator access.
+  Existing passwords cannot be viewed. Password changes revoke sessions and pending MFA checks;
+  deletion revokes all panel access while keeping recorded history. Control prevents deleting
+  the last enterprise administrator. Viewers see the list without mutation actions. On mobile,
+  tenant sections open from a burger menu; desktop retains the tabs.
 - **Deleting a client.** A client that was never provisioned is removed at once. A working client
   is deleted only after the operator types its slug: a final backup is taken, the client is
   suspended immediately, and its database and files are removed after a retention window during

@@ -422,3 +422,44 @@ session for read-only acceptance after CI publication; local fixtures cover unfi
   state attribute; a wrapper preserves checked styling. Both have regression coverage.
 - Bot help source: [Telegram BotFather tutorial](https://core.telegram.org/bots/tutorial).
   Deployment and authenticated production acceptance follow the normal master CI publication.
+
+## Tenant administrator management (2026-09-21)
+
+Accepted scope: the owner requests replacing the completed onboarding banner with a clear tenant
+administrator list, remote password changes/reset and deletion. Current Overview renders its link
+unconditionally; administrators already live in each tenant's Better Auth tables. Passwords are
+one-way hashes and cannot be listed. Reset generates a new password in the operator's browser,
+then requires an explicit save; it is available for copying in that dialog only.
+
+Design: `features/tenant-administrators` owns Query factories, actions and responsive dialogs. The
+Overview composes it and hides onboarding after consumption. Control API uses the existing MFA
+operator guard, tenant database secrets, Better Auth hashing and shared password validation.
+Viewers may read; only platform administrators may mutate. All strings ship in uk/en/ru.
+Deletion revokes all panel grants, credentials, MFA and sessions while retaining the identity and
+historical onboarding records. The last enterprise administrator is protected. Mutations serialize
+against onboarding/reissue and other control administrator mutations; tenant-local audit and
+invitation-consumption markers commit with the access change. Registry audit failure is surfaced;
+local durable evidence remains. No existing passwords are returned, logged or persisted in browser
+storage. No migrations, new dependencies, invitations by email or production credential changes.
+
+Acceptance evidence required: tenant isolation and operator roles, validation, distinct administrator
+listing, password/session invalidation, prior invitation invalidation, concurrent last-admin removal,
+partial-failure audit evidence, failed-draft preservation, viewer/read-only and desktop/mobile UI.
+Local backend suite passed 34 tests before hardening; the focused seven administrator cases cover
+MFA challenge revocation and pagination. Control UI has eight focused regressions; i18n parity has 13.
+Control API typecheck, Control UI production build and scoped lint passed. Independent read-only
+review identified pending MFA challenges; both password/removal paths now revoke user-bound
+verification records, with regression coverage. Local synthetic two-admin screenshots at 1440×1000
+and 390×844, including the password dialog, were captured and visually inspected. Mobile document
+width equals 390; focus returns to the action after closing. Browser QA did not submit credentials.
+
+Recovery limits: after registry audit failure, tenant-local evidence remains authoritative; registry
+reconciliation is not automatic. Refresh can confirm removal but cannot reveal/confirm a password.
+The error preserves the password and reports uncertainty. Existing tenant-panel role revocation and
+deletion do not share the Control last-admin guard; the concurrency guarantee here covers Control
+mutations. Owner follow-up: mobile workspace tabs now use a burger menu with the current section label;
+desktop retains tabs. Real Chrome 390px navigation to Database closes the menu and restores focus.
+The coordinated onboarding card styling belongs to the parallel Control UI task; its owner handed
+the final files back for this combined delivery. Its pending and issued-link states were visually
+inspected at 1440×1000 and 390×844; the long URL scrolls inside its field, without page overflow.
+Production acceptance and release status remain pending.
