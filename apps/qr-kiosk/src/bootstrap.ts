@@ -1,6 +1,12 @@
 import { messages, resolveLocale } from '@vakhta/i18n';
 import { browserStorage, resolveTenant, setTenantConfig } from '@vakhta/tenant-client';
 
+const configuredControlUrl: unknown = import.meta.env['VITE_CONTROL_API_URL'];
+const controlUrl =
+  typeof configuredControlUrl === 'string' && configuredControlUrl.length > 0
+    ? configuredControlUrl
+    : 'https://control-api.vakhta.xyz';
+
 async function start(): Promise<void> {
   if (import.meta.env.DEV) {
     await import('./main');
@@ -19,7 +25,7 @@ async function start(): Promise<void> {
     const config = await resolveTenant({
       host: location.host,
       surface: 'KIOSK',
-      controlUrl: import.meta.env['VITE_CONTROL_API_URL'] ?? 'https://control-api.vakhta.xyz',
+      controlUrl,
       storage: browserStorage(),
     });
     if (location.origin !== new URL(config.canonicalUrl).origin) {
