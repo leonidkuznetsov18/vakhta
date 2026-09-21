@@ -37,7 +37,11 @@ Administration tabs:
   themselves and the last administrator stays.
 - "Справочники": sites (time zone), units, teams, positions, zones (type, shared, active), reason
   codes; every table has add, edit and delete with a reason. Units have an explicit employee master
-  picker and a "needs a master" filter. Designation does not grant panel access.
+  picker and a "needs a master" filter. Designation does not grant panel access. A "Таблица / Дерево"
+  switch shows the same units as a collapsible site → unit → sub-unit → people tree: each unit lists
+  its shift master, the headcount below it and the employees whose current position is in it
+  (terminated ones are hidden); the tree has its own search and a count line, and the choice is
+  remembered per browser.
 - "Терминалы": register, then everything else in the terminal card (row click): the
   "Подключение планшета" block with the three pairing steps, "Код подключения" and the issued
   code with the tablet link and copy buttons; edit, enable / disable and delete in the card

@@ -1597,6 +1597,12 @@ export const en: Messages = {
         deleteConfirm: 'Delete "{name}"? The action is written to the audit log.',
         deleted: 'Record deleted.',
         inUse: 'The record is referenced by other data. Reassign or deactivate it first.',
+        view: 'View',
+        viewTable: 'Table',
+        viewTree: 'Tree',
+        treeEmployees: 'Employees: {n}',
+        treeNoEmployees: 'No employees',
+        treeNoUnits: 'The site has no units',
         zoneTypes: {
           AREA: 'Area',
           POST: 'Post',
@@ -2309,6 +2315,8 @@ export const en: Messages = {
       directoriesTimezone:
         'IANA time zone, for example Europe/Kyiv. Planned shift times are computed in it.',
       directoriesCode: 'Short Latin code used in integrations and exports.',
+      directoriesTree:
+        'The tree shows sites, nested units and the employees whose current position is in each unit. Terminated employees are hidden.',
       terminalsPair:
         'The code is valid for 15 minutes and is typed once on the terminal screen. A new code replaces the old pairing.',
       terminalsStatus: 'A disabled terminal stops issuing QR codes; its pairing is kept.',

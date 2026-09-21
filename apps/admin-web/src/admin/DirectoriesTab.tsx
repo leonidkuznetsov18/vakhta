@@ -1,6 +1,7 @@
-import { UnitMasterPicker } from '@/features/employee-profile';
+import { UnitMasterPicker, profileDirectoryOptions } from '@/features/employee-profile';
+import { OrgTree } from '@/features/org-structure';
 import { useState, type FormEvent } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { OrgSnapshot } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
+import { StateFilter } from '@/shared/ui/state-filter';
 import { Muted, Section, StatusPill } from '@/components/app/page';
 import { adminOrgApi } from '../api.ts';
 import { readError } from '../errors.ts';
@@ -30,6 +32,7 @@ const all = messages(currentLocale());
 const t = all.admin.administration;
 const d = t.directories;
 const hints = all.ui.hints;
+const unitsViewLabel = { table: d.viewTable, tree: d.viewTree } as const;
 const KIND_PATH = {
   sites: 'sites',
   orgUnits: 'units',
@@ -39,6 +42,9 @@ const KIND_PATH = {
 } as const;
 const ZONE_TYPES = ['AREA', 'POST', 'PACKAGING', 'FILLING', 'CLEANING', 'OTHER'] as const;
 type ZoneType = (typeof ZONE_TYPES)[number];
+/** The units directory is read either as the flat table or as the site → unit → people tree. */
+const UNITS_VIEWS = ['table', 'tree'] as const;
+type UnitsView = (typeof UNITS_VIEWS)[number];
 
 interface Props {
   readonly org: OrgSnapshot;
@@ -48,6 +54,9 @@ interface Props {
 export function DirectoriesTab({ org }: Props) {
   const [masterUnit, setMasterUnit] = useState<OrgSnapshot['orgUnits'][number] | null>(null);
   const [needsMaster, setNeedsMaster] = useState(false);
+  const [unitsView, setUnitsView] = usePersistentState<UnitsView>('directories.unitsView', 'table');
+  // The tree needs the whole roster; the table does not, so the read waits until the tree is chosen.
+  const roster = useQuery({ ...profileDirectoryOptions(), enabled: unitsView === 'tree' });
   const profileText = all.employeeProfile;
   const [dlg, setDlg] = useState<'sites' | 'orgUnits' | 'teams' | 'positions' | 'zones' | null>(
     null,
@@ -369,29 +378,53 @@ export function DirectoriesTab({ org }: Props) {
         }
       >
         {masterUnit && <UnitMasterPicker unit={masterUnit} onClose={() => setMasterUnit(null)} />}
-        <label className="mb-3 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={needsMaster}
-            onChange={(event) => setNeedsMaster(event.target.checked)}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex items-center gap-1">
+            <StateFilter
+              label={d.view}
+              value={unitsView}
+              onChange={setUnitsView}
+              options={UNITS_VIEWS.map((value) => ({ value, label: unitsViewLabel[value] }))}
+            />
+            <InfoTip text={hints.directoriesTree} />
+          </div>
+          {unitsView === 'table' && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={needsMaster}
+                onChange={(event) => setNeedsMaster(event.target.checked)}
+              />
+              {profileText.needsMaster}
+            </label>
+          )}
+        </div>
+        {unitsView === 'tree' ? (
+          <OrgTree
+            org={org}
+            employees={roster.data}
+            roster={roster}
+            onAssignMaster={setMasterUnit}
           />
-          {profileText.needsMaster}
-        </label>
-        <DataTable
-          columns={unitColumns}
-          rowActions={(u) => rowMenu('orgUnits', u, { kind: 'orgUnits', row: u })}
-          searchText={(u) => u.name}
-          rows={needsMaster ? org.orgUnits.filter((unit) => !unit.masterEmployeeId) : org.orgUnits}
-          rowKey={(u) => u.id}
-          empty={t.common.empty}
-          pageSize={10}
-          storageKey="directories.orgUnits"
-          emptyAction={
-            <Button type="button" variant="outline" onClick={() => setDlg('orgUnits')}>
-              {t.common.add}
-            </Button>
-          }
-        />
+        ) : (
+          <DataTable
+            columns={unitColumns}
+            rowActions={(u) => rowMenu('orgUnits', u, { kind: 'orgUnits', row: u })}
+            searchText={(u) => u.name}
+            rows={
+              needsMaster ? org.orgUnits.filter((unit) => !unit.masterEmployeeId) : org.orgUnits
+            }
+            rowKey={(u) => u.id}
+            empty={t.common.empty}
+            pageSize={10}
+            storageKey="directories.orgUnits"
+            emptyAction={
+              <Button type="button" variant="outline" onClick={() => setDlg('orgUnits')}>
+                {t.common.add}
+              </Button>
+            }
+          />
+        )}
       </Section>
 
       <Section

@@ -1282,6 +1282,13 @@ export interface Messages {
         readonly deleteConfirm: string;
         readonly deleted: string;
         readonly inUse: string;
+        readonly view: string;
+        readonly viewTable: string;
+        readonly viewTree: string;
+        /** Placeholder: {n} */
+        readonly treeEmployees: string;
+        readonly treeNoEmployees: string;
+        readonly treeNoUnits: string;
         readonly zoneTypes: Readonly<
           Record<'AREA' | 'POST' | 'PACKAGING' | 'FILLING' | 'CLEANING' | 'OTHER', string>
         >;
@@ -1550,6 +1557,7 @@ export interface Messages {
       readonly directoriesZoneType: string;
       readonly directoriesTimezone: string;
       readonly directoriesCode: string;
+      readonly directoriesTree: string;
       readonly terminalsPair: string;
       readonly terminalsStatus: string;
       readonly terminalsDelete: string;
