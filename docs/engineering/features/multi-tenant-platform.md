@@ -388,3 +388,37 @@ The owner chose panel first, with the bot token to be added later in the control
   deployment. Browser file upload is blocked until the owner enables file access for the Chrome
   extension. Panel/kiosk screenshot checks also encountered an extension popup blocking browser
   automation; these are not claimed as completed. No production tenant branding was changed.
+
+## Control workspace UI alignment (2026-09-21)
+
+Accepted scope: the owner's eleven-point Control UI request. Reuse the admin panel's Geist font,
+sidebar tokens, 256 px navigation, 32 px desktop / 44 px mobile controls and visible interaction
+states. Header actions end with an external-panel icon, an 8 px gap and a labeled status dot.
+Clients open from their rows; only the three delivered modules appear with larger green checkboxes.
+Database and domain details use existing validated registry fields, never invented live metrics.
+Remove domain creation from the UI. Bot help follows Telegram's official BotFather instructions.
+Jobs are a checklist with explicit completion/skipped/waiting states and links to configuration;
+existing retry/skip contracts and recorded results remain unchanged.
+
+Design: preserve the current page composition and backend contracts. Domain-independent controls
+stay under shared; the tenant status indicator has an entity public API. Workspace detail models
+prepare technical fields and job destinations outside rendering. Query owns remote state; disclosure
+state is local. All added copy ships in uk/en/ru. No new infrastructure, migrations, secret exposure
+or production tenant mutations are part of this change. Existing broad page-layout debt remains.
+
+Acceptance: focused component/navigation regressions, control-web type/lint/build checks, i18n
+parity, and visual inspection of affected desktop/390 px views. Reuse the authenticated production
+session for read-only acceptance after CI publication; local fixtures cover unfinished jobs.
+
+- Local verification: 18 control-web tests and 13 i18n tests pass; scoped ESLint and the control
+  production build/typecheck pass. New regressions cover row navigation, module mutations, domain
+  disclosures, skipped-step destinations, webhook-secret presence and click-open information tips.
+- Chrome Private screenshots were captured and visually inspected at 1440×1000 and 390×844 for
+  Database, Bot, Domains, Modules, Jobs and Clients. Mobile navigation uses a focus-managed Radix
+  drawer; document width stays 390 px. Synthetic local records cover manual and skipped job steps;
+  no production configuration was changed. Artifacts: `test-results/control-style/` (ignored).
+- Independent review found touch-inaccessible information tooltips; controlled click opening fixes
+  this while keeping hover/focus. Visual QA also found TooltipTrigger overwriting the checkbox's
+  state attribute; a wrapper preserves checked styling. Both have regression coverage.
+- Bot help source: [Telegram BotFather tutorial](https://core.telegram.org/bots/tutorial).
+  Deployment and authenticated production acceptance follow the normal master CI publication.

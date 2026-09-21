@@ -34,6 +34,8 @@ export interface ControlMessages {
   readonly branding: BrandingMessages;
   readonly productName: string;
   readonly nav: {
+    menu: string;
+    closeMenu: string;
     tenants: string;
     catalog: string;
     operators: string;
@@ -93,6 +95,31 @@ export interface ControlMessages {
     submitting: string;
   };
   readonly workspace: {
+    breadcrumbs: string;
+    enableModule: string;
+    disableModule: string;
+    tokenHelpTitle: string;
+    tokenHelp: string;
+    technical: {
+      tenantId: string;
+      domainId: string;
+      connection: string;
+      credentials: string;
+      credentialsUpdated: string;
+      isolation: string;
+      dedicatedDatabase: string;
+      registryHint: string;
+      storage: string;
+      storagePrefix: string;
+      createdAt: string;
+      updatedAt: string;
+      url: string;
+      verifiedAt: string;
+      management: string;
+      openDomain: string;
+      domainHint: string;
+      domainCount: string;
+    };
     tabs: Record<
       | 'overview'
       | 'modules'
@@ -154,6 +181,12 @@ export interface ControlMessages {
     auditEmpty: string;
   };
   readonly jobs: {
+    configure: string;
+    pendingHint: string;
+    skippedHint: string;
+    finishedAt: string;
+    startedAt: string;
+    skippedCount: string;
     title: string;
     status: Record<'PENDING' | 'RUNNING' | 'DONE' | 'FAILED' | 'CANCELLED', string>;
     stepStatus: Record<
@@ -233,6 +266,8 @@ export const controlUk: ControlMessages = {
   branding: brandingUk,
   productName: 'Vakhta Control',
   nav: {
+    menu: 'Розділи',
+    closeMenu: 'Закрити меню',
     tenants: 'Клієнти',
     catalog: 'Каталог модулів',
     operators: 'Оператори',
@@ -313,6 +348,34 @@ export const controlUk: ControlMessages = {
     submitting: 'Створюємо…',
   },
   workspace: {
+    breadcrumbs: 'Навігаційний шлях',
+    enableModule: 'Увімкнути модуль',
+    disableModule: 'Вимкнути модуль',
+    tokenHelpTitle: 'Як отримати токен бота',
+    tokenHelp:
+      'У Telegram відкрийте офіційний @BotFather. Надішліть /newbot, задайте назву та ім’я користувача за підказками. Скопіюйте виданий токен у це поле й збережіть. Токен дає керування ботом: зберігайте його як пароль.',
+    technical: {
+      tenantId: 'ID клієнта',
+      domainId: 'ID домену',
+      connection: 'Підключення й ізоляція',
+      credentials: 'Облікові дані БД',
+      credentialsUpdated: 'Облікові дані оновлено',
+      isolation: 'Ізоляція даних',
+      dedicatedDatabase: 'Окрема база даних клієнта',
+      registryHint:
+        'Дані з реєстру. Наявність облікових даних не підтверджує доступність БД; розмір, з’єднання та резервні копії тут не перевіряються.',
+      storage: 'Сховище й життєвий цикл',
+      storagePrefix: 'Префікс об’єктного сховища',
+      createdAt: 'Клієнта створено',
+      updatedAt: 'Реєстр оновлено',
+      url: 'HTTPS-адреса',
+      verifiedAt: 'Домен перевірено',
+      management: 'Керування',
+      openDomain: 'Відкрити домен',
+      domainHint:
+        'Це збережений стан маршрутизації клієнта. DNS, сертифікат TLS і доступність сервісу не перевіряються наживо на цій сторінці.',
+      domainCount: 'Доменів: {count}',
+    },
     tabs: {
       overview: 'Огляд',
       modules: 'Модулі',
@@ -374,6 +437,14 @@ export const controlUk: ControlMessages = {
     auditEmpty: 'Записів аудиту ще немає.',
   },
   jobs: {
+    configure: 'Відкрити налаштування',
+    pendingHint:
+      'Крок очікує виконання попередніх кроків. Налаштування можна перевірити заздалегідь.',
+    skippedHint:
+      'Крок пропущено, а не виконано. Перевірте налаштування, якщо ця можливість потрібна.',
+    finishedAt: 'Завершено',
+    startedAt: 'Розпочато',
+    skippedCount: 'Пропущено: {count}',
     title: 'Підготовка',
     status: {
       PENDING: 'очікує',
@@ -498,6 +569,8 @@ export const controlEn: ControlMessages = {
   branding: brandingEn,
   productName: 'Vakhta Control',
   nav: {
+    menu: 'Sections',
+    closeMenu: 'Close menu',
     tenants: 'Clients',
     catalog: 'Module catalog',
     operators: 'Operators',
@@ -578,6 +651,34 @@ export const controlEn: ControlMessages = {
     submitting: 'Creating…',
   },
   workspace: {
+    breadcrumbs: 'Breadcrumbs',
+    enableModule: 'Enable module',
+    disableModule: 'Disable module',
+    tokenHelpTitle: 'How to get a bot token',
+    tokenHelp:
+      'In Telegram, open the official @BotFather. Send /newbot and follow the prompts for a name and username. Copy the issued token into this field and save. The token controls your bot: keep it private like a password.',
+    technical: {
+      tenantId: 'Client ID',
+      domainId: 'Domain ID',
+      connection: 'Connection and isolation',
+      credentials: 'Database credentials',
+      credentialsUpdated: 'Credentials updated',
+      isolation: 'Data isolation',
+      dedicatedDatabase: 'Dedicated client database',
+      registryHint:
+        'Registry data. Stored credentials do not confirm database availability; size, connections and backups are not checked here.',
+      storage: 'Storage and lifecycle',
+      storagePrefix: 'Object storage prefix',
+      createdAt: 'Client created',
+      updatedAt: 'Registry updated',
+      url: 'HTTPS address',
+      verifiedAt: 'Domain verified',
+      management: 'Management',
+      openDomain: 'Open domain',
+      domainHint:
+        'This is the recorded client routing state. DNS, the TLS certificate and service availability are not checked live on this page.',
+      domainCount: 'Domains: {count}',
+    },
     tabs: {
       overview: 'Overview',
       modules: 'Modules',
@@ -639,6 +740,14 @@ export const controlEn: ControlMessages = {
     auditEmpty: 'No audit entries yet.',
   },
   jobs: {
+    configure: 'Open configuration',
+    pendingHint:
+      'This step is waiting for earlier steps. You can review its configuration in advance.',
+    skippedHint:
+      'This step was skipped, not completed. Review configuration if you need this capability.',
+    finishedAt: 'Finished',
+    startedAt: 'Started',
+    skippedCount: 'Skipped: {count}',
     title: 'Provisioning',
     status: {
       PENDING: 'pending',
@@ -762,6 +871,8 @@ export const controlRu: ControlMessages = {
   branding: brandingRu,
   productName: 'Vakhta Control',
   nav: {
+    menu: 'Разделы',
+    closeMenu: 'Закрыть меню',
     tenants: 'Клиенты',
     catalog: 'Каталог модулей',
     operators: 'Операторы',
@@ -842,6 +953,34 @@ export const controlRu: ControlMessages = {
     submitting: 'Создаём…',
   },
   workspace: {
+    breadcrumbs: 'Навигационный путь',
+    enableModule: 'Включить модуль',
+    disableModule: 'Выключить модуль',
+    tokenHelpTitle: 'Как получить токен бота',
+    tokenHelp:
+      'В Telegram откройте официального @BotFather. Отправьте /newbot, задайте название и имя пользователя по подсказкам. Скопируйте выданный токен в это поле и сохраните. Токен даёт управление ботом: храните его как пароль.',
+    technical: {
+      tenantId: 'ID клиента',
+      domainId: 'ID домена',
+      connection: 'Подключение и изоляция',
+      credentials: 'Учётные данные БД',
+      credentialsUpdated: 'Учётные данные обновлены',
+      isolation: 'Изоляция данных',
+      dedicatedDatabase: 'Отдельная база данных клиента',
+      registryHint:
+        'Данные реестра. Наличие учётных данных не подтверждает доступность БД; размер, соединения и резервные копии здесь не проверяются.',
+      storage: 'Хранилище и жизненный цикл',
+      storagePrefix: 'Префикс объектного хранилища',
+      createdAt: 'Клиент создан',
+      updatedAt: 'Реестр обновлён',
+      url: 'HTTPS-адрес',
+      verifiedAt: 'Домен проверен',
+      management: 'Управление',
+      openDomain: 'Открыть домен',
+      domainHint:
+        'Это сохранённое состояние маршрутизации клиента. DNS, сертификат TLS и доступность сервиса не проверяются в реальном времени на этой странице.',
+      domainCount: 'Доменов: {count}',
+    },
     tabs: {
       overview: 'Обзор',
       modules: 'Модули',
@@ -903,6 +1042,12 @@ export const controlRu: ControlMessages = {
     auditEmpty: 'Записей аудита ещё нет.',
   },
   jobs: {
+    configure: 'Открыть настройки',
+    pendingHint: 'Шаг ожидает выполнения предыдущих шагов. Настройки можно проверить заранее.',
+    skippedHint: 'Шаг пропущен, а не выполнен. Проверьте настройки, если эта возможность нужна.',
+    finishedAt: 'Завершено',
+    startedAt: 'Начато',
+    skippedCount: 'Пропущено: {count}',
     title: 'Подготовка',
     status: {
       PENDING: 'ожидает',

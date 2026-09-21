@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { TenantSummaryView } from '@vakhta/contracts';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +59,7 @@ export function TenantsPage() {
 
 function TenantsTable({ rows, total }: { rows: TenantSummaryView[]; total: number }) {
   const m = t();
+  const navigate = useNavigate();
   return (
     <div className="rounded-xl border bg-card">
       <Table>
@@ -69,14 +70,31 @@ function TenantsTable({ rows, total }: { rows: TenantSummaryView[]; total: numbe
             <TableHead>{m.tenants.columns.modules}</TableHead>
             <TableHead>{m.tenants.columns.schema}</TableHead>
             <TableHead>{m.tenants.columns.lastJob}</TableHead>
-            <TableHead />
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((row) => (
-            <TableRow key={row.id}>
+            <TableRow
+              key={row.id}
+              className="cursor-pointer hover:bg-muted/70 focus-within:bg-muted/70 active:bg-muted"
+              onClick={(event) => {
+                if (event.target instanceof Element && event.target.closest('a, button')) return;
+                void navigate({
+                  to: '/tenants/$id',
+                  params: { id: row.id },
+                  search: { tab: 'overview' },
+                });
+              }}
+            >
               <TableCell>
-                <div className="font-medium">{row.name}</div>
+                <Link
+                  className="control-link font-medium"
+                  to="/tenants/$id"
+                  params={{ id: row.id }}
+                  search={{ tab: 'overview' }}
+                >
+                  {row.name}
+                </Link>
                 <div className="text-xs text-muted-foreground">{row.panelHost ?? row.slug}</div>
               </TableCell>
               <TableCell>
@@ -90,13 +108,6 @@ function TenantsTable({ rows, total }: { rows: TenantSummaryView[]; total: numbe
                 {row.lastJob
                   ? `${m.jobs.kinds[row.lastJob.kind]} · ${m.jobs.status[row.lastJob.status]}`
                   : '—'}
-              </TableCell>
-              <TableCell className="text-right">
-                <Button asChild variant="link" size="sm">
-                  <Link to="/tenants/$id" params={{ id: row.id }}>
-                    {m.tenants.open}
-                  </Link>
-                </Button>
               </TableCell>
             </TableRow>
           ))}

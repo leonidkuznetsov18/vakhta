@@ -1,45 +1,17 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import type { TenantDetailView } from '@vakhta/contracts';
-import { TenantSecretKind, TenantStatus, type TenantSurface } from '@vakhta/domain';
+import { TenantSecretKind, TenantStatus } from '@vakhta/domain';
+import { CircleHelp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { controlApi, queryKeys } from '@/shared/api';
 import { t } from '@/shared/i18n';
-import { FailureState, Field, LoadingState, StatusBadge } from '@/shared/ui';
+import { FailureState, Field, LoadingState } from '@/shared/ui';
+import { InfoTooltip } from '@/shared/ui/info-tooltip';
 import { InfoCard, describeError, secretPresent, type TabProps } from './shared';
-
-export function DatabaseTab({ detail }: { detail: TenantDetailView }) {
-  const m = t().workspace;
-  const rows: [string, string][] = [
-    [m.database, detail.databaseName],
-    [m.schemaVersion, detail.schemaVersion ?? m.never],
-    [m.migratedAt, detail.migratedAt ? new Date(detail.migratedAt).toLocaleString() : m.never],
-    ['storage', detail.storagePrefix || '—'],
-  ];
-  return (
-    <Card>
-      <CardContent className="grid gap-2 pt-6 text-sm sm:grid-cols-[200px_1fr]">
-        {rows.map(([label, value]) => (
-          <div key={label} className="contents">
-            <span className="text-muted-foreground">{label}</span>
-            <span>{value}</span>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
 
 export function BotTab({ detail, onChanged }: TabProps) {
   const m = t().workspace;
@@ -53,7 +25,7 @@ export function BotTab({ detail, onChanged }: TabProps) {
     },
     onError: (e: unknown) => toast.error(describeError(e)),
   });
-  const present = secretPresent(detail, TenantSecretKind.BOT_TOKEN) ? m.present : m.absent;
+  const present = secretPresent(detail, TenantSecretKind.BOT_WEBHOOK_SECRET) ? m.present : m.absent;
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <InfoCard
@@ -65,11 +37,18 @@ export function BotTab({ detail, onChanged }: TabProps) {
       />
       <Card>
         <CardHeader>
-          <CardTitle>{m.setToken}</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            {m.setToken}
+            <InfoTooltip label={m.tokenHelpTitle} text={m.tokenHelp}>
+              <CircleHelp className="size-4" aria-hidden="true" />
+            </InfoTooltip>
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <Input
             type="password"
+            aria-label={m.setToken}
+            autoComplete="new-password"
             value={token}
             onChange={(e) => setToken(e.target.value.trim())}
             placeholder={t().create.botTokenPlaceholder}
@@ -77,82 +56,11 @@ export function BotTab({ detail, onChanged }: TabProps) {
           <Button
             type="button"
             disabled={token.length < 30 || save.isPending}
-            onClick={() => save.mutate()}
+            onClick={() => {
+              if (token.length >= 30 && !save.isPending) save.mutate();
+            }}
           >
             {m.setToken}
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-export function DomainsTab({ detail, onChanged }: TabProps) {
-  const m = t().workspace;
-  const [host, setHost] = useState('');
-  const [surface, setSurface] = useState<TenantSurface>('PANEL');
-  const add = useMutation({
-    mutationFn: () => controlApi.addDomain(detail.id, { host, surface, isPrimary: false }),
-    onSuccess: async () => {
-      setHost('');
-      await onChanged();
-    },
-    onError: (e: unknown) => toast.error(describeError(e)),
-  });
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="rounded-xl border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{m.host}</TableHead>
-              <TableHead>{m.surface}</TableHead>
-              <TableHead />
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {detail.domains.map((d) => (
-              <TableRow key={d.id}>
-                <TableCell className="font-medium">{d.host}</TableCell>
-                <TableCell>{d.surface}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {d.isManaged ? m.managed : m.custom}
-                  {d.isPrimary ? ` · ${m.primary}` : ''}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge code={d.status} label={m.domainStatus[d.status]} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>{m.addDomain}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <Field label={m.host}>
-            <Input value={host} onChange={(e) => setHost(e.target.value.trim().toLowerCase())} />
-          </Field>
-          <Field label={m.surface}>
-            <select
-              className="h-9 rounded-md border bg-background px-2 text-sm"
-              value={surface}
-              onChange={(e) => setSurface(e.target.value as TenantSurface)}
-            >
-              <option value="PANEL">{m.panel}</option>
-              <option value="KIOSK">{m.kiosk}</option>
-              <option value="API">{m.api}</option>
-            </select>
-          </Field>
-          <Button
-            type="button"
-            disabled={host.length < 3 || add.isPending}
-            onClick={() => add.mutate()}
-          >
-            {m.addDomain}
           </Button>
         </CardContent>
       </Card>

@@ -2,12 +2,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import type { ProvisioningJobView, TenantDetailView } from '@vakhta/contracts';
 import { JobStatus, TenantStatus } from '@vakhta/domain';
-import { Button } from '@/components/ui/button';
+import { ExternalLink } from 'lucide-react';
+import { TenantStatusDot } from '@/entities/tenant';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { controlApi, queryKeys } from '@/shared/api';
 import { t } from '@/shared/i18n';
-import { FailureState, LoadingState, PageHeader, StatusBadge } from '@/shared/ui';
-import { AuditTab, BotTab, DangerTab, DatabaseTab, DomainsTab } from './workspace/details';
+import { FailureState, LoadingState, PageHeader, IconButton } from '@/shared/ui';
+import { AuditTab, BotTab, DangerTab } from './workspace/details';
+import { DatabaseTab } from './workspace/database';
+import { DomainsTab } from './workspace/domains';
 import { JobCard } from './workspace/jobs';
 import { ModulesTab } from './workspace/modules';
 import { OverviewTab } from './workspace/overview';
@@ -77,7 +80,7 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
     modules: () => <ModulesTab detail={detail} onChanged={refresh} />,
     database: () => <DatabaseTab detail={detail} />,
     bot: () => <BotTab detail={detail} onChanged={refresh} />,
-    domains: () => <DomainsTab detail={detail} onChanged={refresh} />,
+    domains: () => <DomainsTab detail={detail} />,
     parameters: () => <ParametersTab tenantId={id} />,
     branding: () => <BrandingEditor tenantId={id} />,
     jobs: () => (
@@ -96,9 +99,7 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
   return (
     <div className="flex flex-col gap-5">
       {tenant.isError ? <FailureState onRetry={() => void tenant.refetch()} /> : null}
-      <div className="text-sm text-muted-foreground">
-        <Link to="/">{m.nav.tenants}</Link> / {detail.name}
-      </div>
+      <WorkspaceBreadcrumbs name={detail.name} />
       <WorkspaceHeader detail={detail} />
       <Tabs
         value={tab}
@@ -124,6 +125,22 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
   );
 }
 
+function WorkspaceBreadcrumbs({ name }: { name: string }) {
+  const m = t();
+  return (
+    <nav
+      aria-label={m.workspace.breadcrumbs}
+      className="flex items-center gap-2 text-sm text-muted-foreground"
+    >
+      <Link to="/" className="control-link">
+        {m.nav.tenants}
+      </Link>
+      <span aria-hidden="true">/</span>
+      <span aria-current="page">{name}</span>
+    </nav>
+  );
+}
+
 function WorkspaceHeader({ detail }: { detail: TenantDetailView }) {
   const m = t();
   return (
@@ -131,15 +148,20 @@ function WorkspaceHeader({ detail }: { detail: TenantDetailView }) {
       title={detail.name}
       subtitle={`${detail.slug} · ${detail.timezone} · ${detail.defaultLocale} · ${m.workspace.schemaVersion}: ${detail.schemaVersion ?? m.workspace.never}`}
       action={
-        <div className="flex flex-wrap gap-2">
-          <StatusBadge code={detail.status} label={m.status[detail.status]} />
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {detail.panelHost ? (
-            <Button asChild variant="outline" size="sm">
-              <a href={`https://${detail.panelHost}`} target="_blank" rel="noreferrer">
-                {m.workspace.openPanel}
-              </a>
-            </Button>
+            <IconButton
+              asChild
+              variant="outline"
+              size="icon"
+              icon={ExternalLink}
+              label={m.workspace.openPanel}
+              tooltip={m.workspace.openPanel}
+            >
+              <a href={`https://${detail.panelHost}`} target="_blank" rel="noreferrer"></a>
+            </IconButton>
           ) : null}
+          <TenantStatusDot status={detail.status} />
         </div>
       }
     />

@@ -1,19 +1,14 @@
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { DELIVERED_TENANT_MODULES, TENANT_MODULES, TenantModule } from '@vakhta/domain';
+import { DELIVERED_TENANT_MODULES, TenantModule } from '@vakhta/domain';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Alert, AlertTitle } from '@/components/ui/alert';
+import { TriangleAlert } from 'lucide-react';
 import { controlApi } from '@/shared/api';
 import { t } from '@/shared/i18n';
 import { describeError, type TabProps } from './shared';
-
-type Delivered = (typeof DELIVERED_TENANT_MODULES)[number];
-const DELIVERED = new Set<string>(DELIVERED_TENANT_MODULES);
-
-function hintFor(module: string): string {
-  const m = t();
-  return DELIVERED.has(module) ? m.moduleHints[module as Delivered] : m.reserved;
-}
 
 export function ModulesTab({ detail, onChanged }: TabProps) {
   const m = t();
@@ -25,30 +20,42 @@ export function ModulesTab({ detail, onChanged }: TabProps) {
   });
   const enabledOf = new Map(detail.moduleRows.map((row) => [row.module, row.enabled]));
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {TENANT_MODULES.map((module) => {
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {DELIVERED_TENANT_MODULES.map((module) => {
         const enabled = enabledOf.get(module) ?? false;
         return (
-          <Card key={module} className={DELIVERED.has(module) ? '' : 'border-dashed opacity-70'}>
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card key={module}>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
               <CardTitle>{m.modules[module]}</CardTitle>
-              {DELIVERED.has(module) ? (
-                <label className="flex items-center gap-2 text-xs">
-                  <Checkbox
-                    checked={enabled}
-                    disabled={toggle.isPending}
-                    onCheckedChange={(checked) =>
-                      toggle.mutate({ module, enabled: checked === true })
-                    }
-                  />
-                  {enabled ? m.workspace.enabled : m.workspace.disabled}
-                </label>
-              ) : null}
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex shrink-0">
+                      <Checkbox
+                        aria-label={m.modules[module]}
+                        className="size-6 data-[state=checked]:border-emerald-600 data-[state=checked]:bg-emerald-600 hover:border-emerald-600 active:opacity-80 [&_[data-slot=checkbox-indicator]>svg]:size-4"
+                        checked={enabled}
+                        disabled={toggle.isPending}
+                        onCheckedChange={(checked) => {
+                          if (toggle.isPending || (checked === true) === enabled) return;
+                          toggle.mutate({ module, enabled: checked === true });
+                        }}
+                      />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {enabled ? m.workspace.disableModule : m.workspace.enableModule}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
-              {hintFor(module)}
+              {m.moduleHints[module]}
               {module === TenantModule.ADMIN_PANEL && !enabled ? (
-                <p className="mt-2 text-orange-700">{m.workspace.adminPanelRequired}</p>
+                <Alert className="mt-3 border-orange-200 bg-orange-50 text-orange-900">
+                  <TriangleAlert />
+                  <AlertTitle>{m.workspace.adminPanelRequired}</AlertTitle>
+                </Alert>
               ) : null}
             </CardContent>
           </Card>
