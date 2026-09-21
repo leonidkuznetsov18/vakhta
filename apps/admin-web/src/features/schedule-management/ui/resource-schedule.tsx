@@ -1,19 +1,7 @@
 import { EmployeeProfileLink } from '@/entities/employee';
-import { isTerminated } from '../model/employee-status';
-import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { useState } from 'react';
-import { setUiState } from '@/lib/ui-store';
-import {
-  PencilIcon,
-  MoveIcon,
-  UserSearchIcon,
-  ActivityIcon,
-  InboxIcon,
-  Undo2Icon,
-  ChevronRightIcon,
-  Trash2Icon,
-} from 'lucide-react';
-import { format, messages } from '@vakhta/i18n';
+import { Trash2Icon } from 'lucide-react';
+import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -23,37 +11,36 @@ import {
   type CalendarEmphasis,
 } from '@/shared/ui/resource-calendar';
 import { Button } from '@/components/ui/button';
-import { IconButton } from '@/shared/ui/icon-button';
-import { Paginator, usePages } from '@/components/app/data-table';
+import { TableSearch } from '@/shared/ui/table-search';
+import { Paginator, RowMenu, usePages } from '@/components/app/data-table';
 import { calendarModel, type CalendarGrouping } from '../model/calendar';
 import {
   assignmentKey,
   gridFromItems,
   gridToItems,
-  sameAssignment,
-  setAssignment,
-  setCell,
+  removeRow,
+  removeZoneAssignments,
 } from '../model/grid';
 import type { AdjacentPlan } from '../model/use-adjacent';
 import { staffingCoverage } from '../model/use-staffing';
-import { planIssues, reasonText, reasonsFor } from '../model/use-eligibility';
-import { moveAssignment } from '../model/batch';
+import {
+  assignmentAbilities,
+  checkedMove,
+  removeAssignment,
+  revertAssignment,
+} from '../model/assignment-actions';
 import { Feedback } from '@/components/app/feedback';
-import { ReasonAlerts } from './reason-alerts';
-import { UNASSIGNED_ZONE, zoneAllowed } from '../model/planning';
+import { UNASSIGNED_ZONE } from '../model/planning';
 import type { Workspace } from '../model/use-workspace';
 import { AssignmentEditor, type AssignmentContext } from './assignment-editor';
+import { AssignmentDetails } from './assignment-details';
+import { NotesSection } from './notes-section';
 import { SlotDetails } from './slot-details';
 import { useOperations } from '../model/use-operations';
 import { useCalendarEvents } from '../model/use-events';
 import { useNotes } from '../model/use-notes';
-import { NotesSection } from './notes-section';
-import { useNavigation } from '@/navigation';
-import { InfoTip } from '@/components/app/info-tip';
-import { QueryFeedback } from '@/components/app/query-feedback';
-import { recordedTime } from '../lib/labels';
+import { useRemoveAssignment } from './use-remove-assignment';
 import type { OpenSlots } from '../model/use-open-slots';
-import type { CalendarEventsView } from '@vakhta/contracts';
 import { employeeLabel } from './assignment-changes';
 
 export function ResourceSchedule({
@@ -85,7 +72,6 @@ export function ResourceSchedule({
 }) {
   const t = messages(currentLocale()).scheduleWorkspace;
   const mobile = useIsMobile();
-  const navigation = useNavigation();
   const operations = useOperations({
     accessKey: w.accessKey,
     siteId: w.siteId,
@@ -107,6 +93,8 @@ export function ResourceSchedule({
     month: w.month,
     enabled: !!w.version,
   });
+  const quickRemove = useRemoveAssignment(w);
+  const [search, setSearch] = useState('');
   const [picked, setPicked] = useState<CalendarSelection | null>(reveal);
   const [editor, setEditor] = useState<AssignmentContext | null>(null);
   const [revealed, setRevealed] = useState(reveal);
@@ -129,13 +117,11 @@ export function ResourceSchedule({
     dates,
     zoneIds: w.zones.map((zone) => zone.id),
   });
-  const model = calendarModel({
+  const fullModel = calendarModel({
     ...w,
     coverage,
     issues: w.issues.reasons,
-    grid: adjacent.months.length
-      ? gridFromItems([...gridToItems(w.grid), ...gridToItems(adjacent.grid)])
-      : w.grid,
+    grid: displayGrid,
     published: adjacent.months.length
       ? gridFromItems([...gridToItems(w.publicationBaseline), ...gridToItems(adjacent.published)])
       : w.publicationBaseline,
@@ -152,19 +138,30 @@ export function ResourceSchedule({
     ...(w.context ? { absences: w.context.absences } : {}),
     ...(events.data ? { events: events.data } : {}),
   });
+  // The worker search narrows the rows of the people grouping, like the month matrix does.
+  const needle = search.trim().toLocaleLowerCase();
+  const model =
+    grouping === 'people' && needle
+      ? {
+          ...fullModel,
+          resources: fullModel.resources.filter((row) =>
+            row.title.toLocaleLowerCase().includes(needle),
+          ),
+        }
+      : fullModel;
   const items = gridToItems(w.grid);
-  const selectedItem = items.find((item) => assignmentKey(item) === picked?.itemId);
+  const itemByKey = new Map(items.map((item) => [assignmentKey(item), item]));
+  const shiftsByEmployee = new Map<string, number>();
+  for (const item of items) {
+    if (zoneId && item.zoneId !== zoneId) continue;
+    shiftsByEmployee.set(item.employeeId, (shiftsByEmployee.get(item.employeeId) ?? 0) + 1);
+  }
   const employees = new Map(w.employees.map((employee) => [employee.id, employee]));
-  const terminated = !!selectedItem && isTerminated(employees.get(selectedItem.employeeId));
+  const selectedItem = picked?.itemId ? itemByKey.get(picked.itemId) : undefined;
+  const abilities = selectedItem ? assignmentAbilities(w, selectedItem) : null;
   const selectedSlot = picked?.itemId?.startsWith('slot:')
     ? slots.slots.find((slot) => `slot:${slot.id}` === picked.itemId)
     : undefined;
-  const acknowledgement = assignmentAcknowledgement({
-    assignment: selectedItem,
-    recorded: w.recorded,
-    version: w.version,
-    timezone: w.timezone,
-  });
   const selection =
     selectedItem && picked
       ? {
@@ -205,102 +202,89 @@ export function ResourceSchedule({
         grouping === 'zones' && value.resourceId !== UNASSIGNED_ZONE ? value.resourceId : zoneId,
     });
   }
-  const removable =
-    !!selectedItem && w.writable && zoneAllowed(w.rights.zones, selectedItem.zoneId);
-  const editable = removable && !terminated;
   function removeSelected() {
-    if (!selectedItem || !removable) return;
-    w.edit(setCell(w.grid, selectedItem.employeeId, selectedItem.businessDate, ''));
+    if (!selectedItem || !abilities?.removable) return;
+    w.edit(removeAssignment(w.grid, selectedItem));
     setPicked(null);
   }
-  function edit(move = false) {
-    if (!selectedItem || !editable) return;
+  function edit(move: boolean) {
+    if (!selectedItem || !abilities?.editable) return;
     setEditor({ ...selectedItem, zoneId: selectedItem.zoneId ?? '', move });
   }
-  // The saved version of the selected shift; a local edit differs from it or added the shift.
-  const savedItem = selectedItem
-    ? gridToItems(w.baseline).find((item) => assignmentKey(item) === assignmentKey(selectedItem))
-    : undefined;
-  const locallyChanged = !!selectedItem && (!savedItem || !sameAssignment(savedItem, selectedItem));
   function revertSelected() {
-    if (!selectedItem || !editable || !locallyChanged) return;
-    w.edit(
-      savedItem
-        ? setAssignment(w.grid, savedItem)
-        : setCell(w.grid, selectedItem.employeeId, selectedItem.businessDate, ''),
-    );
+    if (!selectedItem || !abilities?.editable || !abilities.locallyChanged) return;
+    w.edit(revertAssignment(w.grid, selectedItem, abilities.saved));
     setPicked(null);
   }
-  const labels = {
-    unitName: (id: string) => w.units.find((unit) => unit.id === id)?.name ?? id,
-    zoneName: (id: string) => w.zones.find((zone) => zone.id === id)?.name ?? id,
-  };
-  /** Drag shares the Move command with the editor: invalid targets leave the plan unchanged. */
   function move(
     from: CalendarSelection & { itemId: string },
     to: { resourceId: string; date: string },
   ) {
-    if (!w.writable) return;
-    const item = items.find((value) => assignmentKey(value) === from.itemId);
-    if (!item || !zoneAllowed(w.rights.zones, item.zoneId)) return;
-    if (isTerminated(employees.get(item.employeeId))) return;
-    if (grouping === 'people' && isTerminated(employees.get(to.resourceId))) return;
-    const target: { employeeId?: string; businessDate: string; zoneId?: string } =
+    const item = itemByKey.get(from.itemId);
+    if (!item) return;
+    const target =
       grouping === 'people'
         ? { employeeId: to.resourceId, businessDate: to.date }
         : {
             businessDate: to.date,
-            ...(to.resourceId !== UNASSIGNED_ZONE ? { zoneId: to.resourceId } : {}),
+            zoneId: to.resourceId === UNASSIGNED_ZONE ? null : to.resourceId,
           };
-    if (grouping === 'zones' && !zoneAllowed(w.rights.zones, target.zoneId ?? null)) {
-      setMoveError(t.zoneScope);
-      return;
-    }
-    const result = moveAssignment(w.grid, item, target, w.month);
-    if ('failure' in result) {
-      if (result.failure === 'OCCUPIED') setMoveError(t.moveInvalidOccupied);
-      else if (result.failure === 'OUTSIDE_MONTH') setMoveError(t.moveInvalidMonth);
-      return;
-    }
-    const issues = planIssues({
-      grid: result.grid,
-      month: w.month,
-      orgUnitId: w.orgUnitId,
-      templates: w.templates,
-      timezone: w.timezone,
-      staffing: w.staffing,
-      context: w.context,
-    });
-    const own = reasonsFor(
-      issues.reasons,
-      target.employeeId ?? item.employeeId,
-      target.businessDate,
-    ).filter((reason) => reason.severity === 'BLOCK');
-    if (own.length > 0) {
-      setMoveError(
-        `${t.moveInvalidBlocked} ${own.map((reason) => reasonText(reason, labels)).join(' · ')}`,
-      );
+    const result = checkedMove({ workspace: w, item, target, t });
+    if ('error' in result) {
+      if (result.error) setMoveError(result.error);
       return;
     }
     setMoveError(null);
     setPicked(null);
     w.edit(result.grid);
   }
+  function quickRemoveItem(from: CalendarSelection & { itemId: string }) {
+    const item = itemByKey.get(from.itemId);
+    if (!item) return;
+    void quickRemove.remove(item, () => {
+      if (picked?.itemId === from.itemId) setPicked(null);
+    });
+  }
+  function removeWorker(employeeId: string) {
+    if (!w.writable) return;
+    w.edit(
+      zoneId ? removeZoneAssignments(w.grid, employeeId, zoneId) : removeRow(w.grid, employeeId),
+    );
+    if (selectedItem?.employeeId === employeeId) setPicked(null);
+  }
   return (
     <>
       <Feedback error={moveError} />
+      {grouping === 'people' && (
+        <TableSearch value={search} onChange={setSearch} label={t.workerSearch} />
+      )}
       <ResourceCalendar
         model={model}
         {...(grouping === 'people'
           ? {
               renderResourceTitle: (row: { readonly id: string; readonly title: string }) => (
-                <EmployeeProfileLink
-                  id={row.id}
-                  name={row.title}
-                  avatarVersion={
-                    w.employees.find((employee) => employee.id === row.id)?.avatarVersion
-                  }
-                />
+                <span className="flex items-center gap-1">
+                  <EmployeeProfileLink
+                    id={row.id}
+                    name={row.title}
+                    avatarVersion={employees.get(row.id)?.avatarVersion}
+                  />
+                  {w.writable && (
+                    <RowMenu
+                      label={`${zoneId ? t.removeZoneAssignments : t.removeWorker}: ${employeeLabel(w, row.id)}`}
+                      actions={[
+                        {
+                          key: 'remove',
+                          label: zoneId ? t.removeZoneAssignments : t.removeWorker,
+                          icon: Trash2Icon,
+                          destructive: true,
+                          disabled: !shiftsByEmployee.get(row.id),
+                          onSelect: () => removeWorker(row.id),
+                        },
+                      ]}
+                    />
+                  )}
+                </span>
               ),
             }
           : {})}
@@ -320,7 +304,7 @@ export function ResourceSchedule({
           setEditor(null);
         }}
         emphasis={emphasis}
-        {...(w.writable ? { onMove: move } : {})}
+        {...(w.writable ? { onMove: move, onRemove: quickRemoveItem } : {})}
         detail={
           selection && selectedCell ? (
             <div className="space-y-3">
@@ -353,152 +337,20 @@ export function ResourceSchedule({
                   slots={slots}
                   onDone={() => setPicked(null)}
                 />
-              ) : selectedItem ? (
-                <>
-                  <h3 className="font-semibold break-words">
-                    {grouping === 'zones' ? `${employeeLabel(w, selectedItem.employeeId)} · ` : ''}
-                    {t.wholeAssignment}
-                  </h3>
-                  {grouping === 'people' && (
-                    <p className="text-sm [overflow-wrap:anywhere]">{selectedView?.title}</p>
-                  )}
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-                    <dt className="text-muted-foreground">{t.detailTime}</dt>
-                    <dd className="tabular-nums">{selectedView?.time}</dd>
-                    <dt className="text-muted-foreground">{t.kind}</dt>
-                    <dd className="[overflow-wrap:anywhere]">{selectedView?.description}</dd>
-                    {selectedView?.parts && selectedView.parts.length > 0 && (
-                      <>
-                        <dt className="text-muted-foreground">{t.segments}</dt>
-                        <dd>
-                          <ul className="space-y-0.5" aria-label={t.segments}>
-                            {selectedView.parts.map((part) => (
-                              <li key={part.id}>{part.label}</li>
-                            ))}
-                          </ul>
-                        </dd>
-                      </>
-                    )}
-                    {selectedView?.status && (
-                      <>
-                        <dt className="text-muted-foreground">{t.detailPublication}</dt>
-                        <dd className="[overflow-wrap:anywhere]">{selectedView.status}</dd>
-                      </>
-                    )}
-                    <dt className="text-muted-foreground">{t.detailAcknowledgement}</dt>
-                    <dd>{acknowledgement}</dd>
-                  </dl>
-                  <ReasonAlerts
-                    reasons={reasonsFor(
-                      w.issues.reasons,
-                      selectedItem.employeeId,
-                      selectedItem.businessDate,
-                    )}
-                    labels={labels}
-                    label={t.conflict}
-                  />
-                  <AbsenceContext
-                    events={events.data}
-                    failed={events.isError}
-                    employeeId={selectedItem.employeeId}
-                    date={selectedItem.businessDate}
-                    timezone={w.timezone}
-                  />
-                  <OperationalContext
-                    workspace={w}
-                    item={selectedItem}
-                    presence={selectedView?.marker?.label ?? null}
-                    query={operations}
-                    onOpenRequests={(requestId) => {
-                      if (!requestId) return navigation.go('requests');
-                      setUiState({ 'requests.scope': 'all' });
-                      navigation.go('requests', requestId);
-                    }}
-                    onOpenOperations={(sessionId) => {
-                      // The Operations screen lists one day and one scope; point it at this
-                      // shift's day with every shift visible, then open the record itself.
-                      setUiState({
-                        'operations.siteId': w.siteId,
-                        'operations.orgUnitId': w.orgUnitId,
-                        'operations.day': selectedItem.businessDate,
-                        'operations.scope': 'ALL',
-                        'operations.group': 'ALL',
-                      });
-                      navigation.go('operations', sessionId);
-                    }}
-                  />
-                  <NotesSection
-                    workspace={w}
-                    notes={notes}
-                    date={selectedItem.businessDate}
-                    zoneId={selectedItem.zoneId ?? null}
-                    employeeId={selectedItem.employeeId}
-                  />
-                  <div
-                    className="flex flex-wrap items-center gap-2"
-                    role="group"
-                    aria-label={t.wholeAssignment}
-                  >
-                    {terminated && removable && (
-                      <Button variant="outline" onClick={removeSelected}>
-                        <Trash2Icon aria-hidden />
-                        {t.removeAssignment}
-                      </Button>
-                    )}
-                    {!terminated && (
-                      <>
-                        <IconButton
-                          icon={PencilIcon}
-                          label={t.editAssignment}
-                          tooltip={t.editAssignment}
-                          size="icon"
-                          disabled={!editable}
-                          onClick={() => edit()}
-                        />
-                        <IconButton
-                          icon={MoveIcon}
-                          label={t.moveAssignment}
-                          tooltip={t.moveAssignment}
-                          variant="outline"
-                          size="icon"
-                          className="border-sky-300 text-sky-800 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-200 dark:hover:bg-sky-950"
-                          disabled={!editable}
-                          onClick={() => edit(true)}
-                        />
-                        <IconButton
-                          icon={UserSearchIcon}
-                          label={t.findReplacement}
-                          tooltip={t.findReplacement}
-                          variant="outline"
-                          size="icon"
-                          className="border-emerald-300 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-200 dark:hover:bg-emerald-950"
-                          disabled={!editable}
-                          onClick={() => edit(true)}
-                        />
-                        <IconButton
-                          icon={Undo2Icon}
-                          label={t.revertAssignment}
-                          tooltip={t.revertAssignment}
-                          variant="outline"
-                          size="icon"
-                          className="border-amber-300 text-amber-800 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-950"
-                          disabled={!editable || !locallyChanged}
-                          onClick={revertSelected}
-                        />
-                      </>
-                    )}
-                    {!editable && (
-                      <InfoTip
-                        text={
-                          (terminated ? t.terminatedReadOnly : w.readonlyReason) ??
-                          (selectedItem && !zoneAllowed(w.rights.zones, selectedItem.zoneId)
-                            ? t.zoneScope
-                            : t.editBlockedRights)
-                        }
-                      />
-                    )}
-                  </div>
-                </>
+              ) : selectedItem && abilities ? (
+                <AssignmentDetails
+                  workspace={w}
+                  item={selectedItem}
+                  view={selectedView}
+                  abilities={abilities}
+                  grouping={grouping}
+                  events={events}
+                  operations={operations}
+                  notes={notes}
+                  onEdit={edit}
+                  onRevert={revertSelected}
+                  onRemove={removeSelected}
+                />
               ) : (
                 <>
                   <h3 className="font-semibold">
@@ -539,166 +391,7 @@ export function ResourceSchedule({
           ) : null
         }
       />
+      {quickRemove.dialog}
     </>
-  );
-}
-
-/** Presence evidence and requests of one assignment (SC-03/07/13/14/34); decisions stay in Requests. */
-function OperationalContext({
-  workspace: w,
-  item,
-  presence,
-  query,
-  onOpenRequests,
-  onOpenOperations,
-}: {
-  readonly workspace: Workspace;
-  readonly item: { readonly employeeId: string; readonly businessDate: string };
-  readonly presence: string | null;
-  readonly query: ReturnType<typeof useOperations>;
-  readonly onOpenRequests: (requestId?: string) => void;
-  readonly onOpenOperations: (sessionId: string) => void;
-}) {
-  const t = messages(currentLocale()).scheduleWorkspace;
-  const catalog = messages(currentLocale()).requests;
-  const related = (query.data?.requests ?? []).filter(
-    (request) =>
-      (request.employeeId === item.employeeId ||
-        request.counterpartEmployeeId === item.employeeId) &&
-      ((request.periodFrom !== null &&
-        request.periodTo !== null &&
-        request.periodFrom <= item.businessDate &&
-        item.businessDate <= request.periodTo) ||
-        request.assignmentDate === item.businessDate),
-  );
-  const published = w.publicationBaseline.rows.some(
-    (row) => row.employeeId === item.employeeId && !!row.cells[item.businessDate],
-  );
-  const sessionId =
-    query.data?.presence.find(
-      (row) => row.employeeId === item.employeeId && row.businessDate === item.businessDate,
-    )?.sessionId ?? null;
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-1 text-sm">
-        <span className="text-muted-foreground">{t.detailPresence}:</span>
-        {/* Without evidence yet the value stays blank; QueryFeedback below says why. */}
-        <span>{presence ?? (query.isSuccess || !published ? t.presenceUnknown : null)}</span>
-        <InfoTip text={t.presenceHint} />
-      </div>
-      <QueryFeedback query={query} errorMessage={t.presenceUnavailable} />
-      {query.data && (
-        <p className="text-xs text-muted-foreground">
-          {format(t.presenceAsOf, { time: recordedTime(query.data.fetchedAt, w.timezone) })}
-        </p>
-      )}
-      {sessionId && (
-        <Button variant="outline" size="sm" onClick={() => onOpenOperations(sessionId)}>
-          <ActivityIcon aria-hidden="true" />
-          {t.openShiftRecord}
-        </Button>
-      )}
-      <section className="space-y-1" aria-label={t.requestsContext}>
-        <h4 className="text-sm font-semibold">{t.requestsContext}</h4>
-        {query.isSuccess && related.length === 0 && (
-          <p className="text-sm text-muted-foreground">{t.noRequestsContext}</p>
-        )}
-        {related.length > 0 && (
-          <ul className="space-y-1 text-sm">
-            {related.map((request) => (
-              <li key={request.id}>
-                <button
-                  type="button"
-                  className={`${selectableRow} flex w-full items-center gap-2 px-2 py-1 text-left [overflow-wrap:anywhere]`}
-                  onClick={() => onOpenRequests(request.id)}
-                >
-                  <span className="min-w-0 flex-1">
-                    {catalog.types[request.type as keyof typeof catalog.types] ?? request.type} ·{' '}
-                    {catalog.statuses[request.status as keyof typeof catalog.statuses] ??
-                      request.status}
-                    {request.currentStepKey
-                      ? ` · ${format(t.requestStep, {
-                          step: request.currentStep + 1,
-                          total: request.totalSteps,
-                          key: request.currentStepKey,
-                        })}`
-                      : ''}
-                    {request.counterpartEmployeeId
-                      ? ` · ${employeeLabel(w, request.employeeId)} ⇄ ${employeeLabel(w, request.counterpartEmployeeId)}`
-                      : ''}
-                  </span>
-                  <ChevronRightIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {related.length > 0 && (
-          <Button variant="outline" size="sm" onClick={() => onOpenRequests()}>
-            <InboxIcon aria-hidden="true" />
-            {t.openRequests}
-          </Button>
-        )}
-      </section>
-    </div>
-  );
-}
-
-/** The person's absence around the shift with the latest sick-leave answer, and their birthday. */
-function AbsenceContext({
-  events,
-  failed,
-  employeeId,
-  date,
-  timezone,
-}: {
-  readonly events: CalendarEventsView | undefined;
-  readonly failed: boolean;
-  readonly employeeId: string;
-  readonly date: string;
-  readonly timezone: string;
-}) {
-  const t = messages(currentLocale()).scheduleWorkspace;
-  if (failed) return <p className="text-sm text-muted-foreground">{t.eventsUnavailable}</p>;
-  const absence = events?.absences.find(
-    (row) => row.employeeId === employeeId && row.from <= date && date <= row.to,
-  );
-  const birthday = events?.birthdays.some(
-    (row) => row.employeeId === employeeId && row.date === date,
-  );
-  if (!absence && !birthday) return null;
-  const type = absence
-    ? absence.type === 'SICK'
-      ? t.onSickLeave
-      : absence.type === 'VACATION'
-        ? t.onVacation
-        : t.onDayOff
-    : '';
-  const answer = (value: 'GOOD' | 'SAME' | 'WORSE') =>
-    value === 'GOOD' ? t.checkinGood : value === 'SAME' ? t.checkinSame : t.checkinWorse;
-  const replacement = events?.replacements.some(
-    (row) => row.employeeId === employeeId && row.businessDate === date,
-  );
-  return (
-    <div className="space-y-1 rounded-md border border-red-200 bg-red-50 p-2 text-sm dark:border-red-900 dark:bg-red-950">
-      {absence && (
-        <p className="font-medium text-red-800 dark:text-red-200">
-          {format(t.absenceRange, { type, from: absence.from, to: absence.to })}
-          {absence.status === 'PENDING' ? ` · ${t.absencePendingShort}` : ''}
-          {replacement ? ` · ${t.needsReplacement}` : ''}
-        </p>
-      )}
-      {absence?.type === 'SICK' && absence.status === 'APPROVED' && (
-        <p className="text-xs text-muted-foreground">
-          {absence.lastCheckin
-            ? format(t.lastCheckin, {
-                date: recordedTime(absence.lastCheckin.answeredAt, timezone),
-                answer: answer(absence.lastCheckin.answer),
-              })
-            : t.noCheckin}
-        </p>
-      )}
-      {birthday && <p className="text-violet-800 dark:text-violet-200">🎂 {t.birthday}</p>}
-    </div>
   );
 }

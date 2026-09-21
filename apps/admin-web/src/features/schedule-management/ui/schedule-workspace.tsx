@@ -755,7 +755,13 @@ function WorkspaceView({
                 </Alert>
               )}
             {effectiveMode === 'month' ? (
-              <PeopleSchedule workspace={w} zoneId={zone} today={today} reveal={reveal} />
+              <PeopleSchedule
+                workspace={w}
+                zoneId={zone}
+                today={today}
+                reveal={reveal}
+                emphasis={emphasis}
+              />
             ) : (
               <ResourceSchedule
                 workspace={w}

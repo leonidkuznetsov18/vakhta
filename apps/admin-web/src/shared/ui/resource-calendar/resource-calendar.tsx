@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { CircleDashedIcon, PlusIcon, TriangleAlertIcon } from 'lucide-react';
+import { CircleDashedIcon, PlusIcon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import { cn } from 'cn';
 import { CalendarDetailPanel } from './detail-panel';
 import { calendarItemColors, calendarInteraction } from './styles';
@@ -65,6 +65,8 @@ interface ResourceCalendarProps {
     item: CalendarSelection & { readonly itemId: string },
     target: { readonly resourceId: string; readonly date: string },
   ) => void;
+  /** Quick removal of a removable item from its card (the × control or the Delete key). */
+  readonly onRemove?: (item: CalendarSelection & { readonly itemId: string }) => void;
 }
 export type CalendarEmphasis = 'unpublished' | 'WARN' | 'BLOCK';
 /** Translucent column tints by day event; the header text and icons carry the meaning. */
@@ -207,48 +209,72 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
         {cell.items.slice(0, CELL_PREVIEW_LIMIT).map((item) => {
           const selected = cellSelected && selection?.itemId === item.id;
           const highlight = emphasis ? emphasized(item, emphasis) : null;
+          const removeItem =
+            props.onRemove && item.removable
+              ? () => props.onRemove?.({ resourceId: row.id, date: cell.date, itemId: item.id })
+              : null;
           return (
-            <Button
-              key={item.id}
-              variant="outline"
-              aria-pressed={selected}
-              data-emphasized={highlight === null ? undefined : highlight}
-              aria-label={[
-                item.title,
-                cell.label,
-                item.time,
-                item.description,
-                item.status,
-                item.marker?.label ?? '',
-                ...(item.flags?.map((flag) => flag.label) ?? []),
-                item.issue ? model.issueLabels?.[item.issue] : '',
-              ]
-                .filter(Boolean)
-                .join(', ')}
-              className={cn(
-                'h-auto w-full min-w-0 justify-start whitespace-normal px-1.5 py-1.5 text-left shadow-none transition-colors',
-                calendarItemColors[item.tone],
-                calendarInteraction,
-                item.unpublished && 'border-dashed border-current/50',
-                item.readonly && 'opacity-70',
-                item.issue === 'BLOCK' && 'inset-ring-2 inset-ring-red-500/70',
-                highlight === true && 'ring-2 ring-offset-2 ring-sky-600 dark:ring-sky-400',
-                highlight === false && 'opacity-35',
+            <div key={item.id} className="group/item relative min-w-0">
+              <Button
+                variant="outline"
+                aria-pressed={selected}
+                data-emphasized={highlight === null ? undefined : highlight}
+                aria-label={[
+                  item.title,
+                  cell.label,
+                  item.time,
+                  item.description,
+                  item.status,
+                  item.marker?.label ?? '',
+                  ...(item.flags?.map((flag) => flag.label) ?? []),
+                  item.issue ? model.issueLabels?.[item.issue] : '',
+                ]
+                  .filter(Boolean)
+                  .join(', ')}
+                className={cn(
+                  'h-auto w-full min-w-0 justify-start whitespace-normal px-1.5 py-1.5 text-left shadow-none transition-colors',
+                  calendarItemColors[item.tone],
+                  calendarInteraction,
+                  item.unpublished && 'border-dashed border-current/50',
+                  item.readonly && 'opacity-70',
+                  // Keep the title clear of the quick remove control in the corner.
+                  removeItem && 'pr-6',
+                  item.issue === 'BLOCK' && 'inset-ring-2 inset-ring-red-500/70',
+                  highlight === true && 'ring-2 ring-offset-2 ring-sky-600 dark:ring-sky-400',
+                  highlight === false && 'opacity-35',
+                )}
+                draggable={!!props.onMove && !item.readonly}
+                onDragStart={() =>
+                  setDragging({ resourceId: row.id, date: cell.date, itemId: item.id })
+                }
+                onDragEnd={() => setDragging(null)}
+                onKeyDown={(event) => {
+                  if (!removeItem || (event.key !== 'Delete' && event.key !== 'Backspace')) return;
+                  event.preventDefault();
+                  removeItem();
+                }}
+                onClick={(event) => {
+                  openFrom(event.currentTarget);
+                  props.onSelect({ resourceId: row.id, date: cell.date, itemId: item.id });
+                }}
+              >
+                <span className="grid w-full min-w-0 grid-rows-[1.25rem_1rem_1rem] gap-y-0.5">
+                  <ItemContent item={item} />
+                </span>
+              </Button>
+              {removeItem && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={`${model.removeLabel ?? ''}: ${item.title} · ${cell.label}`}
+                  className="absolute top-0.5 right-0.5 text-current opacity-0 transition-opacity hover:bg-background/70 focus-visible:opacity-100 group-hover/item:opacity-100 max-md:opacity-100"
+                  onClick={removeItem}
+                >
+                  <XIcon aria-hidden />
+                </Button>
               )}
-              draggable={!!props.onMove && !item.readonly}
-              onDragStart={() =>
-                setDragging({ resourceId: row.id, date: cell.date, itemId: item.id })
-              }
-              onDragEnd={() => setDragging(null)}
-              onClick={(event) => {
-                openFrom(event.currentTarget);
-                props.onSelect({ resourceId: row.id, date: cell.date, itemId: item.id });
-              }}
-            >
-              <span className="grid w-full min-w-0 grid-rows-[1.25rem_1rem_1rem] gap-y-0.5">
-                <ItemContent item={item} />
-              </span>
-            </Button>
+            </div>
           );
         })}
         {cell.items.length > CELL_PREVIEW_LIMIT && (

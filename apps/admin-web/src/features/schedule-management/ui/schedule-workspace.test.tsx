@@ -1,7 +1,7 @@
 import { stubFetch } from '@/test/stub-fetch';
 import { AssignmentChanges } from './assignment-changes';
 import { assignmentAcknowledgement } from '../model/acknowledgement';
-import { messages } from '@vakhta/i18n';
+import { holidayLabel, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import {
   EmployeeView,
@@ -2717,6 +2717,116 @@ it('does not dim the visible week when every warning sits on other dates, and a 
   expect(sheet.textContent).toContain('216');
   // The list stays behind the open panel; the modal hides it from assistive tech, so query the DOM.
   expect(document.querySelector(`section[aria-label="${t.warning}"]`)).not.toBeNull();
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('marks holidays, absences and birthdays in the month matrix and opens the same shift details as the week', async () => {
+  freshState();
+  setUiState({ 'schedule.month': '2026-09' });
+  mockApi({
+    status: 'PUBLISHED',
+    events: {
+      region: 'UA',
+      holidays: [{ date: '2026-09-05', code: 'CHRISTMAS' }],
+      birthdays: [{ employeeId: EMP, date: '2026-09-05' }],
+      absences: [
+        {
+          requestId: 'a7000000-0000-4000-8000-000000000009',
+          employeeId: EMP,
+          type: 'SICK',
+          status: 'APPROVED',
+          from: '2026-09-05',
+          to: '2026-09-06',
+          lastCheckin: null,
+        },
+      ],
+      replacements: [],
+    },
+    operations: {
+      fetchedAt: '2026-09-05T18:30:00.000Z',
+      presence: [
+        {
+          assignmentId: ASSIGN,
+          employeeId: EMP,
+          businessDate: '2026-09-05',
+          state: 'STARTED',
+          acknowledgedAt: '2026-09-01T10:00:00.000Z',
+          arrivedAt: '2026-09-05T16:55:00.000Z',
+          startedAt: '2026-09-05T17:02:00.000Z',
+          endedAt: null,
+          sessionState: 'WORKING',
+          sessionId: 'c7000000-0000-4000-8000-000000000001',
+        },
+      ],
+      requests: [],
+    },
+  });
+  admin();
+  await screen.findByText(t.publishedState);
+  fireEvent.click(screen.getByRole('radio', { name: t.month }));
+  const cell = await screen.findByRole('button', { name: /Кузнецов Леонид, 2026-09-05/ });
+  await waitFor(() => expect(cell.getAttribute('aria-label')).toContain(t.onSickLeave));
+  expect(cell.getAttribute('aria-label')).toContain(t.birthday);
+  expect(screen.getByText(holidayLabel('CHRISTMAS', currentLocale()))).toBeTruthy();
+  // The footer carries the same day/night totals the week shows in its column headers.
+  expect(
+    screen.getByText(
+      `${messages(currentLocale()).schedule.dayKinds.DAY} / ${messages(currentLocale()).schedule.dayKinds.NIGHT}`,
+    ),
+  ).toBeTruthy();
+  fireEvent.click(cell);
+  const sheet = await screen.findByRole('dialog');
+  expect(within(sheet).getByRole('heading', { name: t.wholeAssignment })).toBeTruthy();
+  expect(within(sheet).getByText('Линия 1')).toBeTruthy();
+  expect(within(sheet).getByText(/20:02/)).toBeTruthy();
+  expect(within(sheet).getByText(new RegExp(t.onSickLeave))).toBeTruthy();
+  expect(within(sheet).getByRole('region', { name: t.requestsContext })).toBeTruthy();
+  expect(within(sheet).getByRole('region', { name: t.notes })).toBeTruthy();
+  expect(within(sheet).getByRole('button', { name: t.editAssignment })).toBeTruthy();
+  expect(within(sheet).getByRole('button', { name: t.removeAssignment })).toBeTruthy();
+  fireEvent.click(within(sheet).getByRole('button', { name: t.editAssignment }));
+  expect(within(sheet).getByRole('button', { name: t.apply }).hasAttribute('disabled')).toBe(true);
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('quick-removes a shift from its card after confirmation, in the week and in the month', async () => {
+  freshState();
+  mockApi({ status: 'DRAFT' });
+  admin();
+  await screen.findByText(t.draftState);
+  await showWeekOf(/Кузнецов Леонид, 05/);
+  // The week details carry the same Remove button as the month editor did.
+  fireEvent.click(screen.getByRole('button', { name: /Кузнецов Леонид, 05/ }));
+  const sheet = await screen.findByRole('dialog');
+  expect(within(sheet).getByRole('button', { name: t.removeAssignment })).toBeTruthy();
+  fireEvent.click(
+    within(sheet).getByRole('button', { name: messages(currentLocale()).ui.common.close }),
+  );
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  const quick = new RegExp(`^${t.removeAssignment}: Кузнецов Леонид · 05`);
+  fireEvent.click(screen.getByRole('button', { name: quick }));
+  const declined = await screen.findByRole('alertdialog');
+  fireEvent.keyDown(declined, { key: 'Escape' });
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+  expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toBeUndefined();
+  fireEvent.click(screen.getByRole('button', { name: quick }));
+  const confirm = await screen.findByRole('alertdialog');
+  fireEvent.click(within(confirm).getByRole('button', { name: t.removeAssignment }));
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: /Кузнецов Леонид, 05/ })).toBeNull(),
+  );
+  expect(gridToItems(useScheduleDrafts.getState().drafts[DRAFT_KEY] ?? { rows: [] })).toEqual([]);
+  fireEvent.click(screen.getByRole('button', { name: t.undo }));
+  fireEvent.click(screen.getByRole('radio', { name: t.month }));
+  const cell = await screen.findByRole('button', { name: /Кузнецов Леонид, 2026-09-05/ });
+  fireEvent.keyDown(cell, { key: 'Delete' });
+  const again = await screen.findByRole('alertdialog');
+  fireEvent.click(within(again).getByRole('button', { name: t.removeAssignment }));
+  await waitFor(() =>
+    expect(gridToItems(useScheduleDrafts.getState().drafts[DRAFT_KEY] ?? { rows: [] })).toEqual([]),
+  );
   cleanup();
   vi.unstubAllGlobals();
 });

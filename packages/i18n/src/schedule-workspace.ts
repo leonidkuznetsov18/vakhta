@@ -419,6 +419,8 @@ export const scheduleWorkspaceEn = {
   add: 'Add assignments',
   editAssignment: 'Edit assignment',
   removeAssignment: 'Remove assignment',
+  removeAssignmentConfirm:
+    'Remove the shift of {name} on {date}? Undo restores it until the plan is saved.',
   apply: 'Apply changes',
   cancel: 'Cancel',
   from: 'From',
@@ -915,6 +917,8 @@ export const scheduleWorkspaceUk: ScheduleWorkspaceMessages = {
   add: 'Додати призначення',
   editAssignment: 'Редагувати призначення',
   removeAssignment: 'Прибрати призначення',
+  removeAssignmentConfirm:
+    'Прибрати зміну {name} на {date}? Скасування повертає її, доки план не збережено.',
   apply: 'Застосувати зміни',
   cancel: 'Скасувати',
   from: 'Від',
@@ -1415,6 +1419,8 @@ export const scheduleWorkspaceRu: ScheduleWorkspaceMessages = {
   add: 'Добавить назначения',
   editAssignment: 'Редактировать назначение',
   removeAssignment: 'Убрать назначение',
+  removeAssignmentConfirm:
+    'Убрать смену {name} на {date}? Отмена возвращает её, пока план не сохранён.',
   apply: 'Применить изменения',
   cancel: 'Отмена',
   from: 'С',

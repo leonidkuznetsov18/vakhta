@@ -10,13 +10,26 @@ calendar by zones or by workers; the month always opens the worker day/night mat
 show day/night counts for each date and every row shows its shifts and planned hours for the period.
 Counts describe assigned people, not required staffing or attendance.
 
+- **One toolkit in every period:** day, week and month show the same facts and offer the same
+  actions. Every view marks public holidays (sky column), approved sick leave, vacation and days off,
+  pending absences and replacement needs, birthdays, rule conflicts and warnings, unpublished shifts
+  and terminated workers; the month matrix draws them as small glyphs inside the worker/day cells,
+  with a day/night totals row at the bottom, and the highlight toggles of the status line dim the
+  rest of the matrix like they dim the week. Clicking a shift anywhere opens the same details panel:
+  time and kind, publication and acknowledgement, rule reasons, absence and check-in context,
+  presence evidence, related requests, notes, then Edit, Move, Find replacement, Undo local change
+  and Remove assignment. Dragging a shift to another date or worker, the worker search, the
+  per-worker "Remove all shifts" menu and the D/N/Delete keys work in every view. Hovering a shift
+  card or a month cell shows a small × in its corner: it asks for confirmation and removes the shift
+  without opening the panel; the Delete key on a focused shift does the same.
 - **Working plan:** editors see the unpublished month when one exists, approvers see what awaits
   them, and everybody else sees what workers see. The status line says whether the plan is published,
   a draft workers cannot see, or awaiting approval, and how many changes are not published yet.
   Unpublished shifts carry a dashed border and an icon. When a draft exists next to a published month,
   the actions menu switches between them; there is no version list, number or history on this page.
 - **Edit in place:** click an empty cell to add a shift with the selected date, worker or zone, or
-  click a shift to change its date, zone or template or remove it. Add assignments plans several
+  click a shift to open its details and change its date, zone or template or remove it. Add
+  assignments plans several
   workers over a date range with a shift or rotation; fill-empty preserves occupied dates, replace may
   remove off-days, and exact additions/removals/changes are previewed before applying. Undo/redo and
   Discard work on local edits, which survive navigation and reload.

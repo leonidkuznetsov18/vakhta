@@ -94,7 +94,12 @@ export function copyPeriod(input: {
   return { grid: next, changes: assignmentChanges(input.grid, next), skipped };
 }
 
-export type MoveFailure = 'SAME' | 'OCCUPIED' | 'OUTSIDE_MONTH';
+export const MoveFailure = {
+  SAME: 'SAME',
+  OCCUPIED: 'OCCUPIED',
+  OUTSIDE_MONTH: 'OUTSIDE_MONTH',
+} as const;
+export type MoveFailure = (typeof MoveFailure)[keyof typeof MoveFailure];
 
 /**
  * Moves one assignment to another person, date or zone with its metadata (SC-31). Drag and the

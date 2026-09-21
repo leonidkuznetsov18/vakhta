@@ -129,6 +129,23 @@ describe('calendar projections', () => {
     const same = allItems(calendarModel({ ...base, grid: custom, published: custom }))[0];
     expect(same?.unpublished).toBe(false);
   });
+  it('reports day and night counts per date and marks editable shifts removable', () => {
+    const model = calendarModel(base);
+    expect(model.dates.find((date) => date.id === '2026-09-30')?.counts).toEqual({
+      day: 0,
+      night: 1,
+    });
+    expect(model.dates.find((date) => date.id === '2026-09-29')?.counts).toEqual({
+      day: 0,
+      night: 0,
+    });
+    expect(model.removeLabel).toBe(messages('en').scheduleWorkspace.removeAssignment);
+    expect(allItems(model)[0]?.removable).toBe(true);
+    expect(allItems(calendarModel({ ...base, writable: false }))[0]?.removable).toBeUndefined();
+    expect(
+      allItems(calendarModel({ ...base, editableMonth: '2026-10' }))[0]?.removable,
+    ).toBeUndefined();
+  });
   it('distinguishes day and night by tone independently of publication status', () => {
     expect(allItems(calendarModel(base))[0]?.tone).toBe('indigo');
     const day = calendarModel({

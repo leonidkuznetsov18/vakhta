@@ -22,7 +22,8 @@ export type EligibilityCode =
   | 'UNAVAILABLE'
   | 'QUALIFICATION'
   | 'RELIEF';
-export type EligibilitySeverity = 'BLOCK' | 'WARN';
+export const EligibilitySeverity = { BLOCK: 'BLOCK', WARN: 'WARN' } as const;
+export type EligibilitySeverity = (typeof EligibilitySeverity)[keyof typeof EligibilitySeverity];
 
 export interface SchedulingRules {
   readonly minRestMinutes: number;

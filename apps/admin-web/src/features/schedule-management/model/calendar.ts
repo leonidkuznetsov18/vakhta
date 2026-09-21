@@ -127,6 +127,14 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
   const minutesByResource = new Map<string, number | null>();
   const countsByResource = new Map<string, number>();
   const countsByDate = new Map<string, { day: number; night: number }>();
+  const presenceByKey = new Map(
+    (input.operations?.presence ?? []).map((row) => [assignmentKey(row), row]),
+  );
+  const issuesByKey = new Map<string, EligibilityReason[]>();
+  for (const reason of input.issues ?? []) {
+    const key = assignmentKey(reason);
+    issuesByKey.set(key, [...(issuesByKey.get(key) ?? []), reason]);
+  }
   for (const item of items) {
     const terminated = isTerminated(employeeMap.get(item.employeeId));
     const employeeStatus = terminated
@@ -171,10 +179,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
     const foreign =
       (!!input.editableMonth && !item.businessDate.startsWith(input.editableMonth)) ||
       !zoneAllowed(input.allowedZones ?? null, item.zoneId);
-    const own = (input.issues ?? []).filter(
-      (reason) =>
-        reason.employeeId === item.employeeId && reason.businessDate === item.businessDate,
-    );
+    const own = issuesByKey.get(assignmentKey(item)) ?? [];
     const issue = own.some((reason) => reason.severity === 'BLOCK')
       ? 'BLOCK'
       : own.length > 0
@@ -201,9 +206,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
     if (template?.isNight) dateCounts.night += 1;
     else if (template) dateCounts.day += 1;
     countsByDate.set(item.businessDate, dateCounts);
-    const evidence = input.operations?.presence.find(
-      (row) => row.employeeId === item.employeeId && row.businessDate === item.businessDate,
-    );
+    const evidence = presenceByKey.get(assignmentKey(item));
     const marker = evidence ? presenceMarker(evidence, timeFormat, t) : undefined;
     const flags = eventFlags(input.events, item.employeeId, item.businessDate, t);
     bucket.push({
@@ -226,6 +229,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
       unpublished,
       ...(parts.length > 0 ? { parts } : {}),
       ...(foreign || terminated ? { readonly: true } : {}),
+      ...(input.writable && !foreign ? { removable: true } : {}),
       ...(issue ? { issue } : {}),
       tone: template ? (template.isNight ? 'indigo' : 'amber') : 'neutral',
       ...(terminated ? { tone: 'gray' } : {}),
@@ -402,6 +406,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
         summary: totalsLabel
           .replace('{day}', String(counts.day))
           .replace('{night}', String(counts.night)),
+        counts,
         today: id === input.today,
         readonly: !!input.editableMonth && !id.startsWith(input.editableMonth),
         ...dateEvents(input.events, id, employeeMap, t, input.locale),
@@ -411,6 +416,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
     emptyLabel: t.noAssignments,
     moreItemsLabel: t.resourceMoreItems,
     issueLabels: { BLOCK: t.conflict, WARN: t.warning },
+    removeLabel: t.removeAssignment,
   };
 }
 
@@ -448,10 +454,7 @@ function dateEvents(
   const holiday = events.holidays.find((row) => row.date === date);
   const absent = events.absences
     .filter((row) => row.status === 'APPROVED' && row.from <= date && date <= row.to)
-    .map(
-      (row) =>
-        `${row.type === 'SICK' ? '🤒' : row.type === 'VACATION' ? '🏖️' : '🏠'} ${name(row.employeeId)}`,
-    );
+    .map((row) => `${ABSENCE_ICON[row.type] ?? ABSENCE_ICON.DAY_OFF} ${name(row.employeeId)}`);
   const birthdays = events.birthdays
     .filter((row) => row.date === date)
     .map((row) => `🎂 ${name(row.employeeId)}`);
@@ -476,9 +479,9 @@ export function eventFlags(
   employeeId: string,
   date: string,
   t: Messages['scheduleWorkspace'],
-): { label: string; tone: 'absence' | 'warn' | 'info' }[] {
+): EventFlag[] {
   if (!events) return [];
-  const flags: { label: string; tone: 'absence' | 'warn' | 'info' }[] = [];
+  const flags: EventFlag[] = [];
   const absence = events.absences.find(
     (row) => row.employeeId === employeeId && row.from <= date && date <= row.to,
   );
@@ -489,21 +492,25 @@ export function eventFlags(
         : absence.type === 'VACATION'
           ? t.onVacation
           : t.onDayOff;
+    const icon = ABSENCE_ICON[absence.type] ?? ABSENCE_ICON.DAY_OFF;
     const replacement = events.replacements.some(
       (row) => row.employeeId === employeeId && row.businessDate === date,
     );
     flags.push(
       absence.status !== 'APPROVED'
-        ? { label: `${type} · ${t.absencePendingShort}`, tone: 'warn' }
+        ? { label: `${type} · ${t.absencePendingShort}`, tone: 'warn', icon }
         : replacement
-          ? { label: `${type} · ${t.needsReplacement}`, tone: 'warn' }
-          : { label: type, tone: 'absence' },
+          ? { label: `${type} · ${t.needsReplacement}`, tone: 'warn', icon }
+          : { label: type, tone: 'absence', icon },
     );
   }
   if (events.birthdays.some((row) => row.employeeId === employeeId && row.date === date))
-    flags.push({ label: `🎂 ${t.birthday}`, tone: 'info' });
+    flags.push({ label: `🎂 ${t.birthday}`, tone: 'info', icon: '🎂' });
   return flags;
 }
+export type EventFlag = NonNullable<CalendarItem['flags']>[number];
+/** One glyph per absence kind; the same glyphs name people in the day headers. */
+const ABSENCE_ICON: Record<string, string> = { SICK: '🤒', VACATION: '🏖️', DAY_OFF: '🏠' };
 
 /**
  * Deterministic card order inside one cell so a moved card lands where the rule says: earlier

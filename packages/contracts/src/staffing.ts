@@ -302,11 +302,14 @@ export type CalendarEventsQuery = z.infer<typeof CalendarEventsQuery>;
 export const WellbeingAnswer = z.enum(['GOOD', 'SAME', 'WORSE']);
 export type WellbeingAnswer = z.infer<typeof WellbeingAnswer>;
 
+export const AbsenceEventStatus = z.enum(['APPROVED', 'PENDING']);
+export type AbsenceEventStatus = z.infer<typeof AbsenceEventStatus>;
+
 export const AbsenceEventView = z.object({
   requestId: Uuid,
   employeeId: Uuid,
   type: z.string(),
-  status: z.enum(['APPROVED', 'PENDING']),
+  status: AbsenceEventStatus,
   from: BusinessDate,
   to: BusinessDate,
   lastCheckin: z

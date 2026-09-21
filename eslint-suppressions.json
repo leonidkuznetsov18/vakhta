@@ -1130,10 +1130,10 @@
       "count": 1
     },
     "no-nested-ternary": {
-      "count": 11
+      "count": 10
     },
     "no-restricted-syntax": {
-      "count": 25
+      "count": 21
     }
   },
   "apps/admin-web/src/features/schedule-management/model/commands.ts": {
@@ -1401,19 +1401,13 @@
       "count": 1
     },
     "complexity": {
-      "count": 3
-    },
-    "max-depth": {
-      "count": 2
+      "count": 1
     },
     "max-lines-per-function": {
-      "count": 2
-    },
-    "no-nested-ternary": {
-      "count": 3
+      "count": 1
     },
     "no-restricted-syntax": {
-      "count": 6
+      "count": 3
     }
   },
   "apps/admin-web/src/features/schedule-management/ui/proposal-sheet.tsx": {
@@ -1453,20 +1447,17 @@
     }
   },
   "apps/admin-web/src/features/schedule-management/ui/resource-schedule.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3
-    },
     "complexity": {
-      "count": 4
+      "count": 1
     },
     "max-lines-per-function": {
-      "count": 2
+      "count": 1
     },
     "no-nested-ternary": {
-      "count": 5
+      "count": 2
     },
     "no-restricted-syntax": {
-      "count": 10
+      "count": 1
     }
   },
   "apps/admin-web/src/features/schedule-management/ui/retrospective-sheet.tsx": {

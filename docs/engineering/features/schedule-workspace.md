@@ -124,3 +124,39 @@ word-by-word wrapping while preserving full labels and existing local undo/publi
 Lean: reduce reading effort without another confirmation step. Desktop 1440×900 and mobile 390×844
 screenshots were captured and visually checked: the action fits on one line. ESLint, catalog build,
 formatting and diff checks passed; no scheduling behavior changed.
+
+## Period views unified — 2026-09-21
+
+Owner request: the day, week and month views must expose the same functionality; the month lacked
+events (absences, birthdays, holidays), conflict marks, highlight, drag and drop and the shift
+details, the week lacked Remove assignment in its details, the worker search and the per-worker
+menu; a hover control with a confirmation must remove a shift without opening the Sheet.
+
+- The month matrix (`ui/people-schedule.tsx`) now renders from the same `calendarModel` as the
+  week: it fetches calendar events, presence and notes for the whole month and reads tone,
+  publication, issue, event flags and removability per cell from the model. Cells draw a glyph line
+  (absence kind, birthday, issue triangle); holiday columns are tinted sky with the name in the
+  header tooltip and an accessible label; a footer carries the day/night totals (`CalendarDate.counts`).
+- One shared details surface: `ui/assignment-details.tsx` (facts, reasons, absence context,
+  presence and requests, notes, actions) replaces the copy in `resource-schedule.tsx`; the month
+  opens it for an occupied cell and the editor for an empty one. `model/assignment-actions.ts`
+  owns abilities (terminated, zone-locked, removable, editable, locally changed), remove, revert
+  and the checked move; drag and drop in the month reuses `checkedMove`, so an occupied target,
+  another month or a blocking conflict leaves the plan unchanged with the same message.
+- Quick removal: `ui/use-remove-assignment.tsx` wraps the shared confirm dialog
+  (`removeAssignmentConfirm` in three catalogs). The shared `ResourceCalendar` gained `onRemove`,
+  `CalendarItem.removable`, `removeLabel` and a hover × per card plus the Delete key; the month
+  cell has the same corner control. The Sheet and editor keep their unconfirmed Remove button.
+- Week/day people grouping gained the worker search and the `RowMenu` (remove all shifts, or the
+  zone's shifts under a zone filter). New constants: `MoveFailure` (batch), `EligibilitySeverity`
+  (domain), `AbsenceEventStatus` (contracts). `eventFlags` carries an `icon` per flag.
+- Evidence: admin-web typecheck; root ESLint on the touched files with pruned suppressions for
+  those files only; schedule suites 65 workspace, 20 calendar-model and 3 shared-calendar tests
+  pass (new: month events and details, quick removal with confirmation in week and month, model
+  counts and removability, shared-calendar remove control); i18n 13 and domain 208 tests pass.
+  Preview (`/preview.html`, synthetic fixtures) inspected at 1000×640 and 375×812: month glyphs,
+  holiday column, totals row, hover × and the confirmation dialog, month details with actions,
+  week card ×, week details with Remove, people grouping search and row menu, mobile cards.
+- Not unified by design: the month keeps the compact worker matrix (no zone grouping, no open-slot
+  cards, no staffing coverage notes), because 31 zone columns of cards do not fit a screen; zone
+  coverage and open slots stay in the day and week views. The month stays desktop-only.

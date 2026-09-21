@@ -5,13 +5,17 @@ import type { CalendarViewModel } from './model';
 
 afterEach(cleanup);
 
-function renderCalendar(count: number) {
+function renderCalendar(
+  count: number,
+  options: { readonly removable?: boolean; readonly onRemove?: () => void } = {},
+) {
   const date = '2026-09-10';
   const model: CalendarViewModel = {
     label: 'Schedule',
     resourceLabel: 'Zone',
     emptyLabel: 'No assignments',
     moreItemsLabel: '{count} more',
+    removeLabel: 'Remove',
     dates: [date, '2026-09-11'].map((id) => ({ id, label: id, shortLabel: id.slice(8) })),
     resources: [
       {
@@ -31,6 +35,7 @@ function renderCalendar(count: number) {
               description: 'Day shift',
               status: 'Published',
               tone: 'amber',
+              ...(options.removable ? { removable: true } : {}),
             })),
           },
         ],
@@ -48,6 +53,7 @@ function renderCalendar(count: number) {
       onSelect={onSelect}
       onCreate={vi.fn()}
       detail={<p>All assignments</p>}
+      {...(options.onRemove ? { onRemove: options.onRemove } : {})}
     />,
   );
   return onSelect;
@@ -59,6 +65,24 @@ describe('calendar assignment visibility', () => {
     expect(screen.getByRole('button', { name: /^Worker 1,/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /^Worker 2,/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Assignments:|more/ })).toBeNull();
+  });
+
+  it('offers quick removal on a removable card and through the Delete key only', () => {
+    const onRemove = vi.fn();
+    renderCalendar(1, { removable: true, onRemove });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove: Worker 1 · 2026-09-10' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: /^Worker 1,/ }), { key: 'Delete' });
+    expect(onRemove).toHaveBeenCalledTimes(2);
+    expect(onRemove).toHaveBeenLastCalledWith({
+      resourceId: 'zone',
+      date: '2026-09-10',
+      itemId: 'worker-0',
+    });
+    cleanup();
+    renderCalendar(1, { onRemove });
+    expect(screen.queryByRole('button', { name: /^Remove:/ })).toBeNull();
+    fireEvent.keyDown(screen.getByRole('button', { name: /^Worker 1,/ }), { key: 'Delete' });
+    expect(onRemove).toHaveBeenCalledTimes(2);
   });
 
   it('counts only hidden assignments and opens the complete cell', () => {

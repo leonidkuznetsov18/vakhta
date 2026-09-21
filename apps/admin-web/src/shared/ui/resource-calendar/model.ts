@@ -11,6 +11,8 @@ export interface CalendarItem {
   readonly unpublished?: boolean;
   /** Shown for context only (for example another month's plan); selecting it opens details. */
   readonly readonly?: boolean;
+  /** The caller accepts removing it in place (a quick control on the card, Delete key). */
+  readonly removable?: boolean;
   /** A rule the item breaks: blocking conflicts get a red mark, warnings an amber one. */
   readonly issue?: 'BLOCK' | 'WARN';
   readonly parts?: readonly { readonly id: string; readonly label: string }[];
@@ -21,6 +23,8 @@ export interface CalendarItem {
   readonly flags?: readonly {
     readonly label: string;
     readonly tone: 'absence' | 'warn' | 'info';
+    /** A glyph for layouts too narrow for the label; the label stays the accessible name. */
+    readonly icon?: string;
   }[];
 }
 export type CalendarNoteTone = 'danger' | 'ok' | 'muted';
@@ -53,6 +57,8 @@ export interface CalendarDate {
   readonly shortLabel: string;
   /** Column totals, for example day/night counts. */
   readonly summary?: string;
+  /** The same totals as numbers, for a compact layout that cannot fit the text. */
+  readonly counts?: { readonly day: number; readonly night: number };
   readonly today?: boolean;
   /** The date belongs to another plan and is shown for context only. */
   readonly readonly?: boolean;
@@ -72,6 +78,8 @@ export interface CalendarViewModel {
   readonly moreItemsLabel: string;
   /** Accessible names of item issues. */
   readonly issueLabels?: Readonly<Record<'BLOCK' | 'WARN', string>>;
+  /** Name of the quick remove control on a removable item. */
+  readonly removeLabel?: string;
 }
 export interface CalendarSelection {
   readonly resourceId: string;
