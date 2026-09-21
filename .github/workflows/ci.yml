@@ -33,7 +33,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm format:check
-      - run: pnpm test
+      # Bound package concurrency: JSDOM suites and database containers share this runner.
+      - run: pnpm test --concurrency=2
       - run: pnpm test:architecture
       - run: pnpm api:check
       - run: pnpm --filter admin-web exec playwright install --with-deps chromium
