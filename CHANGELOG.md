@@ -1,3 +1,13 @@
+## [1.23.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.22.0...v1.23.0) (2026-09-21)
+
+### Features
+
+* **admin:** add a tree view of sites, units and people to the units directory ([411a9a3](https://github.com/leonidkuznetsov18/vakhta/commit/411a9a337b60201ee1b05b01f3c06e9a8ced9902))
+
+### Documentation
+
+* **landing:** record Web Analytics enablement and manual Pages deploy ([e824cce](https://github.com/leonidkuznetsov18/vakhta/commit/e824cce8aec890088bbdfaa5550a72b796a5ffaf))
+
 ## [1.22.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.21.1...v1.22.0) (2026-09-21)
 
 ### Features
