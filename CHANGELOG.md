@@ -1,3 +1,9 @@
+## [1.18.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.17.1...v1.18.0) (2026-09-21)
+
+### Features
+
+* **platform:** bind API and worker to one tenant per request with a control registry ([c8c9183](https://github.com/leonidkuznetsov18/vakhta/commit/c8c9183d9f4be713ee222212e51aa416ad80c67c))
+
 ## [1.17.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.17.0...v1.17.1) (2026-09-21)
 
 ### Documentation
