@@ -4,6 +4,7 @@ import { primaryHost, type RegistryTenantSource } from '@vakhta/registry';
 import type { TenantPublicConfig } from '@vakhta/contracts';
 import type { ControlEnv } from '../config/env.js';
 import { CONTROL_ENV, TENANT_SOURCE } from '../infra/registry.module.js';
+import { logoUrl } from '../branding/logo.js';
 
 /**
  * Unauthenticated: what a panel or kiosk needs before sign-in (spec AC-020). Only public facts
@@ -40,7 +41,7 @@ export class PublicController {
       panelUrl: origin(TenantSurface.PANEL),
       kioskUrl: origin(TenantSurface.KIOSK),
       displayName: tenant.branding.displayName,
-      logoUrl: null,
+      logoUrl: logoUrl(this.env.CONTROL_PUBLIC_BASE_URL, tenant.id, tenant.branding.logoKey),
       accentColor: tenant.branding.accentColor,
       defaultLocale: tenant.defaultLocale,
       modules: [...tenant.modules],

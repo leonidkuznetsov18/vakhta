@@ -13,6 +13,7 @@
     "operator:bootstrap": "node --env-file-if-exists=../../.env dist/cli/bootstrap-operator.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "catalog:",
     "@better-auth/drizzle-adapter": "1.7.2",
     "@nestjs/common": "^11.1.0",
     "@nestjs/config": "^4.0.2",
@@ -29,6 +30,7 @@
     "pino": "catalog:",
     "pino-http": "10.5.0",
     "reflect-metadata": "^0.2.2",
+    "sharp": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

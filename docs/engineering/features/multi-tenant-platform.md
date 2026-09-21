@@ -356,3 +356,35 @@ The owner chose panel first, with the bot token to be added later in the control
   handed to the owner. Live control screenshots were inspected on desktop and at 390px with no
   document overflow. Kiosk HTTPS passes with public DNS and normal certificate validation;
   Chrome's local resolver still returned NXDOMAIN, so that browser/device journey is not claimed.
+
+## Tenant branding completion (2026-09-21)
+
+- The Branding feature has its own control-web FSD slice. The existing workspace routes to it;
+  the overview card links directly to the editor. Form drafts own their starting version and
+  survive background failures. Viewer access is read-only; invalid/unchanged saves are disabled.
+- `GET/PUT /control/tenants/:id/branding` uses the operator MFA/role guard and a transactional
+  version check with before/after audit. There is no schema migration. PNG/JPEG/WebP uploads are
+  capped at 512 KiB and decoded/re-encoded to bounded WebP; SVG/external URLs are not accepted.
+- Logo objects use `tenants/<slug>/branding/<sha256>.webp` in the existing private bucket.
+  `GET /public/tenant-logo/:id/:version` verifies the stored tenant-owned key and serves the current
+  image with `nosniff` and a five-minute cache. Historical/uncommitted content-addressed objects
+  remain private for tenant storage retention/deletion; no unrelated media is made public.
+- Runtime config publishes the stable logo URL. Panel sign-in, welcome, navigation and titles,
+  favicon and kiosk use the tenant identity. Accessible accent shades are separate from semantic
+  status colours. Changes apply on page reload after the control source's five-second refresh.
+- Independent read-only review found three issues: background failures discarded a draft, a white
+  accent hid primary-coloured text, and offline FileReader work paused indefinitely. All three
+  were corrected, with editor recovery and contrast regressions. Focused backend tests cover
+  role access, two-tenant isolation, version conflicts, upload validation, removal and storage
+  recovery. Browser and deployment evidence is recorded below once verified.
+
+- Local checks: branding backend 6, control-web 12, tenant-client 21, i18n 13 and architecture 3
+  passed; affected apps built and type-checked, task-owned lint passed. Chrome Private saved
+  name/accent through a real local control-api and retained them on the form. Desktop and 390px
+  editor screenshots were visually inspected; tabs now wrap so Branding remains visible. QA
+  uses a local operator session stub and an in-memory logo adapter; HTTP role denial is covered
+  by the backend tests. The actual R2 SDK upload/read/delete round trip passed separately.
+- Supplied the existing R2 settings to Railway control-api without triggering an intermediate
+  deployment. Browser file upload is blocked until the owner enables file access for the Chrome
+  extension. Panel/kiosk screenshot checks also encountered an extension popup blocking browser
+  automation; these are not claimed as completed. No production tenant branding was changed.

@@ -1,3 +1,4 @@
+import { tenantConfig } from '@/shared/config/tenant';
 import { QueryActivity } from '@/shared/ui/query-activity';
 import { MobileNavigation, MobileNavigationClose } from '@/features/mobile-navigation';
 import { MutationActivity } from '@/components/app/query-feedback';
@@ -139,7 +140,7 @@ export function PanelShell() {
   // names the section once signed in; the login screen sets its own.
   useDocumentTitle(
     state.status === 'authenticated'
-      ? `${active === 'profile' ? t.admin.auth.profile : t.admin.sections[active]} · ${t.admin.productName}`
+      ? `${active === 'profile' ? t.admin.auth.profile : t.admin.sections[active]} · ${tenantConfig()?.displayName ?? t.admin.productName}`
       : null,
   );
 
@@ -205,7 +206,7 @@ export function PanelShell() {
                   >
                     <LogoMark className="size-9 group-data-[collapsible=icon]:size-8" />
                     <span className="truncate group-data-[collapsible=icon]:hidden">
-                      {t.admin.productName}
+                      {tenantConfig()?.displayName ?? t.admin.productName}
                     </span>
                   </Link>
                 </SidebarHeader>

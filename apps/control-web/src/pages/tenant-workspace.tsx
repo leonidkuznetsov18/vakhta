@@ -12,6 +12,7 @@ import { JobCard } from './workspace/jobs';
 import { ModulesTab } from './workspace/modules';
 import { OverviewTab } from './workspace/overview';
 import { ParametersTab } from './workspace/parameters';
+import { BrandingEditor } from '@/features/tenant-branding';
 
 export type WorkspaceTab =
   | 'overview'
@@ -20,6 +21,7 @@ export type WorkspaceTab =
   | 'bot'
   | 'domains'
   | 'parameters'
+  | 'branding'
   | 'jobs'
   | 'audit'
   | 'danger';
@@ -30,6 +32,7 @@ export const WORKSPACE_TABS: readonly WorkspaceTab[] = [
   'bot',
   'domains',
   'parameters',
+  'branding',
   'jobs',
   'audit',
   'danger',
@@ -64,8 +67,10 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
       queryClient.invalidateQueries({ queryKey: queryKeys.tenants }),
     ]);
 
+  if (tenant.isPaused && !tenant.data)
+    return <FailureState onRetry={() => void tenant.refetch()} />;
   if (tenant.isPending) return <LoadingState />;
-  if (tenant.isError) return <FailureState onRetry={() => void tenant.refetch()} />;
+  if (!tenant.data) return <FailureState onRetry={() => void tenant.refetch()} />;
   const detail = tenant.data;
   const panels: Record<WorkspaceTab, () => React.ReactElement> = {
     overview: () => <OverviewTab detail={detail} jobs={jobs.data ?? []} onChanged={refresh} />,
@@ -74,6 +79,7 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
     bot: () => <BotTab detail={detail} onChanged={refresh} />,
     domains: () => <DomainsTab detail={detail} onChanged={refresh} />,
     parameters: () => <ParametersTab tenantId={id} />,
+    branding: () => <BrandingEditor tenantId={id} />,
     jobs: () => (
       <JobsPanel
         jobs={jobs.data}
@@ -89,6 +95,7 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
 
   return (
     <div className="flex flex-col gap-5">
+      {tenant.isError ? <FailureState onRetry={() => void tenant.refetch()} /> : null}
       <div className="text-sm text-muted-foreground">
         <Link to="/">{m.nav.tenants}</Link> / {detail.name}
       </div>
@@ -104,9 +111,9 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
           })
         }
       >
-        <TabsList className="max-w-full overflow-x-auto">
+        <TabsList className="max-w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto max-md:overflow-visible max-md:group-data-horizontal/tabs:h-auto">
           {WORKSPACE_TABS.map((key) => (
-            <TabsTrigger key={key} value={key}>
+            <TabsTrigger key={key} value={key} className="h-9 flex-none px-3">
               {m.workspace.tabs[key]}
             </TabsTrigger>
           ))}

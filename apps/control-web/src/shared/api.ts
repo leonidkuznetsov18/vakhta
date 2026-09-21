@@ -5,6 +5,8 @@ import {
   OperatorView,
   ProvisioningJobView,
   TenantDetailView,
+  TenantBrandingView,
+  type UpdateTenantBrandingCommand,
   TenantSettingsView,
   TenantSummaryView,
   type AddDomainCommand,
@@ -66,6 +68,12 @@ const Ok = z.unknown();
 const Url = z.object({ url: z.string() });
 
 export const controlApi = {
+  branding: (id: string) => request(TenantBrandingView, `/control/tenants/${id}/branding`),
+  updateBranding: (id: string, command: UpdateTenantBrandingCommand) =>
+    request(TenantBrandingView, `/control/tenants/${id}/branding`, {
+      method: 'PUT',
+      body: JSON.stringify(command),
+    }),
   me: () => request(Operator, '/control/operators/me'),
   signIn: (email: string, password: string) =>
     request(SignInResult, '/auth/sign-in/email', json({ email, password })),
@@ -118,6 +126,7 @@ export const controlApi = {
 };
 
 export const queryKeys = {
+  branding: (id: string) => ['tenants', id, 'branding'] as const,
   me: ['me'] as const,
   tenants: ['tenants'] as const,
   tenant: (id: string) => ['tenants', id] as const,

@@ -12,6 +12,8 @@ import { LanguageSwitcher, currentLocale } from '../i18n.tsx';
 import { useDocumentTitle } from '@/lib/title';
 import { validateWith, type FieldErrors } from '@/lib/validation';
 import { z } from 'zod';
+import { tenantConfig } from '@/shared/config/tenant';
+import { LogoMark } from '@/components/app/logo';
 
 const all = messages(currentLocale());
 const t = all.admin.auth;
@@ -25,7 +27,8 @@ interface Props {
 
 /** Two-step sign-in: password, then TOTP when the user has the second factor enabled. */
 export function LoginScreen({ onSignedIn, offline }: Props) {
-  useDocumentTitle(`${all.admin.auth.signInTitle} · ${all.admin.productName}`);
+  const displayName = tenantConfig()?.displayName ?? all.admin.productName;
+  useDocumentTitle(`${all.admin.auth.signInTitle} · ${displayName}`);
   const [step, setStep] = useState<'password' | 'totp'>('password');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -73,7 +76,10 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
     <main className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <div className="text-sm font-semibold text-muted-foreground">{all.admin.productName}</div>
+          <div className="flex min-w-0 items-center gap-3 font-semibold">
+            <LogoMark className="size-12" />
+            <span className="break-words [overflow-wrap:anywhere]">{displayName}</span>
+          </div>
           <CardTitle>{step === 'password' ? t.signInTitle : t.totpTitle}</CardTitle>
           {step === 'totp' ? <CardDescription>{t.totpHint}</CardDescription> : null}
         </CardHeader>

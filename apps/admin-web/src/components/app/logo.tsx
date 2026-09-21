@@ -1,4 +1,6 @@
 import { cn } from 'cn';
+import { useState } from 'react';
+import { tenantConfig } from '@/shared/config/tenant';
 
 /**
  * The product mark, the same drawing as the favicon and the kiosk icon: a 24-hour dial on a dark
@@ -6,6 +8,28 @@ import { cn } from 'cn';
  * sidebar and survives the collapsed rail.
  */
 export function LogoMark({ className }: { readonly className?: string }) {
+  const url = tenantConfig()?.logoUrl;
+  return <BrandMark key={url} url={url} className={className} />;
+}
+
+function BrandMark({
+  url,
+  className,
+}: {
+  readonly url?: string | null | undefined;
+  readonly className?: string | undefined;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (url && !failed)
+    return (
+      <img
+        src={url}
+        alt=""
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+        className={cn('size-8 shrink-0 rounded-md object-contain', className)}
+      />
+    );
   return (
     <svg
       viewBox="0 0 64 64"

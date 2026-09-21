@@ -21,6 +21,11 @@ export const ControlEnvSchema = z.object({
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('info'),
   CONTROL_PORT: z.coerce.number().int().positive().default(3100),
   CONTROL_HOST: z.string().default('0.0.0.0'),
+  S3_BUCKET: z.string().optional(),
+  S3_ENDPOINT: z.url().optional(),
+  S3_ACCESS_KEY: z.string().optional(),
+  S3_SECRET_KEY: z.string().optional(),
+  S3_REGION: z.string().default('us-east-1'),
   CONTROL_DATABASE_URL: z.string().min(1),
   CONTROL_ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/),
   /** Signs operator session cookies and encrypts operator TOTP secrets. */

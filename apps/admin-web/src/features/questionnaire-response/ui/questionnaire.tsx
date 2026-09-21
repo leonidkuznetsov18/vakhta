@@ -5,6 +5,7 @@ import { format, messages } from '@vakhta/i18n';
 import { validQuestionnaireAnswer, type QuestionnaireView } from '@vakhta/contracts';
 import { CheckCircle2Icon, ArrowLeftIcon, ArrowRightIcon, ClipboardListIcon } from 'lucide-react';
 import { currentLocale } from '@/i18n';
+import { tenantConfig } from '@/shared/config/tenant';
 import { ApiError } from '@/api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -32,7 +33,7 @@ export function QuestionnaireResponse({ id, launch }: { id: string; launch: stri
     <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col bg-background [&_button]:min-h-11 px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))]">
       <header className="mb-7 flex items-center gap-2 text-sm font-semibold">
         <ClipboardListIcon className="size-5" />
-        {messages(currentLocale()).admin.productName}
+        {tenantConfig()?.displayName ?? messages(currentLocale()).admin.productName}
       </header>
       {!launch ? (
         <p role="status" className="text-base">

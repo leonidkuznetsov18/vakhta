@@ -189,6 +189,25 @@ Actor: platform operator. Value: a new plant is live in hours, without a deploy 
   tenant-config endpoint by their own host, validate it with a zod contract, and cache the last
   good answer in browser storage so a kiosk restarts while the control plane is unreachable.
 
+#### Branding completion (owner request, 2026-09-21)
+
+The Branding tab edits each tenant's display name, logo and accent together, with a live preview.
+Only platform administrators may save; viewers may inspect. Unchanged or invalid forms cannot be
+submitted. Saving checks the version the operator edited and records before/after facts in the
+control audit. A failed save or background refresh retains the draft; a conflict allows explicitly
+loading the saved version.
+
+Logos accept PNG, JPEG and WebP files up to 512 KiB. The control service validates the decoded raster,
+preserves its aspect ratio, limits it to 512 pixels per side and stores a normalized WebP in the
+existing private object bucket. A public endpoint serves only the current tenant-owned logo;
+neither arbitrary object keys nor external logo URLs are accepted. Logo removal and resetting the
+accent are supported. Logo assets are public identity, not private tenant media.
+
+After reloading a tenant page, the sign-in, welcome, panel navigation, page title/favicon and kiosk
+show its identity. Theme-specific accent shades keep text legible and leave operational status
+colours intact. The operator's control shell retains the Vakhta identity. Typeface customization,
+layout themes and automatic image generation are outside this request.
+
 ### US6: Operations across tenants (Priority: P2)
 
 - **AC-021**: Migrations run for the control database and then every tenant database under an

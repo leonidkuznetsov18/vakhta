@@ -243,17 +243,19 @@ It uses the existing PostgreSQL cluster; creating another PostgreSQL service is 
 
 Required configuration:
 
-| Variable                                   | Production value or purpose                                               |
-| ------------------------------------------ | ------------------------------------------------------------------------- |
-| `NODE_ENV`                                 | `production`                                                              |
-| `CONTROL_HOST`, `CONTROL_PORT`, `PORT`     | `0.0.0.0`, `3100`, `3100`                                                 |
-| `CONTROL_DATABASE_URL`                     | Private network URL for `vakhta_control_owner` and `vakhta_control`       |
-| `CONTROL_ENCRYPTION_KEY`                   | 32 random bytes encoded as hex; preserve it to decrypt tenant secrets     |
-| `CONTROL_AUTH_SECRET`                      | Separate control authentication secret; never reuse the tenant API secret |
-| `CONTROL_PUBLIC_BASE_URL`                  | `https://control-api.vakhta.xyz` (the auth API origin)                    |
-| `CONTROL_CORS_ORIGINS`                     | `https://control.vakhta.xyz`                                              |
-| `AUTH_COOKIE_SAME_SITE`, `PLATFORM_SCHEME` | `lax`, `https`                                                            |
-| `PROVISION_DATABASE_ADMIN_URL`             | Cluster administrator URL; only the control service receives it           |
+| Variable                                   | Production value or purpose                                                        |
+| ------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `NODE_ENV`                                 | `production`                                                                       |
+| `CONTROL_HOST`, `CONTROL_PORT`, `PORT`     | `0.0.0.0`, `3100`, `3100`                                                          |
+| `CONTROL_DATABASE_URL`                     | Private network URL for `vakhta_control_owner` and `vakhta_control`                |
+| `CONTROL_ENCRYPTION_KEY`                   | 32 random bytes encoded as hex; preserve it to decrypt tenant secrets              |
+| `CONTROL_AUTH_SECRET`                      | Separate control authentication secret; never reuse the tenant API secret          |
+| `CONTROL_PUBLIC_BASE_URL`                  | `https://control-api.vakhta.xyz` (the auth API origin)                             |
+| `CONTROL_CORS_ORIGINS`                     | `https://control.vakhta.xyz`                                                       |
+| `S3_BUCKET`, `S3_ENDPOINT`, `S3_REGION`    | Existing tenant media bucket; control-api uses it for normalized public logos      |
+| `S3_ACCESS_KEY`, `S3_SECRET_KEY`           | Existing object storage credentials, supplied through Railway; never commit values |
+| `AUTH_COOKIE_SAME_SITE`, `PLATFORM_SCHEME` | `lax`, `https`                                                                     |
+| `PROVISION_DATABASE_ADMIN_URL`             | Cluster administrator URL; only the control service receives it                    |
 
 The encryption key, auth secret and registry password are stored in 1Password Private as
 **Vakhta Control — production secrets**. The first operator's login is stored as

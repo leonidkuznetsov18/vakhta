@@ -229,3 +229,19 @@
     transform: translate(var(--spark-x), var(--spark-y)) scale(0.35) rotate(var(--spark-spin));
   }
 }
+[data-tenant-brand] {
+  --primary: var(--tenant-on-light);
+  --primary-foreground: #ffffff;
+  --sidebar-primary: var(--tenant-on-light);
+  --sidebar-primary-foreground: #ffffff;
+  --ring: var(--tenant-on-light);
+  --sidebar-ring: var(--tenant-on-light);
+}
+.dark[data-tenant-brand] {
+  --primary: var(--tenant-on-dark);
+  --primary-foreground: #000000;
+  --sidebar-primary: var(--tenant-on-dark);
+  --sidebar-primary-foreground: #000000;
+  --ring: var(--tenant-on-dark);
+  --sidebar-ring: var(--tenant-on-dark);
+}

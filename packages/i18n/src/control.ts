@@ -1,3 +1,4 @@
+import { brandingUk, brandingEn, brandingRu, type BrandingMessages } from './branding.js';
 /** Mirrors the keys of TenantSettings in @vakhta/contracts; the i18n parity test keeps catalogs complete. */
 type TenantSettingName =
   | 'arriveBeforeMinutes'
@@ -30,6 +31,7 @@ type TenantSettingGroupName =
 
 /** Control panel (Vakhta Control) texts: operators only, still trilingual (AGENTS.md). */
 export interface ControlMessages {
+  readonly branding: BrandingMessages;
   readonly productName: string;
   readonly nav: {
     tenants: string;
@@ -98,6 +100,7 @@ export interface ControlMessages {
       | 'bot'
       | 'domains'
       | 'parameters'
+      | 'branding'
       | 'jobs'
       | 'audit'
       | 'danger',
@@ -227,6 +230,7 @@ export interface ControlMessages {
 }
 
 export const controlUk: ControlMessages = {
+  branding: brandingUk,
   productName: 'Vakhta Control',
   nav: {
     tenants: 'Клієнти',
@@ -318,6 +322,7 @@ export const controlUk: ControlMessages = {
       jobs: 'Задачі',
       audit: 'Аудит',
       parameters: 'Параметри',
+      branding: brandingUk.title,
       danger: 'Небезпечна зона',
     },
     onboardingTitle: 'Посилання для клієнта',
@@ -490,6 +495,7 @@ export const controlUk: ControlMessages = {
 };
 
 export const controlEn: ControlMessages = {
+  branding: brandingEn,
   productName: 'Vakhta Control',
   nav: {
     tenants: 'Clients',
@@ -581,6 +587,7 @@ export const controlEn: ControlMessages = {
       jobs: 'Jobs',
       audit: 'Audit',
       parameters: 'Parameters',
+      branding: brandingEn.title,
       danger: 'Danger zone',
     },
     onboardingTitle: 'Link for the client',
@@ -752,6 +759,7 @@ export const controlEn: ControlMessages = {
 };
 
 export const controlRu: ControlMessages = {
+  branding: brandingRu,
   productName: 'Vakhta Control',
   nav: {
     tenants: 'Клиенты',
@@ -843,6 +851,7 @@ export const controlRu: ControlMessages = {
       jobs: 'Задачи',
       audit: 'Аудит',
       parameters: 'Параметры',
+      branding: brandingRu.title,
       danger: 'Опасная зона',
     },
     onboardingTitle: 'Ссылка для клиента',

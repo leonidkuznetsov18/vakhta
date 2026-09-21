@@ -72,6 +72,8 @@ describe('tenant runtime bootstrap', () => {
     { apiUrl: 'http://alpha-api.vakhta.test' },
     { apiUrl: 'https://user:password@alpha-api.vakhta.test' },
     { canonicalUrl: 'javascript:alert(1)' },
+    { logoUrl: 'javascript:alert(1)' },
+    { logoUrl: 'http://logos.example.test/logo.webp' },
     { tenantId: 'invalid' },
   ])('fails closed for invalid or inaccessible configuration %j', async (change) => {
     const { options, fetcher, values } = setup();

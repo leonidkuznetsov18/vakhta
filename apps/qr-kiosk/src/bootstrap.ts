@@ -1,5 +1,10 @@
 import { messages, resolveLocale } from '@vakhta/i18n';
-import { browserStorage, resolveTenant, setTenantConfig } from '@vakhta/tenant-client';
+import {
+  applyTenantBranding,
+  browserStorage,
+  resolveTenant,
+  setTenantConfig,
+} from '@vakhta/tenant-client';
 
 const configuredControlUrl: unknown = import.meta.env['VITE_CONTROL_API_URL'];
 const controlUrl =
@@ -35,6 +40,7 @@ async function start(): Promise<void> {
       return;
     }
     setTenantConfig(config);
+    applyTenantBranding(config, document);
     surface.remove();
     for (const element of elements) element.hidden = false;
     await import('./main');

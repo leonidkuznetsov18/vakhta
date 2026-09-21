@@ -30,7 +30,8 @@ const locale = resolveLocale(
 );
 const t = messages(locale);
 document.documentElement.lang = locale;
-document.title = `${t.kiosk.title} · ${t.admin.productName}`;
+const displayName = tenantConfig()?.displayName ?? t.admin.productName;
+document.title = `${t.kiosk.title} · ${displayName}`;
 const API_URL =
   tenantConfig()?.apiUrl ?? import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
 const TOKEN_KEY = 'vakhta.kiosk.deviceToken';
@@ -84,7 +85,17 @@ for (const code of LOCALES) {
   el.lang.appendChild(button);
 }
 
-el.title.textContent = t.kiosk.title;
+el.title.textContent = displayName;
+const logoUrl = tenantConfig()?.logoUrl;
+if (logoUrl) {
+  const logo = document.createElement('img');
+  logo.src = logoUrl;
+  logo.alt = '';
+  logo.className = 'tenant-logo';
+  logo.referrerPolicy = 'no-referrer';
+  logo.onerror = () => logo.remove();
+  el.title.before(logo);
+}
 el.hint.textContent = t.kiosk.hint;
 el.pairTitle.textContent = t.kiosk.pairTitle;
 el.pairHint.textContent = t.kiosk.pairHint;

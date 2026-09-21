@@ -28,17 +28,19 @@ function Shell() {
   const navigate = useNavigate();
   const me = useQuery({ queryKey: queryKeys.me, queryFn: controlApi.me, retry: false });
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  if (me.isPending) return <LoadingState />;
+  if (me.isPending && !me.isPaused) return <LoadingState />;
   if (me.isError) {
     const unauthenticated =
       me.error instanceof ControlApiError && (me.error.status === 401 || me.error.status === 403);
     if (unauthenticated) return <SignInPage />;
-    return (
-      <div className="p-6">
-        <FailureState onRetry={() => void me.refetch()} />
-      </div>
-    );
+    if (!me.data)
+      return (
+        <div className="p-6">
+          <FailureState onRetry={() => void me.refetch()} />
+        </div>
+      );
   }
+  if (!me.data) return <FailureState onRetry={() => void me.refetch()} />;
   const nav: { to: '/' | '/operators'; label: string }[] = [
     { to: '/', label: m.nav.tenants },
     { to: '/operators', label: m.nav.operators },
@@ -92,6 +94,7 @@ function Shell() {
         </div>
       </nav>
       <main className="min-w-0 flex-1 p-4 [overflow-wrap:anywhere] sm:p-6 lg:p-8">
+        {me.isError ? <FailureState onRetry={() => void me.refetch()} /> : null}
         <Outlet />
       </main>
     </div>
@@ -118,6 +121,7 @@ const workspaceSearch = z.object({
       'bot',
       'domains',
       'parameters',
+      'branding',
       'jobs',
       'audit',
       'danger',

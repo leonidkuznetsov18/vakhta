@@ -89,6 +89,12 @@ title; a notice when the kiosk module is off. Bot: the greeting uses the client'
 
 ## Typical questions
 
+In a client's **Branding** tab, an operator can change the display name, upload or remove a logo,
+and choose or reset the accent colour. The preview updates before saving. Logos may be PNG, JPEG
+or WebP up to 512 KB; their proportions are preserved. The logo is public. Reload a client page to
+apply a saved brand. Light and dark themes adjust the accent for legibility without recolouring
+warnings or operational statuses. Branding is independent for every tenant.
+
 - "Can one company have several plants?" Yes: sites, units and zones stay inside one tenant.
 - "Can two clients share a bot?" No: each tenant has its own bot.
 - "What happens to the current customer?" It becomes the first tenant with no data migration and

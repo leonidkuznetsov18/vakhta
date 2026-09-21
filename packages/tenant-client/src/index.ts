@@ -31,6 +31,14 @@ function validOrigin(address: string, allowHttp: boolean): boolean {
   );
 }
 
+function validateLogo(address: string | null, allowHttp: boolean): void {
+  if (!address) return;
+  const logo = new URL(address);
+  const allowed = logo.protocol === 'https:' || (allowHttp && logo.protocol === 'http:');
+  if (!allowed || logo.username || logo.password)
+    throw new TenantUnavailable('Invalid tenant logo');
+}
+
 function validate(value: unknown, options: RuntimeOptions): TenantPublicConfig {
   const config = TenantPublicConfig.parse(value);
   const requiredModule =
@@ -42,6 +50,7 @@ function validate(value: unknown, options: RuntimeOptions): TenantPublicConfig {
   )
     throw new TenantUnavailable('Tenant unavailable');
   const addresses = [config.apiUrl, config.canonicalUrl, config.panelUrl, config.kioskUrl];
+  validateLogo(config.logoUrl, options.allowHttp ?? false);
   for (const address of addresses) {
     if (address && !validOrigin(address, options.allowHttp ?? false)) {
       throw new TenantUnavailable('Invalid tenant origin');
@@ -133,3 +142,4 @@ export function browserStorage(): Storage | undefined {
     return undefined;
   }
 }
+export { brandPalette, applyTenantBranding } from './branding.js';

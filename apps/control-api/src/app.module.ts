@@ -30,6 +30,8 @@ import { TenantsService } from './tenants/tenants.service.js';
     ControlAuthModule,
   ],
   controllers: [
+    BrandingController,
+    PublicLogoController,
     HealthController,
     PublicController,
     OnboardingController,
@@ -39,6 +41,8 @@ import { TenantsService } from './tenants/tenants.service.js';
     OperatorsController,
   ],
   providers: [
+    BrandingService,
+    LogoStorage,
     ControlAudit,
     OnboardingService,
     OperatorGuard,
@@ -50,3 +54,6 @@ import { TenantsService } from './tenants/tenants.service.js';
   ],
 })
 export class AppModule {}
+import { BrandingController, PublicLogoController } from './branding/branding.controller.js';
+import { BrandingService } from './branding/branding.service.js';
+import { LogoStorage } from './branding/logo-storage.js';

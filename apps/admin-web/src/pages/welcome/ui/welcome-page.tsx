@@ -11,6 +11,7 @@ import { FormField } from '@/components/app/fields';
 import { LoadingState } from '@/shared/ui/loading-state';
 import { acceptInvitation, InvitationUnavailable } from '../api/onboarding';
 import { welcomeQueries } from '../api/queries';
+import { LogoMark } from '@/components/app/logo';
 
 const t = messages(currentLocale()).onboarding;
 function errorMessage(error: Error): string {
@@ -61,7 +62,12 @@ function WelcomeContent({
   const [completed, setCompleted] = useState(invitation.status === OnboardingStatus.USED);
   return (
     <>
-      <p className="break-words text-lg font-semibold">{invitation.displayName}</p>
+      <div className="flex min-w-0 items-center gap-3">
+        <LogoMark className="size-12" />
+        <p className="break-words text-lg font-semibold [overflow-wrap:anywhere]">
+          {invitation.displayName}
+        </p>
+      </div>
       {completed ? (
         <>
           <p>{t.success}</p>
