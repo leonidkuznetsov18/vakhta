@@ -102,8 +102,26 @@ and [ADR-0015](../adr/0015-database-per-tenant-with-control-plane.md). Four boun
 foundation (tenant context, registry, env-mode compatibility, pilot cutover), control panel
 (operators, tenants, modules, provisioning jobs, audit), tenant surfaces (per-tenant bots, module
 gating, branding, runtime configuration) and operations (backups, suspend/resume, rotation, client
-domains). GitHub issues are not created yet; publish them only on owner request after the plan's
-open decisions are confirmed. Evidence: [engineering memory](features/multi-tenant-platform.md).
+domains). Epic: [#91](https://github.com/leonidkuznetsov18/vakhta/issues/91), published 2026-09-21 on owner request; #92 holds the open
+decisions that gate implementation. Evidence: [engineering memory](features/multi-tenant-platform.md).
+
+| Issue                                                          | Capability and outcome      | Source tasks                                                                      | Delivery         |
+| -------------------------------------------------------------- | --------------------------- | --------------------------------------------------------------------------------- | ---------------- |
+| [#92](https://github.com/leonidkuznetsov18/vakhta/issues/92)   | Decisions and research      | Confirm hostnames control service cluster and verify provider facts               | T010             | Delivery 1 |
+| [#93](https://github.com/leonidkuznetsov18/vakhta/issues/93)   | Registry                    | Build the control registry package domain rules and tenant contracts              | T011             | Delivery 1 |
+| [#94](https://github.com/leonidkuznetsov18/vakhta/issues/94)   | Tenant context              | Bind every API request auth and bot to one tenant                                 | T012, T013       | Delivery 1 |
+| [#95](https://github.com/leonidkuznetsov18/vakhta/issues/95)   | Worker isolation            | Run outbox timers media and recovery per tenant                                   | T014             | Delivery 1 |
+| [#96](https://github.com/leonidkuznetsov18/vakhta/issues/96)   | Migrations and environments | Migrate every tenant database and keep env mode working                           | T015             | Delivery 1 |
+| [#97](https://github.com/leonidkuznetsov18/vakhta/issues/97)   | Foundation acceptance       | Prove isolation with two databases and cut the pilot over                         | T016, T017, T018 | Delivery 1 |
+| [#98](https://github.com/leonidkuznetsov18/vakhta/issues/98)   | Control service             | Provide operator authentication registry APIs and resumable provisioning          | T020, T021       | Delivery 2 |
+| [#99](https://github.com/leonidkuznetsov18/vakhta/issues/99)   | Tenant settings             | Move operational parameters from environment to per-tenant settings               | T023             | Delivery 2 |
+| [#100](https://github.com/leonidkuznetsov18/vakhta/issues/100) | Quick creation              | Create a client in one form and hand over an onboarding link                      | T024             | Delivery 2 |
+| [#101](https://github.com/leonidkuznetsov18/vakhta/issues/101) | Control panel               | Show and edit every tenant configuration in one workspace                         | T022, T025, T026 | Delivery 2 |
+| [#102](https://github.com/leonidkuznetsov18/vakhta/issues/102) | Bot and welcome             | Connect the tenant bot and let the administrator start from one link              | T030             | Delivery 3 |
+| [#103](https://github.com/leonidkuznetsov18/vakhta/issues/103) | Modules and branding        | Enforce module switches and show the client identity on every surface             | T031             | Delivery 3 |
+| [#104](https://github.com/leonidkuznetsov18/vakhta/issues/104) | Runtime configuration       | Resolve panel and kiosk configuration by host and onboard the first new client    | T032, T033       | Delivery 3 |
+| [#105](https://github.com/leonidkuznetsov18/vakhta/issues/105) | Backups and lifecycle       | Back up every tenant suspend resume and rotate bot tokens                         | T040, T041       | Delivery 4 |
+| [#106](https://github.com/leonidkuznetsov18/vakhta/issues/106) | Domains and deletion        | Verify client domains and delete tenants with a final backup and retention window | T042, T043, T044 | Delivery 4 |
 
 ## Labels and status
 

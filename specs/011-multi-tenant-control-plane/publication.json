@@ -1,0 +1,198 @@
+{
+  "feature": "011-multi-tenant-control-plane",
+  "repository": "leonidkuznetsov18/vakhta",
+  "published_at": "2026-09-21T10:58:14.283701+00:00",
+  "issues": [
+    {
+      "key": "epic",
+      "number": 91,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/91",
+      "title": "Platform | Epic | Run many client plants from one control panel with isolated databases bots and kiosks",
+      "labels": ["area:platform", "type:epic", "status:needs-decision"],
+      "body_sha256": "b328b5d5238f83742181a36a207a11d97b5afb7e6940eb77b463a3c62ad71f27"
+    },
+    {
+      "key": "decisions",
+      "number": 92,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/92",
+      "title": "Platform | Decisions and research | Confirm hostnames control service cluster and verify provider facts",
+      "labels": ["area:platform", "type:decision", "status:needs-decision"],
+      "source_tasks": "T010",
+      "publication_id": "MT-01",
+      "delivery": 1,
+      "dependencies": [],
+      "body_sha256": "b1574864f5b8400925d81d2f66027a032618a920777e779364febc0ef3c57979"
+    },
+    {
+      "key": "registry",
+      "number": 93,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/93",
+      "title": "Platform | Registry | Build the control registry package domain rules and tenant contracts",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T011",
+      "publication_id": "MT-02",
+      "delivery": 1,
+      "dependencies": [],
+      "body_sha256": "ed3267cb1d89196367354775f00383c0407f0b58541809329ed82220d6f3d5a5"
+    },
+    {
+      "key": "context",
+      "number": 94,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/94",
+      "title": "Platform | Tenant context | Bind every API request auth and bot to one tenant",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T012, T013",
+      "publication_id": "MT-03",
+      "delivery": 1,
+      "dependencies": [92, 93],
+      "body_sha256": "87d7a323d64d6b1d08b93bd23fb49b5c62b90e43c92de0a93e1ac9995ea726ea"
+    },
+    {
+      "key": "worker",
+      "number": 95,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/95",
+      "title": "Platform | Worker isolation | Run outbox timers media and recovery per tenant",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T014",
+      "publication_id": "MT-04",
+      "delivery": 1,
+      "dependencies": [93],
+      "body_sha256": "1eebcecd4bacc5b0ee251ddbc2130f79b629b2861c40001288f4b8ff4713941e"
+    },
+    {
+      "key": "migrations",
+      "number": 96,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/96",
+      "title": "Platform | Migrations and environments | Migrate every tenant database and keep env mode working",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T015",
+      "publication_id": "MT-05",
+      "delivery": 1,
+      "dependencies": [93],
+      "body_sha256": "ab0ef3d27c7e198f6f4a2d9fc53e09cc98262436f8336c777aa6258d88a130c0"
+    },
+    {
+      "key": "foundation-acceptance",
+      "number": 97,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/97",
+      "title": "Platform | Foundation acceptance | Prove isolation with two databases and cut the pilot over",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T016, T017, T018",
+      "publication_id": "MT-06",
+      "delivery": 1,
+      "dependencies": [94, 95, 96],
+      "body_sha256": "6cf69e84360c6e2743424b31b5389b65373b66a5d90f6e1da19e96419ca65b37"
+    },
+    {
+      "key": "control-service",
+      "number": 98,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/98",
+      "title": "Platform | Control service | Provide operator authentication registry APIs and resumable provisioning",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T020, T021",
+      "publication_id": "MT-07",
+      "delivery": 2,
+      "dependencies": [97],
+      "body_sha256": "80e5e5ce9d68eda32aae2206b649eb308ed5e48963b5ec6429f0d8271f6469bc"
+    },
+    {
+      "key": "tenant-settings",
+      "number": 99,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/99",
+      "title": "Platform | Tenant settings | Move operational parameters from environment to per-tenant settings",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T023",
+      "publication_id": "MT-08",
+      "delivery": 2,
+      "dependencies": [98],
+      "body_sha256": "49cd8c6ed9c02db4aa6808e427811151fc665de2bdcd969c22e973f23d04613f"
+    },
+    {
+      "key": "quick-create",
+      "number": 100,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/100",
+      "title": "Platform | Quick creation | Create a client in one form and hand over an onboarding link",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T024",
+      "publication_id": "MT-09",
+      "delivery": 2,
+      "dependencies": [98],
+      "body_sha256": "15349061411aa91a02fba3b05dd955f38cca6b9763c73a030e3773f6a4bb1207"
+    },
+    {
+      "key": "workspace",
+      "number": 101,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/101",
+      "title": "Platform | Control panel | Show and edit every tenant configuration in one workspace",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T022, T025, T026",
+      "publication_id": "MT-10",
+      "delivery": 2,
+      "dependencies": [98, 99, 100],
+      "body_sha256": "90ce4a63dfe2625baec7c1ead8983ce7d57aea41b600e71ac6cdd810a7317eee"
+    },
+    {
+      "key": "bot-welcome",
+      "number": 102,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/102",
+      "title": "Platform | Bot and welcome | Connect the tenant bot and let the administrator start from one link",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T030",
+      "publication_id": "MT-11",
+      "delivery": 3,
+      "dependencies": [100, 101],
+      "body_sha256": "81cdcb97ddaaae5888c9164f788fd9aeab7be7f6d418f4f77c42c33be1caf6a4"
+    },
+    {
+      "key": "modules-branding",
+      "number": 103,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/103",
+      "title": "Platform | Modules and branding | Enforce module switches and show the client identity on every surface",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T031",
+      "publication_id": "MT-12",
+      "delivery": 3,
+      "dependencies": [101],
+      "body_sha256": "f7e55cd5202480acc6775c7f09425bb58a6276f1e38ac0f12dd685f9e2575815"
+    },
+    {
+      "key": "runtime-config",
+      "number": 104,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/104",
+      "title": "Platform | Runtime configuration | Resolve panel and kiosk configuration by host and onboard the first new client",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T032, T033",
+      "publication_id": "MT-13",
+      "delivery": 3,
+      "dependencies": [102, 103],
+      "body_sha256": "beeb20c4f348d9b5215482572172c0edd2a4d5cce48adde478e4a05176cc1368"
+    },
+    {
+      "key": "backups-lifecycle",
+      "number": 105,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/105",
+      "title": "Platform | Backups and lifecycle | Back up every tenant suspend resume and rotate bot tokens",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T040, T041",
+      "publication_id": "MT-14",
+      "delivery": 4,
+      "dependencies": [104],
+      "body_sha256": "2fc6b9c0aa858cb2dd446b7841e7d0722a0446b6ea27a351d8a6568882031756"
+    },
+    {
+      "key": "domains-deletion",
+      "number": 106,
+      "url": "https://github.com/leonidkuznetsov18/vakhta/issues/106",
+      "title": "Platform | Domains and deletion | Verify client domains and delete tenants with a final backup and retention window",
+      "labels": ["area:platform", "type:feature", "status:backlog"],
+      "source_tasks": "T042, T043, T044",
+      "publication_id": "MT-15",
+      "delivery": 4,
+      "dependencies": [105],
+      "body_sha256": "1b81fb1db4fce2ae01b4119eb0093974cd8d7908b39b045f8dad0afb26dc3b42"
+    }
+  ],
+  "native_children_linked": {
+    "91": 15
+  }
+}

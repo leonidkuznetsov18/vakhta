@@ -44,8 +44,15 @@ Planning only. Checks performed on 2026-09-21: Prettier format check on the new 
 files; relative links inspected. No application build, tests or live QA were required or run.
 Research rows marked **verify** in research.md are not yet confirmed.
 
+## GitHub publication
+
+2026-09-21, on owner request: epic [#91](https://github.com/leonidkuznetsov18/vakhta/issues/91) with fifteen native sub-issues #92–#106, label
+`area:platform` created, one status label per issue (`status:needs-decision` on the epic and #92,
+`status:backlog` elsewhere). Titles follow `Platform | Capability | Outcome`; bodies carry outcome,
+scope, acceptance checkboxes with AC/FR traceability, resolved dependency numbers, verification and
+pinned sources. Receipts with body hashes: `specs/011-multi-tenant-control-plane/publication.json`.
+
 ## Remaining work
 
-Owner confirmation of the plan's Open Decisions; then delivery 1 tasks T010–T018 in tasks.md.
-Provisioning time per tenant is to be measured when the first non-pilot tenant is created. GitHub
-issues for the deliveries are not created; run the issue publication only on owner request.
+Owner answers in [#92](https://github.com/leonidkuznetsov18/vakhta/issues/92); then delivery 1 (#93–#97). Provisioning time per tenant is to be
+measured when the first non-pilot tenant is created (#104).
