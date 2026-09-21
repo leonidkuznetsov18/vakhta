@@ -1,3 +1,9 @@
+## [1.19.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.19.0...v1.19.1) (2026-09-21)
+
+### Bug fixes
+
+* **infra:** preserve control hosting configuration and record rollout ([3a7c5f9](https://github.com/leonidkuznetsov18/vakhta/commit/3a7c5f934d8dfa0ac2f883f104d7e902152d2fa3))
+
 ## [1.19.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.18.0...v1.19.0) (2026-09-21)
 
 ### Features
