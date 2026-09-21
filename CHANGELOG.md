@@ -1,3 +1,12 @@
+## [1.17.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.17.0...v1.17.1) (2026-09-21)
+
+### Documentation
+
+* **platform:** make the control panel the single configuration surface ([d4bb31a](https://github.com/leonidkuznetsov18/vakhta/commit/d4bb31a98820368a95f26a19d3ca58df041bf04f))
+* **platform:** publish the multi-tenant epic and child issues ([73ed397](https://github.com/leonidkuznetsov18/vakhta/commit/73ed3979607b07426675b9ff38d9463e6fb57a69)), closes [#91](https://github.com/leonidkuznetsov18/vakhta/issues/91) [#106](https://github.com/leonidkuznetsov18/vakhta/issues/106)
+* **platform:** record the reviewed control panel prototype ([758ec91](https://github.com/leonidkuznetsov18/vakhta/commit/758ec915b7d487347c229fc56d904b7a5841b713))
+* **platform:** specify the multi-tenant control plane program ([8f02b9d](https://github.com/leonidkuznetsov18/vakhta/commit/8f02b9dbc0ee44bf2153ec89bf8a401fc51ecfcb))
+
 ## [1.17.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.16.0...v1.17.0) (2026-09-19)
 
 ### Features

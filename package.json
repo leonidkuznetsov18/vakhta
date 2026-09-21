@@ -1,6 +1,6 @@
 {
   "name": "vakhta",
-  "version": "1.17.0",
+  "version": "1.17.1",
   "private": true,
   "type": "module",
   "description": "Vakhta Connected Worker platform for shift operations in continuous manufacturing.",
