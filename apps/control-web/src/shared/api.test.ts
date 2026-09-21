@@ -21,6 +21,18 @@ describe('control API boundary', () => {
     });
   });
 
+  it('preserves the authenticated operator avatar for the sidebar profile', async () => {
+    const operator = {
+      id: 'b0000000-0000-4000-8000-000000000001',
+      email: 'ops@example.test',
+      name: 'Operator',
+      role: 'PLATFORM_ADMIN',
+      image: 'https://example.test/operator-avatar.png',
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(operator)));
+    await expect(controlApi.me()).resolves.toEqual(operator);
+  });
+
   it('rejects malformed successful responses instead of treating them as an empty list', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ tenants: [] })));
     await expect(controlApi.tenants()).rejects.toThrow();

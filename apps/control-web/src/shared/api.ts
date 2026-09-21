@@ -64,7 +64,9 @@ export async function request<T>(
 
 const json = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) });
 
-const Operator = OperatorView.pick({ id: true, email: true, name: true, role: true });
+const Operator = OperatorView.pick({ id: true, email: true, name: true, role: true }).extend({
+  image: z.string().nullable().optional(),
+});
 export type Operator = z.infer<typeof Operator>;
 const SignInResult = z.object({ twoFactorRedirect: z.boolean().optional() });
 const TotpEnable = z.object({ totpURI: z.string(), backupCodes: z.array(z.string()) });

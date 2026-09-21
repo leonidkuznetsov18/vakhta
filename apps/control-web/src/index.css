@@ -231,9 +231,6 @@
 }
 
 @layer components {
-  .control-nav-item {
-    @apply flex h-8 w-full items-center gap-2 rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-sidebar-accent-foreground max-md:min-h-11 max-md:text-base [&_svg]:size-4 [&_svg]:shrink-0;
-  }
   .control-link {
     @apply rounded-sm underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring active:text-foreground;
   }

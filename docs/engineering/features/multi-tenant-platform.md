@@ -463,3 +463,21 @@ The coordinated onboarding card styling belongs to the parallel Control UI task;
 the final files back for this combined delivery. Its pending and issued-link states were visually
 inspected at 1440×1000 and 390×844; the long URL scrolls inside its field, without page overflow.
 Production acceptance and release status remain pending.
+
+Control sidebar parity follow-up (2026-09-21): replaced the bespoke navigation with the main panel's
+sidebar/sheet composition and tokens. The footer now uses the same avatar/name/role, sign-out,
+language, appearance and release-version order, including the compact desktop rail. Operator
+self-profile reads the existing auth image; missing photos use the same deterministic initials.
+No profile editing or tenant/operator identity synchronization is introduced. Control appearance
+persists separately. Navigation remains in `widgets/control-navigation`; touch gestures belong to
+`features/mobile-navigation`, reusing the main panel's tested edge/gesture algorithm and excluding
+interactive edge targets. The shadcn provider uses callback-ref cleanup instead of lifecycle hooks.
+
+Evidence: 39 Control UI/API-boundary/gesture tests passed, Control API typecheck and scoped lint
+passed, and production UI build passed. Chrome screenshots inspected at 1440×1000 and 390×844;
+light/dark, profile disclosure, collapsed navigation, edge-open/left-close touch gestures and keyboard
+focus restoration were exercised. Version is supplied by the existing Pages release build.
+Read-only review found missing close-focus restoration and a collapsed logo accessible name; both
+were fixed and focus restoration is covered. Workspace tests now await initial router settlement,
+use bounded 5-second async assertions/15-second test budgets, and run files serially after CPU-starved
+CI timed out on the former 1-second/default waits. No production operator actions were manufactured.

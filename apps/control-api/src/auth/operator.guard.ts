@@ -20,6 +20,7 @@ export interface Operator {
   readonly id: string;
   readonly email: string;
   readonly name: string;
+  readonly image?: string | null;
   readonly role: OperatorRole;
 }
 
@@ -34,6 +35,7 @@ interface SessionShape {
     readonly id: string;
     readonly email: string;
     readonly name: string;
+    readonly image?: string | null;
     readonly twoFactorEnabled?: boolean | null;
     readonly role?: string | null;
     readonly status?: string | null;
@@ -66,7 +68,13 @@ export class OperatorGuard implements CanActivate {
       user.role === OperatorRole.PLATFORM_ADMIN
         ? OperatorRole.PLATFORM_ADMIN
         : OperatorRole.PLATFORM_VIEWER;
-    request.operator = { id: user.id, email: user.email, name: user.name, role };
+    request.operator = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      image: user.image ?? null,
+      role,
+    };
     const required = this.reflector.getAllAndOverride<OperatorRole[] | undefined>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),

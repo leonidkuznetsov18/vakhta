@@ -1,3 +1,4 @@
+import { cn } from 'cn';
 import { useState, type ReactNode } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -6,10 +7,12 @@ export function InfoTooltip({
   label,
   text,
   children,
+  className,
 }: {
   label: string;
   text: string;
   children: ReactNode;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -23,7 +26,10 @@ export function InfoTooltip({
               event.preventDefault();
               setOpen(!open);
             }}
-            className="flex size-9 shrink-0 items-center justify-center rounded-md hover:bg-accent active:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:size-11"
+            className={cn(
+              'flex size-9 shrink-0 items-center justify-center rounded-md hover:bg-accent active:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:size-11',
+              className,
+            )}
           >
             {children}
           </button>

@@ -587,6 +587,9 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.5.4
+      zustand:
+        specifier: ^5.0.15
+        version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       '@testing-library/react':
         specifier: ^16.3.3

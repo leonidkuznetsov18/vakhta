@@ -1,3 +1,4 @@
+import { ThemeProvider } from 'next-themes';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -18,11 +19,13 @@ const root = document.getElementById('root');
 if (!root) throw new Error('#root element not found');
 createRoot(root).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider delayDuration={200}>
-        <RouterProvider router={router} />
-        <Toaster richColors position="bottom-right" closeButton />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" storageKey="vakhta.control.theme">
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider delayDuration={200}>
+          <RouterProvider router={router} />
+          <Toaster richColors position="bottom-right" closeButton />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

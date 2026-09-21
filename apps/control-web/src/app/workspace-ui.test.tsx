@@ -1,6 +1,16 @@
 // @vitest-environment jsdom
+import { ThemeProvider } from 'next-themes';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  configure,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { TenantDetailView, type ProvisioningJobView } from '@vakhta/contracts';
@@ -8,6 +18,9 @@ import { createControlRouter } from '@/app/router';
 import { controlApi } from '@/shared/api';
 import { InfoTooltip } from '@/shared/ui/info-tooltip';
 import { TooltipProvider } from '@/components/ui/tooltip';
+
+configure({ asyncUtilTimeout: 5_000 });
+vi.setConfig({ testTimeout: 15_000 });
 
 const time = '2026-09-21T10:00:00.000Z';
 const tenant = TenantDetailView.parse({
@@ -98,6 +111,18 @@ const job: ProvisioningJobView = {
 let client: QueryClient;
 beforeEach(() => {
   localStorage.setItem('vakhta.control.locale', 'en');
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    })),
+  );
+  vi.stubEnv('VITE_APP_VERSION', '1.2.3');
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   vi.spyOn(controlApi, 'me').mockResolvedValue({
     id: 'operator',
@@ -114,23 +139,30 @@ afterEach(() => {
   cleanup();
   client.clear();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
-function open(tab?: string) {
+async function open(tab?: string) {
   window.history.replaceState(null, '', tab ? `/#/tenants/${tenant.id}?tab=${tab}` : '/#/');
   const router = createControlRouter();
-  render(
-    <QueryClientProvider client={client}>
-      <TooltipProvider>
-        <RouterProvider router={router} />
-      </TooltipProvider>
-    </QueryClientProvider>,
-  );
+  await act(async () => {
+    render(
+      <ThemeProvider attribute="class" defaultTheme="light" storageKey="control-test-theme">
+        <QueryClientProvider client={client}>
+          <TooltipProvider>
+            <RouterProvider router={router} />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </ThemeProvider>,
+    );
+    await router.load();
+  });
   return router;
 }
 
 it('opens a client by row click and retains a real keyboard link without an Open button', async () => {
-  open();
+  await open();
   const link = await screen.findByRole('link', { name: 'Alpha' });
   expect(link.getAttribute('href')).toContain(tenant.id);
   expect(screen.queryByRole('link', { name: 'Open' })).toBeNull();
@@ -148,7 +180,7 @@ it('opens a client by row click and retains a real keyboard link without an Open
 
 it('shows only delivered modules as named checkboxes and sends the changed state once', async () => {
   const save = vi.spyOn(controlApi, 'setModule').mockResolvedValue(tenant);
-  open('modules');
+  await open('modules');
   const checkbox = await screen.findByRole('checkbox', { name: 'Admin panel' });
   expect(screen.getAllByRole('checkbox')).toHaveLength(3);
   expect(checkbox.getAttribute('data-state')).toBe('checked');
@@ -162,7 +194,7 @@ it('shows only delivered modules as named checkboxes and sends the changed state
 });
 
 it('shows domain technical details as a disclosure without domain creation', async () => {
-  open('domains');
+  await open('domains');
   const host = await screen.findByText('alpha.example.test');
   const disclosure = host.closest('details');
   expect(disclosure).not.toBeNull();
@@ -176,7 +208,7 @@ it('shows domain technical details as a disclosure without domain creation', asy
 });
 
 it('keeps skipped work distinct from completed work and routes unfinished steps to configuration', async () => {
-  open('jobs');
+  await open('jobs');
   await screen.findByText('Skipped: 1');
   const skipped = screen.getByText('Connect bot').closest('li');
   if (!skipped) throw new Error('Missing webhook task');
@@ -194,7 +226,7 @@ it('keeps skipped work distinct from completed work and routes unfinished steps 
 });
 
 it('does not confuse a saved bot token with the webhook secret', async () => {
-  open('bot');
+  await open('bot');
   await screen.findByText('Webhook secret: missing');
   expect(screen.getByRole('button', { name: 'How to get a bot token' })).toBeTruthy();
 });
@@ -209,4 +241,64 @@ it('opens informational tooltips by click without requiring hover', async () => 
   fireEvent.click(help);
   expect(help.getAttribute('data-state')).toBe('instant-open');
   expect(screen.getByRole('tooltip', { hidden: true }).textContent).toContain('@BotFather');
+});
+
+it('shows operator identity, appearance controls and release version in the panel footer', async () => {
+  await open();
+  await screen.findByRole('link', { name: 'Alpha' });
+  const nav = screen.getByRole('navigation', { name: 'Vakhta Control' });
+  const footer = within(nav);
+  expect(footer.getByRole('img', { name: 'Operator' }).textContent).toBe('OP');
+  expect(footer.getByText('Platform administrator')).toBeTruthy();
+  expect(footer.getByText('Version 1.2.3')).toBeTruthy();
+  fireEvent.click(footer.getByRole('button', { name: 'Dark' }));
+  await waitFor(() => expect(document.documentElement.classList.contains('dark')).toBe(true));
+  expect(localStorage.getItem('control-test-theme')).toBe('dark');
+  fireEvent.click(footer.getByRole('button', { name: 'Profile' }));
+  const profile = await screen.findByRole('dialog', { name: 'Profile' });
+  expect(within(profile).getByText('qa@example.test')).toBeTruthy();
+});
+
+it('collapses the desktop sidebar while preserving accessible navigation', async () => {
+  await open();
+  await screen.findByRole('link', { name: 'Alpha' });
+  fireEvent.click(screen.getByRole('button', { name: 'Sections' }));
+  expect(document.querySelector('[data-slot="sidebar"]')?.getAttribute('data-state')).toBe(
+    'collapsed',
+  );
+  expect(screen.getByRole('button', { name: 'Profile' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Sections' }));
+  expect(document.querySelector('[data-slot="sidebar"]')?.getAttribute('data-state')).toBe(
+    'expanded',
+  );
+});
+
+it('keeps mobile profile details open and returns to the drawer on close', async () => {
+  vi.mocked(window.matchMedia).mockImplementation((query) => ({
+    matches: query === '(max-width: 767px)',
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+  await open();
+  await screen.findByRole('link', { name: 'Alpha' });
+  fireEvent.click(screen.getByRole('button', { name: 'Sections' }));
+  const drawer = await screen.findByRole('dialog', { name: 'Sections' });
+  fireEvent.click(within(drawer).getByRole('button', { name: 'Profile' }));
+  const profile = await screen.findByRole('dialog', { name: 'Profile' });
+  expect(within(profile).getByText('qa@example.test')).toBeTruthy();
+  fireEvent.click(within(profile).getByRole('button', { name: 'Close' }));
+  expect(await screen.findByRole('dialog', { name: 'Sections' })).toBeTruthy();
+  await waitFor(() =>
+    expect(document.activeElement).toBe(within(drawer).getByRole('button', { name: 'Profile' })),
+  );
+  fireEvent.click(within(drawer).getByRole('button', { name: 'Close' }));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sections' })).toBeNull());
+  await waitFor(() =>
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sections' })),
+  );
 });
