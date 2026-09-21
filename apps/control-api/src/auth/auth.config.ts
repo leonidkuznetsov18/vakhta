@@ -1,7 +1,10 @@
 import { betterAuth } from 'better-auth';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { twoFactor } from 'better-auth/plugins';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import {
+  and,
+  eq,
   controlAuthAccount,
   controlAuthSession,
   controlAuthTwoFactor,
@@ -53,7 +56,37 @@ export function createControlAuth(config: ControlAuthConfig) {
       minPasswordLength: 12,
       requireEmailVerification: false,
     },
-    session: { expiresIn: 60 * 60 * 8, updateAge: 60 * 15 },
+    session: {
+      expiresIn: 60 * 60 * 8,
+      updateAge: 60 * 15,
+      additionalFields: {
+        mfaVerified: { type: 'boolean', defaultValue: false, input: false },
+      },
+    },
+    hooks: {
+      after: createAuthMiddleware(async (ctx) => {
+        const verifiedPath =
+          ctx.path === '/two-factor/verify-totp' || ctx.path === '/two-factor/verify-backup-code';
+        if (!verifiedPath || ctx.context.returned instanceof APIError) return;
+        const session = ctx.context.newSession ?? ctx.context.session;
+        if (!session || !session.user.twoFactorEnabled) return;
+        // Assurance belongs to the verified session, never to the user's enrollment flag.
+        await config.db.transaction(async (tx) => {
+          await tx
+            .update(controlAuthSession)
+            .set({ mfaVerified: true })
+            .where(eq(controlAuthSession.id, session.session.id));
+          await tx
+            .delete(controlAuthSession)
+            .where(
+              and(
+                eq(controlAuthSession.userId, session.user.id),
+                eq(controlAuthSession.mfaVerified, false),
+              ),
+            );
+        });
+      }),
+    },
     advanced: {
       database: { generateId: 'uuid' },
       useSecureCookies: secure,

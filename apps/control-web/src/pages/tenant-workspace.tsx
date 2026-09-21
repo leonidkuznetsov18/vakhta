@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import type { ProvisioningJobView, TenantDetailView } from '@vakhta/contracts';
-import { JobStatus } from '@vakhta/domain';
+import { JobStatus, TenantStatus } from '@vakhta/domain';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { controlApi, queryKeys } from '@/shared/api';
@@ -36,7 +36,12 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
   const m = t();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const tenant = useQuery({ queryKey: queryKeys.tenant(id), queryFn: () => controlApi.tenant(id) });
+  const tenant = useQuery({
+    queryKey: queryKeys.tenant(id),
+    queryFn: () => controlApi.tenant(id),
+    refetchInterval: (query) =>
+      query.state.data?.status === TenantStatus.PROVISIONING ? 2000 : false,
+  });
   const jobs = useQuery({
     queryKey: queryKeys.jobs(id),
     queryFn: () => controlApi.jobs(id),
@@ -88,7 +93,7 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
           })
         }
       >
-        <TabsList className="flex-wrap">
+        <TabsList className="max-w-full overflow-x-auto">
           {WORKSPACE_TABS.map((key) => (
             <TabsTrigger key={key} value={key}>
               {m.workspace.tabs[key]}

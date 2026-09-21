@@ -37,6 +37,7 @@
     "@types/node": "catalog:",
     "@vakhta/config": "workspace:*",
     "concurrently": "catalog:",
+    "otpauth": "^9.5.2",
     "pino-pretty": "catalog:",
     "testcontainers": "^11.0.0",
     "typescript": "catalog:",

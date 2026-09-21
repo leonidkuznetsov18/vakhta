@@ -4,14 +4,14 @@
 
 2026-09-21; active feature `specs/011-multi-tenant-control-plane`, baseline `0566952`, current
 `master` checkout. Owner request: each client plant gets its own database, bot, kiosk and branded
-interface, created from a platform control panel that assigns modules. This entry records the
-planning package; no code, schema, deployment or employee record changed.
+interface, created from a platform control panel that assigns modules. The foundation and initial control panel are implemented. The current continuation starts from
+`426cd1f` and closes CI, security and browser acceptance gaps before tenant settings and cutover.
 
 ## Current behavior and ownership
 
-Single-customer deployment: one `DATABASE_URL`, one bot token, one panel and kiosk host, one
-migration and backup target. Facts and file references: spec RECON. Product document:
-[Multi-tenant platform](../../features/multi-tenant-platform.md) (planned).
+Production remains the single pilot in env mode. The API and worker support registry mode in
+code; the operator control service and panel have been exercised locally. Facts and file references: spec RECON. Product document:
+[Multi-tenant platform](../../features/multi-tenant-platform.md) (implementation in progress).
 
 ## Decisions and reuse
 
@@ -35,8 +35,7 @@ migration and backup target. Facts and file references: spec RECON. Product docu
   per-tenant settings catalog with platform defaults (the `settings` table exists but is used only
   by the support bot today); no mail provider exists, so links are copied, not e-mailed; deletion
   gets slug confirmation, a final backup and a retention window.
-- Open owner decisions are listed in plan.md (hostname scheme, separate control service, one
-  cluster, pilot slug, control panel languages).
+- The owner-confirmed defaults and hostname decisions are recorded in plan.md and issue #92.
 
 ## Delivery 1 implementation decisions (2026-09-21)
 
@@ -71,8 +70,7 @@ migration and backup target. Facts and file references: spec RECON. Product docu
   an optional `tenantId` (required in registry mode; env mode maps it to the only tenant).
 - `packages/db` exports `seedTenantDefaults` (first site, DAY/NIGHT templates, positions, reason
   codes) and `migrateTenantDatabase`; `migrate-tenants.js` is the Railway pre-deploy command.
-- Provider facts marked **verify** in research.md remain unverified; env mode does not depend on
-  them and no hostname automation was built yet.
+- Provider facts were subsequently checked in research.md; provider automation remains pending.
 
 ## Independent review and delivery-2 backend (2026-09-21)
 
@@ -108,8 +106,8 @@ migration and backup target. Facts and file references: spec RECON. Product docu
   with switches, database, bot token, domains, jobs with live steps and retry/skip on waiting steps,
   audit, danger zone with suspend/resume/provision) and the operators page. Forms disable actions
   until a change exists; every async surface has loading, failure with retry and empty states.
-- Not done yet: the parameters tab (waits for the tenant settings service, T023), desktop and mobile
-  screenshots inspected against a running control-api (T026), branding edits, operator role edits.
+- Not done yet: the parameters tab (T023), branding edits, operator role edits and full workspace
+  actions/table standards. Local desktop/mobile evidence is recorded below.
 - CI builds control-web with the panel/kiosk job; the Pages deploy runs only when the repository
   variable `CONTROL_PAGES_ENABLED` is `true` and the `vakhta-control` project exists.
 
@@ -131,8 +129,8 @@ migration and backup target. Facts and file references: spec RECON. Product docu
 - `apps/control-api`: provisioning e2e (3 tests) on testcontainers; worker pool tests (3).
 - `apps/control-web`: typecheck, ESLint clean-code rules and a production build pass; no browser
   screenshots were captured yet (recorded as a blocked check, not as done).
-- Not done: pilot cutover and live QA (T018), control-web, tenant settings service, the welcome
-  page. No production variable, deployment or employee record changed.
+- Not done in that run: pilot cutover and live QA (T018), tenant settings and welcome. The
+  control-web implementation existed, but its browser checks were still pending.
 
 ## Prototype
 
@@ -152,9 +150,52 @@ in #92.
 scope, acceptance checkboxes with AC/FR traceability, resolved dependency numbers, verification and
 pinned sources. Receipts with body hashes: `specs/011-multi-tenant-control-plane/publication.json`.
 
+## Continuation hardening and local acceptance (2026-09-21)
+
+Baseline `426cd1f`; one writer at a time, with independent read-only review. The two previously
+pending CI runs completed with failures: `35598897536` could not copy the unused i18n build into
+the control-api image; `35600203161` found no control-web tests. Removed that Docker copy and added
+five API-boundary tests rather than suppressing the missing-test failure.
+
+- Registry migration `0002` adds a false-by-default MFA assurance flag to each control session.
+  Only successful TOTP/backup-code verification sets it. Previously unverified sessions are
+  revoked; legacy sessions must sign in again. The guard also checks operator status and role.
+- A tenant advisory lock serializes runners and operator recovery; step checkpoints commit
+  separately so interrupted RUNNING steps resume. Retry requires a failed/manual step. Skip is
+  restricted to manual DNS registration and is audited; it does not verify the domain.
+- Automatic database creation uses a tenant-specific role, an ownership marker and database
+  ownership checks. It preserves foreign databases/roles, safely quotes identifiers, preserves
+  persisted credentials across restart and never writes provider/SQL secrets into job errors.
+- Invitation Copy uses the real token, with HMAC recovery for new tokens and verification of
+  legacy job outputs. Reissue uses the invitation record and serializes replacement, independent
+  of the latest job kind. Viewer responses redact bearer links from tenant and both job reads.
+- Control-web now uses a stacked mobile navigation, bounded main/grid widths, scrollable tabs
+  and wrapping job headers. The tenant record refreshes during provisioning so completion,
+  schema and onboarding changes appear without reloading. Session-fetch failure has retry.
+- Focused verification: 11 control-api tests on real PostgreSQL (MFA, viewer boundaries,
+  concurrency, interrupted recovery, foreign resources, invitation replacement, error redaction);
+  five control-web API tests; affected type/lint/build checks and frozen lockfile verification.
+  The control-api Docker image built successfully and its production-mode container returned
+  healthy from /health against the isolated registry. Independent review of the final backend
+  changes found no remaining blocking defect.
+- Local browser evidence: real control-api and isolated PostgreSQL, operator enrollment and
+  sign-in, quick creation to manual DNS, all eight implemented tabs, tenant/operator lists and
+  API-error retry. After migration 0002, fresh TOTP enrollment passed; manual DNS skip completed
+  provisioning, changed the tenant to ACTIVE without a reload and exposed the new invitation.
+  Reissue replaced the link; desktop/mobile remained bounded. Desktop 1440x1000 and mobile 390x844 screenshots were captured and visually
+  inspected. Eighteen measured list/tab layouts have no page overflow; no browser exceptions.
+  Artifacts are local under `test-results/control-qa/`; these are not deployed/physical-device QA.
+- Live infrastructure check: Railway production lists api, worker, Postgres and Redis, with no
+  control-api service yet. Neither CONTROL_PAGES_ENABLED nor CONTROL_API_URL repository variable
+  is set. The service declaration in `.railway/railway.ts` is not evidence of deployed hosting.
+
 ## Remaining work
 
-Delivery 1 code is in master (T011–T016). Next: independent review of the tenant-context boundary,
-secrets handling and migrator (#97, T017), the provider fact checks (#92, T010), then the pilot
-cutover with live QA (T018). Delivery 2 (#98–#101) starts after the cutover is verified.
-Provisioning time per tenant is to be measured when the first non-pilot tenant is created (#104).
+Next: T023 tenant settings and the parameters tab; T030 welcome; T031 module/branding surfaces;
+T032 runtime configuration. Complete the unimplemented workspace actions, branding/operator edits,
+FSD ownership and table pagination (T027), and deploy control hosting (T028). T026 has browser and
+current auth/provisioning review evidence; settings-write review remains dependent on T023.
+Then rehearse rollback, complete T018 pilot cutover and T033 first non-pilot live acceptance.
+Delivery 4 backups/domain lifecycle/deletion remain pending. No production cutover, provider DNS
+mutation or production employee action was performed by this continuation. CI/deployment results
+for the new source must be reported separately after the push.

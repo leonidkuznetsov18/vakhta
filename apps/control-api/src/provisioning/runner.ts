@@ -41,6 +41,7 @@ import {
   registerDomainsStep,
   removeWebhookStep,
 } from './steps/surface.steps.js';
+import { lockTenant } from './tenant-lock.js';
 import { TelegramProvider } from './telegram.provider.js';
 
 type JobRow = typeof provisioningJobs.$inferSelect;
@@ -134,6 +135,20 @@ export class ProvisioningRunner implements OnModuleInit, OnApplicationShutdown {
   }
 
   async runJob(job: JobRow): Promise<void> {
+    // Keep checkpoints on their own committed connections while this transaction owns the lock.
+    await this.db.transaction(async (lock) => {
+      if (!(await lockTenant(lock, job.tenantId))) return;
+      const [current] = await this.db
+        .select()
+        .from(provisioningJobs)
+        .where(eq(provisioningJobs.id, job.id));
+      if (!current || ![JobStatus.PENDING, JobStatus.RUNNING].some((s) => s === current.status))
+        return;
+      await this.runClaimedJob(current);
+    });
+  }
+
+  private async runClaimedJob(job: JobRow): Promise<void> {
     const [tenant] = await this.db
       .select()
       .from(tenants)
@@ -164,7 +179,7 @@ export class ProvisioningRunner implements OnModuleInit, OnApplicationShutdown {
       modules.map((m) => m.module),
     );
     const outcome = await this.runStep(next, ctx);
-    if (outcome === 'continue') await this.runJob({ ...job, status: JobStatus.RUNNING });
+    if (outcome === 'continue') await this.runClaimedJob({ ...job, status: JobStatus.RUNNING });
   }
 
   private async runStep(step: StepRow, ctx: StepContext): Promise<'continue' | 'stop'> {
@@ -193,8 +208,9 @@ export class ProvisioningRunner implements OnModuleInit, OnApplicationShutdown {
         outcome.output ?? null,
       );
       return 'continue';
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Step failed';
+    } catch {
+      const message = `Step ${step.step} failed; check provider access and configuration, then retry`;
+      // Driver messages can contain SQL passwords or provider tokens. Never persist them.
       ctx.log.error({ step: step.step, tenant: ctx.tenant.slug }, 'provisioning step failed');
       await this.db
         .update(provisioningSteps)

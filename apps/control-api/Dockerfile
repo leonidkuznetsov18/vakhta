@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1.7
-# Збирається з кореня монорепо: docker build -f apps/control-api/Dockerfile .
-# Етап build ставить усі залежності й компілює лише api і його workspace-пакети;
-# етап runtime містить тільки production-залежності та dist.
+# Build from the repository root: docker build -f apps/control-api/Dockerfile .
+# Compile only the control service and its dependencies; ship production dependencies and dist.
 
 FROM node:22-alpine AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH COREPACK_ENABLE_DOWNLOAD_PROMPT=0 CI=1
@@ -35,11 +34,9 @@ COPY --from=build --chown=node:node /repo/packages/contracts/dist packages/contr
 COPY --from=build --chown=node:node /repo/packages/db/dist packages/db/dist
 COPY --from=build --chown=node:node /repo/packages/db/drizzle packages/db/drizzle
 COPY --from=build --chown=node:node /repo/packages/domain/dist packages/domain/dist
-COPY --from=build --chown=node:node /repo/packages/i18n/dist packages/i18n/dist
 COPY --from=build --chown=node:node /repo/packages/registry/dist packages/registry/dist
 COPY --from=build --chown=node:node /repo/packages/registry/drizzle packages/registry/drizzle
 COPY --from=build --chown=node:node /repo/apps/control-api/dist apps/control-api/dist
-# Knowledge base of the support bot: feature docs, the user guide and the changelog of this build.
 USER node
 EXPOSE 3100
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

@@ -65,12 +65,15 @@ and hand over an onboarding link. **Acceptance**: AC-001, AC-002 (steps up to `R
 AC-025, AC-026–032, AC-034, public config endpoint for AC-020.
 
 - [x] T020 `apps/control-api`: Nest app with operator better-auth (TOTP mandatory, no sign-up), `bootstrap-operator` CLI, tenants, modules, domains, branding, secrets (encrypted, fingerprint), audit, health and `GET /public/tenant-config`; Dockerfile; `.railway/railway.ts` service; `ci.yml` image.
-- [x] T021 Provisioning runner: job claim under advisory lock, step classes with `isDone`/`run`, `MANUAL_REQUIRED` path, `CREATE_DATABASE`, `MIGRATE`, `SEED_DEFAULTS`, `STORAGE_PREFIX`, `REGISTER_DOMAINS` with `HostnameProvider` adapters (Cloudflare, Railway, manual); tests for failure, restart, retry and idempotency.
-- [x] T022 (code; desktop/mobile screenshots pending in T026) `apps/control-web`: FSD app with tenant list, tenant detail (modules, domains, secrets, branding, jobs and steps, audit), create-tenant and provision features, operators page; `control` i18n namespace in uk/en/ru; Pages project `vakhta-control` in `ci.yml`.
+- [x] T021 (initial runner and manual DNS path; provider automation remains pending) Provisioning runner: job claim under advisory lock, step classes with `isDone`/`run`, `MANUAL_REQUIRED` path, `CREATE_DATABASE`, `MIGRATE`, `SEED_DEFAULTS`, `STORAGE_PREFIX`, `REGISTER_DOMAINS` with `HostnameProvider` adapters (Cloudflare, Railway, manual); tests for failure, restart, retry and idempotency.
+- [x] T022 (initial UI code and desktop/mobile evidence; FSD alignment remains in T027) `apps/control-web`: initial app with tenant list, tenant detail (modules, domains, secrets, branding, jobs and steps, audit), create-tenant and provision features, operators page; `control` i18n namespace in uk/en/ru; Pages project `vakhta-control` in `ci.yml`.
 - [ ] T023 Tenant settings: `packages/contracts/src/tenant-settings.ts` key catalog with defaults, `apps/api/src/config/tenant-settings.ts` reader with cache and Redis invalidation, worker reader in `packages/registry`, replace env reads at their call sites, control-api endpoints to read and write tenant settings; tests for defaults, override, invalidation and unchanged pilot values (covers AC-028).
-- [x] T024 (UI and API; e-mail delivery deferred) Quick-create wizard, live job view and onboarding link: `CreateTenantCommand`, `tenant_invitations`, reissue endpoint, copy buttons, share sheet; tests for single use, expiry and reissue (covers AC-032–034).
-- [x] T025 (overview, modules, database, bot, domains, jobs, audit, danger; parameters tab waits for T023) Tenant workspace tabs with inline actions (connection check, migrate, backup, verify bot, re-register webhook, verify domain, reissue invitation), module cards with config forms, modules catalog, operators and audit pages; admin panel table standard (covers AC-026, AC-027, AC-029–031).
-- [ ] T026 Desktop and mobile screenshots of the tenant list, wizard, job view and every workspace tab; independent review of auth, secrets, settings writes and provisioning transactions; engineering memory update.
+- [x] T024 (creation and invitation generation; consumption/expiry acceptance remains in T030; e-mail deferred) Quick-create wizard, live job view and onboarding link: `CreateTenantCommand`, `tenant_invitations`, reissue endpoint, copy buttons, share sheet; tests for single use, expiry and reissue (covers AC-032–034).
+- [x] T025 (initial tabs implemented; parameters wait for T023; remaining actions/table standards tracked in T027) Tenant workspace tabs with inline actions (connection check, migrate, backup, verify bot, re-register webhook, verify domain, reissue invitation), module cards with config forms, modules catalog, operators and audit pages; admin panel table standard (covers AC-026, AC-027, AC-029–031).
+- [ ] T026 (initial UI screenshots and auth/provisioning review completed; settings-write review waits for T023) Desktop and mobile screenshots of the tenant list, wizard, job view and every workspace tab; independent review of auth, secrets, settings writes and provisioning transactions; engineering memory update.
+
+- [ ] T027 Convergence: complete AC-026–031 workspace details and inline actions, branding/operator edits, catalog, pagination/counts, role-aware controls and coherent frontend FSD ownership. The initial T025 screens do not establish complete acceptance for these requirements.
+- [ ] T028 Deploy the actual control-api service and registry in Railway, create the control Pages project, configure its API URL, then enable and verify control-web hosting. Source configuration alone is not a deployed service.
 
 ## Delivery 3: Tenant surfaces (US1 remainder, US5)
 
@@ -100,16 +103,16 @@ view), AC-022, AC-023, AC-024, AC-035, client-owned domains.
 
 ## Dependencies and Handoff
 
-2026-09-21: T010–T017 done (review findings fixed the same day); T020–T021 (control-api, provisioning
-runner) done with a provisioning end-to-end test. control-web (T022, T024, T025) is in master without the visual inspection (T026) and
-without the parameters tab (T023). Next: T026 screenshots against a local control-api, T023 tenant
-settings, T030 welcome page, then the pilot cutover T018.
+2026-09-21: T010–T017 and the initial T020–T025 implementation are in master. The continuation
+from `426cd1f` fixes failed CI, session-bound MFA, provisioning recovery, database ownership and
+invitation access. T026 desktop/mobile screenshots of all implemented tabs and independent review
+are complete; its settings-write checks still wait for T023. T027 records demonstrated gaps in the
+initial workspace rather than claiming full AC-026–031 acceptance. T028 records absent live hosting.
 
-T010 → T012; T011 → T012, T014, T015; T012 → T013; T012–T015 → T016 → T017 → T018. Delivery 2 starts
-after T018 is verified in production; inside it T020 → T021 → T023 → T024 → T025 → T026. Delivery 3
-needs T021–T025. Delivery 4 needs T033. Owned
-files per delivery are listed in plan.md and re-listed here before coding. Next action: owner
-confirms the plan's Open Decisions; then T010.
+Next: T023, T030–T032 and control hosting; then rollback rehearsal and T018 pilot cutover. The
+owner-approved continuation implements control/surface code before cutover, superseding the earlier
+cutover-first dependency ordering. T033 verifies the first non-pilot tenant before delivery 4.
+Writes and Git operations remain serialized on current master.
 
 ## Convergence
 

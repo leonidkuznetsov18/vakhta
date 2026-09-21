@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { ControlApiError, controlApi, queryKeys } from '@/shared/api';
 import { LOCALES, currentLocale, setLocale, t } from '@/shared/i18n';
-import { LoadingState } from '@/shared/ui';
+import { FailureState, LoadingState } from '@/shared/ui';
 import { CreateTenantPage } from '@/pages/create-tenant';
 import { OperatorsPage } from '@/pages/operators';
 import { SignInPage } from '@/pages/sign-in';
@@ -35,7 +35,7 @@ function Shell() {
     if (unauthenticated) return <SignInPage />;
     return (
       <div className="p-6">
-        <p className="text-sm text-red-700">{m.common.error}</p>
+        <FailureState onRetry={() => void me.refetch()} />
       </div>
     );
   }
@@ -44,10 +44,10 @@ function Shell() {
     { to: '/operators', label: m.nav.operators },
   ];
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background md:flex-row">
       <nav
         aria-label={m.productName}
-        className="flex w-56 flex-col gap-1 bg-neutral-900 p-4 text-neutral-200"
+        className="flex w-full shrink-0 flex-col gap-1 bg-neutral-900 p-4 text-neutral-200 md:w-56"
       >
         <div className="mb-4 px-2 text-lg font-semibold text-white">{m.productName}</div>
         {nav.map((item) => (
@@ -59,7 +59,7 @@ function Shell() {
             {item.label}
           </Link>
         ))}
-        <div className="mt-auto flex flex-col gap-2 text-xs text-neutral-400">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-neutral-400 md:mt-auto md:flex-col md:items-stretch">
           <div className="flex gap-1">
             {LOCALES.map((locale) => (
               <button
@@ -91,7 +91,7 @@ function Shell() {
           </Button>
         </div>
       </nav>
-      <main className="flex-1 p-6 lg:p-8">
+      <main className="min-w-0 flex-1 p-4 [overflow-wrap:anywhere] sm:p-6 lg:p-8">
         <Outlet />
       </main>
     </div>

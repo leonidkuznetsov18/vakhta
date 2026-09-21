@@ -24,7 +24,7 @@ import {
   type TenantSummaryView,
 } from '@vakhta/contracts';
 import { z } from 'zod';
-import { ProvisioningStep } from '@vakhta/domain';
+import { tenantForOperator, jobForOperator } from '../auth/operator-views.js';
 import { ControlAudit } from '../audit/audit.service.js';
 import {
   CurrentOperator,
@@ -71,8 +71,11 @@ export class TenantsController {
   }
 
   @Get(':id')
-  get(@Param('id', ParseUUIDPipe) id: string): Promise<TenantDetailView> {
-    return this.tenants.get(id);
+  async get(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentOperator() operator: Operator,
+  ): Promise<TenantDetailView> {
+    return tenantForOperator(await this.tenants.get(id), operator);
   }
 
   @Patch(':id')
@@ -149,24 +152,15 @@ export class TenantsController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentOperator() operator: Operator,
   ): Promise<{ url: string }> {
-    const detail = await this.tenants.get(id);
-    const [job] = await this.provisioning.listForTenant(id);
-    const adminEmail = job?.steps.find((s) => s.step === ProvisioningStep.INVITE_ADMIN)?.output?.[
-      'adminEmail'
-    ];
-    const email = typeof adminEmail === 'string' ? adminEmail : null;
-    if (!email) return { url: detail.onboarding?.url ?? '' };
-    const issued = await this.tenants.issueInvitation({
-      tenantId: id,
-      adminEmail: email,
-      actor: operator,
-    });
-    return { url: issued.url };
+    return this.tenants.reissueInvitation(id, operator);
   }
 
   @Get(':id/jobs')
-  jobs(@Param('id', ParseUUIDPipe) id: string): Promise<ProvisioningJobView[]> {
-    return this.provisioning.listForTenant(id);
+  async jobs(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentOperator() operator: Operator,
+  ): Promise<ProvisioningJobView[]> {
+    return (await this.provisioning.listForTenant(id)).map((job) => jobForOperator(job, operator));
   }
 
   @Get(':id/audit')

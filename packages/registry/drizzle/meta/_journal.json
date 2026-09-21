@@ -15,6 +15,13 @@
       "when": 1789991664364,
       "tag": "0001_jittery_odin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789998831769,
+      "tag": "0002_luxuriant_marvex",
+      "breakpoints": true
     }
   ]
 }

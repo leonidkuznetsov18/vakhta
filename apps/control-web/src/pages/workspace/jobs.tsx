@@ -1,7 +1,12 @@
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { ProvisioningJobView } from '@vakhta/contracts';
-import { StepStatus, isStepSettled, isStepWaitingForOperator } from '@vakhta/domain';
+import {
+  ProvisioningStep,
+  StepStatus,
+  isStepSettled,
+  isStepWaitingForOperator,
+} from '@vakhta/domain';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { controlApi } from '@/shared/api';
@@ -10,6 +15,12 @@ import { StatusBadge } from '@/shared/ui';
 import { describeError, type Refresh } from './shared';
 
 const DNS_INSTRUCTION = 'CREATE_DNS_RECORDS';
+
+function canSkipStep(step: ProvisioningJobView['steps'][number]): boolean {
+  return (
+    step.step === ProvisioningStep.REGISTER_DOMAINS && step.status === StepStatus.MANUAL_REQUIRED
+  );
+}
 
 /** Live steps of one job with the operator's retry and skip actions on waiting steps. */
 export function JobCard({ job, onChanged }: { job: ProvisioningJobView; onChanged: Refresh }) {
@@ -23,7 +34,7 @@ export function JobCard({ job, onChanged }: { job: ProvisioningJobView; onChange
   const done = job.steps.filter((s) => isStepSettled(s.status)).length;
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle>
           {m.kinds[job.kind]} · {new Date(job.createdAt).toLocaleString()}
         </CardTitle>
@@ -35,8 +46,8 @@ export function JobCard({ job, onChanged }: { job: ProvisioningJobView; onChange
       <CardContent className="flex flex-col divide-y">
         {job.steps.map((step) => (
           <div key={step.step} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{m.steps[step.step]}</span>
                 <StatusBadge code={step.status} label={m.stepStatus[step.status]} />
                 {step.attempts > 1 ? (
@@ -62,15 +73,17 @@ export function JobCard({ job, onChanged }: { job: ProvisioningJobView; onChange
                 >
                   {m.retry}
                 </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={act.isPending}
-                  onClick={() => act.mutate({ step: step.step, action: 'skip' })}
-                >
-                  {m.skip}
-                </Button>
+                {canSkipStep(step) ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={act.isPending}
+                    onClick={() => act.mutate({ step: step.step, action: 'skip' })}
+                  >
+                    {m.skip}
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </div>

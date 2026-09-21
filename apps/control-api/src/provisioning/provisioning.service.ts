@@ -19,6 +19,9 @@ import {
 } from '@vakhta/registry';
 import type { ProvisioningJobView } from '@vakhta/contracts';
 import { ControlError } from '../common/domain-error.js';
+import type { Operator } from '../auth/operator.guard.js';
+import { ControlAudit } from '../audit/audit.service.js';
+import { lockTenant } from './tenant-lock.js';
 import { REGISTRY } from '../infra/registry.module.js';
 
 export type JobKind = (typeof provisioningJobs.$inferSelect)['kind'];
@@ -72,7 +75,10 @@ export function stepsFor(kind: JobKind, modules: readonly ModuleCode[]): StepCod
 /** Job and step rows; the runner executes them. One active job per tenant (partial unique index). */
 @Injectable()
 export class ProvisioningService {
-  constructor(@Inject(REGISTRY) private readonly db: RegistryDatabase) {}
+  constructor(
+    @Inject(REGISTRY) private readonly db: RegistryDatabase,
+    private readonly audit: ControlAudit,
+  ) {}
 
   async createJob(tx: RegistryDbOrTx, input: CreateJobInput): Promise<string> {
     const steps = stepsFor(input.kind, input.modules);
@@ -87,11 +93,11 @@ export class ProvisioningService {
           payload: input.payload,
         })
         .returning({ id: provisioningJobs.id });
-    } catch (error) {
+    } catch {
       throw new ControlError(
         'JOB_ALREADY_ACTIVE',
         409,
-        `Tenant ${input.tenantId} already has an active job (${String(error)})`,
+        `Tenant ${input.tenantId} already has an active job`,
       );
     }
     if (!created) throw new Error('provisioning_jobs: insert returned no row');
@@ -121,32 +127,67 @@ export class ProvisioningService {
     return this.view(job);
   }
 
-  /** Puts a failed or manual step back to PENDING so the runner picks the job up again. */
-  async retryStep(jobId: string, step: StepCode): Promise<ProvisioningJobView> {
+  async retryStep(
+    jobId: string,
+    step: StepCode,
+    actor: Operator | null = null,
+  ): Promise<ProvisioningJobView> {
+    return this.changeStep({ jobId, step, actor, status: StepStatus.PENDING });
+  }
+
+  async skipStep(
+    jobId: string,
+    step: StepCode,
+    actor: Operator | null = null,
+  ): Promise<ProvisioningJobView> {
+    return this.changeStep({ jobId, step, actor, status: StepStatus.SKIPPED });
+  }
+
+  private async changeStep(input: {
+    jobId: string;
+    step: StepCode;
+    actor: Operator | null;
+    status: typeof StepStatus.PENDING | typeof StepStatus.SKIPPED;
+  }): Promise<ProvisioningJobView> {
+    const { jobId, step, actor, status } = input;
     await this.db.transaction(async (tx) => {
+      const [job] = await tx.select().from(provisioningJobs).where(eq(provisioningJobs.id, jobId));
+      if (!job) throw new ControlError('JOB_NOT_FOUND', 404, 'Job not found');
+      if (!(await lockTenant(tx, job.tenantId)))
+        throw new ControlError('JOB_BUSY', 409, 'Job is running');
+      const [current] = await tx
+        .select()
+        .from(provisioningSteps)
+        .where(and(eq(provisioningSteps.jobId, jobId), eq(provisioningSteps.step, step)));
+      if (!current) throw new ControlError('STEP_NOT_FOUND', 404, 'Step not found');
+      const retryable =
+        current.status === StepStatus.FAILED || current.status === StepStatus.MANUAL_REQUIRED;
+      const skippable =
+        current.status === StepStatus.MANUAL_REQUIRED && step === S.REGISTER_DOMAINS;
+      const allowed = status === StepStatus.SKIPPED ? skippable : retryable;
+      if (!allowed)
+        throw new ControlError('STEP_TRANSITION_INVALID', 409, 'Step cannot be changed');
       await tx
         .update(provisioningSteps)
-        .set({ status: StepStatus.PENDING, lastError: null })
+        .set({
+          status,
+          lastError: null,
+          finishedAt: status === StepStatus.SKIPPED ? new Date() : null,
+        })
         .where(and(eq(provisioningSteps.jobId, jobId), eq(provisioningSteps.step, step)));
       await tx
         .update(provisioningJobs)
         .set({ status: JobStatus.PENDING, error: null, finishedAt: null })
         .where(eq(provisioningJobs.id, jobId));
-    });
-    return this.get(jobId);
-  }
-
-  /** A manual step the operator completed outside the platform (for example a DNS record). */
-  async skipStep(jobId: string, step: StepCode): Promise<ProvisioningJobView> {
-    await this.db.transaction(async (tx) => {
-      await tx
-        .update(provisioningSteps)
-        .set({ status: StepStatus.SKIPPED, finishedAt: new Date() })
-        .where(and(eq(provisioningSteps.jobId, jobId), eq(provisioningSteps.step, step)));
-      await tx
-        .update(provisioningJobs)
-        .set({ status: 'PENDING', error: null })
-        .where(eq(provisioningJobs.id, jobId));
+      await this.audit.record(tx, {
+        actor,
+        action: status === StepStatus.SKIPPED ? 'job.step.skip' : 'job.step.retry',
+        tenantId: job.tenantId,
+        objectType: 'provisioning_step',
+        objectId: `${jobId}:${step}`,
+        before: { status: current.status },
+        after: { status },
+      });
     });
     return this.get(jobId);
   }

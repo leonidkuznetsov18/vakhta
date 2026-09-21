@@ -88,7 +88,6 @@ export function inviteAdminStep(tenants: TenantsService): ProvisioningStep {
         tenantId: ctx.tenant.id,
         adminEmail: email,
         actor: null,
-        tx: ctx.db,
       });
       return { kind: 'done', output: { adminEmail: email, onboardingUrl: invitation.url } };
     },

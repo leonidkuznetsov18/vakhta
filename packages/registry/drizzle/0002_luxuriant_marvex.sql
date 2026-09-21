@@ -1,0 +1,1 @@
+ALTER TABLE "control_auth_session" ADD COLUMN "mfa_verified" boolean DEFAULT false NOT NULL;

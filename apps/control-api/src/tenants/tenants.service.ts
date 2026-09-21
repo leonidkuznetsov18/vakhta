@@ -1,4 +1,4 @@
-import { createHmac, randomBytes } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   ModuleStatus,
@@ -22,6 +22,7 @@ import {
   desc,
   eq,
   provisioningJobs,
+  provisioningSteps,
   sql,
   tenantBranding,
   tenantDomains,
@@ -66,7 +67,6 @@ export interface IssueInvitationInput {
   readonly tenantId: string;
   readonly adminEmail: string;
   readonly actor: Operator | null;
-  readonly tx?: RegistryDbOrTx;
 }
 
 interface TransitionInput {
@@ -89,6 +89,7 @@ interface TenantParts {
   readonly domains: DomainRow[];
   readonly secrets: SecretRow[];
   readonly invitation: typeof tenantInvitations.$inferSelect | undefined;
+  readonly invitationToken: string | null;
 }
 
 /** Tenant registry writes: every change is one transaction with an audit row and a bumped updated_at. */
@@ -339,10 +340,34 @@ export class TenantsService {
   }
 
   /** A fresh onboarding link; the previous unused one expires. Returns the token once. */
+  async reissueInvitation(tenantId: string, actor: Operator): Promise<{ url: string }> {
+    const [invitation] = await this.db
+      .select()
+      .from(tenantInvitations)
+      .where(eq(tenantInvitations.tenantId, tenantId))
+      .orderBy(desc(tenantInvitations.createdAt))
+      .limit(1);
+    if (!invitation)
+      throw new ControlError('INVITATION_NOT_FOUND', 404, 'No administrator invitation exists');
+    return this.issueInvitation({ tenantId, adminEmail: invitation.adminEmail, actor });
+  }
+
   async issueInvitation(input: IssueInvitationInput): Promise<{ url: string; token: string }> {
-    const tx = input.tx ?? this.db;
-    const row = await this.require(input.tenantId);
-    const token = randomBytes(24).toString('base64url');
+    return this.db.transaction((tx) => this.insertInvitation(tx, input));
+  }
+
+  private async insertInvitation(
+    tx: RegistryDbOrTx,
+    input: IssueInvitationInput,
+  ): Promise<{ url: string; token: string }> {
+    const [row] = await tx
+      .select()
+      .from(tenants)
+      .where(eq(tenants.id, input.tenantId))
+      .for('update');
+    if (!row) throw new ControlError('TENANT_NOT_FOUND', 404, 'Tenant not found');
+    const invitationId = randomUUID();
+    const token = this.invitationToken(invitationId);
     await tx
       .update(tenantInvitations)
       .set({ expiresAt: new Date() })
@@ -351,6 +376,7 @@ export class TenantsService {
       .insert(tenantInvitations)
       .values({
         tenantId: row.id,
+        id: invitationId,
         kind: INVITATION_ONBOARDING,
         tokenHash: this.hashInvitation(token),
         adminEmail: input.adminEmail,
@@ -369,6 +395,12 @@ export class TenantsService {
     });
     const panelHost = await this.primaryHost(row.id, TenantSurface.PANEL);
     return { url: this.onboardingUrl(panelHost, token), token };
+  }
+
+  private invitationToken(id: string): string {
+    return createHmac('sha256', this.env.CONTROL_AUTH_SECRET)
+      .update(`onboarding:${id}`)
+      .digest('base64url');
   }
 
   hashInvitation(token: string): string {
@@ -564,7 +596,33 @@ export class TenantsService {
         .orderBy(desc(tenantInvitations.createdAt))
         .limit(1),
     ]);
-    return { brand, modules, domains, secrets, invitation };
+    const invitationToken = invitation ? await this.savedInvitationToken(invitation) : null;
+    return { brand, modules, domains, secrets, invitation, invitationToken };
+  }
+
+  private async savedInvitationToken(
+    invitation: typeof tenantInvitations.$inferSelect,
+  ): Promise<string | null> {
+    const token = this.invitationToken(invitation.id);
+    if (this.hashInvitation(token) === invitation.tokenHash) return token;
+    // Earlier provisioning jobs stored the random onboarding token in their output.
+    const outputs = await this.db
+      .select({ output: provisioningSteps.output })
+      .from(provisioningSteps)
+      .innerJoin(provisioningJobs, eq(provisioningJobs.id, provisioningSteps.jobId))
+      .where(
+        and(
+          eq(provisioningJobs.tenantId, invitation.tenantId),
+          eq(provisioningSteps.step, 'INVITE_ADMIN'),
+        ),
+      );
+    for (const { output } of outputs) {
+      const url = output?.['onboardingUrl'];
+      if (typeof url !== 'string') continue;
+      const candidate = url.split('/').at(-1);
+      if (candidate && this.hashInvitation(candidate) === invitation.tokenHash) return candidate;
+    }
+    return null;
   }
 
   private detail(row: TenantRow, summary: TenantSummaryView, parts: TenantParts): TenantDetailView {
@@ -579,13 +637,14 @@ export class TenantsService {
       })),
       domains: parts.domains.map(domainView),
       secrets: secretViews(parts.secrets),
-      onboarding: parts.invitation
-        ? {
-            url: this.onboardingUrl(summary.panelHost, parts.invitation.id),
-            expiresAt: parts.invitation.expiresAt.toISOString(),
-            usedAt: parts.invitation.usedAt?.toISOString() ?? null,
-          }
-        : null,
+      onboarding:
+        parts.invitation && parts.invitationToken
+          ? {
+              url: this.onboardingUrl(summary.panelHost, parts.invitationToken),
+              expiresAt: parts.invitation.expiresAt.toISOString(),
+              usedAt: parts.invitation.usedAt?.toISOString() ?? null,
+            }
+          : null,
     };
   }
 

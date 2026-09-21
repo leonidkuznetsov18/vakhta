@@ -257,6 +257,7 @@ export const controlAuthSession = pgTable(
     token: text('token').notNull().unique(),
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
+    mfaVerified: boolean('mfa_verified').notNull().default(false),
     userId: uuid('user_id')
       .notNull()
       .references(() => controlAuthUser.id, { onDelete: 'cascade' }),

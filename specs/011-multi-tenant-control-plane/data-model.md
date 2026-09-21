@@ -110,6 +110,11 @@ never hold the provider tokens or the cluster admin URL, which exist only in `co
 
 ### operators and control auth
 
+Each control session also stores `mfa_verified boolean NOT NULL DEFAULT false` (migration 0002).
+A successful second-factor verification sets assurance only on its verified session; the control
+guard requires both this assurance and the user's enabled TOTP. Old/unverified sessions cannot
+inherit access from another session's enrollment.
+
 `operators(id, email unique, name, role operator_role, status ACTIVE|DISABLED, created_at, updated_at)`
 plus the better-auth tables prefixed `control_auth_*` (user, session, account, verification,
 two_factor) in this database. TOTP is mandatory: a session without a verified second factor cannot

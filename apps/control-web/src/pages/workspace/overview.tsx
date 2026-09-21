@@ -43,7 +43,7 @@ export function OverviewTab({
   const hostOf = (surface: string) => hosts.get(surface) ?? '—';
   const webhook = secretPresent(detail, TenantSecretKind.BOT_WEBHOOK_SECRET) ? m.present : m.absent;
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <Card className="bg-neutral-900 text-white lg:col-span-3">
         <CardHeader>
           <CardTitle>{m.onboardingTitle}</CardTitle>
@@ -87,7 +87,7 @@ export function OverviewTab({
       <InfoCard title={m.api} lines={[hostOf(TenantSurface.API)]} />
       <InfoCard title={m.branding} lines={[detail.displayName, detail.accentColor ?? '—']} />
       {active ? (
-        <div className="lg:col-span-3">
+        <div className="min-w-0 lg:col-span-3">
           <JobCard job={active} onChanged={onChanged} />
         </div>
       ) : null}

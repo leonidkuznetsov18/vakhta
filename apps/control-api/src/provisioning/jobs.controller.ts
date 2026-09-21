@@ -1,6 +1,13 @@
 import { Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 import { ProvisioningStepSchema, type ProvisioningJobView } from '@vakhta/contracts';
-import { OperatorGuard, OperatorRole, OperatorRoles } from '../auth/operator.guard.js';
+import {
+  CurrentOperator,
+  OperatorGuard,
+  OperatorRole,
+  OperatorRoles,
+  type Operator,
+} from '../auth/operator.guard.js';
+import { jobForOperator } from '../auth/operator-views.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { ProvisioningService, type StepCode } from './provisioning.service.js';
 
@@ -10,8 +17,11 @@ export class JobsController {
   constructor(private readonly provisioning: ProvisioningService) {}
 
   @Get(':id')
-  get(@Param('id', ParseUUIDPipe) id: string): Promise<ProvisioningJobView> {
-    return this.provisioning.get(id);
+  async get(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentOperator() operator: Operator,
+  ): Promise<ProvisioningJobView> {
+    return jobForOperator(await this.provisioning.get(id), operator);
   }
 
   @Post(':id/steps/:step/retry')
@@ -19,8 +29,9 @@ export class JobsController {
   retry(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('step', new ZodValidationPipe(ProvisioningStepSchema)) step: StepCode,
+    @CurrentOperator() actor: Operator,
   ): Promise<ProvisioningJobView> {
-    return this.provisioning.retryStep(id, step);
+    return this.provisioning.retryStep(id, step, actor);
   }
 
   @Post(':id/steps/:step/skip')
@@ -28,7 +39,8 @@ export class JobsController {
   skip(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('step', new ZodValidationPipe(ProvisioningStepSchema)) step: StepCode,
+    @CurrentOperator() actor: Operator,
   ): Promise<ProvisioningJobView> {
-    return this.provisioning.skipStep(id, step);
+    return this.provisioning.skipStep(id, step, actor);
   }
 }

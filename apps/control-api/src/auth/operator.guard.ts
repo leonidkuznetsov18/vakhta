@@ -29,6 +29,7 @@ export const OperatorRoles = (...roles: OperatorRole[]) => SetMetadata(ROLES_KEY
 type RequestWithOperator = FastifyRequest & { operator?: Operator };
 
 interface SessionShape {
+  readonly session: { readonly mfaVerified?: boolean };
   readonly user: {
     readonly id: string;
     readonly email: string;
@@ -58,7 +59,7 @@ export class OperatorGuard implements CanActivate {
     if (!session) throw new UnauthorizedException();
     const user = session.user;
     if (user.status !== OperatorStatus.ACTIVE) throw new ForbiddenException('Operator is disabled');
-    if (user.twoFactorEnabled !== true) {
+    if (user.twoFactorEnabled !== true || session.session.mfaVerified !== true) {
       throw new ForbiddenException('Two-factor authentication is required for operators');
     }
     const role =

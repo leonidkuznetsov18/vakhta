@@ -17,72 +17,99 @@ function withDatabase(adminUrl: string, parts: DatabaseUrlParts): string {
   return url.toString();
 }
 
-async function databaseExists(ctx: StepContext, adminUrl: string): Promise<boolean> {
-  const admin = createDatabase(adminUrl, { max: 1 });
-  try {
-    const rows = await admin.db.execute(
-      sql`SELECT 1 FROM pg_database WHERE datname = ${ctx.tenant.databaseName}`,
-    );
-    return rows.length > 0;
-  } finally {
-    await admin.client.end({ timeout: 5 });
-  }
+function tenantRole(ctx: StepContext): string {
+  return `vakhta_${ctx.tenant.id.replaceAll('-', '')}_app`;
 }
 
-/**
- * Creates `vakhta_t_<slug>` and an application role on the shared cluster, then stores the
- * tenant database URL encrypted. Without PROVISION_DATABASE_ADMIN_URL the operator creates the
- * database and sets the secret by hand.
- */
+async function ensureRole(
+  ctx: StepContext,
+  admin: ReturnType<typeof createDatabase>,
+): Promise<void> {
+  const role = tenantRole(ctx);
+  const marker = `vakhta-tenant:${ctx.tenant.id}`;
+  const [existing] = await admin.db.execute<{ marker: string | null }>(
+    sql`SELECT shobj_description(oid, 'pg_authid') AS marker FROM pg_roles WHERE rolname = ${role}`,
+  );
+  if (existing) {
+    if (existing.marker !== marker) throw new Error('Database role is not owned by this tenant');
+    return;
+  }
+  const saved = await ctx.secret('DATABASE_URL');
+  const password = saved
+    ? decodeURIComponent(new URL(saved).password)
+    : randomBytes(24).toString('base64url');
+  if (!saved) {
+    const adminUrl = ctx.env.PROVISION_DATABASE_ADMIN_URL;
+    if (!adminUrl) throw new Error('Database provisioning is not configured');
+    await ctx.storeSecret(
+      'DATABASE_URL',
+      withDatabase(adminUrl, {
+        database: ctx.tenant.databaseName,
+        user: role,
+        password,
+      }),
+    );
+  }
+  // Role creation and ownership evidence commit together; retries never reset an existing password.
+  await admin.db.transaction(async (tx) => {
+    await tx.execute(
+      sql.raw(`CREATE ROLE "${role}" WITH LOGIN PASSWORD '${password.replaceAll("'", "''")}'`),
+    );
+    await tx.execute(sql.raw(`COMMENT ON ROLE "${role}" IS '${marker}'`));
+  });
+}
+
 export const createDatabaseStep: ProvisioningStep = {
   async isDone(ctx) {
-    return (await ctx.secret('DATABASE_URL')) !== null;
+    const url = await ctx.secret('DATABASE_URL');
+    if (!url) return false;
+    const handle = createDatabase(url, { max: 1 });
+    try {
+      if (new URL(url).username !== tenantRole(ctx)) {
+        await handle.db.execute(sql`SELECT 1`);
+        return true;
+      }
+      const [database] = await handle.db.execute<{ owned: boolean }>(sql`
+        SELECT d.datdba = r.oid AND shobj_description(r.oid, 'pg_authid') = ${`vakhta-tenant:${ctx.tenant.id}`} AS owned
+        FROM pg_database d JOIN pg_roles r ON r.rolname = current_user
+        WHERE d.datname = current_database()
+      `);
+      return database?.owned === true;
+    } catch {
+      // Credentials are saved before CREATE ROLE/DATABASE so an interrupted step can resume.
+      return false;
+    } finally {
+      await handle.client.end({ timeout: 5 });
+    }
   },
   async run(ctx) {
     const adminUrl = ctx.env.PROVISION_DATABASE_ADMIN_URL;
-    if (!adminUrl) {
+    if (!adminUrl)
       return {
         kind: 'manual',
         output: {
           instruction: 'CREATE_DATABASE_MANUALLY',
           database: ctx.tenant.databaseName,
-          hint: 'Set PROVISION_DATABASE_ADMIN_URL on control-api or create the database and store its URL as the DATABASE_URL secret, then retry.',
+          hint: 'Configure PROVISION_DATABASE_ADMIN_URL or register an existing database URL, then retry.',
         },
       };
-    }
-    const role = `${ctx.tenant.databaseName}_app`;
-    const password = randomBytes(24).toString('base64url');
+    const role = tenantRole(ctx);
     const admin = createDatabase(adminUrl, { max: 1 });
     try {
-      if (!(await databaseExists(ctx, adminUrl))) {
-        await admin.db.execute(sql.raw(`CREATE DATABASE "${ctx.tenant.databaseName}"`));
+      const [existing] = await admin.db.execute<{ owner: string }>(
+        sql`SELECT pg_get_userbyid(datdba) AS owner FROM pg_database WHERE datname = ${ctx.tenant.databaseName}`,
+      );
+      if (existing && existing.owner !== role)
+        throw new Error('Database is not owned by this tenant');
+      await ensureRole(ctx, admin);
+      if (!existing) {
+        await admin.db.execute(
+          sql`CREATE DATABASE ${sql.identifier(ctx.tenant.databaseName)} OWNER ${sql.identifier(role)}`,
+        );
       }
-      const [existingRole] = await admin.db.execute(
-        sql`SELECT 1 FROM pg_roles WHERE rolname = ${role}`,
-      );
-      if (existingRole)
-        await admin.db.execute(sql.raw(`ALTER ROLE "${role}" WITH LOGIN PASSWORD '${password}'`));
-      else
-        await admin.db.execute(sql.raw(`CREATE ROLE "${role}" WITH LOGIN PASSWORD '${password}'`));
-      await admin.db.execute(
-        sql.raw(`GRANT ALL PRIVILEGES ON DATABASE "${ctx.tenant.databaseName}" TO "${role}"`),
-      );
     } finally {
       await admin.client.end({ timeout: 5 });
     }
-    // The role must own the schema objects it will migrate: grant on the public schema too.
-    const owner = createDatabase(withDatabase(adminUrl, { database: ctx.tenant.databaseName }), {
-      max: 1,
-    });
-    try {
-      await owner.db.execute(sql.raw(`GRANT ALL ON SCHEMA public TO "${role}"`));
-    } finally {
-      await owner.client.end({ timeout: 5 });
-    }
-    await ctx.storeSecret(
-      'DATABASE_URL',
-      withDatabase(adminUrl, { database: ctx.tenant.databaseName, user: role, password }),
-    );
     return { kind: 'done', output: { database: ctx.tenant.databaseName, role } };
   },
 };

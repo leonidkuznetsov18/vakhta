@@ -1,28 +1,43 @@
 # Multi-tenant platform and control panel
 
-Status: **planned feature; not implemented**. Owner: product owner. Recorded: 2026-09-21.
+Status: **implementation in progress; control panel not deployed**. Owner: product owner. Recorded: 2026-09-21.
 Authority: the owner asked for an architecture where every client plant has its own database, bot,
 kiosk and branded interface, created and managed from a platform control panel that assigns
-modules. This document describes the intended behavior; nothing here is available yet.
+modules. The tenant foundation and initial control panel are implemented; the pilot still uses env mode.
+The complete behavior below remains the target until the remaining deliveries pass acceptance.
 
 **Support boundary:** do not tell employees, masters or administrators that these capabilities
 exist. Current behavior stays as documented in the other feature files. Specification, plan and
 evidence: [specs/011-multi-tenant-control-plane](../../specs/011-multi-tenant-control-plane/spec.md)
 and the [engineering memory](../engineering/features/multi-tenant-platform.md).
 
+## Implemented and remaining
+
+Implemented in the repository: tenant-scoped API and worker, encrypted registry, operator sign-in
+with session-bound TOTP, tenant creation, module switches, domain records, bot-token validation,
+resumable provisioning, invitation generation, audit and the initial trilingual control panel.
+The operator panel has been checked locally against the real API at desktop and mobile widths.
+Read-only operators cannot retrieve administrator invitation tokens. Required provisioning steps
+cannot be skipped; a manual DNS step can be skipped without marking its domains verified.
+
+Not yet available: production control-api/control-web hosting, tenant operational settings, the
+client welcome page and runtime surface configuration, complete workspace actions and table
+pagination, per-tenant backups/deletion, and the pilot cutover. An invitation link is generated,
+but its client welcome flow is still pending. Do not distribute it as a working onboarding journey.
+
 ## What it is
 
 A **tenant** is one client company: a plant or a group of plants. Everything a tenant records (its
 employees, shifts, incidents, photos, reports, panel users) lives in that tenant's own database.
 A tenant has its own Telegram worker bot, its own panel address (for example `zavoda.vakhta.xyz`),
-its own kiosk address (`kiosk.zavoda.vakhta.xyz`) and its own display name and logo on those
+its own kiosk address (`zavoda-kiosk.vakhta.xyz`) and its own display name and logo on those
 surfaces. Tenants never see each other's data.
 
 The **control panel** ("Vakhta Control", `control.vakhta.xyz`) is used only by Vakhta platform
 operators, not by client staff. Operators sign in with e-mail, password and a mandatory
 authenticator code.
 
-## How it works
+## Target behavior
 
 - **Creating a client.** One form: the client name, a short slug suggested from the name (letters,
   digits and hyphens; it becomes part of the addresses and never changes), the default language,

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
-import { createDatabase, sites, webUserRoles } from '@vakhta/db';
+import { createDatabase, sites, webUserRoles, sql } from '@vakhta/db';
 import {
   createRegistry,
   eq,
@@ -11,12 +11,17 @@ import {
   migrateRegistry,
   tenantDomains,
   tenantSecrets,
+  tenantInvitations,
+  provisioningJobs,
+  provisioningSteps,
+  and,
   type RegistryTenantSource,
   type SecretCipher,
 } from '@vakhta/registry';
 import {
   JobStatus,
   ProvisioningStep,
+  ProvisioningKind,
   StepStatus,
   TenantSecretKind,
   TenantStatus,
@@ -249,5 +254,287 @@ describe('control-api: create a tenant and provision it', () => {
         OPERATOR,
       ),
     ).rejects.toMatchObject({ code: 'TENANT_SLUG_TAKEN' });
+  });
+  async function services() {
+    const { TenantsService } = await import('../tenants/tenants.service.js');
+    const { ProvisioningService } = await import('./provisioning.service.js');
+    const { ProvisioningRunner } = await import('./runner.js');
+    const { REGISTRY, SECRET_CIPHER } = await import('../infra/registry.module.js');
+    const db = app.get<ReturnType<typeof createRegistry>['db']>(REGISTRY);
+    const tenants = app.get(TenantsService);
+    const provisioning = app.get(ProvisioningService);
+    const provider = app.get(TelegramProvider);
+    const runner = new ProvisioningRunner(
+      db,
+      app.get(SECRET_CIPHER),
+      (await import('../config/env.js')).loadControlEnv(process.env),
+      provider,
+      tenants,
+    );
+    return { db, tenants, provisioning, provider, runner };
+  }
+
+  async function createDraft(slug: string) {
+    const { tenants } = await services();
+    return tenants.create(
+      {
+        name: slug,
+        slug,
+        defaultLocale: 'uk',
+        timezone: 'Europe/Kyiv',
+        modules: ['ADMIN_PANEL'],
+        adminEmail: `${slug}@example.test`,
+        adminName: 'Admin',
+        provision: false,
+      },
+      OPERATOR,
+    );
+  }
+
+  it('copies a token matching the stored invitation and reissues independently of the last job kind', async () => {
+    const { db, tenants, provisioning } = await services();
+    const tenant = (await tenants.list()).find((t) => t.slug === 'zavoda');
+    if (!tenant) throw new Error('Missing tenant');
+    const before = await tenants.get(tenant.id);
+    const token = before.onboarding?.url.split('/').at(-1);
+    if (!token) throw new Error('Missing onboarding token');
+    const [invitation] = await db
+      .select()
+      .from(tenantInvitations)
+      .where(eq(tenantInvitations.tenantId, tenant.id));
+    expect(invitation?.tokenHash).toBe(tenants.hashInvitation(token));
+    expect(invitation?.id).not.toBe(token);
+    if (!invitation) throw new Error('Missing invitation');
+    const [provisionJob] = await provisioning.listForTenant(tenant.id);
+    if (!provisionJob) throw new Error('Missing provisioning job');
+    const legacyToken = 'legacy-random-invitation-token';
+    const legacyUrl = `http://zavoda.vakhta.test/#/welcome/${legacyToken}`;
+    await db
+      .update(tenantInvitations)
+      .set({ tokenHash: tenants.hashInvitation(legacyToken) })
+      .where(eq(tenantInvitations.id, invitation.id));
+    await db
+      .update(provisioningSteps)
+      .set({ output: { adminEmail: invitation.adminEmail, onboardingUrl: legacyUrl } })
+      .where(
+        and(
+          eq(provisioningSteps.jobId, provisionJob.id),
+          eq(provisioningSteps.step, ProvisioningStep.INVITE_ADMIN),
+        ),
+      );
+    expect((await tenants.get(tenant.id)).onboarding?.url).toBe(legacyUrl);
+
+    const reissued = await tenants.reissueInvitation(tenant.id, OPERATOR);
+    expect(reissued.url).not.toBe(before.onboarding?.url);
+    expect((await tenants.get(tenant.id)).onboarding?.url).toBe(reissued.url);
+    const invitations = await db
+      .select()
+      .from(tenantInvitations)
+      .where(eq(tenantInvitations.tenantId, tenant.id));
+    expect(invitations.filter((i) => i.expiresAt.getTime() > Date.now())).toHaveLength(1);
+  });
+
+  it('serializes two runners and refuses recovery commands during an active side effect', async () => {
+    const first = await services();
+    const second = await services();
+    const tenant = (await first.tenants.list()).find((t) => t.slug === 'zavoda');
+    if (!tenant) throw new Error('Missing tenant');
+    const jobId = await first.db.transaction((tx) =>
+      first.provisioning.createJob(tx, {
+        tenantId: tenant.id,
+        kind: 'ROTATE_BOT_TOKEN',
+        requestedBy: OPERATOR.id,
+        modules: ['WORKER_BOT'],
+        payload: {},
+      }),
+    );
+    let release: (() => void) | undefined;
+    let announce: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const started = new Promise<void>((resolve) => {
+      announce = resolve;
+    });
+    const original = first.provider.setWebhook;
+    let calls = 0;
+    first.provider.setWebhook = async () => {
+      calls += 1;
+      announce?.();
+      await gate;
+    };
+    const running = first.runner.tick();
+    try {
+      await started;
+      await second.runner.tick();
+      expect(calls).toBe(1);
+      await expect(first.provisioning.retryStep(jobId, 'BOT_WEBHOOK')).rejects.toMatchObject({
+        code: 'JOB_BUSY',
+      });
+      await expect(first.provisioning.skipStep(jobId, 'BOT_WEBHOOK')).rejects.toMatchObject({
+        code: 'JOB_BUSY',
+      });
+    } finally {
+      release?.();
+      await running;
+      first.provider.setWebhook = original;
+    }
+    expect((await first.provisioning.get(jobId)).status).toBe(JobStatus.DONE);
+    await expect(first.provisioning.retryStep(jobId, 'BOT_WEBHOOK')).rejects.toMatchObject({
+      code: 'STEP_TRANSITION_INVALID',
+    });
+    await expect(first.provisioning.skipStep(jobId, 'BOT_WEBHOOK')).rejects.toMatchObject({
+      code: 'STEP_TRANSITION_INVALID',
+    });
+    const reissued = await first.tenants.reissueInvitation(tenant.id, OPERATOR);
+    expect(reissued.url).toBe((await first.tenants.get(tenant.id)).onboarding?.url);
+  });
+
+  it('resumes a crashed RUNNING migration without rerunning completed steps', async () => {
+    const { db, tenants, provisioning, runner } = await services();
+    const tenant = (await tenants.list()).find((t) => t.slug === 'zavoda');
+    if (!tenant) throw new Error('Missing tenant');
+    const original = (await provisioning.listForTenant(tenant.id)).find(
+      (j) => j.kind === ProvisioningKind.PROVISION,
+    );
+    if (!original) throw new Error('Missing provisioning job');
+    const attempts = original.steps.find(
+      (s) => s.step === ProvisioningStep.CREATE_DATABASE,
+    )?.attempts;
+    await db
+      .update(provisioningSteps)
+      .set({ status: StepStatus.RUNNING })
+      .where(and(eq(provisioningSteps.jobId, original.id), eq(provisioningSteps.step, 'MIGRATE')));
+    await db
+      .update(provisioningJobs)
+      .set({ status: JobStatus.RUNNING })
+      .where(eq(provisioningJobs.id, original.id));
+    await runner.tick();
+    const resumed = await provisioning.get(original.id);
+    expect(resumed.status).toBe(JobStatus.DONE);
+    expect(resumed.steps.find((s) => s.step === ProvisioningStep.CREATE_DATABASE)?.attempts).toBe(
+      attempts,
+    );
+    expect(resumed.steps.find((s) => s.step === ProvisioningStep.MIGRATE)?.attempts).toBe(2);
+  });
+
+  it('does not adopt a foreign database or reset a foreign role and does not expose SQL secrets', async () => {
+    const { db, tenants, provisioning, runner } = await services();
+    const tenant = await createDraft('foreign-db');
+    const roleTenant = await createDraft('foreign-role');
+    const role = `vakhta_${roleTenant.id.replaceAll('-', '')}_app`;
+    const admin = createDatabase(postgres.getConnectionUri(), { max: 1 });
+    try {
+      await admin.db.execute(sql`CREATE DATABASE ${sql.identifier(tenant.databaseName)}`);
+      await admin.db.execute(
+        sql`CREATE ROLE ${sql.identifier(role)} LOGIN PASSWORD 'preserve-this-password'`,
+      );
+      const [before] = await admin.db.execute<{ rolpassword: string }>(
+        sql`SELECT rolpassword FROM pg_authid WHERE rolname = ${role}`,
+      );
+      await tenants.startProvisioning(tenant.id, OPERATOR);
+      await tenants.startProvisioning(roleTenant.id, OPERATOR);
+      await runner.tick();
+      const [databaseJob] = await provisioning.listForTenant(tenant.id);
+      const [roleJob] = await provisioning.listForTenant(roleTenant.id);
+      expect(databaseJob?.status).toBe(JobStatus.FAILED);
+      expect(roleJob?.status).toBe(JobStatus.FAILED);
+      expect(databaseJob?.steps[0]?.status).toBe(StepStatus.FAILED);
+      const [after] = await admin.db.execute<{ rolpassword: string }>(
+        sql`SELECT rolpassword FROM pg_authid WHERE rolname = ${role}`,
+      );
+      expect(after?.rolpassword).toBe(before?.rolpassword);
+      expect(JSON.stringify(roleJob)).not.toContain('preserve-this-password');
+      expect(
+        await db.select().from(tenantSecrets).where(eq(tenantSecrets.tenantId, tenant.id)),
+      ).toHaveLength(0);
+      if (!databaseJob) throw new Error('Missing job');
+      await expect(provisioning.skipStep(databaseJob.id, 'CREATE_DATABASE')).rejects.toMatchObject({
+        code: 'STEP_TRANSITION_INVALID',
+      });
+      await expect(provisioning.skipStep(databaseJob.id, 'MIGRATE')).rejects.toMatchObject({
+        code: 'STEP_TRANSITION_INVALID',
+      });
+      await expect(provisioning.retryStep(databaseJob.id, 'DROP_DATABASE')).rejects.toMatchObject({
+        code: 'STEP_NOT_FOUND',
+      });
+    } finally {
+      await admin.client.end({ timeout: 5 });
+    }
+  });
+
+  it('redacts upstream failures and retries only the failed step', async () => {
+    const { db, tenants, provisioning, runner, provider } = await services();
+    const tenant = (await tenants.list()).find((t) => t.slug === 'zavoda');
+    if (!tenant) throw new Error('Missing tenant');
+    const jobId = await db.transaction((tx) =>
+      provisioning.createJob(tx, {
+        tenantId: tenant.id,
+        kind: 'ROTATE_BOT_TOKEN',
+        requestedBy: OPERATOR.id,
+        modules: ['WORKER_BOT'],
+        payload: {},
+      }),
+    );
+    const original = provider.setWebhook;
+    provider.setWebhook = async () => {
+      throw new Error('Failed SQL PASSWORD sensitive-test-value');
+    };
+    try {
+      await runner.tick();
+    } finally {
+      provider.setWebhook = original;
+    }
+    const failed = await provisioning.get(jobId);
+    expect(failed.status).toBe(JobStatus.FAILED);
+    expect(JSON.stringify(failed)).not.toContain('sensitive-test-value');
+    await provisioning.retryStep(jobId, 'BOT_WEBHOOK', OPERATOR);
+    await runner.tick();
+    const recovered = await provisioning.get(jobId);
+    expect(recovered.status).toBe(JobStatus.DONE);
+    expect(recovered.steps.find((s) => s.step === ProvisioningStep.BOT_WEBHOOK)?.attempts).toBe(2);
+    const audit = await app
+      .get((await import('../audit/audit.service.js')).ControlAudit)
+      .list(tenant.id);
+    expect(audit).toContainEqual(
+      expect.objectContaining({ action: 'job.step.retry', actorEmail: OPERATOR.email }),
+    );
+  });
+  it('resumes credentials saved before database creation, including URL-encoded passwords', async () => {
+    const { db, tenants, provisioning, runner } = await services();
+    const tenant = await createDraft('resume-database');
+    const { SECRET_CIPHER } = await import('../infra/registry.module.js');
+    const cipher = app.get<SecretCipher>(SECRET_CIPHER);
+    const url = new URL(postgres.getConnectionUri());
+    url.pathname = `/${tenant.databaseName}`;
+    url.username = `vakhta_${tenant.id.replaceAll('-', '')}_app`;
+    url.password = 'test-password@with:reserved/characters';
+    const encrypted = cipher.encrypt(url.toString());
+    await db.insert(tenantSecrets).values({
+      tenantId: tenant.id,
+      kind: TenantSecretKind.DATABASE_URL,
+      ciphertext: encrypted.ciphertext,
+      keyVersion: encrypted.keyVersion,
+      fingerprint: cipher.fingerprint(url.toString()),
+    });
+    await tenants.startProvisioning(tenant.id, OPERATOR);
+    await runner.tick();
+    const [job] = await provisioning.listForTenant(tenant.id);
+    expect(job?.steps.find((s) => s.step === ProvisioningStep.CREATE_DATABASE)?.status).toBe(
+      StepStatus.DONE,
+    );
+    expect(job?.steps.find((s) => s.step === ProvisioningStep.MIGRATE)?.status).toBe(
+      StepStatus.DONE,
+    );
+    const [saved] = await db
+      .select()
+      .from(tenantSecrets)
+      .where(
+        and(
+          eq(tenantSecrets.tenantId, tenant.id),
+          eq(tenantSecrets.kind, TenantSecretKind.DATABASE_URL),
+        ),
+      );
+    expect(saved?.ciphertext).toEqual(encrypted.ciphertext);
   });
 });
