@@ -140,11 +140,56 @@ for manual action), `BOT_WEBHOOK` (`getMe`, `setWebhook` with secret), `INVITE_A
 `auth_user` and `ADMIN/ENTERPRISE` grant in the tenant database plus a single-use HMAC invitation,
 TTL 72 hours, delivered as a link the operator copies).
 
+### Tenant settings service
+
+Operational parameters of spec section 18 leave the environment. `packages/contracts/src/tenant-settings.ts`
+defines the key catalog as one `as const` object with a zod schema and platform defaults per key
+(`presence.arriveBeforeMinutes`, `shift.graceMinutes`, `incident.slaNormalMinutes`, `qr.rotationSeconds`,
+`media.retentionDays`, and the rest of the table in `docs/parameters.md`). `apps/api/src/config/tenant-settings.ts`
+reads the tenant `settings` table (scope `global`) through the tenant context, merges defaults,
+caches per tenant and invalidates on the Redis channel `control:settings:<tenantId>`; the worker
+uses the same reader from `packages/registry`. Existing env keys remain the defaults for env mode
+and for tenants without an override, so the pilot keeps its current values. `control-api` edits
+these rows over the tenant database connection and audits the change; a later change may open a
+subset to the tenant `ADMIN` in the tenant panel.
+
+### Quick-create wizard, onboarding link and deletion
+
+The wizard posts one `CreateTenantCommand` (name, slug, locale, timezone, modules, administrator
+e-mail and name, optional bot token) and returns the job id; the job view polls steps. The
+`INVITE_ADMIN` step creates the administrator and a `tenant_invitations` row of kind `ONBOARDING`
+(HMAC token, seven days, single use for password setup, reissuable). The link targets the tenant
+panel host `/#/welcome/<token>`; the panel's welcome page (`apps/admin-web/src/pages/welcome`)
+verifies the token through the tenant API, sets the password, and renders the bot deep link with
+a QR code and the kiosk pairing steps in the tenant's default locale with a language switch. When
+no bot token exists yet, the page shows a "bot is being connected" state and the workspace shows
+the pending step. Sharing is copy-to-clipboard and the platform share sheet; e-mail delivery waits
+for a mail provider.
+
+Deletion: `DRAFT` rows are removed directly. A provisioned tenant needs the slug typed; the job
+`DELETE` takes a final backup (`FINAL_BACKUP`), suspends, records `tenant_deletions.scheduled_for`
+(now plus `TENANT_DELETE_RETENTION_DAYS`, default thirty), and a scheduled step drops the database,
+role and storage prefix after that time unless an operator restores. All steps are audited.
+
 ### control-web (new React app, `apps/control-web`)
 
-FSD: `app/` (router, providers), `pages/tenants`, `pages/tenant-detail`, `pages/operators`,
-`features/create-tenant`, `features/provision-tenant`, `features/toggle-module`,
-`features/manage-domains`, `features/manage-secrets`, `entities/tenant`, `shared/`. shadcn
+FSD: `app/` (router, providers), `pages/tenants`, `pages/tenant-workspace`, `pages/modules-catalog`,
+`pages/operators`, `pages/audit`, `features/quick-create-tenant`, `features/provision-tenant`,
+`features/toggle-module`, `features/edit-module-config`, `features/edit-tenant-settings`,
+`features/manage-domains`, `features/manage-secrets`, `features/manage-invitations`,
+`features/delete-tenant`, `entities/tenant`, `entities/provisioning-job`, `shared/`.
+
+Screens: **Tenants** (table: name, slug, status, modules, health, last job; filters; quick-create
+button). **Quick create** (one form, then the live job view with the onboarding link and copy
+buttons on success). **Tenant workspace** with tabs: Overview (status, health, addresses, pending
+manual steps, onboarding link), Modules (cards with switch and config form), Database (host, name,
+schema version, size, last backup, connection check, migrate and backup actions), Bot (username,
+webhook status, token set/rotate, verify), Kiosk (address, QR settings, terminals count), Panel
+(address, administrators, invitations, reissue), Domains (table with DNS status and verify),
+Branding (name, logo, colour with preview), Parameters (grouped forms for the section-18 settings),
+Jobs (history with steps), Audit (filtered log), Danger zone (suspend, resume, delete). **Modules
+catalog**, **Operators**, **Audit**. Every form follows the disabled-until-changed rule; every
+non-obvious control has a tooltip; one loader per surface; complete counts and pagination. shadcn
 primitives are copied from the panel initially; a shared `packages/ui` is extracted only when
 delivery 3 shows real duplication. TanStack Query owns server state; the provisioning job view
 polls while a job is active. Texts live in a `control` namespace in all three catalogs. Admin panel
@@ -207,7 +252,9 @@ Delivery 1 owns `packages/registry/**`, `packages/contracts/src/tenant.ts` and j
 `apps/api/src/telegram/*`, `apps/api/src/cli/*`, `apps/worker/src/**`, `.env.example`,
 `infra/compose/docker-compose.yml`, `.railway/railway.ts`, `.github/workflows/ci.yml`, and their
 tests. Delivery 2 owns `apps/control-api/**`, `apps/control-web/**`, `packages/i18n` (`control`
-namespace) and the workflow/IaC additions for them. Delivery 3 owns `apps/admin-web/src/shared/config`,
+namespace), `packages/contracts/src/tenant-settings.ts`, `apps/api/src/config/tenant-settings.ts`
+and its call sites, and the workflow/IaC additions for them. Delivery 3 also owns
+`apps/admin-web/src/pages/welcome/**`. Delivery 3 owns `apps/admin-web/src/shared/config`,
 `apps/admin-web/src/app/**` header and navigation, `apps/qr-kiosk/src/main.ts`, bot screens and
 i18n. Delivery 4 owns `.github/workflows/db-backup.yml`, `scripts/db/*`, `docs/runbooks/*` and the
 provider adapters. Each delivery re-lists its exact files in tasks.md before coding.
@@ -224,13 +271,13 @@ Control web and panel changes: `vercel-react-best-practices`, `frontend-design`.
 
 ## IMPLEMENT: Ordered Delivery
 
-| Delivery            | Depends on              | Exit evidence                                                                                                                                                            |
-| ------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0. Planning package | Repository recon        | This spec, plan, tasks, research, data model, ADR, product and engineering documents                                                                                     |
-| 1. Foundation       | Research tasks resolved | Registry package and migrations; tenant context in API and worker; `--tenants` migrator; env mode green in CI; pilot registered and cut over with recorded live checks   |
-| 2. Control panel    | Delivery 1              | Operator sign-in with TOTP; tenant CRUD, modules, domains, secrets; provisioning job with resumable steps; audit; public config endpoint; desktop and mobile screenshots |
-| 3. Tenant surfaces  | Delivery 2              | Second tenant provisioned end to end; per-tenant bot; module gating; branding on panel, kiosk and bot; runtime config with cache                                         |
-| 4. Operations       | Delivery 3              | Multi-tenant backup and restore drill; suspend/resume; token rotation; client-owned domain flow; tenant health view                                                      |
+| Delivery            | Depends on              | Exit evidence                                                                                                                                                                                                                                                       |
+| ------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0. Planning package | Repository recon        | This spec, plan, tasks, research, data model, ADR, product and engineering documents                                                                                                                                                                                |
+| 1. Foundation       | Research tasks resolved | Registry package and migrations; tenant context in API and worker; `--tenants` migrator; env mode green in CI; pilot registered and cut over with recorded live checks                                                                                              |
+| 2. Control panel    | Delivery 1              | Operator sign-in with TOTP; quick-create wizard; tenant workspace with all configuration tabs and inline actions; tenant settings service; provisioning job with resumable steps and onboarding link; audit; public config endpoint; desktop and mobile screenshots |
+| 3. Tenant surfaces  | Delivery 2              | Second tenant provisioned end to end; per-tenant bot; module gating; branding on panel, kiosk and bot; runtime config with cache                                                                                                                                    |
+| 4. Operations       | Delivery 3              | Multi-tenant backup and restore drill; suspend/resume; token rotation; client-owned domain flow; tenant health view; deletion with final backup and retention window                                                                                                |
 
 No dates or effort figures are promised here; record actual provisioning time per tenant when the
 first non-pilot tenant is created.
@@ -248,6 +295,9 @@ first non-pilot tenant is created.
 | AC-017–020  | Module guard tests; panel and kiosk browser checks with a disabled module; runtime config fetch, validation failure and cache fallback                                 |
 | AC-021–024  | Migrator test with a failing tenant; backup script dry run listing databases; restore drill record; suspend and rotation tests                                         |
 | AC-025      | Audit tests: every mutation appends; UPDATE/DELETE on `control_audit_log` fails for the application role                                                               |
+| AC-026–031  | Workspace browser checks per tab; settings reader tests (defaults, override, invalidation, pilot values unchanged); inline action tests; table standard checks         |
+| AC-032–034  | Wizard and job view browser checks; invitation tests (single use, expiry, reissue); welcome page in three languages without a bot token and with one                   |
+| AC-035      | Deletion tests: draft removal, slug confirmation, final backup step, suspension, scheduled drop, restore within the window                                             |
 
 Commands: `pnpm --filter @vakhta/registry test`, `pnpm --filter api test`, `pnpm --filter worker
 test`, `pnpm --filter control-api test`, `pnpm check` before each delivery's commit. Independent
@@ -276,5 +326,8 @@ verified deployed behavior.
 4. **Pilot slug and display name** for the current customer.
 5. **Control panel languages**: the trilingual rule applies by default; the owner may restrict the
    operator UI to fewer languages as an explicit exception.
+6. **Deletion retention window**: thirty days by default; confirm or change.
+7. **Which section-18 parameters the tenant's own `ADMIN` may edit later** in the tenant panel;
+   in this program only operators edit them.
 
 Everything else in this plan is a routine engineering choice that does not need owner input.

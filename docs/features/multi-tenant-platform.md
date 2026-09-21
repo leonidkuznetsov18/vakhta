@@ -24,9 +24,15 @@ authenticator code.
 
 ## How it works
 
-- **Creating a client.** The operator enters the client name, a short slug (letters, digits and
-  hyphens; it becomes part of the addresses and never changes), the default language, the plant
-  time zone, the display name and optionally a logo and accent colour, and picks the modules.
+- **Creating a client.** One form: the client name, a short slug suggested from the name (letters,
+  digits and hyphens; it becomes part of the addresses and never changes), the default language,
+  the plant time zone, the modules, the first administrator's name and e-mail, and optionally the
+  bot token. "Create" starts provisioning at once and shows the steps live.
+- **One place for everything.** The client card shows every setting in tabs: modules, database,
+  bot, kiosk, panel, domains, branding, parameters (presence windows, breaks, escalation, SLA,
+  QR rotation and the other values from the customer parameter list), jobs and audit. Everything
+  editable is edited there with validation; secrets are masked. Actions such as "check connection",
+  "run migrations", "verify bot", "issue new invitation" and "back up now" sit next to their values.
 - **Modules.** "Admin panel", "Worker bot" and "QR kiosk" can be switched on or off per client.
   A switched-off module disappears from the client's panel, the kiosk shows a notice that the
   terminal is not enabled, and the bot stops receiving messages. Switching does not need a release.
@@ -39,9 +45,16 @@ authenticator code.
 - **Bot.** Telegram has no way to create bots automatically. The operator creates the bot in
   BotFather, pastes the token, and the platform checks it and connects it. The token is stored
   encrypted and is never shown again.
-- **First administrator.** The job produces a one-time invitation link for the client's panel. The
-  administrator opens it, sets a password and gets the "ADMIN" role for the whole client; from
-  there they add employees, terminals and schedules exactly as today.
+- **Onboarding link.** When provisioning finishes the operator gets one link for the client and
+  copies it into any channel. The client's administrator opens it, sets a password, sees the bot
+  link with a QR code and the kiosk pairing steps, and starts adding employees, terminals and
+  schedules exactly as today. The link works once for the password and expires after seven days;
+  the operator can issue a new one. If the bot token is added later, the page says the bot is being
+  connected.
+- **Deleting a client.** A client that was never provisioned is removed at once. A working client
+  is deleted only after the operator types its slug: a final backup is taken, the client is
+  suspended immediately, and its database and files are removed after a retention window during
+  which an operator can restore it.
 - **Suspend and resume.** An operator can suspend a client with a reason: its panel, bot and kiosk
   stop responding until resumed. Every operator action is kept in an audit log.
 

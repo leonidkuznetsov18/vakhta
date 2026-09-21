@@ -12,7 +12,11 @@
 - [x] Compatibility mode and rollback for the existing customer are explicit and data-free.
 - [x] Background work, migrations and backups are covered per tenant.
 - [x] Modules are switches with API enforcement and surface behavior; reserved modules are inert.
-- [x] Non-goals exclude row-level tenancy, impersonation, billing, bot auto-creation and data deletion.
+- [x] Non-goals exclude row-level tenancy, impersonation, billing, bot auto-creation and e-mail delivery.
+- [x] The control panel is specified as the single configuration surface with visible and editable values per area.
+- [x] Environment parameters that must become per-tenant data are named and mapped to the tenant settings table.
+- [x] Quick creation ends with one onboarding link; missing token or DNS never blocks creation.
+- [x] Deletion has slug confirmation, final backup and a retention window.
 - [x] Localization rule applies to the control panel; no user-facing hardcoded strings are planned.
 - [x] Success criteria avoid invented numeric targets; provisioning time is measured, not promised.
 - [x] Verification scope classifies the change under the testing baseline with independent review.

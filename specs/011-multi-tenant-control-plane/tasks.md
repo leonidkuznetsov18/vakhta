@@ -36,20 +36,24 @@ unchanged; the pilot is registered and cut over. **Acceptance**: AC-005–016, A
 
 ## Delivery 2: Control panel (US1 without bot and invite, AC-025)
 
-**Outcome**: operators manage tenants and run provisioning jobs. **Acceptance**: AC-001, AC-002
-(steps up to `REGISTER_DOMAINS`), AC-025, public config endpoint for AC-020.
+**Outcome**: operators create tenants in one form, see and edit every configuration in one place,
+and hand over an onboarding link. **Acceptance**: AC-001, AC-002 (steps up to `REGISTER_DOMAINS`),
+AC-025, AC-026–032, AC-034, public config endpoint for AC-020.
 
 - [ ] T020 `apps/control-api`: Nest app with operator better-auth (TOTP mandatory, no sign-up), `bootstrap-operator` CLI, tenants, modules, domains, branding, secrets (encrypted, fingerprint), audit, health and `GET /public/tenant-config`; Dockerfile; `.railway/railway.ts` service; `ci.yml` image.
 - [ ] T021 Provisioning runner: job claim under advisory lock, step classes with `isDone`/`run`, `MANUAL_REQUIRED` path, `CREATE_DATABASE`, `MIGRATE`, `SEED_DEFAULTS`, `STORAGE_PREFIX`, `REGISTER_DOMAINS` with `HostnameProvider` adapters (Cloudflare, Railway, manual); tests for failure, restart, retry and idempotency.
 - [ ] T022 `apps/control-web`: FSD app with tenant list, tenant detail (modules, domains, secrets, branding, jobs and steps, audit), create-tenant and provision features, operators page; `control` i18n namespace in uk/en/ru; Pages project `vakhta-control` in `ci.yml`.
-- [ ] T023 Desktop and mobile screenshots of the control panel; independent review of auth, secrets and provisioning transactions; engineering memory update.
+- [ ] T023 Tenant settings: `packages/contracts/src/tenant-settings.ts` key catalog with defaults, `apps/api/src/config/tenant-settings.ts` reader with cache and Redis invalidation, worker reader in `packages/registry`, replace env reads at their call sites, control-api endpoints to read and write tenant settings; tests for defaults, override, invalidation and unchanged pilot values (covers AC-028).
+- [ ] T024 Quick-create wizard, live job view and onboarding link: `CreateTenantCommand`, `tenant_invitations`, reissue endpoint, copy buttons, share sheet; tests for single use, expiry and reissue (covers AC-032–034).
+- [ ] T025 Tenant workspace tabs with inline actions (connection check, migrate, backup, verify bot, re-register webhook, verify domain, reissue invitation), module cards with config forms, modules catalog, operators and audit pages; admin panel table standard (covers AC-026, AC-027, AC-029–031).
+- [ ] T026 Desktop and mobile screenshots of the tenant list, wizard, job view and every workspace tab; independent review of auth, secrets, settings writes and provisioning transactions; engineering memory update.
 
 ## Delivery 3: Tenant surfaces (US1 remainder, US5)
 
 **Outcome**: a second tenant is usable end to end with its own bot and branding. **Acceptance**:
 AC-003, AC-004, AC-017–020.
 
-- [ ] T030 `BOT_WEBHOOK` and `INVITE_ADMIN` steps; token validation with `getMe`; invitation flow on the tenant panel (`#/invite/<token>`), single use and expiry tests.
+- [ ] T030 `BOT_WEBHOOK` and `INVITE_ADMIN` steps; token validation with `getMe`; trilingual welcome page on the tenant panel (`#/welcome/<token>`): password setup, bot deep link with QR, kiosk pairing steps, "bot is being connected" state; tests (covers AC-003, AC-033, AC-034).
 - [ ] T031 Module guard on kiosk, terminal, activation, relink and webhook routes; `MeView.tenant`; panel navigation and action gating with tooltips; kiosk notice screen; bot greeting with the display name; i18n in three catalogs.
 - [ ] T032 Runtime configuration in `apps/admin-web/src/shared/config` and the kiosk bootstrap: fetch, zod validation, `localStorage` cache, fallback, canonical host from config; remove `VITE_CANONICAL_ORIGIN` usage; keep `VITE_API_URL` for local dev.
 - [ ] T033 Provision the first non-pilot tenant end to end; record provisioning time; browser checks on panel, kiosk and bot for both tenants; independent review; documentation updates.
@@ -57,12 +61,13 @@ AC-003, AC-004, AC-017–020.
 ## Delivery 4: Operations (US6)
 
 **Outcome**: the platform is operable for many tenants. **Acceptance**: AC-021 (control panel
-view), AC-022, AC-023, AC-024, client-owned domains.
+view), AC-022, AC-023, AC-024, AC-035, client-owned domains.
 
 - [ ] T040 Multi-database backup in `scripts/db/backup.sh` and `db-backup.yml`; per-tenant restore section in `docs/runbooks/recovery.md`; one restore drill into a scratch database with recorded evidence.
 - [ ] T041 Suspend and resume jobs with runtime eviction and worker skip; bot token rotation job; tenant health and schema version in the control panel.
 - [ ] T042 Client-owned domain registration and verification (`PENDING` → `VERIFIED`), TLS and DNS instructions, API serving only verified hosts; tests.
-- [ ] T043 Runbook updates (`platform-operations.md`, new `tenant-operations.md`), independent review, engineering memory and product document updates.
+- [ ] T043 Tenant deletion: slug confirmation, `FINAL_BACKUP`, suspension, `tenant_deletions` with retention window, restore within the window, scheduled `DROP_DATABASE` and `DROP_STORAGE`; tests (covers AC-035).
+- [ ] T044 Runbook updates (`platform-operations.md`, new `tenant-operations.md`), independent review, engineering memory and product document updates.
 
 ## Delivery and Evidence
 
@@ -72,7 +77,8 @@ view), AC-022, AC-023, AC-024, client-owned domains.
 ## Dependencies and Handoff
 
 T010 → T012; T011 → T012, T014, T015; T012 → T013; T012–T015 → T016 → T017 → T018. Delivery 2 starts
-after T018 is verified in production. Delivery 3 needs T021 and T022. Delivery 4 needs T033. Owned
+after T018 is verified in production; inside it T020 → T021 → T023 → T024 → T025 → T026. Delivery 3
+needs T021–T025. Delivery 4 needs T033. Owned
 files per delivery are listed in plan.md and re-listed here before coding. Next action: owner
 confirms the plan's Open Decisions; then T010.
 
@@ -80,5 +86,5 @@ confirms the plan's Open Decisions; then T010.
 
 After each delivery compare the code with spec.md and plan.md, append demonstrated gaps as new
 numbered tasks and preserve completed history. A changed requirement updates spec.md and plan.md
-before new work. No unaccepted expansion (impersonation, billing, additional modules, tenant data
-deletion) is implemented under this change.
+before new work. No unaccepted expansion (impersonation, billing, additional module types, e-mail
+delivery) is implemented under this change.

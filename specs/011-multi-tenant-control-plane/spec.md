@@ -4,7 +4,10 @@
 **Baseline**: 0566952 | **Checkout**: master
 **Authority**: Owner request, 2026-09-21: move from one customer deployment to a platform where
 every client plant has its own database, bot, kiosk and branded interface, created and managed from
-a super-admin panel that assigns modules. Status becomes Accepted when the owner confirms the items
+a super-admin panel that assigns modules. Owner refinement, same day: the control panel must be the
+one place where every configuration (database, bot, kiosk, panel, modules, parameters) is visible and
+editable, with full create, edit and delete for tenants, modules and related records, so that a new
+client is created quickly and receives one link to start using the product. Status becomes Accepted when the owner confirms the items
 under "Open Decisions" in [plan.md](plan.md).
 **Product document**: [Multi-tenant platform](../../docs/features/multi-tenant-platform.md) (planned)
 **Engineering memory**: [Multi-tenant platform](../../docs/engineering/features/multi-tenant-platform.md)
@@ -56,7 +59,9 @@ plants). A platform **operator** (Vakhta staff) creates a tenant in the **contro
 ("Vakhta Control"), assigns **modules**, and the platform provisions an isolated database,
 hostnames, a storage prefix and, once the operator pastes a bot token, the tenant's own Telegram
 bot. Tenants never see each other. The current customer becomes the first tenant with no data
-migration and no visible change.
+migration and no visible change. The control panel is the **single configuration surface**: every
+effective setting of a tenant is visible there, every editable one is edited there with validation
+and audit, and creating a client ends with one onboarding link the operator sends to the client.
 
 **Isolation model (decided).** Database per tenant on a shared PostgreSQL cluster; shared stateless
 API and worker processes that bind every unit of work to exactly one tenant; one Telegram bot per
@@ -77,18 +82,23 @@ program.
 
 1. **Foundation**: registry package and control database, tenant context in API and worker,
    per-tenant migrations, `TENANCY_MODE=env` compatibility, pilot registered. No visible change.
-2. **Control panel**: operator authentication, tenant CRUD, modules, domains, secrets, provisioning
-   jobs with per-step status, control audit log, public tenant-config endpoint.
+2. **Control panel**: operator authentication, quick-create wizard, tenant workspace with every
+   configuration visible and editable (modules, database, bot, kiosk, panel, domains, branding,
+   operational parameters), provisioning jobs with per-step status, onboarding link, control audit
+   log, public tenant-config endpoint.
 3. **Tenant surfaces**: per-tenant Telegram bots, module gating, tenant branding and runtime config
    in panel and kiosk, first-administrator invitation.
 4. **Operations**: suspend/resume, bot token rotation, multi-tenant backups and a restore drill,
-   client-owned domains, provider automation for hostnames, tenant health in the control panel.
+   client-owned domains, provider automation for hostnames, tenant health in the control panel,
+   tenant deletion with a final backup and a retention window.
 
 **Non-goals.** Row-level multi-tenancy (`tenant_id` columns in the tenant schema); cross-tenant
 reports; operator impersonation of tenant users; billing, metering, plans or self-service sign-up;
-automatic Telegram bot creation (Telegram has no API for it; the operator uses BotFather); tenant
-archive with data deletion (a state only; deletion needs its own approved change); moving the
-landing page; product modules beyond the three; anything in AGENTS.md "Out of MVP scope".
+automatic Telegram bot creation (Telegram has no API for it; the operator uses BotFather); e-mail
+delivery of onboarding links until a mail provider is configured (the link is copied and shared by
+the operator in v1); adding a new module _type_ without a code change (the catalog of module types
+is code, their assignment and configuration per tenant is data); moving the landing page; product
+modules beyond the three; anything in AGENTS.md "Out of MVP scope".
 
 **Compatibility.** The tenant database schema is unchanged. Every existing panel, bot and kiosk
 journey keeps its behavior for the pilot tenant. `TENANCY_MODE=env` keeps local development, CI and
@@ -191,6 +201,54 @@ Actor: platform operator. Value: a new plant is live in hours, without a deploy 
   change, suspend, resume) is in the append-only control audit log with actor, time and redacted
   before/after values.
 
+### US7: Every configuration is visible and editable in one place (Priority: P1)
+
+Actor: platform operator. Value: no manual work in Railway, Cloudflare, BotFather or a database
+console after the initial platform setup.
+
+- **AC-026**: Given a tenant, when the operator opens its workspace, then they see every effective
+  configuration grouped by area: database (host, database name, schema version, size, last backup,
+  last connection check), bot (username, webhook address and status, last update received),
+  kiosk (address, QR rotation and TTL, terminal count), panel (address, administrators, pending
+  invitations), storage and Redis prefixes, domains with DNS status, branding, and the operational
+  parameters of spec section 18. Secrets are shown masked and never displayed again after saving.
+- **AC-027**: Every editable value is edited in place with the zod contract's validation and inline
+  errors; Save is disabled until the draft differs from the saved value; every save is audited and
+  applied within one registry refresh interval without a deploy.
+- **AC-028**: The operational parameters that today live in environment variables (presence
+  windows, grace, early start, breaks and meals, downtime escalation, incident SLA and duplicate
+  window, cleaning reminder, handover review window, QR rotation and TTL, media thresholds and
+  retention, appeal window) become per-tenant settings stored in the tenant `settings` table with
+  platform defaults; the tenant API and worker read them per tenant; environment values remain
+  defaults only, and the pilot keeps its current values after cutover.
+- **AC-029**: Modules appear as cards with an on/off switch and a per-module configuration form
+  (for example QR rotation and TTL for the kiosk, bot username and webhook for the bot); a catalog
+  page lists the module types with descriptions. Adding a new module type is a code change.
+- **AC-030**: Inline actions exist and are audited: check the database connection, run migrations
+  for this tenant, re-register the webhook and verify the bot, issue a new invitation, verify a
+  domain, trigger a backup. Each shows its result or error next to the control.
+- **AC-031**: Tenants, operators, domains, invitations and jobs are tables that follow the admin
+  panel table standard: filters, complete count, pagination, keyboard access, mobile layout, and
+  create, edit and delete actions where the entity allows it.
+
+### US8: Quick creation and one onboarding link (Priority: P1)
+
+- **AC-032**: The quick-create wizard is one form: name, slug (suggested from the name by
+  transliteration, editable), default language, time zone, modules, administrator e-mail and name,
+  optional bot token. Submit creates the tenant and starts provisioning in one action; the progress
+  view lists the steps live.
+- **AC-033**: On completion the operator receives one onboarding link on the tenant panel host
+  (`/#/welcome/<token>`) plus copy buttons for the panel, bot and kiosk addresses. The trilingual
+  welcome page lets the administrator set a password (single use), and shows the bot link with a
+  QR code and the kiosk pairing steps. The token expires after seven days and can be reissued.
+- **AC-034**: A missing bot token or a manual DNS step never blocks creation: the tenant becomes
+  usable for the enabled modules that are ready, the welcome page shows "bot is being connected"
+  until the token is added, and the workspace lists the pending manual steps with instructions.
+- **AC-035**: A `DRAFT` tenant is deleted immediately. A provisioned tenant is deleted only after
+  the operator types its slug: the platform takes a final backup, suspends the tenant at once, and
+  drops its database and storage after a retention window (default thirty days) during which an
+  operator can restore it. Every step is audited.
+
 ### Edge Cases
 
 - Slug collision or reserved label is rejected inline; renaming the display name never changes the
@@ -229,6 +287,13 @@ Actor: platform operator. Value: a new plant is live in hours, without a deploy 
   from one pipeline; verified by AC-021–024.
 - **FR-007**: Every new user-facing string, including the control panel, MUST live in
   `packages/i18n` in all three catalogs; verified by the i18n parity test.
+- **FR-008**: The control panel MUST show every effective tenant configuration and edit every
+  configurable value in place, and per-tenant operational parameters MUST be data in the tenant
+  `settings` table with platform defaults; verified by AC-026–031.
+- **FR-009**: Creating a tenant MUST end with a shareable onboarding link that opens a welcome page
+  with password setup, bot link and kiosk instructions; verified by AC-032–034.
+- **FR-010**: Deleting a provisioned tenant MUST be confirmed by slug, preceded by a final backup
+  and delayed by a retention window; verified by AC-035.
 
 ### Key Entities
 
@@ -248,14 +313,16 @@ means "the whole tenant".
   against two real tenant databases.
 - **SC-004**: Provisioning time per tenant is measured and recorded against the product-vision KPI
   "deployment time at a new site: days, not months"; no numeric target is invented here.
+- **SC-005**: An operator goes from "create client" to a copied onboarding link in one sitting
+  without leaving the control panel or opening Railway, Cloudflare or a database console.
 
 ## Verification Scope
 
 Classification under `docs/engineering/testing-baseline.md`: access boundaries, transactions,
 migrations and failure recovery. Required: invariant tests on real PostgreSQL with two tenant
 databases, failure and retry cases for provisioning and background loops, one independent review of
-each delivery's changed boundary, and verification of the deployed pilot after cutover. Changed
-product surfaces: control panel (new; desktop and mobile screenshots), tenant panel header,
-navigation and branding, kiosk config and notice screens, bot greeting. Delivery 1 changes no
+each delivery's changed boundary, and verification of the deployed pilot after cutover. Changed product surfaces: control panel (new; desktop and mobile screenshots of the tenant list,
+the quick-create wizard, the tenant workspace and the job view), the welcome page, tenant panel
+header, navigation and branding, kiosk config and notice screens, bot greeting. Delivery 1 changes no
 visible surface and needs regression suites plus the pilot cutover check only. Actual results are
 recorded once in the linked engineering memory; [plan.md](plan.md) lists the exact checks.

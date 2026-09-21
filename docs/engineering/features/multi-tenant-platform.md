@@ -29,6 +29,12 @@ migration and backup target. Facts and file references: spec RECON. Product docu
 - Modules `ADMIN_PANEL`, `WORKER_BOT`, `QR_KIOSK` are registry switches enforced by the API;
   `SUPPORT_BOT` and `PHOTO_INSPECTION` are reserved codes.
 - Telegram offers no bot-creation API; operators paste BotFather tokens, validated with `getMe`.
+- Owner refinement, 2026-09-21: the control panel is the single configuration surface with full
+  create, edit and delete; creation is one wizard that ends with an onboarding link. Consequences
+  recorded in the spec (US7, US8): section-18 parameters move from environment variables to a
+  per-tenant settings catalog with platform defaults (the `settings` table exists but is used only
+  by the support bot today); no mail provider exists, so links are copied, not e-mailed; deletion
+  gets slug confirmation, a final backup and a retention window.
 - Open owner decisions are listed in plan.md (hostname scheme, separate control service, one
   cluster, pilot slug, control panel languages).
 
