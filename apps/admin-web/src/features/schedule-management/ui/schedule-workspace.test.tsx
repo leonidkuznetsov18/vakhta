@@ -1164,6 +1164,34 @@ describe('schedule workspace', () => {
       gridToItems(next).filter((item) => item.zoneId !== ZONE),
     );
   });
+  it('keeps terminated workers visible, blocks keyboard edits and allows explicit removal', async () => {
+    mockApi(
+      { status: 'PUBLISHED' },
+      org,
+      employees.map((employee) => ({
+        ...employee,
+        status: employee.id === EMP ? 'TERMINATED' : employee.status,
+      })),
+    );
+    admin();
+    await screen.findByText(t.publishedState);
+    fireEvent.click(screen.getByRole('radio', { name: t.month }));
+    const status = messages(currentLocale()).admin.administration.employees.statuses.TERMINATED;
+    expect(screen.getByText(status)).toBeTruthy();
+    const cell = screen.getByRole('button', { name: /Кузнецов Леонид, 2026-09-05/ });
+    expect(cell.className).toContain('bg-gray-100');
+    expect(cell.getAttribute('aria-label')).toContain(status);
+    expect(screen.queryByRole('button', { name: /Кузнецов Леонид, 2026-09-06/ })).toBeNull();
+    fireEvent.keyDown(cell, { key: 'd' });
+    expect(useScheduleDrafts.getState().drafts[DRAFT_KEY]).toBeUndefined();
+    fireEvent.click(cell);
+    const sheet = screen.getByRole('dialog');
+    expect(within(sheet).queryByRole('button', { name: t.apply })).toBeNull();
+    expect(within(sheet).getByText(new RegExp(status))).toBeTruthy();
+    fireEvent.click(within(sheet).getByRole('button', { name: t.removeAssignment }));
+    expect(gridToItems(useScheduleDrafts.getState().drafts[DRAFT_KEY] ?? { rows: [] })).toEqual([]);
+  });
+
   it('opens the month as a day/night employee matrix with read-only assignment details', async () => {
     mockApi({ status: 'PUBLISHED' });
     render(

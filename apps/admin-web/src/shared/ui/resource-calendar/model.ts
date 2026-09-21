@@ -6,7 +6,7 @@ export interface CalendarItem {
   readonly description: string;
   /** Empty when nothing needs saying; otherwise a short state such as "Not published". */
   readonly status: string;
-  readonly tone: 'info' | 'warning' | 'danger' | 'neutral' | 'amber' | 'indigo';
+  readonly tone: 'info' | 'warning' | 'danger' | 'neutral' | 'amber' | 'indigo' | 'gray';
   /** Rendered with a dashed border so an unpublished shift is recognizable without color. */
   readonly unpublished?: boolean;
   /** Shown for context only (for example another month's plan); selecting it opens details. */

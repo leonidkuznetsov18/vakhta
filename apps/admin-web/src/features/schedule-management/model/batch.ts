@@ -51,7 +51,11 @@ export function copyPeriod(input: {
   );
   let next = input.grid;
   if (input.mode === 'replace') {
-    const copied = new Set(sourceItems.map((item) => item.employeeId));
+    const copied = new Set(
+      sourceItems
+        .filter((item) => input.activeEmployees.has(item.employeeId))
+        .map((item) => item.employeeId),
+    );
     for (const item of gridToItems(input.grid))
       if (copied.has(item.employeeId) && input.targetDates.includes(item.businessDate))
         next = setCell(next, item.employeeId, item.businessDate, '');

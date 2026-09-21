@@ -1,4 +1,5 @@
 import { EmployeeProfileLink } from '@/entities/employee';
+import { isTerminated } from '../model/employee-status';
 import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { templateLabel } from '../lib/template-label';
 import { Trash2Icon } from 'lucide-react';
@@ -78,6 +79,15 @@ export function PeopleSchedule({
   const instance = useId();
   const days = monthDates(w.month);
   const allItems = gridToItems(w.grid);
+  const employees = new Map(w.employees.map((employee) => [employee.id, employee]));
+  const occupied = new Set(allItems.map(assignmentKey));
+  function canOpen(employeeId: string, date: string) {
+    return (
+      !outsideZone(employeeId, date) &&
+      ((w.writable && !isTerminated(employees.get(employeeId))) ||
+        occupied.has(assignmentKey({ employeeId, businessDate: date })))
+    );
+  }
   const publishedItems = new Map(
     gridToItems(w.publicationBaseline).map((item) => [assignmentKey(item), item]),
   );
@@ -95,20 +105,31 @@ export function PeopleSchedule({
     anchor,
     `${w.month}:${search}:${zoneId}`,
   );
-  const visible = rows.slice((pages.page - 1) * pages.size, pages.page * pages.size);
+  const visible = rows.slice((pages.page - 1) * pages.size, pages.page * pages.size).map((row) => {
+    const employee = employees.get(row.employeeId);
+    const terminated = isTerminated(employee);
+    return {
+      ...row,
+      employee,
+      terminated,
+      status: terminated
+        ? messages(currentLocale()).admin.administration.employees.statuses.TERMINATED
+        : '',
+      rowClassName: terminated
+        ? 'bg-gray-50 text-gray-700 dark:bg-gray-900 dark:text-gray-200'
+        : '',
+      stickyClassName: terminated ? 'bg-gray-100 dark:bg-gray-800' : '',
+      name: employee?.fullName ?? employeeLabel(w, row.employeeId),
+    };
+  });
   const first =
     visible.flatMap((row) =>
       days
-        .filter((date) => !outsideZone(row.employeeId, date) && (w.writable || !!row.cells[date]))
+        .filter((date) => canOpen(row.employeeId, date))
         .map((date) => `${row.employeeId}:${date}`),
     )[0] ?? '';
   const focusKey = visible.some((row) =>
-    days.some(
-      (date) =>
-        `${row.employeeId}:${date}` === focus &&
-        !outsideZone(row.employeeId, date) &&
-        (w.writable || !!row.cells[date]),
-    ),
+    days.some((date) => `${row.employeeId}:${date}` === focus && canOpen(row.employeeId, date)),
   )
     ? focus
     : first;
@@ -122,7 +143,10 @@ export function PeopleSchedule({
     timezone: w.timezone,
   });
   const readOnlyDetails =
-    editor && (!w.writable || locked(editor.employeeId, editor.businessDate))
+    editor &&
+    (!w.writable ||
+      isTerminated(employees.get(editor.employeeId)) ||
+      locked(editor.employeeId, editor.businessDate))
       ? calendarModel({
           ...w,
           dates: [editor.businessDate],
@@ -154,7 +178,7 @@ export function PeopleSchedule({
     trigger: HTMLElement,
     templateId?: string,
   ) {
-    if (outsideZone(employeeId, businessDate)) return;
+    if (!canOpen(employeeId, businessDate)) return;
     setTrigger(trigger);
     const item = gridToItems(w.grid).find(
       (value) => value.employeeId === employeeId && value.businessDate === businessDate,
@@ -184,7 +208,7 @@ export function PeopleSchedule({
         const employee = visible[nextRow];
         const date = days[nextDay];
         if (!employee || !date) break;
-        if (!outsideZone(employee.employeeId, date) && (w.writable || !!employee.cells[date])) {
+        if (canOpen(employee.employeeId, date)) {
           const next = `${employee.employeeId}:${date}`;
           setFocus(next);
           document.getElementById(`${instance}:${next}`)?.focus();
@@ -204,6 +228,7 @@ export function PeopleSchedule({
       w.edit(setCell(w.grid, row.employeeId, date, ''));
       return;
     }
+    if (isTerminated(employees.get(row.employeeId))) return;
     const key = event.key.toLowerCase();
     const night = ['n', 'н', 'т'].includes(key);
     const day = ['d', 'д', 'в'].includes(key);
@@ -251,6 +276,7 @@ export function PeopleSchedule({
           </TableHeader>
           <TableBody>
             {visible.map((row, rowIndex) => {
+              const { employee, terminated, status } = row;
               const summary = summarize(
                 gridToItems({ rows: [row] }),
                 w.templates,
@@ -258,21 +284,23 @@ export function PeopleSchedule({
                 w.recorded,
               );
               return (
-                <TableRow key={row.employeeId}>
-                  <TableCell className="sticky left-0 z-10 bg-background">
+                <TableRow key={row.employeeId} className={row.rowClassName}>
+                  <TableCell
+                    className={cn('sticky left-0 z-10 bg-background', row.stickyClassName)}
+                  >
                     <div className="flex items-center gap-1">
                       <span className="block w-32 whitespace-normal break-words font-medium">
                         <EmployeeProfileLink
                           id={row.employeeId}
-                          name={
-                            w.employees.find((employee) => employee.id === row.employeeId)
-                              ?.fullName ?? employeeLabel(w, row.employeeId)
-                          }
-                          avatarVersion={
-                            w.employees.find((employee) => employee.id === row.employeeId)
-                              ?.avatarVersion
-                          }
+                          name={row.name}
+                          avatarVersion={employee?.avatarVersion}
                         />
+                        {terminated && (
+                          <span className="mt-1 flex items-center gap-1 text-xs font-normal text-gray-600 dark:text-gray-300">
+                            {status}
+                            <InfoTip text={t.terminatedReadOnly} />
+                          </span>
+                        )}
                       </span>
                       {w.writable && (
                         <RowMenu
@@ -324,7 +352,7 @@ export function PeopleSchedule({
                             <span aria-hidden>—</span>
                             <span className="sr-only">{t.outsideZone}</span>
                           </span>
-                        ) : w.writable || !!row.cells[date] ? (
+                        ) : (w.writable && !terminated) || !!row.cells[date] ? (
                           <Button
                             id={`${instance}:${cellKey}`}
                             variant="ghost"
@@ -335,12 +363,13 @@ export function PeopleSchedule({
                             }
                             onFocus={() => setFocus(cellKey)}
                             onKeyDown={(event) => keyDown(event, rowIndex, dayIndex)}
-                            aria-label={`${employeeLabel(w, row.employeeId)}, ${date}, ${template ? templateLabel(template.code, t) : dayKinds.OFF}${unpublished ? `, ${t.notPublished}` : ''}`}
+                            aria-label={`${employeeLabel(w, row.employeeId)}, ${date}, ${template ? templateLabel(template.code, t) : dayKinds.OFF}${status ? `, ${status}` : ''}${unpublished ? `, ${t.notPublished}` : ''}`}
                             onClick={(event) => open(row.employeeId, date, event.currentTarget)}
                             className={cn(
                               'min-h-9 min-w-9 p-1',
                               calendarInteraction,
                               template && calendarItemColors[template.isNight ? 'indigo' : 'amber'],
+                              terminated && calendarItemColors.gray,
                               unpublishedMark,
                             )}
                           >
@@ -351,6 +380,7 @@ export function PeopleSchedule({
                             className={cn(
                               'inline-flex min-h-9 min-w-9 items-center justify-center rounded text-sm',
                               template && calendarItemColors[template.isNight ? 'indigo' : 'amber'],
+                              terminated && calendarItemColors.gray,
                               unpublishedMark,
                             )}
                             title={`${date} · ${template ? templateLabel(template.code, t) : dayKinds.OFF}${unpublished ? ` · ${t.notPublished}` : ''}`}
@@ -361,7 +391,12 @@ export function PeopleSchedule({
                       </TableCell>
                     );
                   })}
-                  <TableCell className="sticky right-0 z-10 bg-background text-right tabular-nums">
+                  <TableCell
+                    className={cn(
+                      'sticky right-0 z-10 bg-background text-right tabular-nums',
+                      row.stickyClassName,
+                    )}
+                  >
                     {summary.assignments} /{' '}
                     {summary.minutes === null ? '—' : formatDuration(summary.minutes)}
                   </TableCell>
@@ -392,7 +427,10 @@ export function PeopleSchedule({
           else document.getElementById(instance)?.focus();
         }}
       >
-        {editor && w.writable && !locked(editor.employeeId, editor.businessDate) ? (
+        {editor &&
+        w.writable &&
+        !isTerminated(employees.get(editor.employeeId)) &&
+        !locked(editor.employeeId, editor.businessDate) ? (
           <AssignmentEditor
             key={`${editor.employeeId}:${editor.businessDate}:${editor.templateId}`}
             workspace={w}
@@ -407,6 +445,18 @@ export function PeopleSchedule({
             <p>{readOnlyDetails.status}</p>
             <p>{acknowledgement}</p>
             <p className="text-muted-foreground">{t.presenceUnknown}</p>
+            {editor && w.writable && !locked(editor.employeeId, editor.businessDate) && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  w.edit(setCell(w.grid, editor.employeeId, editor.businessDate, ''));
+                  setEditor(null);
+                }}
+              >
+                <Trash2Icon aria-hidden />
+                {t.removeAssignment}
+              </Button>
+            )}
           </div>
         ) : null}
       </CalendarDetailPanel>

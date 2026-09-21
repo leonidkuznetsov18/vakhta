@@ -312,11 +312,14 @@ window.fetch = fetchFixture(async (input, init) => {
           false,
         ],
       ),
-    ].map(([id, personnelNumber, fullName, telegramLinked]) => ({
+    ].map(([id, personnelNumber, fullName, telegramLinked], index) => ({
       id,
       personnelNumber,
       fullName,
-      status: 'ACTIVE',
+      status:
+        new URLSearchParams(location.search).get('schedule') === 'terminated' && index === 0
+          ? 'TERMINATED'
+          : 'ACTIVE',
       telegramLinked,
       email: null,
       phone: null,

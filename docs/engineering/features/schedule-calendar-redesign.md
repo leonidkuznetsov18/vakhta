@@ -1300,3 +1300,21 @@ Verification and limits: [cleanup delivery](../../audits/2026-09-13/code-simplif
   passed all 15 regressions (61 unrelated tests skipped). API typecheck, changed-file ESLint,
   Prettier and diff checks passed. Independent read-only review found no blockers. Deployment status
   is reported with delivery; no production schedule or employee status was changed during verification.
+
+### Owner follow-up: visible terminated workers
+
+- SPEC: the owner requested light-gray styling so planners can distinguish terminated workers and
+  understand that ordinary assignment changes do not apply to them. Keep existing assignments and
+  navigation visible, include a textual status, and preserve explicit removal.
+- IMPLEMENT: the Schedule model marks terminated cards read-only and uses the shared calendar's
+  gray tone. The month matrix applies the same colors and existing translated employee status,
+  with a new explanation in all three catalogs. Empty cells cannot create assignments; keyboard
+  changes and source/target dragging are guarded. Details hide edit/move controls but retain removal.
+  Copy-period replacement now filters inactive workers before clearing target dates, matching its
+  existing skip behavior. Active-worker colors and editing remain unchanged.
+- VERIFY: 88 focused tests passed across calendar projections, copy/move logic, workspace interactions
+  and the shared calendar. New cases cover three locales, read-only gray cards, creation blocking,
+  keyboard edits, explicit removal and inactive-worker preservation during replace-mode copying.
+  TypeScript and changed-file ESLint passed. Captured and visually inspected local synthetic previews:
+  desktop month matrix at 1440x900, zone cards, mobile cards/details at 390x844. Gray status text,
+  retained details and the removal action are readable; no production assignments were changed.

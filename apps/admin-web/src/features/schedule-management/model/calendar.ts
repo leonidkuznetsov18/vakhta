@@ -1,4 +1,5 @@
 import { assignmentInstants, type EligibilityReason } from '@vakhta/domain';
+import { isTerminated } from './employee-status';
 import { format, holidayLabel, messages, type Locale, type Messages } from '@vakhta/i18n';
 import type {
   AbsenceView,
@@ -127,6 +128,10 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
   const countsByResource = new Map<string, number>();
   const countsByDate = new Map<string, { day: number; night: number }>();
   for (const item of items) {
+    const terminated = isTerminated(employeeMap.get(item.employeeId));
+    const employeeStatus = terminated
+      ? messages(input.locale).admin.administration.employees.statuses.TERMINATED
+      : '';
     const template = templates.get(item.templateId);
     const previous = saved.get(assignmentKey(item));
     const sameTime =
@@ -211,6 +216,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
           : (zones.get(item.zoneId ?? '')?.name ?? t.noZone),
       time,
       description: [
+        employeeStatus,
         template ? (template.isNight ? t.nightShift : t.dayShift) : t.unknownShift,
         duration,
       ]
@@ -219,9 +225,10 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
       status: unpublished ? t.notPublished : '',
       unpublished,
       ...(parts.length > 0 ? { parts } : {}),
-      ...(foreign ? { readonly: true } : {}),
+      ...(foreign || terminated ? { readonly: true } : {}),
       ...(issue ? { issue } : {}),
       tone: template ? (template.isNight ? 'indigo' : 'amber') : 'neutral',
+      ...(terminated ? { tone: 'gray' } : {}),
     });
     buckets.set(key, bucket);
   }
@@ -359,6 +366,9 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
             create: input.writable
               ? {
                   label: t.add,
+                  ...(input.grouping === 'people' && isTerminated(employeeMap.get(id))
+                    ? { disabledReason: t.terminatedReadOnly }
+                    : {}),
                   ...(input.editableMonth && !date.startsWith(input.editableMonth)
                     ? { disabledReason: t.otherMonth.replace('{month}', monthLabel(date)) }
                     : {}),

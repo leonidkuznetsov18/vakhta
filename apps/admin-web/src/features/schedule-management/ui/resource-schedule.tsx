@@ -1,4 +1,5 @@
 import { EmployeeProfileLink } from '@/entities/employee';
+import { isTerminated } from '../model/employee-status';
 import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { useState } from 'react';
 import { setUiState } from '@/lib/ui-store';
@@ -10,6 +11,7 @@ import {
   InboxIcon,
   Undo2Icon,
   ChevronRightIcon,
+  Trash2Icon,
 } from 'lucide-react';
 import { format, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -152,6 +154,8 @@ export function ResourceSchedule({
   });
   const items = gridToItems(w.grid);
   const selectedItem = items.find((item) => assignmentKey(item) === picked?.itemId);
+  const employees = new Map(w.employees.map((employee) => [employee.id, employee]));
+  const terminated = !!selectedItem && isTerminated(employees.get(selectedItem.employeeId));
   const selectedSlot = picked?.itemId?.startsWith('slot:')
     ? slots.slots.find((slot) => `slot:${slot.id}` === picked.itemId)
     : undefined;
@@ -201,7 +205,14 @@ export function ResourceSchedule({
         grouping === 'zones' && value.resourceId !== UNASSIGNED_ZONE ? value.resourceId : zoneId,
     });
   }
-  const editable = !!selectedItem && w.writable && zoneAllowed(w.rights.zones, selectedItem.zoneId);
+  const removable =
+    !!selectedItem && w.writable && zoneAllowed(w.rights.zones, selectedItem.zoneId);
+  const editable = removable && !terminated;
+  function removeSelected() {
+    if (!selectedItem || !removable) return;
+    w.edit(setCell(w.grid, selectedItem.employeeId, selectedItem.businessDate, ''));
+    setPicked(null);
+  }
   function edit(move = false) {
     if (!selectedItem || !editable) return;
     setEditor({ ...selectedItem, zoneId: selectedItem.zoneId ?? '', move });
@@ -232,6 +243,8 @@ export function ResourceSchedule({
     if (!w.writable) return;
     const item = items.find((value) => assignmentKey(value) === from.itemId);
     if (!item || !zoneAllowed(w.rights.zones, item.zoneId)) return;
+    if (isTerminated(employees.get(item.employeeId))) return;
+    if (grouping === 'people' && isTerminated(employees.get(to.resourceId))) return;
     const target: { employeeId?: string; businessDate: string; zoneId?: string } =
       grouping === 'people'
         ? { employeeId: to.resourceId, businessDate: to.date }
@@ -426,48 +439,58 @@ export function ResourceSchedule({
                     role="group"
                     aria-label={t.wholeAssignment}
                   >
-                    <IconButton
-                      icon={PencilIcon}
-                      label={t.editAssignment}
-                      tooltip={t.editAssignment}
-                      size="icon"
-                      disabled={!editable}
-                      onClick={() => edit()}
-                    />
-                    <IconButton
-                      icon={MoveIcon}
-                      label={t.moveAssignment}
-                      tooltip={t.moveAssignment}
-                      variant="outline"
-                      size="icon"
-                      className="border-sky-300 text-sky-800 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-200 dark:hover:bg-sky-950"
-                      disabled={!editable}
-                      onClick={() => edit(true)}
-                    />
-                    <IconButton
-                      icon={UserSearchIcon}
-                      label={t.findReplacement}
-                      tooltip={t.findReplacement}
-                      variant="outline"
-                      size="icon"
-                      className="border-emerald-300 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-200 dark:hover:bg-emerald-950"
-                      disabled={!editable}
-                      onClick={() => edit(true)}
-                    />
-                    <IconButton
-                      icon={Undo2Icon}
-                      label={t.revertAssignment}
-                      tooltip={t.revertAssignment}
-                      variant="outline"
-                      size="icon"
-                      className="border-amber-300 text-amber-800 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-950"
-                      disabled={!editable || !locallyChanged}
-                      onClick={revertSelected}
-                    />
+                    {terminated && removable && (
+                      <Button variant="outline" onClick={removeSelected}>
+                        <Trash2Icon aria-hidden />
+                        {t.removeAssignment}
+                      </Button>
+                    )}
+                    {!terminated && (
+                      <>
+                        <IconButton
+                          icon={PencilIcon}
+                          label={t.editAssignment}
+                          tooltip={t.editAssignment}
+                          size="icon"
+                          disabled={!editable}
+                          onClick={() => edit()}
+                        />
+                        <IconButton
+                          icon={MoveIcon}
+                          label={t.moveAssignment}
+                          tooltip={t.moveAssignment}
+                          variant="outline"
+                          size="icon"
+                          className="border-sky-300 text-sky-800 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-200 dark:hover:bg-sky-950"
+                          disabled={!editable}
+                          onClick={() => edit(true)}
+                        />
+                        <IconButton
+                          icon={UserSearchIcon}
+                          label={t.findReplacement}
+                          tooltip={t.findReplacement}
+                          variant="outline"
+                          size="icon"
+                          className="border-emerald-300 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-200 dark:hover:bg-emerald-950"
+                          disabled={!editable}
+                          onClick={() => edit(true)}
+                        />
+                        <IconButton
+                          icon={Undo2Icon}
+                          label={t.revertAssignment}
+                          tooltip={t.revertAssignment}
+                          variant="outline"
+                          size="icon"
+                          className="border-amber-300 text-amber-800 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-950"
+                          disabled={!editable || !locallyChanged}
+                          onClick={revertSelected}
+                        />
+                      </>
+                    )}
                     {!editable && (
                       <InfoTip
                         text={
-                          w.readonlyReason ??
+                          (terminated ? t.terminatedReadOnly : w.readonlyReason) ??
                           (selectedItem && !zoneAllowed(w.rights.zones, selectedItem.zoneId)
                             ? t.zoneScope
                             : t.editBlockedRights)

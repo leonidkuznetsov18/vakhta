@@ -1,3 +1,4 @@
+import { messages } from '@vakhta/i18n';
 import { calendarDates, calendarWeek } from './business-dates';
 import { describe, expect, it } from 'vitest';
 import { calendarModel, siteToday, type CalendarInput } from './calendar';
@@ -75,6 +76,30 @@ const allItems = (model: ReturnType<typeof calendarModel>) =>
   model.resources.flatMap((row) => row.cells.flatMap((cell) => cell.items));
 
 describe('calendar projections', () => {
+  it.each(['uk', 'en', 'ru'] as const)(
+    'marks terminated assignments gray and read-only in %s',
+    (locale) => {
+      const employees = base.employees.map((employee) => ({
+        ...employee,
+        status: 'TERMINATED' as const,
+      }));
+      const model = calendarModel({
+        ...base,
+        employees,
+        locale,
+        grouping: 'people',
+        published: base.grid,
+      });
+      const item = allItems(model)[0];
+      expect(item).toMatchObject({ tone: 'gray', readonly: true, unpublished: false });
+      expect(item?.description).toContain(
+        messages(locale).admin.administration.employees.statuses.TERMINATED,
+      );
+      expect(model.resources[0]?.cells[0]?.create?.disabledReason).toBe(
+        messages(locale).scheduleWorkspace.terminatedReadOnly,
+      );
+    },
+  );
   it('shows custom hours and zone segments as parts and treats a changed time as unpublished', () => {
     const custom = setAssignment(
       { rows: [] },

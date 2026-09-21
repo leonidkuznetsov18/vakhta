@@ -28,6 +28,10 @@ Counts describe assigned people, not required staffing or attendance.
   A blocked or terminated worker's unchanged assignments from the current published month can be
   retained while editing other workers, or explicitly removed. New or changed assignments for an
   inactive worker are rejected; publication never reactivates the worker or silently drops history.
+  Terminated workers have light-gray rows/cards and a localized status label. Their assignments
+  open as read-only details: keyboard shortcuts, dragging and ordinary editing cannot change them.
+  Explicit removal remains available, and bulk copying skips inactive workers without clearing
+  their existing target-period assignments.
 - **Across months:** a week keeps all seven dates. Dates of the neighbouring month show that month's
   plan muted and read only, with one note naming it; navigating onto such a date opens that month.
   Changes always belong to the month you have open.

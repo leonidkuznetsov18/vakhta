@@ -16,6 +16,25 @@ const item = (
 });
 
 describe('copy period (SC-26)', () => {
+  it('keeps inactive employees unchanged when replacing a copied period', () => {
+    const preserved = item('c', '2026-09-10', 'night');
+    const grid = gridFromItems([preserved]);
+    const result = copyPeriod({
+      grid,
+      source: gridFromItems([item('c', '2026-09-03')]),
+      sourceDates: ['2026-09-03'],
+      targetDates: ['2026-09-10'],
+      mode: 'replace',
+      activeEmployees: new Set<string>(),
+      activeZones: new Set(['z1']),
+      activeTemplates: new Set(['day', 'night']),
+    });
+    expect(gridToItems(result.grid)).toEqual([preserved]);
+    expect(result.changes).toEqual([]);
+    expect(result.skipped).toEqual([
+      expect.objectContaining({ employeeId: 'c', reason: 'INACTIVE_EMPLOYEE' }),
+    ]);
+  });
   const source = gridFromItems([
     item('a', '2026-09-01'),
     item('a', '2026-09-02', 'night'),

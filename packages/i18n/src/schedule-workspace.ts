@@ -1,4 +1,6 @@
 export const scheduleWorkspaceEn = {
+  terminatedReadOnly:
+    'This employee is terminated. Existing shifts are kept; only removal is available.',
   copyPeriod: 'Copy a period',
   copyHint:
     'Copies assignments of the source period onto the target period by position. Inactive workers, zones or shifts are skipped and listed; nothing is published.',
@@ -492,6 +494,7 @@ export const scheduleWorkspaceEn = {
 };
 export type ScheduleWorkspaceMessages = { [K in keyof typeof scheduleWorkspaceEn]: string };
 export const scheduleWorkspaceUk: ScheduleWorkspaceMessages = {
+  terminatedReadOnly: 'Працівника звільнено. Наявні зміни збережено; доступне лише видалення.',
   copyPeriod: 'Скопіювати період',
   copyHint:
     'Копіює призначення вихідного періоду в цільовий за позицією. Неактивних працівників, зони чи зміни пропущено й перелічено; нічого не публікується.',
@@ -988,6 +991,7 @@ export const scheduleWorkspaceUk: ScheduleWorkspaceMessages = {
   localChanges: 'Локальні правки',
 };
 export const scheduleWorkspaceRu: ScheduleWorkspaceMessages = {
+  terminatedReadOnly: 'Сотрудник уволен. Существующие смены сохранены; доступно только удаление.',
   copyPeriod: 'Скопировать период',
   copyHint:
     'Копирует назначения исходного периода в целевой по позиции. Неактивные сотрудники, зоны или смены пропускаются и перечисляются; ничего не публикуется.',
