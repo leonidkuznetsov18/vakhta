@@ -180,20 +180,18 @@ jobs:
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN is not set"; exit 1; }
           test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::CLOUDFLARE_ACCOUNT_ID is not set"; exit 1; }
-      - name: Build against the production API
+      - name: Build tenant surfaces and verify the runtime API
         env:
-          VITE_API_URL: ${{ vars.API_URL }}
           VITE_APP_VERSION: ${{ needs.release.outputs.version }}
           PANEL_URL: ${{ vars.PANEL_URL }}
           KIOSK_URL: ${{ vars.KIOSK_URL }}
           CONTROL_API_URL: ${{ vars.CONTROL_API_URL }}
         run: |
-          test -n "$VITE_API_URL" || { echo "Repository variable API_URL is not set" >&2; exit 1; }
-          # Each app redirects from its pages.dev host to its canonical origin when the variable is set.
-          # The panel needs the kiosk address only to print pairing links; the kiosk pairs with a code,
-          # so no device token is baked into either build.
-          VITE_CANONICAL_ORIGIN="$PANEL_URL" VITE_KIOSK_URL="$KIOSK_URL" pnpm --filter admin-web... run build
-          VITE_CANONICAL_ORIGIN="$KIOSK_URL" pnpm --filter qr-kiosk... run build
+          test -n "$CONTROL_API_URL" || { echo "CONTROL_API_URL is not set" >&2; exit 1; }
+          # Resolve hosts at runtime; publish only after the live control API supports this build.
+          VITE_CONTROL_API_URL="$CONTROL_API_URL" pnpm --filter admin-web... run build
+          VITE_CONTROL_API_URL="$CONTROL_API_URL" pnpm --filter qr-kiosk... run build
+          node scripts/release/check-tenant-runtime.mjs
           pnpm --filter landing... run build
           VITE_CONTROL_API_URL="${CONTROL_API_URL:-}" pnpm --filter control-web... run build
       - name: Deploy landing

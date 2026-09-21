@@ -1,56 +1,51 @@
-import {
-  loadQuestionnaireBridge,
-  questionnaireEntry,
-  QuestionnaireResponse,
-} from '@/features/questionnaire-response';
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from '@/components/ui/sonner';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { App, createPanelRouter } from './app/index';
-import { redirectToCanonicalOrigin } from './canonical.ts';
-import { currentLocale } from './i18n.tsx';
-import { queryClient } from '@/lib/query';
-import { applyStoredAppearance } from '@/lib/theme';
-import { installZodLocale } from '@/lib/validation';
+import { messages, resolveLocale } from '@vakhta/i18n';
+import { TenantSurface } from '@vakhta/domain';
+import { browserStorage, resolveTenant, setTenantConfig } from '@vakhta/tenant-client';
 import './index.css';
 
-const router = createPanelRouter();
+const configuredControlUrl: unknown = import.meta.env['VITE_CONTROL_API_URL'];
+const controlUrl =
+  typeof configuredControlUrl === 'string' && configuredControlUrl
+    ? configuredControlUrl
+    : 'https://control-api.vakhta.xyz';
 
-installZodLocale();
-applyStoredAppearance();
-
-if (redirectToCanonicalOrigin()) throw new Error('Redirecting to the canonical origin');
-
-document.documentElement.lang = currentLocale();
-
-const root = document.getElementById('root');
-if (!root) throw new Error('#root element not found');
-
-const entry = questionnaireEntry(location);
-async function bootstrap(root: HTMLElement) {
-  let questionnaireLaunch = '';
-  if (entry.kind === 'questionnaire' && entry.id) {
-    try {
-      questionnaireLaunch = await loadQuestionnaireBridge();
-    } catch {
-      questionnaireLaunch = '';
-    }
+async function start(): Promise<void> {
+  if (import.meta.env.DEV) {
+    await import('./render');
+    return;
   }
-  createRoot(root).render(
-    <StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider delayDuration={200}>
-          {entry.kind === 'questionnaire' ? (
-            <QuestionnaireResponse id={entry.id} launch={questionnaireLaunch} />
-          ) : (
-            <App router={router} />
-          )}
-          <Toaster richColors position="bottom-right" closeButton />
-        </TooltipProvider>
-      </QueryClientProvider>
-    </StrictMode>,
-  );
+  const root = document.getElementById('root');
+  if (!root) throw new Error('#root element not found');
+  const t = messages(resolveLocale(navigator.language)).onboarding;
+  root.textContent = t.loading;
+  root.setAttribute('role', 'status');
+  try {
+    const config = await resolveTenant({
+      host: location.host,
+      surface: TenantSurface.PANEL,
+      controlUrl,
+      storage: browserStorage(),
+    });
+    if (location.origin !== new URL(config.canonicalUrl).origin) {
+      location.replace(
+        `${config.canonicalUrl}${location.pathname}${location.search}${location.hash}`,
+      );
+      return;
+    }
+    setTenantConfig(config);
+    root.removeAttribute('role');
+    await import('./render');
+  } catch {
+    root.replaceChildren();
+    root.className = 'mx-auto flex min-h-svh max-w-md flex-col justify-center gap-4 p-6';
+    const message = document.createElement('p');
+    message.textContent = t.unavailable;
+    const retry = document.createElement('button');
+    retry.textContent = t.retry;
+    retry.className = 'rounded-md border px-4 py-2 hover:bg-muted focus-visible:ring-2';
+    retry.onclick = () => location.reload();
+    root.append(message, retry);
+    root.setAttribute('role', 'alert');
+  }
 }
-void bootstrap(root);
+void start();

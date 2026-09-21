@@ -240,3 +240,36 @@ v1.19.0; the existing Telegram announcement step succeeded. All three images and
 Pages uploads succeeded. That already-running workflow skipped control-web because its variable
 snapshot preceded enablement; control-web was deployed explicitly as recorded above. The next
 workflow starts with the control deployment variables present.
+
+## Runtime and first-login continuation (2026-09-21)
+
+Owner-created SuperFactory stopped at manual domain registration. DNS alone would have sent its
+panel to the pilot build/API, so the continuation implements T030/T032 before routing that host.
+The owner chose panel first, with the bot token to be added later in the control workspace.
+
+- Added the shared browser package `@vakhta/tenant-client` for one validated host/cache boundary;
+  frontend adapters initialize it before importing API clients. Production never falls back to
+  the pilot API. The panel welcome page owns the public invitation UI in pages/welcome; query
+  factories and HTTP boundaries are separate from presentation. Kiosk bootstrapping remains vanilla.
+- Added trilingual welcome/password setup, bot deep link/QR and kiosk instructions. Public CORS
+  excludes operator credentials. Migration 0052 adds a permanent tenant-side consumption marker;
+  tenant-row locking serializes consumption/reissue, and retries reconcile registry audit without
+  rewriting an already committed password. Independent review found and fixed reload-only recovery;
+  the regression asserts usedAt immediately after inspection, before another password request.
+- Explicit legacy-env registration preserves the pilot UUID and its historical Redis/storage
+  namespace. Added an env→registry→env rehearsal with real PostgreSQL/Redis, existing session,
+  kiosk token and a pending Redis value; the other tenant still refuses cross-tenant access.
+- Verification: runtime cache/security tests 12; registry 14; control provisioning/onboarding 14
+  plus the previously passing MFA suite; welcome component tests 3; tenant isolation/rehearsal 8;
+  contracts 17; i18n 13. Scoped typecheck/lint and panel/kiosk/control builds pass; architecture
+  checks pass. Chrome Private displayed the real local welcome API on desktop and at 390×844,
+  with screenshots visually inspected and mobile document width exactly 390. Password entry
+  remains an owner action; automated local tests cover submission and recovery.
+- CI rerun 35613268793 completed successfully and released v1.19.1, including the existing
+  Telegram announcement and control Pages deployment. The previous photo-test failure did not
+  reproduce on the unchanged rerun; no unrelated incident code was changed.
+- Production preparation: backed up pilot and registry to restricted ignored local artifacts;
+  restored the pilot backup into an isolated PostgreSQL 18 instance (103 employees, 100 sessions,
+  3 terminals). Registered pilot with the reserved env identity, original database/bot secrets and
+  verified canonical hosts/Pages aliases. Migrated pilot and SuperFactory through 0052. API and
+  worker still use env mode at this checkpoint. Provider routing and final cutover are pending.

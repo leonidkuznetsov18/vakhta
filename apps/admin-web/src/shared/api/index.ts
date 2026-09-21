@@ -1,8 +1,8 @@
 import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios';
-import { currentLocale } from '@/shared/config';
+import { currentLocale, panelApiUrl } from '@/shared/config';
 import { normalizeApiError } from './api-error';
 
-export const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
+export const API_URL = panelApiUrl();
 
 const client = axios.create({
   baseURL: API_URL,

@@ -1,3 +1,9 @@
+import { ConfigService } from '@nestjs/config';
+import { EnvTenantSource, ENV_TENANT_ID, tenantFromEnv } from '@vakhta/registry';
+import { TenantRuntimeRegistry } from './tenant-runtime.js';
+import { REDIS } from './redis.module.js';
+import { runWithTenant, currentStoragePrefix } from './tenant-context.js';
+import { KioskService } from '../kiosk/kiosk.service.js';
 import 'reflect-metadata';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
@@ -93,6 +99,7 @@ describe('tenancy: every request is bound to exactly one tenant', () => {
       [a, b].map(async (tenant) => {
         const registered = await registerExistingTenant(registry, cipher, {
           slug: tenant.slug,
+          legacyEnv: tenant === a,
           name: tenant.slug,
           timezone: 'Europe/Kyiv',
           defaultLocale: 'uk',
@@ -115,7 +122,7 @@ describe('tenancy: every request is bound to exactly one tenant', () => {
       AUTH_SECRET: 'isolation-auth-secret-at-least-32-characters',
       ACTIVATION_PEPPER: 'isolation-activation-pepper',
       PUBLIC_BASE_URL: 'http://api.alpha.test',
-      CORS_ORIGINS: 'http://legacy.test',
+      CORS_ORIGINS: 'http://alpha.test',
       TELEGRAM_BOT_TOKEN: '',
     });
     const { AppModule } = await import('../app.module.js');
@@ -128,7 +135,7 @@ describe('tenancy: every request is bound to exactly one tenant', () => {
     });
     bindTenancy(app);
     app.useGlobalFilters(new DomainErrorFilter());
-    app.enableCors(corsDelegate(['http://legacy.test'], 'http'));
+    app.enableCors(corsDelegate(['http://alpha.test'], 'http'));
     registerAuthRoutes(app.getHttpAdapter().getInstance(), app.get(AUTH));
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
@@ -304,5 +311,65 @@ describe('tenancy: every request is bound to exactly one tenant', () => {
     expect(res.json()).toMatchObject({ code: 'TENANT_SUSPENDED' });
     const alive = await app.inject({ method: 'GET', url: '/me', headers: { host: a.apiHost } });
     expect(alive.statusCode).toBe(401);
+  });
+  it('rehearses env to registry and back with the same session, kiosk token and Redis/storage keys', async () => {
+    const env = tenantFromEnv({
+      DATABASE_URL: a.url,
+      PUBLIC_BASE_URL: `http://${a.apiHost}`,
+      CORS_ORIGINS: [`http://${a.panelHost}`],
+    });
+    const envPool = new TenantRuntimeRegistry(
+      app.get(ConfigService),
+      new EnvTenantSource(env),
+      app.get(REDIS),
+    );
+    const legacy = envPool.byId(ENV_TENANT_ID);
+    const registered = app.get(TenantRuntimeRegistry).byId(a.id);
+    if (!legacy || !registered) throw new Error('Missing pilot runtime');
+    try {
+      const response = await legacy.auth.handler(
+        new Request(`http://${a.apiHost}/auth/sign-in/email`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', origin: `http://${a.panelHost}` },
+          body: JSON.stringify({ email: 'admin@alpha.test', password: PASSWORD }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const cookie = response.headers
+        .getSetCookie()
+        .map((value) => value.split(';')[0])
+        .join('; ');
+      await legacy.store.set('cutover:pending', 'preserved', 60);
+      expect(
+        await runWithTenant(legacy, () => app.get(KioskService).issueChallenge(DEVICE_TOKEN)),
+      ).not.toBeNull();
+      expect(
+        (await app.inject({ method: 'GET', url: '/me', headers: { host: a.apiHost, cookie } }))
+          .statusCode,
+      ).toBe(200);
+      expect(await registered.store.get('cutover:pending')).toBe('preserved');
+      expect(runWithTenant(registered, currentStoragePrefix)).toBe(
+        runWithTenant(legacy, currentStoragePrefix),
+      );
+      expect(
+        (
+          await app.inject({
+            method: 'GET',
+            url: '/kiosk/challenge',
+            headers: { host: a.apiHost, 'x-device-token': DEVICE_TOKEN },
+          })
+        ).statusCode,
+      ).toBe(200);
+      await registered.store.set('cutover:pending', 'registry-write', 60);
+      expect(await legacy.store.get('cutover:pending')).toBe('registry-write');
+      expect(await legacy.auth.api.getSession({ headers: new Headers({ cookie }) })).toMatchObject({
+        user: { email: 'admin@alpha.test' },
+      });
+      expect(
+        await runWithTenant(legacy, () => app.get(KioskService).issueChallenge(DEVICE_TOKEN)),
+      ).not.toBeNull();
+    } finally {
+      await envPool.onApplicationShutdown();
+    }
   });
 });

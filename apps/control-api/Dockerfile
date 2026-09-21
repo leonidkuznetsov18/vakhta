@@ -11,6 +11,7 @@ FROM base AS deps
 COPY --chown=node:node package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY --chown=node:node packages/config/package.json packages/config/
 COPY --chown=node:node packages/contracts/package.json packages/contracts/
+COPY --chown=node:node packages/tenant-client/package.json packages/tenant-client/
 COPY --chown=node:node packages/db/package.json packages/db/
 COPY --chown=node:node packages/domain/package.json packages/domain/
 COPY --chown=node:node packages/i18n/package.json packages/i18n/

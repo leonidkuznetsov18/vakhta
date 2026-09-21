@@ -13,6 +13,9 @@ export const TenantPublicConfig = z.object({
   slug: z.string(),
   surface: TenantSurfaceSchema,
   apiUrl: z.url(),
+  canonicalUrl: z.url(),
+  panelUrl: z.url().nullable(),
+  kioskUrl: z.url().nullable(),
   displayName: z.string(),
   logoUrl: z.url().nullable(),
   accentColor: TenantAccentColor.nullable(),
@@ -24,3 +27,19 @@ export type TenantPublicConfig = z.infer<typeof TenantPublicConfig>;
 
 /** Every queued job may name its tenant; the worker rejects unknown tenants in registry mode. */
 export const TenantJobFields = { tenantId: Uuid.optional() } as const;
+
+export const OnboardingStatus = { READY: 'READY', USED: 'USED' } as const;
+export const OnboardingRequest = z.object({
+  host: z.string().min(1).max(253),
+  token: z.string().min(32).max(128),
+});
+export const OnboardingPassword = z.string().min(12).max(128);
+export const AcceptOnboarding = OnboardingRequest.extend({ password: OnboardingPassword });
+export const OnboardingView = z.object({
+  status: z.enum(OnboardingStatus),
+  email: z.email(),
+  displayName: z.string(),
+  botUrl: z.url().nullable(),
+  kioskUrl: z.url().nullable(),
+});
+export type OnboardingView = z.infer<typeof OnboardingView>;

@@ -1,3 +1,4 @@
+import { configureControlCors } from './public/cors.js';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -21,13 +22,7 @@ async function bootstrap(): Promise<void> {
   );
   app.enableShutdownHooks();
   app.useGlobalFilters(new ControlErrorFilter());
-  app.enableCors({
-    origin: [...env.CONTROL_CORS_ORIGINS],
-    credentials: true,
-    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['content-type', 'authorization', 'x-locale'],
-    maxAge: 600,
-  });
+  configureControlCors(app, env);
   registerControlAuthRoutes(app.getHttpAdapter().getInstance(), app.get<ControlAuth>(AUTH));
   await app.listen(env.CONTROL_PORT, env.CONTROL_HOST);
   logger.info({ port: env.CONTROL_PORT, host: env.CONTROL_HOST }, 'control-api started');

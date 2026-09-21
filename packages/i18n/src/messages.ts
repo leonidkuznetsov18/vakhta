@@ -1,3 +1,4 @@
+import type { OnboardingMessages } from './onboarding.js';
 import type { LandingMessages } from './landing.js';
 import type { ControlMessages } from './control.js';
 import type { PhotoDictionaryMessages } from './photo-object-dictionary.js';
@@ -73,6 +74,7 @@ export interface SectionGuide {
 export interface Messages {
   landing: LandingMessages;
   control: ControlMessages;
+  onboarding: OnboardingMessages;
   readonly communications: typeof communicationsRu;
   employeeProfile: EmployeeProfileMessages;
   photoInspection: PhotoInspectionMessages;

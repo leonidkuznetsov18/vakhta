@@ -1,3 +1,4 @@
+import { kioskUrl } from '@/shared/config';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { isBlank, isUnchanged } from '@/lib/forms';
@@ -41,7 +42,7 @@ const tr = t.terminals;
 const hints = all.ui.hints;
 const CHECKPOINTS = ['BOTH', 'ENTRY', 'EXIT'] as const;
 /** Public kiosk address, baked in at build time; without it only the code is shown. */
-const KIOSK_URL = import.meta.env['VITE_KIOSK_URL'];
+const KIOSK_URL = kioskUrl();
 
 interface Props {
   readonly org: OrgSnapshot;

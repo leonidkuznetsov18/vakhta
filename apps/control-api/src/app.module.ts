@@ -1,3 +1,5 @@
+import { OnboardingController } from './public/onboarding.controller.js';
+import { OnboardingService } from './public/onboarding.service.js';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ControlAudit } from './audit/audit.service.js';
@@ -28,12 +30,14 @@ import { TenantsService } from './tenants/tenants.service.js';
   controllers: [
     HealthController,
     PublicController,
+    OnboardingController,
     TenantsController,
     JobsController,
     OperatorsController,
   ],
   providers: [
     ControlAudit,
+    OnboardingService,
     OperatorGuard,
     TelegramProvider,
     ProvisioningService,

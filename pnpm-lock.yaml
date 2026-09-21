@@ -164,6 +164,9 @@ importers:
       '@vakhta/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@vakhta/tenant-client':
+        specifier: workspace:*
+        version: link:../../packages/tenant-client
       axios:
         specifier: 1.20.0
         version: 1.20.0
@@ -661,6 +664,9 @@ importers:
       '@vakhta/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@vakhta/tenant-client':
+        specifier: workspace:*
+        version: link:../../packages/tenant-client
       qrcode:
         specifier: 'catalog:'
         version: 1.5.4
@@ -856,6 +862,28 @@ importers:
       drizzle-kit:
         specifier: ^0.31.0
         version: 0.31.10
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 3.2.7(@types/node@22.20.1)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(msw@2.15.0(@types/node@22.20.1)(typescript@5.9.3))(tsx@4.23.13)(yaml@2.9.0)
+
+  packages/tenant-client:
+    dependencies:
+      '@vakhta/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@vakhta/domain':
+        specifier: workspace:*
+        version: link:../domain
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@vakhta/config':
+        specifier: workspace:*
+        version: link:../config
       typescript:
         specifier: 'catalog:'
         version: 5.9.3

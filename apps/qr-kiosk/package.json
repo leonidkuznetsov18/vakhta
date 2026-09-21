@@ -13,7 +13,8 @@
   "dependencies": {
     "@vakhta/contracts": "workspace:*",
     "@vakhta/i18n": "workspace:*",
-    "qrcode": "catalog:"
+    "qrcode": "catalog:",
+    "@vakhta/tenant-client": "workspace:*"
   },
   "devDependencies": {
     "@types/qrcode": "catalog:",

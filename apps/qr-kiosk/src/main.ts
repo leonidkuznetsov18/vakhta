@@ -1,12 +1,7 @@
+import { tenantConfig } from '@vakhta/tenant-client';
 import QRCode from 'qrcode';
 import { KioskChallengeResponse, TerminalPaired } from '@vakhta/contracts';
 import { messages, resolveLocale, LOCALES, type Locale } from '@vakhta/i18n';
-
-// The `pages.dev` host is a deployment artifact: land on the custom domain the API trusts.
-const CANONICAL_ORIGIN = import.meta.env['VITE_CANONICAL_ORIGIN'];
-if (CANONICAL_ORIGIN && location.origin !== CANONICAL_ORIGIN) {
-  location.replace(`${CANONICAL_ORIGIN}${location.pathname}${location.search}${location.hash}`);
-}
 
 /**
  * The terminal shows a QR with a deep link to the bot and refreshes it every rotationSeconds (FR-QR-01).
@@ -28,12 +23,16 @@ function storedLocale(): string | null {
   }
 }
 const locale = resolveLocale(
-  new URLSearchParams(location.search).get('lang') ?? storedLocale() ?? navigator.language,
+  new URLSearchParams(location.search).get('lang') ??
+    storedLocale() ??
+    tenantConfig()?.defaultLocale ??
+    navigator.language,
 );
 const t = messages(locale);
 document.documentElement.lang = locale;
 document.title = `${t.kiosk.title} · ${t.admin.productName}`;
-const API_URL = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
+const API_URL =
+  tenantConfig()?.apiUrl ?? import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000';
 const TOKEN_KEY = 'vakhta.kiosk.deviceToken';
 
 const el = {

@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, NotFoundException, Query } from '@nestjs/common';
+import { Controller, Get, Header, Inject, NotFoundException, Query } from '@nestjs/common';
 import { TenantStatus, TenantSurface, normalizeHost } from '@vakhta/domain';
 import { primaryHost, type RegistryTenantSource } from '@vakhta/registry';
 import type { TenantPublicConfig } from '@vakhta/contracts';
@@ -17,18 +17,28 @@ export class PublicController {
   ) {}
 
   @Get('tenant-config')
+  @Header('Cache-Control', 'no-store')
   tenantConfig(@Query('host') host: string | undefined): TenantPublicConfig {
     const tenant = host ? this.source.byHost(normalizeHost(host)) : null;
-    if (!tenant) throw new NotFoundException({ code: 'TENANT_NOT_FOUND' });
-    const surface =
-      tenant.domains.find((d) => d.host === normalizeHost(host ?? ''))?.surface ??
-      TenantSurface.PANEL;
+    if (!tenant || !isPublicStatus(tenant.status))
+      throw new NotFoundException({ code: 'TENANT_NOT_FOUND' });
+    const surface = tenant.domains.find((d) => d.host === normalizeHost(host ?? ''))?.surface;
+    if (!surface) throw new NotFoundException({ code: 'TENANT_NOT_FOUND' });
     const apiHost = primaryHost(tenant, TenantSurface.API);
+    const origin = (surface: TenantSurface) => {
+      const host = primaryHost(tenant, surface);
+      return host ? `${this.env.PLATFORM_SCHEME}://${host}` : null;
+    };
+    const canonicalUrl = origin(surface);
+    if (!apiHost || !canonicalUrl) throw new NotFoundException({ code: 'TENANT_NOT_FOUND' });
     return {
       tenantId: tenant.id,
       slug: tenant.slug,
       surface,
-      apiUrl: `${this.env.PLATFORM_SCHEME}://${apiHost ?? 'api.invalid'}`,
+      apiUrl: `${this.env.PLATFORM_SCHEME}://${apiHost}`,
+      canonicalUrl,
+      panelUrl: origin(TenantSurface.PANEL),
+      kioskUrl: origin(TenantSurface.KIOSK),
       displayName: tenant.branding.displayName,
       logoUrl: null,
       accentColor: tenant.branding.accentColor,
@@ -37,4 +47,8 @@ export class PublicController {
       status: tenant.status === TenantStatus.SUSPENDED ? 'SUSPENDED' : 'ACTIVE',
     };
   }
+}
+
+function isPublicStatus(status: TenantStatus): boolean {
+  return status === TenantStatus.ACTIVE || status === TenantStatus.SUSPENDED;
 }

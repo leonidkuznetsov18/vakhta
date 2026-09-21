@@ -1,5 +1,13 @@
+import { verifyPassword } from 'better-auth/crypto';
+import { randomUUID } from 'node:crypto';
+import { OnboardingService } from '../public/onboarding.service.js';
+import { ControlAudit } from '../audit/audit.service.js';
+import { configureControlCors } from '../public/cors.js';
+import { loadControlEnv } from '../config/env.js';
+import { authAccount, authSession, onboardingConsumptions } from '@vakhta/db';
+import { tenants as tenantRows, tenantModules } from '@vakhta/registry';
 import 'reflect-metadata';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -85,6 +93,7 @@ describe('control-api: create a tenant and provision it', () => {
       abortOnError: false,
     });
     app.useGlobalFilters(new ControlErrorFilter());
+    configureControlCors(app, loadControlEnv(process.env));
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
     telegram = stubTelegram(app.get(TelegramProvider));
@@ -536,5 +545,229 @@ describe('control-api: create a tenant and provision it', () => {
         ),
       );
     expect(saved?.ciphertext).toEqual(encrypted.ciphertext);
+  });
+  async function onboardingFixture() {
+    const { db, tenants } = await services();
+    const tenant = (await tenants.list()).find((row) => row.slug === 'zavoda');
+    if (!tenant) throw new Error('Tenant missing');
+    const link = await tenants.issueInvitation({
+      tenantId: tenant.id,
+      adminEmail: 'olena@zavoda.ua',
+      actor: OPERATOR,
+    });
+    const [invitation] = await db
+      .select()
+      .from(tenantInvitations)
+      .where(eq(tenantInvitations.tokenHash, tenants.hashInvitation(link.token)));
+    const [secret] = await db
+      .select()
+      .from(tenantSecrets)
+      .where(
+        and(
+          eq(tenantSecrets.tenantId, tenant.id),
+          eq(tenantSecrets.kind, TenantSecretKind.DATABASE_URL),
+        ),
+      );
+    if (!invitation || !secret) throw new Error('Fixture missing');
+    const { SECRET_CIPHER } = await import('../infra/registry.module.js');
+    const handle = createDatabase(app.get<SecretCipher>(SECRET_CIPHER).decrypt(secret), { max: 2 });
+    return {
+      db,
+      tenant,
+      invitation,
+      handle,
+      input: { host: 'zavoda.vakhta.test', token: link.token },
+      onboarding: app.get(OnboardingService),
+    };
+  }
+
+  it('serves public CORS without credentials and keeps operator routes restricted', async () => {
+    const preflight = await app.inject({
+      method: 'OPTIONS',
+      url: '/public/onboarding/accept',
+      headers: {
+        origin: 'http://zavoda.vakhta.test',
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'content-type',
+      },
+    });
+    expect(preflight.headers['access-control-allow-origin']).toBe('*');
+    expect(preflight.headers['access-control-allow-credentials']).toBeUndefined();
+    const control = await app.inject({
+      method: 'GET',
+      url: '/control/tenants',
+      headers: { origin: 'http://zavoda.vakhta.test' },
+    });
+    expect(control.headers['access-control-allow-origin']).toBeUndefined();
+    expect(control.statusCode).toBe(401);
+  });
+
+  it('binds invitation use to the verified panel host, active tenant and enabled module', async () => {
+    const f = await onboardingFixture();
+    try {
+      expect(await f.onboarding.open(f.input)).toMatchObject({
+        status: 'READY',
+        email: 'olena@zavoda.ua',
+      });
+      await Promise.all(
+        ['unknown.vakhta.test', 'zavoda-api.vakhta.test', 'zavoda-kiosk.vakhta.test'].map(
+          async (host) => {
+            await expect(f.onboarding.open({ ...f.input, host })).rejects.toMatchObject({
+              code: 'INVITATION_UNAVAILABLE',
+            });
+          },
+        ),
+      );
+      await f.db
+        .update(tenantRows)
+        .set({ status: 'SUSPENDED', suspendedAt: new Date(), suspendedReason: 'Onboarding test' })
+        .where(eq(tenantRows.id, f.tenant.id));
+      await expect(f.onboarding.open(f.input)).rejects.toMatchObject({
+        code: 'INVITATION_UNAVAILABLE',
+      });
+      await f.db
+        .update(tenantRows)
+        .set({ status: 'ACTIVE', suspendedAt: null, suspendedReason: null })
+        .where(eq(tenantRows.id, f.tenant.id));
+      await f.db
+        .update(tenantModules)
+        .set({ status: 'DISABLED' })
+        .where(
+          and(eq(tenantModules.tenantId, f.tenant.id), eq(tenantModules.module, 'ADMIN_PANEL')),
+        );
+      await expect(f.onboarding.open(f.input)).rejects.toMatchObject({
+        code: 'INVITATION_UNAVAILABLE',
+      });
+    } finally {
+      await f.db
+        .update(tenantRows)
+        .set({ status: 'ACTIVE', suspendedAt: null, suspendedReason: null })
+        .where(eq(tenantRows.id, f.tenant.id));
+      await f.db
+        .update(tenantModules)
+        .set({ status: 'ENABLED' })
+        .where(
+          and(eq(tenantModules.tenantId, f.tenant.id), eq(tenantModules.module, 'ADMIN_PANEL')),
+        );
+      await f.handle.client.end({ timeout: 5 });
+    }
+  });
+
+  it('rejects invalid, expired and replaced invitations and short passwords', async () => {
+    const f = await onboardingFixture();
+    try {
+      await expect(f.onboarding.open({ ...f.input, token: 'invalid-token' })).rejects.toMatchObject(
+        { code: 'INVITATION_UNAVAILABLE' },
+      );
+      const response = await app.inject({
+        method: 'POST',
+        url: '/public/onboarding/accept',
+        payload: { ...f.input, password: 'short' },
+      });
+      expect(response.statusCode).toBe(400);
+      await f.db
+        .update(tenantInvitations)
+        .set({ expiresAt: new Date(0) })
+        .where(eq(tenantInvitations.id, f.invitation.id));
+      await expect(f.onboarding.open(f.input)).rejects.toMatchObject({
+        code: 'INVITATION_UNAVAILABLE',
+      });
+      const { tenants } = await services();
+      const fresh = await tenants.issueInvitation({
+        tenantId: f.tenant.id,
+        adminEmail: f.invitation.adminEmail,
+        actor: OPERATOR,
+      });
+      await tenants.reissueInvitation(f.tenant.id, OPERATOR);
+      await expect(f.onboarding.open({ ...f.input, token: fresh.token })).rejects.toMatchObject({
+        code: 'INVITATION_UNAVAILABLE',
+      });
+    } finally {
+      await f.handle.client.end({ timeout: 5 });
+    }
+  });
+
+  it('sets a password exactly once under concurrent requests and revokes old sessions', async () => {
+    const f = await onboardingFixture();
+    try {
+      const [account] = await f.handle.db.select().from(authAccount);
+      if (!account) throw new Error('Account missing');
+      await f.handle.db.insert(authSession).values({
+        userId: account.userId,
+        token: randomUUID(),
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      const passwords = ['first-password-at-least-12', 'second-password-at-least-12'];
+      const results = await Promise.all(
+        passwords.map((password) => f.onboarding.open({ ...f.input, password })),
+      );
+      expect(results.map((result) => result.status)).toEqual(['USED', 'USED']);
+      const [saved] = await f.handle.db.select().from(authAccount);
+      if (!saved?.password) throw new Error('Password missing');
+      const matches = await Promise.all(
+        passwords.map((password) => verifyPassword({ password, hash: saved.password ?? '' })),
+      );
+      expect(matches.filter(Boolean)).toHaveLength(1);
+      expect(await f.handle.db.select().from(authSession)).toHaveLength(0);
+      expect(
+        await f.handle.db
+          .select()
+          .from(onboardingConsumptions)
+          .where(eq(onboardingConsumptions.invitationId, f.invitation.id)),
+      ).toHaveLength(1);
+      const [record] = await f.db
+        .select()
+        .from(tenantInvitations)
+        .where(eq(tenantInvitations.id, f.invitation.id));
+      expect(record?.usedAt).toBeInstanceOf(Date);
+    } finally {
+      await f.handle.client.end({ timeout: 5 });
+    }
+  });
+
+  it('recovers a tenant commit followed by a registry failure without changing the first password', async () => {
+    const f = await onboardingFixture();
+    const audit = vi.spyOn(app.get(ControlAudit), 'record');
+    try {
+      audit.mockRejectedValueOnce(new Error('Injected registry failure'));
+      await expect(
+        f.onboarding.open({ ...f.input, password: 'first-durable-password' }),
+      ).rejects.toThrow('Injected registry failure');
+      const [record] = await f.db
+        .select()
+        .from(tenantInvitations)
+        .where(eq(tenantInvitations.id, f.invitation.id));
+      expect(record?.usedAt).toBeNull();
+      await f.db
+        .update(tenantInvitations)
+        .set({ expiresAt: new Date(0) })
+        .where(eq(tenantInvitations.id, f.invitation.id));
+      expect(await f.onboarding.open(f.input)).toMatchObject({ status: 'USED' });
+      const [afterInspect] = await f.db
+        .select()
+        .from(tenantInvitations)
+        .where(eq(tenantInvitations.id, f.invitation.id));
+      expect(afterInspect?.usedAt).toBeInstanceOf(Date);
+      expect(audit).toHaveBeenCalledTimes(2);
+      expect(
+        await f.onboarding.open({ ...f.input, password: 'different-retry-password' }),
+      ).toMatchObject({ status: 'USED' });
+      const [account] = await f.handle.db.select().from(authAccount);
+      if (!account?.password) throw new Error('Password missing');
+      expect(
+        await verifyPassword({ password: 'first-durable-password', hash: account.password }),
+      ).toBe(true);
+      expect(
+        await verifyPassword({ password: 'different-retry-password', hash: account.password }),
+      ).toBe(false);
+      const [recovered] = await f.db
+        .select()
+        .from(tenantInvitations)
+        .where(eq(tenantInvitations.id, f.invitation.id));
+      expect(recovered?.usedAt).toBeInstanceOf(Date);
+    } finally {
+      audit.mockRestore();
+      await f.handle.client.end({ timeout: 5 });
+    }
   });
 });

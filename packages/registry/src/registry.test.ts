@@ -1,3 +1,4 @@
+import { ENV_TENANT_ID, tenantFromEnv } from './runtime-config.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import { startTestRegistry, type TestRegistry } from '../test/db.js';
@@ -130,6 +131,38 @@ describe('control registry: register, load and refresh tenants', () => {
     } finally {
       await client.end({ timeout: 5 });
     }
+  });
+  it('preserves the env identity and key namespaces only for an explicit pilot registration', async () => {
+    const input = {
+      legacyEnv: true,
+      slug: 'pilot',
+      name: 'Pilot',
+      timezone: 'Europe/Kyiv',
+      defaultLocale: 'ru' as const,
+      databaseUrl: 'postgres://u:p@db/existing_pilot',
+      databaseName: 'existing_pilot',
+      apiHost: 'api.vakhta.test',
+      panelHost: 'panel.vakhta.test',
+      kioskHost: 'kiosk.vakhta.test',
+    };
+    const registered = await registerExistingTenant(registry.db, cipher, input);
+    expect(registered.id).toBe(ENV_TENANT_ID);
+    const source = new RegistryTenantSource(registry.db, cipher);
+    await source.reload();
+    const pilot = source.bySlug('pilot');
+    const env = tenantFromEnv({ DATABASE_URL: input.databaseUrl });
+    expect(pilot?.id).toBe(env.id);
+    expect(pilot?.redisPrefix).toBe(env.redisPrefix);
+    expect(pilot?.storagePrefix).toBe(env.storagePrefix);
+    expect(pilot?.databaseUrl).toBe(env.databaseUrl);
+    await expect(
+      registerExistingTenant(registry.db, cipher, {
+        ...input,
+        slug: 'other-pilot',
+        apiHost: 'other-api.vakhta.test',
+      }),
+    ).rejects.toThrow();
+    expect(source.byHost('unknown.vakhta.test')).toBeNull();
   });
 });
 

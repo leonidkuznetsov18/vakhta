@@ -1,0 +1,32 @@
+{
+  "name": "@vakhta/tenant-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Validated browser tenant configuration shared by the panel and kiosk.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vakhta/contracts": "workspace:*",
+    "@vakhta/domain": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vakhta/config": "workspace:*",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

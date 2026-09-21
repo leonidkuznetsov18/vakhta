@@ -17,6 +17,7 @@ const { values } = parseArgs({
   args: argv[0] === '--' ? argv.slice(1) : argv,
   options: {
     slug: { type: 'string' },
+    'legacy-env': { type: 'boolean', default: false },
     name: { type: 'string' },
     'display-name': { type: 'string' },
     'database-url': { type: 'string' },
@@ -50,6 +51,7 @@ const { db, client } = createRegistry(controlUrl, { max: 1 });
 try {
   const tenant = await registerExistingTenant(db, new SecretCipher(keyHex), {
     slug: required('slug', values.slug),
+    legacyEnv: values['legacy-env'],
     name: required('name', values.name),
     displayName: values['display-name'],
     // Secrets may come from the environment instead of argv (shell history, ps).

@@ -145,3 +145,12 @@ export const webUserRoles = pgTable(
       .where(sql`${t.scopeId} IS NOT NULL`),
   ],
 );
+
+/** Permanent proof that an invitation changed a password, committed with the credential update. */
+export const onboardingConsumptions = pgTable('onboarding_consumptions', {
+  invitationId: uuid('invitation_id').primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => authUser.id),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }).notNull().defaultNow(),
+});

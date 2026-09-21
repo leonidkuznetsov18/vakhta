@@ -73,16 +73,16 @@ AC-025, AC-026–032, AC-034, public config endpoint for AC-020.
 - [ ] T026 (initial UI screenshots and auth/provisioning review completed; settings-write review waits for T023) Desktop and mobile screenshots of the tenant list, wizard, job view and every workspace tab; independent review of auth, secrets, settings writes and provisioning transactions; engineering memory update.
 
 - [ ] T027 Convergence: complete AC-026–031 workspace details and inline actions, branding/operator edits, catalog, pagination/counts, role-aware controls and coherent frontend FSD ownership. The initial T025 screens do not establish complete acceptance for these requirements.
-- [x] T028 Deploy the actual control-api service and registry in Railway, create the control Pages project, configure its API URL, then enable and verify control-web hosting. Production health, TLS, CORS and unauthenticated rejection verified; first operator created with owner TOTP enrollment pending. Local-network DNS delayed the Chrome acceptance check; see engineering evidence.
+- [x] T028 Deploy the actual control-api service and registry in Railway, create the control Pages project, configure its API URL, then enable and verify control-web hosting. Production health, TLS, CORS and unauthenticated rejection verified; first operator created; owner TOTP enrollment confirmed in the registry and phone UI. Local-network DNS delayed the Chrome acceptance check; see engineering evidence.
 
 ## Delivery 3: Tenant surfaces (US1 remainder, US5)
 
 **Outcome**: a second tenant is usable end to end with its own bot and branding. **Acceptance**:
 AC-003, AC-004, AC-017–020.
 
-- [ ] T030 `BOT_WEBHOOK` and `INVITE_ADMIN` steps; token validation with `getMe`; trilingual welcome page on the tenant panel (`#/welcome/<token>`): password setup, bot deep link with QR, kiosk pairing steps, "bot is being connected" state; tests (covers AC-003, AC-033, AC-034).
+- [x] T030 (implementation and local acceptance; production invitation acceptance is an owner action) `BOT_WEBHOOK` and `INVITE_ADMIN` steps; token validation with `getMe`; trilingual welcome page on the tenant panel (`#/welcome/<token>`): password setup, bot deep link with QR, kiosk pairing steps, "bot is being connected" state; tests (covers AC-003, AC-033, AC-034).
 - [ ] T031 Module guard on kiosk, terminal, activation, relink and webhook routes; `MeView.tenant`; panel navigation and action gating with tooltips; kiosk notice screen; bot greeting with the display name; i18n in three catalogs.
-- [ ] T032 Runtime configuration in `apps/admin-web/src/shared/config` and the kiosk bootstrap: fetch, zod validation, `localStorage` cache, fallback, canonical host from config; remove `VITE_CANONICAL_ORIGIN` usage; keep `VITE_API_URL` for local dev.
+- [x] T032 (implementation and local acceptance; hosting rollout tracked in T033) Runtime configuration in `apps/admin-web/src/shared/config` and the kiosk bootstrap: fetch, zod validation, `localStorage` cache, fallback, canonical host from config; remove `VITE_CANONICAL_ORIGIN` usage; keep `VITE_API_URL` for local dev.
 - [ ] T033 Provision the first non-pilot tenant end to end; record provisioning time; browser checks on panel, kiosk and bot for both tenants; independent review; documentation updates.
 
 ## Delivery 4: Operations (US6)

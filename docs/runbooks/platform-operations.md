@@ -300,7 +300,7 @@ Pilot cutover (planned, not executed yet; spec AC-011–013):
 2. Create `vakhta_control` on the cluster; run `pnpm --filter @vakhta/registry migrate:js` with
    `CONTROL_DATABASE_URL` set; generate `CONTROL_ENCRYPTION_KEY` with `openssl rand -hex 32` and
    store it in 1Password and Railway.
-3. Register the pilot: `pnpm --filter @vakhta/registry register-tenant -- --slug pilot --name "…"
+3. Register the pilot: `pnpm --filter @vakhta/registry register-tenant -- --legacy-env --slug pilot --name "…"
 --database-url "$DATABASE_URL" --api-host api.vakhta.xyz --panel-host panel.vakhta.xyz
 --kiosk-host kiosk.vakhta.xyz --bot-token "$TELEGRAM_BOT_TOKEN" --bot-username
 vakhta_worker_bot --webhook-secret "$TELEGRAM_WEBHOOK_SECRET" --storage-prefix ""`.
@@ -309,3 +309,34 @@ vakhta_worker_bot --webhook-secret "$TELEGRAM_WEBHOOK_SECRET" --storage-prefix "
    `worker`; redeploy; run `pnpm --filter api telegram:set-webhook` so the bot posts to the
    per-tenant path; verify the live journeys listed in the spec with the QA account.
 5. Rollback: restore `TENANCY_MODE=env` and rerun `telegram:set-webhook`; no data changes either way.
+
+### Tenant surface release ordering
+
+The production panel and kiosk resolve `/public/tenant-config?host=...` from
+`VITE_CONTROL_API_URL` before importing their application and transport modules. Unknown hosts,
+suspended tenants and disabled surface modules fail closed. A validated host-specific cache lasts
+at most 24 hours and is used only for network/server outages; explicit refusals invalidate it.
+`VITE_API_URL` and `VITE_KIOSK_URL` are local-development settings. Production canonical/API/kiosk
+origins come from the registry; register the base Pages aliases as non-primary verified domains
+when preserving their canonical redirects. Unregistered preview hosts are intentionally refused.
+
+For the initial runtime rollout, deploy the new control-api before uploading panel/kiosk assets.
+Apply tenant migration 0052 to existing tenant databases before invitation inspection/acceptance.
+The control service's own pre-deploy command migrates only the registry. The Pages job checks the
+live pilot panel/kiosk configuration against its current contract before publishing; a parallel
+Railway deployment is not proof of readiness.
+
+Register the historical env tenant with `--legacy-env`: this reserves ENV_TENANT_ID and preserves
+unprefixed Redis/storage keys, API authentication origins and existing sessions. Supply secrets
+through TENANT_DATABASE_URL/TENANT_BOT_TOKEN/TENANT_WEBHOOK_SECRET in the process environment,
+not command arguments. Other tenants keep random IDs and isolated prefixes. Before switching,
+back up and restore the pilot database, rehearse env/registry/rollback, and inspect legacy BullMQ
+waiting, active, delayed and failed jobs. Never silently assign unscoped jobs to a new tenant.
+
+Onboarding is a POST-only public control flow, bound to the invitation's verified panel host,
+ACTIVE tenant and enabled ADMIN_PANEL module. Operator cookies are omitted. A durable
+onboarding_consumptions row commits with the tenant password update and session revocation;
+then the registry marks the invitation used and records audit. Both inspection and acceptance
+reconcile an interrupted registry commit without changing the password again. Expired unused
+links fail closed. The owner sets the new password; operators share the onboarding link from
+the tenant workspace. Bot connection may follow panel onboarding.

@@ -160,7 +160,7 @@ e-mail and name, optional bot token) and returns the job id; the job view polls 
 `INVITE_ADMIN` step creates the administrator and a `tenant_invitations` row of kind `ONBOARDING`
 (HMAC token, seven days, single use for password setup, reissuable). The link targets the tenant
 panel host `/#/welcome/<token>`; the panel's welcome page (`apps/admin-web/src/pages/welcome`)
-verifies the token through the tenant API, sets the password, and renders the bot deep link with
+verifies the token through the public control API, bound to its verified panel host, sets the password, and renders the bot deep link with
 a QR code and the kiosk pairing steps in the tenant's default locale with a language switch. When
 no bot token exists yet, the page shows a "bot is being connected" state and the workspace shows
 the pending step. Sharing is copy-to-clipboard and the platform share sheet; e-mail delivery waits

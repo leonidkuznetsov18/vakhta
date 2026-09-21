@@ -1,3 +1,4 @@
+import { ENV_TENANT_ID } from './runtime-config.js';
 import { eq } from 'drizzle-orm';
 import {
   TenantDomainStatus,
@@ -24,6 +25,7 @@ import {
 import type { SecretCipher } from './secrets.js';
 
 export interface RegisterExistingTenantInput {
+  readonly legacyEnv?: boolean | undefined;
   readonly slug: string;
   readonly name: string;
   readonly displayName?: string | undefined;
@@ -67,12 +69,15 @@ export async function registerExistingTenant(
     const [tenant] = await tx
       .insert(tenants)
       .values({
+        ...(input.legacyEnv ? { id: ENV_TENANT_ID } : {}),
         slug: input.slug,
         name: input.name,
         status: TenantStatus.ACTIVE,
         defaultLocale: input.defaultLocale,
         timezone: input.timezone,
-        storagePrefix: input.storagePrefix ?? tenantStoragePrefix(input.slug),
+        storagePrefix: input.legacyEnv
+          ? ''
+          : (input.storagePrefix ?? tenantStoragePrefix(input.slug)),
         databaseName: input.databaseName ?? tenantDatabaseName(input.slug),
       })
       .returning({ id: tenants.id, slug: tenants.slug });

@@ -1,3 +1,4 @@
+import { onboardingUk } from './onboarding.js';
 import { landingUk } from './landing.js';
 import { controlUk } from './control.js';
 import { photoDictionaryUk } from './photo-object-dictionary.js';
@@ -16,6 +17,7 @@ import type { Messages } from './messages.js';
 export const uk: Messages = {
   landing: landingUk,
   control: controlUk,
+  onboarding: onboardingUk,
   communications: communicationsUk,
   employeeProfile: employeeProfileUK,
   scheduleExport: scheduleExportUk,

@@ -1,3 +1,4 @@
+import { tenantConfig } from '@vakhta/tenant-client';
 import { isLocale, resolveLocale, type Locale } from '@vakhta/i18n';
 
 const STORAGE_KEY = 'vakhta.locale';
@@ -13,6 +14,7 @@ export function currentLocale(): Locale {
   } catch {
     // Storage can be unavailable (private mode, blocked site data): fall through to the browser language.
   }
+  if (tenantConfig()) return resolveLocale(tenantConfig()?.defaultLocale);
   return resolveLocale(typeof navigator === 'undefined' ? null : navigator.language);
 }
 
