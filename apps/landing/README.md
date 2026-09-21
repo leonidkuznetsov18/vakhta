@@ -12,7 +12,9 @@ pnpm --filter landing test
 ```
 
 Open `http://127.0.0.1:5175/`. Rebuild after editing. The preview serves the production output.
-React 19 renders at build time; no React runtime, tracking or lead backend ships. Native HTML owns
+React 19 renders at build time; no React runtime or lead backend ships. Visitor statistics come from
+cookieless Cloudflare Web Analytics, injected at the edge for `vakhta.xyz`; the CSP in `public/_headers`
+allows only its beacon script and endpoint, nothing else is tracked. Native HTML owns
 FAQ, contact and navigation. Small enhancements preserve language anchors and open screenshots or
 selected scenarios in a viewport-filling native dialog, with Escape, focus restoration and 100% zoom.
 Without JavaScript, image links open the full asset in the same tab and core content remains usable.

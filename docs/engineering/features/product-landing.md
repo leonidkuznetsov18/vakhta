@@ -91,7 +91,7 @@ rollback may remove only the newly added marketing CNAME if no earlier landing d
 Owner authorized independent SEO-plan implementation. One Ukrainian home now owns `/`; exact legacy
 home paths redirect permanently, while feature/download routes retain locale prefixes. Shared app
 metadata emits canonical/alternate URLs, social image references and minimal Organization/WebSite
-plus inner-page breadcrumbs. No invented business identity, pricing, ratings or analytics.
+plus inner-page breadcrumbs. No invented business identity, pricing or ratings.
 Five feature explanations and two practical resource guides/templates are localized in all catalogs.
 The output is 45 canonical HTML documents plus 404 and nine text downloads. Static resource UI stays
 in the existing page slice; no dependency or rendering-framework migration.
@@ -107,3 +107,15 @@ resource guide and home resource links were captured and visually inspected at d
 Resource language navigation preserves the guide; the mobile page has no horizontal overflow.
 Generated-route tests cover reciprocal alternatives, structured-data parsing, internal HTML links
 and six localized template journeys. CI/deployed checks are recorded in epic #81 after delivery.
+
+## Visitor analytics — 2026-09-21
+
+Owner asked for visitor statistics on `vakhta.xyz`. Decision: Cloudflare Web Analytics, not
+Google Analytics or a paid third party. It is free, cookieless (no consent banner), runs on the
+host we already use, and reports visits, referrers, paths, countries, devices and Core Web Vitals.
+Zone-level edge analytics (requests, unique visitors, countries) is already available in the
+Cloudflare dashboard without any setup. The landing CSP now allows the beacon script host
+`static.cloudflareinsights.com` and the beacon endpoints (`'self'` for automatic injection,
+`cloudflareinsights.com` for a manual snippet). Enablement lives in the dashboard: Web Analytics →
+add `vakhta.xyz` with automatic setup; no API token in 1Password or the Wrangler OAuth session has
+RUM permission, so it is not automated. The "no tracking cookies" decision above still holds.
