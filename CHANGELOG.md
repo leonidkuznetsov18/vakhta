@@ -1,3 +1,15 @@
+## [1.21.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.20.0...v1.21.0) (2026-09-21)
+
+### Features
+
+* **branding:** customize each tenant identity across client surfaces ([ccf28a5](https://github.com/leonidkuznetsov18/vakhta/commit/ccf28a5b468f934e593047242fda9c91131df141))
+* **tenancy:** enforce tenant module switches in the api and name the tenant in the bot ([21e5b07](https://github.com/leonidkuznetsov18/vakhta/commit/21e5b073db6ed42ea806d8e941c0a14ccdccaede))
+* **tenancy:** per-tenant operating parameters edited in the control panel ([9459ee9](https://github.com/leonidkuznetsov18/vakhta/commit/9459ee97bcdf1a501ab6ec21e37dd24661367049))
+
+### Documentation
+
+* **tenancy:** record registry cutover and superfactory activation ([0931861](https://github.com/leonidkuznetsov18/vakhta/commit/0931861a7d8aaf4accaed6f556dfd0bd566a38d5))
+
 ## [1.20.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.19.1...v1.20.0) (2026-09-21)
 
 ### Features
