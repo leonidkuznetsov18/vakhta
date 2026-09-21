@@ -479,5 +479,10 @@ light/dark, profile disclosure, collapsed navigation, edge-open/left-close touch
 focus restoration were exercised. Version is supplied by the existing Pages release build.
 Read-only review found missing close-focus restoration and a collapsed logo accessible name; both
 were fixed and focus restoration is covered. Workspace tests now await initial router settlement,
-use bounded 5-second async assertions/15-second test budgets, and run files serially after CPU-starved
-CI timed out on the former 1-second/default waits. No production operator actions were manufactured.
+use bounded 5-second async assertions/15-second test budgets, and run files serially. CI exposed
+expensive jsdom visibility scans around Radix portals; scoped dialog queries use the main panel
+suite's `defaultHidden` approach, retaining real dialog behavior and focus assertions. A timing
+probe identified the preceding tooltip fixture delaying the next router mount (5.3 seconds locally,
+versus 21 milliseconds in isolation). That primitive regression now lives in its own test environment.
+Expanded/mobile sidebar buttons no longer mount unused tooltip roots, and programmatic dialog
+focus uses the main panel's tooltip suppression. No production operator actions were manufactured.
