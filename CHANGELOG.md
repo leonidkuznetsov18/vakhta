@@ -1,3 +1,14 @@
+## [1.20.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.19.1...v1.20.0) (2026-09-21)
+
+### Features
+
+* **backup:** dump the control registry and every tenant database nightly ([5914f99](https://github.com/leonidkuznetsov18/vakhta/commit/5914f996d0b07ca946009e6d30c4c1ba72a464b5))
+* **tenancy:** resolve tenant surfaces and complete administrator onboarding ([1a0ca90](https://github.com/leonidkuznetsov18/vakhta/commit/1a0ca90e5985f3ebcad23d4bbb926f46ab9f44a5))
+
+### Bug fixes
+
+* **kiosk:** validate the control api environment value ([370b1e1](https://github.com/leonidkuznetsov18/vakhta/commit/370b1e1796dfb4179c0b460860a20420818715ad))
+
 ## [1.19.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.19.0...v1.19.1) (2026-09-21)
 
 ### Bug fixes
