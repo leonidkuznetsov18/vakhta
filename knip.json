@@ -42,6 +42,14 @@
         "drizzle.config.ts"
       ],
       "project": ["src/**/*.ts", "drizzle.config.ts"]
+    },
+    "apps/control-web": {
+      "entry": ["src/main.tsx", "src/**/*.test.{ts,tsx}", "*.config.ts"],
+      "project": ["src/**/*.{ts,tsx}", "*.config.ts"]
+    },
+    "apps/control-api": {
+      "entry": ["src/main.ts", "src/cli/*.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
     }
   }
 }

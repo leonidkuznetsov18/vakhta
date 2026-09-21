@@ -1,4 +1,5 @@
 import { landingRu } from './landing.js';
+import { controlRu } from './control.js';
 import { photoDictionaryRu } from './photo-object-dictionary.js';
 import { communicationsRu } from './communications.js';
 import { employeeProfileRU } from './employee-profile.js';
@@ -14,6 +15,7 @@ import type { Messages } from './messages.js';
 /** Base interface language (NFR-08). Button and state wording follows the spec, sections 4.3-4.4 and 5.1. */
 export const ru: Messages = {
   landing: landingRu,
+  control: controlRu,
   communications: communicationsRu,
   employeeProfile: employeeProfileRU,
   scheduleExport: scheduleExportRu,

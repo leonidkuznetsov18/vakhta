@@ -97,6 +97,22 @@ migration and backup target. Facts and file references: spec RECON. Product docu
 - Provisioning end-to-end test: create → database, migrate, seed → manual DNS pause → skip →
   webhook → invitation → ACTIVE; public config by kiosk host; duplicate slug refused.
 
+## control-web (delivery 2 UI, 2026-09-21)
+
+- `apps/control-web`: React 19 + Vite + TanStack Query and Router (hash history), Tailwind 4 with
+  the panel's theme and copied shadcn primitives, trilingual `control` namespace in `packages/i18n`.
+  Screens follow the prototype: operator sign-in with TOTP verification and first-time TOTP setup
+  (QR from the better-auth URI), tenant list with search and complete count, quick-create wizard
+  (slug suggested from the name, module checkboxes, optional bot token, zod validation with inline
+  errors), tenant workspace with tabs (overview with the onboarding link and copy/reissue, modules
+  with switches, database, bot token, domains, jobs with live steps and retry/skip on waiting steps,
+  audit, danger zone with suspend/resume/provision) and the operators page. Forms disable actions
+  until a change exists; every async surface has loading, failure with retry and empty states.
+- Not done yet: the parameters tab (waits for the tenant settings service, T023), desktop and mobile
+  screenshots inspected against a running control-api (T026), branding edits, operator role edits.
+- CI builds control-web with the panel/kiosk job; the Pages deploy runs only when the repository
+  variable `CONTROL_PAGES_ENABLED` is `true` and the `vakhta-control` project exists.
+
 ## Verification
 
 2026-09-21, local checkout after the delivery-1 changes (baseline `758ec91`), Colima Docker:
@@ -113,6 +129,8 @@ migration and backup target. Facts and file references: spec RECON. Product docu
   suspended tenant 403 after refresh (7 tests).
 - `apps/worker`: 14 files / 142 tests.
 - `apps/control-api`: provisioning e2e (3 tests) on testcontainers; worker pool tests (3).
+- `apps/control-web`: typecheck, ESLint clean-code rules and a production build pass; no browser
+  screenshots were captured yet (recorded as a blocked check, not as done).
 - Not done: pilot cutover and live QA (T018), control-web, tenant settings service, the welcome
   page. No production variable, deployment or employee record changed.
 

@@ -1,4 +1,5 @@
 import { landingEn } from './landing.js';
+import { controlEn } from './control.js';
 import { photoDictionaryEn } from './photo-object-dictionary.js';
 import { communicationsEn } from './communications.js';
 import { employeeProfileEN } from './employee-profile.js';
@@ -14,6 +15,7 @@ import type { Messages } from './messages.js';
 /** English catalog. Same keys and placeholders as `ru`; verified by catalogs.test.ts. */
 export const en: Messages = {
   landing: landingEn,
+  control: controlEn,
   communications: communicationsEn,
   employeeProfile: employeeProfileEN,
   scheduleExport: scheduleExportEn,

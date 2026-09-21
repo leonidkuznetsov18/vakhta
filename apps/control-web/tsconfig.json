@@ -1,0 +1,14 @@
+{
+  "extends": "@vakhta/config/tsconfig.react.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "allowUmdGlobalAccess": true,
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["src"]
+}
