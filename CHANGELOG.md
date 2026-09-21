@@ -1,3 +1,23 @@
+## [1.22.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.21.1...v1.22.0) (2026-09-21)
+
+### Features
+
+* **control:** manage tenant administrators and simplify mobile navigation ([fe4a807](https://github.com/leonidkuznetsov18/vakhta/commit/fe4a807970e6fd74bce90a5137328d2427c5edad))
+* **landing:** allow Cloudflare Web Analytics beacon in the CSP ([3da67a9](https://github.com/leonidkuznetsov18/vakhta/commit/3da67a9e37b1f171c832b7dcdedc8aed192fd2c7))
+* **schedule:** unify day, week and month views and add quick removal ([a885e24](https://github.com/leonidkuznetsov18/vakhta/commit/a885e2465d68d1ca7605c953326c62575aff5fe9))
+
+### Bug fixes
+
+* **ci:** bound concurrent package test runs ([7aa8f58](https://github.com/leonidkuznetsov18/vakhta/commit/7aa8f585188315df21130dd9445d246e43cab689))
+* **control:** align workspace navigation and setup experience ([4b4a9d6](https://github.com/leonidkuznetsov18/vakhta/commit/4b4a9d609fa8ebb988cdb33da3165b8b0d32d328))
+* **control:** isolate tooltip focus and navigation checks ([f32001a](https://github.com/leonidkuznetsov18/vakhta/commit/f32001afec1c124fd2aafeb6072e5365bf8da742))
+* **control:** match the admin sidebar layout and mobile behavior ([4974c54](https://github.com/leonidkuznetsov18/vakhta/commit/4974c5446e83c2a9159d6f0352f15dd5a167bf2e))
+* **control:** use an icon button to reissue onboarding links ([d5c8de1](https://github.com/leonidkuznetsov18/vakhta/commit/d5c8de1cfed0aa3a5e03c99bd2d4184e3f231b88))
+
+### Maintenance
+
+* **release:** integrate v1.21.1 metadata ([6fde77c](https://github.com/leonidkuznetsov18/vakhta/commit/6fde77cb44b2bd724992d8854ef209a8cbff4029))
+
 ## [1.21.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.21.0...v1.21.1) (2026-09-21)
 
 ### Bug fixes
