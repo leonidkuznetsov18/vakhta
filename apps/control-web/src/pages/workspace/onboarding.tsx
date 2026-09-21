@@ -1,12 +1,13 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { OperatorRole } from '@vakhta/domain';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { controlApi, queryKeys } from '@/shared/api';
 import { t } from '@/shared/i18n';
+import { IconButton } from '@/shared/ui';
 import { CopyButton, describeError, type TabProps } from './shared';
 
 export function OnboardingCard({ detail, onChanged }: TabProps) {
@@ -45,17 +46,20 @@ export function OnboardingCard({ detail, onChanged }: TabProps) {
             <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded-lg border border-sky-200 bg-white px-3 py-2.5 text-sm text-sky-950 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100">
               {detail.onboarding.url}
             </code>
-            <CopyButton value={detail.onboarding.url} />
-            <Button
-              type="button"
-              variant="outline"
-              disabled={reissue.isPending}
-              onClick={() => {
-                if (!reissue.isPending) reissue.mutate();
-              }}
-            >
-              {m.reissue}
-            </Button>
+            <div className="flex items-center gap-2 self-end sm:shrink-0 sm:self-center">
+              <CopyButton value={detail.onboarding.url} />
+              <IconButton
+                icon={RefreshCw}
+                label={m.reissue}
+                tooltip={m.reissue}
+                size="icon"
+                variant="outline"
+                disabled={reissue.isPending}
+                onClick={() => {
+                  if (!reissue.isPending) reissue.mutate();
+                }}
+              />
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-start gap-3 rounded-lg border border-sky-200 bg-white/70 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-sky-800 dark:bg-sky-950/60">
