@@ -1,6 +1,6 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import type { FastifyRequest } from 'fastify';
-import { tenantOrigins } from '@vakhta/registry';
+import { ENV_TENANT_ID, tenantOrigins } from '@vakhta/registry';
 import type { RequestWithTenant } from '../infra/tenant-hook.js';
 
 type FastifyCorsOptions = NonNullable<Parameters<NestFastifyApplication['enableCors']>[0]>;
@@ -40,7 +40,8 @@ export function corsDelegate(
 ): FastifyCorsOptions {
   const delegator = async (request: FastifyRequest): Promise<FastifyCorsOptions> => {
     const tenant = (request as RequestWithTenant).tenantRuntime?.tenant;
-    const origins = tenant?.redisPrefix ? tenantOrigins(tenant, scheme) : fallbackOrigins;
+    const origins =
+      tenant && tenant.id !== ENV_TENANT_ID ? tenantOrigins(tenant, scheme) : fallbackOrigins;
     return corsOptions(origins);
   };
   return { delegator };

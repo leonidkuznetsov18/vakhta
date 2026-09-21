@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { singleTenantRegistry } from '../../test/tenants.js';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   authUser,
@@ -126,6 +127,7 @@ describe('communication transactions and authorization', () => {
       test.db,
       { presignGet: async () => 'https://example.test/file', delete: remove },
       service,
+      singleTenantRegistry(),
     );
     await test.db
       .update(communicationAttachments)

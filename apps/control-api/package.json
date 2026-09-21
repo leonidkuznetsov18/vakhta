@@ -1,0 +1,46 @@
+{
+  "name": "control-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Vakhta control service: operators, tenants, modules, provisioning jobs and the public tenant configuration.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json && concurrently -k -n tsc,control -c blue,cyan \"tsc -p tsconfig.build.json --watch --preserveWatchOutput\" \"node --env-file-if-exists=../../.env --watch --watch-preserve-output dist/main.js\"",
+    "start": "node --env-file-if-exists=../../.env dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "operator:bootstrap": "node --env-file-if-exists=../../.env dist/cli/bootstrap-operator.js"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "1.7.2",
+    "@nestjs/common": "^11.1.0",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.1.0",
+    "@nestjs/platform-fastify": "^11.1.0",
+    "@vakhta/contracts": "workspace:*",
+    "@vakhta/db": "workspace:*",
+    "@vakhta/domain": "workspace:*",
+    "@vakhta/registry": "workspace:*",
+    "better-auth": "^1.7.2",
+    "fastify": "^5.3.0",
+    "grammy": "catalog:",
+    "nestjs-pino": "4.6.1",
+    "pino": "catalog:",
+    "pino-http": "10.5.0",
+    "reflect-metadata": "^0.2.2",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.16.2",
+    "@testcontainers/postgresql": "catalog:",
+    "@types/node": "catalog:",
+    "@vakhta/config": "workspace:*",
+    "concurrently": "catalog:",
+    "pino-pretty": "catalog:",
+    "testcontainers": "^11.0.0",
+    "typescript": "catalog:",
+    "unplugin-swc": "^1.5.11",
+    "vitest": "catalog:"
+  }
+}

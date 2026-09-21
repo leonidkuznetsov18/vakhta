@@ -128,7 +128,50 @@ export default defineRailway(() => {
     },
   });
 
+  // Control plane (specs/011): operators, tenants, provisioning. Holds the cluster admin URL and
+  // provider tokens that the tenant-serving api never sees.
+  const controlApi = service('control-api', {
+    source: repo,
+    build: {
+      builder: 'DOCKERFILE',
+      dockerfilePath: 'apps/control-api/Dockerfile',
+      watchPatterns: [
+        'apps/control-api/**',
+        'packages/**',
+        'pnpm-lock.yaml',
+        'pnpm-workspace.yaml',
+      ],
+    },
+    deploy: {
+      preDeployCommand: ['node packages/registry/dist/cli/migrate.js'],
+      healthcheckPath: '/health',
+      healthcheckTimeout: 120,
+      restartPolicyType: 'ON_FAILURE',
+      restartPolicyMaxRetries: 10,
+    },
+    replicas: { [region]: 1 },
+    env: {
+      CONTROL_PORT: preserve(),
+      PORT: preserve(),
+      CONTROL_DATABASE_URL: preserve(),
+      CONTROL_ENCRYPTION_KEY: preserve(),
+      CONTROL_AUTH_SECRET: preserve(),
+      CONTROL_PUBLIC_BASE_URL: preserve(),
+      CONTROL_CORS_ORIGINS: preserve(),
+      PROVISION_DATABASE_ADMIN_URL: preserve(),
+      PANEL_HOST_PATTERN: preserve(),
+      KIOSK_HOST_PATTERN: preserve(),
+      API_HOST_PATTERN: preserve(),
+      PANEL_CNAME_TARGET: preserve(),
+      KIOSK_CNAME_TARGET: preserve(),
+      API_CNAME_TARGET: preserve(),
+      PLATFORM_SCHEME: preserve(),
+      LOG_LEVEL: preserve(),
+      NODE_ENV: preserve(),
+    },
+  });
+
   return project('vakhta', {
-    resources: [Postgres, Redis, postgresVolume, redisVolume, api, worker],
+    resources: [Postgres, Redis, postgresVolume, redisVolume, api, worker, controlApi],
   });
 });

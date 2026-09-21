@@ -63,7 +63,7 @@ context implementation before the `AsyncLocalStorage` check.
 control.vakhta.xyz ─► control-web (Pages) ─► control-api (Railway) ─► vakhta_control (registry)
                                                     │ provider adapters: Postgres admin, Cloudflare, Railway, Telegram
 <slug>.vakhta.xyz (panel) ─┐
-kiosk.<slug>.vakhta.xyz ───┼─► api.<slug>.vakhta.xyz ─► api (shared) ─► vakhta_t_<slug>
+<slug>-kiosk.vakhta.xyz ───┼─► <slug>-api.vakhta.xyz ─► api (shared) ─► vakhta_t_<slug>
 Telegram webhook ──────────┘   /telegram/webhook/<tenantId>
                                                    worker (shared) ─► every ACTIVE tenant
 ```
@@ -317,9 +317,9 @@ verified deployed behavior.
 
 ## Open Decisions
 
-1. **Hostname scheme**: `<slug>.vakhta.xyz`, `kiosk.<slug>.vakhta.xyz`, `api.<slug>.vakhta.xyz`
-   and `control.vakhta.xyz` as assumed, or another pattern. Consequence: provider automation step
-   and DNS records. Recommendation: keep the assumed scheme.
+1. **Hostname scheme**: resolved 2026-09-21 by provider research (research.md): one label under the
+   zone, `<slug>.vakhta.xyz`, `<slug>-kiosk.vakhta.xyz`, `<slug>-api.vakhta.xyz`, so Universal SSL
+   and one Railway wildcard cover them; patterns are control-api settings (`*_HOST_PATTERN`).
 2. **Control plane as a separate Railway service** (recommended: provider secrets stay out of the
    tenant-serving process) versus the same process behind a host route (cheaper).
 3. **One Postgres service for all tenants in v1** (recommended) versus one service per tenant.

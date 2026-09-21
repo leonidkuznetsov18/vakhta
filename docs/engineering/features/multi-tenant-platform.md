@@ -74,6 +74,29 @@ migration and backup target. Facts and file references: spec RECON. Product docu
 - Provider facts marked **verify** in research.md remain unverified; env mode does not depend on
   them and no hostname automation was built yet.
 
+## Independent review and delivery-2 backend (2026-09-21)
+
+- Review (T017, separate session) found: an unwrapped attachment-cleanup loop, runtime recycling on
+  every registry write, one bad tenant blocking API boot, unprefixed API uploads, missing worker
+  pool tests and an unimplemented `bootstrap-admin --tenant`. All six were fixed: per-tenant
+  fingerprints with a 30 s deferred close for old handles, registry-mode tolerance of a failing
+  tenant at boot (env mode stays fail-fast), `currentStoragePrefix()` on API uploads, pool and
+  job-resolution tests, `--tenant` in the CLI. Hypotheses addressed: the registry watermark now
+  covers secrets, branding, domains and modules; fingerprints use a MAC key derived from the first
+  key version; CORS keys on the env tenant id; bots use the tenant time zone; the register CLI
+  accepts secrets from the environment.
+- Provider facts verified (research.md): managed hostnames became one label under the zone.
+- `apps/control-api` (delivery 2 backend): operator better-auth with mandatory TOTP guard,
+  tenants CRUD with audit, module switches, domains, bot token with `getMe` validation and
+  fingerprint uniqueness, suspend/resume, invitations, provisioning jobs with resumable steps
+  (`CREATE_DATABASE`, `MIGRATE`, `SEED_DEFAULTS`, `STORAGE_PREFIX`, `REGISTER_DOMAINS` with a
+  manual DNS instruction, `BOT_WEBHOOK`, `INVITE_ADMIN`, `REMOVE_WEBHOOK`, `EVICT_RUNTIME`), the
+  public tenant-config endpoint, operators page API and a `bootstrap-operator` CLI. Registry
+  migration 0001 adds operators, control auth tables, jobs, steps, invitations and deletions.
+  Steps `FINAL_BACKUP`, `DROP_DATABASE`, `DROP_STORAGE` are explicit "not implemented" (delivery 4).
+- Provisioning end-to-end test: create → database, migrate, seed → manual DNS pause → skip →
+  webhook → invitation → ACTIVE; public config by kiosk host; duplicate slug refused.
+
 ## Verification
 
 2026-09-21, local checkout after the delivery-1 changes (baseline `758ec91`), Colima Docker:
@@ -89,8 +112,9 @@ migration and backup target. Facts and file references: spec RECON. Product docu
   device token 401, webhook host/secret checks, CORS per tenant, proxy without context throws,
   suspended tenant 403 after refresh (7 tests).
 - `apps/worker`: 14 files / 142 tests.
-- Not done: independent review (T017), pilot cutover and live QA (T018), provider fact checks (T010).
-  No production variable, deployment or employee record changed.
+- `apps/control-api`: provisioning e2e (3 tests) on testcontainers; worker pool tests (3).
+- Not done: pilot cutover and live QA (T018), control-web, tenant settings service, the welcome
+  page. No production variable, deployment or employee record changed.
 
 ## Prototype
 

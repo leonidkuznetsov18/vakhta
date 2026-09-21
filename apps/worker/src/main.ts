@@ -35,6 +35,7 @@ import { handleCleaningReminder, handleHandoverTimeout } from './timers/handover
 import { handleIncidentSla } from './timers/incident-sla.js';
 import { handleDowntimeEscalation, handleReturnReminder } from './timers/shift-timers.js';
 import { TenantWorkerPool, type TenantWorker } from './tenants/pool.js';
+import { resolveJobTenantId } from './tenants/resolve.js';
 import { openTenantSource } from './tenants/source.js';
 
 const env = loadWorkerEnv(process.env);
@@ -260,17 +261,8 @@ const relayTimer = setInterval(() => {
 /* Черги (legacy BullMQ): every job names its tenant                    */
 /* ------------------------------------------------------------------ */
 
-function jobTenantId(data: unknown): string | null {
-  if (typeof data === 'object' && data !== null && 'tenantId' in data) {
-    return typeof data.tenantId === 'string' ? data.tenantId : null;
-  }
-  return null;
-}
-
-/** Registry mode requires `tenantId`; env mode maps a legacy job without one to its only tenant. */
 function tenantWorkerFor(job: Job): TenantWorker {
-  const fallback = env.TENANCY_MODE === TenancyMode.ENV ? ENV_TENANT_ID : null;
-  const tenantId = jobTenantId(job.data) ?? fallback;
+  const tenantId = resolveJobTenantId(job.data, env.TENANCY_MODE);
   const worker = tenantId ? pool.get(tenantId) : null;
   if (!worker) {
     logger.warn({ queue: job.queueName, jobId: job.id }, 'job rejected: tenant is not served');

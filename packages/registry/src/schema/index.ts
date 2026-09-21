@@ -183,3 +183,214 @@ export const controlAuditLog = pgTable(
   },
   (t) => [index('control_audit_tenant_idx').on(t.tenantId, t.at)],
 );
+
+/* ------------------------------------------------------------------ */
+/* Control panel (delivery 2): operators, provisioning, invitations     */
+/* ------------------------------------------------------------------ */
+
+export const OPERATOR_ROLE_VALUES = ['PLATFORM_ADMIN', 'PLATFORM_VIEWER'] as const;
+export const OPERATOR_STATUS_VALUES = ['ACTIVE', 'DISABLED'] as const;
+export const PROVISIONING_KIND_VALUES = [
+  'PROVISION',
+  'ENABLE_MODULE',
+  'DISABLE_MODULE',
+  'SUSPEND',
+  'RESUME',
+  'ROTATE_BOT_TOKEN',
+  'VERIFY_DOMAIN',
+  'MIGRATE',
+  'BACKUP',
+  'DELETE',
+] as const;
+export const JOB_STATUS_VALUES = ['PENDING', 'RUNNING', 'DONE', 'FAILED', 'CANCELLED'] as const;
+export const PROVISIONING_STEP_VALUES = [
+  'CREATE_DATABASE',
+  'MIGRATE',
+  'SEED_DEFAULTS',
+  'STORAGE_PREFIX',
+  'REGISTER_DOMAINS',
+  'BOT_WEBHOOK',
+  'INVITE_ADMIN',
+  'REMOVE_WEBHOOK',
+  'EVICT_RUNTIME',
+  'FINAL_BACKUP',
+  'DROP_DATABASE',
+  'DROP_STORAGE',
+] as const;
+export const STEP_STATUS_VALUES = [
+  'PENDING',
+  'RUNNING',
+  'DONE',
+  'FAILED',
+  'SKIPPED',
+  'MANUAL_REQUIRED',
+] as const;
+export const INVITATION_KIND_VALUES = ['ONBOARDING', 'ADMIN'] as const;
+
+export const operatorRole = pgEnum('operator_role', OPERATOR_ROLE_VALUES);
+export const operatorStatus = pgEnum('operator_status', OPERATOR_STATUS_VALUES);
+export const provisioningKind = pgEnum('provisioning_kind', PROVISIONING_KIND_VALUES);
+export const jobStatus = pgEnum('job_status', JOB_STATUS_VALUES);
+export const provisioningStep = pgEnum('provisioning_step', PROVISIONING_STEP_VALUES);
+export const stepStatus = pgEnum('step_status', STEP_STATUS_VALUES);
+export const invitationKind = pgEnum('invitation_kind', INVITATION_KIND_VALUES);
+
+/** better-auth tables of the control panel; operators are its users with a platform role. */
+export const controlAuthUser = pgTable('control_auth_user', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
+  twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
+  role: operatorRole('role').notNull().default('PLATFORM_VIEWER'),
+  status: operatorStatus('status').notNull().default('ACTIVE'),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+export const controlAuthSession = pgTable(
+  'control_auth_session',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    token: text('token').notNull().unique(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => controlAuthUser.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('control_auth_session_user_idx').on(t.userId)],
+);
+
+export const controlAuthAccount = pgTable(
+  'control_auth_account',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => controlAuthUser.id, { onDelete: 'cascade' }),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+    scope: text('scope'),
+    password: text('password'),
+    issuer: text('issuer'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('control_auth_account_user_idx').on(t.userId)],
+);
+
+export const controlAuthVerification = pgTable(
+  'control_auth_verification',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('control_auth_verification_identifier_idx').on(t.identifier)],
+);
+
+export const controlAuthTwoFactor = pgTable(
+  'control_auth_two_factor',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    secret: text('secret').notNull(),
+    backupCodes: text('backup_codes').notNull(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => controlAuthUser.id, { onDelete: 'cascade' }),
+    verified: boolean('verified').notNull().default(true),
+    failedVerificationCount: integer('failed_verification_count').notNull().default(0),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  },
+  (t) => [
+    index('control_auth_two_factor_user_idx').on(t.userId),
+    index('control_auth_two_factor_secret_idx').on(t.secret),
+  ],
+);
+
+/** One active job per tenant; steps run in `seq` order and survive a process restart. */
+export const provisioningJobs = pgTable(
+  'provisioning_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    kind: provisioningKind('kind').notNull(),
+    status: jobStatus('status').notNull().default('PENDING'),
+    requestedBy: uuid('requested_by'),
+    payload: jsonb('payload').$type<Record<string, unknown>>().notNull().default({}),
+    error: text('error'),
+    createdAt: createdAt(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('provisioning_jobs_tenant_idx').on(t.tenantId, t.createdAt),
+    uniqueIndex('provisioning_jobs_active_uq')
+      .on(t.tenantId)
+      .where(sql`${t.status} IN ('PENDING', 'RUNNING')`),
+  ],
+);
+
+export const provisioningSteps = pgTable(
+  'provisioning_steps',
+  {
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => provisioningJobs.id, { onDelete: 'cascade' }),
+    step: provisioningStep('step').notNull(),
+    seq: integer('seq').notNull(),
+    status: stepStatus('status').notNull().default('PENDING'),
+    attempts: integer('attempts').notNull().default(0),
+    lastError: text('last_error'),
+    output: jsonb('output').$type<Record<string, unknown>>(),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.jobId, t.step] })],
+);
+
+/** Onboarding and password-setup links; the token itself is never stored. */
+export const tenantInvitations = pgTable(
+  'tenant_invitations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    kind: invitationKind('kind').notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    adminEmail: text('admin_email').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    issuedBy: uuid('issued_by'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('tenant_invitations_tenant_idx').on(t.tenantId)],
+);
+
+export const tenantDeletions = pgTable('tenant_deletions', {
+  tenantId: uuid('tenant_id')
+    .primaryKey()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  requestedBy: uuid('requested_by'),
+  requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+  scheduledFor: timestamp('scheduled_for', { withTimezone: true }).notNull(),
+  finalBackupKey: text('final_backup_key'),
+  restoredAt: timestamp('restored_at', { withTimezone: true }),
+  droppedAt: timestamp('dropped_at', { withTimezone: true }),
+});

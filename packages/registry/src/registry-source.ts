@@ -1,4 +1,4 @@
-import { count, eq, inArray, max, ne, sql } from 'drizzle-orm';
+import { eq, inArray, ne, sql } from 'drizzle-orm';
 import {
   TenantDomainStatus,
   TenantModule,
@@ -109,12 +109,20 @@ export class RegistryTenantSource implements TenantSource {
     await this.reload();
   }
 
+  /** Any write to a tenant or its secrets, domains, modules or branding moves the watermark. */
   private async readWatermark(): Promise<Watermark> {
     const [row] = await this.db
-      .select({ updatedAt: max(tenants.updatedAt), total: count() })
-      .from(tenants)
-      .where(ne(tenants.status, TenantStatus.ARCHIVED));
-    return { updatedAt: row?.updatedAt?.toISOString() ?? null, total: row?.total ?? 0 };
+      .select({
+        updatedAt: sql<string | null>`greatest(
+          (SELECT max(${tenants.updatedAt}) FROM ${tenants}),
+          (SELECT max(${tenantSecrets.updatedAt}) FROM ${tenantSecrets}),
+          (SELECT max(${tenantBranding.updatedAt}) FROM ${tenantBranding}))::text`,
+        total: sql<number>`(SELECT count(*) FROM ${tenants} WHERE ${tenants.status} <> 'ARCHIVED')
+          + (SELECT count(*) FROM ${tenantDomains})
+          + (SELECT count(*) FROM ${tenantModules} WHERE ${tenantModules.status} = 'ENABLED')`,
+      })
+      .from(sql`(SELECT 1) AS one`);
+    return { updatedAt: row?.updatedAt ?? null, total: Number(row?.total ?? 0) };
   }
 
   private async loadTenants(): Promise<TenantRuntimeConfig[]> {

@@ -1,4 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { currentStoragePrefix } from '../infra/tenant-context.js';
+import { TenantRuntimeRegistry } from '../infra/tenant-runtime.js';
 import {
   Inject,
   Injectable,
@@ -93,10 +95,14 @@ export class CommunicationMediaService implements OnModuleInit, OnApplicationShu
     @Inject(DATABASE) private readonly db: Database,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage | null,
     private readonly communications: CommunicationsService,
+    private readonly tenants: TenantRuntimeRegistry,
   ) {}
   onModuleInit() {
     this.timer = setInterval(() => {
-      void this.cleanup();
+      void this.tenants.forEachActive(
+        () => this.cleanup(),
+        (_error, tenant) => this.logger.warn({ tenant: tenant.slug }, 'Attachment cleanup failed'),
+      );
     }, 60_000);
     this.timer.unref();
   }
@@ -128,7 +134,7 @@ export class CommunicationMediaService implements OnModuleInit, OnApplicationShu
         .slice(0, 180)
         .replace(/\.[^.]+$/, '') || 'attachment';
     const savedName = `${cleanName}.${file.extension}`;
-    const storageKey = `communications/${user.id}/${id}.${file.extension}`;
+    const storageKey = `${currentStoragePrefix()}communications/${user.id}/${id}.${file.extension}`;
     const [row] = await this.db
       .insert(communicationAttachments)
       .values({

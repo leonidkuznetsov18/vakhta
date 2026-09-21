@@ -44,22 +44,25 @@ because it contradicts the owner's requirement and turns every query into an acc
 | Secrets at rest                           | AES-256-GCM with a platform key (`CONTROL_ENCRYPTION_KEY`), key version stored per row for rotation.                                                                   | Plain text in the registry: backups and operator screens would expose bot tokens and database URLs.                                                     |
 | Compatibility                             | `TENANCY_MODE=env` builds one tenant from the current variables; `registry` reads the control database. Both use the same context code.                                | Big-bang cutover: no rollback and no way to run CI without a control database.                                                                          |
 
-## Provider facts to verify in the plan
+## Provider facts (verified 2026-09-21 against official documentation)
 
-| Fact                                                                                                        | Status     | Where it matters                                  |
-| ----------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------- |
-| Railway supports wildcard custom domains (`*.vakhta.xyz`) or per-host custom domains through its public API | **verify** | `api.<slug>.vakhta.xyz` without a deploy          |
-| Cloudflare Pages custom domains can be added per project through the API; wildcards are not supported       | **verify** | `<slug>.vakhta.xyz` and `kiosk.<slug>.vakhta.xyz` |
-| Cloudflare proxied wildcard records and Railway TLS interact without an advanced certificate                | **verify** | Choice between wildcard and per-host registration |
-| Railway Postgres connection limit and whether a pooler is available                                         | **verify** | Per-tenant pool budget in API and worker          |
-| `postgres` (postgres.js) pool per tenant with `max` small enough for the connection budget                  | repository | `packages/db/src/client.ts` already exposes `max` |
-| Telegram `setWebhook` accepts `secret_token` and a path per bot                                             | known      | `/telegram/webhook/<tenantId>`                    |
-| Node `AsyncLocalStorage` survives Fastify hooks, Nest guards, pipes and SSE responses                       | **verify** | Tenant context proxy                              |
-| Drizzle migrator has no cross-process lock                                                                  | repository | Wrap per-tenant migration in `pg_advisory_lock`   |
+| Fact                               | Result                                                                                                                                                                                                                                                                              |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Railway wildcard custom domains    | Supported for one leading label (`*.vakhta.xyz`), not nested; on Cloudflare the `_acme-challenge` and `authorize.railwaydns.net` CNAMEs must be DNS-only and SSL mode Full (not Strict). Per-host domains through GraphQL `customDomainCreate`; Pro plan 20 per service by default. |
+| Cloudflare Pages custom domains    | Added per host through `POST /accounts/{id}/pages/projects/{name}/domains` with Pages Write; wildcards are not supported; Free 100, Pro 250 domains per project; second-level subdomains cannot use Advanced Certificates with Pages.                                               |
+| Cloudflare DNS API                 | `POST /zones/{zone}/dns_records` with DNS Write; Free zones after 2024-09 hold 200 records.                                                                                                                                                                                         |
+| Railway Postgres connection budget | `max_connections` not documented by Railway (PostgreSQL default 100); PgBouncer add-on in transaction mode exists (no advisory locks or session `SET` on the pooled URL). Per-tenant pools must stay small; migrations use the unpooled URL.                                        |
+| `AsyncLocalStorage` propagation    | Documented for `run()` through native promises; loss only with custom thenables or non-promisified callbacks; `enterWith` avoided. A probe through Fastify hook, Nest guard, multipart body and SSE confirmed propagation.                                                          |
 
-Sources to consult during verification (official documentation only): Railway public networking and
-custom domains, Cloudflare Pages custom domains and DNS API, Telegram Bot API `setWebhook`, Node.js
-`async_context`, PostgreSQL `CREATE DATABASE` and advisory locks, better-auth configuration.
+Consequence: managed hostnames are one label under the zone (`<slug>.vakhta.xyz`,
+`<slug>-kiosk.vakhta.xyz`, `<slug>-api.vakhta.xyz`) so Universal SSL and a single Railway wildcard
+cover them; Pages hosts are registered per tenant through the API (manual DNS step until the
+adapter exists); `TENANT_POOL_MAX` stays small in registry mode and the tenant count per cluster
+is bounded by the connection budget until a pooler is adopted.
+
+Sources: Railway "Working with domains" and public API "Manage domains" pages; Cloudflare Pages
+custom domains, known issues and limits; Cloudflare DNS records API; Railway PostgreSQL and PgBouncer
+guides; Node.js `async_context` documentation.
 
 ## What the current code already gives us
 

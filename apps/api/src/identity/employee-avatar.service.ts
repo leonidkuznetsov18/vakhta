@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { currentStoragePrefix } from '../infra/tenant-context.js';
 import { Inject, Injectable } from '@nestjs/common';
 import sharp from 'sharp';
 import { employees, eq, mediaObjects, type Database } from '@vakhta/db';
@@ -58,7 +59,8 @@ export class EmployeeAvatarService {
     if (normalized && !this.storage?.put)
       throw new DomainError('AVATAR_STORAGE_UNAVAILABLE', 503, 'Avatar storage unavailable');
     const mediaId = randomUUID();
-    const key = `employee-avatars/${id}/${mediaId}.webp`;
+    // The prefix is a naming concern; data access stays fail-closed through the DATABASE proxy.
+    const key = `${currentStoragePrefix()}employee-avatars/${id}/${mediaId}.webp`;
     // Persist the private object's cleanup deadline before PUT; a crash cannot lose its identity.
     if (normalized) {
       await this.db.insert(mediaObjects).values({

@@ -48,14 +48,14 @@ exact files in this document before their own coding starts.
 **Outcome**: every unit of work runs in a tenant context; env mode keeps CI and production
 unchanged; the pilot is registered and cut over. **Acceptance**: AC-005–016, AC-021 (migrator part).
 
-- [ ] T010 (partial: the `AsyncLocalStorage` probe is covered by the isolation suite; provider rows remain open) Resolve the research.md **verify** rows with official documentation and a small `AsyncLocalStorage` probe through Fastify hook → Nest guard → service → SSE; record results in the engineering memory. Blocks T012.
+- [x] T010 Resolve the research.md **verify** rows with official documentation and a small `AsyncLocalStorage` probe through Fastify hook → Nest guard → service → SSE; record results in the engineering memory. Blocks T012.
 - [x] T011 Create `packages/registry` (schema per data-model.md, `drizzle/` migrations, `migrate.ts`, `createRegistry`, `TenantRegistryReader`, `decryptSecret`, `tenantFromEnv`, `TenantRuntimeConfig`); add `packages/domain/src/tenant/` (statuses, modules, slug rules, reserved slugs, status FSM) with unit and property tests; add `TenantModule`, `TenantStatus`, `TenantPublicConfig` and `tenantId` job fields in `packages/contracts` (covers FR-001, FR-003).
 - [x] T012 Implement `apps/api/src/infra/tenant-context.ts`, `TenantRuntimeRegistry`, the `DATABASE`/`AUTH`/short-term-store proxies and the Fastify host hook in `apps/api/src/main.ts`; add `TENANCY_MODE`, `CONTROL_DATABASE_URL`, `CONTROL_ENCRYPTION_KEY`, `TENANT_POOL_MAX`, `REGISTRY_REFRESH_SECONDS` to `apps/api/src/config/env.ts` with production-readiness checks; enumerate and wrap non-request code paths (module init loops, SSE, home pusher). Depends on T010, T011 (covers AC-005, AC-006, AC-009, AC-010).
 - [x] T013 Make `TelegramService` multi-bot with `/telegram/webhook/:tenantId` and per-tenant secrets; polling per tenant in dev; update `apps/api/src/cli/set-webhook.ts` and `bootstrap-admin.ts` to take a tenant slug; tenant-scope the kiosk device token and QR challenge lookups (they already read through `DATABASE`; add tests). Depends on T012 (covers AC-007, AC-008).
 - [x] T014 Worker: `apps/worker/src/tenants/loop.ts`, per-tenant handle cache, `tenantId` in every job processor with rejection of unknown or suspended tenants, per-tenant recovery, media key prefix from the runtime; env additions in `apps/worker/src/env.ts`. Depends on T011 (covers AC-014, AC-015, AC-016).
 - [x] T015 `packages/db/src/migrate.ts --tenants` under `pg_advisory_lock` with `schema_version` recording; export `seedTenantDefaults` from `packages/db/src/seed.ts`; `.railway/railway.ts` preDeploy sequence and new env keys with `preserve()`; `.env.example` and `infra/compose` control database. Depends on T011 (covers AC-021 migrator part, AC-012).
 - [x] T016 Isolation suite with a testcontainers helper `withTenants(2)`: unknown host, suspended tenant, cross-tenant cookie, cross-tenant device token, webhook secret, CORS, proxy without context, worker loop isolation and job rejection; run existing suites in env mode. Depends on T012–T015 (covers SC-003, AC-012).
-- [ ] T017 Independent review of the tenant-context boundary, secrets handling and migrator (reviewer is not the writer); resolve findings.
+- [x] T017 Independent review of the tenant-context boundary, secrets handling and migrator (reviewer is not the writer); resolve findings.
 - [ ] T018 Cutover: deploy in env mode, create `vakhta_control`, register the pilot with the `register-existing-tenant` CLI, switch `api` and `worker` to registry mode, re-set the webhook, verify the listed live journeys with the QA account, record versions and evidence; rehearse rollback on a non-production environment first (covers AC-011, AC-013).
 
 ## Delivery 2: Control panel (US1 without bot and invite, AC-025)
@@ -64,8 +64,8 @@ unchanged; the pilot is registered and cut over. **Acceptance**: AC-005–016, A
 and hand over an onboarding link. **Acceptance**: AC-001, AC-002 (steps up to `REGISTER_DOMAINS`),
 AC-025, AC-026–032, AC-034, public config endpoint for AC-020.
 
-- [ ] T020 `apps/control-api`: Nest app with operator better-auth (TOTP mandatory, no sign-up), `bootstrap-operator` CLI, tenants, modules, domains, branding, secrets (encrypted, fingerprint), audit, health and `GET /public/tenant-config`; Dockerfile; `.railway/railway.ts` service; `ci.yml` image.
-- [ ] T021 Provisioning runner: job claim under advisory lock, step classes with `isDone`/`run`, `MANUAL_REQUIRED` path, `CREATE_DATABASE`, `MIGRATE`, `SEED_DEFAULTS`, `STORAGE_PREFIX`, `REGISTER_DOMAINS` with `HostnameProvider` adapters (Cloudflare, Railway, manual); tests for failure, restart, retry and idempotency.
+- [x] T020 `apps/control-api`: Nest app with operator better-auth (TOTP mandatory, no sign-up), `bootstrap-operator` CLI, tenants, modules, domains, branding, secrets (encrypted, fingerprint), audit, health and `GET /public/tenant-config`; Dockerfile; `.railway/railway.ts` service; `ci.yml` image.
+- [x] T021 Provisioning runner: job claim under advisory lock, step classes with `isDone`/`run`, `MANUAL_REQUIRED` path, `CREATE_DATABASE`, `MIGRATE`, `SEED_DEFAULTS`, `STORAGE_PREFIX`, `REGISTER_DOMAINS` with `HostnameProvider` adapters (Cloudflare, Railway, manual); tests for failure, restart, retry and idempotency.
 - [ ] T022 `apps/control-web`: FSD app with tenant list, tenant detail (modules, domains, secrets, branding, jobs and steps, audit), create-tenant and provision features, operators page; `control` i18n namespace in uk/en/ru; Pages project `vakhta-control` in `ci.yml`.
 - [ ] T023 Tenant settings: `packages/contracts/src/tenant-settings.ts` key catalog with defaults, `apps/api/src/config/tenant-settings.ts` reader with cache and Redis invalidation, worker reader in `packages/registry`, replace env reads at their call sites, control-api endpoints to read and write tenant settings; tests for defaults, override, invalidation and unchanged pilot values (covers AC-028).
 - [ ] T024 Quick-create wizard, live job view and onboarding link: `CreateTenantCommand`, `tenant_invitations`, reissue endpoint, copy buttons, share sheet; tests for single use, expiry and reissue (covers AC-032–034).
@@ -100,8 +100,9 @@ view), AC-022, AC-023, AC-024, AC-035, client-owned domains.
 
 ## Dependencies and Handoff
 
-2026-09-21: T011–T016 implemented and verified locally (see the engineering memory); T017 review and
-T018 cutover are the next actions, T010 provider checks stay open.
+2026-09-21: T010–T017 done (review findings fixed the same day); T020–T021 (control-api, provisioning
+runner) done with a provisioning end-to-end test. Next: T022 control-web, T023 tenant settings,
+T024 wizard/onboarding UI, then the pilot cutover T018.
 
 T010 → T012; T011 → T012, T014, T015; T012 → T013; T012–T015 → T016 → T017 → T018. Delivery 2 starts
 after T018 is verified in production; inside it T020 → T021 → T023 → T024 → T025 → T026. Delivery 3

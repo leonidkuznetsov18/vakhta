@@ -5,6 +5,8 @@
  */
 import { parseArgs } from 'node:util';
 import { createDatabase, authUser } from '@vakhta/db';
+import { TenancyMode } from '@vakhta/domain';
+import { RegistryTenantSource, SecretCipher, createRegistry } from '@vakhta/registry';
 import { CreateWebUserCommand } from '@vakhta/contracts';
 import { SYSTEM_ACTOR } from '../common/actor.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -23,11 +25,38 @@ const { values } = parseArgs({
     password: { type: 'string' },
     name: { type: 'string', default: 'Администратор' },
     force: { type: 'boolean', default: false },
+    /** Registry mode: which tenant database to bootstrap. */
+    tenant: { type: 'string' },
   },
 });
 
 const env = loadEnv(process.env);
-const { db, client } = createDatabase(env.DATABASE_URL, { max: 2 });
+const databaseUrl = await resolveDatabaseUrl();
+const { db, client } = createDatabase(databaseUrl, { max: 2 });
+
+/** Env mode uses DATABASE_URL; registry mode needs --tenant and reads the tenant's own URL. */
+async function resolveDatabaseUrl(): Promise<string> {
+  if (env.TENANCY_MODE !== TenancyMode.REGISTRY) return env.DATABASE_URL;
+  if (!values.tenant) throw new Error('--tenant <slug> is required in registry mode');
+  if (!env.CONTROL_DATABASE_URL || !env.CONTROL_ENCRYPTION_KEY) {
+    throw new Error(
+      'CONTROL_DATABASE_URL and CONTROL_ENCRYPTION_KEY are required in registry mode',
+    );
+  }
+  const registry = createRegistry(env.CONTROL_DATABASE_URL, { max: 1 });
+  try {
+    const source = new RegistryTenantSource(
+      registry.db,
+      new SecretCipher(env.CONTROL_ENCRYPTION_KEY),
+    );
+    await source.reload();
+    const tenant = source.bySlug(values.tenant);
+    if (!tenant) throw new Error(`Tenant "${values.tenant}" is not registered`);
+    return tenant.databaseUrl;
+  } finally {
+    await registry.client.end({ timeout: 5 });
+  }
+}
 
 try {
   const cmd = CreateWebUserCommand.parse({

@@ -57,11 +57,17 @@ export class SecretCipher {
     return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
   }
 
-  /** Deterministic, keyed: equal plaintexts collide, nothing else leaks. */
+  /**
+   * Deterministic, keyed: equal plaintexts collide, nothing else leaks. The MAC key is derived
+   * from the first key version so fingerprints stay comparable across encryption key rotations.
+   */
   fingerprint(plain: string): string {
-    const key = this.keys.get(this.currentVersion);
+    const versions = [...this.keys.keys()].sort((a, b) => a - b);
+    const first = versions[0];
+    const key = first === undefined ? undefined : this.keys.get(first);
     if (!key) throw new Error('Secret key for the current version is missing');
-    return createHmac('sha256', key).update(plain, 'utf8').digest('hex');
+    const macKey = createHmac('sha256', key).update('vakhta-fingerprint-v1').digest();
+    return createHmac('sha256', macKey).update(plain, 'utf8').digest('hex');
   }
 }
 

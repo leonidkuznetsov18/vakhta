@@ -19,9 +19,21 @@ import { runWithTenant, type TenantRuntime } from './tenant-context.js';
 export const TENANT_SOURCE = Symbol('TENANT_SOURCE');
 
 interface CachedRuntime {
-  readonly version: number;
+  readonly fingerprint: string;
   readonly runtime: TenantRuntime;
 }
+
+/** Fields whose change needs new handles; other fields update in place. Never logged. */
+function fingerprintOf(tenant: TenantRuntimeConfig): string {
+  return JSON.stringify([
+    tenant.databaseUrl,
+    tenant.redisPrefix,
+    tenant.domains.map((d) => `${d.surface}:${d.host}:${d.isPrimary}:${d.status}`),
+  ]);
+}
+
+/** In-flight requests keep the old handles; they are closed after this grace period. */
+const CLOSE_GRACE_MS = 30_000;
 
 /**
  * Creates and caches one runtime per tenant. A runtime is rebuilt when the source publishes a new
@@ -30,7 +42,7 @@ interface CachedRuntime {
 @Injectable()
 export class TenantRuntimeRegistry implements OnApplicationShutdown {
   private readonly cache = new Map<string, CachedRuntime>();
-  private readonly closing: Promise<void>[] = [];
+  private readonly closing = new Set<Promise<void>>();
 
   constructor(
     private readonly config: ConfigService<Env, true>,
@@ -84,11 +96,25 @@ export class TenantRuntimeRegistry implements OnApplicationShutdown {
 
   runtimeFor(tenant: TenantRuntimeConfig): TenantRuntime {
     const cached = this.cache.get(tenant.id);
-    if (cached?.version === this.source.version) return cached.runtime;
-    if (cached) this.closing.push(cached.runtime.close());
+    const fingerprint = fingerprintOf(tenant);
+    if (cached?.fingerprint === fingerprint) {
+      // Status, modules, branding or secrets other than the database changed: same handles.
+      if (cached.runtime.tenant !== tenant) cached.runtime.tenant = tenant;
+      return cached.runtime;
+    }
+    if (cached) this.retire(cached.runtime);
     const runtime = this.create(tenant);
-    this.cache.set(tenant.id, { version: this.source.version, runtime });
+    this.cache.set(tenant.id, { fingerprint, runtime });
     return runtime;
+  }
+
+  private retire(runtime: TenantRuntime): void {
+    const timer = setTimeout(() => {
+      const closed = runtime.close().catch(() => undefined);
+      this.closing.add(closed);
+      void closed.finally(() => this.closing.delete(closed));
+    }, CLOSE_GRACE_MS);
+    timer.unref();
   }
 
   private create(tenant: TenantRuntimeConfig): TenantRuntime {

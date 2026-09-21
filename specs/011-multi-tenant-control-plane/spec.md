@@ -109,7 +109,7 @@ current production runnable from the existing environment variables until the re
 Contracts add fields and never remove them.
 
 **Assumptions.** The platform domain stays `vakhta.xyz`; managed tenant hostnames are
-`<slug>.vakhta.xyz` (panel), `kiosk.<slug>.vakhta.xyz` and `api.<slug>.vakhta.xyz`; the pilot keeps
+`<slug>.vakhta.xyz` (panel), `<slug>-kiosk.vakhta.xyz` and `<slug>-api.vakhta.xyz`; the pilot keeps
 `panel.vakhta.xyz`, `kiosk.vakhta.xyz` and `api.vakhta.xyz` as registered domain rows. One Railway
 Postgres service hosts all tenant databases in v1. Tenant secrets are encrypted at rest with a
 platform key. Operators are few, trusted and always use TOTP. Control panel texts follow the

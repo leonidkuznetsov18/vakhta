@@ -46,3 +46,4 @@ export * from './employee-profile/field-access.js';
 export * from './employee-profile/zone.js';
 
 export * from './tenant/tenant.js';
+export * from './tenant/provisioning.js';

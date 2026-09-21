@@ -10,7 +10,8 @@ import type { ShortTermStore } from './short-term-store.js';
  * config inside carries decrypted secrets and must never be logged or serialized.
  */
 export interface TenantRuntime {
-  readonly tenant: TenantRuntimeConfig;
+  /** Replaced in place when only status, modules, branding or bot secrets change. */
+  tenant: TenantRuntimeConfig;
   readonly db: Database;
   readonly auth: Auth;
   readonly authConfig: AuthConfig;
@@ -27,6 +28,11 @@ export function runWithTenant<T>(runtime: TenantRuntime, fn: () => T): T {
 
 export function currentTenantOrNull(): TenantRuntime | null {
   return storage.getStore() ?? null;
+}
+
+/** Object-key prefix of the current tenant; a naming concern, so it tolerates missing context. */
+export function currentStoragePrefix(): string {
+  return storage.getStore()?.tenant.storagePrefix ?? '';
 }
 
 /** Fails closed: there is no default tenant to fall back to (spec AC-009). */

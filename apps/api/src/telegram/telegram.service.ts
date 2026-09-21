@@ -163,7 +163,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       appealWindowDays: this.config.get('APPEAL_WINDOW_DAYS', { infer: true }),
       store: this.store,
       dedup: this.dedup,
-      defaultTimezone: this.config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
+      defaultTimezone: tenant.timezone,
       helpUrl: this.config.get('USER_GUIDE_URL', { infer: true }) ?? null,
       supportUrl: this.supportUrl(),
       logger: this.logger,

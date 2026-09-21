@@ -17,6 +17,7 @@ COPY --chown=node:node packages/domain/package.json packages/domain/
 COPY --chown=node:node packages/i18n/package.json packages/i18n/
 COPY --chown=node:node packages/registry/package.json packages/registry/
 COPY --chown=node:node apps/api/package.json apps/api/
+COPY --chown=node:node apps/control-api/package.json apps/control-api/
 COPY --chown=node:node apps/worker/package.json apps/worker/
 COPY --chown=node:node apps/admin-web/package.json apps/admin-web/
 COPY --chown=node:node apps/qr-kiosk/package.json apps/qr-kiosk/
