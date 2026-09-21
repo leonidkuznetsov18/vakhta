@@ -1,3 +1,14 @@
+## [1.19.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.18.0...v1.19.0) (2026-09-21)
+
+### Features
+
+* **control-web:** add the operator panel with quick create, workspace and jobs ([426cd1f](https://github.com/leonidkuznetsov18/vakhta/commit/426cd1ff41880e9a40b8c9a53479ea11e0c943f0))
+* **control:** add the control service with tenant provisioning and fix review findings ([26f3c74](https://github.com/leonidkuznetsov18/vakhta/commit/26f3c74abefca50e0fab6ed669ac5df5ffd0d182))
+
+### Bug fixes
+
+* **control:** secure sessions and recover provisioning safely ([26de4b3](https://github.com/leonidkuznetsov18/vakhta/commit/26de4b3188c83ffdb8e9d97b6b7bc2c2826f474c))
+
 ## [1.18.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.17.1...v1.18.0) (2026-09-21)
 
 ### Features
