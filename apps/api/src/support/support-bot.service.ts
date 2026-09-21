@@ -12,7 +12,6 @@ import type { Bot } from 'grammy';
 import type { Update } from 'grammy/types';
 import { telegramMode, type Env } from '../config/env.js';
 import { createLogger } from '../logger.js';
-import { runWithTenant } from '../infra/tenant-context.js';
 import { TenantRuntimeRegistry } from '../infra/tenant-runtime.js';
 import { TenancyMode } from '@vakhta/domain';
 import { createSupportBot } from './support-bot.factory.js';
@@ -99,7 +98,7 @@ export class SupportBotService implements OnModuleInit, OnApplicationShutdown {
   private inTenant<T>(fn: () => Promise<T>): Promise<T> {
     const runtime = this.tenantId ? this.tenants.byId(this.tenantId) : null;
     if (!runtime) throw new ServiceUnavailableException('Support tenant is not served');
-    return runWithTenant(runtime, fn);
+    return this.tenants.enter(runtime, fn);
   }
 
   private async registerCommands(bot: Bot): Promise<void> {

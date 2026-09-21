@@ -23,10 +23,14 @@ first sign-in. Credentials are in the owner's private 1Password vault.
 Read-only operators cannot retrieve administrator invitation tokens. Required provisioning steps
 cannot be skipped; a manual DNS step can be skipped without marking its domains verified.
 
-Not yet available: tenant operational settings, the
-client welcome page and runtime surface configuration, complete workspace actions and table
-pagination, per-tenant backups/deletion, and the pilot cutover. An invitation link is generated,
-but its client welcome flow is still pending. Do not distribute it as a working onboarding journey.
+Operating parameters (presence windows, breaks, escalation and SLA, QR rotation and lifetime,
+photo checks and the other section-18 values) are edited per client on the Parameters tab. They
+are stored in the client's own database and reach its API, bot, kiosk and worker within one
+registry refresh, without a deploy; every change is audited. Values not set on the tab follow the
+platform defaults; the pilot keeps its deployment values as its defaults.
+
+Not yet available: complete workspace actions and table pagination, and tenant deletion.
+Nightly backups cover every client database; restoring one client is a runbook procedure.
 
 ## What it is
 

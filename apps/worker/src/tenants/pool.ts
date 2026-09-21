@@ -1,3 +1,4 @@
+import type { TenantSettings } from '@vakhta/contracts';
 import type { Database } from '@vakhta/db';
 import type { TenantRuntimeConfig, TenantSource } from '@vakhta/registry';
 import type { Logger } from 'pino';
@@ -8,6 +9,10 @@ export interface TenantWorker {
   readonly tenant: TenantRuntimeConfig;
   readonly db: Database;
   readonly mediaDeps: MediaDependencies | null;
+  /** The tenant's parameters the runners were started with (spec AC-028). */
+  readonly settings: TenantSettings;
+  /** True when the stored parameters differ from `settings`; the pool then restarts the worker. */
+  settingsChanged(): Promise<boolean>;
   /** One outbox relay and communication dispatch pass. */
   tick(): Promise<void>;
   stop(): Promise<void>;
@@ -39,8 +44,8 @@ export class TenantWorkerPool {
 
   constructor(
     private readonly source: TenantSource,
-    private readonly start: (tenant: TenantRuntimeConfig) => TenantWorker,
-    private readonly logger: Pick<Logger, 'info' | 'error'>,
+    private readonly start: (tenant: TenantRuntimeConfig) => Promise<TenantWorker>,
+    private readonly logger: Pick<Logger, 'info' | 'warn' | 'error'>,
   ) {}
 
   sync(): Promise<void> {
@@ -67,28 +72,55 @@ export class TenantWorkerPool {
 
   private async reconcile(): Promise<void> {
     const active = new Map(this.source.active().map((tenant) => [tenant.id, tenant]));
+    const changed = await this.settingsChangedIds();
     const stale = [...this.entries.entries()].filter(([id, entry]) => {
       const tenant = active.get(id);
-      return !tenant || fingerprintOf(tenant) !== entry.fingerprint;
+      return !tenant || fingerprintOf(tenant) !== entry.fingerprint || changed.has(id);
     });
     await Promise.all(
       stale.map(async ([id, entry]) => {
         this.entries.delete(id);
-        await entry.worker.stop();
-        this.logger.info({ tenant: entry.worker.tenant.slug }, 'tenant worker stopped');
+        await this.stopOne(entry.worker);
       }),
     );
-    for (const tenant of active.values()) {
-      if (this.entries.has(tenant.id)) continue;
-      try {
-        this.entries.set(tenant.id, {
-          fingerprint: fingerprintOf(tenant),
-          worker: this.start(tenant),
-        });
-        this.logger.info({ tenant: tenant.slug }, 'tenant worker started');
-      } catch (error) {
-        this.logger.error({ err: error, tenant: tenant.slug }, 'tenant worker failed to start');
-      }
+    const missing = [...active.values()].filter((tenant) => !this.entries.has(tenant.id));
+    await Promise.all(missing.map((tenant) => this.startOne(tenant)));
+  }
+
+  private async settingsChangedIds(): Promise<Set<string>> {
+    const checks = await Promise.all(
+      [...this.entries.entries()].map(async ([id, entry]) => {
+        try {
+          return (await entry.worker.settingsChanged()) ? id : null;
+        } catch (error) {
+          this.logger.warn(
+            { err: error, tenant: entry.worker.tenant.slug },
+            'settings check failed',
+          );
+          return null;
+        }
+      }),
+    );
+    return new Set(checks.filter((id): id is string => id !== null));
+  }
+
+  // One failed stop must not keep the other tenants from being started this round.
+  private async stopOne(worker: TenantWorker): Promise<void> {
+    try {
+      await worker.stop();
+      this.logger.info({ tenant: worker.tenant.slug }, 'tenant worker stopped');
+    } catch (error) {
+      this.logger.error({ err: error, tenant: worker.tenant.slug }, 'tenant worker failed to stop');
+    }
+  }
+
+  private async startOne(tenant: TenantRuntimeConfig): Promise<void> {
+    try {
+      const worker = await this.start(tenant);
+      this.entries.set(tenant.id, { fingerprint: fingerprintOf(tenant), worker });
+      this.logger.info({ tenant: tenant.slug }, 'tenant worker started');
+    } catch (error) {
+      this.logger.error({ err: error, tenant: tenant.slug }, 'tenant worker failed to start');
     }
   }
 }

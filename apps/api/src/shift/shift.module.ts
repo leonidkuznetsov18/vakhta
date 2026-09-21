@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { currentSettings, lateBound } from '../infra/tenant-context.js';
 import { ConfigService } from '@nestjs/config';
 import { AttendanceModule } from '../attendance/attendance.module.js';
 import { HandoverRepository } from '../handover/handover.repository.js';
@@ -18,18 +19,23 @@ import { ShiftAutoCloseService } from './shift-auto-close.service.js';
     HandoverRepository,
     {
       provide: SHIFT_OPTIONS,
-      useFactory: (config: ConfigService<Env, true>): ShiftOptions => ({
-        breakMinutes: config.get('BREAK_MINUTES', { infer: true }),
-        mealMinutes: config.get('MEAL_MINUTES', { infer: true }),
-        serviceTimeMinutes: config.get('SERVICE_TIME_MINUTES', { infer: true }),
-        downtimeEscalationMinutes: config.get('DOWNTIME_ESCALATION_MINUTES', { infer: true }),
-        graceMinutes: config.get('SHIFT_GRACE_MINUTES', { infer: true }),
-        earlyStartWindowMinutes: config.get('EARLY_START_WINDOW_MINUTES', { infer: true }),
-        overtimeThresholdMinutes: config.get('OVERTIME_THRESHOLD_MINUTES', { infer: true }),
-        defaultTimezone: config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
-        cleaningReminderMinutes: config.get('CLEANING_REMINDER_MINUTES', { infer: true }),
-        autoCloseGraceMinutes: config.get('AUTO_CLOSE_GRACE_MINUTES', { infer: true }),
-      }),
+      // Per-tenant parameters (spec AC-028), read at use time inside the tenant context.
+      useFactory: (config: ConfigService<Env, true>): ShiftOptions =>
+        lateBound(() => {
+          const s = currentSettings();
+          return {
+            breakMinutes: s.breakMinutes,
+            mealMinutes: s.mealMinutes,
+            serviceTimeMinutes: s.serviceTimeMinutes,
+            downtimeEscalationMinutes: s.downtimeEscalationMinutes,
+            graceMinutes: s.graceMinutes,
+            earlyStartWindowMinutes: s.earlyStartWindowMinutes,
+            overtimeThresholdMinutes: s.overtimeThresholdMinutes,
+            defaultTimezone: config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
+            cleaningReminderMinutes: s.cleaningReminderMinutes,
+            autoCloseGraceMinutes: s.autoCloseGraceMinutes,
+          };
+        }),
       inject: [ConfigService],
     },
   ],

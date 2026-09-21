@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import type { Env } from '../config/env.js';
+import { currentSettings, lateBound } from '../infra/tenant-context.js';
 import { IncidentsModule } from '../incidents/incidents.module.js';
 import { ShiftModule } from '../shift/shift.module.js';
 import { AdminHandoverController } from './admin-handover.controller.js';
@@ -16,10 +15,12 @@ import { MediaModule } from './media.module.js';
     HandoverChanges,
     {
       provide: HANDOVER_OPTIONS,
-      useFactory: (config: ConfigService<Env, true>): HandoverOptions => ({
-        reviewWindowMinutes: config.get('HANDOVER_REVIEW_WINDOW_MINUTES', { infer: true }),
-      }),
-      inject: [ConfigService],
+      // Per-tenant parameters (spec AC-028), read at use time inside the tenant context.
+      useFactory: (): HandoverOptions =>
+        lateBound(() => {
+          const s = currentSettings();
+          return { reviewWindowMinutes: s.handoverReviewWindowMinutes };
+        }),
     },
   ],
   exports: [HandoverService, MediaModule, HandoverChanges],

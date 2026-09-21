@@ -26,7 +26,7 @@ import { IncidentsService } from '../incidents/incidents.service.js';
 import { BonusService } from '../bonus/bonus.service.js';
 import { RequestsService } from '../requests/requests.service.js';
 import { SHORT_TERM_STORE, type ShortTermStore } from '../infra/short-term-store.js';
-import { runWithTenant } from '../infra/tenant-context.js';
+import { currentSettings } from '../infra/tenant-context.js';
 import { TenantRuntimeRegistry } from '../infra/tenant-runtime.js';
 import { ShiftChanges } from '../shift/shift-changes.js';
 import { ShiftService } from '../shift/shift.service.js';
@@ -160,7 +160,10 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
       handover: this.handover,
       requests: this.requests,
       bonus: this.bonus,
-      appealWindowDays: this.config.get('APPEAL_WINDOW_DAYS', { infer: true }),
+      // Read at use time inside the tenant context, so a settings change applies without a restart.
+      get appealWindowDays() {
+        return currentSettings().appealWindowDays;
+      },
       store: this.store,
       dedup: this.dedup,
       defaultTimezone: tenant.timezone,
@@ -222,7 +225,7 @@ export class TelegramService implements OnModuleInit, OnApplicationShutdown {
   private inTenant<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
     const runtime = this.tenants.byId(tenantId);
     if (!runtime) throw new ServiceUnavailableException('Tenant is not served');
-    return runWithTenant(runtime, fn);
+    return this.tenants.enter(runtime, fn);
   }
 
   /** Deep link to the support assistant, when a bot is configured for it. */

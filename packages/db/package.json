@@ -27,6 +27,7 @@
     "migrate:tenants": "node --env-file-if-exists=../../.env dist/migrate-tenants.js"
   },
   "dependencies": {
+    "@vakhta/contracts": "workspace:*",
     "@vakhta/domain": "workspace:*",
     "@vakhta/registry": "workspace:*",
     "drizzle-orm": "^0.44.0",

@@ -11,15 +11,25 @@ import { AuditTab, BotTab, DangerTab, DatabaseTab, DomainsTab } from './workspac
 import { JobCard } from './workspace/jobs';
 import { ModulesTab } from './workspace/modules';
 import { OverviewTab } from './workspace/overview';
+import { ParametersTab } from './workspace/parameters';
 
 export type WorkspaceTab =
-  'overview' | 'modules' | 'database' | 'bot' | 'domains' | 'jobs' | 'audit' | 'danger';
+  | 'overview'
+  | 'modules'
+  | 'database'
+  | 'bot'
+  | 'domains'
+  | 'parameters'
+  | 'jobs'
+  | 'audit'
+  | 'danger';
 export const WORKSPACE_TABS: readonly WorkspaceTab[] = [
   'overview',
   'modules',
   'database',
   'bot',
   'domains',
+  'parameters',
   'jobs',
   'audit',
   'danger',
@@ -63,6 +73,7 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
     database: () => <DatabaseTab detail={detail} />,
     bot: () => <BotTab detail={detail} onChanged={refresh} />,
     domains: () => <DomainsTab detail={detail} onChanged={refresh} />,
+    parameters: () => <ParametersTab tenantId={id} />,
     jobs: () => (
       <JobsPanel
         jobs={jobs.data}

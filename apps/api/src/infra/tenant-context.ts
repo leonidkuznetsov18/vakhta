@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Database } from '@vakhta/db';
+import type { TenantSettings } from '@vakhta/contracts';
 import type { TenantRuntimeConfig } from '@vakhta/registry';
 import type { Auth, AuthConfig } from '../auth/auth.config.js';
 import { DomainError } from '../common/domain-error.js';
@@ -16,6 +17,10 @@ export interface TenantRuntime {
   readonly auth: Auth;
   readonly authConfig: AuthConfig;
   readonly store: ShortTermStore;
+  /** Section-18 parameters: defaults overlaid by the tenant's overrides (spec AC-028). */
+  settings: TenantSettings;
+  /** Epoch ms of the last successful settings load; 0 before the first one. */
+  settingsLoadedAt: number;
   close(): Promise<void>;
 }
 
@@ -33,6 +38,11 @@ export function currentTenantOrNull(): TenantRuntime | null {
 /** Object-key prefix of the current tenant; a naming concern, so it tolerates missing context. */
 export function currentStoragePrefix(): string {
   return storage.getStore()?.tenant.storagePrefix ?? '';
+}
+
+/** The current tenant's operational parameters; fails closed like every tenant accessor. */
+export function currentSettings(): TenantSettings {
+  return currentTenant().settings;
 }
 
 /** Fails closed: there is no default tenant to fall back to (spec AC-009). */

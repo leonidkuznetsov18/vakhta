@@ -6,6 +6,7 @@ import {
   type TenantRuntimeConfig,
   type TenantSource,
 } from '@vakhta/registry';
+import { TENANT_SETTING_DEFAULTS } from '@vakhta/contracts';
 import { TenantWorkerPool, type TenantWorker } from './pool.js';
 import { resolveJobTenantId } from './resolve.js';
 
@@ -38,9 +39,15 @@ function tenant(id: string, over: Partial<TenantRuntimeConfig> = {}): TenantRunt
   return { ...tenantFromEnv({ DATABASE_URL: `postgres://db/${id}` }), id, slug: id, ...over };
 }
 
-function fakeWorker(t: TenantRuntimeConfig, stopped: string[]): TenantWorker {
+function fakeWorker(
+  t: TenantRuntimeConfig,
+  stopped: string[],
+  changed = () => false,
+): TenantWorker {
   return {
     tenant: t,
+    settings: TENANT_SETTING_DEFAULTS,
+    settingsChanged: () => Promise.resolve(changed()),
     db: Object.create(null) as TenantWorker['db'],
     mediaDeps: null,
     tick: async () => {},
@@ -52,7 +59,7 @@ function fakeWorker(t: TenantRuntimeConfig, stopped: string[]): TenantWorker {
 
 const A = 'a0000000-0000-4000-8000-000000000001';
 const B = 'a0000000-0000-4000-8000-000000000002';
-const logger = { info: vi.fn(), error: vi.fn() };
+const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
 describe('TenantWorkerPool', () => {
   it('starts a worker per serving tenant, restarts on a changed secret and stops removed tenants', async () => {
@@ -61,7 +68,7 @@ describe('TenantWorkerPool', () => {
     const started: string[] = [];
     const pool = new TenantWorkerPool(
       source,
-      (t) => {
+      async (t) => {
         started.push(t.id);
         return fakeWorker(t, stopped);
       },
@@ -90,7 +97,7 @@ describe('TenantWorkerPool', () => {
     const source = new FakeSource();
     const pool = new TenantWorkerPool(
       source,
-      (t) => {
+      async (t) => {
         if (t.id === A) throw new Error('boom');
         return fakeWorker(t, []);
       },
@@ -101,6 +108,31 @@ describe('TenantWorkerPool', () => {
     expect(pool.get(A)).toBeNull();
     expect(pool.get(B)).not.toBeNull();
     expect(logger.error).toHaveBeenCalled();
+  });
+});
+
+describe('TenantWorkerPool settings', () => {
+  it('restarts a tenant worker when its stored settings change and leaves the others running', async () => {
+    const source = new FakeSource();
+    const stopped: string[] = [];
+    const started: string[] = [];
+    let alphaChanged = false;
+    const pool = new TenantWorkerPool(
+      source,
+      async (t) => {
+        started.push(t.id);
+        return fakeWorker(t, stopped, () => t.id === A && alphaChanged);
+      },
+      logger,
+    );
+    source.set([tenant(A), tenant(B)]);
+    await pool.sync();
+    await pool.sync();
+    expect(started).toEqual([A, B]);
+    alphaChanged = true;
+    await pool.sync();
+    expect(stopped).toEqual([A]);
+    expect(started).toEqual([A, B, A]);
   });
 });
 

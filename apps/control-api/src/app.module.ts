@@ -14,6 +14,8 @@ import { ProvisioningService } from './provisioning/provisioning.service.js';
 import { ProvisioningRunner } from './provisioning/runner.js';
 import { TelegramProvider } from './provisioning/telegram.provider.js';
 import { PublicController } from './public/public.controller.js';
+import { TenantSettingsController } from './settings/tenant-settings.controller.js';
+import { TenantSettingsService } from './settings/tenant-settings.service.js';
 import { TenantsController } from './tenants/tenants.controller.js';
 import { TenantsService } from './tenants/tenants.service.js';
 
@@ -32,6 +34,7 @@ import { TenantsService } from './tenants/tenants.service.js';
     PublicController,
     OnboardingController,
     TenantsController,
+    TenantSettingsController,
     JobsController,
     OperatorsController,
   ],
@@ -43,6 +46,7 @@ import { TenantsService } from './tenants/tenants.service.js';
     ProvisioningService,
     ProvisioningRunner,
     TenantsService,
+    TenantSettingsService,
   ],
 })
 export class AppModule {}

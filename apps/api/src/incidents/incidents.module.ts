@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import type { Env } from '../config/env.js';
+import { currentSettings, lateBound } from '../infra/tenant-context.js';
 import { MediaModule } from '../handover/media.module.js';
 import { ShiftModule } from '../shift/shift.module.js';
 import { AdminIncidentsController } from './admin-incidents.controller.js';
@@ -15,14 +14,18 @@ import { INCIDENT_OPTIONS, IncidentsService, type IncidentOptions } from './inci
     IncidentChanges,
     {
       provide: INCIDENT_OPTIONS,
-      useFactory: (config: ConfigService<Env, true>): IncidentOptions => ({
-        sla: {
-          normalMinutes: config.get('INCIDENT_SLA_NORMAL_MINUTES', { infer: true }),
-          criticalMinutes: config.get('INCIDENT_SLA_CRITICAL_MINUTES', { infer: true }),
-          safetyMinutes: config.get('INCIDENT_SLA_SAFETY_MINUTES', { infer: true }),
-        },
-      }),
-      inject: [ConfigService],
+      // Per-tenant parameters (spec AC-028), read at use time inside the tenant context.
+      useFactory: (): IncidentOptions =>
+        lateBound(() => {
+          const s = currentSettings();
+          return {
+            sla: {
+              normalMinutes: s.incidentSlaNormalMinutes,
+              criticalMinutes: s.incidentSlaCriticalMinutes,
+              safetyMinutes: s.incidentSlaSafetyMinutes,
+            },
+          };
+        }),
     },
   ],
   exports: [IncidentsService, IncidentChanges],

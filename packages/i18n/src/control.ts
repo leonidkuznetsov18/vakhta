@@ -1,3 +1,33 @@
+/** Mirrors the keys of TenantSettings in @vakhta/contracts; the i18n parity test keeps catalogs complete. */
+type TenantSettingName =
+  | 'arriveBeforeMinutes'
+  | 'departAfterMinutes'
+  | 'earlyStartWindowMinutes'
+  | 'graceMinutes'
+  | 'overtimeThresholdMinutes'
+  | 'autoCloseGraceMinutes'
+  | 'breakMinutes'
+  | 'mealMinutes'
+  | 'serviceTimeMinutes'
+  | 'downtimeEscalationMinutes'
+  | 'incidentSlaNormalMinutes'
+  | 'incidentSlaCriticalMinutes'
+  | 'incidentSlaSafetyMinutes'
+  | 'cleaningReminderMinutes'
+  | 'handoverReviewWindowMinutes'
+  | 'qrRotationSeconds'
+  | 'qrTtlSeconds'
+  | 'mediaMinWidth'
+  | 'mediaMinHeight'
+  | 'mediaMinBrightness'
+  | 'mediaNearDuplicateDistance'
+  | 'mediaRetentionDays'
+  | 'shiftReminderMinutes'
+  | 'ackReminderHours'
+  | 'appealWindowDays';
+type TenantSettingGroupName =
+  'presence' | 'shift' | 'breaks' | 'incidents' | 'handover' | 'kiosk' | 'photos';
+
 /** Control panel (Vakhta Control) texts: operators only, still trilingual (AGENTS.md). */
 export interface ControlMessages {
   readonly productName: string;
@@ -62,7 +92,15 @@ export interface ControlMessages {
   };
   readonly workspace: {
     tabs: Record<
-      'overview' | 'modules' | 'database' | 'bot' | 'domains' | 'jobs' | 'audit' | 'danger',
+      | 'overview'
+      | 'modules'
+      | 'database'
+      | 'bot'
+      | 'domains'
+      | 'parameters'
+      | 'jobs'
+      | 'audit'
+      | 'danger',
       string
     >;
     onboardingTitle: string;
@@ -158,6 +196,25 @@ export interface ControlMessages {
     title: string;
     columns: { email: string; name: string; role: string; status: string; totp: string };
     roles: Record<'PLATFORM_ADMIN' | 'PLATFORM_VIEWER', string>;
+  };
+  readonly settings: {
+    title: string;
+    hint: string;
+    groups: Record<TenantSettingGroupName, string>;
+    labels: Record<TenantSettingName, string>;
+    defaultValue: string;
+    overridden: string;
+    reset: string;
+    resetAll: string;
+    save: string;
+    saved: string;
+    invalidStored: string;
+    clearInvalid: string;
+    readOnly: string;
+    notInteger: string;
+    outOfRange: string;
+    qrTtlTooShort: string;
+    notProvisioned: string;
   };
   readonly common: {
     loading: string;
@@ -260,6 +317,7 @@ export const controlUk: ControlMessages = {
       domains: 'Домени',
       jobs: 'Задачі',
       audit: 'Аудит',
+      parameters: 'Параметри',
       danger: 'Небезпечна зона',
     },
     onboardingTitle: 'Посилання для клієнта',
@@ -367,6 +425,60 @@ export const controlUk: ControlMessages = {
     columns: { email: 'E-mail', name: 'Ім’я', role: 'Роль', status: 'Статус', totp: 'TOTP' },
     roles: { PLATFORM_ADMIN: 'Адміністратор платформи', PLATFORM_VIEWER: 'Перегляд' },
   },
+  settings: {
+    title: 'Параметри виробництва',
+    hint: 'Значення зберігаються в базі клієнта. Змінені значення позначені, «Скинути» повертає платформне значення. Зміни діють на серверах клієнта протягом хвилини, без деплою, і потрапляють в аудит.',
+    groups: {
+      presence: 'Присутність',
+      shift: 'Зміна і нагадування',
+      breaks: 'Перерви',
+      incidents: 'Простої та інциденти',
+      handover: 'Прибирання, передача, апеляції',
+      kiosk: 'Кіоск',
+      photos: 'Фото',
+    },
+    labels: {
+      arriveBeforeMinutes: 'Прихід до зміни, хв',
+      departAfterMinutes: 'Відхід після зміни, хв',
+      earlyStartWindowMinutes: 'Ранній старт, хв',
+      graceMinutes: 'Пільга запізнення, хв',
+      overtimeThresholdMinutes: 'Поріг переробки, хв',
+      autoCloseGraceMinutes: 'Автозакриття після кінця зміни, хв',
+      breakMinutes: 'Перерва, хв',
+      mealMinutes: 'Обід, хв',
+      serviceTimeMinutes: 'Службовий час, хв',
+      downtimeEscalationMinutes: 'Ескалація простою, хв',
+      incidentSlaNormalMinutes: 'SLA звичайного інциденту, хв',
+      incidentSlaCriticalMinutes: 'SLA критичного інциденту, хв',
+      incidentSlaSafetyMinutes: 'SLA інциденту безпеки, хв',
+      cleaningReminderMinutes: 'Нагадування про прибирання, хв',
+      handoverReviewWindowMinutes: 'Вікно перевірки передачі, хв',
+      qrRotationSeconds: 'Ротація QR, с',
+      qrTtlSeconds: 'Термін дії QR, с',
+      mediaMinWidth: 'Мінімальна ширина фото, px',
+      mediaMinHeight: 'Мінімальна висота фото, px',
+      mediaMinBrightness: 'Мінімальна яскравість фото (0–255)',
+      mediaNearDuplicateDistance: 'Поріг схожості дублів (0–64)',
+      mediaRetentionDays: 'Зберігати фото, днів',
+      shiftReminderMinutes: 'Нагадування до зміни, хв',
+      ackReminderHours: 'Повторне нагадування про графік, год',
+      appealWindowDays: 'Строк апеляції, робочих днів',
+    },
+    defaultValue: 'за замовчуванням: {value}',
+    overridden: 'змінено',
+    reset: 'Скинути',
+    resetAll: 'Усе за замовчуванням',
+    save: 'Зберегти',
+    saved: 'Параметри збережено',
+    invalidStored:
+      'У базі клієнта некоректні значення, застосовано значення за замовчуванням: {keys}',
+    clearInvalid: 'Видалити некоректні значення',
+    readOnly: 'Змінювати параметри може лише адміністратор платформи.',
+    notInteger: 'Ціле число',
+    outOfRange: 'Допустимо від {min} до {max}',
+    qrTtlTooShort: 'Термін дії QR не може бути коротшим за його ротацію.',
+    notProvisioned: 'База клієнта ще не створена: параметри з’являться після підготовки.',
+  },
   common: {
     loading: 'Завантаження…',
     retry: 'Повторити',
@@ -468,6 +580,7 @@ export const controlEn: ControlMessages = {
       domains: 'Domains',
       jobs: 'Jobs',
       audit: 'Audit',
+      parameters: 'Parameters',
       danger: 'Danger zone',
     },
     onboardingTitle: 'Link for the client',
@@ -575,6 +688,59 @@ export const controlEn: ControlMessages = {
     columns: { email: 'E-mail', name: 'Name', role: 'Role', status: 'Status', totp: 'TOTP' },
     roles: { PLATFORM_ADMIN: 'Platform administrator', PLATFORM_VIEWER: 'Viewer' },
   },
+  settings: {
+    title: 'Operating parameters',
+    hint: 'Values are stored in the client database. Changed values are marked, and “Reset” returns the platform default. Changes reach the client servers within a minute, without a deploy, and are audited.',
+    groups: {
+      presence: 'Presence',
+      shift: 'Shift and reminders',
+      breaks: 'Breaks',
+      incidents: 'Downtime and incidents',
+      handover: 'Cleaning, handover, appeals',
+      kiosk: 'Kiosk',
+      photos: 'Photos',
+    },
+    labels: {
+      arriveBeforeMinutes: 'Arrival before the shift, min',
+      departAfterMinutes: 'Departure after the shift, min',
+      earlyStartWindowMinutes: 'Early start, min',
+      graceMinutes: 'Lateness grace, min',
+      overtimeThresholdMinutes: 'Overtime threshold, min',
+      autoCloseGraceMinutes: 'Auto-close after shift end, min',
+      breakMinutes: 'Break, min',
+      mealMinutes: 'Meal, min',
+      serviceTimeMinutes: 'Service time, min',
+      downtimeEscalationMinutes: 'Downtime escalation, min',
+      incidentSlaNormalMinutes: 'Normal incident SLA, min',
+      incidentSlaCriticalMinutes: 'Critical incident SLA, min',
+      incidentSlaSafetyMinutes: 'Safety incident SLA, min',
+      cleaningReminderMinutes: 'Cleaning reminder, min',
+      handoverReviewWindowMinutes: 'Handover review window, min',
+      qrRotationSeconds: 'QR rotation, s',
+      qrTtlSeconds: 'QR lifetime, s',
+      mediaMinWidth: 'Minimum photo width, px',
+      mediaMinHeight: 'Minimum photo height, px',
+      mediaMinBrightness: 'Minimum photo brightness (0–255)',
+      mediaNearDuplicateDistance: 'Near-duplicate threshold (0–64)',
+      mediaRetentionDays: 'Keep photos, days',
+      shiftReminderMinutes: 'Reminder before a shift, min',
+      ackReminderHours: 'Schedule acknowledgement reminder, h',
+      appealWindowDays: 'Appeal window, working days',
+    },
+    defaultValue: 'default: {value}',
+    overridden: 'changed',
+    reset: 'Reset',
+    resetAll: 'All to defaults',
+    save: 'Save',
+    saved: 'Parameters saved',
+    invalidStored: 'The client database holds invalid values; defaults apply: {keys}',
+    clearInvalid: 'Remove invalid values',
+    readOnly: 'Only a platform administrator can change parameters.',
+    notInteger: 'Whole number',
+    outOfRange: 'Allowed from {min} to {max}',
+    qrTtlTooShort: 'The QR lifetime cannot be shorter than its rotation.',
+    notProvisioned: 'The client database does not exist yet: parameters appear after provisioning.',
+  },
   common: {
     loading: 'Loading…',
     retry: 'Retry',
@@ -676,6 +842,7 @@ export const controlRu: ControlMessages = {
       domains: 'Домены',
       jobs: 'Задачи',
       audit: 'Аудит',
+      parameters: 'Параметры',
       danger: 'Опасная зона',
     },
     onboardingTitle: 'Ссылка для клиента',
@@ -782,6 +949,59 @@ export const controlRu: ControlMessages = {
     title: 'Операторы',
     columns: { email: 'E-mail', name: 'Имя', role: 'Роль', status: 'Статус', totp: 'TOTP' },
     roles: { PLATFORM_ADMIN: 'Администратор платформы', PLATFORM_VIEWER: 'Просмотр' },
+  },
+  settings: {
+    title: 'Параметры производства',
+    hint: 'Значения хранятся в базе клиента. Изменённые значения отмечены, «Сбросить» возвращает платформенное значение. Изменения действуют на серверах клиента в течение минуты, без деплоя, и попадают в аудит.',
+    groups: {
+      presence: 'Присутствие',
+      shift: 'Смена и напоминания',
+      breaks: 'Перерывы',
+      incidents: 'Простои и инциденты',
+      handover: 'Уборка, передача, апелляции',
+      kiosk: 'Киоск',
+      photos: 'Фото',
+    },
+    labels: {
+      arriveBeforeMinutes: 'Приход до смены, мин',
+      departAfterMinutes: 'Уход после смены, мин',
+      earlyStartWindowMinutes: 'Ранний старт, мин',
+      graceMinutes: 'Льгота опоздания, мин',
+      overtimeThresholdMinutes: 'Порог переработки, мин',
+      autoCloseGraceMinutes: 'Автозакрытие после конца смены, мин',
+      breakMinutes: 'Перерыв, мин',
+      mealMinutes: 'Обед, мин',
+      serviceTimeMinutes: 'Служебное время, мин',
+      downtimeEscalationMinutes: 'Эскалация простоя, мин',
+      incidentSlaNormalMinutes: 'SLA обычного инцидента, мин',
+      incidentSlaCriticalMinutes: 'SLA критического инцидента, мин',
+      incidentSlaSafetyMinutes: 'SLA инцидента безопасности, мин',
+      cleaningReminderMinutes: 'Напоминание об уборке, мин',
+      handoverReviewWindowMinutes: 'Окно проверки передачи, мин',
+      qrRotationSeconds: 'Ротация QR, с',
+      qrTtlSeconds: 'Срок действия QR, с',
+      mediaMinWidth: 'Минимальная ширина фото, px',
+      mediaMinHeight: 'Минимальная высота фото, px',
+      mediaMinBrightness: 'Минимальная яркость фото (0–255)',
+      mediaNearDuplicateDistance: 'Порог похожести дублей (0–64)',
+      mediaRetentionDays: 'Хранить фото, дней',
+      shiftReminderMinutes: 'Напоминание до смены, мин',
+      ackReminderHours: 'Повторное напоминание о графике, ч',
+      appealWindowDays: 'Срок апелляции, рабочих дней',
+    },
+    defaultValue: 'по умолчанию: {value}',
+    overridden: 'изменено',
+    reset: 'Сбросить',
+    resetAll: 'Всё по умолчанию',
+    save: 'Сохранить',
+    saved: 'Параметры сохранены',
+    invalidStored: 'В базе клиента некорректные значения, применены значения по умолчанию: {keys}',
+    clearInvalid: 'Удалить некорректные значения',
+    readOnly: 'Менять параметры может только администратор платформы.',
+    notInteger: 'Целое число',
+    outOfRange: 'Допустимо от {min} до {max}',
+    qrTtlTooShort: 'Срок действия QR не может быть короче его ротации.',
+    notProvisioned: 'База клиента ещё не создана: параметры появятся после подготовки.',
   },
   common: {
     loading: 'Загрузка…',

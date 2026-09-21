@@ -54,7 +54,10 @@ export function registerTenantHook(
     }
     request.tenantRuntime = runtime;
     request.log = request.log.child({ tenant: runtime.tenant.slug });
-    runWithTenant(runtime, done);
+    // prepare() never rejects: a settings read failure keeps the previous values.
+    void registry()
+      .prepare(runtime)
+      .then(() => runWithTenant(runtime, done));
   });
 }
 

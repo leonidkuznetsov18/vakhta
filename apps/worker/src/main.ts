@@ -18,8 +18,9 @@ import {
   QUEUES,
   ReturnReminderJob,
   ShiftReminderJob,
+  type TenantSettings,
 } from '@vakhta/contracts';
-import { createDatabase, type Database } from '@vakhta/db';
+import { createDatabase, databaseErrorCode, type Database } from '@vakhta/db';
 import { TIMER_JOBS, TenancyMode, TenantSurface } from '@vakhta/domain';
 import { ENV_TENANT_ID, primaryHost, type TenantRuntimeConfig } from '@vakhta/registry';
 import { loadWorkerEnv } from './env.js';
@@ -36,6 +37,11 @@ import { handleIncidentSla } from './timers/incident-sla.js';
 import { handleDowntimeEscalation, handleReturnReminder } from './timers/shift-timers.js';
 import { TenantWorkerPool, type TenantWorker } from './tenants/pool.js';
 import { resolveJobTenantId } from './tenants/resolve.js';
+import {
+  loadWorkerSettings,
+  settingsFingerprint,
+  workerSettingsDefaults,
+} from './tenants/settings.js';
 import { openTenantSource } from './tenants/source.js';
 
 const env = loadWorkerEnv(process.env);
@@ -57,16 +63,18 @@ const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
 const mediaStore = S3MediaStore.fromEnv(env);
 const communicationFiles = PrivateCommunicationFiles.fromEnv(env);
 const inspectionAnalyzer = CloudflareInspectionAnalyzer.fromEnv(env);
-const recoveryOptions = TimerRecoveryOptions.parse({
-  shiftReminderMinutes: env.SHIFT_REMINDER_MINUTES,
-  ackReminderHours: env.ACK_REMINDER_HOURS,
-  breakMinutes: env.BREAK_MINUTES,
-  mealMinutes: env.MEAL_MINUTES,
-  serviceTimeMinutes: env.SERVICE_TIME_MINUTES,
-  downtimeEscalationMinutes: env.DOWNTIME_ESCALATION_MINUTES,
-  cleaningReminderMinutes: env.CLEANING_REMINDER_MINUTES,
-  autoCloseGraceMinutes: env.AUTO_CLOSE_GRACE_MINUTES,
-});
+function recoveryOptionsFor(settings: TenantSettings): TimerRecoveryOptions {
+  return TimerRecoveryOptions.parse({
+    shiftReminderMinutes: settings.shiftReminderMinutes,
+    ackReminderHours: settings.ackReminderHours,
+    breakMinutes: settings.breakMinutes,
+    mealMinutes: settings.mealMinutes,
+    serviceTimeMinutes: settings.serviceTimeMinutes,
+    downtimeEscalationMinutes: settings.downtimeEscalationMinutes,
+    cleaningReminderMinutes: settings.cleaningReminderMinutes,
+    autoCloseGraceMinutes: settings.autoCloseGraceMinutes,
+  });
+}
 // Optional legacy evidence reads only. Canonical PostgreSQL admission never depends on Redis.
 const legacyTimers = new Queue(QUEUES.timers, { connection });
 
@@ -78,19 +86,22 @@ function communicationsWebUrl(tenant: TenantRuntimeConfig): string {
   return host ? `${scheme}://${host}` : env.COMMUNICATIONS_WEB_URL;
 }
 
-function mediaDependenciesFor(tenant: TenantRuntimeConfig): MediaDependencies | null {
+function mediaDependenciesFor(
+  tenant: TenantRuntimeConfig,
+  settings: TenantSettings,
+): MediaDependencies | null {
   if (!mediaStore || !tenant.botToken) return null;
   return {
     fetcher: new TelegramFileFetcher(tenant.botToken),
     store: mediaStore,
     options: {
       thresholds: {
-        minWidth: env.MEDIA_MIN_WIDTH,
-        minHeight: env.MEDIA_MIN_HEIGHT,
-        minBrightness: env.MEDIA_MIN_BRIGHTNESS,
-        nearDuplicateDistance: env.MEDIA_NEAR_DUPLICATE_DISTANCE,
+        minWidth: settings.mediaMinWidth,
+        minHeight: settings.mediaMinHeight,
+        minBrightness: settings.mediaMinBrightness,
+        nearDuplicateDistance: settings.mediaNearDuplicateDistance,
       },
-      retentionDays: env.MEDIA_RETENTION_DAYS,
+      retentionDays: settings.mediaRetentionDays,
       keyPrefix: tenant.storagePrefix,
     },
   };
@@ -105,11 +116,14 @@ interface TenantRunners {
   stop(): Promise<void>;
 }
 
-function createRunners(
-  db: Database,
-  mediaDeps: MediaDependencies | null,
-  log: Logger,
-): TenantRunners {
+interface RunnerInput {
+  readonly db: Database;
+  readonly mediaDeps: MediaDependencies | null;
+  readonly settings: TenantSettings;
+  readonly log: Logger;
+}
+
+function createRunners({ db, mediaDeps, settings, log }: RunnerInput): TenantRunners {
   const mediaRunner = new MediaTaskRunner(db, mediaDeps, {
     completed(result) {
       if (result.claimed) log.info(result, 'durable media batch');
@@ -133,7 +147,7 @@ function createRunners(
   });
   const timerRunner = new TimerTaskRunner(
     db,
-    recoveryOptions,
+    recoveryOptionsFor(settings),
     {
       task(event) {
         log.info(event, 'durable timer outcome');
@@ -226,18 +240,36 @@ function createRelay(tenant: TenantRuntimeConfig, db: Database, log: Logger): Te
   };
 }
 
-function startTenantWorker(tenant: TenantRuntimeConfig): TenantWorker {
+async function startTenantWorker(tenant: TenantRuntimeConfig): Promise<TenantWorker> {
   const log = logger.child({ tenant: tenant.slug });
   const { db, client } = createDatabase(tenant.databaseUrl, { max: env.TENANT_POOL_MAX });
-  const mediaDeps = mediaDependenciesFor(tenant);
+  const defaults = workerSettingsDefaults(tenant, env);
+  const settings = await loadWorkerSettings(db, defaults).catch(async (error: unknown) => {
+    await client.end({ timeout: 5 });
+    throw error;
+  });
+  const mediaDeps = mediaDependenciesFor(tenant, settings);
   if (!mediaDeps) log.warn('Media dependencies unavailable: durable tasks remain retryable');
-  const runners = createRunners(db, mediaDeps, log);
+  const runners = createRunners({ db, mediaDeps, settings, log });
   const relay = createRelay(tenant, db, log);
   runners.start();
+  const started = settingsFingerprint(settings);
   return {
     tenant,
     db,
     mediaDeps,
+    settings,
+    // An unreadable database is not a change: the running worker keeps its settings.
+    async settingsChanged() {
+      const current = await loadWorkerSettings(db, defaults).catch((error: unknown) => {
+        log.warn(
+          { code: databaseErrorCode(error) },
+          'Tenant settings unavailable; current values kept',
+        );
+        return null;
+      });
+      return current !== null && settingsFingerprint(current) !== started;
+    },
     tick: () => relay.tick(),
     async stop() {
       await Promise.all([relay.drain(), runners.stop()]);
@@ -272,7 +304,9 @@ function tenantWorkerFor(job: Job): TenantWorker {
 }
 
 async function processTimer(job: Job): Promise<void> {
-  const db: Database = tenantWorkerFor(job).db;
+  const worker = tenantWorkerFor(job);
+  const db: Database = worker.db;
+  const graceMinutes = worker.settings.autoCloseGraceMinutes;
   switch (job.name) {
     case TIMER_JOBS.shiftReminder: {
       const outcome = await handleShiftReminder(db, ShiftReminderJob.parse(job.data));
@@ -289,7 +323,7 @@ async function processTimer(job: Job): Promise<void> {
         db,
         ReturnReminderJob.parse(job.data),
         undefined,
-        env.AUTO_CLOSE_GRACE_MINUTES,
+        graceMinutes,
       );
       logger.info({ job: job.name, jobId: job.id, outcome }, 'timer');
       return;
@@ -299,7 +333,7 @@ async function processTimer(job: Job): Promise<void> {
         db,
         DowntimeEscalationJob.parse(job.data),
         undefined,
-        env.AUTO_CLOSE_GRACE_MINUTES,
+        graceMinutes,
       );
       logger.info({ job: job.name, jobId: job.id, outcome }, 'timer');
       return;

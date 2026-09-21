@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import type { Env } from '../config/env.js';
+import { currentSettings, lateBound } from '../infra/tenant-context.js';
 import { AdminAttendanceController } from './admin-attendance.controller.js';
 import {
   ATTENDANCE_OPTIONS,
@@ -14,13 +13,17 @@ import {
     AttendanceService,
     {
       provide: ATTENDANCE_OPTIONS,
-      useFactory: (config: ConfigService<Env, true>): AttendanceOptions => ({
-        window: {
-          arriveBeforeMinutes: config.get('PRESENCE_ARRIVE_BEFORE_MINUTES', { infer: true }),
-          departAfterMinutes: config.get('PRESENCE_DEPART_AFTER_MINUTES', { infer: true }),
-        },
-      }),
-      inject: [ConfigService],
+      // Per-tenant parameters (spec AC-028), read at use time inside the tenant context.
+      useFactory: (): AttendanceOptions =>
+        lateBound(() => {
+          const s = currentSettings();
+          return {
+            window: {
+              arriveBeforeMinutes: s.arriveBeforeMinutes,
+              departAfterMinutes: s.departAfterMinutes,
+            },
+          };
+        }),
     },
   ],
   exports: [AttendanceService],

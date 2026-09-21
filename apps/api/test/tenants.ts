@@ -1,3 +1,4 @@
+import { TENANT_SETTING_DEFAULTS } from '@vakhta/contracts';
 import type { TenantRuntimeConfig } from '@vakhta/registry';
 import { ENV_TENANT_ID, EnvTenantSource, tenantFromEnv } from '@vakhta/registry';
 import type { TenantRuntime } from '../src/infra/tenant-context.js';
@@ -12,7 +13,15 @@ export function singleTenantRegistry(
   overrides: Partial<TenantRuntime> = {},
 ): TenantRuntimeRegistry {
   const tenant: TenantRuntimeConfig = tenantFromEnv({ DATABASE_URL: 'postgres://test' });
-  const runtime = Object.assign({ tenant, close: async () => {} }, overrides) as TenantRuntime;
+  const runtime = Object.assign(
+    {
+      tenant,
+      settings: { ...TENANT_SETTING_DEFAULTS },
+      settingsLoadedAt: Date.now(),
+      close: async () => {},
+    },
+    overrides,
+  ) as TenantRuntime;
   const source = new EnvTenantSource(tenant);
   const registry = {
     source,
@@ -21,6 +30,9 @@ export function singleTenantRegistry(
     bySlug: (slug: string) => (slug === tenant.slug ? runtime : null),
     runtimeFor: () => runtime,
     run: <T>(_id: string, fn: () => Promise<T>) => runWithTenant(runtime, fn),
+    enter: <T>(_runtime: TenantRuntime, fn: () => T | Promise<T>) =>
+      Promise.resolve(runWithTenant(runtime, fn)),
+    prepare: () => Promise.resolve(),
     forEachActive: async (
       fn: (runtime: TenantRuntime) => Promise<void>,
       onError: (error: unknown, tenant: TenantRuntimeConfig) => void,

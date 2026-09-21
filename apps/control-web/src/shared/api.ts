@@ -5,12 +5,14 @@ import {
   OperatorView,
   ProvisioningJobView,
   TenantDetailView,
+  TenantSettingsView,
   TenantSummaryView,
   type AddDomainCommand,
   type CreateTenantCommand,
   type SetBotTokenCommand,
   type SetModuleCommand,
   type UpdateTenantCommand,
+  type UpdateTenantSettingsCommand,
 } from '@vakhta/contracts';
 
 function envString(name: string, fallback: string): string {
@@ -107,6 +109,12 @@ export const controlApi = {
     request(ProvisioningJobView, `/control/jobs/${jobId}/steps/${step}/skip`, json({})),
   catalog: () => request(z.array(ModuleCatalogEntry), '/control/tenants/modules/catalog'),
   operators: () => request(z.array(OperatorView), '/control/operators'),
+  settings: (id: string) => request(TenantSettingsView, `/control/tenants/${id}/settings`),
+  updateSettings: (id: string, cmd: UpdateTenantSettingsCommand) =>
+    request(TenantSettingsView, `/control/tenants/${id}/settings`, {
+      method: 'PUT',
+      body: JSON.stringify(cmd),
+    }),
 };
 
 export const queryKeys = {
@@ -116,4 +124,5 @@ export const queryKeys = {
   jobs: (id: string) => ['tenants', id, 'jobs'] as const,
   audit: (id: string) => ['tenants', id, 'audit'] as const,
   operators: ['operators'] as const,
+  settings: (id: string) => ['tenants', id, 'settings'] as const,
 };

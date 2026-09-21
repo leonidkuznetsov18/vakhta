@@ -240,11 +240,38 @@ Railway CLI and Cloudflare credentials supplied the deployment operations.
   PostgreSQL 16 drill recorded in `docs/runbooks/recovery.md`: counts identical after restore, no
   foreign-owned objects, the tenant URL works after the rename swap. Production drill not run.
 
+## Tenant settings (T023, 2026-09-21)
+
+- Catalog: `packages/contracts/src/tenant-settings.ts` (25 section-18 keys, zod ranges, groups,
+  defaults, cross-field rule QR lifetime >= rotation). Overrides are rows of the tenant `settings`
+  table, scope `global`, key `tenant.<name>`. Out-of-range rows, and a stored QR pair that breaks
+  the rule, fall back to defaults and are reported as invalid.
+- Defaults: the pilot (reserved env identity) keeps its deployment env values; every other tenant
+  uses the catalog. Rollout effect: SuperFactory moves from the shared API env values to the
+  catalog defaults; set overrides on its Parameters tab if it needs the production env values.
+- API: each `TenantRuntime` holds its settings; `enter`/`prepare` reload them when older than
+  `REGISTRY_REFRESH_SECONDS`, deduplicate loads, and keep the last values on failure (also across
+  a runtime rebuild). Module options are `lateBound` reads of `currentSettings()`, so no deploy.
+- Worker: a tenant worker starts only after its settings load (a failed read fails the start and
+  the next sync retries); each sync restarts a worker whose settings changed. An unreadable
+  database is never treated as a change.
+- control-api: `GET/PUT /control/tenants/:id/settings`, PUT for PLATFORM_ADMIN. The write takes a
+  per-database advisory lock, reads, checks the cross-field rule and writes in one transaction;
+  the registry audit follows. An audit failure is returned as an error and logged with the change.
+- control-web Parameters tab: sparse edits over the latest server values (a refetch never discards
+  input), inline zod range and cross-field errors, Save/All-to-defaults disabled when they change
+  nothing, per-field Reset, and a "Remove invalid values" action for unusable stored rows.
+- Evidence: contracts 5, control-api settings e2e 6 (incl. concurrent writers), API isolation e2e
+  "applies each tenant its own settings" (AC-028), worker pool 4; local browser QA at 1440 and
+  390 px. Independent review (T026) found worker restart-on-read-failure, the non-atomic
+  cross-field check, rebuild-to-defaults, unlogged audit failure, draft loss on refetch and
+  uncleanable invalid rows; all fixed before delivery.
+
 ## Remaining work
 
-Next: T023 tenant settings and the parameters tab, T031 module/branding surfaces, and remaining
+Next: T031 module/branding surfaces and remaining
 workspace actions, branding/operator edits, FSD ownership and table pagination (T027). T026 has
-browser and auth/provisioning review evidence; settings-write review depends on T023. The runtime,
+browser, auth/provisioning and settings-write review evidence. The runtime,
 welcome page, control hosting and production registry cutover are deployed. T018/T033 retain the
 unperformed physical-device/Telegram journeys and owner password acceptance. Automatic provider
 adapters and domain/deletion lifecycle remain pending; tenant backup code is recorded above.

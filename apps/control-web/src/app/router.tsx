@@ -111,7 +111,17 @@ const createRoute_ = createRoute({
 });
 const workspaceSearch = z.object({
   tab: z
-    .enum(['overview', 'modules', 'database', 'bot', 'domains', 'jobs', 'audit', 'danger'])
+    .enum([
+      'overview',
+      'modules',
+      'database',
+      'bot',
+      'domains',
+      'parameters',
+      'jobs',
+      'audit',
+      'danger',
+    ])
     .default('overview'),
 });
 const workspaceRoute = createRoute({

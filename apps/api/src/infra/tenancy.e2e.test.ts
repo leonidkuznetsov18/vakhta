@@ -16,8 +16,10 @@ import {
   migrateTenantDatabase,
   qrTerminals,
   seedTenantDefaults,
+  settings,
   sql,
 } from '@vakhta/db';
+import { TENANT_SETTING_DEFAULTS } from '@vakhta/contracts';
 import { hashDeviceToken } from '@vakhta/domain/node';
 import {
   SecretCipher,
@@ -245,6 +247,44 @@ describe('tenancy: every request is bound to exactly one tenant', () => {
       headers: { host: b.apiHost, 'x-device-token': DEVICE_TOKEN },
     });
     expect(crossed.statusCode).toBe(401);
+  });
+
+  it('applies each tenant its own settings from its database (AC-028)', async () => {
+    const alpha = createDatabase(a.url, { max: 1 });
+    try {
+      await alpha.db.insert(settings).values([
+        { scope: 'global', key: 'tenant.qrRotationSeconds', value: 30 },
+        // An invalid stored value falls back to the default instead of breaking the tenant.
+        { scope: 'global', key: 'tenant.qrTtlSeconds', value: 'soon' },
+      ]);
+    } finally {
+      await alpha.client.end({ timeout: 5 });
+    }
+    const runtimes = app.get(TenantRuntimeRegistry);
+    const alphaRuntime = runtimes.byId(a.id);
+    const bravoRuntime = runtimes.byId(b.id);
+    if (!alphaRuntime || !bravoRuntime) throw new Error('Missing tenant runtime');
+    alphaRuntime.settingsLoadedAt = 0;
+    const challenge = await app.inject({
+      method: 'GET',
+      url: '/kiosk/challenge',
+      headers: { host: a.apiHost, 'x-device-token': DEVICE_TOKEN },
+    });
+    expect(challenge.statusCode).toBe(200);
+    expect(challenge.json()).toMatchObject({ rotationSeconds: 30 });
+    expect(alphaRuntime.settings.qrTtlSeconds).toBe(TENANT_SETTING_DEFAULTS.qrTtlSeconds);
+    await runtimes.prepare(bravoRuntime);
+    expect(bravoRuntime.settings).toEqual(TENANT_SETTING_DEFAULTS);
+
+    const cleanup = createDatabase(a.url, { max: 1 });
+    try {
+      await cleanup.db.delete(settings).where(eq(settings.scope, 'global'));
+    } finally {
+      await cleanup.client.end({ timeout: 5 });
+    }
+    alphaRuntime.settingsLoadedAt = 0;
+    await runtimes.prepare(alphaRuntime);
+    expect(alphaRuntime.settings.qrRotationSeconds).toBe(TENANT_SETTING_DEFAULTS.qrRotationSeconds);
   });
 
   it('accepts a webhook only on its own tenant host and only with that tenant secret (AC-008)', async () => {

@@ -1,4 +1,5 @@
 import { ScheduleExportService } from './schedule-export.service.js';
+import { currentSettings, lateBound } from '../infra/tenant-context.js';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.js';
@@ -34,11 +35,16 @@ import { AdminStaffingController } from './admin-staffing.controller.js';
     FeedService,
     {
       provide: SCHEDULE_OPTIONS,
-      useFactory: (config: ConfigService<Env, true>): ScheduleOptions => ({
-        shiftReminderMinutes: config.get('SHIFT_REMINDER_MINUTES', { infer: true }),
-        ackReminderHours: config.get('ACK_REMINDER_HOURS', { infer: true }),
-        defaultTimezone: config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
-      }),
+      // Per-tenant parameters (spec AC-028), read at use time inside the tenant context.
+      useFactory: (config: ConfigService<Env, true>): ScheduleOptions =>
+        lateBound(() => {
+          const s = currentSettings();
+          return {
+            shiftReminderMinutes: s.shiftReminderMinutes,
+            ackReminderHours: s.ackReminderHours,
+            defaultTimezone: config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
+          };
+        }),
       inject: [ConfigService],
     },
   ],
