@@ -666,4 +666,14 @@ Fourteen workspace regressions cover the single-list structure, disclosure, toke
 module, latest-job retry ownership and repeated provisioning with a skipped invitation. Local
 Control typecheck, scoped ESLint and production build passed. Desktop and 390px screenshots were
 captured and visually inspected; keyboard Enter expands the row with visible focus, and mobile
-content width equals 390. Production publication is verified separately after the shared push.
+content width equals 390. Control Pages deployment `6027d136` publishes source `e2989cf`.
+Authenticated production QA on the existing test tenant confirmed one list with seven rows,
+6 of 7 complete, keyboard disclosure and a Bot settings link. Desktop and mobile screenshots
+were captured and visually inspected (`test-results/tenant-onboarding/checklist-production-*.png`);
+mobile client and scroll width both equal 390px. The tenant was already suspended at verification;
+this UI check performed no tenant mutations. Full CI remains a separate delivery gate.
+
+The same publication includes `ec43626`, owned by the concurrent DangerTab cleanup task:
+remove the manual provisioning block while preserving automatic creation. Its owner verified
+Control typecheck, scoped ESLint/Prettier, the 14 workspace tests and synthetic ACTIVE desktop/mobile
+screenshots. No additional live state changes were made for that cleanup.

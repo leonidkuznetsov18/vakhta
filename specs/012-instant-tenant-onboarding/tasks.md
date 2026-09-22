@@ -57,4 +57,4 @@ application behavior remains in the reviewed scope. No extension hooks are insta
 
 ## Owner correction: one checklist
 
-- [ ] T017 Replace the separate bot warning and job cards in Tasks with one current checklist. Keep the missing-token row gray and expandable inside the list, include it in progress, preserve real job-step retry targets, and verify saved/disabled bot states plus desktop/mobile behavior (AC-003; owner correction 2026-09-22).
+- [x] T017 Replace the separate bot warning and job cards in Tasks with one current checklist. Keep the missing-token row gray and expandable inside the list, include it in progress, preserve real job-step retry targets, and verify saved/disabled bot states plus desktop/mobile behavior (AC-003; owner correction 2026-09-22).
