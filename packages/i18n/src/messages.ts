@@ -1168,7 +1168,6 @@ export interface Messages {
         readonly positionAssigned: string;
         readonly block: string;
         readonly unblock: string;
-        readonly terminate: string;
         readonly reinstate: string;
         readonly reinstateHint: string;
         readonly statusChanged: string;
@@ -1243,11 +1242,11 @@ export interface Messages {
         /** Placeholder: {name} */
         readonly deleteEmployeeConfirm: string;
         readonly employeeDeleted: string;
+        readonly employeeArchived: string;
         readonly deleteSelected: string;
         readonly deleteSelectedConfirm: string;
         readonly deletingSelected: string;
         readonly deleteSelectedResult: string;
-        readonly hasHistory: string;
       };
       readonly users: {
         readonly email: string;

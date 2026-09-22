@@ -38,7 +38,7 @@ import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
 import { Muted, Section, StatusPill, type Tone } from '@/components/app/page';
-import { ApiError, adminEmployeesApi, checklistsApi } from '../api.ts';
+import { adminEmployeesApi, checklistsApi } from '../api.ts';
 import { describeError, readError } from '../errors.ts';
 import { keys } from '@/lib/query';
 import { currentLocale } from '../i18n.tsx';
@@ -52,7 +52,6 @@ import {
   Trash2Icon,
   Link2Icon,
   UserCheckIcon,
-  UserXIcon,
 } from 'lucide-react';
 import { ImportDialog } from '@/features/employee-import';
 import { UploadIcon } from 'lucide-react';
@@ -131,20 +130,17 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     },
   });
 
+  // The server deletes a card without worked history and terminates one with history.
   const drop = useMutation({
-    mutationFn: async (v: { emp: EmployeeView; reason: string }) => {
-      try {
-        await adminEmployeesApi.remove(v.emp.id, v.reason);
-      } catch (err) {
-        if (err instanceof ApiError && err.code === 'EMPLOYEE_HAS_HISTORY') {
-          throw new Error(e.hasHistory);
-        }
-        throw err;
+    mutationFn: (v: { emp: EmployeeView; reason: string }) =>
+      adminEmployeesApi.bulkDelete([v.emp.id], v.reason),
+    onSuccess: async (result, v) => {
+      if (result.deleted === 0) {
+        notifySuccess(e.employeeArchived);
+      } else {
+        notifySuccess(e.employeeDeleted);
+        if (openId === v.emp.id) setOpenId(null);
       }
-    },
-    onSuccess: async (_result, v) => {
-      notifySuccess(e.employeeDeleted);
-      if (openId === v.emp.id) setOpenId(null);
       await reload();
     },
   });
@@ -197,7 +193,7 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     if (checked.ok) add.mutate(checked.data);
   }
 
-  /** Hard delete with a reason; a card with worked history is refused and the panel points to "Terminate". */
+  /** Delete with a reason; a card with worked history is terminated instead so its records stay. */
   async function deleteEmployee(emp: EmployeeView) {
     const reason = await confirm({
       title: e.deleteEmployee,
@@ -219,24 +215,22 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
     issue.mutate(emp);
   }
 
-  async function changeStatus(emp: EmployeeView, status: EmployeeView['status']) {
+  function statusLabel(status: 'ACTIVE' | 'BLOCKED', reinstating: boolean) {
+    if (reinstating) return e.reinstate;
+    return status === 'BLOCKED' ? e.block : e.unblock;
+  }
+
+  async function changeStatus(emp: EmployeeView, status: 'ACTIVE' | 'BLOCKED') {
     // Coming back from a dismissal is its own action: it needs a new activation code, because the
     // dismissal released the Telegram account so the phone could be used on another card.
     const reinstating = status === 'ACTIVE' && emp.status === 'TERMINATED';
-    const label = reinstating
-      ? e.reinstate
-      : status === 'BLOCKED'
-        ? e.block
-        : status === 'ACTIVE'
-          ? e.unblock
-          : e.terminate;
+    const label = statusLabel(status, reinstating);
     const reason = await confirm({
       title: `${label}: ${emp.fullName}`,
       description: reinstating ? e.reinstateHint : hints.employeesStatus,
       confirmLabel: label,
       commentLabel: t.common.reason,
       commentRequired: true,
-      destructive: status === 'TERMINATED',
     });
     if (!reason) return;
     setStatus.mutate({ emp, status, reason });
@@ -454,18 +448,6 @@ export function EmployeesTab({ org }: { readonly org: OrgSnapshot }) {
             disabled: busy,
             separator: true,
             onSelect: () => void changeStatus(emp, 'ACTIVE'),
-          },
-        ]
-      : []),
-    ...(canEditEmployee(emp, org, roles) && emp.status !== 'TERMINATED'
-      ? [
-          {
-            key: 'terminate',
-            label: e.terminate,
-            icon: UserXIcon,
-            disabled: busy,
-            destructive: true,
-            onSelect: () => void changeStatus(emp, 'TERMINATED'),
           },
         ]
       : []),

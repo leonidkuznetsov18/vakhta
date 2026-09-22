@@ -1466,7 +1466,6 @@ export const en: Messages = {
         positionAssigned: 'Position assigned.',
         block: 'Block',
         unblock: 'Unblock',
-        terminate: 'Terminate',
         reinstate: 'Reinstate',
         reinstateHint:
           'The card becomes active again. Telegram was unlinked at dismissal, so issue a new activation code — the person scans it from the same phone.',
@@ -1547,15 +1546,15 @@ export const en: Messages = {
           'Optional: the unit and the position go together, the team comes from the chosen unit. All of it can be changed in the card later.',
         deleteEmployee: 'Delete employee',
         deleteEmployeeConfirm:
-          'Delete the card of {name} entirely? Planned shifts, activation codes and the Telegram link go with it. This cannot be undone; for an employee with worked shifts use "Terminate".',
+          'Delete {name}? Without worked shifts, check-ins, points or requests the card is removed entirely with its planned shifts, activation codes and Telegram link; this cannot be undone. With such history the card is terminated instead so the history and the reports stay.',
         employeeDeleted: 'Employee deleted.',
+        employeeArchived:
+          'The employee has worked history, so the card is terminated and kept for the reports.',
         deleteSelected: 'Delete selected',
         deleteSelectedConfirm:
           'Delete {n} selected employees? Those without worked history are deleted, those with history are terminated so the reports stay.',
         deletingSelected: 'Deleting {n} employees…',
         deleteSelectedResult: 'Deleted: {deleted}. Terminated: {terminated}.',
-        hasHistory:
-          'The employee has worked shifts, check-ins, points or requests: such a card is terminated ("Terminate"), not deleted, so the history and the reports stay.',
       },
       users: {
         email: 'Email',
@@ -2135,8 +2134,8 @@ export const en: Messages = {
             a: 'The position has no active checklist: the bot asks for no checklist and no photos. Create one on the "Checklists" tab with this position.',
           },
           {
-            q: 'Block or terminate?',
-            a: 'Blocking closes the bot and shifts temporarily, termination ends the history; both take a reason and go to the audit.',
+            q: 'Block or delete?',
+            a: 'Blocking closes the bot and shifts temporarily. Deleting removes a card without history entirely and terminates a card with worked shifts so the reports stay; both take a reason and go to the audit.',
           },
           {
             q: 'The employee exists but cannot be added to the schedule.',
@@ -2329,7 +2328,8 @@ export const en: Messages = {
         'The code is valid for a limited time and shown once. Give the employee the code or the link.',
       employeesRelink:
         'Link another Telegram account. The old link is revoked; the reason is audited.',
-      employeesStatus: 'Blocking closes the bot; termination is permanent. Both require a reason.',
+      employeesStatus:
+        'Blocking temporarily closes the bot and shifts. The reason goes to the audit.',
       employeesPosition: 'A transfer creates a new record; the position history is kept.',
       usersPassword:
         '12+ characters. Tell the user in person; they enable two-factor protection in the profile.',

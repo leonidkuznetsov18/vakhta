@@ -31,6 +31,7 @@ import {
   type DbOrTx,
   type Transaction,
 } from '@vakhta/db';
+import { EmployeeStatusSchema } from '@vakhta/contracts';
 import type {
   ListEmployeesPageQuery,
   EmployeesPage,
@@ -473,15 +474,19 @@ export class EmployeesService {
         await this.deleteEmployee(id, { reason: cmd.reason }, actor);
         deleted += 1;
       } catch (error) {
-        if (error instanceof IdentityError && error.code === 'EMPLOYEE_HAS_HISTORY') {
-          await this.changeStatus(id, { status: 'TERMINATED', reason: cmd.reason }, actor);
-          terminated += 1;
-        } else {
-          throw error;
-        }
+        if (!(error instanceof IdentityError && error.code === 'EMPLOYEE_HAS_HISTORY')) throw error;
+        await this.terminateKept(id, cmd.reason, actor);
+        terminated += 1;
       }
     }
     return { deleted, terminated };
+  }
+
+  /** A card with history stays; an already terminated one is not rewritten, so the audit gets no no-op change. */
+  private async terminateKept(id: string, reason: string, actor: Actor): Promise<void> {
+    const card = await this.requireById(id);
+    if (card.status === EmployeeStatusSchema.enum.TERMINATED) return;
+    await this.changeStatus(id, { status: EmployeeStatusSchema.enum.TERMINATED, reason }, actor);
   }
 
   /** The full view of one employee: link state and the current assignment included. */

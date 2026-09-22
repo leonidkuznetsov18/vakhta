@@ -13,7 +13,7 @@ debt, all limited to the reader's grants. See [Overview: the shift command cente
 Administration tabs:
 
 - "Сотрудники": scoped employee directory, CSV import, activation codes, position assignment and
-  reasoned block / unblock / terminate actions. A row opens a read-only Sheet; the name and the
+  reasoned block / unblock and delete actions in the row menu and on the profile. A row opens a read-only Sheet; the name and the
   Sheet's profile button open `administration/employees/:employeeId`. There is no expanded editor
   or disclosure chevron. Returning keeps the list filters, selected page and scroll position.
   The profile shows identity, contacts with call/mail/Telegram/copy actions, work assignment and
@@ -28,8 +28,10 @@ Administration tabs:
   day/month. Compensation is append-only: corrections need a reason and preserve the original.
   Avatars are private, normalized to 512 px WebP and accessed through scoped endpoints.
   Activation codes and Telegram relinking remain in the row menu. Position checklists are managed
-  on the Checklists tab. Hard deletion requires a reason and refuses recorded history, including
-  compensation or designated-master references; termination preserves those records.
+  on the Checklists tab. Delete requires a reason: a card without recorded history (including
+  compensation or designated-master references) is removed entirely, a card with history is
+  terminated instead so its records stay (owner decision 2026-09-22; there is no separate
+  "Terminate" button). A terminated card can be reinstated.
 - "Пользователи и роли": create panel users (a generated password is shown once); the user card
   edits the name, lists the roles with "Заменить" (grant the new one, revoke the old) and
   "Отозвать", grants a new role with a scope, and deletes the user ("Удалить пользователя":
