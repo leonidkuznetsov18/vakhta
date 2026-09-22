@@ -1,3 +1,14 @@
+## [1.25.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.24.0...v1.25.0) (2026-09-22)
+
+### Features
+
+* **bonus:** open an employee's bonus report under the points row ([03c00fd](https://github.com/leonidkuznetsov18/vakhta/commit/03c00fd6abd8ec0941d1e2ef4431e14cfdec6f13))
+* **tenancy:** provision tenants through a shared wildcard gateway ([b7fb74d](https://github.com/leonidkuznetsov18/vakhta/commit/b7fb74db40ff00698633bb8916e902f8e48296b8))
+
+### Bug fixes
+
+* **control:** omit session cookies from public invitations ([b94d19e](https://github.com/leonidkuznetsov18/vakhta/commit/b94d19ebaca7bf6fdac1e002d040f876b728993a))
+
 ## [1.24.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.23.1...v1.24.0) (2026-09-22)
 
 ### Features
