@@ -1,5 +1,6 @@
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { useQuery } from '@tanstack/react-query';
+import { useMatch, useNavigate } from '@tanstack/react-router';
 import type { BonusHistoryView, BonusPointsView, PointAwardKind } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts';
@@ -20,13 +21,14 @@ import { Muted, Section, StatusPill, Toolbar } from '@/components/app/page';
 import { HowItWorks } from '@/components/app/how-it-works';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DownloadIcon } from 'lucide-react';
+import { DownloadIcon, EyeIcon } from 'lucide-react';
 import { usePersistentState } from '@/lib/ui-store';
 import { useOrg } from '@/lib/org';
 import { keys } from '@/lib/query';
 import { bonusApi, type BonusHistoryFilters } from '../api.ts';
 import { currentLocale } from '../i18n.tsx';
 
+import { EmployeeBonusReport } from './EmployeeBonusReport.tsx';
 import { nominationStatus } from './nomination-status.ts';
 
 const all = messages(currentLocale());
@@ -57,6 +59,19 @@ export function BonusPage() {
   const [to, setTo] = usePersistentState('bonus.to', new Date().toISOString().slice(0, 10));
   const [kind, setKind] = usePersistentState<'' | PointAwardKind>('bonus.kind', '');
   const [search, setSearch] = usePersistentState('bonus.search', '');
+  // The opened employee lives in the address (`#/bonus/<id>`), so the report can be linked and
+  // Back returns to the table; opening a row replaces the entry rather than pushing one.
+  const match = useMatch({ from: '/bonus/{-$id}', shouldThrow: false });
+  const openId = match?.params.id ?? null;
+  const navigate = useNavigate();
+  const setOpenId = (next: string | null) => {
+    void navigate({
+      to: '/bonus/{-$id}',
+      params: { id: next ?? undefined },
+      replace: true,
+      resetScroll: false,
+    });
+  };
 
   // With one site there is nothing to choose: the page opens on it instead of on an empty filter.
   const site = siteId || (org?.sites[0]?.id ?? '');
@@ -378,15 +393,32 @@ export function BonusPage() {
           )}
 
           {(data || !orgQuery.isPending) && (
-            <Section title={b.detailTitle}>
+            <Section title={b.detailTitle} hint={b.employeeReportHint}>
               <DataTable
                 queryState={points}
                 columns={columns}
                 rows={rows}
                 storageKey="bonus-points"
+                primaryKey="employee"
                 resetKey={`${site}:${unitId}:${month}`}
                 searchText={(r) => `${r.employeeName} ${r.personnelNumber}`}
                 rowKey={(r) => r.employeeId}
+                rowLabel={(r) => r.employeeName}
+                onRowClick={(r) => setOpenId(openId === r.employeeId ? null : r.employeeId)}
+                rowActions={(r) => [
+                  {
+                    key: 'report',
+                    label: b.employeeReport,
+                    icon: EyeIcon,
+                    onSelect: () => setOpenId(openId === r.employeeId ? null : r.employeeId),
+                  },
+                ]}
+                activeKey={openId}
+                expanded={(r) =>
+                  r.employeeId === openId ? (
+                    <EmployeeBonusReport employeeId={r.employeeId} month={month} siteId={site} />
+                  ) : null
+                }
                 empty={b.empty}
                 loading={points.isPending}
               />

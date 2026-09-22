@@ -16,6 +16,8 @@ import {
   bonusPointAwards,
   bonusRuleVersions,
   bonusShiftScores,
+  checklistAnswers,
+  checklistDefinitions,
   desc,
   domainEvents,
   downtimeReports,
@@ -25,12 +27,14 @@ import {
   handoverMedia,
   handoverRecords,
   handoverResolutions,
+  handoverReviews,
   inArray,
   isNull,
   like,
   lte,
   mediaObjects,
   ne,
+  notInArray,
   or,
   orgUnits,
   webUserRoles,
@@ -38,6 +42,7 @@ import {
   presenceSessions,
   reasonCodes,
   requests,
+  responsibilityZones,
   shiftAssignments,
   shiftSessions,
   shiftSummaries,
@@ -49,6 +54,7 @@ import {
 import {
   BONUS_CRITERIA,
   DEFAULT_BONUS_RULES,
+  TERMINAL_STATES,
   evaluateShift,
   handoverDecisionFrom,
   reviewSuggestion,
@@ -58,8 +64,11 @@ import {
   withScoreAdjustments,
   type BonusCriterion,
   type BonusRules,
+  type ChecklistItemDefinition,
   type CriterionResult,
+  type HandoverStatus,
   type ShiftBonusInputs,
+  type ShiftState,
 } from '@vakhta/domain';
 import type {
   AdjustScoreCommand,
@@ -79,7 +88,13 @@ import type {
   BonusHistoryEntry,
   BonusHistoryQuery,
   BonusHistoryView,
+  EmployeeBonusRemarkView,
+  EmployeeBonusReportView,
+  EmployeeBonusResolutionView,
+  EmployeeBonusReviewView,
+  EmployeeBonusShiftView,
   EmployeePointsView,
+  PointAwardKind,
   UnitPointsView,
   SecondApprovalCommand,
   SetBaseAmountsCommand,
@@ -104,6 +119,206 @@ type ScoreRow = typeof bonusShiftScores.$inferSelect;
 type RuleRow = typeof bonusRuleVersions.$inferSelect;
 
 const SYSTEM: Actor = { type: 'SYSTEM', id: null, role: 'SYSTEM' };
+
+/** Reports that never count as a checklist: not sent yet, or replaced by a newer version. */
+const HIDDEN_HANDOVER_STATUSES: readonly HandoverStatus[] = ['DRAFT', 'SUPERSEDED'];
+const APPROVED_HANDOVER_STATUSES: ReadonlySet<HandoverStatus> = new Set<HandoverStatus>([
+  'ACCEPTED',
+  'RESOLVED_ACCEPTED',
+]);
+const REMARK_HANDOVER_STATUS: HandoverStatus = 'RESOLVED_ISSUE_CONFIRMED';
+const CHECKLIST_POINT: PointAwardKind = 'CHECKLIST_APPROVED';
+const TERMINAL_STATE_SET: ReadonlySet<ShiftState> = new Set<ShiftState>(TERMINAL_STATES);
+
+/** `business_date` is a real date column: LIKE has no operator for it, so the value is cast. */
+function businessMonth(month: string) {
+  return sql`${shiftSessions.businessDate}::text like ${`${month}-%`}`;
+}
+
+interface PersonRow {
+  readonly id: string;
+  readonly name: string;
+  readonly personnelNumber: string;
+}
+interface UnitRef {
+  readonly id: string;
+  readonly name: string;
+}
+interface SessionRow {
+  readonly id: string;
+  readonly businessDate: string;
+  readonly state: ShiftState;
+  readonly startedAt: Date | null;
+  readonly endedAt: Date | null;
+  readonly zoneName: string | null;
+}
+interface HandoverRow {
+  readonly id: string;
+  readonly shiftSessionId: string;
+  readonly status: HandoverStatus;
+  readonly submittedAt: Date | null;
+  readonly checklistName: string;
+  readonly items: readonly ChecklistItemDefinition[];
+  readonly zoneName: string | null;
+  readonly session: Omit<SessionRow, 'zoneName'>;
+}
+interface AnswerRow {
+  readonly handoverId: string;
+  readonly itemKey: string;
+  readonly category: string | null;
+  readonly text: string | null;
+}
+type AwardRow = BonusHistoryEntry & { readonly handoverId: string | null };
+
+interface ShiftRowInputs {
+  readonly sessions: readonly SessionRow[];
+  readonly handovers: readonly HandoverRow[];
+  readonly answers: ReadonlyMap<string, readonly AnswerRow[]>;
+  readonly reviews: ReadonlyMap<string, EmployeeBonusReviewView>;
+  readonly resolutions: ReadonlyMap<string, EmployeeBonusResolutionView>;
+  readonly checklistPoints: ReadonlyMap<string, number>;
+}
+
+/** Keeps the first row of each key; callers order rows so that the first is the one they want. */
+function firstPerKey<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, T> {
+  const out = new Map<string, T>();
+  for (const row of rows) {
+    const key = keyOf(row);
+    if (!out.has(key)) out.set(key, row);
+  }
+  return out;
+}
+
+function groupByKey<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, T[]> {
+  const out = new Map<string, T[]>();
+  for (const row of rows) {
+    const key = keyOf(row);
+    out.set(key, [...(out.get(key) ?? []), row]);
+  }
+  return out;
+}
+
+function pointsByHandover(awards: readonly AwardRow[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const award of awards) {
+    if (award.handoverId === null) continue;
+    out.set(award.handoverId, (out.get(award.handoverId) ?? 0) + award.points);
+  }
+  return out;
+}
+
+/** The employee's own remarks on the checklist, labelled with the item they answered. */
+function remarksOf(
+  items: readonly ChecklistItemDefinition[],
+  answers: readonly AnswerRow[],
+): EmployeeBonusRemarkView[] {
+  const labels = new Map(items.map((item) => [item.key, item.label]));
+  return answers.map((a) => ({
+    itemKey: a.itemKey,
+    label: labels.get(a.itemKey) ?? a.itemKey,
+    category: a.category,
+    text: a.text,
+  }));
+}
+
+/**
+ * Shifts that closed count even without a checklist; a checklist counts even when its shift did
+ * not close normally. Anything else (a shift still running) has nothing to report yet.
+ */
+function buildShiftRows(input: ShiftRowInputs): EmployeeBonusShiftView[] {
+  const sessionsById = new Map(input.sessions.map((s) => [s.id, s]));
+  for (const h of input.handovers) {
+    if (!sessionsById.has(h.shiftSessionId))
+      sessionsById.set(h.shiftSessionId, { ...h.session, zoneName: h.zoneName });
+  }
+  const handoverBySession = new Map(input.handovers.map((h) => [h.shiftSessionId, h]));
+  const shifts: EmployeeBonusShiftView[] = [];
+  for (const session of sessionsById.values()) {
+    const handover = handoverBySession.get(session.id) ?? null;
+    if (!TERMINAL_STATE_SET.has(session.state) && handover === null) continue;
+    shifts.push(toShiftView(session, handover, input));
+  }
+  return shifts.sort(newestShiftFirst);
+}
+
+function newestShiftFirst(a: EmployeeBonusShiftView, b: EmployeeBonusShiftView): number {
+  return (
+    b.businessDate.localeCompare(a.businessDate) ||
+    (b.startedAt ?? '').localeCompare(a.startedAt ?? '')
+  );
+}
+
+const NO_HANDOVER = {
+  handoverId: null,
+  handoverStatus: null,
+  checklistName: null,
+  submittedAt: null,
+  review: null,
+  resolution: null,
+  points: 0,
+} as const;
+
+function isoOrNull(at: Date | null): string | null {
+  return at ? at.toISOString() : null;
+}
+
+function toShiftView(
+  session: SessionRow,
+  handover: HandoverRow | null,
+  input: ShiftRowInputs,
+): EmployeeBonusShiftView {
+  const base = {
+    shiftSessionId: session.id,
+    businessDate: session.businessDate,
+    shiftState: session.state,
+    startedAt: isoOrNull(session.startedAt),
+    endedAt: isoOrNull(session.endedAt),
+    zoneName: session.zoneName,
+  };
+  if (handover === null) return { ...base, ...NO_HANDOVER, remarks: [] };
+  return {
+    ...base,
+    zoneName: handover.zoneName ?? session.zoneName,
+    ...handoverPart(handover, input),
+  };
+}
+
+function handoverPart(handover: HandoverRow, input: ShiftRowInputs) {
+  return {
+    handoverId: handover.id,
+    handoverStatus: handover.status,
+    checklistName: handover.checklistName,
+    submittedAt: isoOrNull(handover.submittedAt),
+    remarks: remarksOf(handover.items, input.answers.get(handover.id) ?? []),
+    review: input.reviews.get(handover.id) ?? null,
+    resolution: input.resolutions.get(handover.id) ?? null,
+    points: input.checklistPoints.get(handover.id) ?? 0,
+  };
+}
+
+/** The same numbers as the employee's row in `points`, so opening the row never changes them. */
+function summarizeEmployee(input: {
+  readonly person: PersonRow;
+  readonly unit: UnitRef | null;
+  readonly shifts: readonly EmployeeBonusShiftView[];
+  readonly awards: readonly AwardRow[];
+}): EmployeePointsView {
+  const { person, unit, shifts, awards } = input;
+  return {
+    employeeId: person.id,
+    employeeName: person.name,
+    personnelNumber: person.personnelNumber,
+    orgUnitId: unit?.id ?? null,
+    orgUnitName: unit?.name ?? null,
+    shifts: shifts.filter((s) => TERMINAL_STATE_SET.has(s.shiftState)).length,
+    checklists: shifts.filter((s) => s.handoverId !== null).length,
+    approved: shifts.filter(
+      (s) => s.handoverStatus !== null && APPROVED_HANDOVER_STATUSES.has(s.handoverStatus),
+    ).length,
+    remarks: shifts.filter((s) => s.handoverStatus === REMARK_HANDOVER_STATUS).length,
+    points: awards.reduce((sum, a) => sum + a.points, 0),
+  };
+}
 
 /**
  * Бонус як чиста функція над журналом (ADR-0007): входи збираються з таблиць рішень,
@@ -1160,6 +1375,223 @@ export class BonusService {
       ...nominations,
       serverTime: now.toISOString(),
     };
+  }
+
+  /**
+   * One employee's month behind their row in the points table: every shift with its checklist,
+   * the remarks on it, the master's decision and the point it earned, plus the month-end awards.
+   * Read-only, built from the same tables and statuses as `points`, so the two agree.
+   */
+  async employeeReport(
+    employeeId: string,
+    month: string,
+    now: Date = new Date(),
+  ): Promise<EmployeeBonusReportView> {
+    const person = await this.requireEmployee(employeeId);
+    const [sessions, handoverRows] = await Promise.all([
+      this.monthSessions(employeeId, month),
+      this.monthHandovers(employeeId, month),
+    ]);
+    // A session carries at most one live report; the newest wins if history ever left two.
+    const handovers = [...firstPerKey(handoverRows, (h) => h.shiftSessionId).values()];
+    const handoverIds = handovers.map((h) => h.id);
+    const [answers, reviews, resolutions, awards] = await Promise.all([
+      this.flaggedAnswers(handoverIds),
+      this.latestReviews(handoverIds),
+      this.latestResolutions(handoverIds),
+      this.monthAwards(employeeId, month),
+    ]);
+    const shifts = buildShiftRows({
+      sessions,
+      handovers,
+      answers: groupByKey(answers, (a) => a.handoverId),
+      reviews,
+      resolutions,
+      checklistPoints: pointsByHandover(awards),
+    });
+    const unit = await this.currentUnit(employeeId);
+    return {
+      month,
+      employee: summarizeEmployee({ person, unit, shifts, awards }),
+      shifts,
+      awards: awards.filter((a) => a.kind !== CHECKLIST_POINT),
+      serverTime: now.toISOString(),
+    };
+  }
+
+  private async requireEmployee(employeeId: string): Promise<PersonRow> {
+    const [person] = await this.db
+      .select({
+        id: employees.id,
+        name: employees.fullName,
+        personnelNumber: employees.personnelNumber,
+      })
+      .from(employees)
+      .where(eq(employees.id, employeeId))
+      .limit(1);
+    if (!person) throw new DomainError('EMPLOYEE_NOT_FOUND', 404, 'Employee not found');
+    return person;
+  }
+
+  private monthSessions(employeeId: string, month: string): Promise<SessionRow[]> {
+    return this.db
+      .select({
+        id: shiftSessions.id,
+        businessDate: shiftSessions.businessDate,
+        state: shiftSessions.state,
+        startedAt: shiftSessions.startedAt,
+        endedAt: shiftSessions.endedAt,
+        zoneName: responsibilityZones.name,
+      })
+      .from(shiftSessions)
+      .leftJoin(responsibilityZones, eq(shiftSessions.zoneId, responsibilityZones.id))
+      .where(and(eq(shiftSessions.employeeId, employeeId), businessMonth(month)));
+  }
+
+  private monthHandovers(employeeId: string, month: string): Promise<HandoverRow[]> {
+    return this.db
+      .select({
+        id: handoverRecords.id,
+        shiftSessionId: handoverRecords.shiftSessionId,
+        status: handoverRecords.status,
+        submittedAt: handoverRecords.submittedAt,
+        checklistName: checklistDefinitions.name,
+        items: checklistDefinitions.items,
+        zoneName: responsibilityZones.name,
+        session: {
+          id: shiftSessions.id,
+          businessDate: shiftSessions.businessDate,
+          state: shiftSessions.state,
+          startedAt: shiftSessions.startedAt,
+          endedAt: shiftSessions.endedAt,
+        },
+      })
+      .from(handoverRecords)
+      .innerJoin(shiftSessions, eq(handoverRecords.shiftSessionId, shiftSessions.id))
+      .innerJoin(
+        checklistDefinitions,
+        eq(handoverRecords.checklistDefinitionId, checklistDefinitions.id),
+      )
+      .leftJoin(responsibilityZones, eq(handoverRecords.zoneId, responsibilityZones.id))
+      .where(
+        and(
+          eq(handoverRecords.submittedBy, employeeId),
+          businessMonth(month),
+          notInArray(handoverRecords.status, [...HIDDEN_HANDOVER_STATUSES]),
+        ),
+      )
+      .orderBy(desc(handoverRecords.createdAt));
+  }
+
+  /** Items the employee marked as not in order, with the category and text they gave. */
+  private async flaggedAnswers(handoverIds: readonly string[]): Promise<AnswerRow[]> {
+    if (handoverIds.length === 0) return [];
+    return this.db
+      .select({
+        handoverId: checklistAnswers.handoverId,
+        itemKey: checklistAnswers.itemKey,
+        category: checklistAnswers.remarkCategory,
+        text: checklistAnswers.remarkText,
+      })
+      .from(checklistAnswers)
+      .where(and(inArray(checklistAnswers.handoverId, handoverIds), eq(checklistAnswers.ok, false)))
+      .orderBy(asc(checklistAnswers.answeredAt));
+  }
+
+  private async latestReviews(
+    handoverIds: readonly string[],
+  ): Promise<Map<string, EmployeeBonusReviewView>> {
+    if (handoverIds.length === 0) return new Map();
+    const rows = await this.db
+      .select({
+        handoverId: handoverReviews.handoverId,
+        reviewerName: employees.fullName,
+        decision: handoverReviews.decision,
+        category: handoverReviews.category,
+        comment: handoverReviews.comment,
+        reviewedAt: handoverReviews.reviewedAt,
+      })
+      .from(handoverReviews)
+      .innerJoin(employees, eq(handoverReviews.reviewerEmployeeId, employees.id))
+      .where(inArray(handoverReviews.handoverId, handoverIds))
+      .orderBy(desc(handoverReviews.reviewedAt));
+    const latest = firstPerKey(rows, (r) => r.handoverId);
+    return new Map(
+      [...latest].map(([id, r]) => [
+        id,
+        {
+          reviewerName: r.reviewerName,
+          decision: r.decision,
+          category: r.category,
+          comment: r.comment,
+          reviewedAt: r.reviewedAt.toISOString(),
+        },
+      ]),
+    );
+  }
+
+  private async latestResolutions(
+    handoverIds: readonly string[],
+  ): Promise<Map<string, EmployeeBonusResolutionView>> {
+    if (handoverIds.length === 0) return new Map();
+    const rows = await this.db
+      .select({
+        handoverId: handoverResolutions.handoverId,
+        resolvedBy: handoverResolutions.resolvedBy,
+        decision: handoverResolutions.decision,
+        reasonCode: handoverResolutions.reasonCode,
+        comment: handoverResolutions.comment,
+        at: handoverResolutions.at,
+      })
+      .from(handoverResolutions)
+      .where(inArray(handoverResolutions.handoverId, handoverIds))
+      .orderBy(desc(handoverResolutions.at));
+    const latest = firstPerKey(rows, (r) => r.handoverId);
+    return new Map(
+      [...latest].map(([id, r]) => [
+        id,
+        {
+          resolvedBy: r.resolvedBy,
+          decision: r.decision,
+          reasonCode: r.reasonCode,
+          comment: r.comment,
+          at: r.at.toISOString(),
+        },
+      ]),
+    );
+  }
+
+  /** The employee's ledger for the month, named like the History tab so the panel reuses its columns. */
+  private monthAwards(employeeId: string, month: string): Promise<AwardRow[]> {
+    return this.db
+      .select({
+        id: bonusPointAwards.id,
+        businessDate: bonusPointAwards.businessDate,
+        month: bonusPointAwards.month,
+        employeeId: bonusPointAwards.employeeId,
+        employeeName: employees.fullName,
+        personnelNumber: employees.personnelNumber,
+        orgUnitId: bonusPointAwards.orgUnitId,
+        orgUnitName: orgUnits.name,
+        kind: bonusPointAwards.kind,
+        points: bonusPointAwards.points,
+        handoverId: bonusPointAwards.handoverId,
+      })
+      .from(bonusPointAwards)
+      .innerJoin(employees, eq(bonusPointAwards.employeeId, employees.id))
+      .leftJoin(orgUnits, eq(bonusPointAwards.orgUnitId, orgUnits.id))
+      .where(and(eq(bonusPointAwards.employeeId, employeeId), eq(bonusPointAwards.month, month)))
+      .orderBy(desc(bonusPointAwards.awardedAt));
+  }
+
+  private async currentUnit(employeeId: string): Promise<UnitRef | null> {
+    const [row] = await this.db
+      .select({ id: employeePositions.orgUnitId, name: orgUnits.name })
+      .from(employeePositions)
+      .innerJoin(orgUnits, eq(employeePositions.orgUnitId, orgUnits.id))
+      .where(and(eq(employeePositions.employeeId, employeeId), isNull(employeePositions.validTo)))
+      .limit(1);
+    return row ?? null;
   }
 
   /**

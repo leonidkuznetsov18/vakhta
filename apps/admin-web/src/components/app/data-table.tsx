@@ -275,13 +275,14 @@ function columnLabel<T>(column: Column<T>): string {
 }
 
 /** A click on a control inside the row must not also fire the row's main action. */
-function isInteractive(target: EventTarget | null): boolean {
-  return (
-    target instanceof Element &&
-    target.closest(
-      'button, a, input, select, textarea, label, [role="menuitem"], [role="menu"], [data-row-detail]',
-    ) !== null
-  );
+function isInteractive(target: EventTarget | null, row: Element): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest('button, a, input, select, textarea, label, [role="menuitem"], [role="menu"]'))
+    return true;
+  // A click inside the row's own detail (a card holds its detail) must not toggle the row; a
+  // detail the whole row lives in — a table nested in another row's detail — is not this row's.
+  const detail = target.closest('[data-row-detail]');
+  return detail !== null && row.contains(detail);
 }
 
 /** "⋯" menu with the secondary actions of a row. */
@@ -450,7 +451,7 @@ export function DataTable<T extends object>({
     );
 
   const handleRowClick = (row: T) => (ev: MouseEvent<HTMLElement>) => {
-    if (!onRowClick || isInteractive(ev.target)) return;
+    if (!onRowClick || isInteractive(ev.target, ev.currentTarget)) return;
     onRowClick(row);
   };
   const closeDetail = (row: T) => (event: KeyboardEvent<HTMLElement>) => {

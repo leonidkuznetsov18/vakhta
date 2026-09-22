@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { BONUS_CRITERIA } from '@vakhta/domain';
 import { BusinessDate, IsoDateTime, ReasonCode, Uuid } from './common.js';
+import { HandoverResolutionSchema, HandoverStatusSchema } from './handover.js';
+import { ShiftStateSchema } from './shift.js';
 
 export const BonusScoreStatusSchema = z.enum([
   'PRELIMINARY',
@@ -258,6 +260,72 @@ export const BonusHistoryView = z.object({
 });
 export type BonusHistoryView = z.infer<typeof BonusHistoryView>;
 export type BonusPointsView = z.infer<typeof BonusPointsView>;
+
+/** One employee's month, opened from the points table: every shift with what the checklist brought. */
+export const BonusEmployeeQuery = z.object({
+  employeeId: Uuid,
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+});
+export type BonusEmployeeQuery = z.infer<typeof BonusEmployeeQuery>;
+
+/** A checklist item the employee marked as not in order, with their own explanation. */
+export const EmployeeBonusRemarkView = z.object({
+  itemKey: z.string(),
+  label: z.string(),
+  category: z.string().nullable(),
+  text: z.string().nullable(),
+});
+export type EmployeeBonusRemarkView = z.infer<typeof EmployeeBonusRemarkView>;
+
+/** The receiving shift's acceptance of the report: who looked, what they decided and why. */
+export const EmployeeBonusReviewView = z.object({
+  reviewerName: z.string(),
+  decision: z.enum(['ACCEPTED', 'ISSUE']),
+  category: z.string().nullable(),
+  comment: z.string().nullable(),
+  reviewedAt: IsoDateTime,
+});
+export type EmployeeBonusReviewView = z.infer<typeof EmployeeBonusReviewView>;
+
+/** The master's decision on the report, which is what earns or withholds the point. */
+export const EmployeeBonusResolutionView = z.object({
+  resolvedBy: z.string().nullable(),
+  decision: HandoverResolutionSchema,
+  reasonCode: z.string().nullable(),
+  comment: z.string(),
+  at: IsoDateTime,
+});
+export type EmployeeBonusResolutionView = z.infer<typeof EmployeeBonusResolutionView>;
+
+export const EmployeeBonusShiftView = z.object({
+  shiftSessionId: Uuid,
+  businessDate: BusinessDate,
+  shiftState: ShiftStateSchema,
+  startedAt: IsoDateTime.nullable(),
+  endedAt: IsoDateTime.nullable(),
+  zoneName: z.string().nullable(),
+  /** null: the shift closed without a checklist, so it could not earn a point. */
+  handoverId: Uuid.nullable(),
+  handoverStatus: HandoverStatusSchema.nullable(),
+  checklistName: z.string().nullable(),
+  submittedAt: IsoDateTime.nullable(),
+  remarks: z.array(EmployeeBonusRemarkView),
+  review: EmployeeBonusReviewView.nullable(),
+  resolution: EmployeeBonusResolutionView.nullable(),
+  points: z.number().int().nonnegative(),
+});
+export type EmployeeBonusShiftView = z.infer<typeof EmployeeBonusShiftView>;
+
+export const EmployeeBonusReportView = z.object({
+  month: z.string(),
+  employee: EmployeePointsView,
+  /** Newest shift first. */
+  shifts: z.array(EmployeeBonusShiftView),
+  /** Month-end awards of this month; checklist points are shown on their shifts instead. */
+  awards: z.array(BonusHistoryEntry),
+  serverTime: IsoDateTime,
+});
+export type EmployeeBonusReportView = z.infer<typeof EmployeeBonusReportView>;
 
 export const EmployeeMonthView = z.object({
   employeeId: Uuid,

@@ -886,6 +886,27 @@ export interface Messages {
       readonly unitMasters: string;
       readonly noUnit: string;
       readonly pointsHint: string;
+      /** One employee's month under their row: shifts, checklists, remarks, decisions, points. */
+      readonly employeeReport: string;
+      readonly employeeReportHint: string;
+      readonly employeeShifts: string;
+      readonly employeeShiftsEmpty: string;
+      readonly employeeTrend: string;
+      readonly employeeTrendEmpty: string;
+      readonly shiftDate: string;
+      readonly shiftTime: string;
+      readonly zone: string;
+      readonly noZone: string;
+      readonly checklistStatus: string;
+      readonly noChecklist: string;
+      readonly ownRemarks: string;
+      readonly reviewRemark: string;
+      readonly masterDecision: string;
+      readonly noRemarks: string;
+      readonly openHandover: string;
+      readonly openProfile: string;
+      readonly monthAwards: string;
+      readonly shiftDetails: string;
       readonly evaluated: string;
       readonly pending: string;
       readonly sMonth: string;

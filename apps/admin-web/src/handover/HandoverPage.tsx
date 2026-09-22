@@ -9,7 +9,6 @@ import {
   canTransitionHandover,
   isHandoverPending,
   type HandoverResolution,
-  type HandoverStatus,
 } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
@@ -19,14 +18,8 @@ import { Feedback } from '@/components/app/feedback';
 import { DateField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
-import {
-  LiveBadge,
-  Muted,
-  ROW_DANGER,
-  StatusPill,
-  type Tone,
-  Toolbar,
-} from '@/components/app/page';
+import { LiveBadge, Muted, ROW_DANGER, Toolbar } from '@/components/app/page';
+import { HANDOVER_SHOWN_AS, HandoverStatusPill } from '@/entities/handover';
 import { formatDateTime } from '@/lib/format';
 import { handoversApi } from '../api.ts';
 import { readError } from '../errors.ts';
@@ -52,30 +45,6 @@ const hints = all.ui.hints;
  * replaced it. The statuses left over from the days when the next shift accepted zones and disputes
  * were resolved say nothing a reader can act on, so they are shown as the one they amount to.
  */
-const SHOWN_AS: Record<
-  HandoverStatus,
-  'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REMARK' | 'SUPERSEDED'
-> = {
-  DRAFT: 'DRAFT',
-  SUBMITTED: 'SUBMITTED',
-  // Raised by the next shift, still waiting on the master: for the reader it is simply waiting.
-  DISPUTED: 'SUBMITTED',
-  // Accepted by the next shift, or by the master, or found to be nobody's fault: all approved.
-  ACCEPTED: 'APPROVED',
-  RESOLVED_ACCEPTED: 'APPROVED',
-  RESOLVED_NO_FAULT: 'APPROVED',
-  RESOLVED_ISSUE_CONFIRMED: 'REMARK',
-  SUPERSEDED: 'SUPERSEDED',
-};
-
-const STATUS_TONE: Record<(typeof SHOWN_AS)[HandoverStatus], Tone> = {
-  DRAFT: 'neutral',
-  SUBMITTED: 'info',
-  APPROVED: 'success',
-  REMARK: 'danger',
-  SUPERSEDED: 'neutral',
-};
-
 /** "Cleanliness and handover" (spec 9.1): acceptance queue, disputes, overdue, photos via signed links, decisions. */
 export function HandoverPage() {
   const { org, queryState: orgQuery } = useOrg();
@@ -177,11 +146,7 @@ export function HandoverPage() {
       header: h.status,
       // One pill: a row is in one state, and "cleaning not finished" belongs with the report itself,
       // where the reason for it is written.
-      cell: (row) => (
-        <StatusPill tone={STATUS_TONE[SHOWN_AS[row.status]]}>
-          {h.shown[SHOWN_AS[row.status]]}
-        </StatusPill>
-      ),
+      cell: (row) => <HandoverStatusPill status={row.status} />,
     },
     {
       key: 'photos',
@@ -350,8 +315,8 @@ export function HandoverPage() {
                 {detail.resolutions.map((resolution) => (
                   <li key={resolution.id}>
                     {(detail.resolutions.length > 1 ||
-                      SHOWN_AS[resolution.decision] !== SHOWN_AS[row.status]) && (
-                      <strong>{h.shown[SHOWN_AS[resolution.decision]]} · </strong>
+                      HANDOVER_SHOWN_AS[resolution.decision] !== HANDOVER_SHOWN_AS[row.status]) && (
+                      <strong>{h.shown[HANDOVER_SHOWN_AS[resolution.decision]]} · </strong>
                     )}
                     <Muted>{formatDateTime(resolution.at)}</Muted>
                     <DetailText label={h.remarkComment} text={resolution.comment} />

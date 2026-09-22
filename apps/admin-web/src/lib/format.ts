@@ -29,6 +29,17 @@ export function formatDate(iso: string | null | undefined): string {
   return iso ? new Date(iso).toLocaleDateString(tag(), { dateStyle: 'short' }) : '—';
 }
 
+/** "сент. 26" from 'YYYY-MM': twelve of these fit under a chart where the long form would not. */
+export function formatMonthShort(value: string): string {
+  const [y, m] = value.split('-').map(Number);
+  if (!y || !m) return value;
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(INTL[currentLocale()], {
+    month: 'short',
+    year: '2-digit',
+    timeZone: 'UTC',
+  });
+}
+
 /** "Сентябрь 2026" from 'YYYY-MM', capitalised for headings. */
 export function formatMonth(value: string): string {
   const [y, m] = value.split('-').map(Number);

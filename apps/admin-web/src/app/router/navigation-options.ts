@@ -8,6 +8,7 @@ export function navigationOptions(section: SectionKey | 'profile', sub?: string)
     case 'handover':
     case 'requests':
     case 'incidents':
+    case 'bonus':
       return linkOptions({ to: `/${section}/{-$id}`, params: { id: sub } });
     case 'administration': {
       const [tab, detail] = sub?.split('/') ?? [];

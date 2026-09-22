@@ -96,7 +96,7 @@ const requests = createRoute({
 });
 const bonus = createRoute({
   getParentRoute: () => root,
-  path: '/bonus',
+  path: '/bonus/{-$id}',
   component: BonusPage,
   staticData: { section: 'bonus' },
 });

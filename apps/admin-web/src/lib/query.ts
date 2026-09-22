@@ -45,6 +45,7 @@ export const keys = {
   overtime: (scope: string) => ['requests', 'overtime', scope] as const,
   bonusPoints: (q: unknown) => ['bonus', 'points', q] as const,
   bonusHistory: (q: unknown) => ['bonus', 'history', q] as const,
+  bonusEmployee: (q: unknown) => ['bonus', 'employee', q] as const,
   losses: (q: unknown) => ['reports', 'losses', q] as const,
   audit: (q: unknown) => ['audit', q] as const,
   /** A signed link to one photo; short-lived on the server, so cached only briefly here. */

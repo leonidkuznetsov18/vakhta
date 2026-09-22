@@ -33,3 +33,13 @@ Durable recalculation preserves accepted inputs for those compatibility APIs and
 consistent calculation when a period closes. It adds no worker steps or manual scoring controls to
 the current panel. Implementation status, recovery and concurrency requirements are recorded in
 [durable bonus recalculation](../engineering/features/bonus-recalculation.md).
+
+## Employee report
+
+Clicking an employee in the points table opens their bonus report under the row, and the address
+becomes `#/bonus/<employeeId>` so the report can be linked. The report shows the points trend of the
+last twelve months, every shift of the month with its checklist status, the remarks on it, the
+receiving shift's acceptance, the shift master's decision with its full text, and the point the
+shift earned; month-end awards are listed apart. A shift can be opened as the full handover report.
+The numbers in the report are computed from the same records as the row, so they never differ.
+Technical notes: [employee bonus report](../engineering/features/bonus-employee-report.md).

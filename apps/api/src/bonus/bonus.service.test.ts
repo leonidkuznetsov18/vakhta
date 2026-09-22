@@ -12,9 +12,13 @@ import {
   bonusPointAwards,
   bonusMonthClosures,
   bonusShiftScores,
+  checklistAnswers,
+  checklistDefinitions,
   employeePositions,
   employees,
   eq,
+  handoverRecords,
+  handoverResolutions,
   notificationOutbox,
   orgUnits,
   positions,
@@ -331,6 +335,97 @@ describe('bonus: оцінка зміни, коригування, закритт
       .returning();
     expect((await bonus.points(other!.id, month)).employees).toEqual([]);
     expect((await bonus.points(siteId, month)).employees).toHaveLength(1);
+  });
+
+  it('the employee report lists each shift with its checklist, remarks, decision and point', async () => {
+    const sessionId = await fullShift();
+    const [definition] = await testDb.db
+      .insert(checklistDefinitions)
+      .values({
+        name: 'Смена',
+        version: 1,
+        items: [{ key: 'SURFACES', label: 'Поверхности чистые', kind: 'CHECK' }],
+      })
+      .returning();
+    if (!definition) throw new Error('Missing checklist fixture');
+    const [report] = await testDb.db
+      .insert(handoverRecords)
+      .values({
+        shiftSessionId: sessionId,
+        submittedBy: ivanov,
+        checklistDefinitionId: definition.id,
+        status: 'RESOLVED_ISSUE_CONFIRMED',
+        submittedAt: new Date(),
+      })
+      .returning();
+    const [unit] = await testDb.db.select().from(orgUnits).where(eq(orgUnits.siteId, siteId));
+    if (!report || !unit) throw new Error('Missing report fixture');
+    await testDb.db.insert(checklistAnswers).values({
+      handoverId: report.id,
+      itemKey: 'SURFACES',
+      ok: false,
+      remarkCategory: 'DIRT',
+      remarkText: 'Не успел протереть стол',
+    });
+    await testDb.db.insert(handoverResolutions).values({
+      handoverId: report.id,
+      resolvedBy: MASTER.id,
+      decision: 'RESOLVED_ISSUE_CONFIRMED',
+      comment: 'Стол грязный, фото подтверждает',
+    });
+    // A month-end award needs a final closure (DB guard), so the ledger row here is the checklist
+    // point of that very report; the report must attach it to the shift, not list it as an award.
+    await testDb.db.insert(bonusPointAwards).values({
+      employeeId: ivanov,
+      orgUnitId: unit.id,
+      month,
+      businessDate: `${month}-15`,
+      kind: 'CHECKLIST_APPROVED',
+      handoverId: report.id,
+      points: 1,
+    });
+
+    const view = await bonus.employeeReport(ivanov, month);
+    expect(view.employee).toMatchObject({
+      employeeId: ivanov,
+      shifts: 1,
+      checklists: 1,
+      approved: 0,
+      remarks: 1,
+      points: 1,
+    });
+    expect(view.shifts).toHaveLength(1);
+    expect(view.shifts[0]).toMatchObject({
+      shiftSessionId: sessionId,
+      handoverId: report.id,
+      handoverStatus: 'RESOLVED_ISSUE_CONFIRMED',
+      checklistName: 'Смена',
+      points: 1,
+    });
+    expect(view.shifts[0]?.remarks).toEqual([
+      {
+        itemKey: 'SURFACES',
+        label: 'Поверхности чистые',
+        category: 'DIRT',
+        text: 'Не успел протереть стол',
+      },
+    ]);
+    expect(view.shifts[0]?.resolution).toMatchObject({
+      resolvedBy: MASTER.id,
+      decision: 'RESOLVED_ISSUE_CONFIRMED',
+      comment: 'Стол грязный, фото подтверждает',
+    });
+    expect(view.shifts[0]?.review).toBeNull();
+    // Checklist points stay on their shift; only month-end awards would be listed apart.
+    expect(view.awards).toEqual([]);
+    // The summary is the same row the points table shows, so opening it never changes the numbers.
+    const row = (await bonus.points(siteId, month)).employees.find((e) => e.employeeId === ivanov);
+    expect(row).toMatchObject({ shifts: 1, checklists: 1, approved: 0, remarks: 1, points: 1 });
+    // An unknown employee is an error, an empty month is empty.
+    await expect(
+      bonus.employeeReport('a0000000-0000-4000-8000-000000000999', month),
+    ).rejects.toMatchObject({ code: 'EMPLOYEE_NOT_FOUND' });
+    expect((await bonus.employeeReport(ivanov, '2020-01')).shifts).toEqual([]);
   });
 
   it('the history tab groups the ledger by day, month and year, filtered by site and unit', async () => {

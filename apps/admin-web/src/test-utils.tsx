@@ -29,6 +29,7 @@ const paths = [
   '/requests/{-$id}',
   '/incidents/{-$id}',
   '/incidents/statistics',
+  '/bonus/{-$id}',
   '/administration/{-$tab}/{-$detail}',
   '/audit/{-$tab}',
   '/$',

@@ -385,6 +385,7 @@ import type {
   AdjustScoreCommand,
   BonusPeriodView,
   BonusHistoryView,
+  EmployeeBonusReportView,
   PointAwardKind,
   BonusPointsView,
   BonusRuleVersionView,
@@ -411,6 +412,8 @@ export const bonusApi = {
     apiFetch<BonusPointsView>(`/admin/bonus/points${query({ siteId, month })}`),
   history: (q: BonusHistoryFilters) =>
     apiFetch<BonusHistoryView>(`/admin/bonus/history${query({ ...q, limit: '500' })}`),
+  employee: (employeeId: string, month: string) =>
+    apiFetch<EmployeeBonusReportView>(`/admin/bonus/employee${query({ employeeId, month })}`),
   historyExportUrl: (q: BonusHistoryFilters, format: 'csv' | 'xlsx') =>
     `${API_URL}/admin/bonus/history/export/${format}${query({ ...q })}`,
   period: (siteId: string, month: string, employeeId?: string) =>
