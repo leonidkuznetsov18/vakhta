@@ -214,12 +214,6 @@ export interface ControlMessages {
     enabled: string;
     disabled: string;
     adminPanelRequired: string;
-    suspendTitle: string;
-    suspendHint: string;
-    reason: string;
-    suspend: string;
-    resume: string;
-    suspended: string;
     provision: string;
     noJobs: string;
     auditEmpty: string;
