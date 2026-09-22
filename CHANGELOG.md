@@ -1,3 +1,9 @@
+## [1.23.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.23.0...v1.23.1) (2026-09-22)
+
+### Bug fixes
+
+* **schedule:** keep the worker column one width in every period ([0727fad](https://github.com/leonidkuznetsov18/vakhta/commit/0727faddac59fd232f22b0ceee3dc574c3b57385))
+
 ## [1.23.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.22.0...v1.23.0) (2026-09-21)
 
 ### Features
