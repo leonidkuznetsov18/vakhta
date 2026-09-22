@@ -2,6 +2,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import {
   cleanup,
+  act,
   configure,
   fireEvent,
   render,
@@ -23,6 +24,7 @@ let client: QueryClient;
 afterEach(() => {
   cleanup();
   client.clear();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -85,10 +87,28 @@ it('creates an invitation, invalidates the list and copies the public hash link'
       role: OperatorRole.PLATFORM_VIEWER,
     }),
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
-  await waitFor(() =>
-    expect(copy).toHaveBeenCalledWith(`${window.location.origin}/#/invite?token=${token}`),
-  );
+  vi.useFakeTimers();
+  const copyButton = screen.getByRole('button', { name: 'Copy link' });
+  expect(copyButton.querySelector('.lucide-copy')).not.toBeNull();
+  fireEvent.click(copyButton);
+  await act(() => vi.advanceTimersByTimeAsync(1));
+  expect(copy).toHaveBeenCalledWith(`${window.location.origin}/#/invite?token=${token}`);
+  expect(
+    screen.getByRole('button', { name: 'Copied' }).querySelector('.lucide-check'),
+  ).not.toBeNull();
+  await act(() => vi.advanceTimersByTimeAsync(1_000));
+  fireEvent.click(screen.getByRole('button', { name: 'Copied' }));
+  await act(() => vi.advanceTimersByTimeAsync(1));
+  await act(() => vi.advanceTimersByTimeAsync(1_000));
+  expect(
+    screen.getByRole('button', { name: 'Copied' }).querySelector('.lucide-check'),
+  ).not.toBeNull();
+  await act(() => vi.advanceTimersByTimeAsync(1_001));
+  expect(
+    screen.getByRole('button', { name: 'Copy link' }).querySelector('.lucide-copy'),
+  ).not.toBeNull();
+  expect(copy).toHaveBeenCalledTimes(2);
+  vi.useRealTimers();
   expect(controlApi.operators).toHaveBeenCalledTimes(2);
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -96,6 +116,29 @@ it('creates an invitation, invalidates the list and copies the public hash link'
     expect(JSON.stringify(client.getMutationCache().getAll())).not.toContain(token),
   );
   expect(JSON.stringify(localStorage)).not.toContain(token);
+});
+
+it('keeps the copy icon after clipboard failure and allows retry', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ operatorId: id, token, expiresAt })));
+  const copy = vi
+    .fn()
+    .mockRejectedValueOnce(new Error('Clipboard denied'))
+    .mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: copy } });
+  await setup();
+  fireEvent.click(await screen.findByRole('button', { name: 'New invitation' }));
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Create link' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Copy link' }));
+  await screen.findByRole('alert');
+  expect(
+    screen.getByRole('button', { name: 'Copy link' }).querySelector('.lucide-copy'),
+  ).not.toBeNull();
+  expect(screen.queryByRole('button', { name: 'Copied' })).toBeNull();
+  expect(copy).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Copy link' }));
+  await screen.findByRole('button', { name: 'Copied' });
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(copy).toHaveBeenCalledTimes(2);
 });
 
 it('preserves a failed creation draft without automatically retrying', async () => {

@@ -535,3 +535,12 @@ within bounded children. Local synthetic Chrome checks covered name/slug searche
 a hostname, and visually inspected screenshots at 1440x900 and 390x844 (document width 390).
 Control typecheck, scoped ESLint and 13 i18n tests passed. This is presentation-only; production and
 release verification are separate from the local fixture evidence.
+
+Invitation copy feedback (2026-09-22): successful clipboard writes replace Copy with Check and
+use the existing localized copied label for two seconds. A repeated copy restarts the timer;
+failed writes keep the error/retry flow and never show success. The feature model owns the timer,
+and callback-ref cleanup cancels it on dialog unmount. No new dependency or translation is needed.
+Seven invitation UI tests pass, including timed icon reset, repeated copy and clipboard failure/retry;
+Control typecheck and scoped ESLint pass. Synthetic localhost screenshots were captured and visually
+inspected on desktop and at 390x844, including keyboard activation and retained focus. Real operator
+invitations were not created or replaced for QA; release/deployment evidence remains separate.

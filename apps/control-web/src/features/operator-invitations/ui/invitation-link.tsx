@@ -1,24 +1,19 @@
-import { useMutation } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import type { OperatorInvitationView } from '@vakhta/contracts';
-import { Copy } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { FailureState, IconButton } from '@/shared/ui';
 import { fill, t } from '@/shared/i18n';
+import { useCopyLink } from '../model/use-copy-link';
 
 export function InvitationLink({ invitation }: { invitation: OperatorInvitationView }) {
   const m = t().operatorInvitations;
   const router = useRouter();
   const location = router.buildLocation({ to: '/invite', search: { token: invitation.token } });
   const url = new URL(`/#${location.href}`, window.location.origin).href;
-  const copy = useMutation({
-    mutationFn: () => navigator.clipboard.writeText(url),
-    retry: false,
-    gcTime: 0,
-    networkMode: 'always',
-  });
+  const copy = useCopyLink(url);
   return (
-    <div className="flex min-w-0 flex-col gap-3">
+    <div ref={copy.bind} className="flex min-w-0 flex-col gap-3">
       <p role="status" className="font-medium">
         {m.ready}
       </p>
@@ -32,17 +27,17 @@ export function InvitationLink({ invitation }: { invitation: OperatorInvitationV
           className="min-w-0"
         />
         <IconButton
-          icon={Copy}
+          icon={copy.copied ? Check : Copy}
           size="icon"
-          tooltip={copy.isSuccess ? m.copied : m.copy}
-          label={copy.isSuccess ? m.copied : m.copy}
-          onClick={() => copy.mutate()}
+          tooltip={copy.copied ? m.copied : m.copy}
+          label={copy.copied ? m.copied : m.copy}
+          onClick={copy.copy}
         />
       </div>
       <p className="text-sm text-muted-foreground">
         {fill(m.expires, { date: new Date(invitation.expiresAt).toLocaleString() })}
       </p>
-      {copy.isError ? <FailureState message={m.copyFailed} /> : null}
+      {copy.failed ? <FailureState message={m.copyFailed} /> : null}
     </div>
   );
 }
