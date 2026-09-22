@@ -1,3 +1,35 @@
+## [1.26.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.25.0...v1.26.0) (2026-09-22)
+
+### Features
+
+* **admin:** replace employee termination with block and delete actions ([76bab0c](https://github.com/leonidkuznetsov18/vakhta/commit/76bab0c36d6e2ff4a3f54b2c812ea248c6227c0d))
+* **admin:** show terminal connectivity in the terminal list ([b1bd70c](https://github.com/leonidkuznetsov18/vakhta/commit/b1bd70c97f04d406421a2fbf94b25c0654e072a9))
+* **bonus:** show points and remarks side by side on bonus charts ([e08f67b](https://github.com/leonidkuznetsov18/vakhta/commit/e08f67b6a5408c7a011ee105b8a6aa627643e9d6))
+* **control:** delete and suspend tenants from client actions ([5d7fe28](https://github.com/leonidkuznetsov18/vakhta/commit/5d7fe284f78e6df46976c67e0f383ba2c85e3754))
+* **overview:** name the people behind every staffing and zone count ([0cd8234](https://github.com/leonidkuznetsov18/vakhta/commit/0cd8234979c63fdb548d867f7e46382bdf3b4896))
+
+### Bug fixes
+
+* **communications:** offer linked employees as message recipients ([1bcae00](https://github.com/leonidkuznetsov18/vakhta/commit/1bcae0082211b3bb769861372c84445ec5bc9b8c))
+* **control:** remove manual provisioning from danger zone ([ec43626](https://github.com/leonidkuznetsov18/vakhta/commit/ec4362685b6708e0ab8be472d9c4e5f8e2ad1950))
+* **control:** restore outstanding bot token setup task ([e7290a6](https://github.com/leonidkuznetsov18/vakhta/commit/e7290a6b6d161c2cb48dfa93b775f7baade98920))
+* **control:** unify tenant tasks in one checklist ([e2989cf](https://github.com/leonidkuznetsov18/vakhta/commit/e2989cf7a86cb3c3b8f02218426e7e41c8475a81))
+* **i18n:** remove obsolete danger zone message types ([366753f](https://github.com/leonidkuznetsov18/vakhta/commit/366753fd8d72c8d3ef535edec2ae28cd8d1545f4))
+
+### Performance
+
+* **control:** stabilize user directory filter transitions ([1b03161](https://github.com/leonidkuznetsov18/vakhta/commit/1b031613717dbbecc0e7e8ea36a9836be6ec060c))
+
+### Documentation
+
+* **control:** record single checklist production verification ([2d401cb](https://github.com/leonidkuznetsov18/vakhta/commit/2d401cb263c0675f2b57e9780f14ac790c8b0e41))
+* **tenancy:** record live onboarding timing and rollout gaps ([57be158](https://github.com/leonidkuznetsov18/vakhta/commit/57be15846e9ead96776c51442d5e25e7a7f8d3eb))
+
+### Tests
+
+* **control:** avoid recursive native state selectors in jsdom ([e7ea3a6](https://github.com/leonidkuznetsov18/vakhta/commit/e7ea3a613cd7d9742239eedf7c56e54cb3cf6f85))
+* **kiosk:** provide tenant settings for terminal snapshots ([aec197a](https://github.com/leonidkuznetsov18/vakhta/commit/aec197a2dc5d45bea3f4e68b1a4cff75194b95b2))
+
 ## [1.25.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.24.0...v1.25.0) (2026-09-22)
 
 ### Features
