@@ -1,7 +1,7 @@
 import { Info } from 'lucide-react';
 import { InfoTooltip } from '@/shared/ui/info-tooltip';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type FetchStatus } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import {
   TENANT_USERS_PAGE_SIZE,
@@ -32,21 +32,16 @@ export function TenantUsers({ tenantId }: { tenantId: string }) {
     });
   return (
     <section className="flex min-w-0 flex-col gap-4" aria-label={m.title}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold">{m.title}</h2>
-        <Button
-          variant="outline"
-          disabled={query.isFetching || query.isPaused}
-          onClick={() => void query.refetch()}
-        >
-          {m.refresh}
-        </Button>
-      </div>
+      <UsersHeader
+        fetchStatus={query.fetchStatus}
+        hasData={Boolean(query.data)}
+        onRefresh={() => void query.refetch()}
+      />
       {query.isPaused ? (
         <FailureState message={m.offline} onRetry={() => void query.refetch()} />
       ) : null}
       {query.isError ? <FailureState onRetry={() => void query.refetch()} /> : null}
-      {query.isFetching ? <LoadingState label={query.data ? m.refreshing : undefined} /> : null}
+      {query.isFetching && !query.data ? <LoadingState /> : null}
       {query.data ? (
         <UserGroups
           counts={query.data.counts}
@@ -60,40 +55,96 @@ export function TenantUsers({ tenantId }: { tenantId: string }) {
         onApply={(value) => change({ usersSearch: value, usersPage: 1 })}
       />
       {query.data ? (
-        <>
-          <Directory data={query.data} tenantId={tenantId} />
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-            <span>
-              {fill(m.count, { shown: query.data.items.length, total: query.data.total })}
-            </span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                disabled={filter.page <= 1 || query.isFetching}
-                onClick={() => change({ usersPage: filter.page - 1 })}
-              >
-                {m.previous}
-              </Button>
-              <span>{fill(m.page, { page: filter.page })}</span>
-              <Button
-                variant="outline"
-                disabled={
-                  filter.page * TENANT_USERS_PAGE_SIZE >= query.data.total || query.isFetching
-                }
-                onClick={() => change({ usersPage: filter.page + 1 })}
-              >
-                {m.next}
-              </Button>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {fill(m.checkedAt, { time: checkedTime(query.data.counts.checkedAt) })}
-          </p>
-        </>
+        <UserResults
+          data={query.data}
+          tenantId={tenantId}
+          pending={query.isPlaceholderData || query.fetchStatus !== 'idle'}
+          onPage={(page) => change({ usersPage: page })}
+        />
       ) : null}
     </section>
   );
 }
+function UsersHeader({
+  fetchStatus,
+  hasData,
+  onRefresh,
+}: {
+  fetchStatus: FetchStatus;
+  hasData: boolean;
+  onRefresh: () => void;
+}) {
+  const m = t().users;
+  const disabled = fetchStatus !== 'idle';
+  return (
+    <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
+      <h2 className="text-xl font-semibold">{m.title}</h2>
+      <div className="flex items-center gap-3">
+        <div className="size-4 [&>div]:py-0 [&_span]:sr-only">
+          {fetchStatus === 'fetching' && hasData ? <LoadingState label={m.refreshing} /> : null}
+        </div>
+        <Button
+          variant="outline"
+          disabled={disabled}
+          onClick={() => {
+            if (!disabled) onRefresh();
+          }}
+        >
+          {m.refresh}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function UserResults({
+  data,
+  tenantId,
+  pending,
+  onPage,
+}: {
+  data: TenantUsersView & { page: number };
+  tenantId: string;
+  pending: boolean;
+  onPage: (page: number) => void;
+}) {
+  const m = t().users;
+  const previousDisabled = pending || data.page <= 1;
+  const nextDisabled = pending || data.page * TENANT_USERS_PAGE_SIZE >= data.total;
+  return (
+    <div className="flex min-w-0 flex-col gap-4" aria-busy={pending}>
+      <Directory data={data} tenantId={tenantId} />
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+        <span>{fill(m.count, { shown: data.items.length, total: data.total })}</span>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            disabled={previousDisabled}
+            onClick={() => {
+              if (!previousDisabled) onPage(data.page - 1);
+            }}
+          >
+            {m.previous}
+          </Button>
+          <span>{fill(m.page, { page: data.page })}</span>
+          <Button
+            variant="outline"
+            disabled={nextDisabled}
+            onClick={() => {
+              if (!nextDisabled) onPage(data.page + 1);
+            }}
+          >
+            {m.next}
+          </Button>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {fill(m.checkedAt, { time: checkedTime(data.counts.checkedAt) })}
+      </p>
+    </div>
+  );
+}
+
 function UserSearch({ value, onApply }: { value: string; onApply: (value: string) => void }) {
   const [draft, setDraft] = useState(value);
   const m = t().users;

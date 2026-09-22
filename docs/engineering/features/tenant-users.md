@@ -51,3 +51,35 @@ screenshots. Single writer and index owner: this task. Evidence and delivery to 
   tenant/employee path. Unavailable pictures fall back to initials. Connect/query timeouts and
   four concurrent database reads per batch bound failures; driver errors are sanitized.
 - Production delivery and live verification remain pending until CI and service deployment finish.
+
+## Filter stability correction (2026-09-22)
+
+Owner request: remove unnecessary rendering, filter flicker and leaked work on Users. Production
+reproduction with 2.5 seconds of network latency showed role controls, totals and directory removed
+while each uncached filter loaded. This was query-state layout replacement, not evidence of a leak.
+
+Acceptance: keep the current tenant's directory mounted while filters/pages load, keep search typing
+local, reuse fresh filter results, cancel superseded/unmounted requests and reject late responses.
+Do not retain another tenant's data during navigation. Required result changes still render normally.
+
+Use the existing FSD feature, React Compiler, URL-backed applied filters and local search draft;
+TanStack Query remains the sole server-state owner. Its same-tenant placeholder preserves results,
+60-second freshness matches existing polling, and AbortSignal retains request ownership. Carry the
+resolved page with its result so pagination does not relabel old rows as a new page. The shared loader
+occupies a reserved header slot during refresh; no extra spinner implementation or effect/store exists.
+Sources: [TanStack paginated queries](https://tanstack.com/query/latest/docs/framework/react/guides/paginated-queries),
+[query cancellation](https://tanstack.com/query/latest/docs/framework/react/guides/query-cancellation),
+and [React Compiler](https://react.dev/learn/react-compiler/introduction).
+
+Verification: 11 Users tests passed with the real QueryClient/Router, including five existing
+journeys plus stable DOM nodes, local typing without row recomputation, fresh-cache reuse, pagination,
+late-response cancellation, unmount observer cleanup and cross-tenant placeholder exclusion.
+Scoped ESLint, formatting, Control TypeScript and production build passed. Existing bundle-size and
+upstream Zod annotation warnings remain. No whole-application heap/leak audit is claimed.
+
+Chrome fixture screenshots captured and visually inspected at 1440x900 and 390x844, including a
+3-second pending filter. Search top stayed 514px on desktop and 752px on mobile; mobile document
+width stayed 390px. Initial loading, retained rows, empty results, retry and offline are covered by
+component tests. Browser console warnings came from installed wallet extensions, not the app.
+The simultaneous tenant-actions task owns the Router's tab-only search subscription improvement;
+its unrelated changes are excluded from this commit. Production publication is pending CI.
