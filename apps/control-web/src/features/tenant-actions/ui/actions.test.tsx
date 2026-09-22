@@ -16,7 +16,7 @@ import { controlApi, queryKeys } from '@/shared/api';
 import { TenantActions } from './actions';
 
 configure({ defaultHidden: true, asyncUtilTimeout: 5000 });
-vi.setConfig({ testTimeout: 30000 });
+const matchesSelector = Element.prototype.matches;
 
 const tenant: TenantSummaryView = {
   id: '00000000-0000-4000-8000-000000000001',
@@ -33,6 +33,14 @@ const tenant: TenantSummaryView = {
 };
 
 beforeEach(() => {
+  // Match the panel harness: jsdom has no native top-layer state and NWSAPI otherwise recurses.
+  vi.spyOn(Element.prototype, 'matches').mockImplementation(function (
+    this: Element,
+    selector: string,
+  ) {
+    if ([':modal', ':fullscreen', ':popover-open'].includes(selector)) return false;
+    return matchesSelector.call(this, selector);
+  });
   localStorage.setItem('vakhta.control.locale', 'en');
   vi.stubGlobal('PointerEvent', MouseEvent);
   vi.spyOn(controlApi, 'me').mockResolvedValue({
