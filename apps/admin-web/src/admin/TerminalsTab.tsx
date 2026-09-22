@@ -37,11 +37,16 @@ import { AddDialog } from '@/components/app/add-dialog';
 import {
   CircleAlertIcon,
   CircleCheckIcon,
+  ExternalLinkIcon,
   KeyRoundIcon,
+  Link2OffIcon,
   PencilIcon,
   PowerIcon,
+  PowerOffIcon,
   Trash2Icon,
+  type LucideIcon,
 } from 'lucide-react';
+import { IconButton } from '@/shared/ui/icon-button';
 import { validateWith, type FieldErrors } from '@/lib/validation';
 
 const all = messages(currentLocale());
@@ -50,18 +55,24 @@ const tr = t.terminals;
 const hints = all.ui.hints;
 const CHECKPOINTS = ['BOTH', 'ENTRY', 'EXIT'] as const;
 const CONNECTIVITIES = Object.values(TerminalConnectivity);
-/** Disabled and unpaired already have their own pills; only a live terminal shows its link state. */
-const LINK_PILL: Partial<
-  Record<TerminalConnectivity, { tone: PillTone; icon: typeof CircleCheckIcon }>
-> = {
+/** One pill per terminal: connectivity already folds in the enabled and paired state. */
+const STATUS_PILL: Record<TerminalConnectivity, { tone: PillTone; icon: LucideIcon }> = {
   [TerminalConnectivity.ONLINE]: { tone: 'success', icon: CircleCheckIcon },
   [TerminalConnectivity.OFFLINE]: { tone: 'danger', icon: CircleAlertIcon },
+  [TerminalConnectivity.UNPAIRED]: { tone: 'warning', icon: Link2OffIcon },
+  [TerminalConnectivity.DISABLED]: { tone: 'neutral', icon: PowerOffIcon },
 };
 /** Public kiosk address, baked in at build time; without it only the code is shown. */
 const KIOSK_URL = kioskUrl();
 
 interface Props {
   readonly org: OrgSnapshot;
+}
+
+/** The kiosk reads `?terminal=<id>` to show that terminal when this browser has paired it. */
+function kioskLink(terminalId: string): string | null {
+  if (!KIOSK_URL) return null;
+  return `${KIOSK_URL.replace(/\/$/, '')}/?terminal=${encodeURIComponent(terminalId)}`;
 }
 
 function pairingLink(code: string): string | null {
@@ -224,6 +235,13 @@ export function TerminalsTab({ org }: Props) {
       sortValue: (term) => term.lastSeenAt,
       header: tr.lastSeen,
       cell: (term) => (term.lastSeenAt ? formatDateTime(term.lastSeenAt) : tr.never),
+    },
+    {
+      key: 'kiosk',
+      header: <span className="sr-only">{tr.openKiosk}</span>,
+      label: tr.openKiosk,
+      align: 'right',
+      cell: (term) => <OpenKioskButton term={term} />,
     },
   ];
 
@@ -403,22 +421,32 @@ export function TerminalsTab({ org }: Props) {
   );
 }
 
-/** Whether a live terminal is in contact right now comes first; enabled state and pairing follow. */
 function TerminalStatus({ term }: { readonly term: TerminalView }) {
-  const link = LINK_PILL[term.connectivity];
+  const pill = STATUS_PILL[term.connectivity];
   return (
-    <div className="flex flex-wrap gap-1">
-      {link && (
-        <StatusPill tone={link.tone}>
-          <link.icon aria-hidden="true" />
-          {tr.connectivity[term.connectivity]}
-        </StatusPill>
-      )}
-      <StatusPill>{tr.statuses[term.status]}</StatusPill>
-      <StatusPill tone={term.paired ? 'neutral' : 'warning'}>
-        {term.paired ? tr.paired : tr.notPaired}
-      </StatusPill>
-    </div>
+    <StatusPill tone={pill.tone}>
+      <pill.icon aria-hidden="true" />
+      {tr.connectivity[term.connectivity]}
+    </StatusPill>
+  );
+}
+
+function OpenKioskButton({ term }: { readonly term: TerminalView }) {
+  const href = kioskLink(term.id);
+  if (!href) return null;
+  return (
+    <IconButton
+      asChild
+      // A link, not a button: IconButton's default `type` must not reach the anchor.
+      type={undefined}
+      icon={ExternalLinkIcon}
+      label={`${tr.openKiosk}: ${term.name}`}
+      tooltip={hints.terminalsOpenKiosk}
+      variant="ghost"
+      size="icon-sm"
+    >
+      <a href={href} target="_blank" rel="noopener noreferrer" />
+    </IconButton>
   );
 }
 

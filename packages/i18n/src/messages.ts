@@ -1325,9 +1325,8 @@ export interface Messages {
         readonly pairIssued: string;
         readonly pairLink: string;
         readonly pairHint: string;
-        readonly paired: string;
-        readonly notPaired: string;
         readonly connectivityFilter: string;
+        readonly openKiosk: string;
         readonly connectivity: Readonly<
           Record<'ONLINE' | 'OFFLINE' | 'UNPAIRED' | 'DISABLED', string>
         >;
@@ -1587,6 +1586,7 @@ export interface Messages {
       readonly terminalsDelete: string;
       readonly terminalsCheckpoint: string;
       readonly terminalsConnectivity: string;
+      readonly terminalsOpenKiosk: string;
       readonly checklists: string;
       readonly checklistsPosition: string;
       readonly checklistsZoneType: string;

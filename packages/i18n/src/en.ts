@@ -1644,9 +1644,8 @@ export const en: Messages = {
         pairLink: 'Link for the tablet',
         pairHint:
           'No tokens needed: register the terminal, get a pairing code and type it once on the tablet.',
-        paired: 'Paired with device',
-        notPaired: 'Not paired',
         connectivityFilter: 'Connection',
+        openKiosk: 'Open kiosk',
         connectivity: {
           ONLINE: 'Online',
           OFFLINE: 'Offline',
@@ -2349,7 +2348,9 @@ export const en: Messages = {
       terminalsPair:
         'The code is valid for 15 minutes and is typed once on the terminal screen. A new code replaces the old pairing.',
       terminalsConnectivity:
-        'Online: the kiosk tablet is open and renewing its QR. Offline: no QR renewal for more than three cycles, so nobody can check in there. Same rule as the Overview.',
+        'One status per terminal. Online: the kiosk tablet is open and renewing its QR. Offline: no QR renewal for more than three cycles, so nobody can check in there. Not paired: no tablet has been connected with a code yet. Disabled: the terminal issues no QR. Same rule as the Overview.',
+      terminalsOpenKiosk:
+        "Opens this terminal's kiosk screen in a new tab. A browser where the terminal is not paired yet asks for a pairing code.",
       terminalsStatus: 'A disabled terminal stops issuing QR codes; its pairing is kept.',
       terminalsDelete:
         'Only a terminal without check-in history can be deleted; otherwise disable it and the history stays in the reports.',
