@@ -51,6 +51,7 @@ import { QueryFeedback } from '@/components/app/query-feedback';
 import { LoadingState } from '@/shared/ui/loading-state';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { notifySuccess } from '@/lib/toast';
+import { localActivity } from '@/shared/api/activity';
 import {
   downloadJson,
   inspectionApi,
@@ -95,6 +96,15 @@ const errorText = (error: unknown) =>
         : error instanceof ApiError && error.code === 'INSPECTION_RULES_MISSING'
           ? t.aiRulesMissing
           : t.error;
+
+/**
+ * Lists behind the dialog refresh once it has closed: refetching them while it is open redraws
+ * and shifts the page under the modal on every save, analysis or rating.
+ */
+function refreshPageBehind(client: QueryClient) {
+  void client.invalidateQueries({ queryKey: ['handovers'] });
+  void client.invalidateQueries({ queryKey: ['photo-library'] });
+}
 
 /** Start on the workspace title so opening help never obscures the photo label. */
 function focusInspectionHeading(event: Event) {
@@ -152,6 +162,7 @@ export function PhotoInspectionDialog({
   });
   const [generation, setGeneration] = useState(0);
   const [editor, setEditor] = useState<InspectionEditor | null>(null);
+  const [pageStale, setPageStale] = useState(false);
   const editRules = () => {
     if (
       !query.data ||
@@ -197,7 +208,10 @@ export function PhotoInspectionDialog({
       <DialogContent
         showCloseButton={false}
         onOpenAutoFocus={focusInspectionHeading}
-        onCloseAutoFocus={() => onClose()}
+        onCloseAutoFocus={() => {
+          if (pageStale) refreshPageBehind(client);
+          onClose();
+        }}
         className="data-open:animate-none! motion-reduce:animate-none! flex h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-3 overflow-hidden p-3 sm:max-w-7xl sm:p-5"
       >
         <div className="absolute top-2 right-2">
@@ -247,6 +261,7 @@ export function PhotoInspectionDialog({
             queryFeedback={<QueryFeedback query={query} errorMessage={errorText(query.error)} />}
             onEditRules={canEditRules ? editRules : undefined}
             register={setEditor}
+            onPageStale={() => setPageStale(true)}
             reload={() => setGeneration((n) => n + 1)}
           />
         )}
@@ -260,6 +275,7 @@ function InspectionSession({
   initial,
   latest,
   register,
+  onPageStale,
   reload: resetSession,
   navigation,
   onEditRules,
@@ -274,6 +290,7 @@ function InspectionSession({
   initial: PhotoInspectionView;
   latest: PhotoInspectionView;
   register: (editor: InspectionEditor | null) => void;
+  onPageStale: () => void;
   reload: () => void;
   navigation?: PhotoNavigation;
   onEditRules?: (() => void) | undefined;
@@ -291,6 +308,7 @@ function InspectionSession({
   const limits = useQuery({
     queryKey: analysisLimitsKey(id),
     queryFn: ({ signal }) => inspectionApi.limits(id, signal),
+    meta: localActivity,
     refetchInterval: 30_000,
     retry: false,
   });
@@ -302,6 +320,7 @@ function InspectionSession({
       editor.useColors(colorSources(latest.rules, view.objects));
       return view;
     },
+    meta: localActivity,
     staleTime: 60_000,
   });
   const colors = colorSources(latest.rules, objects.data?.objects ?? []);
@@ -312,26 +331,27 @@ function InspectionSession({
         review: editor.store.getState().review,
         durationMs: editor.durationMs(),
       }),
+    meta: localActivity,
     retry: false,
     onMutate: () => editor.lock(),
     onSettled: () => editor.unlock(),
     onSuccess: (view) => {
       editor.saved(view);
       client.setQueryData(inspectionKey(id), view);
-      void client.invalidateQueries({ queryKey: ['handovers'] });
-      void client.invalidateQueries({ queryKey: ['photo-library'] });
+      onPageStale();
       notifySuccess(t.saved);
     },
   });
   const analyze = useMutation({
     mutationFn: () => inspectionApi.analyze(id, editor.analysisRequest()),
+    meta: localActivity,
     retry: false,
     onSettled: async () => {
       await client.cancelQueries({ queryKey: ['photo-analysis-limits'] });
       await client.invalidateQueries({ queryKey: ['photo-analysis-limits'] });
     },
     onSuccess: (view) => {
-      void client.invalidateQueries({ queryKey: ['photo-library'] });
+      onPageStale();
       editor.analysisReceived(view);
       client.setQueryData(inspectionKey(id), view);
     },
@@ -349,6 +369,7 @@ function InspectionSession({
       : null;
   const createObject = useMutation({
     mutationFn: (name: string) => inspectionApi.createObject({ name }),
+    meta: localActivity,
     retry: false,
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: photoObjectsKey });
@@ -357,14 +378,16 @@ function InspectionSession({
   const rate = useMutation({
     mutationFn: ({ runId, rating }: { runId: string; rating: AiFeedbackRating }) =>
       inspectionApi.rateRun(id, runId, { rating }),
+    meta: localActivity,
     retry: false,
     onSuccess: (view) => {
       client.setQueryData(inspectionKey(id), view);
-      void client.invalidateQueries({ queryKey: ['photo-library'] });
+      onPageStale();
     },
   });
   const exportReview = useMutation({
     mutationFn: () => inspectionApi.export(id),
+    meta: localActivity,
     retry: false,
     onSuccess: (value) => downloadJson(value, id.mediaId),
   });

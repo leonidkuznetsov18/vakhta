@@ -9,6 +9,8 @@ import { reviewFixture, reviewPhotos } from '@/preview/review-fixtures';
 import { inspectionApi } from '../api/inspection-api';
 import type * as InspectionApiModule from '../api/inspection-api';
 import { PhotoInspectionDialog } from './inspection-dialog';
+import { MutationActivity } from '@/components/app/query-feedback';
+import { QueryActivity } from '@/shared/ui/query-activity';
 
 const canvas = vi.hoisted(() => ({
   destroy: vi.fn(),
@@ -76,6 +78,10 @@ async function openPhoto() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   render(
     <QueryClientProvider client={client}>
+      <div data-testid="page-activity">
+        <QueryActivity />
+        <MutationActivity />
+      </div>
       <PhotoInspectionDialog
         sessionId="test-session"
         handoverId="hv1"
@@ -103,7 +109,7 @@ async function openPhoto() {
     expect(createImageAnnotator).toHaveBeenCalledOnce();
     expect(canvas.destroy).not.toHaveBeenCalled();
   };
-  return { view, stable };
+  return { view, stable, client };
 }
 function editReview() {
   fireEvent.click(screen.getByRole('checkbox', { name: t.notAssessable }));
@@ -162,4 +168,20 @@ it('requests a fresh link and recreates a failed image on explicit retry', async
   await waitFor(() => expect(inspectionApi.link).toHaveBeenCalledTimes(2));
   await waitFor(() => expect(screen.getByRole('img')).not.toBe(image));
   expect(canvas.destroy).toHaveBeenCalledOnce();
+});
+it('keeps save feedback inside the dialog and refreshes the page behind only after closing', async () => {
+  const { view, client } = await openPhoto();
+  const invalidate = vi.spyOn(client, 'invalidateQueries');
+  editReview();
+  const save = deferred<PhotoInspectionView>();
+  vi.mocked(inspectionApi.save).mockReturnValueOnce(save.promise);
+  fireEvent.click(screen.getByRole('button', { name: t.save }));
+  await waitFor(() => expect(inspectionApi.save).toHaveBeenCalledOnce());
+  const page = screen.getByTestId('page-activity');
+  expect(page.querySelector('[role="status"]')).toBeNull();
+  const request = vi.mocked(inspectionApi.save).mock.calls[0]?.[1];
+  if (!request) throw new Error('Missing save payload');
+  await act(async () => save.resolve({ ...view, version: 1, review: request.review }));
+  expect(page.querySelector('[role="status"]')).toBeNull();
+  expect(invalidate).not.toHaveBeenCalled();
 });
