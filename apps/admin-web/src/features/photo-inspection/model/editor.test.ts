@@ -8,6 +8,7 @@ vi.mock('@annotorious/annotorious', () => ({
   UserSelectAction: { EDIT: 'EDIT', SELECT: 'SELECT' },
 }));
 import { canSaveReview, fromCanvas, InspectionEditor, reviewIsValid, toCanvas } from './editor';
+import { SaveBlock, saveBlocker } from './review-feedback';
 import type {
   InspectionAnnotation,
   InspectionFinding,
@@ -76,23 +77,42 @@ const run: InspectionRunView = {
   },
 };
 describe('photo inspection form and geometry', () => {
-  it('starts a never-saved photo from its computed clean outcome and enables saving only after a change', () => {
+  it('lets a never-saved clean photo be saved as is, and a saved one only after a change', () => {
     const editor = new InspectionEditor(view);
     expect(editor.store.getState().review.status).toBe('COMPLIANT');
     expect(hasReviewChanges(editor.store.getState())).toBe(false);
+    expect(saveBlocker(editor.store.getState())?.key).toBe(SaveBlock.IMAGE);
     editor.store.setState({ imageStatus: 'ready' });
-    expect(canSaveReview(editor.store.getState())).toBe(false);
-    editor.change({ isReference: true });
     expect(canSaveReview(editor.store.getState())).toBe(true);
-    editor.change({ isReference: false });
-    expect(canSaveReview(editor.store.getState())).toBe(false);
     const saved = new InspectionEditor({
       ...view,
       version: 1,
       review: { ...view.review, status: 'COMPLIANT' },
     });
     saved.store.setState({ imageStatus: 'ready' });
+    expect(saveBlocker(saved.store.getState())?.key).toBe(SaveBlock.UNCHANGED);
+    saved.change({ isReference: true });
+    expect(canSaveReview(saved.store.getState())).toBe(true);
+    saved.change({ isReference: false });
     expect(canSaveReview(saved.store.getState())).toBe(false);
+  });
+  it('names the next action that unblocks saving', () => {
+    const editor = new InspectionEditor(view);
+    editor.store.setState({ imageStatus: 'ready' });
+    editor.addBox();
+    expect(saveBlocker(editor.store.getState())).toEqual({ key: SaveBlock.NAMES, regions: [1] });
+    const region = editor.store.getState().review.annotations[0];
+    if (!region) throw new Error('Expected region');
+    editor.editAnnotation(region.id, { objectId: RAG });
+    expect(saveBlocker(editor.store.getState())).toBeNull();
+    editor.setNotAssessable(true);
+    expect(saveBlocker(editor.store.getState())?.key).toBe(SaveBlock.REASON);
+    editor.change({ notAssessableReason: 'OTHER' });
+    expect(saveBlocker(editor.store.getState())?.key).toBe(SaveBlock.NOTE);
+    editor.change({ comment: 'Glare' });
+    expect(saveBlocker(editor.store.getState())).toBeNull();
+    editor.store.setState({ invalidGeometry: true });
+    expect(saveBlocker(editor.store.getState())?.key).toBe(SaveBlock.GEOMETRY);
   });
   it('derives the outcome from region verdicts and the not-assessable switch', () => {
     const editor = new InspectionEditor(view);

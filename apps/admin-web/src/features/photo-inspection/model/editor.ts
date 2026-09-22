@@ -4,6 +4,7 @@ import { availableSuggestions, linkLegacySuggestions } from './suggestions';
 import { InspectionViewport, INSPECTION_ZOOM } from './viewport';
 export { INSPECTION_ZOOM } from './viewport';
 import { hasReviewChanges, type ReviewChangeState } from './review-changes';
+import { saveBlocker } from './review-feedback';
 import { type ColorSource, objectColor, SELECTED_COLOR } from './object-colors';
 import { createStore } from 'zustand/vanilla';
 import { z } from 'zod';
@@ -504,11 +505,7 @@ export function createInspectionSession(
   };
 }
 
-/** Saving needs a change: the button never offers to store what is already stored. */
+/** Saving needs a reason to save: never the stored review again, never an invalid one. */
 export function canSaveReview(state: EditorState): boolean {
-  return (
-    hasReviewChanges(state) &&
-    reviewIsValid(state) &&
-    (state.imageStatus === 'ready' || state.review.status === 'NOT_ASSESSABLE')
-  );
+  return saveBlocker(state) === null;
 }

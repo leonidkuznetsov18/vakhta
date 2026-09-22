@@ -914,11 +914,6 @@
       "count": 1
     }
   },
-  "apps/admin-web/src/features/photo-inspection/model/review-feedback.ts": {
-    "no-restricted-syntax": {
-      "count": 2
-    }
-  },
   "apps/admin-web/src/features/photo-inspection/model/suggestions.ts": {
     "no-restricted-syntax": {
       "count": 2

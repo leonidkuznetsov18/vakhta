@@ -61,12 +61,7 @@ import {
   photoObjectsKey,
   type InspectionIdentity,
 } from '../api/inspection-api';
-import {
-  type InspectionEditor,
-  createInspectionSession,
-  canSaveReview,
-  INSPECTION_ZOOM,
-} from '../model/editor';
+import { type InspectionEditor, createInspectionSession, INSPECTION_ZOOM } from '../model/editor';
 import { EditableReview, ReadOnlyReview } from './review-fields';
 import { PredictionPanel } from './prediction-panel';
 import { deleteSelectedOnKeyDown } from '../model/delete-shortcut';
@@ -80,7 +75,7 @@ function cachedObjects(client: QueryClient): PhotoObjectView[] {
 }
 import { AnalyzeButton } from './analyze-button';
 import { InspectionRules } from './inspection-rules';
-import { reviewFeedback } from '../model/review-feedback';
+import { saveBlocker, type SaveBlock } from '../model/review-feedback';
 import '@annotorious/annotorious/annotorious.css';
 
 const t = messages(currentLocale()).photoInspection;
@@ -107,6 +102,13 @@ function refreshPageBehind(client: QueryClient) {
 }
 
 /** Start on the workspace title so opening help never obscures the photo label. */
+/** A disabled save names the action that unblocks it; an enabled one says what it stores. */
+function saveHint(blocker: { key: SaveBlock; regions: number[] } | null, busy: boolean): string {
+  if (busy) return t.validation.saving;
+  if (!blocker) return t.hints.save;
+  const message = t.validation[blocker.key];
+  return blocker.regions.length ? `${message} ${blocker.regions.join(', ')}` : message;
+}
 function focusInspectionHeading(event: Event) {
   event.preventDefault();
   if (event.currentTarget instanceof HTMLElement)
@@ -394,7 +396,8 @@ function InspectionSession({
   const busy = save.isPending || analyze.isPending;
   const paused = save.isPaused || analyze.isPaused || exportReview.isPaused;
   const pending = latest.runs.some((r) => r.status === 'PENDING');
-  const feedback = reviewFeedback(state.review, state.invalidGeometry);
+  const blocker = saveBlocker(state);
+  const saveDisabled = busy || blocker !== null;
   const error =
     save.error ?? analyze.error ?? exportReview.error ?? rate.error ?? createObject.error;
   const reload = async () => {
@@ -606,12 +609,6 @@ function InspectionSession({
               {t.dirty}: {changes.total}
             </p>
           )}
-          {feedback && initial.canEdit && (
-            <p role="status" className="text-sm text-muted-foreground">
-              {t.validation[feedback.key]}
-              {feedback.regions.length ? ` ${feedback.regions.join(', ')}` : ''}
-            </p>
-          )}
           <AnalysisLimits
             view={quota}
             retry={() => {
@@ -669,13 +666,15 @@ function InspectionSession({
         {initial.canEdit && (
           <div className="grid grid-cols-2 gap-2 sm:flex [&>*]:min-w-0 [&_button]:w-full sm:[&_button]:w-auto [&_button]:h-auto [&_button]:min-h-10 [&_button]:min-w-0 [&_button]:whitespace-normal sm:[&_button]:min-h-8">
             <IconButton
-              disabled={busy || !canSaveReview(state)}
+              disabled={saveDisabled}
               aria-busy={save.isPending && !save.isPaused}
               className="[&[aria-busy=true]>svg]:hidden"
               icon={SaveIcon}
               label={t.save}
-              tooltip={t.hints.save}
-              onClick={() => save.mutate()}
+              tooltip={saveHint(blocker, busy)}
+              onClick={() => {
+                if (!saveDisabled) save.mutate();
+              }}
             >
               {save.isPending && !save.isPaused ? (
                 <LoadingState label={t.save} className="gap-1.5 text-inherit" />

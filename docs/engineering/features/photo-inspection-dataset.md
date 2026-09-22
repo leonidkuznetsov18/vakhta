@@ -1020,3 +1020,13 @@ cases plus loading/read-only/narrow-layout regressions), 75 focused inspection u
 panel typecheck, production build and changed-file lint/format checks passed. The build retains
 existing large-bundle and third-party annotation warnings. These are local
 synthetic-fixture checks; production saves, real AI execution and physical devices were not exercised.
+
+### Save availability explains itself (2026-09-22)
+
+`saveBlocker` (`model/review-feedback.ts`) returns the first blocker in order: region geometry,
+unnamed regions (with numbers), missing not-assessable reason, missing note for reason «Other»,
+invalid input, photo not loaded, nothing changed since the last save. The disabled Save tooltip shows
+that action; the reason select and the note show the same rule as inline field errors. A never-saved
+photo is saveable as is, because confirming a clean photo is the decision the guide asks for. Regions
+dragged past the photo edge are clipped to it instead of blocking save. Evidence: focused unit tests,
+footer browser matrix (starts from a saved fixture now) and desktop/mobile tooltip screenshots.

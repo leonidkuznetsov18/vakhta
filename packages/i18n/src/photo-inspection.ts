@@ -68,6 +68,11 @@ export const inspectionEn = {
     names: 'Choose or name the object for regions:',
     reason: 'Choose why the photo cannot be assessed.',
     other: 'Check the fields and region boundaries.',
+    note: 'Describe why the photo cannot be assessed: the reason is «Other».',
+    image: 'Wait for the photo to load, or mark the photo as not assessable.',
+    unchanged:
+      'Nothing to save: this review is already saved. Change a region, the note or a mark first.',
+    saving: 'Wait for the current action to finish.',
   },
   marker: {
     annotated: 'Annotations saved',
@@ -223,6 +228,11 @@ export const inspectionUk: PhotoInspectionMessages = {
     names: 'Оберіть або назвіть обʼєкт для областей:',
     reason: 'Оберіть, чому фото не можна оцінити.',
     other: 'Перевірте заповнення полів і межі областей.',
+    note: 'Опишіть, чому фото не можна оцінити: обрано причину «Інше».',
+    image: 'Дочекайтеся завантаження фото або позначте, що фото не можна оцінити.',
+    unchanged:
+      'Немає що зберігати: перевірку вже збережено. Спочатку змініть область, примітку чи позначку.',
+    saving: 'Зачекайте, доки завершиться поточна дія.',
   },
   marker: {
     annotated: 'Розмітку збережено',
@@ -378,6 +388,11 @@ export const inspectionRu: PhotoInspectionMessages = {
     names: 'Выберите или назовите объект для областей:',
     reason: 'Выберите, почему фото нельзя оценить.',
     other: 'Проверьте заполнение полей и границы областей.',
+    note: 'Опишите, почему фото нельзя оценить: выбрана причина «Другое».',
+    image: 'Дождитесь загрузки фото или отметьте, что фото нельзя оценить.',
+    unchanged:
+      'Нечего сохранять: проверка уже сохранена. Сначала измените область, примечание или отметку.',
+    saving: 'Дождитесь завершения текущего действия.',
   },
   marker: {
     annotated: 'Разметка сохранена',

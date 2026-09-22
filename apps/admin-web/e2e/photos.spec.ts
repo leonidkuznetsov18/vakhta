@@ -19,7 +19,8 @@ for (const locale of ['en', 'uk', 'ru'] as const) {
       'GET',
     );
     if (!response) throw new Error('Missing inspection fixture');
-    let view = PhotoInspectionView.parse(await response.json());
+    // A saved review: Save starts disabled and only an edit enables it.
+    let view = { ...PhotoInspectionView.parse(await response.json()), version: 1 };
     let releaseSave = () => {};
     const saving = new Promise<void>((resolve) => {
       releaseSave = resolve;
@@ -101,11 +102,32 @@ for (const locale of ['en', 'uk', 'ru'] as const) {
   });
 }
 
+test('a disabled save names the action that unblocks it', async ({ page }, info) => {
+  const labels = messages('uk').photoInspection;
+  await page.addInitScript(() => localStorage.setItem('vakhta.locale', 'uk'));
+  await routeSavedInspection(page);
+  await page.goto('/e2e/photos.html');
+  await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
+  const save = buttonWithText(page, labels.save);
+  await expect(save).toBeDisabled();
+  const tooltip = page.getByRole('tooltip');
+  await page.getByLabel(labels.save, { exact: true }).focus();
+  await expect(tooltip).toHaveText(labels.validation.unchanged);
+  await page.screenshot({ path: info.outputPath('save-unchanged.png') });
+  await page.getByRole('checkbox', { name: labels.notAssessable, exact: true }).click();
+  await expect(save).toBeDisabled();
+  await page.getByLabel(labels.save, { exact: true }).focus();
+  await expect(tooltip).toHaveText(labels.validation.reason);
+  await expect(page.getByRole('alert').filter({ hasText: labels.validation.reason })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('save-reason.png') });
+});
+
 for (const width of [320, 639, 640, 768, 1024, 1440]) {
   test(`footer uses the intended responsive width at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.addInitScript(() => localStorage.setItem('vakhta.locale', 'uk'));
     const labels = messages('uk').photoInspection;
+    await routeSavedInspection(page);
     await page.goto('/e2e/photos.html');
     await page.getByRole('button', { name: 'Inspect photos', exact: true }).click();
     const save = buttonWithText(page, labels.save);
@@ -131,6 +153,18 @@ for (const width of [320, 639, 640, 768, 1024, 1440]) {
   });
 }
 
+/** Serves the first photo as an already saved review, so Save needs an edit to enable. */
+async function routeSavedInspection(page: Page) {
+  const photo = reviewPhotos[0];
+  if (!photo) throw new Error('Missing photo fixture');
+  const response = reviewFixture(
+    `/admin/handovers/hv1/photos/${photo.media.id}/${photo.itemKey}/inspection`,
+    'GET',
+  );
+  if (!response) throw new Error('Missing inspection fixture');
+  const view = { ...PhotoInspectionView.parse(await response.json()), version: 1 };
+  await page.route('**/inspection', (route) => route.fulfill({ json: view }));
+}
 function buttonWithText(page: Page, text: string) {
   return page.getByRole('button').filter({ hasText: text });
 }

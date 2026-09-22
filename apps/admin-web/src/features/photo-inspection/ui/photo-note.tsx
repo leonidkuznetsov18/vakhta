@@ -19,6 +19,7 @@ export function PhotoNote({ editor, busy }: { editor: InspectionEditor; busy: bo
       label={notAssessable ? t.assessmentReason : t.reviewComment}
       hint={t.reviewCommentHelp}
       optional={!required}
+      error={required && !review.comment.trim() ? t.validation.note : undefined}
     >
       {(id) => (
         <Textarea
@@ -40,6 +41,7 @@ export function PhotoNote({ editor, busy }: { editor: InspectionEditor; busy: bo
           label={t.notAssessableReason}
           value={review.notAssessableReason ?? ''}
           required
+          error={review.notAssessableReason ? undefined : t.validation.reason}
           onChange={(value) => {
             const reason = NotAssessableReason.safeParse(value);
             editor.change({ notAssessableReason: reason.success ? reason.data : undefined });
