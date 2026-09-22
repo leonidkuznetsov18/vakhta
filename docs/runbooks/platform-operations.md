@@ -366,7 +366,10 @@ Ordered rollout:
 
 1. Publish the reviewed API/control-api source. Install the same random 32+ character
    TENANT_GATEWAY_KEY on API and Worker; keep control TENANT_GATEWAY_ZONE unset initially.
-2. Build/package panel and kiosk with VITE_CONTROL_API_URL=https://control-api.vakhta.xyz.
+2. Build/package panel and kiosk with NODE_ENV=production and
+   VITE_CONTROL_API_URL=https://control-api.vakhta.xyz. For a local production build, also explicitly
+   clear VITE_API_URL and VITE_KIOSK_DEVICE_TOKEN; root .env development values must not enter
+   published assets. Inspect actual browser API requests and the unpaired kiosk before acceptance.
    Deploy apps/tenant-gateway/wrangler.jsonc. Route configuration is managed separately: omission of
    routes in Wrangler preserves dashboard/API routes. html_handling=none prevents internal asset
    paths from redirecting clients. Existing Pages deployments continue normally.

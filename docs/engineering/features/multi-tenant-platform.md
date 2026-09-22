@@ -603,3 +603,52 @@ connection result/retry. Core provisioning remains independently complete. No hi
 state is fabricated. All three catalogs updated. Twelve workspace regressions, Control typecheck,
 scoped ESLint, build and formatting passed. Desktop and 390px local screenshots were captured and
 visually inspected; publication/production confirmation follows separately.
+
+### Production rollout and benchmark, 2026-09-22
+
+Source b7fb74d passed CI 35702684406. Production API/control code at b94d19e is identical in the
+changed gateway paths; CI 35703823236 passed, released v1.25.0 and sent the existing Telegram
+announcement successfully. Railway API deployment 38bd152a-c501-4863-a608-2c142b91c58f and control
+mode deployment e28e42d7-9038-41b3-a8aa-96c566118efc succeeded. The shared authenticated Worker,
+proxied wildcard DNS and 14 exact-host exclusions are installed; legacy panel/API/kiosk and
+SuperFactory addresses remained reachable. No existing DNS records were replaced.
+
+Real Control creation: QA onboarding 20260922, id 7dd0bcab-865e-4a24-a9ec-6123d0a90a0a.
+Submit timestamp 08:30:25.869 UTC; job created 08:30:26.485, first step 08:30:27.409,
+activation/invitation complete 08:30:28.710, public config observed ready 08:30:28.913.
+That is 3.044 seconds from click to observed readiness, 2.225 seconds from persisted job creation
+to completion, and 1.301 seconds of step execution. Each of six steps ran once. Panel/welcome
+HTML returned 200 by 3.739 seconds, kiosk 200 by 3.836 seconds, unauthenticated API correctly 401
+by 3.869 seconds. This is one sample, not p95 or a full browser-first-login measurement.
+The form needed three entered fields (company name, administrator name/email), generated the slug,
+kept default locale/timezone/modules and needed one submit. No manual domain action or retry.
+After creation Cloudflare still had one wildcard DNS record and 15 routes: zero tenant-specific
+DNS records/routes and no per-tenant certificate/provider registration in the provisioning path.
+
+Live QA exposed a manual build mistake: root .env NODE_ENV=development bypassed runtime tenant
+resolution, and the kiosk inherited a local development token. Rebuilt with explicit production
+mode and cleared local VITE overrides; the runbook now documents these required inputs. Final corrected Worker version: af43eb78-d5d7-4560-a27a-36dd62b81845. No real
+production device was paired or modified. The original HTML/readiness timing does not prove the
+first build's browser usability; do not present it as complete onboarding time.
+The corrected kiosk shows the expected unpaired terminal form and tenant name.
+The welcome page rendered the correct company/administrator. Synthetic QA password acceptance
+through the public API returned 201 in 276 ms; password sign-in plus authenticated /me returned
+200/200 in 864 ms with ADMIN and the correct tenant-origin CORS headers. These are API checks,
+not human password-entry or authenticated-browser evidence. Chrome blocked the browser continuation
+because an extension UI was open; the owner was asked to dismiss it. The QA tenant remains ACTIVE,
+clearly labeled, with no workers, shifts, terminal pairing or bot token.
+
+Correction e7290a6 is published to Control Pages (deployment 1f1c25ea). The actual QA tenant now
+shows Add bot token / action needed above the completed core job. Production screenshots were
+captured and visually inspected at 1440x900 and 390x844; mobile document width is exactly 390.
+Open configuration navigates to the existing token form. Local 12-test regression suite covers
+missing/existing tokens, disabled module, empty history, token save and independently failed
+connection retry. Its full CI 35706631504 is pending at this checkpoint.
+
+Evidence files are ignored under test-results/tenant-onboarding/: submission.json,
+public-readiness.json, core-timing.json, job-durations.json, provider-operations.json,
+acceptance.json, login-api.json and desktop/mobile PNGs. Credential/invitation files are private
+and must not be copied into reports. Remaining: authenticated browser acceptance and a clean
+post-build end-to-end timing; scoped Workers CI token installation/enablement awaits the owner's
+explicit browser confirmation. The working one-time deployment uses existing authorized Wrangler
+OAuth; that personal credential is not installed into CI. Public signup remains outside scope.

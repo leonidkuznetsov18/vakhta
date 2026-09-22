@@ -61,8 +61,9 @@ authenticator code.
   "Support bot" and "Photo inspection" are reserved names for later.
 - **Provisioning.** "Provision" starts a job with visible steps: create the database, apply the
   schema, seed the directories (positions, downtime reasons, shift templates, the first site),
-  reserve the storage folder, register the addresses, connect the bot, and invite the first
-  administrator. Each step shows done, failed or "needs your action" with instructions (for
+  reserve the storage folder, register the addresses, and invite the first administrator. Bot
+  connection runs independently after activation. An enabled Worker bot without a token keeps a
+  visible Add bot token task with a link to its configuration. Each step shows done, failed or "needs your action" with instructions (for
   example a DNS record to create). A failed step can be retried without repeating the others.
 - **Bot.** Telegram has no way to create bots automatically. The operator creates the bot in
   BotFather, pastes the token, and the platform checks it and connects it. The token is stored
@@ -128,7 +129,9 @@ for the managed panel/API/kiosk addresses, creates the administrator invitation 
 company automatically. No per-company DNS record, certificate request or provider registration is
 required. A temporary gateway failure retries automatically, then remains visible and retryable.
 Telegram token verification and webhook setup run as a separate job after activation, so Telegram
-availability does not block the panel. Duplicate tokens remain refused. The operator shares the
+availability does not block the panel. Tasks continues to show missing bot setup even when core
+provisioning is complete; after token save it shows the actual connection job. Duplicate tokens
+remain refused. The operator shares the
 existing welcome link; the administrator chooses a password. Public self-registration and customer
 owned domains remain separate flows. Existing explicit platform and tenant addresses stay compatible.
 Production enablement and measured creation evidence are tracked in the engineering memory.

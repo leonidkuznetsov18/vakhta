@@ -20,13 +20,13 @@
 
 ## User Story 3: Live creation benchmark
 
-- [ ] T009 [US3] Deliver tested source and configure wildcard gateway/TLS with safe rollout per docs/runbooks/platform-operations.md (AC-002/008).
+- [x] T009 [US3] Deliver tested source and configure wildcard gateway/TLS with safe rollout per docs/runbooks/platform-operations.md (AC-002/008).
 - [ ] T010 [US3] Create a labeled QA tenant through Control; measure submit/readiness/welcome/first-login and inspect desktop/mobile screenshots in ignored test-results/tenant-onboarding/ (AC-009/010).
-- [ ] T011 [US3] Record durations, manual steps, provider-operation count and QA tenant disposition in docs/engineering/features/multi-tenant-platform.md (AC-009/010).
+- [x] T011 [US3] Record durations, manual steps, provider-operation count and QA tenant disposition in docs/engineering/features/multi-tenant-platform.md (AC-009/010).
 
 ## Delivery and Evidence
 
-- [ ] T012 Update docs/features/multi-tenant-platform.md and docs/runbooks/platform-operations.md with verified behavior; run speckit-converge against these artifacts.
+- [x] T012 Update docs/features/multi-tenant-platform.md and docs/runbooks/platform-operations.md with verified behavior; run speckit-converge against these artifacts.
 - [ ] T013 Complete task-owned master delivery and inspect CI/release/deployment/announcement outcomes; report remaining blockers honestly.
 
 ## Dependencies and Handoff
@@ -38,8 +38,19 @@ Other sessions own bonus/contracts edits; do not stage them. Coordinate before p
 
 ## Convergence
 
-Source implementation reviewed; deployment and timed browser acceptance remain open. Append only demonstrated remaining gaps.
+Source and live gateway deployment verified. Timed core creation and missing-bot task correction
+verified. Browser first-login acceptance and recurring gateway CI publication remain open; see the
+engineering evidence and convergence tasks below.
 
 ## Owner correction
 
-- [ ] T014 Restore an outstanding Add bot token task for enabled WORKER_BOT without a token, including existing tenants; cover token save, disabled modules and preserved completed jobs in control-web workspace regressions; inspect desktop/mobile production UI (AC-003).
+- [x] T014 Restore an outstanding Add bot token task for enabled WORKER_BOT without a token, including existing tenants; cover token save, disabled modules and preserved completed jobs in control-web workspace regressions; inspect desktop/mobile production UI (AC-003).
+
+## Phase 1: Convergence
+
+Reviewed 5 functional requirements, 10 acceptance criteria, 4 success criteria, 6 design decisions
+and 5 constitution principles. Two HIGH partial findings; no missing/contradicting/unrequested
+application behavior remains in the reviewed scope. No extension hooks are installed.
+
+- [ ] T015 Install the prepared account-scoped Workers Scripts token in GitHub production secrets after the owner's explicit browser confirmation, enable TENANT_GATEWAY_ENABLED, and verify a CI gateway publication per plan: shared asset delivery and AC-008 (partial).
+- [ ] T016 Finish authenticated desktop/mobile browser acceptance after the extension handoff, repeat a clean end-to-end creation measurement after correcting local production build inputs, and update the existing engineering evidence per FR-005 / AC-009/010 / SC-002/003 (partial).
