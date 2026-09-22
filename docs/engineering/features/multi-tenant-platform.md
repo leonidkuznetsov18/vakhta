@@ -544,3 +544,32 @@ Seven invitation UI tests pass, including timed icon reset, repeated copy and cl
 Control typecheck and scoped ESLint pass. Synthetic localhost screenshots were captured and visually
 inspected on desktop and at 390x844, including keyboard activation and retained focus. Real operator
 invitations were not created or replaced for QA; release/deployment evidence remains separate.
+
+## Instant onboarding implementation, 2026-09-22
+
+Active change: specs/012-instant-tenant-onboarding. Shared wildcard Worker + static assets and fixed
+Railway origin preserve isolated tenant databases and the existing Control creation/welcome flow.
+Spec Kit specify/plan/tasks/analyze completed: AC-001–010 map to T001–013, with no unresolved
+constitutional conflict. Public signup is explicitly outside the assumed first delivery.
+
+The domain step validates real HTTPS plus authenticated origin capability, with persisted bounded
+retry (four attempts, exponential delay). Core activation and optional bot-job enqueue commit
+atomically. Initial bot ownership checks stay local; network validation runs only after activation.
+API trusts the original public host only with the gateway key and bounds discovery refresh to one
+shared refresh per second. Known activation waits for an earlier poll, then reloads control config.
+Generated hostname collisions and control-api reserved slug are refused before provisioning.
+
+Independent review identified initial Telegram validation blocking creation, stale in-flight public
+config and a health-only false readiness probe; all three were corrected with regression coverage.
+Local evidence: 8 gateway tests, 17 real PostgreSQL provisioning/retry/bot-isolation tests,
+12 API cross-tenant auth/host-discovery tests, 7 domain slug tests and 9 release tests passed.
+Affected API/control/gateway typechecks, backend builds, scoped ESLint and formatting passed.
+Wrangler 4.129.0 dry-run bundles 142.65 KiB gzip. Local workerd serves panel/welcome/kiosk HTML
+without internal redirects, preserves questionnaire framing, and returns 404 for missing assets
+and unknown hosts. This caught the edge runtime's unsupported redirect=error; gateway fetches
+now use manual redirects. Compatibility date 2026-09-10 matches the pinned workerd runtime.
+A public random-host TLS handshake validated the existing wildcard certificate (HTTP 530 before
+DNS/routing installation); this is certificate evidence only, not gateway availability.
+Production rollout and the requested timed browser benchmark remain pending; no timing is claimed
+from local tests. CI credentials use a separate Workers token; existing Pages/release announcements
+are preserved. Provider records, deployed revision and benchmark results will be appended here.

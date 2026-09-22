@@ -353,3 +353,47 @@ then the registry marks the invitation used and records audit. Both inspection a
 reconcile an interrupted registry commit without changing the password again. Expired unused
 links fail closed. The owner sets the new password; operators share the onboarding link from
 the tenant workspace. Bot connection may follow panel onboarding.
+
+## Shared tenant gateway rollout (012)
+
+The gateway packages the current admin-web and qr-kiosk builds in one Worker asset collection;
+API requests go to the fixed Railway HTTPS origin. The registry determines each hostname's surface.
+The Worker replaces client forwarding headers and authenticates the original host using
+TENANT_GATEWAY_KEY. The API accepts this context only with the matching key. Keep that key only
+in Railway API variables and the Worker's encrypted secret binding; never in frontend/CI output.
+
+Ordered rollout:
+
+1. Publish the reviewed API/control-api source. Install the same random 32+ character
+   TENANT_GATEWAY_KEY on API and Worker; keep control TENANT_GATEWAY_ZONE unset initially.
+2. Build/package panel and kiosk with VITE_CONTROL_API_URL=https://control-api.vakhta.xyz.
+   Deploy apps/tenant-gateway/wrangler.jsonc. Route configuration is managed separately: omission of
+   routes in Wrangler preserves dashboard/API routes. html_handling=none prevents internal asset
+   paths from redirecting clients. Existing Pages deployments continue normally.
+3. Record DNS and routes before editing. Add exact no-script exclusions for existing platform and
+   tenant hosts before the wildcard route. Use a proxied wildcard DNS record pointing to a reserved
+   non-routable origin (192.0.2.1); the Worker must answer every routed request. Never point it at an
+   unrelated public service. Existing exact DNS records override wildcard DNS.
+4. Attach _.vakhta.xyz/_ to vakhta-tenant-gateway. Verify valid public TLS and
+   /.well-known/vakhta-gateway on random managed hosts: it must confirm authenticated API
+   /health/tenant-gateway capability and the exact public host. A generic /health 200 is insufficient.
+   Verify unknown ordinary paths fail closed and legacy panel/API/kiosk/control still work.
+5. Only then set control-api TENANT_GATEWAY_ZONE=vakhta.xyz (PLATFORM_SCHEME=https). The domain
+   step probes all three managed hosts over normal HTTPS before committing VERIFIED.
+6. GitHub production environment requires a separate CLOUDFLARE_WORKERS_API_TOKEN with Workers
+   Scripts Write for this account. Keep the existing Pages token unchanged. Set repository variable
+   TENANT_GATEWAY_ENABLED=true only once that credential is installed; enabled deployments fail
+   if it is missing. Gateway assets publish from the same source/release as Pages.
+7. Complete the labeled QA tenant benchmark and record provider-operation count, job durations,
+   welcome/first login and screenshots. Do not infer readiness from deployment status alone.
+
+Rollback: unset control TENANT_GATEWAY_ZONE to stop new automatic provisioning. Existing new
+companies depend on the gateway, so roll back its Worker version (and matching API capability),
+not its wildcard DNS/route. Preserve exact-host exclusions and registry/databases. Removing gateway
+infrastructure after tenants use it requires an explicit per-tenant migration. No per-tenant
+Railway domains or Pages custom domains are created by the new flow.
+
+Official behavior: [Worker routes](https://developers.cloudflare.com/workers/configuration/routing/routes/),
+[static asset binding](https://developers.cloudflare.com/workers/static-assets/binding/),
+[HTML handling](https://developers.cloudflare.com/workers/static-assets/routing/advanced/html-handling/),
+[Wrangler route ownership](https://developers.cloudflare.com/workers/wrangler/configuration/).

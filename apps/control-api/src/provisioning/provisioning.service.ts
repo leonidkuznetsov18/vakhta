@@ -46,7 +46,6 @@ const STEPS_BY_KIND: Record<ProvisioningKind, (has: ReadonlySet<ModuleCode>) => 
     S.SEED_DEFAULTS,
     S.STORAGE_PREFIX,
     S.REGISTER_DOMAINS,
-    ...(has.has(TenantModule.WORKER_BOT) ? [S.BOT_WEBHOOK] : []),
     ...(has.has(TenantModule.ADMIN_PANEL) ? [S.INVITE_ADMIN] : []),
   ],
   [K.ENABLE_MODULE]: (has) =>
@@ -72,6 +71,36 @@ export function stepsFor(kind: JobKind, modules: readonly ModuleCode[]): StepCod
   return STEPS_BY_KIND[kind](new Set(modules));
 }
 
+export async function enqueueProvisioningJob(
+  tx: RegistryDbOrTx,
+  input: CreateJobInput,
+): Promise<string> {
+  const steps = stepsFor(input.kind, input.modules);
+  let created: { id: string } | undefined;
+  try {
+    [created] = await tx
+      .insert(provisioningJobs)
+      .values({
+        tenantId: input.tenantId,
+        kind: input.kind,
+        requestedBy: input.requestedBy,
+        payload: input.payload,
+      })
+      .returning({ id: provisioningJobs.id });
+  } catch {
+    throw new ControlError(
+      'JOB_ALREADY_ACTIVE',
+      409,
+      `Tenant ${input.tenantId} already has an active job`,
+    );
+  }
+  if (!created) throw new Error('provisioning_jobs: insert returned no row');
+  await tx
+    .insert(provisioningSteps)
+    .values(steps.map((step, seq) => ({ jobId: created.id, step, seq })));
+  return created.id;
+}
+
 /** Job and step rows; the runner executes them. One active job per tenant (partial unique index). */
 @Injectable()
 export class ProvisioningService {
@@ -81,30 +110,7 @@ export class ProvisioningService {
   ) {}
 
   async createJob(tx: RegistryDbOrTx, input: CreateJobInput): Promise<string> {
-    const steps = stepsFor(input.kind, input.modules);
-    let created: { id: string } | undefined;
-    try {
-      [created] = await tx
-        .insert(provisioningJobs)
-        .values({
-          tenantId: input.tenantId,
-          kind: input.kind,
-          requestedBy: input.requestedBy,
-          payload: input.payload,
-        })
-        .returning({ id: provisioningJobs.id });
-    } catch {
-      throw new ControlError(
-        'JOB_ALREADY_ACTIVE',
-        409,
-        `Tenant ${input.tenantId} already has an active job`,
-      );
-    }
-    if (!created) throw new Error('provisioning_jobs: insert returned no row');
-    await tx
-      .insert(provisioningSteps)
-      .values(steps.map((step, seq) => ({ jobId: created.id, step, seq })));
-    return created.id;
+    return enqueueProvisioningJob(tx, input);
   }
 
   async listForTenant(tenantId: string): Promise<ProvisioningJobView[]> {

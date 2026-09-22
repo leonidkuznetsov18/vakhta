@@ -1,3 +1,4 @@
+import { TenantGateway } from '@vakhta/contracts';
 import { verifyPassword } from 'better-auth/crypto';
 import { randomUUID } from 'node:crypto';
 import { OnboardingService } from '../public/onboarding.service.js';
@@ -33,6 +34,7 @@ import {
   StepStatus,
   TenantSecretKind,
   TenantStatus,
+  TenantDomainStatus,
 } from '@vakhta/domain';
 import { ControlErrorFilter } from '../common/domain-error.js';
 import { ensureDockerHost } from '../../test/docker.js';
@@ -122,12 +124,14 @@ describe('control-api: create a tenant and provision it', () => {
     const tenants = app.get(TenantsService);
     const provisioning = app.get(ProvisioningService);
     // The runner under test uses the fake Telegram provider; the module's own runner is idle in tests.
+    const source = app.get<RegistryTenantSource>(TENANT_SOURCE);
     const runner = new ProvisioningRunner(
       app.get(REGISTRY),
       app.get(SECRET_CIPHER),
       (await import('../config/env.js')).loadControlEnv(process.env),
       app.get(TelegramProvider),
       tenants,
+      source,
     );
 
     const created = await tenants.create(
@@ -163,29 +167,30 @@ describe('control-api: create a tenant and provision it', () => {
     expect(byStep.get('REGISTER_DOMAINS')?.output).toMatchObject({
       instruction: 'CREATE_DNS_RECORDS',
     });
-    expect(byStep.get('BOT_WEBHOOK')?.status).toBe(StepStatus.PENDING);
+    expect(byStep.has('BOT_WEBHOOK')).toBe(false);
 
     // A second tick changes nothing while the manual step waits.
     await runner.tick();
     [job] = await provisioning.listForTenant(created.id);
-    expect(job?.steps.find((s) => s.step === ProvisioningStep.BOT_WEBHOOK)?.status).toBe(
-      StepStatus.PENDING,
-    );
+    expect(job?.steps.some((s) => s.step === ProvisioningStep.BOT_WEBHOOK)).toBe(false);
 
     if (!job) throw new Error('job missing');
     await provisioning.skipStep(job.id, 'REGISTER_DOMAINS');
+    const coreJobId = job.id;
     await runner.tick();
-    [job] = await provisioning.listForTenant(created.id);
-    expect(job?.status).toBe(JobStatus.DONE);
-    expect(job?.steps.map((s) => s.status)).toEqual([
+    expect((await tenants.get(created.id)).status).toBe(TenantStatus.ACTIVE);
+    expect(telegram.webhooks).toHaveLength(0);
+    job = await provisioning.get(coreJobId);
+    expect(job.status).toBe(JobStatus.DONE);
+    expect(job.steps.map((s) => s.status)).toEqual([
       'DONE',
       'DONE',
       'DONE',
       'DONE',
       'SKIPPED',
       'DONE',
-      'DONE',
     ]);
+    await runner.tick();
     expect(telegram.webhooks).toEqual([
       `http://zavoda-api.vakhta.test/telegram/webhook/${created.id}`,
     ]);
@@ -245,6 +250,139 @@ describe('control-api: create a tenant and provision it', () => {
     expect(publicConfig.modules).toContain('QR_KIOSK');
   });
 
+  it('rejects generated-host collisions before provisioning or bot validation', async () => {
+    const original = await createDraft('collision');
+    const svc = await services();
+    await expect(
+      svc.tenants.create(
+        {
+          slug: 'collision-api',
+          name: 'Collision',
+          defaultLocale: 'uk',
+          timezone: 'Europe/Kyiv',
+          modules: ['ADMIN_PANEL'],
+          provision: true,
+          adminEmail: 'collision@example.test',
+          adminName: 'QA',
+        },
+        OPERATOR,
+      ),
+    ).rejects.toMatchObject({ code: 'TENANT_SLUG_TAKEN', status: 409 });
+    expect((await svc.provisioning.listForTenant(original.id)).length).toBe(0);
+  });
+
+  it('activates through the HTTPS gateway without DNS actions and keeps a failing bot independent', async () => {
+    const svc = await services({ TENANT_GATEWAY_ZONE: 'vakhta.test', PLATFORM_SCHEME: 'https' });
+    const fetcher = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      return Response.json({ service: TenantGateway.SERVICE, host: url.hostname });
+    });
+    vi.stubGlobal('fetch', fetcher);
+    const original = svc.provider.verifyToken;
+    svc.provider.verifyToken = async () => {
+      throw new Error('Bot temporarily unavailable');
+    };
+    try {
+      const created = await svc.tenants.create(
+        {
+          name: 'Gateway QA',
+          slug: 'gateway-qa',
+          defaultLocale: 'uk',
+          timezone: 'Europe/Kyiv',
+          modules: ['ADMIN_PANEL', 'WORKER_BOT'],
+          adminEmail: 'gateway@example.test',
+          adminName: 'QA',
+          botToken: '999999:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+          provision: true,
+        },
+        OPERATOR,
+      );
+      // Simulate the earlier in-flight poll completing without observing activation.
+      const refresh = vi.spyOn(svc.source, 'refresh').mockResolvedValueOnce(undefined);
+      try {
+        await svc.runner.tick();
+      } finally {
+        refresh.mockRestore();
+      }
+      const active = await svc.tenants.get(created.id);
+      expect(active.status).toBe(TenantStatus.ACTIVE);
+      expect(active.domains.every((domain) => domain.status === TenantDomainStatus.VERIFIED)).toBe(
+        true,
+      );
+      expect(active.onboarding).not.toBeNull();
+      expect(fetcher).toHaveBeenCalledTimes(3);
+      expect(
+        (
+          await app.inject({
+            method: 'GET',
+            url: '/public/tenant-config?host=gateway-qa.vakhta.test',
+          })
+        ).statusCode,
+      ).toBe(200);
+      await svc.runner.tick();
+      const jobs = await svc.provisioning.listForTenant(created.id);
+      expect(jobs.find((job) => job.kind === ProvisioningKind.PROVISION)?.status).toBe(
+        JobStatus.DONE,
+      );
+      expect(jobs.find((job) => job.kind === ProvisioningKind.ENABLE_MODULE)?.status).toBe(
+        JobStatus.FAILED,
+      );
+      expect((await svc.tenants.get(created.id)).status).toBe(TenantStatus.ACTIVE);
+    } finally {
+      svc.provider.verifyToken = original;
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('does not verify unavailable gateway hosts and retries without recreating the database', async () => {
+    const svc = await services({ TENANT_GATEWAY_ZONE: 'vakhta.test', PLATFORM_SCHEME: 'https' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(null, { status: 503 })),
+    );
+    try {
+      const tenant = await createDraft('gateway-retry');
+      await svc.tenants.startProvisioning(tenant.id, OPERATOR);
+      await svc.runner.tick();
+      const [job] = await svc.provisioning.listForTenant(tenant.id);
+      if (!job) throw new Error('Missing job');
+      expect(
+        job.steps.find((step) => step.step === ProvisioningStep.REGISTER_DOMAINS)?.status,
+      ).toBe(StepStatus.PENDING);
+      expect(
+        (await svc.tenants.get(tenant.id)).domains.every(
+          (domain) => domain.status === TenantDomainStatus.PENDING,
+        ),
+      ).toBe(true);
+      await svc.db
+        .update(provisioningSteps)
+        .set({ output: { retryAt: new Date(0).toISOString() } })
+        .where(
+          and(
+            eq(provisioningSteps.jobId, job.id),
+            eq(provisioningSteps.step, ProvisioningStep.REGISTER_DOMAINS),
+          ),
+        );
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: string | URL | Request) =>
+          Response.json({ service: TenantGateway.SERVICE, host: new URL(String(input)).hostname }),
+        ),
+      );
+      await svc.runner.tick();
+      const done = await svc.provisioning.get(job.id);
+      expect(done.status).toBe(JobStatus.DONE);
+      expect(
+        done.steps.find((step) => step.step === ProvisioningStep.CREATE_DATABASE)?.attempts,
+      ).toBe(1);
+      expect(
+        done.steps.find((step) => step.step === ProvisioningStep.REGISTER_DOMAINS)?.attempts,
+      ).toBe(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('refuses a duplicate slug and a second active job', async () => {
     const { TenantsService } = await import('../tenants/tenants.service.js');
     const tenants = app.get(TenantsService);
@@ -264,23 +402,25 @@ describe('control-api: create a tenant and provision it', () => {
       ),
     ).rejects.toMatchObject({ code: 'TENANT_SLUG_TAKEN' });
   });
-  async function services() {
+  async function services(overrides: Record<string, string> = {}) {
     const { TenantsService } = await import('../tenants/tenants.service.js');
     const { ProvisioningService } = await import('./provisioning.service.js');
     const { ProvisioningRunner } = await import('./runner.js');
-    const { REGISTRY, SECRET_CIPHER } = await import('../infra/registry.module.js');
+    const { REGISTRY, SECRET_CIPHER, TENANT_SOURCE } = await import('../infra/registry.module.js');
     const db = app.get<ReturnType<typeof createRegistry>['db']>(REGISTRY);
     const tenants = app.get(TenantsService);
     const provisioning = app.get(ProvisioningService);
     const provider = app.get(TelegramProvider);
+    const source = app.get<RegistryTenantSource>(TENANT_SOURCE);
     const runner = new ProvisioningRunner(
       db,
       app.get(SECRET_CIPHER),
-      (await import('../config/env.js')).loadControlEnv(process.env),
+      (await import('../config/env.js')).loadControlEnv({ ...process.env, ...overrides }),
       provider,
       tenants,
+      source,
     );
-    return { db, tenants, provisioning, provider, runner };
+    return { db, tenants, provisioning, provider, runner, source };
   }
 
   async function createDraft(slug: string) {
@@ -314,7 +454,9 @@ describe('control-api: create a tenant and provision it', () => {
     expect(invitation?.tokenHash).toBe(tenants.hashInvitation(token));
     expect(invitation?.id).not.toBe(token);
     if (!invitation) throw new Error('Missing invitation');
-    const [provisionJob] = await provisioning.listForTenant(tenant.id);
+    const provisionJob = (await provisioning.listForTenant(tenant.id)).find(
+      (job) => job.kind === ProvisioningKind.PROVISION,
+    );
     if (!provisionJob) throw new Error('Missing provisioning job');
     const legacyToken = 'legacy-random-invitation-token';
     const legacyUrl = `http://zavoda.vakhta.test/#/welcome/${legacyToken}`;

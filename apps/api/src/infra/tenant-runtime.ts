@@ -8,7 +8,7 @@ import {
   type TenantRuntimeConfig,
   type TenantSource,
 } from '@vakhta/registry';
-import { TenantSurface } from '@vakhta/domain';
+import { TenantSurface, TenantStatus } from '@vakhta/domain';
 import {
   TENANT_SETTING_DEFAULTS,
   resolveTenantSettings,
@@ -45,8 +45,12 @@ const CLOSE_GRACE_MS = 30_000;
  * Creates and caches one runtime per tenant. A runtime is rebuilt when the source publishes a new
  * version (suspend, secret rotation, removal); the old one is closed after in-flight work.
  */
+const MISS_REFRESH_INTERVAL_MS = 1_000;
+
 @Injectable()
 export class TenantRuntimeRegistry implements OnApplicationShutdown {
+  private nextMissRefreshAt = 0;
+  private missRefresh: Promise<void> | null = null;
   private readonly cache = new Map<string, CachedRuntime>();
   private readonly closing = new Set<Promise<void>>();
   private readonly loading = new Map<TenantRuntime, Promise<void>>();
@@ -61,6 +65,22 @@ export class TenantRuntimeRegistry implements OnApplicationShutdown {
   byHost(host: string): TenantRuntime | null {
     const tenant = this.source.byHost(host);
     return tenant ? this.runtimeFor(tenant) : null;
+  }
+
+  /** One shared refresh per second bounds unknown-host traffic while discovering new tenants. */
+  async resolveHost(host: string): Promise<TenantRuntime | null> {
+    const existing = this.byHost(host);
+    if (existing && existing.tenant.status !== TenantStatus.PROVISIONING) return existing;
+    if (this.missRefresh) {
+      await this.missRefresh;
+    } else if (Date.now() >= this.nextMissRefreshAt) {
+      this.nextMissRefreshAt = Date.now() + MISS_REFRESH_INTERVAL_MS;
+      this.missRefresh = this.source.refresh().finally(() => {
+        this.missRefresh = null;
+      });
+      await this.missRefresh;
+    }
+    return this.byHost(host);
   }
 
   byId(tenantId: string): TenantRuntime | null {

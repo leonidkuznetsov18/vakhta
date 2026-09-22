@@ -119,3 +119,16 @@ default). Before password setup, **New invitation** replaces a lost or expired l
 the old one. It cannot reset an already activated operator's password. Disabled operators cannot
 accept invitations. If password setup succeeded but the connection failed, the recipient can try
 **Sign in** with the password they chose.
+
+## Instant managed-address onboarding
+
+Spec: [012-instant-tenant-onboarding](../../specs/012-instant-tenant-onboarding/spec.md).
+When the shared gateway is enabled, Create provisions the tenant database/defaults, checks HTTPS
+for the managed panel/API/kiosk addresses, creates the administrator invitation and activates the
+company automatically. No per-company DNS record, certificate request or provider registration is
+required. A temporary gateway failure retries automatically, then remains visible and retryable.
+Telegram token verification and webhook setup run as a separate job after activation, so Telegram
+availability does not block the panel. Duplicate tokens remain refused. The operator shares the
+existing welcome link; the administrator chooses a password. Public self-registration and customer
+owned domains remain separate flows. Existing explicit platform and tenant addresses stay compatible.
+Production enablement and measured creation evidence are tracked in the engineering memory.

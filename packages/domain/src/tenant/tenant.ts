@@ -79,6 +79,7 @@ export const RESERVED_TENANT_SLUGS = [
   'kiosk',
   'panel',
   'control',
+  'control-api',
   'www',
   'mail',
   'admin',

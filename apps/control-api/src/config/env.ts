@@ -48,6 +48,14 @@ export const ControlEnvSchema = z.object({
   PANEL_CNAME_TARGET: z.string().default('vakhta-panel.pages.dev'),
   KIOSK_CNAME_TARGET: z.string().default('vakhta-kiosk.pages.dev'),
   API_CNAME_TARGET: z.string().default('api.vakhta.xyz'),
+  /** Set only after the shared wildcard gateway and its HTTPS probe are verified. */
+  TENANT_GATEWAY_ZONE: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/)
+      .optional(),
+  ),
   INVITATION_TTL_HOURS: z.coerce.number().int().positive().default(168),
   PROVISIONING_POLL_MS: z.coerce.number().int().min(200).default(1000),
   AUTH_COOKIE_SAME_SITE: z.enum(['lax', 'none']).default('lax'),

@@ -1,5 +1,6 @@
 import { createHmac, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { databaseErrorCode } from '@vakhta/db';
 import {
   ModuleStatus,
   ProvisioningKind,
@@ -21,6 +22,7 @@ import {
   and,
   desc,
   eq,
+  inArray,
   provisioningJobs,
   provisioningSteps,
   sql,
@@ -123,19 +125,36 @@ export class TenantsService {
       .from(tenants)
       .where(eq(tenants.slug, cmd.slug));
     if (taken) throw new ControlError('TENANT_SLUG_TAKEN', 409, `Slug ${cmd.slug} is taken`);
-    const bot = cmd.botToken ? await this.verifyBotToken(cmd.botToken) : null;
     const hosts = managedHosts(this.env, cmd.slug);
+    const [occupied] = await this.db
+      .select({ id: tenantDomains.id })
+      .from(tenantDomains)
+      .where(
+        inArray(
+          tenantDomains.host,
+          hosts.map(({ host }) => host),
+        ),
+      )
+      .limit(1);
+    if (occupied) throw new ControlError('TENANT_SLUG_TAKEN', 409, 'A generated hostname is taken');
+    if (cmd.botToken) await this.assertBotAvailable(cmd.botToken);
 
-    const tenantId = await this.db.transaction(async (tx) => {
-      const id = await this.insertTenantRows(tx, {
-        cmd,
-        hosts,
-        botUsername: bot?.username ?? null,
-        actor,
+    const tenantId = await this.db
+      .transaction(async (tx) => {
+        const id = await this.insertTenantRows(tx, {
+          cmd,
+          hosts,
+          botUsername: null,
+          actor,
+        });
+        if (cmd.provision) await this.queueProvisioning(tx, { tenantId: id, cmd, actor });
+        return id;
+      })
+      .catch((error: unknown) => {
+        if (databaseErrorCode(error) === '23505')
+          throw new ControlError('TENANT_SLUG_TAKEN', 409, 'Slug or generated hostname is taken');
+        throw error;
       });
-      if (cmd.provision) await this.queueProvisioning(tx, { tenantId: id, cmd, actor });
-      return id;
-    });
     return this.get(tenantId);
   }
 
@@ -546,7 +565,11 @@ export class TenantsService {
   }
 
   private async verifyBotToken(token: string): Promise<{ username: string }> {
-    const identity = await this.telegram.verifyToken(token);
+    await this.assertBotAvailable(token);
+    return this.telegram.verifyToken(token);
+  }
+
+  private async assertBotAvailable(token: string): Promise<void> {
     const [duplicate] = await this.db
       .select({ tenantId: tenantSecrets.tenantId })
       .from(tenantSecrets)
@@ -558,7 +581,6 @@ export class TenantsService {
       );
     if (duplicate)
       throw new ControlError('BOT_TOKEN_IN_USE', 409, 'This bot token belongs to another tenant');
-    return identity;
   }
 
   private async storeSecret(tx: RegistryDbOrTx, secret: StoreSecretInput): Promise<void> {

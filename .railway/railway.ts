@@ -60,6 +60,7 @@ export default defineRailway(() => {
     replicas: { [region]: 1 },
     env: {
       ACTIVATION_PEPPER: preserve(),
+      TENANT_GATEWAY_KEY: preserve(),
       TENANCY_MODE: preserve(),
       CONTROL_DATABASE_URL: preserve(),
       CONTROL_ENCRYPTION_KEY: preserve(),
@@ -167,6 +168,7 @@ export default defineRailway(() => {
       S3_SECRET_KEY: preserve(),
       AUTH_COOKIE_SAME_SITE: preserve(),
       PROVISION_DATABASE_ADMIN_URL: preserve(),
+      TENANT_GATEWAY_ZONE: preserve(),
       PANEL_HOST_PATTERN: preserve(),
       KIOSK_HOST_PATTERN: preserve(),
       API_HOST_PATTERN: preserve(),

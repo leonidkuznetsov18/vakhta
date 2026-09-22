@@ -46,3 +46,16 @@ export const OnboardingView = z.object({
   kioskUrl: z.url().nullable(),
 });
 export type OnboardingView = z.infer<typeof OnboardingView>;
+
+/** The gateway replaces these headers before forwarding over verified HTTPS. */
+export const TenantGateway = {
+  HOST_HEADER: 'x-vakhta-tenant-host',
+  KEY_HEADER: 'x-vakhta-gateway-key',
+  PROBE_PATH: '/.well-known/vakhta-gateway',
+  ORIGIN_PROBE_PATH: '/health/tenant-gateway',
+  SERVICE: 'vakhta-tenant-gateway',
+} as const;
+export const TenantGatewayProbe = z.object({
+  service: z.literal(TenantGateway.SERVICE),
+  host: z.string().min(1),
+});

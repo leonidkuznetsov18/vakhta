@@ -30,6 +30,7 @@ describe('tenant slug rules', () => {
     expect(tenantSlugProblem('a'.repeat(33))).toBe('FORMAT');
     expect(tenantSlugProblem('api')).toBe('RESERVED');
     expect(tenantSlugProblem('control')).toBe('RESERVED');
+    expect(tenantSlugProblem('control-api')).toBe('RESERVED');
   });
 
   it('suggests a valid slug from a Cyrillic or Latin name', () => {

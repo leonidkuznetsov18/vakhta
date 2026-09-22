@@ -1,0 +1,23 @@
+{
+  "name": "tenant-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared wildcard routing and static assets for Vakhta tenant surfaces.",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "assets": "node scripts/prepare-assets.mjs"
+  },
+  "dependencies": {
+    "@vakhta/contracts": "workspace:*",
+    "@vakhta/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@vakhta/config": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

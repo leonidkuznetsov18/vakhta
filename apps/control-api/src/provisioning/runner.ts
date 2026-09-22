@@ -1,10 +1,18 @@
-import { Inject, Injectable, type OnApplicationShutdown, type OnModuleInit } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  type OnApplicationShutdown,
+  type OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import {
   JobStatus,
   ModuleStatus,
   ProvisioningKind,
   StepStatus,
   TenantStatus,
+  TenantModule,
+  TenantSecretKind,
   isStepSettled,
   isStepWaitingForOperator,
 } from '@vakhta/domain';
@@ -20,13 +28,20 @@ import {
   tenantSecrets,
   tenants,
   type RegistryDatabase,
+  type RegistryDbOrTx,
+  type RegistryTenantSource,
   type SecretCipher,
 } from '@vakhta/registry';
 import type { ControlEnv } from '../config/env.js';
-import { CONTROL_ENV, REGISTRY, SECRET_CIPHER } from '../infra/registry.module.js';
+import { CONTROL_ENV, REGISTRY, SECRET_CIPHER, TENANT_SOURCE } from '../infra/registry.module.js';
 import { createLogger } from '../logger.js';
 import { TenantsService } from '../tenants/tenants.service.js';
-import type { StepCode } from './provisioning.service.js';
+import { enqueueProvisioningJob, type StepCode } from './provisioning.service.js';
+import {
+  RetryableProvisioningError,
+  PROVISIONING_RETRY_LIMIT,
+  PROVISIONING_RETRY_DELAY_MS,
+} from './retry.js';
 import type { ProvisioningStep, StepContext } from './steps/context.js';
 import {
   createDatabaseStep,
@@ -78,6 +93,7 @@ export class ProvisioningRunner implements OnModuleInit, OnApplicationShutdown {
     @Inject(CONTROL_ENV) private readonly env: ControlEnv,
     telegram: TelegramProvider,
     tenantsService: TenantsService,
+    @Optional() @Inject(TENANT_SOURCE) private readonly source?: RegistryTenantSource,
   ) {
     this.logger = createLogger(env);
     this.steps = {
@@ -183,6 +199,7 @@ export class ProvisioningRunner implements OnModuleInit, OnApplicationShutdown {
   }
 
   private async runStep(step: StepRow, ctx: StepContext): Promise<'continue' | 'stop'> {
+    if (this.retryPending(step)) return 'stop';
     const impl = this.steps[step.step];
     await this.db
       .update(provisioningSteps)
@@ -198,7 +215,7 @@ export class ProvisioningRunner implements OnModuleInit, OnApplicationShutdown {
         await this.settle(step, StepStatus.MANUAL_REQUIRED, outcome.output);
         await this.db
           .update(provisioningJobs)
-          .set({ status: 'PENDING' })
+          .set({ status: JobStatus.PENDING })
           .where(eq(provisioningJobs.id, step.jobId));
         return 'stop';
       }
@@ -208,7 +225,14 @@ export class ProvisioningRunner implements OnModuleInit, OnApplicationShutdown {
         outcome.output ?? null,
       );
       return 'continue';
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof RetryableProvisioningError &&
+        step.attempts + 1 < PROVISIONING_RETRY_LIMIT
+      ) {
+        await this.deferStep(step);
+        return 'stop';
+      }
       const message = `Step ${step.step} failed; check provider access and configuration, then retry`;
       // Driver messages can contain SQL passwords or provider tokens. Never persist them.
       ctx.log.error({ step: step.step, tenant: ctx.tenant.slug }, 'provisioning step failed');
@@ -222,6 +246,29 @@ export class ProvisioningRunner implements OnModuleInit, OnApplicationShutdown {
         .where(eq(provisioningJobs.id, step.jobId));
       return 'stop';
     }
+  }
+
+  private retryPending(step: StepRow): boolean {
+    const retryAt = step.output?.['retryAt'];
+    return typeof retryAt === 'string' && Date.parse(retryAt) > Date.now();
+  }
+
+  private async deferStep(step: StepRow): Promise<void> {
+    const retryAt = new Date(
+      Date.now() + PROVISIONING_RETRY_DELAY_MS * 2 ** step.attempts,
+    ).toISOString();
+    await this.db
+      .update(provisioningSteps)
+      .set({
+        status: StepStatus.PENDING,
+        output: { retryAt },
+        lastError: 'Temporary provider failure; retry scheduled',
+      })
+      .where(and(eq(provisioningSteps.jobId, step.jobId), eq(provisioningSteps.step, step.step)));
+    this.logger.warn(
+      { step: step.step, attempt: step.attempts + 1 },
+      'provisioning retry scheduled',
+    );
   }
 
   private async settle(
@@ -246,9 +293,41 @@ export class ProvisioningRunner implements OnModuleInit, OnApplicationShutdown {
           .update(tenants)
           .set({ status: TenantStatus.ACTIVE, updatedAt: sql`now()` })
           .where(eq(tenants.id, tenant.id));
+        await this.enqueueBot(tx, job);
       }
     });
+    // An in-flight poll may have read before activation committed.
+    await this.source?.refresh();
+    await this.source?.reload();
     this.logger.info({ job: job.id, kind: job.kind, tenant: tenant.slug }, 'provisioning job done');
+  }
+
+  private async enqueueBot(tx: RegistryDbOrTx, job: JobRow): Promise<void> {
+    const [bot] = await tx
+      .select({ tenantId: tenantModules.tenantId })
+      .from(tenantModules)
+      .innerJoin(
+        tenantSecrets,
+        and(
+          eq(tenantSecrets.tenantId, tenantModules.tenantId),
+          eq(tenantSecrets.kind, TenantSecretKind.BOT_TOKEN),
+        ),
+      )
+      .where(
+        and(
+          eq(tenantModules.tenantId, job.tenantId),
+          eq(tenantModules.module, TenantModule.WORKER_BOT),
+          eq(tenantModules.status, ModuleStatus.ENABLED),
+        ),
+      );
+    if (!bot) return;
+    await enqueueProvisioningJob(tx, {
+      tenantId: job.tenantId,
+      kind: ProvisioningKind.ENABLE_MODULE,
+      requestedBy: job.requestedBy,
+      modules: [TenantModule.WORKER_BOT],
+      payload: {},
+    });
   }
 
   private context(

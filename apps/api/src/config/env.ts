@@ -36,6 +36,8 @@ export const EnvSchema = z.object({
       .regex(/^[0-9a-fA-F]{64}$/)
       .optional(),
   ),
+  /** Shared only with the tenant gateway; authenticates the original public host. */
+  TENANT_GATEWAY_KEY: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
   /** Pool size per tenant database; budget = tenants × (api replicas × this + worker pools). */
   TENANT_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
   REGISTRY_REFRESH_SECONDS: z.coerce.number().int().min(2).default(15),

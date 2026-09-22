@@ -1,3 +1,4 @@
+import { TenantGateway } from '@vakhta/contracts';
 import { ConfigService } from '@nestjs/config';
 import { EnvTenantSource, ENV_TENANT_ID, tenantFromEnv } from '@vakhta/registry';
 import { TenantRuntimeRegistry } from './tenant-runtime.js';
@@ -5,7 +6,7 @@ import { REDIS } from './redis.module.js';
 import { runWithTenant, currentStoragePrefix } from './tenant-context.js';
 import { KioskService } from '../kiosk/kiosk.service.js';
 import 'reflect-metadata';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { NestFactory } from '@nestjs/core';
@@ -31,6 +32,7 @@ import {
   migrateRegistry,
   registerExistingTenant,
   tenantModules,
+  tenantDomains,
   tenants,
   type RegistryDatabase,
 } from '@vakhta/registry';
@@ -121,6 +123,7 @@ describe('tenancy: every request is bound to exactly one tenant', () => {
     Object.assign(process.env, {
       NODE_ENV: 'test',
       TENANCY_MODE: 'registry',
+      TENANT_GATEWAY_KEY: 'gateway-test-key-at-least-32-characters',
       CONTROL_DATABASE_URL: adminUrl,
       CONTROL_ENCRYPTION_KEY: key,
       DATABASE_URL: adminUrl,
@@ -187,6 +190,39 @@ describe('tenancy: every request is bound to exactly one tenant', () => {
     expect(health.statusCode).toBe(200);
   });
 
+  it('discovers a newly registered host and shares refresh work across unknown-host traffic', async () => {
+    const source = app.get(TenantRuntimeRegistry).source;
+    await registry.insert(tenantDomains).values({
+      tenantId: a.id,
+      surface: 'API',
+      host: 'fresh--alpha.test',
+      status: 'VERIFIED',
+      isPrimary: false,
+      isManaged: true,
+    });
+    expect(source.byHost('fresh--alpha.test')).toBeNull();
+    const now = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 2_000);
+    const refresh = vi.spyOn(source, 'refresh');
+    try {
+      const responses = await Promise.all(
+        Array.from({ length: 8 }, (_, index) =>
+          app.inject({
+            method: 'GET',
+            url: '/me',
+            headers: { host: index === 0 ? 'fresh--alpha.test' : `unknown-${index}.test` },
+          }),
+        ),
+      );
+      expect(responses[0]?.statusCode).toBe(401);
+      expect(responses.slice(1).every((response) => response.statusCode === 404)).toBe(true);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(source.byHost('fresh--alpha.test')?.id).toBe(a.id);
+    } finally {
+      refresh.mockRestore();
+      now.mockRestore();
+    }
+  });
+
   it('keeps sessions inside their tenant: a cookie of alpha is anonymous on bravo (AC-006)', async () => {
     const { AuthService } = await import('../auth/auth.service.js');
     const auth = app.get(AuthService);
@@ -223,6 +259,84 @@ describe('tenancy: every request is bound to exactly one tenant', () => {
       payload: { email: 'admin@alpha.test', password: PASSWORD },
     });
     expect(bravoLogin.statusCode).toBeGreaterThanOrEqual(400);
+  });
+
+  it('authenticates gateway routing and preserves tenant session isolation at a shared origin', async () => {
+    const key = 'gateway-test-key-at-least-32-characters';
+    const forwarded = {
+      host: 'shared.railway.test',
+      [TenantGateway.HOST_HEADER]: a.apiHost,
+      [TenantGateway.KEY_HEADER]: key,
+    };
+    await Promise.all(
+      [undefined, 'incorrect-key'].map(async (credentials) => {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/me',
+          headers: {
+            host: forwarded.host,
+            [TenantGateway.HOST_HEADER]: a.apiHost,
+            ...(credentials ? { [TenantGateway.KEY_HEADER]: credentials } : {}),
+          },
+        });
+        expect(response.statusCode).toBe(403);
+      }),
+    );
+    const capability = await app.inject({
+      method: 'GET',
+      url: TenantGateway.ORIGIN_PROBE_PATH,
+      headers: forwarded,
+    });
+    expect(capability.statusCode).toBe(200);
+    expect(capability.json()).toEqual({ service: TenantGateway.SERVICE, host: a.apiHost });
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: TenantGateway.ORIGIN_PROBE_PATH,
+          headers: { host: a.apiHost },
+        })
+      ).statusCode,
+    ).toBe(403);
+    const spoof = await app.inject({
+      method: 'GET',
+      url: '/me',
+      headers: { host: 'shared.railway.test', 'x-forwarded-host': a.apiHost },
+    });
+    expect(spoof.statusCode).toBe(404);
+    const login = await app.inject({
+      method: 'POST',
+      url: '/auth/sign-in/email',
+      headers: { ...forwarded, origin: `http://${a.panelHost}` },
+      payload: { email: 'admin@alpha.test', password: PASSWORD },
+    });
+    expect(login.statusCode).toBe(200);
+    const cookies = login.headers['set-cookie'];
+    const cookie = (Array.isArray(cookies) ? cookies : [cookies ?? ''])
+      .map((value) => value.split(';')[0])
+      .join('; ');
+    expect(
+      (await app.inject({ method: 'GET', url: '/me', headers: { ...forwarded, cookie } }))
+        .statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/me',
+          headers: { ...forwarded, [TenantGateway.HOST_HEADER]: b.apiHost, cookie },
+        })
+      ).statusCode,
+    ).toBe(401);
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/health',
+          headers: { ...forwarded, [TenantGateway.KEY_HEADER]: 'wrong' },
+        })
+      ).statusCode,
+    ).toBe(403);
   });
 
   it('rejects a kiosk device token of alpha on bravo (AC-007)', async () => {

@@ -1,3 +1,4 @@
+import { registerGatewayDomains } from './gateway-domains.js';
 import { randomBytes } from 'node:crypto';
 import { promises as dns } from 'node:dns';
 import { TenantDomainStatus, TenantModule, TenantSurface, normalizeHost } from '@vakhta/domain';
@@ -33,6 +34,7 @@ export const registerDomainsStep: ProvisioningStep = {
     return pending.length === 0;
   },
   async run(ctx) {
+    if (ctx.env.TENANT_GATEWAY_ZONE) return registerGatewayDomains(ctx);
     const targets = new Map(
       managedHosts(ctx.env, ctx.tenant.slug).map((h) => [h.host, h.cnameTarget]),
     );
