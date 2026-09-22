@@ -1,3 +1,25 @@
+## [1.24.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.23.1...v1.24.0) (2026-09-22)
+
+### Features
+
+* **control:** add operator password invitation links ([ca6d9b3](https://github.com/leonidkuznetsov18/vakhta/commit/ca6d9b3efad016d7572e5899e839c9383ad2d20c))
+* **control:** add tenant user counts and role directory ([f52a46e](https://github.com/leonidkuznetsov18/vakhta/commit/f52a46ee5c82710300f4eaf239cb25ff7c0f1576))
+
+### Bug fixes
+
+* **control:** show searchable client names and slugs ([a8c2a32](https://github.com/leonidkuznetsov18/vakhta/commit/a8c2a32de0f85feb9e7f70b44c8b73b9f283a7c1))
+* **control:** show temporary checkmark after copying invitations ([0f150ec](https://github.com/leonidkuznetsov18/vakhta/commit/0f150ec287fea8b7799ec75cd223d9a571895f18))
+* **control:** show totals for empty client filters ([752387e](https://github.com/leonidkuznetsov18/vakhta/commit/752387ec6ddb9af658dcb31222d623775632432e))
+* **schedule:** readable type scale and spacing in calendar cells ([0afa46d](https://github.com/leonidkuznetsov18/vakhta/commit/0afa46dc479584fbd563b82e68d6b4f3eae31c40))
+
+### Maintenance
+
+* **release:** integrate published release metadata ([ecb0323](https://github.com/leonidkuznetsov18/vakhta/commit/ecb03232f5373021223fb3e4b1132fee7a8d95be))
+
+### Styles
+
+* **docs:** format control platform verification notes ([8a73118](https://github.com/leonidkuznetsov18/vakhta/commit/8a731186a88e088322f07c3b3cbb587f6552dd0f))
+
 ## [1.23.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.23.0...v1.23.1) (2026-09-22)
 
 ### Bug fixes
