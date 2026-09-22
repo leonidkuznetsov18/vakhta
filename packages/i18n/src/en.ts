@@ -1645,8 +1645,15 @@ export const en: Messages = {
         pairLink: 'Link for the tablet',
         pairHint:
           'No tokens needed: register the terminal, get a pairing code and type it once on the tablet.',
-        paired: 'Paired',
+        paired: 'Paired with device',
         notPaired: 'Not paired',
+        connectivityFilter: 'Connection',
+        connectivity: {
+          ONLINE: 'Online',
+          OFFLINE: 'Offline',
+          UNPAIRED: 'Not paired',
+          DISABLED: 'Disabled',
+        },
         disable: 'Disable',
         enable: 'Enable',
         statusChanged: 'Terminal status changed.',
@@ -1660,7 +1667,7 @@ export const en: Messages = {
         pairSteps: [
           'Press "Pairing code": the code is valid 15 minutes and is entered once.',
           'On the tablet open the kiosk (kiosk.vakhta.xyz) and type the code or open the tablet link.',
-          'The terminal becomes "Paired" and "Last sync" starts updating: the tablet requests a QR every 45 seconds.',
+          'The terminal becomes "Paired with device" and "Online", and "Last sync" starts updating: the tablet requests a QR every 45 seconds.',
         ],
         checkpoints: { ENTRY: 'Entry', EXIT: 'Exit', BOTH: 'Entry and exit' },
         statuses: { ACTIVE: 'Active', DISABLED: 'Disabled' },
@@ -2341,6 +2348,8 @@ export const en: Messages = {
         'The tree shows sites, nested units and the employees whose current position is in each unit. Terminated employees are hidden.',
       terminalsPair:
         'The code is valid for 15 minutes and is typed once on the terminal screen. A new code replaces the old pairing.',
+      terminalsConnectivity:
+        'Online: the kiosk tablet is open and renewing its QR. Offline: no QR renewal for more than three cycles, so nobody can check in there. Same rule as the Overview.',
       terminalsStatus: 'A disabled terminal stops issuing QR codes; its pairing is kept.',
       terminalsDelete:
         'Only a terminal without check-in history can be deleted; otherwise disable it and the history stays in the reports.',

@@ -1,4 +1,10 @@
-export type TerminalConnectivity = 'ONLINE' | 'OFFLINE' | 'UNPAIRED' | 'DISABLED';
+export const TerminalConnectivity = {
+  ONLINE: 'ONLINE',
+  OFFLINE: 'OFFLINE',
+  UNPAIRED: 'UNPAIRED',
+  DISABLED: 'DISABLED',
+} as const;
+export type TerminalConnectivity = (typeof TerminalConnectivity)[keyof typeof TerminalConnectivity];
 
 export interface TerminalHeartbeat {
   readonly status: string;
@@ -18,11 +24,12 @@ export function terminalConnectivity(
   now: Date,
   rotationSeconds: number,
 ): TerminalConnectivity {
-  if (terminal.status !== 'ACTIVE') return 'DISABLED';
-  if (!terminal.paired) return 'UNPAIRED';
-  if (!terminal.lastSeenAt) return 'OFFLINE';
+  if (terminal.status !== 'ACTIVE') return TerminalConnectivity.DISABLED;
+  if (!terminal.paired) return TerminalConnectivity.UNPAIRED;
+  if (!terminal.lastSeenAt) return TerminalConnectivity.OFFLINE;
   const silenceMs = now.getTime() - terminal.lastSeenAt.getTime();
-  return silenceMs > OFFLINE_ROTATIONS * rotationSeconds * 1000 ? 'OFFLINE' : 'ONLINE';
+  const silent = silenceMs > OFFLINE_ROTATIONS * rotationSeconds * 1000;
+  return silent ? TerminalConnectivity.OFFLINE : TerminalConnectivity.ONLINE;
 }
 
 /**

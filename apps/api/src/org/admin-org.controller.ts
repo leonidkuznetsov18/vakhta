@@ -45,6 +45,7 @@ import {
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { ChecklistsService } from './checklists.service.js';
 import { OrgService } from './org.service.js';
+import { terminalView } from './terminal-view.js';
 import { RequiresModule } from '../infra/module-guard.js';
 import { TenantModule } from '@vakhta/domain';
 
@@ -294,24 +295,4 @@ export class AdminOrgController {
   ): Promise<void> {
     await this.checklists.delete(id, body.reason, webUserActor(user));
   }
-}
-
-function terminalView(row: {
-  id: string;
-  siteId: string;
-  name: string;
-  checkpoint: TerminalView['checkpoint'];
-  status: TerminalView['status'];
-  deviceTokenHash: string | null;
-  lastSeenAt: Date | null;
-}): TerminalView {
-  return {
-    id: row.id,
-    siteId: row.siteId,
-    name: row.name,
-    checkpoint: row.checkpoint,
-    status: row.status,
-    paired: row.deviceTokenHash !== null,
-    lastSeenAt: row.lastSeenAt?.toISOString() ?? null,
-  };
 }

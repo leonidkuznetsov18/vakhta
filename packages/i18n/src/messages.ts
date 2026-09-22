@@ -1328,6 +1328,10 @@ export interface Messages {
         readonly pairHint: string;
         readonly paired: string;
         readonly notPaired: string;
+        readonly connectivityFilter: string;
+        readonly connectivity: Readonly<
+          Record<'ONLINE' | 'OFFLINE' | 'UNPAIRED' | 'DISABLED', string>
+        >;
         readonly disable: string;
         readonly enable: string;
         readonly statusChanged: string;
@@ -1583,6 +1587,7 @@ export interface Messages {
       readonly terminalsStatus: string;
       readonly terminalsDelete: string;
       readonly terminalsCheckpoint: string;
+      readonly terminalsConnectivity: string;
       readonly checklists: string;
       readonly checklistsPosition: string;
       readonly checklistsZoneType: string;

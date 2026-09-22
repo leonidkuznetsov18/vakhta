@@ -28,6 +28,12 @@ keeps the screen on. The language buttons in the bottom-left corner (UA / EN / �
 text of the screen; the choice is kept in the tablet's browser, and `?lang=` in the URL still
 wins for a link prepared by the administrator.
 
+The terminal list shows, for every enabled and paired terminal, whether it is "На связи" or
+"Нет связи" right now, with the same rule as the Overview: no QR renewal for more than three
+rotations means offline. "Активен" (not disabled) and "Сопряжён с устройством" (has a device
+token) never mean online on their own. The "Связь" filter narrows the list; the Overview cards
+"Терминал без связи" and "unpaired terminals" open it already filtered.
+
 ## Reserve channel
 
 If the terminal is down, the shift master opens the shift from the panel ("Оперативная смена →

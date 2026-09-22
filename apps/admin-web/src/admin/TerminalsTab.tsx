@@ -8,6 +8,7 @@ import {
   type TerminalPairingIssued,
   type TerminalView,
 } from '@vakhta/contracts';
+import { TerminalConnectivity } from '@vakhta/domain';
 import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,7 +25,7 @@ import { DataTable, type Column } from '@/components/app/data-table';
 import { Feedback } from '@/components/app/feedback';
 import { FormField, SelectField } from '@/components/app/fields';
 import { InfoTip } from '@/components/app/info-tip';
-import { Muted, Section, StatusPill } from '@/components/app/page';
+import { Muted, Section, StatusPill, type PillTone } from '@/components/app/page';
 import { formatDateTime } from '@/lib/format';
 import { adminOrgApi } from '../api.ts';
 import { readError } from '../errors.ts';
@@ -33,7 +34,14 @@ import { keys } from '@/lib/query';
 import { notifySuccess } from '@/lib/toast';
 import { setUiState, usePersistentState } from '@/lib/ui-store';
 import { AddDialog } from '@/components/app/add-dialog';
-import { KeyRoundIcon, PencilIcon, PowerIcon, Trash2Icon } from 'lucide-react';
+import {
+  CircleAlertIcon,
+  CircleCheckIcon,
+  KeyRoundIcon,
+  PencilIcon,
+  PowerIcon,
+  Trash2Icon,
+} from 'lucide-react';
 import { validateWith, type FieldErrors } from '@/lib/validation';
 
 const all = messages(currentLocale());
@@ -41,6 +49,14 @@ const t = all.admin.administration;
 const tr = t.terminals;
 const hints = all.ui.hints;
 const CHECKPOINTS = ['BOTH', 'ENTRY', 'EXIT'] as const;
+const CONNECTIVITIES = Object.values(TerminalConnectivity);
+/** Disabled and unpaired already have their own pills; only a live terminal shows its link state. */
+const LINK_PILL: Partial<
+  Record<TerminalConnectivity, { tone: PillTone; icon: typeof CircleCheckIcon }>
+> = {
+  [TerminalConnectivity.ONLINE]: { tone: 'success', icon: CircleCheckIcon },
+  [TerminalConnectivity.OFFLINE]: { tone: 'danger', icon: CircleAlertIcon },
+};
 /** Public kiosk address, baked in at build time; without it only the code is shown. */
 const KIOSK_URL = kioskUrl();
 
@@ -81,6 +97,13 @@ export function TerminalsTab({ org }: Props) {
   const [editing, setEditing] = useState<TerminalView | null>(null);
   const [creating, setCreating] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [connectivityFilter, setConnectivityFilter] = usePersistentState<'' | TerminalConnectivity>(
+    'terminals.connectivity',
+    '',
+  );
+  const visibleRows = connectivityFilter
+    ? terminalRows.filter((term) => term.connectivity === connectivityFilter)
+    : terminalRows;
 
   const siteName = (id: string) => org.sites.find((s) => s.id === id)?.name ?? id;
 
@@ -95,7 +118,13 @@ export function TerminalsTab({ org }: Props) {
       setName('');
       setCreating(false);
       setPairing({ ...issued, name: term.name });
-      setCreated({ ...term, status: 'ACTIVE', paired: false, lastSeenAt: null });
+      setCreated({
+        ...term,
+        status: 'ACTIVE',
+        paired: false,
+        lastSeenAt: null,
+        connectivity: TerminalConnectivity.UNPAIRED,
+      });
       setOpenId(term.id);
       setUiState({ 'search.terminals': '' });
       await reload();
@@ -181,17 +210,14 @@ export function TerminalsTab({ org }: Props) {
     { key: 'checkpoint', header: tr.checkpoint, cell: (term) => tr.checkpoints[term.checkpoint] },
     {
       key: 'status',
-      header: tr.status,
-      cell: (term) => (
-        <div className="flex flex-wrap gap-1">
-          <StatusPill tone={term.status === 'ACTIVE' ? 'success' : 'neutral'}>
-            {tr.statuses[term.status]}
-          </StatusPill>
-          <StatusPill tone={term.paired ? 'info' : 'warning'}>
-            {term.paired ? tr.paired : tr.notPaired}
-          </StatusPill>
-        </div>
+      header: (
+        <span className="inline-flex items-center gap-1">
+          {tr.status}
+          <InfoTip text={hints.terminalsConnectivity} />
+        </span>
       ),
+      label: tr.status,
+      cell: (term) => <TerminalStatus term={term} />,
     },
     {
       key: 'seen',
@@ -247,11 +273,20 @@ export function TerminalsTab({ org }: Props) {
           </AddDialog>
         }
       >
+        <SelectField
+          label={tr.connectivityFilter}
+          value={connectivityFilter}
+          onChange={(v) => setConnectivityFilter(v as '' | TerminalConnectivity)}
+          placeholder="—"
+          options={CONNECTIVITIES.map((c) => ({ value: c, label: tr.connectivity[c] }))}
+          className="w-56"
+        />
         <Feedback error={error} />
       </Section>
       <DataTable
         columns={columns}
-        rows={terminalRows}
+        rows={visibleRows}
+        resetKey={connectivityFilter}
         rowKey={(term) => term.id}
         empty={t.common.empty}
         storageKey="terminals"
@@ -364,6 +399,25 @@ export function TerminalsTab({ org }: Props) {
         }}
       />
       {dialog}
+    </div>
+  );
+}
+
+/** Whether a live terminal is in contact right now comes first; enabled state and pairing follow. */
+function TerminalStatus({ term }: { readonly term: TerminalView }) {
+  const link = LINK_PILL[term.connectivity];
+  return (
+    <div className="flex flex-wrap gap-1">
+      {link && (
+        <StatusPill tone={link.tone}>
+          <link.icon aria-hidden="true" />
+          {tr.connectivity[term.connectivity]}
+        </StatusPill>
+      )}
+      <StatusPill>{tr.statuses[term.status]}</StatusPill>
+      <StatusPill tone={term.paired ? 'neutral' : 'warning'}>
+        {term.paired ? tr.paired : tr.notPaired}
+      </StatusPill>
     </div>
   );
 }

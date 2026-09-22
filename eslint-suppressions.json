@@ -104,15 +104,6 @@
     }
   },
   "apps/admin-web/src/admin/TerminalsTab.tsx": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-call": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access": {
-      "count": 1
-    },
     "@typescript-eslint/prefer-optional-chain": {
       "count": 1
     },
@@ -123,7 +114,7 @@
       "count": 2
     },
     "no-restricted-syntax": {
-      "count": 6
+      "count": 5
     }
   },
   "apps/admin-web/src/admin/UsersTab.tsx": {

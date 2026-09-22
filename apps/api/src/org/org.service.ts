@@ -48,6 +48,7 @@ import { isForeignKeyViolation, isUniqueViolation } from '../common/pg-errors.js
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
 import { DATABASE } from '../infra/database.module.js';
+import { terminalView } from './terminal-view.js';
 
 /** Довідники: майданчики, підрозділи, бригади, посади, зони, термінали (ТЗ 2, 9.1). */
 @Injectable()
@@ -534,17 +535,7 @@ export class OrgService {
         isShared,
         isActive,
       })),
-      terminals: term.map(
-        ({ id, siteId, name, checkpoint, status, deviceTokenHash, lastSeenAt }) => ({
-          id,
-          siteId,
-          name,
-          checkpoint,
-          status,
-          paired: deviceTokenHash !== null,
-          lastSeenAt: lastSeenAt?.toISOString() ?? null,
-        }),
-      ),
+      terminals: term.map((row) => terminalView(row)),
       reasonCodes: r.map(
         ({
           kind,

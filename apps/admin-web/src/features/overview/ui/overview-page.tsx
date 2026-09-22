@@ -1,4 +1,5 @@
 import type { ActiveShiftView, MeView, OverviewZone } from '@vakhta/contracts';
+import { TerminalConnectivity } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import { handoversApi, incidentsApi, requestsApi, shiftsApi } from '@/api';
 import { Muted } from '@/components/app/page';
@@ -148,14 +149,19 @@ export function OverviewPage({
       go(section, attention.data.firstId[item.key]);
       return;
     }
-    if (item.key === 'terminalsOffline') return openTerminals();
+    if (item.key === 'terminalsOffline') return openTerminals(TerminalConnectivity.OFFLINE);
     if (item.key === 'longDowntime') return operations({ 'operations.group': 'DOWNTIME' });
     // Not arrived: the live-shift screen is where a master starts a shift for an employee.
     operations({ 'operations.scope': 'ALL' });
   }
 
-  function openTerminals(): void {
-    setUiState({ 'search.terminals': '', 'terminals.openId': null });
+  /** The terminal list opens filtered to exactly the terminals the card counted. */
+  function openTerminals(connectivity: TerminalConnectivity): void {
+    setUiState({
+      'search.terminals': '',
+      'terminals.openId': null,
+      'terminals.connectivity': connectivity,
+    });
     go('administration', 'terminals');
   }
 
@@ -184,7 +190,7 @@ export function OverviewPage({
   }
 
   function openSetup(item: SetupItem): void {
-    if (item.key === 'unpairedTerminals') return openTerminals();
+    if (item.key === 'unpairedTerminals') return openTerminals(TerminalConnectivity.UNPAIRED);
     setUiState(attentionFilters('unlinkedEmployees', attention.data, selection));
     go('administration', 'employees');
   }

@@ -189,6 +189,7 @@ describe('overview counter eligibility', () => {
       status: 'ACTIVE' as const,
       paired: false,
       lastSeenAt: null,
+      connectivity: 'UNPAIRED' as const,
     };
     const data = buildAttention(
       {
@@ -201,8 +202,8 @@ describe('overview counter eligibility', () => {
         org: {
           terminals: [
             terminal,
-            { ...terminal, id: 'paired', paired: true },
-            { ...terminal, id: 'disabled', status: 'DISABLED' },
+            { ...terminal, id: 'paired', paired: true, connectivity: 'OFFLINE' as const },
+            { ...terminal, id: 'disabled', status: 'DISABLED', connectivity: 'DISABLED' as const },
           ],
         },
       },

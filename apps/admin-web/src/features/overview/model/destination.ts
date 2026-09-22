@@ -1,4 +1,5 @@
 import type { ActiveShiftView } from '@vakhta/contracts';
+import { TerminalConnectivity } from '@vakhta/domain';
 import type { Attention } from './attention';
 
 export type AttentionKey = keyof Omit<
@@ -70,7 +71,11 @@ export function attentionFilters(
         'employees.openId': null,
       };
     case 'unpairedTerminals':
-      return { 'search.terminals': '', 'terminals.openId': null };
+      return {
+        'search.terminals': '',
+        'terminals.openId': null,
+        'terminals.connectivity': TerminalConnectivity.UNPAIRED,
+      };
     case 'unscheduled':
       return {};
   }

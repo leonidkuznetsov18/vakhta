@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { IsoDateTime, Uuid } from './common.js';
+import { TerminalConnectivitySchema } from './overview.js';
 
 const Name = z.string().trim().min(1).max(200);
 const SlugCode = z
@@ -169,6 +170,8 @@ export const TerminalView = z.object({
   /** true once a kiosk has exchanged a pairing code for its device token. */
   paired: z.boolean(),
   lastSeenAt: IsoDateTime.nullable(),
+  /** Same rule as the Overview (spec 004 D-04), evaluated when the view is built. */
+  connectivity: TerminalConnectivitySchema,
 });
 export const ReasonCodeView = z.object({
   kind: z.enum(['DOWNTIME', 'CORRECTION', 'ABSENCE', 'HANDOVER', 'ADJUSTMENT', 'EMERGENCY']),
