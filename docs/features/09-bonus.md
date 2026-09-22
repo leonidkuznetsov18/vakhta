@@ -37,9 +37,14 @@ the current panel. Implementation status, recovery and concurrency requirements 
 ## Employee report
 
 Clicking an employee in the points table opens their bonus report under the row, and the address
-becomes `#/bonus/<employeeId>` so the report can be linked. The report shows the points trend of the
-last twelve months, every shift of the month with its checklist status, the remarks on it, the
+becomes `#/bonus/<employeeId>` so the report can be linked. The report shows points and remarks side by side
+for each of the last twelve months, every shift of the month with its checklist status, the remarks on it, the
 receiving shift's acceptance, the shift master's decision with its full text, and the point the
 shift earned; month-end awards are listed apart. A shift can be opened as the full handover report.
 The numbers in the report are computed from the same records as the row, so they never differ.
 Technical notes: [employee bonus report](../engineering/features/bonus-employee-report.md).
+
+The History tab chart shows points and remarks side by side for each period, each bar labelled with
+its count. A remark is a checklist the shift master returned with one, counted by the shift's day and
+the unit of its zone (or the planned unit when the shift had no zone). The reason filter narrows
+points only.

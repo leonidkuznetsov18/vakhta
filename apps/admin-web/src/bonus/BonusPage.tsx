@@ -30,6 +30,7 @@ import { currentLocale } from '../i18n.tsx';
 
 import { EmployeeBonusReport } from './EmployeeBonusReport.tsx';
 import { nominationStatus } from './nomination-status.ts';
+import { PointsRemarksChart } from './PointsRemarksChart.tsx';
 
 const all = messages(currentLocale());
 const b = all.admin.bonus;
@@ -503,24 +504,15 @@ export function BonusPage() {
           <Section title={b.tabHistory}>
             <>
               {(history?.buckets.length ?? 0) > 0 && (
-                <ChartContainer
-                  config={{ points: { label: b.historyPoints, color: 'var(--chart-1)' } }}
-                  className="mb-4 h-56 w-full"
-                >
-                  <BarChart data={history?.buckets ?? []} margin={{ left: 8, right: 8 }}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis dataKey="key" tickLine={false} axisLine={false} fontSize={11} />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      width={32}
-                      fontSize={11}
-                      allowDecimals={false}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="points" fill="var(--chart-1)" radius={4} maxBarSize={72} />
-                  </BarChart>
-                </ChartContainer>
+                <PointsRemarksChart
+                  className="mb-4"
+                  bars={(history?.buckets ?? []).map((bucket) => ({
+                    key: bucket.key,
+                    label: bucket.key,
+                    points: bucket.points,
+                    remarks: bucket.remarks,
+                  }))}
+                />
               )}
               <DataTable
                 queryState={historyQuery}

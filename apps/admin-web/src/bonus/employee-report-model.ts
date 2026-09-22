@@ -1,7 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 import type {
-  BonusHistoryBucket,
   EmployeeBonusReviewView,
+  EmployeeBonusTrendMonth,
   EmployeeBonusShiftView,
 } from '@vakhta/contracts';
 import type { HandoverResolution } from '@vakhta/domain';
@@ -9,7 +9,6 @@ import { formatMonthShort, formatTime } from '@/lib/format';
 import { keys } from '@/lib/query';
 import { bonusApi } from '../api.ts';
 
-const TREND_MONTHS = 12;
 const REMARK_RESOLUTION: HandoverResolution = 'RESOLVED_ISSUE_CONFIRMED';
 const ISSUE_REVIEW: EmployeeBonusReviewView['decision'] = 'ISSUE';
 
@@ -20,34 +19,20 @@ export function employeeReportQuery(employeeId: string, month: string) {
   });
 }
 
-/** The employee's points per month over the year that ends with the opened month. */
-export function employeeTrendQuery(employeeId: string, month: string) {
-  const range = trendRange(month);
-  const filters = { from: range.from, to: range.to, groupBy: 'month' as const, employeeId };
-  return queryOptions({
-    queryKey: keys.bonusHistory(filters),
-    queryFn: () => bonusApi.history(filters),
-  });
-}
-
-/** The twelve months ending with the given one, as the history query wants them. */
-export function trendRange(month: string): { from: string; to: string; months: string[] } {
-  const [y = 0, m = 1] = month.split('-').map(Number);
-  const months: string[] = [];
-  for (let i = TREND_MONTHS - 1; i >= 0; i -= 1) {
-    months.push(new Date(Date.UTC(y, m - 1 - i, 1)).toISOString().slice(0, 7));
-  }
-  const last = new Date(Date.UTC(y, m, 0));
-  return { from: `${months[0]}-01`, to: last.toISOString().slice(0, 10), months };
-}
-
-/** Every month of the range gets a bar, so a quiet month reads as zero, not as a gap. */
+/** One bar group per month: points and remarks side by side, the month in its short form. */
 export function trendBars(
-  months: readonly string[],
-  buckets: readonly BonusHistoryBucket[],
-): { key: string; label: string; points: number }[] {
-  const byKey = new Map(buckets.map((bucket) => [bucket.key, bucket.points]));
-  return months.map((key) => ({ key, label: formatMonthShort(key), points: byKey.get(key) ?? 0 }));
+  trend: readonly EmployeeBonusTrendMonth[],
+): { key: string; label: string; points: number; remarks: number }[] {
+  return trend.map((m) => ({
+    key: m.month,
+    label: formatMonthShort(m.month),
+    points: m.points,
+    remarks: m.remarks,
+  }));
+}
+
+export function isQuietTrend(trend: readonly EmployeeBonusTrendMonth[]): boolean {
+  return trend.every((m) => m.points === 0 && m.remarks === 0);
 }
 
 /** The one line that says why a shift did or did not earn its point. */

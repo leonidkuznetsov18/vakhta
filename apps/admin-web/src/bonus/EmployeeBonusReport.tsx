@@ -1,15 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { BonusHistoryEntry, EmployeeBonusShiftView } from '@vakhta/contracts';
+import type {
+  BonusHistoryEntry,
+  EmployeeBonusShiftView,
+  EmployeeBonusTrendMonth,
+} from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { ExternalLinkIcon } from 'lucide-react';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from '@/components/ui/chart';
 import { Button } from '@/components/ui/button';
 import { DataTable, type Column } from '@/components/app/data-table';
 import { Muted } from '@/components/app/page';
@@ -24,14 +21,14 @@ import { useNavigation } from '@/navigation';
 import { currentLocale } from '../i18n.tsx';
 import {
   employeeReportQuery,
-  employeeTrendQuery,
   hasRemarks,
   isIssueReview,
+  isQuietTrend,
   remarkPreview,
   shiftTime,
   trendBars,
-  trendRange,
 } from './employee-report-model.ts';
+import { PointsRemarksChart } from './PointsRemarksChart.tsx';
 
 const all = messages(currentLocale());
 const b = all.admin.bonus;
@@ -85,7 +82,7 @@ export function EmployeeBonusReport({
                 {data.employee.orgUnitName ? ` · ${data.employee.orgUnitName}` : ''}
               </Muted>
             </div>
-            <TrendChart employeeId={employeeId} month={month} />
+            <TrendChart trend={data.trend} />
             <ShiftsTable
               query={report}
               shifts={data.shifts}
@@ -101,39 +98,14 @@ export function EmployeeBonusReport({
   );
 }
 
-function TrendChart({
-  employeeId,
-  month,
-}: {
-  readonly employeeId: string;
-  readonly month: string;
-}) {
-  const trend = useQuery(employeeTrendQuery(employeeId, month));
-  const bars = trendBars(trendRange(month).months, trend.data?.buckets ?? []);
-  const chartConfig: ChartConfig = { points: { label: b.points, color: 'var(--chart-1)' } };
-  const empty = trend.data !== undefined && bars.every((bar) => bar.points === 0);
+function TrendChart({ trend }: { readonly trend: readonly EmployeeBonusTrendMonth[] }) {
   return (
     <section className="min-w-0">
       <h3 className="mb-2 text-sm font-semibold">{b.employeeTrend}</h3>
-      <QueryFeedback query={trend} />
-      {empty ? (
+      {isQuietTrend(trend) ? (
         <Muted>{b.employeeTrendEmpty}</Muted>
       ) : (
-        <ChartContainer config={chartConfig} className="h-40 w-full">
-          <BarChart data={bars} margin={{ left: 8, right: 8 }}>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              width={32}
-              fontSize={11}
-              allowDecimals={false}
-            />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="points" fill="var(--chart-1)" radius={4} maxBarSize={48} />
-          </BarChart>
-        </ChartContainer>
+        <PointsRemarksChart bars={trendBars(trend)} />
       )}
     </section>
   );

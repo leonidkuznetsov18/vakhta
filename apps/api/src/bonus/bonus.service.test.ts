@@ -418,6 +418,24 @@ describe('bonus: оцінка зміни, коригування, закритт
     expect(view.shifts[0]?.review).toBeNull();
     // Checklist points stay on their shift; only month-end awards would be listed apart.
     expect(view.awards).toEqual([]);
+    // The trend covers twelve months ending with this one, points and remarks side by side.
+    expect(view.trend).toHaveLength(12);
+    expect(view.trend.at(-1)).toEqual({ month, points: 1, remarks: 1 });
+    expect(view.trend.slice(0, -1).every((m) => m.points === 0 && m.remarks === 0)).toBe(true);
+    // The History tab counts the same remark in its period, within the site of the shift's unit.
+    const range = { from: `${month}-01`, to: `${month}-28`, limit: 500 } as const;
+    const history = await bonus.history({ ...range, groupBy: 'month', siteId });
+    expect(history.buckets).toEqual([
+      expect.objectContaining({ key: month, points: 1, remarks: 1 }),
+    ]);
+    const [other] = await testDb.db
+      .insert(sites)
+      .values({ code: 'other', name: 'Інший', timezone: 'Europe/Kyiv' })
+      .returning();
+    if (!other) throw new Error('Missing site fixture');
+    expect((await bonus.history({ ...range, groupBy: 'month', siteId: other.id })).buckets).toEqual(
+      [],
+    );
     // The summary is the same row the points table shows, so opening it never changes the numbers.
     const row = (await bonus.points(siteId, month)).employees.find((e) => e.employeeId === ivanov);
     expect(row).toMatchObject({ shifts: 1, checklists: 1, approved: 0, remarks: 1, points: 1 });
@@ -491,6 +509,7 @@ describe('bonus: оцінка зміни, коригування, закритт
         points: 3,
         checklistPoints: 2,
         awardPoints: 1,
+        remarks: 0,
         employees: 1,
         units: ['Цех'],
       },

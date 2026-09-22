@@ -552,13 +552,76 @@ window.fetch = fetchFixture(async (input, init) => {
       masterOfMonth: { id: 'a0000000-0000-4000-8000-000000000002', name: 'Ткач Олена', points: 7 },
     });
   }
-  if (path === '/admin/bonus/history') {
-    const bucket = (key: string, points: number, awards: number, employees: number) => ({
-      key,
+  if (path === '/admin/bonus/employee') {
+    const months = ['2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03'].concat([
+      '2026-04',
+      '2026-05',
+      '2026-06',
+      '2026-07',
+      '2026-08',
+      '2026-09',
+    ]);
+    const shift = (day: string, status: string, points: number, comment: string | null) => ({
+      shiftSessionId: `s-${day}`,
+      businessDate: `2026-09-${day}`,
+      shiftState: 'SHIFT_CLOSED',
+      startedAt: `2026-09-${day}T05:02:00.000Z`,
+      endedAt: `2026-09-${day}T16:55:00.000Z`,
+      zoneName: 'Вторая стенка стаканы',
+      handoverId: `h-${day}`,
+      handoverStatus: status,
+      checklistName: 'Чекліст фасування',
+      submittedAt: `2026-09-${day}T16:50:00.000Z`,
+      remarks: [],
+      review: null,
+      resolution: comment
+        ? {
+            resolvedBy: 'master',
+            decision: 'RESOLVED_ISSUE_CONFIRMED',
+            reasonCode: null,
+            comment,
+            at: `2026-09-${day}T17:30:00.000Z`,
+          }
+        : null,
       points,
-      checklistPoints: points - awards,
-      awardPoints: awards,
-      employees,
+    });
+    return json({
+      month: '2026-09',
+      serverTime: new Date().toISOString(),
+      employee: {
+        employeeId: 'b0000000-0000-4000-8000-000000000002',
+        employeeName: 'Ткач Олена',
+        personnelNumber: '130',
+        orgUnitId: 'a0000000-0000-4000-8000-000000000006',
+        orgUnitName: 'Цех Плёнка',
+        shifts: 4,
+        checklists: 4,
+        approved: 3,
+        remarks: 1,
+        points: 3,
+      },
+      trend: months.map((month, i) => ({
+        month,
+        points: i < 7 ? 0 : ([4, 6, 5, 7, 3][i - 7] ?? 0),
+        remarks: i < 7 ? 0 : ([1, 0, 2, 1, 1][i - 7] ?? 0),
+      })),
+      shifts: [
+        shift('18', 'ACCEPTED', 1, null),
+        shift('17', 'ACCEPTED', 1, null),
+        shift('15', 'RESOLVED_ISSUE_CONFIRMED', 0, 'На станку виявлені зайві предмети.'),
+        shift('14', 'ACCEPTED', 1, null),
+      ],
+      awards: [],
+    });
+  }
+  if (path === '/admin/bonus/history') {
+    const bucket = (key: string, [points, awards, employees, remarks]: readonly number[]) => ({
+      key,
+      points: points ?? 0,
+      checklistPoints: (points ?? 0) - (awards ?? 0),
+      awardPoints: awards ?? 0,
+      remarks: remarks ?? 0,
+      employees: employees ?? 0,
       units: ['Цех Крышки', 'Цех Плёнка'],
     });
     const entry = (
@@ -592,11 +655,11 @@ window.fetch = fetchFixture(async (input, init) => {
         entry('4', '2026-08-31', 'Гринько Юлія', '132', 'Цех Крышки', 'UNIT_OF_MONTH', 1),
       ],
       buckets: [
-        bucket('2026-05', 18, 3, 6),
-        bucket('2026-06', 24, 4, 7),
-        bucket('2026-07', 21, 3, 7),
-        bucket('2026-08', 29, 4, 8),
-        bucket('2026-09', 10, 0, 3),
+        bucket('2026-05', [18, 3, 6, 4]),
+        bucket('2026-06', [24, 4, 7, 2]),
+        bucket('2026-07', [21, 3, 7, 6]),
+        bucket('2026-08', [29, 4, 8, 3]),
+        bucket('2026-09', [10, 0, 3, 5]),
       ],
     });
   }

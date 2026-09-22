@@ -243,6 +243,8 @@ export const BonusHistoryBucket = z.object({
   points: z.number().int().nonnegative(),
   checklistPoints: z.number().int().nonnegative(),
   awardPoints: z.number().int().nonnegative(),
+  /** Checklists the master returned with a remark in this period, counted by the shift's day. */
+  remarks: z.number().int().nonnegative(),
   employees: z.number().int().nonnegative(),
   /** Units that earned in this period, best first, so a row reads without opening the detail. */
   units: z.array(z.string()),
@@ -316,9 +318,19 @@ export const EmployeeBonusShiftView = z.object({
 });
 export type EmployeeBonusShiftView = z.infer<typeof EmployeeBonusShiftView>;
 
+/** One month of the employee's trend: points earned and checklists returned with a remark. */
+export const EmployeeBonusTrendMonth = z.object({
+  month: z.string(),
+  points: z.number().int().nonnegative(),
+  remarks: z.number().int().nonnegative(),
+});
+export type EmployeeBonusTrendMonth = z.infer<typeof EmployeeBonusTrendMonth>;
+
 export const EmployeeBonusReportView = z.object({
   month: z.string(),
   employee: EmployeePointsView,
+  /** The twelve months ending with `month`, oldest first; a quiet month is present with zeros. */
+  trend: z.array(EmployeeBonusTrendMonth),
   /** Newest shift first. */
   shifts: z.array(EmployeeBonusShiftView),
   /** Month-end awards of this month; checklist points are shown on their shifts instead. */

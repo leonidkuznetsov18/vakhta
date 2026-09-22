@@ -63,6 +63,10 @@ const employeeReport = {
   month: '2026-10',
   serverTime: '2026-10-05T10:00:00.000Z',
   employee: points.employees[0],
+  trend: [
+    { month: '2026-09', points: 2, remarks: 0 },
+    { month: '2026-10', points: 3, remarks: 1 },
+  ],
   shifts: [
     {
       shiftSessionId: 's1',
@@ -106,16 +110,6 @@ const employeeReport = {
   awards: [],
 };
 
-const employeeHistory = {
-  groupBy: 'month',
-  buckets: [
-    { key: '2026-10', points: 3, checklistPoints: 3, awardPoints: 0, employees: 1, units: [] },
-  ],
-  entries: [],
-  total: 0,
-  serverTime: '2026-10-05T10:00:00.000Z',
-};
-
 function mockApi(finalizedAt: string | null = null) {
   const json = (data: unknown) =>
     new Response(JSON.stringify(data), {
@@ -128,7 +122,6 @@ function mockApi(finalizedAt: string | null = null) {
       if (url.pathname === '/admin/org') return json(org);
       if (url.pathname === '/admin/bonus/points') return json({ ...points, finalizedAt });
       if (url.pathname === '/admin/bonus/employee') return json(employeeReport);
-      if (url.pathname === '/admin/bonus/history') return json(employeeHistory);
       return json([]);
     }),
   );

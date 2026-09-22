@@ -48,6 +48,7 @@ import {
   shiftSummaries,
   sql,
   type Database,
+  type SQL,
   type DbOrTx,
   type Transaction,
 } from '@vakhta/db';
@@ -85,6 +86,7 @@ import type {
   EmployeeMonthView,
   MyScoresView,
   BonusPointsView,
+  BonusHistoryBucket,
   BonusHistoryEntry,
   BonusHistoryQuery,
   BonusHistoryView,
@@ -93,6 +95,7 @@ import type {
   EmployeeBonusResolutionView,
   EmployeeBonusReviewView,
   EmployeeBonusShiftView,
+  EmployeeBonusTrendMonth,
   EmployeePointsView,
   PointAwardKind,
   UnitPointsView,
@@ -129,6 +132,58 @@ const APPROVED_HANDOVER_STATUSES: ReadonlySet<HandoverStatus> = new Set<Handover
 const REMARK_HANDOVER_STATUS: HandoverStatus = 'RESOLVED_ISSUE_CONFIRMED';
 const CHECKLIST_POINT: PointAwardKind = 'CHECKLIST_APPROVED';
 const TERMINAL_STATE_SET: ReadonlySet<ShiftState> = new Set<ShiftState>(TERMINAL_STATES);
+
+const TREND_MONTHS = 12;
+const EMPTY_BUCKET: BonusHistoryBucket = {
+  key: '',
+  points: 0,
+  checklistPoints: 0,
+  awardPoints: 0,
+  remarks: 0,
+  employees: 0,
+  units: [],
+};
+
+/** 'YYYY-MM' of the `count` months ending with `month`, oldest first. */
+function trailingMonths(month: string, count: number): string[] {
+  const [year = 0, monthNo = 1] = month.split('-').map(Number);
+  return Array.from({ length: count }, (_, i) =>
+    new Date(Date.UTC(year, monthNo - count + i, 1)).toISOString().slice(0, 7),
+  );
+}
+
+interface HistoryRow {
+  readonly key: string;
+  readonly points: number | null;
+  readonly checklistPoints: number | null;
+  readonly awardPoints: number | null;
+  readonly employees: number | null;
+  readonly units: string[] | null;
+}
+
+function toHistoryBucket(r: HistoryRow): BonusHistoryBucket {
+  return {
+    key: r.key,
+    points: Number(r.points ?? 0),
+    checklistPoints: Number(r.checklistPoints ?? 0),
+    awardPoints: Number(r.awardPoints ?? 0),
+    remarks: 0,
+    employees: Number(r.employees ?? 0),
+    units: r.units ?? [],
+  };
+}
+
+/** Adds remark counts; a period with remarks and no points still shows, with zero points. */
+function withRemarks(
+  buckets: readonly BonusHistoryBucket[],
+  remarks: ReadonlyMap<string, number>,
+): BonusHistoryBucket[] {
+  const byKey = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+  for (const [key, count] of remarks) {
+    byKey.set(key, { ...(byKey.get(key) ?? { ...EMPTY_BUCKET, key }), remarks: count });
+  }
+  return [...byKey.values()].sort((a, b) => a.key.localeCompare(b.key));
+}
 
 /** `business_date` is a real date column: LIKE has no operator for it, so the value is cast. */
 function businessMonth(month: string) {
@@ -1395,11 +1450,12 @@ export class BonusService {
     // A session carries at most one live report; the newest wins if history ever left two.
     const handovers = [...firstPerKey(handoverRows, (h) => h.shiftSessionId).values()];
     const handoverIds = handovers.map((h) => h.id);
-    const [answers, reviews, resolutions, awards] = await Promise.all([
+    const [answers, reviews, resolutions, awards, trend] = await Promise.all([
       this.flaggedAnswers(handoverIds),
       this.latestReviews(handoverIds),
       this.latestResolutions(handoverIds),
       this.monthAwards(employeeId, month),
+      this.monthTrend(employeeId, month),
     ]);
     const shifts = buildShiftRows({
       sessions,
@@ -1413,10 +1469,52 @@ export class BonusService {
     return {
       month,
       employee: summarizeEmployee({ person, unit, shifts, awards }),
+      trend,
       shifts,
       awards: awards.filter((a) => a.kind !== CHECKLIST_POINT),
       serverTime: now.toISOString(),
     };
+  }
+
+  /**
+   * Points and remarks per month over the year ending with `month`. Points come from the ledger
+   * like everywhere else; a remark is a checklist the master returned with one, counted in the
+   * month of its shift, exactly as the points table counts it.
+   */
+  private async monthTrend(employeeId: string, month: string): Promise<EmployeeBonusTrendMonth[]> {
+    const months = trailingMonths(month, TREND_MONTHS);
+    const shiftMonth = sql<string>`to_char(${shiftSessions.businessDate}, 'YYYY-MM')`;
+    const [pointRows, remarkRows] = await Promise.all([
+      this.db
+        .select({
+          month: bonusPointAwards.month,
+          points: sql<number>`sum(${bonusPointAwards.points})::int`,
+        })
+        .from(bonusPointAwards)
+        .where(
+          and(eq(bonusPointAwards.employeeId, employeeId), inArray(bonusPointAwards.month, months)),
+        )
+        .groupBy(bonusPointAwards.month),
+      this.db
+        .select({ month: shiftMonth, remarks: sql<number>`count(*)::int` })
+        .from(handoverRecords)
+        .innerJoin(shiftSessions, eq(handoverRecords.shiftSessionId, shiftSessions.id))
+        .where(
+          and(
+            eq(handoverRecords.submittedBy, employeeId),
+            eq(handoverRecords.status, REMARK_HANDOVER_STATUS),
+            inArray(shiftMonth, months),
+          ),
+        )
+        .groupBy(shiftMonth),
+    ]);
+    const points = new Map(pointRows.map((r) => [r.month, Number(r.points)]));
+    const remarks = new Map(remarkRows.map((r) => [r.month, Number(r.remarks)]));
+    return months.map((m) => ({
+      month: m,
+      points: points.get(m) ?? 0,
+      remarks: remarks.get(m) ?? 0,
+    }));
   }
 
   private async requireEmployee(employeeId: string): Promise<PersonRow> {
@@ -1626,6 +1724,7 @@ export class BonusService {
       .groupBy(sql`1`)
       .orderBy(sql`1`);
 
+    const remarks = await this.historyRemarks(q, fmt);
     const entries = await this.historyEntries(q, q.limit);
     const [counted] = await this.db
       .select({ total: sql<number>`count(*)::int` })
@@ -1636,18 +1735,52 @@ export class BonusService {
 
     return {
       groupBy: q.groupBy,
-      buckets: rows.map((r) => ({
-        key: r.key,
-        points: Number(r.points ?? 0),
-        checklistPoints: Number(r.checklistPoints ?? 0),
-        awardPoints: Number(r.awardPoints ?? 0),
-        employees: Number(r.employees ?? 0),
-        units: r.units ?? [],
-      })),
+      buckets: withRemarks(rows.map(toHistoryBucket), remarks),
       entries,
       total: Number(counted?.total ?? 0),
       serverTime: now.toISOString(),
     };
+  }
+
+  /**
+   * Remarks per period for the History chart, under the same period, site, unit, employee and
+   * search filters as the points. A remark is a checklist the master returned with one (as in the
+   * points table), placed by its shift's day and by the zone's unit, or the planned unit when the
+   * shift had no zone. The reason filter selects points only; remarks never carry a point.
+   */
+  private async historyRemarks(q: BonusHistoryQuery, fmt: SQL): Promise<Map<string, number>> {
+    const unitId = sql<
+      string | null
+    >`coalesce(${responsibilityZones.orgUnitId}, ${shiftAssignments.orgUnitId})`;
+    const conditions = [
+      eq(handoverRecords.status, REMARK_HANDOVER_STATUS),
+      // Compared as text like the ledger's days, so both halves of the chart take the same range.
+      sql`${shiftSessions.businessDate}::text >= ${q.from}`,
+      sql`${shiftSessions.businessDate}::text <= ${q.to}`,
+    ];
+    if (q.siteId) conditions.push(eq(orgUnits.siteId, q.siteId));
+    if (q.orgUnitId) conditions.push(sql`${unitId} = ${q.orgUnitId}`);
+    if (q.employeeId) conditions.push(eq(handoverRecords.submittedBy, q.employeeId));
+    if (q.search) {
+      const like = `%${q.search.toLowerCase()}%`;
+      conditions.push(
+        sql`(lower(${employees.fullName}) like ${like} or lower(${employees.personnelNumber}) like ${like})`,
+      );
+    }
+    const rows = await this.db
+      .select({
+        key: sql<string>`to_char(${shiftSessions.businessDate}, ${fmt})`,
+        remarks: sql<number>`count(*)::int`,
+      })
+      .from(handoverRecords)
+      .innerJoin(shiftSessions, eq(handoverRecords.shiftSessionId, shiftSessions.id))
+      .innerJoin(employees, eq(handoverRecords.submittedBy, employees.id))
+      .leftJoin(responsibilityZones, eq(handoverRecords.zoneId, responsibilityZones.id))
+      .leftJoin(shiftAssignments, eq(shiftSessions.assignmentId, shiftAssignments.id))
+      .leftJoin(orgUnits, sql`${orgUnits.id} = ${unitId}`)
+      .where(and(...conditions))
+      .groupBy(sql`1`);
+    return new Map(rows.map((r) => [r.key, Number(r.remarks)]));
   }
 
   /** Month-end awards carry no business date; they belong to the first day of their month. */

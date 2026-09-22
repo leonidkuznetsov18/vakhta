@@ -23,7 +23,7 @@ scored or edited. Product description: [bonus points](../../features/09-bonus.md
 - Panel: `apps/admin-web/src/bonus/EmployeeBonusReport.tsx` renders inline under the row
   (`RowDetail`, standard T5), with the opened employee in the address `#/bonus/<employeeId>`
   (route `/bonus/{-$id}`; opening a row replaces the history entry). Inside: profile link,
-  twelve-month points trend (reuses the history endpoint with `employeeId`), the shifts sub-table
+  twelve-month trend of points and remarks (`trend` in the report, one query each), the shifts sub-table
   with an expandable detail per shift (own remarks, acceptance, master's decision with full text)
   and an "Open the report" action that presets the handover page filters (site, day, scope "all")
   before deep-linking `#/handover/<id>`. Pure helpers live in `employee-report-model.ts`.
@@ -35,7 +35,9 @@ scored or edited. Product description: [bonus points](../../features/09-bonus.md
 - Inline `RowDetail` rather than a Sheet: the table-filter standard forbids `DetailSheet` for row
   data and asks for inline inspection with preserved scroll and row context; the sub-table and the
   shift detail reuse the shared `DataTable` expansion.
-- Trend uses the existing history endpoint (`employeeId` filter) instead of a new aggregate.
+- Owner request, 2026-09-22: the employee trend and the History chart show points and remarks
+  side by side with counts on the bars (`PointsRemarksChart`). History buckets carry `remarks`;
+  remarks follow the period, site, unit, employee and search filters, not the reason filter.
 - No new scope enforcement: the points endpoint has none yet (open item #1); the new endpoint
   mirrors it and will inherit the same fix.
 - `resolvedBy` is a web user id and is not displayed; the decision, reason code and date are.
