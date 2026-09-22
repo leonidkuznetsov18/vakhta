@@ -111,6 +111,8 @@ export const controlApi = {
     }),
   provision: (id: string) =>
     request(TenantDetailView, `/control/tenants/${id}/provision`, json({})),
+  deleteTenant: (id: string, reason: string) =>
+    request(ProvisioningJobView, `/control/tenants/${id}/delete`, json({ reason })),
   suspend: (id: string, reason: string) =>
     request(TenantDetailView, `/control/tenants/${id}/suspend`, json({ reason })),
   resume: (id: string) => request(TenantDetailView, `/control/tenants/${id}/resume`, json({})),

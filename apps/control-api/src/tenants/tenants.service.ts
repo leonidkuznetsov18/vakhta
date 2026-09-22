@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { databaseErrorCode } from '@vakhta/db';
 import {
   ModuleStatus,
+  JobStatus,
   ProvisioningKind,
   TENANT_SECRET_KINDS,
   TenantModule,
@@ -52,6 +53,8 @@ import type { ControlEnv } from '../config/env.js';
 import { CONTROL_ENV, REGISTRY, SECRET_CIPHER } from '../infra/registry.module.js';
 import { ProvisioningService } from '../provisioning/provisioning.service.js';
 import { TelegramProvider } from '../provisioning/telegram.provider.js';
+import { revokeTenantSessions } from './revoke-sessions.js';
+import { lockTenant } from '../provisioning/tenant-lock.js';
 import { managedHosts, type ManagedHost } from './hosts.js';
 
 type TenantRow = typeof tenants.$inferSelect;
@@ -108,11 +111,16 @@ export class TenantsService {
 
   async list(): Promise<TenantSummaryView[]> {
     const rows = await this.db.select().from(tenants).orderBy(desc(tenants.createdAt));
-    return Promise.all(rows.map((row) => this.summary(row)));
+    const summaries = await Promise.all(rows.map((row) => this.summary(row)));
+    return summaries.filter(
+      (row) =>
+        row.status !== TenantStatus.ARCHIVED ||
+        (row.lastJob?.kind === ProvisioningKind.DELETE && row.lastJob.status !== JobStatus.DONE),
+    );
   }
 
   async get(tenantId: string): Promise<TenantDetailView> {
-    const row = await this.require(tenantId);
+    const row = await this.read(tenantId);
     const [summary, parts] = await Promise.all([this.summary(row), this.partsOf(row.id)]);
     return this.detail(row, summary, parts);
   }
@@ -163,8 +171,8 @@ export class TenantsService {
     cmd: UpdateTenantCommand,
     actor: Operator,
   ): Promise<TenantDetailView> {
-    const row = await this.require(tenantId);
     await this.db.transaction(async (tx) => {
+      const row = await this.lockWritable(tx, tenantId);
       const set: Partial<typeof tenants.$inferInsert> = { updatedAt: new Date() };
       if (cmd.name !== undefined) set.name = cmd.name;
       if (cmd.defaultLocale !== undefined) set.defaultLocale = cmd.defaultLocale;
@@ -192,13 +200,13 @@ export class TenantsService {
     cmd: SetModuleInput,
     actor: Operator,
   ): Promise<TenantDetailView> {
-    const row = await this.require(tenantId);
     const status = cmd.enabled ? ModuleStatus.ENABLED : ModuleStatus.DISABLED;
     const stamps = {
       enabledAt: cmd.enabled ? new Date() : null,
       disabledAt: cmd.enabled ? null : new Date(),
     };
     await this.db.transaction(async (tx) => {
+      const row = await this.lockWritable(tx, tenantId);
       await tx
         .insert(tenantModules)
         .values({
@@ -239,9 +247,9 @@ export class TenantsService {
     cmd: AddDomainCommand,
     actor: Operator,
   ): Promise<TenantDetailView> {
-    const row = await this.require(tenantId);
     const host = normalizeHost(cmd.host);
     await this.db.transaction(async (tx) => {
+      const row = await this.lockWritable(tx, tenantId);
       if (cmd.isPrimary) {
         await tx
           .update(tenantDomains)
@@ -273,9 +281,9 @@ export class TenantsService {
     cmd: SetBotTokenCommand,
     actor: Operator,
   ): Promise<TenantDetailView> {
-    const row = await this.require(tenantId);
     const bot = await this.verifyBotToken(cmd.botToken);
     await this.db.transaction(async (tx) => {
+      const row = await this.lockWritable(tx, tenantId);
       await this.storeSecret(tx, {
         tenantId: row.id,
         kind: TenantSecretKind.BOT_TOKEN,
@@ -326,14 +334,14 @@ export class TenantsService {
   }
 
   async startProvisioning(tenantId: string, actor: Operator): Promise<TenantDetailView> {
-    const row = await this.require(tenantId);
-    const modules = await this.db
-      .select({ module: tenantModules.module })
-      .from(tenantModules)
-      .where(
-        and(eq(tenantModules.tenantId, row.id), eq(tenantModules.status, ModuleStatus.ENABLED)),
-      );
     await this.db.transaction(async (tx) => {
+      const row = await this.lockWritable(tx, tenantId);
+      const modules = await tx
+        .select({ module: tenantModules.module })
+        .from(tenantModules)
+        .where(
+          and(eq(tenantModules.tenantId, row.id), eq(tenantModules.status, ModuleStatus.ENABLED)),
+        );
       await this.provisioning.createJob(tx, {
         tenantId: row.id,
         kind: ProvisioningKind.PROVISION,
@@ -385,6 +393,8 @@ export class TenantsService {
       .where(eq(tenants.id, input.tenantId))
       .for('update');
     if (!row) throw new ControlError('TENANT_NOT_FOUND', 404, 'Tenant not found');
+    if (row.status === TenantStatus.ARCHIVED)
+      throw new ControlError('TENANT_READ_ONLY', 409, 'Archived tenant is read-only');
     const invitationId = randomUUID();
     const token = this.invitationToken(invitationId);
     await tx
@@ -426,7 +436,24 @@ export class TenantsService {
     return createHmac('sha256', this.env.CONTROL_AUTH_SECRET).update(token).digest('hex');
   }
 
+  private async lockWritable(tx: RegistryDbOrTx, tenantId: string): Promise<TenantRow> {
+    if (!(await lockTenant(tx, tenantId)))
+      throw new ControlError('TENANT_BUSY', 409, 'Tenant operation is in progress');
+    const [row] = await tx.select().from(tenants).where(eq(tenants.id, tenantId)).for('update');
+    if (!row) throw new ControlError('TENANT_NOT_FOUND', 404, 'Tenant not found');
+    if (row.status === TenantStatus.ARCHIVED)
+      throw new ControlError('TENANT_READ_ONLY', 409, 'Archived tenant is read-only');
+    return row;
+  }
+
   async require(tenantId: string): Promise<TenantRow> {
+    const row = await this.read(tenantId);
+    if (row.status === TenantStatus.ARCHIVED)
+      throw new ControlError('TENANT_READ_ONLY', 409, 'Archived tenant is read-only');
+    return row;
+  }
+
+  private async read(tenantId: string): Promise<TenantRow> {
     const [row] = await this.db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
     if (!row) throw new ControlError('TENANT_NOT_FOUND', 404, `Tenant ${tenantId} not found`);
     return row;
@@ -531,15 +558,26 @@ export class TenantsService {
   }
 
   private async transition(input: TransitionInput): Promise<TenantDetailView> {
-    const { tenantId, to, actor, reason } = input;
-    const row = await this.require(tenantId);
-    if (!canTransitionTenant(row.status, to)) {
-      throw new ControlError(
-        'TENANT_TRANSITION_INVALID',
-        409,
-        `Cannot go from ${row.status} to ${to}`,
-      );
-    }
+    const { tenantId, to } = input;
+    await this.db.transaction(async (lock) => {
+      if (!(await lockTenant(lock, tenantId)))
+        throw new ControlError('TENANT_BUSY', 409, 'Tenant operation is in progress');
+      const row = await this.require(tenantId);
+      if (!canTransitionTenant(row.status, to))
+        throw new ControlError(
+          'TENANT_TRANSITION_INVALID',
+          409,
+          `Cannot go from ${row.status} to ${to}`,
+        );
+      // Authentication shares this lock, so it cannot issue sessions between revocation and commit.
+      await revokeTenantSessions(lock, this.cipher, tenantId);
+      await this.recordTransition(row, input);
+    });
+    return this.get(tenantId);
+  }
+
+  private async recordTransition(row: TenantRow, input: TransitionInput): Promise<void> {
+    const { to, actor, reason } = input;
     const suspending = to === TenantStatus.SUSPENDED;
     await this.db.transaction(async (tx) => {
       await tx
@@ -561,7 +599,6 @@ export class TenantsService {
         after: { status: to, reason },
       });
     });
-    return this.get(tenantId);
   }
 
   private async verifyBotToken(token: string): Promise<{ username: string }> {

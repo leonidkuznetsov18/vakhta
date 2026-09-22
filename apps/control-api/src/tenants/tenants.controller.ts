@@ -12,6 +12,7 @@ import {
 import {
   AddDomainCommand,
   CreateTenantCommand,
+  DeleteTenantCommand,
   MODULE_CATALOG,
   SetBotTokenCommand,
   SetModuleCommand,
@@ -35,6 +36,7 @@ import {
 } from '../auth/operator.guard.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { ProvisioningService } from '../provisioning/provisioning.service.js';
+import { TenantDeletionService } from './deletion.service.js';
 import { TenantsService } from './tenants.service.js';
 
 const ADMIN = OperatorRole.PLATFORM_ADMIN;
@@ -47,6 +49,7 @@ type ModuleParams = z.infer<typeof ModuleParams>;
 export class TenantsController {
   constructor(
     private readonly tenants: TenantsService,
+    private readonly deletion: TenantDeletionService,
     private readonly provisioning: ProvisioningService,
     private readonly audit: ControlAudit,
   ) {}
@@ -125,6 +128,16 @@ export class TenantsController {
     @CurrentOperator() operator: Operator,
   ): Promise<TenantDetailView> {
     return this.tenants.startProvisioning(id, operator);
+  }
+
+  @Post(':id/delete')
+  @OperatorRoles(ADMIN)
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(DeleteTenantCommand)) body: DeleteTenantCommand,
+    @CurrentOperator() operator: Operator,
+  ): Promise<ProvisioningJobView> {
+    return this.deletion.remove(id, body.reason, operator);
   }
 
   @Post(':id/suspend')

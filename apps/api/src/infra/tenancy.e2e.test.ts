@@ -1,3 +1,6 @@
+import { IncomingMessage, ServerResponse } from 'node:http';
+import { Socket } from 'node:net';
+import { closeRevokedStream } from './tenant-hook.js';
 import { TenantGateway } from '@vakhta/contracts';
 import { ConfigService } from '@nestjs/config';
 import { EnvTenantSource, ENV_TENANT_ID, tenantFromEnv } from '@vakhta/registry';
@@ -13,6 +16,7 @@ import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import {
   and,
+  authSession,
   createDatabase,
   eq,
   inArray,
@@ -145,7 +149,11 @@ describe('tenancy: every request is bound to exactly one tenant', () => {
     bindTenancy(app);
     app.useGlobalFilters(new DomainErrorFilter());
     app.enableCors(corsDelegate(['http://alpha.test'], 'http'));
-    registerAuthRoutes(app.getHttpAdapter().getInstance(), app.get(AUTH));
+    registerAuthRoutes(
+      app.getHttpAdapter().getInstance(),
+      app.get(AUTH),
+      app.get(TenantRuntimeRegistry),
+    );
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
   }, 300_000);
@@ -498,8 +506,7 @@ describe('tenancy: every request is bound to exactly one tenant', () => {
     expect((await kiosk(b)).statusCode).toBe(401);
   });
 
-  it('refuses a suspended tenant within one refresh (AC-005, AC-023)', async () => {
-    const { TenantRuntimeRegistry } = await import('./tenant-runtime.js');
+  it('refuses a suspended tenant on the next request without a manual refresh', async () => {
     await registry
       .update(tenants)
       .set({
@@ -509,13 +516,36 @@ describe('tenancy: every request is bound to exactly one tenant', () => {
         updatedAt: sql`now()`,
       })
       .where(eq(tenants.id, b.id));
-    await app.get(TenantRuntimeRegistry).source.refresh();
     const res = await app.inject({ method: 'GET', url: '/me', headers: { host: b.apiHost } });
     expect(res.statusCode).toBe(403);
     expect(res.json()).toMatchObject({ code: 'TENANT_SUSPENDED' });
     const alive = await app.inject({ method: 'GET', url: '/me', headers: { host: a.apiHost } });
     expect(alive.statusCode).toBe(401);
   });
+  it('closes a revoked event stream even when the tenant is active again', async () => {
+    const cookie = await signIn(a, 'admin@alpha.test');
+    const raw = new ServerResponse(new IncomingMessage(new Socket()));
+    const end = vi.spyOn(raw, 'end');
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      closeRevokedStream(
+        { url: '/admin/shifts/stream', headers: { host: a.apiHost, cookie } },
+        { raw },
+        app.get(TenantRuntimeRegistry),
+      );
+      await inTenant(a, async () => {
+        const runtime = app.get(TenantRuntimeRegistry).byId(a.id);
+        if (!runtime) throw new Error('Runtime missing');
+        await runtime.db.delete(authSession);
+      });
+      await vi.advanceTimersByTimeAsync(5_000);
+      await vi.waitFor(() => expect(end).toHaveBeenCalledOnce());
+    } finally {
+      raw.emit('close');
+      vi.useRealTimers();
+    }
+  });
+
   it('rehearses env to registry and back with the same session, kiosk token and Redis/storage keys', async () => {
     const env = tenantFromEnv({
       DATABASE_URL: a.url,

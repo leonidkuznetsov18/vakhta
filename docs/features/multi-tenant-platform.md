@@ -29,7 +29,7 @@ are stored in the client's own database and reach its API, bot, kiosk and worker
 registry refresh, without a deploy; every change is audited. Values not set on the tab follow the
 platform defaults; the pilot keeps its deployment values as its defaults.
 
-Not yet available: complete workspace actions and table pagination, and tenant deletion.
+Remaining workspace capabilities are tracked in the engineering feature memory.
 Nightly backups cover every client database; restoring one client is a runbook procedure.
 
 ## What it is
@@ -83,12 +83,12 @@ authenticator code.
   deletion revokes all panel access while keeping recorded history. Control prevents deleting
   the last enterprise administrator. Viewers see the list without mutation actions. On mobile,
   tenant sections open from a burger menu; desktop retains the tabs.
-- **Deleting a client.** A client that was never provisioned is removed at once. A working client
-  is deleted only after the operator types its slug: a final backup is taken, the client is
-  suspended immediately, and its database and files are removed after a retention window during
-  which an operator can restore it.
-- **Suspend and resume.** An operator can suspend a client with a reason: its panel, bot and kiosk
-  stop responding until resumed. Every operator action is kept in an audit log.
+- **Deleting a client.** Delete in the last Clients table column opens a reason dialog and an
+  irreversible-action warning. Access is blocked immediately; a durable task physically removes
+  the database and files. A failed task remains visible with retry in Jobs. The client disappears
+  from the list only after cleanup succeeds. Audit and task history remain.
+- **Suspending a client.** Suspend in the same menu requires a reason, revokes all sessions and
+  blocks login, panel, bot and kiosk work. Tenant data is preserved. The old Danger zone is removed.
 
 ## Where it lives
 

@@ -1,3 +1,8 @@
+import type * as S3Module from '@aws-sdk/client-s3';
+import { DeleteObjectsCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { deletionDatabase } from '../tenants/deletion-target.js';
+import { TenantDeletionService } from '../tenants/deletion.service.js';
+import { DeleteTenantCommand } from '@vakhta/contracts';
 import { TenantGateway } from '@vakhta/contracts';
 import { verifyPassword } from 'better-auth/crypto';
 import { randomUUID } from 'node:crypto';
@@ -40,6 +45,28 @@ import { ControlErrorFilter } from '../common/domain-error.js';
 import { ensureDockerHost } from '../../test/docker.js';
 import type { Operator } from '../auth/operator.guard.js';
 import { TelegramProvider } from './telegram.provider.js';
+
+const storageSend = vi.hoisted(() => vi.fn<(command: unknown) => Promise<object>>());
+vi.mock('@aws-sdk/client-s3', async (original) => {
+  const actual = await original<typeof S3Module>();
+  return {
+    ...actual,
+    S3Client: class {
+      send = storageSend;
+      destroy() {}
+    },
+  };
+});
+
+function deferred() {
+  let resolve: () => void = () => {
+    throw new Error('Promise is not initialized');
+  };
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 
 const OPERATOR: Operator = {
   id: 'b0000000-0000-4000-8000-000000000001',
@@ -829,6 +856,97 @@ describe('control-api: create a tenant and provision it', () => {
     }
   });
 
+  it('suspends with audit, revokes sessions and does not restore them on resume', async () => {
+    const f = await onboardingFixture();
+    const { tenants } = await services();
+    try {
+      const [account] = await f.handle.db.select().from(authAccount);
+      if (!account) throw new Error('Account missing');
+      const addSession = () =>
+        f.handle.db.insert(authSession).values({
+          userId: account.userId,
+          token: randomUUID(),
+          expiresAt: new Date(Date.now() + 60_000),
+        });
+      await addSession();
+      const result = await tenants.suspend(f.tenant.id, 'Contract paused', OPERATOR);
+      expect(result.status).toBe(TenantStatus.SUSPENDED);
+      expect(result.suspendedReason).toBe('Contract paused');
+      expect(await f.handle.db.select().from(authSession)).toHaveLength(0);
+      // A login admitted before suspension may finish late; resume must revoke it too.
+      await addSession();
+      await tenants.resume(f.tenant.id, OPERATOR);
+      expect(await f.handle.db.select().from(authSession)).toHaveLength(0);
+      expect(
+        (await app.get(ControlAudit).list(f.tenant.id)).some(
+          (entry) =>
+            entry.action === 'tenant.suspend' && entry.after?.['reason'] === 'Contract paused',
+        ),
+      ).toBe(true);
+    } finally {
+      await f.handle.client.end({ timeout: 5 });
+    }
+  });
+
+  it('serializes suspension with session issuance and rejects auth while suspended', async () => {
+    const f = await onboardingFixture();
+    const { tenants, source } = await services();
+    const entered = deferred();
+    const release = deferred();
+    const [account] = await f.handle.db.select().from(authAccount);
+    if (!account) throw new Error('Account missing');
+    const login = source.withActiveTenant(f.tenant.id, async () => {
+      entered.resolve();
+      await release.promise;
+      await f.handle.db.insert(authSession).values({
+        userId: account.userId,
+        token: randomUUID(),
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      return true;
+    });
+    try {
+      await entered.promise;
+      await expect(tenants.suspend(f.tenant.id, 'Pause', OPERATOR)).rejects.toMatchObject({
+        code: 'TENANT_BUSY',
+      });
+      release.resolve();
+      await login;
+      await tenants.suspend(f.tenant.id, 'Pause', OPERATOR);
+      expect(await f.handle.db.select().from(authSession)).toHaveLength(0);
+      const operation = vi.fn(async () => true);
+      expect(await source.withActiveTenant(f.tenant.id, operation)).toBeNull();
+      expect(operation).not.toHaveBeenCalled();
+      await tenants.resume(f.tenant.id, OPERATOR);
+    } finally {
+      release.resolve();
+      await login;
+      await f.handle.client.end({ timeout: 5 });
+    }
+  });
+
+  it('leaves failed revocation retryable without reporting a successful suspension', async () => {
+    const f = await onboardingFixture();
+    const { tenants } = await services();
+    try {
+      await f.handle.db.execute(sql`ALTER TABLE auth_session RENAME TO unavailable_session`);
+      try {
+        await expect(tenants.suspend(f.tenant.id, 'Pause', OPERATOR)).rejects.toMatchObject({
+          code: 'SESSION_REVOCATION_FAILED',
+        });
+        expect((await tenants.get(f.tenant.id)).status).toBe(TenantStatus.ACTIVE);
+      } finally {
+        await f.handle.db.execute(sql`ALTER TABLE unavailable_session RENAME TO auth_session`);
+      }
+      expect((await tenants.suspend(f.tenant.id, 'Pause', OPERATOR)).status).toBe(
+        TenantStatus.SUSPENDED,
+      );
+      await tenants.resume(f.tenant.id, OPERATOR);
+    } finally {
+      await f.handle.client.end({ timeout: 5 });
+    }
+  });
+
   it('sets a password exactly once under concurrent requests and revokes old sessions', async () => {
     const f = await onboardingFixture();
     try {
@@ -910,6 +1028,147 @@ describe('control-api: create a tenant and provision it', () => {
     } finally {
       audit.mockRestore();
       await f.handle.client.end({ timeout: 5 });
+    }
+  });
+  it('rejects cross-server databases and overlapping canonical storage before archiving', async () => {
+    const { db, tenants } = await services();
+    const { SECRET_CIPHER } = await import('../infra/registry.module.js');
+    const cipher = app.get<SecretCipher>(SECRET_CIPHER);
+    const draft = await createDraft('unsafe-delete');
+    const neighbour = await createDraft('delete-neighbour');
+    const [row] = await db.select().from(tenantRows).where(eq(tenantRows.id, draft.id));
+    if (!row) throw new Error('Tenant missing');
+    const remote = new URL(postgres.getConnectionUri());
+    remote.hostname = 'another-cluster.test';
+    remote.pathname = '/foreign_database';
+    const encrypted = cipher.encrypt(remote.toString());
+    await db.insert(tenantSecrets).values({
+      tenantId: draft.id,
+      kind: TenantSecretKind.DATABASE_URL,
+      ...encrypted,
+      fingerprint: cipher.fingerprint(remote.toString()),
+    });
+    await expect(
+      deletionDatabase({ tenant: row, db, cipher }, loadControlEnv(process.env)),
+    ).rejects.toMatchObject({ code: 'DELETION_UNSAFE' });
+    await db.delete(tenantSecrets).where(eq(tenantSecrets.tenantId, draft.id));
+    await db
+      .update(tenantRows)
+      .set({ storagePrefix: `tenants/${draft.slug}/nested/` })
+      .where(eq(tenantRows.id, neighbour.id));
+    await expect(
+      app.get(TenantDeletionService).remove(draft.id, 'Remove', OPERATOR),
+    ).rejects.toThrow('overlap');
+    expect((await tenants.get(draft.id)).status).toBe(TenantStatus.DRAFT);
+    await db
+      .update(tenantRows)
+      .set({ storagePrefix: `tenants/${neighbour.slug}/` })
+      .where(eq(tenantRows.id, neighbour.id));
+  });
+
+  it('physically deletes only the target database and files, retaining a retryable failure', async () => {
+    const { db, tenants, provisioning, runner } = await services({
+      S3_BUCKET: 'test-media',
+      S3_ACCESS_KEY: 'test-key',
+      S3_SECRET_KEY: 'test-secret',
+    });
+    const draft = await createDraft('remove-me');
+    await tenants.startProvisioning(draft.id, OPERATOR);
+    await runner.tick();
+    const [oldJob] = await provisioning.listForTenant(draft.id);
+    if (!oldJob) throw new Error('Provisioning job missing');
+    const [row] = await db.select().from(tenantRows).where(eq(tenantRows.id, draft.id));
+    if (!row) throw new Error('Tenant missing');
+    const databaseExists = async () =>
+      db.execute<{ datname: string }>(
+        sql`SELECT datname FROM pg_database WHERE datname = ${row.databaseName}`,
+      );
+    expect(await databaseExists()).toHaveLength(1);
+    const objects = new Set([
+      `${row.storagePrefix}photo-a`,
+      `${row.storagePrefix}photo-b`,
+      'tenants/zavoda/keep',
+      'legacy-keep',
+    ]);
+    let failDelete = true;
+    const storage = storageSend.mockImplementation(async (command) => {
+      if (command instanceof ListObjectsV2Command) {
+        const keys = [...objects]
+          .filter((key) => key.startsWith(command.input.Prefix ?? ''))
+          .sort();
+        const remaining = keys.filter((key) => key > (command.input.ContinuationToken ?? ''));
+        return {
+          Contents: remaining.slice(0, 1).map((Key) => ({ Key })),
+          IsTruncated: remaining.length > 1,
+          NextContinuationToken: remaining[0],
+        };
+      }
+      if (command instanceof DeleteObjectsCommand) {
+        if (failDelete) return { Errors: [{ Code: 'AccessDenied' }] };
+        (command.input.Delete?.Objects ?? []).forEach((object) => {
+          if (object.Key) objects.delete(object.Key);
+        });
+        return {};
+      }
+      throw new Error('Unexpected storage command');
+    });
+    const audit = vi.spyOn(app.get(ControlAudit), 'record');
+    try {
+      expect(DeleteTenantCommand.safeParse({ reason: '  ' }).success).toBe(false);
+      const deletion = app.get(TenantDeletionService);
+      const job = await deletion.remove(draft.id, 'Contract ended', OPERATOR);
+      expect((await deletion.remove(draft.id, 'Retry request', OPERATOR)).id).toBe(job.id);
+      expect((await tenants.get(draft.id)).status).toBe(TenantStatus.ARCHIVED);
+      await expect(tenants.startProvisioning(draft.id, OPERATOR)).rejects.toMatchObject({
+        code: 'TENANT_READ_ONLY',
+      });
+      expect((await provisioning.get(oldJob.id)).status).toBe(JobStatus.CANCELLED);
+      await expect(
+        provisioning.skipStep(oldJob.id, ProvisioningStep.REGISTER_DOMAINS, OPERATOR),
+      ).rejects.toMatchObject({ code: 'JOB_FINISHED' });
+      await expect(tenants.resume(draft.id, OPERATOR)).rejects.toMatchObject({
+        code: 'TENANT_READ_ONLY',
+      });
+      const deletionAudit = audit.mock.calls.find(([, entry]) => entry.action === 'tenant.delete');
+      expect(deletionAudit?.[1].after).toMatchObject({ reason: 'Contract ended' });
+      await runner.tick();
+      expect(await databaseExists()).toHaveLength(0);
+      expect(
+        await db.execute(
+          sql`SELECT rolname FROM pg_roles WHERE rolname = ${`vakhta_${draft.id.replaceAll('-', '')}_app`}`,
+        ),
+      ).toHaveLength(0);
+      expect((await provisioning.get(job.id)).status).toBe(JobStatus.FAILED);
+      expect((await tenants.list()).some((tenant) => tenant.id === draft.id)).toBe(true);
+      expect(
+        await db.select().from(tenantSecrets).where(eq(tenantSecrets.tenantId, draft.id)),
+      ).not.toHaveLength(0);
+      failDelete = false;
+      await provisioning.retryStep(job.id, ProvisioningStep.DROP_STORAGE, OPERATOR);
+      await runner.tick();
+      expect((await provisioning.get(job.id)).status).toBe(JobStatus.DONE);
+      expect(objects).toEqual(new Set(['tenants/zavoda/keep', 'legacy-keep']));
+      expect((await tenants.list()).some((tenant) => tenant.id === draft.id)).toBe(false);
+      expect(
+        await db.select().from(tenantSecrets).where(eq(tenantSecrets.tenantId, draft.id)),
+      ).toHaveLength(0);
+      expect(
+        await db.execute(sql`SELECT datname FROM pg_database WHERE datname = 'control'`),
+      ).toHaveLength(1);
+      const neighbour = (await tenants.list()).find((tenant) => tenant.slug === 'zavoda');
+      if (!neighbour) throw new Error('Neighbour missing');
+      const [neighbourRow] = await db
+        .select()
+        .from(tenantRows)
+        .where(eq(tenantRows.id, neighbour.id));
+      expect(
+        await db.execute(
+          sql`SELECT datname FROM pg_database WHERE datname = ${neighbourRow?.databaseName}`,
+        ),
+      ).toHaveLength(1);
+    } finally {
+      storage.mockRestore();
+      audit.mockRestore();
     }
   });
 });

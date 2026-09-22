@@ -1,7 +1,13 @@
 import { BrandingErrorCode } from '@vakhta/contracts';
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { eq, tenants, tenantBranding, type RegistryDatabase } from '@vakhta/registry';
+import {
+  eq,
+  tenants,
+  tenantBranding,
+  type RegistryDbOrTx,
+  type RegistryDatabase,
+} from '@vakhta/registry';
 import { TenantStatus } from '@vakhta/domain';
 import type { TenantBrandingView, UpdateTenantBrandingCommand } from '@vakhta/contracts';
 import type { Operator } from '../auth/operator.guard.js';
@@ -10,6 +16,7 @@ import { ControlError } from '../common/domain-error.js';
 import type { ControlEnv } from '../config/env.js';
 import { CONTROL_ENV, REGISTRY } from '../infra/registry.module.js';
 import { logoUrl, normalizeLogo } from './logo.js';
+import { lockTenant } from '../provisioning/tenant-lock.js';
 import { LogoStorage } from './logo-storage.js';
 
 @Injectable()
@@ -41,16 +48,8 @@ export class BrandingService {
     const key = normalized
       ? `tenants/${tenant.slug}/branding/${createHash('sha256').update(normalized).digest('hex')}.webp`
       : null;
-    // Immutable, content-addressed assets make retries safe. Historical versions stay in backups.
-    if (normalized && key) await this.storage.put(key, normalized);
     return this.db.transaction(async (tx) => {
-      const [currentTenant] = await tx
-        .select()
-        .from(tenants)
-        .where(eq(tenants.id, id))
-        .for('update');
-      if (!currentTenant || currentTenant.status === TenantStatus.ARCHIVED)
-        throw new ControlError('TENANT_READ_ONLY', 409, 'Archived tenant is read-only');
+      await this.lockWritable(tx, id);
       const [before] = await tx
         .select()
         .from(tenantBranding)
@@ -70,6 +69,7 @@ export class BrandingService {
         before.logoKey === nextKey
       )
         return this.view(before);
+      if (normalized && key) await this.storage.put(key, normalized);
       const updatedAt = new Date(Math.max(Date.now(), before.updatedAt.getTime() + 1));
       const [after] = await tx
         .update(tenantBranding)
@@ -94,6 +94,14 @@ export class BrandingService {
       });
       return this.view(after);
     });
+  }
+
+  private async lockWritable(tx: RegistryDbOrTx, id: string): Promise<void> {
+    if (!(await lockTenant(tx, id)))
+      throw new ControlError('TENANT_BUSY', 409, 'Tenant operation is in progress');
+    const [currentTenant] = await tx.select().from(tenants).where(eq(tenants.id, id)).for('update');
+    if (!currentTenant || currentTenant.status === TenantStatus.ARCHIVED)
+      throw new ControlError('TENANT_READ_ONLY', 409, 'Archived tenant is read-only');
   }
 
   async logo(id: string, version: string): Promise<Uint8Array> {

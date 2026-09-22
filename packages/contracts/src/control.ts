@@ -107,6 +107,9 @@ export type SetBotTokenCommand = z.infer<typeof SetBotTokenCommand>;
 export const SuspendTenantCommand = z.object({ reason: z.string().trim().min(3).max(500) });
 export type SuspendTenantCommand = z.infer<typeof SuspendTenantCommand>;
 
+export const DeleteTenantCommand = SuspendTenantCommand;
+export type DeleteTenantCommand = z.infer<typeof DeleteTenantCommand>;
+
 export const TenantModuleView = z.object({
   module: TenantModuleSchema,
   enabled: z.boolean(),

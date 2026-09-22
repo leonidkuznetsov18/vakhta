@@ -3,6 +3,8 @@ import type { MeView } from '@vakhta/contracts';
 import { ApiError, authApi } from '../api.ts';
 import { keys } from '@/lib/query';
 
+const TenantAccessError = { SUSPENDED: 'TENANT_SUSPENDED', NOT_FOUND: 'TENANT_NOT_FOUND' } as const;
+
 export type SessionState =
   | { status: 'loading' }
   | { status: 'anonymous'; offline: boolean }
@@ -15,15 +17,25 @@ export type SessionState =
  */
 export function useSession() {
   const client = useQueryClient();
-  const query = useQuery({ queryKey: keys.me, queryFn: () => authApi.me(), retry: false });
-  const state: SessionState = query.isPending
-    ? { status: 'loading' }
-    : query.data
-      ? { status: 'authenticated', me: query.data }
-      : {
-          status: 'anonymous',
-          offline: !(query.error instanceof ApiError && query.error.kind === 'http'),
-        };
+  const query = useQuery({
+    queryKey: keys.me,
+    queryFn: async () => {
+      try {
+        return await authApi.me();
+      } catch (error) {
+        if (isAccessRevoked(error)) {
+          await client.cancelQueries({ predicate: (entry) => entry.queryKey[0] !== keys.me[0] });
+          client.removeQueries({ predicate: (entry) => entry.queryKey[0] !== keys.me[0] });
+          return null;
+        }
+        throw error;
+      }
+    },
+    retry: false,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: true,
+  });
+  const state = sessionState(query);
 
   const refresh = () => client.invalidateQueries({ queryKey: keys.me });
   /**
@@ -42,4 +54,28 @@ export function useSession() {
   };
 
   return { state, refresh, signOut };
+}
+
+function isAccessRevoked(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.status === 401 ||
+      error.code === TenantAccessError.SUSPENDED ||
+      error.code === TenantAccessError.NOT_FOUND)
+  );
+}
+
+function sessionState(query: {
+  isPending: boolean;
+  data: MeView | null | undefined;
+  error: unknown;
+}): SessionState {
+  if (isAccessRevoked(query.error)) return { status: 'anonymous', offline: false };
+  if (query.isPending) return { status: 'loading' };
+  if (query.data === null) return { status: 'anonymous', offline: false };
+  if (query.data) return { status: 'authenticated', me: query.data };
+  return {
+    status: 'anonymous',
+    offline: !(query.error instanceof ApiError && query.error.kind === 'http'),
+  };
 }

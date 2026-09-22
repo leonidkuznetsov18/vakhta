@@ -18,8 +18,8 @@ const STEP_TAB = {
   [ProvisioningStep.REMOVE_WEBHOOK]: 'bot',
   [ProvisioningStep.EVICT_RUNTIME]: 'modules',
   [ProvisioningStep.FINAL_BACKUP]: 'database',
-  [ProvisioningStep.DROP_DATABASE]: 'danger',
-  [ProvisioningStep.DROP_STORAGE]: 'danger',
+  [ProvisioningStep.DROP_DATABASE]: 'database',
+  [ProvisioningStep.DROP_STORAGE]: 'database',
 } as const satisfies Record<ProvisioningStep, string>;
 
 export function stepConfigurationTab(step: ProvisioningStep) {

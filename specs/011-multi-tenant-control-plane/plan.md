@@ -166,10 +166,11 @@ no bot token exists yet, the page shows a "bot is being connected" state and the
 the pending step. Sharing is copy-to-clipboard and the platform share sheet; e-mail delivery waits
 for a mail provider.
 
-Deletion: `DRAFT` rows are removed directly. A provisioned tenant needs the slug typed; the job
-`DELETE` takes a final backup (`FINAL_BACKUP`), suspends, records `tenant_deletions.scheduled_for`
-(now plus `TENANT_DELETE_RETENTION_DAYS`, default thirty), and a scheduled step drops the database,
-role and storage prefix after that time unless an operator restores. All steps are audited.
+Deletion (owner decision, 2026-09-22): require a reason and atomically archive the client with
+its durable `DELETE` job and audit record. The existing runner removes the webhook, evicts runtime,
+drops the registered database and owned role, then purges tenant object prefixes. Completed
+checkpoints survive retries; secrets are removed only after cleanup succeeds. Keep the archived
+registry tombstone and audit/job history. No final backup or retention delay is introduced.
 
 ### control-web (new React app, `apps/control-web`)
 
@@ -187,7 +188,7 @@ schema version, size, last backup, connection check, migrate and backup actions)
 webhook status, token set/rotate, verify), Kiosk (address, QR settings, terminals count), Panel
 (address, administrators, invitations, reissue), Domains (table with DNS status and verify),
 Branding (name, logo, colour with preview), Parameters (grouped forms for the section-18 settings),
-Jobs (history with steps), Audit (filtered log), Danger zone (suspend, resume, delete). **Modules
+Jobs (history with steps), Audit (filtered log), Clients table actions (delete, suspend). **Modules
 catalog**, **Operators**, **Audit**. Every form follows the disabled-until-changed rule; every
 non-obvious control has a tooltip; one loader per surface; complete counts and pagination. shadcn
 primitives are copied from the panel initially; a shared `packages/ui` is extracted only when
@@ -277,7 +278,7 @@ Control web and panel changes: `vercel-react-best-practices`, `frontend-design`.
 | 1. Foundation       | Research tasks resolved | Registry package and migrations; tenant context in API and worker; `--tenants` migrator; env mode green in CI; pilot registered and cut over with recorded live checks                                                                                              |
 | 2. Control panel    | Delivery 1              | Operator sign-in with TOTP; quick-create wizard; tenant workspace with all configuration tabs and inline actions; tenant settings service; provisioning job with resumable steps and onboarding link; audit; public config endpoint; desktop and mobile screenshots |
 | 3. Tenant surfaces  | Delivery 2              | Second tenant provisioned end to end; per-tenant bot; module gating; branding on panel, kiosk and bot; runtime config with cache                                                                                                                                    |
-| 4. Operations       | Delivery 3              | Multi-tenant backup and restore drill; suspend/resume; token rotation; client-owned domain flow; tenant health view; deletion with final backup and retention window                                                                                                |
+| 4. Operations       | Delivery 3              | Multi-tenant backup and restore drill; suspend/resume; token rotation; client-owned domain flow; tenant health view; immediate physical deletion with a required reason                                                                                             |
 
 No dates or effort figures are promised here; record actual provisioning time per tenant when the
 first non-pilot tenant is created.
@@ -297,7 +298,7 @@ first non-pilot tenant is created.
 | AC-025      | Audit tests: every mutation appends; UPDATE/DELETE on `control_audit_log` fails for the application role                                                               |
 | AC-026–031  | Workspace browser checks per tab; settings reader tests (defaults, override, invalidation, pilot values unchanged); inline action tests; table standard checks         |
 | AC-032–034  | Wizard and job view browser checks; invitation tests (single use, expiry, reissue); welcome page in three languages without a bot token and with one                   |
-| AC-035      | Deletion tests: draft removal, slug confirmation, final backup step, suspension, scheduled drop, restore within the window                                             |
+| AC-035      | Deletion tests: reason validation, immediate access block, physical database/file cleanup, isolation and retry                                                         |
 
 Commands: `pnpm --filter @vakhta/registry test`, `pnpm --filter api test`, `pnpm --filter worker
 test`, `pnpm --filter control-api test`, `pnpm check` before each delivery's commit. Independent
@@ -326,7 +327,7 @@ verified deployed behavior.
 4. **Pilot slug and display name** for the current customer.
 5. **Control panel languages**: the trilingual rule applies by default; the owner may restrict the
    operator UI to fewer languages as an explicit exception.
-6. **Deletion retention window**: thirty days by default; confirm or change.
+6. **Deletion**: owner confirmed immediate physical database/file destruction on 2026-09-22.
 7. **Which section-18 parameters the tenant's own `ADMIN` may edit later** in the tenant panel;
    in this program only operators edit them.
 

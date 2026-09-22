@@ -70,7 +70,10 @@ export class TenantRuntimeRegistry implements OnApplicationShutdown {
   /** One shared refresh per second bounds unknown-host traffic while discovering new tenants. */
   async resolveHost(host: string): Promise<TenantRuntime | null> {
     const existing = this.byHost(host);
-    if (existing && existing.tenant.status !== TenantStatus.PROVISIONING) return existing;
+    if (existing && existing.tenant.status !== TenantStatus.PROVISIONING) {
+      await this.source.refresh();
+      return this.byHost(host);
+    }
     if (this.missRefresh) {
       await this.missRefresh;
     } else if (Date.now() >= this.nextMissRefreshAt) {

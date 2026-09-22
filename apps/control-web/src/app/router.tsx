@@ -74,8 +74,8 @@ const workspaceSearch = z.object({
       'branding',
       'jobs',
       'audit',
-      'danger',
     ])
+    .catch('overview')
     .default('overview'),
 });
 const workspaceRoute = createRoute({
@@ -84,7 +84,7 @@ const workspaceRoute = createRoute({
   validateSearch: workspaceSearch,
   component: function Workspace() {
     const { id } = workspaceRoute.useParams();
-    const { tab } = workspaceRoute.useSearch();
+    const tab = workspaceRoute.useSearch({ select: (search) => search.tab });
     return <TenantWorkspacePage id={id} tab={tab as WorkspaceTab} />;
   },
 });

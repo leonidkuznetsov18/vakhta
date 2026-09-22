@@ -93,7 +93,7 @@ program.
    in panel and kiosk, first-administrator invitation.
 4. **Operations**: suspend/resume, bot token rotation, multi-tenant backups and a restore drill,
    client-owned domains, provider automation for hostnames, tenant health in the control panel,
-   tenant deletion with a final backup and a retention window.
+   immediate physical tenant deletion with a required reason.
 
 **Non-goals.** Row-level multi-tenancy (`tenant_id` columns in the tenant schema); cross-tenant
 reports; operator impersonation of tenant users; billing, metering, plans or self-service sign-up;
@@ -266,10 +266,13 @@ console after the initial platform setup.
 - **AC-034**: A missing bot token or a manual DNS step never blocks creation: the tenant becomes
   usable for the enabled modules that are ready, the welcome page shows "bot is being connected"
   until the token is added, and the workspace lists the pending manual steps with instructions.
-- **AC-035**: A `DRAFT` tenant is deleted immediately. A provisioned tenant is deleted only after
-  the operator types its slug: the platform takes a final backup, suspends the tenant at once, and
-  drops its database and storage after a retention window (default thirty days) during which an
-  operator can restore it. Every step is audited.
+- **AC-035** (owner decision, 2026-09-22): The Clients table ends with an actions menu containing
+  Delete and Suspend. Each opens a dialog requiring a trimmed 3–500 character reason. Delete
+  immediately blocks access and durably removes the tenant database, dedicated role and uploaded
+  files, without a final backup or restore window. Failed cleanup stays visible and retryable;
+  successful cleanup removes the client from the list. Neighbouring tenants are unaffected.
+  Control audit and job history remain. Suspend revokes existing sessions, blocks login and work,
+  and retains tenant data. The Danger zone tab is removed entirely.
 
 ### Edge Cases
 
@@ -314,8 +317,8 @@ console after the initial platform setup.
   `settings` table with platform defaults; verified by AC-026–031.
 - **FR-009**: Creating a tenant MUST end with a shareable onboarding link that opens a welcome page
   with password setup, bot link and kiosk instructions; verified by AC-032–034.
-- **FR-010**: Deleting a provisioned tenant MUST be confirmed by slug, preceded by a final backup
-  and delayed by a retention window; verified by AC-035.
+- **FR-010**: Deleting a tenant MUST require a reason, block access immediately and physically
+  destroy its database and uploaded files through resumable cleanup; verified by AC-035.
 
 ### Key Entities
 

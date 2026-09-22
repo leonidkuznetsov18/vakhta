@@ -7,6 +7,10 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import type { TenantSource } from '@vakhta/registry';
+import { TENANT_SOURCE } from './tenant-runtime.js';
+import { currentTenant } from './tenant-context.js';
+import { DomainError } from '../common/domain-error.js';
 import type { Env } from '../config/env.js';
 
 /** Порт видачі фото: лише короткоживучі підписані GET (FR-PHO-06). */
@@ -22,13 +26,23 @@ export class S3ObjectStorage implements ObjectStorage {
   constructor(
     private readonly client: S3Client,
     private readonly bucket: string,
+    private readonly source: TenantSource,
   ) {}
 
   async put(key: string, body: Uint8Array, contentType: string): Promise<void> {
-    await this.client.send(
-      new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: contentType }),
-      { abortSignal: AbortSignal.timeout(15_000) },
-    );
+    const stored = await this.source.withActiveTenant(currentTenant().tenant.id, async () => {
+      await this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: body,
+          ContentType: contentType,
+        }),
+        { abortSignal: AbortSignal.timeout(15_000) },
+      );
+      return true;
+    });
+    if (!stored) throw new DomainError('TENANT_SUSPENDED', 403, 'Tenant is not active');
   }
   async delete(key: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }), {
@@ -52,6 +66,7 @@ export class InMemoryObjectStorage implements ObjectStorage {
 @Injectable()
 export class ObjectStorageFactory {
   constructor(
+    @Inject(TENANT_SOURCE) private readonly source: TenantSource,
     @Optional() @Inject(ConfigService) private readonly config?: ConfigService<Env, true>,
   ) {}
 
@@ -67,7 +82,7 @@ export class ObjectStorageFactory {
       forcePathStyle: this.config?.get('S3_FORCE_PATH_STYLE', { infer: true }) ?? true,
       credentials: { accessKeyId, secretAccessKey },
     });
-    return new S3ObjectStorage(client, bucket);
+    return new S3ObjectStorage(client, bucket, this.source);
   }
 }
 

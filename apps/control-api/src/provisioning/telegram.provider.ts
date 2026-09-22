@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Api } from 'grammy';
+import { Api, GrammyError } from 'grammy';
 import { ControlError } from '../common/domain-error.js';
 
 export interface BotIdentity {
@@ -31,6 +31,12 @@ export class TelegramProvider {
   }
 
   async deleteWebhook(token: string): Promise<void> {
-    await new Api(token).deleteWebhook();
+    try {
+      await new Api(token, { timeoutSeconds: 15 }).deleteWebhook();
+    } catch (error) {
+      // Revoked tokens cannot receive updates; they must not prevent data destruction.
+      if (error instanceof GrammyError && [401, 404].includes(error.error_code)) return;
+      throw error;
+    }
   }
 }

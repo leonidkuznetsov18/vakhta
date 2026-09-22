@@ -93,7 +93,15 @@ function mediaDependenciesFor(
   if (!mediaStore || !tenant.botToken) return null;
   return {
     fetcher: new TelegramFileFetcher(tenant.botToken),
-    store: mediaStore,
+    store: {
+      async put(...args: Parameters<S3MediaStore['put']>) {
+        const stored = await tenantSource.source.withActiveTenant(tenant.id, async () => {
+          await mediaStore.put(...args);
+          return true;
+        });
+        if (!stored) throw new Error('Tenant is not active');
+      },
+    },
     options: {
       thresholds: {
         minWidth: settings.mediaMinWidth,

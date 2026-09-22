@@ -1,4 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { TenantRuntimeRegistry } from '../infra/tenant-runtime.js';
+import { currentTenant } from '../infra/tenant-context.js';
 import type { Auth } from './auth.config.js';
 import { AUTH_BASE_PATH } from './auth.config.js';
 
@@ -17,7 +19,11 @@ export function toWebHeaders(headers: FastifyRequest['headers']): Headers {
  * Прокидає /auth/* у better-auth (інтеграція з Fastify за документацією).
  * Реєструється на кореневому інстансі після CORS і до listen().
  */
-export function registerAuthRoutes(fastify: FastifyInstance, auth: Auth): void {
+export function registerAuthRoutes(
+  fastify: FastifyInstance,
+  auth: Auth,
+  registry: TenantRuntimeRegistry,
+): void {
   fastify.route({
     method: ['GET', 'POST'],
     url: `${AUTH_BASE_PATH}/*`,
@@ -33,7 +39,13 @@ export function registerAuthRoutes(fastify: FastifyInstance, auth: Auth): void {
         init.body = typeof body === 'string' ? body : JSON.stringify(body);
         if (!headers.has('content-type')) headers.set('content-type', 'application/json');
       }
-      const response = await auth.handler(new Request(url.toString(), init));
+      const response = await registry.source.withActiveTenant(currentTenant().tenant.id, () =>
+        auth.handler(new Request(url.toString(), init)),
+      );
+      if (!response)
+        return reply
+          .status(403)
+          .send({ code: 'TENANT_SUSPENDED', message: 'Tenant access is blocked' });
       reply.status(response.status);
       response.headers.forEach((value, key) => {
         if (key.toLowerCase() === 'set-cookie') return;

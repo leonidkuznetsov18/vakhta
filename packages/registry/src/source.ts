@@ -15,6 +15,8 @@ export interface TenantSource {
   /** Every known non-archived tenant, including suspended ones. */
   all(): readonly TenantRuntimeConfig[];
   refresh(): Promise<void>;
+  /** Serialize authentication with tenant lifecycle changes; null when access is blocked. */
+  withActiveTenant<T>(tenantId: string, operation: () => Promise<T>): Promise<T | null>;
 }
 
 /** One tenant for every request: local development, CI and the pilot before the registry cutover. */
@@ -38,6 +40,10 @@ export class EnvTenantSource implements TenantSource {
     return [this.tenant];
   }
   async refresh(): Promise<void> {}
+  async withActiveTenant<T>(tenantId: string, operation: () => Promise<T>): Promise<T | null> {
+    if (tenantId !== this.tenant.id || !isServingTenantStatus(this.tenant.status)) return null;
+    return operation();
+  }
 }
 
 /** Immutable lookup structure over one loaded snapshot. */

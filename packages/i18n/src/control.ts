@@ -49,6 +49,20 @@ type TenantSettingGroupName =
 
 /** Control panel (Vakhta Control) texts: operators only, still trilingual (AGENTS.md). */
 export interface ControlMessages {
+  tenantActions: {
+    title: string;
+    delete: string;
+    deleteHint: string;
+    deleting: string;
+    deleteFailed: string;
+    suspend: string;
+    suspendHint: string;
+    reason: string;
+    reasonHint: string;
+    failed: string;
+    saving: string;
+    cancel: string;
+  };
   users: TenantUsersMessages;
   readonly operatorInvitations: OperatorInvitationMessages;
   administrators: TenantAdministratorMessages;
@@ -158,8 +172,7 @@ export interface ControlMessages {
       | 'parameters'
       | 'branding'
       | 'jobs'
-      | 'audit'
-      | 'danger',
+      | 'audit',
       string
     >;
     onboardingFirstStep: string;
@@ -295,6 +308,22 @@ export interface ControlMessages {
 }
 
 export const controlUk: ControlMessages = {
+  tenantActions: {
+    title: 'Дії',
+    delete: 'Видалити',
+    deleteHint:
+      'Базу даних і файли клієнта буде фізично знищено. Доступ буде заблоковано, усі користувачі вийдуть із системи. Цю дію неможливо скасувати.',
+    deleting: 'Видалення…',
+    deleteFailed: 'Помилка видалення',
+    suspend: 'Призупинити',
+    suspendHint:
+      'Вхід і роботу клієнта буде заблоковано. Усі користувачі вийдуть із системи. Дані зберігаються.',
+    reason: 'Причина',
+    reasonHint: 'Від 3 до 500 символів. Причина буде записана в аудит.',
+    failed: 'Не вдалося виконати дію. Перевірте стан клієнта та повторіть спробу.',
+    saving: 'Застосування змін…',
+    cancel: 'Скасувати',
+  },
   users: tenantUsersUk,
   administrators: tenantAdministratorsUk,
   operatorInvitations: operatorInvitationsUk,
@@ -423,7 +452,6 @@ export const controlUk: ControlMessages = {
       audit: 'Аудит',
       parameters: 'Параметри',
       branding: brandingUk.title,
-      danger: 'Небезпечна зона',
     },
     onboardingFirstStep: 'Почніть звідси',
     onboardingTasks: 'Відкрити кроки налаштування',
@@ -465,12 +493,6 @@ export const controlUk: ControlMessages = {
     enabled: 'увімкнено',
     disabled: 'вимкнено',
     adminPanelRequired: 'Без адмін-панелі клієнтом не буде кому керувати.',
-    suspendTitle: 'Призупинити клієнта',
-    suspendHint: 'Панель, бот і кіоск перестають відповідати протягом хвилини. Дані не змінюються.',
-    reason: 'Причина (обов’язково, потрапляє в аудит)',
-    suspend: 'Призупинити',
-    resume: 'Відновити',
-    suspended: 'Клієнта призупинено',
     provision: 'Запустити підготовку',
     noJobs: 'Задач ще не було.',
     auditEmpty: 'Записів аудиту ще немає.',
@@ -606,6 +628,22 @@ export const controlUk: ControlMessages = {
 };
 
 export const controlEn: ControlMessages = {
+  tenantActions: {
+    title: 'Actions',
+    delete: 'Delete',
+    deleteHint:
+      'The client database and files will be permanently destroyed. Access will be blocked and all users signed out. This action cannot be undone.',
+    deleting: 'Deleting…',
+    deleteFailed: 'Deletion failed',
+    suspend: 'Suspend',
+    suspendHint:
+      'Sign-in and client operations will be blocked. All users will be signed out. Data is retained.',
+    reason: 'Reason',
+    reasonHint: '3–500 characters. The reason will be recorded in the audit log.',
+    failed: 'The action failed. Check the client status and try again.',
+    saving: 'Applying changes…',
+    cancel: 'Cancel',
+  },
   users: tenantUsersEn,
   administrators: tenantAdministratorsEn,
   operatorInvitations: operatorInvitationsEn,
@@ -734,7 +772,6 @@ export const controlEn: ControlMessages = {
       audit: 'Audit',
       parameters: 'Parameters',
       branding: brandingEn.title,
-      danger: 'Danger zone',
     },
     onboardingFirstStep: 'Start here',
     onboardingTasks: 'Open setup tasks',
@@ -776,12 +813,6 @@ export const controlEn: ControlMessages = {
     enabled: 'enabled',
     disabled: 'disabled',
     adminPanelRequired: 'Without the admin panel nobody can manage the client.',
-    suspendTitle: 'Suspend client',
-    suspendHint: 'Panel, bot and kiosk stop answering within a minute. No data changes.',
-    reason: 'Reason (required, goes to the audit)',
-    suspend: 'Suspend',
-    resume: 'Resume',
-    suspended: 'Client is suspended',
     provision: 'Start provisioning',
     noJobs: 'No jobs yet.',
     auditEmpty: 'No audit entries yet.',
@@ -916,6 +947,22 @@ export const controlEn: ControlMessages = {
 };
 
 export const controlRu: ControlMessages = {
+  tenantActions: {
+    title: 'Действия',
+    delete: 'Удалить',
+    deleteHint:
+      'База данных и файлы клиента будут физически уничтожены. Доступ будет заблокирован, все пользователи выйдут из системы. Это действие нельзя отменить.',
+    deleting: 'Удаление…',
+    deleteFailed: 'Ошибка удаления',
+    suspend: 'Приостановить',
+    suspendHint:
+      'Вход и работа клиента будут заблокированы. Все пользователи выйдут из системы. Данные сохраняются.',
+    reason: 'Причина',
+    reasonHint: 'От 3 до 500 символов. Причина будет записана в аудит.',
+    failed: 'Не удалось выполнить действие. Проверьте статус клиента и повторите попытку.',
+    saving: 'Применение изменений…',
+    cancel: 'Отмена',
+  },
   users: tenantUsersRu,
   administrators: tenantAdministratorsRu,
   operatorInvitations: operatorInvitationsRu,
@@ -1044,7 +1091,6 @@ export const controlRu: ControlMessages = {
       audit: 'Аудит',
       parameters: 'Параметры',
       branding: brandingRu.title,
-      danger: 'Опасная зона',
     },
     onboardingFirstStep: 'Начните здесь',
     onboardingTasks: 'Открыть шаги настройки',
@@ -1086,12 +1132,6 @@ export const controlRu: ControlMessages = {
     enabled: 'включён',
     disabled: 'выключен',
     adminPanelRequired: 'Без админ-панели клиентом будет некому управлять.',
-    suspendTitle: 'Приостановить клиента',
-    suspendHint: 'Панель, бот и киоск перестают отвечать в течение минуты. Данные не меняются.',
-    reason: 'Причина (обязательно, попадает в аудит)',
-    suspend: 'Приостановить',
-    resume: 'Возобновить',
-    suspended: 'Клиент приостановлен',
     provision: 'Запустить подготовку',
     noJobs: 'Задач ещё не было.',
     auditEmpty: 'Записей аудита ещё нет.',

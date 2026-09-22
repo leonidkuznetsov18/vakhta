@@ -1,3 +1,5 @@
+import { JobStatus, ProvisioningKind, TenantStatus } from '@vakhta/domain';
+import { TenantActions } from '@/features/tenant-actions';
 import { TENANT_COUNTS_BATCH_SIZE, type TenantUserCountResult } from '@vakhta/contracts';
 import { TenantUserCount, tenantUsersQueries } from '@/features/tenant-users';
 import { useState } from 'react';
@@ -27,7 +29,17 @@ function matches(row: TenantSummaryView, needle: string): boolean {
 export function TenantsPage() {
   const m = t();
   const [search, setSearch] = useState('');
-  const query = useQuery({ queryKey: queryKeys.tenants, queryFn: controlApi.tenants });
+  const query = useQuery({
+    queryKey: queryKeys.tenants,
+    queryFn: controlApi.tenants,
+    refetchInterval: (state) =>
+      state.state.data?.some(
+        (row) =>
+          row.lastJob?.kind === ProvisioningKind.DELETE && row.lastJob.status !== JobStatus.FAILED,
+      )
+        ? 3000
+        : false,
+  });
   const needle = search.trim().toLowerCase();
   const rows = (query.data ?? []).filter((row) => matches(row, needle));
 
@@ -70,7 +82,11 @@ function TenantResults({ rows }: { rows: TenantSummaryView[] }) {
     (currentPage - 1) * TENANT_COUNTS_BATCH_SIZE,
     currentPage * TENANT_COUNTS_BATCH_SIZE,
   );
-  const counts = useQuery(tenantUsersQueries.counts(visible.map((row) => row.id)));
+  const counts = useQuery(
+    tenantUsersQueries.counts(
+      visible.filter((row) => row.status !== TenantStatus.ARCHIVED).map((row) => row.id),
+    ),
+  );
   const byTenant = new Map(counts.data?.map((row) => [row.tenantId, row]));
 
   return (
@@ -143,6 +159,9 @@ function TenantsTable({
             <TableHead>{m.tenants.columns.modules}</TableHead>
             <TableHead>{m.tenants.columns.schema}</TableHead>
             <TableHead>{m.tenants.columns.lastJob}</TableHead>
+            <TableHead className="sticky right-0 bg-card text-right">
+              {m.tenantActions.title}
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -156,6 +175,14 @@ function TenantsTable({
       </div>
     </div>
   );
+}
+
+function tenantStatusLabel(row: TenantSummaryView): string {
+  const m = t();
+  if (row.status !== TenantStatus.ARCHIVED) return m.status[row.status];
+  return row.lastJob?.status === JobStatus.FAILED
+    ? m.tenantActions.deleteFailed
+    : m.tenantActions.deleting;
 }
 
 function TenantRow({
@@ -198,19 +225,35 @@ function TenantRow({
         ) : null}
       </TableCell>
       <TableCell>
-        <StatusBadge code={row.status} label={m.status[row.status]} />
+        <StatusBadge code={row.status} label={tenantStatusLabel(row)} />
       </TableCell>
       <TableCell>
-        <TenantUserCount tenantId={row.id} result={count} loading={loading} />
+        {row.status === TenantStatus.ARCHIVED ? (
+          '—'
+        ) : (
+          <TenantUserCount tenantId={row.id} result={count} loading={loading} />
+        )}
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
         {row.modules.map((mod) => m.modules[mod]).join(' · ')}
       </TableCell>
       <TableCell className="text-sm">{row.schemaVersion ?? '—'}</TableCell>
       <TableCell className="text-sm text-muted-foreground">
-        {row.lastJob
-          ? `${m.jobs.kinds[row.lastJob.kind]} · ${m.jobs.status[row.lastJob.status]}`
-          : '—'}
+        {row.lastJob ? (
+          <Link
+            className="control-link"
+            to="/tenants/$id"
+            params={{ id: row.id }}
+            search={{ tab: 'jobs' }}
+          >
+            {`${m.jobs.kinds[row.lastJob.kind]} · ${m.jobs.status[row.lastJob.status]}`}
+          </Link>
+        ) : (
+          '—'
+        )}
+      </TableCell>
+      <TableCell className="sticky right-0 bg-card text-right">
+        <TenantActions tenant={row} />
       </TableCell>
     </TableRow>
   );

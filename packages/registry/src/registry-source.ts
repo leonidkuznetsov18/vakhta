@@ -67,6 +67,20 @@ export class RegistryTenantSource implements TenantSource {
     return this.snapshot.tenants;
   }
 
+  async withActiveTenant<T>(tenantId: string, operation: () => Promise<T>): Promise<T | null> {
+    return this.db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock_shared(hashtextextended(${`provision:${tenantId}`}, 0))`,
+      );
+      const [tenant] = await tx
+        .select({ status: tenants.status })
+        .from(tenants)
+        .where(eq(tenants.id, tenantId));
+      if (tenant?.status !== TenantStatus.ACTIVE) return null;
+      return operation();
+    });
+  }
+
   /** Loads when the watermark moved; concurrent callers share one load. */
   refresh(): Promise<void> {
     if (this.inFlight) return this.inFlight;

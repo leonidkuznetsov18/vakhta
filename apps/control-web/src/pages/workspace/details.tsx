@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { TenantSecretKind, TenantStatus } from '@vakhta/domain';
+import { TenantSecretKind } from '@vakhta/domain';
 import { CircleHelp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { controlApi, queryKeys } from '@/shared/api';
 import { t } from '@/shared/i18n';
-import { FailureState, Field, LoadingState } from '@/shared/ui';
+import { FailureState, LoadingState } from '@/shared/ui';
 import { InfoTooltip } from '@/shared/ui/info-tooltip';
 import { InfoCard, describeError, secretPresent, type TabProps } from './shared';
 
@@ -93,55 +93,6 @@ export function AuditTab({ id }: { id: string }) {
           ))}
         </TableBody>
       </Table>
-    </div>
-  );
-}
-
-export function DangerTab({ detail, onChanged }: TabProps) {
-  const m = t().workspace;
-  const [reason, setReason] = useState('');
-  const run = useMutation({
-    mutationFn: (action: 'suspend' | 'resume') => {
-      if (action === 'suspend') return controlApi.suspend(detail.id, reason);
-      return controlApi.resume(detail.id);
-    },
-    onSuccess: async (_result, action) => {
-      setReason('');
-      await onChanged();
-      if (action === 'suspend') toast.success(m.suspended);
-    },
-    onError: (e: unknown) => toast.error(describeError(e)),
-  });
-  const suspended = detail.status === TenantStatus.SUSPENDED;
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>{suspended ? m.resume : m.suspendTitle}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <p className="text-sm text-muted-foreground">{m.suspendHint}</p>
-          {suspended ? (
-            <Button type="button" disabled={run.isPending} onClick={() => run.mutate('resume')}>
-              {m.resume}
-            </Button>
-          ) : (
-            <>
-              <Field label={m.reason}>
-                <Input value={reason} onChange={(e) => setReason(e.target.value)} />
-              </Field>
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={reason.trim().length < 3 || run.isPending}
-                onClick={() => run.mutate('suspend')}
-              >
-                {m.suspend}
-              </Button>
-            </>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

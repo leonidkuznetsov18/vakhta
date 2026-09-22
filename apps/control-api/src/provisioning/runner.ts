@@ -25,6 +25,9 @@ import {
   provisioningSteps,
   sql,
   tenantModules,
+  tenantInvitations,
+  tenantDomains,
+  tenantBranding,
   tenantSecrets,
   tenants,
   type RegistryDatabase,
@@ -49,6 +52,8 @@ import {
   seedDefaultsStep,
   storagePrefixStep,
 } from './steps/database.steps.js';
+import { dropDatabaseStep } from './steps/delete-database.js';
+import { dropStorageStep } from './steps/delete-storage.js';
 import { inviteAdminStep } from './steps/invite.steps.js';
 import {
   botWebhookStep,
@@ -107,8 +112,8 @@ export class ProvisioningRunner implements OnModuleInit, OnApplicationShutdown {
       REMOVE_WEBHOOK: removeWebhookStep(telegram),
       EVICT_RUNTIME: evictRuntimeStep,
       FINAL_BACKUP: notImplemented('FINAL_BACKUP'),
-      DROP_DATABASE: notImplemented('DROP_DATABASE'),
-      DROP_STORAGE: notImplemented('DROP_STORAGE'),
+      DROP_DATABASE: dropDatabaseStep,
+      DROP_STORAGE: dropStorageStep,
     };
   }
 
@@ -170,7 +175,12 @@ export class ProvisioningRunner implements OnModuleInit, OnApplicationShutdown {
       .from(tenants)
       .where(eq(tenants.id, job.tenantId))
       .limit(1);
-    if (!tenant) return;
+    if (
+      !tenant ||
+      (job.kind !== ProvisioningKind.DELETE &&
+        (tenant.status === TenantStatus.SUSPENDED || tenant.status === TenantStatus.ARCHIVED))
+    )
+      return;
     const steps = await this.db
       .select()
       .from(provisioningSteps)
@@ -288,6 +298,13 @@ export class ProvisioningRunner implements OnModuleInit, OnApplicationShutdown {
         .update(provisioningJobs)
         .set({ status: JobStatus.DONE, finishedAt: new Date() })
         .where(eq(provisioningJobs.id, job.id));
+      if (job.kind === ProvisioningKind.DELETE) {
+        await tx.delete(tenantSecrets).where(eq(tenantSecrets.tenantId, tenant.id));
+        await tx.delete(tenantInvitations).where(eq(tenantInvitations.tenantId, tenant.id));
+        await tx.delete(tenantDomains).where(eq(tenantDomains.tenantId, tenant.id));
+        await tx.delete(tenantModules).where(eq(tenantModules.tenantId, tenant.id));
+        await tx.delete(tenantBranding).where(eq(tenantBranding.tenantId, tenant.id));
+      }
       if (job.kind === ProvisioningKind.PROVISION && tenant.status === TenantStatus.PROVISIONING) {
         await tx
           .update(tenants)

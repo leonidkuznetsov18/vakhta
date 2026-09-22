@@ -32,6 +32,9 @@ class FakeSource implements TenantSource {
   all() {
     return this.snapshot.tenants;
   }
+  async withActiveTenant<T>(id: string, operation: () => Promise<T>): Promise<T | null> {
+    return this.active().some((tenant) => tenant.id === id) ? operation() : null;
+  }
   async refresh() {}
 }
 

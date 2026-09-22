@@ -1,3 +1,4 @@
+import { TenantRuntimeRegistry } from './infra/tenant-runtime.js';
 import * as XLSX from 'xlsx';
 import { messages } from '@vakhta/i18n';
 import { employees, shiftAssignments, shiftTemplates } from '@vakhta/db';
@@ -57,11 +58,14 @@ describe('e2e: межі доступу панелі', () => {
     app.enableCors(corsOptions(['http://localhost:5173']));
     const { registerAuthRoutes } = await import('./auth/auth.routes.js');
     const { AUTH } = await import('./auth/auth.service.js');
-    registerAuthRoutes(app.getHttpAdapter().getInstance(), app.get(AUTH));
+    registerAuthRoutes(
+      app.getHttpAdapter().getInstance(),
+      app.get(AUTH),
+      app.get(TenantRuntimeRegistry),
+    );
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
     // Direct service calls in tests run outside a request: bind them to the env tenant explicitly.
-    const { TenantRuntimeRegistry } = await import('./infra/tenant-runtime.js');
     const { runWithTenant } = await import('./infra/tenant-context.js');
     const { ENV_TENANT_ID } = await import('@vakhta/registry');
     const runtime = app.get(TenantRuntimeRegistry).byId(ENV_TENANT_ID);

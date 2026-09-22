@@ -1,3 +1,4 @@
+import { toWebHeaders } from '../auth/auth.routes.js';
 import { TenantGateway } from '@vakhta/contracts';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -81,6 +82,7 @@ export function registerTenantHook(
           });
           return;
         }
+        closeRevokedStream(request, reply, registry());
         request.tenantRuntime = runtime;
         request.log = request.log.child({ tenant: runtime.tenant.slug });
         await registry().prepare(runtime);
@@ -90,6 +92,36 @@ export function registerTenantHook(
         done(error instanceof Error ? error : new Error('Tenant resolution failed'));
       });
   });
+}
+
+/** Existing event streams must stop too; no new request is needed from an idle browser. */
+export function closeRevokedStream(
+  request: Pick<FastifyRequest, 'url' | 'headers'>,
+  reply: Pick<FastifyReply, 'raw'>,
+  registry: TenantRuntimeRegistry,
+): void {
+  if (!request.url.split('?')[0]?.endsWith('/stream')) return;
+  const host = normalizeHost(request.headers.host ?? '');
+  const timer = setInterval(() => {
+    void registry
+      .resolveHost(host)
+      .then(async (runtime) => {
+        if (runtime?.tenant.status !== TenantStatus.ACTIVE) {
+          reply.raw.end();
+          return;
+        }
+        const session = await runtime.auth.api.getSession({
+          headers: toWebHeaders(request.headers),
+        });
+        if (!session) reply.raw.end();
+      })
+      .catch(() => {
+        // The access check cannot be completed; close the stream rather than retain access.
+        reply.raw.end();
+      });
+  }, 5_000);
+  timer.unref();
+  reply.raw.once('close', () => clearInterval(timer));
 }
 
 /** Adds the tenant hook to a Nest Fastify app before its routes are registered. */

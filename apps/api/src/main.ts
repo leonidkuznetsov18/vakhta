@@ -1,3 +1,4 @@
+import { TenantRuntimeRegistry } from './infra/tenant-runtime.js';
 import 'reflect-metadata';
 import multipart from '@fastify/multipart';
 import { NestFactory } from '@nestjs/core';
@@ -41,7 +42,11 @@ async function bootstrap(): Promise<void> {
     corsDelegate(env.CORS_ORIGINS, env.PUBLIC_BASE_URL.startsWith('https://') ? 'https' : 'http'),
   );
 
-  registerAuthRoutes(app.getHttpAdapter().getInstance(), app.get<Auth>(AUTH));
+  registerAuthRoutes(
+    app.getHttpAdapter().getInstance(),
+    app.get<Auth>(AUTH),
+    app.get(TenantRuntimeRegistry),
+  );
 
   // Метрики тривалості запитів за маршрутом, без параметрів шляху (ТЗ 12, NFR-01).
   const metrics = app.get(MetricsService);

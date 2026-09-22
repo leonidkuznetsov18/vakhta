@@ -1,3 +1,4 @@
+import { TenantDeletionService } from './tenants/deletion.service.js';
 import { TenantUsersController } from './users/users.controller.js';
 import { TenantUsersService } from './users/users.service.js';
 import { OperatorInvitationsController } from './auth/operator-invitations.controller.js';
@@ -62,6 +63,7 @@ import { TenantsService } from './tenants/tenants.service.js';
     ProvisioningService,
     ProvisioningRunner,
     TenantsService,
+    TenantDeletionService,
     TenantSettingsService,
   ],
 })

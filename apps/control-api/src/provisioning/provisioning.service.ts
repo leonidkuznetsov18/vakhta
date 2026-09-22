@@ -58,13 +58,7 @@ const STEPS_BY_KIND: Record<ProvisioningKind, (has: ReadonlySet<ModuleCode>) => 
   [K.SUSPEND]: () => [S.EVICT_RUNTIME],
   [K.RESUME]: () => [S.EVICT_RUNTIME],
   [K.BACKUP]: () => [S.FINAL_BACKUP],
-  [K.DELETE]: () => [
-    S.FINAL_BACKUP,
-    S.REMOVE_WEBHOOK,
-    S.EVICT_RUNTIME,
-    S.DROP_DATABASE,
-    S.DROP_STORAGE,
-  ],
+  [K.DELETE]: () => [S.REMOVE_WEBHOOK, S.EVICT_RUNTIME, S.DROP_DATABASE, S.DROP_STORAGE],
 };
 
 export function stepsFor(kind: JobKind, modules: readonly ModuleCode[]): StepCode[] {
@@ -99,6 +93,12 @@ export async function enqueueProvisioningJob(
     .insert(provisioningSteps)
     .values(steps.map((step, seq) => ({ jobId: created.id, step, seq })));
   return created.id;
+}
+
+function canChangeStep(current: StepStatus, step: StepCode, next: StepStatus): boolean {
+  if (next === StepStatus.SKIPPED)
+    return current === StepStatus.MANUAL_REQUIRED && step === S.REGISTER_DOMAINS;
+  return current === StepStatus.FAILED || current === StepStatus.MANUAL_REQUIRED;
 }
 
 /** Job and step rows; the runner executes them. One active job per tenant (partial unique index). */
@@ -159,6 +159,8 @@ export class ProvisioningService {
     await this.db.transaction(async (tx) => {
       const [job] = await tx.select().from(provisioningJobs).where(eq(provisioningJobs.id, jobId));
       if (!job) throw new ControlError('JOB_NOT_FOUND', 404, 'Job not found');
+      if (job.status === JobStatus.CANCELLED)
+        throw new ControlError('JOB_FINISHED', 409, 'Job is already finished');
       if (!(await lockTenant(tx, job.tenantId)))
         throw new ControlError('JOB_BUSY', 409, 'Job is running');
       const [current] = await tx
@@ -166,11 +168,7 @@ export class ProvisioningService {
         .from(provisioningSteps)
         .where(and(eq(provisioningSteps.jobId, jobId), eq(provisioningSteps.step, step)));
       if (!current) throw new ControlError('STEP_NOT_FOUND', 404, 'Step not found');
-      const retryable =
-        current.status === StepStatus.FAILED || current.status === StepStatus.MANUAL_REQUIRED;
-      const skippable =
-        current.status === StepStatus.MANUAL_REQUIRED && step === S.REGISTER_DOMAINS;
-      const allowed = status === StepStatus.SKIPPED ? skippable : retryable;
+      const allowed = canChangeStep(current.status, step, status);
       if (!allowed)
         throw new ControlError('STEP_TRANSITION_INVALID', 409, 'Step cannot be changed');
       await tx

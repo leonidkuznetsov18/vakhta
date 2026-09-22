@@ -677,3 +677,48 @@ The same publication includes `ec43626`, owned by the concurrent DangerTab clean
 remove the manual provisioning block while preserving automatic creation. Its owner verified
 Control typecheck, scoped ESLint/Prettier, the 14 workspace tests and synthetic ACTIVE desktop/mobile
 screenshots. No additional live state changes were made for that cleanup.
+
+## Tenant lifecycle actions — 2026-09-22
+
+Owner explicitly confirmed physical destruction of the tenant database and files. This supersedes
+AC-035's old final-backup/30-day retention proposal. The Clients table ends with Delete/Suspend;
+both require a trimmed reason (3–500 characters). Delete warns about irreversible destruction.
+The Danger zone tab is removed, including old route validation and component code. Its initial tab
+removal already landed in concurrent commit `e2989cf`; this delivery completes the behavior.
+
+The FSD `features/tenant-actions` slice owns modal state and mutations; shared controls and all
+three i18n catalogs are reused. Viewer accounts have no mutation menu. Suspend is disabled unless
+ACTIVE; Delete is disabled once archived. Failures preserve the draft; focus returns to the row.
+Deletion progress/failure stays visible in Clients with a link to retry the failed job step.
+Successful deletion disappears from the list. Audit/job history and a registry tombstone remain.
+
+Suspend holds the existing exclusive tenant lifecycle lock, revokes database sessions, then commits
+status and audit together. Failure leaves a retryable ACTIVE state. Authentication and storage writes
+hold a shared lock through their external operation, preventing session issuance or new objects after
+suspend/delete wins the lock. Lifecycle mutations re-read status under the lock. API requests refresh
+known host status; open streams and the panel session check revoke access within five seconds of a
+reachable service response. A failed subsequent network request cannot resurrect cached identity.
+Worker runtime removal keeps its existing registry refresh cadence; object writes additionally check
+fresh registry status under the lock.
+
+Delete atomically archives the tenant, cancels earlier unfinished jobs, records the reason and queues
+DELETE. The existing durable runner removes the webhook, evicts runtime, drops the registered database
+and owned dedicated role, and paginates through tenant object namespaces. Definitively invalid Telegram
+tokens cannot block local cleanup. Transient failures remain visible and retryable; completed steps
+are retained. Credentials, invitations, domains, modules and branding are cleared only after success.
+Database deletion rejects protected/shared names, different registered server addresses and incorrect
+ownership. Storage checks every configured/canonical namespace against neighbouring tenants; legacy
+root storage excludes all other tenant namespaces. Uploaded files in the media bucket are covered;
+independent infrastructure backup retention is unchanged and no final backup is created.
+
+Independent access review and deletion review completed; all findings were corrected. In particular,
+server identity, canonical-prefix overlap, concurrent provisioning resurrection, invalid bot tokens,
+revoked-session caching and quick suspend/resume streams have explicit protection.
+
+Local verification: Control provisioning/branding/provider 31 tests, API auth/tenancy 22 tests,
+worker tenant pool 4 tests, Control action dialog 3 tests, existing workspace 14 tests and panel session
+4 tests passed. API, worker, Control API, panel and Control web typechecks passed. Scoped ESLint and the Control production build passed. Browser QA used isolated synthetic data: desktop and
+390px screenshots were captured and visually inspected, including Delete, mobile Suspend failure,
+keyboard opening and focus restoration. Files: `test-results/tenant-actions/`. The old `tab=danger` URL resolves to Overview. No production client
+was suspended/deleted for testing. CI, deployment and authenticated production evidence remain
+separate delivery checks.
