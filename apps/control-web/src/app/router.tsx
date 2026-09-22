@@ -14,6 +14,7 @@ import { OperatorsPage } from '@/pages/operators';
 import { SignInPage } from '@/pages/sign-in';
 import { TenantWorkspacePage, type WorkspaceTab } from '@/pages/tenant-workspace';
 import { TenantsPage } from '@/pages/tenants';
+import { AcceptInvitation } from '@/features/operator-invitations';
 import { ControlShell } from '@/widgets/control-navigation';
 
 /** Signed-in shell: sidebar with the sections of the prototype; sign-in when no operator session. */
@@ -40,14 +41,19 @@ function Shell() {
   );
 }
 
-const rootRoute = createRootRoute({ component: Shell });
-const tenantsRoute = createRoute({
+const rootRoute = createRootRoute({ component: Outlet });
+const authenticatedRoute = createRoute({
   getParentRoute: () => rootRoute,
+  id: 'authenticated',
+  component: Shell,
+});
+const tenantsRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
   path: '/',
   component: TenantsPage,
 });
 const createRoute_ = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: '/tenants/new',
   component: CreateTenantPage,
 });
@@ -68,7 +74,7 @@ const workspaceSearch = z.object({
     .default('overview'),
 });
 const workspaceRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: '/tenants/$id',
   validateSearch: workspaceSearch,
   component: function Workspace() {
@@ -78,16 +84,24 @@ const workspaceRoute = createRoute({
   },
 });
 const operatorsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => authenticatedRoute,
   path: '/operators',
   component: OperatorsPage,
 });
 
+const invitationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/invite',
+  validateSearch: z.object({ token: z.string().optional(), done: z.boolean().optional() }),
+  component: InvitationPage,
+});
+function InvitationPage() {
+  const { token, done } = invitationRoute.useSearch();
+  return <AcceptInvitation key={token ?? 'complete'} token={token ?? ''} done={done === true} />;
+}
 const routeTree = rootRoute.addChildren([
-  tenantsRoute,
-  createRoute_,
-  workspaceRoute,
-  operatorsRoute,
+  authenticatedRoute.addChildren([tenantsRoute, createRoute_, workspaceRoute, operatorsRoute]),
+  invitationRoute,
 ]);
 
 export function createControlRouter() {

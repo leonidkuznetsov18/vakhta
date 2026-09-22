@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  Post,
+  Header,
   Inject,
   Param,
   ParseUUIDPipe,
@@ -9,8 +11,16 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { z } from 'zod';
-import { OperatorRoleSchema, type OperatorView } from '@vakhta/contracts';
-import { controlAuthUser, eq, type RegistryDatabase } from '@vakhta/registry';
+import { CreateOperatorCommand, OperatorRoleSchema, type OperatorView } from '@vakhta/contracts';
+import {
+  controlAuthUser,
+  controlAuthAccount,
+  eq,
+  sql,
+  type RegistryDatabase,
+} from '@vakhta/registry';
+import { OperatorStatus } from '@vakhta/domain';
+import { OperatorInvitationsService } from './operator-invitations.service.js';
 import { ControlAudit } from '../audit/audit.service.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
 import { REGISTRY } from '../infra/registry.module.js';
@@ -24,7 +34,7 @@ import {
 
 const SetOperatorCommand = z.object({
   role: OperatorRoleSchema.optional(),
-  status: z.enum(['ACTIVE', 'DISABLED']).optional(),
+  status: z.enum(OperatorStatus).optional(),
 });
 type SetOperatorCommand = z.infer<typeof SetOperatorCommand>;
 
@@ -34,6 +44,7 @@ export class OperatorsController {
   constructor(
     @Inject(REGISTRY) private readonly db: RegistryDatabase,
     private readonly audit: ControlAudit,
+    private readonly invitations: OperatorInvitationsService,
   ) {}
 
   @Get('me')
@@ -43,15 +54,36 @@ export class OperatorsController {
 
   @Get()
   async list(): Promise<OperatorView[]> {
-    const rows = await this.db.select().from(controlAuthUser).orderBy(controlAuthUser.email);
-    return rows.map((r) => ({
-      id: r.id,
-      email: r.email,
-      name: r.name,
-      role: r.role,
-      status: r.status,
-      twoFactorEnabled: r.twoFactorEnabled,
-    }));
+    return this.db
+      .selectDistinct({
+        id: controlAuthUser.id,
+        email: controlAuthUser.email,
+        name: controlAuthUser.name,
+        role: controlAuthUser.role,
+        status: controlAuthUser.status,
+        twoFactorEnabled: controlAuthUser.twoFactorEnabled,
+        invitationPending: sql<boolean>`${controlAuthAccount.id} IS NULL`,
+      })
+      .from(controlAuthUser)
+      .leftJoin(controlAuthAccount, eq(controlAuthAccount.userId, controlAuthUser.id))
+      .orderBy(controlAuthUser.email);
+  }
+
+  @Post()
+  @Header('Cache-Control', 'no-store')
+  @OperatorRoles(OperatorRole.PLATFORM_ADMIN)
+  create(
+    @Body(new ZodValidationPipe(CreateOperatorCommand)) body: CreateOperatorCommand,
+    @CurrentOperator() operator: Operator,
+  ) {
+    return this.invitations.create(body, operator);
+  }
+
+  @Post(':id/invitations')
+  @Header('Cache-Control', 'no-store')
+  @OperatorRoles(OperatorRole.PLATFORM_ADMIN)
+  reissue(@Param('id', ParseUUIDPipe) id: string, @CurrentOperator() operator: Operator) {
+    return this.invitations.reissue(id, operator);
   }
 
   /** Nobody demotes or disables themselves; the last administrator stays. */

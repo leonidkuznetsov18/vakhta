@@ -1,4 +1,10 @@
 import {
+  operatorInvitationsUk,
+  operatorInvitationsEn,
+  operatorInvitationsRu,
+  type OperatorInvitationMessages,
+} from './operator-invitations.js';
+import {
   tenantAdministratorsEn,
   tenantAdministratorsUk,
   tenantAdministratorsRu,
@@ -37,6 +43,7 @@ type TenantSettingGroupName =
 
 /** Control panel (Vakhta Control) texts: operators only, still trilingual (AGENTS.md). */
 export interface ControlMessages {
+  readonly operatorInvitations: OperatorInvitationMessages;
   administrators: TenantAdministratorMessages;
   readonly branding: BrandingMessages;
   readonly productName: string;
@@ -273,6 +280,7 @@ export interface ControlMessages {
 
 export const controlUk: ControlMessages = {
   administrators: tenantAdministratorsUk,
+  operatorInvitations: operatorInvitationsUk,
   branding: brandingUk,
   productName: 'Vakhta Control',
   nav: {
@@ -579,6 +587,7 @@ export const controlUk: ControlMessages = {
 
 export const controlEn: ControlMessages = {
   administrators: tenantAdministratorsEn,
+  operatorInvitations: operatorInvitationsEn,
   branding: brandingEn,
   productName: 'Vakhta Control',
   nav: {
@@ -884,6 +893,7 @@ export const controlEn: ControlMessages = {
 
 export const controlRu: ControlMessages = {
   administrators: tenantAdministratorsRu,
+  operatorInvitations: operatorInvitationsRu,
   branding: brandingRu,
   productName: 'Vakhta Control',
   nav: {

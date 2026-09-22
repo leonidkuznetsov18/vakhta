@@ -1,3 +1,5 @@
+import { OperatorInvitationsController } from './auth/operator-invitations.controller.js';
+import { OperatorInvitationsService } from './auth/operator-invitations.service.js';
 import { AdministratorsController } from './administrators/administrators.controller.js';
 import { AdministratorsService } from './administrators/administrators.service.js';
 import { OnboardingController } from './public/onboarding.controller.js';
@@ -42,6 +44,7 @@ import { TenantsService } from './tenants/tenants.service.js';
     TenantSettingsController,
     JobsController,
     OperatorsController,
+    OperatorInvitationsController,
   ],
   providers: [
     AdministratorsService,
@@ -50,6 +53,7 @@ import { TenantsService } from './tenants/tenants.service.js';
     ControlAudit,
     OnboardingService,
     OperatorGuard,
+    OperatorInvitationsService,
     TelegramProvider,
     ProvisioningService,
     ProvisioningRunner,

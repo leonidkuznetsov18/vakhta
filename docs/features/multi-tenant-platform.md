@@ -106,3 +106,16 @@ warnings or operational statuses. Branding is independent for every tenant.
 - "Can two clients share a bot?" No: each tenant has its own bot.
 - "What happens to the current customer?" It becomes the first tenant with no data migration and
   no visible change.
+
+## Adding platform operators
+
+A platform administrator with a verified two-factor session can add an operator from **Operators**:
+enter their name, email and role, then create and copy the invitation link. Send it privately to the
+operator. They choose their own password and complete the normal two-factor setup at first sign-in.
+The platform does not send invitation emails.
+
+An invitation can be used once and expires after the configured invitation period (seven days by
+default). Before password setup, **New invitation** replaces a lost or expired link and invalidates
+the old one. It cannot reset an already activated operator's password. Disabled operators cannot
+accept invitations. If password setup succeeded but the connection failed, the recipient can try
+**Sign in** with the password they chose.

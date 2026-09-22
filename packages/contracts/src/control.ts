@@ -1,10 +1,13 @@
 import {
   DELIVERED_TENANT_MODULES,
   LOCALES,
+  OperatorRole,
+  OperatorStatus,
   TENANT_MODULES,
   TENANT_SLUG_PATTERN,
 } from '@vakhta/domain';
 import { z } from 'zod';
+import { Password } from './auth.js';
 import { IsoDateTime, Uuid } from './common.js';
 import {
   TenantAccentColor,
@@ -15,7 +18,7 @@ import {
 
 /** Control panel contracts (specs/011, delivery 2). Operators only; never exposed to tenants. */
 
-export const OperatorRoleSchema = z.enum(['PLATFORM_ADMIN', 'PLATFORM_VIEWER']);
+export const OperatorRoleSchema = z.enum(OperatorRole);
 export const JobStatusSchema = z.enum(['PENDING', 'RUNNING', 'DONE', 'FAILED', 'CANCELLED']);
 export const StepStatusSchema = z.enum([
   'PENDING',
@@ -203,7 +206,8 @@ export const OperatorView = z.object({
   email: z.string(),
   name: z.string(),
   role: OperatorRoleSchema,
-  status: z.enum(['ACTIVE', 'DISABLED']),
+  status: z.enum(OperatorStatus),
+  invitationPending: z.boolean().optional(),
   twoFactorEnabled: z.boolean(),
 });
 export type OperatorView = z.infer<typeof OperatorView>;
@@ -216,3 +220,30 @@ const DELIVERED = new Set<string>(DELIVERED_TENANT_MODULES);
 export const MODULE_CATALOG: readonly z.infer<typeof ModuleCatalogEntry>[] = TENANT_MODULES.map(
   (module) => ({ module, delivered: DELIVERED.has(module) }),
 );
+
+export const CreateOperatorCommand = z.object({
+  email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
+  name: z.string().trim().min(2).max(120),
+  role: OperatorRoleSchema,
+});
+export type CreateOperatorCommand = z.infer<typeof CreateOperatorCommand>;
+export const OperatorInvitationRequest = z.object({ token: z.string().regex(/^[a-f0-9]{64}$/) });
+export const AcceptOperatorInvitation = OperatorInvitationRequest.extend({ password: Password });
+export type AcceptOperatorInvitation = z.infer<typeof AcceptOperatorInvitation>;
+export const OperatorInvitationView = z.object({
+  operatorId: Uuid,
+  token: z.string(),
+  expiresAt: IsoDateTime,
+});
+export type OperatorInvitationView = z.infer<typeof OperatorInvitationView>;
+export const OperatorInvitationDetails = z.object({
+  email: z.string(),
+  name: z.string(),
+  expiresAt: IsoDateTime,
+});
+export type OperatorInvitationDetails = z.infer<typeof OperatorInvitationDetails>;
+
+export const OperatorInvitationError = {
+  OPERATOR_EXISTS: 'OPERATOR_EXISTS',
+  INVITATION_UNAVAILABLE: 'INVITATION_UNAVAILABLE',
+} as const;

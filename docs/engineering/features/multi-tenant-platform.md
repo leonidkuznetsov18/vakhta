@@ -486,3 +486,44 @@ probe identified the preceding tooltip fixture delaying the next router mount (5
 versus 21 milliseconds in isolation). That primitive regression now lives in its own test environment.
 Expanded/mobile sidebar buttons no longer mount unused tooltip roots, and programmatic dialog
 focus uses the main panel's tooltip suppression. No production operator actions were manufactured.
+
+## Operator invitations (2026-09-22)
+
+Accepted owner request: add operators from Control and share a link where each operator chooses
+their own password. Baseline `0727fad`; writer/index owner: Codex. Current page is read-only;
+bootstrap CLI creates password accounts. Reuse Control auth, MFA, registry verification storage,
+Better Auth password hashing, existing dialogs and Query. Manual link sharing follows the existing
+Control decision (no mail provider); email delivery remains outside this increment.
+
+Acceptance: only MFA-verified platform administrators create/reissue invitations; names, email and
+roles are validated and duplicate email is refused. New operators have no credential until acceptance.
+Links expire after the configured invitation TTL, are single-use and are replaced on reissue.
+Disabled or already activated accounts cannot use/reissue invitations. Password setting, token
+consumption and audit commit together; concurrent acceptance has exactly one winner. Public signup
+stays disabled, and normal sign-in/MFA is required after setting the password. All copy is trilingual;
+forms preserve failed drafts; desktop/mobile screenshots and focused regression tests are required.
+
+Design: `features/operator-invitations` owns forms, Query mutations and link actions; pages compose
+it, with a public `/invite` hash route outside the authenticated shell. Tokens travel in the fragment
+and POST bodies, never query strings, logs, audit payloads or persistent browser storage. Registry
+stores only SHA-256 token identifiers in a dedicated verification namespace. User-row locking fences
+acceptance/reissue/disable; no migration or new auth provider. Ordinary Better Auth reset-email
+hooks do not combine admin-only issuance, first-credential creation and control audit in one
+transaction, so this bounded service reuses its hashing and storage rather than enabling public reset.
+Source checked: https://better-auth.com/docs/reference/options.
+
+Verification: six invitation integration cases pass on real PostgreSQL, covering role/MFA denial,
+normalized duplicates, invalid input, expiry, replacement, disabled/activated accounts, token redaction,
+concurrent acceptance and audit rollback. The accepted credential signs in through actual Better Auth;
+its local issuer is set with the library helper, and Control still refuses access before MFA. Existing
+MFA tests pass. Six UI regressions cover create/copy, failed drafts, viewer restrictions, replacement,
+public setup, matching passwords, failure/retry and token removal. The complete Control UI suite passed
+45 tests, i18n parity 13 and architecture 3. Affected typechecks, scoped lint and production UI build
+passed. Independent read-only review found no blocker; the suggested sign-in fallback after a lost
+acceptance response is included. Links/passwords are kept only in transient form/mutation memory.
+
+Live read-only recon confirmed the original operator list. Browser QA uses synthetic localhost data;
+Chrome blocked further interaction/screenshots because another extension UI was open. Desktop/mobile
+visual acceptance is therefore pending, not inferred from component tests. Production account creation
+or password changes were not performed. Publication and deployed read-only checks are tracked in the
+delivery conversation and CI; no provider configuration or manual release messages are required.
