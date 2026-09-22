@@ -43,7 +43,10 @@ no real employees, shifts or existing kiosk pairing are modified.
 - **AC-002**: New platform addresses serve their own panel/kiosk/API over valid HTTPS; unregistered
   addresses never serve another company's data. The existing production hosts keep working.
 - **AC-003**: A missing or failing optional bot connection does not prevent panel activation;
-  bot failures remain visible and retryable independently.
+  bot failures remain visible and retryable independently. When WORKER_BOT is enabled without a
+  token, Tasks must show an outstanding Add bot token action, including already-created tenants.
+  Saving the token removes that setup action and exposes the actual connection job; disabling the
+  module removes the requirement. Completed core provisioning must not imply bot readiness.
 - **AC-004**: Temporary gateway checks retry automatically with bounded delay and attempts; permanent
   failures stay visible and retryable. Restart/retry preserves completed database and invite work.
 - **AC-005**: A newly active company is visible to the API/public config without waiting for the normal

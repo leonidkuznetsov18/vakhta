@@ -31,6 +31,35 @@ function canSkipStep(step: Step): boolean {
   );
 }
 
+export function BotTokenTask({ tenantId }: { tenantId: string }) {
+  const m = t();
+  return (
+    <Alert className="border-orange-200 bg-orange-50 text-orange-900">
+      <TriangleAlert />
+      <AlertTitle className="flex flex-wrap items-center gap-2">
+        {m.jobs.addBotToken}
+        <StatusBadge
+          code={StepStatus.MANUAL_REQUIRED}
+          label={m.jobs.stepStatus[StepStatus.MANUAL_REQUIRED]}
+        />
+      </AlertTitle>
+      <AlertDescription className="flex flex-col items-start gap-3 text-orange-900">
+        <span>{m.workspace.botMissing}</span>
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="bg-white text-orange-900 dark:bg-white dark:text-orange-900 dark:hover:bg-orange-100"
+        >
+          <Link to="/tenants/$id" params={{ id: tenantId }} search={{ tab: 'bot' }}>
+            {m.jobs.configure}
+          </Link>
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 export function JobCard({ job, onChanged }: { job: ProvisioningJobView; onChanged: Refresh }) {
   const m = t().jobs;
   const act = useMutation({

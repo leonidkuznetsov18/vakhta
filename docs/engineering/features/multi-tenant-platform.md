@@ -594,3 +594,12 @@ DNS/routing installation); this is certificate evidence only, not gateway availa
 Production rollout and the requested timed browser benchmark remain pending; no timing is claimed
 from local tests. CI credentials use a separate Workers token; existing Pages/release announcements
 are preserved. Provider records, deployed revision and benchmark results will be appended here.
+
+Owner correction: selected Worker bot must retain an outstanding token task (2026-09-22).
+Tasks now derives Add bot token from enabled modules plus actual token-secret presence, above
+historical jobs. This also covers tenants created before the correction and empty job histories.
+The link opens the existing Bot form; token save invalidates detail/jobs and exposes the real
+connection result/retry. Core provisioning remains independently complete. No history or database
+state is fabricated. All three catalogs updated. Twelve workspace regressions, Control typecheck,
+scoped ESLint, build and formatting passed. Desktop and 390px local screenshots were captured and
+visually inspected; publication/production confirmation follows separately.

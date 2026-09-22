@@ -1,4 +1,5 @@
-import { ProvisioningStep } from '@vakhta/domain';
+import type { TenantDetailView } from '@vakhta/contracts';
+import { ProvisioningStep, TenantModule, TenantSecretKind } from '@vakhta/domain';
 
 const STEP_TAB = {
   [ProvisioningStep.CREATE_DATABASE]: 'database',
@@ -17,4 +18,11 @@ const STEP_TAB = {
 
 export function stepConfigurationTab(step: ProvisioningStep) {
   return STEP_TAB[step];
+}
+
+export function needsBotToken(detail: TenantDetailView): boolean {
+  return (
+    detail.modules.includes(TenantModule.WORKER_BOT) &&
+    !detail.secrets.some((secret) => secret.kind === TenantSecretKind.BOT_TOKEN && secret.present)
+  );
 }

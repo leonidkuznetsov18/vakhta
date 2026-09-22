@@ -252,6 +252,7 @@ export interface ControlMessages {
       | 'DELETE',
       string
     >;
+    addBotToken: string;
     manualDns: string;
     manualDatabase: string;
     retry: string;
@@ -525,6 +526,7 @@ export const controlUk: ControlMessages = {
       BACKUP: 'Бекап',
       DELETE: 'Видалення',
     },
+    addBotToken: 'Додати токен бота',
     manualDns:
       'Потрібна ваша дія: додайте DNS-записи і натисніть «Повторити», або «Пропустити», якщо записи вже є.',
     manualDatabase:
@@ -835,6 +837,7 @@ export const controlEn: ControlMessages = {
       BACKUP: 'Backup',
       DELETE: 'Deletion',
     },
+    addBotToken: 'Add bot token',
     manualDns:
       'Your action is needed: create the DNS records and press “Retry”, or “Skip” if they already exist.',
     manualDatabase:
@@ -1142,6 +1145,7 @@ export const controlRu: ControlMessages = {
       BACKUP: 'Бэкап',
       DELETE: 'Удаление',
     },
+    addBotToken: 'Добавить токен бота',
     manualDns:
       'Нужно ваше действие: добавьте DNS-записи и нажмите «Повторить», либо «Пропустить», если записи уже есть.',
     manualDatabase:

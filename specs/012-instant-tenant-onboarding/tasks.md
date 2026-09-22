@@ -39,3 +39,7 @@ Other sessions own bonus/contracts edits; do not stage them. Coordinate before p
 ## Convergence
 
 Source implementation reviewed; deployment and timed browser acceptance remain open. Append only demonstrated remaining gaps.
+
+## Owner correction
+
+- [ ] T014 Restore an outstanding Add bot token task for enabled WORKER_BOT without a token, including existing tenants; cover token save, disabled modules and preserved completed jobs in control-web workspace regressions; inspect desktop/mobile production UI (AC-003).

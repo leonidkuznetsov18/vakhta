@@ -13,6 +13,7 @@ import {
 } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
+import { StepStatus, TenantSecretKind } from '@vakhta/domain';
 import { TenantDetailView, type ProvisioningJobView } from '@vakhta/contracts';
 import { createControlRouter } from '@/app/router';
 import { controlApi } from '@/shared/api';
@@ -291,3 +292,84 @@ it('keeps mobile profile details open and returns to the drawer on close', async
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sections' })),
   );
 });
+
+it('keeps missing bot setup actionable after core provisioning and replaces it with the connection job after saving', async () => {
+  const missingToken = {
+    ...tenant,
+    botUsername: null,
+    secrets: tenant.secrets.filter((secret) => secret.kind !== TenantSecretKind.BOT_TOKEN),
+  };
+  const completed = {
+    ...job,
+    status: 'DONE' as const,
+    finishedAt: time,
+    steps: job.steps.filter((step) => step.status === StepStatus.DONE),
+  };
+  vi.mocked(controlApi.tenant).mockResolvedValue(missingToken);
+  vi.mocked(controlApi.jobs).mockResolvedValue([completed]);
+  const save = vi.spyOn(controlApi, 'setBotToken').mockImplementation(async () => {
+    vi.mocked(controlApi.tenant).mockResolvedValue(tenant);
+    vi.mocked(controlApi.jobs).mockResolvedValue([
+      {
+        ...job,
+        kind: 'ROTATE_BOT_TOKEN',
+        status: 'FAILED',
+        steps: [
+          {
+            step: 'BOT_WEBHOOK',
+            seq: 0,
+            status: 'FAILED',
+            attempts: 1,
+            lastError: 'Connection failed',
+            output: null,
+            startedAt: time,
+            finishedAt: time,
+          },
+        ],
+      },
+      { ...completed, id: 'completed-core' },
+    ]);
+    return tenant;
+  });
+  const router = await open('jobs');
+  const task = (await screen.findByText('Add bot token')).closest('[role="alert"]');
+  if (!(task instanceof HTMLElement)) throw new Error('Missing bot setup task');
+  expect(within(task).getByText('action needed')).toBeTruthy();
+  expect(screen.getByText('1 of 1 done')).toBeTruthy();
+  fireEvent.click(within(task).getByRole('link', { name: 'Open configuration' }));
+  const input = await screen.findByLabelText('Save token');
+  fireEvent.change(input, { target: { value: '123456:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save token' }));
+  await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(input).toHaveProperty('value', ''));
+  await act(async () => {
+    await router.navigate({
+      to: '/tenants/$id',
+      params: { id: tenant.id },
+      search: { tab: 'jobs' },
+    });
+  });
+  await screen.findByText('Connect bot');
+  expect(screen.queryByText('Add bot token')).toBeNull();
+  expect(screen.getByText('Connection failed')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Retry', hidden: true })).toBeTruthy();
+});
+
+it.each([
+  { enabled: false, token: false, required: false },
+  { enabled: true, token: true, required: false },
+  { enabled: true, token: false, required: true },
+])(
+  'derives bot setup from current configuration even without historical jobs (%j)',
+  async ({ enabled, token, required }) => {
+    vi.mocked(controlApi.tenant).mockResolvedValue({
+      ...tenant,
+      modules: enabled ? ['ADMIN_PANEL', 'WORKER_BOT'] : ['ADMIN_PANEL'],
+      secrets: [{ kind: 'BOT_TOKEN', present: token, updatedAt: time }],
+    });
+    vi.mocked(controlApi.jobs).mockResolvedValue([]);
+    await open('jobs');
+    await screen.findByRole('heading', { name: 'Alpha' });
+    await waitFor(() => expect(Boolean(screen.queryByText('Add bot token'))).toBe(required));
+  },
+);

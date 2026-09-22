@@ -14,7 +14,8 @@ import { FailureState, LoadingState, PageHeader, IconButton } from '@/shared/ui'
 import { AuditTab, BotTab, DangerTab } from './workspace/details';
 import { DatabaseTab } from './workspace/database';
 import { DomainsTab } from './workspace/domains';
-import { JobCard } from './workspace/jobs';
+import { BotTokenTask, JobCard } from './workspace/jobs';
+import { needsBotToken } from './workspace/job-model';
 import { ModulesTab } from './workspace/modules';
 import { OverviewTab } from './workspace/overview';
 import { ParametersTab } from './workspace/parameters';
@@ -89,6 +90,7 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
     branding: () => <BrandingEditor tenantId={id} />,
     jobs: () => (
       <JobsPanel
+        detail={detail}
         jobs={jobs.data}
         pending={jobs.isPending}
         failed={jobs.isError}
@@ -215,12 +217,14 @@ function WorkspaceHeader({ detail }: { detail: TenantDetailView }) {
 }
 
 function JobsPanel({
+  detail,
   jobs,
   pending,
   failed,
   onRetry,
   onChanged,
 }: {
+  detail: TenantDetailView;
   jobs: ProvisioningJobView[] | undefined;
   pending: boolean;
   failed: boolean;
@@ -230,9 +234,12 @@ function JobsPanel({
   const m = t().workspace;
   if (pending) return <LoadingState />;
   if (failed || !jobs) return <FailureState onRetry={onRetry} />;
-  if (jobs.length === 0) return <p className="text-sm text-muted-foreground">{m.noJobs}</p>;
+  const missingBotToken = needsBotToken(detail);
+  if (jobs.length === 0 && !missingBotToken)
+    return <p className="text-sm text-muted-foreground">{m.noJobs}</p>;
   return (
     <div className="flex flex-col gap-4">
+      {missingBotToken ? <BotTokenTask tenantId={detail.id} /> : null}
       {jobs.map((job) => (
         <JobCard key={job.id} job={job} onChanged={onChanged} />
       ))}

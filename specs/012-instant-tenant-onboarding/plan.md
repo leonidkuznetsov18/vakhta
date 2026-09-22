@@ -94,3 +94,11 @@ Optional owner choice on public self-registration is pending; core infrastructur
 Provider DNS/Workers CI credential permissions must be verified before rollout. No payment purchase
 or deletion of existing resources is necessary. The test tenant may be retained clearly labeled and
 suspended after measurement if safe automated deletion is unavailable.
+
+## Owner correction: outstanding bot setup
+
+Control Tasks derives the missing-token requirement from the current enabled modules and secret
+presence. Show an actionable warning above historical jobs and deep-link the existing Bot form.
+Reuse the current workspace structure; do not invent a database job or mutate completed history.
+Token save already starts the real connection job and refreshes both tenant detail and jobs.
+Scope additionally includes control-web workspace/job model/tests and the three control catalogs.
