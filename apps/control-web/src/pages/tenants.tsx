@@ -86,16 +86,21 @@ function TenantsTable({ rows, total }: { rows: TenantSummaryView[]; total: numbe
                 });
               }}
             >
-              <TableCell>
+              <TableCell className="whitespace-normal break-words [&>*]:max-w-64">
                 <Link
-                  className="control-link font-medium"
+                  className="control-link inline-block font-medium"
                   to="/tenants/$id"
                   params={{ id: row.id }}
                   search={{ tab: 'overview' }}
                 >
                   {row.name}
                 </Link>
-                <div className="text-xs text-muted-foreground">{row.panelHost ?? row.slug}</div>
+                <div className="text-xs text-muted-foreground">
+                  {m.tenants.columns.slug}: {row.slug}
+                </div>
+                {row.panelHost ? (
+                  <div className="text-xs text-muted-foreground">{row.panelHost}</div>
+                ) : null}
               </TableCell>
               <TableCell>
                 <StatusBadge code={row.status} label={m.status[row.status]} />

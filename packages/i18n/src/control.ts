@@ -75,7 +75,14 @@ export interface ControlMessages {
     subtitle: string;
     create: string;
     search: string;
-    columns: { tenant: string; status: string; modules: string; schema: string; lastJob: string };
+    columns: {
+      tenant: string;
+      slug: string;
+      status: string;
+      modules: string;
+      schema: string;
+      lastJob: string;
+    };
     count: string;
     empty: string;
     open: string;
@@ -313,7 +320,8 @@ export const controlUk: ControlMessages = {
     create: 'Створити клієнта',
     search: 'Пошук за назвою або slug',
     columns: {
-      tenant: 'Клієнт',
+      tenant: 'Назва',
+      slug: 'Slug',
       status: 'Статус',
       modules: 'Модулі',
       schema: 'Схема',
@@ -620,7 +628,8 @@ export const controlEn: ControlMessages = {
     create: 'Create client',
     search: 'Search by name or slug',
     columns: {
-      tenant: 'Client',
+      tenant: 'Name',
+      slug: 'Slug',
       status: 'Status',
       modules: 'Modules',
       schema: 'Schema',
@@ -926,7 +935,8 @@ export const controlRu: ControlMessages = {
     create: 'Создать клиента',
     search: 'Поиск по названию или slug',
     columns: {
-      tenant: 'Клиент',
+      tenant: 'Название',
+      slug: 'Slug',
       status: 'Статус',
       modules: 'Модули',
       schema: 'Схема',

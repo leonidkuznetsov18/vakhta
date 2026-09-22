@@ -527,3 +527,12 @@ Chrome blocked further interaction/screenshots because another extension UI was 
 visual acceptance is therefore pending, not inferred from component tests. Production account creation
 or password changes were not performed. Publication and deployed read-only checks are tracked in the
 delivery conversation and CI; no provider configuration or manual release messages are required.
+
+
+Client search clarity (2026-09-22): the client column now explicitly says Name in all three locales
+and always shows a labeled slug below the name; a configured panel hostname stays on its own line.
+Search still matches name or slug, with existing whitespace/case normalization. First-cell text wraps
+within bounded children. Local synthetic Chrome checks covered name/slug searches, a client without
+a hostname, and visually inspected screenshots at 1440x900 and 390x844 (document width 390).
+Control typecheck, scoped ESLint and 13 i18n tests passed. This is presentation-only; production and
+release verification are separate from the local fixture evidence.
