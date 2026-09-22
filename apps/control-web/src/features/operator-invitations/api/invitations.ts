@@ -15,7 +15,10 @@ export const invitationApi = {
   reissue: (id: string) =>
     request(OperatorInvitationView, `/control/operators/${id}/invitations`, post({})),
   accept: (body: AcceptOperatorInvitation) =>
-    request(z.object({ ok: z.literal(true) }), '/public/operator-invitations/accept', post(body)),
+    request(z.object({ ok: z.literal(true) }), '/public/operator-invitations/accept', {
+      ...post(body),
+      credentials: 'omit',
+    }),
 };
 export const operatorQueries = {
   list: () => queryOptions({ queryKey: queryKeys.operators, queryFn: controlApi.operators }),
@@ -26,6 +29,7 @@ export const operatorQueries = {
       queryFn: ({ signal }) =>
         request(OperatorInvitationDetails, '/public/operator-invitations/inspect', {
           ...post({ token }),
+          credentials: 'omit',
           signal,
         }),
       retry: false,

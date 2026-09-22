@@ -81,6 +81,7 @@ it('creates an invitation, invalidates the list and copies the public hash link'
   const input = await screen.findByLabelText('Invitation link');
   expect(input).toHaveProperty('value', `${window.location.origin}/#/invite?token=${token}`);
   expect(fetch.mock.calls[0]?.[1]).toMatchObject({
+    credentials: 'include',
     body: JSON.stringify({
       email: 'new@example.test',
       name: 'New Operator',
@@ -172,6 +173,7 @@ it('reissues only after the operator explicitly confirms replacement', async () 
   fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Create link' }));
   await screen.findByLabelText('Invitation link');
   expect(fetch.mock.calls[0]?.[0]).toContain(`/control/operators/${id}/invitations`);
+  expect(fetch.mock.calls[0]?.[1]).toMatchObject({ credentials: 'include' });
 });
 
 it('opens publicly, rejects mismatched passwords, preserves failure and removes the token on success', async () => {
@@ -184,6 +186,11 @@ it('opens publicly, rejects mismatched passwords, preserves failure and removes 
   const { me, router } = await setup({ path: `/#/invite?token=${token}` });
   await screen.findByText('olena@example.test');
   expect(me).not.toHaveBeenCalled();
+  expect(fetch.mock.calls[0]?.[1]).toMatchObject({
+    credentials: 'omit',
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
   field('Password', 'operator-test-password');
   field('Confirm password', 'different-password');
   fireEvent.blur(screen.getByLabelText('Confirm password'));
@@ -194,10 +201,16 @@ it('opens publicly, rejects mismatched passwords, preserves failure and removes 
   await screen.findByRole('alert');
   expect(screen.getByLabelText('Password')).toHaveProperty('value', 'operator-test-password');
   expect(fetch).toHaveBeenCalledTimes(2);
+  expect(fetch.mock.calls[1]?.[1]).toMatchObject({
+    credentials: 'omit',
+    method: 'POST',
+    body: JSON.stringify({ token, password: 'operator-test-password' }),
+  });
   fireEvent.click(screen.getByRole('button', { name: 'Set password' }));
   await screen.findByText('Password set');
   expect(router.state.location.href).not.toContain(token);
   expect(screen.queryByLabelText('Password')).toBeNull();
+  expect(fetch.mock.calls[2]?.[1]).toMatchObject({ credentials: 'omit' });
 });
 
 it('shows an unavailable invitation instead of a password form', async () => {

@@ -545,6 +545,27 @@ Control typecheck and scoped ESLint pass. Synthetic localhost screenshots were c
 inspected on desktop and at 390x844, including keyboard activation and retained focus. Real operator
 invitations were not created or replaced for QA; release/deployment evidence remains separate.
 
+### Public operator invitation CORS correction (2026-09-22)
+
+Accepted bug-fix request; baseline `b7fb74d`, writer/index owner Codex. Production invitation
+inspection failed with browser `PreflightWildcardOriginNotAllowed`: the shared transport forced
+cookies while public control routes deliberately return wildcard CORS without credentials.
+Scope/acceptance: inspection and acceptance omit cookies; private create/reissue/sign-in keep their
+session behavior; token validation, single use, MFA, expiry and transactional acceptance stay intact.
+No server CORS policy, credential, UI layout or database changes are needed.
+
+The existing shared request now permits explicit request options to override its credential default;
+the invitation feature selects `omit` for both public endpoints. Query cancellation/retry ownership
+and Zod response validation remain unchanged. The UI regression failed before the fix and passes
+afterward, asserting inspection, failed acceptance, explicit retry and private creation/reissue.
+Both public preflights now run under the production CORS configuration in the existing API suite.
+
+Local evidence: 13 UI/transport tests, 8 real-PostgreSQL invitation tests, both affected typechecks,
+scoped ESLint and independent read-only auth-boundary review passed. Localhost frontend against
+production API opened the owner's still-unused invitation; desktop and 390x844 screenshots were
+captured and visually inspected. No production password was entered or invitation consumed.
+Publication and post-deployment verification remain separate gates recorded in the delivery task.
+
 ## Instant onboarding implementation, 2026-09-22
 
 Active change: specs/012-instant-tenant-onboarding. Shared wildcard Worker + static assets and fixed

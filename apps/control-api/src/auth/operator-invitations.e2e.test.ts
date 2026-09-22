@@ -21,7 +21,8 @@ import {
 import { ensureDockerHost } from '../../test/docker.js';
 import { AUTH } from './auth.module.js';
 import { createControlAuth, type ControlAuth } from './auth.config.js';
-import { REGISTRY } from '../infra/registry.module.js';
+import { REGISTRY, CONTROL_ENV } from '../infra/registry.module.js';
+import { configureControlCors } from '../public/cors.js';
 import { ControlErrorFilter } from '../common/domain-error.js';
 import { ControlAudit } from '../audit/audit.service.js';
 import { OperatorInvitationsService } from './operator-invitations.service.js';
@@ -65,6 +66,7 @@ describe('operator invitations', () => {
       logger: false,
     });
     app.useGlobalFilters(new ControlErrorFilter());
+    configureControlCors(app, app.get(CONTROL_ENV));
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
     db = app.get(REGISTRY);
@@ -109,6 +111,26 @@ describe('operator invitations', () => {
       payload: { token, password },
     });
   }
+
+  it.each(['inspect', 'accept'])(
+    'serves the public %s preflight without cookies',
+    async (action) => {
+      const response = await app.inject({
+        method: 'OPTIONS',
+        url: `/public/operator-invitations/${action}`,
+        headers: {
+          origin: 'https://control.vakhta.xyz',
+          'access-control-request-method': 'POST',
+          'access-control-request-headers': 'content-type',
+        },
+      });
+      expect(response.statusCode).toBe(204);
+      expect(response.headers['access-control-allow-origin']).toBe('*');
+      expect(response.headers['access-control-allow-credentials']).toBeUndefined();
+      expect(response.headers['access-control-allow-methods']).toContain('POST');
+      expect(response.headers['access-control-allow-headers']).toContain('content-type');
+    },
+  );
 
   it('requires an MFA-verified administrator for create and reissue', async () => {
     const invitation = await issue();

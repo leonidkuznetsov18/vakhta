@@ -40,8 +40,8 @@ export async function request<T>(
   init: RequestInit = {},
 ): Promise<T> {
   const response = await fetch(`${CONTROL_API_URL}${path}`, {
-    ...init,
     credentials: 'include',
+    ...init,
     headers: {
       ...(init.body ? { 'content-type': 'application/json' } : {}),
       ...(init.headers ?? {}),
