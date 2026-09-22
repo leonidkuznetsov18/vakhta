@@ -32,14 +32,12 @@ const NOTE_TONE = {
 function Note({ note, className }: { readonly note: CalendarNote; readonly className?: string }) {
   return (
     <span
-      className={cn(
-        'inline-flex items-center gap-1 text-[11px] leading-4',
-        NOTE_TONE[note.tone],
-        className,
-      )}
+      className={cn('flex items-start gap-1 text-xs leading-4', NOTE_TONE[note.tone], className)}
     >
-      {note.tone === 'danger' && <TriangleAlertIcon aria-hidden className="size-3 shrink-0" />}
-      <span className="min-w-0 truncate">{note.text}</span>
+      {note.tone === 'danger' && (
+        <TriangleAlertIcon aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+      )}
+      <span className="min-w-0 line-clamp-2 [overflow-wrap:anywhere]">{note.text}</span>
     </span>
   );
 }
@@ -93,60 +91,82 @@ const PAGE_SIZE = 20;
 const CELL_PREVIEW_LIMIT = 3;
 // The resource column keeps one width in every period; the date columns share the rest equally
 // and never drop below the minimum, so the table scrolls sideways instead of squeezing cards.
+// 156px fits a zone name, a cross-day time and "Нічна зміна · 12 год" at 12px without cutting,
+// and a seven-day week still fits a 1440px screen with the sidebar collapsed.
 const RESOURCE_COLUMN_WIDTH = 224;
-const DATE_COLUMN_MIN_WIDTH = 136;
+const DATE_COLUMN_MIN_WIDTH = 156;
 // A card grows with its column up to a readable width; in a wide day column cards sit side by
 // side instead of one stretched card per line.
 const CARD_CLASS = 'min-w-0 grow basis-52 max-w-md';
 
-function ItemContent({ item }: { readonly item: CalendarItem }) {
+function ItemContent({
+  item,
+  cornerControl,
+}: {
+  readonly item: CalendarItem;
+  /** The quick remove control sits in the corner; only the title line makes room for it. */
+  readonly cornerControl: boolean;
+}) {
   const description = [item.description, ...(item.parts?.map((part) => part.label) ?? [])]
     .filter(Boolean)
     .join(' · ');
   return (
     <>
-      <span className="block min-w-0 truncate font-medium leading-5">{item.title}</span>
-      <span className="block min-w-0 truncate text-[11px] leading-4 tabular-nums">{item.time}</span>
-      <span className="flex min-w-0 items-center gap-1.5 text-[11px] leading-4">
-        <span className="min-w-0 truncate">{description}</span>
+      <span
+        className={cn(
+          'line-clamp-2 min-w-0 text-sm font-semibold leading-5 [overflow-wrap:anywhere]',
+          cornerControl && 'pr-5',
+        )}
+      >
+        {item.title}
+      </span>
+      <span className="block min-w-0 text-xs font-medium leading-4 tabular-nums [overflow-wrap:anywhere]">
+        {item.time}
+      </span>
+      <span className="flex min-w-0 items-start gap-1.5 text-xs leading-4">
+        <span className="min-w-0 line-clamp-2 [overflow-wrap:anywhere]">{description}</span>
         {(item.status || item.issue) && (
           <span className="ml-auto flex shrink-0 items-center gap-1" title={item.status}>
             {item.issue && (
               <TriangleAlertIcon
                 aria-hidden
                 className={cn(
-                  'size-3.5',
+                  'size-4',
                   item.issue === 'BLOCK'
                     ? 'text-red-700 dark:text-red-300'
                     : 'text-amber-700 dark:text-amber-300',
                 )}
               />
             )}
-            {item.status && <CircleDashedIcon aria-hidden className="size-3.5" />}
+            {item.status && <CircleDashedIcon aria-hidden className="size-4" />}
             <span className="sr-only">{item.status}</span>
           </span>
         )}
       </span>
-      {item.flags?.map((flag) => (
-        <span
-          key={flag.label}
-          className={cn(
-            'mt-0.5 mr-1 inline-block max-w-full truncate rounded px-1 text-[10px] leading-4 font-medium',
-            flag.tone === 'absence' &&
-              'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100',
-            flag.tone === 'warn' &&
-              'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-100',
-            flag.tone === 'info' &&
-              'bg-violet-200 text-violet-900 dark:bg-violet-900 dark:text-violet-100',
-          )}
-        >
-          {flag.label}
+      {item.flags && item.flags.length > 0 && (
+        <span className="flex flex-wrap gap-1">
+          {item.flags.map((flag) => (
+            <span
+              key={flag.label}
+              className={cn(
+                'inline-block max-w-full truncate rounded px-1.5 py-0.5 text-[11px] leading-4 font-medium',
+                flag.tone === 'absence' &&
+                  'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100',
+                flag.tone === 'warn' &&
+                  'bg-orange-200 text-orange-900 dark:bg-orange-900 dark:text-orange-100',
+                flag.tone === 'info' &&
+                  'bg-violet-200 text-violet-900 dark:bg-violet-900 dark:text-violet-100',
+              )}
+            >
+              {flag.label}
+            </span>
+          ))}
         </span>
-      ))}
+      )}
       {item.marker && (
         <span
           className={cn(
-            'block min-w-0 truncate text-[10px] leading-4',
+            'line-clamp-3 min-w-0 text-[11px] leading-4 [overflow-wrap:anywhere]',
             item.marker.tone === 'ok' && 'text-emerald-700 dark:text-emerald-300',
             item.marker.tone === 'danger' && 'text-amber-700 dark:text-amber-300',
             item.marker.tone === 'muted' && 'text-muted-foreground',
@@ -171,10 +191,12 @@ function ResourceHeading({
 }) {
   const facts = [row.description, row.summary].filter(Boolean).join(' · ');
   return (
-    <div className="min-w-0 space-y-1">
-      <Title className="min-w-0 font-semibold [overflow-wrap:anywhere]">{title}</Title>
+    <div className="min-w-0 space-y-1.5">
+      <Title className="min-w-0 text-sm font-semibold leading-5 [overflow-wrap:anywhere]">
+        {title}
+      </Title>
       {facts && (
-        <p className="text-xs text-muted-foreground tabular-nums [overflow-wrap:anywhere]">
+        <p className="text-xs leading-4 text-muted-foreground tabular-nums [overflow-wrap:anywhere]">
           {facts}
         </p>
       )}
@@ -223,7 +245,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
     return (
       <div
         className={cn(
-          'group/cell flex min-h-[4.75rem] min-w-0 flex-wrap content-start gap-1.5 rounded-md',
+          'group/cell flex min-h-24 min-w-0 flex-wrap content-start gap-2 rounded-md',
           droppable && 'outline-dashed outline-1 outline-offset-2 outline-muted-foreground/40',
         )}
         onDragOver={(event) => {
@@ -236,7 +258,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
           setDragging(null);
         }}
       >
-        {cell.note && <Note note={cell.note} className="basis-full px-0.5" />}
+        {cell.note && <Note note={cell.note} className="basis-full px-1" />}
         {cell.items.slice(0, CELL_PREVIEW_LIMIT).map((item) => {
           const selected = cellSelected && selection?.itemId === item.id;
           const highlight = emphasis ? emphasized(item, emphasis) : null;
@@ -263,13 +285,11 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                   .filter(Boolean)
                   .join(', ')}
                 className={cn(
-                  'h-auto w-full min-w-0 justify-start whitespace-normal px-1.5 py-1.5 text-left shadow-none transition-colors',
+                  'h-auto w-full min-w-0 justify-start whitespace-normal px-2 py-2 text-left shadow-none transition-colors',
                   calendarItemColors[item.tone],
                   calendarInteraction,
                   item.unpublished && 'border-dashed border-current/50',
                   item.readonly && 'opacity-70',
-                  // Keep the title clear of the quick remove control in the corner.
-                  removeItem && 'pr-6',
                   item.issue === 'BLOCK' && 'inset-ring-2 inset-ring-red-500/70',
                   highlight === true && 'ring-2 ring-offset-2 ring-sky-600 dark:ring-sky-400',
                   highlight === false && 'opacity-35',
@@ -289,8 +309,8 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                   props.onSelect({ resourceId: row.id, date: cell.date, itemId: item.id });
                 }}
               >
-                <span className="grid w-full min-w-0 grid-rows-[1.25rem_1rem_1rem] gap-y-0.5">
-                  <ItemContent item={item} />
+                <span className="flex w-full min-w-0 flex-col gap-1">
+                  <ItemContent item={item} cornerControl={!!removeItem} />
                 </span>
               </Button>
               {removeItem && (
@@ -299,7 +319,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                   variant="ghost"
                   size="icon-xs"
                   aria-label={`${model.removeLabel ?? ''}: ${item.title} · ${cell.label}`}
-                  className="absolute top-0.5 right-0.5 text-current opacity-0 transition-opacity hover:bg-background/70 focus-visible:opacity-100 group-hover/item:opacity-100 max-md:opacity-100"
+                  className="absolute top-1 right-1 text-current opacity-0 transition-opacity hover:bg-background/70 focus-visible:opacity-100 group-hover/item:opacity-100 max-md:opacity-100"
                   onClick={removeItem}
                 >
                   <XIcon aria-hidden />
@@ -333,10 +353,10 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
             size={empty ? 'default' : 'sm'}
             aria-label={`${cell.create.label}: ${row.title}, ${cell.date}`}
             className={cn(
-              'whitespace-normal text-xs text-muted-foreground',
-              CARD_CLASS,
+              // Buttons never shrink by default; this one must fit a narrow month column.
+              'w-full max-w-md shrink whitespace-normal text-xs text-muted-foreground',
               empty
-                ? 'h-auto min-h-[4.75rem] border border-dashed border-transparent opacity-0 transition-opacity hover:border-border hover:text-foreground focus-visible:opacity-100 group-hover/cell:opacity-100 max-md:opacity-100'
+                ? 'h-auto min-h-24 border border-dashed border-transparent opacity-0 transition-opacity hover:border-border hover:text-foreground focus-visible:opacity-100 group-hover/cell:opacity-100 max-md:opacity-100'
                 : cn(
                     'h-auto min-h-8 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/cell:opacity-100 max-md:opacity-100',
                     cellSelected && 'opacity-100',
@@ -447,7 +467,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
             <TableHeader>
               <TableRow>
                 <TableHead
-                  className="sticky left-0 z-10 whitespace-normal bg-background"
+                  className="sticky left-0 z-10 whitespace-normal bg-background px-3"
                   style={{ width: RESOURCE_COLUMN_WIDTH }}
                 >
                   {model.resourceLabel}
@@ -458,7 +478,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                     aria-current={date.today ? 'date' : undefined}
                     title={date.readonly ? date.label : undefined}
                     className={cn(
-                      'whitespace-normal px-2 py-1.5 text-center align-top',
+                      'space-y-0.5 whitespace-normal px-2 py-2 text-center align-top',
                       date.today &&
                         'bg-emerald-500/15 shadow-[inset_3px_0_0_var(--color-emerald-600),inset_-3px_0_0_var(--color-emerald-600),inset_0_3px_0_var(--color-emerald-600)] dark:bg-emerald-400/20 dark:shadow-[inset_3px_0_0_var(--color-emerald-500),inset_-3px_0_0_var(--color-emerald-500),inset_0_3px_0_var(--color-emerald-500)]',
                       date.readonly && 'bg-muted/40 text-muted-foreground',
@@ -470,7 +490,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                   >
                     <span
                       className={cn(
-                        'block font-medium',
+                        'block text-sm font-semibold leading-5',
                         date.today
                           ? 'font-bold text-emerald-700 dark:text-emerald-300'
                           : 'text-foreground',
@@ -479,17 +499,14 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                       {date.label}
                     </span>
                     {date.summary && (
-                      <span
-                        className={cn(
-                          'block text-[11px] font-normal tabular-nums',
-                          'text-muted-foreground',
-                        )}
-                      >
+                      <span className="block text-xs leading-4 font-normal tabular-nums text-muted-foreground">
                         {date.summary}
                       </span>
                     )}
                     {date.holiday && (
-                      <span className={cn('block text-[11px] font-normal', EVENT_TEXT.holiday)}>
+                      <span
+                        className={cn('block text-xs leading-4 font-normal', EVENT_TEXT.holiday)}
+                      >
                         🎉 {date.holiday}
                       </span>
                     )}
@@ -497,7 +514,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                       <span
                         key={event}
                         className={cn(
-                          'block text-[11px] font-normal [overflow-wrap:anywhere]',
+                          'block text-xs leading-4 font-normal [overflow-wrap:anywhere]',
                           event.startsWith('🎂') ? EVENT_TEXT.birthday : EVENT_TEXT.absence,
                         )}
                       >
@@ -511,7 +528,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
             <TableBody>
               {rows.map((row, rowIndex) => (
                 <TableRow key={row.id} className="hover:bg-transparent">
-                  <TableCell className="sticky left-0 z-10 whitespace-normal bg-background align-top">
+                  <TableCell className="sticky left-0 z-10 whitespace-normal bg-background px-3 py-3 align-top">
                     <ResourceHeading
                       row={row}
                       title={props.renderResourceTitle?.(row) ?? row.title}
@@ -521,7 +538,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                     <TableCell
                       key={cell.date}
                       className={cn(
-                        'whitespace-normal p-1.5 align-top',
+                        'whitespace-normal p-2 align-top',
                         model.dates[index]?.tone &&
                           !model.dates[index]?.today &&
                           COLUMN_TINT[model.dates[index].tone],
