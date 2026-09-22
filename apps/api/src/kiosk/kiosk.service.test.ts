@@ -1,4 +1,6 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { TENANT_SETTING_DEFAULTS } from '@vakhta/contracts';
+import * as tenantContext from '../infra/tenant-context.js';
 import { eq, sql } from '@vakhta/db';
 import { qrChallenges, qrTerminals, terminalPairingCodes } from '@vakhta/db';
 import { hashChallengeToken } from '@vakhta/domain/node';
@@ -32,7 +34,10 @@ describe('kiosk: terminal registration, pairing and challenge issuance (FR-QR-01
     await testDb?.stop();
   });
 
+  afterEach(() => vi.restoreAllMocks());
+
   beforeEach(async () => {
+    vi.spyOn(tenantContext, 'currentSettings').mockReturnValue(TENANT_SETTING_DEFAULTS);
     await testDb.db.execute(
       sql`TRUNCATE qr_challenges, terminal_pairing_codes, qr_terminals, sites CASCADE`,
     );
