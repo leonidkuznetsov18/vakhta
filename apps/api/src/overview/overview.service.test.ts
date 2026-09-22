@@ -313,6 +313,22 @@ describe('overview snapshot (spec 004)', () => {
       'Lathe 1:UNDERSTAFFED:1/2',
       'Lathe 2:WORKING:1/0',
     ]);
+    // The faces behind each zone count: who is there and who of the plan is not.
+    expect(
+      (s.zones ?? []).map(
+        (z) =>
+          `${z.zoneName}:${z.presentPeople.map((p) => p.fullName).join(',')}|${z.missingPeople.map((p) => p.fullName).join(',')}`,
+      ),
+    ).toEqual([
+      'Packing line:Stopped Denys|',
+      'Lathe 1:Present Anna|Missing Boris',
+      'Lathe 2:Unplanned Eva|',
+    ]);
+    expect((s.staffing?.presentPeople ?? []).map((p) => p.fullName)).toEqual([
+      'Present Anna',
+      'Stopped Denys',
+    ]);
+    expect((s.staffing?.expectedPeople ?? []).map((p) => p.fullName)).toEqual(['Later Clara']);
     expect(s.terminals).toEqual([
       expect.objectContaining({ name: 'Gate 1', connectivity: 'OFFLINE', critical: true }),
       expect.objectContaining({ name: 'Gate 2', connectivity: 'UNPAIRED', critical: false }),

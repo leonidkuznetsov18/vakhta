@@ -71,6 +71,8 @@ const snapshot = {
       planned: 1,
       present: 1,
       since: '2026-09-13T08:30:00Z',
+      presentPeople: [],
+      missingPeople: [],
     },
   ],
   staffing: { notArrived: 0, notArrivedPeople: [], oldestNotArrivedSince: null },

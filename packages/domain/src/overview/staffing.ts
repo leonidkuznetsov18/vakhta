@@ -22,6 +22,10 @@ export interface StaffingSnapshot {
   readonly expected: number;
   /** People present in scope with no planned assignment in the window. */
   readonly unscheduled: number;
+  /** Planned people recorded as present, in plan order: the faces behind `present`. */
+  readonly presentEmployeeIds: readonly string[];
+  /** Planned people still within their late grace, in plan order. */
+  readonly expectedEmployeeIds: readonly string[];
   readonly notArrivedEmployeeIds: readonly string[];
   readonly unscheduledEmployeeIds: readonly string[];
   /** Earliest plan start among the not-arrived, for "planned 08:00" and the age of the gap. */
@@ -41,24 +45,31 @@ export function staffingSnapshot(
   const byAssignment = new Set(arrivals.flatMap((a) => (a.assignmentId ? [a.assignmentId] : [])));
   const byEmployee = new Set(arrivals.map((a) => a.employeeId));
   const plannedEmployees = new Set(planned.map((p) => p.employeeId));
-  let present = 0;
-  let expected = 0;
+  const present: PlannedAssignment[] = [];
+  const expected: PlannedAssignment[] = [];
   const notArrived: PlannedAssignment[] = [];
   for (const p of planned) {
-    if (byAssignment.has(p.assignmentId) || byEmployee.has(p.employeeId)) present += 1;
+    if (byAssignment.has(p.assignmentId) || byEmployee.has(p.employeeId)) present.push(p);
     else if (now.getTime() >= p.planStartAt.getTime() + graceMinutes * 60_000) notArrived.push(p);
-    else expected += 1;
+    else expected.push(p);
   }
   const unscheduled = [...byEmployee].filter((id) => !plannedEmployees.has(id));
   notArrived.sort((a, b) => a.planStartAt.getTime() - b.planStartAt.getTime());
   return {
     planned: planned.length,
-    present,
+    present: present.length,
     notArrived: notArrived.length,
-    expected,
+    expected: expected.length,
     unscheduled: unscheduled.length,
+    presentEmployeeIds: uniqueEmployees(present),
+    expectedEmployeeIds: uniqueEmployees(expected),
     notArrivedEmployeeIds: notArrived.map((p) => p.employeeId),
     unscheduledEmployeeIds: unscheduled.sort(),
     oldestNotArrivedSince: notArrived[0]?.planStartAt ?? null,
   };
+}
+
+/** One face per person: two assignments of one employee in a window still name them once. */
+function uniqueEmployees(rows: readonly PlannedAssignment[]): string[] {
+  return [...new Set(rows.map((p) => p.employeeId))];
 }

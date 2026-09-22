@@ -32,6 +32,8 @@ describe('staffing (spec 004 D-03, AC-014)', () => {
       unscheduled: 1,
     });
     expect(s.notArrivedEmployeeIds).toEqual(['e40', 'e41']);
+    expect(s.presentEmployeeIds).toHaveLength(40);
+    expect(s.expectedEmployeeIds).toEqual(['e42']);
     expect(s.unscheduledEmployeeIds).toEqual(['x']);
     expect(s.oldestNotArrivedSince).toEqual(at('08:00'));
   });
@@ -44,6 +46,20 @@ describe('staffing (spec 004 D-03, AC-014)', () => {
       10,
     );
     expect(s).toMatchObject({ present: 0, notArrived: 0, expected: 1 });
+  });
+
+  it('names a person with two assignments once among the present', () => {
+    const s = staffingSnapshot(
+      [
+        { assignmentId: 'a1', employeeId: 'e', planStartAt: at('08:00'), planEndAt: at('12:00') },
+        { assignmentId: 'a2', employeeId: 'e', planStartAt: at('12:00'), planEndAt: at('20:00') },
+      ],
+      [{ employeeId: 'e', assignmentId: 'a1' }],
+      at('13:00'),
+      10,
+    );
+    expect(s.present).toBe(2);
+    expect(s.presentEmployeeIds).toEqual(['e']);
   });
 
   it('AC-018: no plan is zero planned, not a percentage', () => {

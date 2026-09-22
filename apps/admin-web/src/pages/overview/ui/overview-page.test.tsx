@@ -75,6 +75,8 @@ function snapshot(overrides: Partial<OverviewSnapshot> = {}): OverviewSnapshot {
       notArrived: 0,
       expected: 1,
       unscheduled: 0,
+      presentPeople: [],
+      expectedPeople: [],
       notArrivedPeople: [],
       unscheduledPeople: [],
       oldestNotArrivedSince: null,
@@ -98,6 +100,12 @@ function snapshot(overrides: Partial<OverviewSnapshot> = {}): OverviewSnapshot {
   };
 }
 const SITE = 'a0000000-0000-4000-8000-000000000001';
+/** The focusable avatar stack next to a people count. */
+function stackBeside(label: HTMLElement): HTMLElement {
+  const stack = label.parentElement?.querySelector<HTMLElement>('[tabindex="0"]');
+  if (!stack) throw new Error('no avatar stack beside the label');
+  return stack;
+}
 function page(user = me, go?: (section: SectionKey, sub?: string) => void) {
   return render(
     <TooltipProvider>
@@ -306,6 +314,8 @@ describe('overview query integration', () => {
           notArrived: 2,
           expected: 1,
           unscheduled: 1,
+          presentPeople: [],
+          expectedPeople: [],
           notArrivedPeople: [
             {
               employeeId: 'a0000000-0000-4000-8000-0000000000b1',
@@ -333,6 +343,58 @@ describe('overview query integration', () => {
     expect(screen.getByText(format(c.notArrivedCount, { count: 2 }))).toBeTruthy();
     expect(screen.getByText(format(c.unscheduledCount, { count: 1 }))).toBeTruthy();
     expect(screen.getByRole('button', { name: `2 ${c.items.notArrived}` })).toBeTruthy();
+  });
+
+  it('names who is missing in the staffing tile and in a zone, by face and tooltip', async () => {
+    const olha = {
+      employeeId: 'a0000000-0000-4000-8000-0000000000b2',
+      fullName: 'Olha Koval',
+      planStartAt: '2026-09-13T05:00:00.000Z',
+      zoneName: 'Lathe 1',
+    };
+    const boris = {
+      ...olha,
+      employeeId: 'a0000000-0000-4000-8000-0000000000b1',
+      fullName: 'Boris Melnyk',
+      planStartAt: null,
+    };
+    api.snapshot.mockResolvedValue(
+      snapshot({
+        staffing: {
+          planned: 2,
+          present: 1,
+          notArrived: 1,
+          expected: 0,
+          unscheduled: 0,
+          presentPeople: [boris],
+          expectedPeople: [],
+          notArrivedPeople: [olha],
+          unscheduledPeople: [],
+          oldestNotArrivedSince: olha.planStartAt,
+          businessDate: '2026-09-13',
+        },
+        zones: [
+          {
+            zoneId: 'a0000000-0000-4000-8000-0000000000c1',
+            zoneName: 'Lathe 1',
+            orgUnitId: 'a0000000-0000-4000-8000-0000000000c2',
+            orgUnitName: 'Shop',
+            siteId: SITE,
+            status: 'UNDERSTAFFED',
+            planned: 2,
+            present: 1,
+            since: null,
+            presentPeople: [boris],
+            missingPeople: [olha],
+          },
+        ],
+      }),
+    );
+    page();
+    fireEvent.focus(stackBeside(await screen.findByText(format(c.notArrivedCount, { count: 1 }))));
+    expect((await screen.findAllByText(/Olha Koval/)).length).toBeGreaterThan(0);
+    expect(stackBeside(screen.getByText(format(c.zoneMissingCount, { count: 1 })))).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Lathe 1' })).toBeTruthy();
   });
 });
 

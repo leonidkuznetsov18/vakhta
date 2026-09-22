@@ -698,6 +698,12 @@ export class OverviewService {
       notArrived: sum('notArrived'),
       expected: sum('expected'),
       unscheduled: sum('unscheduled'),
+      presentPeople: all
+        .flatMap((s) => s.presentEmployeeIds)
+        .flatMap((id) => people.get(`plan:${id}`) ?? []),
+      expectedPeople: all
+        .flatMap((s) => s.expectedEmployeeIds)
+        .flatMap((id) => people.get(`plan:${id}`) ?? []),
       notArrivedPeople: all
         .flatMap((s) => s.notArrivedEmployeeIds)
         .flatMap((id) => people.get(`plan:${id}`) ?? []),
@@ -933,8 +939,12 @@ export class OverviewService {
           .select({
             assignmentId: shiftAssignments.id,
             zoneId: shiftAssignments.zoneId,
+            employeeId: shiftAssignments.employeeId,
+            fullName: employees.fullName,
+            planStartAt: shiftAssignments.planStartAt,
           })
           .from(shiftAssignments)
+          .innerJoin(employees, eq(shiftAssignments.employeeId, employees.id))
           .innerJoin(
             scheduleVersions,
             and(
@@ -954,8 +964,14 @@ export class OverviewService {
             ),
           ),
         tx
-          .select({ zoneId: shiftSessions.zoneId, state: shiftSessions.state })
+          .select({
+            zoneId: shiftSessions.zoneId,
+            state: shiftSessions.state,
+            employeeId: shiftSessions.employeeId,
+            fullName: employees.fullName,
+          })
           .from(shiftSessions)
+          .innerJoin(employees, eq(shiftSessions.employeeId, employees.id))
           .where(
             and(
               inArray(shiftSessions.zoneId, zoneIds),
@@ -1001,23 +1017,25 @@ export class OverviewService {
         s.localStart <= s.localEnd
           ? s.localStart <= local && local < s.localEnd
           : local >= s.localStart || local < s.localEnd;
-      const plannedByZone = new Map<string, number>();
+      const segmentsByAssignment = groupBy(segments, (s) => s.assignmentId);
+      const plannedByZone = new Map<string, (typeof plannedNow)[number][]>();
       for (const p of plannedNow) {
-        const own = segments.filter((s) => s.assignmentId === p.assignmentId);
+        const own = segmentsByAssignment.get(p.assignmentId) ?? [];
         const zoneId = own.length ? (own.find(within)?.zoneId ?? null) : p.zoneId;
-        if (zoneId) plannedByZone.set(zoneId, (plannedByZone.get(zoneId) ?? 0) + 1);
+        if (zoneId) plannedByZone.set(zoneId, [...(plannedByZone.get(zoneId) ?? []), p]);
       }
-      const statesByZone = new Map<string, string[]>();
-      for (const s of openSessions)
-        if (s.zoneId) statesByZone.set(s.zoneId, [...(statesByZone.get(s.zoneId) ?? []), s.state]);
+      const openByZone = groupBy(
+        openSessions.flatMap((s) => (s.zoneId ? [{ ...s, zoneId: s.zoneId }] : [])),
+        (s) => s.zoneId,
+      );
       const downtimeByZone = new Map(openDowntime.map((d) => [d.zoneId, d.since]));
       const meta = new Map(zoneRows.map((z) => [z.zoneId, z]));
       for (const view of sortZones(
         zoneRows.map((z) =>
           zoneStatus({
             zoneId: z.zoneId,
-            planned: plannedByZone.get(z.zoneId) ?? 0,
-            openStates: statesByZone.get(z.zoneId) ?? [],
+            planned: plannedByZone.get(z.zoneId)?.length ?? 0,
+            openStates: (openByZone.get(z.zoneId) ?? []).map((o) => o.state),
             downtimeSince: downtimeByZone.get(z.zoneId) ?? null,
           }),
         ),
@@ -1033,6 +1051,11 @@ export class OverviewService {
           planned: view.planned,
           present: view.present,
           since: view.since?.toISOString() ?? null,
+          ...zonePeople(
+            z.zoneName,
+            plannedByZone.get(view.zoneId) ?? [],
+            openByZone.get(view.zoneId) ?? [],
+          ),
         });
       }
     }
@@ -1168,6 +1191,35 @@ interface ArrivalRow {
  * Unit of a shift: its assignment's unit, else the employee's current position (a shift without a
  * schedule). Rendered in a query that joins shift_sessions and shift_assignments by table name.
  */
+function groupBy<T>(rows: readonly T[], key: (row: T) => string): Map<string, T[]> {
+  const out = new Map<string, T[]>();
+  for (const row of rows) out.set(key(row), [...(out.get(key(row)) ?? []), row]);
+  return out;
+}
+
+/** The faces behind a zone's "present of planned": who is there and who of the plan is not. */
+function zonePeople(
+  zoneName: string,
+  planned: readonly { employeeId: string; fullName: string; planStartAt: Date }[],
+  open: readonly { employeeId: string; fullName: string }[],
+): Pick<OverviewZone, 'presentPeople' | 'missingPeople'> {
+  const here = new Set(open.map((o) => o.employeeId));
+  const person = (employeeId: string, fullName: string, planStartAt: Date | null) => ({
+    employeeId,
+    fullName,
+    planStartAt: planStartAt?.toISOString() ?? null,
+    zoneName,
+  });
+  const presentPeople = [...new Map(open.map((o) => [o.employeeId, o])).values()].map((o) =>
+    person(o.employeeId, o.fullName, null),
+  );
+  const missing = new Map<string, OverviewPerson>();
+  for (const p of planned)
+    if (!here.has(p.employeeId) && !missing.has(p.employeeId))
+      missing.set(p.employeeId, person(p.employeeId, p.fullName, p.planStartAt));
+  return { presentPeople, missingPeople: [...missing.values()] };
+}
+
 function shiftUnitSql(): SQL<string | null> {
   return sql<string | null>`coalesce(shift_assignments.org_unit_id, (
     select p.org_unit_id from employee_positions p

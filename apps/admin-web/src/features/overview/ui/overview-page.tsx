@@ -23,6 +23,7 @@ import {
   type QueueItem,
   type SetupItem,
 } from '../model/priority';
+import { facesOf, withFaces } from '../model/people';
 import { useOverviewSelection, useOverviewSnapshot } from '../model/snapshot';
 import { useTeamToday } from '../model/team-today';
 import { overviewText } from '../model/time';
@@ -96,16 +97,27 @@ export function OverviewPage({
     permissions.requests ? liveRequests : true,
   ].every(Boolean);
 
-  const queue = buildActionQueue({
+  // People facts of the schedule slice (sick leave, unfilled shifts, birthdays) and the photos
+  // behind every avatar stack on the page.
+  const roster = useEmployees(permissions.employees);
+  const faces = facesOf(roster.employees);
+  const built = buildActionQueue({
     attention: attention.data,
     permissions,
     snapshot: snapshotQuery.isError && !snapshot ? undefined : snapshot,
     snapshotEnabled: snapshotEnabled && !snapshotQuery.isPending,
     now,
   });
+  const queue = {
+    ...built,
+    items: built.items.map((item) => ({ ...item, people: withFaces(item.people, faces) })),
+  };
   const blocks = composition(permissions, snapshot);
   const setup = setupItems(snapshot);
-  const groups = groupByUnit(attention.data.unscheduledPeople);
+  const groups = groupByUnit(attention.data.unscheduledPeople).map((g) => ({
+    ...g,
+    people: withFaces(g.people, faces),
+  }));
   const updated =
     [attention.data.refreshedAt, snapshot ? new Date(snapshotQuery.dataUpdatedAt) : null]
       .filter((d): d is Date => d !== null)
@@ -202,8 +214,7 @@ export function OverviewPage({
     onPlanPeople({ orgUnitId: group.orgUnitId, people });
   }
 
-  // People facts of the schedule slice (sick leave, unfilled shifts, birthdays), one read per site.
-  const roster = useEmployees(permissions.employees);
+  // One schedule read per site.
   const attentionSites = !snapshot
     ? []
     : selection.siteId
@@ -252,12 +263,13 @@ export function OverviewPage({
         <ShiftHealth
           snapshot={snapshot}
           state={snapshotState}
+          faces={faces}
           onOpen={openHealth}
           onRetry={retry}
         />
       )}
       {blocks.zones && snapshot?.zones && (
-        <ZoneBoard zones={snapshot.zones} now={now} onOpen={openZone} />
+        <ZoneBoard zones={snapshot.zones} now={now} faces={faces} onOpen={openZone} />
       )}
       {permissions.employees && attentionSites.length > 0 && (
         <TeamToday

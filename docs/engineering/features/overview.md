@@ -143,3 +143,15 @@ Schedule's public preset writer and existing navigation. The actor, selected-uni
 order and first-person month are unchanged; preset state is written before navigation. The legacy
 forwarding page was removed and its integration tests now belong to the page. No rendered content
 or workflow changed. Verification and limits: [cleanup delivery](../../audits/2026-09-13/code-simplification-review.md).
+
+## 2026-09-22 — Faces behind every people count
+
+Owner rule: a count of people is not information without the people. Every people count on the
+Overview carries an `AvatarStack` whose tooltip lists full names (`PeopleLine` in
+`components/app/avatar-stack.tsx`). The snapshot now names them: `staffing.presentPeople` and
+`expectedPeople` (domain `staffingSnapshot` returns `presentEmployeeIds`/`expectedEmployeeIds`, one
+face per person), and each zone carries `presentPeople` (open shift in the zone) and `missingPeople`
+(planned in the zone now, no open shift there). Photos come from the employee roster when the reader
+may list employees; otherwise the initials placeholder. Zone cards use the overlay-button pattern of
+`KpiTile`, so stacks are not nested inside a `<button>`. Evidence: domain, API (testcontainers) and
+page tests; preview screenshots at 1440 px and 375 px, tooltips checked by hover.

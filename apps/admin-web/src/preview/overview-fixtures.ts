@@ -90,6 +90,17 @@ export function overviewSnapshotFixture(
       notArrived: clear ? 0 : 2,
       expected: clear ? 0 : 1,
       unscheduled: clear ? 0 : 1,
+      presentPeople: dayOff ? [] : crew(clear ? 12 : 41, iso(start)),
+      expectedPeople: clear
+        ? []
+        : [
+            {
+              employeeId: 'b0000000-0000-4000-8000-0000000000a4',
+              fullName: 'Савчук Марія',
+              planStartAt: iso(start + 4 * 3_600_000),
+              zoneName: 'Лінія 1',
+            },
+          ],
       notArrivedPeople: clear
         ? []
         : [
@@ -175,6 +186,7 @@ export function overviewSnapshotFixture(
                 planned: 2,
                 present: 2,
                 since: iso(now - 32 * 60_000),
+                ...zonePeople('Токарний №2', 2, 0),
               },
               {
                 zoneId: 'a0000000-0000-4000-8000-0000000000z2',
@@ -186,6 +198,7 @@ export function overviewSnapshotFixture(
                 planned: 3,
                 present: 2,
                 since: null,
+                ...zonePeople('Пакувальна лінія', 2, 1),
               },
             ]),
         {
@@ -198,6 +211,7 @@ export function overviewSnapshotFixture(
           planned: 4,
           present: 4,
           since: null,
+          ...zonePeople('Лінія 1', 4, 0),
         },
         {
           zoneId: 'a0000000-0000-4000-8000-0000000000z4',
@@ -209,6 +223,7 @@ export function overviewSnapshotFixture(
           planned: 1,
           present: 1,
           since: null,
+          ...zonePeople('Склад готової продукції', 1, 0),
         },
         {
           zoneId: 'a0000000-0000-4000-8000-0000000000z5',
@@ -220,10 +235,21 @@ export function overviewSnapshotFixture(
           planned: 0,
           present: 0,
           since: null,
+          ...zonePeople('Резервна лінія', 0, 0),
         },
       ] as NonNullable<OverviewSnapshot['zones']>
     ).map((z) =>
-      dayOff ? { ...z, status: 'IDLE' as const, planned: 0, present: 0, since: null } : z,
+      dayOff
+        ? {
+            ...z,
+            status: 'IDLE' as const,
+            planned: 0,
+            present: 0,
+            since: null,
+            presentPeople: [],
+            missingPeople: [],
+          }
+        : z,
     ),
     setup: { unlinkedEmployees: clear ? 0 : 93, unpairedTerminals: clear ? 0 : 1 },
   };
@@ -356,4 +382,31 @@ export function overviewPreview(
   if (path === '/admin/overview/events')
     return json(mode === 'clear' ? [] : overviewEventsFixture());
   return null;
+}
+
+const NAMES = [
+  'Бондар Андрій',
+  'Коваль Наталія',
+  'Мельник Сергій',
+  'Шевчук Олена',
+  'Ткаченко Павло',
+];
+
+/** Stand-in faces for a crew of `count`; the first names repeat with a number past five. */
+function crew(count: number, planStartAt: string | null, zoneName: string | null = null) {
+  return Array.from({ length: count }, (_, i) => ({
+    employeeId: `c0000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+    fullName: i < NAMES.length ? `${NAMES[i]}` : `${NAMES[i % NAMES.length]} ${i}`,
+    planStartAt,
+    zoneName,
+  }));
+}
+
+function zonePeople(zoneName: string, present: number, missing: number) {
+  return {
+    presentPeople: crew(present, null, zoneName),
+    missingPeople: crew(present + missing, null, zoneName)
+      .slice(present)
+      .map((p) => ({ ...p, planStartAt: new Date().toISOString() })),
+  };
 }

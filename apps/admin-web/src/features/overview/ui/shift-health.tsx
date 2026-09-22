@@ -1,10 +1,13 @@
-import type { OverviewSnapshot } from '@vakhta/contracts';
+import type { OverviewPerson, OverviewSnapshot, OverviewStaffing } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
+import type { ReactNode } from 'react';
 import { ActivityIcon, ClipboardCheckIcon, TimerIcon, UsersIcon } from 'lucide-react';
+import { PeopleLine } from '@/components/app/avatar-stack';
 import { KpiTile } from '@/components/app/kpi-tile';
 import { Section } from '@/components/app/page';
 import { Button } from '@/components/ui/button';
 import { formatDuration } from '@/lib/format';
+import { stacked, type Faces } from '../model/people';
 import { overviewText } from '../model/time';
 
 export type HealthTarget = 'staffing' | 'timeToAction' | 'downtime' | 'handover' | 'schedule';
@@ -17,10 +20,12 @@ export type HealthTarget = 'staffing' | 'timeToAction' | 'downtime' | 'handover'
 export function ShiftHealth({
   snapshot,
   state,
+  faces,
   onOpen,
   onRetry,
 }: {
   readonly snapshot: OverviewSnapshot | undefined;
+  readonly faces: Faces;
   readonly state: 'ready' | 'loading' | 'failed';
   readonly onOpen: (target: HealthTarget) => void;
   readonly onRetry: () => void;
@@ -53,19 +58,7 @@ export function ShiftHealth({
                 ? format(c.staffingValue, { present: s.present, planned: s.planned })
                 : c.noPlan
             }
-            details={
-              s && s.planned > 0
-                ? [
-                    format(c.notArrivedCount, { count: s.notArrived }),
-                    format(c.expectedCount, { count: s.expected }),
-                    ...(s.unscheduled > 0
-                      ? [format(c.unscheduledCount, { count: s.unscheduled })]
-                      : []),
-                  ]
-                : s && s.unscheduled > 0
-                  ? [format(c.unscheduledCount, { count: s.unscheduled })]
-                  : []
-            }
+            details={s ? staffingDetails(s, faces) : []}
             onOpen={() => onOpen(s && s.planned === 0 ? 'schedule' : 'staffing')}
             openLabel={s && s.planned === 0 ? c.openSchedule : c.staffing}
           />
@@ -153,4 +146,25 @@ export function ShiftHealth({
       </div>
     </Section>
   );
+}
+
+const zoneNote = (p: OverviewPerson) => p.zoneName;
+
+/** Every count of people carries their faces: "2 not arrived" is only useful with the names. */
+function staffingDetails(s: OverviewStaffing, faces: Faces): ReactNode[] {
+  const c = overviewText();
+  const line = (label: string, people: readonly OverviewPerson[]) => (
+    <PeopleLine label={label} people={stacked(people, faces, zoneNote)} />
+  );
+  const unscheduled =
+    s.unscheduled > 0
+      ? [line(format(c.unscheduledCount, { count: s.unscheduled }), s.unscheduledPeople)]
+      : [];
+  if (s.planned === 0) return unscheduled;
+  return [
+    line(format(c.presentCount, { count: s.present }), s.presentPeople),
+    line(format(c.notArrivedCount, { count: s.notArrived }), s.notArrivedPeople),
+    line(format(c.expectedCount, { count: s.expected }), s.expectedPeople),
+    ...unscheduled,
+  ];
 }

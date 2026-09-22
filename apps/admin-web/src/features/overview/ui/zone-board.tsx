@@ -3,6 +3,8 @@ import { format } from '@vakhta/i18n';
 import { EmptyState, Muted, Section, StatusPill, type Tone } from '@/components/app/page';
 import { Button } from '@/components/ui/button';
 import { usePersistentState } from '@/lib/ui-store';
+import { PeopleLine } from '@/components/app/avatar-stack';
+import { stacked, type Faces } from '../model/people';
 import { formatAge, minutesBetween, overviewText } from '../model/time';
 
 const STATUS_TONE: Record<ZoneStatusCode, Tone> = {
@@ -21,10 +23,12 @@ const STATUS_TONE: Record<ZoneStatusCode, Tone> = {
 export function ZoneBoard({
   zones,
   now,
+  faces,
   onOpen,
 }: {
   readonly zones: readonly OverviewZone[];
   readonly now: Date;
+  readonly faces: Faces;
   readonly onOpen: (zone: OverviewZone) => void;
 }) {
   const c = overviewText();
@@ -42,23 +46,13 @@ export function ZoneBoard({
           <ul className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6">
             {visible.map((z) => (
               <li key={z.zoneId} className="min-w-0">
-                <button
-                  type="button"
-                  onClick={() => onOpen(z)}
-                  className="flex h-full w-full min-w-0 flex-col gap-1.5 rounded-lg border bg-card p-3 text-left transition-colors outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 active:opacity-90"
-                >
-                  <StatusPill tone={STATUS_TONE[z.status]} className="self-start">
-                    {c.zoneStatus[z.status]}
-                    {z.since ? ` · ${formatAge(minutesBetween(z.since, now))}` : ''}
-                  </StatusPill>
-                  <span className="text-sm leading-snug font-medium break-words">{z.zoneName}</span>
-                  {multipleUnits && <Muted className="text-xs break-words">{z.orgUnitName}</Muted>}
-                  <span className="mt-auto text-xs text-muted-foreground tabular-nums">
-                    {z.planned > 0
-                      ? format(c.zonePeople, { present: z.present, planned: z.planned })
-                      : format(c.zonePeopleUnplanned, { present: z.present })}
-                  </span>
-                </button>
+                <ZoneCard
+                  zone={z}
+                  now={now}
+                  faces={faces}
+                  showUnit={multipleUnits}
+                  onOpen={() => onOpen(z)}
+                />
               </li>
             ))}
           </ul>
@@ -79,5 +73,59 @@ export function ZoneBoard({
         </div>
       )}
     </Section>
+  );
+}
+
+/**
+ * One zone: its state, then who is there and who of the plan is not, by face. The whole card opens
+ * the zone; the button lies under the content so the avatar stacks stay reachable on their own.
+ */
+function ZoneCard({
+  zone: z,
+  now,
+  faces,
+  showUnit,
+  onOpen,
+}: {
+  readonly zone: OverviewZone;
+  readonly now: Date;
+  readonly faces: Faces;
+  readonly showUnit: boolean;
+  readonly onOpen: () => void;
+}) {
+  const c = overviewText();
+  const showPresent = z.present > 0 || z.planned === 0;
+  return (
+    <div className="relative flex h-full min-w-0 flex-col gap-1.5 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-muted/60 has-[>button:active]:opacity-90">
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={z.zoneName}
+        className="absolute inset-0 cursor-pointer rounded-[inherit] outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      />
+      <StatusPill tone={STATUS_TONE[z.status]} className="self-start">
+        {c.zoneStatus[z.status]}
+        {z.since ? ` · ${formatAge(minutesBetween(z.since, now))}` : ''}
+      </StatusPill>
+      <span className="text-sm leading-snug font-medium break-words">{z.zoneName}</span>
+      {showUnit && <Muted className="text-xs break-words">{z.orgUnitName}</Muted>}
+      <span className="mt-auto flex flex-col gap-1 text-xs text-muted-foreground tabular-nums">
+        {z.planned > 0 && (
+          <span>{format(c.zonePeople, { present: z.present, planned: z.planned })}</span>
+        )}
+        {showPresent && (
+          <PeopleLine
+            label={format(c.presentCount, { count: z.present })}
+            people={stacked(z.presentPeople, faces)}
+          />
+        )}
+        {z.missingPeople.length > 0 && (
+          <PeopleLine
+            label={format(c.zoneMissingCount, { count: z.missingPeople.length })}
+            people={stacked(z.missingPeople, faces)}
+          />
+        )}
+      </span>
+    </div>
   );
 }

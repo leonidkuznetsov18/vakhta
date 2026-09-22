@@ -88,3 +88,26 @@ export function AvatarStack({
     </Tooltip>
   );
 }
+
+/**
+ * A count of people with their faces beside it: the one way the panel says "who". The stack
+ * sits above any whole-card link so pointing at it names the people instead of opening the card.
+ */
+export function PeopleLine({
+  label,
+  people,
+  max = 5,
+  className,
+}: {
+  readonly label: string;
+  readonly people: readonly StackedPerson[];
+  readonly max?: number;
+  readonly className?: string;
+}) {
+  return (
+    <span className={cn('flex flex-wrap items-center gap-x-2 gap-y-1', className)}>
+      <span className="break-words">{label}</span>
+      <AvatarStack people={people} max={max} size={22} className="relative z-10" />
+    </span>
+  );
+}

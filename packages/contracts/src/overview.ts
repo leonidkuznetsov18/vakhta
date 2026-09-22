@@ -45,7 +45,7 @@ export type OverviewScopeOptions = z.infer<typeof OverviewScopeOptions>;
 export const OverviewPerson = z.object({
   employeeId: Uuid,
   fullName: z.string(),
-  /** Planned start for a missing person; null for a present unscheduled one. */
+  /** Planned start for a planned person; null for one known only by an open shift. */
   planStartAt: IsoDateTime.nullable(),
   zoneName: z.string().nullable(),
 });
@@ -57,6 +57,8 @@ export const OverviewStaffing = z.object({
   notArrived: z.number().int().nonnegative(),
   expected: z.number().int().nonnegative(),
   unscheduled: z.number().int().nonnegative(),
+  presentPeople: z.array(OverviewPerson),
+  expectedPeople: z.array(OverviewPerson),
   notArrivedPeople: z.array(OverviewPerson),
   unscheduledPeople: z.array(OverviewPerson),
   oldestNotArrivedSince: IsoDateTime.nullable(),
@@ -134,6 +136,10 @@ export const OverviewZone = z.object({
   planned: z.number().int().nonnegative(),
   present: z.number().int().nonnegative(),
   since: IsoDateTime.nullable(),
+  /** Who has an open shift in the zone now. */
+  presentPeople: z.array(OverviewPerson),
+  /** Who is planned in the zone now and has no open shift there. */
+  missingPeople: z.array(OverviewPerson),
 });
 export type OverviewZone = z.infer<typeof OverviewZone>;
 
