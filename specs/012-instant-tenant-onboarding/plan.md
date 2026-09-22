@@ -98,7 +98,9 @@ suspended after measurement if safe automated deletion is unavailable.
 ## Owner correction: outstanding bot setup
 
 Control Tasks derives the missing-token requirement from the current enabled modules and secret
-presence. Show an actionable warning above historical jobs and deep-link the existing Bot form.
+presence. Merge the latest persisted result for each step into one current checklist, retaining
+its real job ID for actions. Include a gray expandable missing-token row in the same list and
+progress, with a link to the existing Bot form. Historical jobs remain unchanged in the API.
 Reuse the current workspace structure; do not invent a database job or mutate completed history.
 Token save already starts the real connection job and refreshes both tenant detail and jobs.
 Scope additionally includes control-web workspace/job model/tests and the three control catalogs.

@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { Check, ChevronRight, Circle, Minus, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import type { ProvisioningJobView } from '@vakhta/contracts';
+import type { ProvisioningJobView, TenantDetailView } from '@vakhta/contracts';
 import { ProvisioningStep, StepStatus, isStepWaitingForOperator } from '@vakhta/domain';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { controlApi } from '@/shared/api';
 import { currentLocale, fill, t } from '@/shared/i18n';
 import { StatusBadge } from '@/shared/ui';
-import { stepConfigurationTab } from './job-model';
+import { stepConfigurationTab, tenantChecklist, TaskKind } from './job-model';
 import { describeError, type Refresh } from './shared';
 
 type Step = ProvisioningJobView['steps'][number];
@@ -31,73 +31,87 @@ function canSkipStep(step: Step): boolean {
   );
 }
 
-export function BotTokenTask({ tenantId }: { tenantId: string }) {
+export function TenantChecklist({
+  detail,
+  jobs,
+  onChanged,
+}: {
+  detail: TenantDetailView;
+  jobs: ProvisioningJobView[];
+  onChanged: Refresh;
+}) {
   const m = t();
-  return (
-    <Alert className="border-orange-200 bg-orange-50 text-orange-900">
-      <TriangleAlert />
-      <AlertTitle className="flex flex-wrap items-center gap-2">
-        {m.jobs.addBotToken}
-        <StatusBadge
-          code={StepStatus.MANUAL_REQUIRED}
-          label={m.jobs.stepStatus[StepStatus.MANUAL_REQUIRED]}
-        />
-      </AlertTitle>
-      <AlertDescription className="flex flex-col items-start gap-3 text-orange-900">
-        <span>{m.workspace.botMissing}</span>
-        <Button
-          asChild
-          variant="outline"
-          size="sm"
-          className="bg-white text-orange-900 dark:bg-white dark:text-orange-900 dark:hover:bg-orange-100"
-        >
-          <Link to="/tenants/$id" params={{ id: tenantId }} search={{ tab: 'bot' }}>
-            {m.jobs.configure}
-          </Link>
-        </Button>
-      </AlertDescription>
-    </Alert>
-  );
-}
-
-export function JobCard({ job, onChanged }: { job: ProvisioningJobView; onChanged: Refresh }) {
-  const m = t().jobs;
+  const checklist = tenantChecklist(detail, jobs);
   const act = useMutation({
-    mutationFn: ({ step, action }: { step: string; action: StepAction }) =>
-      action === 'retry' ? controlApi.retryStep(job.id, step) : controlApi.skipStep(job.id, step),
+    mutationFn: ({ jobId, step, action }: { jobId: string; step: string; action: StepAction }) =>
+      action === 'retry' ? controlApi.retryStep(jobId, step) : controlApi.skipStep(jobId, step),
     onSuccess: () => void onChanged(),
     onError: (e: unknown) => toast.error(describeError(e)),
   });
-  const done = job.steps.filter((s) => s.status === StepStatus.DONE).length;
-  const skipped = job.steps.filter((s) => s.status === StepStatus.SKIPPED).length;
+  if (checklist.rows.length === 0)
+    return <p className="text-sm text-muted-foreground">{m.workspace.noJobs}</p>;
   return (
     <Card>
       <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <CardTitle>
-          {m.kinds[job.kind]} · {new Date(job.createdAt).toLocaleString(currentLocale())}
-        </CardTitle>
+        <CardTitle>{m.workspace.tabs.jobs}</CardTitle>
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <span>{fill(m.progress, { done, total: job.steps.length })}</span>
-          {skipped > 0 ? <span>{fill(m.skippedCount, { count: skipped })}</span> : null}
-          <StatusBadge code={job.status} label={m.status[job.status]} />
+          <span>
+            {fill(m.jobs.progress, { done: checklist.done, total: checklist.rows.length })}
+          </span>
+          {checklist.skipped > 0 ? (
+            <span>{fill(m.jobs.skippedCount, { count: checklist.skipped })}</span>
+          ) : null}
+          <StatusBadge code={checklist.status} label={m.jobs.status[checklist.status]} />
         </div>
       </CardHeader>
       <CardContent>
-        <ol className="divide-y">
-          {job.steps.map((step) => (
-            <JobStepItem
-              key={step.step}
-              step={step}
-              tenantId={job.tenantId}
-              pending={act.isPending}
-              onAction={(action) => {
-                if (!act.isPending) act.mutate({ step: step.step, action });
-              }}
-            />
-          ))}
+        <ol className="divide-y" aria-label={m.workspace.tabs.jobs}>
+          {checklist.rows.map(({ key, task }) => {
+            if (task.kind === TaskKind.BOT_TOKEN)
+              return <BotTokenItem key={key} tenantId={detail.id} />;
+            return (
+              <JobStepItem
+                key={key}
+                step={task.step}
+                tenantId={detail.id}
+                pending={act.isPending}
+                onAction={(action) => {
+                  if (!act.isPending)
+                    act.mutate({ jobId: task.jobId, step: task.step.step, action });
+                }}
+              />
+            );
+          })}
         </ol>
       </CardContent>
     </Card>
+  );
+}
+
+function BotTokenItem({ tenantId }: { tenantId: string }) {
+  const m = t();
+  return (
+    <li>
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center gap-3 rounded-md px-2 py-4 text-muted-foreground hover:bg-muted/60 active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+          <StepMarker status={StepStatus.PENDING} />
+          <span className="min-w-0 flex-1 font-medium">{m.jobs.addBotToken}</span>
+          <StatusBadge
+            code={StepStatus.PENDING}
+            label={m.jobs.stepStatus[StepStatus.MANUAL_REQUIRED]}
+          />
+          <ChevronRight aria-hidden="true" className="size-4 shrink-0 group-open:rotate-90" />
+        </summary>
+        <div className="space-y-3 px-2 pb-4 text-sm sm:pl-11">
+          <p className="text-muted-foreground">{m.workspace.botMissing}</p>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/tenants/$id" params={{ id: tenantId }} search={{ tab: 'bot' }}>
+              {m.jobs.configure}
+            </Link>
+          </Button>
+        </div>
+      </details>
+    </li>
   );
 }
 

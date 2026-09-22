@@ -44,7 +44,9 @@ no real employees, shifts or existing kiosk pairing are modified.
   addresses never serve another company's data. The existing production hosts keep working.
 - **AC-003**: A missing or failing optional bot connection does not prevent panel activation;
   bot failures remain visible and retryable independently. When WORKER_BOT is enabled without a
-  token, Tasks must show an outstanding Add bot token action, including already-created tenants.
+  token, Tasks must show an outstanding gray expandable Add bot token item inside its single
+  checklist, including already-created tenants. No separate bot warning block or separate bot
+  checklist is allowed; progress includes the unfinished item.
   Saving the token removes that setup action and exposes the actual connection job; disabling the
   module removes the requirement. Completed core provisioning must not imply bot readiness.
 - **AC-004**: Temporary gateway checks retry automatically with bounded delay and attempts; permanent

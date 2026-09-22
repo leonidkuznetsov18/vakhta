@@ -11,11 +11,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { controlApi, queryKeys } from '@/shared/api';
 import { t } from '@/shared/i18n';
 import { FailureState, LoadingState, PageHeader, IconButton } from '@/shared/ui';
-import { AuditTab, BotTab, DangerTab } from './workspace/details';
+import { AuditTab, BotTab } from './workspace/details';
 import { DatabaseTab } from './workspace/database';
 import { DomainsTab } from './workspace/domains';
-import { BotTokenTask, JobCard } from './workspace/jobs';
-import { needsBotToken } from './workspace/job-model';
+import { TenantChecklist } from './workspace/jobs';
 import { ModulesTab } from './workspace/modules';
 import { OverviewTab } from './workspace/overview';
 import { ParametersTab } from './workspace/parameters';
@@ -31,8 +30,7 @@ export type WorkspaceTab =
   | 'parameters'
   | 'branding'
   | 'jobs'
-  | 'audit'
-  | 'danger';
+  | 'audit';
 export const WORKSPACE_TABS: readonly WorkspaceTab[] = [
   'overview',
   'users',
@@ -44,7 +42,6 @@ export const WORKSPACE_TABS: readonly WorkspaceTab[] = [
   'branding',
   'jobs',
   'audit',
-  'danger',
 ];
 
 function hasLiveJob(jobs: ProvisioningJobView[] | undefined): boolean {
@@ -99,7 +96,6 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
       />
     ),
     audit: () => <AuditTab id={id} />,
-    danger: () => <DangerTab detail={detail} onChanged={refresh} />,
   };
 
   return (
@@ -231,18 +227,7 @@ function JobsPanel({
   onRetry: () => void;
   onChanged: () => Promise<unknown>;
 }) {
-  const m = t().workspace;
   if (pending) return <LoadingState />;
   if (failed || !jobs) return <FailureState onRetry={onRetry} />;
-  const missingBotToken = needsBotToken(detail);
-  if (jobs.length === 0 && !missingBotToken)
-    return <p className="text-sm text-muted-foreground">{m.noJobs}</p>;
-  return (
-    <div className="flex flex-col gap-4">
-      {missingBotToken ? <BotTokenTask tenantId={detail.id} /> : null}
-      {jobs.map((job) => (
-        <JobCard key={job.id} job={job} onChanged={onChanged} />
-      ))}
-    </div>
-  );
+  return <TenantChecklist detail={detail} jobs={jobs} onChanged={onChanged} />;
 }

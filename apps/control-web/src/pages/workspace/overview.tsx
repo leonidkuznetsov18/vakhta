@@ -5,7 +5,7 @@ import { JobStatus, TenantSecretKind, TenantSurface } from '@vakhta/domain';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { t } from '@/shared/i18n';
-import { JobCard } from './jobs';
+import { TenantChecklist } from './jobs';
 import { OnboardingCard } from './onboarding';
 import { InfoCard, primaryHosts, secretPresent, type Refresh } from './shared';
 
@@ -48,7 +48,7 @@ export function OverviewTab({
       <BrandingCard detail={detail} />
       {active ? (
         <div className="min-w-0 lg:col-span-3">
-          <JobCard job={active} onChanged={onChanged} />
+          <TenantChecklist detail={detail} jobs={jobs} onChanged={onChanged} />
         </div>
       ) : null}
     </div>

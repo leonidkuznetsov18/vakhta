@@ -332,11 +332,20 @@ it('keeps missing bot setup actionable after core provisioning and replaces it w
     return tenant;
   });
   const router = await open('jobs');
-  const task = (await screen.findByText('Add bot token')).closest('[role="alert"]');
+  const task = (await screen.findByText('Add bot token')).closest('li');
   if (!(task instanceof HTMLElement)) throw new Error('Missing bot setup task');
   expect(within(task).getByText('action needed')).toBeTruthy();
-  expect(screen.getByText('1 of 1 done')).toBeTruthy();
-  fireEvent.click(within(task).getByRole('link', { name: 'Open configuration' }));
+  expect(screen.getByText('1 of 2 done')).toBeTruthy();
+  expect(screen.getAllByRole('list', { name: 'Jobs' })).toHaveLength(1);
+  expect(screen.queryByRole('alert')).toBeNull();
+  const disclosure = task.querySelector('details');
+  const trigger = task.querySelector('summary');
+  if (!disclosure || !trigger) throw new Error('Missing expandable task');
+  expect(disclosure.open).toBe(false);
+  expect(trigger.className).toContain('text-muted-foreground');
+  fireEvent.click(trigger);
+  expect(disclosure.open).toBe(true);
+  fireEvent.click(within(task).getByRole('link', { name: 'Open configuration', hidden: true }));
   const input = await screen.findByLabelText('Save token');
   fireEvent.change(input, { target: { value: '123456:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save token' }));
@@ -350,6 +359,8 @@ it('keeps missing bot setup actionable after core provisioning and replaces it w
     });
   });
   await screen.findByText('Connect bot');
+  expect(screen.getAllByRole('list', { name: 'Jobs' })).toHaveLength(1);
+  expect(screen.getByText('1 of 2 done')).toBeTruthy();
   expect(screen.queryByText('Add bot token')).toBeNull();
   expect(screen.getByText('Connection failed')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Retry', hidden: true })).toBeTruthy();
@@ -373,3 +384,72 @@ it.each([
     await waitFor(() => expect(Boolean(screen.queryByText('Add bot token'))).toBe(required));
   },
 );
+
+it('keeps one latest result per task and retries the job that owns the current result', async () => {
+  const newerId = '00000000-0000-4000-8000-000000000004';
+  const connection: ProvisioningJobView = {
+    ...job,
+    id: newerId,
+    kind: 'ROTATE_BOT_TOKEN',
+    status: 'FAILED',
+    createdAt: '2026-09-22T10:00:00.000Z',
+    steps: [
+      {
+        step: 'BOT_WEBHOOK',
+        seq: 0,
+        status: 'FAILED',
+        attempts: 1,
+        lastError: 'Connection failed',
+        output: null,
+        startedAt: time,
+        finishedAt: time,
+      },
+    ],
+  };
+  vi.mocked(controlApi.jobs).mockResolvedValue([connection, job]);
+  const retry = vi.spyOn(controlApi, 'retryStep').mockResolvedValue(connection);
+  await open('jobs');
+  const list = await screen.findByRole('list', { name: 'Jobs' });
+  expect(screen.getAllByRole('list', { name: 'Jobs' })).toHaveLength(1);
+  expect(within(list).getAllByRole('listitem')).toHaveLength(3);
+  const item = within(list).getByText('Connect bot').closest('li');
+  if (!item) throw new Error('Missing bot step');
+  expect(within(item).queryByText('skipped')).toBeNull();
+  expect(within(item).getByText('Connection failed')).toBeTruthy();
+  fireEvent.click(within(item).getByRole('button', { name: 'Retry', hidden: true }));
+  await waitFor(() => expect(retry).toHaveBeenCalledExactlyOnceWith(newerId, 'BOT_WEBHOOK'));
+});
+
+it('shows one checklist after repeated provisioning and preserves a completed invitation across a later no-op', async () => {
+  const first: ProvisioningJobView = {
+    ...job,
+    status: 'DONE',
+    steps: [
+      {
+        step: 'INVITE_ADMIN',
+        seq: 0,
+        status: 'DONE',
+        attempts: 1,
+        lastError: null,
+        output: null,
+        startedAt: time,
+        finishedAt: time,
+      },
+    ],
+  };
+  const repeat: ProvisioningJobView = {
+    ...first,
+    id: '00000000-0000-4000-8000-000000000005',
+    createdAt: '2026-09-22T10:00:00.000Z',
+    steps: first.steps.map((step) => ({ ...step, status: 'SKIPPED' })),
+  };
+  vi.mocked(controlApi.jobs).mockResolvedValue([repeat, first]);
+  await open('jobs');
+  const list = await screen.findByRole('list', { name: 'Jobs' });
+  expect(screen.getAllByRole('list', { name: 'Jobs' })).toHaveLength(1);
+  expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+  expect(within(list).getByText('Invite administrator')).toBeTruthy();
+  expect(within(list).getByText('done')).toBeTruthy();
+  expect(screen.getByText('1 of 1 done')).toBeTruthy();
+  expect(screen.queryByText(/Provision client/)).toBeNull();
+});

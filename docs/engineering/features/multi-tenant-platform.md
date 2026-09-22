@@ -652,3 +652,18 @@ and must not be copied into reports. Remaining: authenticated browser acceptance
 post-build end-to-end timing; scoped Workers CI token installation/enablement awaits the owner's
 explicit browser confirmation. The working one-time deployment uses existing authorized Wrangler
 OAuth; that personal credential is not installed into CI. Public signup remains outside scope.
+
+### One current checklist correction, 2026-09-22
+
+The owner rejected the separate missing-token alert and multiple dated provisioning lists.
+Tasks now uses one checklist shared with Overview. A pure model merges repeated step results,
+keeps each current row's actual job ID for retry/skip, and preserves a successful step when a
+later run merely skips it. The missing-token requirement replaces/adds one gray expandable row
+inside that list and participates in its completion count (six completed core steps = 6 of 7).
+Its expanded content explains the token requirement and links to the existing Bot form. Remove
+the previous alert and duplicate JobCard renderer; stored job/audit history stays unchanged.
+Fourteen workspace regressions cover the single-list structure, disclosure, token save/disabled
+module, latest-job retry ownership and repeated provisioning with a skipped invitation. Local
+Control typecheck, scoped ESLint and production build passed. Desktop and 390px screenshots were
+captured and visually inspected; keyboard Enter expands the row with visible focus, and mobile
+content width equals 390. Production publication is verified separately after the shared push.

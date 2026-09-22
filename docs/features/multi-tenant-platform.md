@@ -63,7 +63,9 @@ authenticator code.
   schema, seed the directories (positions, downtime reasons, shift templates, the first site),
   reserve the storage folder, register the addresses, and invite the first administrator. Bot
   connection runs independently after activation. An enabled Worker bot without a token keeps a
-  visible Add bot token task with a link to its configuration. Each step shows done, failed or "needs your action" with instructions (for
+  gray expandable Add bot token item inside the same checklist, with a link to its configuration.
+  Tasks shows one current checklist, not one copy per provisioning run; repeated steps update the
+  existing item. Its count includes missing bot setup. Each step shows done, failed or "needs your action" with instructions (for
   example a DNS record to create). A failed step can be retried without repeating the others.
 - **Bot.** Telegram has no way to create bots automatically. The operator creates the bot in
   BotFather, pastes the token, and the platform checks it and connects it. The token is stored

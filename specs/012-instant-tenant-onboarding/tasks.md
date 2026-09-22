@@ -54,3 +54,7 @@ application behavior remains in the reviewed scope. No extension hooks are insta
 
 - [ ] T015 Install the prepared account-scoped Workers Scripts token in GitHub production secrets after the owner's explicit browser confirmation, enable TENANT_GATEWAY_ENABLED, and verify a CI gateway publication per plan: shared asset delivery and AC-008 (partial).
 - [ ] T016 Finish authenticated desktop/mobile browser acceptance after the extension handoff, repeat a clean end-to-end creation measurement after correcting local production build inputs, and update the existing engineering evidence per FR-005 / AC-009/010 / SC-002/003 (partial).
+
+## Owner correction: one checklist
+
+- [ ] T017 Replace the separate bot warning and job cards in Tasks with one current checklist. Keep the missing-token row gray and expandable inside the list, include it in progress, preserve real job-step retry targets, and verify saved/disabled bot states plus desktop/mobile behavior (AC-003; owner correction 2026-09-22).
