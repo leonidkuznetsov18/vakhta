@@ -101,10 +101,9 @@ export function DangerTab({ detail, onChanged }: TabProps) {
   const m = t().workspace;
   const [reason, setReason] = useState('');
   const run = useMutation({
-    mutationFn: (action: 'suspend' | 'resume' | 'provision') => {
+    mutationFn: (action: 'suspend' | 'resume') => {
       if (action === 'suspend') return controlApi.suspend(detail.id, reason);
-      if (action === 'resume') return controlApi.resume(detail.id);
-      return controlApi.provision(detail.id);
+      return controlApi.resume(detail.id);
     },
     onSuccess: async (_result, action) => {
       setReason('');
@@ -114,8 +113,6 @@ export function DangerTab({ detail, onChanged }: TabProps) {
     onError: (e: unknown) => toast.error(describeError(e)),
   });
   const suspended = detail.status === TenantStatus.SUSPENDED;
-  const provisionable =
-    detail.status === TenantStatus.DRAFT || detail.status === TenantStatus.ACTIVE;
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
@@ -145,23 +142,6 @@ export function DangerTab({ detail, onChanged }: TabProps) {
           )}
         </CardContent>
       </Card>
-      {provisionable ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{m.provision}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={run.isPending}
-              onClick={() => run.mutate('provision')}
-            >
-              {m.provision}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
     </div>
   );
 }
