@@ -528,7 +528,6 @@ visual acceptance is therefore pending, not inferred from component tests. Produ
 or password changes were not performed. Publication and deployed read-only checks are tracked in the
 delivery conversation and CI; no provider configuration or manual release messages are required.
 
-
 Client search clarity (2026-09-22): the client column now explicitly says Name in all three locales
 and always shows a labeled slug below the name; a configured panel hostname stays on its own line.
 Search still matches name or slug, with existing whitespace/case normalization. First-cell text wraps
