@@ -1,3 +1,9 @@
+## [1.27.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.26.0...v1.27.0) (2026-09-22)
+
+### Features
+
+* **admin:** show one terminal status and open its kiosk from the row ([05f24c8](https://github.com/leonidkuznetsov18/vakhta/commit/05f24c884060222480af458362d0451605fcf336))
+
 ## [1.26.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.25.0...v1.26.0) (2026-09-22)
 
 ### Features
