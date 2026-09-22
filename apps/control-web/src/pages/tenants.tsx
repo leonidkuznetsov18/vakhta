@@ -152,7 +152,7 @@ function TenantsTable({
         </TableBody>
       </Table>
       <div className="border-t px-4 py-3 text-sm text-muted-foreground">
-        {total === 0 ? m.tenants.empty : fill(m.tenants.count, { shown: rows.length, total })}
+        {fill(m.tenants.count, { shown: rows.length, total })}
       </div>
     </div>
   );

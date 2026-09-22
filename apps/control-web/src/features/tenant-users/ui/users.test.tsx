@@ -187,3 +187,13 @@ it('retains cached users after refresh failure and distinguishes offline state',
     expect(screen.getByText('You are offline. Reconnect to refresh users.')).toBeTruthy(),
   );
 });
+
+it('shows the zero filtered client count without claiming the tenant registry is empty', async () => {
+  await setup('#/');
+  await screen.findByRole('link', { name: 'Users: 1011' });
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search by name or slug' }), {
+    target: { value: 'unmatched' },
+  });
+  expect(screen.getByText('Showing 0 of 0')).toBeTruthy();
+  expect(screen.queryByText('No clients yet. Create the first one.')).toBeNull();
+});
