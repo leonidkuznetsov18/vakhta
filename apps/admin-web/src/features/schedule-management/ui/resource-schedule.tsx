@@ -263,7 +263,7 @@ export function ResourceSchedule({
         {...(grouping === 'people'
           ? {
               renderResourceTitle: (row: { readonly id: string; readonly title: string }) => (
-                <span className="flex items-center gap-1">
+                <span className="flex items-start justify-between gap-1">
                   <EmployeeProfileLink
                     id={row.id}
                     name={row.title}

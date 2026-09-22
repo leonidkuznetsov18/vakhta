@@ -91,6 +91,13 @@ function emphasized(item: CalendarItem, emphasis: CalendarEmphasis): boolean {
 }
 const PAGE_SIZE = 20;
 const CELL_PREVIEW_LIMIT = 3;
+// The resource column keeps one width in every period; the date columns share the rest equally
+// and never drop below the minimum, so the table scrolls sideways instead of squeezing cards.
+const RESOURCE_COLUMN_WIDTH = 224;
+const DATE_COLUMN_MIN_WIDTH = 136;
+// A card grows with its column up to a readable width; in a wide day column cards sit side by
+// side instead of one stretched card per line.
+const CARD_CLASS = 'min-w-0 grow basis-52 max-w-md';
 
 function ItemContent({ item }: { readonly item: CalendarItem }) {
   const description = [item.description, ...(item.parts?.map((part) => part.label) ?? [])]
@@ -152,6 +159,30 @@ function ItemContent({ item }: { readonly item: CalendarItem }) {
   );
 }
 
+/** Name, identifier and totals of a row: the same block in the grid and in the mobile list. */
+function ResourceHeading({
+  row,
+  title,
+  as: Title = 'p',
+}: {
+  readonly row: CalendarResource;
+  readonly title: ReactNode;
+  readonly as?: 'p' | 'h3';
+}) {
+  const facts = [row.description, row.summary].filter(Boolean).join(' · ');
+  return (
+    <div className="min-w-0 space-y-1">
+      <Title className="min-w-0 font-semibold [overflow-wrap:anywhere]">{title}</Title>
+      {facts && (
+        <p className="text-xs text-muted-foreground tabular-nums [overflow-wrap:anywhere]">
+          {facts}
+        </p>
+      )}
+      {row.badge && <Note note={row.badge} />}
+    </div>
+  );
+}
+
 /** A controlled projection: no API access, date arithmetic, permissions or draft writes. */
 export function ResourceCalendar(props: ResourceCalendarProps) {
   const { model, layout, selectedDate, selection, detail, onDate } = props;
@@ -192,7 +223,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
     return (
       <div
         className={cn(
-          'group/cell flex min-h-[4.75rem] min-w-0 flex-col gap-1.5 rounded-md',
+          'group/cell flex min-h-[4.75rem] min-w-0 flex-wrap content-start gap-1.5 rounded-md',
           droppable && 'outline-dashed outline-1 outline-offset-2 outline-muted-foreground/40',
         )}
         onDragOver={(event) => {
@@ -205,7 +236,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
           setDragging(null);
         }}
       >
-        {cell.note && <Note note={cell.note} className="px-0.5" />}
+        {cell.note && <Note note={cell.note} className="basis-full px-0.5" />}
         {cell.items.slice(0, CELL_PREVIEW_LIMIT).map((item) => {
           const selected = cellSelected && selection?.itemId === item.id;
           const highlight = emphasis ? emphasized(item, emphasis) : null;
@@ -214,7 +245,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
               ? () => props.onRemove?.({ resourceId: row.id, date: cell.date, itemId: item.id })
               : null;
           return (
-            <div key={item.id} className="group/item relative min-w-0">
+            <div key={item.id} className={cn('group/item relative', CARD_CLASS)}>
               <Button
                 variant="outline"
                 aria-pressed={selected}
@@ -280,7 +311,10 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
         {cell.items.length > CELL_PREVIEW_LIMIT && (
           <Button
             variant="ghost"
-            className={cn('h-auto min-h-9 w-full whitespace-normal text-xs', calendarInteraction)}
+            className={cn(
+              'h-auto min-h-9 basis-full whitespace-normal text-xs',
+              calendarInteraction,
+            )}
             onClick={(event) => {
               openFrom(event.currentTarget);
               props.onSelect({ resourceId: row.id, date: cell.date });
@@ -299,9 +333,10 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
             size={empty ? 'default' : 'sm'}
             aria-label={`${cell.create.label}: ${row.title}, ${cell.date}`}
             className={cn(
-              'w-full whitespace-normal text-xs text-muted-foreground',
+              'whitespace-normal text-xs text-muted-foreground',
+              CARD_CLASS,
               empty
-                ? 'h-auto min-h-[4.75rem] flex-1 border border-dashed border-transparent opacity-0 transition-opacity hover:border-border hover:text-foreground focus-visible:opacity-100 group-hover/cell:opacity-100 max-md:opacity-100'
+                ? 'h-auto min-h-[4.75rem] border border-dashed border-transparent opacity-0 transition-opacity hover:border-border hover:text-foreground focus-visible:opacity-100 group-hover/cell:opacity-100 max-md:opacity-100'
                 : cn(
                     'h-auto min-h-8 opacity-0 transition-opacity focus-visible:opacity-100 group-hover/cell:opacity-100 max-md:opacity-100',
                     cellSelected && 'opacity-100',
@@ -319,7 +354,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
           </Button>
         )}
         {cell.create?.disabledReason && empty && !readonlyDate && (
-          <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+          <p className="basis-full text-xs text-muted-foreground [overflow-wrap:anywhere]">
             {cell.create.disabledReason}
           </p>
         )}
@@ -389,15 +424,11 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
               const cell = row.cells.find((value) => value.date === selectedDate);
               return (
                 <section key={row.id} className="min-w-0 space-y-3 rounded-lg border p-3">
-                  <div>
-                    <h3 className="font-semibold [overflow-wrap:anywhere]">
-                      {props.renderResourceTitle?.(row) ?? row.title}
-                    </h3>
-                    <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                      {[row.description, row.summary].filter(Boolean).join(' · ')}
-                    </p>
-                    {row.badge && <Note note={row.badge} />}
-                  </div>
+                  <ResourceHeading
+                    row={row}
+                    title={props.renderResourceTitle?.(row) ?? row.title}
+                    as="h3"
+                  />
                   {cell ? cellContent(row, cell) : <p>{model.emptyLabel}</p>}
                 </section>
               );
@@ -409,11 +440,16 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
           <Table
             aria-label={model.label}
             className="table-fixed [&_tr>*:not(:last-child)]:border-r [&_tr>*]:border-border"
-            style={{ minWidth: `${160 + model.dates.length * 136}px` }}
+            style={{
+              minWidth: `${RESOURCE_COLUMN_WIDTH + model.dates.length * DATE_COLUMN_MIN_WIDTH}px`,
+            }}
           >
             <TableHeader>
               <TableRow>
-                <TableHead className="sticky left-0 z-10 w-40 whitespace-normal bg-background">
+                <TableHead
+                  className="sticky left-0 z-10 whitespace-normal bg-background"
+                  style={{ width: RESOURCE_COLUMN_WIDTH }}
+                >
                   {model.resourceLabel}
                 </TableHead>
                 {model.dates.map((date, index) => (
@@ -422,7 +458,7 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
                     aria-current={date.today ? 'date' : undefined}
                     title={date.readonly ? date.label : undefined}
                     className={cn(
-                      'w-34 whitespace-normal px-2 py-1.5 text-center align-top',
+                      'whitespace-normal px-2 py-1.5 text-center align-top',
                       date.today &&
                         'bg-emerald-500/15 shadow-[inset_3px_0_0_var(--color-emerald-600),inset_-3px_0_0_var(--color-emerald-600),inset_0_3px_0_var(--color-emerald-600)] dark:bg-emerald-400/20 dark:shadow-[inset_3px_0_0_var(--color-emerald-500),inset_-3px_0_0_var(--color-emerald-500),inset_0_3px_0_var(--color-emerald-500)]',
                       date.readonly && 'bg-muted/40 text-muted-foreground',
@@ -476,18 +512,10 @@ export function ResourceCalendar(props: ResourceCalendarProps) {
               {rows.map((row, rowIndex) => (
                 <TableRow key={row.id} className="hover:bg-transparent">
                   <TableCell className="sticky left-0 z-10 whitespace-normal bg-background align-top">
-                    <p className="font-semibold [overflow-wrap:anywhere]">
-                      {props.renderResourceTitle?.(row) ?? row.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
-                      {row.description}
-                    </p>
-                    {row.summary && (
-                      <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-                        {row.summary}
-                      </p>
-                    )}
-                    {row.badge && <Note note={row.badge} className="mt-1" />}
+                    <ResourceHeading
+                      row={row}
+                      title={props.renderResourceTitle?.(row) ?? row.title}
+                    />
                   </TableCell>
                   {row.cells.map((cell, index) => (
                     <TableCell
