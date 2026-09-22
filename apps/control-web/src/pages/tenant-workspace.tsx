@@ -1,3 +1,4 @@
+import { TenantUsers } from '@/features/tenant-users';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import type { ProvisioningJobView, TenantDetailView } from '@vakhta/contracts';
@@ -20,6 +21,7 @@ import { ParametersTab } from './workspace/parameters';
 import { BrandingEditor } from '@/features/tenant-branding';
 
 export type WorkspaceTab =
+  | 'users'
   | 'overview'
   | 'modules'
   | 'database'
@@ -32,6 +34,7 @@ export type WorkspaceTab =
   | 'danger';
 export const WORKSPACE_TABS: readonly WorkspaceTab[] = [
   'overview',
+  'users',
   'modules',
   'database',
   'bot',
@@ -76,6 +79,7 @@ export function TenantWorkspacePage({ id, tab }: { id: string; tab: WorkspaceTab
   if (!tenant.data) return <FailureState onRetry={() => void tenant.refetch()} />;
   const detail = tenant.data;
   const panels: Record<WorkspaceTab, () => React.ReactElement> = {
+    users: () => <TenantUsers tenantId={id} />,
     overview: () => <OverviewTab detail={detail} jobs={jobs.data ?? []} onChanged={refresh} />,
     modules: () => <ModulesTab detail={detail} onChanged={refresh} />,
     database: () => <DatabaseTab detail={detail} />,

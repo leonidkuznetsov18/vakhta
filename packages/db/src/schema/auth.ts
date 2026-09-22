@@ -1,3 +1,4 @@
+import { WebRole } from '@vakhta/domain';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -107,16 +108,7 @@ export const authTwoFactor = pgTable(
 );
 
 /** Ролі ТЗ 2. Працівники користуються ботом і веб-ролі не мають. */
-export const webRole = pgEnum('web_role', [
-  'PRODUCTION_HEAD',
-  'PLANNER',
-  'HR',
-  'SHIFT_MASTER',
-  'CLEANLINESS_CONTROLLER',
-  'ACCOUNTANT',
-  'ADMIN',
-  'AUDITOR',
-]);
+export const webRole = pgEnum('web_role', WebRole);
 
 /** Область даних FR-AUTH-03: підприємство, майданчик, підрозділ, бригада, зона. */
 export const scopeType = pgEnum('scope_type', ['ENTERPRISE', 'SITE', 'ORG_UNIT', 'TEAM', 'ZONE']);

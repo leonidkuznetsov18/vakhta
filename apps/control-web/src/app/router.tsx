@@ -1,3 +1,4 @@
+import { TenantUserFilter, TenantUserGroup } from '@vakhta/contracts';
 import { useQuery } from '@tanstack/react-query';
 import {
   Outlet,
@@ -58,9 +59,13 @@ const createRoute_ = createRoute({
   component: CreateTenantPage,
 });
 const workspaceSearch = z.object({
+  usersPage: z.number().int().min(1).max(100000).catch(1).default(1),
+  usersRole: TenantUserFilter.catch(TenantUserGroup.ALL).default(TenantUserGroup.ALL),
+  usersSearch: z.string().trim().max(200).catch('').default(''),
   tab: z
     .enum([
       'overview',
+      'users',
       'modules',
       'database',
       'bot',

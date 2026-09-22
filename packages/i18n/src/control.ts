@@ -1,4 +1,10 @@
 import {
+  tenantUsersEn,
+  tenantUsersUk,
+  tenantUsersRu,
+  type TenantUsersMessages,
+} from './tenant-users.js';
+import {
   operatorInvitationsUk,
   operatorInvitationsEn,
   operatorInvitationsRu,
@@ -43,6 +49,7 @@ type TenantSettingGroupName =
 
 /** Control panel (Vakhta Control) texts: operators only, still trilingual (AGENTS.md). */
 export interface ControlMessages {
+  users: TenantUsersMessages;
   readonly operatorInvitations: OperatorInvitationMessages;
   administrators: TenantAdministratorMessages;
   readonly branding: BrandingMessages;
@@ -142,6 +149,7 @@ export interface ControlMessages {
       domainCount: string;
     };
     tabs: Record<
+      | 'users'
       | 'overview'
       | 'modules'
       | 'database'
@@ -286,6 +294,7 @@ export interface ControlMessages {
 }
 
 export const controlUk: ControlMessages = {
+  users: tenantUsersUk,
   administrators: tenantAdministratorsUk,
   operatorInvitations: operatorInvitationsUk,
   branding: brandingUk,
@@ -403,6 +412,7 @@ export const controlUk: ControlMessages = {
       domainCount: 'Доменів: {count}',
     },
     tabs: {
+      users: tenantUsersUk.title,
       overview: 'Огляд',
       modules: 'Модулі',
       database: 'База даних',
@@ -594,6 +604,7 @@ export const controlUk: ControlMessages = {
 };
 
 export const controlEn: ControlMessages = {
+  users: tenantUsersEn,
   administrators: tenantAdministratorsEn,
   operatorInvitations: operatorInvitationsEn,
   branding: brandingEn,
@@ -711,6 +722,7 @@ export const controlEn: ControlMessages = {
       domainCount: 'Domains: {count}',
     },
     tabs: {
+      users: tenantUsersEn.title,
       overview: 'Overview',
       modules: 'Modules',
       database: 'Database',
@@ -901,6 +913,7 @@ export const controlEn: ControlMessages = {
 };
 
 export const controlRu: ControlMessages = {
+  users: tenantUsersRu,
   administrators: tenantAdministratorsRu,
   operatorInvitations: operatorInvitationsRu,
   branding: brandingRu,
@@ -1018,6 +1031,7 @@ export const controlRu: ControlMessages = {
       domainCount: 'Доменов: {count}',
     },
     tabs: {
+      users: tenantUsersRu.title,
       overview: 'Обзор',
       modules: 'Модули',
       database: 'База данных',

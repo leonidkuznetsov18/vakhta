@@ -1,3 +1,5 @@
+import { TenantUsersController } from './users/users.controller.js';
+import { TenantUsersService } from './users/users.service.js';
 import { OperatorInvitationsController } from './auth/operator-invitations.controller.js';
 import { OperatorInvitationsService } from './auth/operator-invitations.service.js';
 import { AdministratorsController } from './administrators/administrators.controller.js';
@@ -34,6 +36,7 @@ import { TenantsService } from './tenants/tenants.service.js';
     ControlAuthModule,
   ],
   controllers: [
+    TenantUsersController,
     AdministratorsController,
     BrandingController,
     PublicLogoController,
@@ -47,6 +50,7 @@ import { TenantsService } from './tenants/tenants.service.js';
     OperatorInvitationsController,
   ],
   providers: [
+    TenantUsersService,
     AdministratorsService,
     BrandingService,
     LogoStorage,

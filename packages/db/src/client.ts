@@ -5,11 +5,15 @@ import * as schema from './schema/index.js';
 export interface DatabaseOptions {
   /** Розмір пулу на інстанс; 2+ stateless-інстанси × пул ≤ max_connections Postgres. */
   readonly max?: number;
+  readonly connectTimeoutSeconds?: number;
 }
 
 export function createDatabase(url: string, options: DatabaseOptions = {}) {
   const client = postgres(url, {
     max: options.max ?? 10,
+    ...(options.connectTimeoutSeconds === undefined
+      ? {}
+      : { connect_timeout: options.connectTimeoutSeconds }),
     // Усі моменти в UTC; локальний час рахується в застосунку за tz майданчика (ADR-5).
     connection: { timezone: 'UTC' },
     // NOTICE від Postgres (наприклад, про каскадний TRUNCATE) не є подіями застосунку.
