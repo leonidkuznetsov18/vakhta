@@ -381,6 +381,42 @@ describe('photo inspection form and geometry', () => {
       expect(fromCanvas(toCanvas(annotation, 600, 400), 600, 400)).toEqual(geometry);
     }
   });
+  it('clips a region dragged past the photo edge instead of rejecting it', () => {
+    const drawn = (geometry: object) =>
+      ({ target: { selector: { type: 'RECTANGLE', geometry } } }) as unknown as Parameters<
+        typeof fromCanvas
+      >[0];
+    expect(fromCanvas(drawn({ x: 900, y: -40, w: 500, h: 240 }), 1200, 800)).toEqual({
+      type: 'RECTANGLE',
+      x: 0.75,
+      y: 0,
+      width: 0.25,
+      height: 0.25,
+    });
+    const polygon = {
+      target: {
+        selector: {
+          type: 'POLYGON',
+          geometry: {
+            points: [
+              [-10, 0],
+              [1300, 400],
+              [600, 900],
+            ],
+          },
+        },
+      },
+    } as unknown as Parameters<typeof fromCanvas>[0];
+    expect(fromCanvas(polygon, 1200, 800)).toEqual({
+      type: 'POLYGON',
+      points: [
+        [0, 0],
+        [1, 0.5],
+        [0.5, 1],
+      ],
+    });
+    expect(() => fromCanvas(drawn({ x: 1300, y: 0, w: 100, h: 100 }), 1200, 800)).toThrow();
+  });
   it('requires a named object before a newly drawn region can be saved', () => {
     const editor = new InspectionEditor(view);
     editor.addBox();

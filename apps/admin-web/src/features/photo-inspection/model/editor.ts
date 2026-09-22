@@ -71,21 +71,35 @@ export function toCanvas(
 }
 const Pixels = z.object({ x: z.number(), y: z.number(), w: z.number(), h: z.number() });
 const Points = z.object({ points: z.array(z.tuple([z.number(), z.number()])) });
+const Bounds = z.object({
+  bounds: z.object({ minX: z.number(), minY: z.number(), maxX: z.number(), maxY: z.number() }),
+});
+function outsidePhoto(annotation: ImageAnnotation, width: number, height: number): boolean {
+  const { bounds } = Bounds.parse(annotation.target.selector.geometry);
+  return bounds.minX < 0 || bounds.minY < 0 || bounds.maxX > width || bounds.maxY > height;
+}
+const unit = (value: number) => Math.min(1, Math.max(0, value));
+/**
+ * A box dragged past the photo edge is clipped to the photo instead of rejected: the part outside
+ * the photo marks nothing, and rejecting it silently blocked saving.
+ */
 export function fromCanvas(annotation: ImageAnnotation, width: number, height: number): Geometry {
   if (annotation.target.selector.type === ShapeType.RECTANGLE) {
     const g = Pixels.parse(annotation.target.selector.geometry);
+    const left = unit(g.x / width);
+    const top = unit(g.y / height);
     return InspectionGeometry.parse({
       type: 'RECTANGLE',
-      x: g.x / width,
-      y: g.y / height,
-      width: g.w / width,
-      height: g.h / height,
+      x: left,
+      y: top,
+      width: unit((g.x + g.w) / width) - left,
+      height: unit((g.y + g.h) / height) - top,
     });
   }
   const g = Points.parse(annotation.target.selector.geometry);
   return InspectionGeometry.parse({
     type: 'POLYGON',
-    points: g.points.map(([x, y]) => [x / width, y / height]),
+    points: g.points.map(([x, y]) => [unit(x / width), unit(y / height)]),
   });
 }
 interface EditorState extends ReviewChangeState {
@@ -237,6 +251,8 @@ export class InspectionEditor {
             comment: '',
             sourceRunId: null,
           };
+      if (outsidePhoto(annotation, this.width, this.height))
+        this.canvas?.updateAnnotation(toCanvas(next, this.width, this.height));
       this.commit({
         annotations: previous
           ? state.review.annotations.map((a) => (a.id === next.id ? next : a))
