@@ -66,6 +66,47 @@ async function fixture() {
   });
   return { user, employeeId, telegramId, accountId, command, questionId };
 }
+describe('communication audience', () => {
+  async function person(
+    fullName: string,
+    options: { status?: 'ACTIVE' | 'BLOCKED'; link?: 'ACTIVE' | 'REVOKED' },
+  ) {
+    const id = randomUUID();
+    await test.db.insert(employees).values({
+      id,
+      personnelNumber: id,
+      fullName,
+      locale: 'uk',
+      status: options.status ?? 'ACTIVE',
+    });
+    if (options.link)
+      await test.db.insert(telegramAccounts).values({
+        id: randomUUID(),
+        employeeId: id,
+        telegramUserId: Math.floor(Math.random() * 1e12) + 1,
+        status: options.link,
+      });
+    return id;
+  }
+  it('lets a sender write to every active employee whose Telegram is linked, and only to them', async () => {
+    const { user } = await fixture();
+    const tag = randomUUID();
+    const linked = await person(`${tag} A linked`, { link: 'ACTIVE' });
+    const unlinked = await person(`${tag} B unlinked`, {});
+    const revoked = await person(`${tag} C revoked`, { link: 'REVOKED' });
+    const blocked = await person(`${tag} D blocked`, { status: 'BLOCKED', link: 'ACTIVE' });
+    const page = await service.audience(user, { search: tag, page: 1 });
+    expect(page.items.map(({ id, eligible, reason }) => ({ id, eligible, reason }))).toEqual([
+      { id: linked, eligible: true, reason: null },
+      { id: unlinked, eligible: false, reason: 'UNLINKED' },
+      { id: revoked, eligible: false, reason: 'UNLINKED' },
+      { id: blocked, eligible: false, reason: 'INACTIVE' },
+    ]);
+    const all = await service.audience(user, { search: tag, page: 1 }, true);
+    expect(all.items.map((item) => item.id)).toEqual([linked]);
+    expect(all.total).toBe(1);
+  });
+});
 describe('communication transactions and authorization', () => {
   it('commits one campaign and one ordered batch for concurrent identical requests', async () => {
     const f = await fixture();

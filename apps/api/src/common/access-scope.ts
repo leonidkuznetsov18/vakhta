@@ -107,6 +107,14 @@ export function scopedEvents<T>(
 }
 
 /**
+ * A column that stays table-qualified inside a correlated subquery. In a single-table select
+ * drizzle renders a bare column name, which the subquery would bind to its own column instead.
+ */
+export function qualifiedColumn(column: AnyColumn): SQL {
+  return sql.raw(`"${getTableName(column.table)}"."${column.name}"`);
+}
+
+/**
  * Place of an employee by their open position, as SQL expressions over an employee id column:
  * requests and summaries have no unit of their own, the person's current post decides it.
  */
@@ -116,9 +124,7 @@ export function employeePlaceSql(employeeId: AnyColumn): {
   readonly team: SQL<string | null>;
   readonly zone: SQL<string | null>;
 } {
-  // Always table-qualified: in a single-table select drizzle renders a bare column name, which the
-  // subquery would bind to its own p.employee_id and match every position.
-  const person = sql.raw(`"${getTableName(employeeId.table)}"."${employeeId.name}"`);
+  const person = qualifiedColumn(employeeId);
   const current = (column: SQL) =>
     sql<
       string | null

@@ -31,7 +31,7 @@ import {
 import { type AccessScope } from '@vakhta/domain';
 import { DATABASE } from '../infra/database.module.js';
 import { type WebUser, webUserActor } from '../auth/web-auth.guard.js';
-import { employeePlaceSql, scopeCondition } from '../common/access-scope.js';
+import { employeePlaceSql, qualifiedColumn, scopeCondition } from '../common/access-scope.js';
 import { DomainError } from '../common/domain-error.js';
 import { isSerializationFailure, isUniqueViolation } from '../common/pg-errors.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -60,6 +60,8 @@ export class CommunicationsService {
   async audience(user: WebUser, query: CommunicationAudienceQuery, allIds = false) {
     const scope = await communicationScope(this.db, user.id);
     const place = employeePlaceSql(employees.id);
+    const linked = sql<boolean>`exists(select 1 from telegram_accounts t
+      where t.employee_id = ${qualifiedColumn(employees.id)} and t.status = 'ACTIVE')`;
     const search = query.search.replace(/[\\%_]/g, '\\$&');
     const where = and(
       scopeCondition(scope, place),
@@ -70,9 +72,7 @@ export class CommunicationsService {
       query.orgUnitId ? eq(place.unit, query.orgUnitId) : undefined,
       query.teamId ? eq(place.team, query.teamId) : undefined,
       allIds ? eq(employees.status, 'ACTIVE') : undefined,
-      allIds
-        ? sql`exists(select 1 from telegram_accounts t where t.employee_id = ${employees.id} and t.status = 'ACTIVE')`
-        : undefined,
+      allIds ? linked : undefined,
     );
     const [count] = await this.db
       .select({ total: sql<number>`count(*)::int` })
@@ -90,7 +90,7 @@ export class CommunicationsService {
         fullName: employees.fullName,
         personnelNumber: employees.personnelNumber,
         status: employees.status,
-        linked: sql<boolean>`exists(select 1 from telegram_accounts t where t.employee_id = ${employees.id} and t.status = 'ACTIVE')`,
+        linked,
         unitName: sql<
           string | null
         >`(select name from ${orgUnits} where ${orgUnits.id} = ${place.unit})`,
