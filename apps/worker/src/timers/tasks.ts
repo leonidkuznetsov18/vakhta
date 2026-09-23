@@ -10,7 +10,7 @@ import {
   type Transaction,
 } from '@vakhta/db';
 import {
-  handleAckReminderWithin,
+  retiredAckReminder,
   handleShiftReminderWithin,
   type ReminderOutcome,
 } from './reminders.js';
@@ -53,7 +53,7 @@ export function executeTimerWithin(
     case 'SHIFT_REMINDER':
       return handleShiftReminderWithin(tx, task.payload, now);
     case 'ACK_REMINDER':
-      return handleAckReminderWithin(tx, task.payload, now);
+      return retiredAckReminder();
     case 'RETURN_REMINDER':
       return handleReturnReminderWithin(tx, task.payload, now, autoCloseGraceMinutes);
     case 'DOWNTIME_ESCALATION':

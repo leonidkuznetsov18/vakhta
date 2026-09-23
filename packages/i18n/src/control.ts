@@ -42,7 +42,6 @@ type TenantSettingName =
   | 'mediaNearDuplicateDistance'
   | 'mediaRetentionDays'
   | 'shiftReminderMinutes'
-  | 'ackReminderHours'
   | 'appealWindowDays';
 type TenantSettingGroupName =
   'presence' | 'shift' | 'breaks' | 'incidents' | 'handover' | 'kiosk' | 'photos';
@@ -593,7 +592,6 @@ export const controlUk: ControlMessages = {
       mediaNearDuplicateDistance: 'Поріг схожості дублів (0–64)',
       mediaRetentionDays: 'Зберігати фото, днів',
       shiftReminderMinutes: 'Нагадування до зміни, хв',
-      ackReminderHours: 'Повторне нагадування про графік, год',
       appealWindowDays: 'Строк апеляції, робочих днів',
     },
     defaultValue: 'за замовчуванням: {value}',
@@ -913,7 +911,6 @@ export const controlEn: ControlMessages = {
       mediaNearDuplicateDistance: 'Near-duplicate threshold (0–64)',
       mediaRetentionDays: 'Keep photos, days',
       shiftReminderMinutes: 'Reminder before a shift, min',
-      ackReminderHours: 'Schedule acknowledgement reminder, h',
       appealWindowDays: 'Appeal window, working days',
     },
     defaultValue: 'default: {value}',
@@ -1230,7 +1227,6 @@ export const controlRu: ControlMessages = {
       mediaNearDuplicateDistance: 'Порог похожести дублей (0–64)',
       mediaRetentionDays: 'Хранить фото, дней',
       shiftReminderMinutes: 'Напоминание до смены, мин',
-      ackReminderHours: 'Повторное напоминание о графике, ч',
       appealWindowDays: 'Срок апелляции, рабочих дней',
     },
     defaultValue: 'по умолчанию: {value}',

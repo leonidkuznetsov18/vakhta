@@ -93,7 +93,7 @@ Further users and roles are created by the administrator in the panel or through
 
 ## Shift schedule
 
-The `apps/api/src/scheduling` module implements spec 3: monthly schedule versions per unit with the lifecycle `DRAFT → IN_REVIEW → PUBLISHED → SUPERSEDED`. The planner (`PLANNER`) creates a draft and sends the whole month in one `PUT /admin/schedules/:id/assignments`; the server computes planned instants in the site's IANA time zone and validates overlaps, rest between shifts (`SCHEDULE_MIN_REST_MINUTES`), duplicates, hour limits and the day/night balance, taking into account already published shifts of the same employees in other units. Errors block `submit` and `publish`; warnings are only shown. The head of production (`PRODUCTION_HEAD`) or `ADMIN` publishes: the previous version becomes `SUPERSEDED`, employees with a linked Telegram get a message with an "Acknowledged" button, and the `timers` queue receives "shift soon" and repeated acknowledgement reminders.
+The `apps/api/src/scheduling` module implements spec 3: monthly schedule versions per unit with the lifecycle `DRAFT → IN_REVIEW → PUBLISHED → SUPERSEDED`. The planner (`PLANNER`) creates a draft and sends the whole month in one `PUT /admin/schedules/:id/assignments`; the server computes planned instants in the site's IANA time zone and validates overlaps, rest between shifts (`SCHEDULE_MIN_REST_MINUTES`), duplicates, hour limits and the day/night balance, taking into account already published shifts of the same employees in other units. Errors block `submit` and `publish`; warnings are only shown. The head of production (`PRODUCTION_HEAD`) or `ADMIN` publishes: the previous version becomes `SUPERSEDED`, employees with a linked Telegram get a message listing each added, cancelled or changed shift with a "View schedule" button (no confirmation, ADR-0016), and the `timers` queue receives "shift soon" reminders.
 
 ```bash
 # monthly draft
@@ -104,12 +104,11 @@ curl -b cookies.txt -X PUT localhost:3000/admin/schedules/<id>/assignments -H 'c
   -d '{"items":[{"employeeId":"<emp>","templateId":"<DAY>","businessDate":"2026-10-01","zoneId":"<zone>"}]}'
 curl -b cookies.txt -X POST localhost:3000/admin/schedules/<id>/submit
 curl -b cookies.txt -X POST localhost:3000/admin/schedules/<id>/publish -H 'content-type: application/json' -d '{}'
-curl -b cookies.txt localhost:3000/admin/schedules/<id>/acknowledgements
 ```
 
-The "Schedule" section of the panel (`apps/admin-web/src/schedule`) does the same without curl: site/unit/month filters, versions with status badges, an "employees × days" grid with D/N in a cell and the zone in the row, "Save" (PUT of the whole month), "Submit for review" (disabled while there are errors or unsaved changes), "Publish" / "Return to draft" for a version in review, a validation panel and an acknowledgement table for the published version. Page tests with a mocked API: `pnpm --filter admin-web test`.
+The "Schedule" section of the panel (`apps/admin-web/src/schedule`) does the same without curl: site/unit/month filters, versions with status badges, an "employees × days" grid with D/N in a cell and the zone in the row, "Save" (PUT of the whole month), "Submit for review" (disabled while there are errors or unsaved changes), "Publish" / "Return to draft" for a version in review, and a validation panel. Page tests with a mocked API: `pnpm --filter admin-web test`.
 
-In the bot the employee sees "My plan" (the `/plan` command or the button): a month calendar with day and night shifts, zones and an hours total, and confirms acknowledgement with a button. The worker polls `notification_outbox` every `OUTBOX_POLL_MS` and sends messages through the Bot API with retries; without `TELEGRAM_BOT_TOKEN` the relay is off and rows wait in `PENDING`.
+In the bot the employee sees "My plan" (the `/plan` command or the button): a month calendar with day and night shifts, zones and an hours total. The worker polls `notification_outbox` every `OUTBOX_POLL_MS` and sends messages through the Bot API with retries; without `TELEGRAM_BOT_TOKEN` the relay is off and rows wait in `PENDING`.
 
 ## Shift: states, intervals, summary
 

@@ -25,17 +25,6 @@ export class TimerScheduler {
       payload: { assignmentId, fireAt: fireAt.toISOString() },
     });
   }
-  scheduleAckReminder(
-    tx: Transaction,
-    versionId: string,
-    employeeId: string,
-    fireAt: Date,
-  ): Promise<void> {
-    return this.enqueue(tx, {
-      kind: 'ACK_REMINDER',
-      payload: { versionId, employeeId, fireAt: fireAt.toISOString() },
-    });
-  }
   scheduleReturnReminder(
     tx: Transaction,
     job: Omit<ReturnReminderJob, 'fireAt'>,

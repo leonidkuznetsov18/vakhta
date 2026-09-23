@@ -43,11 +43,9 @@ import {
   type ScheduleNoteView,
   RetrospectiveQuery,
   type RetrospectiveView,
-  type AcknowledgementStatusView,
   type ScheduleVersionDetail,
   type ScheduleVersionView,
   type ShiftTemplateView,
-  type RemindResult,
 } from '@vakhta/contracts';
 import {
   canActOn,
@@ -86,8 +84,6 @@ const ALL_PANEL_ROLES: WebRole[] = [
 ];
 const EDITORS: WebRole[] = [...SCHEDULE_EDIT_ROLES];
 const APPROVERS: WebRole[] = [...SCHEDULE_APPROVE_ROLES];
-/** Reminder actions stay with unit-wide planning and approval roles. */
-const REMINDERS: WebRole[] = ['ADMIN', 'PLANNER', 'PRODUCTION_HEAD'];
 
 const SiteQuery = z.object({ siteId: z.uuid() });
 
@@ -451,29 +447,5 @@ export class AdminSchedulesController {
     assertScope(user, APPROVERS, { siteId: version.siteId, orgUnitId: version.orgUnitId });
     await this.schedules.assertBorrowingAuthority(user.grants, version, body.items);
     return this.schedules.revise(id, body, webUserActor(user), body.expectedRevision);
-  }
-
-  @Post(':id/remind')
-  @Roles(...REMINDERS)
-  async remind(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: WebUser,
-  ): Promise<RemindResult> {
-    const detail = await this.schedules.detail(id);
-    assertScope(user, REMINDERS, {
-      siteId: detail.version.siteId,
-      orgUnitId: detail.version.orgUnitId,
-    });
-    return this.schedules.remindAcknowledgement(id, webUserActor(user));
-  }
-
-  @Get(':id/acknowledgements')
-  async acknowledgements(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: WebUser,
-  ): Promise<AcknowledgementStatusView[]> {
-    const version = await this.schedules.requireVersion(id);
-    assertScope(user, ALL_PANEL_ROLES, { siteId: version.siteId, orgUnitId: version.orgUnitId });
-    return this.schedules.acknowledgementStatus(id);
   }
 }

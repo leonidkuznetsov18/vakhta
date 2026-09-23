@@ -1,7 +1,3 @@
-import {
-  acknowledgementCallback,
-  parseAcknowledgementCallback,
-} from './schedule-acknowledgement.js';
 import { Bot, InlineKeyboard } from 'grammy';
 import type { Logger } from 'pino';
 import {
@@ -21,6 +17,7 @@ import { employeeActor } from '../common/actor.js';
 import type { AttendanceService } from '../attendance/attendance.service.js';
 import type { ActivationService } from '../identity/activation.service.js';
 import type { EmployeesService } from '../identity/employees.service.js';
+import { PLAN_MESSAGE_CALLBACK } from '../scheduling/schedule-change-notice.js';
 import type { ScheduleService } from '../scheduling/schedule.service.js';
 import type { OpenSlotsService } from '../scheduling/open-slots.service.js';
 import type { FeedService } from '../scheduling/feed.service.js';
@@ -213,9 +210,8 @@ export async function renderHomeScreen(
   t: Messages,
   employee: EmployeeRecord,
 ): Promise<Screen> {
-  const [next, acknowledgement, presence, shiftRaw, pendingSwaps] = await Promise.all([
+  const [next, presence, shiftRaw, pendingSwaps] = await Promise.all([
     deps.schedule.nextShift(employee.id),
-    deps.schedule.homeAcknowledgement(employee.id),
     deps.attendance.openPresence(employee.id),
     deps.shift.screen(employee.id),
     deps.requests.pendingCounterpart(employee.id),
@@ -225,7 +221,6 @@ export async function renderHomeScreen(
   const home = homeScreen(t, {
     employee,
     next,
-    acknowledgementCallback: acknowledgementCallback(acknowledgement),
     feed: !!deps.feed && !!deps.feedBaseUrl,
     presenceSince: presence?.arrivedAt ?? null,
     timezone,
@@ -319,11 +314,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     const resolved =
       month === 'cur' ? businessDateOf(new Date(), deps.defaultTimezone).slice(0, 7) : month;
     if (!isMonth(resolved)) return null;
-    const { plan, acknowledgement } = await deps.schedule.myPlanWithAcknowledgement(
-      ctx.employee.id,
-      resolved,
-    );
-    return planScreen(ctx.t, plan, acknowledgementCallback(acknowledgement));
+    return planScreen(ctx.t, await deps.schedule.myPlan(ctx.employee.id, resolved));
   }
 
   async function startActivation(ctx: BotContext, rawCode: string): Promise<void> {
@@ -1256,40 +1247,20 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     if (screen) await edit(ctx, screen);
   });
 
-  // Unbound legacy buttons cannot recover the plan the employee originally saw.
-  bot.callbackQuery('ack:all', async (ctx) => {
-    await ctx.answerCallbackQuery({ text: ctx.t.schedule.ackRefresh, show_alert: true });
-    await edit(ctx, await buildHome(ctx));
+  // A schedule notice opens the plan as a new message, so the list of changes stays readable.
+  bot.callbackQuery(new RegExp(`^${PLAN_MESSAGE_CALLBACK}(\\d{4}-\\d{2})$`), async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const screen = await buildPlan(ctx, ctx.match[1] ?? 'cur');
+    await show(ctx, screen ?? (await buildHome(ctx)));
   });
 
-  bot.callbackQuery(/^ack2:/, async (ctx) => {
-    if (ctx.access !== 'ALLOWED' || !ctx.employee) {
-      await ctx.answerCallbackQuery({ text: ctx.t.bot.access.NOT_REGISTERED, show_alert: true });
-      return;
-    }
-    const target = parseAcknowledgementCallback(ctx.callbackQuery.data);
-    const result = target
-      ? await deps.schedule.acknowledgeSnapshot(
-          ctx.employee.id,
-          target.scope,
-          target.fingerprint,
-          'TELEGRAM',
-        )
-      : { kind: 'STALE' as const };
-    await ctx.answerCallbackQuery({
-      text:
-        result.kind === 'STALE'
-          ? ctx.t.schedule.ackRefresh
-          : result.acknowledged > 0
-            ? ctx.t.schedule.ackDone
-            : ctx.t.schedule.ackNothing,
-      show_alert: result.kind === 'STALE',
-    });
-    const screen =
-      target?.scope.kind === 'MONTH'
-        ? await buildPlan(ctx, target.scope.month)
-        : await buildHome(ctx);
-    if (screen) await edit(ctx, screen);
+  // Schedules no longer need confirmation. An «Acknowledged» button left in an old message opens
+  // the plan as a new message; the stale message loses its buttons.
+  bot.callbackQuery(/^ack2?:(?:m:(\d{4}-\d{2}):)?/, async (ctx) => {
+    await ctx.answerCallbackQuery({ text: ctx.t.schedule.ackRetired });
+    await ctx.editMessageReplyMarkup().catch(() => undefined);
+    const screen = await buildPlan(ctx, ctx.match[1] ?? 'cur');
+    await show(ctx, screen ?? (await buildHome(ctx)));
   });
 
   // Sick-leave check-in answers: informational only, never an attendance record.
@@ -1362,29 +1333,6 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       show_alert: result.kind === 'CLOSED',
     });
     if (result.kind === 'CLOSED') await ctx.editMessageReplyMarkup().catch(() => undefined);
-  });
-
-  // Version-specific publication and reminder notifications retain their existing target.
-  bot.callbackQuery(/^ack:([0-9a-f-]{36})$/, async (ctx) => {
-    if (ctx.access !== 'ALLOWED' || !ctx.employee) {
-      await ctx.answerCallbackQuery({ text: ctx.t.bot.access.NOT_REGISTERED, show_alert: true });
-      return;
-    }
-    const versionId = ctx.match[1];
-    let acknowledged = 0;
-    if (versionId) {
-      try {
-        acknowledged = (await deps.schedule.acknowledge(versionId, ctx.employee.id, 'TELEGRAM'))
-          .acknowledged;
-      } catch (error) {
-        deps.logger.warn({ err: error, versionId }, 'acknowledgement rejected');
-      }
-    }
-    await ctx.answerCallbackQuery({
-      text: acknowledged > 0 ? ctx.t.schedule.ackDone : ctx.t.schedule.ackNothing,
-    });
-    await ctx.editMessageReplyMarkup().catch(() => undefined);
-    await show(ctx, await buildHome(ctx));
   });
 
   bot.on('message:text', async (ctx) => {

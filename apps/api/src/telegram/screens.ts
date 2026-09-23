@@ -44,7 +44,6 @@ export const CALLBACK = {
   activationConfirm: 'act:ok',
   activationCancel: 'act:no',
   planPrefix: 'plan:',
-  ackPrefix: 'ack:',
   arrivePrefix: 'arr:',
   departPrefix: 'dep:',
   languageMenu: 'lang:menu',
@@ -87,7 +86,6 @@ const itemLabel = checklistItemLabel;
 export interface HomeInput {
   readonly employee: EmployeeRecord;
   readonly next: NextShift | null;
-  readonly acknowledgementCallback: string | null;
   /** Whether the calendar link button is offered (feed configured). */
   readonly feed?: boolean | undefined;
   /** Open presence: when the employee recorded arrival. */
@@ -100,7 +98,7 @@ export interface HomeInput {
   readonly supportUrl?: string | null;
 }
 
-/** Home screen (spec 5.1): presence, next shift, plan, acknowledgement. */
+/** Home screen (spec 5.1): presence, next shift and plan. */
 export function homeScreen(t: Messages, input: HomeInput): Screen {
   const lines = [
     format(t.bot.home, {
@@ -131,7 +129,6 @@ export function homeScreen(t: Messages, input: HomeInput): Screen {
   } else {
     lines.push(t.schedule.noNextShift);
   }
-  if (input.acknowledgementCallback !== null) lines.push('', t.schedule.ackRequired);
 
   const keyboard = new InlineKeyboard()
     .text(t.schedule.myPlanButton, `${CALLBACK.planPrefix}cur`)
@@ -139,8 +136,6 @@ export function homeScreen(t: Messages, input: HomeInput): Screen {
     .row()
     .text(t.bonus.myScoresButton, BONUS_CALLBACK.me)
     .text(t.language.menuButton, CALLBACK.languageMenu);
-  if (input.acknowledgementCallback !== null)
-    keyboard.row().text(t.schedule.ackButton, input.acknowledgementCallback);
   if (input.pendingSwaps > 0)
     keyboard.row().text(`${t.requests.counterpartYes}? (${input.pendingSwaps})`, 'rq:pending');
   if (input.feed) keyboard.row().text(t.schedule.feedButton, 'feed:issue');
@@ -207,11 +202,7 @@ export function checkInResultScreen(t: Messages, result: CheckInResult, timezone
 }
 
 /** "My plan" for a month (FR-SCH-01): compact calendar with totals and navigation. */
-export function planScreen(
-  t: Messages,
-  plan: MyPlanView,
-  acknowledgementCallback: string | null,
-): Screen {
+export function planScreen(t: Messages, plan: MyPlanView): Screen {
   const [year, m] = plan.month.split('-');
   const monthName = t.schedule.months[Number(m) - 1] ?? plan.month;
   const lines = [format(t.schedule.planHeader, { month: monthName, year: year ?? '' }), ''];
@@ -230,8 +221,7 @@ export function planScreen(
       const start = localTime(new Date(a.planStartAt), plan.timezone);
       const end = localTime(new Date(a.planEndAt), plan.timezone);
       const zone = a.zoneName ? ` · ${a.zoneName}` : '';
-      const mark = a.acknowledged ? '' : ' •';
-      lines.push(`${dd} ${wd}  ${t.schedule.dayKinds[day.kind]} ${start}–${end}${zone}${mark}`);
+      lines.push(`${dd} ${wd}  ${t.schedule.dayKinds[day.kind]} ${start}–${end}${zone}`);
       for (const note of plan.notes.filter((item) => item.date === day.date))
         lines.push(`   📝 ${note.text}`);
     }
@@ -246,14 +236,11 @@ export function planScreen(
         night: plan.totals.nightShifts,
       }),
     );
-    if (plan.unacknowledgedVersionIds.length > 0) lines.push(t.schedule.ackRequired);
   }
 
   const keyboard = new InlineKeyboard()
     .text(t.schedule.prevMonth, `${CALLBACK.planPrefix}${addMonths(plan.month, -1)}`)
     .text(t.schedule.nextMonth, `${CALLBACK.planPrefix}${addMonths(plan.month, 1)}`);
-  if (acknowledgementCallback !== null)
-    keyboard.row().text(t.schedule.ackButton, acknowledgementCallback);
   keyboard.row().text(t.shift.backToShift, SHIFT_CALLBACK.back);
   return { text: lines.join('\n'), keyboard };
 }

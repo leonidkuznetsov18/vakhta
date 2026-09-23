@@ -105,7 +105,6 @@ describe('scheduling: версії, валідація, публікація, о
       timers,
       {
         shiftReminderMinutes: 120,
-        ackReminderHours: 24,
         defaultTimezone: 'Europe/Kyiv',
       },
     );
@@ -494,10 +493,12 @@ describe('scheduling: версії, валідація, публікація, о
           recipientId: ivanov,
           dedupeKey: `schedule:${published.id}:${ivanov}`,
         });
-        expect(notifications[0]?.payload.text).toMatch(/добавлено 0, отменено 0, изменено 1/);
-        expect(notifications[0]?.payload.buttons?.[0]?.[0]?.callbackData).toBe(
-          `ack:${published.id}`,
-        );
+        const lines = notifications[0]?.payload.text.split('\n') ?? [];
+        const dm = `${day(1).slice(8, 10)}.${day(1).slice(5, 7)}`;
+        expect(lines.filter((line) => /^(🔄|❌|➕)/.test(line))).toEqual([
+          expect.stringMatching(new RegExp(`^🔄 Изменено .+ ${dm}: дневная 08:00–20:00$`)),
+        ]);
+        expect(notifications[0]?.payload.buttons?.[0]?.[0]?.callbackData).toBe(`planmsg:${MONTH}`);
         const events = await testDb.db
           .select()
           .from(domainEvents)
@@ -744,175 +745,6 @@ describe('scheduling: версії, валідація, публікація, о
     });
   });
 
-  describe('snapshot acknowledgement', () => {
-    afterEach(() => vi.restoreAllMocks());
-
-    async function publishMonth(month = MONTH) {
-      const version = await schedule.createVersion(
-        { siteId, orgUnitId: unitId, periodMonth: month },
-        PLANNER,
-      );
-      await schedule.putAssignments(
-        version.id,
-        {
-          items: [
-            {
-              employeeId: ivanov,
-              templateId: dayId,
-              businessDate: `${month}-01`,
-              zoneId,
-              kind: 'REGULAR',
-            },
-            {
-              employeeId: petrova,
-              templateId: dayId,
-              businessDate: `${month}-01`,
-              kind: 'REGULAR',
-            },
-          ],
-        },
-        PLANNER,
-      );
-      await schedule.submit(version.id, PLANNER);
-      return schedule.publish(version.id, { changeReason: 'Test publication' }, HEAD);
-    }
-
-    const confirm = (
-      snapshot: Awaited<ReturnType<ScheduleService['homeAcknowledgement']>>,
-      employeeId = ivanov,
-    ) => schedule.acknowledgeSnapshot(employeeId, snapshot.scope, snapshot.fingerprint, 'TELEGRAM');
-
-    it.each(['HOME', 'MONTH'] as const)(
-      'rejects the old %s snapshot after a new publication',
-      async (kind) => {
-        await publishMonth();
-        const snapshot =
-          kind === 'HOME'
-            ? await schedule.homeAcknowledgement(ivanov)
-            : (await schedule.myPlanWithAcknowledgement(ivanov, MONTH)).acknowledgement;
-        await publishMonth();
-        expect(await confirm(snapshot)).toEqual({ kind: 'STALE' });
-        expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
-      },
-    );
-
-    it('confirms the displayed month without confirming a later month or another employee', async () => {
-      const current = await publishMonth();
-      const snapshot = (await schedule.myPlanWithAcknowledgement(ivanov, MONTH)).acknowledgement;
-      const later = await publishMonth(addMonths(MONTH, 1));
-      expect(await confirm(snapshot)).toEqual({ kind: 'ACKNOWLEDGED', acknowledged: 1, total: 1 });
-      expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([
-        expect.objectContaining({ employeeId: ivanov, scheduleVersionId: current.id }),
-      ]);
-      expect(await schedule.unacknowledgedVersions(ivanov)).toEqual([
-        { versionId: later.id, periodMonth: later.periodMonth },
-      ]);
-    });
-
-    it('retains the Home aggregate scope and serializes repeat taps without duplicate events', async () => {
-      await publishMonth();
-      await publishMonth(addMonths(MONTH, 1));
-      const snapshot = await schedule.homeAcknowledgement(ivanov);
-      const before = await testDb.db.select().from(domainEvents);
-      const results = await Promise.all([confirm(snapshot), confirm(snapshot)]);
-      expect(results).toEqual(
-        expect.arrayContaining([
-          { kind: 'ACKNOWLEDGED', acknowledged: 2, total: 2 },
-          { kind: 'ACKNOWLEDGED', acknowledged: 0, total: 2 },
-        ]),
-      );
-      expect(await confirm(snapshot)).toEqual({ kind: 'ACKNOWLEDGED', acknowledged: 0, total: 2 });
-      expect((await schedule.homeAcknowledgement(ivanov)).fingerprint).toBe(snapshot.fingerprint);
-      expect(await testDb.db.select().from(assignmentAcknowledgements)).toHaveLength(2);
-      const after = await testDb.db.select().from(domainEvents);
-      expect(
-        after.filter(
-          (event) =>
-            event.type === 'SCHEDULE_ACKNOWLEDGED' && !before.some((old) => old.id === event.id),
-        ),
-      ).toHaveLength(2);
-    });
-
-    it.each(['employee', 'scope', 'digest'] as const)(
-      'rejects %s identity reuse without acknowledgements',
-      async (change) => {
-        await publishMonth();
-        const snapshot = await schedule.homeAcknowledgement(ivanov);
-        const altered =
-          change === 'scope'
-            ? { ...snapshot, scope: { kind: 'MONTH' as const, month: MONTH } }
-            : change === 'digest'
-              ? { ...snapshot, fingerprint: 'A'.repeat(43) }
-              : snapshot;
-        expect(await confirm(altered, change === 'employee' ? petrova : ivanov)).toEqual({
-          kind: 'STALE',
-        });
-        expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
-      },
-    );
-
-    it('rolls back the entire aggregate and its events after an event failure, then permits retry', async () => {
-      await publishMonth();
-      await publishMonth(addMonths(MONTH, 1));
-      const snapshot = await schedule.homeAcknowledgement(ivanov);
-      const before = await testDb.db.select().from(domainEvents);
-      const append = EventStore.prototype.append;
-      let acknowledgements = 0;
-      const fault = vi.spyOn(EventStore.prototype, 'append').mockImplementation(async function (
-        this: EventStore,
-        tx,
-        event,
-      ) {
-        if (event.type === 'SCHEDULE_ACKNOWLEDGED' && ++acknowledgements === 2)
-          throw new Error('Injected acknowledgement failure');
-        return append.call(this, tx, event);
-      });
-      await expect(confirm(snapshot)).rejects.toThrow('Injected acknowledgement failure');
-      expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
-      expect(await testDb.db.select().from(domainEvents)).toEqual(before);
-      fault.mockRestore();
-      expect(await confirm(snapshot)).toMatchObject({ kind: 'ACKNOWLEDGED', acknowledged: 2 });
-    });
-
-    it('rereads assignment eligibility after waiting for the version lock', async () => {
-      const version = await publishMonth();
-      const snapshot = await schedule.homeAcknowledgement(ivanov);
-      let release: () => void = () => {};
-      const released = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      let locked: () => void = () => {};
-      const hasLock = new Promise<void>((resolve) => {
-        locked = resolve;
-      });
-      const changing = testDb.db.transaction(async (tx) => {
-        await schedule.lockVersion(version.id, tx);
-        locked();
-        await released;
-        await tx
-          .update(shiftAssignments)
-          .set({ status: 'CANCELLED' })
-          .where(eq(shiftAssignments.scheduleVersionId, version.id));
-      });
-      await hasLock;
-      let requested: () => void = () => {};
-      const requestedLock = new Promise<void>((resolve) => {
-        requested = resolve;
-      });
-      const lock = schedule.lockVersion.bind(schedule);
-      vi.spyOn(schedule, 'lockVersion').mockImplementation((id, tx, revision) => {
-        requested();
-        return lock(id, tx, revision);
-      });
-      const confirming = confirm(snapshot);
-      await requestedLock;
-      release();
-      await changing;
-      expect(await confirming).toEqual({ kind: 'STALE' });
-      expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
-    });
-  });
-
   it('чернетка → подання → публікація з нотифікацією і таймерами', async () => {
     const v1 = await schedule.createVersion(
       { siteId, orgUnitId: unitId, periodMonth: MONTH },
@@ -959,7 +791,7 @@ describe('scheduling: версії, валідація, публікація, о
       assignmentsCount: 4,
     });
 
-    // Нотифікація лише працівнику з привʼязкою, з кнопкою «Ознайомлений».
+    // Нотифікація лише працівнику з привʼязкою, з кнопкою перегляду графіка і без підтвердження.
     const outbox = await testDb.db.select().from(notificationOutbox);
     expect(outbox).toHaveLength(1);
     expect(outbox[0]).toMatchObject({
@@ -967,38 +799,15 @@ describe('scheduling: версії, валідація, публікація, о
       template: 'SCHEDULE_PUBLISHED',
       status: 'PENDING',
     });
-    expect(outbox[0]?.payload.text).toContain('3 смен');
-    expect(outbox[0]?.payload.buttons?.[0]?.[0]?.callbackData).toBe(`ack:${v1.id}`);
+    expect(outbox[0]?.payload.text).toContain('Смен в месяце: 3');
+    expect(outbox[0]?.payload.buttons).toEqual([
+      [{ text: '📅 Посмотреть график', callbackData: `planmsg:${MONTH}` }],
+    ]);
 
-    // Таймери: нагадування на 4 зміни + ознайомлення для 2 працівників.
+    // Таймери: лише нагадування на 4 зміни; підтвердження графіка не запитується.
     const jobs = (await timerJobs()).map((s) => s.jobId);
     expect(jobs.filter((j) => j.startsWith('shift-reminder.'))).toHaveLength(4);
-    expect(jobs.filter((j) => j.startsWith('ack-reminder.'))).toHaveLength(2);
-
-    // Ознайомлення.
-    expect(await schedule.unacknowledgedVersions(ivanov)).toEqual([
-      { versionId: v1.id, periodMonth: MONTH },
-    ]);
-    expect(await schedule.acknowledge(v1.id, ivanov, 'TELEGRAM')).toEqual({
-      acknowledged: 3,
-      total: 3,
-    });
-    expect(await schedule.acknowledge(v1.id, ivanov, 'TELEGRAM')).toEqual({
-      acknowledged: 0,
-      total: 3,
-    });
-    expect(await schedule.unacknowledgedVersions(ivanov)).toEqual([]);
-    const status = await schedule.acknowledgementStatus(v1.id);
-    expect(status.find((s) => s.employeeId === ivanov)).toMatchObject({
-      assignments: 3,
-      acknowledged: 3,
-      telegramLinked: true,
-    });
-    expect(status.find((s) => s.employeeId === petrova)).toMatchObject({
-      assignments: 1,
-      acknowledged: 0,
-      telegramLinked: false,
-    });
+    expect(jobs.filter((j) => j.startsWith('ack-reminder.'))).toHaveLength(0);
 
     // «Мій план».
     const plan = await schedule.myPlan(ivanov, MONTH);
@@ -1013,10 +822,8 @@ describe('scheduling: версії, валідація, публікація, о
     expect(plan.days[0]?.assignment).toMatchObject({
       zoneName: 'Линия 1',
       orgUnitName: 'Цех фасовки',
-      acknowledged: true,
     });
     expect(plan.days[2]?.kind).toBe('OFF');
-    expect(plan.unacknowledgedVersionIds).toEqual([]);
     const next = await schedule.nextShift(ivanov);
     expect(next?.zoneName).toBe('Линия 1');
     expect(next?.isNight).toBe(false);
@@ -1039,7 +846,6 @@ describe('scheduling: версії, валідація, публікація, о
     );
     await schedule.submit(v1.id, PLANNER);
     await schedule.publish(v1.id, {}, HEAD);
-    await schedule.acknowledge(v1.id, ivanov, 'TELEGRAM');
 
     const v2 = await schedule.createVersion(
       { siteId, orgUnitId: unitId, periodMonth: MONTH },
@@ -1071,12 +877,18 @@ describe('scheduling: версії, валідація, публікація, о
       .from(notificationOutbox)
       .where(eq(notificationOutbox.template, 'SCHEDULE_CHANGED'));
     expect(outbox).toHaveLength(1);
-    expect(outbox[0]?.payload.text).toMatch(/добавлено 1, отменено 1, изменено 1/);
-
-    // Стара ознайомленість не переноситься: нова версія вимагає нового підтвердження (FR-SCH-03).
-    expect(await schedule.unacknowledgedVersions(ivanov)).toEqual([
-      { versionId: v2.id, periodMonth: MONTH },
+    // Кожна зміна названа датою і годинами, у порядку дат; підтвердження не потрібне.
+    const lines = outbox[0]?.payload.text.split('\n') ?? [];
+    const dm = (n: number) => `${day(n).slice(8, 10)}.${day(n).slice(5, 7)}`;
+    expect(lines.filter((line) => /^(🔄|❌|➕)/.test(line))).toEqual([
+      expect.stringMatching(
+        new RegExp(`^🔄 Изменено .+ ${dm(1)}: дневная 08:00–20:00 → ночная 20:00–08:00$`),
+      ),
+      expect.stringMatching(new RegExp(`^❌ Отменено .+ ${dm(2)}: дневная 08:00–20:00$`)),
+      expect.stringMatching(new RegExp(`^➕ Добавлено .+ ${dm(5)}: дневная 08:00–20:00$`)),
     ]);
+    expect(lines.at(-1)).toBe('Причина: заміна за заявою');
+    expect(outbox[0]?.payload.buttons?.[0]?.[0]?.callbackData).toBe(`planmsg:${MONTH}`);
     const listed = await schedule.list({ siteId, orgUnitId: unitId, periodMonth: MONTH });
     expect(listed.map((v) => [v.versionNo, v.status])).toEqual([
       [2, 'PUBLISHED'],
@@ -1124,40 +936,6 @@ describe('scheduling: версії, валідація, публікація, о
         PLANNER,
       ),
     ).rejects.toMatchObject({ code: 'EMPLOYEE_NOT_ACTIVE' });
-  });
-
-  it('a manual reminder reaches only employees with unacknowledged shifts, once per day', async () => {
-    const v1 = await schedule.createVersion(
-      { siteId, orgUnitId: unitId, periodMonth: MONTH },
-      PLANNER,
-    );
-    await schedule.putAssignments(
-      v1.id,
-      {
-        items: [
-          { employeeId: ivanov, templateId: dayId, businessDate: day(1), kind: 'REGULAR' },
-          { employeeId: petrova, templateId: dayId, businessDate: day(2), kind: 'REGULAR' },
-        ],
-      },
-      PLANNER,
-    );
-    await expect(schedule.remindAcknowledgement(v1.id, HEAD)).rejects.toMatchObject({
-      code: 'SCHEDULE_NOT_PUBLISHED',
-    });
-    await schedule.submit(v1.id, PLANNER);
-    await schedule.publish(v1.id, {}, HEAD);
-    // Petrova acknowledges; Ivanov (the only one with Telegram) has not, so he is the one reminded.
-    await schedule.acknowledge(v1.id, petrova, 'TELEGRAM');
-
-    const first = await schedule.remindAcknowledgement(v1.id, HEAD);
-    expect(first.reminded).toBe(1);
-    const again = await schedule.remindAcknowledgement(v1.id, HEAD);
-    expect(again.reminded).toBe(0);
-    const queued = await testDb.db
-      .select({ id: notificationOutbox.id, template: notificationOutbox.template })
-      .from(notificationOutbox)
-      .where(eq(notificationOutbox.template, 'ACK_REMINDER'));
-    expect(queued).toHaveLength(1);
   });
 
   describe('publication with inactive employees already in the schedule', () => {
@@ -2415,7 +2193,13 @@ describe('scheduling: версії, валідація, публікація, о
       const petrovaNight = detail.assignments.find(
         (a) => a.employeeId === petrova && a.businessDate === day(1),
       )!;
-      await schedule.acknowledge(v1.id, ivanov, 'TELEGRAM');
+      // Acknowledgements recorded before confirmation was retired stay part of the evidence.
+      await testDb.db.insert(assignmentAcknowledgements).values({
+        assignmentId: ivanovShift.id,
+        employeeId: ivanov,
+        scheduleVersionId: v1.id,
+        source: 'TELEGRAM',
+      });
       const [presence] = await testDb.db
         .insert(presenceSessions)
         .values({
@@ -2629,7 +2413,7 @@ describe('scheduling: версії, валідація, публікація, о
           { date: day(2), text: 'Bring the new badge' },
         ]),
       );
-      const screen = planScreen(messages('en'), plan, null);
+      const screen = planScreen(messages('en'), plan);
       expect(screen.text).toContain('📝 Bring the new badge');
       expect(screen.text).toContain('📝 Canteen closed this month');
       expect(screen.text).not.toContain('Audit visit');
@@ -2792,7 +2576,6 @@ describe('scheduling: версії, валідація, публікація, о
       const withFeed = homeScreen(t, {
         employee: { id: ivanov, fullName: 'Иванов Иван', personnelNumber: '1' } as never,
         next: null,
-        acknowledgementCallback: null,
         feed: true,
         presenceSince: null,
         timezone: 'Europe/Kyiv',

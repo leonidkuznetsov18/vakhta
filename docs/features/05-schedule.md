@@ -16,7 +16,7 @@ Counts describe assigned people, not required staffing or attendance.
   and terminated workers; the month matrix draws them as small glyphs inside the worker/day cells,
   with a day/night totals row at the bottom, and the highlight toggles of the status line dim the
   rest of the matrix like they dim the week. Clicking a shift anywhere opens the same details panel:
-  time and kind, publication and acknowledgement, rule reasons, absence and check-in context,
+  time and kind, publication, rule reasons, absence and check-in context,
   presence evidence, related requests, notes, then Edit, Move, Find replacement, Undo local change
   and Remove assignment. Dragging a shift to another date or worker, the worker search, the
   per-worker "Remove all shifts" menu and the D/N/Delete keys work in every view. Hovering a shift
@@ -79,7 +79,8 @@ Counts describe assigned people, not required staffing or attendance.
   and the schedule is published as usual. Withdrawing an offer or cancelling the slot closes stale
   bot buttons.
 - **Presence, absences and requests in context:** published shifts carry presence evidence from
-  QR arrivals and shift sessions: scheduled, acknowledged, arrived, started, closed, or "no evidence
+  QR arrivals and shift sessions: scheduled, acknowledged (recorded before 2026-09-23), arrived,
+  started, closed, or "no evidence
   recorded" after the planned start, which is never called a no-show. By-people view marks approved
   and pending absences per day; private attachments never appear. Shift details list the requests
   that touch the shift with their current step, open the Requests workflow for decisions (a swap
@@ -144,7 +145,15 @@ the published assignment starts, in the site's timezone (06:30 start → 06:00 r
 rechecks the current plan and approved absences: vacation, sick leave and day off covering the shift's
 business date suppress the reminder. Pending/rejected absence requests do not suppress it. Cancelled
 or replaced assignments, superseded schedules, inactive employees and already started shifts do not
-receive a start reminder. This does not change schedule-publication or acknowledgement messages.
+receive a start reminder.
+
+**Schedule notices (owner decision 2026-09-23, [ADR-0016](../adr/0016-schedule-changes-inform-without-acknowledgement.md)).**
+Publication applies the plan at once; workers are informed and never asked to confirm. Each linked
+worker whose shifts changed gets one message that names every change in date order, for example
+`➕ Додано сб 27.09: денна 08:00–20:00 · Зона`, `❌ Скасовано …`, `🔄 Змінено … → …`, then the
+publication reason. The only button, «📅 Переглянути графік», opens that month's plan as a new
+message. There are no acknowledgement reminders; «Ознайомлений» buttons in old messages open the
+current plan and record nothing.
 
 See [shift reminder delivery](../engineering/features/shift-reminders.md) for queued-message handling
 and verification evidence.

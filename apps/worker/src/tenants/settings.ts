@@ -16,7 +16,6 @@ export function workerSettingsDefaults(
   return {
     ...TENANT_SETTING_DEFAULTS,
     shiftReminderMinutes: env.SHIFT_REMINDER_MINUTES,
-    ackReminderHours: env.ACK_REMINDER_HOURS,
     breakMinutes: env.BREAK_MINUTES,
     mealMinutes: env.MEAL_MINUTES,
     serviceTimeMinutes: env.SERVICE_TIME_MINUTES,

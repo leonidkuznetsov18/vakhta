@@ -221,20 +221,6 @@ export const ScheduleCommandResult = z.discriminatedUnion('kind', [
 ]);
 export type ScheduleCommandResult = z.infer<typeof ScheduleCommandResult>;
 
-/** Хто ознайомився з опублікованою версією (FR-SCH-03, ТЗ 10). */
-export const AcknowledgementStatusView = z.object({
-  employeeId: Uuid,
-  fullName: z.string(),
-  personnelNumber: z.string(),
-  assignments: z.number().int().nonnegative(),
-  acknowledged: z.number().int().nonnegative(),
-  telegramLinked: z.boolean(),
-});
-export type AcknowledgementStatusView = z.infer<typeof AcknowledgementStatusView>;
-
-export const RemindResult = z.object({ reminded: z.number().int().nonnegative() });
-export type RemindResult = z.infer<typeof RemindResult>;
-
 /** «Мій план» для бота і /me (FR-SCH-01/02). */
 export const MyPlanDay = z.object({
   date: BusinessDate,
@@ -249,7 +235,6 @@ export const MyPlanDay = z.object({
       templateCode: z.string(),
       zoneName: z.string().nullable(),
       orgUnitName: z.string(),
-      acknowledged: z.boolean(),
     })
     .nullable(),
 });
@@ -264,8 +249,6 @@ export const MyPlanView = z.object({
     dayShifts: z.number().int().nonnegative(),
     nightShifts: z.number().int().nonnegative(),
   }),
-  /** Опубліковані версії, з якими працівник ще не ознайомився. */
-  unacknowledgedVersionIds: z.array(Uuid),
   /** Notes addressed to employees (SC-39): month-wide or per date. */
   notes: z.array(z.object({ date: BusinessDate.nullable(), text: z.string() })).default([]),
 });

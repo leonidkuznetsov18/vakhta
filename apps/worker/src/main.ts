@@ -9,7 +9,6 @@ import { Queue, Worker, type Job } from 'bullmq';
 import { Redis } from 'ioredis';
 import { pino, type Logger } from 'pino';
 import {
-  AckReminderJob,
   CleaningReminderJob,
   DowntimeEscalationJob,
   HandoverTimeoutJob,
@@ -26,7 +25,7 @@ import { ENV_TENANT_ID, primaryHost, type TenantRuntimeConfig } from '@vakhta/re
 import { loadWorkerEnv } from './env.js';
 import { initSentry, reportJobFailure, Sentry } from './observability/sentry.js';
 import { TelegramSender, relayOnce } from './outbox/relay.js';
-import { handleAckReminder, handleShiftReminder } from './timers/reminders.js';
+import { handleShiftReminder, retiredAckReminder } from './timers/reminders.js';
 import { S3MediaStore, TelegramFileFetcher } from './media/adapters.js';
 import { processMedia, type MediaDependencies } from './media/process.js';
 import { MediaTaskRunner } from './media/runner.js';
@@ -66,7 +65,6 @@ const inspectionAnalyzer = CloudflareInspectionAnalyzer.fromEnv(env);
 function recoveryOptionsFor(settings: TenantSettings): TimerRecoveryOptions {
   return TimerRecoveryOptions.parse({
     shiftReminderMinutes: settings.shiftReminderMinutes,
-    ackReminderHours: settings.ackReminderHours,
     breakMinutes: settings.breakMinutes,
     mealMinutes: settings.mealMinutes,
     serviceTimeMinutes: settings.serviceTimeMinutes,
@@ -322,7 +320,7 @@ async function processTimer(job: Job): Promise<void> {
       return;
     }
     case TIMER_JOBS.ackReminder: {
-      const outcome = await handleAckReminder(db, AckReminderJob.parse(job.data));
+      const outcome = await retiredAckReminder();
       logger.info({ job: job.name, jobId: job.id, outcome }, 'timer');
       return;
     }

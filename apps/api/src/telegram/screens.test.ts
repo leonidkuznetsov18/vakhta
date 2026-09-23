@@ -394,7 +394,6 @@ describe('language of the bot screens', () => {
         updatedAt: new Date(),
       },
       next: null,
-      acknowledgementCallback: null,
       presenceSince: null,
       timezone: 'Europe/Kyiv',
       pendingSwaps: 0,

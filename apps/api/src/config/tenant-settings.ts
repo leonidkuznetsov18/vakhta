@@ -21,7 +21,6 @@ type SettingsEnv = Pick<
   | 'QR_ROTATION_SECONDS'
   | 'QR_TTL_SECONDS'
   | 'SHIFT_REMINDER_MINUTES'
-  | 'ACK_REMINDER_HOURS'
   | 'APPEAL_WINDOW_DAYS'
 >;
 
@@ -51,7 +50,6 @@ export function settingsFromEnv(env: SettingsEnv): TenantSettings {
     qrRotationSeconds: env.QR_ROTATION_SECONDS,
     qrTtlSeconds: env.QR_TTL_SECONDS,
     shiftReminderMinutes: env.SHIFT_REMINDER_MINUTES,
-    ackReminderHours: env.ACK_REMINDER_HOURS,
     appealWindowDays: env.APPEAL_WINDOW_DAYS,
   };
 }

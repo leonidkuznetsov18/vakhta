@@ -2,7 +2,6 @@ import { messages } from '@vakhta/i18n';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   activityIntervals,
-  assignmentAcknowledgements,
   backgroundTasks,
   checklistDefinitions,
   claimBackgroundTasks,
@@ -351,27 +350,20 @@ describe('durable timers and legacy recovery', () => {
     expect(await testDb.db.select().from(backgroundTasks)).toEqual(first);
   });
 
-  it('does not recover old schedule acknowledgement or shift reminders', async () => {
+  it('does not recover reminders of past shifts', async () => {
     await schedule(past(120));
     expect((await recoverTimerTasks(testDb.db)).admitted).toBe(0);
     expect(await testDb.db.select().from(notificationOutbox)).toHaveLength(0);
   });
 
-  it('recovers future unacknowledged shifts at the original publication deadline', async () => {
-    const { publishedAt } = await schedule(future(60));
-    expect((await recoverTimerTasks(testDb.db)).admitted).toBe(2);
-    const [ack] = await testDb.db
-      .select()
-      .from(backgroundTasks)
-      .where(eq(backgroundTasks.kind, 'ACK_REMINDER'));
-    expect(ack?.dueAt.getTime()).toBe(publishedAt.getTime() + 24 * 3_600_000);
-    const [shift] = await testDb.db
-      .select()
-      .from(backgroundTasks)
-      .where(eq(backgroundTasks.kind, 'SHIFT_REMINDER'));
-    expect(shift?.dueAt.getTime()).toBeGreaterThan(Date.now() + 29 * 60_000);
-    expect((await dispatchTimerTasks(testDb.db)).completed).toBe(1);
-    expect(await testDb.db.select().from(notificationOutbox)).toHaveLength(1);
+  it('recovers future shift reminders but no schedule acknowledgement reminders', async () => {
+    await schedule(future(60));
+    expect((await recoverTimerTasks(testDb.db)).admitted).toBe(1);
+    const tasks = await testDb.db.select().from(backgroundTasks);
+    expect(tasks.map((task) => task.kind)).toEqual(['SHIFT_REMINDER']);
+    expect(tasks[0]?.dueAt.getTime()).toBeGreaterThan(Date.now() + 29 * 60_000);
+    expect((await dispatchTimerTasks(testDb.db)).completed).toBe(0);
+    expect(await testDb.db.select().from(notificationOutbox)).toHaveLength(0);
   });
 
   it('repairs null-zone legacy timeout and leaves an existing sent notice unchanged', async () => {
@@ -520,53 +512,13 @@ describe('durable timers and legacy recovery', () => {
     const rows = await testDb.db.select().from(backgroundTasks);
     expect(rows).toHaveLength(2);
   });
-  it('waits for the acknowledgement version lock and suppresses the now-acknowledged reminder', async () => {
-    const { version, assignment } = await schedule(future(60));
+  it('completes a queued acknowledgement reminder without a notification', async () => {
+    const { version } = await schedule(future(60));
     await admit({
       kind: 'ACK_REMINDER',
       payload: { versionId: version.id, employeeId, fireAt: past(5).toISOString() },
     });
-    let unlock: (() => void) | undefined;
-    let ready: (() => void) | undefined;
-    const released = new Promise<void>((resolve) => {
-      unlock = resolve;
-    });
-    const locked = new Promise<void>((resolve) => {
-      ready = resolve;
-    });
-    const acknowledgement = testDb.db.transaction(async (tx) => {
-      await tx
-        .select()
-        .from(scheduleVersions)
-        .where(eq(scheduleVersions.id, version.id))
-        .for('no key update');
-      ready?.();
-      await released;
-      await tx.insert(assignmentAcknowledgements).values({
-        assignmentId: assignment.id,
-        employeeId,
-        scheduleVersionId: version.id,
-        source: 'TELEGRAM',
-      });
-    });
-    await locked;
-    const dispatch = dispatchTimerTasks(testDb.db);
-    try {
-      await vi.waitFor(
-        async () => {
-          const rows = await testDb.db.execute(
-            sql<{
-              count: number;
-            }>`SELECT count(*)::int AS count FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'`,
-          );
-          expect(rows[0]?.count).toBeGreaterThan(0);
-        },
-        { timeout: 5000, interval: 20 },
-      );
-    } finally {
-      unlock?.();
-    }
-    await Promise.all([acknowledgement, dispatch]);
+    expect((await dispatchTimerTasks(testDb.db)).completed).toBe(1);
     expect(await testDb.db.select().from(notificationOutbox)).toHaveLength(0);
   });
 

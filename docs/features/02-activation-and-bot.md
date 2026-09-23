@@ -16,8 +16,7 @@
 
 ## Home screen
 
-Greeting with the masked name and personnel number, the next planned shift, unacknowledged
-schedule versions, the presence state and the shift screen when a shift is open. Buttons: "Мой
+Greeting with the masked name and personnel number, the next planned shift, the presence state and the shift screen when a shift is open. Buttons: "Мой
 план", "Обращения", "Мои баллы", "Коррекция события", help ("Помощь" opens the user guide),
 "Поддержка" opens the support assistant, and the 🌐 language button.
 

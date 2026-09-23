@@ -225,11 +225,6 @@
       "count": 1
     }
   },
-  "apps/admin-web/src/canonical.ts": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 1
-    }
-  },
   "apps/admin-web/src/components/app/avatar.tsx": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 3
@@ -1064,11 +1059,6 @@
     }
   },
   "apps/admin-web/src/features/schedule-management/lib/template-label.ts": {
-    "no-restricted-syntax": {
-      "count": 2
-    }
-  },
-  "apps/admin-web/src/features/schedule-management/model/acknowledgement.ts": {
     "no-restricted-syntax": {
       "count": 2
     }
@@ -2829,14 +2819,6 @@
       "count": 42
     }
   },
-  "apps/api/src/scheduling/acknowledgement-snapshot.ts": {
-    "no-nested-ternary": {
-      "count": 1
-    },
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "apps/api/src/scheduling/admin-schedules.controller.ts": {
     "no-restricted-syntax": {
       "count": 2
@@ -2955,18 +2937,15 @@
       "count": 9
     },
     "no-nested-ternary": {
-      "count": 2
+      "count": 1
     },
     "no-restricted-syntax": {
-      "count": 34
+      "count": 31
     }
   },
   "apps/api/src/scheduling/schedule.service.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 1
-    },
     "@typescript-eslint/prefer-optional-chain": {
-      "count": 3
+      "count": 2
     },
     "complexity": {
       "count": 6
@@ -2975,13 +2954,13 @@
       "count": 3
     },
     "max-lines-per-function": {
-      "count": 6
+      "count": 5
     },
     "no-await-in-loop": {
-      "count": 7
+      "count": 3
     },
     "no-restricted-syntax": {
-      "count": 48
+      "count": 39
     }
   },
   "apps/api/src/scheduling/staffing.service.ts": {
@@ -3103,10 +3082,10 @@
       "count": 2
     },
     "no-nested-ternary": {
-      "count": 7
+      "count": 6
     },
     "no-restricted-syntax": {
-      "count": 65
+      "count": 60
     }
   },
   "apps/api/src/telegram/home-pusher.ts": {
@@ -3132,11 +3111,6 @@
     },
     "no-restricted-syntax": {
       "count": 4
-    }
-  },
-  "apps/api/src/telegram/schedule-acknowledgement.ts": {
-    "no-restricted-syntax": {
-      "count": 1
     }
   },
   "apps/api/src/telegram/screens.test.ts": {
@@ -3304,7 +3278,7 @@
       "count": 2
     },
     "@typescript-eslint/prefer-optional-chain": {
-      "count": 2
+      "count": 1
     },
     "complexity": {
       "count": 2
@@ -3483,12 +3457,9 @@
   },
   "apps/worker/src/worker.test.ts": {
     "@typescript-eslint/no-non-null-assertion": {
-      "count": 26
+      "count": 19
     },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
-    "no-nested-ternary": {
       "count": 1
     }
   },

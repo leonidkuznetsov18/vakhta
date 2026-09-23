@@ -160,3 +160,19 @@ menu; a hover control with a confirmation must remove a shift without opening th
 - Not unified by design: the month keeps the compact worker matrix (no zone grouping, no open-slot
   cards, no staffing coverage notes), because 31 zone columns of cards do not fit a screen; zone
   coverage and open slots stay in the day and week views. The month stays desktop-only.
+
+## Schedule notices without acknowledgement — 2026-09-23
+
+- Owner decision, [ADR-0016](../../adr/0016-schedule-changes-inform-without-acknowledgement.md):
+  workers skipped «Ознайомлений», so confirmation is removed. `schedule-change-notice.ts` renders
+  one line per added/cancelled/changed shift (weekday, date, local hours, zone; date order; at most
+  12 lines and 3800 characters) plus the reason; the button `planmsg:YYYY-MM` opens the plan as a new message.
+- Removed: ack reminders on publish, recovery of ack reminders, `acknowledge*`/remind/status service
+  methods and endpoints, bot ack buttons, the panel «Ознайомлення» row, `ackReminderHours`.
+  Queued `ACK_REMINDER` tasks complete as stale and outbox rows are skipped; legacy `ack:`/`ack2:`
+  buttons open the plan without writing. Historical acknowledgements remain in evidence and export.
+- Evidence: typecheck and lint pass; API notice/screens/schedule/bot/timer tests (106), worker
+  relay and timer tests (29), i18n, contracts, schedule panel (142) and control-web tests pass.
+  One independent review: its length-limit finding is fixed and tested; comments, suppressions and
+  plan docs cleaned. Panel details inspected in the synthetic preview at desktop and 375×812. Live Telegram delivery
+  was not exercised: it needs a real publication for real employees after deployment.

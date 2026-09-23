@@ -1,6 +1,5 @@
 import { stubFetch } from '@/test/stub-fetch';
 import { AssignmentChanges } from './assignment-changes';
-import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { holidayLabel, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import {
@@ -604,18 +603,6 @@ function mockApi(
         supersedesId: VERSION,
       });
     }
-    if (path === `/admin/schedules/${VERSION}/acknowledgements`) {
-      return json([
-        {
-          employeeId: EMP,
-          fullName: 'Кузнецов Леонид',
-          personnelNumber: '0001',
-          assignments: 1,
-          acknowledged: 0,
-          telegramLinked: true,
-        },
-      ]);
-    }
     return json({ code: 'NOT_FOUND', message: path }, 404);
   });
   stubFetch(fetchMock);
@@ -715,41 +702,6 @@ describe('schedule workspace', () => {
     const after = screen.getByText(/Relief team/);
     expect(after.textContent).toContain(t.kindExtra);
     expect(after.textContent).toContain('Relief position');
-  });
-  it('shows acknowledgement only for the unchanged published assignment and matching version', () => {
-    const saved = ScheduleVersionDetail.parse(detail('PUBLISHED'));
-    const first = saved.assignments[0];
-    if (!first) throw new Error('Missing assignment fixture');
-    first.acknowledgedAt = '2026-09-02T10:00:00Z';
-    const assignment = gridToItems(gridFromDetail(saved))[0];
-    if (!assignment) throw new Error('Missing grid fixture');
-    const input = {
-      assignment,
-      recorded: saved.assignments,
-      version: saved.version,
-      timezone: 'Europe/Moscow',
-    };
-    expect(assignmentAcknowledgement(input)).toContain(t.acknowledged);
-    expect(
-      assignmentAcknowledgement({ ...input, recorded: [{ ...first, acknowledgedAt: null }] }),
-    ).toBe(t.notAcknowledged);
-    for (const change of [
-      { kind: 'EXTRA' as const },
-      { zoneId: UNIT },
-      { teamId: UNIT },
-      { positionId: SITE },
-      { templateId: TPL_DAY },
-    ]) {
-      expect(
-        assignmentAcknowledgement({ ...input, assignment: { ...assignment, ...change } }),
-      ).toBe(t.acknowledgeAfterPublish);
-    }
-    expect(
-      assignmentAcknowledgement({ ...input, version: { ...saved.version, status: 'DRAFT' } }),
-    ).toBe(t.acknowledgeAfterPublish);
-    expect(
-      assignmentAcknowledgement({ ...input, recorded: [{ ...first, scheduleVersionId: UNIT }] }),
-    ).toBe(t.acknowledgeAfterPublish);
   });
   it('shows one loading surface for simultaneous workspace reads without inventing empty data', async () => {
     let resolveReads: () => void = () => undefined;

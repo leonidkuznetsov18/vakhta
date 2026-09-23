@@ -4,7 +4,6 @@ import {
   activityIntervals,
   and,
   asc,
-  assignmentAcknowledgements,
   backgroundTasks,
   domainEvents,
   downtimeIncidents,
@@ -30,7 +29,6 @@ import { OPEN_INCIDENT_STATUSES, SHIFT_REMINDER_LEAD_MINUTES } from '@vakhta/dom
 export const TimerRecoveryOptions = z.object({
   limit: z.number().int().min(1).max(100).default(100),
   shiftReminderMinutes: z.number().int().positive().default(SHIFT_REMINDER_LEAD_MINUTES),
-  ackReminderHours: z.number().int().positive().default(24),
   breakMinutes: z.number().int().positive().default(15),
   mealMinutes: z.number().int().positive().default(60),
   serviceTimeMinutes: z.number().int().positive().default(30),
@@ -81,49 +79,6 @@ export async function recoverTimerTasks(
         fireAt: new Date(row.start.getTime() - options.shiftReminderMinutes * 60_000).toISOString(),
       },
     });
-
-  const acknowledgements = await db
-    .selectDistinct({
-      versionId: scheduleVersions.id,
-      employeeId: shiftAssignments.employeeId,
-      publishedAt: scheduleVersions.publishedAt,
-    })
-    .from(shiftAssignments)
-    .innerJoin(scheduleVersions, eq(shiftAssignments.scheduleVersionId, scheduleVersions.id))
-    .leftJoin(
-      assignmentAcknowledgements,
-      eq(assignmentAcknowledgements.assignmentId, shiftAssignments.id),
-    )
-    .where(
-      and(
-        eq(scheduleVersions.status, 'PUBLISHED'),
-        isNotNull(scheduleVersions.publishedAt),
-        eq(shiftAssignments.status, 'PLANNED'),
-        gt(shiftAssignments.planStartAt, now),
-        isNull(assignmentAcknowledgements.id),
-        absent(
-          sql`'ack-reminder.' || ${scheduleVersions.id}::text || '.' || ${shiftAssignments.employeeId}::text`,
-        ),
-      ),
-    )
-    .orderBy(
-      asc(scheduleVersions.id),
-      asc(shiftAssignments.employeeId),
-      asc(scheduleVersions.publishedAt),
-    )
-    .limit(options.limit);
-  for (const row of acknowledgements)
-    if (row.publishedAt)
-      candidates.push({
-        kind: 'ACK_REMINDER',
-        payload: {
-          versionId: row.versionId,
-          employeeId: row.employeeId,
-          fireAt: new Date(
-            row.publishedAt.getTime() + options.ackReminderHours * 3_600_000,
-          ).toISOString(),
-        },
-      });
 
   const intervals = await db
     .select({ interval: activityIntervals, session: shiftSessions })

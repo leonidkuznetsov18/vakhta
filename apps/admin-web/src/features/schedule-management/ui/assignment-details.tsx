@@ -33,7 +33,6 @@ import type { useOperations } from '../model/use-operations';
 import type { useCalendarEvents } from '../model/use-events';
 import type { Notes } from '../model/use-notes';
 import { reasonsFor } from '../model/use-eligibility';
-import { assignmentAcknowledgement } from '../model/acknowledgement';
 import { ReasonAlerts } from './reason-alerts';
 import { NotesSection } from './notes-section';
 import { employeeLabel } from './assignment-changes';
@@ -50,7 +49,7 @@ const EMPTY_CARD: CalendarItem = {
 
 /**
  * Read-only details and the actions of one shift, identical in the day, week and month views:
- * time and kind, publication and acknowledgement, rule reasons, absence and presence context,
+ * time and kind, publication, rule reasons, absence and presence context,
  * requests, notes, then edit, move, replacement, revert and remove.
  */
 export function AssignmentDetails({
@@ -86,20 +85,9 @@ export function AssignmentDetails({
     unitName: (id: string) => w.units.find((unit) => unit.id === id)?.name ?? id,
     zoneName: (id: string) => w.zones.find((zone) => zone.id === id)?.name ?? id,
   };
-  const acknowledgement = assignmentAcknowledgement({
-    assignment: item,
-    recorded: w.recorded,
-    version: w.version,
-    timezone: w.timezone,
-  });
   return (
     <>
-      <AssignmentFacts
-        card={card}
-        grouping={grouping}
-        person={employeeLabel(w, item.employeeId)}
-        acknowledgement={acknowledgement}
-      />
+      <AssignmentFacts card={card} grouping={grouping} person={employeeLabel(w, item.employeeId)} />
       <ReasonAlerts
         reasons={reasonsFor(w.issues.reasons, item.employeeId, item.businessDate)}
         labels={labels}
@@ -151,12 +139,10 @@ function AssignmentFacts({
   card,
   grouping,
   person,
-  acknowledgement,
 }: {
   readonly card: CalendarItem;
   readonly grouping: CalendarGrouping;
   readonly person: string;
-  readonly acknowledgement: string;
 }) {
   const t = messages(currentLocale()).scheduleWorkspace;
   const parts = card.parts ?? [];
@@ -191,8 +177,6 @@ function AssignmentFacts({
             <dd className="[overflow-wrap:anywhere]">{card.status}</dd>
           </>
         )}
-        <dt className="text-muted-foreground">{t.detailAcknowledgement}</dt>
-        <dd>{acknowledgement}</dd>
       </dl>
     </>
   );

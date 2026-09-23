@@ -114,7 +114,6 @@ describe('requests: маршрути, рішення, нова версія гр
       timers,
       {
         shiftReminderMinutes: 120,
-        ackReminderHours: 24,
         defaultTimezone: 'Europe/Kyiv',
       },
     );

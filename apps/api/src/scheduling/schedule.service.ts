@@ -8,7 +8,6 @@ import {
   eq,
   gt,
   inArray,
-  isNull,
   max,
   orgUnits,
   responsibilityZones,
@@ -29,6 +28,7 @@ import {
 import {
   buildMonthPlan,
   diffSchedules,
+  type EmployeeChanges,
   nextScheduleStatus,
   type PlannedShift,
   type ScheduleAction,
@@ -45,7 +45,6 @@ import {
   resolveBreaks,
 } from '@vakhta/domain';
 import type {
-  AcknowledgementStatusView,
   AssignmentInput,
   AssignmentView,
   CreateScheduleVersionCommand,
@@ -54,14 +53,12 @@ import type {
   PublishScheduleCommand,
   PutAssignmentsCommand,
   ReviseScheduleCommand,
-  RemindResult,
   ReturnToDraftCommand,
   ScheduleVersionDetail,
   ScheduleVersionView,
   ScheduleWebCommand,
   ScheduleCommandResult,
 } from '@vakhta/contracts';
-import { format, type Messages } from '@vakhta/i18n';
 import { AssignmentStatusSchema, EmployeeStatusSchema } from '@vakhta/contracts';
 import { assignmentContent } from './assignment-content.js';
 import type { Actor } from '../common/actor.js';
@@ -74,8 +71,14 @@ import { TIMER_SCHEDULER, type TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { OrgService } from '../org/org.service.js';
 import { TemplatesService } from './templates.service.js';
-import { acknowledgementSnapshot, type AcknowledgementScope } from './acknowledgement-snapshot.js';
 import { loadEmployeeNotes } from './notes.service.js';
+import {
+  changedShifts,
+  PLAN_MESSAGE_CALLBACK,
+  scheduleChangedText,
+  schedulePublishedText,
+  type ScheduleNoticeInput,
+} from './schedule-change-notice.js';
 import {
   loadAbsences,
   loadContextIntervals,
@@ -88,7 +91,6 @@ import {
 
 export interface ScheduleOptions {
   readonly shiftReminderMinutes: number;
-  readonly ackReminderHours: number;
   readonly defaultTimezone: string;
 }
 
@@ -137,12 +139,6 @@ export interface NextShift {
   readonly isNight: boolean;
   readonly zoneName: string | null;
   readonly timezone: string;
-  readonly acknowledged: boolean;
-}
-
-function monthLabel(t: Messages, periodMonth: string): { month: string; year: string } {
-  const [year, m] = periodMonth.split('-');
-  return { month: t.schedule.months[Number(m) - 1] ?? periodMonth, year: year ?? '' };
 }
 
 /**
@@ -1234,28 +1230,32 @@ export class ScheduleService {
           )
       : [];
     const linkedSet = new Set(linked.map((l) => l.employeeId));
+    const notice = linkedSet.size
+      ? await this.noticeContext(tx, version, [...diff.values()], cmd.changeReason ?? null)
+      : null;
+    const shiftCounts = new Map<string, number>();
+    for (const shift of nextShifts)
+      shiftCounts.set(shift.employeeId, (shiftCounts.get(shift.employeeId) ?? 0) + 1);
     let notified = 0;
     for (const employeeId of affected) {
-      if (!linkedSet.has(employeeId)) continue;
-      const changes = diff.get(employeeId)!;
-      const employeeShifts = nextShifts.filter((s) => s.employeeId === employeeId);
+      const changes = diff.get(employeeId);
+      if (!notice || !changes || !linkedSet.has(employeeId)) continue;
       const queued = await this.notifications.enqueue(tx, {
         recipientType: 'EMPLOYEE',
         recipientId: employeeId,
         template: previous ? 'SCHEDULE_CHANGED' : 'SCHEDULE_PUBLISHED',
         payload: (t) => ({
           text: previous
-            ? format(t.schedule.changed, {
-                ...monthLabel(t, version.periodMonth),
-                added: changes.added.length,
-                removed: changes.removed.length,
-                changed: changes.changed.length,
-              })
-            : format(t.schedule.published, {
-                ...monthLabel(t, version.periodMonth),
-                shifts: employeeShifts.length,
-              }),
-          buttons: [[{ text: t.schedule.ackButton, callbackData: `ack:${version.id}` }]],
+            ? scheduleChangedText(t, changes, notice)
+            : schedulePublishedText(t, shiftCounts.get(employeeId) ?? 0, notice),
+          buttons: [
+            [
+              {
+                text: t.schedule.viewScheduleButton,
+                callbackData: `${PLAN_MESSAGE_CALLBACK}${version.periodMonth}`,
+              },
+            ],
+          ],
         }),
         dedupeKey: `schedule:${version.id}:${employeeId}`,
       });
@@ -1284,28 +1284,51 @@ export class ScheduleService {
       after: { status: 'PUBLISHED', supersedes: previous?.id ?? null },
       reason: cmd.changeReason ?? null,
     });
-    await this.armTimers(tx, { updated, nextShifts }, now);
+    await this.armShiftReminders(tx, nextShifts);
     return { updated, nextShifts };
   }
 
   /** Reminder intents commit with publication; delayed dispatch rechecks current business state. */
-  private async armTimers(
+  private async armShiftReminders(
     tx: Transaction,
-    result: { updated: VersionRow; nextShifts: PlannedShift[] },
-    now: Date,
+    nextShifts: readonly PlannedShift[],
   ): Promise<void> {
     const reminderMs = this.options.shiftReminderMinutes * 60_000;
-    for (const s of result.nextShifts) {
+    for (const s of nextShifts) {
       await this.timers.scheduleShiftReminder(
         tx,
         s.id,
         new Date(s.planStartAt.getTime() - reminderMs),
       );
     }
-    const ackAt = new Date(now.getTime() + this.options.ackReminderHours * 3_600_000);
-    for (const employeeId of new Set(result.nextShifts.map((s) => s.employeeId))) {
-      await this.timers.scheduleAckReminder(tx, result.updated.id, employeeId, ackAt);
-    }
+  }
+
+  /** Site timezone and zone names for the change lines, read once per publication. */
+  private async noticeContext(
+    tx: Transaction,
+    version: VersionRow,
+    changes: readonly EmployeeChanges[],
+    reason: string | null,
+  ): Promise<ScheduleNoticeInput> {
+    const zoneIds = new Set(
+      changes.flatMap(changedShifts).flatMap((shift) => (shift.zoneId ? [shift.zoneId] : [])),
+    );
+    const [site] = await tx
+      .select({ timezone: sites.timezone })
+      .from(sites)
+      .where(eq(sites.id, version.siteId));
+    const zones = zoneIds.size
+      ? await tx
+          .select({ id: responsibilityZones.id, name: responsibilityZones.name })
+          .from(responsibilityZones)
+          .where(inArray(responsibilityZones.id, [...zoneIds]))
+      : [];
+    return {
+      periodMonth: version.periodMonth,
+      timezone: site?.timezone ?? this.options.defaultTimezone,
+      zoneNames: new Map(zones.map((zone) => [zone.id, zone.name])),
+      reason,
+    };
   }
 
   private async transitionWithin(
@@ -1362,255 +1385,11 @@ export class ScheduleService {
   }
 
   /* ------------------------------------------------------------------ */
-  /* Ознайомлення і «Мій план»                                           */
+  /* «Мій план»                                                          */
   /* ------------------------------------------------------------------ */
-
-  /** «Ознайомлений» по всіх запланованих змінах працівника у версії (ТЗ 3.2). */
-  async acknowledge(
-    versionId: string,
-    employeeId: string,
-    source: 'TELEGRAM' | 'WEB',
-  ): Promise<{ acknowledged: number; total: number }> {
-    return this.db.transaction(async (tx) => {
-      const [version] = await tx
-        .select()
-        .from(scheduleVersions)
-        .where(eq(scheduleVersions.id, versionId))
-        .for('no key update');
-      if (!version || version.status !== 'PUBLISHED') {
-        throw new DomainError(
-          'SCHEDULE_NOT_PUBLISHED',
-          409,
-          'Ознайомитись можна лише з опублікованою версією',
-        );
-      }
-      const rows = await tx
-        .select({ id: shiftAssignments.id })
-        .from(shiftAssignments)
-        .where(
-          and(
-            eq(shiftAssignments.scheduleVersionId, versionId),
-            eq(shiftAssignments.employeeId, employeeId),
-            eq(shiftAssignments.status, 'PLANNED'),
-          ),
-        );
-      if (rows.length === 0) return { acknowledged: 0, total: 0 };
-      const acknowledged = await this.recordAcknowledgementsWithin(
-        tx,
-        versionId,
-        employeeId,
-        source,
-        rows.map((row) => row.id),
-      );
-      return { acknowledged, total: rows.length };
-    });
-  }
-
-  private async recordAcknowledgementsWithin(
-    tx: Transaction,
-    versionId: string,
-    employeeId: string,
-    source: 'TELEGRAM' | 'WEB',
-    assignmentIds: readonly string[],
-  ): Promise<number> {
-    const inserted = await tx
-      .insert(assignmentAcknowledgements)
-      .values(
-        assignmentIds.map((assignmentId) => ({
-          assignmentId,
-          employeeId,
-          scheduleVersionId: versionId,
-          source,
-        })),
-      )
-      .onConflictDoNothing({ target: assignmentAcknowledgements.assignmentId })
-      .returning({ id: assignmentAcknowledgements.id });
-    if (inserted.length > 0) {
-      await this.events.append(tx, {
-        type: 'SCHEDULE_ACKNOWLEDGED',
-        source: source === 'TELEGRAM' ? 'TELEGRAM' : 'WEB',
-        actor: { type: 'EMPLOYEE', id: employeeId, role: 'EMPLOYEE' },
-        employeeId,
-        scheduleVersionId: versionId,
-        payload: { assignments: inserted.length },
-      });
-    }
-    return inserted.length;
-  }
-
-  private readAcknowledgementAssignments(
-    db: DbOrTx,
-    employeeId: string,
-    scope: AcknowledgementScope,
-  ) {
-    return db
-      .select({ a: shiftAssignments, acknowledgedAt: assignmentAcknowledgements.acknowledgedAt })
-      .from(shiftAssignments)
-      .innerJoin(scheduleVersions, eq(scheduleVersions.id, shiftAssignments.scheduleVersionId))
-      .leftJoin(
-        assignmentAcknowledgements,
-        eq(assignmentAcknowledgements.assignmentId, shiftAssignments.id),
-      )
-      .where(
-        and(
-          eq(shiftAssignments.employeeId, employeeId),
-          eq(shiftAssignments.status, 'PLANNED'),
-          eq(scheduleVersions.status, 'PUBLISHED'),
-          scope.kind === 'MONTH' ? eq(scheduleVersions.periodMonth, scope.month) : undefined,
-        ),
-      );
-  }
-
-  async homeAcknowledgement(employeeId: string) {
-    const scope = { kind: 'HOME' } as const;
-    return acknowledgementSnapshot(
-      employeeId,
-      scope,
-      await this.readAcknowledgementAssignments(this.db, employeeId, scope),
-    );
-  }
-
-  async acknowledgeSnapshot(
-    employeeId: string,
-    scope: AcknowledgementScope,
-    fingerprint: string,
-    source: 'TELEGRAM' | 'WEB',
-  ): Promise<{ kind: 'STALE' } | { kind: 'ACKNOWLEDGED'; acknowledged: number; total: number }> {
-    return this.db.transaction(async (tx) => {
-      const candidates = await this.readAcknowledgementAssignments(tx, employeeId, scope);
-      const versionIds = [...new Set(candidates.map(({ a }) => a.scheduleVersionId))].sort();
-      for (const versionId of versionIds) await this.lockVersion(versionId, tx);
-      const rows = await this.readAcknowledgementAssignments(tx, employeeId, scope);
-      if (
-        rows.some(({ a }) => !versionIds.includes(a.scheduleVersionId)) ||
-        acknowledgementSnapshot(employeeId, scope, rows).fingerprint !== fingerprint
-      ) {
-        return { kind: 'STALE' };
-      }
-      let acknowledged = 0;
-      for (const versionId of versionIds) {
-        const assignmentIds = rows
-          .filter(({ a }) => a.scheduleVersionId === versionId)
-          .map(({ a }) => a.id);
-        if (assignmentIds.length > 0)
-          acknowledged += await this.recordAcknowledgementsWithin(
-            tx,
-            versionId,
-            employeeId,
-            source,
-            assignmentIds,
-          );
-      }
-      return { kind: 'ACKNOWLEDGED', acknowledged, total: rows.length };
-    });
-  }
-
-  /** Усі опубліковані версії, де у працівника є непідтверджені зміни. */
-  async unacknowledgedVersions(
-    employeeId: string,
-  ): Promise<{ versionId: string; periodMonth: string }[]> {
-    const rows = await this.db
-      .selectDistinct({ versionId: scheduleVersions.id, periodMonth: scheduleVersions.periodMonth })
-      .from(shiftAssignments)
-      .innerJoin(scheduleVersions, eq(shiftAssignments.scheduleVersionId, scheduleVersions.id))
-      .leftJoin(
-        assignmentAcknowledgements,
-        eq(assignmentAcknowledgements.assignmentId, shiftAssignments.id),
-      )
-      .where(
-        and(
-          eq(shiftAssignments.employeeId, employeeId),
-          eq(shiftAssignments.status, 'PLANNED'),
-          eq(scheduleVersions.status, 'PUBLISHED'),
-          isNull(assignmentAcknowledgements.id),
-        ),
-      );
-    return rows;
-  }
-
-  /**
-   * Manual nudge from the panel: everyone with unacknowledged shifts in a published version gets
-   * the same reminder the worker sends after 24 hours. One reminder per employee per day.
-   */
-  async remindAcknowledgement(versionId: string, actor: Actor): Promise<RemindResult> {
-    const version = await this.requireVersion(versionId);
-    if (version.status !== 'PUBLISHED') {
-      throw new DomainError(
-        'SCHEDULE_NOT_PUBLISHED',
-        409,
-        'Only a published version can be reminded',
-      );
-    }
-    const status = await this.acknowledgementStatus(versionId);
-    const pending = status.filter((s) => s.telegramLinked && s.acknowledged < s.assignments);
-    const [year, m] = version.periodMonth.split('-');
-    const day = new Date().toISOString().slice(0, 10);
-    let reminded = 0;
-    await this.db.transaction(async (tx) => {
-      for (const row of pending) {
-        const queued = await this.notifications.enqueue(tx, {
-          recipientType: 'EMPLOYEE',
-          recipientId: row.employeeId,
-          template: 'ACK_REMINDER',
-          payload: (t) => ({
-            text: format(t.schedule.ackReminder, {
-              month: t.schedule.months[Number(m) - 1] ?? version.periodMonth,
-              year: year ?? '',
-            }),
-            buttons: [[{ text: t.schedule.ackButton, callbackData: `ack:${version.id}` }]],
-          }),
-          dedupeKey: `ack-reminder:manual:${version.id}:${row.employeeId}:${day}`,
-        });
-        if (queued) reminded += 1;
-      }
-      await this.audit.record(tx, {
-        actor,
-        action: 'schedule.version.remind',
-        objectType: 'schedule_version',
-        objectId: version.id,
-        after: { reminded, pending: pending.length },
-      });
-    });
-    return { reminded };
-  }
-
-  async acknowledgementStatus(versionId: string): Promise<AcknowledgementStatusView[]> {
-    const rows = await this.db
-      .select({
-        employeeId: employees.id,
-        fullName: employees.fullName,
-        personnelNumber: employees.personnelNumber,
-        assignments: sql<number>`count(${shiftAssignments.id})::int`,
-        acknowledged: sql<number>`count(${assignmentAcknowledgements.id})::int`,
-        telegramLinked: sql<boolean>`bool_or(${telegramAccounts.id} is not null)`,
-      })
-      .from(shiftAssignments)
-      .innerJoin(employees, eq(shiftAssignments.employeeId, employees.id))
-      .leftJoin(
-        assignmentAcknowledgements,
-        eq(assignmentAcknowledgements.assignmentId, shiftAssignments.id),
-      )
-      .leftJoin(
-        telegramAccounts,
-        and(eq(telegramAccounts.employeeId, employees.id), eq(telegramAccounts.status, 'ACTIVE')),
-      )
-      .where(
-        and(
-          eq(shiftAssignments.scheduleVersionId, versionId),
-          eq(shiftAssignments.status, 'PLANNED'),
-        ),
-      )
-      .groupBy(employees.id, employees.fullName, employees.personnelNumber)
-      .orderBy(asc(employees.fullName));
-    return rows;
-  }
 
   /** Календар місяця працівника з усіх опублікованих версій (FR-SCH-01). */
   async myPlan(employeeId: string, month: string): Promise<MyPlanView> {
-    return (await this.myPlanWithAcknowledgement(employeeId, month)).plan;
-  }
-
-  async myPlanWithAcknowledgement(employeeId: string, month: string) {
     const rows = await this.db
       .select({
         a: shiftAssignments,
@@ -1619,7 +1398,6 @@ export class ScheduleService {
         zoneName: responsibilityZones.name,
         orgUnitName: orgUnits.name,
         timezone: sites.timezone,
-        acknowledgedAt: assignmentAcknowledgements.acknowledgedAt,
       })
       .from(shiftAssignments)
       .innerJoin(scheduleVersions, eq(shiftAssignments.scheduleVersionId, scheduleVersions.id))
@@ -1627,10 +1405,6 @@ export class ScheduleService {
       .innerJoin(orgUnits, eq(shiftAssignments.orgUnitId, orgUnits.id))
       .innerJoin(sites, eq(scheduleVersions.siteId, sites.id))
       .leftJoin(responsibilityZones, eq(shiftAssignments.zoneId, responsibilityZones.id))
-      .leftJoin(
-        assignmentAcknowledgements,
-        eq(assignmentAcknowledgements.assignmentId, shiftAssignments.id),
-      )
       .where(
         and(
           eq(shiftAssignments.employeeId, employeeId),
@@ -1656,11 +1430,7 @@ export class ScheduleService {
     }));
     const byId = new Map(rows.map((r) => [r.a.id, r]));
     const monthPlan = buildMonthPlan(planned, month);
-    const unacknowledged = new Set(
-      rows.filter((r) => r.acknowledgedAt === null).map((r) => r.a.scheduleVersionId),
-    );
-
-    const plan: MyPlanView = {
+    return {
       month,
       timezone: rows[0]?.timezone ?? this.options.defaultTimezone,
       days: monthPlan.days.map((d) => {
@@ -1678,22 +1448,16 @@ export class ScheduleService {
                 templateCode: r.templateCode,
                 zoneName: r.zoneName,
                 orgUnitName: r.orgUnitName,
-                acknowledged: r.acknowledgedAt !== null,
               }
             : null,
         };
       }),
       totals: monthPlan.totals,
-      unacknowledgedVersionIds: [...unacknowledged],
       notes: await loadEmployeeNotes(this.db, {
         employeeId,
         month,
         orgUnitIds: [...new Set(rows.map((r) => r.a.orgUnitId))],
       }),
-    };
-    return {
-      plan,
-      acknowledgement: acknowledgementSnapshot(employeeId, { kind: 'MONTH', month }, rows),
     };
   }
 
@@ -1705,17 +1469,12 @@ export class ScheduleService {
         isNight: shiftTemplates.isNight,
         zoneName: responsibilityZones.name,
         timezone: sites.timezone,
-        acknowledgedAt: assignmentAcknowledgements.acknowledgedAt,
       })
       .from(shiftAssignments)
       .innerJoin(scheduleVersions, eq(shiftAssignments.scheduleVersionId, scheduleVersions.id))
       .innerJoin(shiftTemplates, eq(shiftAssignments.templateId, shiftTemplates.id))
       .innerJoin(sites, eq(scheduleVersions.siteId, sites.id))
       .leftJoin(responsibilityZones, eq(shiftAssignments.zoneId, responsibilityZones.id))
-      .leftJoin(
-        assignmentAcknowledgements,
-        eq(assignmentAcknowledgements.assignmentId, shiftAssignments.id),
-      )
       .where(
         and(
           eq(shiftAssignments.employeeId, employeeId),
@@ -1735,7 +1494,6 @@ export class ScheduleService {
       isNight: r.isNight,
       zoneName: r.zoneName,
       timezone: r.timezone,
-      acknowledged: r.acknowledgedAt !== null,
     };
   }
 

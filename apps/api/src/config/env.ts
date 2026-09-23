@@ -76,8 +76,6 @@ export const EnvSchema = z.object({
   ACTIVATION_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   /** Schedule reminders 30 minutes before the planned start. */
   SHIFT_REMINDER_MINUTES: z.coerce.number().int().positive().default(SHIFT_REMINDER_LEAD_MINUTES),
-  /** Повторне нагадування про ознайомлення (ТЗ 10). */
-  ACK_REMINDER_HOURS: z.coerce.number().int().positive().default(24),
   /** Вікна приходу і відходу відносно планової зміни (ТЗ 18 п. 4). */
   PRESENCE_ARRIVE_BEFORE_MINUTES: z.coerce.number().int().positive().default(180),
   PRESENCE_DEPART_AFTER_MINUTES: z.coerce.number().int().positive().default(180),

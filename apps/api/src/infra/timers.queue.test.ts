@@ -5,7 +5,6 @@ import { startTestDatabase, type TestDatabase } from '../../test/db.js';
 import { TimerScheduler } from './timers.queue.js';
 
 const ASSIGNMENT = '11111111-1111-4111-8111-111111111111';
-const VERSION = '22222222-2222-4222-8222-222222222222';
 const EMPLOYEE = '33333333-3333-4333-8333-333333333333';
 
 describe('durable timer source admission', () => {
@@ -26,7 +25,7 @@ describe('durable timer source admission', () => {
     await testDb.db.transaction(async (tx) => {
       await timers.scheduleShiftReminder(tx, ASSIGNMENT, fireAt);
       await timers.scheduleShiftReminder(tx, ASSIGNMENT, fireAt);
-      await timers.scheduleAckReminder(tx, VERSION, EMPLOYEE, fireAt);
+      await timers.scheduleBirthdayGreeting(tx, EMPLOYEE, fireAt);
     });
     const rows = await testDb.db.select().from(backgroundTasks);
     expect(rows).toHaveLength(2);
@@ -45,7 +44,7 @@ describe('durable timer source admission', () => {
         await tx
           .insert(employees)
           .values({ id: EMPLOYEE, personnelNumber: 'timer-source', fullName: 'Timer Source' });
-        await timers.scheduleAckReminder(tx, VERSION, EMPLOYEE, new Date());
+        await timers.scheduleBirthdayGreeting(tx, EMPLOYEE, new Date());
         throw new Error('Injected source failure');
       }),
     ).rejects.toThrow('Injected source failure');

@@ -107,7 +107,7 @@ describe('access scope of overview sources (spec 004 US1)', () => {
       new TemplatesService(db, events, audit, org),
       notifications,
       timers,
-      { shiftReminderMinutes: 120, ackReminderHours: 24, defaultTimezone: 'Europe/Kyiv' },
+      { shiftReminderMinutes: 120, defaultTimezone: 'Europe/Kyiv' },
     );
     requestsService = new RequestsService(
       db,

@@ -504,21 +504,20 @@ export const en: Messages = {
     myPlanButton: 'My plan',
     prevMonth: '◀ Prev. month',
     nextMonth: 'Next month ▶',
-    ackButton: 'Acknowledged',
-    ackDone: 'Thank you, acknowledgement confirmed.',
-    ackRefresh: 'This button is out of date. Review the updated plan and confirm again.',
-    ackNothing: 'Nothing to confirm: there are no new schedule publications.',
-    ackRequired: 'There is a new schedule. Please confirm acknowledgement.',
+    viewScheduleButton: '📅 View schedule',
+    ackRetired: 'No confirmation is needed any more. Here is your current schedule.',
     nextShift: 'Next shift: {date} ({weekday}), {kind} {start}–{end}{zone}',
     noNextShift: 'There are no upcoming shifts in the published schedule.',
-    published:
-      'The schedule for {month} {year} is published: {shifts} shifts. Open "My plan" and confirm acknowledgement.',
-    changed:
-      'The schedule for {month} {year} changed: {added} added, {removed} cancelled, {changed} changed. Please confirm acknowledgement.',
+    published: '📅 Your schedule for {month} {year} is published. Shifts this month: {shifts}.',
+    changed: '📅 Your schedule for {month} {year} has changed:',
+    changeAdded: '➕ Added {weekday} {date}: {shift}',
+    changeRemoved: '❌ Cancelled {weekday} {date}: {shift}',
+    changeChanged: '🔄 Changed {weekday} {date}: {before} → {after}',
+    changeDetails: '🔄 Changed {weekday} {date}: {shift}',
+    changeMore: '…and {count} more',
+    changeReason: 'Reason: {reason}',
     shiftReminder:
       'Reminder: {kind} shift on {date}, starts at {start}{zone}. Record arrival by QR at the checkpoint.',
-    ackReminder:
-      'You have not confirmed acknowledgement of the schedule for {month} {year}. Open "My plan" and press "Acknowledged".',
     slotOffered:
       'Open shift: {kind} {date}, {start}–{end}{zone}. Are you interested? Interest is not an assignment: the planner selects one person and the schedule is published as usual.',
     slotInterested: 'I am interested',
@@ -527,7 +526,7 @@ export const en: Messages = {
     slotDeclined: 'Recorded: not interested.',
     slotClosed: 'This offer is closed.',
     slotSelected:
-      'You were selected for the {kind} shift on {date}, {start}–{end}{zone}. The schedule will be published; confirm acknowledgement when it arrives.',
+      'You were selected for the {kind} shift on {date}, {start}–{end}{zone}. The schedule will be published and you will be notified.',
     feedButton: '📅 Calendar link',
     feedIssued:
       'Your personal calendar link:\n{url}\n\nAdd it to your phone calendar as a subscription. It shows only your published shifts and refreshes every few hours, so a change appears with a delay. Anyone with the link sees your shifts: keep it private. You can revoke it here at any time; an older link stops working when you request a new one.',
@@ -668,7 +667,7 @@ export const en: Messages = {
       publishReason:
         'Reason for the schedule change (employees will see it in the notification). May be left empty:',
       publishConfirm:
-        'Publish the version? Employees will receive a notification and an acknowledgement request.',
+        'Publish the version? Employees will receive a notification listing their changes.',
       published: 'Schedule published. Notifications sent.',
       submitted: 'Version submitted for review.',
       returned: 'Version returned to draft.',
@@ -679,7 +678,7 @@ export const en: Messages = {
         'A published version is not edited in place: a new version with the same shifts is created, you change it and publish it. The previous version stays in the history and the employees are notified about the changes.',
       revisingTitle: 'You are editing a published schedule',
       revisingHint:
-        'Change shifts, add and remove employees right here. "Publish changes" saves the edits as a new version and publishes it at once: employees whose shifts changed are notified and asked to acknowledge, the previous version stays in the history.',
+        'Change shifts, add and remove employees right here. "Publish changes" saves the edits as a new version and publishes it at once: employees whose shifts changed receive a notification listing their changes, the previous version stays in the history.',
       publishChanges: 'Publish changes',
       reviseConfirm:
         'Publish the changes as a new version? Employees whose shifts changed will be notified.',
@@ -1902,7 +1901,7 @@ export const en: Messages = {
           'Click an empty cell to add a shift with the selected date, worker or zone, or use Add assignments for several workers, a date range and a shift or rotation with a preview.',
           'Click a shift to change its date, zone or shift template, or to remove it. Edits stay on this device until you save or publish; Undo and Redo reverse them.',
           'The status line shows whether the plan is published, a draft or awaiting approval, and how many changes workers have not seen yet. A planner saves the draft and sends it for approval.',
-          'Review and publish lists exact additions, removals and changes with the affected workers; publishing queues their Telegram notifications and acknowledgement requests.',
+          'Review and publish lists exact additions, removals and changes with the affected workers; publishing queues their Telegram notifications listing the changes; no confirmation is required.',
         ],
         faq: [
           {
@@ -1918,8 +1917,8 @@ export const en: Messages = {
             a: 'The assignment editor changes one worker and date. Bulk replacement affects only the selected workers and date range, with a preview.',
           },
           {
-            q: 'Where are worker acknowledgements?',
-            a: 'Workers acknowledge their published schedule in the bot. This page has no acknowledgement table or reminder action.',
+            q: 'Do workers have to confirm the schedule?',
+            a: 'No. A published schedule applies at once: the bot tells each worker exactly which shifts were added, cancelled or changed and offers a button to view the schedule.',
           },
         ],
       },
@@ -2269,7 +2268,7 @@ export const en: Messages = {
       scheduleSubmit:
         'Send the version to the head of production. Disabled while there are errors, unsaved changes, or not a single shift in the month.',
       schedulePublish:
-        'Employees get a notification and an "Acknowledged" button. They see the reason in the message.',
+        'Employees get a notification listing their changes and see the reason in the message.',
       scheduleReturn: 'Return the version to the planner for rework with a comment.',
       scheduleZone:
         'The responsibility zone defines which zone the employee cleans and hands over at the end of the shift. Without a zone no checklist and no photos are requested.',

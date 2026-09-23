@@ -170,7 +170,6 @@ export class TenantRuntimeRegistry implements OnApplicationShutdown {
       QR_ROTATION_SECONDS: this.config.get('QR_ROTATION_SECONDS', { infer: true }),
       QR_TTL_SECONDS: this.config.get('QR_TTL_SECONDS', { infer: true }),
       SHIFT_REMINDER_MINUTES: this.config.get('SHIFT_REMINDER_MINUTES', { infer: true }),
-      ACK_REMINDER_HOURS: this.config.get('ACK_REMINDER_HOURS', { infer: true }),
       APPEAL_WINDOW_DAYS: this.config.get('APPEAL_WINDOW_DAYS', { infer: true }),
     });
   }

@@ -41,7 +41,6 @@ import { AdminStaffingController } from './admin-staffing.controller.js';
           const s = currentSettings();
           return {
             shiftReminderMinutes: s.shiftReminderMinutes,
-            ackReminderHours: s.ackReminderHours,
             defaultTimezone: config.get('DEFAULT_SITE_TIMEZONE', { infer: true }),
           };
         }),

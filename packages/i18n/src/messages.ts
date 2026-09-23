@@ -402,22 +402,30 @@ export interface Messages {
     readonly myPlanButton: string;
     readonly prevMonth: string;
     readonly nextMonth: string;
-    readonly ackButton: string;
-    readonly ackDone: string;
-    readonly ackRefresh: string;
-    readonly ackNothing: string;
-    readonly ackRequired: string;
+    readonly viewScheduleButton: string;
+    /** Answer to an «acknowledged» button left in an old message. */
+    readonly ackRetired: string;
     /** Placeholders: {date}, {weekday}, {kind}, {start}, {end}, {zone} */
     readonly nextShift: string;
     readonly noNextShift: string;
     /** Placeholders: {month}, {year}, {shifts} */
     readonly published: string;
-    /** Placeholders: {month}, {year}, {added}, {removed}, {changed} */
+    /** Placeholders: {month}, {year}; the changed shifts follow, one per line. */
     readonly changed: string;
+    /** Placeholders: {weekday}, {date}, {shift} */
+    readonly changeAdded: string;
+    /** Placeholders: {weekday}, {date}, {shift} */
+    readonly changeRemoved: string;
+    /** Placeholders: {weekday}, {date}, {before}, {after} */
+    readonly changeChanged: string;
+    /** Same hours and zone, other details changed. Placeholders: {weekday}, {date}, {shift} */
+    readonly changeDetails: string;
+    /** Placeholders: {count} */
+    readonly changeMore: string;
+    /** Placeholders: {reason} */
+    readonly changeReason: string;
     /** Placeholders: {kind}, {date}, {start}, {zone} */
     readonly shiftReminder: string;
-    /** Placeholders: {month}, {year} */
-    readonly ackReminder: string;
     readonly slotOffered: string;
     readonly slotInterested: string;
     readonly slotNotInterested: string;

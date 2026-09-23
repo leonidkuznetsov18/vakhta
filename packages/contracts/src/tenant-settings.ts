@@ -33,7 +33,6 @@ export const TenantSettings = z.object({
   mediaNearDuplicateDistance: z.number().int().min(0).max(64),
   mediaRetentionDays: z.number().int().min(30).max(3650),
   shiftReminderMinutes: minutes(1, 720),
-  ackReminderHours: z.number().int().min(1).max(168),
   appealWindowDays: z.number().int().min(1).max(30),
 });
 export type TenantSettings = z.infer<typeof TenantSettings>;
@@ -65,7 +64,6 @@ export const TENANT_SETTING_DEFAULTS: TenantSettings = {
   mediaNearDuplicateDistance: 6,
   mediaRetentionDays: 365,
   shiftReminderMinutes: 30,
-  ackReminderHours: 24,
   appealWindowDays: 3,
 };
 
@@ -77,12 +75,7 @@ export const TENANT_SETTING_GROUPS = {
     'earlyStartWindowMinutes',
     'graceMinutes',
   ],
-  shift: [
-    'overtimeThresholdMinutes',
-    'autoCloseGraceMinutes',
-    'shiftReminderMinutes',
-    'ackReminderHours',
-  ],
+  shift: ['overtimeThresholdMinutes', 'autoCloseGraceMinutes', 'shiftReminderMinutes'],
   breaks: ['breakMinutes', 'mealMinutes', 'serviceTimeMinutes'],
   incidents: [
     'downtimeEscalationMinutes',

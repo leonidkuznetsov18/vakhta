@@ -1,4 +1,3 @@
-import { readAckReminder } from './ack-reminder-policy.js';
 import { readShiftReminder } from './shift-reminder-policy.js';
 import { timerNow } from './time.js';
 import {
@@ -9,7 +8,7 @@ import {
   type Database,
   type Transaction,
 } from '@vakhta/db';
-import type { AckReminderJob, ShiftReminderJob } from '@vakhta/contracts';
+import type { ShiftReminderJob } from '@vakhta/contracts';
 
 export type ReminderOutcome = 'queued' | 'duplicate' | 'stale';
 
@@ -58,34 +57,9 @@ export async function handleShiftReminderWithin(
   return inserted.length > 0 ? 'queued' : 'duplicate';
 }
 
-/** One acknowledgement reminder while a future shift of this version remains unconfirmed. */
-export async function handleAckReminderWithin(
-  db: Transaction,
-  data: AckReminderJob,
-  testTime?: Date,
-): Promise<ReminderOutcome> {
-  await db
-    .select({ id: scheduleVersions.id })
-    .from(scheduleVersions)
-    .where(eq(scheduleVersions.id, data.versionId))
-    .for('no key update');
-  const now = await timerNow(db, testTime);
-  if (new Date(data.fireAt) > now) return 'stale';
-  const payload = await readAckReminder(db, data, now);
-  if (!payload) return 'stale';
-
-  const inserted = await db
-    .insert(notificationOutbox)
-    .values({
-      recipientType: 'EMPLOYEE',
-      recipientId: data.employeeId,
-      template: 'ACK_REMINDER',
-      payload,
-      dedupeKey: `ack-reminder:${data.versionId}:${data.employeeId}`,
-    })
-    .onConflictDoNothing({ target: notificationOutbox.dedupeKey })
-    .returning({ id: notificationOutbox.id });
-  return inserted.length > 0 ? 'queued' : 'duplicate';
+/** Schedules need no confirmation any more: acknowledgement reminders queued earlier expire. */
+export function retiredAckReminder(): Promise<ReminderOutcome> {
+  return Promise.resolve('stale');
 }
 
 export function handleShiftReminder(
@@ -94,11 +68,4 @@ export function handleShiftReminder(
   testTime?: Date,
 ): Promise<ReminderOutcome> {
   return db.transaction((tx) => handleShiftReminderWithin(tx, data, testTime));
-}
-export function handleAckReminder(
-  db: Database,
-  data: AckReminderJob,
-  testTime?: Date,
-): Promise<ReminderOutcome> {
-  return db.transaction((tx) => handleAckReminderWithin(tx, data, testTime));
 }

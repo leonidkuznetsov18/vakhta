@@ -64,7 +64,7 @@
 
 Команда затверджує від імені замовника такі артефакти. Кожен має версію або seed, тож зміна після фідбеку буде явною.
 
-- Schedule rules: 660 minutes of rest, 200 monthly hours, up to 4 consecutive shifts. Shift reminders default to 30 minutes before start and suppress approved absences; acknowledgement reminders remain at 24 hours. Keys: `SCHEDULE_*`, `SHIFT_REMINDER_MINUTES`, `ACK_REMINDER_HOURS`.
+- Schedule rules: 660 minutes of rest, 200 monthly hours, up to 4 consecutive shifts. Shift reminders default to 30 minutes before start and suppress approved absences; schedules need no acknowledgement, so there is no acknowledgement reminder. Keys: `SCHEDULE_*`, `SHIFT_REMINDER_MINUTES`.
 - Зони і посади: seed, п. 6.
 - Чек-лист передачі: 8 пунктів ТЗ 5.6 (поверхні, залишки, сміття, інструмент, підлога, проходи, течі й пошкодження, повідомлення наступній зміні), версія 1 у `checklist_definitions`.
 - Причини: довідник `reason_codes` із seed для простоїв, екстрених ситуацій, корекцій, зауважень передачі й коригувань бонусу.

@@ -1,6 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Api } from 'grammy';
-import { z } from 'zod';
 import type { Update } from 'grammy/types';
 import {
   activityIntervals,
@@ -21,7 +20,7 @@ import {
 import { DEFAULT_ATTENDANCE_WINDOW, addMonths, businessDateOf } from '@vakhta/domain';
 import { assignmentAcknowledgements } from '@vakhta/db';
 import { hashChallengeToken } from '@vakhta/domain/node';
-import { messages } from '@vakhta/i18n';
+import { format, messages } from '@vakhta/i18n';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { BonusService } from '../bonus/bonus.service.js';
@@ -49,8 +48,8 @@ import { ScheduleService } from '../scheduling/schedule.service.js';
 import { TemplatesService } from '../scheduling/templates.service.js';
 import { ShiftChanges } from '../shift/shift-changes.js';
 import { ShiftService } from '../shift/shift.service.js';
+import { PLAN_MESSAGE_CALLBACK } from '../scheduling/schedule-change-notice.js';
 import { createBot } from './bot.factory.js';
-import { acknowledgementCallback } from './schedule-acknowledgement.js';
 import { UpdateDedup } from './update-dedup.js';
 
 const TELEGRAM_USER_ID = 10001;
@@ -142,7 +141,6 @@ function services(testDb: TestDatabase) {
     timers,
     {
       shiftReminderMinutes: 120,
-      ackReminderHours: 24,
       defaultTimezone: OPTIONS.defaultTimezone,
     },
   );
@@ -314,7 +312,7 @@ describe('Telegram departure callback: QR and shift/presence consistency', () =>
     expect(await app.shift.activeSession(employeeId)).toMatchObject({ state: 'READY_TO_CLOSE' });
   });
 
-  describe('snapshot acknowledgement callbacks', () => {
+  describe('schedule notice and retired acknowledgement callbacks', () => {
     const month = addMonths(businessDateOf(new Date(), OPTIONS.defaultTimezone).slice(0, 7), 1);
     const actor = { type: 'WEB_USER', id: null, role: 'PRODUCTION_HEAD' } as const;
 
@@ -369,101 +367,48 @@ describe('Telegram departure callback: QR and shift/presence consistency', () =>
       });
     }
 
-    function renderedCallbacks() {
-      const last = vi.mocked(Api.prototype.editMessageText).mock.calls.at(-1);
-      const options = z
-        .object({
-          reply_markup: z.object({
-            inline_keyboard: z.array(z.array(z.object({ callback_data: z.string().optional() }))),
-          }),
-        })
-        .safeParse(last?.[3]);
-      return options.success
-        ? options.data.reply_markup.inline_keyboard
-            .flat()
-            .flatMap((button) => (button.callback_data ? [button.callback_data] : []))
-        : [];
+    function sentTexts(): string[] {
+      return vi.mocked(Api.prototype.sendMessage).mock.calls.map((call) => String(call[1]));
     }
 
-    function renderedAcknowledgement() {
-      return renderedCallbacks().find((data) => data.startsWith('ack2:'));
-    }
-
-    it.each(['en', 'uk', 'ru'] as const)(
-      'refreshes legacy ack:all in %s without writing acknowledgements',
-      async (locale) => {
-        const publish = await scheduleFixture();
-        await publish();
-        await testDb.db.update(employees).set({ locale }).where(eq(employees.id, employeeId));
-        await callback('ack:all');
-        expect(vi.mocked(Api.prototype.answerCallbackQuery)).toHaveBeenCalledWith(
-          expect.any(String),
-          { text: messages(locale).schedule.ackRefresh, show_alert: true },
-          undefined,
-        );
-        expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
-        expect(vi.mocked(Api.prototype.editMessageText)).toHaveBeenCalled();
-      },
-    );
-
-    it('refreshes an old Plan after publication, confirms only that month, and accepts a repeat tap', async () => {
+    it('opens the month plan from a schedule notice as a new message', async () => {
       const publish = await scheduleFixture();
       await publish();
-      await callback(`plan:${month}`);
-      const oldButton = renderedAcknowledgement();
-      if (!oldButton) throw new Error('Plan acknowledgement button was not rendered');
-      expect(Buffer.byteLength(oldButton)).toBe(58);
-      const current = await publish();
-      await callback(oldButton, 90002);
-      expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
-      expect(vi.mocked(Api.prototype.answerCallbackQuery).mock.calls.at(-1)?.[1]).toMatchObject({
-        text: messages('en').schedule.ackRefresh,
+      await callback(`${PLAN_MESSAGE_CALLBACK}${month}`);
+      const [year, m] = month.split('-');
+      const header = format(messages('en').schedule.planHeader, {
+        month: messages('en').schedule.months[Number(m) - 1] ?? month,
+        year: year ?? '',
       });
-      const freshButton = renderedAcknowledgement();
-      if (!freshButton) throw new Error('Refreshed acknowledgement button was not rendered');
-      expect(freshButton).not.toBe(oldButton);
-      await publish(addMonths(month, 1));
-      await callback(freshButton, 90003);
-      expect(vi.mocked(Api.prototype.answerCallbackQuery).mock.calls.at(-1)?.[1]).toMatchObject({
-        text: messages('en').schedule.ackDone,
-      });
-      expect(renderedAcknowledgement()).toBeUndefined();
-      await callback(freshButton, 90004);
-      expect(vi.mocked(Api.prototype.answerCallbackQuery).mock.calls.at(-1)?.[1]).toMatchObject({
-        text: messages('en').schedule.ackNothing,
-      });
-      expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([
-        expect.objectContaining({ employeeId, scheduleVersionId: current.id }),
-      ]);
-      expect(renderedCallbacks()).toContain(`plan:${addMonths(month, 1)}`);
+      expect(sentTexts().at(-1)).toContain(header);
+      expect(vi.mocked(Api.prototype.editMessageText)).not.toHaveBeenCalled();
     });
 
-    it('rejects an old Home snapshot when another month has been published', async () => {
+    it.each([
+      ['ack:all', 'cur'],
+      ['ack:9d1c6b1e-6c1a-4f4e-9d0e-2f8c1f0b7a11', 'cur'],
+      [`ack2:h:${'A'.repeat(43)}`, 'cur'],
+      [`ack2:m:${month}:${'A'.repeat(43)}`, month],
+    ])('answers a retired %s button with the plan and writes nothing', async (data, planMonth) => {
       const publish = await scheduleFixture();
       await publish();
-      const button = acknowledgementCallback(await app.schedule.homeAcknowledgement(employeeId));
-      if (!button) throw new Error('Home acknowledgement button was not prepared');
-      expect(Buffer.byteLength(button)).toBe(50);
-      await publish(addMonths(month, 1));
-      await callback(button);
-      expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
+      await callback(data);
       expect(vi.mocked(Api.prototype.answerCallbackQuery).mock.calls.at(-1)?.[1]).toMatchObject({
-        text: messages('en').schedule.ackRefresh,
+        text: messages('en').schedule.ackRetired,
       });
+      expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
+      const expected =
+        planMonth === 'cur'
+          ? businessDateOf(new Date(), OPTIONS.defaultTimezone).slice(0, 7)
+          : planMonth;
+      const [year, m] = expected.split('-');
+      expect(sentTexts().at(-1)).toContain(
+        format(messages('en').schedule.planHeader, {
+          month: messages('en').schedule.months[Number(m) - 1] ?? expected,
+          year: year ?? '',
+        }),
+      );
     });
-
-    it.each([`ack2:m:2026-13:${'A'.repeat(43)}`, 'ack2:h:malformed'])(
-      'refreshes malformed callback %s without a write',
-      async (data) => {
-        const publish = await scheduleFixture();
-        await publish();
-        await callback(data);
-        expect(await testDb.db.select().from(assignmentAcknowledgements)).toEqual([]);
-        expect(vi.mocked(Api.prototype.answerCallbackQuery).mock.calls.at(-1)?.[1]).toMatchObject({
-          text: messages('en').schedule.ackRefresh,
-        });
-      },
-    );
   });
 
   async function issueChallenge(expiresAt: Date): Promise<void> {

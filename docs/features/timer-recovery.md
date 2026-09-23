@@ -4,8 +4,8 @@ Reminders are recorded with the action that requires them. A restart between sav
 schedule or incident and dispatching background work cannot silently lose that work.
 
 The system checks the current situation before producing a message. A completed break, superseded
-schedule, acknowledged plan, closed incident or elapsed shift boundary must not produce a stale
-instruction. Schedule acknowledgement recovery concerns future planned shifts, not old months.
+schedule, closed incident or elapsed shift boundary must not produce a stale instruction. Schedule
+acknowledgement reminders are retired; queued ones expire unsent.
 A late cleaning reminder is suppressed after the planned end.
 
 Current handover submission passes the report to the master immediately. It does not create another
