@@ -1,3 +1,9 @@
+## [1.30.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.29.0...v1.30.0) (2026-09-23)
+
+### Features
+
+* **schedule:** unit shift templates ([2660682](https://github.com/leonidkuznetsov18/vakhta/commit/2660682499788bdd817389322464de39bfbc9fba))
+
 ## [1.29.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.28.0...v1.29.0) (2026-09-23)
 
 ### Features
