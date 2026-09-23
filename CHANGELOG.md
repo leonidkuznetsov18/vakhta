@@ -1,3 +1,15 @@
+## [1.27.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.27.0...v1.27.1) (2026-09-23)
+
+### Bug fixes
+
+* **admin:** clip photo inspection regions to the photo instead of blocking save ([930baf2](https://github.com/leonidkuznetsov18/vakhta/commit/930baf2ccd86ddf9c98e9020b34558674a1dbc27))
+* **admin:** explain why photo inspection save is disabled ([805a2a4](https://github.com/leonidkuznetsov18/vakhta/commit/805a2a454f9a4293ed2bd58c241a86472e0d19c4))
+* **admin:** keep photo inspection activity inside the dialog ([c374cc9](https://github.com/leonidkuznetsov18/vakhta/commit/c374cc910bd71ac2863efc311c578db20a0dd1c8))
+
+### Tests
+
+* **admin:** refocus the save tooltip trigger deterministically ([14324df](https://github.com/leonidkuznetsov18/vakhta/commit/14324df3a3bdc55f594f3950ec054fcf6db1dda8))
+
 ## [1.27.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.26.0...v1.27.0) (2026-09-22)
 
 ### Features
