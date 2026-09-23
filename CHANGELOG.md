@@ -1,3 +1,9 @@
+## [1.28.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.27.1...v1.28.0) (2026-09-23)
+
+### Features
+
+* **schedule:** inform workers of schedule changes without acknowledgement ([c04eff3](https://github.com/leonidkuznetsov18/vakhta/commit/c04eff3e1c0b5c04239df4e0bbeac5ae6cdcba53))
+
 ## [1.27.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.27.0...v1.27.1) (2026-09-23)
 
 ### Bug fixes
