@@ -32,7 +32,7 @@ import {
   sites,
   sql,
 } from '@vakhta/db';
-import { DEFAULT_ATTENDANCE_WINDOW } from '@vakhta/domain';
+import { DEFAULT_ATTENDANCE_WINDOW, ShiftPeriod } from '@vakhta/domain';
 import { DEFAULT_BONUS_RULES } from '@vakhta/domain';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor } from '../common/actor.js';
@@ -132,7 +132,14 @@ describe('bonus: оцінка зміни, коригування, закритт
       .values([{ kind: 'ADJUSTMENT', code: 'MASTER_REVIEW', label: 'Проверка мастера' }]);
     const [tpl] = await testDb.db
       .insert(shiftTemplates)
-      .values({ siteId, code: 'DAY', name: 'Дневная', localStart: '08:00', localEnd: '20:00' })
+      .values({
+        siteId,
+        code: 'DAY',
+        name: 'Дневная',
+        localStart: '08:00',
+        period: ShiftPeriod.DAY,
+        localEnd: '20:00',
+      })
       .returning();
     const [version] = await testDb.db
       .insert(scheduleVersions)

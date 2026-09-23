@@ -3,6 +3,7 @@ import { coveredBreaks, reliefChecks, resolveBreaks } from './breaks.js';
 import { coverage } from './coverage.js';
 import { evaluatePlan, DEFAULT_SCHEDULING_RULES } from './eligibility.js';
 import { workload } from './workload.js';
+import { ShiftPeriod } from './types.js';
 
 const TZ = 'Europe/Kyiv';
 const day = {
@@ -165,7 +166,7 @@ describe('planned breaks', () => {
           businessDate: '2026-09-05',
           startMs: 0,
           endMs: 720 * 60000,
-          isNight: false,
+          period: ShiftPeriod.DAY,
           breakMinutes: 30,
         },
         {
@@ -173,28 +174,28 @@ describe('planned breaks', () => {
           businessDate: '2026-09-07',
           startMs: 0,
           endMs: 720 * 60000,
-          isNight: true,
+          period: ShiftPeriod.NIGHT,
         },
         {
           employeeId: 'boris',
           businessDate: '2026-09-06',
           startMs: 0,
           endMs: 720 * 60000,
-          isNight: false,
+          period: ShiftPeriod.FULL_DAY,
         },
         {
           employeeId: 'boris',
           businessDate: '2026-09-30',
           startMs: 0,
           endMs: 720 * 60000,
-          isNight: false,
+          period: ShiftPeriod.DAY,
         },
         {
           employeeId: 'dmitro',
           businessDate: '2026-09-06',
           startMs: 0,
           endMs: 720 * 60000,
-          isNight: false,
+          period: ShiftPeriod.DAY,
         },
       ],
     });
@@ -205,6 +206,7 @@ describe('planned breaks', () => {
         employeeId: 'anna',
         shifts: 2,
         nightShifts: 1,
+        fullDayShifts: 0,
         weekendShifts: 1,
         plannedMinutes: 1410,
         breakMinutes: 30,
@@ -213,6 +215,8 @@ describe('planned breaks', () => {
       expect.objectContaining({
         employeeId: 'boris',
         shifts: 1,
+        nightShifts: 0,
+        fullDayShifts: 1,
         weekendShifts: 1,
         plannedMinutes: 720,
       }),

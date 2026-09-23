@@ -71,9 +71,7 @@ export function CopyPeriodDialog({
           w.employees.filter((employee) => employee.status === 'ACTIVE').map((item) => item.id),
         ),
         activeZones: new Set(w.zones.filter((zone) => zone.isActive).map((zone) => zone.id)),
-        activeTemplates: new Set(
-          w.templates.filter((template) => template.isActive).map((template) => template.id),
-        ),
+        activeTemplates: new Set(w.shiftOptions.map((template) => template.id)),
       })
     : null;
   const evaluation = result

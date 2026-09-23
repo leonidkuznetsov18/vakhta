@@ -13,6 +13,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { NavigationProvider, type SectionKey } from '@/navigation';
 import { clearPersistentState, setUiState, uiState } from '@/lib/ui-store';
 import { useAttention } from '@/features/overview';
+import { ShiftPeriod } from '@vakhta/domain';
 
 const api = vi.hoisted(() => ({
   shifts: vi.fn(),
@@ -270,7 +271,7 @@ describe('overview query integration', () => {
       templateId: 'a0000000-0000-4000-8000-0000000000d2',
       code: 'NIGHT',
       name: 'Ночная смена',
-      isNight: true,
+      period: ShiftPeriod.NIGHT,
       businessDate: '2026-09-13',
       startsAt: '2026-09-13T17:00:00.000Z',
       endsAt: '2026-09-14T05:00:00.000Z',

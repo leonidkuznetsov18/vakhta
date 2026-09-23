@@ -128,7 +128,7 @@ export class FeedService {
         businessDate: shiftAssignments.businessDate,
         planStartAt: shiftAssignments.planStartAt,
         planEndAt: shiftAssignments.planEndAt,
-        isNight: shiftTemplates.isNight,
+        period: shiftTemplates.period,
         zoneName: responsibilityZones.name,
         unitName: orgUnits.name,
         siteName: sites.name,

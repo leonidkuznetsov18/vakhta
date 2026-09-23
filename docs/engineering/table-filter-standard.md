@@ -161,14 +161,15 @@ Preserve and propagate it; this audit does not report it as a defect on those pa
 
 ## Justified alternatives, applicable by task rather than page
 
-| Existing task                               | Alternative retained                              | Why / invariants                                                                                                                                |
-| ------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Editing an employee-by-day schedule         | Editable horizontal matrix; single month/version  | Card conversion would remove cross-day comparison and change scheduling. Shared counts, loading, focus, touch access and typography still apply |
-| Choosing a monthly nomination period        | Single month                                      | A monthly award has one accounting period. A range would change the entity being displayed                                                      |
-| Selecting the operational business date     | Single day                                        | A day filter is not an arbitrary history range; preserve current queue semantics                                                                |
-| Reading aggregated reports                  | Existing category drill-down and grouping         | A category is a query dimension rather than a record to edit. Preserve navigation/back context; use inline detail for actual underlying records |
-| Validating a local import                   | Preview inside the existing import dialog         | These are not yet persisted employees. Count parsed/filtered preview rows and keep validation errors visible                                    |
-| Reading field differences in audit evidence | Compact labeled field table inside inline details | Before/after comparison has no independent dataset filtering need; preserve exact values and bounded text                                       |
+| Existing task                                  | Alternative retained                                | Why / invariants                                                                                                                                |
+| ---------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Editing an employee-by-day schedule            | Editable horizontal matrix; single month/version    | Card conversion would remove cross-day comparison and change scheduling. Shared counts, loading, focus, touch access and typography still apply |
+| Choosing a monthly nomination period           | Single month                                        | A monthly award has one accounting period. A range would change the entity being displayed                                                      |
+| Selecting the operational business date        | Single day                                          | A day filter is not an arbitrary history range; preserve current queue semantics                                                                |
+| Reading aggregated reports                     | Existing category drill-down and grouping           | A category is a query dimension rather than a record to edit. Preserve navigation/back context; use inline detail for actual underlying records |
+| Validating a local import                      | Preview inside the existing import dialog           | These are not yet persisted employees. Count parsed/filtered preview rows and keep validation errors visible                                    |
+| Reading field differences in audit evidence    | Compact labeled field table inside inline details   | Before/after comparison has no independent dataset filtering need; preserve exact values and bounded text                                       |
+| Configuring a unit (owner decision 2026-09-23) | Row click and a row-menu "Open" open the unit Sheet | The Sheet manages the unit's master and shifts (spec 013), not the row's data; read-only without ADMIN; search, count and pagination unchanged  |
 
 No other page-specific behavior is justified merely because it was implemented earlier. A future
 exception must name a distinct task, its invariant and the shared rules that still apply.

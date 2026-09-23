@@ -1,6 +1,7 @@
-import { shiftMinutes, type PlannedShift } from './types.js';
+import { ShiftPeriod, shiftMinutes, type PlannedShift } from './types.js';
 
-export type DayKind = 'DAY' | 'NIGHT' | 'OFF';
+/** A day of «My plan»: the period of its shift, or a day off. */
+export type DayKind = ShiftPeriod | 'OFF';
 
 export interface PlanDay {
   readonly date: string;
@@ -15,6 +16,7 @@ export interface PlanTotals {
   readonly plannedMinutes: number;
   readonly dayShifts: number;
   readonly nightShifts: number;
+  readonly fullDayShifts: number;
 }
 
 export interface MonthPlan {
@@ -69,19 +71,21 @@ export function buildMonthPlan(shifts: readonly PlannedShift[], month: string): 
     return {
       date,
       weekday: weekdayOf(date),
-      kind: shift ? (shift.isNight ? 'NIGHT' : 'DAY') : 'OFF',
+      kind: shift ? shift.period : 'OFF',
       shift,
     };
   });
   const planned = days.filter((d) => d.shift !== null);
+  const count = (period: ShiftPeriod) => planned.filter((d) => d.kind === period).length;
   return {
     month,
     days,
     totals: {
       shifts: planned.length,
       plannedMinutes: planned.reduce((sum, d) => sum + shiftMinutes(d.shift!), 0),
-      dayShifts: planned.filter((d) => d.kind === 'DAY').length,
-      nightShifts: planned.filter((d) => d.kind === 'NIGHT').length,
+      dayShifts: count(ShiftPeriod.DAY),
+      nightShifts: count(ShiftPeriod.NIGHT),
+      fullDayShifts: count(ShiftPeriod.FULL_DAY),
     },
   };
 }

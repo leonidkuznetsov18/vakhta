@@ -16,6 +16,7 @@ import type { NotificationPayload } from '@vakhta/domain';
 import { startTestDatabase, type TestDatabase } from '../test/db.js';
 import { SendError, backoffSeconds, relayOnce, type OutboxSender } from './outbox/relay.js';
 import { handleShiftReminder } from './timers/reminders.js';
+import { ShiftPeriod } from '@vakhta/domain';
 
 class FakeSender implements OutboxSender {
   readonly sent: { chatId: number; payload: NotificationPayload }[] = [];
@@ -260,6 +261,7 @@ describe('worker: релей аутбоксу і нагадування (ADR-8, 
         name: 'Дневная',
         localStart: '08:00',
         localEnd: '20:00',
+        period: ShiftPeriod.DAY,
       })
       .returning();
     const [version] = await testDb.db

@@ -10,6 +10,7 @@ import {
   asc,
   desc,
   employeePositions,
+  orgUnits,
   employees,
   eq,
   gte,
@@ -47,7 +48,11 @@ import {
   type ScopeTarget,
   businessDateOf,
   planInstants,
+  ShiftTemplateError,
+  templateDisplayName,
+  templateLineage,
 } from '@vakhta/domain';
+import { RequestTypeSchema, ShiftKindSchema } from '@vakhta/contracts';
 import type {
   AssignmentInput,
   CorrectionProposalCommand,
@@ -764,20 +769,34 @@ export class RequestsService {
     return rows;
   }
 
-  /** Шаблони змін майданчика працівника для «додаткової зміни». */
-  async templatesFor(employeeId: string) {
-    const [pos] = await this.db
-      .select({ siteId: sites.id })
+  /** Shifts an employee may ask for as an extra shift: site defaults and their unit's own. */
+  async templatesFor(
+    employeeId: string,
+    tx: DbOrTx = this.db,
+  ): Promise<{ readonly id: string; readonly label: string }[]> {
+    const [position] = await tx
+      .select({ orgUnitId: orgUnits.id, siteId: orgUnits.siteId })
       .from(employeePositions)
-      .innerJoin(sql`org_units`, sql`org_units.id = ${employeePositions.orgUnitId}`)
-      .innerJoin(sites, sql`${sites.id} = org_units.site_id`)
+      .innerJoin(orgUnits, eq(orgUnits.id, employeePositions.orgUnitId))
       .where(and(eq(employeePositions.employeeId, employeeId), isNull(employeePositions.validTo)))
       .limit(1);
-    if (!pos) return [];
-    return this.db
-      .select({ id: shiftTemplates.id, code: shiftTemplates.code, name: shiftTemplates.name })
+    if (!position) return [];
+    const rows = await tx
+      .select({
+        id: shiftTemplates.id,
+        name: shiftTemplates.name,
+        localStart: shiftTemplates.localStart,
+        localEnd: shiftTemplates.localEnd,
+      })
       .from(shiftTemplates)
-      .where(and(eq(shiftTemplates.siteId, pos.siteId), eq(shiftTemplates.isActive, true)));
+      .where(
+        and(
+          eq(shiftTemplates.siteId, position.siteId),
+          eq(shiftTemplates.isActive, true),
+          or(isNull(shiftTemplates.orgUnitId), eq(shiftTemplates.orgUnitId, position.orgUnitId)),
+        ),
+      );
+    return rows.map((row) => ({ id: row.id, label: shiftChoiceLabel(row) }));
   }
 
   /* ------------------------------------------------------------------ */
@@ -810,6 +829,14 @@ export class RequestsService {
     }
     if (cmd.type === 'LATE' || cmd.type === 'EARLY_LEAVE') base.payload = { minutes: cmd.minutes };
     if (cmd.type === 'EXTRA_SHIFT') {
+      const offered = await this.templatesFor(employeeId, tx);
+      if (!offered.some((template) => template.id === cmd.templateId)) {
+        throw new DomainError(
+          ShiftTemplateError.OUT_OF_UNIT,
+          422,
+          `Template ${cmd.templateId} is not offered to the employee's unit`,
+        );
+      }
       base.periodFrom = cmd.businessDate;
       base.periodTo = cmd.businessDate;
       base.payload = { templateId: cmd.templateId };
@@ -867,6 +894,36 @@ export class RequestsService {
    * FR-REQ-04: схвалення змінює графік новою версією на базі опублікованої: відсутність прибирає
    * зміни періоду, обмін міняє працівників місцями, додаткова зміна додає призначення.
    */
+  /** The approved extra shift, planned on the current version of the requested shift. */
+  private async extraShiftItem(tx: Transaction, row: RequestRow): Promise<AssignmentInput> {
+    const { templateId } = row.payload;
+    if (!templateId || !row.periodFrom)
+      throw new DomainError('TEMPLATE_NOT_FOUND', 422, 'The extra shift request names no shift');
+    return {
+      employeeId: row.employeeId,
+      templateId: await this.currentShiftVersion(tx, templateId),
+      businessDate: row.periodFrom,
+      kind: ShiftKindSchema.enum.EXTRA,
+    };
+  }
+
+  /** The current version of a shift template: an hours edit hands a used one to its successor. */
+  private async currentShiftVersion(tx: Transaction, templateId: string): Promise<string> {
+    const versions = await tx
+      .select({ id: shiftTemplates.id, replacedById: shiftTemplates.replacedById })
+      .from(shiftTemplates)
+      .where(
+        eq(
+          shiftTemplates.siteId,
+          tx
+            .select({ siteId: shiftTemplates.siteId })
+            .from(shiftTemplates)
+            .where(eq(shiftTemplates.id, templateId)),
+        ),
+      );
+    return templateLineage(versions)(templateId);
+  }
+
   private async applyScheduleEffect(
     tx: Transaction,
     row: RequestRow,
@@ -874,6 +931,8 @@ export class RequestsService {
     now: Date,
   ): Promise<string | null> {
     const affected = await this.affectedAssignments(row, tx);
+    const extraShift =
+      row.type === RequestTypeSchema.enum.EXTRA_SHIFT ? await this.extraShiftItem(tx, row) : null;
     let versionId: string | null = null;
     const groups = new Map<
       string,
@@ -965,12 +1024,7 @@ export class RequestsService {
           break;
         }
         case 'EXTRA_SHIFT':
-          items.push({
-            employeeId: row.employeeId,
-            templateId: row.payload.templateId!,
-            businessDate: row.periodFrom!,
-            kind: 'EXTRA',
-          });
+          items.push(...(extraShift ? [extraShift] : []));
           break;
         default:
           break;
@@ -1135,4 +1189,15 @@ function shiftDate(date: string, days: number): string {
   const value = new Date(`${date}T00:00:00Z`);
   value.setUTCDate(value.getUTCDate() + days);
   return value.toISOString().slice(0, 10);
+}
+
+/** A shift button in the bot: its name with the hours, or the hours alone for an unnamed one. */
+function shiftChoiceLabel(template: {
+  readonly name: string;
+  readonly localStart: string;
+  readonly localEnd: string;
+}): string {
+  const hours = `${template.localStart}–${template.localEnd}`;
+  const name = templateDisplayName(template);
+  return name === hours ? hours : `${name} · ${hours}`;
 }

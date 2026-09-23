@@ -1,10 +1,22 @@
-import { templateLabel } from '../lib/template-label';
-import { assignmentInstants, monthDates, resolveBreaks, resolveSegments } from '@vakhta/domain';
+import {
+  assignmentInstants,
+  monthDates,
+  resolveBreaks,
+  resolveSegments,
+  suggestPeriod,
+  templateLineage,
+  type TemplateHours,
+} from '@vakhta/domain';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createUnitShift, shiftTemplateKeys } from '@/entities/shift-template';
+import { readError } from '@/errors';
+import { notifySuccess } from '@/lib/toast';
 import { useState } from 'react';
 import {
   AssignmentInput,
   type AssignmentBreakInput,
   type AssignmentSegmentInput,
+  type ShiftTemplateView,
 } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
 import { qualifiedFor, requiredQualifications } from '@vakhta/domain';
@@ -21,6 +33,7 @@ import { Input } from '@/components/ui/input';
 import { IconButton } from '@/shared/ui/icon-button';
 import { selectableRow } from '@/shared/ui/resource-calendar';
 import { planIssues, reasonText, reasonsFor, useCandidates } from '../model/use-eligibility';
+import { currentDemand } from '../model/use-staffing';
 import { setAssignment as placeAssignment } from '../model/grid';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -30,12 +43,14 @@ import { Button } from '@/components/ui/button';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { Feedback } from '@/components/app/feedback';
 import { ReasonAlerts } from './reason-alerts';
+import { ShiftPicker, type ShiftChoice } from './shift-picker';
 import { RulesContextFeedback } from './rules-context-feedback';
 import { InfoTip } from '@/components/app/info-tip';
 import type { Workspace } from '../model/use-workspace';
 import { assignmentKey, gridToItems, sameAssignment, setAssignment, setCell } from '../model/grid';
 import { zoneAllowed } from '../model/planning';
 const t = messages(currentLocale()).scheduleWorkspace;
+const u = messages(currentLocale()).unitShifts;
 const s = messages(currentLocale()).admin.schedule;
 export interface AssignmentContext {
   employeeId: string;
@@ -151,24 +166,34 @@ export function AssignmentEditor({
       item.businessDate === draft.businessDate &&
       (!original || assignmentKey(item) !== assignmentKey(original)),
   );
+  // A shift no longer offered stays allowed only where this person-day already had it.
+  const keeps = (templateId: string) =>
+    !!original &&
+    original.templateId === templateId &&
+    original.employeeId === draft.employeeId &&
+    original.businessDate === draft.businessDate;
+  const offered = new Set(w.shiftOptions.map((option) => option.id));
+  const templateAllowed = offered.has(draft.templateId) || keeps(draft.templateId);
   const active =
     w.employees.some(
       (employee) => employee.id === draft.employeeId && employee.status === 'ACTIVE',
     ) &&
-    w.templates.some((template) => template.id === draft.templateId && template.isActive) &&
+    templateAllowed &&
     w.zones.some((zone) => zone.id === draft.zoneId && zone.isActive) &&
     zoneAllowed(w.rights.zones, draft.zoneId);
-  const rules = w.staffing?.requirements ?? [];
+  const lineage = templateLineage(w.templates);
+  const rules = currentDemand(w.staffing?.requirements ?? [], lineage);
+  const shiftId = lineage(draft.templateId);
   const missingQualifications =
     draft.zoneId && draft.templateId && draft.businessDate && draft.employeeId
       ? qualifiedFor(rules, w.staffing?.holdings ?? [], {
           employeeId: draft.employeeId,
           businessDate: draft.businessDate,
-          templateId: draft.templateId,
+          templateId: shiftId,
           zoneId: draft.zoneId,
         })
         ? []
-        : requiredQualifications(rules, draft.zoneId, draft.templateId, draft.businessDate).map(
+        : requiredQualifications(rules, draft.zoneId, shiftId, draft.businessDate).map(
             (id) => w.staffing?.qualifications.find((item) => item.id === id)?.name ?? id,
           )
       : [];
@@ -214,7 +239,59 @@ export function AssignmentEditor({
     employeeName: (id: string) =>
       w.employees.find((employee) => employee.id === id)?.fullName ?? id,
   };
+  // Each shift evaluated for this person alone, so a card can say why it does not fit.
+  const ownRow = { rows: w.grid.rows.filter((row) => row.employeeId === draft.employeeId) };
+  const withoutOriginal = original
+    ? setCell(ownRow, original.employeeId, original.businessDate, '')
+    : ownRow;
+  const choiceFor = (option: ShiftTemplateView): ShiftChoice => {
+    if (!draft.employeeId || !draft.businessDate) return { template: option, issue: null };
+    const issues = planIssues({
+      grid: placeAssignment(withoutOriginal, {
+        employeeId: draft.employeeId,
+        businessDate: draft.businessDate,
+        templateId: option.id,
+        kind: original?.kind ?? 'REGULAR',
+        ...(draft.zoneId ? { zoneId: draft.zoneId } : {}),
+      }),
+      month: w.month,
+      orgUnitId: w.orgUnitId,
+      templates: w.templates,
+      timezone: w.timezone,
+      staffing: w.staffing,
+      context: w.context,
+    });
+    const reason = reasonsFor(issues.reasons, draft.employeeId, draft.businessDate)[0];
+    return { template: option, issue: reason ? reasonText(reason, labels) : null };
+  };
+  const unitChoices = w.shiftOptions.filter((option) => option.orgUnitId !== null).map(choiceFor);
+  const standardChoices = w.shiftOptions
+    .filter((option) => option.orgUnitId === null)
+    .map(choiceFor);
+  const keptTemplate =
+    original && !offered.has(original.templateId)
+      ? w.templates.find((item) => item.id === original.templateId)
+      : undefined;
+  const keptChoice = keptTemplate ? choiceFor(keptTemplate) : null;
   const unchanged = !!original && candidate.success && sameAssignment(original, candidate.data);
+  // Custom hours worth reusing become a unit shift and replace the custom time (spec 013).
+  const client = useQueryClient();
+  const saveShift = useMutation({
+    mutationFn: (hours: TemplateHours) =>
+      createUnitShift(w.orgUnitId, { name: '', period: suggestPeriod(hours), ...hours }),
+    retry: false,
+    onSuccess: async (created) => {
+      await client.invalidateQueries({ queryKey: shiftTemplateKeys.all });
+      setDraft((current) => ({
+        ...current,
+        templateId: created.id,
+        custom: false,
+        customStart: '',
+        customEnd: '',
+      }));
+      notifySuccess(u.created);
+    },
+  });
   // Borrowing (D-06, SC-38): a person whose position sits in another unit of the site.
   const sourceUnit = w.context?.otherUnitEmployees.find(
     (member) => member.employeeId === draft.employeeId,
@@ -280,19 +357,17 @@ export function AssignmentEditor({
             .filter((zone) => zone.isActive && zoneAllowed(w.rights.zones, zone.id))
             .map((zone) => ({ value: zone.id, label: zone.name }))}
         />
-        <SelectField
-          placeholder={t.select}
-          label={t.template}
-          value={draft.templateId}
-          onChange={(templateId) => setDraft({ ...draft, templateId })}
-          options={w.templates
-            .filter((template) => template.isActive)
-            .map((template) => ({
-              value: template.id,
-              label: `${templateLabel(template.code, t)} · ${template.localStart}–${template.localEnd}`,
-            }))}
-        />
       </div>
+      <ShiftPicker
+        name={`assignment-shift-${assignmentKey(context)}`}
+        unitName={labels.unitName(w.orgUnitId)}
+        kept={keptChoice}
+        unitChoices={unitChoices}
+        standardChoices={standardChoices}
+        value={draft.templateId}
+        disabled={!w.writable}
+        onChange={(templateId) => setDraft({ ...draft, templateId })}
+      />
       <div className="space-y-3 rounded-md border p-3">
         <div className="flex items-center gap-2">
           <Checkbox
@@ -339,6 +414,21 @@ export function AssignmentEditor({
                 />
               )}
             </FormField>
+          </div>
+        )}
+        {custom && w.canManageShifts && (
+          <div className="space-y-2">
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0"
+              disabled={!w.writable || !customStart || !customEnd || saveShift.isPending}
+              onClick={() => saveShift.mutate({ localStart: customStart, localEnd: customEnd })}
+            >
+              <PlusIcon aria-hidden="true" />
+              {format(u.saveAsShift, { unit: labels.unitName(w.orgUnitId) })}
+            </Button>
+            <Feedback error={readError(saveShift.error)} />
           </div>
         )}
       </div>
@@ -578,7 +668,8 @@ export function AssignmentEditor({
       {!occupied && !unchanged && !valid && !evaluationPending && (
         <p className="text-sm text-muted-foreground">{t.invalid}</p>
       )}
-      <div className="flex flex-wrap gap-2">
+      {/* The shift cards make the editor long; the actions stay in reach at the bottom. */}
+      <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap gap-2 border-t bg-background px-1 py-3">
         <Button
           type="submit"
           disabled={!valid || !w.writable}

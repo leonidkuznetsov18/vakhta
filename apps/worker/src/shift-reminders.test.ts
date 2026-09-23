@@ -17,6 +17,7 @@ import { startTestDatabase, type TestDatabase } from '../test/db.js';
 import { handleShiftReminder } from './timers/reminders.js';
 import { relayOnce, SendError } from './outbox/relay.js';
 import { WorkerEnvSchema } from './env.js';
+import { ShiftPeriod } from '@vakhta/domain';
 
 const start = new Date('2026-10-01T03:30:00Z'); // 06:30 at the site.
 const due = new Date('2026-10-01T03:00:00Z');
@@ -55,7 +56,14 @@ describe('shift reminder delivery policy', () => {
       .values({ employeeId: employee.id, telegramUserId: 777 });
     const [template] = await testDb.db
       .insert(shiftTemplates)
-      .values({ siteId: site.id, code: 'DAY', name: 'Day', localStart: '06:30', localEnd: '18:30' })
+      .values({
+        siteId: site.id,
+        code: 'DAY',
+        name: 'Day',
+        localStart: '06:30',
+        period: ShiftPeriod.DAY,
+        localEnd: '18:30',
+      })
       .returning();
     if (!template) throw new Error('Missing template fixture');
     const [version] = await testDb.db
@@ -160,7 +168,7 @@ describe('shift reminder delivery policy', () => {
   it('checks the night shift business date even when the reminder is on the preceding date', async () => {
     const nightStart = new Date('2026-10-01T21:15:00Z'); // Oct 2, 00:15 local.
     const nightDue = new Date('2026-10-01T20:45:00Z');
-    await testDb.db.update(shiftTemplates).set({ isNight: true });
+    await testDb.db.update(shiftTemplates).set({ period: ShiftPeriod.NIGHT });
     await testDb.db.update(shiftAssignments).set({
       businessDate: '2026-10-02',
       planStartAt: nightStart,

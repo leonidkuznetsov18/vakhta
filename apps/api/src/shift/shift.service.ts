@@ -38,6 +38,7 @@ import {
   businessDateOf,
   computeShiftSummary,
   inferShiftFromArrival,
+  ShiftPeriod,
   projectEstimatedClosure,
   isActive,
   isTerminal,
@@ -1725,7 +1726,7 @@ export class ShiftService {
       };
     }
     const siteId = knownSiteId ?? (await this.siteForPresence(tx, presence, employeeId, now));
-    const templates = siteId ? await this.activeTemplates(tx, siteId) : [];
+    const templates = siteId ? await this.activeTemplates(tx, { siteId, employeeId, at: now }) : [];
     const [site] = siteId
       ? await tx.select({ timezone: sites.timezone }).from(sites).where(eq(sites.id, siteId))
       : [];
@@ -1741,8 +1742,13 @@ export class ShiftService {
       templates.length
         ? templates
         : [
-            { id: 'fallback-day', localStart: '08:00', localEnd: '20:00', isNight: false },
-            { id: 'fallback-night', localStart: '20:00', localEnd: '08:00', isNight: true },
+            { id: 'fallback-day', localStart: '08:00', localEnd: '20:00', period: ShiftPeriod.DAY },
+            {
+              id: 'fallback-night',
+              localStart: '20:00',
+              localEnd: '08:00',
+              period: ShiftPeriod.NIGHT,
+            },
           ],
       arrival,
       timezone,
@@ -1803,16 +1809,46 @@ export class ShiftService {
     return site?.id ?? null;
   }
 
-  private async activeTemplates(tx: DbOrTx, siteId: string) {
+  /** Site defaults plus the shifts of the unit the employee works in at that moment. */
+  private async activeTemplates(
+    tx: DbOrTx,
+    arrival: {
+      readonly siteId: string;
+      readonly employeeId: string | undefined;
+      readonly at: Date;
+    },
+  ) {
+    const { siteId, employeeId, at } = arrival;
+    const ownUnit = employeeId
+      ? inArray(
+          shiftTemplates.orgUnitId,
+          tx
+            .select({ orgUnitId: employeePositions.orgUnitId })
+            .from(employeePositions)
+            .where(
+              and(
+                eq(employeePositions.employeeId, employeeId),
+                lte(employeePositions.validFrom, at),
+                or(isNull(employeePositions.validTo), gt(employeePositions.validTo, at)),
+              ),
+            ),
+        )
+      : undefined;
     return tx
       .select({
         id: shiftTemplates.id,
         localStart: shiftTemplates.localStart,
         localEnd: shiftTemplates.localEnd,
-        isNight: shiftTemplates.isNight,
+        period: shiftTemplates.period,
       })
       .from(shiftTemplates)
-      .where(and(eq(shiftTemplates.siteId, siteId), eq(shiftTemplates.isActive, true)));
+      .where(
+        and(
+          eq(shiftTemplates.siteId, siteId),
+          eq(shiftTemplates.isActive, true),
+          or(isNull(shiftTemplates.orgUnitId), ownUnit),
+        ),
+      );
   }
 
   private async assignmentById(tx: DbOrTx, id: string) {

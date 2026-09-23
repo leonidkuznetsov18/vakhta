@@ -26,7 +26,7 @@ export async function readShiftReminder(db: Transaction, assignmentId: string, n
   const [row] = await db
     .select({
       assignment: shiftAssignments,
-      isNight: shiftTemplates.isNight,
+      period: shiftTemplates.period,
       timezone: sites.timezone,
       zoneName: responsibilityZones.name,
     })
@@ -82,7 +82,7 @@ export async function readShiftReminder(db: Transaction, assignmentId: string, n
     sendAt: new Date(row.assignment.planStartAt.getTime() - SHIFT_REMINDER_LEAD_MINUTES * 60_000),
     payload: {
       text: format(t.schedule.shiftReminder, {
-        kind: t.schedule.kindNames[row.isNight ? 'NIGHT' : 'DAY'],
+        kind: t.schedule.kindNames[row.period],
         date: `${local.slice(8, 10)}.${local.slice(5, 7)}`,
         start: local.slice(11, 16),
         zone: row.zoneName ? ` · ${row.zoneName}` : '',

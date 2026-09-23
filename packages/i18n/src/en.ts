@@ -4,6 +4,7 @@ import { controlEn } from './control.js';
 import { photoDictionaryEn } from './photo-object-dictionary.js';
 import { communicationsEn } from './communications.js';
 import { employeeProfileEN } from './employee-profile.js';
+import { unitShiftsEN } from './unit-shifts.js';
 import { scheduleExportEn } from './schedule-export.js';
 import { scheduleWorkspaceEn } from './schedule-workspace.js';
 import { overviewCenterEn } from './overview.js';
@@ -20,6 +21,7 @@ export const en: Messages = {
   onboarding: onboardingEn,
   communications: communicationsEn,
   employeeProfile: employeeProfileEN,
+  unitShifts: unitShiftsEN,
   scheduleExport: scheduleExportEn,
   scheduleWorkspace: scheduleWorkspaceEn,
   overviewCenter: overviewCenterEn,
@@ -496,10 +498,11 @@ export const en: Messages = {
       'December',
     ],
     weekdaysShort: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    dayKinds: { DAY: 'D', NIGHT: 'N', OFF: '—' },
-    kindNames: { DAY: 'day', NIGHT: 'night' },
+    dayKinds: { DAY: 'D', NIGHT: 'N', FULL_DAY: '24h', OFF: '—' },
+    kindNames: { DAY: 'day', NIGHT: 'night', FULL_DAY: 'full-day' },
     planHeader: 'Schedule for {month} {year}',
     planTotals: 'Total: {shifts} shifts · {hours} h · day {day} · night {night}',
+    planTotalsFullDay: ' · full day {fullDay}',
     planEmpty: 'The schedule for {month} {year} is not published.',
     myPlanButton: 'My plan',
     prevMonth: '◀ Prev. month',
@@ -708,6 +711,7 @@ export const en: Messages = {
         'The unit "{unit}" has no active zones, so the "Zone" column offers only "No zone". Add zones to this unit in the directories or move the employees to a unit that has them. Without a zone the handover does not work: the report goes straight to the master.',
       openDirectories: 'Open directories',
       dayTotals: 'D {day} · N {night}',
+      dayTotalsFullDay: ' · 24h {fullDay}',
       pattern: 'Rotation pattern',
       patternStart: 'From date',
       patternApply: 'Fill with pattern',

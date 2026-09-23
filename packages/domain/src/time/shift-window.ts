@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import type { ShiftPeriod } from '../scheduling/types.js';
 import { planInstants, type ShiftTemplateLocal } from './plan.js';
 
 /** A site shift template as the overview reads it. */
@@ -6,7 +7,7 @@ export interface SiteShiftTemplate extends ShiftTemplateLocal {
   readonly id: string;
   readonly code: string;
   readonly name: string;
-  readonly isNight: boolean;
+  readonly period: ShiftPeriod;
 }
 
 /** One concrete occurrence of a template: its business date and instants. */
@@ -14,7 +15,7 @@ export interface ShiftWindow {
   readonly templateId: string;
   readonly code: string;
   readonly name: string;
-  readonly isNight: boolean;
+  readonly period: ShiftPeriod;
   /** The local date the shift starts on; a night shift keeps the date it started. */
   readonly businessDate: string;
   readonly startsAt: Date;
@@ -50,7 +51,7 @@ function occurrences(
         templateId: t.id,
         code: t.code,
         name: t.name,
-        isNight: t.isNight,
+        period: t.period,
         businessDate: plan.businessDate,
         startsAt: plan.planStartAt,
         endsAt: plan.planEndAt,

@@ -3,6 +3,7 @@ import {
   assignmentInstants,
   coverage,
   planInstants,
+  templateLineage,
   zoneHasRequirement,
   type CoverageCell,
 } from '@vakhta/domain';
@@ -94,6 +95,17 @@ export function useStaffing(input: {
   };
 }
 
+/**
+ * Staffing demand keyed by the current version of each shift: an hours edit hands a used shift to
+ * its successor (ADR-0017), and plans on either version count against the same demand.
+ */
+export function currentDemand(
+  requirements: StaffingView['requirements'],
+  lineage: (templateId: string) => string,
+): StaffingView['requirements'] {
+  return requirements.map((row) => ({ ...row, templateId: lineage(row.templateId) }));
+}
+
 export interface CoverageModel {
   readonly cells: readonly CoverageCell[];
   /** Zones with at least one requirement in force on the visible dates. */
@@ -124,7 +136,8 @@ export function staffingCoverage(input: {
       endMs: plan.planEndAt.getTime(),
     };
   };
-  const rules = input.staffing.requirements;
+  const lineage = templateLineage(input.templates);
+  const rules = currentDemand(input.staffing.requirements, lineage);
   const assignments = gridToItems(input.grid)
     .filter((item) => input.dates.includes(item.businessDate))
     .map((item) => {
@@ -133,7 +146,7 @@ export function staffingCoverage(input: {
       return {
         employeeId: item.employeeId,
         businessDate: item.businessDate,
-        templateId: item.templateId,
+        templateId: lineage(item.templateId),
         zoneId: item.zoneId,
         ...(plan ? { startMs: plan.planStartAt.getTime(), endMs: plan.planEndAt.getTime() } : {}),
         breaks: plannedBreaks(item, template, input.timezone),

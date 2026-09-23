@@ -5,6 +5,7 @@ import {
   domainEvents,
   employeePositions,
   employees,
+  and,
   eq,
   notificationOutbox,
   orgUnits,
@@ -19,7 +20,8 @@ import {
   sites,
   sql,
 } from '@vakhta/db';
-import { DEFAULT_ATTENDANCE_WINDOW } from '@vakhta/domain';
+import { ShiftKindSchema } from '@vakhta/contracts';
+import { DEFAULT_ATTENDANCE_WINDOW, ShiftPeriod, ShiftTemplateError } from '@vakhta/domain';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
@@ -169,7 +171,14 @@ describe('requests: маршрути, рішення, нова версія гр
       .values([{ kind: 'CORRECTION', code: 'FORGOT_BUTTON', label: 'Забыл нажать кнопку' }]);
     const [tpl] = await testDb.db
       .insert(shiftTemplates)
-      .values({ siteId, code: 'DAY', name: 'Дневная', localStart: '08:00', localEnd: '20:00' })
+      .values({
+        siteId,
+        code: 'DAY',
+        name: 'Дневная',
+        localStart: '08:00',
+        period: ShiftPeriod.DAY,
+        localEnd: '20:00',
+      })
       .returning();
     dayTpl = tpl!.id;
     const [pos] = await testDb.db
@@ -285,6 +294,113 @@ describe('requests: маршрути, рішення, нова версія гр
     expect(notices).toHaveLength(1);
     const detail = await service.detail(created.id, HR);
     expect(detail.decisions.map((d) => d.stepKey)).toEqual(['HEAD', 'HR']);
+  });
+
+  it('offers an extra shift only from the site defaults and the employee’s own unit', async () => {
+    const [otherUnit] = await testDb.db
+      .insert(orgUnits)
+      .values({ siteId, name: 'Склад' })
+      .returning();
+    if (!otherUnit) throw new Error('unit missing');
+    const [own, foreign] = await testDb.db
+      .insert(shiftTemplates)
+      .values([
+        {
+          siteId,
+          orgUnitId: unitId,
+          code: 'U_OWN',
+          name: '',
+          localStart: '05:00',
+          localEnd: '13:00',
+          period: ShiftPeriod.DAY,
+        },
+        {
+          siteId,
+          orgUnitId: otherUnit.id,
+          code: 'U_FOREIGN',
+          name: 'Приймання',
+          localStart: '06:00',
+          localEnd: '14:00',
+          period: ShiftPeriod.DAY,
+        },
+      ])
+      .returning();
+    if (!own || !foreign) throw new Error('templates missing');
+    expect(await service.templatesFor(ivanov)).toEqual(
+      expect.arrayContaining([
+        { id: dayTpl, label: 'Дневная · 08:00–20:00' },
+        { id: own.id, label: '05:00–13:00' },
+      ]),
+    );
+    expect((await service.templatesFor(ivanov)).some((t) => t.id === foreign.id)).toBe(false);
+    await expect(
+      service.create(
+        ivanov,
+        {
+          type: 'EXTRA_SHIFT',
+          businessDate: `${month()}-10`,
+          templateId: foreign.id,
+          comment: 'Потрібна допомога на складі',
+          idempotencyKey: key(),
+        },
+        employeeActor(ivanov),
+      ),
+    ).rejects.toMatchObject({ code: ShiftTemplateError.OUT_OF_UNIT });
+  });
+
+  it('plans an approved extra shift on the current version of an edited shift', async () => {
+    const [requested, current] = await testDb.db
+      .insert(shiftTemplates)
+      .values([
+        {
+          siteId,
+          orgUnitId: unitId,
+          code: 'U_OLD',
+          name: 'Ранкова',
+          localStart: '05:00',
+          localEnd: '13:00',
+          period: ShiftPeriod.DAY,
+        },
+        {
+          siteId,
+          orgUnitId: unitId,
+          code: 'U_NEW',
+          name: 'Рання',
+          localStart: '06:00',
+          localEnd: '14:00',
+          period: ShiftPeriod.DAY,
+        },
+      ])
+      .returning();
+    if (!requested || !current) throw new Error('templates missing');
+    const created = await service.create(
+      ivanov,
+      {
+        type: 'EXTRA_SHIFT',
+        businessDate: `${month()}-10`,
+        templateId: requested.id,
+        comment: 'Можу вийти',
+        idempotencyKey: key(),
+      },
+      employeeActor(ivanov),
+    );
+    // The administrator edits the hours before the request is decided.
+    await testDb.db
+      .update(shiftTemplates)
+      .set({ isActive: false, retiredAt: new Date(), replacedById: current.id })
+      .where(eq(shiftTemplates.id, requested.id));
+    await service.decide(created.id, { decision: 'APPROVED', comment: 'Так' }, HEAD);
+    const [extra] = await testDb.db
+      .select({ templateId: shiftAssignments.templateId })
+      .from(shiftAssignments)
+      .where(
+        and(
+          eq(shiftAssignments.employeeId, ivanov),
+          eq(shiftAssignments.businessDate, `${month()}-10`),
+          eq(shiftAssignments.kind, ShiftKindSchema.enum.EXTRA),
+        ),
+      );
+    expect(extra?.templateId).toBe(current.id);
   });
 
   it('rolls back all schedule months when the final request decision fails after publication', async () => {

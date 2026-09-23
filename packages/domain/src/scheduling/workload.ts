@@ -1,3 +1,5 @@
+import { ShiftPeriod } from './types.js';
+
 /**
  * Planned workload distribution (SC-35): planned shifts, nights, weekends, hours and breaks per
  * worker over an explicit period and cohort. Hours belong to the business date of the shift; the
@@ -10,7 +12,7 @@ export interface WorkloadAssignment {
   readonly businessDate: string;
   readonly startMs: number;
   readonly endMs: number;
-  readonly isNight: boolean;
+  readonly period: ShiftPeriod;
   /** Planned break minutes inside the shift; excluded from planned working minutes. */
   readonly breakMinutes?: number | undefined;
 }
@@ -19,6 +21,7 @@ export interface WorkloadRow {
   readonly employeeId: string;
   readonly shifts: number;
   readonly nightShifts: number;
+  readonly fullDayShifts: number;
   readonly weekendShifts: number;
   /** Planned working minutes with planned breaks subtracted. */
   readonly plannedMinutes: number;
@@ -51,7 +54,14 @@ export function workload(input: {
   const totals = new Map(
     cohort.map((employeeId) => [
       employeeId,
-      { shifts: 0, nightShifts: 0, weekendShifts: 0, plannedMinutes: 0, breakMinutes: 0 },
+      {
+        shifts: 0,
+        nightShifts: 0,
+        fullDayShifts: 0,
+        weekendShifts: 0,
+        plannedMinutes: 0,
+        breakMinutes: 0,
+      },
     ]),
   );
   for (const item of input.assignments) {
@@ -60,7 +70,8 @@ export function workload(input: {
     const minutes = Math.max(0, Math.round((item.endMs - item.startMs) / 60000));
     const breakMinutes = Math.min(minutes, Math.max(0, Math.round(item.breakMinutes ?? 0)));
     total.shifts += 1;
-    if (item.isNight) total.nightShifts += 1;
+    if (item.period === ShiftPeriod.NIGHT) total.nightShifts += 1;
+    if (item.period === ShiftPeriod.FULL_DAY) total.fullDayShifts += 1;
     if (isWeekend(item.businessDate)) total.weekendShifts += 1;
     total.plannedMinutes += minutes - breakMinutes;
     total.breakMinutes += breakMinutes;

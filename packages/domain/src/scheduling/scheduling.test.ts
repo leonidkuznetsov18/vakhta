@@ -19,7 +19,7 @@ function shift(
     businessDate,
     planStartAt: start,
     planEndAt: end,
-    isNight: kind === 'NIGHT',
+    period: kind,
     templateCode: kind,
     zoneId,
   };
@@ -52,7 +52,13 @@ describe('календар місяця (FR-SCH-01)', () => {
     expect(plan.days[0]).toMatchObject({ date: '2026-09-01', weekday: 2, kind: 'DAY' });
     expect(plan.days[2]?.kind).toBe('NIGHT');
     expect(plan.days[1]?.kind).toBe('OFF');
-    expect(plan.totals).toEqual({ shifts: 2, plannedMinutes: 1440, dayShifts: 1, nightShifts: 1 });
+    expect(plan.totals).toEqual({
+      shifts: 2,
+      plannedMinutes: 1440,
+      dayShifts: 1,
+      nightShifts: 1,
+      fullDayShifts: 0,
+    });
   });
 
   it('дати місяця й арифметика місяців', () => {

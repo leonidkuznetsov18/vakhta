@@ -1,11 +1,26 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { minutesUntil, shiftContext, type SiteShiftTemplate } from './shift-window.js';
+import { ShiftPeriod } from '../scheduling/types.js';
 
 const TZ = 'Europe/Kyiv';
 const TEMPLATES: SiteShiftTemplate[] = [
-  { id: 'd', code: 'DAY', name: 'Day', localStart: '08:00', localEnd: '20:00', isNight: false },
-  { id: 'n', code: 'NIGHT', name: 'Night', localStart: '20:00', localEnd: '08:00', isNight: true },
+  {
+    id: 'd',
+    code: 'DAY',
+    name: 'Day',
+    localStart: '08:00',
+    localEnd: '20:00',
+    period: ShiftPeriod.DAY,
+  },
+  {
+    id: 'n',
+    code: 'NIGHT',
+    name: 'Night',
+    localStart: '20:00',
+    localEnd: '08:00',
+    period: ShiftPeriod.NIGHT,
+  },
 ];
 const GRACE = 120;
 

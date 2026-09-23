@@ -1,9 +1,11 @@
+import type { ShiftPeriod } from '@vakhta/domain';
 import type { OnboardingMessages } from './onboarding.js';
 import type { LandingMessages } from './landing.js';
 import type { ControlMessages } from './control.js';
 import type { PhotoDictionaryMessages } from './photo-object-dictionary.js';
 import type { communicationsRu } from './communications.js';
 import type { EmployeeProfileMessages } from './employee-profile.js';
+import type { UnitShiftsMessages } from './unit-shifts.js';
 import type { ScheduleExportMessages } from './schedule-export.js';
 import type { ScheduleWorkspaceMessages } from './schedule-workspace.js';
 import type { OverviewCenterMessages } from './overview.js';
@@ -77,6 +79,7 @@ export interface Messages {
   onboarding: OnboardingMessages;
   readonly communications: typeof communicationsRu;
   employeeProfile: EmployeeProfileMessages;
+  unitShifts: UnitShiftsMessages;
   photoInspection: PhotoInspectionMessages;
   photoDictionary: PhotoDictionaryMessages;
   checklistPhotoRules: ChecklistPhotoRulesMessages;
@@ -392,12 +395,13 @@ export interface Messages {
     readonly months: readonly string[];
     /** Short weekday names, index 0 = Monday. */
     readonly weekdaysShort: readonly string[];
-    readonly dayKinds: Readonly<Record<'DAY' | 'NIGHT' | 'OFF', string>>;
-    readonly kindNames: Readonly<Record<'DAY' | 'NIGHT', string>>;
+    readonly dayKinds: Readonly<Record<ShiftPeriod | 'OFF', string>>;
+    readonly kindNames: Readonly<Record<ShiftPeriod, string>>;
     /** Placeholders: {month}, {year} */
     readonly planHeader: string;
     /** Placeholders: {shifts}, {hours}, {day}, {night} */
     readonly planTotals: string;
+    readonly planTotalsFullDay: string;
     readonly planEmpty: string;
     readonly myPlanButton: string;
     readonly prevMonth: string;
@@ -597,6 +601,7 @@ export interface Messages {
       readonly openDirectories: string;
       /** Footer row of the grid: {day} day shifts, {night} night shifts on that date. */
       readonly dayTotals: string;
+      readonly dayTotalsFullDay: string;
       readonly pattern: string;
       readonly patternStart: string;
       readonly patternApply: string;

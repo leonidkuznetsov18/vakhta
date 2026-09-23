@@ -14,7 +14,7 @@ import {
   sites,
   sql,
 } from '@vakhta/db';
-import { DEFAULT_ATTENDANCE_WINDOW } from '@vakhta/domain';
+import { DEFAULT_ATTENDANCE_WINDOW, ShiftPeriod } from '@vakhta/domain';
 import { generateChallengeToken, hashChallengeToken, hashDeviceToken } from '@vakhta/domain/node';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
@@ -72,6 +72,7 @@ describe('attendance: прихід і відхід за QR (FR-QR-03..06, FR-TIM
         name: 'Дневная',
         localStart: '08:00',
         localEnd: '20:00',
+        period: ShiftPeriod.DAY,
       })
       .returning();
     const [version] = await testDb.db

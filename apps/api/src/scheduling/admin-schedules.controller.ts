@@ -11,6 +11,7 @@ import {
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -26,6 +27,10 @@ import {
   type ScheduleCommandResult,
   CreateScheduleVersionCommand,
   CreateShiftTemplateCommand,
+  CreateUnitShiftCommand,
+  DeleteUnitShiftQuery,
+  ShiftTemplatesQuery,
+  UpdateUnitShiftCommand,
   ListScheduleVersionsQuery,
   PublishScheduleCommand,
   ReviseScheduleCommand,
@@ -285,9 +290,9 @@ export class AdminSchedulesController {
 
   @Get('templates')
   listTemplates(
-    @Query(new ZodValidationPipe(SiteQuery)) q: { siteId: string },
+    @Query(new ZodValidationPipe(ShiftTemplatesQuery)) q: ShiftTemplatesQuery,
   ): Promise<ShiftTemplateView[]> {
-    return this.templates.list(q.siteId);
+    return this.templates.list(q);
   }
 
   @Post('templates')
@@ -298,6 +303,39 @@ export class AdminSchedulesController {
     @CurrentUser() user: WebUser,
   ): Promise<ShiftTemplateView> {
     return this.templates.create(body, webUserActor(user));
+  }
+
+  /** A unit's own shift (spec 013); offered only in that unit's schedule. */
+  @Post('units/:orgUnitId/templates')
+  @HttpCode(201)
+  @Roles('ADMIN')
+  createUnitShift(
+    @Param('orgUnitId', ParseUUIDPipe) orgUnitId: string,
+    @Body(new ZodValidationPipe(CreateUnitShiftCommand)) body: CreateUnitShiftCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ShiftTemplateView> {
+    return this.templates.createForUnit(orgUnitId, body, user);
+  }
+
+  @Patch('templates/:id')
+  @Roles('ADMIN')
+  updateUnitShift(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateUnitShiftCommand)) body: UpdateUnitShiftCommand,
+    @CurrentUser() user: WebUser,
+  ): Promise<ShiftTemplateView> {
+    return this.templates.update(id, body, user);
+  }
+
+  @Delete('templates/:id')
+  @HttpCode(204)
+  @Roles('ADMIN')
+  deleteUnitShift(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query(new ZodValidationPipe(DeleteUnitShiftQuery)) q: DeleteUnitShiftQuery,
+    @CurrentUser() user: WebUser,
+  ): Promise<void> {
+    return this.templates.remove(id, q.revision, user);
   }
 
   @Get()

@@ -60,6 +60,14 @@ Counts describe assigned people, not required staffing or attendance.
   reasons. Saved patterns store a rotation, shift, mode and zone for the batch planner. Drag a shift
   to another date or row, or use Move in its details to change the person, date or zone; an invalid
   move leaves the plan unchanged and explains why.
+- **Unit shifts (spec 013):** the shift editor offers shifts as cards: the unit's own shifts first
+  (created in Administration → Directories → unit), then the standard Day and Night. A card that
+  breaks a rule for this person and date (overlap, rest, absence) stays selectable, greyed, with the
+  reason. A borrowed worker gets the shifts of the schedule's unit. Other units' shifts are never
+  offered, and the API refuses them. An assignment keeps the shift version it was planned with, so
+  editing or deleting a unit shift never moves planned shifts. Day/night hotkeys and rotations use
+  the standard shifts. Full day is fuchsia and marks the next day; day and night totals count it.
+  An administrator can save custom hours as a new unit shift from the editor.
 - **Custom hours and zone segments:** a shift keeps its template, but the editor can set its own
   start and end for that day (an end time before the start belongs to the next day) and split the
   shift into ordered zone segments that must cover the whole interval without gaps or overlaps.
@@ -169,7 +177,7 @@ planned instants and template reference never change after the fact.
 | Employee         | reference                         | Who works the shift                                         | Planners, the employee (bot) | Yes      |
 | Date             | business date                     | The calendar day the shift belongs to, also overnight       | Planners, the employee       | Yes      |
 | Zone             | reference (unit zone)             | Where coverage is counted                                   | Planners, the employee       | Yes      |
-| Shift template   | reference                         | Default hours and day/night kind; provenance for history    | Planners, the employee       | Yes      |
+| Shift template   | reference (version)               | Hours and Day/Night/Full-day type; kept version on history  | Planners, the employee       | Yes      |
 | Custom time      | local start and end (HH:mm)       | Replaces the template hours on that day only                | Planners, the employee       | No       |
 | Zone segments    | ordered list (zone, start, end)   | Parts of one shift in different zones; must tile the shift  | Planners, the employee       | No       |
 | Planned breaks   | ordered list (start, end, relief) | Break intervals and who relieves; never actual break events | Planners, relief employee    | No       |

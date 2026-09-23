@@ -6,6 +6,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
 } from 'drizzle-orm/pg-core';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
@@ -37,7 +38,11 @@ export const orgUnits = pgTable(
     name: text('name').notNull(),
     createdAt: createdAt(),
   },
-  (t) => [index('org_units_site_idx').on(t.siteId)],
+  (t) => [
+    index('org_units_site_idx').on(t.siteId),
+    // Target of composite foreign keys that pin a unit-owned row to the unit's site.
+    unique('org_units_id_site_uq').on(t.id, t.siteId),
+  ],
 );
 
 export const teams = pgTable(

@@ -1,4 +1,4 @@
-import { templateLabel } from '../lib/template-label';
+import { shiftTemplateLabel } from '@/entities/shift-template';
 import { useState } from 'react';
 import { messages } from '@vakhta/i18n';
 import { monthDates } from '@vakhta/domain';
@@ -91,7 +91,7 @@ export function BatchPlanner({
     validPeople &&
     w.zones.some((zone) => zone.id === input.zoneId && zone.isActive) &&
     zoneAllowed(w.rights.zones, input.zoneId)
-      ? batchPreview(w.grid, input, w.month, w.templates)
+      ? batchPreview(w.grid, input, w.month, w.shiftOptions)
       : null;
   const evaluation = result
     ? planIssues({
@@ -275,12 +275,10 @@ export function BatchPlanner({
                     label={t.template}
                     value={input.templateId}
                     onChange={(value) => update({ templateId: value })}
-                    options={w.templates
-                      .filter((template) => template.isActive)
-                      .map((template) => ({
-                        value: template.id,
-                        label: `${templateLabel(template.code, t)} · ${template.localStart}–${template.localEnd}`,
-                      }))}
+                    options={w.shiftOptions.map((template) => ({
+                      value: template.id,
+                      label: `${shiftTemplateLabel(template, t)} · ${template.localStart}–${template.localEnd}`,
+                    }))}
                   />
                 )}
                 <SelectField

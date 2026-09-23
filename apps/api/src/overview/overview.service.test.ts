@@ -18,6 +18,7 @@ import {
 import type { RoleGrant } from '@vakhta/domain';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
 import { OverviewService } from './overview.service.js';
+import { ShiftPeriod } from '@vakhta/domain';
 
 /**
  * Spec 004 US2–US6 on a real database: one site, two units, 11:45 local on 13.09.2026.
@@ -71,14 +72,21 @@ describe('overview snapshot (spec 004)', () => {
     const [day] = await db
       .insert(shiftTemplates)
       .values([
-        { siteId: site!.id, code: 'DAY', name: 'Day', localStart: '08:00', localEnd: '20:00' },
+        {
+          siteId: site!.id,
+          code: 'DAY',
+          name: 'Day',
+          localStart: '08:00',
+          period: ShiftPeriod.DAY,
+          localEnd: '20:00',
+        },
         {
           siteId: site!.id,
           code: 'NIGHT',
           name: 'Night',
           localStart: '20:00',
           localEnd: '08:00',
-          isNight: true,
+          period: ShiftPeriod.NIGHT,
         },
       ])
       .returning();

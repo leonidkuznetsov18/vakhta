@@ -67,6 +67,7 @@ export const scheduleExportEn = {
   positionName: 'Position (current name)',
   templateId: 'Template ID',
   templateCode: 'Template code (current)',
+  shiftName: 'Shift',
   acknowledgedAt: 'Acknowledged at (UTC)',
 };
 
@@ -141,6 +142,7 @@ export const scheduleExportUk: ScheduleExportMessages = {
   positionName: 'Посада (поточна назва)',
   templateId: 'ID шаблону',
   templateCode: 'Код шаблону (поточний)',
+  shiftName: 'Зміна',
   acknowledgedAt: 'Ознайомлено (UTC)',
 };
 
@@ -213,5 +215,6 @@ export const scheduleExportRu: ScheduleExportMessages = {
   positionName: 'Должность (текущее название)',
   templateId: 'ID шаблона',
   templateCode: 'Код шаблона (текущий)',
+  shiftName: 'Смена',
   acknowledgedAt: 'Ознакомлен (UTC)',
 };

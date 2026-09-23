@@ -4,6 +4,7 @@ import { controlUk } from './control.js';
 import { photoDictionaryUk } from './photo-object-dictionary.js';
 import { communicationsUk } from './communications.js';
 import { employeeProfileUK } from './employee-profile.js';
+import { unitShiftsUK } from './unit-shifts.js';
 import { scheduleExportUk } from './schedule-export.js';
 import { scheduleWorkspaceUk } from './schedule-workspace.js';
 import { overviewCenterUk } from './overview.js';
@@ -20,6 +21,7 @@ export const uk: Messages = {
   onboarding: onboardingUk,
   communications: communicationsUk,
   employeeProfile: employeeProfileUK,
+  unitShifts: unitShiftsUK,
   scheduleExport: scheduleExportUk,
   scheduleWorkspace: scheduleWorkspaceUk,
   overviewCenter: overviewCenterUk,
@@ -495,10 +497,11 @@ export const uk: Messages = {
       'грудень',
     ],
     weekdaysShort: ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'нд'],
-    dayKinds: { DAY: 'Д', NIGHT: 'Н', OFF: '—' },
-    kindNames: { DAY: 'денна', NIGHT: 'нічна' },
+    dayKinds: { DAY: 'Д', NIGHT: 'Н', FULL_DAY: 'Доба', OFF: '—' },
+    kindNames: { DAY: 'денна', NIGHT: 'нічна', FULL_DAY: 'добова' },
     planHeader: 'Графік на {month} {year}',
     planTotals: 'Разом: {shifts} змін · {hours} год · день {day} · ніч {night}',
+    planTotalsFullDay: ' · доба {fullDay}',
     planEmpty: 'На {month} {year} графік не опубліковано.',
     myPlanButton: 'Мій план',
     prevMonth: '◀ Попер. місяць',
@@ -708,6 +711,7 @@ export const uk: Messages = {
         'У підрозділі «{unit}» немає активних зон, тому в колонці «Зона» доступно лише «Без зони». Додайте зони цьому підрозділу в Довідниках або переведіть працівників у підрозділ, де зони є. Без зони передача зміни не працює: звіт іде одразу майстру.',
       openDirectories: 'Відкрити довідники',
       dayTotals: 'Д {day} · Н {night}',
+      dayTotalsFullDay: ' · Доба {fullDay}',
       pattern: 'Шаблон ротації',
       patternStart: 'З дати',
       patternApply: 'Заповнити за шаблоном',

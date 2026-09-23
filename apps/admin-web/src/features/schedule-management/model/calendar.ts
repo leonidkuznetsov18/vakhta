@@ -1,4 +1,10 @@
-import { assignmentInstants, type EligibilityReason } from '@vakhta/domain';
+import {
+  ShiftPeriod,
+  assignmentInstants,
+  templateDisplayName,
+  type EligibilityReason,
+} from '@vakhta/domain';
+import { PERIOD_TONE, shiftTemplateLabel } from '@/entities/shift-template';
 import { isTerminated } from './employee-status';
 import { format, holidayLabel, messages, type Locale, type Messages } from '@vakhta/i18n';
 import type {
@@ -23,6 +29,13 @@ import { assignmentKey, sameAssignment, gridToItems, type GridState } from './gr
 import { UNASSIGNED_ZONE, zoneAllowed } from './planning';
 
 export type CalendarGrouping = 'zones' | 'people';
+type PeriodCounts = { day: number; night: number; fullDay: number };
+const PERIOD_COUNT: Record<ShiftPeriod, keyof PeriodCounts> = {
+  [ShiftPeriod.DAY]: 'day',
+  [ShiftPeriod.NIGHT]: 'night',
+  [ShiftPeriod.FULL_DAY]: 'fullDay',
+};
+const emptyCounts = (): PeriodCounts => ({ day: 0, night: 0, fullDay: 0 });
 export interface CalendarInput {
   readonly grid: GridState;
   /** Assignments of the currently published month; an item outside it is not published. */
@@ -68,6 +81,7 @@ export function siteToday(timezone: string, now = new Date()): string {
 export function calendarModel(input: CalendarInput): CalendarViewModel {
   const t = messages(input.locale).scheduleWorkspace;
   const totalsLabel = messages(input.locale).admin.schedule.dayTotals;
+  const fullDayTotalsLabel = messages(input.locale).admin.schedule.dayTotalsFullDay;
   const allAssignments = gridToItems(input.grid);
   const occupiedDays = new Set(allAssignments.map(assignmentKey));
   const items = allAssignments.filter(
@@ -126,7 +140,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
   const order = new Map<string, { readonly start: number; readonly slot: boolean }>();
   const minutesByResource = new Map<string, number | null>();
   const countsByResource = new Map<string, number>();
-  const countsByDate = new Map<string, { day: number; night: number }>();
+  const countsByDate = new Map<string, PeriodCounts>();
   const presenceByKey = new Map(
     (input.operations?.presence ?? []).map((row) => [assignmentKey(row), row]),
   );
@@ -202,9 +216,8 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
       minutes === null || durationMinutes === null ? null : (minutes ?? 0) + durationMinutes,
     );
     countsByResource.set(owner, (countsByResource.get(owner) ?? 0) + 1);
-    const dateCounts = countsByDate.get(item.businessDate) ?? { day: 0, night: 0 };
-    if (template?.isNight) dateCounts.night += 1;
-    else if (template) dateCounts.day += 1;
+    const dateCounts = countsByDate.get(item.businessDate) ?? emptyCounts();
+    if (template) dateCounts[PERIOD_COUNT[template.period]] += 1;
     countsByDate.set(item.businessDate, dateCounts);
     const evidence = presenceByKey.get(assignmentKey(item));
     const marker = evidence ? presenceMarker(evidence, timeFormat, t) : undefined;
@@ -220,7 +233,7 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
       time,
       description: [
         employeeStatus,
-        template ? (template.isNight ? t.nightShift : t.dayShift) : t.unknownShift,
+        template ? shiftTemplateLabel(template, t) : t.unknownShift,
         duration,
       ]
         .filter(Boolean)
@@ -231,46 +244,51 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
       ...(foreign || terminated ? { readonly: true } : {}),
       ...(input.writable && !foreign ? { removable: true } : {}),
       ...(issue ? { issue } : {}),
-      tone: template ? (template.isNight ? 'indigo' : 'amber') : 'neutral',
+      tone: template ? PERIOD_TONE[template.period] : 'neutral',
       ...(terminated ? { tone: 'gray' } : {}),
     });
     buckets.set(key, bucket);
   }
-  if (input.grouping === 'zones')
-    for (const slot of input.slots ?? []) {
-      if (slot.status !== 'OPEN' && slot.status !== 'OFFERED') continue;
-      if (!input.dates.includes(slot.businessDate)) continue;
-      if (input.zoneId && slot.zoneId !== input.zoneId) continue;
-      const template = templates.get(slot.templateId);
-      const plan = template
-        ? assignmentInstants({ businessDate: slot.businessDate, template }, input.timezone)
-        : null;
-      const interested =
-        slot.offer?.interests.filter((item) => item.response === 'INTERESTED').length ?? 0;
-      const key = `${slot.zoneId}:${slot.businessDate}`;
-      const bucket = buckets.get(key) ?? [];
-      order.set(`slot:${slot.id}`, {
-        start: plan ? plan.planStartAt.getTime() : Number.POSITIVE_INFINITY,
-        slot: true,
-      });
-      bucket.push({
-        id: `slot:${slot.id}`,
-        title: t.openSlot,
-        time: plan
-          ? `${timeFormat.format(plan.planStartAt)}–${timeFormat.format(plan.planEndAt)}`
-          : t.unknownTemplate,
-        description: [
-          template ? (template.isNight ? t.nightShift : t.dayShift) : t.unknownShift,
-          slot.status === 'OFFERED'
-            ? format(t.slotOfferedState, { count: interested })
-            : t.slotInternal,
-        ].join(' · '),
-        status: '',
-        unpublished: true,
-        tone: 'neutral',
-      });
-      buckets.set(key, bucket);
-    }
+  const visibleSlots =
+    input.grouping === 'zones'
+      ? (input.slots ?? []).filter(
+          (slot) =>
+            (slot.status === 'OPEN' || slot.status === 'OFFERED') &&
+            input.dates.includes(slot.businessDate) &&
+            (!input.zoneId || slot.zoneId === input.zoneId),
+        )
+      : [];
+  for (const slot of visibleSlots) {
+    const template = templates.get(slot.templateId);
+    const plan = template
+      ? assignmentInstants({ businessDate: slot.businessDate, template }, input.timezone)
+      : null;
+    const interested =
+      slot.offer?.interests.filter((item) => item.response === 'INTERESTED').length ?? 0;
+    const key = `${slot.zoneId}:${slot.businessDate}`;
+    const bucket = buckets.get(key) ?? [];
+    order.set(`slot:${slot.id}`, {
+      start: plan ? plan.planStartAt.getTime() : Number.POSITIVE_INFINITY,
+      slot: true,
+    });
+    bucket.push({
+      id: `slot:${slot.id}`,
+      title: t.openSlot,
+      time: plan
+        ? `${timeFormat.format(plan.planStartAt)}–${timeFormat.format(plan.planEndAt)}`
+        : t.unknownTemplate,
+      description: [
+        template ? shiftTemplateLabel(template, t) : t.unknownShift,
+        slot.status === 'OFFERED'
+          ? format(t.slotOfferedState, { count: interested })
+          : t.slotInternal,
+      ].join(' · '),
+      status: '',
+      unpublished: true,
+      tone: 'neutral',
+    });
+    buckets.set(key, bucket);
+  }
   const ids = new Set(
     input.grouping === 'zones'
       ? [
@@ -280,8 +298,12 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
       : [...input.grid.rows.map((row) => row.employeeId)],
   );
   const kinds = messages(input.locale).schedule.dayKinds;
-  const templateLabel = (templateId: string) =>
-    templates.get(templateId)?.isNight ? kinds.NIGHT : kinds.DAY;
+  // Compact coverage label: the period letter of a default, the name or hours of a unit shift.
+  const templateLabel = (templateId: string) => {
+    const template = templates.get(templateId);
+    if (!template) return t.unknownShift;
+    return template.orgUnitId === null ? kinds[template.period] : templateDisplayName(template);
+  };
   const zoneBadge = (zoneId: string): CalendarNote | undefined => {
     if (input.grouping !== 'zones' || zoneId === UNASSIGNED_ZONE) return undefined;
     if (!input.coverage?.ready) return undefined;
@@ -398,14 +420,14 @@ export function calendarModel(input: CalendarInput): CalendarViewModel {
     label: t.calendar,
     resourceLabel: input.grouping === 'zones' ? t.zone : t.workers,
     dates: input.dates.map((id) => {
-      const counts = countsByDate.get(id) ?? { day: 0, night: 0 };
+      const counts = countsByDate.get(id) ?? emptyCounts();
       return {
         id,
         label: dayFormat.format(new Date(`${id}T00:00:00Z`)),
         shortLabel: id.slice(8),
-        summary: totalsLabel
-          .replace('{day}', String(counts.day))
-          .replace('{night}', String(counts.night)),
+        summary:
+          format(totalsLabel, { day: counts.day, night: counts.night }) +
+          (counts.fullDay > 0 ? format(fullDayTotalsLabel, { fullDay: counts.fullDay }) : ''),
         counts,
         today: id === input.today,
         readonly: !!input.editableMonth && !id.startsWith(input.editableMonth),

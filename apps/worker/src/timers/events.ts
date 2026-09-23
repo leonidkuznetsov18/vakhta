@@ -172,7 +172,7 @@ export async function handleAbsenceReturnWithin(
       businessDate: shiftAssignments.businessDate,
       planStartAt: shiftAssignments.planStartAt,
       planEndAt: shiftAssignments.planEndAt,
-      isNight: shiftTemplates.isNight,
+      period: shiftTemplates.period,
       zoneName: responsibilityZones.name,
       timezone: sites.timezone,
     })
@@ -200,7 +200,7 @@ export async function handleAbsenceReturnWithin(
     text = format(t.schedule.returnReminder, {
       date: `${local.slice(8, 10)}.${local.slice(5, 7)}`,
       weekday: t.schedule.weekdaysShort[(weekday + 6) % 7] ?? '',
-      kind: t.schedule.kindNames[next.isNight ? 'NIGHT' : 'DAY'],
+      kind: t.schedule.kindNames[next.period],
       start: local.slice(11, 16),
       end: end.slice(11, 16),
       zone: next.zoneName ? ` · ${next.zoneName}` : '',

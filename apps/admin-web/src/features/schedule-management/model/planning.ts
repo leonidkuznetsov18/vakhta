@@ -6,8 +6,12 @@ import {
   planInstants,
   scheduleZoneScope,
   SCHEDULE_APPROVE_ROLES,
+  ShiftPeriod,
+  compareTemplates,
+  templatesForUnit,
   type RoleGrant,
 } from '@vakhta/domain';
+import { currentLocale } from '@/i18n';
 import type {
   AssignmentInput,
   AssignmentView,
@@ -82,6 +86,22 @@ export function zoneAllowed(
 ): boolean {
   return zones === null || (!!zoneId && zones.has(zoneId));
 }
+/** Choices of one unit's schedule in display order: site defaults and the unit's own shifts. */
+export function shiftOptions(
+  templates: readonly ShiftTemplateView[],
+  orgUnitId: string,
+): ShiftTemplateView[] {
+  return templatesForUnit(templates, orgUnitId).sort(compareTemplates(currentLocale()));
+}
+/** The site default of a period; rotations and day/night shortcuts use the defaults only. */
+export function defaultShift(
+  templates: readonly ShiftTemplateView[],
+  period: ShiftPeriod,
+): ShiftTemplateView | undefined {
+  return templates.find(
+    (template) => template.isActive && template.orgUnitId === null && template.period === period,
+  );
+}
 export function summarize(
   items: readonly AssignmentInput[],
   templates: readonly ShiftTemplateView[],
@@ -89,8 +109,6 @@ export function summarize(
   recorded: readonly AssignmentView[] = [],
 ) {
   const byId = new Map(templates.map((template) => [template.id, template]));
-  let day = 0;
-  let night = 0;
   let minutes: number | null = 0;
   for (const item of items) {
     const template = byId.get(item.templateId);
@@ -98,8 +116,6 @@ export function summarize(
       minutes = null;
       continue;
     }
-    if (template.isNight) night++;
-    else day++;
     if (minutes !== null) {
       const saved = recorded.find(
         (assignment) =>
@@ -116,8 +132,6 @@ export function summarize(
   return {
     assignments: items.length,
     workers: new Set(items.map((item) => item.employeeId)).size,
-    day,
-    night,
     minutes,
   };
 }
@@ -155,15 +169,15 @@ export function batchPreview(
 ) {
   const parsed = batchSchema.safeParse(input);
   if (!parsed.success || !input.from.startsWith(month) || !input.to.startsWith(month)) return null;
-  const active = templates.filter((template) => template.isActive);
-  const day = active.find((template) => !template.isNight)?.id ?? '';
-  const night = active.find((template) => template.isNight)?.id ?? '';
+  const day = defaultShift(templates, ShiftPeriod.DAY)?.id ?? '';
+  const night = defaultShift(templates, ShiftPeriod.NIGHT)?.id ?? '';
   const needsNight = input.pattern.startsWith('NIGHT') || input.pattern === 'DAY_NIGHT_OFF_OFF';
   const needsDay = input.pattern !== 'SINGLE' && !input.pattern.startsWith('NIGHT');
   if (
     (needsDay && !day) ||
     (needsNight && !night) ||
-    (input.pattern === 'SINGLE' && !active.some((template) => template.id === input.templateId))
+    (input.pattern === 'SINGLE' &&
+      !templates.some((template) => template.isActive && template.id === input.templateId))
   )
     return null;
   const dates = monthDates(month).filter((date) => date >= input.from && date <= input.to);

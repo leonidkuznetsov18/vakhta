@@ -3,6 +3,7 @@
  * shift templates, the standard positions and the downtime reason codes. Idempotent: rerunning
  * changes nothing. Units, teams, zones and terminals are the tenant administrator's job.
  */
+import { ShiftPeriod } from '@vakhta/domain';
 import { and, eq } from 'drizzle-orm';
 import type { Database } from './client.js';
 import { positions, reasonCodes, shiftTemplates, sites } from './schema/index.js';
@@ -113,7 +114,7 @@ interface TemplateSeed {
   readonly name: string;
   readonly localStart: string;
   readonly localEnd: string;
-  readonly isNight: boolean;
+  readonly period: ShiftPeriod;
 }
 
 async function ensureTemplate(db: Database, siteId: string, template: TemplateSeed) {
@@ -154,14 +155,14 @@ export async function seedTenantDefaults(
     name: 'Дневная смена',
     localStart: '08:00',
     localEnd: '20:00',
-    isNight: false,
+    period: ShiftPeriod.DAY,
   });
   await ensureTemplate(db, site.id, {
     code: 'NIGHT',
     name: 'Ночная смена',
     localStart: '20:00',
     localEnd: '08:00',
-    isNight: true,
+    period: ShiftPeriod.NIGHT,
   });
   await Promise.all(POSITIONS.map(([code, name]) => ensurePosition(db, code, name)));
   await db

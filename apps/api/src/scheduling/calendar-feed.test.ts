@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { serializeCalendarFeed, type CalendarFeedAssignment } from './calendar-feed.js';
+import { ShiftPeriod } from '@vakhta/domain';
 
 const assignment: CalendarFeedAssignment = {
   employeeId: 'employee-1',
@@ -8,7 +9,7 @@ const assignment: CalendarFeedAssignment = {
   publishedAt: new Date('2026-09-01T10:00:00Z'),
   planStartAt: new Date('2026-09-15T17:00:00Z'),
   planEndAt: new Date('2026-09-16T05:00:00Z'),
-  isNight: true,
+  period: ShiftPeriod.NIGHT,
   zoneName: 'Лінія 1',
   siteName: 'Завод',
   unitName: 'Цех',

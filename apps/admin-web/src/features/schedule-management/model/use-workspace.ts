@@ -16,7 +16,9 @@ import { notifySuccess } from '@/lib/toast';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
 import { scheduleApi } from '../api/schedule-api';
-import { capabilities, EMPTY_GRID, workingVersion } from './planning';
+import { shiftTemplatesQuery } from '@/entities/shift-template';
+import { WebRole, canActOn } from '@vakhta/domain';
+import { capabilities, EMPTY_GRID, shiftOptions, workingVersion } from './planning';
 import {
   countChanges,
   gridFromDetail,
@@ -99,11 +101,12 @@ export function useWorkspace() {
   });
   const staffing = useStaffing({ accessKey, siteId, orgUnitId, enabled: !!actorId });
   const contextQuery = usePlanContext({ accessKey, siteId, orgUnitId, month, enabled: !!actorId });
+  // Retired versions stay in the list so planned history keeps its hours and names.
   const templatesQuery = useQuery({
-    queryKey: scheduleKeys.templates(accessKey, siteId),
-    queryFn: ({ signal }) => scheduleApi.templates(siteId, signal),
-    enabled: !!actorId && !!siteId,
+    ...shiftTemplatesQuery({ siteId, orgUnitId, includeRetired: true }),
+    enabled: !!actorId && !!siteId && !!orgUnitId,
   });
+  const templates = templatesQuery.data ?? [];
   const versions = versionsQuery.data ?? [];
   const working = workingVersion(versions, rights);
   const published = versions.find((v) => v.status === 'PUBLISHED');
@@ -343,7 +346,7 @@ export function useWorkspace() {
     grid,
     month,
     orgUnitId,
-    templates: templatesQuery.data ?? [],
+    templates,
     timezone,
     staffing: staffing.data,
     context: contextQuery.data,
@@ -410,7 +413,7 @@ export function useWorkspace() {
   const feedback = workspaceFeedback([
     { query: orgResult.queryState },
     ...(actorId && siteId && orgUnitId ? [{ query: versionsQuery }] : []),
-    ...(actorId && siteId ? [{ query: templatesQuery }] : []),
+    ...(actorId && siteId && orgUnitId ? [{ query: templatesQuery }] : []),
     ...(canReadEmployees
       ? [{ query: employeeResult.queryState, errorMessage: t.rosterUnavailable }]
       : []),
@@ -500,7 +503,11 @@ export function useWorkspace() {
     allowed,
     canPublishDraft,
     publishDraft,
-    templates: templatesQuery.data ?? [],
+    templates,
+    /** Shifts a planner may choose in this unit: current site defaults and the unit's own. */
+    shiftOptions: shiftOptions(templates, orgUnitId),
+    /** Unit shifts are administrator settings (spec 013), also offered from custom hours. */
+    canManageShifts: canActOn(grants, [WebRole.ADMIN], { siteId, orgUnitId }),
     staffing: staffing.data,
     staffingState: staffing,
     error:

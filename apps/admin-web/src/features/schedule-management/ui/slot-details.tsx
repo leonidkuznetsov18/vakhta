@@ -1,3 +1,4 @@
+import { shiftTemplateLabel } from '@/entities/shift-template';
 import { useState } from 'react';
 import { SendIcon, UserCheckIcon, Undo2Icon, BanIcon } from 'lucide-react';
 import type { OpenSlotView } from '@vakhta/contracts';
@@ -10,7 +11,6 @@ import { QueryFeedback } from '@/components/app/query-feedback';
 import { InfoTip } from '@/components/app/info-tip';
 import { readError } from '@/errors';
 import { recordedTime } from '../lib/labels';
-import { templateLabel } from '../lib/template-label';
 import type { Workspace } from '../model/use-workspace';
 import type { OpenSlots } from '../model/use-open-slots';
 import { reasonText, useCandidates } from '../model/use-eligibility';
@@ -72,7 +72,7 @@ export function SlotDetails({
         <InfoTip text={t.openSlotsHint} />
       </div>
       <p className="text-sm">
-        {slot.businessDate} · {template ? templateLabel(template.code, t) : t.unknownTemplate}
+        {slot.businessDate} · {template ? shiftTemplateLabel(template, t) : t.unknownTemplate}
         {template ? ` · ${template.localStart}–${template.localEnd}` : ''} ·{' '}
         {zone?.name ?? t.noZone}
       </p>

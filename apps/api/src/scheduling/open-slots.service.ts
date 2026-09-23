@@ -12,7 +12,6 @@ import {
   scheduleVersions,
   shiftAssignments,
   shiftTemplates,
-  sites,
   slotInterests,
   slotOffers,
   telegramAccounts,
@@ -30,7 +29,12 @@ import type {
   SlotInterestResponse,
   SlotOfferView,
 } from '@vakhta/contracts';
-import { addMonths, type RoleGrant } from '@vakhta/domain';
+import {
+  ShiftTemplateError,
+  addMonths,
+  isTemplateSelectable,
+  type RoleGrant,
+} from '@vakhta/domain';
 import { format, type Messages } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
@@ -146,17 +150,20 @@ export class OpenSlotsService {
       if (!zone || !zone.isActive)
         throw new DomainError('ZONE_MISMATCH', 422, 'The zone is not an active zone of the unit');
       const [template] = await tx
-        .select({ id: shiftTemplates.id })
+        .select({
+          id: shiftTemplates.id,
+          orgUnitId: shiftTemplates.orgUnitId,
+          isActive: shiftTemplates.isActive,
+        })
         .from(shiftTemplates)
-        .where(
-          and(
-            eq(shiftTemplates.id, cmd.templateId),
-            eq(shiftTemplates.siteId, cmd.siteId),
-            eq(shiftTemplates.isActive, true),
-          ),
+        .where(and(eq(shiftTemplates.id, cmd.templateId), eq(shiftTemplates.siteId, cmd.siteId)));
+      if (!template) throw new DomainError('TEMPLATE_NOT_FOUND', 404, 'Shift template not found');
+      if (!isTemplateSelectable(template, cmd.orgUnitId))
+        throw new DomainError(
+          template.isActive ? ShiftTemplateError.OUT_OF_UNIT : ShiftTemplateError.RETIRED,
+          422,
+          `Template ${template.id} is not offered in unit ${cmd.orgUnitId}`,
         );
-      if (!template)
-        throw new DomainError('TEMPLATE_NOT_FOUND', 404, 'Active shift template not found');
       const [row] = await tx
         .insert(openSlots)
         .values({ ...cmd, createdBy: actor.id })
@@ -522,25 +529,21 @@ export class OpenSlotsService {
       .select({
         localStart: shiftTemplates.localStart,
         localEnd: shiftTemplates.localEnd,
-        isNight: shiftTemplates.isNight,
+        period: shiftTemplates.period,
       })
       .from(shiftTemplates)
       .where(eq(shiftTemplates.id, slot.templateId));
+    if (!template) throw new Error(`open slot ${slot.id}: template ${slot.templateId} missing`);
     const [zone] = await tx
       .select({ name: responsibilityZones.name })
       .from(responsibilityZones)
       .where(eq(responsibilityZones.id, slot.zoneId));
-    const [site] = await tx
-      .select({ timezone: sites.timezone })
-      .from(sites)
-      .where(eq(sites.id, slot.siteId));
-    void site;
     const [year, month, day] = slot.businessDate.split('-');
     return (t: Messages) => ({
-      kind: template?.isNight ? t.schedule.kindNames.NIGHT : t.schedule.kindNames.DAY,
+      kind: t.schedule.kindNames[template.period],
       date: `${day}.${month}.${year}`,
-      start: template?.localStart ?? '',
-      end: template?.localEnd ?? '',
+      start: template.localStart,
+      end: template.localEnd,
       zone: zone ? `, ${zone.name}` : '',
     });
   }

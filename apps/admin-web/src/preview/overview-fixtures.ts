@@ -1,4 +1,5 @@
 import type { OverviewEvent, OverviewSnapshot } from '@vakhta/contracts';
+import { ShiftPeriod } from '@vakhta/domain';
 
 /**
  * Synthetic Overview answers for the preview shell (spec 004 screenshots): a running day shift
@@ -39,14 +40,14 @@ export function overviewSnapshotFixture(
   const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Kyiv' }).format(
     new Date(start),
   );
-  const window = (name: string, code: string, s: number, isNight: boolean) => ({
+  const window = (name: string, code: string, s: number, period: ShiftPeriod) => ({
     templateId:
       code === 'DAY'
         ? 'a0000000-0000-4000-8000-0000000000d1'
         : 'a0000000-0000-4000-8000-0000000000d2',
     code,
     name,
-    isNight,
+    period,
     businessDate: new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Kyiv' }).format(new Date(s)),
     startsAt: iso(s),
     endsAt: iso(s + 12 * 3_600_000),
@@ -75,13 +76,15 @@ export function overviewSnapshotFixture(
         siteName: 'Основная площадка',
         timezone: 'Europe/Kyiv',
         current: night
-          ? window('Нічна', 'NIGHT', start, true)
-          : window('Денна', 'DAY', start, false),
+          ? window('Нічна', 'NIGHT', start, ShiftPeriod.NIGHT)
+          : window('Денна', 'DAY', start, ShiftPeriod.DAY),
         closingPrevious:
           night || now - start > 2 * 3_600_000
             ? null
-            : window('Нічна', 'NIGHT', start - 12 * 3_600_000, true),
-        next: night ? window('Денна', 'DAY', end, false) : window('Нічна', 'NIGHT', end, true),
+            : window('Нічна', 'NIGHT', start - 12 * 3_600_000, ShiftPeriod.NIGHT),
+        next: night
+          ? window('Денна', 'DAY', end, ShiftPeriod.DAY)
+          : window('Нічна', 'NIGHT', end, ShiftPeriod.NIGHT),
       },
     ],
     staffing: {

@@ -37,6 +37,7 @@ import { MediaService } from '../handover/media.service.js';
 import { InMemoryObjectStorage } from '../infra/object-storage.js';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
 import { PhotoInspectionService, type InspectionIdentity } from './photo-inspection.service.js';
+import { ShiftPeriod } from '@vakhta/domain';
 
 const master: WebUser = {
   id: randomUUID(),
@@ -365,6 +366,7 @@ describe('photo inspection persistence and access', () => {
       name: 'Day',
       localStart: '08:00',
       localEnd: '20:00',
+      period: ShiftPeriod.DAY,
     });
     await db.insert(scheduleVersions).values({
       id: scheduleVersionId,

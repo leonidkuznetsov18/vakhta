@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { EmployeeChanges, PlannedShift } from '@vakhta/domain';
+import { ShiftPeriod, type EmployeeChanges, type PlannedShift } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import {
   MAX_CHANGE_LINES,
@@ -16,17 +16,17 @@ const input = {
   reason: null,
 };
 
-function shift(businessDate: string, isNight = false, zoneId: string | null = null): PlannedShift {
-  const start = isNight ? '17:00' : '05:00';
+function shift(businessDate: string, night = false, zoneId: string | null = null): PlannedShift {
+  const start = night ? '17:00' : '05:00';
   const startAt = new Date(`${businessDate}T${start}:00Z`);
   return {
-    id: `${businessDate}-${isNight}`,
+    id: `${businessDate}-${night}`,
     employeeId: 'e1',
     businessDate,
     planStartAt: startAt,
     planEndAt: new Date(startAt.getTime() + 12 * 3_600_000),
-    isNight,
-    templateCode: isNight ? 'NIGHT' : 'DAY',
+    period: night ? ShiftPeriod.NIGHT : ShiftPeriod.DAY,
+    templateCode: night ? 'NIGHT' : 'DAY',
     zoneId,
   };
 }

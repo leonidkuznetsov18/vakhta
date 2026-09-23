@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -14,6 +15,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+import { SHIFT_PERIODS } from '@vakhta/domain';
 import { employees } from './identity.js';
 import { orgUnits, positions, responsibilityZones, sites, teams } from './org.js';
 
@@ -25,9 +27,15 @@ export const scheduleStatus = pgEnum('schedule_status', [
   'CLOSED',
 ]);
 export const shiftKind = pgEnum('shift_kind', ['REGULAR', 'EXTRA', 'REPLACEMENT', 'SWAP']);
+export const shiftPeriod = pgEnum('shift_period', SHIFT_PERIODS);
 export const assignmentStatus = pgEnum('assignment_status', ['PLANNED', 'CANCELLED', 'REPLACED']);
 
-/** Типові 12-годинні зміни майданчика: день 08:00–20:00, ніч 20:00–08:00 (ТЗ 3, 18 п. 3). */
+/**
+ * Shift templates (spec 013). A template without a unit is a site default offered to every unit;
+ * one with a unit is offered only in that unit's schedule. Hours of a used template never change:
+ * an hours edit retires it with `replaced_by_id` and inserts the new version, so every assignment
+ * keeps the hours it was planned with. A deleted used template is retired without a replacement.
+ */
 export const shiftTemplates = pgTable(
   'shift_templates',
   {
@@ -35,15 +43,61 @@ export const shiftTemplates = pgTable(
     siteId: uuid('site_id')
       .notNull()
       .references(() => sites.id),
+    orgUnitId: uuid('org_unit_id'),
     code: text('code').notNull(),
     name: text('name').notNull(),
     localStart: text('local_start').notNull(),
     localEnd: text('local_end').notNull(),
-    isNight: boolean('is_night').notNull().default(false),
+    period: shiftPeriod('period').notNull(),
+    /**
+     * @deprecated Read-only mirror of `period` so instances of the previous release keep reading
+     * during a rolling deploy. Nothing reads it; drop it in the next release.
+     */
+    legacyIsNight: boolean('is_night').generatedAlwaysAs(sql`period = 'NIGHT'`),
     isActive: boolean('is_active').notNull().default(true),
+    revision: integer('revision').notNull().default(1),
+    retiredAt: timestamp('retired_at', { withTimezone: true }),
+    replacedById: uuid('replaced_by_id').references((): AnyPgColumn => shiftTemplates.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex('shift_templates_site_code_uq').on(t.siteId, t.code)],
+  (t) => [
+    uniqueIndex('shift_templates_site_code_uq').on(t.siteId, t.code),
+    // A current unit template is named by its hours when it has no name; names stay unique.
+    uniqueIndex('shift_templates_unit_name_uq')
+      .on(
+        t.orgUnitId,
+        sql`lower(coalesce(nullif(btrim(${t.name}), ''), ${t.localStart} || '–' || ${t.localEnd}))`,
+      )
+      .where(sql`${t.orgUnitId} IS NOT NULL AND ${t.retiredAt} IS NULL`),
+    index('shift_templates_site_unit_idx').on(t.siteId, t.orgUnitId),
+    foreignKey({
+      name: 'shift_templates_unit_site_fk',
+      columns: [t.orgUnitId, t.siteId],
+      foreignColumns: [orgUnits.id, orgUnits.siteId],
+    }),
+    check(
+      'shift_templates_local_times',
+      sql`${t.localStart} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' AND ${t.localEnd} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'`,
+    ),
+    check(
+      'shift_templates_full_day_hours',
+      sql`(${t.period} = 'FULL_DAY') = (${t.localStart} = ${t.localEnd})`,
+    ),
+    check('shift_templates_revision_positive', sql`${t.revision} > 0`),
+    check(
+      'shift_templates_default_named',
+      sql`${t.orgUnitId} IS NOT NULL OR length(btrim(${t.name})) > 0`,
+    ),
+    check(
+      'shift_templates_unit_retirement',
+      sql`${t.orgUnitId} IS NOT NULL AND ${t.isActive} = (${t.retiredAt} IS NULL) OR ${t.orgUnitId} IS NULL AND ${t.retiredAt} IS NULL`,
+    ),
+    check(
+      'shift_templates_replacement_retired',
+      sql`${t.replacedById} IS NULL OR ${t.retiredAt} IS NOT NULL`,
+    ),
+  ],
 );
 
 /**

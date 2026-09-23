@@ -27,6 +27,7 @@ import { recoverTimerTasks, TimerRecoveryOptions } from './timers/recovery.js';
 import { handleReturnReminder } from './timers/shift-timers.js';
 import { handleHandoverTimeout } from './timers/handover-timers.js';
 import { TimerTaskRunner } from './timers/runner.js';
+import { ShiftPeriod } from '@vakhta/domain';
 
 const past = (minutes: number) => new Date(Date.now() - minutes * 60_000);
 const future = (minutes: number) => new Date(Date.now() + minutes * 60_000);
@@ -107,7 +108,14 @@ describe('durable timers and legacy recovery', () => {
       .returning();
     const [template] = await testDb.db
       .insert(shiftTemplates)
-      .values({ siteId: site.id, code: 'DAY', name: 'Day', localStart: '08:00', localEnd: '20:00' })
+      .values({
+        siteId: site.id,
+        code: 'DAY',
+        name: 'Day',
+        localStart: '08:00',
+        period: ShiftPeriod.DAY,
+        localEnd: '20:00',
+      })
       .returning();
     if (!unit || !template) throw new Error('Schedule fixture missing');
     const publishedAt = past(48 * 60);

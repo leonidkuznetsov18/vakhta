@@ -892,14 +892,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
         );
       case 'template': {
         const templates = await deps.requests.templatesFor(ctx.employee.id);
-        return render(
-          requestChoiceScreen(
-            t,
-            templates.map((x) => ({ id: x.id, label: x.name })),
-            'rq:tpl:',
-            t.requests.chooseTemplate,
-          ),
-        );
+        return render(requestChoiceScreen(t, templates, 'rq:tpl:', t.requests.chooseTemplate));
       }
       case 'minutes':
         return render(requestPromptScreen(t, t.requests.askMinutes));

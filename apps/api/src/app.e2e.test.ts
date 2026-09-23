@@ -16,6 +16,7 @@ import { corsOptions } from './config/cors.js';
 import { ensureDockerHost } from '../test/docker.js';
 import { startTestDatabase, type TestDatabase } from '../test/db.js';
 import type { Database } from '@vakhta/db';
+import { ShiftPeriod } from '@vakhta/domain';
 
 const PASSWORD = 'e2e-password-123456';
 const SYSTEM = { type: 'SYSTEM', id: null, role: 'SYSTEM' } as const;
@@ -385,6 +386,7 @@ describe('e2e: межі доступу панелі', () => {
         name: 'Export',
         localStart: '08:00',
         localEnd: '20:00',
+        period: ShiftPeriod.DAY,
       })
       .returning();
     if (!employee || !template) throw new Error('Missing assignment fixture');

@@ -44,7 +44,7 @@ function dayLabel(t: Messages, businessDate: string): { weekday: string; date: s
 }
 
 function shiftLabel(t: Messages, shift: PlannedShift, input: ScheduleNoticeInput): string {
-  const kind = t.schedule.kindNames[shift.isNight ? 'NIGHT' : 'DAY'];
+  const kind = t.schedule.kindNames[shift.period];
   const start = formatLocal(shift.planStartAt, input.timezone).local.slice(11, 16);
   const end = formatLocal(shift.planEndAt, input.timezone).local.slice(11, 16);
   const zone = shift.zoneId ? input.zoneNames.get(shift.zoneId) : undefined;

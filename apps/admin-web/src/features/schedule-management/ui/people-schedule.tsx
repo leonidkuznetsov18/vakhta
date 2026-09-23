@@ -1,9 +1,9 @@
+import { shiftTemplateLabel } from '@/entities/shift-template';
 import { EmployeeProfileLink } from '@/entities/employee';
 import { isTerminated } from '../model/employee-status';
-import { templateLabel } from '../lib/template-label';
 import { Trash2Icon, TriangleAlertIcon, XIcon } from 'lucide-react';
 import { useId, useState, type KeyboardEvent } from 'react';
-import { monthDates } from '@vakhta/domain';
+import { ShiftPeriod, monthDates } from '@vakhta/domain';
 import type { AssignmentInput, EmployeeView, ShiftTemplateView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -41,7 +41,7 @@ import {
   removeRow,
   type GridRow,
 } from '../model/grid';
-import { summarize } from '../model/planning';
+import { defaultShift, summarize } from '../model/planning';
 import { calendarModel, eventFlags, type EventFlag } from '../model/calendar';
 import {
   assignmentAbilities,
@@ -111,12 +111,12 @@ function emphasized(item: CalendarItem, emphasis: CalendarEmphasis): boolean {
   return item.issue === emphasis;
 }
 function cellLabel(template: ShiftTemplateView | undefined, code: string | undefined): string {
-  if (template) return template.isNight ? dayKinds.NIGHT : dayKinds.DAY;
+  if (template) return dayKinds[template.period];
   return code ? '?' : dayKinds.OFF;
 }
-function shortcutNight(key: string): boolean | null {
-  if (NIGHT_KEYS.has(key)) return true;
-  if (DAY_KEYS.has(key)) return false;
+function shortcutPeriod(key: string): ShiftPeriod | null {
+  if (NIGHT_KEYS.has(key)) return ShiftPeriod.NIGHT;
+  if (DAY_KEYS.has(key)) return ShiftPeriod.DAY;
   return null;
 }
 /** The next cell in one direction that can open, or null at the edge of the visible page. */
@@ -334,10 +334,10 @@ export function PeopleSchedule({
   ) {
     if (isTerminated(employees.get(cell.employeeId))) return;
     if (item && !assignmentAbilities(w, item).editable) return;
-    const night = shortcutNight(event.key.toLowerCase());
-    if (night === null) return;
+    const period = shortcutPeriod(event.key.toLowerCase());
+    if (period === null) return;
     event.preventDefault();
-    const template = w.templates.find((value) => value.isActive && value.isNight === night);
+    const template = defaultShift(w.templates, period);
     if (!template) return;
     if (item) w.edit(setAssignment(w.grid, { ...item, templateId: template.id }));
     else open(cell.employeeId, cell.businessDate, event.currentTarget, template.id);
@@ -531,7 +531,7 @@ function cellDescription(input: {
 }): string {
   const issue = input.view?.issue;
   return [
-    input.template ? templateLabel(input.template.code, t) : dayKinds.OFF,
+    input.template ? shiftTemplateLabel(input.template, t) : dayKinds.OFF,
     input.status,
     input.view?.status ?? '',
     ...input.flags.map((flag) => flag.label),
@@ -572,7 +572,8 @@ function MonthHead({
     </TableHead>
   );
 }
-/** Day/night counts per date, the same totals the week shows in its column headers. */
+const NO_COUNTS = { day: 0, night: 0, fullDay: 0 };
+/** Day/night counts per date, the same totals the week shows; full days only when planned. */
 function MonthTotals({
   days,
   dateByKey,
@@ -580,20 +581,25 @@ function MonthTotals({
   readonly days: readonly string[];
   readonly dateByKey: ReadonlyMap<string, CalendarDate>;
 }) {
+  const fullDay = days.some((date) => (dateByKey.get(date)?.counts?.fullDay ?? 0) > 0);
   return (
     <TableFooter>
       <TableRow>
         <TableCell className="sticky left-0 z-10 bg-background text-xs font-normal text-muted-foreground">
-          {dayKinds.DAY} / {dayKinds.NIGHT}
+          {fullDay
+            ? `${dayKinds.DAY} / ${dayKinds.NIGHT} / ${dayKinds.FULL_DAY}`
+            : `${dayKinds.DAY} / ${dayKinds.NIGHT}`}
         </TableCell>
         {days.map((date) => {
-          const counts = dateByKey.get(date)?.counts ?? { day: 0, night: 0 };
+          const counts = dateByKey.get(date)?.counts ?? NO_COUNTS;
           return (
             <TableCell
               key={date}
               className="px-0.5 text-center text-[11px] font-normal text-muted-foreground tabular-nums"
             >
-              {counts.day}/{counts.night}
+              {fullDay
+                ? `${counts.day}/${counts.night}/${counts.fullDay}`
+                : `${counts.day}/${counts.night}`}
             </TableCell>
           );
         })}

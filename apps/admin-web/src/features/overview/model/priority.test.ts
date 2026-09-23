@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { OverviewSnapshot } from '@vakhta/contracts';
 import { buildAttention } from './attention';
 import { buildActionQueue, composition, setupItems } from './priority';
+import { ShiftPeriod } from '@vakhta/domain';
 
 const all = { shifts: true, incidents: true, handovers: true, requests: true, overtime: true };
 const now = new Date('2026-09-13T09:00:00Z');
@@ -191,7 +192,7 @@ describe('action queue priority (spec 004 D-08, AC-009–AC-012)', () => {
       templateId: 't',
       code: 'NIGHT',
       name: 'Night',
-      isNight: true,
+      period: ShiftPeriod.NIGHT,
       businessDate: '2026-09-13',
       startsAt: '2026-09-13T17:00:00Z',
       endsAt: '2026-09-14T05:00:00Z',

@@ -30,6 +30,7 @@ import {
   DEFAULT_CHECKLIST_KEYS,
   HANDOVER_ANGLES,
   defaultChecklistItems,
+  ShiftPeriod,
 } from '@vakhta/domain';
 import { messages } from '@vakhta/i18n';
 import { AttendanceService } from '../attendance/attendance.service.js';
@@ -179,6 +180,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
         name: 'Дневная',
         localStart: '08:00',
         localEnd: '20:00',
+        period: ShiftPeriod.DAY,
       })
       .returning();
     const [version] = await testDb.db

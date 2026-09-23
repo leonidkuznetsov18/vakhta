@@ -38,8 +38,14 @@ Administration tabs:
   sessions, second factor and roles go with it, the audit keeps the history). Nobody deletes
   themselves and the last administrator stays.
 - "Справочники": sites (time zone), units, teams, positions, zones (type, shared, active), reason
-  codes; every table has add, edit and delete with a reason. Units have an explicit employee master
-  picker and a "needs a master" filter. Designation does not grant panel access. A "Таблица / Дерево"
+  codes; every table has add, edit and delete with a reason. A units row (or "Открыть" in its menu,
+  or the tree's "Открыть") opens the unit Sheet: the designated master and the unit's own shifts
+  (spec 013). The table shows each unit's shifts as coloured hour chips, or "Стандартные". An
+  administrator creates, edits and deletes unit shifts: start and end, 6/8/12/24-hour presets, a
+  Day/Night/Full-day type suggested from the hours, an optional name and a preview of the Schedule
+  card; everyone else reads them. Editing a used shift keeps planned shifts on their old hours;
+  deleting a used one hides it from choice and keeps what is planned. There is a "needs a master"
+  filter. Designation does not grant panel access. A "Таблица / Дерево"
   switch shows the same units as a collapsible site → unit → sub-unit → people tree: each unit lists
   its shift master, the headcount below it and the employees whose current position is in it
   (terminated ones are hidden); the tree has its own search and a count line, and the choice is

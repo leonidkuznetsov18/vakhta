@@ -45,7 +45,7 @@ import {
   wellbeingCheckins,
 } from '@vakhta/db';
 import { eq, notificationOutbox, scheduleVersions, sql, telegramAccounts } from '@vakhta/db';
-import { addMonths, businessDateOf } from '@vakhta/domain';
+import { addMonths, businessDateOf, ShiftPeriod } from '@vakhta/domain';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
 import { EmployeesService } from '../identity/employees.service.js';
@@ -147,7 +147,7 @@ describe('scheduling: версії, валідація, публікація, о
           name: 'Дневная',
           localStart: '08:00',
           localEnd: '20:00',
-          isNight: false,
+          period: ShiftPeriod.DAY,
         },
         PLANNER,
       )
@@ -160,7 +160,7 @@ describe('scheduling: версії, валідація, публікація, о
           name: 'Ночная',
           localStart: '20:00',
           localEnd: '08:00',
-          isNight: true,
+          period: ShiftPeriod.NIGHT,
         },
         PLANNER,
       )
@@ -424,7 +424,7 @@ describe('scheduling: версії, валідація, публікація, о
       );
       expect(records(book)).toEqual([]);
       expect(metadata(book)[messages('en').scheduleExport.rows]).toBe(0);
-      expect(sheet(book, 'Assignments')['!ref']).toBe('A1:W1');
+      expect(sheet(book, 'Assignments')['!ref']).toBe('A1:X1');
     });
   });
 
@@ -826,7 +826,7 @@ describe('scheduling: версії, валідація, публікація, о
     expect(plan.days[2]?.kind).toBe('OFF');
     const next = await schedule.nextShift(ivanov);
     expect(next?.zoneName).toBe('Линия 1');
-    expect(next?.isNight).toBe(false);
+    expect(next?.period).toBe(ShiftPeriod.DAY);
   });
 
   it('нова версія копіює опубліковану, публікація замінює її і шле нотифікацію про зміни', async () => {

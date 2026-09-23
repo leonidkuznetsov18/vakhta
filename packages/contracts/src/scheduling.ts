@@ -1,16 +1,36 @@
 import { z } from 'zod';
-import { ASSIGNMENT_STATUSES, SCHEDULE_STATUSES, SHIFT_KINDS } from '@vakhta/domain';
+import {
+  ASSIGNMENT_STATUSES,
+  SCHEDULE_STATUSES,
+  SHIFT_KINDS,
+  SHIFT_PERIODS,
+  templateHoursIssue,
+} from '@vakhta/domain';
 import { BusinessDate, IsoDateTime, Uuid } from './common.js';
 
 export const ScheduleStatusSchema = z.enum(SCHEDULE_STATUSES);
 export const ShiftKindSchema = z.enum(SHIFT_KINDS);
 export const AssignmentStatusSchema = z.enum(ASSIGNMENT_STATUSES);
+export const ShiftPeriodSchema = z.enum(SHIFT_PERIODS);
 
 /** 'YYYY-MM' */
 export const Month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 const LocalTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 
-export const CreateShiftTemplateCommand = z.object({
+const TemplateHours = z.object({
+  period: ShiftPeriodSchema,
+  localStart: LocalTime,
+  localEnd: LocalTime,
+});
+
+/** Full day lasts exactly 24 hours; the issue code is the message clients localize. */
+function checkTemplateHours(value: z.infer<typeof TemplateHours>, ctx: z.RefinementCtx): void {
+  const issue = templateHoursIssue(value.period, value);
+  if (issue) ctx.addIssue({ code: 'custom', path: ['localEnd'], message: issue });
+}
+
+/** A site default template (spec 18 item 3); unit shifts use the unit command. */
+export const CreateShiftTemplateCommand = TemplateHours.extend({
   siteId: Uuid,
   code: z
     .string()
@@ -19,21 +39,55 @@ export const CreateShiftTemplateCommand = z.object({
     .max(16)
     .regex(/^[A-Z][A-Z0-9_]*$/),
   name: z.string().trim().min(1).max(100),
-  localStart: LocalTime,
-  localEnd: LocalTime,
-  isNight: z.boolean().default(false),
-});
+}).superRefine(checkTemplateHours);
 export type CreateShiftTemplateCommand = z.infer<typeof CreateShiftTemplateCommand>;
+
+/** An unnamed unit shift is known by its hours. */
+export const UNIT_SHIFT_NAME_MAX = 60;
+const UnitShiftFields = TemplateHours.extend({
+  name: z.string().trim().max(UNIT_SHIFT_NAME_MAX),
+});
+
+export const CreateUnitShiftCommand = UnitShiftFields.superRefine(checkTemplateHours);
+export type CreateUnitShiftCommand = z.infer<typeof CreateUnitShiftCommand>;
+
+export const UpdateUnitShiftCommand = UnitShiftFields.extend({
+  revision: z.number().int().positive(),
+}).superRefine(checkTemplateHours);
+export type UpdateUnitShiftCommand = z.infer<typeof UpdateUnitShiftCommand>;
+
+export const DeleteUnitShiftQuery = z.object({ revision: z.coerce.number().int().positive() });
+export type DeleteUnitShiftQuery = z.infer<typeof DeleteUnitShiftQuery>;
+
+export const ShiftTemplatesQuery = z.object({
+  siteId: Uuid,
+  /** Adds that unit's current shifts to the site defaults. */
+  orgUnitId: Uuid.optional(),
+  /** Also returns retired versions, so planned history keeps its labels. */
+  includeRetired: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
+});
+export type ShiftTemplatesQuery = z.infer<typeof ShiftTemplatesQuery>;
 
 export const ShiftTemplateView = z.object({
   id: Uuid,
   siteId: Uuid,
+  /** Null for a site default offered to every unit. */
+  orgUnitId: Uuid.nullable(),
   code: z.string(),
   name: z.string(),
   localStart: LocalTime,
   localEnd: LocalTime,
-  isNight: z.boolean(),
+  period: ShiftPeriodSchema,
   isActive: z.boolean(),
+  revision: z.number().int().positive(),
+  retiredAt: IsoDateTime.nullable(),
+  /** The version that took over after an hours edit; null when deleted or current. */
+  replacedById: Uuid.nullable(),
+  /** Assignments planned with this version. */
+  usedCount: z.number().int().nonnegative(),
 });
 export type ShiftTemplateView = z.infer<typeof ShiftTemplateView>;
 
@@ -225,7 +279,7 @@ export type ScheduleCommandResult = z.infer<typeof ScheduleCommandResult>;
 export const MyPlanDay = z.object({
   date: BusinessDate,
   weekday: z.number().int().min(1).max(7),
-  kind: z.enum(['DAY', 'NIGHT', 'OFF']),
+  kind: z.enum([...SHIFT_PERIODS, 'OFF']),
   assignment: z
     .object({
       id: Uuid,
@@ -248,6 +302,7 @@ export const MyPlanView = z.object({
     plannedMinutes: z.number().int().nonnegative(),
     dayShifts: z.number().int().nonnegative(),
     nightShifts: z.number().int().nonnegative(),
+    fullDayShifts: z.number().int().nonnegative(),
   }),
   /** Notes addressed to employees (SC-39): month-wide or per date. */
   notes: z.array(z.object({ date: BusinessDate.nullable(), text: z.string() })).default([]),

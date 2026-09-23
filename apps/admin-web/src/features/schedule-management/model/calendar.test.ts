@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { calendarModel, siteToday, type CalendarInput } from './calendar';
 import { setAssignment, gridForZone, gridToItems, removeZoneAssignments } from './grid';
 import { UNASSIGNED_ZONE } from './planning';
+import { ShiftPeriod } from '@vakhta/domain';
 
 const base: CalendarInput = {
   grid: setAssignment(
@@ -38,8 +39,13 @@ const base: CalendarInput = {
       name: 'Night',
       localStart: '20:00',
       localEnd: '08:00',
-      isNight: true,
+      period: ShiftPeriod.NIGHT,
       isActive: true,
+      orgUnitId: null,
+      revision: 1,
+      retiredAt: null,
+      replacedById: null,
+      usedCount: 0,
     },
   ],
   zones: [
@@ -134,10 +140,12 @@ describe('calendar projections', () => {
     expect(model.dates.find((date) => date.id === '2026-09-30')?.counts).toEqual({
       day: 0,
       night: 1,
+      fullDay: 0,
     });
     expect(model.dates.find((date) => date.id === '2026-09-29')?.counts).toEqual({
       day: 0,
       night: 0,
+      fullDay: 0,
     });
     expect(model.removeLabel).toBe(messages('en').scheduleWorkspace.removeAssignment);
     expect(allItems(model)[0]?.removable).toBe(true);
@@ -150,7 +158,7 @@ describe('calendar projections', () => {
     expect(allItems(calendarModel(base))[0]?.tone).toBe('indigo');
     const day = calendarModel({
       ...base,
-      templates: base.templates.map((template) => ({ ...template, isNight: false })),
+      templates: base.templates.map((template) => ({ ...template, period: ShiftPeriod.DAY })),
     });
     expect(allItems(day)[0]?.tone).toBe('amber');
     expect(allItems(calendarModel({ ...base, templates: [] }))[0]?.tone).toBe('neutral');
@@ -296,8 +304,13 @@ describe('cell ordering', () => {
     name: 'Day',
     localStart: '08:00',
     localEnd: '20:00',
-    isNight: false,
+    period: ShiftPeriod.DAY,
     isActive: true,
+    orgUnitId: null,
+    revision: 1,
+    retiredAt: null,
+    replacedById: null,
+    usedCount: 0,
   };
   const worker = (id: string, fullName: string) => ({ ...base.employees[0]!, id, fullName });
   const assign = (grid: CalendarInput['grid'], employeeId: string, templateId: string) =>

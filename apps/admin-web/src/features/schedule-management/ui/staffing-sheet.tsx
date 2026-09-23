@@ -1,3 +1,4 @@
+import { shiftTemplateLabel } from '@/entities/shift-template';
 import { useState } from 'react';
 import { Trash2Icon, PencilIcon } from 'lucide-react';
 import { messages } from '@vakhta/i18n';
@@ -14,7 +15,6 @@ import { QueryFeedback } from '@/components/app/query-feedback';
 import { WorkflowSection } from '@/shared/ui/workflow-section';
 import { CalendarDetailPanel } from '@/shared/ui/resource-calendar';
 import { readError } from '@/errors';
-import { templateLabel } from '../lib/template-label';
 import type { Workspace } from '../model/use-workspace';
 import { employeeLabel } from './assignment-changes';
 
@@ -62,7 +62,7 @@ export function StaffingSheet({
   const data = w.staffing;
   const emptyDraft = (): RequirementDraft => ({
     zoneId: w.zones[0]?.id ?? '',
-    templateId: w.templates.find((template) => template.isActive)?.id ?? '',
+    templateId: w.shiftOptions[0]?.id ?? '',
     requiredCount: '1',
     qualificationId: '',
     effectiveFrom: `${date.slice(0, 7)}-01`,
@@ -74,7 +74,7 @@ export function StaffingSheet({
   const draft: RequirementDraft = {
     ...stored,
     zoneId: stored.zoneId || (w.zones.find((zone) => zone.isActive)?.id ?? ''),
-    templateId: stored.templateId || (w.templates.find((template) => template.isActive)?.id ?? ''),
+    templateId: stored.templateId || (w.shiftOptions[0]?.id ?? ''),
   };
   const [qualification, setQualification] = useState({ code: '', name: '' });
   const [holding, setHolding] = useState({
@@ -216,7 +216,7 @@ export function StaffingSheet({
                 header: t.template,
                 cell: (row) => {
                   const item = template(row.templateId);
-                  return item ? templateLabel(item.code, t) : row.templateId;
+                  return item ? shiftTemplateLabel(item, t) : row.templateId;
                 },
               },
               { key: 'count', header: t.requiredCount, cell: (row) => String(row.requiredCount) },
@@ -277,9 +277,10 @@ export function StaffingSheet({
                 label={t.template}
                 value={draft.templateId}
                 onChange={(templateId) => setDraft({ ...draft, templateId })}
-                options={w.templates
-                  .filter((item) => item.isActive)
-                  .map((item) => ({ value: item.id, label: templateLabel(item.code, t) }))}
+                options={w.shiftOptions.map((item) => ({
+                  value: item.id,
+                  label: `${shiftTemplateLabel(item, t)} · ${item.localStart}–${item.localEnd}`,
+                }))}
               />
               <FormField label={t.requiredCount}>
                 {(id) => (

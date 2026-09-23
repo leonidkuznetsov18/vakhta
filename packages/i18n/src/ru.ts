@@ -4,6 +4,7 @@ import { controlRu } from './control.js';
 import { photoDictionaryRu } from './photo-object-dictionary.js';
 import { communicationsRu } from './communications.js';
 import { employeeProfileRU } from './employee-profile.js';
+import { unitShiftsRU } from './unit-shifts.js';
 import { scheduleExportRu } from './schedule-export.js';
 import { scheduleWorkspaceRu } from './schedule-workspace.js';
 import { overviewCenterRu } from './overview.js';
@@ -20,6 +21,7 @@ export const ru: Messages = {
   onboarding: onboardingRu,
   communications: communicationsRu,
   employeeProfile: employeeProfileRU,
+  unitShifts: unitShiftsRU,
   scheduleExport: scheduleExportRu,
   scheduleWorkspace: scheduleWorkspaceRu,
   overviewCenter: overviewCenterRu,
@@ -492,10 +494,11 @@ export const ru: Messages = {
       'декабрь',
     ],
     weekdaysShort: ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'],
-    dayKinds: { DAY: 'Д', NIGHT: 'Н', OFF: '—' },
-    kindNames: { DAY: 'дневная', NIGHT: 'ночная' },
+    dayKinds: { DAY: 'Д', NIGHT: 'Н', FULL_DAY: 'Сутки', OFF: '—' },
+    kindNames: { DAY: 'дневная', NIGHT: 'ночная', FULL_DAY: 'суточная' },
     planHeader: 'График на {month} {year}',
     planTotals: 'Итого: {shifts} смен · {hours} ч · день {day} · ночь {night}',
+    planTotalsFullDay: ' · сутки {fullDay}',
     planEmpty: 'На {month} {year} график не опубликован.',
     myPlanButton: 'Мой план',
     prevMonth: '◀ Пред. месяц',
@@ -706,6 +709,7 @@ export const ru: Messages = {
         'В подразделении «{unit}» нет активных зон, поэтому в колонке «Зона» доступно только «Без зоны». Добавьте зоны этому подразделению в Справочниках или переведите сотрудников в подразделение, где зоны есть. Без зоны передача смены не работает: отчёт уходит сразу мастеру.',
       openDirectories: 'Открыть справочники',
       dayTotals: 'Д {day} · Н {night}',
+      dayTotalsFullDay: ' · Сутки {fullDay}',
       pattern: 'Шаблон ротации',
       patternStart: 'С даты',
       patternApply: 'Заполнить по шаблону',

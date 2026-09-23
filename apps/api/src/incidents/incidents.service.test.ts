@@ -18,7 +18,7 @@ import {
   sites,
   sql,
 } from '@vakhta/db';
-import { DEFAULT_ATTENDANCE_WINDOW } from '@vakhta/domain';
+import { DEFAULT_ATTENDANCE_WINDOW, ShiftPeriod } from '@vakhta/domain';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
@@ -138,6 +138,7 @@ describe('incidents: повідомлення про проблему, дубл�
         name: 'Дневная',
         localStart: '08:00',
         localEnd: '20:00',
+        period: ShiftPeriod.DAY,
       })
       .returning();
     const [version] = await testDb.db

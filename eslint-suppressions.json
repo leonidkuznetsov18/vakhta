@@ -32,9 +32,6 @@
     }
   },
   "apps/admin-web/src/admin/AdminPage.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    },
     "no-restricted-syntax": {
       "count": 1
     }
@@ -94,13 +91,10 @@
       "count": 3
     },
     "max-lines-per-function": {
-      "count": 3
-    },
-    "no-nested-ternary": {
       "count": 2
     },
     "no-restricted-syntax": {
-      "count": 17
+      "count": 13
     }
   },
   "apps/admin-web/src/admin/TerminalsTab.tsx": {
@@ -192,16 +186,8 @@
       "count": 3
     }
   },
-  "apps/admin-web/src/auth/useSession.test.tsx": {
-    "@tanstack/query/prefer-query-options": {
-      "count": 2
-    }
-  },
   "apps/admin-web/src/auth/useSession.ts": {
     "@tanstack/query/prefer-query-options": {
-      "count": 1
-    },
-    "no-nested-ternary": {
       "count": 1
     }
   },
@@ -415,7 +401,7 @@
   },
   "apps/admin-web/src/features/checklist-photo-rules/ui/checklist-photo-rules.tsx": {
     "@tanstack/query/prefer-query-options": {
-      "count": 3
+      "count": 2
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 1
@@ -643,14 +629,6 @@
       "count": 3
     }
   },
-  "apps/admin-web/src/features/employee-profile/ui/unit-master-picker.tsx": {
-    "@tanstack/query/prefer-query-options": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "apps/admin-web/src/features/incident-management/model/detail.ts": {
     "no-restricted-syntax": {
       "count": 1
@@ -845,7 +823,7 @@
       "count": 1
     },
     "no-nested-ternary": {
-      "count": 3
+      "count": 2
     }
   },
   "apps/admin-web/src/features/overview/ui/team-today.tsx": {
@@ -896,7 +874,7 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 12
+      "count": 11
     }
   },
   "apps/admin-web/src/features/photo-inspection/model/region-navigation.ts": {
@@ -940,7 +918,7 @@
       "count": 1
     },
     "@tanstack/query/prefer-query-options": {
-      "count": 9
+      "count": 5
     },
     "complexity": {
       "count": 2
@@ -952,7 +930,7 @@
       "count": 3
     },
     "no-restricted-syntax": {
-      "count": 16
+      "count": 14
     }
   },
   "apps/admin-web/src/features/photo-inspection/ui/inspection-photo.tsx": {
@@ -1058,11 +1036,6 @@
       "count": 1
     }
   },
-  "apps/admin-web/src/features/schedule-management/lib/template-label.ts": {
-    "no-restricted-syntax": {
-      "count": 2
-    }
-  },
   "apps/admin-web/src/features/schedule-management/model/availability.ts": {
     "complexity": {
       "count": 3
@@ -1106,7 +1079,7 @@
       "count": 1
     },
     "no-nested-ternary": {
-      "count": 10
+      "count": 7
     },
     "no-restricted-syntax": {
       "count": 21
@@ -1278,7 +1251,7 @@
   },
   "apps/admin-web/src/features/schedule-management/model/use-workspace.ts": {
     "@tanstack/query/prefer-query-options": {
-      "count": 5
+      "count": 4
     },
     "@typescript-eslint/no-floating-promises": {
       "count": 8
@@ -1874,11 +1847,6 @@
       "count": 1
     }
   },
-  "apps/admin-web/src/shared/api/index.ts": {
-    "@typescript-eslint/no-unsafe-assignment": {
-      "count": 2
-    }
-  },
   "apps/admin-web/src/shared/lib/calendar-range.ts": {
     "no-nested-ternary": {
       "count": 1
@@ -2021,9 +1989,6 @@
   "apps/api/src/bonus/bonus-month-close.service.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
-    },
-    "max-depth": {
-      "count": 1
     }
   },
   "apps/api/src/bonus/bonus-month.service.test.ts": {
@@ -2086,7 +2051,7 @@
       "count": 9
     },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 8
+      "count": 3
     },
     "@typescript-eslint/prefer-optional-chain": {
       "count": 1
@@ -2491,7 +2456,7 @@
   },
   "apps/api/src/infra/timers.queue.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/api/src/kiosk/kiosk.service.test.ts": {
@@ -2611,7 +2576,7 @@
       "count": 5
     },
     "max-depth": {
-      "count": 3
+      "count": 2
     },
     "max-lines-per-function": {
       "count": 6
@@ -2623,7 +2588,7 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 31
+      "count": 30
     }
   },
   "apps/api/src/photo-inspection/analysis-limits.ts": {
@@ -2797,9 +2762,6 @@
     }
   },
   "apps/api/src/requests/requests.service.ts": {
-    "@typescript-eslint/no-non-null-assertion": {
-      "count": 2
-    },
     "@typescript-eslint/prefer-optional-chain": {
       "count": 3
     },
@@ -3123,7 +3085,7 @@
       "count": 1
     },
     "complexity": {
-      "count": 6
+      "count": 5
     },
     "max-depth": {
       "count": 3
@@ -3388,7 +3350,7 @@
       "count": 2
     },
     "complexity": {
-      "count": 2
+      "count": 1
     },
     "no-restricted-syntax": {
       "count": 3
@@ -3536,13 +3498,7 @@
   },
   "packages/db/src/seed.ts": {
     "@typescript-eslint/no-non-null-assertion": {
-      "count": 7
-    },
-    "no-await-in-loop": {
-      "count": 1
-    },
-    "no-restricted-syntax": {
-      "count": 1
+      "count": 4
     }
   },
   "packages/domain/src/access/roles.ts": {
@@ -3746,12 +3702,6 @@
   "packages/domain/src/scheduling/calendar.ts": {
     "@typescript-eslint/no-non-null-assertion": {
       "count": 1
-    },
-    "no-nested-ternary": {
-      "count": 1
-    },
-    "no-restricted-syntax": {
-      "count": 2
     }
   },
   "packages/domain/src/scheduling/changes.ts": {
@@ -3822,7 +3772,7 @@
       "count": 2
     },
     "no-restricted-syntax": {
-      "count": 3
+      "count": 2
     }
   },
   "packages/domain/src/scheduling/types.ts": {

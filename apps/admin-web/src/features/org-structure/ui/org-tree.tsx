@@ -27,6 +27,7 @@ const all = messages(currentLocale());
 const d = all.admin.administration.directories;
 const statuses = all.admin.administration.employees.statuses;
 const profileText = all.employeeProfile;
+const unitShiftsText = all.unitShifts;
 const common = all.ui.common;
 
 const TRIGGER_CLASS =
@@ -54,10 +55,10 @@ function EmployeeLeaf({ employee }: { readonly employee: TreeEmployee }) {
 
 function UnitBranch({
   node,
-  onAssignMaster,
+  onOpenUnit,
 }: {
   readonly node: UnitNode;
-  readonly onAssignMaster: (unit: OrgUnitView) => void;
+  readonly onOpenUnit: (unit: OrgUnitView) => void;
 }) {
   const master = node.unit.designatedMaster?.name ?? profileText.missingMaster;
   const empty = node.children.length === 0 && node.employees.length === 0;
@@ -82,15 +83,20 @@ function UnitBranch({
             <span>
               {d.unitMaster}: <span className="text-foreground">{master}</span>
             </span>
-            <Button size="sm" variant="ghost" onClick={() => onAssignMaster(node.unit)}>
-              {profileText.setMaster}
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label={`${unitShiftsText.openUnit}: ${node.unit.name}`}
+              onClick={() => onOpenUnit(node.unit)}
+            >
+              {unitShiftsText.openUnit}
             </Button>
           </span>
         </div>
         <CollapsibleContent>
           <ul className={BRANCH_CLASS}>
             {node.children.map((child) => (
-              <UnitBranch key={child.unit.id} node={child} onAssignMaster={onAssignMaster} />
+              <UnitBranch key={child.unit.id} node={child} onOpenUnit={onOpenUnit} />
             ))}
             {node.employees.map((employee) => (
               <EmployeeLeaf key={employee.id} employee={employee} />
@@ -109,10 +115,10 @@ function UnitBranch({
 
 function SiteBranch({
   node,
-  onAssignMaster,
+  onOpenUnit,
 }: {
   readonly node: SiteNode;
-  readonly onAssignMaster: (unit: OrgUnitView) => void;
+  readonly onOpenUnit: (unit: OrgUnitView) => void;
 }) {
   return (
     <li>
@@ -127,7 +133,7 @@ function SiteBranch({
         <CollapsibleContent>
           <ul className={BRANCH_CLASS}>
             {node.units.map((unit) => (
-              <UnitBranch key={unit.unit.id} node={unit} onAssignMaster={onAssignMaster} />
+              <UnitBranch key={unit.unit.id} node={unit} onOpenUnit={onOpenUnit} />
             ))}
             {node.units.length === 0 && (
               <li>
@@ -149,12 +155,12 @@ export function OrgTree({
   org,
   employees,
   roster,
-  onAssignMaster,
+  onOpenUnit,
 }: {
   readonly org: Pick<OrgSnapshot, 'sites' | 'orgUnits'>;
   readonly employees: readonly EmployeeView[] | undefined;
   readonly roster: QueryFeedbackState;
-  readonly onAssignMaster: (unit: OrgUnitView) => void;
+  readonly onOpenUnit: (unit: OrgUnitView) => void;
 }) {
   const [query, setQuery] = useState('');
   const tree = employees
@@ -175,7 +181,7 @@ export function OrgTree({
         // Keyed by the query so a branch collapsed by hand reopens when the search changes.
         <ul key={query} className="flex flex-col gap-3">
           {tree.map((site) => (
-            <SiteBranch key={site.site.id} node={site} onAssignMaster={onAssignMaster} />
+            <SiteBranch key={site.site.id} node={site} onOpenUnit={onOpenUnit} />
           ))}
         </ul>
       )}

@@ -167,7 +167,12 @@ export class OverviewService {
               .select()
               .from(shiftTemplates)
               .where(
-                and(inArray(shiftTemplates.siteId, siteIds), eq(shiftTemplates.isActive, true)),
+                and(
+                  inArray(shiftTemplates.siteId, siteIds),
+                  eq(shiftTemplates.isActive, true),
+                  // The site's shift rhythm comes from its defaults; unit shifts vary per unit.
+                  isNull(shiftTemplates.orgUnitId),
+                ),
               )
           : [];
         const contexts = siteRows.map((site) => {
@@ -438,7 +443,7 @@ export class OverviewService {
             templateId: w.templateId,
             code: w.code,
             name: w.name,
-            isNight: w.isNight,
+            period: w.period,
             businessDate: w.businessDate,
             startsAt: w.startsAt.toISOString(),
             endsAt: w.endsAt.toISOString(),

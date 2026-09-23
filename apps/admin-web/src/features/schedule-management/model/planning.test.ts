@@ -11,6 +11,7 @@ import {
 } from './planning';
 import { gridFromItems, gridToItems, setAssignment, countChanges, restoreLegacyGrid } from './grid';
 import { useScheduleDrafts } from './store';
+import { ShiftPeriod } from '@vakhta/domain';
 const employeeId = 'b0000000-0000-4000-8000-000000000001';
 const zoneId = 'a0000000-0000-4000-8000-000000000003';
 const otherZone = 'a0000000-0000-4000-8000-000000000004';
@@ -22,7 +23,12 @@ const day: ShiftTemplateView = {
   localStart: '08:00',
   localEnd: '20:00',
   isActive: true,
-  isNight: false,
+  period: ShiftPeriod.DAY,
+  orgUnitId: null,
+  revision: 1,
+  retiredAt: null,
+  replacedById: null,
+  usedCount: 0,
 };
 const night: ShiftTemplateView = {
   ...day,
@@ -30,7 +36,7 @@ const night: ShiftTemplateView = {
   code: 'NIGHT',
   localStart: '20:00',
   localEnd: '08:00',
-  isNight: true,
+  period: ShiftPeriod.NIGHT,
 };
 const item: AssignmentInput = {
   employeeId,
@@ -140,7 +146,7 @@ describe('zone planning', () => {
         [day, night],
         'Europe/Kyiv',
       ),
-    ).toEqual({ assignments: 2, workers: 1, day: 1, night: 1, minutes: 1440 });
+    ).toEqual({ assignments: 2, workers: 1, minutes: 1440 });
   });
   it('derives planning authority per unit, including zone-scoped masters', () => {
     expect(

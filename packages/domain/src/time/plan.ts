@@ -1,4 +1,5 @@
 import { DateTime, IANAZone } from 'luxon';
+import type { ShiftPeriod } from '../scheduling/types.js';
 
 /** Шаблон зміни в локальному часі майданчика, ТЗ 3: наприклад 20:00–08:00. */
 export interface ShiftTemplateLocal {
@@ -66,12 +67,12 @@ export function planInstants(
 
 export interface ShiftTemplateForInference extends ShiftTemplateLocal {
   readonly id: string;
-  readonly isNight: boolean;
+  readonly period: ShiftPeriod;
 }
 
 export interface InferredShift {
   readonly templateId: string;
-  readonly isNight: boolean;
+  readonly period: ShiftPeriod;
   readonly plan: PlanInstants;
 }
 
@@ -97,7 +98,7 @@ export function inferShiftFromArrival(
   const candidates: InferredShift[] = templates.flatMap((t) =>
     dates.map((d) => ({
       templateId: t.id,
-      isNight: t.isNight,
+      period: t.period,
       plan: planInstants(d, t, timezone),
     })),
   );

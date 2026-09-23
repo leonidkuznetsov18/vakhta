@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   ArriveCommand,
   CreateEmployeeCommand,
+  CreateUnitShiftCommand,
   TransitionCommand,
   TransitionResponse,
+  UpdateUnitShiftCommand,
 } from './index.js';
 
 const session = {
@@ -129,5 +131,41 @@ describe('контракти', () => {
     expect(
       ArriveCommand.safeParse({ challengeToken: 'a b', idempotencyKey: 'upd:1001' }).success,
     ).toBe(false);
+  });
+});
+
+describe('unit shift commands', () => {
+  it('trims the optional name and accepts a 24-hour full day', () => {
+    expect(
+      CreateUnitShiftCommand.parse({
+        name: '  Доба ',
+        period: 'FULL_DAY',
+        localStart: '08:00',
+        localEnd: '08:00',
+      }).name,
+    ).toBe('Доба');
+    expect(
+      CreateUnitShiftCommand.safeParse({
+        name: '',
+        period: 'NIGHT',
+        localStart: '22:00',
+        localEnd: '06:00',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('reports the hours rule by its code on the end time', () => {
+    const result = UpdateUnitShiftCommand.safeParse({
+      revision: 1,
+      name: 'Ранкова',
+      period: 'FULL_DAY',
+      localStart: '05:00',
+      localEnd: '13:00',
+    });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ['localEnd'],
+      message: 'FULL_DAY_NEEDS_EQUAL_TIMES',
+    });
   });
 });

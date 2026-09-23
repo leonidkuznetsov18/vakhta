@@ -120,7 +120,7 @@ export function homeScreen(t: Messages, input: HomeInput): Screen {
       format(t.schedule.nextShift, {
         date: localDate(input.next.planStartAt, tz),
         weekday: weekdayShort(t, businessDateOf(input.next.planStartAt, tz)),
-        kind: t.schedule.kindNames[input.next.isNight ? 'NIGHT' : 'DAY'],
+        kind: t.schedule.kindNames[input.next.period],
         start: localTime(input.next.planStartAt, tz),
         end: localTime(input.next.planEndAt, tz),
         zone: input.next.zoneName ? ` · ${input.next.zoneName}` : '',
@@ -234,7 +234,10 @@ export function planScreen(t: Messages, plan: MyPlanView): Screen {
         hours: Math.round(plan.totals.plannedMinutes / 60),
         day: plan.totals.dayShifts,
         night: plan.totals.nightShifts,
-      }),
+      }) +
+        (plan.totals.fullDayShifts > 0
+          ? format(t.schedule.planTotalsFullDay, { fullDay: plan.totals.fullDayShifts })
+          : ''),
     );
   }
 

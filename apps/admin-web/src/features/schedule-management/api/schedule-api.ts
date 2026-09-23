@@ -5,7 +5,6 @@ import {
   ScheduleCommandResult,
   ScheduleVersionView,
   ScheduleVersionDetail,
-  ShiftTemplateView,
   EmployeeView,
   EmployeesPage,
   type ListScheduleVersionsQuery,
@@ -29,11 +28,6 @@ export const scheduleApi = {
   },
   async detail(id: string, signal: AbortSignal) {
     return readDetail.parse(await apiFetch(`${root}/${id}`, { signal }));
-  },
-  async templates(siteId: string, signal: AbortSignal) {
-    return z
-      .array(ShiftTemplateView)
-      .parse(await apiFetch(`${root}/templates?siteId=${encodeURIComponent(siteId)}`, { signal }));
   },
   async employeesPage(after: string | undefined, signal: AbortSignal) {
     const query = new URLSearchParams({ limit: '200', ...(after ? { after } : {}) });

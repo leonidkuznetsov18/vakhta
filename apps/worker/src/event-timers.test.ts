@@ -23,6 +23,7 @@ import {
   handleAbsenceReturnWithin,
   handleBirthdayGreetingWithin,
 } from './timers/events.js';
+import { ShiftPeriod } from '@vakhta/domain';
 
 describe('calendar event timers: birthdays, sick leave, vacations', () => {
   let testDb: TestDatabase;
@@ -166,7 +167,7 @@ describe('calendar event timers: birthdays, sick leave, vacations', () => {
         name: 'Day',
         localStart: '08:00',
         localEnd: '20:00',
-        isNight: false,
+        period: ShiftPeriod.DAY,
       })
       .returning();
     const [version] = await testDb.db

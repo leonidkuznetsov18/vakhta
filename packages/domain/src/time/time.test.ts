@@ -12,6 +12,7 @@ import {
   overtimePending,
   shiftDurationMinutes,
 } from './deviations.js';
+import { ShiftPeriod } from '../scheduling/types.js';
 
 const KYIV = 'Europe/Kyiv';
 const DAY = { localStart: '08:00', localEnd: '20:00' };
@@ -109,15 +110,15 @@ describe('відхилення (ТЗ 6.1, 7.3)', () => {
 
 describe('inferShiftFromArrival (unscheduled QR open)', () => {
   const TEMPLATES = [
-    { id: 'day', localStart: '08:00', localEnd: '20:00', isNight: false },
-    { id: 'night', localStart: '20:00', localEnd: '08:00', isNight: true },
+    { id: 'day', localStart: '08:00', localEnd: '20:00', period: ShiftPeriod.DAY },
+    { id: 'night', localStart: '20:00', localEnd: '08:00', period: ShiftPeriod.NIGHT },
   ];
 
   it('a morning arrival opens the day shift with its planned window', () => {
     // 07:30 Kyiv (04:30Z): within [08:00 − 3h, 20:00] of the day shift.
     const r = inferShiftFromArrival(TEMPLATES, new Date('2026-09-07T04:30:00Z'), KYIV);
     expect(r?.templateId).toBe('day');
-    expect(r?.isNight).toBe(false);
+    expect(r?.period).toBe(ShiftPeriod.DAY);
     expect(r?.plan.planStartAt.toISOString()).toBe('2026-09-07T05:00:00.000Z');
     expect(r?.plan.planEndAt.toISOString()).toBe('2026-09-07T17:00:00.000Z');
     expect(r?.plan.businessDate).toBe('2026-09-07');

@@ -1,5 +1,5 @@
 export { ProfilePage } from './ui/profile-page';
-export { UnitMasterPicker } from './ui/unit-master-picker';
+export { UnitMasterField } from './ui/unit-master-field';
 export {
   rememberEmployeeList,
   restoreEmployeeList,

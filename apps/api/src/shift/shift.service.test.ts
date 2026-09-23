@@ -23,7 +23,14 @@ import {
   sites,
   sql,
 } from '@vakhta/db';
-import { DEFAULT_ATTENDANCE_WINDOW, businessDateOf, checkIntervalInvariants } from '@vakhta/domain';
+import {
+  DEFAULT_ATTENDANCE_WINDOW,
+  businessDateOf,
+  checkIntervalInvariants,
+  formatLocal,
+  planInstants,
+  ShiftPeriod,
+} from '@vakhta/domain';
 import type { ShiftChangedEvent, TransitionResponse } from '@vakhta/contracts';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor } from '../common/actor.js';
@@ -126,6 +133,7 @@ describe('shift: машина станів зміни в транзакції (�
         name: 'Дневная',
         localStart: '08:00',
         localEnd: '20:00',
+        period: ShiftPeriod.DAY,
       })
       .returning();
     const [version] = await testDb.db
@@ -669,6 +677,57 @@ describe('shift: машина станів зміни в транзакції (�
       (await service.listActive({ orgUnitId: unit!.id })).some((v) => v.id === listed!.id),
     ).toBe(true);
   });
+  it('an unscheduled arrival takes only the shifts of the employee’s own unit', async () => {
+    const [site] = await testDb.db.select().from(sites).limit(1);
+    const [ownUnit] = await testDb.db.select().from(orgUnits).limit(1);
+    if (!site || !ownUnit) throw new Error('fixture missing');
+    const [otherUnit] = await testDb.db
+      .insert(orgUnits)
+      .values({ siteId: site.id, name: 'Склад' })
+      .returning();
+    const [role] = await testDb.db
+      .insert(positions)
+      .values({ code: 'LOADER', name: 'Вантажник' })
+      .returning();
+    if (!otherUnit || !role) throw new Error('fixture missing');
+    // A full day starting this very hour would be the nearest start for anyone arriving now.
+    const hour = `${formatLocal(new Date(), site.timezone).local.slice(11, 13)}:00`;
+    const foreign = { localStart: hour, localEnd: hour };
+    await testDb.db.insert(shiftTemplates).values({
+      siteId: site.id,
+      orgUnitId: otherUnit.id,
+      code: 'U_FOREIGN',
+      name: 'Доба',
+      ...foreign,
+      period: ShiftPeriod.FULL_DAY,
+    });
+    const foreignStart = planInstants(
+      businessDateOf(new Date(), site.timezone),
+      foreign,
+      site.timezone,
+    ).planStartAt.toISOString();
+    const startFor = async (personnelNumber: string, orgUnitId: string) => {
+      const [person] = await testDb.db
+        .insert(employees)
+        .values({ personnelNumber, fullName: `Worker ${personnelNumber}` })
+        .returning();
+      if (!person) throw new Error('employee missing');
+      await testDb.db.insert(employeePositions).values({
+        employeeId: person.id,
+        orgUnitId,
+        positionId: role.id,
+        validFrom: new Date('2026-01-01T00:00:00Z'),
+      });
+      await arrive(person.id);
+      const started = await service.start(person.id, { idempotencyKey: key() }, meta(person.id));
+      if (!started.ok) throw new Error('shift did not start');
+      return started.session.planStartAt;
+    };
+
+    expect(await startFor('41', ownUnit.id)).not.toBe(foreignStart);
+    expect(await startFor('42', otherUnit.id)).toBe(foreignStart);
+  });
+
   it('rolls back interval and shift transition when its durable reminder cannot be admitted', async () => {
     await arrive(petrova);
     await service.start(petrova, { idempotencyKey: key() }, meta(petrova));

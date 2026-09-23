@@ -1,3 +1,4 @@
+import { shiftTemplateLabel } from '@/entities/shift-template';
 import { useState } from 'react';
 import { format, messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -9,7 +10,6 @@ import { QueryFeedback } from '@/components/app/query-feedback';
 import { InfoTip } from '@/components/app/info-tip';
 import { CalendarDetailPanel } from '@/shared/ui/resource-calendar';
 import { readError } from '@/errors';
-import { templateLabel } from '../lib/template-label';
 import type { Workspace } from '../model/use-workspace';
 import type { OpenSlots } from '../model/use-open-slots';
 import { proposalModel } from '../model/proposal';
@@ -57,7 +57,7 @@ export function ProposalSheet({
     const slot = slots.slots.find((item) => item.id === id);
     const template = slot ? w.templates.find((item) => item.id === slot.templateId) : undefined;
     return slot
-      ? `${slot.businessDate} · ${template ? templateLabel(template.code, t) : ''} · ${labels.zoneName(slot.zoneId)}`
+      ? `${slot.businessDate} · ${template ? shiftTemplateLabel(template, t) : ''} · ${labels.zoneName(slot.zoneId)}`
       : id;
   };
   const kept = result.picks.filter((pick) => !skipped.has(pick.slotId));

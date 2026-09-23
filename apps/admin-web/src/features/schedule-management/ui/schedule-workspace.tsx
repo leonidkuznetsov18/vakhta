@@ -747,13 +747,11 @@ function WorkspaceView({
                 </Button>
               </section>
             )}
-            {w.writable &&
-              w.templatesQuery.isSuccess &&
-              !w.templates.some((template) => template.isActive) && (
-                <Alert>
-                  <AlertDescription>{t.missingTemplates}</AlertDescription>
-                </Alert>
-              )}
+            {w.writable && w.templatesQuery.isSuccess && w.shiftOptions.length === 0 && (
+              <Alert>
+                <AlertDescription>{t.missingTemplates}</AlertDescription>
+              </Alert>
+            )}
             {effectiveMode === 'month' ? (
               <PeopleSchedule
                 workspace={w}

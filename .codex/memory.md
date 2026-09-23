@@ -89,3 +89,13 @@ owner appends after merging work; parallel agents return proposed entries instea
   and CI unchanged until cutover. See `specs/011-multi-tenant-control-plane/` and ADR-0015 (proposed).
 - Unresolved (owner): hostname scheme, separate control service, one Postgres cluster, pilot slug,
   control panel languages. Implementation starts with delivery 1 after confirmation.
+
+## 2026-09-24 — Unit shift templates
+
+- Owner decisions; writer: Claude; baseline `0f868f54`.
+  - Only ADMIN creates, edits and deletes the shifts of a unit (Directories → unit Sheet).
+  - A borrowed worker is offered the schedule unit's shifts. The Day/Night defaults stay for every
+    unit. There is no inheritance. Full day is its own type (fuchsia).
+  - As in When I Work, an edit changes new assignments only: used templates are versioned
+    (ADR-0017).
+- See `specs/013-unit-shift-templates/` and `docs/engineering/features/unit-shift-templates.md`.

@@ -159,7 +159,7 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 - Every non-obvious control has an information tooltip; tooltip texts live in `@vakhta/i18n` in all three languages.
 - Owner rule, 2026-09-13 — one hue means one thing: different states or event kinds never share a
   colour on the same screen, and a colour is never the only signal (pair it with text or an icon).
-  Schedule palette: day shift amber, night shift indigo, today emerald, public holiday sky,
+  Schedule palette: day shift amber, night shift indigo, full-day shift fuchsia, today emerald, public holiday sky,
   approved absence slate (a calm fact, never red), pending absence and needed replacement orange,
   birthday violet, open slot teal, blocking conflict red ring, warning orange, unpublished change
   a dashed outline with no fill, hover/selection highlight sky ring. Red means danger or a block

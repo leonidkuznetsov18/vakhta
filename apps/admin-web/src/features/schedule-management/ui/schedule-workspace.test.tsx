@@ -31,6 +31,7 @@ import { writeSchedulePreset } from '../model/preset';
 import { clearPersistentState } from '@/lib/ui-store';
 import { notifySuccess } from '@/lib/toast';
 import { NavigationProvider } from '@/navigation';
+import { ShiftPeriod } from '@vakhta/domain';
 
 beforeEach(() => {
   // The fixtures plan September 2026 around "today" = 13 September (the week 7–13 on screen,
@@ -122,8 +123,13 @@ const templates = [
     name: 'Дневная',
     localStart: '08:00',
     localEnd: '20:00',
-    isNight: false,
+    period: ShiftPeriod.DAY,
     isActive: true,
+    orgUnitId: null,
+    revision: 1,
+    retiredAt: null,
+    replacedById: null,
+    usedCount: 0,
   },
   {
     id: TPL_NIGHT,
@@ -132,8 +138,13 @@ const templates = [
     name: 'Ночная',
     localStart: '20:00',
     localEnd: '08:00',
-    isNight: true,
+    period: ShiftPeriod.NIGHT,
     isActive: true,
+    orgUnitId: null,
+    revision: 1,
+    retiredAt: null,
+    replacedById: null,
+    usedCount: 0,
   },
 ];
 
@@ -221,6 +232,7 @@ function mockApi(
     readGate?: Promise<void>;
     templatesEmpty?: boolean;
     templatesFail?: boolean;
+    unitShifts?: unknown[];
     listFail?: boolean;
     contextFail?: boolean;
   },
@@ -452,7 +464,7 @@ function mockApi(
     if (path.startsWith('/admin/schedules/templates'))
       return state.templatesFail
         ? json({ message: 'Template read failed' }, 500)
-        : json(state.templatesEmpty ? [] : templates);
+        : json(state.templatesEmpty ? [] : [...templates, ...(state.unitShifts ?? [])]);
     if (path.startsWith('/admin/schedules?')) {
       if (state.listFail) return json({ message: 'Version read failed' }, 500);
       const periodMonth = url.searchParams.get('periodMonth');
@@ -1814,10 +1826,10 @@ it('shows staffing shortage from requirements and blocks an unqualified assignme
   fireEvent.change(within(sheet).getByRole('combobox', { name: s.employee }), {
     target: { value: EMP2 },
   });
-  fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_NIGHT } });
+  fireEvent.click(within(sheet).getByRole('radio', { name: /^20:00–08:00/ }));
   expect(within(sheet).getByText(/Line operator/)).toBeTruthy();
   expect(within(sheet).getByRole('button', { name: t.apply }).hasAttribute('disabled')).toBe(true);
-  fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_DAY } });
+  fireEvent.click(within(sheet).getByRole('radio', { name: /^08:00–20:00/ }));
   expect(within(sheet).queryByText(/Line operator/)).toBeNull();
   expect(within(sheet).getByRole('button', { name: t.apply }).hasAttribute('disabled')).toBe(false);
   cleanup();
@@ -1845,7 +1857,7 @@ it('keeps Apply disabled with a retry while the plan context is unavailable', as
   fireEvent.change(within(sheet).getByRole('combobox', { name: s.employee }), {
     target: { value: EMP2 },
   });
-  fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_DAY } });
+  fireEvent.click(within(sheet).getByRole('radio', { name: /^08:00–20:00/ }));
   const apply = () => within(sheet).getByRole('button', { name: t.apply });
   expect(await within(sheet).findByText(t.contextUnavailable)).toBeTruthy();
   expect(apply().hasAttribute('disabled')).toBe(true);
@@ -1942,7 +1954,7 @@ it('marks a cross-unit overlap as a blocking conflict, explains it and disables 
   expect(within(sheet).getByText(/2026-09-05/)).toBeTruthy();
   expect(within(sheet).getByRole('list', { name: t.conflict }).textContent).toContain('2026-09-05');
   fireEvent.click(within(sheet).getByRole('button', { name: t.editAssignment }));
-  fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_DAY } });
+  fireEvent.click(within(sheet).getByRole('radio', { name: /^08:00–20:00/ }));
   // Moving to the day shift removes the overlap with the other unit's evening shift.
   expect(within(sheet).getByRole('button', { name: t.apply }).hasAttribute('disabled')).toBe(false);
   fireEvent.click(within(sheet).getByRole('button', { name: t.apply }));
@@ -1952,6 +1964,59 @@ it('marks a cross-unit overlap as a blocking conflict, explains it and disables 
   expect(screen.getByRole('button', { name: `${s.save} (1)` }).hasAttribute('disabled')).toBe(
     false,
   );
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
+it('offers the unit’s own shifts first, the standard ones next and never another unit’s', async () => {
+  freshState();
+  setUiState({ 'schedule.month': '2026-09' });
+  const unitShift = (shift: {
+    id: string;
+    orgUnitId: string;
+    localStart: string;
+    isActive?: boolean;
+  }) => ({
+    ...templates[0],
+    ...shift,
+    code: `U_${shift.id.slice(-2)}`,
+    name: 'Ранкова',
+    localEnd: '13:00',
+    isActive: shift.isActive ?? true,
+    retiredAt: shift.isActive === false ? '2026-09-01T00:00:00Z' : null,
+  });
+  mockApi({
+    status: 'DRAFT',
+    unitShifts: [
+      unitShift({
+        id: 'c0000000-0000-4000-8000-0000000000a1',
+        orgUnitId: UNIT,
+        localStart: '05:00',
+      }),
+      unitShift({
+        id: 'c0000000-0000-4000-8000-0000000000a2',
+        orgUnitId: UNIT,
+        localStart: '04:00',
+        isActive: false,
+      }),
+      unitShift({
+        id: 'c0000000-0000-4000-8000-0000000000a3',
+        orgUnitId: 'a0000000-0000-4000-8000-0000000000ff',
+        localStart: '06:00',
+      }),
+    ],
+  });
+  admin();
+  await screen.findByText(t.draftState);
+  await showWeekOf(/Кузнецов Леонид, 05/);
+  fireEvent.click(screen.getByRole('button', { name: `${t.add}: Линия 1, 2026-09-06` }));
+  const sheet = await screen.findByRole('dialog');
+  const own = within(sheet).getByRole('group', { name: 'Смены «Цех фасовки»' });
+  expect(within(own).getByRole('radio', { name: /^05:00–13:00/ })).toBeTruthy();
+  const standard = within(sheet).getByRole('group', { name: 'Стандартные' });
+  expect(within(standard).getAllByRole('radio')).toHaveLength(2);
+  expect(within(sheet).queryByRole('radio', { name: /^04:00–13:00/ })).toBeNull();
+  expect(within(sheet).queryByRole('radio', { name: /^06:00–13:00/ })).toBeNull();
   cleanup();
   vi.unstubAllGlobals();
 });
@@ -1993,7 +2058,7 @@ it('lists candidates with reasons when creating a shift and blocks an absent wor
   await showWeekOf(/Кузнецов Леонид, 05/);
   fireEvent.click(screen.getByRole('button', { name: `${t.add}: Линия 1, 2026-09-06` }));
   const sheet = await screen.findByRole('dialog');
-  fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_DAY } });
+  fireEvent.click(within(sheet).getByRole('radio', { name: /^08:00–20:00/ }));
   const list = await within(sheet).findByRole('list');
   const blocked = within(list).getByRole('button', { name: /Кузнецов Леонид/ });
   expect(blocked.hasAttribute('disabled')).toBe(true);
@@ -2271,7 +2336,7 @@ it('creates an internal open slot, offers it, lists responses and selects one pe
   await showWeekOf(/Кузнецов Леонид, 05/);
   fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${t.add}: .*2026-09-06`) }));
   const sheet = await screen.findByRole('dialog');
-  fireEvent.change(within(sheet).getByLabelText(t.template), { target: { value: TPL_DAY } });
+  fireEvent.click(within(sheet).getByRole('radio', { name: /^08:00–20:00/ }));
   fireEvent.click(within(sheet).getByRole('button', { name: t.createOpenSlot }));
   await waitFor(() =>
     expect(

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BusinessDate, IsoDateTime, Uuid } from './common.js';
+import { ShiftPeriodSchema } from './scheduling.js';
 
 /** Overview command center (spec 004): selection inside the reader's granted scope. */
 export const OverviewQuery = z.object({
@@ -12,7 +13,7 @@ export const ShiftWindowView = z.object({
   templateId: Uuid,
   code: z.string(),
   name: z.string(),
-  isNight: z.boolean(),
+  period: ShiftPeriodSchema,
   businessDate: BusinessDate,
   startsAt: IsoDateTime,
   endsAt: IsoDateTime,

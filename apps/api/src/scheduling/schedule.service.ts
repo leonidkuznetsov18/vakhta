@@ -8,6 +8,7 @@ import {
   eq,
   gt,
   inArray,
+  openSlots,
   max,
   orgUnits,
   responsibilityZones,
@@ -43,6 +44,10 @@ import {
   assignmentInstants,
   resolveSegments,
   resolveBreaks,
+  isTemplateSelectable,
+  templateLineage,
+  ShiftTemplateError,
+  type ShiftPeriod,
 } from '@vakhta/domain';
 import type {
   AssignmentInput,
@@ -59,7 +64,7 @@ import type {
   ScheduleWebCommand,
   ScheduleCommandResult,
 } from '@vakhta/contracts';
-import { AssignmentStatusSchema, EmployeeStatusSchema } from '@vakhta/contracts';
+import { AssignmentStatusSchema, EmployeeStatusSchema, OpenSlotStatus } from '@vakhta/contracts';
 import { assignmentContent } from './assignment-content.js';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
@@ -125,7 +130,7 @@ type BreakRow = typeof assignmentBreaks.$inferSelect;
 interface AssignmentWithTemplate {
   readonly a: AssignmentRow;
   readonly templateCode: string;
-  readonly isNight: boolean;
+  readonly period: ShiftPeriod;
   readonly acknowledgedAt: Date | null;
   readonly segments: readonly SegmentRow[];
   readonly breaks: readonly BreakRow[];
@@ -136,7 +141,7 @@ export interface NextShift {
   readonly versionId: string;
   readonly planStartAt: Date;
   readonly planEndAt: Date;
-  readonly isNight: boolean;
+  readonly period: ShiftPeriod;
   readonly zoneName: string | null;
   readonly timezone: string;
 }
@@ -738,7 +743,15 @@ export class ScheduleService {
     actor: Actor,
   ): Promise<number> {
     const site = await this.org.requireSite(version.siteId, tx);
-    const templates = await this.templates.activeBySite(version.siteId, tx);
+    const templates = await this.templates.bySite(version.siteId, tx);
+    // Staffing demand and planned shifts on any version of one shift compare as that shift.
+    const lineage = templateLineage([...templates.values()]);
+    // A retired or foreign template may stay only on dates it is already planned or offered on.
+    const needsKept = cmd.items.some((item) => {
+      const template = templates.get(item.templateId);
+      return template !== undefined && !isTemplateSelectable(template, version.orgUnitId);
+    });
+    const kept = needsKept ? await this.plannedTemplateKeys(tx, version) : new Set<string>();
 
     const employeeIds = [...new Set(cmd.items.map((i) => i.employeeId))];
     const activeEmployees = employeeIds.length
@@ -776,7 +789,7 @@ export class ScheduleService {
         ).map((row) => ({
           id: row.id,
           zoneId: row.zoneId,
-          templateId: row.templateId,
+          templateId: lineage(row.templateId),
           requiredCount: row.requiredCount,
           qualificationId: row.qualificationId,
           effectiveFrom: row.effectiveFrom,
@@ -804,6 +817,13 @@ export class ScheduleService {
           422,
           `Шаблон ${item.templateId} не належить майданчику`,
         );
+      if (!isTemplateSelectable(template, version.orgUnitId) && !kept.has(keptKey(item))) {
+        throw new DomainError(
+          template.isActive ? ShiftTemplateError.OUT_OF_UNIT : ShiftTemplateError.RETIRED,
+          422,
+          `Template ${item.templateId} is not offered in unit ${version.orgUnitId}`,
+        );
+      }
       if (item.zoneId) {
         const zone = zoneMap.get(item.zoneId);
         if (!zone || zone.orgUnitId !== version.orgUnitId) {
@@ -814,7 +834,10 @@ export class ScheduleService {
           );
         }
       }
-      if (item.zoneId && !qualifiedFor(rules, holdings, item)) {
+      if (
+        item.zoneId &&
+        !qualifiedFor(rules, holdings, { ...item, templateId: lineage(item.templateId) })
+      ) {
         throw new DomainError(
           'QUALIFICATION_REQUIRED',
           422,
@@ -921,7 +944,7 @@ export class ScheduleService {
           businessDate: value.businessDate,
           startMs: value.planStartAt.getTime(),
           endMs: value.planEndAt.getTime(),
-          templateId: value.templateId,
+          templateId: lineage(value.templateId),
           zoneId: value.zoneId,
           orgUnitId: version.orgUnitId,
           breaks: value.breaks.map((pause) => ({
@@ -1063,6 +1086,41 @@ export class ScheduleService {
       this.reviseWithin(tx, id, cmd, actor, new Date(), expectedRevision),
     );
     return result;
+  }
+
+  /**
+   * Dates and templates already planned in this version or the month's published one, or offered
+   * by an open slot of the unit. A swap, a move within the date and a slot fill keep them.
+   */
+  private async plannedTemplateKeys(
+    tx: Transaction,
+    version: VersionRow,
+  ): Promise<ReadonlySet<string>> {
+    const published = await this.publishedFor(
+      version.siteId,
+      version.orgUnitId,
+      version.periodMonth,
+      tx,
+    );
+    const versionIds = [...new Set([version.id, published?.id].filter((id) => id !== undefined))];
+    const planned = await tx
+      .select({
+        businessDate: shiftAssignments.businessDate,
+        templateId: shiftAssignments.templateId,
+      })
+      .from(shiftAssignments)
+      .where(inArray(shiftAssignments.scheduleVersionId, versionIds));
+    const offered = await tx
+      .select({ businessDate: openSlots.businessDate, templateId: openSlots.templateId })
+      .from(openSlots)
+      .where(
+        and(
+          eq(openSlots.orgUnitId, version.orgUnitId),
+          eq(openSlots.periodMonth, version.periodMonth),
+          inArray(openSlots.status, [OpenSlotStatus.enum.OPEN, OpenSlotStatus.enum.OFFERED]),
+        ),
+      );
+    return new Set([...planned, ...offered].map(keptKey));
   }
 
   private async publishedAssignmentContents(
@@ -1394,7 +1452,7 @@ export class ScheduleService {
       .select({
         a: shiftAssignments,
         templateCode: shiftTemplates.code,
-        isNight: shiftTemplates.isNight,
+        period: shiftTemplates.period,
         zoneName: responsibilityZones.name,
         orgUnitName: orgUnits.name,
         timezone: sites.timezone,
@@ -1421,7 +1479,7 @@ export class ScheduleService {
       businessDate: r.a.businessDate,
       planStartAt: r.a.planStartAt,
       planEndAt: r.a.planEndAt,
-      isNight: r.isNight,
+      period: r.period,
       templateCode: r.templateCode,
       zoneId: r.a.zoneId,
       kind: r.a.kind,
@@ -1466,7 +1524,7 @@ export class ScheduleService {
     const [r] = await this.db
       .select({
         a: shiftAssignments,
-        isNight: shiftTemplates.isNight,
+        period: shiftTemplates.period,
         zoneName: responsibilityZones.name,
         timezone: sites.timezone,
       })
@@ -1491,7 +1549,7 @@ export class ScheduleService {
       versionId: r.a.scheduleVersionId,
       planStartAt: r.a.planStartAt,
       planEndAt: r.a.planEndAt,
-      isNight: r.isNight,
+      period: r.period,
       zoneName: r.zoneName,
       timezone: r.timezone,
     };
@@ -1532,7 +1590,7 @@ export class ScheduleService {
       .select({
         a: shiftAssignments,
         templateCode: shiftTemplates.code,
-        isNight: shiftTemplates.isNight,
+        period: shiftTemplates.period,
         acknowledgedAt: assignmentAcknowledgements.acknowledgedAt,
       })
       .from(shiftAssignments)
@@ -1590,7 +1648,7 @@ export class ScheduleService {
       businessDate: r.a.businessDate,
       planStartAt: r.a.planStartAt,
       planEndAt: r.a.planEndAt,
-      isNight: r.isNight,
+      period: r.period,
       templateCode: r.templateCode,
       zoneId: r.a.zoneId,
       kind: r.a.kind,
@@ -1670,4 +1728,8 @@ export class ScheduleService {
       })),
     };
   }
+}
+
+function keptKey(item: { readonly businessDate: string; readonly templateId: string }): string {
+  return `${item.businessDate}:${item.templateId}`;
 }

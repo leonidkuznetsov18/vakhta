@@ -3,9 +3,11 @@ import {
   evaluatePlan,
   assignmentInstants,
   reasonsFor,
+  templateLineage,
   type EligibilityReason,
   type PlannedInterval,
 } from '@vakhta/domain';
+import { currentDemand } from './use-staffing';
 import { format, messages } from '@vakhta/i18n';
 import type {
   CandidatesQuery,
@@ -72,6 +74,7 @@ export function planIssues(input: {
 }): PlanIssues {
   if (!input.staffing || !input.context) return { reasons: [], blocked: false, ready: false };
   const templates = new Map(input.templates.map((template) => [template.id, template]));
+  const lineage = templateLineage(input.templates);
   const proposed: PlannedInterval[] = gridToItems(input.grid).flatMap((item) => {
     const template = templates.get(item.templateId);
     if (!template) return [];
@@ -82,7 +85,7 @@ export function planIssues(input: {
         businessDate: item.businessDate,
         startMs: plan.planStartAt.getTime(),
         endMs: plan.planEndAt.getTime(),
-        templateId: item.templateId,
+        templateId: lineage(item.templateId),
         zoneId: item.zoneId,
         orgUnitId: input.orgUnitId,
         breaks: plannedBreaks(item, template, input.timezone),
@@ -102,7 +105,7 @@ export function planIssues(input: {
     preferences: input.staffing.availability,
     rules: input.staffing.rules,
     staffing: {
-      requirements: input.staffing.requirements,
+      requirements: currentDemand(input.staffing.requirements, lineage),
       holdings: input.staffing.holdings,
     },
     month: input.month,

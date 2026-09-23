@@ -1,4 +1,4 @@
-import { assignmentInstants, planInstants } from '@vakhta/domain';
+import { assignmentInstants, planInstants, ShiftPeriod } from '@vakhta/domain';
 import {
   ScheduleRevisionPrecondition,
   ScheduleWebCommand,
@@ -6,6 +6,9 @@ import {
   CreateScheduleVersionCommand,
   PutAssignmentsCommand,
   ReviseScheduleCommand,
+  CreateUnitShiftCommand,
+  UpdateUnitShiftCommand,
+  type ShiftTemplateView,
   type ScheduleVersionView,
   type AssignmentInput,
   type ScheduleVersionDetail,
@@ -27,8 +30,13 @@ export const scheduleTemplates = [
     name: 'Денна',
     localStart: '08:00',
     localEnd: '20:00',
-    isNight: false,
+    period: ShiftPeriod.DAY,
     isActive: true,
+    orgUnitId: null,
+    revision: 1,
+    retiredAt: null,
+    replacedById: null,
+    usedCount: 0,
   },
   {
     id: 'c0000000-0000-4000-8000-000000000002',
@@ -37,8 +45,13 @@ export const scheduleTemplates = [
     name: 'Нічна',
     localStart: '20:00',
     localEnd: '08:00',
-    isNight: true,
+    period: ShiftPeriod.NIGHT,
     isActive: true,
+    orgUnitId: null,
+    revision: 1,
+    retiredAt: null,
+    replacedById: null,
+    usedCount: 0,
   },
 ];
 const month = new Date().toISOString().slice(0, 7);
@@ -932,6 +945,8 @@ export function scheduleFixture(url: URL, method: string, body: unknown): unknow
     }
     return result;
   }
+  const shifts = unitShiftFixture(url, method, body);
+  if (shifts !== undefined) return shifts;
   if (url.pathname.endsWith('/templates')) return scheduleTemplates;
   if (url.pathname === '/admin/schedules') {
     if (method === 'GET')
@@ -1069,4 +1084,95 @@ export function scheduleFixture(url: URL, method: string, body: unknown): unknow
     return {};
   }
   return detail(version);
+}
+
+/** Unit shifts of the preview unit (spec 013): listed with the defaults and editable in memory. */
+const unitShift = {
+  siteId: scheduleSiteId,
+  orgUnitId: scheduleUnitId,
+  period: ShiftPeriod.DAY,
+  isActive: true,
+  revision: 1,
+  retiredAt: null,
+  replacedById: null,
+  usedCount: 0,
+};
+const unitShifts: ShiftTemplateView[] = [
+  {
+    ...unitShift,
+    id: 'c0000000-0000-4000-8000-0000000000a1',
+    orgUnitId: scheduleUnitId,
+    code: 'U_A1',
+    name: 'Ранкова',
+    localStart: '05:00',
+    localEnd: '13:00',
+    usedCount: 12,
+  },
+  {
+    ...unitShift,
+    id: 'c0000000-0000-4000-8000-0000000000a2',
+    orgUnitId: scheduleUnitId,
+    code: 'U_A2',
+    name: 'Доба',
+    localStart: '08:00',
+    localEnd: '08:00',
+    period: ShiftPeriod.FULL_DAY,
+  },
+];
+
+const Method = { GET: 'GET', POST: 'POST', PATCH: 'PATCH', DELETE: 'DELETE' } as const;
+
+function unitShiftFixture(url: URL, method: string, body: unknown): unknown {
+  if (method === Method.GET && url.pathname.endsWith('/templates')) return listShifts(url);
+  if (method === Method.POST) return createShift(url, body);
+  if (method === Method.PATCH) return updateShift(url, body);
+  if (method === Method.DELETE) return deleteShift(url);
+  return undefined;
+}
+
+function listShifts(url: URL): ShiftTemplateView[] {
+  const unit = url.searchParams.get('orgUnitId');
+  return [
+    ...scheduleTemplates,
+    ...unitShifts.filter((shift) => unit === null || shift.orgUnitId === unit),
+  ];
+}
+
+function createShift(url: URL, body: unknown): ShiftTemplateView | undefined {
+  const unit = /^\/admin\/schedules\/units\/([^/]+)\/templates$/.exec(url.pathname)?.[1];
+  if (!unit) return undefined;
+  const shift: ShiftTemplateView = {
+    ...unitShift,
+    ...CreateUnitShiftCommand.parse(body),
+    id: crypto.randomUUID(),
+    orgUnitId: unit,
+    code: 'U_NEW',
+  };
+  unitShifts.push(shift);
+  return shift;
+}
+
+function shiftIndex(url: URL): number {
+  const id = /^\/admin\/schedules\/templates\/([^/]+)$/.exec(url.pathname)?.[1];
+  return unitShifts.findIndex((shift) => shift.id === id);
+}
+
+function updateShift(url: URL, body: unknown): ShiftTemplateView | undefined {
+  const index = shiftIndex(url);
+  const current = unitShifts[index];
+  if (!current) return undefined;
+  const next = {
+    ...current,
+    ...UpdateUnitShiftCommand.parse(body),
+    revision: current.revision + 1,
+  };
+  unitShifts[index] = next;
+  return next;
+}
+
+function deleteShift(url: URL): Response | undefined {
+  const index = shiftIndex(url);
+  if (index < 0) return undefined;
+  unitShifts.splice(index, 1);
+  return new Response(null, { status: 204 });
 }

@@ -17,7 +17,13 @@ import {
   type Database,
 } from '@vakhta/db';
 import type { ScheduleExportQuery } from '@vakhta/contracts';
-import { DEFAULT_LOCALE, formatLocal, hasAnyRole, type WebRole } from '@vakhta/domain';
+import {
+  DEFAULT_LOCALE,
+  formatLocal,
+  hasAnyRole,
+  templateDisplayName,
+  type WebRole,
+} from '@vakhta/domain';
 import { messages, type Locale } from '@vakhta/i18n';
 import { webUserActor, type WebUser } from '../auth/web-auth.guard.js';
 import { DomainError } from '../common/domain-error.js';
@@ -98,6 +104,9 @@ export class ScheduleExportService {
             teamName: teams.name,
             positionName: positions.name,
             templateCode: shiftTemplates.code,
+            templateName: shiftTemplates.name,
+            templateStart: shiftTemplates.localStart,
+            templateEnd: shiftTemplates.localEnd,
             acknowledgedAt: assignmentAcknowledgements.acknowledgedAt,
           })
           .from(shiftAssignments)
@@ -171,10 +180,20 @@ export class ScheduleExportService {
           t.positionName,
           t.templateId,
           t.templateCode,
+          t.shiftName,
           t.acknowledgedAt,
         ];
         const data = rows.map(
-          ({ a, employeeName, zoneName, teamName, positionName, templateCode, acknowledgedAt }) => [
+          ({
+            a,
+            employeeName,
+            zoneName,
+            teamName,
+            positionName,
+            templateCode,
+            acknowledgedAt,
+            ...shift
+          }) => [
             a.id,
             a.scheduleVersionId,
             a.employeeId,
@@ -197,6 +216,7 @@ export class ScheduleExportService {
             positionName,
             a.templateId,
             templateCode,
+            shiftName(shift),
             acknowledgedAt?.toISOString() ?? null,
           ],
         );
@@ -229,4 +249,19 @@ export class ScheduleExportService {
       { isolationLevel: 'repeatable read' },
     );
   }
+}
+
+/** The shift as people call it: a unit shift's name or hours, a default's stored name. */
+function shiftName(shift: {
+  readonly templateName: string | null;
+  readonly templateStart: string | null;
+  readonly templateEnd: string | null;
+}): string | null {
+  if (shift.templateName === null || shift.templateStart === null || shift.templateEnd === null)
+    return null;
+  return templateDisplayName({
+    name: shift.templateName,
+    localStart: shift.templateStart,
+    localEnd: shift.templateEnd,
+  });
 }

@@ -24,6 +24,7 @@ import { AdminEmployeesController } from './admin-employees.controller.js';
 import { AdminPositionsController } from './admin-positions.controller.js';
 import { EmployeesService } from './employees.service.js';
 import { PositionsService } from './positions.service.js';
+import { ShiftPeriod } from '@vakhta/domain';
 
 /**
  * Spec 005 US1 (AC-001, #66): the employee directory and every action by identifier apply the
@@ -134,7 +135,14 @@ describe('employee directory access scope (spec 005 US1)', () => {
     );
     const [template] = await db
       .insert(shiftTemplates)
-      .values({ siteId: site1, code: 'DAY', name: 'Day', localStart: '08:00', localEnd: '20:00' })
+      .values({
+        siteId: site1,
+        code: 'DAY',
+        name: 'Day',
+        localStart: '08:00',
+        period: ShiftPeriod.DAY,
+        localEnd: '20:00',
+      })
       .returning();
     const [version] = await db
       .insert(scheduleVersions)

@@ -6,7 +6,8 @@ export interface CalendarItem {
   readonly description: string;
   /** Empty when nothing needs saying; otherwise a short state such as "Not published". */
   readonly status: string;
-  readonly tone: 'info' | 'warning' | 'danger' | 'neutral' | 'amber' | 'indigo' | 'gray';
+  readonly tone:
+    'info' | 'warning' | 'danger' | 'neutral' | 'amber' | 'indigo' | 'fuchsia' | 'gray';
   /** Rendered with a dashed border so an unpublished shift is recognizable without color. */
   readonly unpublished?: boolean;
   /** Shown for context only (for example another month's plan); selecting it opens details. */
@@ -58,7 +59,7 @@ export interface CalendarDate {
   /** Column totals, for example day/night counts. */
   readonly summary?: string;
   /** The same totals as numbers, for a compact layout that cannot fit the text. */
-  readonly counts?: { readonly day: number; readonly night: number };
+  readonly counts?: { readonly day: number; readonly night: number; readonly fullDay: number };
   readonly today?: boolean;
   /** The date belongs to another plan and is shown for context only. */
   readonly readonly?: boolean;

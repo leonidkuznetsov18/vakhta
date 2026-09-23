@@ -1,5 +1,5 @@
+import { shiftTemplateLabel } from '@/entities/shift-template';
 import { assignmentKindLabel } from '../lib/labels';
-import { templateLabel } from '../lib/template-label';
 import type {
   AssignmentInput,
   EmployeeView,
@@ -31,7 +31,7 @@ export function assignmentLabel(labels: ScheduleLabels, item?: AssignmentInput) 
   const zone = labels.zones.find((value) => value.id === item.zoneId);
   return [
     item.businessDate,
-    template ? templateLabel(template.code, t) : `${t.unknownTemplate} · ${item.templateId}`,
+    template ? shiftTemplateLabel(template, t) : `${t.unknownTemplate} · ${item.templateId}`,
     item.zoneId ? (zone?.name ?? item.zoneId) : t.noZone,
     assignmentKindLabel(item.kind),
     item.teamId

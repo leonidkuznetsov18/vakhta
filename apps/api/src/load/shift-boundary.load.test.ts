@@ -11,7 +11,7 @@ import {
   sites,
   sql,
 } from '@vakhta/db';
-import { DEFAULT_ATTENDANCE_WINDOW } from '@vakhta/domain';
+import { DEFAULT_ATTENDANCE_WINDOW, ShiftPeriod } from '@vakhta/domain';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor } from '../common/actor.js';
 import { AuditLog } from '../events/audit-log.js';
@@ -101,6 +101,7 @@ describe('load: одночасний старт зміни', () => {
         name: 'Дневная',
         localStart: '08:00',
         localEnd: '20:00',
+        period: ShiftPeriod.DAY,
       })
       .returning();
     const [version] = await testDb.db

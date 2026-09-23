@@ -66,7 +66,7 @@ describe('OrgTree', () => {
   afterEach(cleanup);
 
   it('nests units under the site and people under their unit, with the count line', () => {
-    render(<OrgTree org={org} employees={employees} roster={loaded} onAssignMaster={vi.fn()} />);
+    render(<OrgTree org={org} employees={employees} roster={loaded} onOpenUnit={vi.fn()} />);
     const site = screen.getByRole('button', { name: 'Основная площадка' });
     expect(site.getAttribute('aria-expanded')).toBe('true');
     const plant = screen.getByRole('button', { name: 'Цех Стаканов' }).closest('li');
@@ -83,21 +83,19 @@ describe('OrgTree', () => {
     expect(screen.getByRole('status').textContent).toBe('Подразделения: 3 · Сотрудники: 2');
   });
 
-  it('collapses a branch on demand and hands the unit to the master picker', () => {
-    const onAssignMaster = vi.fn();
-    render(
-      <OrgTree org={org} employees={employees} roster={loaded} onAssignMaster={onAssignMaster} />,
-    );
+  it('collapses a branch on demand and opens the unit', () => {
+    const onOpenUnit = vi.fn();
+    render(<OrgTree org={org} employees={employees} roster={loaded} onOpenUnit={onOpenUnit} />);
     fireEvent.click(screen.getByRole('button', { name: 'Цех Стаканов' }));
     expect(screen.queryByRole('button', { name: 'Цех выбирания' })).toBeNull();
     const office = screen.getByRole('button', { name: 'Офис' }).closest('li');
     if (!office) throw new Error('Unit branch not rendered');
-    fireEvent.click(within(office).getByRole('button', { name: 'Назначить мастера' }));
-    expect(onAssignMaster).toHaveBeenCalledWith(org.orgUnits[2]);
+    fireEvent.click(within(office).getByRole('button', { name: 'Открыть: Офис' }));
+    expect(onOpenUnit).toHaveBeenCalledWith(org.orgUnits[2]);
   });
 
   it('narrows the tree to matching people and reports when nothing matches', () => {
-    render(<OrgTree org={org} employees={employees} roster={loaded} onAssignMaster={vi.fn()} />);
+    render(<OrgTree org={org} employees={employees} roster={loaded} onOpenUnit={vi.fn()} />);
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'швец' } });
     expect(screen.queryByRole('button', { name: 'Офис' })).toBeNull();
     expect(screen.getByRole('link', { name: /Яна Швец/ })).toBeTruthy();
@@ -112,7 +110,7 @@ describe('OrgTree', () => {
         org={org}
         employees={undefined}
         roster={{ ...loaded, isPending: true, isFetching: true, fetchStatus: 'fetching' }}
-        onAssignMaster={vi.fn()}
+        onOpenUnit={vi.fn()}
       />,
     );
     expect(screen.getByRole('status').textContent).toContain('Загрузка');

@@ -25,7 +25,7 @@ export function workloadModel(input: {
         businessDate: item.businessDate,
         startMs: plan.planStartAt.getTime(),
         endMs: plan.planEndAt.getTime(),
-        isNight: template.isNight,
+        period: template.period,
         breakMinutes: breakMinutes(item, template, input.timezone),
       },
     ];

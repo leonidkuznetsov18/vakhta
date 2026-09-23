@@ -1,8 +1,10 @@
-import { UnitMasterPicker, profileDirectoryOptions } from '@/features/employee-profile';
+import { UnitMasterField, profileDirectoryOptions } from '@/features/employee-profile';
+import { UnitSheet } from '@/features/unit-settings';
+import { ShiftChip, currentShiftsByUnit, shiftTemplatesQuery } from '@/entities/shift-template';
 import { OrgTree } from '@/features/org-structure';
 import { useState, type FormEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { OrgSnapshot } from '@vakhta/contracts';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { OrgSnapshot, ShiftTemplateView } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -24,7 +26,9 @@ import { isBlank } from '@/lib/forms';
 import { AddDialog } from '@/components/app/add-dialog';
 import { DialogFooter } from '@/components/ui/dialog';
 import { useConfirm } from '@/components/app/confirm-dialog';
-import { PencilIcon, Trash2Icon } from 'lucide-react';
+import { PanelRightOpenIcon, PencilIcon, Trash2Icon } from 'lucide-react';
+import { WebRole, canActOn } from '@vakhta/domain';
+import { useNavigation } from '@/navigation';
 import { EditDirectoryDialog, type DirectoryEdit } from './EditDirectoryDialog.tsx';
 import { ApiError } from '../api.ts';
 
@@ -52,12 +56,27 @@ interface Props {
 
 /** Enterprise directories: sites, units, teams, positions, zones (spec 9.1). */
 export function DirectoriesTab({ org }: Props) {
-  const [masterUnit, setMasterUnit] = useState<OrgSnapshot['orgUnits'][number] | null>(null);
+  const [openUnitId, setOpenUnitId] = useState<string | null>(null);
+  const { grants } = useNavigation();
+  const openUnit = org.orgUnits.find((unit) => unit.id === openUnitId) ?? null;
+  // Unit settings (master, shifts) are an administrator's; everyone else reads them.
+  const unitEditable =
+    !!openUnit &&
+    canActOn(grants, [WebRole.ADMIN], { siteId: openUnit.siteId, orgUnitId: openUnit.id });
+  // Current shifts of every site, grouped by unit, for the Shifts column.
+  const shiftLists = useQueries({
+    queries: org.sites.map((site) => shiftTemplatesQuery({ siteId: site.id })),
+  });
+  const shiftsByUnit = currentShiftsByUnit(
+    shiftLists.flatMap((query) => query.data ?? []),
+    currentLocale(),
+  );
   const [needsMaster, setNeedsMaster] = useState(false);
   const [unitsView, setUnitsView] = usePersistentState<UnitsView>('directories.unitsView', 'table');
   // The tree needs the whole roster; the table does not, so the read waits until the tree is chosen.
   const roster = useQuery({ ...profileDirectoryOptions(), enabled: unitsView === 'tree' });
   const profileText = all.employeeProfile;
+  const unitShiftsText = all.unitShifts;
   const [dlg, setDlg] = useState<'sites' | 'orgUnits' | 'teams' | 'positions' | 'zones' | null>(
     null,
   );
@@ -182,14 +201,12 @@ export function DirectoriesTab({ org }: Props) {
     {
       key: 'master',
       header: d.unitMaster,
-      cell: (u) => (
-        <div className="flex flex-wrap items-center gap-2">
-          <span>{u.designatedMaster?.name ?? profileText.missingMaster}</span>
-          <Button size="sm" variant="outline" onClick={() => setMasterUnit(u)}>
-            {profileText.setMaster}
-          </Button>
-        </div>
-      ),
+      cell: (u) => u.designatedMaster?.name ?? <Muted>{profileText.missingMaster}</Muted>,
+    },
+    {
+      key: 'shifts',
+      header: unitShiftsText.shiftsColumn,
+      cell: (u) => <UnitShiftChips shifts={shiftsByUnit.get(u.id) ?? []} />,
     },
   ];
   const teamColumns: Column<OrgSnapshot['teams'][number]>[] = [
@@ -377,7 +394,16 @@ export function DirectoriesTab({ org }: Props) {
           </AddDialog>
         }
       >
-        {masterUnit && <UnitMasterPicker unit={masterUnit} onClose={() => setMasterUnit(null)} />}
+        {openUnit && (
+          <UnitSheet
+            unit={openUnit}
+            siteName={siteName(openUnit.siteId)}
+            parentName={openUnit.parentId ? unitName(openUnit.parentId) : null}
+            editable={unitEditable}
+            master={<UnitMasterField key={openUnit.id} unit={openUnit} editable={unitEditable} />}
+            onClose={() => setOpenUnitId(null)}
+          />
+        )}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="flex items-center gap-1">
             <StateFilter
@@ -404,12 +430,23 @@ export function DirectoriesTab({ org }: Props) {
             org={org}
             employees={roster.data}
             roster={roster}
-            onAssignMaster={setMasterUnit}
+            onOpenUnit={(unit) => setOpenUnitId(unit.id)}
           />
         ) : (
           <DataTable
             columns={unitColumns}
-            rowActions={(u) => rowMenu('orgUnits', u, { kind: 'orgUnits', row: u })}
+            onRowClick={(u) => setOpenUnitId(u.id)}
+            detailTrigger="row-menu"
+            activeKey={openUnitId ?? undefined}
+            rowActions={(u) => [
+              {
+                key: 'open',
+                label: unitShiftsText.openUnit,
+                icon: PanelRightOpenIcon,
+                onSelect: () => setOpenUnitId(u.id),
+              },
+              ...rowMenu('orgUnits', u, { kind: 'orgUnits', row: u }),
+            ]}
             searchText={(u) => u.name}
             rows={
               needsMaster ? org.orgUnits.filter((unit) => !unit.masterEmployeeId) : org.orgUnits
@@ -690,5 +727,19 @@ export function DirectoriesTab({ org }: Props) {
       />
       {dialog}
     </div>
+  );
+}
+
+/** A unit's own shifts as compact chips; a unit without them works on the standard shifts. */
+function UnitShiftChips({ shifts }: { readonly shifts: readonly ShiftTemplateView[] }) {
+  const text = all.unitShifts;
+  if (shifts.length === 0) return <Muted>{text.standardOnly}</Muted>;
+  return (
+    <span className="flex flex-wrap items-center gap-1">
+      {shifts.slice(0, 3).map((shift) => (
+        <ShiftChip key={shift.id} shift={shift} />
+      ))}
+      {shifts.length > 3 && <Muted>{format(text.moreCount, { count: shifts.length - 3 })}</Muted>}
+    </span>
   );
 }

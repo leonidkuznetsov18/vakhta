@@ -45,6 +45,9 @@ import {
   evaluatePlan,
   holidayRegion,
   holidaysBetween,
+  isTemplateSelectable,
+  ShiftTemplateError,
+  templateLineage,
   planInstants,
 } from '@vakhta/domain';
 import {
@@ -371,6 +374,13 @@ export class StaffingService {
       const absences = await loadAbsences(tx, { employeeIds: ids, from: range.from, to: range.to });
       const preferences = await loadPreferences(tx, ids);
       const rules = await loadRules(tx, query.siteId);
+      // Demand on any version of the shift applies to its current version.
+      const lineage = templateLineage(
+        await tx
+          .select({ id: shiftTemplates.id, replacedById: shiftTemplates.replacedById })
+          .from(shiftTemplates)
+          .where(eq(shiftTemplates.siteId, query.siteId)),
+      );
       const requirements = (
         await tx
           .select()
@@ -379,7 +389,7 @@ export class StaffingService {
       ).map((row) => ({
         id: row.id,
         zoneId: row.zoneId,
-        templateId: row.templateId,
+        templateId: lineage(row.templateId),
         requiredCount: row.requiredCount,
         qualificationId: row.qualificationId,
         effectiveFrom: row.effectiveFrom,
@@ -405,7 +415,7 @@ export class StaffingService {
                 businessDate: query.businessDate,
                 startMs: plan.planStartAt.getTime(),
                 endMs: plan.planEndAt.getTime(),
-                templateId: query.templateId,
+                templateId: lineage(query.templateId),
                 zoneId: query.zoneId,
                 orgUnitId: query.orgUnitId,
               },
@@ -543,6 +553,12 @@ export class StaffingService {
         .where(and(eq(shiftTemplates.id, cmd.templateId), eq(shiftTemplates.siteId, zone.siteId)));
       if (!template)
         throw new DomainError('TEMPLATE_NOT_FOUND', 422, 'Template does not belong to the site');
+      if (!isTemplateSelectable(template, zone.orgUnitId))
+        throw new DomainError(
+          template.isActive ? ShiftTemplateError.OUT_OF_UNIT : ShiftTemplateError.RETIRED,
+          422,
+          `Template ${template.id} is not offered in the zone's unit`,
+        );
       if (cmd.qualificationId) {
         const [qualification] = await tx
           .select()

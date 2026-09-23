@@ -17,7 +17,7 @@ import {
   sql,
   telegramAccounts,
 } from '@vakhta/db';
-import { DEFAULT_ATTENDANCE_WINDOW, addMonths, businessDateOf } from '@vakhta/domain';
+import { DEFAULT_ATTENDANCE_WINDOW, addMonths, businessDateOf, ShiftPeriod } from '@vakhta/domain';
 import { assignmentAcknowledgements } from '@vakhta/db';
 import { hashChallengeToken } from '@vakhta/domain/node';
 import { format, messages } from '@vakhta/i18n';
@@ -329,7 +329,7 @@ describe('Telegram departure callback: QR and shift/presence consistency', () =>
           name: 'Day',
           localStart: '08:00',
           localEnd: '20:00',
-          isNight: false,
+          period: ShiftPeriod.DAY,
         },
         actor,
       );

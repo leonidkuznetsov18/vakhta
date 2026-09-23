@@ -30,6 +30,7 @@ import { EmployeeProfileService } from './employee-profile.service.js';
 import { EmployeeCompensationService } from './employee-compensation.service.js';
 import { EmployeeAvatarService, normalizeEmployeeAvatar } from './employee-avatar.service.js';
 import { EmployeeAvatarCleanupService } from './employee-avatar-cleanup.service.js';
+import { ShiftPeriod } from '@vakhta/domain';
 
 export const profileTestUser = (...grants: RoleGrant[]): WebUser => ({
   id: '11111111-1111-4111-8111-111111111111',
@@ -150,6 +151,7 @@ describe('employee profile integration', () => {
         name: 'Day',
         localStart: '08:00',
         localEnd: '20:00',
+        period: ShiftPeriod.DAY,
       })
       .returning();
     if (!zone || !template) throw new Error('Missing shift details');

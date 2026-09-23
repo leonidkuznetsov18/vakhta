@@ -1,6 +1,14 @@
 import type { OverviewSiteContext, OverviewSnapshot } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
-import { CircleAlertIcon, Clock3Icon, MoonIcon, SunIcon } from 'lucide-react';
+import { ShiftPeriod } from '@vakhta/domain';
+import {
+  CircleAlertIcon,
+  Clock3Icon,
+  MoonIcon,
+  SunIcon,
+  SunMoonIcon,
+  type LucideIcon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { InfoTip } from '@/components/app/info-tip';
 import { LiveBadge, Muted, StatusPill } from '@/components/app/page';
@@ -14,6 +22,12 @@ import { businessDateLabel, minutesUntil, overviewText, siteTime } from '../mode
  * there and how long it has left, whether the previous shift is still closing, and how fresh the
  * numbers are. The selector lists only what the reader's grants reach.
  */
+
+const PERIOD_ICON: Record<ShiftPeriod, LucideIcon> = {
+  [ShiftPeriod.DAY]: SunIcon,
+  [ShiftPeriod.NIGHT]: MoonIcon,
+  [ShiftPeriod.FULL_DAY]: SunMoonIcon,
+};
 export function ShiftHeader({
   snapshot,
   selection,
@@ -135,7 +149,7 @@ function ShiftLine({
   const current = ctx.current?.staffed ? ctx.current : null;
   const closing = ctx.closingPrevious?.staffed ? ctx.closingPrevious : null;
   const next = ctx.next?.staffed ? ctx.next : null;
-  const Icon = current?.isNight ? MoonIcon : SunIcon;
+  const Icon = PERIOD_ICON[current?.period ?? ShiftPeriod.DAY];
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
       {showSite && <span className="font-medium">{ctx.siteName}</span>}

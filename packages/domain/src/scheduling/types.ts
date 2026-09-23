@@ -15,6 +15,11 @@ export type ScheduleAction = (typeof SCHEDULE_ACTIONS)[number];
 export const SHIFT_KINDS = ['REGULAR', 'EXTRA', 'REPLACEMENT', 'SWAP'] as const;
 export type ShiftKind = (typeof SHIFT_KINDS)[number];
 
+/** Part of the day a shift template covers; drives its colour and its name for workers. */
+export const ShiftPeriod = { DAY: 'DAY', NIGHT: 'NIGHT', FULL_DAY: 'FULL_DAY' } as const;
+export type ShiftPeriod = (typeof ShiftPeriod)[keyof typeof ShiftPeriod];
+export const SHIFT_PERIODS = [ShiftPeriod.DAY, ShiftPeriod.NIGHT, ShiftPeriod.FULL_DAY] as const;
+
 export const ASSIGNMENT_STATUSES = ['PLANNED', 'CANCELLED', 'REPLACED'] as const;
 export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number];
 
@@ -29,7 +34,7 @@ export interface PlannedShift {
   readonly businessDate: string;
   readonly planStartAt: Date;
   readonly planEndAt: Date;
-  readonly isNight: boolean;
+  readonly period: ShiftPeriod;
   readonly templateCode: string;
   readonly zoneId: string | null;
   /** Older callers omit metadata; publication equivalence uses REGULAR/null defaults. */
