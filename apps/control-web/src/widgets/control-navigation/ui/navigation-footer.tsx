@@ -5,7 +5,12 @@ import { LogOut, Monitor, Moon, Sun, Info } from 'lucide-react';
 import { cn } from 'cn';
 import { toast } from 'sonner';
 import { controlApi, type Operator } from '@/shared/api';
-import { LOCALES, currentLocale, setLocale, t, type Locale } from '@/shared/i18n';
+import { currentLocale, t } from '@/shared/i18n';
+import {
+  CompactLanguageSwitcher,
+  LanguageSwitcher,
+  SELECTED_TOGGLE,
+} from '@/shared/ui/language-switcher';
 import { UserAvatar } from '@/shared/ui/user-avatar';
 import { InfoTooltip } from '@/shared/ui/info-tooltip';
 import { Button } from '@/components/ui/button';
@@ -25,9 +30,6 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar';
 
-const SELECTED_TOGGLE =
-  'border-emerald-500 text-foreground shadow-sm shadow-emerald-100 dark:border-emerald-600 dark:shadow-none';
-const FLAGS: Record<Locale, string> = { uk: '🇺🇦', en: '🇬🇧', ru: 'РУ' };
 const THEMES = [
   { key: 'light', icon: Sun },
   { key: 'dark', icon: Moon },
@@ -102,7 +104,6 @@ function Preferences() {
   const selected = THEMES.find((item) => item.key === theme) ?? THEMES[2];
   const CurrentIcon = selected.icon;
   const nextTheme = THEMES[(THEMES.indexOf(selected) + 1) % THEMES.length] ?? THEMES[0];
-  const nextLocale = LOCALES[(LOCALES.indexOf(locale) + 1) % LOCALES.length] ?? LOCALES[0];
   return (
     <>
       <LanguagePreferences />
@@ -127,16 +128,7 @@ function Preferences() {
         ))}
       </div>
       <div className="hidden flex-col items-center gap-1 group-data-[collapsible=icon]:flex">
-        <Button
-          size="icon"
-          variant="outline"
-          className="size-8 text-base leading-none font-semibold"
-          aria-label={`${m.admin.language}: ${m.language.names[locale]}`}
-          title={m.language.names[nextLocale]}
-          onClick={() => setLocale(nextLocale)}
-        >
-          {FLAGS[locale]}
-        </Button>
+        <CompactLanguageSwitcher />
         <Button
           size="icon"
           variant="outline"
@@ -181,26 +173,7 @@ function LanguagePreferences() {
   const m = messages(locale);
   return (
     <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden">
-      <div className="flex flex-1 gap-1" role="group" aria-label={m.admin.language}>
-        {LOCALES.map((key) => (
-          <Button
-            key={key}
-            size="sm"
-            variant="outline"
-            aria-pressed={key === locale}
-            aria-label={m.language.names[key]}
-            title={m.language.names[key]}
-            lang={key}
-            className={cn(
-              'flex-1 text-base leading-none font-semibold',
-              key === locale && SELECTED_TOGGLE,
-            )}
-            onClick={() => setLocale(key)}
-          >
-            <span aria-hidden="true">{FLAGS[key]}</span>
-          </Button>
-        ))}
-      </div>
+      <LanguageSwitcher className="flex-1" />
       <InfoTooltip
         className="size-5 rounded-full text-muted-foreground max-md:size-5"
         label={m.admin.language}

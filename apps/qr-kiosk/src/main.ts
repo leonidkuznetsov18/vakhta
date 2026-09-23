@@ -61,13 +61,18 @@ const el = {
   lang: byId('lang'),
 };
 
-/** Language buttons: the choice is stored and the page reloads, so every text is redrawn at once. */
-const LANGUAGE_LABELS: Record<Locale, string> = { uk: 'UA', en: 'EN', ru: 'РУ' };
+/**
+ * Language buttons with the panel's symbols (Russian is a plain "РУ" badge by the customer's choice).
+ * The choice is stored and the page reloads, so every text is redrawn at once.
+ */
+const LANGUAGE_LABELS: Record<Locale, string> = { uk: '🇺🇦', en: '🇬🇧', ru: 'РУ' };
 el.lang.setAttribute('aria-label', t.kiosk.language);
 for (const code of LOCALES) {
   const button = document.createElement('button');
   button.type = 'button';
   button.textContent = LANGUAGE_LABELS[code];
+  button.setAttribute('aria-label', t.language.names[code]);
+  button.title = t.language.names[code];
   button.lang = code;
   button.className = code === locale ? 'lang-button active' : 'lang-button';
   button.setAttribute('aria-pressed', String(code === locale));

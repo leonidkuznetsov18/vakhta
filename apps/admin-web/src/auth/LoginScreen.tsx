@@ -3,17 +3,16 @@ import { useMutation } from '@tanstack/react-query';
 import { isBlank } from '@/lib/forms';
 import { messages } from '@vakhta/i18n';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Feedback } from '@/components/app/feedback';
 import { FormField } from '@/components/app/fields';
 import { ApiError, authApi } from '../api.ts';
-import { LanguageSwitcher, currentLocale } from '../i18n.tsx';
+import { currentLocale } from '../i18n.tsx';
 import { useDocumentTitle } from '@/lib/title';
 import { validateWith, type FieldErrors } from '@/lib/validation';
 import { z } from 'zod';
 import { tenantConfig } from '@/shared/config/tenant';
-import { LogoMark } from '@/components/app/logo';
+import { AuthScreen } from '@/shared/ui/auth-screen';
 
 const all = messages(currentLocale());
 const t = all.admin.auth;
@@ -73,74 +72,64 @@ export function LoginScreen({ onSignedIn, offline }: Props) {
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <div className="flex min-w-0 items-center gap-3 font-semibold">
-            <LogoMark className="size-12" />
-            <span className="break-words [overflow-wrap:anywhere]">{displayName}</span>
-          </div>
-          <CardTitle>{step === 'password' ? t.signInTitle : t.totpTitle}</CardTitle>
-          {step === 'totp' ? <CardDescription>{t.totpHint}</CardDescription> : null}
-        </CardHeader>
-        <CardContent>
-          <form
-            className="flex flex-col gap-4"
-            onSubmit={step === 'password' ? submitPassword : submitCode}
-            noValidate={step === 'password'}
-          >
-            {step === 'password' ? (
-              <>
-                <FormField label={t.email} error={fieldErrors.email}>
-                  {(id) => (
-                    <Input
-                      id={id}
-                      type="email"
-                      autoComplete="username"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  )}
-                </FormField>
-                <FormField label={t.password} error={fieldErrors.password}>
-                  {(id) => (
-                    <Input
-                      id={id}
-                      type="password"
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
-                  )}
-                </FormField>
-              </>
-            ) : (
-              <FormField label={t.code}>
-                {(id) => (
-                  <Input
-                    id={id}
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    pattern="[0-9]{6}"
-                    required
-                    autoFocus
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                  />
-                )}
-              </FormField>
+    <AuthScreen
+      title={step === 'password' ? t.signInTitle : t.totpTitle}
+      description={step === 'totp' ? t.totpHint : undefined}
+    >
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={step === 'password' ? submitPassword : submitCode}
+        noValidate={step === 'password'}
+      >
+        {step === 'password' ? (
+          <>
+            <FormField label={t.email} error={fieldErrors.email}>
+              {(id) => (
+                <Input
+                  id={id}
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              )}
+            </FormField>
+            <FormField label={t.password} error={fieldErrors.password}>
+              {(id) => (
+                <Input
+                  id={id}
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              )}
+            </FormField>
+          </>
+        ) : (
+          <FormField label={t.code}>
+            {(id) => (
+              <Input
+                id={id}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                required
+                autoFocus
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
             )}
-            <Feedback error={error} notice={null} />
-            <Button
-              type="submit"
-              disabled={busy || (step === 'password' ? isBlank(email) || !password : isBlank(code))}
-            >
-              {step === 'password' ? t.signIn : t.verify}
-            </Button>
-            <LanguageSwitcher />
-          </form>
-        </CardContent>
-      </Card>
-    </main>
+          </FormField>
+        )}
+        <Feedback error={error} notice={null} />
+        <Button
+          type="submit"
+          disabled={busy || (step === 'password' ? isBlank(email) || !password : isBlank(code))}
+        >
+          {step === 'password' ? t.signIn : t.verify}
+        </Button>
+      </form>
+    </AuthScreen>
   );
 }

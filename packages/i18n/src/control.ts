@@ -333,7 +333,7 @@ export const controlUk: ControlMessages = {
   },
   auth: {
     title: 'Вхід оператора',
-    email: 'E-mail',
+    email: 'Електронна пошта',
     password: 'Пароль',
     signIn: 'Увійти',
     totpCode: 'Код з застосунку-автентифікатора',
@@ -652,7 +652,7 @@ export const controlEn: ControlMessages = {
   },
   auth: {
     title: 'Operator sign-in',
-    email: 'E-mail',
+    email: 'Email',
     password: 'Password',
     signIn: 'Sign in',
     totpCode: 'Code from your authenticator app',
@@ -970,7 +970,7 @@ export const controlRu: ControlMessages = {
   },
   auth: {
     title: 'Вход оператора',
-    email: 'E-mail',
+    email: 'Электронная почта',
     password: 'Пароль',
     signIn: 'Войти',
     totpCode: 'Код из приложения-аутентификатора',

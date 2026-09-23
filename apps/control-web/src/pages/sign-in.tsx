@@ -3,11 +3,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import QRCode from 'qrcode';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ControlApiError, controlApi, queryKeys } from '@/shared/api';
 import { t } from '@/shared/i18n';
 import { Field } from '@/shared/ui';
+import { AuthScreen, FormError } from '@/shared/ui/auth-screen';
 
 type Stage = 'credentials' | 'totp' | 'setup';
 interface Setup {
@@ -55,37 +55,32 @@ export function SignInPage() {
   });
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md items-center px-4">
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>{stage === 'setup' ? m.setupTitle : m.title}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {stage === 'credentials' ? (
-            <CredentialsForm busy={signIn.isPending} onSubmit={(values) => signIn.mutate(values)} />
-          ) : (
-            <TotpForm
-              setup={setup}
-              busy={verify.isPending}
-              onSubmit={(code) => verify.mutate(code)}
-            />
-          )}
-          {error ? (
-            <p role="alert" className="text-sm text-red-700">
-              {error}
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
-    </main>
+    <AuthScreen title={stage === 'setup' ? m.setupTitle : m.title}>
+      {stage === 'credentials' ? (
+        <CredentialsForm
+          busy={signIn.isPending}
+          error={error}
+          onSubmit={(values) => signIn.mutate(values)}
+        />
+      ) : (
+        <TotpForm
+          setup={setup}
+          busy={verify.isPending}
+          error={error}
+          onSubmit={(code) => verify.mutate(code)}
+        />
+      )}
+    </AuthScreen>
   );
 }
 
 function CredentialsForm({
   busy,
+  error,
   onSubmit,
 }: {
   busy: boolean;
+  error: string | null;
   onSubmit: (v: { email: string; password: string }) => void;
 }) {
   const m = t().auth;
@@ -116,6 +111,7 @@ function CredentialsForm({
           onChange={(e) => setPassword(e.target.value)}
         />
       </Field>
+      <FormError message={error} />
       <Button type="submit" disabled={!ready}>
         {m.signIn}
       </Button>
@@ -126,10 +122,12 @@ function CredentialsForm({
 function TotpForm({
   setup,
   busy,
+  error,
   onSubmit,
 }: {
   setup: Setup | null;
   busy: boolean;
+  error: string | null;
   onSubmit: (code: string) => void;
 }) {
   const m = t().auth;
@@ -160,6 +158,7 @@ function TotpForm({
           onChange={(e) => setCode(e.target.value.trim())}
         />
       </Field>
+      <FormError message={error} />
       <Button type="submit" disabled={!ready}>
         {setup ? m.enable : m.verify}
       </Button>

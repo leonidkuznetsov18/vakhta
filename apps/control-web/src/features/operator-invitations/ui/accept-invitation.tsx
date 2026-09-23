@@ -2,9 +2,9 @@ import { InvitationField as Field } from './invitation-field';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { FailureState, LoadingState } from '@/shared/ui';
+import { AuthScreen } from '@/shared/ui/auth-screen';
 import { t } from '@/shared/i18n';
 import { operatorQueries } from '../api/invitations';
 import { invitationError, useAcceptInvitation } from '../model/forms';
@@ -13,49 +13,42 @@ export function AcceptInvitation({ token, done }: { token: string; done: boolean
   const m = t().operatorInvitations;
   const query = useQuery(operatorQueries.invitation(done ? '' : token));
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md items-center px-4 py-8">
-      <Card className="w-full min-w-0">
-        <CardHeader>
-          <CardTitle>{done ? m.saved : m.setPassword}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {done ? (
-            <>
-              <p className="text-sm text-muted-foreground">{m.signInHint}</p>
-              <Button asChild>
-                <Link to="/">{t().auth.signIn}</Link>
-              </Button>
-            </>
-          ) : (
-            <>
-              {!token ? <FailureState message={m.unavailable} /> : null}
-              {query.isFetching ? <LoadingState /> : null}
-              {query.isPaused ? (
-                <FailureState message={m.offline} onRetry={() => void query.refetch()} />
-              ) : null}
-              {query.error ? (
-                <FailureState
-                  message={invitationError(query.error)}
-                  onRetry={() => void query.refetch()}
-                />
-              ) : null}
-              {query.data ? (
-                <>
-                  <p className="break-words font-medium">{query.data.name}</p>
-                  <p className="break-all text-sm text-muted-foreground">{query.data.email}</p>
-                  <PasswordForm token={token} />
-                </>
-              ) : null}
-            </>
-          )}
-          {!done ? (
-            <Button asChild variant="outline">
-              <Link to="/">{t().auth.signIn}</Link>
-            </Button>
+    <AuthScreen title={done ? m.saved : m.setPassword}>
+      {done ? (
+        <>
+          <p className="text-sm text-muted-foreground">{m.signInHint}</p>
+          <Button asChild>
+            <Link to="/">{t().auth.signIn}</Link>
+          </Button>
+        </>
+      ) : (
+        <>
+          {!token ? <FailureState message={m.unavailable} /> : null}
+          {query.isFetching ? <LoadingState /> : null}
+          {query.isPaused ? (
+            <FailureState message={m.offline} onRetry={() => void query.refetch()} />
           ) : null}
-        </CardContent>
-      </Card>
-    </main>
+          {query.error ? (
+            <FailureState
+              message={invitationError(query.error)}
+              onRetry={() => void query.refetch()}
+            />
+          ) : null}
+          {query.data ? (
+            <>
+              <p className="break-words font-medium">{query.data.name}</p>
+              <p className="break-all text-sm text-muted-foreground">{query.data.email}</p>
+              <PasswordForm token={token} />
+            </>
+          ) : null}
+        </>
+      )}
+      {!done ? (
+        <Button asChild variant="outline">
+          <Link to="/">{t().auth.signIn}</Link>
+        </Button>
+      ) : null}
+    </AuthScreen>
   );
 }
 function PasswordForm({ token }: { token: string }) {

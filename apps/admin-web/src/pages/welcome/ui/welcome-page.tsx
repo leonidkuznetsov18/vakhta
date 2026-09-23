@@ -2,16 +2,15 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { OnboardingPassword, OnboardingStatus, type OnboardingView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
-import { currentLocale, LanguageSwitcher } from '@/i18n';
+import { currentLocale } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Feedback } from '@/components/app/feedback';
 import { FormField } from '@/components/app/fields';
 import { LoadingState } from '@/shared/ui/loading-state';
 import { acceptInvitation, InvitationUnavailable } from '../api/onboarding';
 import { welcomeQueries } from '../api/queries';
-import { LogoMark } from '@/components/app/logo';
+import { AuthScreen } from '@/shared/ui/auth-screen';
 
 const t = messages(currentLocale()).onboarding;
 function errorMessage(error: Error): string {
@@ -25,30 +24,22 @@ function signIn() {
 export function WelcomePage({ token }: { readonly token: string }) {
   const invitation = useQuery(welcomeQueries.invitation(token));
   return (
-    <main className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full min-w-0 max-w-lg">
-        <CardHeader className="gap-3">
-          <LanguageSwitcher />
-          <CardTitle className="break-words">{t.title}</CardTitle>
-        </CardHeader>
-        <CardContent className="grid min-w-0 gap-5">
-          {invitation.isPending ? <LoadingState label={t.loading} /> : null}
-          {invitation.isError ? (
-            <>
-              <Feedback error={errorMessage(invitation.error)} />
-              <Button
-                variant="outline"
-                onClick={() => void invitation.refetch()}
-                disabled={invitation.isFetching}
-              >
-                {t.retry}
-              </Button>
-            </>
-          ) : null}
-          {invitation.data ? <WelcomeContent token={token} invitation={invitation.data} /> : null}
-        </CardContent>
-      </Card>
-    </main>
+    <AuthScreen title={t.title}>
+      {invitation.isPending ? <LoadingState label={t.loading} /> : null}
+      {invitation.isError ? (
+        <>
+          <Feedback error={errorMessage(invitation.error)} />
+          <Button
+            variant="outline"
+            onClick={() => void invitation.refetch()}
+            disabled={invitation.isFetching}
+          >
+            {t.retry}
+          </Button>
+        </>
+      ) : null}
+      {invitation.data ? <WelcomeContent token={token} invitation={invitation.data} /> : null}
+    </AuthScreen>
   );
 }
 
@@ -62,12 +53,6 @@ function WelcomeContent({
   const [completed, setCompleted] = useState(invitation.status === OnboardingStatus.USED);
   return (
     <>
-      <div className="flex min-w-0 items-center gap-3">
-        <LogoMark className="size-12" />
-        <p className="break-words text-lg font-semibold [overflow-wrap:anywhere]">
-          {invitation.displayName}
-        </p>
-      </div>
       {completed ? (
         <>
           <p>{t.success}</p>

@@ -123,6 +123,11 @@ Panel: React 19 + Vite. Kiosk: Vite vanilla. Tests: Vitest + fast-check + testco
 
 - Use the shared calendar trigger/popover for period filters, consistent with Schedule. Do not hide
   the calendar behind an unrelated period dropdown. Reuse the same control across related pages.
+- Owner rule, 2026-09-23 — every signed-out screen (panel and Control sign-in, invitations) uses
+  the app's shared `AuthScreen`: logo and product name, title, form, and the flag `LanguageSwitcher`
+  as the last row of the card. Signed in, the switcher lives in the sidebar footer; the kiosk keeps
+  it in the bottom-left corner. All surfaces use the same symbols (🇺🇦, 🇬🇧, РУ).
+
 - Use `shared/ui/loading-state.tsx` (shadcn Spinner) for every loading animation. Do not add skeletons,
   pulsing placeholder rows/cards or custom spinner implementations. Keep operation-specific labels
   and accessible status feedback; render one loader per pending surface.
