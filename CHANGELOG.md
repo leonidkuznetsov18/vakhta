@@ -1,3 +1,9 @@
+## [1.29.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.28.0...v1.29.0) (2026-09-23)
+
+### Features
+
+* **auth:** one signed-out screen with the language switcher everywhere ([27703d1](https://github.com/leonidkuznetsov18/vakhta/commit/27703d1d5a1b9951f6d933d4f36b7c6209352a32))
+
 ## [1.28.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.27.1...v1.28.0) (2026-09-23)
 
 ### Features
