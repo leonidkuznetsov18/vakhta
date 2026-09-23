@@ -111,12 +111,16 @@ test('a disabled save names the action that unblocks it', async ({ page }, info)
   const save = buttonWithText(page, labels.save);
   await expect(save).toBeDisabled();
   const tooltip = page.getByRole('tooltip');
-  await page.getByLabel(labels.save, { exact: true }).focus();
+  // The disabled button's focusable wrapper opens the tooltip; refocus it after other input.
+  const saveTrigger = page.getByLabel(labels.save, { exact: true });
+  await saveTrigger.focus();
   await expect(tooltip).toHaveText(labels.validation.unchanged);
   await page.screenshot({ path: info.outputPath('save-unchanged.png') });
   await page.getByRole('checkbox', { name: labels.notAssessable, exact: true }).click();
   await expect(save).toBeDisabled();
-  await page.getByLabel(labels.save, { exact: true }).focus();
+  await saveTrigger.blur();
+  await expect(tooltip).toBeHidden();
+  await saveTrigger.focus();
   await expect(tooltip).toHaveText(labels.validation.reason);
   await expect(page.getByRole('alert').filter({ hasText: labels.validation.reason })).toBeVisible();
   await page.screenshot({ path: info.outputPath('save-reason.png') });
