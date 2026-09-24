@@ -41,3 +41,4 @@ export * from './branding.js';
 export * from './tenant-administrators.js';
 
 export * from './tenant-users.js';
+export * from './maintenance.js';

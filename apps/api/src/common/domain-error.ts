@@ -10,6 +10,8 @@ export class DomainError extends Error {
     readonly code: string,
     readonly status: 400 | 401 | 403 | 404 | 409 | 413 | 422 | 503,
     message: string,
+    /** Machine-readable details for the client, for example per-field issues. */
+    readonly details?: Readonly<Record<string, unknown>>,
   ) {
     super(message);
     this.name = 'DomainError';
@@ -22,6 +24,11 @@ export class DomainErrorFilter implements ExceptionFilter<DomainError> {
     const reply = host.switchToHttp().getResponse<FastifyReply>();
     void reply
       .status(exception.status)
-      .send({ statusCode: exception.status, code: exception.code, message: exception.message });
+      .send({
+        statusCode: exception.status,
+        code: exception.code,
+        message: exception.message,
+        ...exception.details,
+      });
   }
 }

@@ -37,16 +37,8 @@ export function errorMessage(code: TransitionErrorCode, locale: Locale = DEFAULT
   return catalogs[locale].errors[code];
 }
 
-/** Substitutes {key} placeholders. Unknown keys are left as is so the gap is visible in the text. */
-export function format(
-  template: string,
-  params: Readonly<Record<string, string | number>>,
-): string {
-  return template.replace(/\{(\w+)\}/g, (match, key: string) => {
-    const value = params[key];
-    return value === undefined ? match : String(value);
-  });
-}
+export { format } from './format.js';
+export * from './maintenance-notices.js';
 
 export { photoObjectVocabulary } from './photo-object-vocabulary.js';
 

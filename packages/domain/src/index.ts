@@ -49,3 +49,5 @@ export * from './employee-profile/zone.js';
 
 export * from './tenant/tenant.js';
 export * from './tenant/provisioning.js';
+
+export * from './maintenance/index.js';

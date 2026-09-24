@@ -18,6 +18,8 @@ export interface ObjectStorage {
   presignGet(key: string, ttlSeconds: number): Promise<string>;
   put?(key: string, body: Uint8Array, contentType: string): Promise<void>;
   delete?(key: string): Promise<void>;
+  /** The object's bytes, for sending a stored document through Telegram (spec 014). */
+  get?(key: string): Promise<Uint8Array>;
 }
 
 export const OBJECT_STORAGE = Symbol('OBJECT_STORAGE');
@@ -43,6 +45,13 @@ export class S3ObjectStorage implements ObjectStorage {
       return true;
     });
     if (!stored) throw new DomainError('TENANT_SUSPENDED', 403, 'Tenant is not active');
+  }
+  async get(key: string): Promise<Uint8Array> {
+    const result = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
+      abortSignal: AbortSignal.timeout(30_000),
+    });
+    if (!result.Body) throw new DomainError('STORAGE_UNAVAILABLE', 503, 'Object has no body');
+    return result.Body.transformToByteArray();
   }
   async delete(key: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }), {

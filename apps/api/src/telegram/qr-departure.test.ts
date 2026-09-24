@@ -51,6 +51,7 @@ import { ShiftService } from '../shift/shift.service.js';
 import { PLAN_MESSAGE_CALLBACK } from '../scheduling/schedule-change-notice.js';
 import { createBot } from './bot.factory.js';
 import { UpdateDedup } from './update-dedup.js';
+import { emergencyService } from '../../test/maintenance.js';
 
 const TELEGRAM_USER_ID = 10001;
 const TOKEN = 'A'.repeat(22);
@@ -157,6 +158,7 @@ function services(testDb: TestDatabase) {
     {
       sla: { normalMinutes: 30, criticalMinutes: 10, safetyMinutes: 0 },
     },
+    emergencyService(db, timers),
   );
   const handover = new HandoverService(
     db,

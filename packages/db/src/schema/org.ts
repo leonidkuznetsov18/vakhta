@@ -62,6 +62,8 @@ export const positions = pgTable('positions', {
   id: uuid('id').primaryKey().defaultRandom(),
   code: text('code').notNull().unique(),
   name: text('name').notNull(),
+  /** Employees in this position may be responsible for machines and their maintenance. */
+  performsMaintenance: boolean('performs_maintenance').notNull().default(false),
 });
 
 export const zoneType = pgEnum('zone_type', [

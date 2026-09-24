@@ -7,9 +7,11 @@ import {
   mediaObjects,
   employees,
   eq,
+  equipment,
   incidentStatusHistory,
   notificationOutbox,
   orgUnits,
+  positions,
   reasonCodes,
   responsibilityZones,
   scheduleVersions,
@@ -17,6 +19,7 @@ import {
   shiftTemplates,
   sites,
   sql,
+  workOrders,
 } from '@vakhta/db';
 import { DEFAULT_ATTENDANCE_WINDOW, ShiftPeriod } from '@vakhta/domain';
 import { AttendanceService } from '../attendance/attendance.service.js';
@@ -32,6 +35,7 @@ import { startTestDatabase, type TestDatabase } from '../../test/db.js';
 import { MediaService } from '../handover/media.service.js';
 import { IncidentChanges } from './incident-changes.js';
 import { IncidentsService } from './incidents.service.js';
+import { emergencyService } from '../../test/maintenance.js';
 
 const MASTER = { type: 'WEB_USER', id: null, role: 'SHIFT_MASTER', label: 'master' } as const;
 let n = 0;
@@ -101,6 +105,7 @@ describe('incidents: повідомлення про проблему, дубл�
       {
         sla: { normalMinutes: 60, criticalMinutes: 30, safetyMinutes: 0 },
       },
+      emergencyService(testDb.db, timers),
     );
 
     const [site] = await testDb.db
@@ -639,5 +644,76 @@ describe('incidents: повідомлення про проблему, дубл�
     expect(await incidents.list({ scope: 'all', from: opened, to: after })).toHaveLength(1);
     expect(await incidents.list({ scope: 'all', to: opened })).toHaveLength(0);
     expect(await incidents.list({ scope: 'all', from: after })).toHaveLength(0);
+  });
+
+  it('a stopped breakdown on a named machine opens one emergency repair and stops it (spec 014)', async () => {
+    const [zone] = await testDb.db
+      .select()
+      .from(responsibilityZones)
+      .where(eq(responsibilityZones.id, zoneA));
+    if (!zone) throw new Error('zone A missing');
+    const [position] = await testDb.db
+      .insert(positions)
+      .values({ code: 'MECHANIC', name: 'Наладчик', performsMaintenance: true })
+      .returning();
+    if (!position) throw new Error('position missing');
+    const [mechanic] = await testDb.db
+      .insert(employees)
+      .values({ personnelNumber: 'm1', fullName: 'Механик' })
+      .returning();
+    if (!mechanic) throw new Error('mechanic missing');
+    const [machine] = await testDb.db
+      .insert(equipment)
+      .values({
+        code: 'FB-100',
+        codeKey: 'fb-100',
+        name: 'Cup machine',
+        siteId: zone.siteId,
+        orgUnitId: zone.orgUnitId,
+        zoneId: zoneA,
+        criticality: 'HIGH',
+        responsibleEmployeeId: mechanic.id,
+      })
+      .returning();
+    if (!machine) throw new Error('machine missing');
+    const report = (employeeId: string) =>
+      incidents.report(
+        employeeId,
+        {
+          reasonCode: 'BREAKDOWN',
+          equipmentId: machine.id,
+          photoFileId: 'test-photo',
+          photoFileUniqueId: 'test-photo-unique',
+          stoppedWork: true,
+          idempotencyKey: key(),
+        },
+        employeeActor(employeeId),
+      );
+
+    const first = await report(ivanov);
+    await report(petrova);
+
+    const repairs = await testDb.db
+      .select()
+      .from(workOrders)
+      .where(eq(workOrders.equipmentId, machine.id));
+    expect(repairs).toHaveLength(1);
+    expect(repairs[0]).toMatchObject({
+      type: 'EMERGENCY_REPAIR',
+      incidentId: first.incidentId,
+      assigneeEmployeeId: mechanic.id,
+    });
+    const [stopped] = await testDb.db.select().from(equipment).where(eq(equipment.id, machine.id));
+    expect(stopped?.state).toBe('STOPPED');
+    const [incident] = await testDb.db
+      .select()
+      .from(downtimeIncidents)
+      .where(eq(downtimeIncidents.id, first.incidentId));
+    expect(incident?.equipmentId).toBe(machine.id);
+
+    // A worker of another zone cannot name this machine.
+    const outside = await report(sidorov).catch((error: unknown) => error);
+    expect(outside).toBeInstanceOf(DomainError);
+    expect(outside).toMatchObject({ code: 'EQUIPMENT_NOT_IN_ZONE' });
   });
 });

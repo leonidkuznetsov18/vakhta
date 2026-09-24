@@ -14,6 +14,7 @@ import { HandoverModule } from './handover/handover.module.js';
 import { HealthModule } from './health/health.module.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { IncidentsModule } from './incidents/incidents.module.js';
+import { MaintenanceModule } from './maintenance/maintenance.module.js';
 import { DatabaseModule } from './infra/database.module.js';
 import { RedisModule } from './infra/redis.module.js';
 import { QueueModule } from './infra/timers.queue.js';
@@ -62,6 +63,7 @@ import { SupportModule } from './support/support.module.js';
     AttendanceModule,
     ShiftModule,
     IncidentsModule,
+    MaintenanceModule,
     OverviewModule,
     HandoverModule,
     PhotoInspectionModule,

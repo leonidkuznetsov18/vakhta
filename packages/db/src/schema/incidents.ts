@@ -8,10 +8,12 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { IncidentSeverity, IncidentStatus } from '@vakhta/domain';
 import { employees } from './identity.js';
 import { orgUnits, responsibilityZones, sites } from './org.js';
 import { shiftSessions } from './shift.js';
+import { equipment } from './maintenance.js';
 
 const INCIDENT_STATUS_VALUES = [
   'REPORTED',
@@ -39,6 +41,8 @@ export const downtimeIncidents = pgTable(
     siteId: uuid('site_id').references(() => sites.id),
     orgUnitId: uuid('org_unit_id').references(() => orgUnits.id),
     zoneId: uuid('zone_id').references(() => responsibilityZones.id),
+    /** The machine the problem is on, when the reporter or the master named it (spec 014). */
+    equipmentId: uuid('equipment_id').references((): AnyPgColumn => equipment.id),
     reasonCode: text('reason_code').notNull(),
     severity: incidentSeverity('severity').notNull().default('NORMAL'),
     status: incidentStatus('status').notNull().default('REPORTED'),
@@ -78,6 +82,7 @@ export const downtimeReports = pgTable(
       .notNull()
       .references(() => employees.id),
     zoneId: uuid('zone_id').references(() => responsibilityZones.id),
+    equipmentId: uuid('equipment_id').references((): AnyPgColumn => equipment.id),
     reasonCode: text('reason_code').notNull(),
     comment: text('comment'),
     stoppedWork: boolean('stopped_work').notNull().default(false),

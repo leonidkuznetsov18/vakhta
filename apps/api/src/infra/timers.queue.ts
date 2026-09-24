@@ -1,5 +1,6 @@
 import { Global, Injectable, Module, Logger } from '@nestjs/common';
 import {
+  MaintenanceTimerKind,
   timerTaskIntent,
   type DowntimeEscalationJob,
   type ReturnReminderJob,
@@ -43,6 +44,28 @@ export class TimerScheduler {
     return this.enqueue(tx, {
       kind: 'DOWNTIME_ESCALATION',
       payload: { ...job, fireAt: fireAt.toISOString() },
+    });
+  }
+  scheduleMaintenanceReminder(
+    tx: Transaction,
+    job: { workOrderId: string; plannedOn: string; offsetDays: number },
+    fireAt: Date,
+  ): Promise<void> {
+    return this.enqueue(tx, {
+      kind: MaintenanceTimerKind.MAINTENANCE_REMINDER,
+      payload: { ...job, fireAt: fireAt.toISOString() },
+    });
+  }
+  scheduleEmergencyAck(tx: Transaction, workOrderId: string, fireAt: Date): Promise<void> {
+    return this.enqueue(tx, {
+      kind: MaintenanceTimerKind.EMERGENCY_ACK,
+      payload: { workOrderId, fireAt: fireAt.toISOString() },
+    });
+  }
+  scheduleEmergencyEscalation(tx: Transaction, workOrderId: string, fireAt: Date): Promise<void> {
+    return this.enqueue(tx, {
+      kind: MaintenanceTimerKind.EMERGENCY_ESCALATION,
+      payload: { workOrderId, fireAt: fireAt.toISOString() },
     });
   }
   scheduleIncidentSla(tx: Transaction, incidentId: string, fireAt: Date): Promise<void> {

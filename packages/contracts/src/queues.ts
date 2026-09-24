@@ -111,3 +111,27 @@ export const AbsenceReturnJob = z.object({
   fireAt: IsoDateTime,
 });
 export type AbsenceReturnJob = z.infer<typeof AbsenceReturnJob>;
+
+/** Reminder to the responsible mechanic before planned maintenance (spec 014, FR-040). */
+export const MaintenanceReminderJob = z.object({
+  ...TenantJobFields,
+  workOrderId: Uuid,
+  plannedOn: BusinessDate,
+  offsetDays: z.number().int().positive().max(365),
+  fireAt: IsoDateTime,
+});
+export type MaintenanceReminderJob = z.infer<typeof MaintenanceReminderJob>;
+
+/** Acknowledgement deadline and later escalation of an emergency repair (FR-063). */
+export const EmergencyAckJob = z.object({
+  ...TenantJobFields,
+  workOrderId: Uuid,
+  fireAt: IsoDateTime,
+});
+export type EmergencyAckJob = z.infer<typeof EmergencyAckJob>;
+export const EmergencyEscalationJob = z.object({
+  ...TenantJobFields,
+  workOrderId: Uuid,
+  fireAt: IsoDateTime,
+});
+export type EmergencyEscalationJob = z.infer<typeof EmergencyEscalationJob>;

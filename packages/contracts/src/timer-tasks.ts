@@ -4,6 +4,9 @@ import {
   absenceReturnJobId,
   ackReminderJobId,
   birthdayGreetingJobId,
+  emergencyAckJobId,
+  emergencyEscalationJobId,
+  maintenanceReminderJobId,
   cleaningReminderJobId,
   downtimeEscalationJobId,
   handoverTimeoutJobId,
@@ -18,11 +21,21 @@ import {
   BirthdayGreetingJob,
   CleaningReminderJob,
   DowntimeEscalationJob,
+  EmergencyAckJob,
+  EmergencyEscalationJob,
   HandoverTimeoutJob,
+  MaintenanceReminderJob,
   IncidentSlaJob,
   ReturnReminderJob,
   ShiftReminderJob,
 } from './queues.js';
+
+/** Timer kinds of the maintenance module, referenced as constants in switches (rule C9). */
+export const MaintenanceTimerKind = {
+  MAINTENANCE_REMINDER: 'MAINTENANCE_REMINDER',
+  EMERGENCY_ACK: 'EMERGENCY_ACK',
+  EMERGENCY_ESCALATION: 'EMERGENCY_ESCALATION',
+} as const;
 
 /** Version one persists the original fire time and limit, independent of later configuration. */
 export const TimerTask = z.discriminatedUnion('kind', [
@@ -36,6 +49,15 @@ export const TimerTask = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('BIRTHDAY_GREETING'), payload: BirthdayGreetingJob }),
   z.object({ kind: z.literal('ABSENCE_CHECKIN'), payload: AbsenceCheckinJob }),
   z.object({ kind: z.literal('ABSENCE_RETURN'), payload: AbsenceReturnJob }),
+  z.object({
+    kind: z.literal(MaintenanceTimerKind.MAINTENANCE_REMINDER),
+    payload: MaintenanceReminderJob,
+  }),
+  z.object({ kind: z.literal(MaintenanceTimerKind.EMERGENCY_ACK), payload: EmergencyAckJob }),
+  z.object({
+    kind: z.literal(MaintenanceTimerKind.EMERGENCY_ESCALATION),
+    payload: EmergencyEscalationJob,
+  }),
 ]);
 export type TimerTask = z.infer<typeof TimerTask>;
 
@@ -64,6 +86,16 @@ export function timerTaskKey(task: TimerTask): string {
       return absenceCheckinJobId(task.payload.requestId, task.payload.businessDate);
     case 'ABSENCE_RETURN':
       return absenceReturnJobId(task.payload.requestId);
+    case MaintenanceTimerKind.MAINTENANCE_REMINDER:
+      return maintenanceReminderJobId(
+        task.payload.workOrderId,
+        task.payload.plannedOn,
+        task.payload.offsetDays,
+      );
+    case MaintenanceTimerKind.EMERGENCY_ACK:
+      return emergencyAckJobId(task.payload.workOrderId);
+    case MaintenanceTimerKind.EMERGENCY_ESCALATION:
+      return emergencyEscalationJobId(task.payload.workOrderId);
   }
 }
 

@@ -41,6 +41,15 @@ export const NOTIFICATION_TEMPLATES = [
   'BONUS_REVIEWED',
   'BONUS_MONTH_CARD',
   'BONUS_MONTH_MASTER',
+  'MAINTENANCE_ASSIGNED',
+  'MAINTENANCE_REMINDER',
+  'MAINTENANCE_REPLANNED',
+  'MAINTENANCE_READINESS',
+  'MAINTENANCE_RETURNED',
+  'EMERGENCY_ASSIGNED',
+  'EMERGENCY_ESCALATION',
+  'EMERGENCY_DECLINED',
+  'EQUIPMENT_RELEASED',
 ] as const;
 export type NotificationTemplate = (typeof NOTIFICATION_TEMPLATES)[number];
 
@@ -59,6 +68,9 @@ export const TIMER_JOBS = {
   birthdayGreeting: 'birthday-greeting',
   absenceCheckin: 'absence-checkin',
   absenceReturn: 'absence-return',
+  maintenanceReminder: 'maintenance-reminder',
+  emergencyAck: 'emergency-ack',
+  emergencyEscalation: 'emergency-escalation',
 } as const;
 
 export function shiftReminderJobId(assignmentId: string): string {
@@ -102,4 +114,19 @@ export function absenceCheckinJobId(requestId: string, businessDate: string): st
 }
 export function absenceReturnJobId(requestId: string): string {
   return `${TIMER_JOBS.absenceReturn}.${requestId}`;
+}
+
+/** One reminder per work order, planned date and offset; a re-planned date gets new keys. */
+export function maintenanceReminderJobId(
+  workOrderId: string,
+  plannedOn: string,
+  offsetDays: number,
+): string {
+  return `${TIMER_JOBS.maintenanceReminder}.${workOrderId}.${plannedOn}.${offsetDays}`;
+}
+export function emergencyAckJobId(workOrderId: string): string {
+  return `${TIMER_JOBS.emergencyAck}.${workOrderId}`;
+}
+export function emergencyEscalationJobId(workOrderId: string): string {
+  return `${TIMER_JOBS.emergencyEscalation}.${workOrderId}`;
 }

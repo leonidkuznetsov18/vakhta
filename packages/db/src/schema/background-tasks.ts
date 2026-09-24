@@ -27,6 +27,9 @@ export const BACKGROUND_TASK_KINDS = [
   'BIRTHDAY_GREETING',
   'ABSENCE_CHECKIN',
   'ABSENCE_RETURN',
+  'MAINTENANCE_REMINDER',
+  'EMERGENCY_ACK',
+  'EMERGENCY_ESCALATION',
 ] as const;
 
 export type BackgroundTaskKind = (typeof BACKGROUND_TASK_KINDS)[number];
@@ -78,7 +81,7 @@ export const backgroundTasks = pgTable(
       .where(sql`${t.status} = 'RUNNING'`),
     check(
       'background_tasks_kind_valid',
-      sql`${t.kind} IN ('PHOTO_INSPECT', 'MEDIA_PROCESS', 'SHIFT_REMINDER', 'ACK_REMINDER', 'RETURN_REMINDER', 'DOWNTIME_ESCALATION', 'INCIDENT_SLA', 'HANDOVER_TIMEOUT', 'CLEANING_REMINDER', 'BONUS_RECALCULATE', 'BIRTHDAY_GREETING', 'ABSENCE_CHECKIN', 'ABSENCE_RETURN')`,
+      sql`${t.kind} IN ('PHOTO_INSPECT', 'MEDIA_PROCESS', 'SHIFT_REMINDER', 'ACK_REMINDER', 'RETURN_REMINDER', 'DOWNTIME_ESCALATION', 'INCIDENT_SLA', 'HANDOVER_TIMEOUT', 'CLEANING_REMINDER', 'BONUS_RECALCULATE', 'BIRTHDAY_GREETING', 'ABSENCE_CHECKIN', 'ABSENCE_RETURN', 'MAINTENANCE_REMINDER', 'EMERGENCY_ACK', 'EMERGENCY_ESCALATION')`,
     ),
     check('background_tasks_payload_version_valid', sql`${t.payloadVersion} > 0`),
     check('background_tasks_payload_object', sql`jsonb_typeof(${t.payload}) = 'object'`),

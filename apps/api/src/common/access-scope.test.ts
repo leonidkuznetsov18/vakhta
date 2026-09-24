@@ -34,6 +34,7 @@ import { ShiftChanges } from '../shift/shift-changes.js';
 import { ShiftService } from '../shift/shift.service.js';
 import { DomainError } from './domain-error.js';
 import { assertInScope, scopedEvents } from './access-scope.js';
+import { emergencyService } from '../../test/maintenance.js';
 
 /**
  * Spec 004 AC-001–AC-003: overview sources apply role and scope of one grant. Two sites, three
@@ -97,6 +98,7 @@ describe('access scope of overview sources (spec 004 US1)', () => {
       media,
       timers,
       { sla: { normalMinutes: 60, criticalMinutes: 30, safetyMinutes: 0 } },
+      emergencyService(db, timers),
     );
     const org = new OrgService(db, events, audit);
     const schedule = new ScheduleService(

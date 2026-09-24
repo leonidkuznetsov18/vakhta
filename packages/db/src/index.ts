@@ -16,3 +16,4 @@ export * from './bonus-tasks.js';
 export * from './seed-defaults.js';
 export * from './migrations.js';
 export * from './tenant-settings.js';
+export * from './maintenance-notices.js';

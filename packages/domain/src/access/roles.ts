@@ -12,6 +12,8 @@ export const WebRole = {
   ACCOUNTANT: 'ACCOUNTANT',
   ADMIN: 'ADMIN',
   AUDITOR: 'AUDITOR',
+  /** Chief mechanic: equipment, maintenance plans, acceptance and release (spec 014, D-2). */
+  CHIEF_MECHANIC: 'CHIEF_MECHANIC',
 } as const;
 export const WEB_ROLES = [
   WebRole.ADMIN,
@@ -19,6 +21,7 @@ export const WEB_ROLES = [
   WebRole.HR,
   WebRole.PLANNER,
   WebRole.SHIFT_MASTER,
+  WebRole.CHIEF_MECHANIC,
   WebRole.CLEANLINESS_CONTROLLER,
   WebRole.ACCOUNTANT,
   WebRole.AUDITOR,

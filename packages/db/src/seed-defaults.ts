@@ -95,6 +95,9 @@ const POSITIONS: ReadonlyArray<readonly [string, string]> = [
   ['QC_INSPECTOR', 'Контролёр качества'],
 ];
 
+// Mechanics are responsible for machines and their maintenance (spec 014, A-1).
+const MAINTENANCE_POSITION_CODES: ReadonlySet<string> = new Set(['MECHANIC']);
+
 interface SiteSeed {
   readonly code: string;
   readonly name: string;
@@ -135,7 +138,8 @@ async function ensureTemplate(db: Database, siteId: string, template: TemplateSe
 async function ensurePosition(db: Database, code: string, name: string) {
   const [existing] = await db.select().from(positions).where(eq(positions.code, code)).limit(1);
   if (existing) return existing;
-  const [row] = await db.insert(positions).values({ code, name }).returning();
+  const performsMaintenance = MAINTENANCE_POSITION_CODES.has(code);
+  const [row] = await db.insert(positions).values({ code, name, performsMaintenance }).returning();
   if (!row) throw new Error('positions: insert returned no row');
   return row;
 }

@@ -6,6 +6,7 @@ import type { PhotoDictionaryMessages } from './photo-object-dictionary.js';
 import type { communicationsRu } from './communications.js';
 import type { EmployeeProfileMessages } from './employee-profile.js';
 import type { UnitShiftsMessages } from './unit-shifts.js';
+import type { MaintenanceMessages } from './maintenance.js';
 import type { ScheduleExportMessages } from './schedule-export.js';
 import type { ScheduleWorkspaceMessages } from './schedule-workspace.js';
 import type { OverviewCenterMessages } from './overview.js';
@@ -80,6 +81,7 @@ export interface Messages {
   readonly communications: typeof communicationsRu;
   employeeProfile: EmployeeProfileMessages;
   unitShifts: UnitShiftsMessages;
+  maintenance: MaintenanceMessages;
   photoInspection: PhotoInspectionMessages;
   photoDictionary: PhotoDictionaryMessages;
   checklistPhotoRules: ChecklistPhotoRulesMessages;

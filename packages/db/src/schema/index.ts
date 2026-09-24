@@ -16,3 +16,4 @@ export * from './photo-inspection.js';
 
 export * from './compensation.js';
 export * from './communications.js';
+export * from './maintenance.js';

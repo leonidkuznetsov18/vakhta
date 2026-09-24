@@ -5,6 +5,7 @@ import { photoDictionaryEn } from './photo-object-dictionary.js';
 import { communicationsEn } from './communications.js';
 import { employeeProfileEN } from './employee-profile.js';
 import { unitShiftsEN } from './unit-shifts.js';
+import { maintenanceEN } from './maintenance.js';
 import { scheduleExportEn } from './schedule-export.js';
 import { scheduleWorkspaceEn } from './schedule-workspace.js';
 import { overviewCenterEn } from './overview.js';
@@ -22,6 +23,7 @@ export const en: Messages = {
   communications: communicationsEn,
   employeeProfile: employeeProfileEN,
   unitShifts: unitShiftsEN,
+  maintenance: maintenanceEN,
   scheduleExport: scheduleExportEn,
   scheduleWorkspace: scheduleWorkspaceEn,
   overviewCenter: overviewCenterEn,
@@ -564,6 +566,7 @@ export const en: Messages = {
     CLEANLINESS_CONTROLLER: 'Cleanliness controller',
     ACCOUNTANT: 'Accounting',
     AUDITOR: 'Auditor',
+    CHIEF_MECHANIC: 'Chief mechanic',
   },
   admin: {
     productName: 'Vakhta',

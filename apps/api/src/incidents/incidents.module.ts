@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { currentSettings, lateBound } from '../infra/tenant-context.js';
 import { MediaModule } from '../handover/media.module.js';
+import { MaintenanceModule } from '../maintenance/maintenance.module.js';
 import { ShiftModule } from '../shift/shift.module.js';
 import { AdminIncidentsController } from './admin-incidents.controller.js';
 import { IncidentChanges } from './incident-changes.js';
 import { INCIDENT_OPTIONS, IncidentsService, type IncidentOptions } from './incidents.service.js';
 
 @Module({
-  imports: [ShiftModule, MediaModule],
+  imports: [ShiftModule, MediaModule, MaintenanceModule],
   controllers: [AdminIncidentsController],
   providers: [
     IncidentsService,

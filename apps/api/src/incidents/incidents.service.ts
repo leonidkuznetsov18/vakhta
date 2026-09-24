@@ -10,6 +10,8 @@ import {
   downtimeReports,
   employees,
   eq,
+  equipment,
+  isNull,
   gte,
   idempotencyKeys,
   inArray,
@@ -30,6 +32,7 @@ import {
   canTransitionIncident,
   escalatesImmediately,
   isOpenIncident,
+  reportNeedsRepair,
   slaBreached,
   slaDueAt,
   type IncidentSeverity,
@@ -60,6 +63,7 @@ import {
 import { messages } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
+import { textOrNull } from '../common/text.js';
 import { MediaService } from '../handover/media.service.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore, type EventSource } from '../events/event-store.js';
@@ -68,6 +72,7 @@ import { TIMER_SCHEDULER, type TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { ShiftService } from '../shift/shift.service.js';
 import { IncidentChanges } from './incident-changes.js';
+import { EmergencyService } from '../maintenance/emergency.service.js';
 
 export interface IncidentOptions {
   readonly sla: SlaPolicy;
@@ -96,6 +101,7 @@ export class IncidentsService {
     private readonly media: MediaService,
     @Inject(TIMER_SCHEDULER) private readonly timers: TimerScheduler,
     @Inject(INCIDENT_OPTIONS) private readonly options: IncidentOptions,
+    private readonly emergency: EmergencyService,
   ) {}
 
   /** Активні причини виду для кнопок бота (простій, екстрений вихід, зауваження передачі). */
@@ -158,6 +164,9 @@ export class IncidentsService {
       );
 
     const place = session.assignmentId ? await this.placeOf(session.assignmentId) : null;
+    const machineId = cmd.equipmentId
+      ? await this.reportableEquipment(cmd.equipmentId, session.zoneId)
+      : null;
     let committedTransition: TransitionResponse | null = null;
     /** Registered inside the transaction, fetched from Telegram after it commits. */
 
@@ -177,6 +186,7 @@ export class IncidentsService {
           siteId: place?.siteId ?? null,
           orgUnitId: place?.orgUnitId ?? null,
           zoneId: session.zoneId,
+          equipmentId: machineId,
           reasonCode: cmd.reasonCode,
           severity,
           status: 'REPORTED',
@@ -226,6 +236,7 @@ export class IncidentsService {
           shiftSessionId: session.id,
           employeeId,
           zoneId: session.zoneId,
+          equipmentId: machineId,
           reasonCode: cmd.reasonCode,
           comment: cmd.comment ?? null,
           stoppedWork: cmd.stoppedWork,
@@ -268,6 +279,20 @@ export class IncidentsService {
           payload: { immediate: true, severity: incident.severity },
         });
       }
+
+      // A breakdown on a named machine goes to its mechanic as an emergency repair (spec 014, FR-061).
+      if (machineId && reportNeedsRepair(severity, cmd.stoppedWork))
+        await this.emergency.openWithin(tx, {
+          equipmentId: machineId,
+          incidentId: incident.id,
+          description: textOrNull(cmd.comment) ?? reason.label,
+          stoppedWork: cmd.stoppedWork,
+          severity,
+          reportedBy: employeeId,
+          actor,
+          source,
+          now,
+        });
 
       let downtimeStarted = false;
       let downtimeError: string | null = null;
@@ -313,6 +338,47 @@ export class IncidentsService {
       at: now.toISOString(),
     });
     return result;
+  }
+
+  /**
+   * The machine a worker may name in a report: an active machine of the zone they work in, or of
+   * its unit when the machine has no zone. Anything else is refused rather than silently dropped.
+   */
+  private async reportableEquipment(equipmentId: string, zoneId: string | null): Promise<string> {
+    const [row] = await this.db
+      .select({
+        id: equipment.id,
+        zoneId: equipment.zoneId,
+        orgUnitId: equipment.orgUnitId,
+        zoneUnit: responsibilityZones.orgUnitId,
+      })
+      .from(equipment)
+      .leftJoin(responsibilityZones, eq(responsibilityZones.id, zoneId ?? equipment.zoneId))
+      .where(and(eq(equipment.id, equipmentId), isNull(equipment.archivedAt)));
+    const inZone =
+      row && (row.zoneId === zoneId || (!row.zoneId && row.orgUnitId === row.zoneUnit));
+    if (!inZone)
+      throw new DomainError('EQUIPMENT_NOT_IN_ZONE', 422, 'Equipment is not in your zone');
+    return row.id;
+  }
+
+  /** Active machines of a zone for the bot's "which equipment?" step (FR-060). */
+  async zoneEquipment(zoneId: string): Promise<{ id: string; code: string; name: string }[]> {
+    const [zone] = await this.db
+      .select({ orgUnitId: responsibilityZones.orgUnitId })
+      .from(responsibilityZones)
+      .where(eq(responsibilityZones.id, zoneId));
+    if (!zone) return [];
+    return this.db
+      .select({ id: equipment.id, code: equipment.code, name: equipment.name })
+      .from(equipment)
+      .where(
+        and(
+          isNull(equipment.archivedAt),
+          sql`(${equipment.zoneId} = ${zoneId} OR (${equipment.zoneId} IS NULL AND ${equipment.orgUnitId} = ${zone.orgUnitId}))`,
+        ),
+      )
+      .orderBy(asc(equipment.code));
   }
 
   /** Дія майстра над статусом (FR-DWN-05): таблиця переходів, історія, аудит, сповіщення. */

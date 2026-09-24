@@ -11,6 +11,8 @@ export const ReportProblemCommand = z.object({
   reasonCode: ReasonCode,
   comment: Comment.optional(),
   stoppedWork: z.boolean(),
+  /** The machine the problem is on, when the reporter picked one (spec 014, FR-060). */
+  equipmentId: Uuid.optional(),
   idempotencyKey: IdempotencyKey,
   /** Telegram file_id фото; у S3 переносить воркер фази 4. */
   photoFileId: z.string().min(1).max(200).optional(),

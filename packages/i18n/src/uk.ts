@@ -5,6 +5,7 @@ import { photoDictionaryUk } from './photo-object-dictionary.js';
 import { communicationsUk } from './communications.js';
 import { employeeProfileUK } from './employee-profile.js';
 import { unitShiftsUK } from './unit-shifts.js';
+import { maintenanceUK } from './maintenance.js';
 import { scheduleExportUk } from './schedule-export.js';
 import { scheduleWorkspaceUk } from './schedule-workspace.js';
 import { overviewCenterUk } from './overview.js';
@@ -22,6 +23,7 @@ export const uk: Messages = {
   communications: communicationsUk,
   employeeProfile: employeeProfileUK,
   unitShifts: unitShiftsUK,
+  maintenance: maintenanceUK,
   scheduleExport: scheduleExportUk,
   scheduleWorkspace: scheduleWorkspaceUk,
   overviewCenter: overviewCenterUk,
@@ -564,6 +566,7 @@ export const uk: Messages = {
     CLEANLINESS_CONTROLLER: 'Контролер чистоти',
     ACCOUNTANT: 'Бухгалтерія',
     AUDITOR: 'Аудитор',
+    CHIEF_MECHANIC: 'Головний механік',
   },
   admin: {
     productName: 'Вахта',

@@ -50,6 +50,7 @@ import { HandoverChanges } from './handover-changes.js';
 import { HandoverRepository } from './handover.repository.js';
 import { HandoverService } from './handover.service.js';
 import { MediaService } from './media.service.js';
+import { emergencyService } from '../../test/maintenance.js';
 
 const MASTER_ID = 'a0000000-0000-4000-8000-00000000aaaa';
 const MASTER = { type: 'WEB_USER', id: MASTER_ID, role: 'SHIFT_MASTER', label: 'master' } as const;
@@ -134,6 +135,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
       {
         sla: { normalMinutes: 60, criticalMinutes: 30, safetyMinutes: 0 },
       },
+      emergencyService(testDb.db, timers),
     );
     handover = new HandoverService(
       testDb.db,
