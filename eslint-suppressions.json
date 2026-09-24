@@ -3041,7 +3041,7 @@
       "count": 6
     },
     "no-restricted-syntax": {
-      "count": 60
+      "count": 58
     }
   },
   "apps/api/src/telegram/home-pusher.ts": {

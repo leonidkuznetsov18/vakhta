@@ -179,6 +179,7 @@ function services(testDb: TestDatabase) {
     media,
     new CorrectionsService(db, events, audit, shift),
     requestChanges,
+    { appealWindowDays: 7 },
   );
   const bonus = new BonusService(db, events, audit, notifications, OPTIONS, {
     appealWindowDays: 7,

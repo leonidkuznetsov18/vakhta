@@ -11,7 +11,7 @@ import {
   normalizeActivationCode,
   resolveLocale,
 } from '@vakhta/domain';
-import { REQUEST_TYPES, type RequestType } from '@vakhta/domain';
+import { REQUEST_TYPES, canAppealScore, type RequestType } from '@vakhta/domain';
 import { format, messages, type Messages } from '@vakhta/i18n';
 import { employeeActor } from '../common/actor.js';
 import type { AttendanceService } from '../attendance/attendance.service.js';
@@ -1048,11 +1048,11 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     if (!guardEmployee(ctx)) return;
     const score = await deps.bonus.score(ctx.match[1] ?? '').catch(() => null);
     if (!score || score.employeeId !== ctx.employee.id) return edit(ctx, await buildHome(ctx));
-    const ageDays = (Date.now() - new Date(score.computedAt).getTime()) / 86_400_000;
-    const canAppeal =
-      score.status !== 'APPEALED' &&
-      score.status !== 'NOT_EVALUATED' &&
-      ageDays <= deps.appealWindowDays + 2;
+    const canAppeal = canAppealScore(
+      { status: score.status, computedAt: new Date(score.computedAt) },
+      new Date(),
+      deps.appealWindowDays,
+    );
     await edit(ctx, scoreDetailScreen(ctx.t, score, deps.appealWindowDays, canAppeal));
   });
 

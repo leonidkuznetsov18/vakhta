@@ -8,6 +8,7 @@ import {
 import {
   and,
   asc,
+  bonusShiftScores,
   desc,
   employeePositions,
   orgUnits,
@@ -36,9 +37,11 @@ import {
   wellbeingCheckins,
 } from '@vakhta/db';
 import {
+  AppealError,
   PERIOD_TYPES,
   SCHEDULE_AFFECTING,
   applyDecision,
+  canAppealScore,
   canDecideStep,
   isRequestOpen,
   routeFor,
@@ -68,6 +71,7 @@ import type {
 import { format, messages } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
+import { lockEmployee } from '../common/employee-lock.js';
 import { AuditLog } from '../events/audit-log.js';
 import { EventStore, type EventSource } from '../events/event-store.js';
 import { MediaService } from '../handover/media.service.js';
@@ -89,6 +93,15 @@ type AssignmentRow = typeof shiftAssignments.$inferSelect;
 
 const OPEN = ['SUBMITTED', 'IN_REVIEW'] as const;
 
+type AppealCommand = Extract<CreateRequestCommand, { type: 'APPEAL' }>;
+
+export interface RequestsOptions {
+  /** Per-tenant appeal window in working days (spec 7.7). */
+  readonly appealWindowDays: number;
+}
+
+export const REQUESTS_OPTIONS = Symbol('REQUESTS_OPTIONS');
+
 /**
  * Звернення працівника (ТЗ 8, FR-REQ-01..04): маршрут за матрицею ТЗ 2.1, рішення з коментарем,
  * схвалення змін графіка як нова версія (FR-REQ-04), корекції як компенсуючі події (FR-COR-03),
@@ -105,6 +118,7 @@ export class RequestsService {
     private readonly media: MediaService,
     private readonly corrections: CorrectionsService,
     private readonly changes: RequestChanges,
+    @Inject(REQUESTS_OPTIONS) private readonly options: RequestsOptions,
     @Optional() @Inject(TIMER_SCHEDULER) private readonly timers?: TimerScheduler,
   ) {}
 
@@ -857,10 +871,50 @@ export class RequestsService {
           ...(cmd.proposal ? { proposal: normalizeProposal(cmd.proposal) } : {}),
         };
       } else {
-        base.payload = { scoreId: cmd.scoreId ?? null };
+        base.payload = { scoreId: await this.appealableScoreId(tx, cmd, now) };
       }
     }
     return base;
+  }
+
+  /**
+   * The bot's appeal callback is client-controlled, so the rule the score screen shows is enforced
+   * here: a scored shift inside the window, with no appeal already open. The caller has checked
+   * that the shift belongs to the employee.
+   */
+  private async appealableScoreId(tx: DbOrTx, cmd: AppealCommand, now: Date): Promise<string> {
+    const [score] = await tx
+      .select({
+        id: bonusShiftScores.id,
+        employeeId: bonusShiftScores.employeeId,
+        status: bonusShiftScores.status,
+        computedAt: bonusShiftScores.computedAt,
+      })
+      .from(bonusShiftScores)
+      .where(eq(bonusShiftScores.shiftSessionId, cmd.shiftSessionId))
+      .limit(1);
+    const allowed =
+      score !== undefined &&
+      (cmd.scoreId === undefined || cmd.scoreId === score.id) &&
+      canAppealScore(score, now, this.options.appealWindowDays);
+    if (!score || !allowed)
+      throw new DomainError(AppealError.NOT_ALLOWED, 422, 'The shift score cannot be appealed');
+    // One open appeal per score: the employee lock serializes concurrent submissions.
+    await lockEmployee(tx, score.employeeId);
+    const [open] = await tx
+      .select({ id: requests.id })
+      .from(requests)
+      .where(
+        and(
+          eq(requests.shiftSessionId, cmd.shiftSessionId),
+          eq(requests.type, 'APPEAL'),
+          inArray(requests.status, [...OPEN]),
+        ),
+      )
+      .limit(1);
+    if (open)
+      throw new DomainError(AppealError.ALREADY_OPEN, 409, 'An appeal of this score is open');
+    return score.id;
   }
 
   private async ownedAssignment(

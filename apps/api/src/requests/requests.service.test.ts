@@ -3,6 +3,8 @@ import {
   assignmentBreaks,
   backgroundTasks,
   activityIntervals,
+  bonusRuleVersions,
+  bonusShiftScores,
   domainEvents,
   employeePositions,
   employees,
@@ -22,7 +24,13 @@ import {
   sql,
 } from '@vakhta/db';
 import { ShiftKindSchema } from '@vakhta/contracts';
-import { DEFAULT_ATTENDANCE_WINDOW, ShiftPeriod, ShiftTemplateError } from '@vakhta/domain';
+import {
+  AppealError,
+  DEFAULT_ATTENDANCE_WINDOW,
+  DEFAULT_BONUS_RULES,
+  ShiftPeriod,
+  ShiftTemplateError,
+} from '@vakhta/domain';
 import { AttendanceService } from '../attendance/attendance.service.js';
 import { employeeActor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
@@ -158,6 +166,7 @@ describe('requests: маршрути, рішення, нова версія гр
       media,
       corrections,
       new RequestChanges(),
+      { appealWindowDays: 3 },
     );
 
     const [site] = await testDb.db
@@ -698,6 +707,62 @@ describe('requests: маршрути, рішення, нова версія гр
       MASTER,
     );
     expect(decided).toMatchObject({ status: 'APPROVED', approvedMinutes: 25 });
+  });
+
+  it('spec 7.7: an appeal needs an appealable score of the own shift and no open appeal', async () => {
+    const started = await shift.masterStart(
+      ivanov,
+      { idempotencyKey: key(), comment: 'Телефон разряжен' },
+      MASTER,
+    );
+    if (!started.ok) throw new Error('Expected the fixture shift to start');
+    const shiftSessionId = started.session.id;
+    const appeal = (employeeId: string, extra: { scoreId?: string } = {}) =>
+      service.create(
+        employeeId,
+        { type: 'APPEAL', shiftSessionId, comment: 'Не согласен', idempotencyKey: key(), ...extra },
+        employeeActor(employeeId),
+      );
+    // A crafted bn:ap:<id> callback arrives before the shift has a score.
+    await expect(appeal(ivanov)).rejects.toMatchObject({ code: AppealError.NOT_ALLOWED });
+
+    const [rule] = await testDb.db
+      .insert(bonusRuleVersions)
+      .values({ label: 'v1', validFrom: new Date(0), rules: DEFAULT_BONUS_RULES })
+      .returning();
+    if (!rule) throw new Error('Missing rule version');
+    const [score] = await testDb.db
+      .insert(bonusShiftScores)
+      .values({
+        shiftSessionId,
+        employeeId: ivanov,
+        businessDate: started.session.businessDate,
+        ruleVersionId: rule.id,
+        applicableMax: 100,
+        earned: 80,
+        score: 80,
+        inputsHash: 'h',
+      })
+      .returning();
+    if (!score) throw new Error('Missing score');
+
+    await expect(appeal(petrova)).rejects.toMatchObject({ code: 'SHIFT_NOT_FOUND' });
+    await expect(
+      appeal(ivanov, { scoreId: '00000000-0000-4000-8000-000000000000' }),
+    ).rejects.toMatchObject({ code: AppealError.NOT_ALLOWED });
+
+    const created = await appeal(ivanov);
+    const [stored] = await testDb.db.select().from(requests).where(eq(requests.id, created.id));
+    expect(stored?.payload).toEqual({ scoreId: score.id });
+    await expect(appeal(ivanov)).rejects.toMatchObject({ code: AppealError.ALREADY_OPEN });
+
+    // Once the first appeal is decided, the window still bounds a new one.
+    await testDb.db.update(requests).set({ status: 'REJECTED' }).where(eq(requests.id, created.id));
+    await testDb.db
+      .update(bonusShiftScores)
+      .set({ computedAt: new Date(Date.now() - 30 * 86_400_000) })
+      .where(eq(bonusShiftScores.id, score.id));
+    await expect(appeal(ivanov)).rejects.toMatchObject({ code: AppealError.NOT_ALLOWED });
   });
 
   it('корекція: схвалення майстром створює компенсуючу подію, перераховує підсумок і знімає «потрібна перевірка» (T-38, T-39)', async () => {

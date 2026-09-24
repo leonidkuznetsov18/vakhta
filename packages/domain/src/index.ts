@@ -30,6 +30,7 @@ export * from './notifications/payload.js';
 export * from './bonus/rules.js';
 export * from './bonus/score.js';
 export * from './bonus/evaluate.js';
+export * from './bonus/appeal.js';
 export * from './incidents/lifecycle.js';
 export * from './handover/checklist.js';
 export * from './handover/lifecycle.js';

@@ -118,6 +118,7 @@ describe('access scope of overview sources (spec 004 US1)', () => {
       media,
       new CorrectionsService(db, events, audit, shifts),
       new RequestChanges(),
+      { appealWindowDays: 3 },
     );
 
     const [site1, site2] = await db
