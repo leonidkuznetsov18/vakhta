@@ -1,3 +1,14 @@
+## [1.31.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.30.1...v1.31.0) (2026-09-24)
+
+### Features
+
+* **admin:** fold the checklist photo rules section from its header ([f19fb76](https://github.com/leonidkuznetsov18/vakhta/commit/f19fb7603c2a2497fb30cf8761801e698bec8040))
+* **operations:** list people who did not arrive for the current shift ([0cb804a](https://github.com/leonidkuznetsov18/vakhta/commit/0cb804a98bebed6be67aa31828227b1a7be6b084))
+
+### Bug fixes
+
+* **overview:** open every queue card on the records it counted ([064629e](https://github.com/leonidkuznetsov18/vakhta/commit/064629e4e1b25621323ca1aa71502a6add6ac67b))
+
 ## [1.30.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.30.0...v1.30.1) (2026-09-24)
 
 ### Bug fixes
