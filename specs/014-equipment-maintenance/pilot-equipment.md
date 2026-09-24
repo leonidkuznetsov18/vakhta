@@ -52,6 +52,11 @@ Manufacturer, model, serial and year come from the nameplate; unknown values sta
 - Nearby documents that are **not** manuals for these models: a New Debao sales quotation for
   DEBAO-118DT (Scribd 620666478, with a bearing list) and a New Debao manual for DXD cup
   **packing** machines (Scribd 880271419).
+- A second search pass on 2026-09-24 (Chinese and English queries, the exact "FB118Dt" code) found
+  no manual either. It found two more official pages to open once the hosts are reachable: the
+  Chinese servo cup machine product page (`www.debaochina.com/product/intelligent/1413548237599539201`)
+  and a service/maintenance section (`www.debaochina.com/service/maintain/...`). Page fetching is
+  blocked for the whole session, including the web-fetch tool; no browser extension is connected.
 - The most reliable route is the paper manual, CD or USB supplied with each machine, or a request
   to `db@debaochina.com` with the serial numbers. Attach whatever is obtained as
   `OPERATING_MANUAL` with its source (FR-008).
