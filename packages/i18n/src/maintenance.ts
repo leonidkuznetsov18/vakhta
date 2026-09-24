@@ -345,7 +345,8 @@ export const maintenanceUK = {
     noAnswer: 'ще не відмічено',
     returnComment: 'Коментар (обов’язковий, якщо повертаєте)',
     nextAfterAccept: {
-      FROM_COMPLETION: 'Після прийняття наступне «{title}» {code} буде {date} (від дня виконання {performed}).',
+      FROM_COMPLETION:
+        'Після прийняття наступне «{title}» {code} буде {date} (від дня виконання {performed}).',
       FIXED_CALENDAR: 'Після прийняття наступне «{title}» {code} буде {date} (за календарем).',
     },
     accept: 'Прийняти',
@@ -940,8 +941,10 @@ export const maintenanceEN: MaintenanceMessages = {
     noAnswer: 'not answered yet',
     returnComment: 'Comment (required to return)',
     nextAfterAccept: {
-      FROM_COMPLETION: 'After acceptance the next "{title}" on {code} is on {date} (from the day done, {performed}).',
-      FIXED_CALENDAR: 'After acceptance the next "{title}" on {code} is on {date} (by the calendar).',
+      FROM_COMPLETION:
+        'After acceptance the next "{title}" on {code} is on {date} (from the day done, {performed}).',
+      FIXED_CALENDAR:
+        'After acceptance the next "{title}" on {code} is on {date} (by the calendar).',
     },
     accept: 'Accept',
     return: 'Return for rework',
@@ -1538,7 +1541,8 @@ export const maintenanceRU: MaintenanceMessages = {
     noAnswer: 'ещё не отмечено',
     returnComment: 'Комментарий (обязателен при возврате)',
     nextAfterAccept: {
-      FROM_COMPLETION: 'После приёмки следующее «{title}» {code} будет {date} (от дня выполнения {performed}).',
+      FROM_COMPLETION:
+        'После приёмки следующее «{title}» {code} будет {date} (от дня выполнения {performed}).',
       FIXED_CALENDAR: 'После приёмки следующее «{title}» {code} будет {date} (по календарю).',
     },
     accept: 'Принять',

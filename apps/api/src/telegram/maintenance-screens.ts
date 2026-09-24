@@ -354,6 +354,8 @@ export function equipmentPickScreen(
     .text(bot.unknownEquipment, `${EQUIPMENT_PICK_PREFIX}${EQUIPMENT_PICK_NONE}`)
     .row()
     .text(input.cancel.text, input.cancel.data);
-  const text = input.zone ? format(bot.pickEquipmentInZone, { zone: input.zone }) : bot.pickEquipment;
+  const text = input.zone
+    ? format(bot.pickEquipmentInZone, { zone: input.zone })
+    : bot.pickEquipment;
   return { text, keyboard };
 }
