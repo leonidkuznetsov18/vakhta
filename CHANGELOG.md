@@ -1,3 +1,14 @@
+## [1.33.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.32.1...v1.33.0) (2026-09-24)
+
+### Features
+
+* **maintenance:** apply the owner's production review of the equipment module ([698d6b0](https://github.com/leonidkuznetsov18/vakhta/commit/698d6b02f7402681fcacbbe4bcfb982ad6e9b80f))
+* **telegram:** let a local test double replace the Bot API origin ([314680e](https://github.com/leonidkuznetsov18/vakhta/commit/314680e42f41f622421a9cd0857a7d52b0702cfc))
+
+### Bug fixes
+
+* **admin-web:** keep the row entry point clickable without the chevron ([24b0013](https://github.com/leonidkuznetsov18/vakhta/commit/24b00136153f319803850d730ab717511b4c7ca6))
+
 ## [1.32.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.32.0...v1.32.1) (2026-09-24)
 
 ### Bug fixes
