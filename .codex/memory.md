@@ -115,3 +115,7 @@ owner appends after merging work; parallel agents return proposed entries instea
   worker timers, mechanic bot and panel section "Обслуживание" delivered on
   `claude/busy-mayer-6jmcpk`. D-1 calendar intervals only, D-2 `CHIEF_MECHANIC`, D-3 chief
   mechanic or admin accepts. Deviations and verification: `docs/engineering/features/equipment-maintenance.md`.
+- Follow-up the same day closed the reported gaps: tenant module `MAINTENANCE` (registry migration
+  0003), maintenance tenant parameters, applying a newer plan version (AC-015), plan copy (AC-018),
+  paper records (AC-039), notice delivery on work (FR-043), confirmed materials (FR-051), missed
+  fixed-calendar dates (FR-052), state correction (FR-005), week view and calendar filters (FR-031).

@@ -44,35 +44,60 @@ intervals, OEE.
   work-order-scoped link endpoint instead of the generic media thumbnail (which needs a full media view).
 - The plan editor pre-checks publication with the same rules the server applies because `ApiError`
   does not carry error details; the server remains the authority (`PLAN_INVALID`).
-- Deviations from the spec, recorded for the owner: the tenant module switch (FR-001) is replaced by
-  role-gated visibility; reminder time, offsets and acknowledgement budgets use the pilot defaults in
-  code instead of tenant settings; "apply the new plan version to open work" (AC-015) and recording
-  work on behalf of a mechanic from the panel (AC-039) are not implemented; the prototype's
-  "Бот механика" demo tab is not part of the panel.
+- Module and parameters: `MAINTENANCE` is a delivered tenant module (registry migration
+  `0003_maintenance_module`; the env tenant and the pilot cutover include it). Off means the
+  `/admin/maintenance` routes answer `MODULE_DISABLED`, the panel hides the section, the bot shows no
+  "Мои работы" and asks no machine, and the worker completes maintenance timers without sending.
+  Reminder days (three slots, 0 = off) and hour, the P0/P1/P2 acceptance budgets and the escalation gap
+  are tenant settings (group "maintenance" in Control → Parameters); the API reads them through
+  `MAINTENANCE_OPTIONS` at use time, the panel through `GET /admin/maintenance/policy`.
+- The escalation instant shown on a repair is the stored acceptance deadline plus the current gap; a
+  gap changed while a repair is unaccepted only moves the displayed time, the queued timer keeps its own.
+- Plan versions (AC-015): open work keeps its snapshot; `GET work/:id/plan-diff` (pure
+  `planVersionDiff`) and `POST work/:id/apply-plan-version` move only work not yet started. Changed
+  materials reset readiness so the mechanic answers again.
+- Plan copy (AC-018) creates a draft on another machine without first date, source document, source
+  note and mechanic; publication then asks for them.
+- Paper records (AC-039): `POST work/:id/record-completion` walks START/RESUME and SUBMIT through the
+  domain FSM with `paperRecord` (required photos cannot exist), records the performer in
+  `performed_by_employee_id` and the panel user in `entered_by`, keeps bot photos already stored, and
+  goes to review like a bot submission.
+- Materials used (FR-051): planned work whose version lists materials needs a confirmation before
+  submission — "as in the plan" (every-cycle materials) or the mechanic's text — stored in `parts_used`.
+- Notices (FR-043): the work card lists outbox rows whose dedupe key names the work, with delivery
+  state; a failed delivery is called out. `last_error` is not shown.
+- Missing materials in the bot: a checklist of the plan's materials whose selection travels in the
+  button data as a base-36 bit mask (≤ 30 materials); more materials fall back to free text.
+- FR-052: skipped fixed-calendar dates are recorded as a `MAINTENANCE_CYCLES_MISSED` event.
+- FR-005: the chief mechanic corrects the state with a reason (`POST equipment/:id/state`); refused
+  while a stop episode is open.
+- FR-031: month and week views, unit, mechanic, machine and status filters. Filters persist in the
+  panel's shared UI store (table-filter standard F4) rather than the URL; records still deep-link.
+- Not done by design: the prototype's "Бот механика" demo tab is not part of the panel.
 - Shared changes caused by this feature: `DetailSheet` `wide` now overrides the sheet's side-variant
-  width (it never did); the role picker in "Пользователи и роли" stays a native select with nine roles.
+  width (it never did); the role picker in "Пользователи и роли" stays a native select with nine roles;
+  `MODULE_DISABLED` has a panel message.
 
 ## Verification
 
-2026-09-24, branch `claude/busy-mayer-6jmcpk`, local PostgreSQL 16, Redis 7 and an S3 emulator.
+2026-09-24, branch `claude/busy-mayer-6jmcpk`, local PostgreSQL 16, Redis 7.
 
-- Domain: `packages/domain` vitest — 243 passed.
-- API integration: `apps/api` `src/maintenance` (13), incidents with machine reports (14), bot flows
-  `maintenance-bot.test.ts` (3) and screens (5); `src/incidents src/handover src/common/access-scope
-src/telegram/qr-departure` pass.
-- Worker: `maintenance-timers.test.ts` (6), `timer-tasks` and `background-tasks` pass.
-- Panel: full `apps/admin-web` vitest suite passes after the role-picker fix; model tests for the
-  calendar grid, plan draft and work view.
-- Live local QA as an administrator (desktop 1440×900 and mobile 390×844): register, card with
-  plans and documents (6.5 MB PDF uploaded to storage), plan editor, calendar, work queue, review and
-  emergency sheets. Flows exercised in the browser: accepting a maintenance in review created the next
-  cycle (22.09 → 29.09); creating a machine through the form showed inline required-field errors, then
-  saved; returning a repaired machine to service set it to "AVAILABLE" and closed the stop episode.
-- Not verified: the live Telegram bot against a real bot token (covered by bot harness tests) and the
-  deployed environment.
+- Repo-wide `pnpm build`, `pnpm typecheck` and `pnpm lint` pass.
+- Domain: `packages/domain` vitest — 248 passed (FSM with materials and paper records, plan diff).
+- Contracts 24, registry 14, i18n parity 13 passed.
+- API integration: `src/maintenance` 23 (tenant parameters, module off, apply version, copy, paper
+  record, notices, missed dates, backup rule, state correction); bot flows 4 and screens 7; incidents,
+  handover, access scope, QR departure, infra and config suites 80 passed.
+- Worker: maintenance timers 7 (module off sends nothing) and timer tasks pass (28).
+- Panel: full `apps/admin-web` suite 584 passed; control-web 66 passed.
+- Live local QA as an administrator, desktop 1440×900 and mobile 390×844: newer plan version alert,
+  diff dialog and applying version 2; paper record dialog with inline errors, then the work in review
+  showing performer and "Вніс у панель"; failed notice on the work card; state correction and plan copy
+  dialogs; calendar week view with filters. Fixed during QA: the week view opened on the month's first
+  week, long titles in the week view were cut, and the diff was re-read (409) after applying.
+- Not verified: the live Telegram bot against a real bot token (covered by bot harness tests), the
+  Control → Parameters page with the new group in a browser, and the deployed environment.
 
 ## Remaining work
 
-- Tenant settings for reminder time/offsets and acknowledgement budgets; the module switch.
-- AC-015 (move open work to a new plan version) and AC-039 (record work on behalf of a mechanic).
-- Checklist rows of materials in the bot's "missing" answer (today a free-text note).
+- None from spec 014 known. Watch the pilot for materials lists over 30 rows (bot falls back to text).

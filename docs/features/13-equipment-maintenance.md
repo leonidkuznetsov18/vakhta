@@ -4,6 +4,10 @@ Vakhta keeps a register of the shop's machines, their manufacturer manuals, plan
 («ТО») with reminders to the responsible mechanic, and emergency repairs from the first report to the
 return to service.
 
+It is the tenant module "Обслуживание оборудования": the platform operator switches it on or off in
+Vakhta Control → Modules. When it is off, the section, the mechanic's bot entry, the machine question
+in problem reports and the reminders are gone.
+
 ## Who uses it
 
 - **Chief mechanic and administrator** (role "Главный механик" / `CHIEF_MECHANIC`, and `ADMIN`): add
@@ -22,18 +26,25 @@ Three tabs:
 
 - **"Оборудование"** — the register: code and model, location, state (Работает / Ограничено /
   Остановлен), the next maintenance with an orange "Просрочено" mark, whether the mechanic confirmed
-  materials, the responsible and backup mechanic. Filters by unit and state, and a search by code,
+  materials, the responsible and backup mechanic (never the same person). Filters by unit and state, and a search by code,
   model or mechanic. "Добавить оборудование" opens the form; only employees whose position maintains
   equipment can be responsible or backup.
 - **Machine card** (a row opens it): passport, "Документы" (PDF up to 50 MB; a warning when there is
   no operating manual), "Планы ТО" and "История". Buttons: "Редактировать", "Архивировать",
-  "Аварийный ремонт", and "Допустить к работе" for a stopped machine.
+  "Аварийный ремонт", "Допустить к работе" for a stopped machine, and "Исправить состояние" for a
+  record error (a reason is required; not while a repair is open). A plan's "⋯" menu copies it to
+  another machine as a draft without the first date, source and mechanic, which are confirmed there.
 - **"Календарь ТО"** — the month: planned maintenance (cyan), materials missing (violet), overdue
   (orange), emergency repairs (red), completed (grey) and the forecast of later cycles (dotted, not
-  work yet). Above the grid, a list of overdue maintenance. Filters by mechanic and machine. On a phone
-  the calendar becomes a list of days.
+  work yet). Above the grid, a list of overdue maintenance. "Месяц" or "Неделя" view; filters by unit,
+  mechanic, machine and "Показать" (all, open, overdue, done); the panel remembers them. On a phone the
+  calendar becomes a list of days.
 - **"Работы"** — the queue with the views "Срочные", "Сегодня", "На проверке", "Все". An open
-  emergency repair is shown on top with the time left to accept it.
+  emergency repair is shown on top with the time left to accept it. A work card lists its Telegram
+  notices and says which were not delivered.
+- **"Записать выполнение"** — when a mechanic did the work on paper, the chief mechanic enters the
+  answers, the date and the materials for them. The work goes to review and shows who did it and who
+  entered it; photos are not required for such a record.
 
 ## Maintenance plans
 
@@ -43,23 +54,29 @@ was actually done) or "фиксированный календарь", the first
 stop, the operations (each may require a photo) and the materials to have on hand.
 
 A draft creates nothing. "Опубликовать" creates the first work and the reminders; editing a published
-plan creates the next version, and open work keeps the version it was created from. A plan can be
-paused, resumed or archived with a reason.
+plan creates the next version, and open work keeps the version it was created from. A work card then
+says the plan is newer; "Сравнить и применить" shows what changed and moves work that has not started
+to the new version (changed materials ask the mechanic for readiness again). A plan can be paused,
+resumed or archived with a reason. With "фиксированный календарь", dates a late maintenance skipped
+stay in the history as missed.
 
 ## Reminders and the mechanic's work in Telegram
 
-The responsible mechanic gets a reminder 7, 3 and 1 day before the planned date at 09:00 site time,
+The responsible mechanic gets a reminder 7, 3 and 1 day before the planned date at 09:00 site time
+(the operator can change the days and the hour per client in Vakhta Control → Parameters),
 with the machine, operations and materials. If the date is already too close, one notice comes
 at once instead. When the mechanic is on approved leave or has no Telegram, the backup mechanic gets
 the reminder with a note; otherwise the unit master does.
 
 Buttons under a reminder: "Открыть", "📄 Руководство" (the manual as a PDF), "✅ Всё есть" and
-"⚠️ Чего-то не хватает" (the mechanic writes what is missing and the master is told).
+"⚠️ Чего-то не хватает" (the mechanic checks the missing materials in a list or writes, and the master
+is told).
 
 In "🔧 Мои работы" the mechanic opens a work, presses "▶️ Начать" and answers each operation:
 "✅ Выполнено", "❌ Не выполнено" or "➖ Не применимо" (the last two ask for a reason; an operation
 with 📷 asks for a photo). "⏸️ Пауза" records why the work waits. When every operation is answered,
-"📤 Сдать" sends the maintenance for review. The chief mechanic accepts it in the panel, which plans
+"📤 Сдать" first asks which materials were used ("✅ Как в плане" or in their own words), then sends the
+maintenance for review. The chief mechanic accepts it in the panel, which plans
 the next date, or returns it with a comment.
 
 ## Emergency repair
@@ -71,7 +88,7 @@ The machine becomes "Остановлен" and its downtime counts.
 
 The responsible mechanic gets the repair with "✅ Принять" and "✋ Не могу". Deadlines to accept:
 2 minutes for danger to people (P0), 5 minutes when work stopped (P1), 30 minutes for a fault
-without a stop (P2). Without acceptance, the backup mechanic and the master are notified, and five
+without a stop (P2); the operator can change these per client. Without acceptance, the backup mechanic and the master are notified, and five
 minutes later the repair is marked escalated in the panel. "Не могу" passes the repair to the backup
 mechanic without resetting the deadline.
 
@@ -82,7 +99,7 @@ reporter is told the machine runs again.
 
 ## Typical questions
 
-- _Why did the mechanic get no reminder?_ The plan is not published, or the mechanic has no linked
-  Telegram (then the backup mechanic got it).
+- _Why did the mechanic get no reminder?_ The plan is not published, the mechanic has no linked
+  Telegram (then the backup mechanic got it), or the work card shows the notice as not delivered.
 - _How do I move a maintenance?_ Open it in "Работы" and press "Перенести"; the reminders follow.
 - _Why is "Допустить к работе" disabled?_ The mechanic has not finished the repair in the bot yet.
