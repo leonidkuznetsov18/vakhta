@@ -274,7 +274,7 @@ function PlanForm(props: EditorProps & { readonly detail: PlanDetail | null }) {
   return (
     <DetailSheet
       open
-      wide
+      size="wide"
       onOpenChange={(open) => (open ? undefined : onClose())}
       title={<PlanTitle machine={machine} detail={detail} />}
       description={t.planForm.hint}
@@ -289,7 +289,7 @@ function PlanForm(props: EditorProps & { readonly detail: PlanDetail | null }) {
       <IntervalBlock {...blockProps} />
       <OperationsBlock {...blockProps} />
       <MaterialsBlock {...blockProps} />
-      <AssigneeBlock {...blockProps} mechanics={mechanics.data ?? []} />
+      <AssigneeBlock {...blockProps} mechanics={mechanics.data ?? []} policy={policy.data} />
       <SchedulePreviewAlert
         draft={model.draft}
         mechanics={mechanics.data ?? []}
@@ -312,7 +312,7 @@ export function PlanEditor(props: EditorProps) {
     return (
       <DetailSheet
         open
-        wide
+        size="wide"
         onOpenChange={(open) => (open ? undefined : props.onClose())}
         title={t.plans.title}
       >

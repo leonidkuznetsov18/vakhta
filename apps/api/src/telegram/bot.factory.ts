@@ -609,7 +609,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       step,
     };
     // Spec 014, FR-060: a zone with machines asks which one right after the reason.
-    const machines = await deps.incidents.reportableEquipmentFor(ctx.employee.id);
+    const { zone, machines } = await deps.incidents.reportableEquipmentFor(ctx.employee.id);
     if (!machines.length) return nextStep(ctx, pending);
     await writePending(ctx, {
       ...pending,
@@ -621,6 +621,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       ctx,
       equipmentPickScreen(ctx.t, {
         machines,
+        zone,
         cancel: { text: ctx.t.incidents.cancel, data: INCIDENT_CALLBACK.cancel },
       }),
     );

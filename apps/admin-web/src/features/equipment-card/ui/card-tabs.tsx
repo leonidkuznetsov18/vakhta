@@ -18,7 +18,7 @@ import { PlanState } from '@vakhta/domain';
 import { format } from '@vakhta/i18n';
 import {
   ReadinessPill,
-  formatDayMonth,
+  formatNearDate,
   formatInterval,
   maintenanceApi,
   maintenanceKeys,
@@ -33,8 +33,6 @@ import { Button } from '@/components/ui/button';
 import { describeError } from '@/errors';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { notifySuccess } from '@/lib/toast';
-import { messages } from '@vakhta/i18n';
-import { currentLocale } from '@/shared/config';
 import { formatSize, lacksManual } from '../model/documents';
 import { CopyPlanDialog } from './copy-plan-dialog';
 import { UploadDialog } from './upload-dialog';
@@ -165,6 +163,7 @@ const PLAN_COLUMNS: readonly Column<PlanRow>[] = [
   {
     key: 'plan',
     header: maintenanceMessages().plans.columns.plan,
+    minWidth: '12rem',
     sortValue: (plan) => plan.title,
     cell: (plan) => (
       <span className="flex flex-col leading-tight">
@@ -184,23 +183,27 @@ const PLAN_COLUMNS: readonly Column<PlanRow>[] = [
   {
     key: 'interval',
     header: maintenanceMessages().plans.columns.interval,
-    cell: (plan) => formatInterval(messages(currentLocale()), plan),
+    minWidth: '6.5rem',
+    cell: (plan) => <span className="whitespace-nowrap">{formatInterval(plan)}</span>,
   },
   {
     key: 'last',
     header: maintenanceMessages().plans.columns.last,
-    sortValue: (plan) => plan.lastPerformedOn ?? '',
-    cell: (plan) => formatDayMonth(plan.lastPerformedOn),
+    minWidth: '5.5rem',
+    // Plans are read by what comes next; sorting by the last date would only cost width.
+    cell: (plan) => <span className="tabular-nums">{formatNearDate(plan.lastPerformedOn)}</span>,
   },
   {
     key: 'next',
     header: maintenanceMessages().plans.columns.next,
+    minWidth: '6.5rem',
     sortValue: (plan) => plan.nextDueOn ?? '9999',
-    cell: (plan) => formatDayMonth(plan.nextDueOn),
+    cell: (plan) => <span className="tabular-nums">{formatNearDate(plan.nextDueOn)}</span>,
   },
   {
     key: 'materials',
     header: maintenanceMessages().plans.columns.materials,
+    minWidth: '8rem',
     cell: (plan) => (plan.readiness ? <ReadinessPill readiness={plan.readiness} /> : '—'),
   },
 ];

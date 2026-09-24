@@ -9,6 +9,8 @@ export interface MaintenanceNoticeData {
   readonly title: string;
   readonly equipmentCode: string;
   readonly equipmentName: string;
+  /** The model the shop floor names the machine by; null when unknown. */
+  readonly equipmentModel: string | null;
   readonly location: string;
   /** Local 'DD.MM.YYYY' of the planned date; null for a repair. */
   readonly plannedOn: string | null;

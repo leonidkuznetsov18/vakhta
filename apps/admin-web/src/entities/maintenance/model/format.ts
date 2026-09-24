@@ -29,12 +29,56 @@ export function formatDayMonth(businessDate: string | null | undefined): string 
   });
 }
 
-/** "every 2 wk" in the panel language. */
-export function formatInterval(
-  t: Messages,
-  rule: { readonly intervalUnit: IntervalUnit; readonly intervalCount: number },
-): string {
-  return format(t.maintenance.intervalEvery[rule.intervalUnit], { count: rule.intervalCount });
+/** "22.09" within the current year, "15.01.2027" beyond it, so a far date never reads as a near one. */
+export function formatNearDate(businessDate: string | null | undefined): string {
+  if (!businessDate) return '—';
+  const thisYear = String(new Date().getFullYear());
+  return businessDate.startsWith(thisYear)
+    ? formatDayMonth(businessDate)
+    : formatBusinessDate(businessDate);
+}
+
+/** The local day of an instant as "22.09". */
+export function formatInstantDayMonth(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString(INTL[currentLocale()], {
+    day: '2-digit',
+    month: '2-digit',
+  });
+}
+
+/** An instant as "22.09 14:05": dense work cards read day and time, the year is implied. */
+export function formatDayTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const time = new Date(iso).toLocaleTimeString(INTL[currentLocale()], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return `${formatInstantDayMonth(iso)} ${time}`;
+}
+
+/** The machine as people name it on the shop floor: "M-02 NEWTOP-FB158SV1" (model, else name). */
+export function machineLabel(machine: {
+  readonly code: string;
+  readonly model?: string | null;
+  readonly name: string;
+}): string {
+  return `${machine.code} ${machine.model ?? machine.name}`;
+}
+
+/**
+ * "кожні 3 дні", "кожен тиждень" in the panel language. A count of one reads as a plain "every";
+ * other counts pick the word form by the locale's plural rules (21 → "день", 22 → "дні").
+ */
+export function formatInterval(rule: {
+  readonly intervalUnit: IntervalUnit;
+  readonly intervalCount: number;
+}): string {
+  const forms = maintenanceMessages().intervalEvery[rule.intervalUnit];
+  if (rule.intervalCount === 1) return forms.single;
+  const category = new Intl.PluralRules(INTL[currentLocale()]).select(rule.intervalCount);
+  const byCategory: Readonly<Record<string, string>> = forms;
+  return format(byCategory[category] ?? forms.other, { count: rule.intervalCount });
 }
 
 export function maintenanceMessages(): Messages['maintenance'] {

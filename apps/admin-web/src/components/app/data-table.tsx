@@ -646,7 +646,7 @@ export function DataTable<T extends object>({
             {visible.map((row) => {
               const key = rowKey(row);
               const first = primary;
-              const rest = columns.filter((column) => column !== first);
+              const rest = columns.filter((column) => column !== first && !column.hideOnCards);
               const extra = expanded?.(row);
               const actions = rowActions?.(row) ?? [];
               return (
@@ -677,10 +677,9 @@ export function DataTable<T extends object>({
                       <RowMenu actions={actions} label={`${t.actions}: ${labelFor(row)}`} />
                     ) : null}
                   </div>
-                  <dl className="mt-3 grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] gap-x-3 gap-y-2">
-                    {rest
-                      .filter((c) => !c.hideOnCards)
-                      .map((c) => (
+                  {rest.length ? (
+                    <dl className="mt-3 grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] gap-x-3 gap-y-2">
+                      {rest.map((c) => (
                         <RowGroup key={c.key}>
                           <dt className="text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
                             {c.label ?? c.header}
@@ -688,7 +687,8 @@ export function DataTable<T extends object>({
                           <dd className="min-w-0 leading-6">{cellContent(c.cell(row))}</dd>
                         </RowGroup>
                       ))}
-                  </dl>
+                    </dl>
+                  ) : null}
                   {extra ? (
                     <div className="mt-3 border-t pt-3">
                       <div id={`${instanceId}-detail-${key}`} onKeyDown={closeDetail(row)}>

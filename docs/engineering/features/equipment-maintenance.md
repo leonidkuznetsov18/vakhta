@@ -74,9 +74,41 @@ intervals, OEE.
 - FR-031: month and week views, unit, mechanic, machine and status filters. Filters persist in the
   panel's shared UI store (table-filter standard F4) rather than the URL; records still deep-link.
 - Not done by design: the prototype's "Бот механика" demo tab is not part of the panel.
-- Shared changes caused by this feature: `DetailSheet` `wide` now overrides the sheet's side-variant
-  width (it never did); the role picker in "Пользователи и роли" stays a native select with nine roles;
+- Shared changes caused by this feature: `DetailSheet` takes `size` (`default`, `medium` = prototype
+  `max-w-2xl`, `wide` = `max-w-3xl`) instead of the `wide` flag, and a `meta` slot for status pills
+  under the description; DataTable cards skip the empty field list when every other column is
+  `hideOnCards`; the role picker in "Пользователи и роли" stays a native select with nine roles;
   `MODULE_DISABLED` has a panel message.
+
+### Prototype parity (2026-09-24)
+
+Actual screens were compared with `specs/014-equipment-maintenance/prototype/01–08` at 1440×900 and
+390×844 and aligned:
+
+- Header title "Обслуговування обладнання"; machines read as `code model` (`machineLabel`, model else
+  name) in the register, queue, banner, sheets, calendar overdue line and bot notices.
+- Register: "Поточна робота" column, one-line location and machine, compact phone cards (title and
+  state, place, next maintenance with readiness, "Механік: …", emergency). Column minimums were set so
+  all seven columns fit a 1440 screen; only the long mechanic header wraps.
+- Card and work sheets: pills in the header, next date as `dd.mm` (year shown only beyond the current
+  year), full-word intervals by plural rules ("кожні 3 дні", "кожен тиждень"), secondary actions
+  (state correction, archive, cancel work) in a "⋯" menu, review buttons in the footer, "Використано"
+  after submission, next date after acceptance by the anchor mode.
+- Emergency sheet: "P1" code in the title, Відповідальний / Резерв / Інцидент, report line with
+  reporter, time and "робота зупинена", notices merged into "Хід" by time (`repairTimeline`).
+- Calendar: view switch in the section header, filters in one row (two per row on phones), legend only
+  for marks on screen, `dd.mm` agenda dates.
+- Bot: model in the machine line and the operator's machine buttons, zone named in "На якому
+  обладнанні?", "ТО через 7 днів" by plural rules, "P1" in the emergency heading.
+
+Deliberate differences, kept because project standards or the spec require them: the "Як це працює"
+card, labelled filters and the table's own search (table-filter standard F1), row chevrons, sort
+buttons and "Показано 1–N з N" counts, the StateFilter segmented control, footer actions on the machine
+card (release, emergency, edit — the prototype shows none), editing controls in the plan editor, the
+panel's work card in the bot (status, full operation list) instead of a one-step view, the bot's explicit
+"📨 Надіслати майстру" / "✍️ Інше — написати" instead of "Готово", and no "📍 Прибув" repair step (not
+in the spec). Overdue work reads "Прострочено" without a day count, and the bot's planned date stays
+`DD.MM.YYYY` without a weekday.
 
 ## Verification
 
@@ -95,8 +127,13 @@ intervals, OEE.
   showing performer and "Вніс у панель"; failed notice on the work card; state correction and plan copy
   dialogs; calendar week view with filters. Fixed during QA: the week view opened on the month's first
   week, long titles in the week view were cut, and the diff was re-read (409) after applying.
-- Not verified: the live Telegram bot against a real bot token (covered by bot harness tests), the
-  Control → Parameters page with the new group in a browser, and the deployed environment.
+- Prototype parity pass (same day): repo-wide `pnpm typecheck` and `pnpm lint` pass; panel 587,
+  worker 141, i18n 16 (bot notice texts), API `src/telegram` 54 and `src/maintenance` 23 passed.
+  Screens 01–07 captured again at 1440×900 and 390×844 and compared with the prototype images;
+  measured tables fit their containers (register 7 columns, queue 7, card plans 6).
+- Not verified: the live Telegram bot against a real bot token (covered by bot harness tests; no token
+  was available in this environment), the Control → Parameters page with the new group in a browser,
+  and the deployed environment.
 
 ## Remaining work
 

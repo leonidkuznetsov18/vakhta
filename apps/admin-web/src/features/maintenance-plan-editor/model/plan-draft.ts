@@ -218,6 +218,7 @@ export interface SchedulePreview {
   readonly firstDueOn: string;
   readonly reminders: readonly string[];
   readonly nextDueOn: string;
+  readonly interval: { readonly intervalUnit: Unit; readonly intervalCount: number };
 }
 
 /** The first date, its reminder days and the date after it, as the scheduler will compute them. */
@@ -232,6 +233,7 @@ export function schedulePreview(
     firstDueOn: draft.firstDueOn,
     reminders: earliestFirst.map((offset) => addDays(draft.firstDueOn, -offset)),
     nextDueOn: addInterval(draft.firstDueOn, draft.intervalUnit, count),
+    interval: { intervalUnit: draft.intervalUnit, intervalCount: count },
   };
 }
 

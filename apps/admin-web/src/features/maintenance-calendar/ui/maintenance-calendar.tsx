@@ -13,8 +13,9 @@ import {
 import type { CalendarItem } from '@vakhta/contracts';
 import { format, messages } from '@vakhta/i18n';
 import {
-  formatBusinessDate,
+  formatNearDate,
   formatDayMonth,
+  machineLabel,
   maintenanceMessages,
   maintenanceQueries,
 } from '@/entities/maintenance';
@@ -161,7 +162,9 @@ function CalendarGrid({
           className={cn(
             'flex min-w-0 flex-col gap-1 border-r border-b p-1 [&:nth-child(7n)]:border-r-0',
             // A week has room for whole titles; the month keeps one line per entry.
-            tall ? 'min-h-64 [&_[data-title]]:text-left [&_[data-title]]:whitespace-normal [&_button]:items-start' : 'min-h-24',
+            tall
+              ? 'min-h-64 [&_[data-title]]:text-left [&_[data-title]]:whitespace-normal [&_button]:items-start'
+              : 'min-h-24',
             !day.inMonth && 'bg-muted/30',
           )}
         >
@@ -201,7 +204,7 @@ function CalendarAgenda({
       {shown.map((day) => (
         <li key={day.date} className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground">
-            {formatBusinessDate(day.date)}
+            {formatNearDate(day.date)}
           </span>
           {(byDay.get(day.date) ?? []).map((entry) => (
             <EntryChip key={entry.key} entry={entry} onOpenWork={onOpenWork} />
@@ -224,7 +227,11 @@ function OverdueAlert({ items }: { readonly items: readonly CalendarItem[] }) {
           {items.map((item) => (
             <li key={item.workOrderId}>
               {format(t.overdueLine, {
-                code: item.equipmentCode,
+                machine: machineLabel({
+                  code: item.equipmentCode,
+                  model: item.equipmentModel,
+                  name: item.equipmentName,
+                }),
                 title: item.title,
                 date: formatDayMonth(item.dueOn),
                 mechanic: item.assignee,
@@ -246,10 +253,15 @@ const LEGEND: readonly EntryTone[] = [
   EntryTone.FORECAST,
 ];
 
-function Legend() {
+/** Explains only the marks the calendar currently shows. */
+function Legend({ byDay }: { readonly byDay: ReadonlyMap<string, readonly CalendarEntry[]> }) {
+  const shown = new Set<EntryTone>();
+  for (const entries of byDay.values()) for (const entry of entries) shown.add(entry.tone);
+  const tones = LEGEND.filter((tone) => shown.has(tone));
+  if (!tones.length) return null;
   return (
     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-      {LEGEND.map((tone) => (
+      {tones.map((tone) => (
         <span key={tone} className="flex items-center gap-1.5">
           <span
             className={cn(
@@ -265,6 +277,9 @@ function Legend() {
     </div>
   );
 }
+
+// Two filters per row on a phone, one compact row on a desktop.
+const FILTER_WIDTH = 'w-[calc(50%-0.375rem)] md:w-44';
 
 interface Filters {
   readonly view: CalendarView;
@@ -303,7 +318,7 @@ function PeriodControls({
         : { ...filters, month: shiftMonth(filters.month, direction) },
     );
   return (
-    <div className="flex items-end gap-1">
+    <div className="flex items-end gap-1 max-md:w-full">
       <IconButton
         icon={ChevronLeftIcon}
         label={week ? t.previousWeek : t.previous}
@@ -348,21 +363,16 @@ function ViewToggle({
 }) {
   const t = maintenanceMessages().calendar;
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-sm leading-none font-medium">{t.view}</span>
-      <ToggleGroup
-        type="single"
-        variant="outline"
-        aria-label={t.view}
-        value={filters.view}
-        onValueChange={(value) =>
-          isView(value) ? onChange({ ...filters, view: value }) : undefined
-        }
-      >
-        <ToggleGroupItem value={CalendarView.MONTH}>{t.viewMonth}</ToggleGroupItem>
-        <ToggleGroupItem value={CalendarView.WEEK}>{t.viewWeek}</ToggleGroupItem>
-      </ToggleGroup>
-    </div>
+    <ToggleGroup
+      type="single"
+      variant="outline"
+      aria-label={t.view}
+      value={filters.view}
+      onValueChange={(value) => (isView(value) ? onChange({ ...filters, view: value }) : undefined)}
+    >
+      <ToggleGroupItem value={CalendarView.MONTH}>{t.viewMonth}</ToggleGroupItem>
+      <ToggleGroupItem value={CalendarView.WEEK}>{t.viewWeek}</ToggleGroupItem>
+    </ToggleGroup>
   );
 }
 
@@ -379,13 +389,12 @@ function CalendarToolbar({
   const machines = useQuery(maintenanceQueries.equipmentList({ archived: false }));
   return (
     <Toolbar>
-      <ViewToggle filters={filters} onChange={onChange} />
       <PeriodControls filters={filters} onChange={onChange} />
       <SelectField
         label={t.form.unit}
         value={filters.unitId}
         onChange={(unitId) => onChange({ ...filters, unitId })}
-        className="w-48"
+        className={FILTER_WIDTH}
         options={[
           { value: '', label: t.calendar.allUnits },
           ...orgOrEmpty.orgUnits.map((unit) => ({ value: unit.id, label: unit.name })),
@@ -395,7 +404,7 @@ function CalendarToolbar({
         label={t.work.columns.mechanic}
         value={filters.mechanicId}
         onChange={(mechanicId) => onChange({ ...filters, mechanicId })}
-        className="w-48"
+        className={FILTER_WIDTH}
         options={[
           { value: '', label: t.calendar.allMechanics },
           ...(mechanics.data ?? []).map((option) => ({ value: option.id, label: option.fullName })),
@@ -405,12 +414,12 @@ function CalendarToolbar({
         label={t.work.columns.machine}
         value={filters.equipmentId}
         onChange={(equipmentId) => onChange({ ...filters, equipmentId })}
-        className="w-48"
+        className={FILTER_WIDTH}
         options={[
           { value: '', label: t.calendar.allMachines },
           ...(machines.data ?? []).map((machine) => ({
             value: machine.id,
-            label: `${machine.code} ${machine.name}`,
+            label: machineLabel(machine),
           })),
         ]}
       />
@@ -420,7 +429,7 @@ function CalendarToolbar({
         onChange={(status) =>
           onChange({ ...filters, status: isStatus(status) ? status : StatusFilter.ALL })
         }
-        className="w-40"
+        className={FILTER_WIDTH}
         searchable={false}
         options={STATUS_FILTERS.map((value) => ({ value, label: t.calendar.statusFilter[value] }))}
       />
@@ -487,7 +496,7 @@ export function MaintenanceCalendar({
   return (
     <div className="flex flex-col gap-4">
       {view ? <OverdueAlert items={view.overdue} /> : null}
-      <Section title={t.title}>
+      <Section title={t.title} actions={<ViewToggle filters={filters} onChange={setFilters} />}>
         <CalendarToolbar filters={filters} onChange={setFilters} />
         <QueryFeedback query={query} />
         {view && mobile ? (
@@ -502,7 +511,7 @@ export function MaintenanceCalendar({
             onOpenWork={onOpenWork}
           />
         ) : null}
-        <Legend />
+        <Legend byDay={byDay} />
       </Section>
     </div>
   );

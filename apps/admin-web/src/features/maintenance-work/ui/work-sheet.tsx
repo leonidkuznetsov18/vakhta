@@ -5,24 +5,24 @@ import {
   CameraIcon,
   CircleCheckIcon,
   CircleDashedIcon,
-  ClockIcon,
-  HistoryIcon,
-  TimerIcon,
   XCircleIcon,
 } from 'lucide-react';
 import type { WorkDetail, WorkOperationView } from '@vakhta/contracts';
-import { ReviewDecision, WorkStatus, type OperationResult } from '@vakhta/domain';
+import { AnchorMode, ReviewDecision, type OperationResult } from '@vakhta/domain';
 import { format } from '@vakhta/i18n';
 import {
-  EquipmentStatePill,
   WorkStatusPill,
-  formatBusinessDate,
+  formatDayMonth,
+  formatDayTime,
+  formatInstantDayMonth,
+  machineLabel,
   maintenanceApi,
   maintenanceKeys,
   maintenanceMessages,
   maintenanceQueries,
 } from '@/entities/maintenance';
 import { useConfirm } from '@/components/app/confirm-dialog';
+import { RowMenu } from '@/components/app/data-table';
 import { DetailSheet } from '@/components/app/detail-sheet';
 import { Feedback } from '@/components/app/feedback';
 import { FormField } from '@/components/app/fields';
@@ -34,39 +34,29 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { describeError } from '@/errors';
-import { useNow } from '@/lib/clock';
-import { formatDateTime, formatDuration, formatTime } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 import { notifySuccess } from '@/lib/toast';
 import {
   ReleaseState,
-  canChange,
-  canReview,
-  isFinal,
+  hasActions,
   isRepair,
-  minutesSince,
-  minutesUntil,
   releaseState,
+  workActions,
+  type WorkActions,
 } from '../model/work-view';
 import { canRecordCompletion } from '../model/record-draft';
 import { NewerPlanAlert } from './plan-version-dialog';
 import { RecordCompletionDialog } from './record-completion-dialog';
+import { RepairBody, RepairMeta } from './repair-body';
 import { ChangeDialog, ReassignDialog, ReplanDialog } from './work-change-dialogs';
 import { WorkDeliveries } from './work-deliveries';
+import { WorkField } from './work-field';
 
 const RESULT_VIEW: Readonly<Record<OperationResult, { tone: PillTone; icon: ReactNode }>> = {
   DONE: { tone: 'success', icon: <CircleCheckIcon /> },
   NOT_DONE: { tone: 'danger', icon: <XCircleIcon /> },
   NOT_APPLICABLE: { tone: 'neutral', icon: <CircleDashedIcon /> },
 };
-
-function Field({ label, children }: { readonly label: string; readonly children: ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-sm break-words">{children}</span>
-    </div>
-  );
-}
 
 function OperationPhoto({
   workId,
@@ -113,7 +103,7 @@ function OperationItem({
     <li className="flex flex-col gap-1 rounded-md border p-2 text-sm">
       <span className="flex flex-wrap items-center justify-between gap-2">
         <span className="break-words">
-          {operation.ordinal}. {operation.text}
+          {operation.text}
           {operation.place ? (
             <span className="text-muted-foreground"> · {operation.place}</span>
           ) : null}
@@ -139,63 +129,37 @@ function OperationItem({
   );
 }
 
-function PlannedBody({
-  work,
-  canManage,
-}: {
-  readonly work: WorkDetail;
-  readonly canManage: boolean;
-}) {
-  const t = maintenanceMessages();
+/** What was used once the work is handed in; until then, what the plan asks to prepare. */
+function Materials({ work }: { readonly work: WorkDetail }) {
+  const t = maintenanceMessages().workCard;
+  if (work.partsUsed)
+    return (
+      <section className="flex flex-col gap-1">
+        <h3 className="font-medium">{t.used}</h3>
+        <p className="text-sm whitespace-pre-line break-words">{work.partsUsed}</p>
+      </section>
+    );
+  if (!work.materials.length) return null;
   return (
-    <>
-      <NewerPlanAlert work={work} canManage={canManage} />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <Field label={t.workCard.performer}>
-          {work.performedBy?.fullName ?? work.assignee.fullName}
-        </Field>
-        <Field label={t.workCard.started}>{formatDateTime(work.startedAt)}</Field>
-        <Field label={t.workCard.submitted}>{formatDateTime(work.submittedAt)}</Field>
-        {work.enteredBy ? <Field label={t.workCard.enteredBy}>{work.enteredBy}</Field> : null}
-        {work.partsUsed ? <Field label={t.workCard.materialsUsed}>{work.partsUsed}</Field> : null}
-      </div>
-      {work.readinessNote ? (
-        <p className="text-sm">{format(t.workCard.readinessNote, { note: work.readinessNote })}</p>
-      ) : null}
-      <Separator />
-      <h3 className="font-medium">{t.workCard.operations}</h3>
-      {work.operations.length ? (
-        <ol className="flex flex-col gap-2">
-          {work.operations.map((operation) => (
-            <OperationItem key={operation.id} workId={work.id} operation={operation} />
-          ))}
-        </ol>
-      ) : (
-        <EmptyState text={t.plans.empty} />
-      )}
-      {work.materials.length ? (
-        <>
-          <h3 className="font-medium">{t.workCard.materials}</h3>
-          <ul className="text-sm">
-            {work.materials.map((material) => (
-              <li key={material.id}>
-                {material.name} — {material.quantity} {material.unit}
-                {material.article ? (
-                  <span className="text-muted-foreground"> · {material.article}</span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
-      {work.reviews.length ? <ReviewHistory work={work} /> : null}
-      <WorkDeliveries work={work} />
-    </>
+    <section className="flex flex-col gap-1">
+      <h3 className="font-medium">{t.materials}</h3>
+      <ul className="text-sm">
+        {work.materials.map((material) => (
+          <li key={material.id}>
+            {material.name} — {material.quantity} {material.unit}
+            {material.article ? (
+              <span className="text-muted-foreground"> · {material.article}</span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
 function ReviewHistory({ work }: { readonly work: WorkDetail }) {
   const t = maintenanceMessages();
+  if (!work.reviews.length) return null;
   return (
     <ul className="flex flex-col gap-1 text-sm">
       {work.reviews.map((review) => (
@@ -216,33 +180,85 @@ function ReviewHistory({ work }: { readonly work: WorkDetail }) {
   );
 }
 
-function ReviewPanel({ work }: { readonly work: WorkDetail }) {
+function PlannedBody({
+  work,
+  canManage,
+  review,
+}: {
+  readonly work: WorkDetail;
+  readonly canManage: boolean;
+  /** The review form, when the work waits for the manager's decision. */
+  readonly review: ReactNode;
+}) {
   const t = maintenanceMessages();
-  const [comment, setComment] = useState('');
-  const client = useQueryClient();
-  const review = useMutation({
-    mutationFn: (decision: ReviewDecision) =>
-      maintenanceApi.review(work.id, {
-        decision,
-        ...(comment.trim() ? { comment: comment.trim() } : {}),
-      }),
-    onSuccess: async (_result, decision) => {
-      await client.invalidateQueries({ queryKey: maintenanceKeys.all });
-      notifySuccess(
-        decision === ReviewDecision.ACCEPTED ? t.workCard.accepted : t.workCard.returned,
-      );
-    },
-  });
   return (
     <>
-      <Feedback error={review.error ? describeError(review.error) : null} />
-      <FormField label={t.workCard.returnComment}>
+      <NewerPlanAlert work={work} canManage={canManage} />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <WorkField label={t.workCard.performer}>
+          {work.performedBy?.fullName ?? work.assignee.fullName}
+        </WorkField>
+        <WorkField label={t.workCard.started}>{formatDayTime(work.startedAt)}</WorkField>
+        <WorkField label={t.workCard.submitted}>{formatDayTime(work.submittedAt)}</WorkField>
+        {work.enteredBy ? (
+          <WorkField label={t.workCard.enteredBy}>{work.enteredBy}</WorkField>
+        ) : null}
+      </div>
+      {work.readinessNote ? (
+        <p className="text-sm">{format(t.workCard.readinessNote, { note: work.readinessNote })}</p>
+      ) : null}
+      <Separator />
+      <h3 className="font-medium">{t.workCard.operations}</h3>
+      {work.operations.length ? (
+        <ol className="flex flex-col gap-2">
+          {work.operations.map((operation) => (
+            <OperationItem key={operation.id} workId={work.id} operation={operation} />
+          ))}
+        </ol>
+      ) : (
+        <EmptyState text={t.plans.empty} />
+      )}
+      <Materials work={work} />
+      <ReviewHistory work={work} />
+      {review}
+      <WorkDeliveries work={work} />
+    </>
+  );
+}
+
+function nextAfterAcceptText(work: WorkDetail, nextDueOn: string): string {
+  const t = maintenanceMessages().workCard;
+  return format(t.nextAfterAccept[work.anchorMode ?? AnchorMode.FROM_COMPLETION], {
+    title: work.title,
+    code: work.equipment.code,
+    date: formatDayMonth(nextDueOn),
+    performed: formatInstantDayMonth(work.performedAt),
+  });
+}
+
+/** The remark and what acceptance will schedule; the decision buttons live in the footer. */
+function ReviewForm({
+  work,
+  comment,
+  onComment,
+  error,
+}: {
+  readonly work: WorkDetail;
+  readonly comment: string;
+  readonly onComment: (comment: string) => void;
+  readonly error: unknown;
+}) {
+  const t = maintenanceMessages().workCard;
+  return (
+    <>
+      <Feedback error={error ? describeError(error) : null} />
+      <FormField label={t.returnComment}>
         {(id) => (
           <Textarea
             id={id}
             rows={2}
             value={comment}
-            onChange={(event) => setComment(event.target.value)}
+            onChange={(event) => onComment(event.target.value)}
           />
         )}
       </FormField>
@@ -250,180 +266,66 @@ function ReviewPanel({ work }: { readonly work: WorkDetail }) {
         <Alert>
           <CalendarDaysIcon />
           <AlertDescription>
-            {format(t.workCard.nextAfterAccept, {
-              title: work.title,
-              date: formatBusinessDate(work.nextDueOnAfterAccept),
-            })}
+            {nextAfterAcceptText(work, work.nextDueOnAfterAccept)}
           </AlertDescription>
         </Alert>
       ) : null}
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          variant="outline"
-          disabled={!comment.trim()}
-          pending={review.isPending && review.variables === ReviewDecision.RETURNED}
-          onClick={() => review.mutate(ReviewDecision.RETURNED)}
-        >
-          {t.workCard.return}
-        </Button>
-        <Button
-          variant="success"
-          pending={review.isPending && review.variables === ReviewDecision.ACCEPTED}
-          onClick={() => review.mutate(ReviewDecision.ACCEPTED)}
-        >
-          {t.workCard.accept}
-        </Button>
-      </div>
     </>
   );
 }
 
-function ackText(ackDueAt: string, now: Date): string {
-  const t = maintenanceMessages();
-  const left = minutesUntil(ackDueAt, now);
-  if (left <= 0) return t.work.escalated;
-  return format(t.workCard.notAcceptedLeft, { left: formatDuration(left) });
+interface ReviewInput {
+  readonly decision: ReviewDecision;
+  readonly comment: string;
 }
 
-function RepairPills({ work }: { readonly work: WorkDetail }) {
-  const t = maintenanceMessages();
-  const now = useNow();
-  const waiting = !work.acceptedAt && work.ackDueAt && work.status !== WorkStatus.CANCELLED;
-  return (
-    <div className="flex flex-wrap gap-2">
-      <EquipmentStatePill state={work.equipmentState} />
-      {waiting && work.ackDueAt ? (
-        <StatusPill tone="danger">
-          <TimerIcon />
-          {ackText(work.ackDueAt, now)}
-        </StatusPill>
-      ) : (
-        <WorkStatusPill status={work.status} />
-      )}
-      {work.stop && !work.stop.releasedAt ? (
-        <StatusPill>
-          <ClockIcon />{' '}
-          {format(t.workCard.downtime, {
-            duration: formatDuration(minutesSince(work.stop.startedAt, now)),
-          })}
-        </StatusPill>
-      ) : null}
-    </div>
-  );
-}
-
-function ReportQuote({ work }: { readonly work: WorkDetail }) {
-  const t = maintenanceMessages();
-  if (!work.description) return null;
-  const reporter = work.incident?.reportedBy;
-  return (
-    <div className="rounded-md border bg-muted/40 p-3 text-sm">
-      <p className="font-medium whitespace-pre-line break-words">«{work.description}»</p>
-      <p className="text-xs text-muted-foreground">
-        {reporter
-          ? format(t.workCard.reportedBy, { name: reporter, time: formatDateTime(work.reportedAt) })
-          : formatDateTime(work.reportedAt)}
-      </p>
-    </div>
-  );
-}
-
-function RepairSummary({ work }: { readonly work: WorkDetail }) {
-  const t = maintenanceMessages();
-  if (!work.summary) return null;
-  return (
-    <div className="grid gap-2 text-sm">
-      <Field label={t.workCard.summary}>{work.summary}</Field>
-      {work.cause ? <Field label={t.workCard.cause}>{work.cause}</Field> : null}
-      {work.partsUsed ? <Field label={t.workCard.partsUsed}>{work.partsUsed}</Field> : null}
-    </div>
-  );
-}
-
-/** What happens next if nobody accepts the repair, shown under the recorded course (FR-063). */
-function ExpectedEscalation({ work }: { readonly work: WorkDetail }) {
+function useReview(workId: string, onReviewed: () => void) {
   const t = maintenanceMessages().workCard;
-  const now = useNow();
-  if (work.acceptedAt || !work.ackDueAt || !work.escalateAt || isFinal(work.status)) return null;
-  const steps = [
-    {
-      at: work.ackDueAt,
-      text: format(t.escalationBackup, { backup: work.backup?.fullName ?? '—' }),
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ReviewInput) =>
+      maintenanceApi.review(workId, {
+        decision: input.decision,
+        ...(input.comment.trim() ? { comment: input.comment.trim() } : {}),
+      }),
+    onSuccess: async (_result, input) => {
+      onReviewed();
+      await client.invalidateQueries({ queryKey: maintenanceKeys.all });
+      notifySuccess(input.decision === ReviewDecision.ACCEPTED ? t.accepted : t.returned);
     },
-    { at: work.escalateAt, text: t.escalationPanel },
-  ];
-  const upcoming = steps.filter((step) => Date.parse(step.at) > now.getTime());
-  return (
-    <>
-      {upcoming.map((step) => (
-        <li key={step.text} className="relative text-sm text-muted-foreground">
-          <span className="absolute top-1.5 -left-[21px] size-2 rounded-full border border-foreground/60 bg-background" />
-          <span className="text-xs tabular-nums">
-            {format(t.expected, { time: formatTime(step.at) })}
-          </span>
-          <div className="break-words">{step.text}</div>
-        </li>
-      ))}
-    </>
-  );
+  });
 }
 
-function RepairHistory({ work }: { readonly work: WorkDetail }) {
-  const t = maintenanceMessages();
-  const events: Readonly<Record<string, string>> = t.events;
+function ReviewButtons({
+  review,
+  comment,
+}: {
+  readonly review: ReturnType<typeof useReview>;
+  readonly comment: string;
+}) {
+  const t = maintenanceMessages().workCard;
+  const deciding = (decision: ReviewDecision) =>
+    review.isPending && review.variables.decision === decision;
   return (
     <>
-      <h3 className="flex items-center gap-2 font-medium">
-        <HistoryIcon className="size-4" aria-hidden="true" /> {t.workCard.history}
-      </h3>
-      <ol className="flex flex-col gap-3 border-l pl-4">
-        {work.history.map((item) => (
-          <li key={`${item.at}:${item.type}:${item.actor ?? ''}`} className="relative text-sm">
-            <span className="absolute top-1.5 -left-[21px] size-2 rounded-full bg-foreground/60" />
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {formatDateTime(item.at)}
-            </span>
-            <div className="break-words">
-              {events[item.type] ?? item.type}
-              {item.actor ? <span className="text-muted-foreground"> · {item.actor}</span> : null}
-            </div>
-            {item.comment ? (
-              <div className="text-xs whitespace-pre-line text-muted-foreground">
-                {item.comment}
-              </div>
-            ) : null}
-          </li>
-        ))}
-        <ExpectedEscalation work={work} />
-      </ol>
+      <Button
+        variant="outline"
+        disabled={!comment.trim() || review.isPending}
+        pending={deciding(ReviewDecision.RETURNED)}
+        onClick={() => review.mutate({ decision: ReviewDecision.RETURNED, comment })}
+      >
+        {t.return}
+      </Button>
+      <Button
+        variant="success"
+        disabled={review.isPending}
+        pending={deciding(ReviewDecision.ACCEPTED)}
+        onClick={() => review.mutate({ decision: ReviewDecision.ACCEPTED, comment })}
+      >
+        {t.accept}
+      </Button>
     </>
   );
-}
-
-function RepairBody({ work }: { readonly work: WorkDetail }) {
-  const t = maintenanceMessages();
-  return (
-    <>
-      <RepairPills work={work} />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <Field label={t.workCard.responsible}>{(work.lead ?? work.assignee).fullName}</Field>
-        <Field label={t.workCard.incident}>{work.incident?.reasonLabel ?? '—'}</Field>
-        <Field label={t.workCard.started}>{formatDateTime(work.startedAt)}</Field>
-      </div>
-      <ReportQuote work={work} />
-      <RepairSummary work={work} />
-      <RepairHistory work={work} />
-      <WorkDeliveries work={work} />
-    </>
-  );
-}
-
-interface SheetProps {
-  readonly workId: string;
-  readonly canManage: boolean;
-  readonly canRespond: boolean;
-  readonly onClose: () => void;
-  readonly onRelease: (equipmentId: string) => void;
 }
 
 function ReleaseButton({
@@ -447,6 +349,7 @@ function ReleaseButton({
   );
 }
 
+/** Changes of unfinished work; the rare, destructive cancellation waits in the "⋯" menu. */
 function ChangeButtons({ work }: { readonly work: WorkDetail }) {
   const t = maintenanceMessages();
   const [dialog, setDialog] = useState<ChangeDialog>(ChangeDialog.NONE);
@@ -472,6 +375,18 @@ function ChangeButtons({ work }: { readonly work: WorkDetail }) {
   return (
     <>
       <Feedback error={cancel.error ? describeError(cancel.error) : null} />
+      <RowMenu
+        label={t.moreActions}
+        actions={[
+          {
+            key: 'cancel',
+            label: t.workCard.cancel,
+            destructive: true,
+            pending: cancel.isPending,
+            onSelect: () => void askCancel(),
+          },
+        ]}
+      />
       {canRecordCompletion(work) ? (
         <Button variant="outline" onClick={() => setDialog(ChangeDialog.RECORD)}>
           {t.workCard.record}
@@ -485,9 +400,6 @@ function ChangeButtons({ work }: { readonly work: WorkDetail }) {
       <Button variant="outline" onClick={() => setDialog(ChangeDialog.REASSIGN)}>
         {t.workCard.reassign}
       </Button>
-      <Button variant="ghost" pending={cancel.isPending} onClick={() => void askCancel()}>
-        {t.workCard.cancel}
-      </Button>
       {dialog === ChangeDialog.REPLAN ? <ReplanDialog work={work} onClose={close} /> : null}
       {dialog === ChangeDialog.REASSIGN ? <ReassignDialog work={work} onClose={close} /> : null}
       {dialog === ChangeDialog.RECORD ? (
@@ -498,48 +410,31 @@ function ChangeButtons({ work }: { readonly work: WorkDetail }) {
   );
 }
 
-function Footer({
-  work,
-  canManage,
-  canRespond,
-  onRelease,
-}: Omit<SheetProps, 'workId' | 'onClose'> & { readonly work: WorkDetail }) {
-  return (
-    <div className="flex w-full flex-wrap justify-end gap-2">
-      {canManage && canChange(work) ? <ChangeButtons work={work} /> : null}
-      {canRespond ? <ReleaseButton work={work} onRelease={onRelease} /> : null}
-    </div>
-  );
-}
-
-/** A read-only card has no footer at all rather than an empty bar. */
-function hasFooter(work: WorkDetail, access: { canManage: boolean; canRespond: boolean }): boolean {
-  const changeable = access.canManage && canChange(work);
-  return changeable || (access.canRespond && releaseState(work) !== ReleaseState.HIDDEN);
+interface SheetProps {
+  readonly workId: string;
+  readonly canManage: boolean;
+  readonly canRespond: boolean;
+  readonly onClose: () => void;
+  readonly onRelease: (equipmentId: string) => void;
 }
 
 function titleOf(work: WorkDetail): string {
   const t = maintenanceMessages().workCard;
   return isRepair(work)
-    ? format(t.emergencyTitle, {
-        number: work.number,
-        priority: maintenanceMessages().priority[work.priority],
-      })
+    ? format(t.emergencyTitle, { number: work.number, priority: work.priority })
     : format(t.title, { number: work.number, title: work.title });
 }
 
-function SheetTitle({ work }: { readonly work: WorkDetail }) {
-  const t = maintenanceMessages();
-  if (isRepair(work)) return <>{titleOf(work)}</>;
+function PlannedMeta({ work }: { readonly work: WorkDetail }) {
+  const t = maintenanceMessages().workCard;
   return (
     <>
-      {titleOf(work)}
       <WorkStatusPill status={work.status} />
       {work.planRevision ? (
         <StatusPill>
-          {format(t.workCard.planVersion, {
+          {format(t.planVersion, {
             revision: work.planRevision,
-            date: formatBusinessDate(work.dueOn),
+            date: formatDayMonth(work.dueOn),
           })}
         </StatusPill>
       ) : null}
@@ -547,36 +442,96 @@ function SheetTitle({ work }: { readonly work: WorkDetail }) {
   );
 }
 
-function WorkBody({ work, canManage }: { readonly work: WorkDetail; readonly canManage: boolean }) {
-  if (isRepair(work)) return <RepairBody work={work} />;
+function Footer({
+  work,
+  actions,
+  onRelease,
+  review,
+  comment,
+}: {
+  readonly work: WorkDetail;
+  readonly actions: WorkActions;
+  readonly onRelease: (equipmentId: string) => void;
+  readonly review: ReturnType<typeof useReview>;
+  readonly comment: string;
+}) {
   return (
-    <>
-      <PlannedBody work={work} canManage={canManage} />
-      {canManage && canReview(work) ? <ReviewPanel work={work} /> : null}
-    </>
+    <div className="flex w-full flex-wrap items-center justify-end gap-2">
+      {actions.review ? <ReviewButtons review={review} comment={comment} /> : null}
+      {actions.change ? <ChangeButtons work={work} /> : null}
+      {actions.release ? <ReleaseButton work={work} onRelease={onRelease} /> : null}
+    </div>
   );
 }
 
-/** One work order: the review of planned maintenance or the course of an emergency repair. */
-export function WorkSheet({ workId, canManage, canRespond, onClose, onRelease }: SheetProps) {
+function WorkSheetView({ workId, canManage, canRespond, onClose, onRelease }: SheetProps) {
   const t = maintenanceMessages();
   const query = useQuery(maintenanceQueries.workDetail(workId));
+  const [comment, setComment] = useState('');
+  const review = useReview(workId, () => setComment(''));
   const work = query.data;
+  const close = (open: boolean) => (open ? undefined : onClose());
+  if (!work)
+    return (
+      <DetailSheet open size="medium" onOpenChange={close} title={t.work.title}>
+        <QueryFeedback query={query} />
+      </DetailSheet>
+    );
+  const actions = workActions(work, { canManage, canRespond });
   return (
     <DetailSheet
       open
-      wide
-      onOpenChange={(open) => (open ? undefined : onClose())}
-      title={work ? <SheetTitle work={work} /> : t.work.title}
-      description={work ? `${work.equipment.code} ${work.equipment.name}` : undefined}
+      size="medium"
+      onOpenChange={close}
+      title={titleOf(work)}
+      description={`${machineLabel(work.equipment)} · ${work.location}`}
+      meta={<WorkMeta work={work} />}
+      // A read-only card has no footer at all rather than an empty bar.
       footer={
-        work && hasFooter(work, { canManage, canRespond }) ? (
-          <Footer work={work} canManage={canManage} canRespond={canRespond} onRelease={onRelease} />
+        hasActions(actions) ? (
+          <Footer
+            work={work}
+            actions={actions}
+            onRelease={onRelease}
+            review={review}
+            comment={comment}
+          />
         ) : undefined
       }
     >
       <QueryFeedback query={query} />
-      {work ? <WorkBody work={work} canManage={canManage} /> : null}
+      <WorkBody
+        work={work}
+        canManage={canManage}
+        review={
+          actions.review ? (
+            <ReviewForm work={work} comment={comment} onComment={setComment} error={review.error} />
+          ) : null
+        }
+      />
     </DetailSheet>
   );
+}
+
+function WorkMeta({ work }: { readonly work: WorkDetail }) {
+  return isRepair(work) ? <RepairMeta work={work} /> : <PlannedMeta work={work} />;
+}
+
+function WorkBody({
+  work,
+  canManage,
+  review,
+}: {
+  readonly work: WorkDetail;
+  readonly canManage: boolean;
+  readonly review: ReactNode;
+}) {
+  if (isRepair(work)) return <RepairBody work={work} />;
+  return <PlannedBody work={work} canManage={canManage} review={review} />;
+}
+
+/** One work order: the review of planned maintenance or the course of an emergency repair. */
+export function WorkSheet(props: SheetProps) {
+  // Keyed by the work so a review remark typed for one work never carries over to another.
+  return <WorkSheetView key={props.workId} {...props} />;
 }

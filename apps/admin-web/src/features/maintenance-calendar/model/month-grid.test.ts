@@ -24,6 +24,7 @@ function item(overrides: Partial<CalendarItem>): CalendarItem {
     dueOn: '2026-09-30',
     equipmentCode: 'M-01',
     equipmentName: 'Cup machine',
+    equipmentModel: 'NEWTOP-FB100S',
     title: 'Weekly',
     assignee: 'Mechanic',
     status: WorkStatus.ASSIGNED,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EquipmentDetail } from '@vakhta/contracts';
-import { PlanSourceKind } from '@vakhta/domain';
+import { IntervalUnit, PlanSourceKind } from '@vakhta/domain';
 import {
   PublishIssue,
   emptyPlan,
@@ -67,6 +67,7 @@ describe('maintenance plan draft', () => {
       firstDueOn: '2026-09-30',
       reminders: ['2026-09-23', '2026-09-27', '2026-09-29'],
       nextDueOn: '2026-10-30',
+      interval: { intervalUnit: IntervalUnit.MONTH, intervalCount: 1 },
     });
   });
 

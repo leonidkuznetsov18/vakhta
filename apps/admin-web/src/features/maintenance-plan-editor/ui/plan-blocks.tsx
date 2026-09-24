@@ -1,5 +1,12 @@
 import type { ReactNode } from 'react';
-import { ArrowDownIcon, ArrowUpIcon, CalendarDaysIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CalendarDaysIcon,
+  CameraIcon,
+  PlusIcon,
+  Trash2Icon,
+} from 'lucide-react';
 import type { EquipmentDetail, MaintenancePolicyView, MechanicOption } from '@vakhta/contracts';
 import {
   ANCHOR_MODES,
@@ -10,7 +17,7 @@ import {
   PlanSourceKind,
 } from '@vakhta/domain';
 import { format } from '@vakhta/i18n';
-import { formatBusinessDate, maintenanceMessages } from '@/entities/maintenance';
+import { formatBusinessDate, formatInterval, maintenanceMessages } from '@/entities/maintenance';
 import { DateField } from '@/components/app/date-picker';
 import { FormField, SelectField } from '@/components/app/fields';
 import { IconButton } from '@/shared/ui/icon-button';
@@ -19,7 +26,11 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Textarea } from '@/components/ui/textarea';
+import { Toggle } from '@/components/ui/toggle';
+import { currentLocale } from '@/shared/config';
+import { cn } from 'cn';
 import {
   move,
   newMaterial,
@@ -210,6 +221,83 @@ export function IntervalBlock({ draft, patch, invalid, readOnly }: BlockProps) {
   );
 }
 
+/** Photo required for the operation: a pressed pill, as the prototype marks it (📷 фото). */
+function PhotoToggle({
+  pressed,
+  disabled,
+  onChange,
+  label,
+}: {
+  readonly pressed: boolean;
+  readonly disabled: boolean;
+  readonly onChange: (pressed: boolean) => void;
+  readonly label: string;
+}) {
+  const t = maintenanceMessages();
+  return (
+    <Toggle
+      variant="outline"
+      size="sm"
+      aria-label={label}
+      pressed={pressed}
+      disabled={disabled}
+      onPressedChange={onChange}
+      className="shrink-0 rounded-full text-muted-foreground data-[state=on]:border-foreground/30 data-[state=on]:text-foreground"
+    >
+      <CameraIcon aria-hidden="true" />
+      {t.planForm.photo}
+    </Toggle>
+  );
+}
+
+/** Text fields that read like the row's text until focused; the row border frames them. */
+const QUIET_INPUT =
+  'h-8 border-transparent bg-transparent shadow-none hover:border-input focus-visible:border-ring dark:bg-transparent';
+
+function RowOrderButtons({
+  index,
+  count,
+  onMove,
+  onRemove,
+}: {
+  readonly index: number;
+  readonly count: number;
+  readonly onMove: (step: -1 | 1) => void;
+  readonly onRemove: () => void;
+}) {
+  const t = maintenanceMessages().planForm;
+  return (
+    <span className="flex shrink-0 gap-0.5">
+      <IconButton
+        icon={ArrowUpIcon}
+        label={t.moveUp}
+        tooltip={t.moveUp}
+        variant="ghost"
+        size="icon-sm"
+        disabled={index === 0}
+        onClick={() => onMove(-1)}
+      />
+      <IconButton
+        icon={ArrowDownIcon}
+        label={t.moveDown}
+        tooltip={t.moveDown}
+        variant="ghost"
+        size="icon-sm"
+        disabled={index === count - 1}
+        onClick={() => onMove(1)}
+      />
+      <IconButton
+        icon={Trash2Icon}
+        label={t.remove}
+        tooltip={t.remove}
+        variant="ghost"
+        size="icon-sm"
+        onClick={onRemove}
+      />
+    </span>
+  );
+}
+
 function OperationRow({
   row,
   index,
@@ -228,62 +316,38 @@ function OperationRow({
   readonly readOnly: boolean;
 }) {
   const t = maintenanceMessages();
+  const n = index + 1;
   return (
-    <li className="flex flex-col gap-2 rounded-md border p-2 md:flex-row md:items-center">
-      <span className="w-5 text-right text-xs text-muted-foreground tabular-nums">{index + 1}</span>
+    <li className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border p-1.5 md:flex-nowrap">
+      <span className="w-5 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+        {n}
+      </span>
       <Input
-        aria-label={`${t.planForm.operationText} ${index + 1}`}
-        className="flex-1"
+        aria-label={`${t.planForm.operationText} ${n}`}
+        className={cn(QUIET_INPUT, 'min-w-0 flex-1 basis-[calc(100%-2rem)] md:basis-auto')}
         value={row.text}
         disabled={readOnly}
         onChange={(event) => onChange({ ...row, text: event.target.value })}
       />
       <Input
-        aria-label={`${t.planForm.operationPlace} ${index + 1}`}
+        aria-label={`${t.planForm.operationPlace} ${n}`}
         placeholder={t.planForm.operationPlace}
-        className="md:w-40"
+        className={cn(
+          QUIET_INPUT,
+          'ml-7 min-w-0 flex-1 text-muted-foreground md:ml-0 md:w-32 md:flex-none',
+        )}
         value={row.place}
         disabled={readOnly}
         onChange={(event) => onChange({ ...row, place: event.target.value })}
       />
-      <span className="flex items-center gap-1.5">
-        <Checkbox
-          id={`photo-${row.key}`}
-          checked={row.photoRequired}
-          disabled={readOnly}
-          onCheckedChange={(checked) => onChange({ ...row, photoRequired: checked === true })}
-        />
-        <Label htmlFor={`photo-${row.key}`}>{t.planForm.photo}</Label>
-      </span>
+      <PhotoToggle
+        pressed={row.photoRequired}
+        disabled={readOnly}
+        label={`${t.planForm.photo} ${n}`}
+        onChange={(photoRequired) => onChange({ ...row, photoRequired })}
+      />
       {readOnly ? null : (
-        <span className="flex gap-1">
-          <IconButton
-            icon={ArrowUpIcon}
-            label={t.planForm.moveUp}
-            tooltip={t.planForm.moveUp}
-            variant="ghost"
-            size="icon-sm"
-            disabled={index === 0}
-            onClick={() => onMove(-1)}
-          />
-          <IconButton
-            icon={ArrowDownIcon}
-            label={t.planForm.moveDown}
-            tooltip={t.planForm.moveDown}
-            variant="ghost"
-            size="icon-sm"
-            disabled={index === count - 1}
-            onClick={() => onMove(1)}
-          />
-          <IconButton
-            icon={Trash2Icon}
-            label={t.planForm.remove}
-            tooltip={t.planForm.remove}
-            variant="ghost"
-            size="icon-sm"
-            onClick={onRemove}
-          />
-        </span>
+        <RowOrderButtons index={index} count={count} onMove={onMove} onRemove={onRemove} />
       )}
     </li>
   );
@@ -327,42 +391,71 @@ export function OperationsBlock({ draft, patch, invalid, readOnly }: BlockProps)
   );
 }
 
-function MaterialAmount({
-  row,
-  onChange,
-  readOnly,
+/** Columns of the materials table (prototype block 4); one header row, then a row per item. */
+const MATERIAL_GRID =
+  'md:grid md:grid-cols-[8.5rem_minmax(0,1fr)_6.5rem_4.5rem_3.5rem_7.5rem_1.75rem] md:items-center md:gap-2';
+
+/** A cell of a material row: the label is visible on phones and read by screen readers on desktop. */
+function MaterialCell({
+  label,
+  className,
+  children,
 }: {
-  readonly row: MaterialDraft;
-  readonly onChange: (row: MaterialDraft) => void;
-  readonly readOnly: boolean;
+  readonly label: string;
+  readonly className?: string;
+  readonly children: ReactNode;
 }) {
-  const t = maintenanceMessages();
   return (
-    <>
-      <FormField label={t.planForm.quantity}>
-        {(id) => (
-          <Input
-            id={id}
-            inputMode="decimal"
-            value={row.quantity}
-            disabled={readOnly}
-            onChange={(event) =>
-              onChange({ ...row, quantity: event.target.value.replace(/[^\d.,]/g, '') })
-            }
-          />
-        )}
-      </FormField>
-      <FormField label={t.planForm.unitOfMeasure}>
-        {(id) => (
-          <Input
-            id={id}
-            value={row.unit}
-            disabled={readOnly}
-            onChange={(event) => onChange({ ...row, unit: event.target.value })}
-          />
-        )}
-      </FormField>
-    </>
+    <label className={cn('flex min-w-0 flex-col gap-1', className)}>
+      <span className="text-xs text-muted-foreground md:sr-only">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function MaterialHeader() {
+  const t = maintenanceMessages().planForm;
+  return (
+    <div
+      aria-hidden="true"
+      className={cn('hidden px-2 text-xs font-medium text-muted-foreground', MATERIAL_GRID)}
+    >
+      <span>{t.materialKind}</span>
+      <span>{t.materialName}</span>
+      <span>{t.article}</span>
+      <span className="col-span-2">{t.quantity}</span>
+      <span>{t.mode}</span>
+      <span />
+    </div>
+  );
+}
+
+/** A compact native select over one set of codes, labelled from the catalog. */
+function CodeSelect<T extends string>({
+  value,
+  values,
+  labels,
+  disabled,
+  onChange,
+}: {
+  readonly value: T;
+  readonly values: readonly T[];
+  readonly labels: Readonly<Record<T, string>>;
+  readonly disabled: boolean;
+  readonly onChange: (value: T) => void;
+}) {
+  return (
+    <NativeSelect
+      value={value}
+      disabled={disabled}
+      onChange={(event) => onChange(pick(values, event.target.value, value))}
+    >
+      {values.map((code) => (
+        <NativeSelectOption key={code} value={code}>
+          {labels[code]}
+        </NativeSelectOption>
+      ))}
+    </NativeSelect>
   );
 }
 
@@ -379,42 +472,56 @@ function MaterialRow({
 }) {
   const t = maintenanceMessages();
   return (
-    <li className="grid gap-2 rounded-md border p-2 md:grid-cols-[9rem_1fr_8rem_5rem_5rem_9rem_auto] md:items-end">
-      <SelectField
-        label={t.planForm.materialKind}
-        value={row.kind}
-        disabled={readOnly}
-        onChange={(value) => onChange({ ...row, kind: pick(MATERIAL_KINDS, value, row.kind) })}
-        options={MATERIAL_KINDS.map((value) => ({ value, label: t.materialKind[value] }))}
-      />
-      <FormField label={t.planForm.materialName}>
-        {(id) => (
-          <Input
-            id={id}
-            value={row.name}
-            disabled={readOnly}
-            onChange={(event) => onChange({ ...row, name: event.target.value })}
-          />
-        )}
-      </FormField>
-      <FormField label={t.planForm.article} optional>
-        {(id) => (
-          <Input
-            id={id}
-            value={row.article}
-            disabled={readOnly}
-            onChange={(event) => onChange({ ...row, article: event.target.value })}
-          />
-        )}
-      </FormField>
-      <MaterialAmount row={row} onChange={onChange} readOnly={readOnly} />
-      <SelectField
-        label={t.planForm.mode}
-        value={row.mode}
-        disabled={readOnly}
-        onChange={(value) => onChange({ ...row, mode: pick(MATERIAL_MODES, value, row.mode) })}
-        options={MATERIAL_MODES.map((value) => ({ value, label: t.materialMode[value] }))}
-      />
+    <li className={cn('grid grid-cols-2 gap-2 rounded-md border p-2', MATERIAL_GRID)}>
+      <MaterialCell label={t.planForm.materialKind}>
+        <CodeSelect
+          value={row.kind}
+          values={MATERIAL_KINDS}
+          labels={t.materialKind}
+          disabled={readOnly}
+          onChange={(kind) => onChange({ ...row, kind })}
+        />
+      </MaterialCell>
+      <MaterialCell label={t.planForm.materialName} className="col-span-2 md:col-span-1">
+        <Input
+          value={row.name}
+          disabled={readOnly}
+          onChange={(event) => onChange({ ...row, name: event.target.value })}
+        />
+      </MaterialCell>
+      <MaterialCell label={t.planForm.article}>
+        <Input
+          value={row.article}
+          disabled={readOnly}
+          onChange={(event) => onChange({ ...row, article: event.target.value })}
+        />
+      </MaterialCell>
+      <MaterialCell label={t.planForm.quantity}>
+        <Input
+          inputMode="decimal"
+          value={row.quantity}
+          disabled={readOnly}
+          onChange={(event) =>
+            onChange({ ...row, quantity: event.target.value.replace(/[^\d.,]/g, '') })
+          }
+        />
+      </MaterialCell>
+      <MaterialCell label={t.planForm.unitOfMeasure}>
+        <Input
+          value={row.unit}
+          disabled={readOnly}
+          onChange={(event) => onChange({ ...row, unit: event.target.value })}
+        />
+      </MaterialCell>
+      <MaterialCell label={t.planForm.mode}>
+        <CodeSelect
+          value={row.mode}
+          values={MATERIAL_MODES}
+          labels={t.materialMode}
+          disabled={readOnly}
+          onChange={(mode) => onChange({ ...row, mode })}
+        />
+      </MaterialCell>
       {readOnly ? null : (
         <IconButton
           icon={Trash2Icon}
@@ -422,6 +529,7 @@ function MaterialRow({
           tooltip={t.planForm.remove}
           variant="ghost"
           size="icon-sm"
+          className="col-span-2 justify-self-end md:col-span-1"
           onClick={onRemove}
         />
       )}
@@ -434,6 +542,7 @@ export function MaterialsBlock({ draft, patch, readOnly }: BlockProps) {
   const rows = draft.materials;
   return (
     <FormBlock number={4} title={t.planForm.blockMaterials}>
+      {rows.length ? <MaterialHeader /> : null}
       <ul className="flex flex-col gap-2">
         {rows.map((row) => (
           <MaterialRow
@@ -459,13 +568,31 @@ export function MaterialsBlock({ draft, patch, readOnly }: BlockProps) {
   );
 }
 
+/** "за 7, 3 і 1 день о 09:00" from the tenant's reminder rule; the last number picks the word form. */
+function remindersText(policy: MaintenancePolicyView | undefined): string {
+  const t = maintenanceMessages().planForm;
+  if (!policy) return '—';
+  const offsets = [...policy.reminderOffsets].sort((a, b) => b - a);
+  const last = offsets.at(-1);
+  if (last === undefined) return t.remindersOff;
+  const locale = currentLocale();
+  const days = new Intl.ListFormat(locale, { type: 'conjunction' }).format(offsets.map(String));
+  const form = new Intl.PluralRules(locale).select(last);
+  const forms: Readonly<Record<string, string>> = t.remindersPolicy;
+  return format(forms[form] ?? t.remindersPolicy.other, { days, time: policy.reminderTime });
+}
+
 export function AssigneeBlock({
   draft,
   patch,
   invalid,
   readOnly,
   mechanics,
-}: BlockProps & { readonly mechanics: readonly MechanicOption[] }) {
+  policy,
+}: BlockProps & {
+  readonly mechanics: readonly MechanicOption[];
+  readonly policy: MaintenancePolicyView | undefined;
+}) {
   const t = maintenanceMessages();
   return (
     <FormBlock number={5} title={t.planForm.blockAssignee}>
@@ -481,7 +608,7 @@ export function AssigneeBlock({
         />
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium">{t.planForm.reminders}</span>
-          <span className="flex h-9 items-center text-sm">{t.planForm.remindersValue}</span>
+          <span className="flex h-9 items-center text-sm">{remindersText(policy)}</span>
         </div>
       </div>
     </FormBlock>
@@ -508,7 +635,7 @@ export function SchedulePreviewAlert({
           mechanic: mechanic.fullName,
           reminders: preview.reminders.map(formatBusinessDate).join(', '),
           time: policy.reminderTime,
-          interval: format(t.intervalEvery[draft.intervalUnit], { count: draft.intervalCount }),
+          interval: formatInterval(preview.interval),
           anchor: t.anchorMode[draft.anchorMode],
         })
       : t.planForm.summaryIncomplete;

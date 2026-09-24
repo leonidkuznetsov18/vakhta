@@ -282,7 +282,12 @@ export const WorkRow = z.object({
   priority: WorkPrioritySchema,
   status: WorkStatusSchema,
   title: z.string(),
-  equipment: z.object({ id: Uuid, code: z.string(), name: z.string() }),
+  equipment: z.object({
+    id: Uuid,
+    code: z.string(),
+    name: z.string(),
+    model: z.string().nullable(),
+  }),
   assignee: PersonRef,
   dueOn: BusinessDate.nullable(),
   plannedOn: BusinessDate.nullable(),
@@ -353,6 +358,10 @@ export const WorkDetail = WorkRow.extend({
   completedAt: IsoDateTime.nullable(),
   /** When an unaccepted repair is escalated to the panel (FR-063). */
   escalateAt: IsoDateTime.nullable(),
+  /** "Unit · zone" of the machine. */
+  location: z.string(),
+  /** How the plan counts the next date; null for repairs. */
+  anchorMode: AnchorModeSchema.nullable(),
   cancelReason: z.string().nullable(),
   summary: z.string().nullable(),
   cause: z.string().nullable(),
@@ -425,6 +434,7 @@ export const CalendarItem = z.object({
   dueOn: BusinessDate.nullable(),
   equipmentCode: z.string(),
   equipmentName: z.string(),
+  equipmentModel: z.string().nullable(),
   title: z.string(),
   assignee: z.string(),
   status: WorkStatusSchema,

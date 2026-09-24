@@ -3,7 +3,11 @@ export { maintenanceKeys, maintenanceQueries } from './model/queries';
 export {
   formatBusinessDate,
   formatDayMonth,
+  formatDayTime,
+  formatInstantDayMonth,
   formatInterval,
+  formatNearDate,
+  machineLabel,
   maintenanceMessages,
 } from './model/format';
 export {

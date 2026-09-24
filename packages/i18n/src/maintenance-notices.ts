@@ -18,16 +18,34 @@ export const MaintenanceNoticeKind = {
 export type MaintenanceNoticeKind =
   (typeof MaintenanceNoticeKind)[keyof typeof MaintenanceNoticeKind];
 
+/** "M-02 NEWTOP-FB158SV1": the code and the model the shop floor knows, else the name. */
+export function noticeMachine(
+  t: Messages,
+  data: Pick<MaintenanceNoticeData, 'equipmentCode' | 'equipmentModel' | 'equipmentName'>,
+): string {
+  return format(t.maintenance.bot.machine, {
+    code: data.equipmentCode,
+    name: data.equipmentModel ?? data.equipmentName,
+  });
+}
+
 function machine(t: Messages, data: MaintenanceNoticeData): string {
-  return format(t.maintenance.bot.machine, { code: data.equipmentCode, name: data.equipmentName });
+  return noticeMachine(t, data);
+}
+
+function reminderHeading(t: Messages, days: number): string {
+  const bot = t.maintenance.bot;
+  if (days === 1) return bot.reminderTomorrow;
+  const forms: Readonly<Record<string, string>> = bot.reminderTitle;
+  const form = new Intl.PluralRules(bot.pluralLocale).select(days);
+  return format(forms[form] ?? bot.reminderTitle.other, { days });
 }
 
 function heading(t: Messages, kind: MaintenanceNoticeKind, offsetDays: number): string {
   const bot = t.maintenance.bot;
   if (kind === MaintenanceNoticeKind.ASSIGNED) return bot.assignedTitle;
   if (kind === MaintenanceNoticeKind.REPLANNED) return bot.replannedTitle;
-  if (offsetDays === 1) return bot.reminderTomorrow;
-  return format(bot.reminderTitle, { days: offsetDays });
+  return reminderHeading(t, offsetDays);
 }
 
 function operationLines(t: Messages, data: MaintenanceNoticeData): string[] {
@@ -144,10 +162,8 @@ function emergencyHeading(t: Messages, data: MaintenanceNoticeData, kind: Emerge
     return format(bot.masterCopy, { machine: machine(t, data) });
   if (kind === EmergencyNoticeKind.ESCALATION)
     return format(bot.escalation, { number: data.number });
-  return format(bot.emergencyTitle, {
-    number: data.number,
-    priority: t.maintenance.priority[data.priority],
-  });
+  // The code alone ("P1") is what the floor calls it; the long label lives in the panel.
+  return format(bot.emergencyTitle, { number: data.number, priority: data.priority });
 }
 
 /** Emergency repair to the mechanic, a copy to the master, or an escalation (FR-061, FR-063). */

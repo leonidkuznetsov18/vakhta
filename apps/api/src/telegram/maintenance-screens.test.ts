@@ -44,6 +44,7 @@ function card(overrides: {
       title: 'Monthly lubrication',
       equipmentCode: 'FB-100',
       equipmentName: 'Cup machine',
+      equipmentModel: null,
       location: 'Cups · Line 1',
       plannedOn: '15.10.2026',
       estimatedMinutes: 30,
@@ -151,11 +152,18 @@ describe('mechanic screens (spec 014)', () => {
 
   it('offers the zone machines and "don\'t know" after the reason (FR-060)', () => {
     const screen = equipmentPickScreen(t, {
-      machines: [{ id: 'm1', code: 'FB-100', name: 'Cup machine' }],
+      machines: [
+        { id: 'm1', code: 'M-01', name: 'Cup machine', model: 'NEWTOP-FB100S' },
+        { id: 'm2', code: 'M-09', name: 'Sleeve machine', model: null },
+      ],
+      zone: 'Line 2',
       cancel: { text: t.incidents.cancel, data: 'inc:cancel' },
     });
-    expect(screen.text).toBe(t.maintenance.bot.pickEquipment);
-    expect(buttons(screen)).toEqual(['inc:eq:0', 'inc:eq:none', 'inc:cancel']);
+    expect(screen.text).toBe('Which equipment? (zone “Line 2”)');
+    expect(buttons(screen)).toEqual(['inc:eq:0', 'inc:eq:1', 'inc:eq:none', 'inc:cancel']);
+    // The floor names a machine by its model; the name is the fallback.
+    const labels = screen.keyboard?.inline_keyboard.flat().map((button) => button.text);
+    expect(labels?.slice(0, 2)).toEqual(['M-01 NEWTOP-FB100S', 'M-09 Sleeve machine']);
   });
 
   it('a missing checklist toggles through its button data and names the checked materials', () => {

@@ -21,7 +21,9 @@ import {
   notInArray,
   notificationOutbox,
   or,
+  orgUnits,
   reasonCodes,
+  responsibilityZones,
   sites,
   sql,
   workOrderOperationResults,
@@ -70,6 +72,8 @@ interface Located {
   readonly order: OrderRow;
   readonly code: string;
   readonly name: string;
+  readonly model: string | null;
+  readonly location: string;
   readonly timezone: string;
   readonly state: (typeof equipment.$inferSelect)['state'];
   readonly backupId: string | null;
@@ -128,6 +132,9 @@ export class WorkQueriesService {
         order: workOrders,
         code: equipment.code,
         name: equipment.name,
+        model: equipment.model,
+        // "Unit · zone" as the register shows it; the zone is optional.
+        location: sql<string>`concat_ws(' · ', ${orgUnits.name}, ${responsibilityZones.name})`,
         timezone: sites.timezone,
         state: equipment.state,
         backupId: equipment.backupEmployeeId,
@@ -135,6 +142,8 @@ export class WorkQueriesService {
       .from(workOrders)
       .innerJoin(equipment, eq(equipment.id, workOrders.equipmentId))
       .innerJoin(sites, eq(sites.id, equipment.siteId))
+      .innerJoin(orgUnits, eq(orgUnits.id, equipment.orgUnitId))
+      .leftJoin(responsibilityZones, eq(responsibilityZones.id, equipment.zoneId))
       .where(where);
   }
 
@@ -159,7 +168,12 @@ export class WorkQueriesService {
       priority: order.priority,
       status: order.status,
       title: order.title,
-      equipment: { id: order.equipmentId, code: located.code, name: located.name },
+      equipment: {
+        id: order.equipmentId,
+        code: located.code,
+        name: located.name,
+        model: located.model,
+      },
       assignee: person(context.people, order.assigneeEmployeeId),
       dueOn: order.dueOn,
       plannedOn: order.plannedOn,
@@ -272,6 +286,8 @@ export class WorkQueriesService {
       readinessNote: order.readinessNote,
       ...timeline(order),
       escalateAt: this.escalateAt(order),
+      location: located.location,
+      anchorMode: version?.anchorMode ?? null,
       cancelReason: order.cancelReason,
       summary: order.summary,
       cause: order.cause,
@@ -595,6 +611,7 @@ export class WorkQueriesService {
       dueOn: row.dueOn,
       equipmentCode: row.equipment.code,
       equipmentName: row.equipment.name,
+      equipmentModel: row.equipment.model,
       title: row.title,
       assignee: row.assignee.fullName,
       status: row.status,

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArchiveIcon, PencilIcon, SirenIcon, TimerIcon } from 'lucide-react';
+import { ArchiveIcon, GaugeIcon, PencilIcon, SirenIcon, TimerIcon } from 'lucide-react';
 import type { EquipmentDetail } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
 import {
@@ -8,12 +8,14 @@ import {
   EquipmentStatePill,
   OverduePill,
   formatBusinessDate,
+  formatNearDate,
   maintenanceApi,
   maintenanceKeys,
   maintenanceMessages,
   maintenanceQueries,
 } from '@/entities/maintenance';
 import { useConfirm } from '@/components/app/confirm-dialog';
+import { RowMenu } from '@/components/app/data-table';
 import { DetailSheet } from '@/components/app/detail-sheet';
 import { Feedback } from '@/components/app/feedback';
 import { InfoTip } from '@/components/app/info-tip';
@@ -47,11 +49,12 @@ function orNotSet(value: string | number | null): ReactNode {
   return value;
 }
 
-function Header({ machine }: { readonly machine: EquipmentDetail }) {
+/** State, open emergency, downtime and restriction, shown in the sheet header. */
+function CardMeta({ machine }: { readonly machine: EquipmentDetail }) {
   const t = maintenanceMessages();
   const minutes = downtimeMinutes(machine, useNow());
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <>
       <EquipmentStatePill state={machine.state} />
       {machine.activeEmergency ? <EmergencyPill number={machine.activeEmergency.number} /> : null}
       {minutes === null ? null : (
@@ -60,7 +63,7 @@ function Header({ machine }: { readonly machine: EquipmentDetail }) {
         </StatusPill>
       )}
       {machine.restriction ? <StatusPill tone="warning">{machine.restriction}</StatusPill> : null}
-    </div>
+    </>
   );
 }
 
@@ -75,7 +78,7 @@ function Summary({ machine }: { readonly machine: EquipmentDetail }) {
       <Field label={t.card.next}>
         {next ? (
           <span className="flex flex-wrap items-center gap-1">
-            {next.title}, {formatBusinessDate(next.plannedOn)}
+            {next.title}, {formatNearDate(next.plannedOn)}
             {next.overdue ? <OverduePill /> : null}
           </span>
         ) : (
@@ -129,37 +132,60 @@ interface CardProps {
   readonly onOpenEquipment: (equipmentId: string) => void;
 }
 
-/** Hand correction of the state (FR-005); a repair in progress owns the state until release. */
-function CorrectStateButton({
-  machine,
-  onOpen,
-}: {
-  readonly machine: EquipmentDetail;
-  readonly onOpen: () => void;
-}) {
+/** A disabled menu item cannot carry a tooltip, so the reason is written under its name. */
+function CorrectStateLabel({ locked }: { readonly locked: boolean }) {
   const t = maintenanceMessages().card;
-  const locked = machine.openStop !== null;
   return (
-    <span className="flex items-center gap-1">
-      <Button variant="outline" disabled={locked} onClick={onOpen}>
-        {t.correctState}
-      </Button>
-      {locked ? <InfoTip text={t.correctStateLocked} /> : null}
+    <span className="flex flex-col">
+      {t.correctState}
+      {locked ? (
+        <span className="text-xs whitespace-normal text-muted-foreground">
+          {t.correctStateLocked}
+        </span>
+      ) : null}
     </span>
   );
 }
 
-function Actions({
+/** Create an emergency for a running machine, or return a stopped one to service (FR-065). */
+function ResponderButton({
   machine,
-  canManage,
-  canRespond,
+  onDialog,
+}: {
+  readonly machine: EquipmentDetail;
+  readonly onDialog: (dialog: CardDialog) => void;
+}) {
+  const t = maintenanceMessages();
+  const action = responderAction(machine);
+  if (action.kind === ResponderActionKind.CREATE_EMERGENCY)
+    return (
+      <Button variant="destructive" onClick={() => onDialog(CardDialog.EMERGENCY)}>
+        <SirenIcon /> {t.card.createEmergency}
+      </Button>
+    );
+  if (action.kind === ResponderActionKind.NONE) return null;
+  return (
+    <span className="flex items-center gap-1">
+      <Button
+        variant="success"
+        disabled={!action.ready}
+        onClick={() => onDialog(CardDialog.RELEASE)}
+      >
+        {t.card.release}
+      </Button>
+      {action.ready ? null : <InfoTip text={t.workCard.releaseHint} />}
+    </span>
+  );
+}
+
+/** Editing stays in view; the rare state correction and archiving wait in the "⋯" menu. */
+function ManageActions({
+  machine,
   onEdit,
   onDialog,
   onArchived,
 }: {
   readonly machine: EquipmentDetail;
-  readonly canManage: boolean;
-  readonly canRespond: boolean;
   readonly onEdit: () => void;
   readonly onDialog: (dialog: CardDialog) => void;
   readonly onArchived: () => void;
@@ -186,39 +212,131 @@ function Actions({
     });
     if (reason !== false) archive.mutate(reason);
   };
-  const action = responderAction(machine);
+  // A repair in progress owns the state until the machine is released (FR-005).
+  const locked = machine.openStop !== null;
   return (
     <>
       <Feedback error={archive.error ? describeError(archive.error) : null} />
-      {canRespond && action.kind === ResponderActionKind.CREATE_EMERGENCY ? (
-        <Button variant="destructive" onClick={() => onDialog(CardDialog.EMERGENCY)}>
-          <SirenIcon /> {t.card.createEmergency}
-        </Button>
-      ) : null}
-      {canRespond && action.kind === ResponderActionKind.RELEASE ? (
-        <span className="flex items-center gap-1">
-          <Button
-            variant="success"
-            disabled={!action.ready}
-            onClick={() => onDialog(CardDialog.RELEASE)}
-          >
-            {t.card.release}
-          </Button>
-          {action.ready ? null : <InfoTip text={t.workCard.releaseHint} />}
-        </span>
-      ) : null}
-      {canManage ? (
-        <>
-          <CorrectStateButton machine={machine} onOpen={() => onDialog(CardDialog.STATE)} />
-          <Button variant="outline" onClick={onEdit}>
-            <PencilIcon /> {t.card.edit}
-          </Button>
-          <Button variant="ghost" pending={archive.isPending} onClick={() => void askArchive()}>
-            <ArchiveIcon /> {t.card.archive}
-          </Button>
-        </>
-      ) : null}
+      <RowMenu
+        label={t.moreActions}
+        actions={[
+          {
+            key: 'state',
+            label: <CorrectStateLabel locked={locked} />,
+            icon: GaugeIcon,
+            disabled: locked,
+            onSelect: () => onDialog(CardDialog.STATE),
+          },
+          {
+            key: 'archive',
+            label: t.card.archive,
+            icon: ArchiveIcon,
+            destructive: true,
+            separator: true,
+            pending: archive.isPending,
+            onSelect: () => void askArchive(),
+          },
+        ]}
+      />
+      <Button variant="outline" onClick={onEdit}>
+        <PencilIcon /> {t.card.edit}
+      </Button>
       {dialog}
+    </>
+  );
+}
+
+function CardFooter({
+  machine,
+  canManage,
+  canRespond,
+  onEdit,
+  onDialog,
+  onArchived,
+}: {
+  readonly machine: EquipmentDetail;
+  readonly canManage: boolean;
+  readonly canRespond: boolean;
+  readonly onEdit: () => void;
+  readonly onDialog: (dialog: CardDialog) => void;
+  readonly onArchived: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap justify-end gap-2">
+      {canRespond ? <ResponderButton machine={machine} onDialog={onDialog} /> : null}
+      {canManage ? (
+        <ManageActions
+          machine={machine}
+          onEdit={onEdit}
+          onDialog={onDialog}
+          onArchived={onArchived}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function CardDialogs({
+  machine,
+  dialog,
+  onClose,
+}: {
+  readonly machine: EquipmentDetail;
+  readonly dialog: CardDialog;
+  readonly onClose: () => void;
+}) {
+  switch (dialog) {
+    case CardDialog.EMERGENCY:
+      return <EmergencyDialog machine={machine} onClose={onClose} />;
+    case CardDialog.STATE:
+      return <StateDialog machine={machine} onClose={onClose} />;
+    case CardDialog.RELEASE:
+      return <ReleaseDialog equipmentId={machine.id} onClose={onClose} />;
+    case CardDialog.NONE:
+      return null;
+  }
+}
+
+function CardBody({
+  machine,
+  canManage,
+  onOpenPlan,
+  onOpenEquipment,
+}: {
+  readonly machine: EquipmentDetail;
+  readonly canManage: boolean;
+  readonly onOpenPlan: CardProps['onOpenPlan'];
+  readonly onOpenEquipment: CardProps['onOpenEquipment'];
+}) {
+  const t = maintenanceMessages();
+  return (
+    <>
+      <Summary machine={machine} />
+      <Tabs defaultValue="plans">
+        <TabsList className="max-md:w-full max-md:overflow-x-auto">
+          <TabsTrigger value="passport">{t.card.tabs.passport}</TabsTrigger>
+          <TabsTrigger value="documents">{t.card.tabs.documents}</TabsTrigger>
+          <TabsTrigger value="plans">{t.card.tabs.plans}</TabsTrigger>
+          <TabsTrigger value="history">{t.card.tabs.history}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="passport" className="mt-3">
+          <Passport machine={machine} />
+        </TabsContent>
+        <TabsContent value="documents" className="mt-3">
+          <DocumentsTab machine={machine} canManage={canManage} />
+        </TabsContent>
+        <TabsContent value="plans" className="mt-3">
+          <PlansTab
+            machine={machine}
+            canManage={canManage}
+            onOpenPlan={(planId) => onOpenPlan({ equipment: machine, planId })}
+            onOpenEquipment={onOpenEquipment}
+          />
+        </TabsContent>
+        <TabsContent value="history" className="mt-3">
+          <HistoryTab history={machine.history} />
+        </TabsContent>
+      </Tabs>
     </>
   );
 }
@@ -237,70 +355,46 @@ export function EquipmentCard({
   const [dialog, setDialog] = useState<CardDialog>(CardDialog.NONE);
   const query = useQuery(maintenanceQueries.equipmentDetail(equipmentId));
   const machine = query.data;
+  if (!machine)
+    return (
+      <DetailSheet
+        open
+        size="wide"
+        onOpenChange={(open) => (open ? undefined : onClose())}
+        title={t.equipment.title}
+      >
+        <QueryFeedback query={query} />
+      </DetailSheet>
+    );
   return (
     <DetailSheet
       open
-      wide
+      size="wide"
       onOpenChange={(open) => (open ? undefined : onClose())}
-      title={machine ? cardTitle(machine) : t.equipment.title}
-      description={machine ? cardDescription(machine) : undefined}
-
+      title={cardTitle(machine)}
+      description={cardDescription(machine)}
+      meta={<CardMeta machine={machine} />}
       footer={
-        machine && (canManage || canRespond) ? (
-          <div className="flex flex-wrap justify-end gap-2">
-            <Actions
-              machine={machine}
-              canManage={canManage}
-              canRespond={canRespond}
-              onEdit={() => onEdit(machine)}
-              onDialog={setDialog}
-              onArchived={onClose}
-            />
-          </div>
+        canManage || canRespond ? (
+          <CardFooter
+            machine={machine}
+            canManage={canManage}
+            canRespond={canRespond}
+            onEdit={() => onEdit(machine)}
+            onDialog={setDialog}
+            onArchived={onClose}
+          />
         ) : undefined
       }
     >
       <QueryFeedback query={query} />
-      {machine ? (
-        <>
-          <Header machine={machine} />
-          <Summary machine={machine} />
-          <Tabs defaultValue="plans">
-            <TabsList className="max-md:w-full max-md:overflow-x-auto">
-              <TabsTrigger value="passport">{t.card.tabs.passport}</TabsTrigger>
-              <TabsTrigger value="documents">{t.card.tabs.documents}</TabsTrigger>
-              <TabsTrigger value="plans">{t.card.tabs.plans}</TabsTrigger>
-              <TabsTrigger value="history">{t.card.tabs.history}</TabsTrigger>
-            </TabsList>
-            <TabsContent value="passport" className="mt-3">
-              <Passport machine={machine} />
-            </TabsContent>
-            <TabsContent value="documents" className="mt-3">
-              <DocumentsTab machine={machine} canManage={canManage} />
-            </TabsContent>
-            <TabsContent value="plans" className="mt-3">
-              <PlansTab
-                machine={machine}
-                canManage={canManage}
-                onOpenPlan={(planId) => onOpenPlan({ equipment: machine, planId })}
-                onOpenEquipment={onOpenEquipment}
-              />
-            </TabsContent>
-            <TabsContent value="history" className="mt-3">
-              <HistoryTab history={machine.history} />
-            </TabsContent>
-          </Tabs>
-          {dialog === CardDialog.EMERGENCY ? (
-            <EmergencyDialog machine={machine} onClose={() => setDialog(CardDialog.NONE)} />
-          ) : null}
-          {dialog === CardDialog.STATE ? (
-            <StateDialog machine={machine} onClose={() => setDialog(CardDialog.NONE)} />
-          ) : null}
-          {dialog === CardDialog.RELEASE ? (
-            <ReleaseDialog equipmentId={machine.id} onClose={() => setDialog(CardDialog.NONE)} />
-          ) : null}
-        </>
-      ) : null}
+      <CardBody
+        machine={machine}
+        canManage={canManage}
+        onOpenPlan={onOpenPlan}
+        onOpenEquipment={onOpenEquipment}
+      />
+      <CardDialogs machine={machine} dialog={dialog} onClose={() => setDialog(CardDialog.NONE)} />
     </DetailSheet>
   );
 }

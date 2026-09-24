@@ -89,6 +89,21 @@ const OPEN = [...OPEN_INCIDENT_STATUSES];
  * Спільні інциденти (ТЗ 5.5, FR-DWN-01..06): повідомлення працівника, автозвʼязування дублів,
  * SLA з ескалацією, дії майстра з історією статусів. Особистий простій лишається інтервалом зміни.
  */
+/** A machine the operator may name in a report, as the bot lists it (FR-060). */
+export interface ZoneMachine {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
+  readonly model: string | null;
+}
+
+export interface ZoneMachines {
+  readonly zone: string | null;
+  readonly machines: readonly ZoneMachine[];
+}
+
+const NO_ZONE_MACHINES: ZoneMachines = { zone: null, machines: [] };
+
 @Injectable()
 export class IncidentsService {
   constructor(
@@ -365,24 +380,27 @@ export class IncidentsService {
   }
 
   /** Machines the employee may name in a report: those of the zone of their open shift (FR-060). */
-  async reportableEquipmentFor(
-    employeeId: string,
-  ): Promise<{ id: string; code: string; name: string }[]> {
-    if (!this.emergency.available()) return [];
+  async reportableEquipmentFor(employeeId: string): Promise<ZoneMachines> {
+    if (!this.emergency.available()) return NO_ZONE_MACHINES;
     const session = await this.shift.activeSession(employeeId);
-    if (!session?.zoneId) return [];
+    if (!session?.zoneId) return NO_ZONE_MACHINES;
     return this.zoneEquipment(session.zoneId);
   }
 
   /** Active machines of a zone for the bot's "which equipment?" step (FR-060). */
-  async zoneEquipment(zoneId: string): Promise<{ id: string; code: string; name: string }[]> {
+  async zoneEquipment(zoneId: string): Promise<ZoneMachines> {
     const [zone] = await this.db
-      .select({ orgUnitId: responsibilityZones.orgUnitId })
+      .select({ orgUnitId: responsibilityZones.orgUnitId, name: responsibilityZones.name })
       .from(responsibilityZones)
       .where(eq(responsibilityZones.id, zoneId));
-    if (!zone) return [];
-    return this.db
-      .select({ id: equipment.id, code: equipment.code, name: equipment.name })
+    if (!zone) return NO_ZONE_MACHINES;
+    const machines = await this.db
+      .select({
+        id: equipment.id,
+        code: equipment.code,
+        name: equipment.name,
+        model: equipment.model,
+      })
       .from(equipment)
       .where(
         and(
@@ -391,6 +409,7 @@ export class IncidentsService {
         ),
       )
       .orderBy(asc(equipment.code));
+    return { zone: zone.name, machines };
   }
 
   /** Дія майстра над статусом (FR-DWN-05): таблиця переходів, історія, аудит, сповіщення. */

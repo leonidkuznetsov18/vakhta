@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, WrenchIcon } from 'lucide-react';
 import { EQUIPMENT_STATES, type EquipmentState } from '@vakhta/domain';
 import type { EquipmentRow } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
@@ -17,6 +17,7 @@ import { DataTable, type Column } from '@/components/app/data-table';
 import { SelectField } from '@/components/app/fields';
 import { Section, Toolbar } from '@/components/app/page';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useOrg } from '@/lib/org';
 
 const ALL = '';
@@ -40,56 +41,99 @@ function NextMaintenanceCell({ row }: { readonly row: EquipmentRow }) {
   );
 }
 
+function machineTitle(row: EquipmentRow): string {
+  return `${row.code} · ${row.model ?? row.name}`;
+}
+
+/** A phone reads the machine as one compact card, the way the shop floor names it. */
+function MachineCard({ row }: { readonly row: EquipmentRow }) {
+  const t = maintenanceMessages().equipment;
+  const next = row.nextMaintenance;
+  return (
+    <span className="flex min-w-0 flex-1 flex-col gap-1 text-sm leading-tight font-normal">
+      <span className="flex items-start justify-between gap-2">
+        <span className="font-medium">{machineTitle(row)}</span>
+        <EquipmentStatePill state={row.state} />
+      </span>
+      <span className="text-xs text-muted-foreground">{location(row)}</span>
+      {next ? (
+        <span className="flex flex-wrap items-center gap-1.5">
+          <WrenchIcon className="size-4 shrink-0" aria-hidden="true" />
+          {next.title} · <span className="tabular-nums">{formatDayMonth(next.plannedOn)}</span>
+          {next.overdue ? <OverduePill /> : null}
+          <ReadinessPill readiness={next.readiness} />
+        </span>
+      ) : (
+        <span className="text-muted-foreground">{t.noMaintenance}</span>
+      )}
+      <span className="text-xs">{format(t.mechanicShort, { name: row.responsible.fullName })}</span>
+      {row.activeEmergency ? (
+        <span>
+          <EmergencyPill number={row.activeEmergency.number} />
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function MachineCell({ row }: { readonly row: EquipmentRow }) {
+  if (useIsMobile()) return <MachineCard row={row} />;
+  return (
+    <span className="flex flex-col leading-tight">
+      <span className="font-medium whitespace-nowrap">{machineTitle(row)}</span>
+      <span className="text-xs text-muted-foreground">{row.equipmentType ?? row.name}</span>
+    </span>
+  );
+}
+
+// On cards the machine cell carries every fact, so the other columns stay table-only.
 const COLUMNS: readonly Column<EquipmentRow>[] = [
   {
     key: 'machine',
     header: maintenanceMessages().equipment.columns.machine,
-    minWidth: '14rem',
+    minWidth: '12rem',
     sortValue: (row) => row.code,
-    cell: (row) => (
-      <span className="flex flex-col leading-tight">
-        <span className="font-medium">
-          {row.code} · {row.model ?? row.name}
-        </span>
-        <span className="text-xs text-muted-foreground">{row.equipmentType ?? row.name}</span>
-      </span>
-    ),
+    cell: (row) => <MachineCell row={row} />,
   },
   {
     key: 'location',
     header: maintenanceMessages().equipment.columns.location,
     sortValue: location,
-    cell: location,
+    cell: (row) => <span className="whitespace-nowrap">{location(row)}</span>,
+    hideOnCards: true,
   },
   {
     key: 'state',
     header: maintenanceMessages().equipment.columns.state,
+    minWidth: '6rem',
     sortValue: (row) => row.state,
-    cell: (row) => (
-      <span className="flex flex-col items-start gap-1">
-        <EquipmentStatePill state={row.state} />
-        {row.activeEmergency ? <EmergencyPill number={row.activeEmergency.number} /> : null}
-      </span>
-    ),
+    cell: (row) => <EquipmentStatePill state={row.state} />,
+    hideOnCards: true,
   },
   {
     key: 'next',
     header: maintenanceMessages().equipment.columns.next,
+    minWidth: '8rem',
     sortValue: (row) => row.nextMaintenance?.plannedOn ?? '9999',
     cell: (row) => <NextMaintenanceCell row={row} />,
+    hideOnCards: true,
   },
   {
     key: 'materials',
     header: maintenanceMessages().equipment.columns.materials,
     cell: (row) =>
       row.nextMaintenance ? <ReadinessPill readiness={row.nextMaintenance.readiness} /> : '—',
+    hideOnCards: true,
   },
   {
     key: 'mechanic',
     header: maintenanceMessages().equipment.columns.mechanic,
+    // The long header may wrap; the names stay whole so the register fits a laptop screen.
+    className: 'whitespace-normal',
     sortValue: (row) => row.responsible.fullName,
+    hideOnCards: true,
     cell: (row) => (
-      <span className="flex flex-col leading-tight">
+      <span className="flex flex-col leading-tight whitespace-nowrap">
         <span>{row.responsible.fullName}</span>
         {row.backup ? (
           <span className="text-xs text-muted-foreground">
@@ -98,6 +142,14 @@ const COLUMNS: readonly Column<EquipmentRow>[] = [
         ) : null}
       </span>
     ),
+  },
+  {
+    key: 'work',
+    header: maintenanceMessages().equipment.columns.work,
+    minWidth: '7rem',
+    hideOnCards: true,
+    cell: (row) =>
+      row.activeEmergency ? <EmergencyPill number={row.activeEmergency.number} /> : '—',
   },
 ];
 

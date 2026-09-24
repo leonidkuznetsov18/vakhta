@@ -387,6 +387,9 @@ describe('equipment maintenance: register, manuals, plans, work and emergencies 
       const beforeAccept = await services.queries.detail(workOrderId, NOW);
       expect(beforeAccept.nextDueOnAfterAccept).toBe('2026-11-14');
       expect(beforeAccept.partsUsed).toBe('Grease EP2 0.2 kg');
+      // The review card names where the machine stands and how the next date is counted.
+      expect(beforeAccept.location).toBe('Cups · Line 1');
+      expect(beforeAccept.anchorMode).toBe(AnchorMode.FROM_COMPLETION);
 
       await services.actions.review(
         workOrderId,

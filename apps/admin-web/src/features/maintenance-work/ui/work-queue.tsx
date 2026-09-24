@@ -8,6 +8,7 @@ import {
   ReadinessPill,
   WorkStatusPill,
   formatDayMonth,
+  machineLabel,
   maintenanceMessages,
   maintenanceQueries,
 } from '@/entities/maintenance';
@@ -15,6 +16,7 @@ import { DataTable, type Column } from '@/components/app/data-table';
 import { ROW_DANGER, Section, StatusPill } from '@/components/app/page';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useNow } from '@/lib/clock';
 import { formatDuration, formatTime } from '@/lib/format';
 import { StateFilter } from '@/shared/ui/state-filter';
@@ -55,67 +57,103 @@ function dueText(row: WorkRow): string {
   return formatDayMonth(row.plannedOn ?? row.dueOn);
 }
 
+function WorkTitle({ row }: { readonly row: WorkRow }) {
+  const t = maintenanceMessages().workType;
+  return (
+    <span className="flex items-center gap-2">
+      {isRepair(row) ? (
+        <SirenIcon className="size-4 shrink-0 text-red-600" aria-label={t.EMERGENCY_REPAIR} />
+      ) : (
+        <WrenchIcon
+          className="size-4 shrink-0 text-muted-foreground"
+          aria-label={t.PLANNED_MAINTENANCE}
+        />
+      )}
+      <span className="break-words">{row.title}</span>
+    </span>
+  );
+}
+
+/** A phone reads each work as one compact card: what, where, who, when and its state. */
+function WorkCard({ row }: { readonly row: WorkRow }) {
+  return (
+    <span className="flex min-w-0 flex-1 flex-col gap-1 text-sm leading-tight font-normal">
+      <span className="font-medium">
+        <WorkTitle row={row} />
+      </span>
+      <span className="text-xs text-muted-foreground">
+        №{row.number} · {machineLabel(row.equipment)}
+      </span>
+      <span>
+        {row.assignee.fullName} · <span className="tabular-nums">{dueText(row)}</span>
+      </span>
+      <span className="flex flex-wrap items-center gap-1.5">
+        <StatusCell row={row} />
+        {isRepair(row) ? null : <ReadinessPill readiness={row.readiness} />}
+      </span>
+    </span>
+  );
+}
+
+/** The first column leads both layouts: the number in the table, the whole card on a phone. */
+function NumberCell({ row }: { readonly row: WorkRow }) {
+  if (useIsMobile()) return <WorkCard row={row} />;
+  return <span className="tabular-nums">{row.number}</span>;
+}
+
+// On cards the work cell carries every fact, so the other columns stay table-only.
 const COLUMNS: readonly Column<WorkRow>[] = [
   {
     key: 'number',
     header: maintenanceMessages().work.columns.number,
+    minWidth: '5rem',
     sortValue: (row) => row.number,
-    cell: (row) => <span className="tabular-nums">{row.number}</span>,
+    cell: (row) => <NumberCell row={row} />,
   },
   {
     key: 'work',
+    hideOnCards: true,
     header: maintenanceMessages().work.columns.work,
-    minWidth: '14rem',
+    minWidth: '11rem',
     sortValue: (row) => row.title,
-    cell: (row) => (
-      <span className="flex items-center gap-2">
-        {isRepair(row) ? (
-          <SirenIcon
-            className="size-4 shrink-0 text-red-600"
-            aria-label={maintenanceMessages().workType.EMERGENCY_REPAIR}
-          />
-        ) : (
-          <WrenchIcon
-            className="size-4 shrink-0 text-muted-foreground"
-            aria-label={maintenanceMessages().workType.PLANNED_MAINTENANCE}
-          />
-        )}
-        <span className="break-words">{row.title}</span>
-      </span>
-    ),
+    cell: (row) => <WorkTitle row={row} />,
   },
   {
     key: 'machine',
+    hideOnCards: true,
     header: maintenanceMessages().work.columns.machine,
     sortValue: (row) => row.equipment.code,
-    cell: (row) => (
-      <span className="flex flex-col leading-tight">
-        <span className="font-medium">{row.equipment.code}</span>
-        <span className="line-clamp-2 text-xs text-muted-foreground">{row.equipment.name}</span>
-      </span>
-    ),
+    cell: (row) => <span className="whitespace-nowrap">{machineLabel(row.equipment)}</span>,
   },
   {
     key: 'mechanic',
+    hideOnCards: true,
     header: maintenanceMessages().work.columns.mechanic,
+    minWidth: '8rem',
     sortValue: (row) => row.assignee.fullName,
     cell: (row) => row.assignee.fullName,
   },
   {
     key: 'due',
+    hideOnCards: true,
     header: maintenanceMessages().work.columns.due,
+    minWidth: '7rem',
     sortValue: (row) => row.plannedOn ?? row.ackDueAt ?? '',
     cell: (row) => <span className="tabular-nums">{dueText(row)}</span>,
   },
   {
     key: 'status',
+    hideOnCards: true,
     header: maintenanceMessages().work.columns.status,
-    sortValue: (row) => row.status,
+    minWidth: '7rem',
+    // The views above already split the queue by status; codes sorted by name mean nothing.
     cell: (row) => <StatusCell row={row} />,
   },
   {
     key: 'materials',
+    hideOnCards: true,
     header: maintenanceMessages().work.columns.materials,
+    minWidth: '8rem',
     cell: (row) => (isRepair(row) ? '—' : <ReadinessPill readiness={row.readiness} />),
   },
 ];
@@ -137,11 +175,7 @@ function RepairBanner({ row, onOpen }: { readonly row: WorkRow; readonly onOpen:
     <Alert variant="destructive">
       <SirenIcon />
       <AlertTitle>
-        {format(t.emergencyBanner, {
-          code: row.equipment.code,
-          name: row.equipment.name,
-          number: row.number,
-        })}
+        {format(t.emergencyBanner, { machine: machineLabel(row.equipment), number: row.number })}
       </AlertTitle>
       <AlertDescription>
         {row.acceptedAt
@@ -188,7 +222,7 @@ export function WorkQueue({
           loading={query.isPending}
           storageKey="maintenance.work"
           searchText={(row) =>
-            `${row.number} ${row.title} ${row.equipment.code} ${row.equipment.name} ${row.assignee.fullName}`
+            `${row.number} ${row.title} ${machineLabel(row.equipment)} ${row.equipment.name} ${row.assignee.fullName}`
           }
           onRowClick={(row) => onOpen(row.id)}
           activeKey={activeId}

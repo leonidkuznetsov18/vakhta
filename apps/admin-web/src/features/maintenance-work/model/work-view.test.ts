@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkDetail, WorkRow } from '@vakhta/contracts';
-import { EquipmentState, WorkStatus, WorkType } from '@vakhta/domain';
-import { ReleaseState, RowStatusKind, releaseState, rowStatus } from './work-view';
+import {
+  EquipmentState,
+  MaintenanceTemplate,
+  NoticeDelivery,
+  WorkStatus,
+  WorkType,
+} from '@vakhta/domain';
+import {
+  ReleaseState,
+  RowStatusKind,
+  TimelineEntryKind,
+  releaseState,
+  repairTimeline,
+  rowStatus,
+} from './work-view';
 
 const NOW = new Date('2026-09-24T10:00:00Z');
 
@@ -13,7 +26,7 @@ function row(overrides: Partial<WorkRow>): WorkRow {
     priority: 'P1',
     status: WorkStatus.ASSIGNED,
     title: 'Jam',
-    equipment: { id: crypto.randomUUID(), code: 'M-02', name: 'Cup machine' },
+    equipment: { id: crypto.randomUUID(), code: 'M-02', name: 'Cup machine', model: null },
     assignee: { id: crypto.randomUUID(), fullName: 'Mechanic' },
     dueOn: null,
     plannedOn: null,
@@ -50,5 +63,43 @@ describe('maintenance work view', () => {
       stop: null,
     };
     expect(releaseState(running)).toBe(ReleaseState.HIDDEN);
+  });
+
+  it('merges notices into the repair course by time, events first on a tie', () => {
+    const timeline = repairTimeline({
+      history: [
+        { at: '2026-09-24T09:55:00Z', type: 'WORK_ORDER_CREATED', actor: 'Master', comment: null },
+        {
+          at: '2026-09-24T09:58:00Z',
+          type: 'WORK_ORDER_ACCEPTED',
+          actor: 'Mechanic',
+          comment: null,
+        },
+      ],
+      deliveries: [
+        {
+          id: crypto.randomUUID(),
+          template: MaintenanceTemplate.EMERGENCY_ASSIGNED,
+          recipient: 'Mechanic',
+          status: NoticeDelivery.SENT,
+          createdAt: '2026-09-24T09:55:00Z',
+          sentAt: '2026-09-24T09:55:00Z',
+        },
+        {
+          id: crypto.randomUUID(),
+          template: MaintenanceTemplate.EMERGENCY_ASSIGNED,
+          recipient: 'Master',
+          status: NoticeDelivery.PENDING,
+          createdAt: '2026-09-24T09:56:00Z',
+          sentAt: null,
+        },
+      ],
+    });
+    expect(timeline.map((entry) => [entry.kind, entry.at])).toEqual([
+      [TimelineEntryKind.EVENT, '2026-09-24T09:55:00Z'],
+      [TimelineEntryKind.DELIVERY, '2026-09-24T09:55:00Z'],
+      [TimelineEntryKind.DELIVERY, '2026-09-24T09:56:00Z'],
+      [TimelineEntryKind.EVENT, '2026-09-24T09:58:00Z'],
+    ]);
   });
 });

@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { MAINTENANCE_VIEWERS, TenantModule } from '@vakhta/domain';
 import type { MeView } from '@vakhta/contracts';
-import { messages } from '@vakhta/i18n';
+import { messages, type Messages } from '@vakhta/i18n';
 import {
   Sidebar,
   SidebarContent,
@@ -102,6 +102,16 @@ const SECTION_MODULES: Partial<Record<SectionKey, TenantModule>> = {
   maintenance: TenantModule.MAINTENANCE,
 };
 
+/** The header names the section in full where the short sidebar label would be vague. */
+const PAGE_TITLES: Partial<Record<SectionKey, (t: Messages) => string>> = {
+  maintenance: (t) => t.maintenance.pageTitle,
+};
+
+function pageTitle(t: Messages, active: ActiveKey): string {
+  if (active === 'profile') return t.admin.auth.profile;
+  return PAGE_TITLES[active]?.(t) ?? t.admin.sections[active];
+}
+
 function moduleOn(key: SectionKey): boolean {
   const module = SECTION_MODULES[key];
   const modules = tenantConfig()?.modules;
@@ -167,7 +177,7 @@ export function PanelShell() {
   // names the section once signed in; the login screen sets its own.
   useDocumentTitle(
     state.status === 'authenticated'
-      ? `${active === 'profile' ? t.admin.auth.profile : t.admin.sections[active]} · ${tenantConfig()?.displayName ?? t.admin.productName}`
+      ? `${pageTitle(t, active)} · ${tenantConfig()?.displayName ?? t.admin.productName}`
       : null,
   );
 
@@ -194,7 +204,7 @@ export function PanelShell() {
     return permitted && moduleOn(key);
   });
   const primaryRole = ROLE_ORDER.find((r) => me.roles.some((g) => g.role === r)) ?? null;
-  const title = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];
+  const title = pageTitle(t, active);
   const version = import.meta.env['VITE_APP_VERSION'];
 
   return (

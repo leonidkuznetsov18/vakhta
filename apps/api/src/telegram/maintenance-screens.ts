@@ -9,7 +9,8 @@ import {
   WorkType,
   maintenanceCallback,
 } from '@vakhta/domain';
-import { format, type Messages } from '@vakhta/i18n';
+import { format, noticeMachine, type Messages } from '@vakhta/i18n';
+import type { ZoneMachine } from '../incidents/incidents.service.js';
 import type { MechanicCard, MechanicWorkRow } from '../maintenance/mechanic-work.service.js';
 import type { Screen } from './screens.js';
 
@@ -108,7 +109,7 @@ function headLines(t: Messages, card: MechanicCard): string[] {
   const bot = t.maintenance.bot;
   const lines = [
     format(bot.cardHeader, { kind: t.maintenance.workType[data.type], number: data.number }),
-    format(bot.machine, { code: data.equipmentCode, name: data.equipmentName }),
+    noticeMachine(t, data),
     data.location,
   ];
   if (data.plannedOn) lines.push(format(bot.planLine, { title: data.title, date: data.plannedOn }));
@@ -333,18 +334,26 @@ export const EQUIPMENT_PICK_NONE = 'none';
 export function equipmentPickScreen(
   t: Messages,
   input: {
-    readonly machines: readonly { id: string; code: string; name: string }[];
+    readonly machines: readonly ZoneMachine[];
+    /** The reporter's zone, named in the question so the list reads as "yours". */
+    readonly zone: string | null;
     readonly cancel: { readonly text: string; readonly data: string };
   },
 ): Screen {
   const bot = t.maintenance.bot;
   const keyboard = new InlineKeyboard();
   input.machines.forEach((machine, index) => {
-    keyboard.text(format(bot.machine, machine), `${EQUIPMENT_PICK_PREFIX}${index}`).row();
+    const label = noticeMachine(t, {
+      equipmentCode: machine.code,
+      equipmentModel: machine.model,
+      equipmentName: machine.name,
+    });
+    keyboard.text(label, `${EQUIPMENT_PICK_PREFIX}${index}`).row();
   });
   keyboard
     .text(bot.unknownEquipment, `${EQUIPMENT_PICK_PREFIX}${EQUIPMENT_PICK_NONE}`)
     .row()
     .text(input.cancel.text, input.cancel.data);
-  return { text: bot.pickEquipment, keyboard };
+  const text = input.zone ? format(bot.pickEquipmentInZone, { zone: input.zone }) : bot.pickEquipment;
+  return { text, keyboard };
 }

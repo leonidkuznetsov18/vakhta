@@ -270,7 +270,7 @@ export function EquipmentForm({
   return (
     <DetailSheet
       open
-      wide
+      size="wide"
       onOpenChange={(open) => (open ? undefined : onClose())}
       title={editing ? t.form.editTitle : t.form.createTitle}
       footer={

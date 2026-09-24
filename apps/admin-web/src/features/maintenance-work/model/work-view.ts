@@ -1,4 +1,4 @@
-import type { WorkDetail, WorkRow } from '@vakhta/contracts';
+import type { WorkDeliveryView, WorkDetail, WorkHistoryItem, WorkRow } from '@vakhta/contracts';
 import {
   EquipmentState,
   FINAL_WORK_STATUSES,
@@ -82,4 +82,63 @@ export function releaseState(detail: WorkDetail): ReleaseState {
   if (!isRepair(detail) || !outOfService || detail.status === WorkStatus.CANCELLED)
     return ReleaseState.HIDDEN;
   return detail.status === WorkStatus.COMPLETED ? ReleaseState.READY : ReleaseState.WAITING_REPAIR;
+}
+
+/** Which footer actions the work card offers the current user. */
+export interface WorkActions {
+  readonly review: boolean;
+  readonly change: boolean;
+  readonly release: boolean;
+}
+
+export function workActions(
+  detail: WorkDetail,
+  access: { readonly canManage: boolean; readonly canRespond: boolean },
+): WorkActions {
+  return {
+    review: access.canManage && canReview(detail),
+    change: access.canManage && canChange(detail),
+    release: access.canRespond && releaseState(detail) !== ReleaseState.HIDDEN,
+  };
+}
+
+export function hasActions(actions: WorkActions): boolean {
+  return actions.review || actions.change || actions.release;
+}
+
+export const TimelineEntryKind = {
+  EVENT: 'EVENT',
+  DELIVERY: 'DELIVERY',
+} as const;
+
+/** One line of the repair course: a recorded event or a notice sent about it. */
+export type TimelineEntry =
+  | {
+      readonly kind: typeof TimelineEntryKind.EVENT;
+      readonly at: string;
+      readonly event: WorkHistoryItem;
+    }
+  | {
+      readonly kind: typeof TimelineEntryKind.DELIVERY;
+      readonly at: string;
+      readonly delivery: WorkDeliveryView;
+    };
+
+/**
+ * The repair course reads as one timeline: who was told and whether it arrived sits between the
+ * events that caused the notice (FR-043, FR-063). Equal instants keep events before notices.
+ */
+export function repairTimeline(work: Pick<WorkDetail, 'history' | 'deliveries'>): TimelineEntry[] {
+  const events = work.history.map((event) => ({
+    kind: TimelineEntryKind.EVENT,
+    at: event.at,
+    event,
+  }));
+  const deliveries = work.deliveries.map((delivery) => ({
+    kind: TimelineEntryKind.DELIVERY,
+    at: delivery.sentAt ?? delivery.createdAt,
+    delivery,
+  }));
+  // Array.prototype.sort is stable, so events stay ahead of notices with the same instant.
+  return [...events, ...deliveries].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 }

@@ -25,6 +25,15 @@ export function formatTime(iso: string | null | undefined): string {
     : '—';
 }
 
+/** "08:10:05" where the order of events within minutes matters. */
+export function formatTimeSeconds(iso: string): string {
+  return new Date(iso).toLocaleTimeString(tag(), {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
 export function formatDate(iso: string | null | undefined): string {
   return iso ? new Date(iso).toLocaleDateString(tag(), { dateStyle: 'short' }) : '—';
 }
