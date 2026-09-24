@@ -331,6 +331,35 @@ spare rows (`bulk-desktop.jpg`). The people list on the phone keeps the shared `
 card layout (four lines per person), so the remaining vertical length there belongs to the
 shared control, not to this page.
 
+### Lean assessment, 2026-09-24 (requested by the owner)
+
+The owner asked how a Lean advisor would answer the 40 discovery questions behind #107 and
+#117 (`.agents/skills/vakhta-lean-review`). Recommendation: **Simplify**. Start with the smallest
+structure that the flow needs and treat every extension as a counted deviation, not a setting.
+
+- Structure: three kinds, skipped levels allowed, a level added only where someone actually
+  decides (own master, own plan); people directly in a shop are a visible exception with a
+  target of zero; structure changes rarely, people move often, so dated versions serve reports
+  and payroll, not the master's daily screen; archive, never delete.
+- Responsibles: one head per node, day and night masters, no "substitute" slot (a substitution
+  is a dated replacement); inheritance from the ancestor with the fallback chain visible on the
+  node (andon principle: a signal must never land nowhere); a person holding several nodes is an
+  overburden signal to count, not a configuration.
+- Moves: always dated because bonus and pay depend on it, back-dated moves allowed with a visible
+  trail and recalculation; planned moves let the master prepare; one person on two sections is a
+  deviation to explain (uneven load, shortage) before it becomes a share percentage.
+- Pay: one employer, one currency, components chosen from last month's payroll sheet by coverage
+  (what pays 80 % of people first); an allowance everyone receives is part of the rate, not an
+  allowance; rules on position or node plus visible, reasoned exceptions whose count is a metric;
+  temporary exceptions carry an end date at creation; one approver closest to the section budget,
+  accounting verifies facts rather than approving intent.
+- Rollout: reconcile every card with the section heads before migration (a carried-over error is a
+  fixed error), start on the first day of a month, pilot one section with one master and one HR
+  person for two weeks, measure time per move and questions to HR before and after.
+- Needs shop-floor observation, not a default: sites per division, non day/night shifts, split
+  assignments, the real pay and allowance mix, level scales per position, one-time payment
+  frequency, the monthly norm source. Recorded as gaps for #108 and #118.
+
 Verification of the third iteration: admin-web `tsc --noEmit` clean; `eslint` on
 `features/org-structure`, `features/employee-profile/ui/pay-terms*` and the two specs clean with
 no suppressions; Prettier applied; Playwright 66/66 (23 structure states + 10 card states, desktop
