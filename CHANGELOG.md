@@ -1,3 +1,9 @@
+## [1.32.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.32.0...v1.32.1) (2026-09-24)
+
+### Bug fixes
+
+* **control-web:** keep other module checkboxes still while one saves ([a482d28](https://github.com/leonidkuznetsov18/vakhta/commit/a482d2847bf211b584ffb4d0e9e8154367247f19))
+
 ## [1.32.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.31.2...v1.32.0) (2026-09-24)
 
 ### Features
