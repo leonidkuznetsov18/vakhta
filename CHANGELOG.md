@@ -1,3 +1,16 @@
+## [1.30.1](https://github.com/leonidkuznetsov18/vakhta/compare/v1.30.0...v1.30.1) (2026-09-24)
+
+### Bug fixes
+
+* **admin:** keep loaders on the surface that changes ([da65a20](https://github.com/leonidkuznetsov18/vakhta/commit/da65a20190a34629cc9a11bd00a9ecdb49c45d51))
+* **kiosk:** keep terminals connected across reloads, background tabs and releases ([13cab67](https://github.com/leonidkuznetsov18/vakhta/commit/13cab67332b622fb079e2589ed80234396ddcad4))
+* **schedule:** keep one centred loader while creating a schedule ([3452fc3](https://github.com/leonidkuznetsov18/vakhta/commit/3452fc3d89b649c7a1f0a1b5a2b93cd960c23f74))
+* **schedule:** keep recorded shifts on the calendar after republishing ([ae9e214](https://github.com/leonidkuznetsov18/vakhta/commit/ae9e214aa89b19f6826224c58515e0171d76470a))
+
+### Documentation
+
+* **admin:** format the loader rule section ([d8d47c0](https://github.com/leonidkuznetsov18/vakhta/commit/d8d47c0ca2c73d6191c7ce6d103f76d9b256b1f5))
+
 ## [1.30.0](https://github.com/leonidkuznetsov18/vakhta/compare/v1.29.0...v1.30.0) (2026-09-23)
 
 ### Features
