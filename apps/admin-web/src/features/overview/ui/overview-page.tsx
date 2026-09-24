@@ -162,10 +162,17 @@ export function OverviewPage({
       return;
     }
     if (item.key === 'terminalsOffline') return openTerminals(TerminalConnectivity.OFFLINE);
-    if (item.key === 'longDowntime') return operations({ 'operations.group': 'DOWNTIME' });
+    if (item.key === 'longDowntime') return openDowntime(item);
     // Not arrived: the live-shift screen lists exactly these people, where a master can start
     // their shift or write to them.
     operations({ 'operations.group': 'NOT_ARRIVED' });
+  }
+
+  /** The people standing in downtime; a single zone narrows the list to it, as a zone card does. */
+  function openDowntime(item: QueueItem): void {
+    const [zone] = item.people;
+    const single = item.people.length === 1 && zone ? { 'search.operations': zone.name } : {};
+    operations({ 'operations.group': 'DOWNTIME', ...single });
   }
 
   /** The terminal list opens filtered to exactly the terminals the card counted. */

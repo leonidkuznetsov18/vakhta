@@ -485,6 +485,23 @@ window.fetch = fetchFixture(async (input, init) => {
       // Nobody's unit: the case where the schedule page has nothing to open by itself.
       unscheduled('sh4', 'b0000000-0000-4000-8000-000000000004', 'Гринько Юлія', '132', null, null),
       closedNoChecklist,
+      // The overview's long-downtime zone: its card must land on this person.
+      {
+        ...unscheduled(
+          'sh6',
+          'b0000000-0000-4000-8000-0000000000a5',
+          'Мельник Андрій',
+          '1051',
+          'a0000000-0000-4000-8000-000000000002',
+          'Цех Крышки',
+        ),
+        state: 'DOWNTIME',
+        resumeState: 'WORKING',
+        zoneId: 'a0000000-0000-4000-8000-000000000003',
+        zoneName: 'Токарний №2',
+        stateSince: new Date(Date.now() - 32 * 60_000).toISOString(),
+        stateMinutes: 32,
+      },
     ]);
   if (path === `/admin/shifts/${shift.id}`) return json(shiftDetail);
   // Every shift the overview can deep-link into needs a detail, or opening its row lands on nothing.

@@ -28,6 +28,7 @@ import {
   sites,
   sql,
   type Database,
+  type SQL,
   type DbOrTx,
   type Transaction,
 } from '@vakhta/db';
@@ -66,7 +67,7 @@ import type {
   TransitionResponse,
 } from '@vakhta/contracts';
 import { format } from '@vakhta/i18n';
-import { CheckInResult } from '@vakhta/contracts';
+import { CheckInResult, ShiftScope } from '@vakhta/contracts';
 import { hashChallengeToken } from '@vakhta/domain/node';
 import { summaryLines } from '../telegram/screens.js';
 import { AttendanceService } from '../attendance/attendance.service.js';
@@ -288,13 +289,12 @@ export class ShiftService {
     const open = notInArray(shiftSessions.state, TERMINAL);
     const closed = inArray(shiftSessions.state, TERMINAL);
     // A named day is read from the record: every shift booked on that business date, whatever the
-    // clock says now. Without a day the screen stays live, and finished shifts reach back 24 hours.
+    // clock says now, plus a shift booked earlier that is still open, because that person is still
+    // on the floor (the overview counts their downtime). Without a day the screen stays live, and
+    // finished shifts reach back 24 hours.
     const conditions = [
       q.date
-        ? and(
-            eq(shiftSessions.businessDate, q.date),
-            scope === 'OPEN' ? open : scope === 'CLOSED' ? closed : undefined,
-          )
+        ? datedCondition(q.date, scope)
         : scope === 'CLOSED'
           ? and(closed, gte(shiftSessions.endedAt, since))
           : scope === 'ALL'
@@ -1945,4 +1945,19 @@ function toSummaryView(s: ShiftSummary): ShiftSummaryView {
     overtimeMinutes: s.overtimeMinutes,
     overtimePending: s.overtimePending,
   };
+}
+
+/** The shifts of a named business day, with open ones carried over from earlier days. */
+function datedCondition(date: string, scope: ShiftScope): SQL | undefined {
+  const open = notInArray(shiftSessions.state, TERMINAL);
+  const booked = eq(shiftSessions.businessDate, date);
+  const carried = and(open, lte(shiftSessions.businessDate, date));
+  switch (scope) {
+    case ShiftScope.OPEN:
+      return carried;
+    case ShiftScope.CLOSED:
+      return and(booked, inArray(shiftSessions.state, TERMINAL));
+    case ShiftScope.ALL:
+      return or(booked, carried);
+  }
 }

@@ -21,6 +21,13 @@ export interface OverviewSelection {
 
 const NO_SELECTION: OverviewSelection = { siteId: null, orgUnitId: null };
 
+/** The state filter that lists exactly the shifts a card counted, so they are not lost in the day. */
+const OPERATIONS_GROUP: Record<'onShift' | 'inDowntime' | 'closedNoChecklist', string> = {
+  onShift: 'ALL',
+  inDowntime: 'DOWNTIME',
+  closedNoChecklist: 'CLOSED',
+};
+
 /** Clear only destination filters, never drafts, so remembered filters cannot hide the counted row. */
 export function attentionFilters(
   key: AttentionKey,
@@ -60,7 +67,7 @@ export function attentionFilters(
         'operations.day': data.firstDate[key] ?? '',
         'operations.siteId': selection.siteId ?? '',
         'operations.orgUnitId': selection.orgUnitId ?? '',
-        'operations.group': key === 'inDowntime' ? 'DOWNTIME' : 'ALL',
+        'operations.group': OPERATIONS_GROUP[key],
         'search.operations': '',
       };
     case 'unlinkedEmployees':

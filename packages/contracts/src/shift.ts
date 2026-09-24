@@ -196,7 +196,8 @@ export const ShiftDetailView = z.object({
 export type ShiftDetailView = z.infer<typeof ShiftDetailView>;
 
 /** Which shifts the live screen lists: the open ones, the finished ones, or both. */
-export const SHIFT_SCOPES = ['OPEN', 'CLOSED', 'ALL'] as const;
+export const ShiftScope = { OPEN: 'OPEN', CLOSED: 'CLOSED', ALL: 'ALL' } as const;
+export const SHIFT_SCOPES = [ShiftScope.OPEN, ShiftScope.CLOSED, ShiftScope.ALL] as const;
 export const ShiftScopeSchema = z.enum(SHIFT_SCOPES);
 export type ShiftScope = z.infer<typeof ShiftScopeSchema>;
 

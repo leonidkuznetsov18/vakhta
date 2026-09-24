@@ -169,3 +169,15 @@ shows a labelled "Стан" select with counts, synced with the chips. Other dat
 no-shows. Evidence: rows unit tests, page tests, API testcontainers test, preview screenshots at
 desktop and 375 px. A preview fixture reused one employee id for a no-show and a working person,
 which made the card read 2 and the list 1; the fixture now has a unique id.
+
+## 2026-09-24 — Every queue card lands on what it counted
+
+Owner rule: a card opens its list showing and highlighting exactly the people or records it counted.
+"Зона в простої довше за 15 хв" counts open DOWNTIME intervals whatever the shift's business date,
+while Operations listed only shifts booked on the chosen day, so a downtime on a shift carried over
+from an earlier day was counted but not listed. `listActive` with a date now also returns open shifts
+booked on an earlier day (never on a later one; CLOSED is unchanged). The card opens the "Простій"
+filter and, for one zone, searches that zone. "Закриті без чек-листа за 24 год" now opens the
+"Закриті" filter with the counted shift expanded. Audited in preview: terminals, checklists,
+incidents, requests and overtime already filter to or highlight their record. Evidence: shift
+service testcontainers test, overview tests, preview screenshots.

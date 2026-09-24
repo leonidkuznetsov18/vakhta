@@ -1,12 +1,10 @@
-import type {
-  ActiveShiftView,
-  OverviewPlannedPerson,
-  OverviewStaffing,
+import {
   ShiftScope,
+  type ActiveShiftView,
+  type OverviewPlannedPerson,
+  type OverviewStaffing,
 } from '@vakhta/contracts';
 import type { ShiftState } from '@vakhta/domain';
-
-const SHIFT_SCOPE_CLOSED: ShiftScope = 'CLOSED';
 
 export const OperationsRowKind = {
   SHIFT: 'SHIFT',
@@ -53,7 +51,7 @@ export function notArrivedApplies(
   date: string,
   scope: ShiftScope,
 ): staffing is OverviewStaffing {
-  if (!staffing || scope === SHIFT_SCOPE_CLOSED) return false;
+  if (!staffing || scope === ShiftScope.CLOSED) return false;
   return staffing.businessDate === date;
 }
 

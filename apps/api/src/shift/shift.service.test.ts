@@ -531,10 +531,17 @@ describe('shift: машина станів зміни в транзакції (�
     expect(withClosed.length).toBeGreaterThanOrEqual(list.length);
     expect(list).toHaveLength(1);
     // A named day is read from the record, so a running shift shows on its own business date and
-    // on no other, and "closed" on that day still excludes it.
+    // "closed" on that day still excludes it. It stays on later days while it is open (the person is
+    // still on the floor and the overview counts them), and never shows on an earlier day.
     const day = list[0]!.businessDate;
+    const shiftDay = (delta: number) =>
+      new Date(Date.parse(`${day}T00:00:00Z`) + delta * 86_400_000).toISOString().slice(0, 10);
     expect(await service.listActive({ date: day })).toHaveLength(1);
     expect(await service.listActive({ date: day, scope: 'CLOSED' })).toHaveLength(0);
+    expect(await service.listActive({ date: shiftDay(1) })).toHaveLength(1);
+    expect(await service.listActive({ date: shiftDay(1), scope: 'ALL' })).toHaveLength(1);
+    expect(await service.listActive({ date: shiftDay(1), scope: 'CLOSED' })).toHaveLength(0);
+    expect(await service.listActive({ date: shiftDay(-1), scope: 'ALL' })).toHaveLength(0);
     expect(await service.listActive({ date: '2000-01-01', scope: 'ALL' })).toHaveLength(0);
     // Nothing has ended yet, so the closed list is empty while the open one is not.
     expect(await service.listActive({ scope: 'CLOSED' })).toHaveLength(0);
