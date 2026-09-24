@@ -152,6 +152,27 @@ type ShiftReasonKind = 'DOWNTIME' | 'EMERGENCY';
 const DOWNTIME_STATE: ShiftState = 'DOWNTIME';
 const RESUME_ACTION: ShiftAction = 'RESUME';
 
+const START_SHIFT_ACTION: ShiftAction = 'START_SHIFT';
+
+/** The command a shift idempotency key was first used for; a replay must carry the same one. */
+function requestFingerprint(cmd: CommandInput): string {
+  const parts = [cmd.action, String(cmd.expectedVersion)];
+  if (cmd.reasonCode !== undefined) parts.push(cmd.reasonCode);
+  if (cmd.resumeIntoDowntime === true) parts.push('DT');
+  return parts.join(':');
+}
+
+/** Which stored request a key may replay. */
+interface ReplayRequest {
+  readonly key: string;
+  readonly matches: (storedHash: string) => boolean;
+}
+
+function sameCommand(cmd: CommandInput): ReplayRequest {
+  const fingerprint = requestFingerprint(cmd);
+  return { key: cmd.idempotencyKey, matches: (storedHash) => storedHash === fingerprint };
+}
+
 /** What the interval opened by a transition records. */
 interface IntervalOpening {
   readonly action: ShiftAction;
@@ -435,7 +456,11 @@ export class ShiftService {
     let closure: TransitionResponse | null = null;
     const response = await this.db.transaction(async (tx) => {
       await lockEmployee(tx, employeeId);
-      const replay = await this.replay(tx, employeeId, cmd.idempotencyKey);
+      // A start has no version to expect: the session it replays was created by it.
+      const replay = await this.replay(tx, employeeId, {
+        key: cmd.idempotencyKey,
+        matches: (storedHash) => storedHash.split(':')[0] === START_SHIFT_ACTION,
+      });
       if (replay) return replay;
 
       const [existing] = await tx
@@ -671,7 +696,7 @@ export class ShiftService {
     let closure: TransitionResponse | null = null;
     const response = await this.db.transaction(async (tx) => {
       await lockEmployee(tx, employeeId);
-      const replay = await this.replay(tx, employeeId, cmd.idempotencyKey);
+      const replay = await this.replay(tx, employeeId, sameCommand(cmd));
       if (replay) return replay;
       const [session] = await tx
         .select()
@@ -702,7 +727,7 @@ export class ShiftService {
   ): Promise<TransitionResponse> {
     const now = meta.now ?? new Date();
     await lockEmployee(tx, employeeId);
-    const replay = await this.replay(tx, employeeId, cmd.idempotencyKey);
+    const replay = await this.replay(tx, employeeId, sameCommand(cmd));
     if (replay) return replay;
     const [session] = await tx
       .select()
@@ -759,7 +784,7 @@ export class ShiftService {
         .where(eq(shiftSessions.id, sessionId))
         .for('update');
       if (!session) throw new DomainError('SHIFT_NOT_FOUND', 404, 'Зміну не знайдено');
-      const replay = await this.replay(tx, session.employeeId, cmd.idempotencyKey);
+      const replay = await this.replay(tx, session.employeeId, sameCommand(cmd));
       if (replay) return replay;
       if (!isTerminal(session.state)) closure = await this.closeDueWithin(tx, session, now);
       if (closure) return this.fail('NO_ACTIVE_SHIFT', await this.sessionView(tx, session.id), now);
@@ -1113,7 +1138,7 @@ export class ShiftService {
     await tx.insert(idempotencyKeys).values({
       scope: `shift:${session.employeeId}`,
       key: cmd.idempotencyKey,
-      requestHash: `${cmd.action}:${cmd.expectedVersion}`,
+      requestHash: requestFingerprint(cmd),
       response: response as unknown as Record<string, unknown>,
     });
     return response;
@@ -1352,14 +1377,22 @@ export class ShiftService {
   private async replay(
     tx: DbOrTx,
     employeeId: string,
-    key: string,
+    request: ReplayRequest,
   ): Promise<TransitionResponse | null> {
     const [row] = await tx
-      .select({ response: idempotencyKeys.response })
+      .select({ response: idempotencyKeys.response, requestHash: idempotencyKeys.requestHash })
       .from(idempotencyKeys)
-      .where(and(eq(idempotencyKeys.scope, `shift:${employeeId}`), eq(idempotencyKeys.key, key)))
+      .where(
+        and(eq(idempotencyKeys.scope, `shift:${employeeId}`), eq(idempotencyKeys.key, request.key)),
+      )
       .limit(1);
     if (!row) return null;
+    if (!request.matches(row.requestHash))
+      throw new DomainError(
+        'IDEMPOTENCY_CONFLICT',
+        409,
+        'Idempotency key belongs to another command',
+      );
     return {
       ...(row.response as unknown as Extract<TransitionResponse, { ok: true }>),
       replayed: true,

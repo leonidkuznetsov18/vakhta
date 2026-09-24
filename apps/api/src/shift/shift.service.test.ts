@@ -269,6 +269,41 @@ describe('shift: машина станів зміни в транзакції (�
     expect(published).toHaveLength(1);
   });
 
+  it('a reused idempotency key must carry the same command, or it is a conflict', async () => {
+    await arrive(petrova);
+    const startKey = key();
+    await service.start(petrova, { idempotencyKey: startKey }, meta(petrova));
+    const started = await service.activeSession(petrova);
+    if (!started) throw new Error('Missing shift');
+    await expect(
+      service.transition(
+        petrova,
+        { action: 'START_WORK', expectedVersion: started.version, idempotencyKey: startKey },
+        meta(petrova),
+      ),
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT', status: 409 });
+
+    const k = key();
+    const work = {
+      action: 'START_WORK',
+      expectedVersion: started.version,
+      idempotencyKey: k,
+    } as const;
+    expect(await service.transition(petrova, work, meta(petrova))).toMatchObject({ ok: true });
+    expect(await service.transition(petrova, work, meta(petrova))).toMatchObject({
+      ok: true,
+      replayed: true,
+    });
+    await expect(
+      service.transition(
+        petrova,
+        { action: 'START_BREAK', expectedVersion: started.version, idempotencyKey: k },
+        meta(petrova),
+      ),
+    ).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
+    expect(await service.activeSession(petrova)).toMatchObject({ state: 'WORKING' });
+  });
+
   it('ТЗ 12.3: застаріла версія відхиляється і повертає актуальний стан (T-09)', async () => {
     await arrive(ivanov);
     await service.start(ivanov, { idempotencyKey: key() }, meta(ivanov));
