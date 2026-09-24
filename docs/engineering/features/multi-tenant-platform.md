@@ -722,3 +722,16 @@ worker tenant pool 4 tests, Control action dialog 3 tests, existing workspace 14
 keyboard opening and focus restoration. Files: `test-results/tenant-actions/`. The old `tab=danger` URL resolves to Overview. No production client
 was suspended/deleted for testing. CI, deployment and authenticated production evidence remain
 separate delivery checks.
+
+## Module toggle without a page-wide flash (2026-09-24)
+
+Owner report: on the Modules tab one click dimmed every checkbox and the saved one jumped back
+to its old state until the refetch landed. Cause: one shared mutation disabled all three checkboxes
+with `isPending`, and the response was discarded in favour of an invalidate-and-wait cycle.
+Fix (`apps/control-web/src/pages/workspace/modules.tsx`): each `ModuleCard` owns its mutation,
+the saving checkbox shows the target state with an overlaid Spinner and `aria-busy` (never
+`disabled`, so keyboard focus survives), the other cards are untouched, and the returned
+`TenantDetailView` is written to the tenant query before the list invalidation. Regression:
+`workspace-ui.test.tsx` "marks only the saving module checkbox busy…". Verified with a scratchpad
+mock Control API delaying `PUT …/modules/:module` by 2.5 s: desktop dark and 375 px light
+screenshots inspected during and after the save; no console errors.

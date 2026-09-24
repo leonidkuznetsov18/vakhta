@@ -196,6 +196,43 @@ it('shows only delivered modules as named checkboxes and sends the changed state
   );
 });
 
+it('marks only the saving module checkbox busy and shows the saved state without a fallback', async () => {
+  let finish: (detail: TenantDetailView) => void = () => {};
+  vi.spyOn(controlApi, 'setModule').mockReturnValue(
+    new Promise<TenantDetailView>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await open('modules');
+  const admin = await screen.findByRole('checkbox', { name: 'Admin panel' });
+  const kiosk = screen.getByRole('checkbox', { name: 'QR kiosk' });
+  admin.focus();
+  fireEvent.click(admin);
+  await waitFor(() => expect(admin.getAttribute('aria-busy')).toBe('true'));
+  expect(admin.getAttribute('data-state')).toBe('unchecked');
+  expect(admin.parentElement?.querySelector('[data-slot=spinner]')).not.toBeNull();
+  expect(kiosk.getAttribute('aria-busy')).toBe('false');
+  expect(kiosk.hasAttribute('disabled')).toBe(false);
+  expect(screen.getAllByRole('status')).toHaveLength(1);
+  const saved = TenantDetailView.parse({
+    ...tenant,
+    moduleRows: [{ module: 'ADMIN_PANEL', enabled: false, config: {} }],
+  });
+  vi.mocked(controlApi.tenant).mockResolvedValue(saved);
+  const tenantReads = vi.mocked(controlApi.tenant).mock.calls.length;
+  await act(async () => {
+    finish(saved);
+  });
+  await waitFor(() => expect(admin.getAttribute('aria-busy')).toBe('false'));
+  expect(admin.getAttribute('data-state')).toBe('unchecked');
+  expect(screen.queryByRole('status')).toBeNull();
+  await waitFor(() =>
+    expect(vi.mocked(controlApi.tenant).mock.calls.length).toBeGreaterThan(tenantReads),
+  );
+  expect(admin.getAttribute('data-state')).toBe('unchecked');
+  expect(document.activeElement).toBe(admin);
+});
+
 it('shows domain technical details as a disclosure without domain creation', async () => {
   await open('domains');
   const host = await screen.findByText('alpha.example.test');
