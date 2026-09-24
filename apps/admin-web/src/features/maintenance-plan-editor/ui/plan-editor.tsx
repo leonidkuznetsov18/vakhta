@@ -1,0 +1,318 @@
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { EquipmentDetail, PlanDetail } from '@vakhta/contracts';
+import { PlanState, type PlanState as State } from '@vakhta/domain';
+import { format } from '@vakhta/i18n';
+import {
+  maintenanceApi,
+  maintenanceKeys,
+  maintenanceMessages,
+  maintenanceQueries,
+} from '@/entities/maintenance';
+import { useConfirm } from '@/components/app/confirm-dialog';
+import { DetailSheet } from '@/components/app/detail-sheet';
+import { Feedback } from '@/components/app/feedback';
+import { StatusPill } from '@/components/app/page';
+import { QueryFeedback } from '@/components/app/query-feedback';
+import { Alert, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { describeError } from '@/errors';
+import { notifySuccess } from '@/lib/toast';
+import {
+  draftFromContent,
+  emptyPlan,
+  publishIssues,
+  sameDraft,
+  toContent,
+  type PlanDraft,
+  type PublishIssue,
+} from '../model/plan-draft';
+import {
+  AssigneeBlock,
+  IntervalBlock,
+  MaterialsBlock,
+  OperationsBlock,
+  SchedulePreviewAlert,
+  SourceBlock,
+} from './plan-blocks';
+
+interface EditorProps {
+  readonly machine: EquipmentDetail;
+  readonly planId: string | null;
+  readonly canManage: boolean;
+  readonly onClose: () => void;
+}
+
+function initialDraft(machine: EquipmentDetail, detail: PlanDetail | null): PlanDraft {
+  const content = detail?.draft ?? detail?.active;
+  return content ? draftFromContent(content) : emptyPlan(machine);
+}
+
+/** Which state change the footer offers for a published plan (FR-025). */
+const STATE_ACTIONS: Readonly<Record<State, readonly State[]>> = {
+  DRAFT: [],
+  ACTIVE: [PlanState.PAUSED, PlanState.ARCHIVED],
+  PAUSED: [PlanState.ACTIVE, PlanState.ARCHIVED],
+  ARCHIVED: [],
+};
+
+function stateLabel(state: State): string {
+  const t = maintenanceMessages().planForm;
+  const labels: Readonly<Record<State, string>> = {
+    DRAFT: t.saveDraft,
+    ACTIVE: t.resume,
+    PAUSED: t.pause,
+    ARCHIVED: t.archive,
+  };
+  return labels[state];
+}
+
+function stateNotice(state: State): string {
+  const t = maintenanceMessages().planForm;
+  const notices: Readonly<Record<State, string>> = {
+    DRAFT: t.saved,
+    ACTIVE: t.resumed,
+    PAUSED: t.paused,
+    ARCHIVED: t.archived,
+  };
+  return notices[state];
+}
+
+function IssueList({ issues }: { readonly issues: readonly PublishIssue[] }) {
+  const t = maintenanceMessages();
+  if (!issues.length) return null;
+  return (
+    <Alert variant="destructive" role="alert">
+      <AlertTitle>{t.errors.PLAN_INVALID}</AlertTitle>
+      <ul className="col-start-2 list-disc pl-4 text-sm">
+        {issues.map((issue) => (
+          <li key={issue}>{t.planForm.issues[issue]}</li>
+        ))}
+      </ul>
+    </Alert>
+  );
+}
+
+function usePlanMutations(input: {
+  readonly machine: EquipmentDetail;
+  readonly planId: string | null;
+  readonly onSaved: (planId: string, draft: PlanDraft) => void;
+}) {
+  const client = useQueryClient();
+  const refresh = () => client.invalidateQueries({ queryKey: maintenanceKeys.all });
+  const persist = async (draft: PlanDraft): Promise<string> => {
+    const checked = toContent(draft);
+    if (!checked.ok) throw new InvalidDraft(checked.fields);
+    const saved = input.planId
+      ? await maintenanceApi.savePlan(input.planId, checked.content)
+      : await maintenanceApi.createPlan(input.machine.id, checked.content);
+    input.onSaved(saved.id, draft);
+    return saved.id;
+  };
+  const save = useMutation({ mutationFn: persist, onSuccess: refresh });
+  const publish = useMutation({
+    mutationFn: async (draft: PlanDraft) => maintenanceApi.publishPlan(await persist(draft)),
+    onSuccess: refresh,
+  });
+  const changeState = useMutation({
+    mutationFn: (command: { planId: string; state: State; reason?: string }) =>
+      maintenanceApi.setPlanState(command.planId, {
+        state: command.state === PlanState.DRAFT ? PlanState.ACTIVE : command.state,
+        ...(command.reason ? { reason: command.reason } : {}),
+      }),
+    onSuccess: refresh,
+  });
+  return { save, publish, changeState };
+}
+
+/** A draft the contract refuses; carries the fields to mark instead of a server error. */
+class InvalidDraft extends Error {
+  constructor(readonly fields: ReadonlySet<string>) {
+    super('Invalid plan draft');
+  }
+}
+
+function failureOf(mutations: readonly { readonly error: Error | null }[]): Error | null {
+  return mutations.find((mutation) => mutation.error !== null)?.error ?? null;
+}
+
+function invalidFields(failure: Error | null): ReadonlySet<string> {
+  return failure instanceof InvalidDraft ? failure.fields : new Set<string>();
+}
+
+function serverError(failure: Error | null): string | null {
+  if (!failure || failure instanceof InvalidDraft) return null;
+  return describeError(failure);
+}
+
+function PlanTitle({
+  machine,
+  detail,
+}: {
+  readonly machine: EquipmentDetail;
+  readonly detail: PlanDetail | null;
+}) {
+  const t = maintenanceMessages();
+  return (
+    <>
+      {format(t.planForm.createTitle, {
+        machine: `${machine.code} ${machine.model ?? machine.name}`,
+      })}
+      {detail && detail.state !== PlanState.ACTIVE ? (
+        <StatusPill>{t.planState[detail.state]}</StatusPill>
+      ) : null}
+      {detail?.activeRevision ? (
+        <StatusPill>
+          {format(t.planForm.activeRevision, { revision: detail.activeRevision })}
+        </StatusPill>
+      ) : null}
+    </>
+  );
+}
+
+/** The form's state and its named actions; the components below only render them. */
+function usePlanForm({
+  machine,
+  detail,
+  onClose,
+}: EditorProps & { readonly detail: PlanDetail | null }) {
+  const t = maintenanceMessages();
+  const [draft, setDraft] = useState(() => initialDraft(machine, detail));
+  const [baseline, setBaseline] = useState(draft);
+  const [planId, setPlanId] = useState(detail?.id ?? null);
+  const [issues, setIssues] = useState<readonly PublishIssue[]>([]);
+  const { confirm, dialog } = useConfirm();
+  const { save, publish, changeState } = usePlanMutations({
+    machine,
+    planId,
+    onSaved: (id, saved) => {
+      setPlanId(id);
+      setBaseline(saved);
+    },
+  });
+  const failure = failureOf([save, publish, changeState]);
+  const onPublish = () => {
+    const found = publishIssues(draft, detail?.activeRevision != null);
+    setIssues(found);
+    if (found.length) return;
+    publish.mutate(draft, {
+      onSuccess: () => {
+        notifySuccess(t.planForm.published);
+        onClose();
+      },
+    });
+  };
+  const onState = async (target: State) => {
+    if (!planId) return;
+    const reason =
+      target === PlanState.ACTIVE
+        ? ''
+        : await confirm({
+            title: stateLabel(target),
+            commentLabel: t.planForm.reasonTitle,
+            commentRequired: true,
+          });
+    if (reason === false) return;
+    changeState.mutate(
+      { planId, state: target, reason },
+      { onSuccess: () => notifySuccess(stateNotice(target)) },
+    );
+  };
+  return {
+    draft,
+    patch: (change: Partial<PlanDraft>) => setDraft((current) => ({ ...current, ...change })),
+    dirty: !sameDraft(draft, baseline),
+    canPublish: !sameDraft(draft, baseline) || Boolean(detail?.draft) || planId === null,
+    issues,
+    invalid: invalidFields(failure),
+    error: serverError(failure),
+    dialog,
+    save: () => save.mutate(draft, { onSuccess: () => notifySuccess(t.planForm.saved) }),
+    saving: save.isPending,
+    publish: onPublish,
+    publishing: publish.isPending,
+    changeState: (target: State) => void onState(target),
+    changingTo: changeState.isPending ? changeState.variables.state : null,
+  };
+}
+
+type PlanFormModel = ReturnType<typeof usePlanForm>;
+
+function PlanFooter({ model, state }: { readonly model: PlanFormModel; readonly state: State }) {
+  const t = maintenanceMessages();
+  return (
+    <div className="flex w-full flex-wrap justify-end gap-2">
+      {STATE_ACTIONS[state].map((target) => (
+        <Button
+          key={target}
+          variant="ghost"
+          pending={model.changingTo === target}
+          onClick={() => model.changeState(target)}
+        >
+          {stateLabel(target)}
+        </Button>
+      ))}
+      <Button variant="outline" disabled={!model.dirty} pending={model.saving} onClick={model.save}>
+        {t.planForm.saveDraft}
+      </Button>
+      <Button disabled={!model.canPublish} pending={model.publishing} onClick={model.publish}>
+        {t.planForm.publish}
+      </Button>
+    </div>
+  );
+}
+
+function PlanForm(props: EditorProps & { readonly detail: PlanDetail | null }) {
+  const t = maintenanceMessages();
+  const { machine, detail, canManage, onClose } = props;
+  const model = usePlanForm(props);
+  const mechanics = useQuery(maintenanceQueries.mechanics());
+  const state = detail?.state ?? PlanState.DRAFT;
+  const readOnly = !canManage || state === PlanState.ARCHIVED;
+  const blockProps = { draft: model.draft, patch: model.patch, invalid: model.invalid, readOnly };
+  return (
+    <DetailSheet
+      open
+      wide
+      onOpenChange={(open) => (open ? undefined : onClose())}
+      title={<PlanTitle machine={machine} detail={detail} />}
+      description={t.planForm.hint}
+      footer={readOnly ? undefined : <PlanFooter model={model} state={state} />}
+    >
+      <IssueList issues={model.issues} />
+      <Feedback error={model.error} />
+      {detail?.stateReason ? (
+        <p className="text-sm text-muted-foreground">{detail.stateReason}</p>
+      ) : null}
+      <SourceBlock {...blockProps} machine={machine} />
+      <IntervalBlock {...blockProps} />
+      <OperationsBlock {...blockProps} />
+      <MaterialsBlock {...blockProps} />
+      <AssigneeBlock {...blockProps} mechanics={mechanics.data ?? []} />
+      <SchedulePreviewAlert draft={model.draft} mechanics={mechanics.data ?? []} />
+      {model.dialog}
+    </DetailSheet>
+  );
+}
+
+/** The maintenance plan editor (spec 014, US3): draft, publication and pause/archive. */
+export function PlanEditor(props: EditorProps) {
+  const t = maintenanceMessages();
+  const query = useQuery({
+    ...maintenanceQueries.plan(props.planId ?? ''),
+    enabled: props.planId !== null,
+  });
+  if (props.planId === null) return <PlanForm {...props} detail={null} />;
+  if (!query.data)
+    return (
+      <DetailSheet
+        open
+        wide
+        onOpenChange={(open) => (open ? undefined : props.onClose())}
+        title={t.plans.title}
+      >
+        <QueryFeedback query={query} />
+      </DetailSheet>
+    );
+  return <PlanForm key={query.data.id} {...props} detail={query.data} />;
+}

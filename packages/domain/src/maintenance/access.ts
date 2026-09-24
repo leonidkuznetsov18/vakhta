@@ -1,4 +1,4 @@
-import { WebRole } from '@vakhta/domain';
+import { WebRole } from '../access/roles.js';
 
 /** Who sees the maintenance section: the register, calendar and work (spec 014, D-2). */
 export const MAINTENANCE_VIEWERS: readonly WebRole[] = [

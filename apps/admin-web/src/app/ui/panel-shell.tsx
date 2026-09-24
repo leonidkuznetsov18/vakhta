@@ -17,8 +17,10 @@ import {
   ScrollTextIcon,
   SettingsIcon,
   SunIcon,
+  WrenchIcon,
   type LucideIcon,
 } from 'lucide-react';
+import { MAINTENANCE_VIEWERS } from '@vakhta/domain';
 import type { MeView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import {
@@ -76,10 +78,24 @@ const SECTIONS: readonly { key: SectionKey; icon: typeof ActivityIcon }[] = [
   { key: 'photoLibrary', icon: ImagesIcon },
   { key: 'requests', icon: InboxIcon },
   { key: 'bonus', icon: CoinsIcon },
+  { key: 'maintenance', icon: WrenchIcon },
   { key: 'reports', icon: BarChart3Icon },
   { key: 'administration', icon: SettingsIcon },
   { key: 'audit', icon: ScrollTextIcon },
 ];
+
+/** Sections limited to some roles; the others are open to every panel user. */
+const SECTION_ROLES: Partial<Record<SectionKey, readonly string[]>> = {
+  photoLibrary: [
+    'ADMIN',
+    'PRODUCTION_HEAD',
+    'SHIFT_MASTER',
+    'CLEANLINESS_CONTROLLER',
+    'HR',
+    'AUDITOR',
+  ],
+  maintenance: MAINTENANCE_VIEWERS,
+};
 
 /** Which role to show under the name when a user has several: the widest wins. */
 const ROLE_ORDER = [
@@ -87,6 +103,7 @@ const ROLE_ORDER = [
   'PRODUCTION_HEAD',
   'HR',
   'PLANNER',
+  'CHIEF_MECHANIC',
   'SHIFT_MASTER',
   'CLEANLINESS_CONTROLLER',
   'ACCOUNTANT',
@@ -159,20 +176,11 @@ export function PanelShell() {
   }
 
   const { me } = state;
-  const visibleSections = SECTIONS.filter(
-    ({ key }) =>
-      key !== 'photoLibrary' ||
-      me.roles.some(({ role }) =>
-        [
-          'ADMIN',
-          'PRODUCTION_HEAD',
-          'SHIFT_MASTER',
-          'CLEANLINESS_CONTROLLER',
-          'HR',
-          'AUDITOR',
-        ].includes(role),
-      ),
-  );
+  const myRoles = new Set<string>(me.roles.map(({ role }) => role));
+  const visibleSections = SECTIONS.filter(({ key }) => {
+    const allowed = SECTION_ROLES[key];
+    return !allowed || allowed.some((role) => myRoles.has(role));
+  });
   const primaryRole = ROLE_ORDER.find((r) => me.roles.some((g) => g.role === r)) ?? null;
   const title = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];
   const version = import.meta.env['VITE_APP_VERSION'];

@@ -55,6 +55,7 @@ export type GuideKey =
   | 'reports'
   | 'audit'
   | 'administration'
+  | 'maintenance'
   | 'employees'
   | 'users'
   | 'directories'
@@ -470,7 +471,8 @@ export interface Messages {
         | 'bonus'
         | 'reports'
         | 'administration'
-        | 'audit',
+        | 'audit'
+        | 'maintenance',
         string
       >
     >;

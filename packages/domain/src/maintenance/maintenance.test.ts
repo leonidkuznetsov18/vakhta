@@ -65,6 +65,7 @@ describe('maintenance schedule (spec 014 FR-024, FR-052)', () => {
     expect(isOverdue('2026-09-22', '2026-09-24', WorkStatus.ASSIGNED)).toBe(true);
     expect(isOverdue('2026-09-22', '2026-09-22', WorkStatus.ASSIGNED)).toBe(false);
     expect(isOverdue('2026-09-22', '2026-09-24', WorkStatus.COMPLETED)).toBe(false);
+    expect(isOverdue('2026-09-22', '2026-09-24', WorkStatus.IN_REVIEW)).toBe(false);
   });
 });
 

@@ -323,6 +323,8 @@ export function UsersTab({ org }: { readonly org: OrgSnapshot }) {
                 value={role}
                 onChange={(v) => setRole(v as WebRole)}
                 options={WEB_ROLES.map((r) => ({ value: r, label: all.roles[r] }))}
+                // A fixed short list of roles reads better as a plain select than a search box.
+                searchable={false}
                 className="w-56"
               />
               <SelectField

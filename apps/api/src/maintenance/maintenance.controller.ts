@@ -28,7 +28,12 @@ import {
   ReviewCommand,
   WorkQuery,
 } from '@vakhta/contracts';
-import type { WebRole } from '@vakhta/domain';
+import {
+  MAINTENANCE_MANAGERS,
+  MAINTENANCE_RESPONDERS,
+  MAINTENANCE_VIEWERS,
+  type WebRole,
+} from '@vakhta/domain';
 import {
   CurrentUser,
   Roles,
@@ -39,7 +44,7 @@ import {
 import { assertInScope, scopeOf } from '../common/access-scope.js';
 import { DomainError } from '../common/domain-error.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
-import { MAINTENANCE_MANAGERS, MAINTENANCE_RESPONDERS, MAINTENANCE_VIEWERS } from './access.js';
+import { MediaService } from '../handover/media.service.js';
 import { DocumentsService, MAX_DOCUMENT_BYTES } from './documents.service.js';
 import { EmergencyService } from './emergency.service.js';
 import { EquipmentService } from './equipment.service.js';
@@ -59,6 +64,7 @@ export class MaintenanceController {
     private readonly queries: WorkQueriesService,
     private readonly actions: WorkActionsService,
     private readonly emergency: EmergencyService,
+    private readonly media: MediaService,
   ) {}
 
   private async inScope(user: WebUser, roles: readonly WebRole[], equipmentId: string) {
@@ -268,6 +274,19 @@ export class MaintenanceController {
   async workDetail(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: WebUser) {
     await this.workInScope(user, MAINTENANCE_VIEWERS, id);
     return this.queries.detail(id, new Date());
+  }
+
+  /** A photo of an operation answer, only through the work order it belongs to (FR-051). */
+  @Get('work/:id/media/:mediaId/link')
+  async photoLink(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('mediaId', ParseUUIDPipe) mediaId: string,
+    @CurrentUser() user: WebUser,
+  ) {
+    await this.workInScope(user, MAINTENANCE_VIEWERS, id);
+    if (!(await this.queries.hasPhoto(id, mediaId)))
+      throw new DomainError('MEDIA_NOT_FOUND', 404, 'Photo not found');
+    return this.media.link(mediaId, webUserActor(user));
   }
 
   @Post('work/:id/review')

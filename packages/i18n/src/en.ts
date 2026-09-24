@@ -5,7 +5,7 @@ import { photoDictionaryEn } from './photo-object-dictionary.js';
 import { communicationsEn } from './communications.js';
 import { employeeProfileEN } from './employee-profile.js';
 import { unitShiftsEN } from './unit-shifts.js';
-import { maintenanceEN } from './maintenance.js';
+import { maintenanceEN, maintenanceGuideEN } from './maintenance.js';
 import { scheduleExportEn } from './schedule-export.js';
 import { scheduleWorkspaceEn } from './schedule-workspace.js';
 import { overviewCenterEn } from './overview.js';
@@ -610,6 +610,7 @@ export const en: Messages = {
       operations: 'Live shift',
       schedule: 'Schedule',
       photoLibrary: photoLibraryEn.title,
+      maintenance: maintenanceEN.section,
       incidents: 'Downtime and incidents',
       handover: 'Cleanliness and handover',
       requests: 'Requests',
@@ -1851,6 +1852,7 @@ export const en: Messages = {
     },
     guide: {
       photoLibrary: libraryGuideEn,
+      maintenance: maintenanceGuideEN,
       photoInspection: inspectionGuideEn,
       overview: {
         purpose:

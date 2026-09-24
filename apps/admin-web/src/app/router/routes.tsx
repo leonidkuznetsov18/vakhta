@@ -1,4 +1,10 @@
-import { createRootRoute, createRoute, redirect, Navigate } from '@tanstack/react-router';
+import {
+  createRootRoute,
+  createRoute,
+  redirect,
+  Navigate,
+  useNavigate,
+} from '@tanstack/react-router';
 import { PanelShell } from '../ui/panel-shell';
 import { useSession } from '@/auth/useSession';
 import { ProfilePanel } from '@/auth/ProfilePanel';
@@ -13,6 +19,7 @@ import { BonusPage } from '@/bonus/BonusPage';
 import { ReportsPage } from '@/reports/ReportsPage';
 import { AdminPage } from '@/admin/AdminPage';
 import { AuditPage } from '@/audit/AuditPage';
+import { MaintenancePage, type MaintenanceTab } from '@/pages/maintenance';
 import { setUiState } from '@/lib/ui-store';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/i18n';
@@ -145,6 +152,24 @@ const audit = createRoute({
       throw redirect({ to: '/audit/{-$tab}', params: { tab: 'audit' }, replace: true });
   },
 });
+const maintenance = createRoute({
+  getParentRoute: () => root,
+  path: '/maintenance/{-$tab}/{-$id}',
+  component: MaintenanceRoute,
+  staticData: { section: 'maintenance' },
+});
+function MaintenanceRoute() {
+  const { tab, id } = maintenance.useParams();
+  const navigate = useNavigate();
+  // A tab or an open record replaces the address; Back returns to the previous section.
+  const go = (next: MaintenanceTab, record?: string) =>
+    void navigate({
+      to: '/maintenance/{-$tab}/{-$id}',
+      params: { tab: next, id: record },
+      replace: true,
+    });
+  return <MaintenancePage tab={tab} id={id} onNavigate={go} />;
+}
 const legacyIncidents = createRoute({
   getParentRoute: () => root,
   path: '/incidentKnowledge/{-$id}',
@@ -168,5 +193,6 @@ export const routeTree = root.addChildren([
   reports,
   administration,
   audit,
+  maintenance,
   legacyIncidents,
 ]);

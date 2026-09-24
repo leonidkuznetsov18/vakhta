@@ -64,6 +64,7 @@ interface Located {
   readonly name: string;
   readonly timezone: string;
   readonly state: (typeof equipment.$inferSelect)['state'];
+  readonly backupId: string | null;
 }
 
 const FINAL = [...FINAL_WORK_STATUSES];
@@ -115,6 +116,7 @@ export class WorkQueriesService {
         name: equipment.name,
         timezone: sites.timezone,
         state: equipment.state,
+        backupId: equipment.backupEmployeeId,
       })
       .from(workOrders)
       .innerJoin(equipment, eq(equipment.id, workOrders.equipmentId))
@@ -182,8 +184,8 @@ export class WorkQueriesService {
       ),
     )
       .orderBy(
-        sql`${workOrders.status} IN ('COMPLETED', 'CANCELLED')`,
-        sql`${workOrders.type} = 'EMERGENCY_REPAIR' DESC`,
+        sql`${workOrders.status} IN (${WorkStatus.COMPLETED}, ${WorkStatus.CANCELLED})`,
+        sql`${workOrders.type} = ${WorkType.EMERGENCY_REPAIR} DESC`,
         asc(workOrders.plannedOn),
         desc(workOrders.number),
       )
@@ -196,7 +198,7 @@ export class WorkQueriesService {
     const [row] = await this.db
       .select({
         openEmergencies: sql<number>`count(*) filter (where ${workOrders.type} = ${WorkType.EMERGENCY_REPAIR})::int`,
-        overdue: sql<number>`count(*) filter (where ${workOrders.dueOn} < ${today})::int`,
+        overdue: sql<number>`count(*) filter (where ${workOrders.dueOn} < ${today} and ${workOrders.status} <> ${WorkStatus.IN_REVIEW})::int`,
         inReview: sql<number>`count(*) filter (where ${workOrders.status} = ${WorkStatus.IN_REVIEW})::int`,
       })
       .from(workOrders)
@@ -204,6 +206,20 @@ export class WorkQueriesService {
       .innerJoin(sites, eq(sites.id, equipment.siteId))
       .where(and(this.scoped(scope), notInArray(workOrders.status, FINAL)));
     return row ?? { openEmergencies: 0, overdue: 0, inReview: 0 };
+  }
+
+  async hasPhoto(workOrderId: string, mediaId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: workOrderOperationResults.id })
+      .from(workOrderOperationResults)
+      .where(
+        and(
+          eq(workOrderOperationResults.workOrderId, workOrderId),
+          eq(workOrderOperationResults.mediaObjectId, mediaId),
+        ),
+      )
+      .limit(1);
+    return row !== undefined;
   }
 
   async detail(id: string, now: Date): Promise<WorkDetail> {
@@ -214,6 +230,7 @@ export class WorkQueriesService {
       order.assigneeEmployeeId,
       order.leadEmployeeId,
       order.performedByEmployeeId,
+      located.backupId,
     ]);
     const [version, operations, materials, reviews, incident, stop, history] = await Promise.all([
       this.version(order.planVersionId),
@@ -228,6 +245,7 @@ export class WorkQueriesService {
       ...this.row(located, { people, now }),
       description: order.description,
       lead: order.leadEmployeeId ? person(people, order.leadEmployeeId) : null,
+      backup: located.backupId ? person(people, located.backupId) : null,
       planId: order.planId,
       ...planFacts(version),
       operations,

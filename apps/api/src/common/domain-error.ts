@@ -22,13 +22,11 @@ export class DomainError extends Error {
 export class DomainErrorFilter implements ExceptionFilter<DomainError> {
   catch(exception: DomainError, host: ArgumentsHost): void {
     const reply = host.switchToHttp().getResponse<FastifyReply>();
-    void reply
-      .status(exception.status)
-      .send({
-        statusCode: exception.status,
-        code: exception.code,
-        message: exception.message,
-        ...exception.details,
-      });
+    void reply.status(exception.status).send({
+      statusCode: exception.status,
+      code: exception.code,
+      message: exception.message,
+      ...exception.details,
+    });
   }
 }

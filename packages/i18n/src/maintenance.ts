@@ -1,3 +1,5 @@
+import type { SectionGuide } from './messages.js';
+
 /** Equipment maintenance (spec 014): panel section, mechanic bot and notifications. */
 export const maintenanceUK = {
   section: 'Обслуговування',
@@ -274,6 +276,9 @@ export const maintenanceUK = {
       '{mechanic} ще не прийняв. Через {left} повідомлення піде резервному механіку й майстру.',
     emergencyBannerAccepted: 'Ремонт веде {mechanic}.',
     openRepair: 'Відкрити ремонт',
+    escalated: 'Не прийнято · ескальовано',
+    emergencyBannerEscalated:
+      '{mechanic} не прийняв вчасно. Резервний механік і майстер отримали повідомлення.',
   },
   workCard: {
     title: 'ТО №{number} · {title}',
@@ -723,6 +728,9 @@ export const maintenanceEN: MaintenanceMessages = {
       '{mechanic} has not accepted yet. In {left} the backup mechanic and the master are notified.',
     emergencyBannerAccepted: '{mechanic} is on the repair.',
     openRepair: 'Open repair',
+    escalated: 'Not accepted · escalated',
+    emergencyBannerEscalated:
+      '{mechanic} did not accept in time. The backup mechanic and the master are notified.',
   },
   workCard: {
     title: 'Maintenance #{number} · {title}',
@@ -1175,6 +1183,9 @@ export const maintenanceRU: MaintenanceMessages = {
       '{mechanic} ещё не принял. Через {left} сообщение уйдёт резервному механику и мастеру.',
     emergencyBannerAccepted: 'Ремонт ведёт {mechanic}.',
     openRepair: 'Открыть ремонт',
+    escalated: 'Не принято · эскалировано',
+    emergencyBannerEscalated:
+      '{mechanic} не принял вовремя. Резервный механик и мастер получили сообщение.',
   },
   workCard: {
     title: 'ТО №{number} · {title}',
@@ -1344,4 +1355,83 @@ export const maintenanceRU: MaintenanceMessages = {
       WORK_REASON_REQUIRED: 'Напишите причину.',
     },
   },
+};
+
+/** "How it works" of the maintenance section (spec 014). */
+export const maintenanceGuideUK: SectionGuide = {
+  purpose:
+    'Реєстр станків, інструкції виробника, плани ТО з нагадуваннями механікам і аварійні ремонти — все про технічний стан обладнання в одному місці.',
+  steps: [
+    '«Обладнання»: додайте станок, призначте відповідального й резервного механіка. Рядок відкриває картку з паспортом, документами, планами та історією.',
+    'У картці додайте інструкцію (PDF до 50 МБ) і створіть план ТО: інтервал, операції, матеріали й механік. Чернетка нічого не створює; «Опублікувати» створює першу роботу й нагадування за 7, 3 і 1 день.',
+    '«Календар ТО» показує заплановані роботи, прогноз наступних і прострочене. Фіолетовий — механік повідомив, що бракує матеріалів.',
+    '«Роботи»: відкрийте ТО «На перевірці», перегляньте відповіді й фото, прийміть або поверніть із коментарем. Прийняття планує наступне ТО.',
+    'Аварія: оператор повідомляє в боті, механік приймає й ремонтує. Станок допускає до роботи майстер або головний механік кнопкою «Допустити до роботи».',
+  ],
+  faq: [
+    {
+      q: 'Чому механік не отримав нагадування?',
+      a: 'Нагадування йдуть лише для опублікованого плану й механіку з прив’язаним Telegram. Якщо механік у відпустці, нагадування отримує резервний механік.',
+    },
+    {
+      q: 'Як перенести ТО?',
+      a: 'Відкрийте роботу у вкладці «Роботи» й натисніть «Перенести». Механік отримає нове повідомлення, нагадування переплануються.',
+    },
+    {
+      q: 'Чому «Допустити до роботи» недоступна?',
+      a: 'Спершу механік має позначити ремонт виконаним у боті. Завершення ремонту саме по собі станок не запускає.',
+    },
+  ],
+};
+
+export const maintenanceGuideEN: SectionGuide = {
+  purpose:
+    'The machine register, manufacturer manuals, maintenance plans with reminders to mechanics and emergency repairs — the technical state of equipment in one place.',
+  steps: [
+    '"Equipment": add a machine and assign the responsible and backup mechanic. A row opens the card with the passport, documents, plans and history.',
+    'In the card, add the manual (PDF up to 50 MB) and create a maintenance plan: interval, operations, materials and mechanic. A draft creates nothing; "Publish" creates the first work and reminders 7, 3 and 1 day ahead.',
+    'The "Maintenance calendar" shows planned work, the forecast of the next cycles and what is overdue. Violet means the mechanic reported missing materials.',
+    '"Work": open maintenance "In review", check the answers and photos, accept or return it with a comment. Acceptance plans the next maintenance.',
+    'Breakdown: the operator reports it in the bot, the mechanic accepts and repairs. The master or the chief mechanic returns the machine to service with "Return to service".',
+  ],
+  faq: [
+    {
+      q: 'Why did the mechanic get no reminder?',
+      a: 'Reminders go only for a published plan and to a mechanic with a linked Telegram. When the mechanic is on leave, the backup mechanic gets it.',
+    },
+    {
+      q: 'How do I move a maintenance?',
+      a: 'Open the work on the "Work" tab and press "Reschedule". The mechanic gets a new notice and the reminders are planned again.',
+    },
+    {
+      q: 'Why is "Return to service" unavailable?',
+      a: 'The mechanic first marks the repair done in the bot. Finishing the repair alone does not start the machine.',
+    },
+  ],
+};
+
+export const maintenanceGuideRU: SectionGuide = {
+  purpose:
+    'Реестр станков, инструкции производителя, планы ТО с напоминаниями механикам и аварийные ремонты — всё о техническом состоянии оборудования в одном месте.',
+  steps: [
+    '«Оборудование»: добавьте станок, назначьте ответственного и резервного механика. Строка открывает карточку с паспортом, документами, планами и историей.',
+    'В карточке добавьте инструкцию (PDF до 50 МБ) и создайте план ТО: интервал, операции, материалы и механик. Черновик ничего не создаёт; «Опубликовать» создаёт первую работу и напоминания за 7, 3 и 1 день.',
+    '«Календарь ТО» показывает запланированные работы, прогноз следующих и просроченное. Фиолетовый — механик сообщил, что не хватает материалов.',
+    '«Работы»: откройте ТО «На проверке», просмотрите ответы и фото, примите или верните с комментарием. Приёмка планирует следующее ТО.',
+    'Авария: оператор сообщает в боте, механик принимает и ремонтирует. Станок допускает к работе мастер или главный механик кнопкой «Допустить к работе».',
+  ],
+  faq: [
+    {
+      q: 'Почему механик не получил напоминание?',
+      a: 'Напоминания идут только по опубликованному плану и механику с привязанным Telegram. Если механик в отпуске, напоминание получает резервный механик.',
+    },
+    {
+      q: 'Как перенести ТО?',
+      a: 'Откройте работу во вкладке «Работы» и нажмите «Перенести». Механик получит новое сообщение, напоминания перепланируются.',
+    },
+    {
+      q: 'Почему «Допустить к работе» недоступна?',
+      a: 'Сначала механик должен отметить ремонт выполненным в боте. Завершение ремонта само по себе станок не запускает.',
+    },
+  ],
 };

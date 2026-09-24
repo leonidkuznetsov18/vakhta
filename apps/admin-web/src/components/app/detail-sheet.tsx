@@ -42,7 +42,11 @@ export function DetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className={cn('flex w-full min-w-0 flex-col gap-0 p-0 sm:max-w-xl', wide && 'sm:max-w-3xl')}
+        className={cn(
+          'flex w-full min-w-0 flex-col gap-0 p-0 sm:max-w-xl',
+          // The base sheet caps its width through a side variant; only that variant overrides it.
+          wide && 'data-[side=right]:w-full data-[side=right]:sm:max-w-3xl',
+        )}
         aria-label={t.closePanel}
         onOpenAutoFocus={autoFocusFirstField}
       >

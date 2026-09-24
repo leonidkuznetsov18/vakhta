@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import { AnchorMode, IntervalUnit, isOpenWork, type WorkStatus } from './codes.js';
+import { AnchorMode, IntervalUnit, WorkStatus, isOpenWork } from './codes.js';
 
 /** The recurring rule of a plan version; dates are site-local business dates 'YYYY-MM-DD'. */
 export interface PlanRule {
@@ -93,5 +93,6 @@ export function forecastDueDates(rule: PlanRule, openDueOn: string, range: DateR
 
 /** Overdue once the due date has passed in the site's time zone without accepted completion. */
 export function isOverdue(dueOn: string, today: string, status: WorkStatus): boolean {
-  return isOpenWork(status) && today > dueOn;
+  // Submitted work was done; waiting for the review does not make it late.
+  return isOpenWork(status) && status !== WorkStatus.IN_REVIEW && today > dueOn;
 }

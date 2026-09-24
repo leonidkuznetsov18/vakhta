@@ -26,6 +26,8 @@ export function describeError(e: unknown): string {
     if (e.code === 'INSPECTION_RULES_MISSING') return t.photoInspection.aiRulesMissing;
     if (e.code === 'INCIDENT_RESOLUTION_REQUIRED') return t.admin.incidents.requiredSolution;
     if (e.code === 'INCIDENT_CAUSE_REQUIRED') return t.admin.incidents.requiredCause;
+    const maintenance = (t.maintenance.errors as Record<string, string>)[e.code ?? ''];
+    if (maintenance) return maintenance;
     const known = (t.errors as Record<string, string>)[e.code ?? ''];
     return known ?? (e.code === null ? t.admin.auth.requestFailed : e.message);
   }

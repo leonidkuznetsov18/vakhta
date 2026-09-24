@@ -94,7 +94,8 @@ export const EquipmentQuery = z.object({
   unitId: Uuid.optional(),
   state: EquipmentStateSchema.optional(),
   q: z.string().trim().max(100).optional(),
-  archived: z.coerce.boolean().default(false),
+  // A query string carries "false" as text; coercion would read any text as true.
+  archived: z.stringbool().default(false),
 });
 export type EquipmentQuery = z.infer<typeof EquipmentQuery>;
 
@@ -312,6 +313,8 @@ export type WorkHistoryItem = z.infer<typeof WorkHistoryItem>;
 export const WorkDetail = WorkRow.extend({
   description: z.string().nullable(),
   lead: PersonRef.nullable(),
+  /** The machine's backup mechanic, who gets an unaccepted repair (FR-063). */
+  backup: PersonRef.nullable(),
   planId: Uuid.nullable(),
   planRevision: z.number().int().nullable(),
   estimatedMinutes: z.number().int().nullable(),

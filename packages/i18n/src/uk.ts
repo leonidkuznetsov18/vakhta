@@ -5,7 +5,7 @@ import { photoDictionaryUk } from './photo-object-dictionary.js';
 import { communicationsUk } from './communications.js';
 import { employeeProfileUK } from './employee-profile.js';
 import { unitShiftsUK } from './unit-shifts.js';
-import { maintenanceUK } from './maintenance.js';
+import { maintenanceUK, maintenanceGuideUK } from './maintenance.js';
 import { scheduleExportUk } from './schedule-export.js';
 import { scheduleWorkspaceUk } from './schedule-workspace.js';
 import { overviewCenterUk } from './overview.js';
@@ -610,6 +610,7 @@ export const uk: Messages = {
       operations: 'Оперативна зміна',
       schedule: 'Графік',
       photoLibrary: photoLibraryUk.title,
+      maintenance: maintenanceUK.section,
       incidents: 'Простої та інциденти',
       handover: 'Чистота і передача',
       requests: 'Звернення',
@@ -1855,6 +1856,7 @@ export const uk: Messages = {
     },
     guide: {
       photoLibrary: libraryGuideUk,
+      maintenance: maintenanceGuideUK,
       photoInspection: inspectionGuideUk,
       overview: {
         purpose:
