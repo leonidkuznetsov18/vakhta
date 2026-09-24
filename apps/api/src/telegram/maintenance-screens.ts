@@ -209,6 +209,111 @@ export function workCardScreen(t: Messages, card: MechanicCard): Screen {
   return { text: lines.join('\n'), keyboard };
 }
 
+/**
+ * The "what is missing" checklist (FR-044): the selection travels in the button data as a base-36
+ * bit mask, so a toggle is stateless and a repeated press has no second effect. 30 bits keep the
+ * value within JavaScript's 32-bit operators and the callback's 12-character argument.
+ */
+export const MISSING_CHECKLIST_LIMIT = 30;
+const MASK_RADIX = 36;
+
+export const MissingStep = { OPEN: 'OPEN', TOGGLE: 'm', SEND: 's', WRITE: 'w' } as const;
+export type MissingStep = (typeof MissingStep)[keyof typeof MissingStep];
+const MISSING_STEPS = new Set<string>([MissingStep.TOGGLE, MissingStep.SEND, MissingStep.WRITE]);
+
+export interface MissingPress {
+  readonly step: MissingStep;
+  readonly mask: number;
+}
+
+function isMissingStep(value: string): value is MissingStep {
+  return MISSING_STEPS.has(value);
+}
+
+/** "m1c" → toggle to mask 0x48; no argument opens the empty checklist; null when malformed. */
+export function parseMissingArg(arg: string | null): MissingPress | null {
+  if (arg === null) return { step: MissingStep.OPEN, mask: 0 };
+  const step = arg.slice(0, 1);
+  const mask = Number.parseInt(arg.slice(1) || '0', MASK_RADIX);
+  if (!isMissingStep(step) || !Number.isInteger(mask) || mask < 0) return null;
+  if (mask >= 2 ** MISSING_CHECKLIST_LIMIT) return null;
+  return { step, mask };
+}
+
+function missingArg(step: MissingStep, mask: number): string {
+  return `${step}${mask.toString(MASK_RADIX)}`;
+}
+
+function isSelected(mask: number, index: number): boolean {
+  return (mask & (1 << index)) !== 0;
+}
+
+/** Whether the plan's materials fit the checklist; otherwise the mechanic writes what is missing. */
+export function hasMissingChecklist(card: MechanicCard): boolean {
+  const count = card.notice.data.materials.length;
+  return count > 0 && count <= MISSING_CHECKLIST_LIMIT;
+}
+
+export function missingScreen(t: Messages, card: MechanicCard, mask: number): Screen {
+  const bot = t.maintenance.bot;
+  const id = card.notice.data.workOrderId;
+  const keyboard = new InlineKeyboard();
+  card.notice.data.materials.forEach((material, index) => {
+    const selected = isSelected(mask, index);
+    const label = format(bot.checklistItem, {
+      mark: selected ? '☑️' : '⬜',
+      name: material.name,
+      quantity: material.quantity,
+      unit: material.unit,
+    });
+    const toggled = mask ^ (1 << index);
+    keyboard
+      .text(
+        label,
+        callback(MaintenanceCallbackAction.MISSING, id, missingArg(MissingStep.TOGGLE, toggled)),
+      )
+      .row();
+  });
+  keyboard
+    .text(
+      bot.missingSend,
+      callback(MaintenanceCallbackAction.MISSING, id, missingArg(MissingStep.SEND, mask)),
+    )
+    .row()
+    .text(
+      bot.missingWrite,
+      callback(MaintenanceCallbackAction.MISSING, id, missingArg(MissingStep.WRITE, mask)),
+    )
+    .row()
+    .text(bot.back, callback(MaintenanceCallbackAction.OPEN, id));
+  return { text: bot.missingChecklistTitle, keyboard };
+}
+
+/** The note the master reads: the checked materials, then what the mechanic wrote. */
+export function missingNote(card: MechanicCard, mask: number, text: string | null): string {
+  const checked = card.notice.data.materials
+    .filter((_material, index) => isSelected(mask, index))
+    .map((material) => `${material.name} ${material.quantity} ${material.unit}`);
+  return [...checked, ...(text ? [text] : [])].join('; ');
+}
+
+/** Submission arguments of planned maintenance with materials (FR-051). */
+export const UsedArg = { AS_PLANNED: 'p', OTHER: 'w' } as const;
+
+/** Before "submit", the mechanic confirms the materials used: as in the plan or in their words. */
+export function materialsUsedScreen(t: Messages, card: MechanicCard): Screen {
+  const bot = t.maintenance.bot;
+  const id = card.notice.data.workOrderId;
+  const keyboard = new InlineKeyboard()
+    .text(bot.usedAsPlanned, callback(MaintenanceCallbackAction.SUBMIT, id, UsedArg.AS_PLANNED))
+    .row()
+    .text(bot.usedOther, callback(MaintenanceCallbackAction.SUBMIT, id, UsedArg.OTHER))
+    .row()
+    .text(bot.back, callback(MaintenanceCallbackAction.OPEN, id));
+  const lines = [bot.usedTitle, ...materialLines(t, card)];
+  return { text: lines.join('\n'), keyboard };
+}
+
 /** Why the work pauses; the reason travels as its index in WAIT_REASONS. */
 export function pauseScreen(t: Messages, workOrderId: string): Screen {
   const keyboard = new InlineKeyboard();

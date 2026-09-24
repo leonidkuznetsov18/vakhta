@@ -27,6 +27,7 @@ import {
 } from '@vakhta/domain';
 import { DATABASE } from '../infra/database.module.js';
 import { maintenanceStaff } from './lookups.js';
+import { MAINTENANCE_OPTIONS, type MaintenanceOptions } from './maintenance-options.js';
 
 const FINAL = [...FINAL_WORK_STATUSES];
 
@@ -55,9 +56,14 @@ export interface MechanicCard {
 /** The mechanic's side of maintenance work in Telegram (spec 014, US5, US7). */
 @Injectable()
 export class MechanicWorkService {
-  constructor(@Inject(DATABASE) private readonly db: Database) {}
+  constructor(
+    @Inject(DATABASE) private readonly db: Database,
+    @Inject(MAINTENANCE_OPTIONS) private readonly options: MaintenanceOptions,
+  ) {}
 
+  /** A mechanic of a tenant with the maintenance module on; gates every bot entry (FR-001). */
   async isMaintenanceStaff(employeeId: string): Promise<boolean> {
+    if (!this.options.enabled) return false;
     const rows = await maintenanceStaff(this.db, [employeeId]);
     return rows.length > 0;
   }

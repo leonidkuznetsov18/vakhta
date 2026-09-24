@@ -35,6 +35,8 @@ export const TimerRecoveryOptions = z.object({
   downtimeEscalationMinutes: z.number().int().positive().default(15),
   cleaningReminderMinutes: z.number().int().positive().default(30),
   autoCloseGraceMinutes: z.number().int().positive().default(120),
+  /** The tenant's MAINTENANCE module (spec 014 FR-001); when off, its timers complete unsent. */
+  maintenanceEnabled: z.boolean().default(true),
 });
 export type TimerRecoveryOptions = z.infer<typeof TimerRecoveryOptions>;
 export interface LegacyTimerReader {

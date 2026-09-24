@@ -33,5 +33,10 @@ export function responderAction(machine: EquipmentDetail): ResponderAction {
 }
 
 /** Which dialog of the card is open. */
-export const CardDialog = { NONE: 'NONE', EMERGENCY: 'EMERGENCY', RELEASE: 'RELEASE' } as const;
+export const CardDialog = {
+  NONE: 'NONE',
+  EMERGENCY: 'EMERGENCY',
+  RELEASE: 'RELEASE',
+  STATE: 'STATE',
+} as const;
 export type CardDialog = (typeof CardDialog)[keyof typeof CardDialog];

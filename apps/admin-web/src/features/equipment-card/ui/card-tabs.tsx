@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  CopyIcon,
   ExternalLinkIcon,
   FileTextIcon,
   PlusIcon,
@@ -35,6 +36,7 @@ import { notifySuccess } from '@/lib/toast';
 import { messages } from '@vakhta/i18n';
 import { currentLocale } from '@/shared/config';
 import { formatSize, lacksManual } from '../model/documents';
+import { CopyPlanDialog } from './copy-plan-dialog';
 import { UploadDialog } from './upload-dialog';
 
 /** Opens a signed link in a new tab; the tab opens first so the browser does not block it. */
@@ -207,12 +209,15 @@ export function PlansTab({
   machine,
   canManage,
   onOpenPlan,
+  onOpenEquipment,
 }: {
   readonly machine: EquipmentDetail;
   readonly canManage: boolean;
   readonly onOpenPlan: (planId: string | null) => void;
+  readonly onOpenEquipment: (equipmentId: string) => void;
 }) {
   const t = maintenanceMessages();
+  const [copying, setCopying] = useState<PlanRow | null>(null);
   return (
     <div className="flex flex-col gap-3">
       {canManage ? (
@@ -228,7 +233,30 @@ export function PlansTab({
         storageKey="maintenance.card.plans"
         onRowClick={(plan) => onOpenPlan(plan.id)}
         rowLabel={(plan) => plan.title}
+        {...(canManage
+          ? {
+              rowActions: (plan: PlanRow) => [
+                {
+                  key: 'copy',
+                  label: t.plans.copy,
+                  icon: CopyIcon,
+                  onSelect: () => setCopying(plan),
+                },
+              ],
+            }
+          : {})}
       />
+      {copying ? (
+        <CopyPlanDialog
+          plan={copying}
+          sourceEquipmentId={machine.id}
+          onClose={() => setCopying(null)}
+          onCopied={(equipmentId) => {
+            setCopying(null);
+            onOpenEquipment(equipmentId);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

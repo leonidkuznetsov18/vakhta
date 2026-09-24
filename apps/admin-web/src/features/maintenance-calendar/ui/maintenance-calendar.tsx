@@ -18,23 +18,32 @@ import {
   maintenanceMessages,
   maintenanceQueries,
 } from '@/entities/maintenance';
-import { MonthField } from '@/components/app/date-picker';
+import { DateField, MonthField } from '@/components/app/date-picker';
 import { SelectField } from '@/components/app/fields';
 import { Section, Toolbar } from '@/components/app/page';
 import { QueryFeedback } from '@/components/app/query-feedback';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useOrg } from '@/lib/org';
+import { usePersistentState } from '@/lib/ui-store';
 import { IconButton } from '@/shared/ui/icon-button';
 import { currentLocale } from '@/shared/config';
 import { cn } from 'cn';
 import {
+  CalendarView,
   EntryKind,
   EntryTone,
+  STATUS_FILTERS,
+  StatusFilter,
   entriesByDay,
-  gridRange,
-  monthGrid,
+  filterEntries,
   shiftMonth,
+  shiftWeek,
+  viewDays,
+  weekStart,
   type CalendarEntry,
+  type GridDay,
 } from '../model/month-grid';
 
 const TONE_CLASS: Readonly<Record<EntryTone, string>> = {
@@ -89,8 +98,12 @@ function EntryChip({
       <span className={base}>
         {TONE_ICON[entry.tone]}
         <span className="sr-only">{legendText(entry.tone)}:</span>
-        <span className="font-medium">{entry.forecast.equipmentCode}</span>
-        <span className="truncate">{entry.forecast.title}</span>
+        <span className="shrink-0 font-medium whitespace-nowrap">
+          {entry.forecast.equipmentCode}
+        </span>
+        <span data-title="" className="truncate">
+          {entry.forecast.title}
+        </span>
       </span>
     );
   const item = entry.item;
@@ -105,8 +118,10 @@ function EntryChip({
       onClick={() => onOpenWork(item.workOrderId)}
     >
       {TONE_ICON[entry.tone]}
-      <span className="font-medium">{item.equipmentCode}</span>
-      <span className="truncate">{item.title}</span>
+      <span className="shrink-0 font-medium whitespace-nowrap">{item.equipmentCode}</span>
+      <span data-title="" className="truncate">
+        {item.title}
+      </span>
     </button>
   );
 }
@@ -114,13 +129,16 @@ function EntryChip({
 type DayMap = ReadonlyMap<string, readonly CalendarEntry[]>;
 
 function CalendarGrid({
-  month,
+  days,
   today,
+  tall,
   byDay,
   onOpenWork,
 }: {
-  readonly month: string;
+  readonly days: readonly GridDay[];
   readonly today: string;
+  /** A week has room for every entry of a day. */
+  readonly tall: boolean;
   readonly byDay: DayMap;
   readonly onOpenWork: (id: string) => void;
 }) {
@@ -136,12 +154,14 @@ function CalendarGrid({
           {weekday}
         </div>
       ))}
-      {monthGrid(month).map((day) => (
+      {days.map((day) => (
         <div
           key={day.date}
           role="gridcell"
           className={cn(
-            'flex min-h-24 min-w-0 flex-col gap-1 border-r border-b p-1 [&:nth-child(7n)]:border-r-0',
+            'flex min-w-0 flex-col gap-1 border-r border-b p-1 [&:nth-child(7n)]:border-r-0',
+            // A week has room for whole titles; the month keeps one line per entry.
+            tall ? 'min-h-64 [&_[data-title]]:text-left [&_[data-title]]:whitespace-normal [&_button]:items-start' : 'min-h-24',
             !day.inMonth && 'bg-muted/30',
           )}
         >
@@ -152,7 +172,7 @@ function CalendarGrid({
               day.date === today && 'bg-emerald-600 text-white',
             )}
           >
-            {Number(day.date.slice(8))}
+            {tall ? formatDayMonth(day.date) : Number(day.date.slice(8))}
           </span>
           {(byDay.get(day.date) ?? []).map((entry) => (
             <EntryChip key={entry.key} entry={entry} onOpenWork={onOpenWork} />
@@ -164,20 +184,21 @@ function CalendarGrid({
 }
 
 function CalendarAgenda({
-  month,
+  days,
   byDay,
+  empty,
   onOpenWork,
 }: {
-  readonly month: string;
+  readonly days: readonly GridDay[];
   readonly byDay: DayMap;
+  readonly empty: string;
   readonly onOpenWork: (id: string) => void;
 }) {
-  const t = maintenanceMessages().calendar;
-  const days = monthGrid(month).filter((day) => day.inMonth && byDay.has(day.date));
-  if (!days.length) return <p className="text-sm text-muted-foreground">{t.empty}</p>;
+  const shown = days.filter((day) => day.inMonth && byDay.has(day.date));
+  if (!shown.length) return <p className="text-sm text-muted-foreground">{empty}</p>;
   return (
     <ol className="flex flex-col gap-3">
-      {days.map((day) => (
+      {shown.map((day) => (
         <li key={day.date} className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground">
             {formatBusinessDate(day.date)}
@@ -246,9 +267,103 @@ function Legend() {
 }
 
 interface Filters {
+  readonly view: CalendarView;
   readonly month: string;
+  readonly weekOf: string;
+  readonly unitId: string;
   readonly mechanicId: string;
   readonly equipmentId: string;
+  readonly status: StatusFilter;
+}
+
+const VIEWS = new Set<string>(Object.values(CalendarView));
+const STATUSES = new Set<string>(STATUS_FILTERS);
+
+function isView(value: string): value is CalendarView {
+  return VIEWS.has(value);
+}
+
+function isStatus(value: string): value is StatusFilter {
+  return STATUSES.has(value);
+}
+
+function PeriodControls({
+  filters,
+  onChange,
+}: {
+  readonly filters: Filters;
+  readonly onChange: (filters: Filters) => void;
+}) {
+  const t = maintenanceMessages().calendar;
+  const week = filters.view === CalendarView.WEEK;
+  const step = (direction: number) =>
+    onChange(
+      week
+        ? { ...filters, weekOf: shiftWeek(filters.weekOf, direction) }
+        : { ...filters, month: shiftMonth(filters.month, direction) },
+    );
+  return (
+    <div className="flex items-end gap-1">
+      <IconButton
+        icon={ChevronLeftIcon}
+        label={week ? t.previousWeek : t.previous}
+        tooltip={week ? t.previousWeek : t.previous}
+        variant="outline"
+        size="icon"
+        onClick={() => step(-1)}
+      />
+      {week ? (
+        <DateField
+          label={t.week}
+          value={filters.weekOf}
+          selection="week"
+          onChange={(weekOf) => onChange({ ...filters, weekOf: weekStart(weekOf) })}
+        />
+      ) : (
+        <MonthField
+          label={messages(currentLocale()).ui.common.calendarMonth}
+          value={filters.month}
+          onChange={(month) => onChange({ ...filters, month })}
+          picker="months"
+        />
+      )}
+      <IconButton
+        icon={ChevronRightIcon}
+        label={week ? t.nextWeek : t.next}
+        tooltip={week ? t.nextWeek : t.next}
+        variant="outline"
+        size="icon"
+        onClick={() => step(1)}
+      />
+    </div>
+  );
+}
+
+function ViewToggle({
+  filters,
+  onChange,
+}: {
+  readonly filters: Filters;
+  readonly onChange: (filters: Filters) => void;
+}) {
+  const t = maintenanceMessages().calendar;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-sm leading-none font-medium">{t.view}</span>
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        aria-label={t.view}
+        value={filters.view}
+        onValueChange={(value) =>
+          isView(value) ? onChange({ ...filters, view: value }) : undefined
+        }
+      >
+        <ToggleGroupItem value={CalendarView.MONTH}>{t.viewMonth}</ToggleGroupItem>
+        <ToggleGroupItem value={CalendarView.WEEK}>{t.viewWeek}</ToggleGroupItem>
+      </ToggleGroup>
+    </div>
+  );
 }
 
 function CalendarToolbar({
@@ -259,35 +374,23 @@ function CalendarToolbar({
   readonly onChange: (filters: Filters) => void;
 }) {
   const t = maintenanceMessages();
+  const { orgOrEmpty } = useOrg();
   const mechanics = useQuery(maintenanceQueries.mechanics());
   const machines = useQuery(maintenanceQueries.equipmentList({ archived: false }));
-  const month = (next: string) => onChange({ ...filters, month: next });
   return (
     <Toolbar>
-      <div className="flex items-end gap-1">
-        <IconButton
-          icon={ChevronLeftIcon}
-          label={t.calendar.previous}
-          tooltip={t.calendar.previous}
-          variant="outline"
-          size="icon"
-          onClick={() => month(shiftMonth(filters.month, -1))}
-        />
-        <MonthField
-          label={messages(currentLocale()).ui.common.calendarMonth}
-          value={filters.month}
-          onChange={month}
-          picker="months"
-        />
-        <IconButton
-          icon={ChevronRightIcon}
-          label={t.calendar.next}
-          tooltip={t.calendar.next}
-          variant="outline"
-          size="icon"
-          onClick={() => month(shiftMonth(filters.month, 1))}
-        />
-      </div>
+      <ViewToggle filters={filters} onChange={onChange} />
+      <PeriodControls filters={filters} onChange={onChange} />
+      <SelectField
+        label={t.form.unit}
+        value={filters.unitId}
+        onChange={(unitId) => onChange({ ...filters, unitId })}
+        className="w-48"
+        options={[
+          { value: '', label: t.calendar.allUnits },
+          ...orgOrEmpty.orgUnits.map((unit) => ({ value: unit.id, label: unit.name })),
+        ]}
+      />
       <SelectField
         label={t.work.columns.mechanic}
         value={filters.mechanicId}
@@ -311,37 +414,76 @@ function CalendarToolbar({
           })),
         ]}
       />
+      <SelectField
+        label={t.calendar.status}
+        value={filters.status}
+        onChange={(status) =>
+          onChange({ ...filters, status: isStatus(status) ? status : StatusFilter.ALL })
+        }
+        className="w-40"
+        searchable={false}
+        options={STATUS_FILTERS.map((value) => ({ value, label: t.calendar.statusFilter[value] }))}
+      />
     </Toolbar>
   );
 }
 
-function calendarQuery(filters: Filters) {
+function calendarQuery(filters: Filters, days: readonly GridDay[]) {
   return maintenanceQueries.calendar({
-    ...gridRange(filters.month),
+    from: days[0]?.date ?? `${filters.month}-01`,
+    to: days.at(-1)?.date ?? `${filters.month}-28`,
+    ...(filters.unitId ? { unitId: filters.unitId } : {}),
     ...(filters.mechanicId ? { mechanicId: filters.mechanicId } : {}),
     ...(filters.equipmentId ? { equipmentId: filters.equipmentId } : {}),
   });
 }
 
-/** The maintenance calendar (spec 014, US4): the month of work, the forecast and what is late. */
+/** Stored choices restored only when still valid (table-filter standard F4). */
+function useCalendarFilters(today: string): [Filters, (filters: Filters) => void] {
+  const { orgOrEmpty } = useOrg();
+  const [stored, setStored] = usePersistentState<Partial<Filters>>('maintenance.calendar', {});
+  // Both views open on the current period: this month, the week holding today.
+  const [period, setPeriod] = useState({ month: today.slice(0, 7), weekOf: weekStart(today) });
+  const units = new Set(orgOrEmpty.orgUnits.map((unit) => unit.id));
+  const filters: Filters = {
+    ...period,
+    view: stored.view && isView(stored.view) ? stored.view : CalendarView.MONTH,
+    status: stored.status && isStatus(stored.status) ? stored.status : StatusFilter.ALL,
+    unitId: stored.unitId && units.has(stored.unitId) ? stored.unitId : '',
+    mechanicId: stored.mechanicId ?? '',
+    equipmentId: stored.equipmentId ?? '',
+  };
+  const change = (next: Filters) => {
+    setPeriod({ month: next.month, weekOf: next.weekOf });
+    setStored({
+      view: next.view,
+      status: next.status,
+      unitId: next.unitId,
+      mechanicId: next.mechanicId,
+      equipmentId: next.equipmentId,
+    });
+  };
+  return [filters, change];
+}
+
+/** The maintenance calendar (spec 014, US4): the month or week of work, the forecast, what is late. */
 export function MaintenanceCalendar({
-  initialMonth,
+  today,
   onOpenWork,
 }: {
-  readonly initialMonth: string;
+  /** The panel's local day; the site's own day comes with the calendar data. */
+  readonly today: string;
   readonly onOpenWork: (id: string) => void;
 }) {
   const t = maintenanceMessages().calendar;
-  const [filters, setFilters] = useState<Filters>({
-    month: initialMonth,
-    mechanicId: '',
-    equipmentId: '',
-  });
+  const [filters, setFilters] = useCalendarFilters(today);
   const mobile = useIsMobile();
-  const query = useQuery(calendarQuery(filters));
+  const days = viewDays(filters.view, filters);
+  const query = useQuery(calendarQuery(filters, days));
   const view = query.data;
-  const byDay = view ? entriesByDay(view, currentLocale()) : new Map<string, CalendarEntry[]>();
-  const month = filters.month;
+  const all = view ? entriesByDay(view, currentLocale()) : new Map<string, CalendarEntry[]>();
+  const byDay = filterEntries(all, filters.status);
+  const empty = filters.status === StatusFilter.ALL ? t.empty : t.emptyFiltered;
   return (
     <div className="flex flex-col gap-4">
       {view ? <OverdueAlert items={view.overdue} /> : null}
@@ -349,10 +491,16 @@ export function MaintenanceCalendar({
         <CalendarToolbar filters={filters} onChange={setFilters} />
         <QueryFeedback query={query} />
         {view && mobile ? (
-          <CalendarAgenda month={month} byDay={byDay} onOpenWork={onOpenWork} />
+          <CalendarAgenda days={days} byDay={byDay} empty={empty} onOpenWork={onOpenWork} />
         ) : null}
         {view && !mobile ? (
-          <CalendarGrid month={month} today={view.today} byDay={byDay} onOpenWork={onOpenWork} />
+          <CalendarGrid
+            days={days}
+            today={view.today}
+            tall={filters.view === CalendarView.WEEK}
+            byDay={byDay}
+            onOpenWork={onOpenWork}
+          />
         ) : null}
         <Legend />
       </Section>

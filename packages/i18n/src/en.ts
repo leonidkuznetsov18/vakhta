@@ -584,6 +584,7 @@ export const en: Messages = {
       invalidCode: 'The code did not match. Check the time on your phone and try again.',
       networkError: 'The server is unavailable. Try again later.',
       requestTimeout: 'The request timed out. Try again.',
+      moduleDisabled: 'This module is turned off for your company. Ask the platform administrator.',
       invalidResponse: 'The server returned an invalid response. Try again.',
       requestFailed: 'The request failed. Try again.',
       profile: 'Profile',

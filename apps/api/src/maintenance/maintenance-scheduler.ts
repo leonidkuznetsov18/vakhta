@@ -1,18 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { loadWorkNotice, workOrders, type Transaction } from '@vakhta/db';
 import {
-  DEFAULT_MAINTENANCE_REMINDER_OFFSETS,
-  DEFAULT_MAINTENANCE_REMINDER_TIME,
   WorkPriority,
   WorkStatus,
   WorkType,
   reminderPlan,
+  MaintenanceTemplate,
 } from '@vakhta/domain';
 import { MaintenanceNoticeKind, maintenanceNotice } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { EventStore, type EventSource } from '../events/event-store.js';
 import { TIMER_SCHEDULER, type TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { MAINTENANCE_OPTIONS, type MaintenanceOptions } from './maintenance-options.js';
 
 export interface PlannedCycle {
   readonly planId: string;
@@ -39,6 +39,7 @@ export class MaintenanceScheduler {
     private readonly events: EventStore,
     private readonly notifications: NotificationsService,
     @Inject(TIMER_SCHEDULER) private readonly timers: TimerScheduler,
+    @Inject(MAINTENANCE_OPTIONS) private readonly options: MaintenanceOptions,
   ) {}
 
   async createCycleWithin(
@@ -87,7 +88,7 @@ export class MaintenanceScheduler {
   }
 
   /**
-   * Schedules the 7/3/1-day reminders for the current planned date; a date already close gets one
+   * Schedules the reminders (tenant offsets, 7/3/1 days by default) for the current planned date; a date already close gets one
    * notice now instead of late reminders (FR-041). Keys carry the date, so a re-plan gets new ones.
    */
   async planRemindersWithin(
@@ -99,8 +100,8 @@ export class MaintenanceScheduler {
     if (!notice?.plannedOn) return;
     const plan = reminderPlan({
       plannedOn: notice.plannedOn,
-      offsets: DEFAULT_MAINTENANCE_REMINDER_OFFSETS,
-      localTime: DEFAULT_MAINTENANCE_REMINDER_TIME,
+      offsets: this.options.reminderOffsets,
+      localTime: this.options.reminderTime,
       timezone: notice.timezone,
       now,
     });
@@ -117,7 +118,7 @@ export class MaintenanceScheduler {
     await this.notifications.enqueue(tx, {
       recipientType: 'EMPLOYEE',
       recipientId: notice.assigneeId,
-      template: 'MAINTENANCE_ASSIGNED',
+      template: MaintenanceTemplate.MAINTENANCE_ASSIGNED,
       payload: (t) => maintenanceNotice(t, notice.data, { kind: MaintenanceNoticeKind.ASSIGNED }),
       dedupeKey: `maintenance-assigned:${workOrderId}:${notice.plannedOn}:${notice.assigneeId}`,
     });
@@ -130,7 +131,7 @@ export class MaintenanceScheduler {
     await this.notifications.enqueue(tx, {
       recipientType: 'EMPLOYEE',
       recipientId: notice.assigneeId,
-      template: 'MAINTENANCE_ASSIGNED',
+      template: MaintenanceTemplate.MAINTENANCE_ASSIGNED,
       payload: (t) => maintenanceNotice(t, notice.data, { kind: MaintenanceNoticeKind.ASSIGNED }),
       dedupeKey: `maintenance-assigned:${workOrderId}:${notice.plannedOn}:${notice.assigneeId}`,
     });
@@ -143,7 +144,7 @@ export class MaintenanceScheduler {
     await this.notifications.enqueue(tx, {
       recipientType: 'EMPLOYEE',
       recipientId: notice.assigneeId,
-      template: 'MAINTENANCE_REPLANNED',
+      template: MaintenanceTemplate.MAINTENANCE_REPLANNED,
       payload: (t) => maintenanceNotice(t, notice.data, { kind: MaintenanceNoticeKind.REPLANNED }),
       dedupeKey: `maintenance-replanned:${workOrderId}:${notice.plannedOn}:${notice.assigneeId}`,
     });

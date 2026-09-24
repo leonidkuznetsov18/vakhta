@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  ApplyPlanVersionCommand,
   DocumentLinkView,
   EmergencyCreateCommand,
   EquipmentDetail,
@@ -8,16 +9,21 @@ import {
   EquipmentUpdate,
   LibraryDocumentView,
   MaintenanceCalendarView,
+  MaintenancePolicyView,
   MaintenanceSummary,
   MechanicOption,
   MediaLinkView,
   PlanContent,
+  PlanCopyCommand,
   PlanDetail,
   PlanStateCommand,
+  PlanVersionDiffView,
   ReassignCommand,
+  RecordCompletionCommand,
   ReleaseCommand,
   ReplanCommand,
   ReviewCommand,
+  StateCorrectionCommand,
   WorkDetail,
   WorkRow,
   type CalendarQuery,
@@ -57,6 +63,7 @@ async function send<T>(
 
 export const maintenanceApi = {
   summary: (signal: Signal) => read(MaintenanceSummary, `${root}/summary`, { signal }),
+  policy: (signal: Signal) => read(MaintenancePolicyView, `${root}/policy`, { signal }),
   mechanics: (signal: Signal) => read(z.array(MechanicOption), `${root}/mechanics`, { signal }),
   equipment: (query: EquipmentQuery, signal: Signal) =>
     read(z.array(EquipmentRow), `${root}/equipment`, { params: query, signal }),
@@ -71,6 +78,8 @@ export const maintenanceApi = {
   workDetail: (id: string, signal: Signal) => read(WorkDetail, `${root}/work/${id}`, { signal }),
   photoLink: (workId: string, mediaId: string, signal: Signal) =>
     read(MediaLinkView, `${root}/work/${workId}/media/${mediaId}/link`, { signal }),
+  planDiff: (workId: string, signal: Signal) =>
+    read(PlanVersionDiffView, `${root}/work/${workId}/plan-diff`, { signal }),
   calendar: (query: CalendarQuery, signal: Signal) =>
     read(MaintenanceCalendarView, `${root}/calendar`, { params: query, signal }),
 
@@ -78,6 +87,8 @@ export const maintenanceApi = {
     send(Created, `${root}/equipment`, { data: EquipmentInput.parse(input) }),
   updateEquipment: (id: string, input: EquipmentUpdate) =>
     send(Created, `${root}/equipment/${id}`, { method: 'PUT', data: EquipmentUpdate.parse(input) }),
+  correctState: (id: string, command: StateCorrectionCommand) =>
+    send(Created, `${root}/equipment/${id}/state`, { data: StateCorrectionCommand.parse(command) }),
   archiveEquipment: (id: string, reason: string) =>
     send(Created, `${root}/equipment/${id}/archive`, { data: { reason } }),
   uploadDocument: async (equipmentId: string, input: { meta: DocumentUploadQuery; file: File }) => {
@@ -104,6 +115,16 @@ export const maintenanceApi = {
   publishPlan: (planId: string) => send(z.unknown(), `${root}/plans/${planId}/publish`, {}),
   setPlanState: (planId: string, command: PlanStateCommand) =>
     send(Created, `${root}/plans/${planId}/state`, { data: PlanStateCommand.parse(command) }),
+  copyPlan: (planId: string, command: PlanCopyCommand) =>
+    send(Created, `${root}/plans/${planId}/copy`, { data: PlanCopyCommand.parse(command) }),
+  applyPlanVersion: (id: string, command: ApplyPlanVersionCommand) =>
+    send(z.unknown(), `${root}/work/${id}/apply-plan-version`, {
+      data: ApplyPlanVersionCommand.parse(command),
+    }),
+  recordCompletion: (id: string, command: RecordCompletionCommand) =>
+    send(z.unknown(), `${root}/work/${id}/record-completion`, {
+      data: RecordCompletionCommand.parse(command),
+    }),
   review: (id: string, command: ReviewCommand) =>
     send(z.unknown(), `${root}/work/${id}/review`, { data: ReviewCommand.parse(command) }),
   replan: (id: string, command: ReplanCommand) =>

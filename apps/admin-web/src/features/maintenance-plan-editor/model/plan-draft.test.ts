@@ -62,7 +62,7 @@ describe('maintenance plan draft', () => {
   });
 
   it('previews the reminder days and the next date', () => {
-    const preview = schedulePreview({ ...emptyPlan(machine), firstDueOn: '2026-09-30' });
+    const preview = schedulePreview({ ...emptyPlan(machine), firstDueOn: '2026-09-30' }, [1, 7, 3]);
     expect(preview).toEqual({
       firstDueOn: '2026-09-30',
       reminders: ['2026-09-23', '2026-09-27', '2026-09-29'],

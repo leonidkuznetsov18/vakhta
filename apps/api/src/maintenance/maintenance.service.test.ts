@@ -2,7 +2,9 @@ import { PDFDocument } from 'pdf-lib';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   and,
+  authUser,
   backgroundTasks,
+  domainEvents,
   employeePositions,
   employees,
   eq,
@@ -16,7 +18,13 @@ import {
   sql,
   workOrders,
 } from '@vakhta/db';
-import { PlanIssue, type EquipmentInput, type PlanContent } from '@vakhta/contracts';
+import {
+  MaterialsUsedKind,
+  PlanIssue,
+  TENANT_SETTING_DEFAULTS,
+  type EquipmentInput,
+  type PlanContent,
+} from '@vakhta/contracts';
 import {
   AnchorMode,
   EquipmentCriticality,
@@ -25,10 +33,13 @@ import {
   IntervalUnit,
   MaterialKind,
   MaterialMode,
+  NoticeDelivery,
   OperationResult,
   PlanSourceKind,
+  PlanState,
   ReleaseMode,
   ReviewDecision,
+  TenantModule,
   WorkStatus,
   WorkType,
 } from '@vakhta/domain';
@@ -36,6 +47,7 @@ import { FULL_SCOPE } from '../common/access-scope.js';
 import type { Actor } from '../common/actor.js';
 import { DomainError } from '../common/domain-error.js';
 import { TimerScheduler } from '../infra/timers.queue.js';
+import { maintenanceOptionsFrom } from './maintenance-options.js';
 import { maintenanceServices, MemoryStorage } from '../../test/maintenance.js';
 import { startTestDatabase, type TestDatabase } from '../../test/db.js';
 
@@ -361,15 +373,20 @@ describe('equipment maintenance: register, manuals, plans, work and emergencies 
         ordinal: 2,
         result: OperationResult.DONE,
       });
+      expect(await domainCode(services.actions.submit({ employeeId: mechanic, workOrderId }))).toBe(
+        'WORK_MATERIALS_UNCONFIRMED',
+      );
       const submitted = await services.actions.submit({
         employeeId: mechanic,
         workOrderId,
+        materialsUsed: { kind: MaterialsUsedKind.AS_PLANNED },
         now: new Date('2026-10-14T08:00:00Z'),
       });
       expect(submitted.status).toBe(WorkStatus.IN_REVIEW);
 
       const beforeAccept = await services.queries.detail(workOrderId, NOW);
       expect(beforeAccept.nextDueOnAfterAccept).toBe('2026-11-14');
+      expect(beforeAccept.partsUsed).toBe('Grease EP2 0.2 kg');
 
       await services.actions.review(
         workOrderId,
@@ -522,6 +539,349 @@ describe('equipment maintenance: register, manuals, plans, work and emergencies 
         .from(notificationOutbox)
         .where(eq(notificationOutbox.recipientId, master));
       expect(toMaster.map((row) => row.template)).toContain('EMERGENCY_DECLINED');
+    });
+  });
+
+  describe('tenant parameters and the module switch (FR-001, A-4, FR-062)', () => {
+    const tuned = maintenanceOptionsFrom(
+      {
+        ...TENANT_SETTING_DEFAULTS,
+        maintenanceReminderFirstDays: 5,
+        maintenanceReminderSecondDays: 0,
+        maintenanceReminderLastDays: 2,
+        maintenanceReminderHour: 8,
+        emergencyAckStoppedMinutes: 7,
+        emergencyEscalationGapMinutes: 9,
+      },
+      [TenantModule.MAINTENANCE],
+    );
+
+    it('plans reminders on the tenant days and hour; a zero day is off', async () => {
+      services = maintenanceServices(testDb.db, {
+        timers: new TimerScheduler(),
+        storage,
+        options: tuned,
+      });
+      const machine = await services.equipment.create(machineInput('FB-100'), CHIEF, NOW);
+      await publishedPlan(machine.id);
+      const timers = await testDb.db
+        .select()
+        .from(backgroundTasks)
+        .where(eq(backgroundTasks.kind, 'MAINTENANCE_REMINDER'));
+      // 08:00 in Kyiv (UTC+3 in October) is 05:00 UTC.
+      const days = timers
+        .map((task) =>
+          Math.round((Date.parse(`${FIRST_DUE_ON}T05:00:00Z`) - task.dueAt.getTime()) / DAY_MS),
+        )
+        .sort((a, b) => a - b);
+      expect(days).toEqual([2, 5]);
+      expect(timers.every((task) => task.dueAt.getUTCHours() === 5)).toBe(true);
+    });
+
+    it('counts the acceptance budget and the escalation gap from the tenant values', async () => {
+      services = maintenanceServices(testDb.db, {
+        timers: new TimerScheduler(),
+        storage,
+        options: tuned,
+      });
+      const machine = await services.equipment.create(machineInput('FB-100'), CHIEF, NOW);
+      await services.emergency.createFromPanel(
+        machine.id,
+        { description: 'Jam', stoppedWork: true, safety: false },
+        { actor: CHIEF, now: NOW },
+      );
+      const repair = one(
+        await testDb.db.select().from(workOrders).where(eq(workOrders.equipmentId, machine.id)),
+      );
+      expect(repair.ackDueAt?.getTime()).toBe(NOW.getTime() + 7 * 60_000);
+      const detail = await services.queries.detail(repair.id, NOW);
+      expect(detail.escalateAt).toBe(new Date(NOW.getTime() + 16 * 60_000).toISOString());
+    });
+
+    it('a tenant without the module has no mechanic entry and no machine step', async () => {
+      services = maintenanceServices(testDb.db, {
+        timers: new TimerScheduler(),
+        storage,
+        options: maintenanceOptionsFrom(TENANT_SETTING_DEFAULTS, [TenantModule.ADMIN_PANEL]),
+      });
+      expect(await services.mechanic.isMaintenanceStaff(mechanic)).toBe(false);
+      expect(services.emergency.available()).toBe(false);
+    });
+  });
+
+  describe('plan versions and copies (FR-023, FR-026)', () => {
+    it('applies a newer version to work not yet started, only after the diff (AC-015)', async () => {
+      const machine = await services.equipment.create(machineInput('FB-100'), CHIEF, NOW);
+      const { planId, order } = await publishedPlan(machine.id);
+      await services.actions.readiness({
+        employeeId: mechanic,
+        workOrderId: order.id,
+        ready: false,
+        note: 'No grease',
+      });
+      const base = planContent();
+      await services.plans.save(
+        planId,
+        {
+          ...base,
+          operations: [...base.operations, { text: 'Clean the die', photoRequired: true }],
+          materials: base.materials.map((material) => ({ ...material, quantity: 0.3 })),
+        },
+        CHIEF,
+      );
+      await services.plans.publish(planId, CHIEF, NOW);
+
+      const stale = await services.queries.detail(order.id, NOW);
+      expect(stale.planRevision).toBe(1);
+      expect(stale.newerPlanRevision).toBe(2);
+      const diff = await services.queries.planDiff(order.id);
+      expect(diff.operations.added.map((operation) => operation.text)).toEqual(['Clean the die']);
+      expect(diff.materials.removed.map((material) => material.quantity)).toEqual([0.2]);
+      expect(diff.materials.added.map((material) => material.quantity)).toEqual([0.3]);
+
+      const context = { actor: CHIEF, source: 'WEB' as const, now: NOW };
+      expect(
+        await domainCode(services.actions.applyPlanVersion(order.id, stale.version - 1, context)),
+      ).toBe('WORK_VERSION_CONFLICT');
+      await services.actions.applyPlanVersion(order.id, stale.version, context);
+      const applied = await services.queries.detail(order.id, NOW);
+      expect(applied.planRevision).toBe(2);
+      expect(applied.newerPlanRevision).toBeNull();
+      expect(applied.operations).toHaveLength(3);
+      expect(applied.readiness).toBe('UNKNOWN');
+      expect(applied.history.map((item) => item.type)).toContain('WORK_ORDER_PLAN_APPLIED');
+
+      await services.actions.start({ employeeId: mechanic, workOrderId: order.id });
+      await services.plans.save(planId, base, CHIEF);
+      await services.plans.publish(planId, CHIEF, NOW);
+      const started = await services.queries.detail(order.id, NOW);
+      expect(
+        await domainCode(services.actions.applyPlanVersion(order.id, started.version, context)),
+      ).toBe('WORK_ALREADY_STARTED');
+    });
+
+    it('copies a plan to another machine as a draft to confirm (AC-018)', async () => {
+      const first = await services.equipment.create(machineInput('FB-100'), CHIEF, NOW);
+      const second = await services.equipment.create(machineInput('FB-158'), CHIEF, NOW);
+      const { planId } = await publishedPlan(first.id);
+      expect(await domainCode(services.plans.copy(planId, first.id, CHIEF))).toBe(
+        'PLAN_COPY_SAME_EQUIPMENT',
+      );
+
+      const copy = await services.plans.copy(planId, second.id, CHIEF);
+      const detail = await services.plans.detail(copy.id);
+      expect(detail).toMatchObject({
+        equipmentId: second.id,
+        state: PlanState.DRAFT,
+        active: null,
+      });
+      expect(detail.draft).toMatchObject({
+        title: 'Monthly lubrication',
+        firstDueOn: null,
+        assigneeEmployeeId: null,
+        sourceDocumentId: null,
+      });
+      expect(detail.draft?.sourceNote).toBeUndefined();
+      expect(detail.draft?.operations).toEqual(planContent().operations);
+      expect(detail.draft?.materials).toEqual(planContent().materials);
+
+      const error = await services.plans.publish(copy.id, CHIEF, NOW).catch((e: unknown) => e);
+      if (!(error instanceof DomainError)) throw new Error('expected a refusal');
+      const issues = PlanIssue.array().parse(error.details?.issues);
+      expect(issues.map((issue) => issue.code).sort()).toEqual([
+        'ASSIGNEE_REQUIRED',
+        'FIRST_DUE_REQUIRED',
+        'SOURCE_NOTE_REQUIRED',
+      ]);
+      const works = await testDb.db
+        .select()
+        .from(workOrders)
+        .where(eq(workOrders.equipmentId, second.id));
+      expect(works).toEqual([]);
+    });
+  });
+
+  describe('paper records, notices and missed dates (FR-043, FR-052, FR-054)', () => {
+    const CHIEF_USER_ID = '5f0c2a8e-7b1d-4c3e-9a55-3c0e3b1d2f11';
+    const ENTERED: Actor = {
+      type: 'WEB_USER',
+      id: CHIEF_USER_ID,
+      role: 'CHIEF_MECHANIC',
+      label: 'chief',
+    };
+
+    it('records completion on the mechanic’s behalf and keeps both people (AC-039)', async () => {
+      await testDb.db
+        .insert(authUser)
+        .values({ id: CHIEF_USER_ID, name: 'Chief Mechanic', email: 'chief@example.test' })
+        .onConflictDoNothing();
+      const machine = await services.equipment.create(machineInput('FB-100'), CHIEF, NOW);
+      const plan = await services.plans.create(
+        machine.id,
+        planContent({
+          operations: [
+            { text: 'Lubricate the main cam', photoRequired: true },
+            { text: 'Check the chain tension', photoRequired: false },
+          ],
+        }),
+        CHIEF,
+      );
+      await services.plans.publish(plan.id, CHIEF, NOW);
+      const order = one(
+        await testDb.db.select().from(workOrders).where(eq(workOrders.planId, plan.id)),
+      );
+      const context = { actor: ENTERED, source: 'WEB' as const, now: NOW };
+      const command = {
+        expectedVersion: order.version,
+        performerId: backup,
+        performedOn: '2026-09-30',
+        answers: [
+          { ordinal: 1, result: OperationResult.DONE },
+          {
+            ordinal: 2,
+            result: OperationResult.NOT_APPLICABLE,
+            reason: 'Chain replaced last week',
+          },
+        ],
+        materialsUsed: { kind: MaterialsUsedKind.OTHER, text: 'Grease EP2 0.1 kg' },
+      };
+      expect(
+        await domainCode(
+          services.actions.recordCompletion(
+            order.id,
+            { ...command, performedOn: '2026-10-02' },
+            context,
+          ),
+        ),
+      ).toBe('WORK_PERFORMED_IN_FUTURE');
+      expect(
+        await domainCode(
+          services.actions.recordCompletion(order.id, { ...command, materialsUsed: null }, context),
+        ),
+      ).toBe('WORK_MATERIALS_UNCONFIRMED');
+      expect(
+        await domainCode(
+          services.actions.recordCompletion(
+            order.id,
+            { ...command, performerId: operator },
+            context,
+          ),
+        ),
+      ).toBe('MECHANIC_NOT_ELIGIBLE');
+
+      const result = await services.actions.recordCompletion(order.id, command, context);
+      expect(result.status).toBe(WorkStatus.IN_REVIEW);
+      const detail = await services.queries.detail(order.id, NOW);
+      expect(detail.performedBy?.id).toBe(backup);
+      expect(detail.enteredBy).toBe('Chief Mechanic');
+      expect(detail.partsUsed).toBe('Grease EP2 0.1 kg');
+      expect(detail.operations.map((operation) => operation.answer?.answeredBy)).toEqual([
+        'Mechanic Two',
+        'Mechanic Two',
+      ]);
+      expect(detail.nextDueOnAfterAccept).toBe('2026-10-30');
+    });
+
+    it('lists the notices of a work with a failed delivery (FR-043)', async () => {
+      const machine = await services.equipment.create(machineInput('FB-100'), CHIEF, NOW);
+      const plan = await services.plans.create(
+        machine.id,
+        planContent({ firstDueOn: '2026-10-02' }),
+        CHIEF,
+      );
+      await services.plans.publish(plan.id, CHIEF, NOW);
+      const order = one(
+        await testDb.db.select().from(workOrders).where(eq(workOrders.planId, plan.id)),
+      );
+      await testDb.db.update(notificationOutbox).set({
+        status: NoticeDelivery.FAILED,
+        lastError: 'Forbidden: bot was blocked by the user',
+      });
+      const detail = await services.queries.detail(order.id, NOW);
+      expect(detail.deliveries).toEqual([
+        expect.objectContaining({
+          template: 'MAINTENANCE_ASSIGNED',
+          recipient: 'Mechanic One',
+          status: NoticeDelivery.FAILED,
+          sentAt: null,
+        }),
+      ]);
+    });
+
+    it('keeps fixed-calendar dates a late cycle skipped as missed (FR-052)', async () => {
+      const machine = await services.equipment.create(machineInput('FB-100'), CHIEF, NOW);
+      const plan = await services.plans.create(
+        machine.id,
+        planContent({ anchorMode: AnchorMode.FIXED_CALENDAR }),
+        CHIEF,
+      );
+      await services.plans.publish(plan.id, CHIEF, NOW);
+      const order = one(
+        await testDb.db.select().from(workOrders).where(eq(workOrders.planId, plan.id)),
+      );
+      const late = new Date('2026-12-20T15:00:00Z');
+      await services.actions.recordCompletion(
+        order.id,
+        {
+          expectedVersion: order.version,
+          performerId: mechanic,
+          performedOn: '2026-12-20',
+          answers: [
+            { ordinal: 1, result: OperationResult.DONE },
+            { ordinal: 2, result: OperationResult.DONE },
+          ],
+          materialsUsed: { kind: MaterialsUsedKind.AS_PLANNED },
+        },
+        { actor: CHIEF, source: 'WEB', now: late },
+      );
+      await services.actions.review(
+        order.id,
+        { decision: ReviewDecision.ACCEPTED },
+        { actor: CHIEF, source: 'WEB', now: late },
+      );
+      const [missed] = await testDb.db
+        .select({ comment: domainEvents.comment })
+        .from(domainEvents)
+        .where(eq(domainEvents.type, 'MAINTENANCE_CYCLES_MISSED'));
+      expect(missed?.comment).toBe('2026-11-15, 2026-12-15');
+      const next = await testDb.db
+        .select({ dueOn: workOrders.dueOn })
+        .from(workOrders)
+        .where(and(eq(workOrders.planId, plan.id), eq(workOrders.status, WorkStatus.ASSIGNED)));
+      expect(next).toEqual([{ dueOn: '2027-01-15' }]);
+    });
+  });
+
+  describe('mechanics and the machine state (FR-004, FR-005)', () => {
+    it('refuses the responsible mechanic as the backup', async () => {
+      const same = { ...machineInput('FB-100'), backupEmployeeId: mechanic };
+      expect(await domainCode(services.equipment.create(same, CHIEF, NOW))).toBe(
+        'BACKUP_IS_RESPONSIBLE',
+      );
+    });
+
+    it('corrects the state with a reason, but not while a repair holds the machine', async () => {
+      const machine = await services.equipment.create(machineInput('FB-100'), CHIEF, NOW);
+      const correct = async (state: EquipmentState) => {
+        const detail = await services.equipment.detail(machine.id, NOW);
+        return services.equipment.correctState(
+          machine.id,
+          { state, reason: 'Inventory check', expectedVersion: detail.version },
+          CHIEF,
+        );
+      };
+      await correct(EquipmentState.UNKNOWN);
+      const detail = await services.equipment.detail(machine.id, NOW);
+      expect(detail.state).toBe(EquipmentState.UNKNOWN);
+      expect(detail.history.map((item) => item.type)).toContain('EQUIPMENT_STATE_CORRECTED');
+      expect(await domainCode(correct(EquipmentState.UNKNOWN))).toBe('EQUIPMENT_STATE_UNCHANGED');
+
+      await services.emergency.createFromPanel(
+        machine.id,
+        { description: 'Jam', stoppedWork: true, safety: false },
+        { actor: CHIEF, now: NOW },
+      );
+      expect(await domainCode(correct(EquipmentState.AVAILABLE))).toBe('EQUIPMENT_STATE_BY_REPAIR');
     });
   });
 });

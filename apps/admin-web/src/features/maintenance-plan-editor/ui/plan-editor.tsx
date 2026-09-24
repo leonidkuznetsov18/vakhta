@@ -267,6 +267,7 @@ function PlanForm(props: EditorProps & { readonly detail: PlanDetail | null }) {
   const { machine, detail, canManage, onClose } = props;
   const model = usePlanForm(props);
   const mechanics = useQuery(maintenanceQueries.mechanics());
+  const policy = useQuery(maintenanceQueries.policy());
   const state = detail?.state ?? PlanState.DRAFT;
   const readOnly = !canManage || state === PlanState.ARCHIVED;
   const blockProps = { draft: model.draft, patch: model.patch, invalid: model.invalid, readOnly };
@@ -289,7 +290,11 @@ function PlanForm(props: EditorProps & { readonly detail: PlanDetail | null }) {
       <OperationsBlock {...blockProps} />
       <MaterialsBlock {...blockProps} />
       <AssigneeBlock {...blockProps} mechanics={mechanics.data ?? []} />
-      <SchedulePreviewAlert draft={model.draft} mechanics={mechanics.data ?? []} />
+      <SchedulePreviewAlert
+        draft={model.draft}
+        mechanics={mechanics.data ?? []}
+        policy={policy.data}
+      />
       {model.dialog}
     </DetailSheet>
   );

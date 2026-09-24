@@ -17,6 +17,8 @@ import {
   AnchorMode,
   EquipmentCriticality,
   IntervalUnit,
+  MaterialKind,
+  MaterialMode,
   MaintenanceCallbackAction,
   OperationResult,
   PlanSourceKind,
@@ -24,6 +26,7 @@ import {
   employeeAccess,
   maintenanceCallback,
 } from '@vakhta/domain';
+import type { PlanContent } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import type { Actor } from '../common/actor.js';
 import { InMemoryShortTermStore } from '../infra/short-term-store.js';
@@ -217,7 +220,10 @@ describe('Telegram: the mechanic works maintenance and repairs from the bot (spe
     await bot.init();
   });
 
-  async function plannedWork(photoOnSecond: boolean): Promise<string> {
+  async function plannedWork(
+    photoOnSecond: boolean,
+    materials: PlanContent['materials'] = [],
+  ): Promise<string> {
     const plan = await services.plans.create(
       machineId,
       {
@@ -236,7 +242,7 @@ describe('Telegram: the mechanic works maintenance and repairs from the bot (spe
           { text: 'Lubricate the cam', photoRequired: false },
           { text: 'Check the chain', photoRequired: photoOnSecond },
         ],
-        materials: [],
+        materials,
       },
       CHIEF,
     );
@@ -285,6 +291,60 @@ describe('Telegram: the mechanic works maintenance and repairs from the bot (spe
 
     await press(maintenanceCallback(MaintenanceCallbackAction.SUBMIT, id));
     expect(await status(id)).toBe(WorkStatus.IN_REVIEW);
+  });
+
+  it('checks what is missing in a list and confirms the materials used (FR-044, FR-051)', async () => {
+    const id = await plannedWork(false, [
+      {
+        kind: MaterialKind.MATERIAL,
+        name: 'Grease',
+        quantity: 0.2,
+        unit: 'kg',
+        mode: MaterialMode.EVERY_CYCLE,
+      },
+      {
+        kind: MaterialKind.TOOL,
+        name: 'Gloves',
+        quantity: 2,
+        unit: 'pcs',
+        mode: MaterialMode.IF_NEEDED,
+      },
+    ]);
+    const missing = (arg?: string) =>
+      maintenanceCallback(MaintenanceCallbackAction.MISSING, id, arg);
+    await press(missing());
+    expect(lastScreen().buttons).toEqual(
+      expect.arrayContaining([missing('m1'), missing('m2'), missing('s0'), missing('w0')]),
+    );
+    await press(missing('s0'));
+    expect(toasts()).toContain(t.maintenance.bot.missingNoneSelected);
+    await press(missing('m1'));
+    expect(lastScreen().buttons).toEqual(expect.arrayContaining([missing('m0'), missing('m3')]));
+    await press(missing('w1'));
+    expect(lastScreen().text).toBe(t.maintenance.bot.missingPrompt);
+    await send({ text: 'rags' });
+    const reported = one(await testDb.db.select().from(workOrders).where(eq(workOrders.id, id)));
+    expect(reported.readiness).toBe('MISSING');
+    expect(reported.readinessNote).toBe('Grease 0.2 kg; rags');
+
+    await press(maintenanceCallback(MaintenanceCallbackAction.START, id));
+    await press(maintenanceCallback(MaintenanceCallbackAction.ANSWER, id, '1.d'));
+    await press(maintenanceCallback(MaintenanceCallbackAction.ANSWER, id, '2.d'));
+    await press(maintenanceCallback(MaintenanceCallbackAction.SUBMIT, id));
+    expect(lastScreen().text).toContain(t.maintenance.bot.usedTitle);
+    expect(lastScreen().buttons).toEqual(
+      expect.arrayContaining([
+        maintenanceCallback(MaintenanceCallbackAction.SUBMIT, id, 'p'),
+        maintenanceCallback(MaintenanceCallbackAction.SUBMIT, id, 'w'),
+      ]),
+    );
+    expect(await status(id)).toBe(WorkStatus.IN_PROGRESS);
+    await press(maintenanceCallback(MaintenanceCallbackAction.SUBMIT, id, 'w'));
+    expect(lastScreen().text).toBe(t.maintenance.bot.usedPrompt);
+    await send({ text: 'Grease 0.1 kg' });
+    const submitted = one(await testDb.db.select().from(workOrders).where(eq(workOrders.id, id)));
+    expect(submitted.status).toBe(WorkStatus.IN_REVIEW);
+    expect(submitted.partsUsed).toBe('Grease 0.1 kg');
   });
 
   it('a stale button explains itself and redraws the current card', async () => {

@@ -20,7 +20,7 @@ import {
   WrenchIcon,
   type LucideIcon,
 } from 'lucide-react';
-import { MAINTENANCE_VIEWERS } from '@vakhta/domain';
+import { MAINTENANCE_VIEWERS, TenantModule } from '@vakhta/domain';
 import type { MeView } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import {
@@ -96,6 +96,17 @@ const SECTION_ROLES: Partial<Record<SectionKey, readonly string[]>> = {
   ],
   maintenance: MAINTENANCE_VIEWERS,
 };
+
+/** Sections of a tenant module; without a tenant config (single-tenant mode) every module is on. */
+const SECTION_MODULES: Partial<Record<SectionKey, TenantModule>> = {
+  maintenance: TenantModule.MAINTENANCE,
+};
+
+function moduleOn(key: SectionKey): boolean {
+  const module = SECTION_MODULES[key];
+  const modules = tenantConfig()?.modules;
+  return !module || !modules || modules.includes(module);
+}
 
 /** Which role to show under the name when a user has several: the widest wins. */
 const ROLE_ORDER = [
@@ -179,7 +190,8 @@ export function PanelShell() {
   const myRoles = new Set<string>(me.roles.map(({ role }) => role));
   const visibleSections = SECTIONS.filter(({ key }) => {
     const allowed = SECTION_ROLES[key];
-    return !allowed || allowed.some((role) => myRoles.has(role));
+    const permitted = !allowed || allowed.some((role) => myRoles.has(role));
+    return permitted && moduleOn(key);
   });
   const primaryRole = ROLE_ORDER.find((r) => me.roles.some((g) => g.role === r)) ?? null;
   const title = active === 'profile' ? t.admin.auth.profile : t.admin.sections[active];

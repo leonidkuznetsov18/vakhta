@@ -516,6 +516,8 @@ export interface Messages {
       readonly invalidCode: string;
       readonly networkError: string;
       readonly requestTimeout: string;
+      /** A tenant module switched off in Vakhta Control answers 403 MODULE_DISABLED. */
+      readonly moduleDisabled: string;
       readonly invalidResponse: string;
       readonly requestFailed: string;
       readonly profile: string;

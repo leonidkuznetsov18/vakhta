@@ -26,6 +26,7 @@ export const TENANT_MODULES = [
   'QR_KIOSK',
   'SUPPORT_BOT',
   'PHOTO_INSPECTION',
+  'MAINTENANCE',
 ] as const;
 export type TenantModule = (typeof TENANT_MODULES)[number];
 export const TenantModule = {
@@ -34,11 +35,14 @@ export const TenantModule = {
   QR_KIOSK: 'QR_KIOSK',
   SUPPORT_BOT: 'SUPPORT_BOT',
   PHOTO_INSPECTION: 'PHOTO_INSPECTION',
+  /** Equipment maintenance (spec 014): its panel section, bot entries and timers. */
+  MAINTENANCE: 'MAINTENANCE',
 } as const satisfies Record<TenantModule, TenantModule>;
 export const DELIVERED_TENANT_MODULES = [
   TenantModule.ADMIN_PANEL,
   TenantModule.WORKER_BOT,
   TenantModule.QR_KIOSK,
+  TenantModule.MAINTENANCE,
 ] as const;
 
 export const TENANT_SURFACES = ['PANEL', 'KIOSK', 'API'] as const;

@@ -7,6 +7,7 @@ import { maintenanceApi } from '../api/maintenance-api';
 export const maintenanceKeys = {
   all: ['maintenance'] as const,
   summary: () => ['maintenance', 'summary'] as const,
+  policy: () => ['maintenance', 'policy'] as const,
   mechanics: () => ['maintenance', 'mechanics'] as const,
   equipment: () => ['maintenance', 'equipment'] as const,
   equipmentList: (query: EquipmentQuery) =>
@@ -36,6 +37,7 @@ export const maintenanceKeys = {
   workDetail: (id: string) => ['maintenance', 'work', 'detail', id] as const,
   photoLink: (workId: string, mediaId: string) =>
     ['maintenance', 'work', 'photo', workId, mediaId] as const,
+  planDiff: (workId: string) => ['maintenance', 'work', 'plan-diff', workId] as const,
   calendar: (query: CalendarQuery) =>
     [
       'maintenance',
@@ -54,6 +56,12 @@ export const maintenanceQueries = {
       queryKey: maintenanceKeys.summary(),
       queryFn: ({ signal }) => maintenanceApi.summary(signal),
       meta: localActivity,
+    }),
+  policy: () =>
+    queryOptions({
+      queryKey: maintenanceKeys.policy(),
+      queryFn: ({ signal }) => maintenanceApi.policy(signal),
+      staleTime: 5 * 60_000,
     }),
   mechanics: () =>
     queryOptions({
@@ -116,6 +124,12 @@ export const maintenanceQueries = {
       staleTime: 60_000,
       gcTime: 2 * 60_000,
       refetchOnWindowFocus: false,
+      retry: false,
+    }),
+  planDiff: (workId: string) =>
+    queryOptions({
+      queryKey: maintenanceKeys.planDiff(workId),
+      queryFn: ({ signal }) => maintenanceApi.planDiff(workId, signal),
       retry: false,
     }),
   calendar: (query: CalendarQuery) =>

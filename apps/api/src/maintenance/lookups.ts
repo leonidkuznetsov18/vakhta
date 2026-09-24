@@ -42,6 +42,16 @@ export async function assertMechanics(db: DbOrTx, ids: readonly (string | null |
     throw new DomainError('MECHANIC_NOT_ELIGIBLE', 422, 'Employee does not maintain equipment');
 }
 
+/** The responsible and the backup mechanic of a machine: two different mechanics (FR-004). */
+export async function assertMechanicPair(
+  db: DbOrTx,
+  pair: { readonly responsible: string; readonly backup: string | null | undefined },
+) {
+  if (pair.backup && pair.backup === pair.responsible)
+    throw new DomainError('BACKUP_IS_RESPONSIBLE', 422, 'The backup must be another mechanic');
+  await assertMechanics(db, [pair.responsible, pair.backup]);
+}
+
 /** Employees with an active Telegram link among the given ones. */
 export async function linkedEmployees(db: DbOrTx, ids: readonly string[]): Promise<Set<string>> {
   if (!ids.length) return new Set();

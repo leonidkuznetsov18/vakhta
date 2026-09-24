@@ -11,12 +11,7 @@ import {
   XCircleIcon,
 } from 'lucide-react';
 import type { WorkDetail, WorkOperationView } from '@vakhta/contracts';
-import {
-  DEFAULT_EMERGENCY_POLICY,
-  ReviewDecision,
-  WorkStatus,
-  type OperationResult,
-} from '@vakhta/domain';
+import { ReviewDecision, WorkStatus, type OperationResult } from '@vakhta/domain';
 import { format } from '@vakhta/i18n';
 import {
   EquipmentStatePill,
@@ -52,7 +47,11 @@ import {
   minutesUntil,
   releaseState,
 } from '../model/work-view';
+import { canRecordCompletion } from '../model/record-draft';
+import { NewerPlanAlert } from './plan-version-dialog';
+import { RecordCompletionDialog } from './record-completion-dialog';
 import { ChangeDialog, ReassignDialog, ReplanDialog } from './work-change-dialogs';
+import { WorkDeliveries } from './work-deliveries';
 
 const RESULT_VIEW: Readonly<Record<OperationResult, { tone: PillTone; icon: ReactNode }>> = {
   DONE: { tone: 'success', icon: <CircleCheckIcon /> },
@@ -140,16 +139,25 @@ function OperationItem({
   );
 }
 
-function PlannedBody({ work }: { readonly work: WorkDetail }) {
+function PlannedBody({
+  work,
+  canManage,
+}: {
+  readonly work: WorkDetail;
+  readonly canManage: boolean;
+}) {
   const t = maintenanceMessages();
   return (
     <>
+      <NewerPlanAlert work={work} canManage={canManage} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <Field label={t.workCard.performer}>
           {work.performedBy?.fullName ?? work.assignee.fullName}
         </Field>
         <Field label={t.workCard.started}>{formatDateTime(work.startedAt)}</Field>
         <Field label={t.workCard.submitted}>{formatDateTime(work.submittedAt)}</Field>
+        {work.enteredBy ? <Field label={t.workCard.enteredBy}>{work.enteredBy}</Field> : null}
+        {work.partsUsed ? <Field label={t.workCard.materialsUsed}>{work.partsUsed}</Field> : null}
       </div>
       {work.readinessNote ? (
         <p className="text-sm">{format(t.workCard.readinessNote, { note: work.readinessNote })}</p>
@@ -181,6 +189,7 @@ function PlannedBody({ work }: { readonly work: WorkDetail }) {
         </>
       ) : null}
       {work.reviews.length ? <ReviewHistory work={work} /> : null}
+      <WorkDeliveries work={work} />
     </>
   );
 }
@@ -335,15 +344,13 @@ function RepairSummary({ work }: { readonly work: WorkDetail }) {
 function ExpectedEscalation({ work }: { readonly work: WorkDetail }) {
   const t = maintenanceMessages().workCard;
   const now = useNow();
-  if (work.acceptedAt || !work.ackDueAt || isFinal(work.status)) return null;
-  const ackDue = Date.parse(work.ackDueAt);
-  const panelAt = new Date(ackDue + DEFAULT_EMERGENCY_POLICY.escalationGapMinutes * 60_000);
+  if (work.acceptedAt || !work.ackDueAt || !work.escalateAt || isFinal(work.status)) return null;
   const steps = [
     {
       at: work.ackDueAt,
       text: format(t.escalationBackup, { backup: work.backup?.fullName ?? '—' }),
     },
-    { at: panelAt.toISOString(), text: t.escalationPanel },
+    { at: work.escalateAt, text: t.escalationPanel },
   ];
   const upcoming = steps.filter((step) => Date.parse(step.at) > now.getTime());
   return (
@@ -406,6 +413,7 @@ function RepairBody({ work }: { readonly work: WorkDetail }) {
       <ReportQuote work={work} />
       <RepairSummary work={work} />
       <RepairHistory work={work} />
+      <WorkDeliveries work={work} />
     </>
   );
 }
@@ -464,6 +472,11 @@ function ChangeButtons({ work }: { readonly work: WorkDetail }) {
   return (
     <>
       <Feedback error={cancel.error ? describeError(cancel.error) : null} />
+      {canRecordCompletion(work) ? (
+        <Button variant="outline" onClick={() => setDialog(ChangeDialog.RECORD)}>
+          {t.workCard.record}
+        </Button>
+      ) : null}
       {isRepair(work) ? null : (
         <Button variant="outline" onClick={() => setDialog(ChangeDialog.REPLAN)}>
           {t.workCard.replan}
@@ -477,6 +490,9 @@ function ChangeButtons({ work }: { readonly work: WorkDetail }) {
       </Button>
       {dialog === ChangeDialog.REPLAN ? <ReplanDialog work={work} onClose={close} /> : null}
       {dialog === ChangeDialog.REASSIGN ? <ReassignDialog work={work} onClose={close} /> : null}
+      {dialog === ChangeDialog.RECORD ? (
+        <RecordCompletionDialog work={work} onClose={close} />
+      ) : null}
       {confirmDialog}
     </>
   );
@@ -535,7 +551,7 @@ function WorkBody({ work, canManage }: { readonly work: WorkDetail; readonly can
   if (isRepair(work)) return <RepairBody work={work} />;
   return (
     <>
-      <PlannedBody work={work} />
+      <PlannedBody work={work} canManage={canManage} />
       {canManage && canReview(work) ? <ReviewPanel work={work} /> : null}
     </>
   );

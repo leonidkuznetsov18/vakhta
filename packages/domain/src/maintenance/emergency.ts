@@ -4,17 +4,14 @@ import type { IncidentSeverity } from '../incidents/lifecycle.js';
 const SAFETY: IncidentSeverity = 'SAFETY';
 const NORMAL: IncidentSeverity = 'NORMAL';
 
-/** Minutes to accept an emergency repair per priority and the gap before the next escalation. */
+/**
+ * Minutes to accept an emergency repair per priority and the gap before the next escalation;
+ * tenant settings, pilot defaults 2/5/30 and 5 (TZ-M §12, §29).
+ */
 export interface EmergencyPolicy {
   readonly ackMinutes: Readonly<Record<'P0' | 'P1' | 'P2', number>>;
   readonly escalationGapMinutes: number;
 }
-
-/** Pilot values from TZ-M §12 and §29; tenants may override them. */
-export const DEFAULT_EMERGENCY_POLICY: EmergencyPolicy = {
-  ackMinutes: { P0: 2, P1: 5, P2: 30 },
-  escalationGapMinutes: 5,
-};
 
 export type EmergencyPriority =
   typeof WorkPriority.P0 | typeof WorkPriority.P1 | typeof WorkPriority.P2;

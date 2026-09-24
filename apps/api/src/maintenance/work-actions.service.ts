@@ -7,10 +7,12 @@ import {
   equipment,
   isNull,
   loadWorkNotice,
+  maintenancePlanMaterials,
   maintenancePlanOperations,
   maintenancePlanVersions,
   maintenancePlans,
   sites,
+  sql,
   workOrderOperationResults,
   workOrderReviews,
   workOrderWaits,
@@ -18,7 +20,13 @@ import {
   type Database,
   type Transaction,
 } from '@vakhta/db';
-import type { ReplanCommand, ReviewCommand } from '@vakhta/contracts';
+import {
+  MaterialsUsedKind,
+  type MaterialsUsed,
+  type RecordCompletionCommand,
+  type ReplanCommand,
+  type ReviewCommand,
+} from '@vakhta/contracts';
 import {
   FINAL_WORK_STATUSES,
   MaterialsReadiness,
@@ -29,10 +37,17 @@ import {
   WorkType,
   answerNeedsReason,
   businessDateOf,
+  materialsAsPlanned,
+  materialsChanged,
+  planInstants,
+  planVersionDiff,
   nextCycle,
   transitionWork,
   type OperationResult,
   type WaitReason,
+  type WorkSnapshot,
+  type WorkTransition,
+  MaintenanceTemplate,
 } from '@vakhta/domain';
 import { format } from '@vakhta/i18n';
 import { employeeActor, type Actor } from '../common/actor.js';
@@ -45,9 +60,41 @@ import { MediaService } from '../handover/media.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { assertMechanics } from './lookups.js';
 import { MaintenanceScheduler } from './maintenance-scheduler.js';
+import { versionContent } from './plan-versions.js';
 
 type OrderRow = typeof workOrders.$inferSelect;
+type AnswerValues = Omit<
+  typeof workOrderOperationResults.$inferInsert,
+  'id' | 'workOrderId' | 'operationId'
+>;
 const FINAL = [...FINAL_WORK_STATUSES];
+
+/** How a paper record brings work to "in progress" before it is submitted. */
+const ENTRY_ACTION: ReadonlyMap<WorkStatus, typeof WorkAction.START | typeof WorkAction.RESUME> =
+  new Map([
+    [WorkStatus.ASSIGNED, WorkAction.START],
+    [WorkStatus.WAITING, WorkAction.RESUME],
+  ]);
+const ENTRY_EVENT = {
+  [WorkAction.START]: 'WORK_ORDER_STARTED',
+  [WorkAction.RESUME]: 'WORK_ORDER_RESUMED',
+} as const;
+
+/** Midday at the site: a paper record names a day, and midday keeps it on that business day. */
+const PAPER_RECORD_TIME = '12:00';
+
+function nextStatus(result: WorkTransition): WorkStatus {
+  if (!result.ok) throw new DomainError(result.error, 409, 'Work transition refused');
+  return result.next;
+}
+
+function paperRecordInstant(performedOn: string, timezone: string): Date {
+  return planInstants(
+    performedOn,
+    { localStart: PAPER_RECORD_TIME, localEnd: PAPER_RECORD_TIME },
+    timezone,
+  ).planStartAt;
+}
 const MAINTENANCE_PHOTO_PURPOSE = 'maintenance';
 
 export interface EmployeeCommand {
@@ -70,6 +117,13 @@ export interface AnswerCommand extends EmployeeCommand {
   readonly result: OperationResult;
   readonly reason?: string | null;
   readonly photo?: OperationPhoto | null;
+}
+
+export interface SubmitCommand extends EmployeeCommand {
+  /** What was done on an emergency repair (FR-064). */
+  readonly summary?: { readonly text: string; readonly cause?: string; readonly parts?: string };
+  /** Materials confirmed on planned maintenance (FR-051). */
+  readonly materialsUsed?: MaterialsUsed;
 }
 
 export interface ChangeContext {
@@ -102,7 +156,7 @@ export class WorkActionsService {
       throw new DomainError('WORK_NOT_YOURS', 403, 'Work is assigned to another mechanic');
   }
 
-  private async snapshot(tx: Transaction, order: OrderRow) {
+  private async snapshot(tx: Transaction, order: OrderRow): Promise<WorkSnapshot> {
     const operations = order.planVersionId
       ? await tx
           .select({
@@ -111,6 +165,13 @@ export class WorkActionsService {
           })
           .from(maintenancePlanOperations)
           .where(eq(maintenancePlanOperations.versionId, order.planVersionId))
+      : [];
+    const [material] = order.planVersionId
+      ? await tx
+          .select({ id: maintenancePlanMaterials.id })
+          .from(maintenancePlanMaterials)
+          .where(eq(maintenancePlanMaterials.versionId, order.planVersionId))
+          .limit(1)
       : [];
     const answers = await tx
       .select({
@@ -131,14 +192,21 @@ export class WorkActionsService {
         hasPhoto: !!a.mediaObjectId,
       })),
       summary: order.summary,
+      materialsRequired: material !== undefined,
+      materialsUsed: order.partsUsed,
+      paperRecord: false,
     };
   }
 
   /** Applies a domain transition or refuses with its error code (FR-050, FR-053). */
   async transition(tx: Transaction, order: OrderRow, action: WorkAction): Promise<WorkStatus> {
-    const result = transitionWork(await this.snapshot(tx, order), action);
-    if (!result.ok) throw new DomainError(result.error, 409, 'Work transition refused');
-    return result.next;
+    return nextStatus(transitionWork(await this.snapshot(tx, order), action));
+  }
+
+  /** Submission of a paper record: the same rules, without demanding photos (FR-054). */
+  private async submitPaperRecord(tx: Transaction, order: OrderRow): Promise<WorkStatus> {
+    const snapshot = { ...(await this.snapshot(tx, order)), paperRecord: true };
+    return nextStatus(transitionWork(snapshot, WorkAction.SUBMIT));
   }
 
   private async event(
@@ -238,28 +306,37 @@ export class WorkActionsService {
         answeredBy: cmd.employeeId,
         answeredAt: now,
       };
-      await tx
-        .insert(workOrderOperationResults)
-        .values({ workOrderId: order.id, operationId: operation.id, ...values })
-        .onConflictDoUpdate({
-          target: [workOrderOperationResults.workOrderId, workOrderOperationResults.operationId],
-          set: values,
-        });
+      await this.writeAnswer(tx, { workOrderId: order.id, operationId: operation.id, values });
       await this.save(tx, order, { updatedAt: now });
       return { ordinal: cmd.ordinal };
     });
   }
 
+  /** The text recorded for the confirmed materials; "as planned" lists the every-cycle ones. */
+  private async materialsText(
+    tx: Transaction,
+    order: OrderRow,
+    used: MaterialsUsed | undefined | null,
+  ): Promise<string | null> {
+    if (!used) return null;
+    if (used.kind === MaterialsUsedKind.OTHER) return used.text;
+    const version = order.planVersionId ? await versionContent(tx, order.planVersionId) : null;
+    return materialsAsPlanned(version?.materials ?? []);
+  }
+
   /** Sends planned maintenance to review, or completes a repair (FR-051, FR-064). */
-  async submit(
-    cmd: EmployeeCommand & { readonly summary?: { text: string; cause?: string; parts?: string } },
-  ) {
+  async submit(cmd: SubmitCommand) {
     const now = cmd.now ?? new Date();
     return this.db.transaction(async (tx) => {
       const order = await this.lock(tx, cmd.workOrderId);
       this.assertMine(order, cmd.employeeId);
-      const withSummary = cmd.summary ? { ...order, summary: cmd.summary.text } : order;
-      const next = await this.transition(tx, withSummary, WorkAction.SUBMIT);
+      const materials = await this.materialsText(tx, order, cmd.materialsUsed);
+      const withFacts = {
+        ...order,
+        ...(cmd.summary ? { summary: cmd.summary.text } : {}),
+        ...(materials ? { partsUsed: materials } : {}),
+      };
+      const next = await this.transition(tx, withFacts, WorkAction.SUBMIT);
       const completed = next === WorkStatus.COMPLETED;
       await this.save(tx, order, {
         status: next,
@@ -274,6 +351,7 @@ export class WorkActionsService {
               partsUsed: cmd.summary.parts ?? null,
             }
           : {}),
+        ...(materials ? { partsUsed: materials } : {}),
         updatedAt: now,
       });
       await this.event(tx, {
@@ -378,7 +456,7 @@ export class WorkActionsService {
     await this.notifications.enqueue(tx, {
       recipientType: 'EMPLOYEE',
       recipientId: notice.masterId,
-      template: 'MAINTENANCE_READINESS',
+      template: MaintenanceTemplate.MAINTENANCE_READINESS,
       payload: (t) => ({
         text: format(t.maintenance.bot.readinessToMaster, {
           name: mechanic?.name ?? '',
@@ -453,6 +531,15 @@ export class WorkActionsService {
     if (plan?.plan.state !== PlanState.ACTIVE || !plan.version.assigneeEmployeeId) return;
     const performedOn = businessDateOf(order.performedAt ?? context.now, plan.timezone);
     const cycle = nextCycle(plan.version, order.dueOn, performedOn);
+    // FR-052: fixed-calendar dates the late work skipped stay on record as missed.
+    if (cycle.missed.length)
+      await this.event(tx, {
+        type: 'MAINTENANCE_CYCLES_MISSED',
+        order,
+        context,
+        payload: { planId: plan.plan.id, dates: cycle.missed },
+        comment: cycle.missed.join(', '),
+      });
     await this.scheduler.createCycleWithin(
       tx,
       {
@@ -471,7 +558,7 @@ export class WorkActionsService {
     await this.notifications.enqueue(tx, {
       recipientType: 'EMPLOYEE',
       recipientId: input.order.assigneeEmployeeId,
-      template: 'MAINTENANCE_RETURNED',
+      template: MaintenanceTemplate.MAINTENANCE_RETURNED,
       payload: (t) => ({
         text: format(t.maintenance.bot.returned, {
           number: input.order.number,
@@ -480,6 +567,206 @@ export class WorkActionsService {
       }),
       dedupeKey: `maintenance-returned:${input.order.id}:${input.order.version}`,
     });
+  }
+
+  private assertVersion(order: OrderRow, expectedVersion: number): void {
+    if (order.version !== expectedVersion)
+      throw new DomainError('WORK_VERSION_CONFLICT', 409, 'Work has changed');
+  }
+
+  private async timezoneOf(tx: Transaction, equipmentId: string): Promise<string> {
+    const [row] = await tx
+      .select({ timezone: sites.timezone })
+      .from(equipment)
+      .innerJoin(sites, eq(sites.id, equipment.siteId))
+      .where(eq(equipment.id, equipmentId));
+    if (!row) throw new DomainError('EQUIPMENT_NOT_FOUND', 404, 'Equipment not found');
+    return row.timezone;
+  }
+
+  /** The work's plan, its current version and the newer active one; refuses when none is newer. */
+  private async newerVersion(tx: Transaction, order: OrderRow) {
+    const [plan] = order.planId
+      ? await tx.select().from(maintenancePlans).where(eq(maintenancePlans.id, order.planId))
+      : [];
+    const current = order.planVersionId ? await versionContent(tx, order.planVersionId) : null;
+    const active = plan?.activeVersionId ? await versionContent(tx, plan.activeVersionId) : null;
+    if (!plan || !current || !active || active.revision <= current.revision)
+      throw new DomainError('PLAN_VERSION_CURRENT', 409, 'Work follows the active version');
+    return { plan, current, active };
+  }
+
+  /**
+   * Moves open planned work that has not started to the plan's active version after the diff
+   * was shown (FR-023, AC-015). Changed materials ask the mechanic for readiness again.
+   */
+  async applyPlanVersion(id: string, expectedVersion: number, context: ChangeContext) {
+    return this.db.transaction(async (tx) => {
+      const order = await this.lock(tx, id);
+      this.assertVersion(order, expectedVersion);
+      if (order.type !== WorkType.PLANNED_MAINTENANCE || order.status !== WorkStatus.ASSIGNED)
+        throw new DomainError('WORK_ALREADY_STARTED', 409, 'Only work not started can change');
+      const { plan, current, active } = await this.newerVersion(tx, order);
+      const resetReadiness = materialsChanged(planVersionDiff(current, active));
+      await this.save(tx, order, {
+        planVersionId: active.id,
+        title: plan.title,
+        ...(resetReadiness ? { readiness: MaterialsReadiness.UNKNOWN, readinessNote: null } : {}),
+        updatedAt: context.now,
+      });
+      await this.event(tx, {
+        type: 'WORK_ORDER_PLAN_APPLIED',
+        order,
+        context,
+        payload: { fromRevision: current.revision, toRevision: active.revision },
+      });
+      await this.audit.record(tx, {
+        actor: context.actor,
+        action: 'work_order.apply_plan_version',
+        objectType: 'work_order',
+        objectId: id,
+        before: { revision: current.revision },
+        after: { revision: active.revision },
+      });
+      return { id, revision: active.revision };
+    });
+  }
+
+  /**
+   * Work done on paper, entered by the chief mechanic for the performer (FR-054, AC-039). It walks
+   * the same transitions as the bot and goes to review; the order records both people.
+   */
+  async recordCompletion(id: string, cmd: RecordCompletionCommand, context: ChangeContext) {
+    return this.db.transaction(async (tx) => {
+      const locked = await this.lock(tx, id);
+      const performedAt = await this.checkPaperRecord(tx, locked, { cmd, now: context.now });
+      const order = await this.openForEntry(tx, locked, { context, performedAt });
+      await this.writeRecordedAnswers(tx, order, { cmd, performedAt });
+      const materials = await this.materialsText(tx, order, cmd.materialsUsed);
+      const next = await this.submitPaperRecord(tx, { ...order, partsUsed: materials });
+      await this.save(tx, order, {
+        status: next,
+        submittedAt: context.now,
+        performedAt,
+        performedByEmployeeId: cmd.performerId,
+        enteredBy: context.actor.id ?? 'system',
+        partsUsed: materials,
+        updatedAt: context.now,
+      });
+      await this.event(tx, {
+        type: 'WORK_ORDER_SUBMITTED',
+        order,
+        context,
+        payload: { status: next, performerId: cmd.performerId, enteredOnBehalf: true },
+      });
+      await this.audit.record(tx, {
+        actor: context.actor,
+        action: 'work_order.record_completion',
+        objectType: 'work_order',
+        objectId: id,
+        after: { performerId: cmd.performerId, performedOn: cmd.performedOn },
+      });
+      return { status: next };
+    });
+  }
+
+  /** The record's preconditions; returns when the work was done (midday of the named day). */
+  private async checkPaperRecord(
+    tx: Transaction,
+    order: OrderRow,
+    input: { readonly cmd: RecordCompletionCommand; readonly now: Date },
+  ): Promise<Date> {
+    this.assertVersion(order, input.cmd.expectedVersion);
+    if (order.type !== WorkType.PLANNED_MAINTENANCE)
+      throw new DomainError('WORK_TRANSITION_NOT_ALLOWED', 409, 'Only planned maintenance');
+    await assertMechanics(tx, [input.cmd.performerId]);
+    const timezone = await this.timezoneOf(tx, order.equipmentId);
+    const performedAt = paperRecordInstant(input.cmd.performedOn, timezone);
+    if (performedAt > input.now)
+      throw new DomainError('WORK_PERFORMED_IN_FUTURE', 422, 'The work date is in the future');
+    return performedAt;
+  }
+
+  /** Brings not-started or paused work to "in progress" through the domain transitions. */
+  private async openForEntry(
+    tx: Transaction,
+    order: OrderRow,
+    input: { readonly context: ChangeContext; readonly performedAt: Date },
+  ): Promise<OrderRow> {
+    const action = ENTRY_ACTION.get(order.status);
+    if (!action) return order;
+    const next = await this.transition(tx, order, action);
+    const { now } = input.context;
+    if (action === WorkAction.RESUME)
+      await tx
+        .update(workOrderWaits)
+        .set({ endedAt: now })
+        .where(and(eq(workOrderWaits.workOrderId, order.id), isNull(workOrderWaits.endedAt)));
+    const startedAt = order.startedAt ?? input.performedAt;
+    await this.save(tx, order, { status: next, startedAt, updatedAt: now });
+    await this.event(tx, { type: ENTRY_EVENT[action], order, context: input.context });
+    return { ...order, status: next, startedAt, version: order.version + 1 };
+  }
+
+  private async writeRecordedAnswers(
+    tx: Transaction,
+    order: OrderRow,
+    input: { readonly cmd: RecordCompletionCommand; readonly performedAt: Date },
+  ): Promise<void> {
+    const operations = order.planVersionId
+      ? await tx
+          .select({ id: maintenancePlanOperations.id, ordinal: maintenancePlanOperations.ordinal })
+          .from(maintenancePlanOperations)
+          .where(eq(maintenancePlanOperations.versionId, order.planVersionId))
+      : [];
+    const byOrdinal = new Map(operations.map((operation) => [operation.ordinal, operation.id]));
+    const rows = input.cmd.answers.map((answer) => {
+      const operationId = byOrdinal.get(answer.ordinal);
+      if (!operationId)
+        throw new DomainError('WORK_OPERATION_NOT_FOUND', 404, 'Operation not found');
+      if (answerNeedsReason(answer.result) && !answer.reason?.trim())
+        throw new DomainError('WORK_REASON_REQUIRED', 422, 'A reason is required');
+      return {
+        workOrderId: order.id,
+        operationId,
+        result: answer.result,
+        reason: answerNeedsReason(answer.result) ? (answer.reason ?? null) : null,
+        mediaObjectId: null,
+        answeredBy: input.cmd.performerId,
+        answeredAt: input.performedAt,
+      };
+    });
+    // One statement for the whole checklist; a paper record replaces earlier answers but keeps
+    // any photo the bot already stored.
+    await tx
+      .insert(workOrderOperationResults)
+      .values(rows)
+      .onConflictDoUpdate({
+        target: [workOrderOperationResults.workOrderId, workOrderOperationResults.operationId],
+        set: {
+          result: sql`excluded.result`,
+          reason: sql`excluded.reason`,
+          answeredBy: sql`excluded.answered_by`,
+          answeredAt: sql`excluded.answered_at`,
+        },
+      });
+  }
+
+  private async writeAnswer(
+    tx: Transaction,
+    input: {
+      readonly workOrderId: string;
+      readonly operationId: string;
+      readonly values: AnswerValues;
+    },
+  ): Promise<void> {
+    await tx
+      .insert(workOrderOperationResults)
+      .values({ workOrderId: input.workOrderId, operationId: input.operationId, ...input.values })
+      .onConflictDoUpdate({
+        target: [workOrderOperationResults.workOrderId, workOrderOperationResults.operationId],
+        set: input.values,
+      });
   }
 
   /** Moves the planned date; the due date and any overdue fact stay (FR-034). */

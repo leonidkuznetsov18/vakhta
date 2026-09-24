@@ -19,6 +19,7 @@ export const WorkError = {
   OPERATION_NOT_DONE: 'WORK_OPERATION_NOT_DONE',
   PHOTO_MISSING: 'WORK_PHOTO_MISSING',
   SUMMARY_MISSING: 'WORK_SUMMARY_MISSING',
+  MATERIALS_UNCONFIRMED: 'WORK_MATERIALS_UNCONFIRMED',
 } as const;
 export type WorkError = (typeof WorkError)[keyof typeof WorkError];
 
@@ -42,6 +43,15 @@ export interface WorkSnapshot {
   readonly answers: readonly OperationAnswer[];
   /** What was done, required to finish an emergency repair. */
   readonly summary: string | null;
+  /** The plan version lists materials, so submission confirms what was used (FR-051). */
+  readonly materialsRequired: boolean;
+  /** Materials used as confirmed by the performer. */
+  readonly materialsUsed: string | null;
+  /**
+   * Entered from a paper record by the chief mechanic (FR-054): required photos cannot exist, so
+   * they are not demanded; the entry records who entered it.
+   */
+  readonly paperRecord: boolean;
 }
 
 export type WorkTransition =
@@ -75,10 +85,18 @@ function checklistError(snapshot: WorkSnapshot): WorkError | null {
     const answer = answers.get(operation.id);
     if (!answer) return WorkError.ANSWERS_MISSING;
     if (answer.result === OperationResult.NOT_DONE) return WorkError.OPERATION_NOT_DONE;
-    if (operation.photoRequired && answer.result === OperationResult.DONE && !answer.hasPhoto)
-      return WorkError.PHOTO_MISSING;
+    if (photoMissing(snapshot, operation, answer)) return WorkError.PHOTO_MISSING;
   }
   return null;
+}
+
+function photoMissing(
+  snapshot: WorkSnapshot,
+  operation: OperationSpec,
+  answer: OperationAnswer,
+): boolean {
+  if (snapshot.paperRecord || !operation.photoRequired) return false;
+  return answer.result === OperationResult.DONE && !answer.hasPhoto;
 }
 
 function submit(snapshot: WorkSnapshot): WorkTransition {
@@ -88,6 +106,8 @@ function submit(snapshot: WorkSnapshot): WorkTransition {
   }
   const error = checklistError(snapshot);
   if (error) return fail(error);
+  if (snapshot.materialsRequired && !snapshot.materialsUsed?.trim())
+    return fail(WorkError.MATERIALS_UNCONFIRMED);
   return { ok: true, next: WorkStatus.IN_REVIEW };
 }
 

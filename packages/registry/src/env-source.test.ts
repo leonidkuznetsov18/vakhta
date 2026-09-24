@@ -24,7 +24,7 @@ describe('tenantFromEnv', () => {
       'https://panel.vakhta.xyz',
       'https://kiosk.vakhta.xyz',
     ]);
-    expect(tenant.modules).toEqual(['ADMIN_PANEL', 'WORKER_BOT', 'QR_KIOSK']);
+    expect(tenant.modules).toEqual(['ADMIN_PANEL', 'WORKER_BOT', 'QR_KIOSK', 'MAINTENANCE']);
   });
 
   it('answers every host with the same tenant and knows it by id and slug', () => {

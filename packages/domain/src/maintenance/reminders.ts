@@ -1,10 +1,6 @@
 import { planInstants } from '../time/plan.js';
 import { addDays } from './schedule.js';
 
-/** Default reminder policy (spec A-4); tenants may override offsets and the local time. */
-export const DEFAULT_MAINTENANCE_REMINDER_OFFSETS = [7, 3, 1] as const;
-export const DEFAULT_MAINTENANCE_REMINDER_TIME = '09:00';
-
 export interface ReminderFire {
   readonly offsetDays: number;
   readonly fireAt: Date;

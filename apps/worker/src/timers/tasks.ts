@@ -48,15 +48,29 @@ const DispatchOptions = z.object({
   leaseMs: z.number().int().min(1000).max(300_000).default(60_000),
   retryMs: z.number().int().min(1).max(86_400_000).default(30_000),
   autoCloseGraceMinutes: z.number().int().positive().default(120),
+  maintenanceEnabled: z.boolean().default(true),
 });
+
+export interface TimerExecution {
+  readonly autoCloseGraceMinutes: number;
+  readonly maintenanceEnabled: boolean;
+}
+
+const DEFAULT_EXECUTION: TimerExecution = { autoCloseGraceMinutes: 120, maintenanceEnabled: true };
+
+const MAINTENANCE_KINDS = new Set<string>(Object.values(MaintenanceTimerKind));
 
 /** Every effect runs on the task completion transaction; no Redis or Telegram I/O belongs here. */
 export function executeTimerWithin(
   tx: Transaction,
   task: TimerTask,
   now: Date | undefined,
-  autoCloseGraceMinutes = 120,
+  execution: TimerExecution = DEFAULT_EXECUTION,
 ): Promise<ReminderOutcome> {
+  // A switched-off module sends nothing; its reminders are not delivered late after re-enabling.
+  if (!execution.maintenanceEnabled && MAINTENANCE_KINDS.has(task.kind))
+    return Promise.resolve('stale');
+  const { autoCloseGraceMinutes } = execution;
   switch (task.kind) {
     case 'SHIFT_REMINDER':
       return handleShiftReminderWithin(tx, task.payload, now);
@@ -124,7 +138,10 @@ export async function dispatchTimerTasks(
           throw new Error('Invalid timer payload');
         }
         await runBackgroundTask(db, task, (tx) =>
-          executeTimerWithin(tx, parsed.data, undefined, options.autoCloseGraceMinutes),
+          executeTimerWithin(tx, parsed.data, undefined, {
+            autoCloseGraceMinutes: options.autoCloseGraceMinutes,
+            maintenanceEnabled: options.maintenanceEnabled,
+          }),
         );
         outcome = 'completed';
       } catch (error) {

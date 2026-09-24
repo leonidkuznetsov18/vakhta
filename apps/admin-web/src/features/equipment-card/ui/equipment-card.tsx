@@ -29,6 +29,7 @@ import { CardDialog, ResponderActionKind, downtimeMinutes, responderAction } fro
 import { DocumentsTab, HistoryTab, PlansTab } from './card-tabs';
 import { EmergencyDialog } from './emergency-dialog';
 import { ReleaseDialog } from './release-dialog';
+import { StateDialog } from './state-dialog';
 
 function Field({ label, children }: { readonly label: string; readonly children: ReactNode }) {
   return (
@@ -124,6 +125,28 @@ interface CardProps {
   readonly onClose: () => void;
   readonly onEdit: (machine: EquipmentDetail) => void;
   readonly onOpenPlan: (input: { equipment: EquipmentDetail; planId: string | null }) => void;
+  /** Opens another machine's card, e.g. the target of a copied plan. */
+  readonly onOpenEquipment: (equipmentId: string) => void;
+}
+
+/** Hand correction of the state (FR-005); a repair in progress owns the state until release. */
+function CorrectStateButton({
+  machine,
+  onOpen,
+}: {
+  readonly machine: EquipmentDetail;
+  readonly onOpen: () => void;
+}) {
+  const t = maintenanceMessages().card;
+  const locked = machine.openStop !== null;
+  return (
+    <span className="flex items-center gap-1">
+      <Button variant="outline" disabled={locked} onClick={onOpen}>
+        {t.correctState}
+      </Button>
+      {locked ? <InfoTip text={t.correctStateLocked} /> : null}
+    </span>
+  );
 }
 
 function Actions({
@@ -186,6 +209,7 @@ function Actions({
       ) : null}
       {canManage ? (
         <>
+          <CorrectStateButton machine={machine} onOpen={() => onDialog(CardDialog.STATE)} />
           <Button variant="outline" onClick={onEdit}>
             <PencilIcon /> {t.card.edit}
           </Button>
@@ -207,6 +231,7 @@ export function EquipmentCard({
   onClose,
   onEdit,
   onOpenPlan,
+  onOpenEquipment,
 }: CardProps) {
   const t = maintenanceMessages();
   const [dialog, setDialog] = useState<CardDialog>(CardDialog.NONE);
@@ -258,6 +283,7 @@ export function EquipmentCard({
                 machine={machine}
                 canManage={canManage}
                 onOpenPlan={(planId) => onOpenPlan({ equipment: machine, planId })}
+                onOpenEquipment={onOpenEquipment}
               />
             </TabsContent>
             <TabsContent value="history" className="mt-3">
@@ -266,6 +292,9 @@ export function EquipmentCard({
           </Tabs>
           {dialog === CardDialog.EMERGENCY ? (
             <EmergencyDialog machine={machine} onClose={() => setDialog(CardDialog.NONE)} />
+          ) : null}
+          {dialog === CardDialog.STATE ? (
+            <StateDialog machine={machine} onClose={() => setDialog(CardDialog.NONE)} />
           ) : null}
           {dialog === CardDialog.RELEASE ? (
             <ReleaseDialog equipmentId={machine.id} onClose={() => setDialog(CardDialog.NONE)} />

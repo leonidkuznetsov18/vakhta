@@ -36,6 +36,7 @@ export const TENANT_MODULE_VALUES = [
   'QR_KIOSK',
   'SUPPORT_BOT',
   'PHOTO_INSPECTION',
+  'MAINTENANCE',
 ] as const;
 export const TENANT_SURFACE_VALUES = ['PANEL', 'KIOSK', 'API'] as const;
 export const DOMAIN_STATUS_VALUES = ['PENDING', 'VERIFIED', 'FAILED'] as const;

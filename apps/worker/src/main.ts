@@ -20,8 +20,13 @@ import {
   type TenantSettings,
 } from '@vakhta/contracts';
 import { createDatabase, databaseErrorCode, type Database } from '@vakhta/db';
-import { TIMER_JOBS, TenancyMode, TenantSurface } from '@vakhta/domain';
-import { ENV_TENANT_ID, primaryHost, type TenantRuntimeConfig } from '@vakhta/registry';
+import { TIMER_JOBS, TenancyMode, TenantModule, TenantSurface } from '@vakhta/domain';
+import {
+  ENV_TENANT_ID,
+  primaryHost,
+  tenantHasModule,
+  type TenantRuntimeConfig,
+} from '@vakhta/registry';
 import { loadWorkerEnv } from './env.js';
 import { initSentry, reportJobFailure, Sentry } from './observability/sentry.js';
 import { TelegramSender, relayOnce } from './outbox/relay.js';
@@ -62,8 +67,12 @@ const connection = new Redis(env.REDIS_URL, { maxRetriesPerRequest: null });
 const mediaStore = S3MediaStore.fromEnv(env);
 const communicationFiles = PrivateCommunicationFiles.fromEnv(env);
 const inspectionAnalyzer = CloudflareInspectionAnalyzer.fromEnv(env);
-function recoveryOptionsFor(settings: TenantSettings): TimerRecoveryOptions {
+function recoveryOptionsFor(
+  settings: TenantSettings,
+  tenant: TenantRuntimeConfig,
+): TimerRecoveryOptions {
   return TimerRecoveryOptions.parse({
+    maintenanceEnabled: tenantHasModule(tenant, TenantModule.MAINTENANCE),
     shiftReminderMinutes: settings.shiftReminderMinutes,
     breakMinutes: settings.breakMinutes,
     mealMinutes: settings.mealMinutes,
@@ -123,13 +132,14 @@ interface TenantRunners {
 }
 
 interface RunnerInput {
+  readonly tenant: TenantRuntimeConfig;
   readonly db: Database;
   readonly mediaDeps: MediaDependencies | null;
   readonly settings: TenantSettings;
   readonly log: Logger;
 }
 
-function createRunners({ db, mediaDeps, settings, log }: RunnerInput): TenantRunners {
+function createRunners({ tenant, db, mediaDeps, settings, log }: RunnerInput): TenantRunners {
   const mediaRunner = new MediaTaskRunner(db, mediaDeps, {
     completed(result) {
       if (result.claimed) log.info(result, 'durable media batch');
@@ -153,7 +163,7 @@ function createRunners({ db, mediaDeps, settings, log }: RunnerInput): TenantRun
   });
   const timerRunner = new TimerTaskRunner(
     db,
-    recoveryOptionsFor(settings),
+    recoveryOptionsFor(settings, tenant),
     {
       task(event) {
         log.info(event, 'durable timer outcome');
@@ -256,7 +266,7 @@ async function startTenantWorker(tenant: TenantRuntimeConfig): Promise<TenantWor
   });
   const mediaDeps = mediaDependenciesFor(tenant, settings);
   if (!mediaDeps) log.warn('Media dependencies unavailable: durable tasks remain retryable');
-  const runners = createRunners({ db, mediaDeps, settings, log });
+  const runners = createRunners({ tenant, db, mediaDeps, settings, log });
   const relay = createRelay(tenant, db, log);
   runners.start();
   const started = settingsFingerprint(settings);

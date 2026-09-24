@@ -74,7 +74,7 @@ function SectionTabs({
       </TabsContent>
       <TabsContent value={MaintenanceTab.CALENDAR} className="mt-4">
         <MaintenanceCalendar
-          initialMonth={todayIso().slice(0, 7)}
+          today={todayIso()}
           onOpenWork={(workId) => onNavigate(MaintenanceTab.WORK, workId)}
         />
       </TabsContent>
@@ -115,6 +115,7 @@ function OpenRecord({
         onClose={() => onNavigate(MaintenanceTab.EQUIPMENT)}
         onEdit={onEdit}
         onOpenPlan={onOpenPlan}
+        onOpenEquipment={(equipmentId) => onNavigate(MaintenanceTab.EQUIPMENT, equipmentId)}
       />
     );
   if (tab === MaintenanceTab.WORK)

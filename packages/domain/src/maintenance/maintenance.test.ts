@@ -7,12 +7,8 @@ import {
   WorkStatus,
   WorkType,
 } from './codes.js';
-import {
-  DEFAULT_EMERGENCY_POLICY,
-  emergencyDeadlines,
-  emergencyPriority,
-  reportNeedsRepair,
-} from './emergency.js';
+import { emergencyDeadlines, emergencyPriority, reportNeedsRepair } from './emergency.js';
+import { PlanDiffField, materialsChanged, planVersionDiff } from './plan-diff.js';
 import { reminderPlan } from './reminders.js';
 import { addInterval, forecastDueDates, isOverdue, nextCycle } from './schedule.js';
 import { WorkAction, WorkError, transitionWork, type WorkSnapshot } from './work.js';
@@ -134,6 +130,9 @@ const planned: WorkSnapshot = {
   ],
   answers: [notApplicable, donePhoto],
   summary: null,
+  materialsRequired: false,
+  materialsUsed: null,
+  paperRecord: false,
 };
 
 describe('work order transitions (FR-050, FR-051)', () => {
@@ -174,6 +173,45 @@ describe('work order transitions (FR-050, FR-051)', () => {
     ).toEqual({ ok: false, error: WorkError.PHOTO_MISSING });
   });
 
+  it('does not demand photos of a paper record entered by the chief mechanic (FR-054)', () => {
+    const noPhoto = {
+      ...planned,
+      answers: [notApplicable, { operationId: 'b', result: OperationResult.DONE, hasPhoto: false }],
+    };
+    expect(transitionWork({ ...noPhoto, paperRecord: true }, WorkAction.SUBMIT)).toEqual({
+      ok: true,
+      next: WorkStatus.IN_REVIEW,
+    });
+    expect(
+      transitionWork(
+        {
+          ...noPhoto,
+          paperRecord: true,
+          answers: [
+            { operationId: 'a', result: OperationResult.NOT_DONE, hasPhoto: false },
+            donePhoto,
+          ],
+        },
+        WorkAction.SUBMIT,
+      ),
+    ).toEqual({ ok: false, error: WorkError.OPERATION_NOT_DONE });
+  });
+
+  it('requires confirmed materials when the plan lists them (FR-051)', () => {
+    const withMaterials = { ...planned, materialsRequired: true };
+    expect(transitionWork(withMaterials, WorkAction.SUBMIT)).toEqual({
+      ok: false,
+      error: WorkError.MATERIALS_UNCONFIRMED,
+    });
+    expect(transitionWork({ ...withMaterials, materialsUsed: '  ' }, WorkAction.SUBMIT)).toEqual({
+      ok: false,
+      error: WorkError.MATERIALS_UNCONFIRMED,
+    });
+    expect(
+      transitionWork({ ...withMaterials, materialsUsed: 'Grease 50 g' }, WorkAction.SUBMIT),
+    ).toEqual({ ok: true, next: WorkStatus.IN_REVIEW });
+  });
+
   it('accepts or returns only reviews of planned maintenance', () => {
     const review = { ...planned, status: WorkStatus.IN_REVIEW };
     expect(transitionWork(review, WorkAction.ACCEPT_REVIEW)).toEqual({
@@ -198,6 +236,9 @@ describe('work order transitions (FR-050, FR-051)', () => {
       operations: [],
       answers: [],
       summary: null,
+      materialsRequired: false,
+      materialsUsed: null,
+      paperRecord: false,
     };
     expect(transitionWork(emergency, WorkAction.START)).toEqual({
       ok: false,
@@ -228,14 +269,13 @@ describe('emergency repair (FR-061, FR-062)', () => {
   });
 
   it('counts deadlines from the receipt', () => {
+    const policy = { ackMinutes: { P0: 2, P1: 5, P2: 30 }, escalationGapMinutes: 5 };
     const at = new Date('2026-09-24T10:41:00Z');
-    const p1 = emergencyDeadlines(at, WorkPriority.P1, DEFAULT_EMERGENCY_POLICY);
+    const p1 = emergencyDeadlines(at, WorkPriority.P1, policy);
     expect(p1.ackDueAt.toISOString()).toBe('2026-09-24T10:46:00.000Z');
     expect(p1.escalateAt.toISOString()).toBe('2026-09-24T10:51:00.000Z');
     expect(p1.escalateImmediately).toBe(false);
-    expect(
-      emergencyDeadlines(at, WorkPriority.P0, DEFAULT_EMERGENCY_POLICY).escalateImmediately,
-    ).toBe(true);
+    expect(emergencyDeadlines(at, WorkPriority.P0, policy).escalateImmediately).toBe(true);
   });
 });
 
@@ -256,5 +296,58 @@ describe('maintenance callbacks', () => {
     });
     expect(parseMaintenanceCallback('mw:o:not-a-uuid')).toBeNull();
     expect(parseMaintenanceCallback('inc:new')).toBeNull();
+  });
+});
+
+describe('plan version diff (FR-023, AC-015)', () => {
+  const grease = {
+    kind: 'MATERIAL',
+    name: 'Grease',
+    article: null,
+    quantity: 50,
+    unit: 'g',
+    mode: 'EVERY_CYCLE',
+  } as const;
+  const clean = { text: 'Clean the die', place: null, photoRequired: false };
+  const belt = { text: 'Check the belt', place: 'Drive', photoRequired: true };
+  const v1 = {
+    intervalUnit: IntervalUnit.MONTH,
+    intervalCount: 1,
+    anchorMode: AnchorMode.FROM_COMPLETION,
+    estimatedMinutes: 60,
+    requiresStop: true,
+    operations: [clean, belt],
+    materials: [grease],
+  };
+
+  it('finds nothing between equal versions, even reordered', () => {
+    const diff = planVersionDiff(v1, { ...v1, operations: [...v1.operations].reverse() });
+    expect(diff).toEqual({
+      fields: [],
+      operations: { added: [], removed: [] },
+      materials: { added: [], removed: [] },
+    });
+    expect(materialsChanged(diff)).toBe(false);
+  });
+
+  it('lists changed rule fields, edited operations and materials', () => {
+    const v2 = {
+      ...v1,
+      intervalCount: 2,
+      requiresStop: false,
+      operations: [clean, { ...belt, photoRequired: false }],
+      materials: [{ ...grease, quantity: 80 }],
+    };
+    const diff = planVersionDiff(v1, v2);
+    expect(diff.fields).toEqual([PlanDiffField.INTERVAL, PlanDiffField.STOP]);
+    expect(diff.operations.removed).toEqual([belt]);
+    expect(diff.operations.added).toEqual([{ ...belt, photoRequired: false }]);
+    expect(diff.materials).toEqual({ added: [{ ...grease, quantity: 80 }], removed: [grease] });
+    expect(materialsChanged(diff)).toBe(true);
+  });
+
+  it('keeps duplicates as a multiset', () => {
+    const twice = { ...v1, operations: [clean, clean] };
+    expect(planVersionDiff(twice, v1).operations).toEqual({ added: [belt], removed: [clean] });
   });
 });

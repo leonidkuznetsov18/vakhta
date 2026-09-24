@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   ParseUUIDPipe,
   Post,
@@ -13,25 +14,31 @@ import {
 } from '@nestjs/common';
 import type { FastifyRequest } from 'fastify';
 import {
+  ApplyPlanVersionCommand,
   CalendarQuery,
   DocumentUploadQuery,
   EmergencyCreateCommand,
   EquipmentInput,
   EquipmentQuery,
   EquipmentUpdate,
+  PlanCopyCommand,
   PlanSaveCommand,
   PlanStateCommand,
   ReasonCommand,
   ReassignCommand,
+  RecordCompletionCommand,
   ReleaseCommand,
   ReplanCommand,
   ReviewCommand,
+  StateCorrectionCommand,
   WorkQuery,
+  type MaintenancePolicyView,
 } from '@vakhta/contracts';
 import {
   MAINTENANCE_MANAGERS,
   MAINTENANCE_RESPONDERS,
   MAINTENANCE_VIEWERS,
+  TenantModule,
   type WebRole,
 } from '@vakhta/domain';
 import {
@@ -44,10 +51,12 @@ import {
 import { assertInScope, scopeOf } from '../common/access-scope.js';
 import { DomainError } from '../common/domain-error.js';
 import { ZodValidationPipe } from '../common/zod.pipe.js';
+import { RequiresModule } from '../infra/module-guard.js';
 import { MediaService } from '../handover/media.service.js';
 import { DocumentsService, MAX_DOCUMENT_BYTES } from './documents.service.js';
 import { EmergencyService } from './emergency.service.js';
 import { EquipmentService } from './equipment.service.js';
+import { MAINTENANCE_OPTIONS, type MaintenanceOptions } from './maintenance-options.js';
 import { PlansService } from './plans.service.js';
 import { WorkActionsService } from './work-actions.service.js';
 import { WorkQueriesService } from './work-queries.service.js';
@@ -55,6 +64,7 @@ import { WorkQueriesService } from './work-queries.service.js';
 /** Panel API of equipment maintenance (spec 014). Every record is checked against the scope. */
 @Controller('admin/maintenance')
 @UseGuards(WebAuthGuard)
+@RequiresModule(TenantModule.MAINTENANCE)
 @Roles(...MAINTENANCE_VIEWERS)
 export class MaintenanceController {
   constructor(
@@ -65,6 +75,7 @@ export class MaintenanceController {
     private readonly actions: WorkActionsService,
     private readonly emergency: EmergencyService,
     private readonly media: MediaService,
+    @Inject(MAINTENANCE_OPTIONS) private readonly options: MaintenanceOptions,
   ) {}
 
   private async inScope(user: WebUser, roles: readonly WebRole[], equipmentId: string) {
@@ -88,6 +99,14 @@ export class MaintenanceController {
   @Get('summary')
   summary(@CurrentUser() user: WebUser) {
     return this.queries.summary(scopeOf(user, MAINTENANCE_VIEWERS), new Date());
+  }
+
+  @Get('policy')
+  policy(): MaintenancePolicyView {
+    return {
+      reminderOffsets: [...this.options.reminderOffsets],
+      reminderTime: this.options.reminderTime,
+    };
   }
 
   @Get('mechanics')
@@ -140,6 +159,17 @@ export class MaintenanceController {
   ) {
     await this.inScope(user, MAINTENANCE_MANAGERS, id);
     return this.equipment.archive(id, body.reason, webUserActor(user));
+  }
+
+  @Post('equipment/:id/state')
+  @Roles(...MAINTENANCE_MANAGERS)
+  async correctState(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(StateCorrectionCommand)) body: StateCorrectionCommand,
+    @CurrentUser() user: WebUser,
+  ) {
+    await this.inScope(user, MAINTENANCE_MANAGERS, id);
+    return this.equipment.correctState(id, body, webUserActor(user));
   }
 
   @Get('documents')
@@ -257,6 +287,19 @@ export class MaintenanceController {
     );
   }
 
+  /** A draft on another machine; both machines must be within the manager's scope (AC-018). */
+  @Post('plans/:planId/copy')
+  @Roles(...MAINTENANCE_MANAGERS)
+  async copyPlan(
+    @Param('planId', ParseUUIDPipe) planId: string,
+    @Body(new ZodValidationPipe(PlanCopyCommand)) body: PlanCopyCommand,
+    @CurrentUser() user: WebUser,
+  ) {
+    await this.inScope(user, MAINTENANCE_MANAGERS, await this.plans.equipmentOf(planId));
+    await this.inScope(user, MAINTENANCE_MANAGERS, body.equipmentId);
+    return this.plans.copy(planId, body.equipmentId, webUserActor(user));
+  }
+
   @Get('work')
   work(@Query(new ZodValidationPipe(WorkQuery)) q: WorkQuery, @CurrentUser() user: WebUser) {
     return this.queries.list(q, scopeOf(user, MAINTENANCE_VIEWERS), new Date());
@@ -287,6 +330,35 @@ export class MaintenanceController {
     if (!(await this.queries.hasPhoto(id, mediaId)))
       throw new DomainError('MEDIA_NOT_FOUND', 404, 'Photo not found');
     return this.media.link(mediaId, webUserActor(user));
+  }
+
+  @Get('work/:id/plan-diff')
+  @Roles(...MAINTENANCE_MANAGERS)
+  async planDiff(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: WebUser) {
+    await this.workInScope(user, MAINTENANCE_MANAGERS, id);
+    return this.queries.planDiff(id);
+  }
+
+  @Post('work/:id/apply-plan-version')
+  @Roles(...MAINTENANCE_MANAGERS)
+  async applyPlanVersion(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(ApplyPlanVersionCommand)) body: ApplyPlanVersionCommand,
+    @CurrentUser() user: WebUser,
+  ) {
+    await this.workInScope(user, MAINTENANCE_MANAGERS, id);
+    return this.actions.applyPlanVersion(id, body.expectedVersion, this.context(user));
+  }
+
+  @Post('work/:id/record-completion')
+  @Roles(...MAINTENANCE_MANAGERS)
+  async recordCompletion(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(RecordCompletionCommand)) body: RecordCompletionCommand,
+    @CurrentUser() user: WebUser,
+  ) {
+    await this.workInScope(user, MAINTENANCE_MANAGERS, id);
+    return this.actions.recordCompletion(id, body, this.context(user));
   }
 
   @Post('work/:id/review')

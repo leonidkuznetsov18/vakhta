@@ -64,6 +64,7 @@ export async function registerExistingTenant(
     TenantModule.ADMIN_PANEL,
     TenantModule.WORKER_BOT,
     TenantModule.QR_KIOSK,
+    TenantModule.MAINTENANCE,
   ];
   return db.transaction(async (tx) => {
     const [tenant] = await tx

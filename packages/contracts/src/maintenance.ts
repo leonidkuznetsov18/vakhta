@@ -5,10 +5,13 @@ import {
   EQUIPMENT_DOCUMENT_KINDS,
   EQUIPMENT_STATES,
   INTERVAL_UNITS,
+  MAINTENANCE_TEMPLATES,
   MATERIALS_READINESS,
   MATERIAL_KINDS,
   MATERIAL_MODES,
+  NOTICE_DELIVERIES,
   OPERATION_RESULTS,
+  PLAN_DIFF_FIELDS,
   PLAN_SOURCE_KINDS,
   PLAN_STATES,
   PlanState,
@@ -42,6 +45,9 @@ export const WaitReasonSchema = z.enum(WAIT_REASONS);
 export const MaterialsReadinessSchema = z.enum(MATERIALS_READINESS);
 export const ReviewDecisionSchema = z.enum(REVIEW_DECISIONS);
 export const ReleaseModeSchema = z.enum(RELEASE_MODES);
+export const MaintenanceTemplateSchema = z.enum(MAINTENANCE_TEMPLATES);
+export const NoticeDeliverySchema = z.enum(NOTICE_DELIVERIES);
+export const PlanDiffFieldSchema = z.enum(PLAN_DIFF_FIELDS);
 
 const Text = (max: number) => z.string().trim().min(1).max(max);
 const OptionalText = (max: number) => z.string().trim().max(max).optional();
@@ -237,6 +243,13 @@ export const PlanDetail = z.object({
 });
 export type PlanDetail = z.infer<typeof PlanDetail>;
 
+/** The tenant's reminder rule, for the plan editor's schedule preview (spec A-4, FR-040). */
+export const MaintenancePolicyView = z.object({
+  reminderOffsets: z.array(z.number().int().positive()),
+  reminderTime: z.string().regex(/^\d{2}:\d{2}$/),
+});
+export type MaintenancePolicyView = z.infer<typeof MaintenancePolicyView>;
+
 export const PlanIssue = z.object({ field: z.string(), code: z.string() });
 export type PlanIssue = z.infer<typeof PlanIssue>;
 
@@ -310,6 +323,17 @@ export const WorkHistoryItem = z.object({
 });
 export type WorkHistoryItem = z.infer<typeof WorkHistoryItem>;
 
+/** One notice about this work and whether it reached the person (FR-043). */
+export const WorkDeliveryView = z.object({
+  id: Uuid,
+  template: MaintenanceTemplateSchema,
+  recipient: z.string(),
+  status: NoticeDeliverySchema,
+  createdAt: IsoDateTime,
+  sentAt: IsoDateTime.nullable(),
+});
+export type WorkDeliveryView = z.infer<typeof WorkDeliveryView>;
+
 export const WorkDetail = WorkRow.extend({
   description: z.string().nullable(),
   lead: PersonRef.nullable(),
@@ -327,11 +351,18 @@ export const WorkDetail = WorkRow.extend({
   submittedAt: IsoDateTime.nullable(),
   performedAt: IsoDateTime.nullable(),
   completedAt: IsoDateTime.nullable(),
+  /** When an unaccepted repair is escalated to the panel (FR-063). */
+  escalateAt: IsoDateTime.nullable(),
   cancelReason: z.string().nullable(),
   summary: z.string().nullable(),
   cause: z.string().nullable(),
   partsUsed: z.string().nullable(),
   performedBy: PersonRef.nullable(),
+  /** The panel user who recorded the work on the performer's behalf (FR-054, AC-039). */
+  enteredBy: z.string().nullable(),
+  /** The plan's active revision when it is newer than this work's snapshot (FR-023). */
+  newerPlanRevision: z.number().int().nullable(),
+  deliveries: z.array(WorkDeliveryView),
   reviews: z.array(
     z.object({
       iteration: z.number().int(),
@@ -461,3 +492,71 @@ export const MaintenanceSummary = z.object({
   inReview: z.number().int().nonnegative(),
 });
 export type MaintenanceSummary = z.infer<typeof MaintenanceSummary>;
+
+const OperationFacts = z.object({
+  text: z.string(),
+  place: z.string().nullable(),
+  photoRequired: z.boolean(),
+});
+const MaterialFacts = z.object({
+  kind: MaterialKindSchema,
+  name: z.string(),
+  article: z.string().nullable(),
+  quantity: z.number(),
+  unit: z.string(),
+  mode: MaterialModeSchema,
+});
+
+/** What applying the plan's newer version would change for an open work item (AC-015). */
+export const PlanVersionDiffView = z.object({
+  fromRevision: z.number().int(),
+  toRevision: z.number().int(),
+  fields: z.array(PlanDiffFieldSchema),
+  operations: z.object({ added: z.array(OperationFacts), removed: z.array(OperationFacts) }),
+  materials: z.object({ added: z.array(MaterialFacts), removed: z.array(MaterialFacts) }),
+});
+export type PlanVersionDiffView = z.infer<typeof PlanVersionDiffView>;
+
+export const ApplyPlanVersionCommand = z.object({ expectedVersion: ExpectedVersion });
+export type ApplyPlanVersionCommand = z.infer<typeof ApplyPlanVersionCommand>;
+
+/** Copy a plan to another machine as a draft (FR-026, AC-018). */
+export const PlanCopyCommand = z.object({ equipmentId: Uuid });
+export type PlanCopyCommand = z.infer<typeof PlanCopyCommand>;
+
+/** How the performer confirms the materials used on planned maintenance (FR-051). */
+export const MaterialsUsedKind = { AS_PLANNED: 'AS_PLANNED', OTHER: 'OTHER' } as const;
+export type MaterialsUsedKind = (typeof MaterialsUsedKind)[keyof typeof MaterialsUsedKind];
+export const MaterialsUsed = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal(MaterialsUsedKind.AS_PLANNED) }),
+  z.object({ kind: z.literal(MaterialsUsedKind.OTHER), text: Text(2000) }),
+]);
+export type MaterialsUsed = z.infer<typeof MaterialsUsed>;
+
+export const RecordedAnswer = z.object({
+  ordinal: z.number().int().positive(),
+  result: OperationResultSchema,
+  reason: OptionalText(500),
+});
+export type RecordedAnswer = z.infer<typeof RecordedAnswer>;
+
+/**
+ * Work done on paper, entered by the chief mechanic for the performer (FR-054, AC-039). It goes
+ * to review like a submission from the bot; required photos cannot exist and are not asked for.
+ */
+export const RecordCompletionCommand = z.object({
+  expectedVersion: ExpectedVersion,
+  performerId: Uuid,
+  performedOn: BusinessDate,
+  answers: z.array(RecordedAnswer).min(1).max(100),
+  materialsUsed: MaterialsUsed.nullable(),
+});
+export type RecordCompletionCommand = z.infer<typeof RecordCompletionCommand>;
+
+/** A reasoned correction of a machine's operating state by the chief mechanic (FR-005). */
+export const StateCorrectionCommand = z.object({
+  state: EquipmentStateSchema,
+  reason: Reason,
+  expectedVersion: ExpectedVersion,
+});
+export type StateCorrectionCommand = z.infer<typeof StateCorrectionCommand>;

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { ArrowDownIcon, ArrowUpIcon, CalendarDaysIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import type { EquipmentDetail, MechanicOption } from '@vakhta/contracts';
+import type { EquipmentDetail, MaintenancePolicyView, MechanicOption } from '@vakhta/contracts';
 import {
   ANCHOR_MODES,
   INTERVAL_UNITS,
@@ -488,23 +488,26 @@ export function AssigneeBlock({
   );
 }
 
-/** "How it will work": the first date, the reminder days and the rule after it (FR-021). */
+/** "How it will work": the first date, the tenant's reminder days and the rule after it (FR-021). */
 export function SchedulePreviewAlert({
   draft,
   mechanics,
+  policy,
 }: {
   readonly draft: PlanDraft;
   readonly mechanics: readonly MechanicOption[];
+  readonly policy: MaintenancePolicyView | undefined;
 }) {
   const t = maintenanceMessages();
-  const preview = schedulePreview(draft);
+  const preview = policy ? schedulePreview(draft, policy.reminderOffsets) : null;
   const mechanic = mechanics.find((option) => option.id === draft.assigneeEmployeeId);
   const text =
-    preview && mechanic
-      ? format(t.planForm.summary, {
+    preview && mechanic && policy
+      ? format(preview.reminders.length ? t.planForm.summary : t.planForm.summaryWithoutReminders, {
           date: formatBusinessDate(preview.firstDueOn),
           mechanic: mechanic.fullName,
           reminders: preview.reminders.map(formatBusinessDate).join(', '),
+          time: policy.reminderTime,
           interval: format(t.intervalEvery[draft.intervalUnit], { count: draft.intervalCount }),
           anchor: t.anchorMode[draft.anchorMode],
         })

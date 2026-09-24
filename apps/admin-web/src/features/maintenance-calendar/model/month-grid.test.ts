@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { CalendarItem, MaintenanceCalendarView } from '@vakhta/contracts';
 import { MaterialsReadiness, WorkStatus, WorkType } from '@vakhta/domain';
-import { EntryTone, entriesByDay, gridRange, monthGrid, shiftMonth } from './month-grid';
+import {
+  CalendarView,
+  EntryTone,
+  StatusFilter,
+  entriesByDay,
+  filterEntries,
+  gridRange,
+  monthGrid,
+  shiftMonth,
+  shiftWeek,
+  viewDays,
+  weekStart,
+} from './month-grid';
 
 function item(overrides: Partial<CalendarItem>): CalendarItem {
   return {
@@ -57,5 +69,43 @@ describe('maintenance calendar month', () => {
       EntryTone.PLANNED,
       EntryTone.FORECAST,
     ]);
+  });
+
+  it('shows one week from Monday and moves by weeks', () => {
+    expect(weekStart('2026-09-27')).toBe('2026-09-21');
+    expect(shiftWeek('2026-09-24', 1)).toBe('2026-09-28');
+    const week = viewDays(CalendarView.WEEK, { month: '2026-09', weekOf: '2026-10-01' });
+    expect(week.map((day) => day.date)).toEqual([
+      '2026-09-28',
+      '2026-09-29',
+      '2026-09-30',
+      '2026-10-01',
+      '2026-10-02',
+      '2026-10-03',
+      '2026-10-04',
+    ]);
+    expect(week.every((day) => day.inMonth)).toBe(true);
+  });
+
+  it('filters by status and drops the forecast outside "all"', () => {
+    const view: MaintenanceCalendarView = {
+      today: '2026-09-24',
+      items: [
+        item({ date: '2026-09-10', status: WorkStatus.COMPLETED }),
+        item({ date: '2026-09-20', overdue: true }),
+        item({ date: '2026-09-30' }),
+      ],
+      forecast: [
+        { planId: crypto.randomUUID(), date: '2026-09-30', equipmentCode: 'M-01', title: 'Oil' },
+      ],
+      overdue: [],
+    };
+    const byDay = entriesByDay(view, 'uk');
+    const days = (filter: StatusFilter) => [...filterEntries(byDay, filter).keys()].sort();
+    expect(days(StatusFilter.ALL)).toEqual(['2026-09-10', '2026-09-20', '2026-09-30']);
+    expect(days(StatusFilter.OPEN)).toEqual(['2026-09-20', '2026-09-30']);
+    expect(days(StatusFilter.OVERDUE)).toEqual(['2026-09-20']);
+    expect(days(StatusFilter.DONE)).toEqual(['2026-09-10']);
+    expect(filterEntries(byDay, StatusFilter.OPEN).get('2026-09-30')).toHaveLength(1);
   });
 });

@@ -30,9 +30,11 @@ import type {
   EquipmentUpdate,
   MechanicOption,
   NextMaintenanceView,
+  StateCorrectionCommand,
   WorkHistoryItem,
 } from '@vakhta/contracts';
 import {
+  EquipmentState,
   FINAL_WORK_STATUSES,
   WorkType,
   businessDateOf,
@@ -48,7 +50,7 @@ import { AuditLog } from '../events/audit-log.js';
 import { EventStore } from '../events/event-store.js';
 import { DATABASE } from '../infra/database.module.js';
 import {
-  assertMechanics,
+  assertMechanicPair,
   linkedEmployees,
   maintenanceStaff,
   peopleById,
@@ -348,7 +350,10 @@ export class EquipmentService {
     return this.db.transaction(async (tx) => {
       const siteId = await this.assertPlace(tx, input);
       await this.assertCodeFree(tx, input.code);
-      await assertMechanics(tx, [input.responsibleEmployeeId, input.backupEmployeeId]);
+      await assertMechanicPair(tx, {
+        responsible: input.responsibleEmployeeId,
+        backup: input.backupEmployeeId,
+      });
       const [row] = await tx
         .insert(equipment)
         .values({ ...passport(input), siteId, stateChangedAt: now, createdAt: now, updatedAt: now })
@@ -378,6 +383,58 @@ export class EquipmentService {
     return row;
   }
 
+  /**
+   * A reasoned correction of the operating state (FR-005). While a stop episode is open the state
+   * belongs to the repair and its release, so a correction is refused.
+   */
+  async correctState(id: string, input: StateCorrectionCommand, actor: Actor) {
+    const now = new Date();
+    return this.db.transaction(async (tx) => {
+      const before = await this.lockOrFail(tx, id);
+      if (before.version !== input.expectedVersion)
+        throw new DomainError('EQUIPMENT_VERSION_CONFLICT', 409, 'Equipment has changed');
+      if (before.state === input.state)
+        throw new DomainError('EQUIPMENT_STATE_UNCHANGED', 409, 'The state is already set');
+      const [episode] = await tx
+        .select({ id: equipmentStopEpisodes.id })
+        .from(equipmentStopEpisodes)
+        .where(
+          and(eq(equipmentStopEpisodes.equipmentId, id), isNull(equipmentStopEpisodes.releasedAt)),
+        );
+      if (episode)
+        throw new DomainError('EQUIPMENT_STATE_BY_REPAIR', 409, 'A repair holds the machine');
+      const restricted = input.state === EquipmentState.RESTRICTED;
+      await tx
+        .update(equipment)
+        .set({
+          state: input.state,
+          stateChangedAt: now,
+          restriction: restricted ? input.reason : null,
+          version: before.version + 1,
+          updatedAt: now,
+        })
+        .where(eq(equipment.id, id));
+      await this.events.append(tx, {
+        type: 'EQUIPMENT_STATE_CORRECTED',
+        source: 'WEB',
+        actor,
+        occurredAt: now,
+        comment: input.reason,
+        payload: { equipmentId: id, from: before.state, to: input.state },
+      });
+      await this.audit.record(tx, {
+        actor,
+        action: 'equipment.correct_state',
+        objectType: 'equipment',
+        objectId: id,
+        reason: input.reason,
+        before: { state: before.state },
+        after: { state: input.state },
+      });
+      return { id };
+    });
+  }
+
   async update(id: string, input: EquipmentUpdate, actor: Actor) {
     const now = new Date();
     return this.db.transaction(async (tx) => {
@@ -386,7 +443,10 @@ export class EquipmentService {
         throw new DomainError('EQUIPMENT_VERSION_CONFLICT', 409, 'Equipment has changed');
       const siteId = await this.assertPlace(tx, input);
       await this.assertCodeFree(tx, input.code, id);
-      await assertMechanics(tx, [input.responsibleEmployeeId, input.backupEmployeeId]);
+      await assertMechanicPair(tx, {
+        responsible: input.responsibleEmployeeId,
+        backup: input.backupEmployeeId,
+      });
       await tx
         .update(equipment)
         .set({ ...passport(input), siteId, version: before.version + 1, updatedAt: now })

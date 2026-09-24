@@ -1,3 +1,5 @@
+import type { NotificationTemplate } from '../notifications/payload.js';
+
 /**
  * Codes of the equipment maintenance module (spec 014). Each set is one `as const` object with its
  * derived type and a values list for `z.enum` and `pgEnum` (rule C9).
@@ -180,4 +182,44 @@ export type StopStartQuality = (typeof StopStartQuality)[keyof typeof StopStartQ
 export const STOP_START_QUALITIES = [
   StopStartQuality.FROM_REPORT,
   StopStartQuality.CONFIRMED,
+] as const;
+
+/** Outbox templates of maintenance notices; the work item lists their delivery (FR-043). */
+export const MaintenanceTemplate = {
+  MAINTENANCE_ASSIGNED: 'MAINTENANCE_ASSIGNED',
+  MAINTENANCE_REPLANNED: 'MAINTENANCE_REPLANNED',
+  MAINTENANCE_REMINDER: 'MAINTENANCE_REMINDER',
+  MAINTENANCE_READINESS: 'MAINTENANCE_READINESS',
+  MAINTENANCE_RETURNED: 'MAINTENANCE_RETURNED',
+  EMERGENCY_ASSIGNED: 'EMERGENCY_ASSIGNED',
+  EMERGENCY_DECLINED: 'EMERGENCY_DECLINED',
+  EMERGENCY_ESCALATION: 'EMERGENCY_ESCALATION',
+  EQUIPMENT_RELEASED: 'EQUIPMENT_RELEASED',
+} as const satisfies Record<string, NotificationTemplate>;
+export type MaintenanceTemplate = (typeof MaintenanceTemplate)[keyof typeof MaintenanceTemplate];
+export const MAINTENANCE_TEMPLATES = [
+  MaintenanceTemplate.MAINTENANCE_ASSIGNED,
+  MaintenanceTemplate.MAINTENANCE_REPLANNED,
+  MaintenanceTemplate.MAINTENANCE_REMINDER,
+  MaintenanceTemplate.MAINTENANCE_READINESS,
+  MaintenanceTemplate.MAINTENANCE_RETURNED,
+  MaintenanceTemplate.EMERGENCY_ASSIGNED,
+  MaintenanceTemplate.EMERGENCY_DECLINED,
+  MaintenanceTemplate.EMERGENCY_ESCALATION,
+  MaintenanceTemplate.EQUIPMENT_RELEASED,
+] as const;
+
+/** Delivery state of a notice as the outbox records it. */
+export const NoticeDelivery = {
+  PENDING: 'PENDING',
+  SENT: 'SENT',
+  FAILED: 'FAILED',
+  SKIPPED: 'SKIPPED',
+} as const;
+export type NoticeDelivery = (typeof NoticeDelivery)[keyof typeof NoticeDelivery];
+export const NOTICE_DELIVERIES = [
+  NoticeDelivery.PENDING,
+  NoticeDelivery.SENT,
+  NoticeDelivery.FAILED,
+  NoticeDelivery.SKIPPED,
 ] as const;

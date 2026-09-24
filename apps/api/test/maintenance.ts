@@ -8,11 +8,17 @@ import { DocumentsService } from '../src/maintenance/documents.service.js';
 import { EmergencyService } from '../src/maintenance/emergency.service.js';
 import { EquipmentService } from '../src/maintenance/equipment.service.js';
 import { MaintenanceScheduler } from '../src/maintenance/maintenance-scheduler.js';
+import {
+  maintenanceOptionsFrom,
+  type MaintenanceOptions,
+} from '../src/maintenance/maintenance-options.js';
 import { MechanicWorkService } from '../src/maintenance/mechanic-work.service.js';
 import { PlansService } from '../src/maintenance/plans.service.js';
 import { WorkActionsService } from '../src/maintenance/work-actions.service.js';
 import { WorkQueriesService } from '../src/maintenance/work-queries.service.js';
 import { NotificationsService } from '../src/notifications/notifications.service.js';
+import { TENANT_SETTING_DEFAULTS } from '@vakhta/contracts';
+import { DELIVERED_TENANT_MODULES } from '@vakhta/domain';
 
 /** The emergency repair service with real collaborators, for tests that build services by hand. */
 export function emergencyService(db: Database, timers: TimerScheduler): EmergencyService {
@@ -22,12 +28,18 @@ export function emergencyService(db: Database, timers: TimerScheduler): Emergenc
 /** Every maintenance service wired as the Nest module wires them. */
 export function maintenanceServices(
   db: Database,
-  deps: { readonly timers: TimerScheduler; readonly storage: ObjectStorage | null },
+  deps: {
+    readonly timers: TimerScheduler;
+    readonly storage: ObjectStorage | null;
+    readonly options?: MaintenanceOptions;
+  },
 ) {
+  const options =
+    deps.options ?? maintenanceOptionsFrom(TENANT_SETTING_DEFAULTS, DELIVERED_TENANT_MODULES);
   const events = new EventStore();
   const audit = new AuditLog();
   const notifications = new NotificationsService();
-  const scheduler = new MaintenanceScheduler(events, notifications, deps.timers);
+  const scheduler = new MaintenanceScheduler(events, notifications, deps.timers, options);
   const media = new MediaService(db, audit, { linkTtlSeconds: 300 }, deps.storage);
   const actions = new WorkActionsService(db, events, audit, notifications, scheduler, media);
   const documents = new DocumentsService(db, audit, deps.storage);
@@ -37,9 +49,9 @@ export function maintenanceServices(
     documents,
     plans,
     equipment: new EquipmentService(db, audit, events, documents, plans),
-    queries: new WorkQueriesService(db),
-    mechanic: new MechanicWorkService(db),
-    emergency: new EmergencyService(db, events, notifications, actions, deps.timers),
+    queries: new WorkQueriesService(db, options),
+    mechanic: new MechanicWorkService(db, options),
+    emergency: new EmergencyService(db, events, notifications, actions, deps.timers, options),
   };
 }
 

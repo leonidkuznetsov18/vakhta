@@ -34,6 +34,16 @@ export const TenantSettings = z.object({
   mediaRetentionDays: z.number().int().min(30).max(3650),
   shiftReminderMinutes: minutes(1, 720),
   appealWindowDays: z.number().int().min(1).max(30),
+  // Spec 014 A-4: days before the planned date; 0 turns that reminder off.
+  maintenanceReminderFirstDays: z.number().int().min(0).max(60),
+  maintenanceReminderSecondDays: z.number().int().min(0).max(60),
+  maintenanceReminderLastDays: z.number().int().min(0).max(60),
+  maintenanceReminderHour: z.number().int().min(0).max(23),
+  // Spec 014 FR-062: minutes to accept an emergency repair per priority, then the escalation gap.
+  emergencyAckSafetyMinutes: minutes(1, 60),
+  emergencyAckStoppedMinutes: minutes(1, 240),
+  emergencyAckFaultMinutes: minutes(1, 1440),
+  emergencyEscalationGapMinutes: minutes(1, 240),
 });
 export type TenantSettings = z.infer<typeof TenantSettings>;
 export type TenantSettingKey = keyof TenantSettings;
@@ -65,6 +75,14 @@ export const TENANT_SETTING_DEFAULTS: TenantSettings = {
   mediaRetentionDays: 365,
   shiftReminderMinutes: 30,
   appealWindowDays: 3,
+  maintenanceReminderFirstDays: 7,
+  maintenanceReminderSecondDays: 3,
+  maintenanceReminderLastDays: 1,
+  maintenanceReminderHour: 9,
+  emergencyAckSafetyMinutes: 2,
+  emergencyAckStoppedMinutes: 5,
+  emergencyAckFaultMinutes: 30,
+  emergencyEscalationGapMinutes: 5,
 };
 
 /** Sections of the control panel's Parameters tab, in display order. */
@@ -91,6 +109,16 @@ export const TENANT_SETTING_GROUPS = {
     'mediaMinBrightness',
     'mediaNearDuplicateDistance',
     'mediaRetentionDays',
+  ],
+  maintenance: [
+    'maintenanceReminderFirstDays',
+    'maintenanceReminderSecondDays',
+    'maintenanceReminderLastDays',
+    'maintenanceReminderHour',
+    'emergencyAckSafetyMinutes',
+    'emergencyAckStoppedMinutes',
+    'emergencyAckFaultMinutes',
+    'emergencyEscalationGapMinutes',
   ],
 } as const satisfies Record<string, readonly TenantSettingKey[]>;
 export type TenantSettingGroup = keyof typeof TENANT_SETTING_GROUPS;

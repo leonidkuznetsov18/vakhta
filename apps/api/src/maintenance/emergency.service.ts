@@ -17,7 +17,6 @@ import {
 } from '@vakhta/db';
 import type { EmergencyCreateCommand, ReleaseCommand } from '@vakhta/contracts';
 import {
-  DEFAULT_EMERGENCY_POLICY,
   EquipmentState,
   FINAL_WORK_STATUSES,
   ReleaseMode,
@@ -28,6 +27,7 @@ import {
   emergencyDeadlines,
   emergencyPriority,
   type IncidentSeverity,
+  MaintenanceTemplate,
 } from '@vakhta/domain';
 import { EmergencyNoticeKind, emergencyNotice, format } from '@vakhta/i18n';
 import { employeeActor, type Actor } from '../common/actor.js';
@@ -37,6 +37,7 @@ import { DATABASE } from '../infra/database.module.js';
 import { TIMER_SCHEDULER, type TimerScheduler } from '../infra/timers.queue.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { maintenanceStaff } from './lookups.js';
+import { MAINTENANCE_OPTIONS, type MaintenanceOptions } from './maintenance-options.js';
 import { WorkActionsService } from './work-actions.service.js';
 
 const FINAL = [...FINAL_WORK_STATUSES];
@@ -64,7 +65,13 @@ export class EmergencyService {
     private readonly notifications: NotificationsService,
     private readonly actions: WorkActionsService,
     @Inject(TIMER_SCHEDULER) private readonly timers: TimerScheduler,
+    @Inject(MAINTENANCE_OPTIONS) private readonly options: MaintenanceOptions,
   ) {}
+
+  /** Whether reports may name machines and open repairs: the tenant module is on (FR-001). */
+  available(): boolean {
+    return this.options.enabled;
+  }
 
   /**
    * Opens or joins the machine's emergency repair and stop episode in the caller's transaction
@@ -105,7 +112,7 @@ export class EmergencyService {
   ): Promise<string> {
     const { input } = context;
     const priority = emergencyPriority(input.severity, input.stoppedWork);
-    const deadlines = emergencyDeadlines(input.now, priority, DEFAULT_EMERGENCY_POLICY);
+    const deadlines = emergencyDeadlines(input.now, priority, this.options.emergency);
     const [row] = await tx
       .insert(workOrders)
       .values({
@@ -192,7 +199,7 @@ export class EmergencyService {
     await this.notifications.enqueue(tx, {
       recipientType: 'EMPLOYEE',
       recipientId: notice.assigneeId,
-      template: 'EMERGENCY_ASSIGNED',
+      template: MaintenanceTemplate.EMERGENCY_ASSIGNED,
       payload: (t) => emergencyNotice(t, notice.data, EmergencyNoticeKind.ASSIGNED),
       dedupeKey: `emergency-assigned:${id}:${notice.assigneeId}`,
     });
@@ -200,7 +207,7 @@ export class EmergencyService {
       await this.notifications.enqueue(tx, {
         recipientType: 'EMPLOYEE',
         recipientId: notice.masterId,
-        template: 'EMERGENCY_ASSIGNED',
+        template: MaintenanceTemplate.EMERGENCY_ASSIGNED,
         payload: (t) => emergencyNotice(t, notice.data, EmergencyNoticeKind.MASTER_COPY),
         dedupeKey: `emergency-copy:${id}:${notice.masterId}`,
       });
@@ -208,7 +215,7 @@ export class EmergencyService {
       await this.notifications.enqueue(tx, {
         recipientType: 'EMPLOYEE',
         recipientId: notice.backupId,
-        template: 'EMERGENCY_ESCALATION',
+        template: MaintenanceTemplate.EMERGENCY_ESCALATION,
         payload: (t) => emergencyNotice(t, notice.data, EmergencyNoticeKind.ESCALATION),
         dedupeKey: `emergency-escalation:${id}:immediate:${notice.backupId}`,
       });
@@ -321,7 +328,7 @@ export class EmergencyService {
       await this.notifications.enqueue(tx, {
         recipientType: 'EMPLOYEE',
         recipientId: input.notice.masterId,
-        template: 'EMERGENCY_DECLINED',
+        template: MaintenanceTemplate.EMERGENCY_DECLINED,
         payload: (t) => ({
           text: format(t.maintenance.bot.declinedToMaster, {
             name,
@@ -335,7 +342,7 @@ export class EmergencyService {
       await this.notifications.enqueue(tx, {
         recipientType: 'EMPLOYEE',
         recipientId: input.next,
-        template: 'EMERGENCY_ASSIGNED',
+        template: MaintenanceTemplate.EMERGENCY_ASSIGNED,
         payload: (t) => emergencyNotice(t, input.notice.data, EmergencyNoticeKind.ASSIGNED),
         dedupeKey: `emergency-assigned:${input.order.id}:${input.next}`,
       });
@@ -472,7 +479,7 @@ export class EmergencyService {
     await this.notifications.enqueue(tx, {
       recipientType: 'EMPLOYEE',
       recipientId: reporter,
-      template: 'EQUIPMENT_RELEASED',
+      template: MaintenanceTemplate.EQUIPMENT_RELEASED,
       payload: (t) => {
         const machine = format(t.maintenance.bot.machine, {
           code: input.machine.code,

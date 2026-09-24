@@ -11,6 +11,7 @@ import {
   type MaintenanceCallback,
 } from '@vakhta/domain';
 import type { Messages } from '@vakhta/i18n';
+import { MaterialsUsedKind } from '@vakhta/contracts';
 import { DomainError } from '../common/domain-error.js';
 import type { ShortTermStore } from '../infra/short-term-store.js';
 import type { DocumentsService } from '../maintenance/documents.service.js';
@@ -19,8 +20,15 @@ import type { MechanicWorkService } from '../maintenance/mechanic-work.service.j
 import type { OperationPhoto, WorkActionsService } from '../maintenance/work-actions.service.js';
 import type { BotContext } from './bot-context.js';
 import {
+  MissingStep,
+  UsedArg,
+  hasMissingChecklist,
+  materialsUsedScreen,
+  missingNote,
+  missingScreen,
   myWorkScreen,
   parseAnswerArg,
+  parseMissingArg,
   pauseScreen,
   workCardScreen,
 } from './maintenance-screens.js';
@@ -38,6 +46,7 @@ export interface MaintenanceBotDeps {
 /** A text or photo the mechanic owes after pressing a button; kept in Redis like other flows. */
 const PendingStep = {
   MISSING: 'MISSING',
+  USED: 'USED',
   REASON: 'REASON',
   PHOTO: 'PHOTO',
   SUMMARY: 'SUMMARY',
@@ -46,8 +55,14 @@ const PendingStep = {
 
 const Pending = z.discriminatedUnion('step', [
   z.object({
-    step: z.enum([PendingStep.MISSING, PendingStep.SUMMARY, PendingStep.DECLINE]),
+    step: z.enum([PendingStep.USED, PendingStep.SUMMARY, PendingStep.DECLINE]),
     workOrderId: z.string().uuid(),
+  }),
+  z.object({
+    step: z.literal(PendingStep.MISSING),
+    workOrderId: z.string().uuid(),
+    /** Materials already checked in the list; the text is added to them. */
+    mask: z.number().int().nonnegative().default(0),
   }),
   z.object({
     step: z.literal(PendingStep.REASON),
@@ -123,16 +138,14 @@ class MaintenanceBot {
     [MaintenanceCallbackAction.MANUAL]: (ctx, press) => this.sendManual(ctx, press.workOrderId),
     [MaintenanceCallbackAction.READY]: (ctx, press) =>
       this.change(ctx, press, () => this.deps.actions.readiness({ ...press, ready: true })),
-    [MaintenanceCallbackAction.MISSING]: (ctx, press) =>
-      this.ask(ctx, { step: PendingStep.MISSING, workOrderId: press.workOrderId }),
+    [MaintenanceCallbackAction.MISSING]: (ctx, press) => this.missing(ctx, press),
     [MaintenanceCallbackAction.START]: (ctx, press) =>
       this.change(ctx, press, () => this.deps.actions.start(press)),
     [MaintenanceCallbackAction.ANSWER]: (ctx, press) => this.answer(ctx, press),
     [MaintenanceCallbackAction.PAUSE]: (ctx, press) => this.pause(ctx, press),
     [MaintenanceCallbackAction.RESUME]: (ctx, press) =>
       this.change(ctx, press, () => this.deps.actions.resume(press)),
-    [MaintenanceCallbackAction.SUBMIT]: (ctx, press) =>
-      this.change(ctx, press, () => this.deps.actions.submit(press)),
+    [MaintenanceCallbackAction.SUBMIT]: (ctx, press) => this.submit(ctx, press),
     [MaintenanceCallbackAction.ACCEPT]: (ctx, press) =>
       this.change(ctx, press, () =>
         this.deps.emergency.accept(press.employeeId, press.workOrderId),
@@ -197,6 +210,7 @@ class MaintenanceBot {
     const bot = t.maintenance.bot;
     const prompts: Readonly<Record<Pending['step'], string>> = {
       [PendingStep.MISSING]: bot.missingPrompt,
+      [PendingStep.USED]: bot.usedPrompt,
       [PendingStep.REASON]: bot.reasonPrompt,
       [PendingStep.PHOTO]: bot.photoPrompt,
       [PendingStep.SUMMARY]: bot.summaryPrompt,
@@ -222,6 +236,47 @@ class MaintenanceBot {
     if (operation?.photoRequired)
       return this.ask(ctx, { step: PendingStep.PHOTO, workOrderId, ordinal: answer.ordinal });
     await this.change(ctx, press, () => this.deps.actions.answer({ ...press, ...answer }));
+  }
+
+  /** The checklist of missing materials, or a free text when the plan lists none or too many. */
+  private async missing(ctx: BotContext, press: Press): Promise<void> {
+    const { workOrderId } = press;
+    const card = await this.deps.mechanic.card(workOrderId);
+    const parsed = parseMissingArg(press.arg);
+    if (!card || !parsed) return this.openCard(ctx, workOrderId);
+    if (!hasMissingChecklist(card) || parsed.step === MissingStep.WRITE)
+      return this.ask(ctx, { step: PendingStep.MISSING, workOrderId, mask: parsed.mask });
+    if (parsed.step !== MissingStep.SEND) {
+      await ctx.answerCallbackQuery();
+      return edit(ctx, missingScreen(ctx.t, card, parsed.mask));
+    }
+    if (parsed.mask === 0) {
+      await ctx.answerCallbackQuery({ text: ctx.t.maintenance.bot.missingNoneSelected });
+      return;
+    }
+    const note = missingNote(card, parsed.mask, null);
+    await this.change(ctx, press, () =>
+      this.deps.actions.readiness({ ...press, ready: false, note }),
+    );
+  }
+
+  /** Planned work with materials first confirms what was used (FR-051). */
+  private async submit(ctx: BotContext, press: Press): Promise<void> {
+    const { workOrderId } = press;
+    if (press.arg === UsedArg.OTHER) return this.ask(ctx, { step: PendingStep.USED, workOrderId });
+    if (press.arg === UsedArg.AS_PLANNED)
+      return this.change(ctx, press, () =>
+        this.deps.actions.submit({
+          ...press,
+          materialsUsed: { kind: MaterialsUsedKind.AS_PLANNED },
+        }),
+      );
+    const card = await this.deps.mechanic.card(workOrderId);
+    if (card?.notice.data.materials.length) {
+      await ctx.answerCallbackQuery();
+      return edit(ctx, materialsUsedScreen(ctx.t, card));
+    }
+    await this.change(ctx, press, () => this.deps.actions.submit(press));
   }
 
   private async pause(ctx: BotContext, press: Press): Promise<void> {
@@ -262,7 +317,12 @@ class MaintenanceBot {
     const base = { employeeId, workOrderId: pending.workOrderId };
     switch (pending.step) {
       case PendingStep.MISSING:
-        return this.deps.actions.readiness({ ...base, ready: false, note: text });
+        return this.missingText(base, pending.mask, text);
+      case PendingStep.USED:
+        return this.deps.actions.submit({
+          ...base,
+          materialsUsed: { kind: MaterialsUsedKind.OTHER, text },
+        });
       case PendingStep.SUMMARY:
         return this.deps.actions.submit({ ...base, summary: { text } });
       case PendingStep.DECLINE:
@@ -270,6 +330,16 @@ class MaintenanceBot {
       case PendingStep.REASON:
         return this.deps.actions.answer({ ...base, ...pending, reason: text });
     }
+  }
+
+  private async missingText(
+    base: { readonly employeeId: string; readonly workOrderId: string },
+    mask: number,
+    text: string,
+  ) {
+    const card = await this.deps.mechanic.card(base.workOrderId);
+    const note = card ? missingNote(card, mask, text) : text;
+    return this.deps.actions.readiness({ ...base, ready: false, note });
   }
 
   /** Clears the owed input, runs it, explains a refusal and shows the card again. */

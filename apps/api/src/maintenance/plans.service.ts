@@ -77,6 +77,17 @@ function planRow(plan: PlanDb, facts: PlanFacts): PlanRow {
   };
 }
 
+/** A copy keeps the work content and drops what must be confirmed for the new machine. */
+function copiedDraft(content: PlanContent): PlanContent {
+  return {
+    ...content,
+    firstDueOn: null,
+    sourceDocumentId: null,
+    sourceNote: undefined,
+    assigneeEmployeeId: null,
+  };
+}
+
 export interface ReassignInput {
   readonly equipmentId: string;
   readonly employeeId: string;
@@ -303,35 +314,96 @@ export class PlansService {
   async create(equipmentId: string, content: PlanContent, actor: Actor): Promise<{ id: string }> {
     return this.db.transaction(async (tx) => {
       const responsible = await this.responsibleOf(tx, equipmentId);
-      const values = this.versionValues({
-        ...content,
-        assigneeEmployeeId: content.assigneeEmployeeId ?? responsible,
-      });
-      const [plan] = await tx
-        .insert(maintenancePlans)
-        .values({
-          equipmentId,
-          title: content.title,
-          firstDueOn: content.firstDueOn,
-          createdBy: actor.id ?? 'system',
-        })
-        .returning({ id: maintenancePlans.id });
-      if (!plan) throw new Error('maintenance_plans: insert returned no row');
-      const [version] = await tx
-        .insert(maintenancePlanVersions)
-        .values({ planId: plan.id, revision: 1, ...values })
-        .returning({ id: maintenancePlanVersions.id });
-      if (!version) throw new Error('maintenance_plan_versions: insert returned no row');
-      await this.writeContent(tx, version.id, content);
-      await this.audit.record(tx, {
+      return this.insertPlan(tx, {
+        equipmentId,
+        content: { ...content, assigneeEmployeeId: content.assigneeEmployeeId ?? responsible },
         actor,
-        action: 'maintenance_plan.create',
-        objectType: 'maintenance_plan',
-        objectId: plan.id,
-        after: { equipmentId, title: content.title },
+        copiedFrom: null,
       });
-      return { id: plan.id };
     });
+  }
+
+  private async insertPlan(
+    tx: Transaction,
+    input: {
+      readonly equipmentId: string;
+      readonly content: PlanContent;
+      readonly actor: Actor;
+      readonly copiedFrom: string | null;
+    },
+  ): Promise<{ id: string }> {
+    const { equipmentId, content, actor } = input;
+    const values = this.versionValues(content);
+    const [plan] = await tx
+      .insert(maintenancePlans)
+      .values({
+        equipmentId,
+        title: content.title,
+        firstDueOn: content.firstDueOn,
+        createdBy: actor.id ?? 'system',
+      })
+      .returning({ id: maintenancePlans.id });
+    if (!plan) throw new Error('maintenance_plans: insert returned no row');
+    const [version] = await tx
+      .insert(maintenancePlanVersions)
+      .values({ planId: plan.id, revision: 1, ...values })
+      .returning({ id: maintenancePlanVersions.id });
+    if (!version) throw new Error('maintenance_plan_versions: insert returned no row');
+    await this.writeContent(tx, version.id, content);
+    await this.audit.record(tx, {
+      actor,
+      action: input.copiedFrom ? 'maintenance_plan.copy' : 'maintenance_plan.create',
+      objectType: 'maintenance_plan',
+      objectId: plan.id,
+      after: { equipmentId, title: content.title, copiedFrom: input.copiedFrom },
+    });
+    return { id: plan.id };
+  }
+
+  /**
+   * Copies a plan to another machine as a draft (FR-026, AC-018): operations, materials and the
+   * rule carry over; the first date, the source's validity and the mechanic must be confirmed.
+   */
+  async copy(planId: string, targetEquipmentId: string, actor: Actor): Promise<{ id: string }> {
+    const [plan] = await this.db
+      .select()
+      .from(maintenancePlans)
+      .where(eq(maintenancePlans.id, planId));
+    if (!plan) throw new DomainError('PLAN_NOT_FOUND', 404, 'Plan not found');
+    if (plan.equipmentId === targetEquipmentId)
+      throw new DomainError('PLAN_COPY_SAME_EQUIPMENT', 422, 'Copy to another machine');
+    const [target] = await this.db
+      .select({ archivedAt: equipment.archivedAt })
+      .from(equipment)
+      .where(eq(equipment.id, targetEquipmentId));
+    if (!target) throw new DomainError('EQUIPMENT_NOT_FOUND', 404, 'Equipment not found');
+    if (target.archivedAt)
+      throw new DomainError('EQUIPMENT_ARCHIVED', 409, 'The machine is archived');
+    const [latest] = await this.db
+      .select()
+      .from(maintenancePlanVersions)
+      .where(eq(maintenancePlanVersions.planId, planId))
+      .orderBy(desc(maintenancePlanVersions.revision))
+      .limit(1);
+    const source = plan.activeVersionId ? await this.versionRow(plan.activeVersionId) : latest;
+    if (!source) throw new DomainError('PLAN_NOT_FOUND', 404, 'Plan has no version');
+    const content = await this.content(source, plan);
+    return this.db.transaction((tx) =>
+      this.insertPlan(tx, {
+        equipmentId: targetEquipmentId,
+        content: copiedDraft(content),
+        actor,
+        copiedFrom: planId,
+      }),
+    );
+  }
+
+  private async versionRow(versionId: string): Promise<VersionRow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(maintenancePlanVersions)
+      .where(eq(maintenancePlanVersions.id, versionId));
+    return row;
   }
 
   private async lockPlan(tx: Transaction, planId: string): Promise<PlanDb> {

@@ -13,9 +13,14 @@ import {
 import { messages } from '@vakhta/i18n';
 import type { MechanicCard } from '../maintenance/mechanic-work.service.js';
 import {
+  MissingStep,
   currentOperation,
   equipmentPickScreen,
+  materialsUsedScreen,
+  missingNote,
+  missingScreen,
   parseAnswerArg,
+  parseMissingArg,
   workCardScreen,
 } from './maintenance-screens.js';
 
@@ -151,5 +156,35 @@ describe('mechanic screens (spec 014)', () => {
     });
     expect(screen.text).toBe(t.maintenance.bot.pickEquipment);
     expect(buttons(screen)).toEqual(['inc:eq:0', 'inc:eq:none', 'inc:cancel']);
+  });
+
+  it('a missing checklist toggles through its button data and names the checked materials', () => {
+    expect(parseMissingArg(null)).toEqual({ step: MissingStep.OPEN, mask: 0 });
+    expect(parseMissingArg('m1c')).toEqual({ step: MissingStep.TOGGLE, mask: 48 });
+    expect(parseMissingArg('s')).toEqual({ step: MissingStep.SEND, mask: 0 });
+    expect(parseMissingArg('x1')).toBeNull();
+    expect(parseMissingArg(`m${(2 ** 30).toString(36)}`)).toBeNull();
+
+    const screen = missingScreen(t, card({}), 1);
+    expect(buttons(screen)).toEqual([
+      call(MaintenanceCallbackAction.MISSING, 'm0'),
+      call(MaintenanceCallbackAction.MISSING, 's1'),
+      call(MaintenanceCallbackAction.MISSING, 'w1'),
+      call(MaintenanceCallbackAction.OPEN),
+    ]);
+    expect(screen.keyboard?.inline_keyboard[0]?.[0]?.text).toBe('☑️ Grease — 0.2 kg');
+    expect(missingNote(card({}), 1, 'rags')).toBe('Grease 0.2 kg; rags');
+    expect(missingNote(card({}), 0, 'rags')).toBe('rags');
+  });
+
+  it('asks which materials were used before a planned maintenance is submitted', () => {
+    const screen = materialsUsedScreen(t, card({ status: WorkStatus.IN_PROGRESS }));
+    expect(screen.text).toContain(t.maintenance.bot.usedTitle);
+    expect(screen.text).toContain('Grease');
+    expect(buttons(screen)).toEqual([
+      call(MaintenanceCallbackAction.SUBMIT, 'p'),
+      call(MaintenanceCallbackAction.SUBMIT, 'w'),
+      call(MaintenanceCallbackAction.OPEN),
+    ]);
   });
 });

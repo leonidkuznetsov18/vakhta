@@ -61,6 +61,7 @@ export class TimerTaskRunner {
           this.db,
           {
             autoCloseGraceMinutes: this.options.autoCloseGraceMinutes,
+            maintenanceEnabled: this.options.maintenanceEnabled,
           },
           (event) => this.observer.task?.(event),
         ),

@@ -28,6 +28,7 @@ import {
   isOpenWork,
   type NotificationPayload,
   type NotificationTemplate,
+  MaintenanceTemplate,
 } from '@vakhta/domain';
 import {
   EmergencyNoticeKind,
@@ -155,7 +156,7 @@ export async function handleMaintenanceReminderWithin(
   if (!recipient) return 'stale';
   const queued = await enqueue(tx, {
     recipientId: recipient.id,
-    template: 'MAINTENANCE_REMINDER',
+    template: MaintenanceTemplate.MAINTENANCE_REMINDER,
     payload: (t) =>
       maintenanceNotice(t, notice.data, {
         kind: MaintenanceNoticeKind.REMINDER,
@@ -237,14 +238,14 @@ export async function handleEmergencyAckWithin(
   if (backup)
     await enqueue(tx, {
       recipientId: backup,
-      template: 'EMERGENCY_ESCALATION',
+      template: MaintenanceTemplate.EMERGENCY_ESCALATION,
       payload: (t) => emergencyNotice(t, notice.data, EmergencyNoticeKind.ESCALATION),
       dedupeKey: `emergency-escalation:${order.id}:ack:${backup}`,
     });
   if (notice.masterId)
     await enqueue(tx, {
       recipientId: notice.masterId,
-      template: 'EMERGENCY_ESCALATION',
+      template: MaintenanceTemplate.EMERGENCY_ESCALATION,
       payload: (t) => emergencyNotice(t, notice.data, EmergencyNoticeKind.MASTER_COPY),
       dedupeKey: `emergency-escalation:${order.id}:ack:${notice.masterId}`,
     });
@@ -273,7 +274,7 @@ export async function handleEmergencyEscalationWithin(
   if (!notice?.masterId) return 'queued';
   await enqueue(tx, {
     recipientId: notice.masterId,
-    template: 'EMERGENCY_ESCALATION',
+    template: MaintenanceTemplate.EMERGENCY_ESCALATION,
     payload: (t) => emergencyNotice(t, notice.data, EmergencyNoticeKind.MASTER_COPY),
     dedupeKey: `emergency-escalation:${order.id}:late:${notice.masterId}`,
   });

@@ -19,6 +19,7 @@ import {
   maintenancePlanVersions,
   maintenancePlans,
   notInArray,
+  notificationOutbox,
   or,
   reasonCodes,
   sites,
@@ -31,6 +32,8 @@ import {
 } from '@vakhta/db';
 import { WorkViewCode } from '@vakhta/contracts';
 import type {
+  PlanVersionDiffView,
+  WorkDeliveryView,
   CalendarForecast,
   CalendarItem,
   CalendarQuery,
@@ -46,9 +49,12 @@ import {
   WorkStatus,
   WorkType,
   businessDateOf,
+  MAINTENANCE_TEMPLATES,
   forecastDueDates,
+  isOpenWork,
   isOverdue,
   nextCycle,
+  planVersionDiff,
   type AccessScope,
   type ScopeTarget,
 } from '@vakhta/domain';
@@ -56,6 +62,8 @@ import { placeTarget, scopeCondition } from '../common/access-scope.js';
 import { DomainError } from '../common/domain-error.js';
 import { DATABASE } from '../infra/database.module.js';
 import { peopleById, person } from './lookups.js';
+import { MAINTENANCE_OPTIONS, type MaintenanceOptions } from './maintenance-options.js';
+import { versionContent } from './plan-versions.js';
 
 type OrderRow = typeof workOrders.$inferSelect;
 interface Located {
@@ -69,6 +77,9 @@ interface Located {
 
 const FINAL = [...FINAL_WORK_STATUSES];
 const QUEUE_LIMIT = 200;
+const TEMPLATES = new Set<string>(MAINTENANCE_TEMPLATES);
+/** Outbox keys of this module are `<kind>:<workOrderId>:…`; the second part names the work. */
+const DEDUPE_WORK_PART = 2;
 
 /** Today in the machine's site time zone, as SQL over the joined `sites` row (spec A-5). */
 function siteToday(now: Date): SQL {
@@ -85,7 +96,10 @@ function calendarDate(located: Located): string {
 /** Read side of maintenance work (spec 014, US4, US6, US7): queue, card, calendar and counts. */
 @Injectable()
 export class WorkQueriesService {
-  constructor(@Inject(DATABASE) private readonly db: Database) {}
+  constructor(
+    @Inject(DATABASE) private readonly db: Database,
+    @Inject(MAINTENANCE_OPTIONS) private readonly options: MaintenanceOptions,
+  ) {}
 
   async place(workOrderId: string): Promise<ScopeTarget | null> {
     const [row] = await this.db
@@ -241,6 +255,11 @@ export class WorkQueriesService {
       this.stop(id),
       this.history(id),
     ]);
+    const [enteredBy, newerPlanRevision, deliveries] = await Promise.all([
+      this.webUserName(order.enteredBy),
+      this.newerPlanRevision(order, version),
+      this.deliveries(id),
+    ]);
     return {
       ...this.row(located, { people, now }),
       description: order.description,
@@ -252,11 +271,15 @@ export class WorkQueriesService {
       materials,
       readinessNote: order.readinessNote,
       ...timeline(order),
+      escalateAt: this.escalateAt(order),
       cancelReason: order.cancelReason,
       summary: order.summary,
       cause: order.cause,
       partsUsed: order.partsUsed,
       performedBy: order.performedByEmployeeId ? person(people, order.performedByEmployeeId) : null,
+      enteredBy,
+      newerPlanRevision,
+      deliveries,
       reviews,
       incident,
       stop,
@@ -265,6 +288,98 @@ export class WorkQueriesService {
       nextDueOnAfterAccept: this.nextAfterAccept(order, version, located.timezone),
       version: order.version,
     };
+  }
+
+  private async webUserName(userId: string | null): Promise<string | null> {
+    if (!userId) return null;
+    const [row] = await this.db
+      .select({ name: authUser.name })
+      .from(authUser)
+      .where(sql`${authUser.id}::text = ${userId}`);
+    return row?.name ?? userId;
+  }
+
+  /** The plan's active revision when open work still follows an older one (FR-023). */
+  private async newerPlanRevision(order: OrderRow, version: VersionFacts): Promise<number | null> {
+    if (!order.planId || !version || !isOpenWork(order.status)) return null;
+    const [active] = await this.db
+      .select({ id: maintenancePlanVersions.id, revision: maintenancePlanVersions.revision })
+      .from(maintenancePlans)
+      .innerJoin(
+        maintenancePlanVersions,
+        eq(maintenancePlanVersions.id, maintenancePlans.activeVersionId),
+      )
+      .where(eq(maintenancePlans.id, order.planId));
+    if (!active || active.id === order.planVersionId || active.revision <= version.revision)
+      return null;
+    return active.revision;
+  }
+
+  /** Notices about this work with their outbox state; failures stay visible (FR-043). */
+  private async deliveries(workOrderId: string): Promise<WorkDeliveryView[]> {
+    const rows = await this.db
+      .select({
+        id: notificationOutbox.id,
+        template: notificationOutbox.template,
+        status: notificationOutbox.status,
+        createdAt: notificationOutbox.createdAt,
+        sentAt: notificationOutbox.sentAt,
+        recipient: sql<
+          string | null
+        >`coalesce((select e.full_name from employees e where e.id = ${notificationOutbox.recipientId}), (select u.name from auth_user u where u.id::text = ${notificationOutbox.recipientId}::text))`,
+      })
+      .from(notificationOutbox)
+      .where(
+        sql`split_part(${notificationOutbox.dedupeKey}, ':', ${DEDUPE_WORK_PART}) = ${workOrderId}`,
+      )
+      .orderBy(asc(notificationOutbox.createdAt));
+    return rows.flatMap((row) =>
+      isMaintenanceTemplate(row.template)
+        ? [
+            {
+              id: row.id,
+              template: row.template,
+              status: row.status,
+              recipient: row.recipient ?? '—',
+              createdAt: row.createdAt.toISOString(),
+              sentAt: isoOrNull(row.sentAt),
+            },
+          ]
+        : [],
+    );
+  }
+
+  /** What applying the plan's active version to this open work would change (AC-015). */
+  async planDiff(id: string): Promise<PlanVersionDiffView> {
+    const [order] = await this.db.select().from(workOrders).where(eq(workOrders.id, id));
+    if (!order) throw new DomainError('WORK_NOT_FOUND', 404, 'Work order not found');
+    const [plan] = order.planId
+      ? await this.db
+          .select({ activeVersionId: maintenancePlans.activeVersionId })
+          .from(maintenancePlans)
+          .where(eq(maintenancePlans.id, order.planId))
+      : [];
+    const current = order.planVersionId ? await versionContent(this.db, order.planVersionId) : null;
+    const active = plan?.activeVersionId
+      ? await versionContent(this.db, plan.activeVersionId)
+      : null;
+    if (!current || !active || active.revision <= current.revision)
+      throw new DomainError('PLAN_VERSION_CURRENT', 409, 'Work already follows the active version');
+    const diff = planVersionDiff(current, active);
+    return {
+      fromRevision: current.revision,
+      toRevision: active.revision,
+      fields: [...diff.fields],
+      operations: { added: [...diff.operations.added], removed: [...diff.operations.removed] },
+      materials: { added: [...diff.materials.added], removed: [...diff.materials.removed] },
+    };
+  }
+
+  /** When an unaccepted repair reaches the panel: the acceptance deadline plus the tenant's gap. */
+  private escalateAt(order: OrderRow): string | null {
+    if (!order.ackDueAt) return null;
+    const gapMs = this.options.emergency.escalationGapMinutes * 60_000;
+    return new Date(order.ackDueAt.getTime() + gapMs).toISOString();
   }
 
   private nextAfterAccept(order: OrderRow, version: VersionFacts, timezone: string): string | null {
@@ -541,6 +656,10 @@ function planFacts(version: VersionFacts) {
     requiresStop: version.requiresStop,
     sourceLabel: version.sourceLabel,
   };
+}
+
+function isMaintenanceTemplate(template: string): template is WorkDeliveryView['template'] {
+  return TEMPLATES.has(template);
 }
 
 function isoOrNull(value: Date | null): string | null {

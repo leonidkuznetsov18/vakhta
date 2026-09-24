@@ -30,6 +30,7 @@ function fingerprintOf(tenant: TenantRuntimeConfig): string {
     tenant.databaseUrl,
     tenant.botToken,
     tenant.storagePrefix,
+    [...tenant.modules].sort(),
     tenant.domains.map((d) => `${d.surface}:${d.host}:${d.isPrimary}`),
   ]);
 }

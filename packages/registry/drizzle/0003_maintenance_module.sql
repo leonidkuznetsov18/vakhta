@@ -1,0 +1,1 @@
+ALTER TYPE "public"."tenant_module" ADD VALUE 'MAINTENANCE';

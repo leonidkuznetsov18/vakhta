@@ -1,3 +1,4 @@
+import { TenantErrorCode } from '@vakhta/contracts';
 import { messages } from '@vakhta/i18n';
 import { ApiError } from '@/shared/api';
 import { currentLocale } from './i18n.tsx';
@@ -21,6 +22,7 @@ export function describeError(e: unknown): string {
     if (e.code === 'SCHEDULE_BORROWING_AUTHORITY') return t.scheduleWorkspace.borrowingError;
     const shiftError = (t.unitShifts.errors as Record<string, string>)[e.code ?? ''];
     if (shiftError) return shiftError;
+    if (e.code === TenantErrorCode.MODULE_DISABLED) return t.admin.auth.moduleDisabled;
     if (e.status === 403) return t.admin.schedule.forbidden;
     if (e.status === 0) return t.admin.auth.networkError;
     if (e.code === 'INSPECTION_RULES_MISSING') return t.photoInspection.aiRulesMissing;

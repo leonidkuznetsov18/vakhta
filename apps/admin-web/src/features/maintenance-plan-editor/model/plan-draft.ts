@@ -1,7 +1,6 @@
 import { PlanContent, type EquipmentDetail } from '@vakhta/contracts';
 import {
   AnchorMode,
-  DEFAULT_MAINTENANCE_REMINDER_OFFSETS,
   IntervalUnit,
   MaterialKind,
   MaterialMode,
@@ -222,14 +221,16 @@ export interface SchedulePreview {
 }
 
 /** The first date, its reminder days and the date after it, as the scheduler will compute them. */
-export function schedulePreview(draft: PlanDraft): SchedulePreview | null {
+export function schedulePreview(
+  draft: PlanDraft,
+  reminderOffsets: readonly number[],
+): SchedulePreview | null {
   const count = Number(draft.intervalCount);
   if (!draft.firstDueOn || !Number.isInteger(count) || count < 1) return null;
+  const earliestFirst = [...reminderOffsets].sort((a, b) => b - a);
   return {
     firstDueOn: draft.firstDueOn,
-    reminders: DEFAULT_MAINTENANCE_REMINDER_OFFSETS.map((offset) =>
-      addDays(draft.firstDueOn, -offset),
-    ),
+    reminders: earliestFirst.map((offset) => addDays(draft.firstDueOn, -offset)),
     nextDueOn: addInterval(draft.firstDueOn, draft.intervalUnit, count),
   };
 }

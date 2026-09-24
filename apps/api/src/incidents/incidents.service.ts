@@ -164,9 +164,11 @@ export class IncidentsService {
       );
 
     const place = session.assignmentId ? await this.placeOf(session.assignmentId) : null;
-    const machineId = cmd.equipmentId
-      ? await this.reportableEquipment(cmd.equipmentId, session.zoneId)
-      : null;
+    // A machine picked before the module was switched off is not an error; the report stands.
+    const machineId =
+      cmd.equipmentId && this.emergency.available()
+        ? await this.reportableEquipment(cmd.equipmentId, session.zoneId)
+        : null;
     let committedTransition: TransitionResponse | null = null;
     /** Registered inside the transaction, fetched from Telegram after it commits. */
 
@@ -366,6 +368,7 @@ export class IncidentsService {
   async reportableEquipmentFor(
     employeeId: string,
   ): Promise<{ id: string; code: string; name: string }[]> {
+    if (!this.emergency.available()) return [];
     const session = await this.shift.activeSession(employeeId);
     if (!session?.zoneId) return [];
     return this.zoneEquipment(session.zoneId);

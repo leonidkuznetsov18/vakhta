@@ -190,7 +190,11 @@ function MechanicFields({
           label={t.form.responsible}
           hint={t.form.mechanicHint}
           value={props.draft.responsibleEmployeeId}
-          onChange={(value) => props.set('responsibleEmployeeId', value)}
+          onChange={(value) => {
+            props.set('responsibleEmployeeId', value);
+            // FR-004: the backup is another mechanic, so it gives way to the new responsible one.
+            if (value === props.draft.backupEmployeeId) props.set('backupEmployeeId', '');
+          }}
           options={options}
           placeholder={t.form.choose}
           error={props.error('responsibleEmployeeId')}
@@ -200,7 +204,10 @@ function MechanicFields({
           label={t.form.backup}
           value={props.draft.backupEmployeeId}
           onChange={(value) => props.set('backupEmployeeId', value)}
-          options={[{ value: '', label: t.form.noBackup }, ...options]}
+          options={[
+            { value: '', label: t.form.noBackup },
+            ...options.filter((option) => option.value !== props.draft.responsibleEmployeeId),
+          ]}
         />
       </Grid>
       {mechanicChanged ? (

@@ -184,7 +184,8 @@ it('shows only delivered modules as named checkboxes and sends the changed state
   const save = vi.spyOn(controlApi, 'setModule').mockResolvedValue(tenant);
   await open('modules');
   const checkbox = await screen.findByRole('checkbox', { name: 'Admin panel' });
-  expect(screen.getAllByRole('checkbox')).toHaveLength(3);
+  expect(screen.getAllByRole('checkbox')).toHaveLength(4);
+  expect(screen.getByRole('checkbox', { name: 'Equipment maintenance' })).toBeTruthy();
   expect(checkbox.getAttribute('data-state')).toBe('checked');
   expect(screen.queryByText('Support bot')).toBeNull();
   expect(screen.queryByText('Photo inspection')).toBeNull();

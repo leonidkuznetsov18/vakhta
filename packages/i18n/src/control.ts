@@ -42,9 +42,17 @@ type TenantSettingName =
   | 'mediaNearDuplicateDistance'
   | 'mediaRetentionDays'
   | 'shiftReminderMinutes'
-  | 'appealWindowDays';
+  | 'appealWindowDays'
+  | 'maintenanceReminderFirstDays'
+  | 'maintenanceReminderSecondDays'
+  | 'maintenanceReminderLastDays'
+  | 'maintenanceReminderHour'
+  | 'emergencyAckSafetyMinutes'
+  | 'emergencyAckStoppedMinutes'
+  | 'emergencyAckFaultMinutes'
+  | 'emergencyEscalationGapMinutes';
 type TenantSettingGroupName =
-  'presence' | 'shift' | 'breaks' | 'incidents' | 'handover' | 'kiosk' | 'photos';
+  'presence' | 'shift' | 'breaks' | 'incidents' | 'handover' | 'kiosk' | 'photos' | 'maintenance';
 
 /** Control panel (Vakhta Control) texts: operators only, still trilingual (AGENTS.md). */
 export interface ControlMessages {
@@ -109,10 +117,10 @@ export interface ControlMessages {
   };
   readonly status: Record<'DRAFT' | 'PROVISIONING' | 'ACTIVE' | 'SUSPENDED' | 'ARCHIVED', string>;
   readonly modules: Record<
-    'ADMIN_PANEL' | 'WORKER_BOT' | 'QR_KIOSK' | 'SUPPORT_BOT' | 'PHOTO_INSPECTION',
+    'ADMIN_PANEL' | 'WORKER_BOT' | 'QR_KIOSK' | 'SUPPORT_BOT' | 'PHOTO_INSPECTION' | 'MAINTENANCE',
     string
   >;
-  readonly moduleHints: Record<'ADMIN_PANEL' | 'WORKER_BOT' | 'QR_KIOSK', string>;
+  readonly moduleHints: Record<'ADMIN_PANEL' | 'WORKER_BOT' | 'QR_KIOSK' | 'MAINTENANCE', string>;
   readonly reserved: string;
   readonly create: {
     title: string;
@@ -376,11 +384,14 @@ export const controlUk: ControlMessages = {
     QR_KIOSK: 'QR-кіоск',
     SUPPORT_BOT: 'Бот підтримки',
     PHOTO_INSPECTION: 'Фотоінспекція',
+    MAINTENANCE: 'Обслуговування обладнання',
   },
   moduleHints: {
     ADMIN_PANEL: 'Обов’язковий для роботи клієнта: майстри, планувальники, HR, звіти.',
     WORKER_BOT: 'Власний Telegram-бот клієнта; токен можна додати пізніше.',
     QR_KIOSK: 'Планшет на прохідній: відмітка приходу і відходу.',
+    MAINTENANCE:
+      'Реєстр обладнання, інструкції, планове ТО з нагадуваннями механікам і аварійні ремонти.',
   },
   reserved: 'Зарезервовано. З’явиться в наступній програмі.',
   create: {
@@ -567,6 +578,7 @@ export const controlUk: ControlMessages = {
       handover: 'Прибирання, передача, апеляції',
       kiosk: 'Кіоск',
       photos: 'Фото',
+      maintenance: 'Обслуговування обладнання',
     },
     labels: {
       arriveBeforeMinutes: 'Прихід до зміни, хв',
@@ -593,6 +605,14 @@ export const controlUk: ControlMessages = {
       mediaRetentionDays: 'Зберігати фото, днів',
       shiftReminderMinutes: 'Нагадування до зміни, хв',
       appealWindowDays: 'Строк апеляції, робочих днів',
+      maintenanceReminderFirstDays: 'Перше нагадування про ТО, днів до дати (0 — вимкнено)',
+      maintenanceReminderSecondDays: 'Друге нагадування про ТО, днів до дати (0 — вимкнено)',
+      maintenanceReminderLastDays: 'Останнє нагадування про ТО, днів до дати (0 — вимкнено)',
+      maintenanceReminderHour: 'Година нагадувань про ТО (0–23, час площадки)',
+      emergencyAckSafetyMinutes: 'Прийняти аварійний ремонт: загроза людям (P0), хв',
+      emergencyAckStoppedMinutes: 'Прийняти аварійний ремонт: зупинка (P1), хв',
+      emergencyAckFaultMinutes: 'Прийняти аварійний ремонт: несправність без зупинки (P2), хв',
+      emergencyEscalationGapMinutes: 'Ескалація неприйнятого ремонту в панель, хв',
     },
     defaultValue: 'за замовчуванням: {value}',
     overridden: 'змінено',
@@ -695,11 +715,14 @@ export const controlEn: ControlMessages = {
     QR_KIOSK: 'QR kiosk',
     SUPPORT_BOT: 'Support bot',
     PHOTO_INSPECTION: 'Photo inspection',
+    MAINTENANCE: 'Equipment maintenance',
   },
   moduleHints: {
     ADMIN_PANEL: 'Required for a usable client: masters, planners, HR, reports.',
     WORKER_BOT: 'The client’s own Telegram bot; the token can be added later.',
     QR_KIOSK: 'The tablet at the gate: arrival and departure.',
+    MAINTENANCE:
+      'Equipment register, manuals, planned maintenance with reminders to mechanics and emergency repairs.',
   },
   reserved: 'Reserved. Arrives in a later program.',
   create: {
@@ -886,6 +909,7 @@ export const controlEn: ControlMessages = {
       handover: 'Cleaning, handover, appeals',
       kiosk: 'Kiosk',
       photos: 'Photos',
+      maintenance: 'Equipment maintenance',
     },
     labels: {
       arriveBeforeMinutes: 'Arrival before the shift, min',
@@ -912,6 +936,14 @@ export const controlEn: ControlMessages = {
       mediaRetentionDays: 'Keep photos, days',
       shiftReminderMinutes: 'Reminder before a shift, min',
       appealWindowDays: 'Appeal window, working days',
+      maintenanceReminderFirstDays: 'First maintenance reminder, days before (0 = off)',
+      maintenanceReminderSecondDays: 'Second maintenance reminder, days before (0 = off)',
+      maintenanceReminderLastDays: 'Last maintenance reminder, days before (0 = off)',
+      maintenanceReminderHour: 'Maintenance reminder hour (0–23, site time)',
+      emergencyAckSafetyMinutes: 'Accept an emergency repair: danger to people (P0), min',
+      emergencyAckStoppedMinutes: 'Accept an emergency repair: work stopped (P1), min',
+      emergencyAckFaultMinutes: 'Accept an emergency repair: fault without a stop (P2), min',
+      emergencyEscalationGapMinutes: 'Escalate an unaccepted repair to the panel after, min',
     },
     defaultValue: 'default: {value}',
     overridden: 'changed',
@@ -1013,11 +1045,14 @@ export const controlRu: ControlMessages = {
     QR_KIOSK: 'QR-киоск',
     SUPPORT_BOT: 'Бот поддержки',
     PHOTO_INSPECTION: 'Фотоинспекция',
+    MAINTENANCE: 'Обслуживание оборудования',
   },
   moduleHints: {
     ADMIN_PANEL: 'Обязателен для работы клиента: мастера, планировщики, HR, отчёты.',
     WORKER_BOT: 'Собственный Telegram-бот клиента; токен можно добавить позже.',
     QR_KIOSK: 'Планшет на проходной: отметка прихода и ухода.',
+    MAINTENANCE:
+      'Реестр оборудования, инструкции, плановое ТО с напоминаниями механикам и аварийные ремонты.',
   },
   reserved: 'Зарезервировано. Появится в следующей программе.',
   create: {
@@ -1202,6 +1237,7 @@ export const controlRu: ControlMessages = {
       handover: 'Уборка, передача, апелляции',
       kiosk: 'Киоск',
       photos: 'Фото',
+      maintenance: 'Обслуживание оборудования',
     },
     labels: {
       arriveBeforeMinutes: 'Приход до смены, мин',
@@ -1228,6 +1264,14 @@ export const controlRu: ControlMessages = {
       mediaRetentionDays: 'Хранить фото, дней',
       shiftReminderMinutes: 'Напоминание до смены, мин',
       appealWindowDays: 'Срок апелляции, рабочих дней',
+      maintenanceReminderFirstDays: 'Первое напоминание о ТО, дней до даты (0 — выключено)',
+      maintenanceReminderSecondDays: 'Второе напоминание о ТО, дней до даты (0 — выключено)',
+      maintenanceReminderLastDays: 'Последнее напоминание о ТО, дней до даты (0 — выключено)',
+      maintenanceReminderHour: 'Час напоминаний о ТО (0–23, время площадки)',
+      emergencyAckSafetyMinutes: 'Принять аварийный ремонт: угроза людям (P0), мин',
+      emergencyAckStoppedMinutes: 'Принять аварийный ремонт: остановка (P1), мин',
+      emergencyAckFaultMinutes: 'Принять аварийный ремонт: неисправность без остановки (P2), мин',
+      emergencyEscalationGapMinutes: 'Эскалация непринятого ремонта в панель, мин',
     },
     defaultValue: 'по умолчанию: {value}',
     overridden: 'изменено',

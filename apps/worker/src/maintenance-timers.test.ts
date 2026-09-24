@@ -26,12 +26,14 @@ import {
   WorkStatus,
   WorkType,
 } from '@vakhta/domain';
+import { MaintenanceTimerKind } from '@vakhta/contracts';
 import { startTestDatabase, type TestDatabase } from '../test/db.js';
 import {
   handleEmergencyAckWithin,
   handleEmergencyEscalationWithin,
   handleMaintenanceReminderWithin,
 } from './timers/maintenance.js';
+import { executeTimerWithin } from './timers/tasks.js';
 
 const PLANNED_ON = '2026-10-15';
 const FIRE_AT = '2026-10-08T06:00:00.000Z';
@@ -217,6 +219,22 @@ describe('worker: maintenance reminders and emergency escalation (spec 014)', ()
       const [sent] = await outbox();
       expect(sent).toMatchObject({ template: 'MAINTENANCE_REMINDER', recipientId: mechanic });
       expect(JSON.stringify(sent?.payload)).toContain('FB-100');
+    });
+
+    it('sends nothing while the tenant has the maintenance module off (FR-001)', async () => {
+      const order = await plannedOrder();
+      const payload = {
+        workOrderId: order.id,
+        plannedOn: PLANNED_ON,
+        offsetDays: 7,
+        fireAt: FIRE_AT,
+      };
+      const task = { kind: MaintenanceTimerKind.MAINTENANCE_REMINDER, payload };
+      const off = { autoCloseGraceMinutes: 120, maintenanceEnabled: false };
+      expect(await within((tx) => executeTimerWithin(tx, task, AFTER_FIRE, off))).toBe('stale');
+      expect(await outbox()).toEqual([]);
+      const on = { ...off, maintenanceEnabled: true };
+      expect(await within((tx) => executeTimerWithin(tx, task, AFTER_FIRE, on))).toBe('queued');
     });
 
     it('stays silent for re-planned, started or not yet due work', async () => {

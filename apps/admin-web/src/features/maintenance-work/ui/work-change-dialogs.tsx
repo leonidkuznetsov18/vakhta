@@ -16,7 +16,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { describeError } from '@/errors';
 import { notifySuccess } from '@/lib/toast';
 
-export const ChangeDialog = { NONE: 'NONE', REPLAN: 'REPLAN', REASSIGN: 'REASSIGN' } as const;
+export const ChangeDialog = {
+  NONE: 'NONE',
+  REPLAN: 'REPLAN',
+  REASSIGN: 'REASSIGN',
+  RECORD: 'RECORD',
+} as const;
 export type ChangeDialog = (typeof ChangeDialog)[keyof typeof ChangeDialog];
 
 function ReasonField({

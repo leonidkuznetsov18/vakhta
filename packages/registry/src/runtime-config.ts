@@ -116,7 +116,12 @@ export function tenantFromEnv(env: EnvTenantInput): TenantRuntimeConfig {
 }
 
 function envModules(env: EnvTenantInput): TenantModule[] {
-  const modules: TenantModule[] = [Module.ADMIN_PANEL, Module.WORKER_BOT, Module.QR_KIOSK];
+  const modules: TenantModule[] = [
+    Module.ADMIN_PANEL,
+    Module.WORKER_BOT,
+    Module.QR_KIOSK,
+    Module.MAINTENANCE,
+  ];
   if (env.TELEGRAM_SUPPORT_BOT_TOKEN) modules.push(Module.SUPPORT_BOT);
   return modules;
 }
