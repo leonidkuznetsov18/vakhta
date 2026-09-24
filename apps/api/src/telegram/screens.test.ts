@@ -4,6 +4,7 @@ import { messages } from '@vakhta/i18n';
 import { USER_SHIFT_ACTIONS } from '@vakhta/domain';
 import {
   checkInPromptScreen,
+  isBotShiftAction,
   reasonPickerScreen,
   shiftScreen,
   incidentPhotoScreen,
@@ -124,6 +125,48 @@ describe('shift screen in the bot (spec 4.4, FR-UI-01)', () => {
       'x',
     );
     expect(ready.text).toContain('Отсканируйте QR на выходе');
+  });
+
+  it('the bot accepts exactly the shift actions its screens draw, never a close', () => {
+    const states = [
+      'NOT_STARTED',
+      'PREPARATION',
+      'WORKING',
+      'BREAK',
+      'MEAL',
+      'SERVICE_TIME',
+      'DOWNTIME',
+      'CLEANING',
+      'HANDOVER',
+      'READY_TO_CLOSE',
+    ] as const;
+    const session = view().session;
+    if (!session) throw new Error('Missing fixture session');
+    const drawn = states.flatMap((state) =>
+      buttons(
+        shiftScreen(
+          t,
+          view({
+            session: { ...session, state },
+            allowedActions: [...USER_SHIFT_ACTIONS],
+            offerResumeIntoDowntime: true,
+            checklistAvailable: false,
+          }),
+          'x',
+        ),
+      ).flat(),
+    );
+    const pickers = (['DOWNTIME', 'EMERGENCY'] as const).flatMap((kind) =>
+      buttons(reasonPickerScreen(t, view(), kind) as ReturnType<typeof shiftScreen>).flat(),
+    );
+    const actions = [...drawn, ...pickers]
+      .map((data) => /^sh:([A-Z_]+):\d+/.exec(data)?.[1])
+      .filter((action): action is string => action !== undefined);
+    expect(actions.length).toBeGreaterThan(0);
+    expect(actions.every(isBotShiftAction)).toBe(true);
+    // Callback data is client-controlled: a crafted close or auto-close never reaches the service.
+    expect(isBotShiftAction('CLOSE_SHIFT')).toBe(false);
+    expect(isBotShiftAction('AUTO_CLOSE')).toBe(false);
   });
 
   it('preparation asks for the zone, then offers only work and the plan', () => {

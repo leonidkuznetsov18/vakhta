@@ -11,7 +11,7 @@ import {
   normalizeActivationCode,
   resolveLocale,
 } from '@vakhta/domain';
-import { REQUEST_TYPES, SHIFT_ACTIONS, type RequestType, type ShiftAction } from '@vakhta/domain';
+import { REQUEST_TYPES, type RequestType } from '@vakhta/domain';
 import { format, messages, type Messages } from '@vakhta/i18n';
 import { employeeActor } from '../common/actor.js';
 import type { AttendanceService } from '../attendance/attendance.service.js';
@@ -51,6 +51,7 @@ import {
   incidentReasonScreen,
   incidentResultScreen,
   incidentStoppedScreen,
+  isBotShiftAction,
   counterpartScreen,
   languageScreen,
   myScoresScreen,
@@ -150,10 +151,6 @@ interface PendingReport {
   readonly requiresPhoto: boolean;
 }
 const PENDING_TTL_SECONDS = 600;
-
-function isShiftAction(value: string): value is ShiftAction {
-  return (SHIFT_ACTIONS as readonly string[]).includes(value);
-}
 
 export interface BotDeps {
   /** Public address of the user guide, if published. */
@@ -1173,7 +1170,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       return;
     }
     const action = ctx.match[1] ?? '';
-    if (!isShiftAction(action)) {
+    if (!isBotShiftAction(action)) {
       await ctx.answerCallbackQuery({ text: ctx.t.bot.notReady });
       return;
     }

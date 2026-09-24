@@ -15,6 +15,7 @@ import {
   type ActivityInterval,
 } from './intervals.js';
 import {
+  ACTIVE_STATES,
   RESUMABLE_STATES,
   SHIFT_STATES,
   TEMPORARY_STATES,
@@ -294,6 +295,7 @@ const ctxArb: fc.Arbitrary<TransitionContext> = fc.record(
     zoneAccepted: fc.boolean(),
     handoverComplete: fc.boolean(),
     exitQrScanned: fc.boolean(),
+    systemAutoClose: fc.boolean(),
     reasonCode: fc.constantFrom('BREAKDOWN', 'NO_MATERIAL', 'OTHER', ''),
     resumeIntoDowntime: fc.boolean(),
   },
@@ -399,6 +401,19 @@ describe('C4 (property-based)', () => {
       fc.property(ctxArb, (ctx) => {
         const r = transition(at('READY_TO_CLOSE'), 'CLOSE_SHIFT', ctx);
         return r.ok === (ctx.exitQrScanned === true || ctx.masterOverride === true);
+      }),
+    );
+  });
+});
+
+describe('AUTO_CLOSE is system-only', () => {
+  it('closes an active shift only for the end-of-day job, whatever other facts are present', () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...ACTIVE_STATES), ctxArb, (state, ctx) => {
+        const snapshot = isTemporary(state) ? at(state, 'WORKING') : at(state);
+        const r = transition(snapshot, 'AUTO_CLOSE', ctx);
+        expect(r.ok).toBe(ctx.systemAutoClose === true);
+        if (!r.ok) expect(r.error).toBe('ACTION_NOT_ALLOWED');
       }),
     );
   });

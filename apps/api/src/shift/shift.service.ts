@@ -131,6 +131,8 @@ export interface CommandMeta {
   readonly masterOverride?: boolean;
   /** Set only by the exit QR departure, which records the DEPART in the same transaction (C4). */
   readonly exitQrScanned?: boolean;
+  /** Set only by the end-of-day closure (closeDueWithin): AUTO_CLOSE is never a person's command. */
+  readonly systemAutoClose?: boolean;
   readonly now?: Date;
   /** Accounting boundary; observed execution time remains `now`. System auto-close only. */
   readonly effectiveEndedAt?: Date;
@@ -694,7 +696,7 @@ export class ShiftService {
     const planned = await this.recoverPlanWithin(tx, session, now);
     // Enclosing incident/handover transactions may roll back; reject late commands without
     // claiming that their transaction committed the independent scheduled closure.
-    if (cmd.action !== 'AUTO_CLOSE' && this.isPastDeadline(planned, now))
+    if (this.isPastDeadline(planned, now))
       return this.fail('NO_ACTIVE_SHIFT', await this.sessionView(tx, session.id), now);
     return this.apply(tx, planned, cmd, { ...meta, now });
   }
@@ -1261,7 +1263,7 @@ export class ShiftService {
   private async context(
     tx: DbOrTx,
     session: SessionRow,
-    meta: Pick<CommandMeta, 'masterOverride' | 'exitQrScanned'>,
+    meta: Pick<CommandMeta, 'masterOverride' | 'exitQrScanned' | 'systemAutoClose'>,
     cmd?: CommandInput,
   ): Promise<TransitionContext> {
     const presence = await this.attendance.openPresence(session.employeeId, tx);
@@ -1269,6 +1271,7 @@ export class ShiftService {
       presenceConfirmed: presence !== null,
       masterOverride: meta.masterOverride === true,
       exitQrScanned: meta.exitQrScanned === true,
+      systemAutoClose: meta.systemAutoClose === true,
       zoneAccepted: session.zoneId === null || session.zoneAcceptedAt !== null,
       handoverComplete:
         !(await this.handovers.reportRequired(tx, session)) ||
@@ -1541,6 +1544,7 @@ export class ShiftService {
         actor: { type: 'SYSTEM', id: null, role: 'SYSTEM' },
         source: 'SYSTEM',
         masterOverride: true,
+        systemAutoClose: true,
         now,
         ...(session.planEndAt ? { effectiveEndedAt: session.planEndAt } : {}),
       },

@@ -34,6 +34,8 @@ export interface TransitionContext {
   readonly handoverComplete?: boolean;
   /** The command comes from the exit QR scan, which records the departure in the same transaction. */
   readonly exitQrScanned?: boolean;
+  /** The command is the end-of-day job's closure; no person, master included, can issue AUTO_CLOSE. */
+  readonly systemAutoClose?: boolean;
   /** Код причини; обов'язковий для простою (FR-DWN-01) і екстреного виходу. */
   readonly reasonCode?: string;
   /** Після обіду або перерви перешкода триває: повернутись у DOWNTIME (FR-DWN-06). */
@@ -127,6 +129,9 @@ const requireMaster: Guard = (ctx, snapshot) => {
  */
 const requireExitQr: Guard = (ctx) =>
   ctx.exitQrScanned === true || ctx.masterOverride === true ? null : 'EXIT_QR_REQUIRED';
+
+/** Callback data is client-controlled, so a crafted AUTO_CLOSE must not close a shift from any state. */
+const requireSystem: Guard = (ctx) => (ctx.systemAutoClose === true ? null : 'ACTION_NOT_ALLOWED');
 
 const requireReason: Guard = (ctx) =>
   typeof ctx.reasonCode === 'string' && ctx.reasonCode.trim().length > 0 ? null : 'REASON_REQUIRED';
@@ -236,6 +241,7 @@ export const TRANSITION_RULES: readonly Rule[] = [
     action: 'AUTO_CLOSE',
     from: ACTIVE_STATES,
     to: 'SHIFT_CLOSED',
+    guard: requireSystem,
     resume: 'clear',
     effects: ['FINALIZE_SHIFT'],
   },

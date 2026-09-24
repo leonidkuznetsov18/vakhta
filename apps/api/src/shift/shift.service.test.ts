@@ -597,6 +597,33 @@ describe('shift: машина станів зміни в транзакції (�
     expect(await testDb.db.select().from(presenceSessions)).toHaveLength(1);
   });
 
+  it('AUTO_CLOSE is system-only: an employee or master command is refused and changes nothing', async () => {
+    await arrive(petrova);
+    await service.start(petrova, { idempotencyKey: key() }, meta(petrova));
+    await act(petrova, 'START_WORK');
+    const before = await service.activeSession(petrova);
+    if (!before) throw new Error('Missing shift');
+    // A crafted sh:AUTO_CLOSE:<version> callback reaches the service as an employee command.
+    expect(await act(petrova, 'AUTO_CLOSE')).toMatchObject({
+      ok: false,
+      error: 'ACTION_NOT_ALLOWED',
+      session: { state: 'WORKING', version: before.version },
+    });
+    const master = await service.masterTransition(
+      before.id,
+      { action: 'AUTO_CLOSE', expectedVersion: before.version, idempotencyKey: key() },
+      MASTER,
+    );
+    expect(master).toMatchObject({ ok: false, error: 'ACTION_NOT_ALLOWED' });
+    const after = await service.activeSession(petrova);
+    expect(after).toMatchObject({ state: 'WORKING', version: before.version, endedAt: null });
+    const events = await testDb.db
+      .select()
+      .from(domainEvents)
+      .where(eq(domainEvents.type, 'SHIFT_AUTO_CLOSED'));
+    expect(events).toHaveLength(0);
+  });
+
   it('кінець дня: зміну, що лишилась відкритою після планового кінця, закриває система', async () => {
     await arrive(ivanov);
     const started = await service.start(

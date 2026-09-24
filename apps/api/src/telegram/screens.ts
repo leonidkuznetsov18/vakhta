@@ -316,6 +316,35 @@ export const SHIFT_CALLBACK = {
 } as const;
 
 /**
+ * The shift actions the bot's own screens can draw (shift keyboard and reason picker). Callback data
+ * is client-controlled, so the bot refuses anything else: CLOSE_SHIFT belongs to the exit QR and the
+ * master (C4), AUTO_CLOSE to the end-of-day job.
+ */
+export const BOT_SHIFT_ACTIONS = [
+  'START_SHIFT',
+  'START_WORK',
+  'START_BREAK',
+  'START_MEAL',
+  'START_SERVICE_TIME',
+  'START_DOWNTIME',
+  'RESUME',
+  'START_CLEANING',
+  'CLEANING_DONE',
+  'BACK_TO_CLEANING',
+  'BACK_TO_WORK',
+  'SUBMIT_HANDOVER',
+  'CONTINUE_WORK',
+  'EMERGENCY_EXIT',
+] as const satisfies readonly ShiftAction[];
+export type BotShiftAction = (typeof BOT_SHIFT_ACTIONS)[number];
+
+const BOT_SHIFT_ACTION_SET: ReadonlySet<string> = new Set(BOT_SHIFT_ACTIONS);
+
+export function isBotShiftAction(value: string): value is BotShiftAction {
+  return BOT_SHIFT_ACTION_SET.has(value);
+}
+
+/**
  * What the employee reads above the buttons (2026-09-08): one short block per state, as in the
  * customer's mockup. Only the state actually in front of them is described — no running commentary
  * of plan, zone and status on every screen.
