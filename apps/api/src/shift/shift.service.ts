@@ -129,6 +129,8 @@ export interface CommandMeta {
   readonly source: EventSource;
   /** Майстер оформив резервне рішення: guard-и присутності, зони й передачі пропускаються. */
   readonly masterOverride?: boolean;
+  /** Set only by the exit QR departure, which records the DEPART in the same transaction (C4). */
+  readonly exitQrScanned?: boolean;
   readonly now?: Date;
   /** Accounting boundary; observed execution time remains `now`. System auto-close only. */
   readonly effectiveEndedAt?: Date;
@@ -619,7 +621,7 @@ export class ShiftService {
                 expectedVersion: session.version,
                 idempotencyKey: `qr-exit:${idempotencyKey}`,
               },
-              { actor: employeeActor(employeeId), source: 'TELEGRAM', now },
+              { actor: employeeActor(employeeId), source: 'TELEGRAM', exitQrScanned: true, now },
             )
           : null;
         if (closed && !closed.ok) {
@@ -1259,13 +1261,14 @@ export class ShiftService {
   private async context(
     tx: DbOrTx,
     session: SessionRow,
-    meta: Pick<CommandMeta, 'masterOverride'>,
+    meta: Pick<CommandMeta, 'masterOverride' | 'exitQrScanned'>,
     cmd?: CommandInput,
   ): Promise<TransitionContext> {
     const presence = await this.attendance.openPresence(session.employeeId, tx);
     return {
       presenceConfirmed: presence !== null,
       masterOverride: meta.masterOverride === true,
+      exitQrScanned: meta.exitQrScanned === true,
       zoneAccepted: session.zoneId === null || session.zoneAcceptedAt !== null,
       handoverComplete:
         !(await this.handovers.reportRequired(tx, session)) ||

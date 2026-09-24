@@ -269,7 +269,7 @@ describe('handover: прибирання, чек-лист, фото, перед�
 
   async function act(
     employeeId: string,
-    action: 'START_WORK' | 'START_CLEANING' | 'CLEANING_DONE' | 'CONTINUE_WORK' | 'CLOSE_SHIFT',
+    action: 'START_WORK' | 'START_CLEANING' | 'CLEANING_DONE' | 'CONTINUE_WORK',
   ) {
     const current = await shift.activeSession(employeeId);
     const r = await shift.transition(
@@ -650,7 +650,14 @@ describe('handover: прибирання, чек-лист, фото, перед�
       employeeActor(dayEmployee),
     );
     expect(again.ok).toBe(true);
-    expect((await act(dayEmployee, 'CLOSE_SHIFT')).ok).toBe(true);
+    const ready = await shift.activeSession(dayEmployee);
+    if (!ready) throw new Error('Missing shift');
+    const closed = await shift.transition(
+      dayEmployee,
+      { action: 'CLOSE_SHIFT', expectedVersion: ready.version, idempotencyKey: key() },
+      { actor: employeeActor(dayEmployee), source: 'TELEGRAM', exitQrScanned: true },
+    );
+    expect(closed.ok).toBe(true);
   });
 
   it('T-29/T-30/T-32: власну передачу приймати не можна; зауваження вимагає фото, критичне створює інцидент; майстер вирішує', async () => {

@@ -329,7 +329,19 @@ describe('shift: машина станів зміни в транзакції (�
       ok: true,
       session: { state: 'READY_TO_CLOSE' },
     });
-    const closed = await act(petrova, 'CLOSE_SHIFT');
+    // C4: a crafted bot callback cannot close the shift; the exit QR scan does.
+    expect(await act(petrova, 'CLOSE_SHIFT')).toMatchObject({
+      ok: false,
+      error: 'EXIT_QR_REQUIRED',
+      session: { state: 'READY_TO_CLOSE' },
+    });
+    const ready = await service.activeSession(petrova);
+    if (!ready) throw new Error('Missing shift');
+    const closed = await service.transition(
+      petrova,
+      { action: 'CLOSE_SHIFT', expectedVersion: ready.version, idempotencyKey: key() },
+      { ...meta(petrova), exitQrScanned: true },
+    );
     expect(closed).toMatchObject({ ok: true, session: { state: 'SHIFT_CLOSED' } });
     if (!closed.ok) return;
     expect(closed.session.endedAt).not.toBeNull();

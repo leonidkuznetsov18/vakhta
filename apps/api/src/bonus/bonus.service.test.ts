@@ -235,7 +235,8 @@ describe('bonus: оцінка зміни, коригування, закритт
       const r = await shift.transition(
         ivanov,
         { action, expectedVersion: current!.version, idempotencyKey: key() },
-        { actor: employeeActor(ivanov), source: 'TELEGRAM' },
+        // Only CLOSE_SHIFT reads the flag: the employee closes the shift by the exit QR scan (C4).
+        { actor: employeeActor(ivanov), source: 'TELEGRAM', exitQrScanned: true },
       );
       if (!r.ok)
         throw new Error(`${action} відхилено: ${r.error} (стан ${r.session?.state ?? 'немає'})`);

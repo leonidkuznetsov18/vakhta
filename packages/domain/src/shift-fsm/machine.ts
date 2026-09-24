@@ -32,6 +32,8 @@ export interface TransitionContext {
   readonly zoneAccepted?: boolean;
   /** Звіт передачі заповнений або оформлено виняток (FR-TIME-04). */
   readonly handoverComplete?: boolean;
+  /** The command comes from the exit QR scan, which records the departure in the same transaction. */
+  readonly exitQrScanned?: boolean;
   /** Код причини; обов'язковий для простою (FR-DWN-01) і екстреного виходу. */
   readonly reasonCode?: string;
   /** Після обіду або перерви перешкода триває: повернутись у DOWNTIME (FR-DWN-06). */
@@ -62,6 +64,7 @@ export type TransitionErrorCode =
   | 'HANDOVER_INCOMPLETE'
   | 'REASON_REQUIRED'
   | 'MASTER_ONLY'
+  | 'EXIT_QR_REQUIRED'
   | 'RESUME_STATE_MISSING';
 
 export type TransitionResult =
@@ -117,6 +120,13 @@ const requireMaster: Guard = (ctx, snapshot) => {
   if (ctx.masterOverride === true) return null;
   return isTemporary(snapshot.state) ? 'TEMPORARY_STATE_OPEN' : 'MASTER_ONLY';
 };
+
+/**
+ * An employee never ends a shift with a button (C4): the bot's callback data is client-controlled,
+ * so the rule is enforced here rather than by leaving the button off the keyboard.
+ */
+const requireExitQr: Guard = (ctx) =>
+  ctx.exitQrScanned === true || ctx.masterOverride === true ? null : 'EXIT_QR_REQUIRED';
 
 const requireReason: Guard = (ctx) =>
   typeof ctx.reasonCode === 'string' && ctx.reasonCode.trim().length > 0 ? null : 'REASON_REQUIRED';
@@ -206,6 +216,7 @@ export const TRANSITION_RULES: readonly Rule[] = [
     action: 'CLOSE_SHIFT',
     from: ['READY_TO_CLOSE'],
     to: 'SHIFT_CLOSED',
+    guard: requireExitQr,
     resume: 'clear',
     effects: ['FINALIZE_SHIFT'],
   },

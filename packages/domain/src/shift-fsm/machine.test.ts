@@ -62,7 +62,7 @@ describe('основний цикл зміни (ТЗ 4.2, AC-04)', () => {
       ['START_CLEANING'],
       ['CLEANING_DONE'],
       ['SUBMIT_HANDOVER'],
-      ['CLOSE_SHIFT'],
+      ['CLOSE_SHIFT', { exitQrScanned: true }],
     ]);
     expect(end).toEqual(at('SHIFT_CLOSED'));
   });
@@ -167,6 +167,21 @@ describe('тимчасові стани і resume_state (FR-BRK-01, ТЗ 4.4)', 
     });
     expect(
       transition(at('MEAL', 'WORKING'), 'CLOSE_SHIFT', { ...FULL_CTX, masterOverride: true }),
+    ).toMatchObject({ ok: true, next: { state: 'SHIFT_CLOSED' } });
+  });
+
+  it('C4: after the report only the exit QR or a master closes the shift', () => {
+    // The bot draws no close button, but callback data is client-controlled: the rule has to hold here.
+    expect(transition(at('READY_TO_CLOSE'), 'CLOSE_SHIFT', FULL_CTX)).toMatchObject({
+      ok: false,
+      error: 'EXIT_QR_REQUIRED',
+    });
+    expect(allowedActions(at('READY_TO_CLOSE'), FULL_CTX)).not.toContain('CLOSE_SHIFT');
+    expect(
+      transition(at('READY_TO_CLOSE'), 'CLOSE_SHIFT', { ...FULL_CTX, exitQrScanned: true }),
+    ).toMatchObject({ ok: true, next: { state: 'SHIFT_CLOSED' } });
+    expect(
+      transition(at('READY_TO_CLOSE'), 'CLOSE_SHIFT', { ...FULL_CTX, masterOverride: true }),
     ).toMatchObject({ ok: true, next: { state: 'SHIFT_CLOSED' } });
   });
 
@@ -278,6 +293,7 @@ const ctxArb: fc.Arbitrary<TransitionContext> = fc.record(
     masterOverride: fc.boolean(),
     zoneAccepted: fc.boolean(),
     handoverComplete: fc.boolean(),
+    exitQrScanned: fc.boolean(),
     reasonCode: fc.constantFrom('BREAKDOWN', 'NO_MATERIAL', 'OTHER', ''),
     resumeIntoDowntime: fc.boolean(),
   },
@@ -373,6 +389,17 @@ describe('інваріанти FSM (property-based, ТЗ 4.5)', () => {
           expect(r.ok && r.next).toEqual(at(resume));
         },
       ),
+    );
+  });
+});
+
+describe('C4 (property-based)', () => {
+  it('CLOSE_SHIFT from READY_TO_CLOSE succeeds exactly when the exit QR or a master stands behind it', () => {
+    fc.assert(
+      fc.property(ctxArb, (ctx) => {
+        const r = transition(at('READY_TO_CLOSE'), 'CLOSE_SHIFT', ctx);
+        return r.ok === (ctx.exitQrScanned === true || ctx.masterOverride === true);
+      }),
     );
   });
 });

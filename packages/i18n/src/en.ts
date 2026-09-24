@@ -162,6 +162,7 @@ export const en: Messages = {
     RESUME_STATE_MISSING: 'Could not determine where to return. Contact the shift master.',
     MASTER_ONLY:
       'Only a shift master can close a shift before its report is sent — from Operations, with a comment. An employee closes a shift by scanning the exit QR.',
+    EXIT_QR_REQUIRED: 'The shift closes when you scan the exit QR.',
     VERSION_CONFLICT:
       'The state has already changed. The screen is refreshed, choose the action again.',
     NO_ACTIVE_SHIFT: 'There is no open shift.',
