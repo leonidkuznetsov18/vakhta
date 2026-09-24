@@ -212,6 +212,7 @@ function services(testDb: TestDatabase) {
     bot,
     store,
     incidents,
+    requests,
     schedule,
     org,
     templates: new TemplatesService(db, events, audit, org),
@@ -632,6 +633,43 @@ describe('Telegram departure callback: QR and shift/presence consistency', () =>
       vi.useRealTimers();
     }
   });
+  it('a blocked employee cannot finish a pending request through the kept Telegram link', async () => {
+    const pendingKey = `request:pending:${TELEGRAM_USER_ID}`;
+    await app.store.set(
+      pendingKey,
+      JSON.stringify({ type: 'SICK', step: 'medical', periodFrom: '2026-10-01' }),
+      300,
+    );
+    await testDb.db
+      .update(employees)
+      .set({ status: 'BLOCKED' })
+      .where(eq(employees.id, employeeId));
+    const create = vi.spyOn(app.requests, 'create');
+    const update = departureUpdate('unused');
+    if (!update.callback_query) throw new Error('Missing callback fixture');
+    await app.bot.handleUpdate({
+      ...update,
+      update_id: 85001,
+      callback_query: { ...update.callback_query, data: 'rq:skip' },
+    });
+    const message = {
+      message_id: 78,
+      date: Math.floor(Date.now() / 1000),
+      from: { id: TELEGRAM_USER_ID, is_bot: false, first_name: 'Test employee' },
+      chat: { id: TELEGRAM_USER_ID, type: 'private', first_name: 'Test employee' },
+    } as const;
+    await app.bot.handleUpdate({
+      update_id: 85002,
+      message: {
+        ...message,
+        photo: [{ file_id: 'medical', file_unique_id: 'medical-u', width: 800, height: 600 }],
+      },
+    });
+    await app.bot.handleUpdate({ update_id: 85003, message: { ...message, text: 'Sick note' } });
+    expect(create).not.toHaveBeenCalled();
+    expect(await app.store.get(pendingKey)).not.toBeNull();
+  });
+
   it.each([undefined, 'Belt is stuck'])(
     'requires the incident photo and keeps optional caption %s',
     async (caption) => {

@@ -570,6 +570,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
 
   bot.callbackQuery(/^inc:skip$/, async (ctx) => {
     await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
     const pending = await readPending(ctx);
     if (!pending) return edit(ctx, { text: ctx.t.incidents.expired });
     if (pending.requiresPhoto) return edit(ctx, incidentPhotoScreen(ctx.t, true));
@@ -637,7 +638,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     if (ctx.from) await deps.store.del(hvKey(ctx.from.id));
   }
   async function showHandover(ctx: BotContext): Promise<void> {
-    if (!ctx.employee) return;
+    if (!guardEmployee(ctx)) return;
     const view = await deps.handover.current(ctx.employee.id);
     if (!view) return edit(ctx, await buildHome(ctx));
     await edit(ctx, handoverScreen(ctx.t, view, ''));
@@ -700,6 +701,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
 
   bot.callbackQuery(/^hv:rc:([A-Z][A-Z0-9_]{1,63})$/, async (ctx) => {
     await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
     const pending = await readHv(ctx);
     if (pending?.kind !== 'remark') return showHandover(ctx);
     await writeHv(ctx, { ...pending, category: ctx.match[1] ?? '', step: 'text' });
@@ -708,6 +710,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
 
   bot.callbackQuery(/^hv:safe:(1|0)$/, async (ctx) => {
     await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
     const pending = await readHv(ctx);
     if (pending?.kind !== 'remark') return showHandover(ctx);
     await writeHv(ctx, { ...pending, safeToWork: ctx.match[1] === '1', step: 'needs' });
@@ -848,7 +851,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     pending: PendingRequest,
     render: (s: Screen) => Promise<void>,
   ): Promise<void> {
-    if (!ctx.employee) return;
+    if (!guardEmployee(ctx)) return;
     await writeRq(ctx, pending);
     const t = ctx.t;
     switch (pending.step) {
@@ -929,7 +932,8 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
     pending: PendingRequest,
     medical?: { fileId: string; uniqueId: string },
   ): Promise<void> {
-    if (!ctx.employee) return;
+    // A blocked employee keeps the Telegram link; a pending flow must not outlive the access.
+    if (!guardEmployee(ctx)) return;
     const idempotencyKey = `tg:${ctx.update.update_id}`;
     const comment = pending.comment ?? '';
     const p = pending;
@@ -1125,6 +1129,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
 
   bot.callbackQuery(/^rq:skip$/, async (ctx) => {
     await ctx.answerCallbackQuery();
+    if (!guardEmployee(ctx)) return;
     const pending = await readRq(ctx);
     if (!pending) return edit(ctx, requestMenuScreen(ctx.t));
     await ctx.editMessageReplyMarkup().catch(() => undefined);
@@ -1331,13 +1336,15 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       if (code) return startActivation(ctx, code);
       return show(ctx, { text: ctx.t.bot.askCode });
     }
+    // A blocked employee keeps the Telegram link; unfinished flows must not complete through it.
+    if (!guardEmployee(ctx)) return show(ctx, await buildHome(ctx));
     const pending = await readPending(ctx);
     if (pending?.step === 'comment') {
       const comment = ctx.message.text.trim().slice(0, 2000);
       return nextStep(ctx, { ...pending, comment, step: pending.requiresPhoto ? 'photo' : 'stop' });
     }
     const rq = await readRq(ctx);
-    if (rq && ctx.employee) {
+    if (rq) {
       const text = ctx.message.text.trim().slice(0, 2000);
       if (rq.step === 'period' || rq.step === 'date') {
         const period = parsePeriod(text, new Date());
@@ -1361,7 +1368,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       }
     }
     const hv = await readHv(ctx);
-    if (hv && ctx.employee) {
+    if (hv) {
       const text = ctx.message.text.trim().slice(0, 2000);
       if (hv.kind === 'note') {
         await deps.handover.answer(
@@ -1398,6 +1405,7 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
   });
 
   bot.on('message:photo', async (ctx) => {
+    if (!guardEmployee(ctx)) return show(ctx, await buildHome(ctx));
     const largest = ctx.message.photo[ctx.message.photo.length - 1];
     const pending = await readPending(ctx);
     if (pending?.step === 'photo') {
@@ -1419,11 +1427,11 @@ export function createBot(token: string, deps: BotDeps): Bot<BotContext> {
       });
     }
     const rq = await readRq(ctx);
-    if (rq?.step === 'medical' && ctx.employee && largest) {
+    if (rq?.step === 'medical' && largest) {
       return submitRq(ctx, rq, { fileId: largest.file_id, uniqueId: largest.file_unique_id });
     }
     const hv = await readHv(ctx);
-    if (hv && ctx.employee && largest) {
+    if (hv && largest) {
       if (hv.kind === 'photo') {
         try {
           const view = await deps.handover.attachPhoto(
