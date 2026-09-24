@@ -108,3 +108,10 @@ owner appends after merging work; parallel agents return proposed entries instea
   "equipment" into scope. See `specs/014-equipment-maintenance/` and ADR-0018 (proposed).
 - Unresolved (owner): D-1 meter hours now or later, D-2 `CHIEF_MECHANIC` role, D-3 who accepts
   planned maintenance. Pilot machines: NEWTOP FB100S, FB158S, 118DT (`pilot-equipment.md`).
+
+## 2026-09-24 — Equipment maintenance implemented
+
+- Owner asked to implement spec 014 as prototyped; ADR-0018 accepted. Domain, migration 0054, API,
+  worker timers, mechanic bot and panel section "Обслуживание" delivered on
+  `claude/busy-mayer-6jmcpk`. D-1 calendar intervals only, D-2 `CHIEF_MECHANIC`, D-3 chief
+  mechanic or admin accepts. Deviations and verification: `docs/engineering/features/equipment-maintenance.md`.

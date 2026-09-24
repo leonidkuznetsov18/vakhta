@@ -46,7 +46,8 @@ Where Vakhta sits inside the category:
 | Workforce requests                                        | Yes: vacation, day off, sick leave, shift swap, extra shift, appeal    |
 | Performance and motivation                                | Yes: deterministic, versioned bonus rules with an audit trail          |
 | Reporting and audit                                       | Yes: six MVP reports, append-only events and audit log                 |
-| Orders, output, OEE, equipment                            | No (out of MVP scope)                                                  |
+| Equipment maintenance                                     | Yes: machine register, manuals, planned and emergency maintenance      |
+| Orders, output, OEE                                       | No (out of MVP scope)                                                  |
 | Payroll, ERP/MES/access-control, biometrics, AI decisions | No (out of MVP scope)                                                  |
 
 Reference products worth studying (for patterns, not for copying): Parsable (mobile guided work and

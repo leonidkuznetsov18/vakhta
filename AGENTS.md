@@ -251,4 +251,4 @@ Do not add duplicate announcements or send manual group messages without an expl
 
 ## Out of MVP scope
 
-Orders, output, OEE, equipment, payroll, ERP/MES/access-control integrations, biometrics, AI decisions. Do not add without a separate decision.
+Orders, output, OEE, equipment beyond maintenance (ADR-0018), payroll, ERP/MES/access-control integrations, biometrics, AI decisions. Do not add without a separate decision.

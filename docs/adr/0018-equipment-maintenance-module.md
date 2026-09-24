@@ -1,6 +1,6 @@
 # ADR-0018: Equipment maintenance as a tenant module with work orders beside incidents
 
-- Status: proposed
+- Status: accepted (2026-09-24, the owner asked to implement spec 014)
 - Date: 2026-09-24
 - Spec sources: owner request 2026-09-24; customer document «ТЗ обслуживание и ремонт оборудования»
   v1.3 (TZ-M) §1, §5, §14, §18–19, §23; `specs/014-equipment-maintenance/`
